@@ -103,3 +103,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .btn {
+    @apply inline-block px-4 py-2 font-bold uppercase border-2 border-primary hover:bg-primary hover:text-primary-foreground transition-colors;
+  }
+
+  .btn-outline {
+    @apply inline-block px-4 py-2 font-bold uppercase bg-transparent border-2 border-primary hover:bg-primary hover:text-[rgb(var(--primary-foreground))] transition-colors;
+  }
+
+  .input {
+    @apply w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black;
+  }
+
+  .select {
+    @apply w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black;
+  }
+
+  .textarea {
+    @apply w-full px-4 py-2 border-2 border-black focus:outline-none focus:ring-2 focus:ring-black;
+  }
+
+  .card {
+    @apply border-2 border-border p-4 bg-card text-card-foreground;
+  }
+
+  .grid-container {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .brutalist-table {
+    @apply w-full border-2 border-black;
+  }
+
+  .brutalist-table th {
+    @apply border-2 border-black bg-black text-white p-2 text-left;
+  }
+
+  .brutalist-table td {
+    @apply border-2 border-black p-2;
+  }
+}

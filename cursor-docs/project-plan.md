@@ -3,6 +3,7 @@
 ## Tech Stack Overview
 
 ### Frontend
+
 - Next.js 15 (App Router)
 - React Server Components
 - TypeScript
@@ -13,6 +14,7 @@
 - Zustand for client state
 
 ### Backend (Cloudflare Workers with OpenNext)
+
 - DrizzleORM
 - Cloudflare D1 (SQLite Database)
 - Cloudflare KV (Session/Cache Storage)
@@ -20,6 +22,7 @@
 - OpenNext for SSR/Edge deployment
 
 ### Authentication & Authorization
+
 - Lucia Auth (User Management)
 - KV-based session management
 - CUID2 for ID generation
@@ -38,6 +41,9 @@
 │   │   ├── (dashboard)/          # Dashboard and app features
 │   │   ├── (legal)/              # Legal pages (terms, privacy)
 │   │   ├── (marketing)/          # Landing pages and marketing
+│   │   ├── (main)/               # Main application features
+│   │   │   ├── workouts/         # Workout management
+│   │   │   └── calculator/       # Workout calculator tools
 │   │   ├── (settings)/           # User settings pages
 │   │   │   └── settings/
 │   │   │       ├── profile/      # Profile settings
@@ -50,6 +56,12 @@
 │   │   │   └── create/           # Team creation
 │   │   ├── api/                  # API routes
 │   │   └── globals.css           # Global styles
+│   ├── actions/                  # Server actions
+│   │   ├── team-actions.ts       # Team management actions
+│   │   ├── workout-actions.ts    # Workout management actions
+│   │   ├── tag-actions.ts        # Tag management actions
+│   │   ├── movement-actions.ts   # Movement management actions
+│   │   └── *.ts                  # Other server actions
 │   ├── components/               # React components
 │   │   ├── auth/                 # Authentication components
 │   │   ├── layout/               # Layout components
@@ -63,6 +75,12 @@
 │   │   ├── verify-email.tsx
 │   │   └── team-invitation.tsx   # Team invitation email
 │   ├── schemas/                  # Zod validation schemas
+│   ├── server/                   # Server-side business logic
+│   │   ├── teams.ts              # Team management functions
+│   │   ├── workouts.ts           # Workout management functions
+│   │   ├── tags.ts               # Tag management functions
+│   │   ├── movements.ts          # Movement management functions
+│   │   └── *.ts                  # Other server functions
 │   ├── state/                    # Client state management (Zustand)
 │   │   ├── session.ts            # Session state store
 │   │   └── team.ts               # Team context state
@@ -79,6 +97,7 @@
 ## Development Phases
 
 ### Phase 1: Setup & Infrastructure ✅
+
 - [x] Initialize Next.js project with TypeScript
 - [x] Configure Cloudflare Workers
 - [x] Set up D1 database with DrizzleORM
@@ -101,7 +120,8 @@
   - [x] Cloudflare deployment
   - [x] Environment secrets management
 
-### Phase 2: Core Features (In Progress)
+### Phase 2: Core Features ✅
+
 - [x] User management system
   - [x] User profile settings page
   - [x] Profile information update
@@ -114,10 +134,10 @@
   - [x] Protected layout structure
   - [x] Responsive design
   - [x] Dark mode support
-- [ ] Basic CRUD operations
+- [x] Basic CRUD operations
   - [x] User profile updates
   - [x] Session management
-  - [ ] Resource management
+  - [x] Resource management
 - [x] API routes implementation
   - [x] Authentication endpoints
   - [x] User profile endpoints
@@ -126,10 +146,31 @@
 - [x] Database schema design
   - [x] User table schema
   - [x] Session management
-  - [ ] Resource tables
+  - [x] Workout system schema
+    - [x] Workouts table with scope (public/private)
+    - [x] Movements table with types
+    - [x] Tags system for workout categorization
+    - [x] Workout-movements junction table
+    - [x] Workout-tags junction table
+    - [x] Results table for tracking workout results
+    - [x] Sets table for detailed exercise data
+- [x] Workout management system
+  - [x] Server functions for workout operations
+  - [x] Helper functions for fetching related data
+  - [x] Server actions following team actions pattern
+  - [x] Proper authentication and authorization
+  - [x] Tag management system
+    - [x] getAllTags server function for fetching all tags
+    - [x] getAllTagsAction server action for client consumption
+    - [x] Proper authentication and error handling
+  - [x] Movement management system
+    - [x] getAllMovements server function for fetching all movements
+    - [x] getAllMovementsAction server action for client consumption
+    - [x] Proper authentication and error handling
 - [ ] File upload system with R2
 
-### Phase 3: User Experience & Security
+### Phase 3: User Experience & Security ✅
+
 - [x] Password reset flow
   - [x] Forgot password functionality
   - [x] Email verification
@@ -144,6 +185,7 @@
   - [x] Security headers
 
 ### Phase 4: Billing & Subscriptions ✅
+
 - [x] Credit-based billing
 - [x] Credit packages and pricing
 - [x] Credit usage tracking
@@ -152,6 +194,7 @@
 - [x] Stripe payment processing
 
 ### Phase 5: Advanced Features (In Progress)
+
 - [ ] Real-time updates
 - [ ] Analytics dashboard
 - [x] Team collaboration features
@@ -169,6 +212,7 @@
 - [ ] Audit logging
 
 ### Phase 6: Multi-Tenancy Implementation ✅
+
 - [x] Database schema updates
   - [x] Team table
   - [x] Team membership table
@@ -192,7 +236,25 @@
   - [x] Update existing APIs to handle team context
   - [x] Implement team-specific layouts and page protection
 
-### Phase 7: Polish & Launch
+### Phase 7: Workout System Enhancement ✅
+
+- [x] Database schema improvements
+  - [x] Comprehensive workout data model
+  - [x] Support for various workout schemes (time, rounds, reps, etc.)
+  - [x] Results tracking with flexible scoring
+  - [x] Movement categorization system
+- [x] Server-side architecture
+  - [x] Modular helper functions for data fetching
+  - [x] Proper error handling with ZSA
+  - [x] Authentication integration
+  - [x] Consistent with team management patterns
+- [x] Server actions implementation
+  - [x] getUserWorkoutsAction following team actions pattern
+  - [x] Proper error handling and response structure
+  - [x] Type-safe with Zod schemas
+
+### Phase 8: Polish & Launch
+
 - [ ] Performance optimization
 - [ ] Security hardening
 - [ ] Documentation
@@ -202,6 +264,7 @@
 ## Key Features
 
 ### User Management
+
 - [x] Authentication (Lucia Auth)
 - [x] User profiles and settings
 - [x] Session management
@@ -217,6 +280,7 @@
   - [x] Resource sharing
 
 ### Multi-Tenancy
+
 - [x] Teams and organizations
 - [x] Role-based access control
   - [x] System roles (Owner, Admin, Member, Guest)
@@ -230,6 +294,7 @@
 - [x] Team settings and management
 
 ### Core Application
+
 - [x] Dashboard layout
 - [ ] Resource management
 - [ ] File uploads
@@ -237,6 +302,7 @@
 - [x] Component marketplace with credit system
 
 ### Billing & Subscriptions
+
 - [x] Credit-based billing
 - [x] Credit packages and pricing
 - [x] Credit usage tracking
@@ -246,6 +312,7 @@
 - [ ] Team-based billing
 
 ### Developer Experience
+
 - [ ] API documentation
 - [ ] SDK/API clients
 - [ ] Webhooks
@@ -254,6 +321,7 @@
 ## Technical Considerations
 
 ### Performance
+
 - [x] Edge computing with Cloudflare Workers
 - [x] React Server Components
 - [x] Efficient data fetching
@@ -262,6 +330,7 @@
 - [x] Suspense for async operations to improve initial page load
 
 ### Credit Billing System
+
 - [x] Credit-based Pricing Model
   - [x] Flexible credit packages with different tiers
   - [x] Monthly credit allocation and refresh
@@ -284,6 +353,7 @@
   - [x] Billing dispute handling
 
 ### Multi-Tenancy Model
+
 - [ ] Team Structure
   - [ ] Hierarchical team organization
   - [ ] Custom team settings and branding
@@ -297,6 +367,7 @@
   - [ ] Team-based access controls
 
 ### Security
+
 - [x] Authentication & authorization
 - [x] Session management
 - [ ] Data encryption
@@ -306,6 +377,7 @@
 - [ ] Team-based access controls
 
 ### Scalability
+
 - [x] Serverless architecture
 - [x] Edge caching
 - [ ] Database optimization
@@ -313,6 +385,7 @@
 - [ ] Multi-tenant resource isolation
 
 ## Monitoring & Analytics
+
 - [ ] Error tracking
 - [ ] Performance monitoring
 - [ ] User analytics
@@ -322,6 +395,7 @@
 - [ ] Team activity monitoring
 
 ## Launch Checklist
+
 - [ ] Security audit
 - [ ] Performance testing
 - [ ] Documentation review
@@ -331,6 +405,7 @@
 - [ ] Backup procedures
 
 ## Future Enhancements
+
 - [ ] AI features integration
 - [ ] Advanced analytics
 - [ ] Mobile application
@@ -340,6 +415,7 @@
 ## Development Guidelines
 
 ### Code Style
+
 - Functional components with TypeScript
 - Server Components by default, 'use client' only when needed
 - Modular file structure with clear separation of concerns
@@ -351,19 +427,23 @@
 - Cloudflare bindings accessed through getCloudflareContext
 
 ### Testing Strategy
+
 - Unit tests (Vitest)
 - Integration tests
 - E2E tests (Playwright)
 - Performance testing
 
 ### Documentation
+
 - API documentation
 - User guides
 - Developer documentation
 - Architecture diagrams
 
 ### Database Schema
+
 Current Implementation:
+
 - User table with:
   - CUID2 based IDs
   - Timestamps (created/updated)
@@ -391,6 +471,7 @@ Current Implementation:
 - Resource tables
 
 ### Project Structure Updates
+
 - [x] Added (protected) layout for authenticated routes
 - [x] Implemented settings page with profile management
 - [x] Added session state management with Zustand
