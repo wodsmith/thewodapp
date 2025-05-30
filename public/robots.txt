@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /api/og/*
+Disallow: /api/auth/* # Disallow auth routes as an example
+
+Sitemap: /sitemap.xml # Assuming a sitemap might exist or be added later 
