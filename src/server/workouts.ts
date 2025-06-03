@@ -199,50 +199,143 @@ export async function createWorkout({
       id: `workout_${createId()}`,
       name: workout.name,
       description: workout.description,
-      scope: workout.scope,
       scheme: workout.scheme,
+      scope: workout.scope,
       repsPerRound: workout.repsPerRound,
       roundsToScore: workout.roundsToScore,
-      userId,
       sugarId: workout.sugarId,
       tiebreakScheme: workout.tiebreakScheme,
       secondaryScheme: workout.secondaryScheme,
+      userId,
       createdAt: workout.createdAt,
-      updatedAt: workout.createdAt,
+      updatedAt: new Date(),
+      updateCounter: 0,
     })
-    .returning();
+    .returning()
+    .get();
 
-  const createdWorkout = newWorkout?.[0];
-
-  if (!createdWorkout) {
-    throw new ZSAError("ERROR", "Could not create workout");
-  }
-
-  const workoutId = createdWorkout.id;
-
-  // Create workout-tag associations
+  // Insert workout-tag relationships
   if (tagIds.length > 0) {
-    const workoutTagValues = tagIds.map((tagId) => ({
-      id: `wt_${createId()}`,
-      workoutId,
-      tagId,
-    }));
-    await db.insert(workoutTags).values(workoutTagValues);
+    await db.insert(workoutTags).values(
+      tagIds.map((tagId) => ({
+        id: `workout_tag_${createId()}`,
+        workoutId: newWorkout.id,
+        tagId,
+      }))
+    );
   }
 
-  // Create workout-movement associations
+  // Insert workout-movement relationships
   if (movementIds.length > 0) {
-    const workoutMovementValues = movementIds.map((movementId) => ({
-      id: `wm_${createId()}`,
-      workoutId,
-      movementId,
-    }));
-    await db.insert(workoutMovements).values(workoutMovementValues);
+    await db.insert(workoutMovements).values(
+      movementIds.map((movementId) => ({
+        id: `workout_movement_${createId()}`,
+        workoutId: newWorkout.id,
+        movementId,
+      }))
+    );
   }
+
+  return newWorkout;
+}
+
+/**
+ * Get a single workout by ID with its tags and movements
+ */
+export async function getWorkoutById(id: string) {
+  const db = getDB();
+
+  const workout = await db
+    .select()
+    .from(workouts)
+    .where(eq(workouts.id, id))
+    .get();
+
+  if (!workout) return null;
+
+  const workoutTagRows = await db
+    .select()
+    .from(workoutTags)
+    .where(eq(workoutTags.workoutId, id));
+  const tagIds = workoutTagRows.map((wt) => wt.tagId);
+  const tagObjs = tagIds.length
+    ? await db.select().from(tags).where(inArray(tags.id, tagIds))
+    : [];
+
+  const workoutMovementRows = await db
+    .select()
+    .from(workoutMovements)
+    .where(eq(workoutMovements.workoutId, id));
+  const movementIds = workoutMovementRows
+    .map((wm) => wm.movementId)
+    .filter((id): id is string => id !== null);
+  const movementObjs = movementIds.length
+    ? await db
+        .select()
+        .from(movements)
+        .where(inArray(movements.id, movementIds))
+    : [];
 
   return {
-    id: workoutId,
-    name: workout.name,
-    description: workout.description,
+    ...workout,
+    tags: tagObjs,
+    movements: movementObjs,
   };
+}
+
+/**
+ * Update a workout with tags and movements
+ */
+export async function updateWorkout({
+  id,
+  workout,
+  tagIds,
+  movementIds,
+}: {
+  id: string;
+  workout: Partial<
+    Pick<
+      Workout,
+      | "name"
+      | "description"
+      | "scheme"
+      | "scope"
+      | "repsPerRound"
+      | "roundsToScore"
+    >
+  >;
+  tagIds: string[];
+  movementIds: string[];
+}) {
+  const db = getDB();
+
+  await db
+    .update(workouts)
+    .set({
+      ...workout,
+      updatedAt: new Date(),
+    })
+    .where(eq(workouts.id, id));
+
+  await db.delete(workoutTags).where(eq(workoutTags.workoutId, id));
+  await db.delete(workoutMovements).where(eq(workoutMovements.workoutId, id));
+
+  if (tagIds.length) {
+    await db.insert(workoutTags).values(
+      tagIds.map((tagId) => ({
+        id: `workout_tag_${createId()}`,
+        workoutId: id,
+        tagId,
+      }))
+    );
+  }
+  if (movementIds.length) {
+    await db.insert(workoutMovements).values(
+      movementIds.map((movementId) => ({
+        id: `workout_movement_${createId()}`,
+        workoutId: id,
+        movementId,
+      }))
+    );
+  }
 }

@@ -1,66 +1,64 @@
 "use client";
 
-import { Movement } from "@/db/schema";
-import { Workout } from "@/db/schema";
-import { Tag } from "@/db/schema";
-import { ArrowLeft, Plus } from "lucide-react";
+import type { Prettify } from "@/lib/utils";
+import type {
+  Movement,
+  Tag,
+  Workout,
+  WorkoutUpdate,
+  WorkoutWithTagsAndMovements,
+} from "@/types";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-interface Props {
+type Props = Prettify<{
+  workout: WorkoutWithTagsAndMovements;
   movements: Movement[];
   tags: Tag[];
-  createWorkoutAction: (data: {
-    workout: Omit<
-      Workout,
-      | "createdAt"
-      | "updatedAt"
-      | "updateCounter"
-      | "userId"
-      | "tiebreakScheme"
-      | "secondaryScheme"
-      | "sugarId"
-    >;
-    tagIds: Tag["id"][];
-    movementIds: Movement["id"][];
+  workoutId: string;
+  updateWorkoutAction: (data: {
+    id: string;
+    workout: WorkoutUpdate;
+    tagIds: string[];
+    movementIds: string[];
   }) => Promise<void>;
-}
-
-export default function CreateWorkoutClient({
+}>;
+type TagWithoutSaved = Omit<Tag, "createdAt" | "updatedAt" | "updateCounter">;
+export default function EditWorkoutClient({
+  workout,
   movements,
   tags: initialTags,
-  createWorkoutAction,
+  workoutId,
+  updateWorkoutAction,
 }: Props) {
-  const [tags, setTags] = useState<Tag[]>(initialTags);
-  const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [name, setName] = useState(workout?.name || "");
+  const [description, setDescription] = useState(workout?.description || "");
+  const [scheme, setScheme] = useState<WorkoutUpdate["scheme"]>(
+    workout?.scheme
+  );
+  const [scope, setScope] = useState(workout?.scope || "private");
+  const [tags, setTags] = useState<TagWithoutSaved[]>(initialTags);
+  const [selectedMovements, setSelectedMovements] = useState<string[]>(
+    (workout?.movements || []).map((m: Movement) => m.id)
+  );
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    (workout?.tags || []).map((t: TagWithoutSaved | string) =>
+      typeof t === "string" ? t : t.id
+    )
+  );
   const [newTag, setNewTag] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [scheme, setScheme] = useState<Workout["scheme"]>();
-  const [scope, setScope] = useState<Workout["scope"]>("private");
-  const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
-    undefined
-  );
   const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
-    undefined
+    workout?.repsPerRound === null ? undefined : workout?.repsPerRound
   );
-  const router = useRouter();
+  const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
+    workout?.roundsToScore === null ? 1 : workout?.roundsToScore || 1
+  );
 
   const handleAddTag = () => {
     if (newTag && !tags.some((t) => t.name === newTag)) {
       const id = crypto.randomUUID();
-      setTags([
-        ...tags,
-        {
-          id,
-          name: newTag,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          updateCounter: null,
-        },
-      ]);
+      setTags([...tags, { id, name: newTag }]);
       setSelectedTags([...selectedTags, id]);
       setNewTag("");
     }
@@ -88,52 +86,49 @@ export default function CreateWorkoutClient({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const workoutId = crypto.randomUUID();
-
-    if (!scheme) throw new Error("Must provide a workout scheme");
-
-    await createWorkoutAction({
+    await updateWorkoutAction({
+      id: workoutId,
       workout: {
-        id: workoutId,
         name,
         description,
         scheme,
         scope,
-        roundsToScore: roundsToScore ?? null,
-        repsPerRound: repsPerRound ?? null,
+        repsPerRound: repsPerRound === undefined ? null : repsPerRound,
+        roundsToScore: roundsToScore === undefined ? null : roundsToScore,
       },
       tagIds: selectedTags,
       movementIds: selectedMovements,
     });
-    router.push(`/workouts/${workoutId}`);
   };
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/workouts" className="btn-outline p-2">
+          <Link href={`/workouts/${workoutId}`} className="btn-outline p-2">
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h1>CREATE WORKOUT</h1>
+          <h1>EDIT WORKOUT</h1>
         </div>
       </div>
 
-      <form className="border-2 border-black p-6" onSubmit={handleSubmit}>
+      <form
+        className="border-2 border-black p-6 dark:border-white"
+        onSubmit={handleSubmit}
+      >
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-6">
             <div>
               <label
-                htmlFor="workoutName"
+                htmlFor="workout-name"
                 className="mb-2 block font-bold uppercase"
               >
                 Workout Name
               </label>
               <input
-                id="workoutName"
+                id="workout-name"
                 type="text"
                 className="input"
-                placeholder="e.g., Fran, Cindy, Custom WOD"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -142,16 +137,15 @@ export default function CreateWorkoutClient({
 
             <div>
               <label
-                htmlFor="description"
+                htmlFor="workout-description"
                 className="mb-2 block font-bold uppercase"
               >
                 Description
               </label>
               <textarea
-                id="description"
+                id="workout-description"
                 className="textarea"
-                rows={4}
-                placeholder="Describe the workout (e.g., 21-15-9 reps for time of Thrusters and Pull-ups)"
+                rows={10}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
@@ -160,16 +154,18 @@ export default function CreateWorkoutClient({
 
             <div>
               <label
-                htmlFor="scheme"
+                htmlFor="workout-scheme"
                 className="mb-2 block font-bold uppercase"
               >
                 Scheme
               </label>
               <select
-                id="scheme"
+                id="workout-scheme"
                 className="select"
                 value={scheme}
-                onChange={(e) => setScheme(e.target.value as Workout["scheme"])}
+                onChange={(e) =>
+                  setScheme(e.target.value as WorkoutUpdate["scheme"])
+                }
                 required
               >
                 <option value="">Select a scheme</option>
@@ -186,11 +182,14 @@ export default function CreateWorkoutClient({
             </div>
 
             <div>
-              <label htmlFor="scope" className="mb-2 block font-bold uppercase">
+              <label
+                htmlFor="workout-scope"
+                className="mb-2 block font-bold uppercase"
+              >
                 Scope
               </label>
               <select
-                id="scope"
+                id="workout-scope"
                 className="select"
                 value={scope}
                 onChange={(e) => setScope(e.target.value as Workout["scope"])}
@@ -203,58 +202,58 @@ export default function CreateWorkoutClient({
 
             <div>
               <label
-                htmlFor="roundsToScore"
+                htmlFor="reps-per-round"
+                className="mb-2 block font-bold uppercase"
+              >
+                Reps Per Round
+              </label>
+              <input
+                id="reps-per-round"
+                type="number"
+                className="input"
+                value={repsPerRound === undefined ? "" : repsPerRound}
+                onChange={(e) =>
+                  setRepsPerRound(
+                    e.target.value === ""
+                      ? undefined
+                      : Number.parseInt(e.target.value)
+                  )
+                }
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="rounds-to-score"
                 className="mb-2 block font-bold uppercase"
               >
                 Rounds to Score
               </label>
               <input
-                id="roundsToScore"
+                id="rounds-to-score"
                 type="number"
                 className="input"
-                placeholder="e.g., 4 (default is 1)"
                 value={roundsToScore === undefined ? "" : roundsToScore}
                 onChange={(e) =>
                   setRoundsToScore(
-                    e.target.value ? Number.parseInt(e.target.value) : undefined
+                    e.target.value === ""
+                      ? undefined
+                      : Number.parseInt(e.target.value)
                   )
                 }
-                min="0"
               />
             </div>
 
             <div>
               <label
-                htmlFor="repsPerRound"
-                className="mb-2 block font-bold uppercase"
-              >
-                Reps per Round (if applicable)
-              </label>
-              <input
-                id="repsPerRound"
-                type="number"
-                className="input"
-                placeholder="e.g., 10"
-                value={repsPerRound === undefined ? "" : repsPerRound}
-                onChange={(e) =>
-                  setRepsPerRound(
-                    e.target.value ? Number.parseInt(e.target.value) : undefined
-                  )
-                }
-                min="0"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="tagsInput"
+                htmlFor="add-tag-input"
                 className="mb-2 block font-bold uppercase"
               >
                 Tags
               </label>
               <div className="mb-2 flex gap-2">
                 <input
-                  id="tagsInput"
+                  id="add-tag-input"
                   type="text"
                   className="input flex-1"
                   placeholder="Add a tag"
@@ -277,14 +276,32 @@ export default function CreateWorkoutClient({
                   <button
                     type="button"
                     key={tag.id}
-                    onClick={() => handleTagToggle(tag.id)}
-                    className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
+                    className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 text-left ${
                       selectedTags.includes(tag.id) ? "bg-black text-white" : ""
                     }`}
+                    onClick={() => handleTagToggle(tag.id)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ")
+                        handleTagToggle(tag.id);
+                    }}
                   >
                     <span className="mr-2">{tag.name}</span>
                     {selectedTags.includes(tag.id) && (
-                      <span className="text-xs">✓</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveTag(tag.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ")
+                            handleRemoveTag(tag.id);
+                        }}
+                        className="text-red-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     )}
                   </button>
                 ))}
@@ -294,33 +311,30 @@ export default function CreateWorkoutClient({
 
           <div>
             <label
-              htmlFor="movementsInput"
+              htmlFor="movements-list"
               className="mb-2 block font-bold uppercase"
             >
               Movements
             </label>
-            <div className="h-[500px] overflow-y-auto border-2 border-black p-4">
+            <div
+              id="movements-list"
+              className="h-[500px] overflow-y-auto border-2 border-black p-4"
+            >
               <div className="space-y-2">
                 {movements.map((movement) => (
                   <button
-                    key={movement.id}
                     type="button"
-                    onClick={() => handleMovementToggle(movement.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ")
-                        handleMovementToggle(movement.id);
-                    }}
-                    className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
+                    key={movement.id}
+                    className={`w-full border-2 p-3 text-left ${
                       selectedMovements.includes(movement.id)
-                        ? "bg-black text-white"
-                        : ""
-                    }`}
+                        ? "border-black bg-black text-white"
+                        : "border-gray-300"
+                    } cursor-pointer`}
+                    onClick={() => handleMovementToggle(movement.id)}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold">{movement.name}</span>
-                      {selectedMovements.includes(movement.id) && (
-                        <span className="text-xs">✓</span>
-                      )}
+                      <span className="text-xs uppercase">{movement.type}</span>
                     </div>
                   </button>
                 ))}
@@ -330,11 +344,11 @@ export default function CreateWorkoutClient({
         </div>
 
         <div className="mt-6 flex justify-end gap-4">
-          <Link href="/workouts" className="btn-outline">
+          <Link href={`/workouts/${workoutId}`} className="btn-outline">
             Cancel
           </Link>
           <button type="submit" className="btn">
-            Create Workout
+            Save Changes
           </button>
         </div>
       </form>

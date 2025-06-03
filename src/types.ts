@@ -1,8 +1,28 @@
 import type { KVSession } from "./utils/kv-session";
+import type { Workout, Movement, Tag, Result, Set } from "@/db/schema";
 
-export type SessionValidationResult =
-  | KVSession
-  | null;
+export type SessionValidationResult = KVSession | null;
+
+// Workout related types
+export type WorkoutResult = Result;
+export type ResultSet = Set;
+
+export type WorkoutWithTagsAndMovements = Workout & {
+  tags: Tag[];
+  movements: Movement[];
+};
+
+export type WorkoutUpdate = Partial<
+  Pick<
+    Workout,
+    | "name"
+    | "description"
+    | "scheme"
+    | "scope"
+    | "repsPerRound"
+    | "roundsToScore"
+  >
+>;
 
 export interface ParsedUserAgent {
   ua: string;
@@ -33,3 +53,6 @@ export interface SessionWithMeta extends KVSession {
   userAgent?: string | null;
   parsedUserAgent?: ParsedUserAgent;
 }
+
+// Re-export common types for convenience
+export type { Workout, Movement, Tag } from "@/db/schema";
