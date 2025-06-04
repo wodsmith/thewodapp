@@ -4,8 +4,7 @@ import Link from "next/link";
 import WorkoutControls from "./_components/WorkoutControls";
 import { getSessionFromCookie } from "@/utils/auth";
 import { getUserWorkoutsAction } from "@/actions/workout-actions";
-import { Workout } from "@/db/schema";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://spicywod.com"),
@@ -34,8 +33,15 @@ export default async function WorkoutsPage({
 }) {
   const session = await getSessionFromCookie();
 
+  if (!session || !session?.user?.id) {
+    console.log("[workouts/page] No user found");
+    redirect("/login");
+  }
+
   const mySearchParams = await searchParams;
-  const [result, error] = await getUserWorkoutsAction();
+  const [result, error] = await getUserWorkoutsAction({
+    userId: session.user.id,
+  });
 
   if (error || !result?.success) {
     return notFound();

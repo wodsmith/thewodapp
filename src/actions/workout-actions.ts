@@ -80,20 +80,29 @@ export const createWorkoutAction = createServerAction()
 /**
  * Get all workouts for the current user
  */
-export const getUserWorkoutsAction = createServerAction().handler(async () => {
-  try {
-    const workouts = await getUserWorkouts();
-    return { success: true, data: workouts };
-  } catch (error) {
-    console.error("Failed to get user workouts:", error);
+export const getUserWorkoutsAction = createServerAction()
+  .input(
+    z.object({
+      userId: z.string().min(1, "User ID is required"),
+    })
+  )
+  .handler(async ({ input }) => {
+    try {
+      const workouts = await getUserWorkouts(input);
+      return { success: true, data: workouts };
+    } catch (error) {
+      console.error("Failed to get user workouts:", error);
 
-    if (error instanceof ZSAError) {
-      throw error;
+      if (error instanceof ZSAError) {
+        throw error;
+      }
+
+      throw new ZSAError(
+        "INTERNAL_SERVER_ERROR",
+        "Failed to get user workouts"
+      );
     }
-
-    throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get user workouts");
-  }
-});
+  });
 
 /**
  * Get a single workout by ID

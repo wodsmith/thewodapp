@@ -7,6 +7,20 @@ export type SessionValidationResult = KVSession | null;
 export type WorkoutResult = Result;
 export type ResultSet = Set;
 
+export type WorkoutResultWithWorkoutName = Result & {
+  workoutName?: string;
+};
+
+export type ResultSetInput = {
+  setNumber: number;
+  reps?: number | null;
+  weight?: number | null;
+  status?: "pass" | "fail" | null;
+  distance?: number | null;
+  time?: number | null;
+  score?: number | null;
+};
+
 export type WorkoutWithTagsAndMovements = Workout & {
   tags: Tag[];
   movements: Movement[];
