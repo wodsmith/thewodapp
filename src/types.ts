@@ -8,8 +8,12 @@ export type WorkoutResult = Result;
 export type ResultSet = Set;
 
 export type WorkoutWithTagsAndMovements = Workout & {
-  tags: Tag[];
-  movements: Movement[];
+  tags: Pick<Tag, "id" | "name">[];
+  movements: {
+    id: Movement["id"];
+    name: Movement["name"];
+    type: "monostructural" | "weightlifting" | "gymnastic";
+  }[];
 };
 
 export type WorkoutUpdate = Partial<

@@ -477,6 +477,8 @@ export const passKeyCredentialRelations = relations(
   })
 );
 
+
+export const MOVEMENT_TYPE_VALUES = ["weightlifting", "gymnastic", "monostructural"] as const;
 export const movements = sqliteTable("movements", {
   ...commonColumns,
   id: text("id").primaryKey(),

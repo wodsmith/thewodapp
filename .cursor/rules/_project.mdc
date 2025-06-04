@@ -1,0 +1,136 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# TheWodApp - Project Rules
+
+## 1. Project Overview
+
+goal: A comprehensive SaaS template for Cloudflare Workers featuring workout management, team collaboration, and credit-based billing. Provides a complete foundation for building fitness and workout tracking applications with modern web technologies.
+type: Web Application (SaaS Template)
+key features:
+- Workout and movement management system
+- Team collaboration and multi-tenancy
+- Credit-based billing with Stripe integration
+- Authentication with multiple providers (email, WebAuthn, Google OAuth)
+
+## 2. Technology Stack
+
+language(s): TypeScript 5.8 (from tsconfig.json with strict mode enabled)
+framework(s): Next.js 15 (App Router with experimental typedRoutes - from next.config.mjs), React 19 (from package.json)
+ui library/styling: Tailwind CSS v3.4 (tailwind.config.ts), Shadcn UI (components.json with Radix UI), HeroUI v2.7 (package.json), Lucide Icons (package.json)
+database(s): Cloudflare D1 (SQLite) via DrizzleORM v0.39 (drizzle.config.ts, package.json)
+state management: Zustand v5.0 (package.json for client state), NUQS v2.4 (package.json for URL state management)
+api layer: REST via Next.js API Routes and Server Actions with ZSA (Zod Server Actions)
+key libraries:
+- `drizzle-orm` v0.39 for type-safe database operations
+- `zod` v3.25 for validation schemas
+- `zsa` and `zsa-react` for type-safe server actions
+- `lucia-auth` via `arctic` v3.1 for authentication
+- `date-fns` v4.1 for date manipulation
+- `stripe` v17.7 for payment processing
+
+## 3. Project Structure
+
+main source directory: src/
+core directories:
+- app/: Next.js App Router with route groups (auth), (dashboard), (main), (settings), (legal), (marketing)
+- actions/: Server actions for data mutations
+- components/: Reusable UI components with ui/ subdirectory for Shadcn components
+- db/: Database schema and migrations using DrizzleORM
+- server/: Server-side business logic functions
+- utils/: Shared utility functions including auth.ts and kv-session.ts
+- state/: Zustand stores for client state management
+- schemas/: Zod validation schemas
+- react-email/: Email templates using React Email
+diagram/link: [N/A]
+
+## 4. Coding Standards & Conventions
+
+language usage: Strict TypeScript mode (tsconfig.json `strict: true`), prefer functional components, use async/await, avoid `any` type, use server-only imports for server components
+naming conventions:
+- files/folders: kebab-case for directories, PascalCase for React components
+- components: PascalCase (React components)
+- variables/functions: camelCase
+- types/interfaces: PascalCase without prefix
+code style/formatting: ESLint with Next.js config (eslint.config.mjs), Next.js core-web-vitals and TypeScript rules
+comments: English only, minimal comments, JSDoc for public APIs
+imports: Absolute paths using @/ alias (tsconfig.json paths), grouped imports (React, third-party, local)
+
+## 5. Key Principles & Best Practices
+
+- Server Components First: Minimize 'use client', favor React Server Components (RSC)
+- Type Safety: Use TypeScript for all code, prefer interfaces over types
+- Performance: Optimize Web Vitals (LCP, CLS, FID), use dynamic loading for non-critical components
+- Security: Input sanitization, rate limiting, proper authentication checks
+- Database: Never use Drizzle ORM Transactions (Cloudflare D1 doesn't support them)
+- IDs: Never pass id when inserting/updating with Drizzle ORM (auto-generated)
+
+## 6. Testing
+
+framework: [Information not found in project context]
+types: [Information not found in project context]
+location: [Information not found in project context]
+coverage expectations: [N/A]
+
+## 7. Tooling & Workflow
+
+package manager: pnpm v9.12 (pnpm-lock.yaml, packageManager field in package.json)
+build command(s): `pnpm build`, `pnpm build:prod` (for Cloudflare deployment), `pnpm opennext:build`
+run command(s) (dev): `pnpm dev` (Next.js development server)
+version control: Git with conventional commits expected
+ci/cd: GitHub Actions (check .github/workflows/ directory) with Cloudflare Workers deployment
+ide recommendations: VS Code (check .vscode/extensions.json if present)
+
+## 8. Database / API Guidelines
+
+- Use DrizzleORM methods only, avoid direct SQL
+- Never use Drizzle ORM Transactions (Cloudflare D1 limitation)
+- Never pass id when inserting/updating (auto-generated with CUID2)
+- Use server actions with ZSA for type-safe API operations
+- Always validate inputs with Zod schemas
+- Implement proper authentication checks in server functions
+
+## 9. Specific Feature Rules
+
+### Authentication
+- Use Lucia Auth with KV session storage
+- Support multiple providers: email/password, WebAuthn, Google OAuth
+- Session management via `getSessionFromCookie` for server components
+- Client session access via `useSessionStore()` from `src/state/session.ts`
+
+### Next.js Link Components
+**CRITICAL: Always use object format for href when passing query parameters to prevent TypeScript errors**
+
+**Incorrect (causes TypeScript error):**
+```tsx
+<Link href={`/log/new?workoutId=${workout.id}&redirectUrl=/movements/${movement.id}`}>
+```
+
+**Correct (use object format):**
+```tsx
+<Link href={{
+  pathname: "/log/new",
+  query: {
+    workoutId: workout.id,
+    redirectUrl: `/movements/${movement.id}`
+  }
+}}>
+```
+
+### Server Actions
+- Always use `import { useServerAction } from "zsa-react"` for React server actions
+- Validate all inputs with Zod schemas
+- Include proper error handling and authentication checks
+
+### Database Operations
+- When using `db.insert().values()` never pass an id (auto-generated)
+- Use proper TypeScript types from schema definitions
+- Always handle errors gracefully
+
+## 10. Rule Referencing
+
+- See [react-rules.mdc](mdc:.cursor/rules/react-rules.mdc) for React-specific guidelines
+- Follow [always-project.mdc](mdc:.cursor/rules/always-project.mdc) for core development practices
+- Use [always-global.mdc](mdc:.cursor/rules/always-global.mdc) for global coding standards
