@@ -5,6 +5,15 @@ import WorkoutControls from "./_components/WorkoutControls";
 import { getUserWorkoutsAction } from "@/actions/workout-actions";
 import { notFound, redirect } from "next/navigation";
 import { requireVerifiedEmail } from "@/utils/auth";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://spicywod.com"),
@@ -104,13 +113,15 @@ export default async function WorkoutsPage({
     <div>
       <div className="mb-6 flex flex-col items-center justify-between sm:flex-row">
         <h1 className="mb-4">WORKOUTS</h1>
-        <Link
-          href="/workouts/new"
-          className="btn flex w-fit items-center gap-2"
-        >
-          <Plus className="h-5 w-5" />
-          Create Workout
-        </Link>
+        <Button asChild>
+          <Link
+            href="/workouts/new"
+            className="btn flex w-fit items-center gap-2"
+          >
+            <Plus className="h-5 w-5" />
+            Create Workout
+          </Link>
+        </Button>
       </div>
 
       {todaysWorkouts.length > 0 && (
@@ -127,18 +138,20 @@ export default async function WorkoutsPage({
                       {workout.name}
                     </h3>
                   </Link>
-                  <Link
-                    href={{
-                      pathname: "/log/new",
-                      query: {
-                        workoutId: workout.id,
-                        redirectUrl: "/workouts",
-                      },
-                    }}
-                    className="btn btn-primary btn-sm mb-2"
-                  >
-                    Log Result
-                  </Link>
+                  <Button asChild variant="secondary">
+                    <Link
+                      href={{
+                        pathname: "/log/new",
+                        query: {
+                          workoutId: workout.id,
+                          redirectUrl: "/workouts",
+                        },
+                      }}
+                      className="btn btn-primary btn-sm mb-2"
+                    >
+                      Log Result
+                    </Link>
+                  </Button>
                 </div>
                 <p className="mb-1 text-muted-foreground text-sm">
                   Created:{" "}
@@ -219,39 +232,39 @@ export default async function WorkoutsPage({
       <WorkoutControls allTags={allTags} allMovements={allMovements} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {workouts.map((workout) => (
-          <Link
-            key={workout.id}
-            href={`/workouts/${workout.id}`}
-            className="card flex min-h-[300px] flex-col justify-between transition-colors hover:bg-gray-50 dark:hover:bg-dark-accent"
-          >
-            <div className="">
-              <h3 className="mb-2">{workout.name}</h3>
-              <p className="mb-3 line-clamp-6 whitespace-pre-wrap text-sm">
-                {workout.description}
-              </p>
-            </div>
-            <div>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {workout.movements.map((movement) => (
-                  <span
-                    key={movement?.id || movement?.name}
-                    className="inline-block bg-black px-2 py-1 font-bold text-white text-xs dark:bg-dark-foreground dark:text-dark-background"
-                  >
-                    {movement?.name}
-                  </span>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {workout.tags.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="inline-block border border-black px-2 py-1 text-xs dark:border-dark-border dark:text-dark-foreground"
-                  >
-                    {tag.name}
-                  </span>
-                ))}
-              </div>
-            </div>
+          <Link key={workout.id} href={`/workouts/${workout.id}`}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="mb-2">{workout.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="mb-3 line-clamp-6 whitespace-pre-wrap text-sm">
+                  {workout.description}
+                </CardDescription>
+              </CardContent>
+              <CardFooter>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {workout.movements.map((movement) => (
+                    <span
+                      key={movement?.id || movement?.name}
+                      className="inline-block bg-black px-2 py-1 font-bold text-white text-xs dark:bg-dark-foreground dark:text-dark-background"
+                    >
+                      {movement?.name}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {workout.tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-block border border-black px-2 py-1 text-xs dark:border-dark-border dark:text-dark-foreground"
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              </CardFooter>
+            </Card>
           </Link>
         ))}
       </div>
