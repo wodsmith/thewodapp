@@ -2,7 +2,7 @@ import LogoutButton from "@/components/nav/logout-button";
 import MobileNav from "@/components/nav/mobile-nav";
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle";
 import { getSessionFromCookie } from "@/utils/auth";
-import { Dumbbell, User } from "lucide-react";
+import { User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 

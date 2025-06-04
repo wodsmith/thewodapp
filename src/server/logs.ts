@@ -14,7 +14,6 @@ import { requireVerifiedEmail } from "@/utils/auth";
 import { formatSecondsToTime, parseTimeScoreToSeconds } from "@/lib/utils";
 import { fromZonedTime } from "date-fns-tz";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 /**
  * Get all logs by user ID with workout names
@@ -551,10 +550,10 @@ export async function submitLogForm(
   userId: string,
   workouts: Workout[],
   formData: FormData
-): Promise<{ error?: string } | undefined> {
+) {
   const headerList = await headers();
   const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver";
-  const { selectedWorkoutId, dateStr, scaleValue, notesValue, redirectUrl } =
+  const { selectedWorkoutId, dateStr, scaleValue, notesValue } =
     parseBasicFormData(formData);
 
   console.log("[Action] Date:", dateStr);
@@ -636,7 +635,6 @@ export async function submitLogForm(
     scaleValue,
     finalWodScoreSummary,
     notesValue,
-    setsForDb,
-    redirectUrl
+    setsForDb
   );
 }

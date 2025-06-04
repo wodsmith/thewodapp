@@ -2,9 +2,9 @@ import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import WorkoutControls from "./_components/WorkoutControls";
-import { getSessionFromCookie } from "@/utils/auth";
 import { getUserWorkoutsAction } from "@/actions/workout-actions";
 import { notFound, redirect } from "next/navigation";
+import { requireVerifiedEmail } from "@/utils/auth";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://spicywod.com"),
@@ -31,7 +31,7 @@ export default async function WorkoutsPage({
 }: {
   searchParams?: Promise<{ search?: string; tag?: string; movement?: string }>;
 }) {
-  const session = await getSessionFromCookie();
+  const session = await requireVerifiedEmail();
 
   if (!session || !session?.user?.id) {
     console.log("[workouts/page] No user found");
@@ -128,7 +128,13 @@ export default async function WorkoutsPage({
                     </h3>
                   </Link>
                   <Link
-                    href={`/log/new?workoutId=${workout.id}&redirectUrl=/workouts`}
+                    href={{
+                      pathname: "/log/new",
+                      query: {
+                        workoutId: workout.id,
+                        redirectUrl: "/workouts",
+                      },
+                    }}
                     className="btn btn-primary btn-sm mb-2"
                   >
                     Log Result

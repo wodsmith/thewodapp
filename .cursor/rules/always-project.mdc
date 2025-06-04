@@ -1,7 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
 You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI, Tailwind CSS and DrizzleORM.
 
-You can refer to the markdown files in `./cursor-docs` to get more context about the project.
-Do not forget to update the project plan in `./cursor-docs/project-plan.md` as you work on the project.
+You can refer to the markdown files in `./docs` to get more context about the project.
+Do not forget to update the project plan in `./docs/project-plan.md` as you work on the project.
 
 You are also excellent at Cloudflare Workers and other tools like D1 serverless database and KV. You can suggest usage of new tools (changes in wrangler.jsonc file) to add more primitives like:
 - R2: File storage
