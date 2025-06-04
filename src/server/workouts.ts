@@ -138,15 +138,7 @@ async function fetchTodaysResultsByWorkoutId(
 /**
  * Get all workouts for the current user (public workouts + user's private workouts)
  */
-export async function getUserWorkouts() {
-  const session = await requireVerifiedEmail();
-
-  if (!session) {
-    throw new ZSAError("NOT_AUTHORIZED", "Not authenticated");
-  }
-
-  const userId = session.userId;
-
+export async function getUserWorkouts({ userId }: { userId: string }) {
   const db = getDB();
 
   // Base workouts and ids

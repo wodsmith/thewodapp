@@ -1,343 +1,423 @@
 "use client";
 
 import { Movement } from "@/db/schema";
-import { Workout } from "@/db/schema";
 import { Tag } from "@/db/schema";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useServerAction } from "zsa-react";
+import { createWorkoutAction } from "@/actions/workout-actions";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  createWorkoutSchema,
+  type CreateWorkoutSchema,
+} from "@/app/(main)/workouts/new/_components/create-workout.schema";
 
 interface Props {
   movements: Movement[];
   tags: Tag[];
-  createWorkoutAction: (data: {
-    workout: Omit<
-      Workout,
-      | "createdAt"
-      | "updatedAt"
-      | "updateCounter"
-      | "userId"
-      | "tiebreakScheme"
-      | "secondaryScheme"
-      | "sugarId"
-    >;
-    tagIds: Tag["id"][];
-    movementIds: Movement["id"][];
-  }) => Promise<void>;
+  userId: string;
 }
 
 export default function CreateWorkoutClient({
   movements,
   tags: initialTags,
-  createWorkoutAction,
+  userId,
 }: Props) {
   const [tags, setTags] = useState<Tag[]>(initialTags);
-  const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [scheme, setScheme] = useState<Workout["scheme"]>();
-  const [scope, setScope] = useState<Workout["scope"]>("private");
-  const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
-    undefined
-  );
-  const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
-    undefined
-  );
   const router = useRouter();
+
+  const form = useForm<CreateWorkoutSchema>({
+    resolver: zodResolver(createWorkoutSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      scheme: undefined,
+      scope: "private",
+      roundsToScore: undefined,
+      repsPerRound: undefined,
+      selectedMovements: [],
+      selectedTags: [],
+    },
+  });
+
+  const { execute: executeCreateWorkout } = useServerAction(
+    createWorkoutAction,
+    {
+      onError: (error) => {
+        console.error("Server action error:", error);
+        toast.error(
+          error.err?.message || "An error occurred creating the workout"
+        );
+      },
+      onSuccess: (result) => {
+        toast.success("Workout created successfully");
+        router.push(`/workouts/${result.data.id}`);
+      },
+    }
+  );
 
   const handleAddTag = () => {
     if (newTag && !tags.some((t) => t.name === newTag)) {
       const id = crypto.randomUUID();
-      setTags([
-        ...tags,
-        {
-          id,
-          name: newTag,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          updateCounter: null,
-        },
-      ]);
-      setSelectedTags([...selectedTags, id]);
+      const newTagObj = {
+        id,
+        name: newTag,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        updateCounter: null,
+      };
+      setTags([...tags, newTagObj]);
+
+      const currentSelectedTags = form.getValues("selectedTags");
+      form.setValue("selectedTags", [...currentSelectedTags, id]);
       setNewTag("");
     }
   };
 
-  const handleRemoveTag = (tagId: string) => {
-    setSelectedTags(selectedTags.filter((id) => id !== tagId));
-  };
-
   const handleMovementToggle = (movementId: string) => {
-    if (selectedMovements.includes(movementId)) {
-      setSelectedMovements(selectedMovements.filter((id) => id !== movementId));
+    const currentSelectedMovements = form.getValues("selectedMovements");
+    if (currentSelectedMovements.includes(movementId)) {
+      form.setValue(
+        "selectedMovements",
+        currentSelectedMovements.filter((id) => id !== movementId)
+      );
     } else {
-      setSelectedMovements([...selectedMovements, movementId]);
+      form.setValue("selectedMovements", [
+        ...currentSelectedMovements,
+        movementId,
+      ]);
     }
   };
 
   const handleTagToggle = (tagId: string) => {
-    if (selectedTags.includes(tagId)) {
-      setSelectedTags(selectedTags.filter((id) => id !== tagId));
+    const currentSelectedTags = form.getValues("selectedTags");
+    if (currentSelectedTags.includes(tagId)) {
+      form.setValue(
+        "selectedTags",
+        currentSelectedTags.filter((id) => id !== tagId)
+      );
     } else {
-      setSelectedTags([...selectedTags, tagId]);
+      form.setValue("selectedTags", [...currentSelectedTags, tagId]);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const workoutId = crypto.randomUUID();
+  const onSubmit = async (data: CreateWorkoutSchema) => {
+    const workoutId = `workout_${crypto.randomUUID()}`;
 
-    if (!scheme) throw new Error("Must provide a workout scheme");
-
-    await createWorkoutAction({
+    await executeCreateWorkout({
       workout: {
         id: workoutId,
-        name,
-        description,
-        scheme,
-        scope,
-        roundsToScore: roundsToScore ?? null,
-        repsPerRound: repsPerRound ?? null,
+        name: data.name,
+        description: data.description,
+        scheme: data.scheme,
+        scope: data.scope,
+        roundsToScore: data.roundsToScore ?? null,
+        repsPerRound: data.repsPerRound ?? null,
+        sugarId: null,
+        tiebreakScheme: null,
+        secondaryScheme: null,
       },
-      tagIds: selectedTags,
-      movementIds: selectedMovements,
+      tagIds: data.selectedTags,
+      movementIds: data.selectedMovements,
+      userId,
     });
-    router.push(`/workouts/${workoutId}`);
   };
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/workouts" className="btn-outline p-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <Button asChild variant="outline" size="icon">
+            <Link href="/workouts">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
           <h1>CREATE WORKOUT</h1>
         </div>
       </div>
 
-      <form className="border-2 border-black p-6" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="space-y-6">
-            <div>
-              <label
-                htmlFor="workoutName"
-                className="mb-2 block font-bold uppercase"
-              >
-                Workout Name
-              </label>
-              <input
-                id="workoutName"
-                type="text"
-                className="input"
-                placeholder="e.g., Fran, Cindy, Custom WOD"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
+      <Form {...form}>
+        <form
+          className="border-2 border-black p-6"
+          onSubmit={form.handleSubmit(onSubmit)}
+        >
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold uppercase">
+                      Workout Name
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Fran, Cindy, Custom WOD"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label
-                htmlFor="description"
-                className="mb-2 block font-bold uppercase"
-              >
-                Description
-              </label>
-              <textarea
-                id="description"
-                className="textarea"
-                rows={4}
-                placeholder="Describe the workout (e.g., 21-15-9 reps for time of Thrusters and Pull-ups)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                required
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold uppercase">
+                      Description
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={4}
+                        placeholder="Describe the workout (e.g., 21-15-9 reps for time of Thrusters and Pull-ups)"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label
-                htmlFor="scheme"
-                className="mb-2 block font-bold uppercase"
-              >
-                Scheme
-              </label>
-              <select
-                id="scheme"
-                className="select"
-                value={scheme}
-                onChange={(e) => setScheme(e.target.value as Workout["scheme"])}
-                required
-              >
-                <option value="">Select a scheme</option>
-                <option value="time">For Time</option>
-                <option value="time-with-cap">For Time (with cap)</option>
-                <option value="rounds-reps">AMRAP (Rounds + Reps)</option>
-                <option value="reps">Max Reps</option>
-                <option value="emom">EMOM</option>
-                <option value="load">Max Load</option>
-                <option value="calories">Calories</option>
-                <option value="meters">Meters</option>
-                <option value="pass-fail">Pass/Fail</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="scope" className="mb-2 block font-bold uppercase">
-                Scope
-              </label>
-              <select
-                id="scope"
-                className="select"
-                value={scope}
-                onChange={(e) => setScope(e.target.value as Workout["scope"])}
-                required
-              >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="roundsToScore"
-                className="mb-2 block font-bold uppercase"
-              >
-                Rounds to Score
-              </label>
-              <input
-                id="roundsToScore"
-                type="number"
-                className="input"
-                placeholder="e.g., 4 (default is 1)"
-                value={roundsToScore === undefined ? "" : roundsToScore}
-                onChange={(e) =>
-                  setRoundsToScore(
-                    e.target.value ? Number.parseInt(e.target.value) : undefined
-                  )
-                }
-                min="0"
+              <FormField
+                control={form.control}
+                name="scheme"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold uppercase">
+                      Scheme
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a scheme" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="time">For Time</SelectItem>
+                        <SelectItem value="time-with-cap">
+                          For Time (with cap)
+                        </SelectItem>
+                        <SelectItem value="rounds-reps">
+                          AMRAP (Rounds + Reps)
+                        </SelectItem>
+                        <SelectItem value="reps">Max Reps</SelectItem>
+                        <SelectItem value="emom">EMOM</SelectItem>
+                        <SelectItem value="load">Max Load</SelectItem>
+                        <SelectItem value="calories">Calories</SelectItem>
+                        <SelectItem value="meters">Meters</SelectItem>
+                        <SelectItem value="pass-fail">Pass/Fail</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label
-                htmlFor="repsPerRound"
-                className="mb-2 block font-bold uppercase"
-              >
-                Reps per Round (if applicable)
-              </label>
-              <input
-                id="repsPerRound"
-                type="number"
-                className="input"
-                placeholder="e.g., 10"
-                value={repsPerRound === undefined ? "" : repsPerRound}
-                onChange={(e) =>
-                  setRepsPerRound(
-                    e.target.value ? Number.parseInt(e.target.value) : undefined
-                  )
-                }
-                min="0"
+              <FormField
+                control={form.control}
+                name="scope"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold uppercase">Scope</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="private">Private</SelectItem>
+                        <SelectItem value="public">Public</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            <div>
-              <label
-                htmlFor="tagsInput"
-                className="mb-2 block font-bold uppercase"
-              >
-                Tags
-              </label>
-              <div className="mb-2 flex gap-2">
-                <input
-                  id="tagsInput"
-                  type="text"
-                  className="input flex-1"
-                  placeholder="Add a tag"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                />
-                <button type="button" className="btn" onClick={handleAddTag}>
-                  <Plus className="h-5 w-5" />
-                </button>
-              </div>
+              <FormField
+                control={form.control}
+                name="roundsToScore"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold uppercase">
+                      Rounds to Score
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 4 (default is 1)"
+                        value={field.value === undefined ? "" : field.value}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? Number.parseInt(e.target.value)
+                              : undefined
+                          )
+                        }
+                        min="0"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <button
-                    type="button"
-                    key={tag.id}
-                    onClick={() => handleTagToggle(tag.id)}
-                    className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
-                      selectedTags.includes(tag.id) ? "bg-black text-white" : ""
-                    }`}
-                  >
-                    <span className="mr-2">{tag.name}</span>
-                    {selectedTags.includes(tag.id) && (
-                      <span className="text-xs">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+              <FormField
+                control={form.control}
+                name="repsPerRound"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold uppercase">
+                      Reps per Round (if applicable)
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 10"
+                        value={field.value === undefined ? "" : field.value}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? Number.parseInt(e.target.value)
+                              : undefined
+                          )
+                        }
+                        min="0"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div>
-            <label
-              htmlFor="movementsInput"
-              className="mb-2 block font-bold uppercase"
-            >
-              Movements
-            </label>
-            <div className="h-[500px] overflow-y-auto border-2 border-black p-4">
-              <div className="space-y-2">
-                {movements.map((movement) => (
-                  <button
-                    key={movement.id}
-                    type="button"
-                    onClick={() => handleMovementToggle(movement.id)}
+              <div>
+                <Label className="mb-2 block font-bold uppercase">Tags</Label>
+                <div className="mb-2 flex gap-2">
+                  <Input
+                    type="text"
+                    className="flex-1"
+                    placeholder="Add a tag"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ")
-                        handleMovementToggle(movement.id);
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
                     }}
-                    className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
-                      selectedMovements.includes(movement.id)
-                        ? "bg-black text-white"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold">{movement.name}</span>
-                      {selectedMovements.includes(movement.id) && (
-                        <span className="text-xs">✓</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                  />
+                  <Button type="button" onClick={handleAddTag}>
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {tags.map((tag) => {
+                    const selectedTags = form.watch("selectedTags");
+                    const isSelected = selectedTags.includes(tag.id);
+                    return (
+                      <div
+                        key={tag.id}
+                        onClick={() => handleTagToggle(tag.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleTagToggle(tag.id);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isSelected}
+                        className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
+                          isSelected ? "bg-black text-white" : ""
+                        }`}
+                      >
+                        <span className="mr-2">{tag.name}</span>
+                        {isSelected && <span className="text-xs">✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label className="mb-2 block font-bold uppercase">
+                Movements
+              </Label>
+              <div className="h-[500px] overflow-y-auto border-2 border-black p-4">
+                <div className="space-y-2">
+                  {movements.map((movement) => {
+                    const selectedMovements = form.watch("selectedMovements");
+                    const isSelected = selectedMovements.includes(movement.id);
+                    return (
+                      <div
+                        key={movement.id}
+                        onClick={() => handleMovementToggle(movement.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleMovementToggle(movement.id);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isSelected}
+                        className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
+                          isSelected ? "bg-black text-white" : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold">{movement.name}</span>
+                          {isSelected && <span className="text-xs">✓</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 flex justify-end gap-4">
-          <Link href="/workouts" className="btn-outline">
-            Cancel
-          </Link>
-          <button type="submit" className="btn">
-            Create Workout
-          </button>
-        </div>
-      </form>
+          <div className="mt-6 flex justify-end gap-4">
+            <Button asChild variant="outline">
+              <Link href="/workouts">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "Creating..." : "Create Workout"}
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }

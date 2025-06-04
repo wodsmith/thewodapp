@@ -596,6 +596,7 @@ export const sets = sqliteTable("sets", {
     .references(() => results.id)
     .notNull(),
   setNumber: integer("set_number").notNull(),
+  notes: text("notes"),
 
   // Generic set data - only one of these will typically be populated
   reps: integer("reps"),
