@@ -25,7 +25,10 @@ import {
 } from "@/components/ui/form";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { logFormSchema, type LogFormSchema } from "@/schemas/log.schema";
+import {
+  logFormSchema,
+  type LogFormSchema,
+} from "@/app/(main)/log/new/_components/log.schema";
 
 export default function LogFormClient({
   workouts,
