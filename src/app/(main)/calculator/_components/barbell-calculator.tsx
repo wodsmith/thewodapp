@@ -1,4 +1,5 @@
 "use client";
+import { Input } from "@/components/ui/input";
 import Cookies from "js-cookie";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 import React, { useState, useMemo, Suspense } from "react";
@@ -209,7 +210,7 @@ const WarmupSet = ({
         <span className="text-neutral-600 text-sm">
           ({(percentage * 100).toFixed(0)}%)
         </span>
-        <input
+        <Input
           type="number"
           value={(percentage * 100).toFixed(0)}
           aria-label={`Percentage for Set ${setNumber}`}
@@ -424,7 +425,7 @@ export default function BarbellCalculator() {
             >
               TARGET WEIGHT:
             </label>
-            <input
+            <Input
               id="weightInput"
               type="number"
               value={inputWeight}
@@ -449,7 +450,7 @@ export default function BarbellCalculator() {
                   }`}
                   htmlFor="units-lb"
                 >
-                  <input
+                  <Input
                     id="units-lb"
                     type="radio"
                     name="units"
@@ -466,7 +467,7 @@ export default function BarbellCalculator() {
                   }`}
                   htmlFor="units-kg"
                 >
-                  <input
+                  <Input
                     id="units-kg"
                     type="radio"
                     name="units"
@@ -494,7 +495,7 @@ export default function BarbellCalculator() {
                   }`}
                   htmlFor="bar-45"
                 >
-                  <input
+                  <Input
                     id="bar-45"
                     type="radio"
                     name="bar"
@@ -511,7 +512,7 @@ export default function BarbellCalculator() {
                   }`}
                   htmlFor="bar-35"
                 >
-                  <input
+                  <Input
                     id="bar-35"
                     type="radio"
                     name="bar"

@@ -191,7 +191,7 @@ export default async function WorkoutsPage({
                       {workout.resultsToday.map((result) => (
                         <div
                           key={result.id}
-                          className="w-fit rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-dark-border dark:bg-dark-accent"
+                          className="w-fit   border border-gray-200 bg-gray-50 p-3 dark:border-dark-border dark:bg-dark-accent"
                         >
                           <div className="flex items-center justify-between gap-4">
                             <p className="font-bold text-foreground text-lg dark:text-dark-foreground">

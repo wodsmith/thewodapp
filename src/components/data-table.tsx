@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   ColumnDef,
   SortingState,
@@ -9,7 +9,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 
 import {
   Table,
@@ -18,35 +18,41 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown } from "lucide-react"
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronDown,
+} from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  pageCount: number
-  pageIndex: number
-  pageSize: number
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: number) => void
-  totalCount: number
-  itemNameSingular: string
-  itemNamePlural: string
-  pageSizeOptions?: number[]
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  pageCount: number;
+  pageIndex: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+  totalCount: number;
+  itemNameSingular: string;
+  itemNamePlural: string;
+  pageSizeOptions?: number[];
 }
 
 export function DataTable<TData, TValue>({
@@ -62,9 +68,10 @@ export function DataTable<TData, TValue>({
   itemNamePlural,
   pageSizeOptions = [10, 20, 100],
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
     data,
@@ -85,7 +92,7 @@ export function DataTable<TData, TValue>({
         pageSize,
       },
     },
-  })
+  });
 
   return (
     <div>
@@ -95,8 +102,8 @@ export function DataTable<TData, TValue>({
           <Select
             value={`${pageSize}`}
             onValueChange={(value: string) => {
-              onPageSizeChange(Number(value))
-              onPageChange(0)
+              onPageSizeChange(Number(value));
+              onPageChange(0);
             }}
           >
             <SelectTrigger className="h-8 w-[70px]">
@@ -134,12 +141,12 @@ export function DataTable<TData, TValue>({
                   >
                     {column.id}
                   </DropdownMenuCheckboxItem>
-                )
+                );
               })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="rounded-md border">
+      <div className="  border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -154,7 +161,7 @@ export function DataTable<TData, TValue>({
                             header.getContext()
                           )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -194,7 +201,8 @@ export function DataTable<TData, TValue>({
           <div className="flex items-center justify-center text-sm font-medium">
             Page {pageIndex + 1} of {pageCount}
             <span className="text-muted ml-2">
-              ({totalCount} {totalCount === 1 ? itemNameSingular : itemNamePlural} in total)
+              ({totalCount}{" "}
+              {totalCount === 1 ? itemNameSingular : itemNamePlural} in total)
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -237,8 +245,7 @@ export function DataTable<TData, TValue>({
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between">
-      </div>
+      <div className="flex items-center justify-between"></div>
     </div>
-  )
+  );
 }
