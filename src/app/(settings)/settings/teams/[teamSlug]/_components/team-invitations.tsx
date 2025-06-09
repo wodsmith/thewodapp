@@ -1,3 +1,4 @@
+"use client";
 import { getTeamInvitationsAction } from "@/actions/team-membership-actions";
 import { useServerAction } from "zsa-react";
 import React, { useEffect } from "react";
