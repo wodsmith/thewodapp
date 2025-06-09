@@ -1,5 +1,5 @@
 import { getUserTeamsAction } from "@/actions/team-actions";
-import TeamsClient from "./_components/teams-client";
+import Teams from "./_components/teams";
 import { getSessionFromCookie } from "@/utils/auth";
 import { redirect } from "next/navigation";
 
@@ -17,5 +17,5 @@ export default async function TeamsPage() {
 
   const teams = result.data || [];
 
-  return <TeamsClient teams={teams} />;
+  return <Teams teams={teams} />;
 }
