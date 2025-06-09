@@ -12,7 +12,7 @@ interface TeamsClientProps {
   teams: Team[];
 }
 
-export default function TeamsClient({ teams}: TeamsClientProps) {
+export default function TeamsClient({ teams }: TeamsClientProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -32,7 +32,7 @@ export default function TeamsClient({ teams}: TeamsClientProps) {
                 >
                   <div>
                     <Link
-                      href={`/dashboard/teams/${team.slug}`}
+                      href={`/settings/teams/${team.slug}`}
                       className="font-semibold hover:underline"
                     >
                       {team.name}
