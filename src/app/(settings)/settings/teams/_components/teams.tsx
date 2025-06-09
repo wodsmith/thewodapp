@@ -10,9 +10,10 @@ import type { Team } from "@/db/schema";
 
 interface TeamsClientProps {
   teams: Team[];
+  selectedTeamSlug: string;
 }
 
-export default function TeamsClient({ teams }: TeamsClientProps) {
+export function TeamsClient({ teams, selectedTeamSlug }: TeamsClientProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -23,24 +24,24 @@ export default function TeamsClient({ teams }: TeamsClientProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-2">
             {teams.length > 0 ? (
-              teams.map((team) => (
-                <div
-                  key={team.id}
-                  className="flex items-center justify-between rounded-lg border p-4"
-                >
-                  <div>
-                    <Link
-                      href={`/settings/teams/${team.slug}`}
-                      className="font-semibold hover:underline"
-                    >
-                      {team.name}
-                    </Link>
-                  </div>
-                  {/* You can add actions here, like "Leave Team" */}
-                </div>
-              ))
+              teams.map((team) => {
+                const isActive = team.slug === selectedTeamSlug;
+                return (
+                  <Link
+                    key={team.id}
+                    href={`/settings/teams/${team.slug}`}
+                    className={`block rounded-lg border px-4 py-2 font-semibold transition-colors sm:w-1/2 ${
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary shadow"
+                        : "hover:bg-muted hover:border-muted-foreground"
+                    }`}
+                  >
+                    {team.name}
+                  </Link>
+                );
+              })
             ) : (
               <p>You are not a member of any teams.</p>
             )}

@@ -7,17 +7,32 @@ interface TeamInvitationsProps {
   teamId: string;
 }
 
+interface TeamInvitationListItem {
+  id?: string;
+  email?: string;
+  roleId?: string;
+  isSystemRole?: boolean;
+  createdAt?: Date;
+  expiresAt?: Date | null;
+  invitedBy?: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    avatar: string | null;
+  };
+}
+
 export function TeamInvitations({ teamId }: TeamInvitationsProps) {
-  const [getInvites, { data, error, isLoading }] = useServerAction(
+  const { execute, data, error, isPending } = useServerAction(
     getTeamInvitationsAction
   );
 
   useEffect(() => {
-    console.log("Fetching team invitations for teamId:", teamId);
-    getInvites({ teamId });
-  }, [teamId, getInvites]);
+    execute({ teamId });
+  }, [teamId, execute]);
 
-  if (isLoading) return <div>Loading invitations...</div>;
+  if (isPending) return <div>Loading invitations...</div>;
   if (error) {
     console.error("Error loading invitations:", error);
     return <div>Error loading invitations</div>;
@@ -28,9 +43,11 @@ export function TeamInvitations({ teamId }: TeamInvitationsProps) {
     <div>
       <h3>Pending Invitations</h3>
       <ul>
-        {data.data.map((invite: any) => (
-          <li key={invite.id}>{invite.email} (invited)</li>
-        ))}
+        {data.data.map((invite: TeamInvitationListItem) => {
+          if (!invite?.invitedBy?.email || !invite?.id) return null;
+
+          return <li key={invite.id}>{invite.email} (invited)</li>;
+        })}
       </ul>
     </div>
   );

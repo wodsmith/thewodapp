@@ -30,7 +30,7 @@ interface SidebarNavItem {
 const sidebarNavItems: SidebarNavItem[] = [
   {
     title: "Profile",
-    href: "/settings",
+    href: "/settings/profile",
     icon: User,
   },
   {
@@ -74,7 +74,7 @@ export function SettingsSidebar() {
             href={item.href}
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              pathname === item.href
+              pathname.startsWith(item.href)
                 ? "bg-muted hover:bg-muted dark:text-foreground dark:hover:text-foreground/70"
                 : "hover:bg-transparent",
               "justify-start hover:no-underline whitespace-nowrap"

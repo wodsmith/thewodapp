@@ -9,16 +9,20 @@ interface InviteMemberProps {
 
 export function InviteMember({ teamId, userRole }: InviteMemberProps) {
   const [email, setEmail] = useState("");
-  const [roleId, setRoleId] = useState("");
-  const [invite, { data, error, isLoading }] =
-    useServerAction(inviteUserAction);
+  const [success, setSuccess] = useState(false);
+  const { execute, isPending, error } = useServerAction(inviteUserAction, {
+    onSuccess: () => {
+      setSuccess(true);
+      setEmail("");
+      setTimeout(() => setSuccess(false), 2000);
+    },
+  });
 
   if (userRole !== "owner") return null;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log("Inviting member:", { email, roleId });
-    invite({ teamId, email, roleId });
+    execute({ teamId, email, roleId: "member", isSystemRole: true });
   }
 
   return (
@@ -33,21 +37,15 @@ export function InviteMember({ teamId, userRole }: InviteMemberProps) {
           required
         />
       </div>
-      <div>
-        <label>Role ID</label>
-        <input
-          type="text"
-          value={roleId}
-          onChange={(e) => setRoleId(e.target.value)}
-          className="input"
-          required
-        />
-      </div>
-      <button type="submit" disabled={isLoading} className="btn">
+      <button type="submit" disabled={isPending} className="btn">
         Invite
       </button>
-      {error && <div className="text-red-500">Error: {error.message}</div>}
-      {data?.success && <div className="text-green-500">Invitation sent!</div>}
+      {error && (
+        <div className="text-red-500">
+          Error: {error.message}
+        </div>
+      )}
+      {success && <div className="text-green-500">Invitation sent!</div>}
     </form>
   );
 }
