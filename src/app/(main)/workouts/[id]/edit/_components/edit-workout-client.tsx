@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { Prettify } from "@/lib/utils";
 import type {
   Movement,

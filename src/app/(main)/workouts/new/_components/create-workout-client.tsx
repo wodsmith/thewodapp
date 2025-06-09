@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Movement } from "@/db/schema";
 import { Tag } from "@/db/schema";
 import { ArrowLeft, Plus } from "lucide-react";
