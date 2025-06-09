@@ -11,7 +11,7 @@ goal: A comprehensive SaaS template for Cloudflare Workers featuring workout man
 type: Web Application (SaaS Template)
 key features:
 - Workout and movement management system
-- Team collaboration and multi-tenancy
+- Team collaboration and multi-tenancy (now managed under settings)
 - Credit-based billing with Stripe integration
 - Authentication with multiple providers (email, WebAuthn, Google OAuth)
 
@@ -36,6 +36,7 @@ key libraries:
 main source directory: src/
 core directories:
 - app/: Next.js App Router with route groups (auth), (dashboard), (main), (settings), (legal), (marketing)
+  - Team management is now under (settings)/settings/teams
 - actions/: Server actions for data mutations
 - components/: Reusable UI components with ui/ subdirectory for Shadcn components
 - db/: Database schema and migrations using DrizzleORM
@@ -44,11 +45,11 @@ core directories:
 - state/: Zustand stores for client state management
 - schemas/: Zod validation schemas
 - react-email/: Email templates using React Email
-diagram/link: [N/A]
+diagram/link: [Database ERD](mdc:docs/diagrams/database-erd.md)
 
 ## 4. Coding Standards & Conventions
 
-language usage: Strict TypeScript mode (tsconfig.json `strict: true`), prefer functional components, use async/await, avoid `any` type, use server-only imports for server components
+language usage: Strict TypeScript mode (tsconfig.json `strict: true`), prefer functional components, use async/await, avoid `any` type, use server-only imports for server components, use 'use client' for client components (e.g., those using useEffect)
 naming conventions:
 - files/folders: kebab-case for directories, PascalCase for React components
 - components: PascalCase (React components)
@@ -66,9 +67,14 @@ imports: Absolute paths using @/ alias (tsconfig.json paths), grouped imports (R
 - Security: Input sanitization, rate limiting, proper authentication checks
 - Database: Never use Drizzle ORM Transactions (Cloudflare D1 doesn't support them)
 - IDs: Never pass id when inserting/updating with Drizzle ORM (auto-generated)
+- Observability: Add excessive logging, especially in new components
+- Many Small Files: Prefer creating new files over adding to existing ones
+- Micro-Milestones: Perform work in commit-sized chunks
 
 ## 6. Testing
 
+framework: Vitest (vitest.config.mjs, package.json)
+types: Unit tests for components (e.g., team-members, invite-member), integration tests for server actions, E2E tests planned (see docs/project-plan.md)
 framework: [Information not found in project context]
 types: [Information not found in project context]
 location: [Information not found in project context]

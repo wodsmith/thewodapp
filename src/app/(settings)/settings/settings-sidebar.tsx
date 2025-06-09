@@ -3,13 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ScrollShadow } from '@heroui/react'
-import {
-  User,
-  Smartphone,
-  Lock,
-  LogOut
-} from "lucide-react";
+import { ScrollShadow } from "@heroui/react";
+import { User, Smartphone, Lock, LogOut, Users } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   Dialog,
@@ -35,8 +30,13 @@ interface SidebarNavItem {
 const sidebarNavItems: SidebarNavItem[] = [
   {
     title: "Profile",
-    href: "/settings",
+    href: "/settings/profile",
     icon: User,
+  },
+  {
+    title: "Teams",
+    href: "/settings/teams",
+    icon: Users,
   },
   {
     title: "Security",
@@ -57,7 +57,7 @@ const sidebarNavItems: SidebarNavItem[] = [
 
 export function SettingsSidebar() {
   const pathname = usePathname();
-  const isLgAndSmaller = useMediaQuery('LG_AND_SMALLER')
+  const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER");
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const { signOut } = useSignOut();
 
@@ -74,7 +74,7 @@ export function SettingsSidebar() {
             href={item.href}
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              pathname === item.href
+              pathname.startsWith(item.href)
                 ? "bg-muted hover:bg-muted dark:text-foreground dark:hover:text-foreground/70"
                 : "hover:bg-transparent",
               "justify-start hover:no-underline whitespace-nowrap"

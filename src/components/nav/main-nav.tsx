@@ -60,7 +60,7 @@ export default async function MainNav() {
               </Link>
               <div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
               <Link
-                href="/profile"
+                href="/settings/profile"
                 className="font-bold text-foreground dark:text-dark-foreground"
               >
                 <User className="h-5 w-5" />
@@ -76,10 +76,10 @@ export default async function MainNav() {
               >
                 Calculator
               </Link>
-              <Link href="/login" className="btn-outline">
+              <Link href="/sign-in" className="btn-outline">
                 Login
               </Link>
-              <Link href="/signup" className="btn">
+              <Link href="/sign-up" className="btn">
                 Sign Up
               </Link>
               <DarkModeToggle />
