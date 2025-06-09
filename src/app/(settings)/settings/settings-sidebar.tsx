@@ -3,13 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ScrollShadow } from '@heroui/react'
-import {
-  User,
-  Smartphone,
-  Lock,
-  LogOut
-} from "lucide-react";
+import { ScrollShadow } from "@heroui/react";
+import { User, Smartphone, Lock, LogOut, Users } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   Dialog,
@@ -39,6 +34,11 @@ const sidebarNavItems: SidebarNavItem[] = [
     icon: User,
   },
   {
+    title: "Teams",
+    href: "/settings/teams",
+    icon: Users,
+  },
+  {
     title: "Security",
     href: "/settings/security",
     icon: Lock,
@@ -57,7 +57,7 @@ const sidebarNavItems: SidebarNavItem[] = [
 
 export function SettingsSidebar() {
   const pathname = usePathname();
-  const isLgAndSmaller = useMediaQuery('LG_AND_SMALLER')
+  const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER");
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const { signOut } = useSignOut();
 

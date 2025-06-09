@@ -1,14 +1,8 @@
 import { getSessionFromCookie } from "@/utils/auth";
 import { redirect } from "next/navigation";
-import { AppSidebar } from "@/components/app-sidebar";
-import { Separator } from "@/components/ui/separator";
 import { SettingsSidebar } from "./settings-sidebar";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { SettingsBreadcrumbs } from "./settings-breadcrumbs";
+import MainNav from "@/components/nav/main-nav";
 
 export default async function SettingsLayout({
   children,
@@ -22,13 +16,11 @@ export default async function SettingsLayout({
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="w-full flex flex-col">
+    <>
+    <MainNav />
+    <div className="flex flex-col h-screen max-w-screen-xl mx-auto">
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
             <SettingsBreadcrumbs />
           </div>
         </header>
@@ -42,8 +34,8 @@ export default async function SettingsLayout({
             </div>
           </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+    </div>
+    </>
   );
 }
 

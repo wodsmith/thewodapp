@@ -63,6 +63,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   useEffect(() => {
     if (session?.teams && session.teams.length > 0) {
       // Map teams from session to the format expected by TeamSwitcher
+      console.log("session.teams", session.teams, {session});
       const teamData = session.teams.map((team) => {
         return {
           name: team.name,
