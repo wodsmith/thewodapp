@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Movement } from "@/db/schema";
 import { Tag } from "@/db/schema";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -39,12 +40,14 @@ interface Props {
   movements: Movement[];
   tags: Tag[];
   userId: string;
+  createWorkoutAction?: typeof createWorkoutAction;
 }
 
 export default function CreateWorkoutClient({
   movements,
   tags: initialTags,
   userId,
+  createWorkoutAction: createWorkoutActionProp,
 }: Props) {
   const [tags, setTags] = useState<Tag[]>(initialTags);
   const [newTag, setNewTag] = useState("");
@@ -65,7 +68,7 @@ export default function CreateWorkoutClient({
   });
 
   const { execute: executeCreateWorkout } = useServerAction(
-    createWorkoutAction,
+    createWorkoutActionProp || createWorkoutAction,
     {
       onError: (error) => {
         console.error("Server action error:", error);
@@ -320,9 +323,15 @@ export default function CreateWorkoutClient({
               />
 
               <div>
-                <Label className="mb-2 block font-bold uppercase">Tags</Label>
+                <Label
+                  htmlFor="add-tag-input"
+                  className="mb-2 block font-bold uppercase"
+                >
+                  Tags
+                </Label>
                 <div className="mb-2 flex gap-2">
                   <Input
+                    id="add-tag-input"
                     type="text"
                     className="flex-1"
                     placeholder="Add a tag"
@@ -371,10 +380,16 @@ export default function CreateWorkoutClient({
             </div>
 
             <div>
-              <Label className="mb-2 block font-bold uppercase">
+              <Label
+                htmlFor="movements-list"
+                className="mb-2 block font-bold uppercase"
+              >
                 Movements
               </Label>
-              <div className="h-[500px] overflow-y-auto border-2 border-black p-4">
+              <div
+                id="movements-list"
+                className="h-[500px] overflow-y-auto border-2 border-black p-4"
+              >
                 <div className="space-y-2">
                   {movements.map((movement) => {
                     const selectedMovements = form.watch("selectedMovements");

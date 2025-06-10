@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { Prettify } from "@/lib/utils";
 import type {
   Movement,
@@ -288,20 +289,23 @@ export default function EditWorkoutClient({
                   >
                     <span className="mr-2">{tag.name}</span>
                     {selectedTags.includes(tag.id) && (
-                      <button
-                        type="button"
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemoveTag(tag.id);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ")
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
                             handleRemoveTag(tag.id);
+                          }
                         }}
-                        className="text-red-500"
+                        className="text-red-500 cursor-pointer"
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </span>
                     )}
                   </button>
                 ))}

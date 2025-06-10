@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { Movement, Tag } from "@/types";
 import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
