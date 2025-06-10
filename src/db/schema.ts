@@ -630,6 +630,11 @@ export const results = sqliteTable("results", {
 		() => programmingTracksTable.id,
 	),
 
+	// New reference to scheduled workout instance
+	scheduledWorkoutInstanceId: text("scheduled_workout_instance_id").references(
+		() => scheduledWorkoutInstancesTable.id,
+	),
+
 	// WOD specific results
 	scale: text("scale", { enum: ["rx", "scaled", "rx+"] }),
 	wodScore: text("wod_score"), // e.g., "3:15", "10 rounds + 5 reps"
@@ -753,3 +758,39 @@ export type TeamProgrammingTrack = Prettify<
 	InferSelectModel<typeof teamProgrammingTracksTable>
 >
 export type TrackWorkout = Prettify<InferSelectModel<typeof trackWorkoutsTable>>
+
+// ---------------------------------------------
+// Scheduled Workout Instances
+// ---------------------------------------------
+
+export const scheduledWorkoutInstancesTable = sqliteTable(
+	"scheduled_workout_instance",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => `swi_${createId()}`)
+			.notNull(),
+		teamId: text()
+			.notNull()
+			.references(() => teamTable.id),
+		trackWorkoutId: text()
+			.notNull()
+			.references(() => trackWorkoutsTable.id),
+		scheduledDate: integer({ mode: "timestamp" }).notNull(),
+		teamSpecificNotes: text({ length: 1000 }),
+		scalingGuidanceForDay: text({ length: 1000 }),
+		classTimes: text({ length: 500 }), // JSON string or comma-separated times
+	},
+	(table) => [
+		index("scheduled_workout_instance_team_idx").on(table.teamId),
+		index("scheduled_workout_instance_date_idx").on(table.scheduledDate),
+	],
+)
+
+// ---------------------------------------------
+// Export types for new table
+// ---------------------------------------------
+export type ScheduledWorkoutInstance = Prettify<
+	InferSelectModel<typeof scheduledWorkoutInstancesTable>
+>

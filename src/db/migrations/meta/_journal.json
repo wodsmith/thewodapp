@@ -85,6 +85,13 @@
 			"when": 1749578409497,
 			"tag": "0011_add_programming_and_track_workout_tables",
 			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "6",
+			"when": 1749579222612,
+			"tag": "0012_add_scheduled_workout_instances_table",
+			"breakpoints": true
 		}
 	]
 }
