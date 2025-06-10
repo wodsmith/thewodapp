@@ -95,14 +95,12 @@ describe("CreateWorkoutClient", () => {
 	it("handles tag and movement selection", () => {
 		setup()
 		// Simulate clicking tag and movement buttons
-		const tagButton = screen.getByText("Tag 2").closest('div[role="button"]')
+		const tagButton = screen.getByRole("button", { name: /Tag 2/i })
 		expect(tagButton).toBeInTheDocument()
-		if (tagButton) fireEvent.click(tagButton)
-		const movementButton = screen
-			.getByText("Movement 2")
-			.closest('div[role="button"]')
+		fireEvent.click(tagButton)
+		const movementButton = screen.getByRole("button", { name: /Movement 2/i })
 		expect(movementButton).toBeInTheDocument()
-		if (movementButton) fireEvent.click(movementButton)
+		fireEvent.click(movementButton)
 	})
 
 	// Radix Select is not fully supported in jsdom; see https://github.com/radix-ui/primitives/issues/1672
