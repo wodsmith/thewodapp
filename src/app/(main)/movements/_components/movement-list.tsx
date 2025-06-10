@@ -1,32 +1,36 @@
-"use client";
+"use client"
 
-import type { Movement } from "@/types";
-import { ChevronDown, Filter, Search } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import type { Movement } from "@/types"
+import { ChevronDown, Filter, Search } from "lucide-react"
+import Link from "next/link"
+import { useMemo, useState } from "react"
 
 interface MovementListProps {
-	movements: Movement[];
+	movements: Movement[]
 }
 
 export default function MovementList({ movements }: MovementListProps) {
-	const [searchTerm, setSearchTerm] = useState("");
-	const [selectedType, setSelectedType] = useState<string | null>(null);
-	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const [searchTerm, setSearchTerm] = useState("")
+	const [selectedType, setSelectedType] = useState<string | null>(null)
+	const [isFilterOpen, setIsFilterOpen] = useState(false)
 
 	const movementTypes = useMemo(() => {
-		const types = new Set(movements.map((m) => m.type));
-		return ["All", ...Array.from(types)];
-	}, [movements]);
+		const types = new Set(movements.map((m) => m.type))
+		return ["All", ...Array.from(types)]
+	}, [movements])
 
 	const filteredMovements = useMemo(() => {
 		return movements.filter((movement) => {
-			const nameMatches = movement.name.toLowerCase().includes(searchTerm.toLowerCase());
+			const nameMatches = movement.name
+				.toLowerCase()
+				.includes(searchTerm.toLowerCase())
 			const typeMatches =
-				selectedType && selectedType !== "All" ? movement.type === selectedType : true;
-			return nameMatches && typeMatches;
-		});
-	}, [movements, searchTerm, selectedType]);
+				selectedType && selectedType !== "All"
+					? movement.type === selectedType
+					: true
+			return nameMatches && typeMatches
+		})
+	}, [movements, searchTerm, selectedType])
 
 	return (
 		<div>
@@ -62,8 +66,8 @@ export default function MovementList({ movements }: MovementListProps) {
 									key={type}
 									className="block w-full px-4 py-2 text-left text-gray-700 text-sm hover:bg-gray-100"
 									onClick={() => {
-										setSelectedType(type === "All" ? null : type);
-										setIsFilterOpen(false);
+										setSelectedType(type === "All" ? null : type)
+										setIsFilterOpen(false)
 									}}
 									type="button"
 								>
@@ -76,7 +80,9 @@ export default function MovementList({ movements }: MovementListProps) {
 			</div>
 
 			{filteredMovements.length === 0 && (searchTerm || selectedType) && (
-				<p className="text-center text-gray-500">No movements found for your criteria.</p>
+				<p className="text-center text-gray-500">
+					No movements found for your criteria.
+				</p>
 			)}
 
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -96,5 +102,5 @@ export default function MovementList({ movements }: MovementListProps) {
 				))}
 			</div>
 		</div>
-	);
+	)
 }

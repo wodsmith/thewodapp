@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Assuming Input component is available
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input" // Assuming Input component is available
 import {
 	Table,
 	TableBody,
@@ -10,29 +10,31 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table";
-import { useState } from "react";
+} from "@/components/ui/table"
+import { useState } from "react"
 
 export default function SpreadsheetCalculator() {
-	const [oneRepMax, setOneRepMax] = useState<number | string>("");
-	const [percentages, setPercentages] = useState<{ percentage: number; weight: number }[]>([]);
+	const [oneRepMax, setOneRepMax] = useState<number | string>("")
+	const [percentages, setPercentages] = useState<
+		{ percentage: number; weight: number }[]
+	>([])
 
 	const calculatePercentages = () => {
-		const max = Number.parseFloat(oneRepMax as string);
+		const max = Number.parseFloat(oneRepMax as string)
 		if (Number.isNaN(max) || max <= 0) {
-			setPercentages([]);
-			return;
+			setPercentages([])
+			return
 		}
 
-		const newPercentages = [];
+		const newPercentages = []
 		for (let i = 5; i <= 100; i += 5) {
 			newPercentages.push({
 				percentage: i,
 				weight: Number.parseFloat(((max * i) / 100).toFixed(2)),
-			});
+			})
 		}
-		setPercentages(newPercentages.reverse()); // Show 100% at the top
-	};
+		setPercentages(newPercentages.reverse()) // Show 100% at the top
+	}
 
 	return (
 		<div className="container mx-auto max-w-screen-md p-4">
@@ -44,7 +46,7 @@ export default function SpreadsheetCalculator() {
 					onChange={(e) => setOneRepMax(e.target.value)}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {
-							calculatePercentages();
+							calculatePercentages()
 						}
 					}}
 					placeholder="Enter 1 Rep Max (kg/lb)"
@@ -81,5 +83,5 @@ export default function SpreadsheetCalculator() {
 				</Table>
 			)}
 		</div>
-	);
+	)
 }

@@ -1,56 +1,56 @@
-import { createMovementAction } from "@/actions/movement-actions";
-import { redirect } from "next/navigation";
-import CreateMovementForm from "./_components/create-movement-form";
+import { createMovementAction } from "@/actions/movement-actions"
+import { redirect } from "next/navigation"
+import CreateMovementForm from "./_components/create-movement-form"
 
-import type { Metadata } from "next";
-import { getSessionFromCookie } from "@/utils/auth";
+import { getSessionFromCookie } from "@/utils/auth"
+import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://spicywod.com"),
-  title: "Spicy WOD | Create Movement",
-  description: "Track your spicy workouts and progress.",
-  openGraph: {
-    title: "Spicy WOD | Create Movement", // Default title for layout
-    description: "Track your spicy workouts and progress.", // Default description
-    images: [
-      {
-        url: `/api/og?title=${encodeURIComponent(
-          "Spicy WOD | Create Movement"
-        )}`,
-        width: 1200,
-        height: 630,
-        alt: "Spicy WOD | Create Movement",
-      },
-    ],
-  },
-};
+	metadataBase: new URL("https://spicywod.com"),
+	title: "Spicy WOD | Create Movement",
+	description: "Track your spicy workouts and progress.",
+	openGraph: {
+		title: "Spicy WOD | Create Movement", // Default title for layout
+		description: "Track your spicy workouts and progress.", // Default description
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent(
+					"Spicy WOD | Create Movement",
+				)}`,
+				width: 1200,
+				height: 630,
+				alt: "Spicy WOD | Create Movement",
+			},
+		],
+	},
+}
 
 export default async function CreateMovementPage() {
-  const session = await getSessionFromCookie();
+	const session = await getSessionFromCookie()
 
-  if (!session || !session?.user?.id) {
-    console.log("[movements/new/page] No user found");
-    redirect("/login");
-  }
+	if (!session || !session?.user?.id) {
+		console.log("[movements/new/page] No user found")
+		redirect("/login")
+	}
 
-  async function createMovementActionHandler(data: {
-    name: string;
-    type: "weightlifting" | "gymnastic" | "monostructural";
-  }) {
-    "use server";
-    if (!session?.user?.id) {
-      console.log("[movements/new/page] No user found");
-      throw new Error("No user found");
-    }
-    try {
-      await createMovementAction(data);
-    } catch (error) {
-      console.error("[movements/new/page] Error creating movement", error);
-      throw new Error("Error creating movement");
-    }
-  }
+	async function createMovementActionHandler(data: {
+		name: string
+		type: "weightlifting" | "gymnastic" | "monostructural"
+	}) {
+		"use server"
+		if (!session?.user?.id) {
+			console.log("[movements/new/page] No user found")
+			throw new Error("No user found")
+		}
+		try {
+			await createMovementAction(data)
+		} catch (error) {
+			console.error("[movements/new/page] Error creating movement", error)
+			throw new Error("Error creating movement")
+		}
+	}
 
-  return (
-    <CreateMovementForm createMovementAction={createMovementActionHandler} />
-  );
+	return (
+		<CreateMovementForm createMovementAction={createMovementActionHandler} />
+	)
 }

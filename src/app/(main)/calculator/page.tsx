@@ -1,6 +1,6 @@
-import BarbellCalculator from "./_components/barbell-calculator";
+import BarbellCalculator from "./_components/barbell-calculator"
 
-import type { Metadata } from "next";
+import type { Metadata } from "next"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 			},
 		],
 	},
-};
+}
 
 export default function CalculatorPage() {
-	return <BarbellCalculator />;
+	return <BarbellCalculator />
 }

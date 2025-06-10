@@ -1,17 +1,22 @@
-"use client";
+"use client"
 
-import LogoutButton from "@/components/nav/logout-button";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { Dumbbell, Menu, User } from "lucide-react";
-import type { Session } from "next-auth";
-import Image from "next/image";
-import Link from "next/link";
-import { DarkModeToggle } from "../ui/dark-mode-toggle";
+import LogoutButton from "@/components/nav/logout-button"
+import { Button } from "@/components/ui/button"
+import {
+	Sheet,
+	SheetContent,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import { Dumbbell, Menu, User } from "lucide-react"
+import type { Session } from "next-auth"
+import Image from "next/image"
+import Link from "next/link"
+import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
 interface MobileNavProps {
-	session: Session | null;
+	session: Session | null
 }
 
 export default function MobileNav({ session }: MobileNavProps) {
@@ -28,7 +33,10 @@ export default function MobileNav({ session }: MobileNavProps) {
 					<SheetTitle>Navigation Menu</SheetTitle>
 				</VisuallyHidden>
 				<nav className="grid gap-6 font-medium text-lg">
-					<Link href="/" className="mb-4 flex items-center gap-2 font-semibold text-lg">
+					<Link
+						href="/"
+						className="mb-4 flex items-center gap-2 font-semibold text-lg"
+					>
 						<Image
 							src="/spicywod-logo-black.png"
 							alt="spicy wod"
@@ -88,5 +96,5 @@ export default function MobileNav({ session }: MobileNavProps) {
 				</nav>
 			</SheetContent>
 		</Sheet>
-	);
+	)
 }

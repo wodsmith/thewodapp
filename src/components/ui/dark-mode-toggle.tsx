@@ -1,22 +1,22 @@
-"use client";
+"use client"
 
-import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
-import * as React from "react";
+import { Moon, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
+import * as React from "react"
 
-import { Button } from "@/components/ui/button"; // Assuming a Button component exists
+import { Button } from "@/components/ui/button" // Assuming a Button component exists
 
 export function DarkModeToggle() {
-	const { setTheme, theme } = useTheme();
+	const { setTheme, theme } = useTheme()
 
-	const isDarkMode = theme === "dark";
+	const isDarkMode = theme === "dark"
 
 	const toggleTheme = () => {
 		if (process.env.LOG_LEVEL === "debug") {
-			console.log(`Theme changed to ${isDarkMode ? "light" : "dark"}`);
+			console.log(`Theme changed to ${isDarkMode ? "light" : "dark"}`)
 		}
-		setTheme(isDarkMode ? "light" : "dark");
-	};
+		setTheme(isDarkMode ? "light" : "dark")
+	}
 
 	return (
 		<Button variant="outline" size="icon" onClick={toggleTheme}>
@@ -27,5 +27,5 @@ export function DarkModeToggle() {
 			)}
 			<span className="sr-only">Toggle theme</span>
 		</Button>
-	);
+	)
 }
