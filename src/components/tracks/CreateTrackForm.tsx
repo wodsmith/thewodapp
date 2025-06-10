@@ -33,10 +33,6 @@ function CreateTrackForm() {
 	async function handleSubmit(e: FormEvent) {
 		e.preventDefault()
 
-		if (process.env.NODE_ENV === "development") {
-			console.log("[CreateTrackForm] Submitting track data:", state)
-		}
-
 		try {
 			const formData = new FormData()
 			for (const [k, v] of Object.entries(state)) {
