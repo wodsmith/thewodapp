@@ -1,7 +1,7 @@
-import { Suspense } from "react";
-import SpreadsheetCalculator from "./_components/spreadsheet-calculator";
+import { Suspense } from "react"
+import SpreadsheetCalculator from "./_components/spreadsheet-calculator"
 
-import type { Metadata } from "next";
+import type { Metadata } from "next"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 			},
 		],
 	},
-};
+}
 
 export default function SpreadsheetPage() {
 	return (
@@ -28,5 +28,5 @@ export default function SpreadsheetPage() {
 				<SpreadsheetCalculator />
 			</Suspense>
 		</>
-	);
+	)
 }

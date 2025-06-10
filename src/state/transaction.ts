@@ -1,11 +1,12 @@
-import { create } from "zustand";
+import { create } from "zustand"
 
 interface TransactionStore {
-  refreshTrigger: number;
-  triggerRefresh: () => void;
+	refreshTrigger: number
+	triggerRefresh: () => void
 }
 
 export const useTransactionStore = create<TransactionStore>((set) => ({
-  refreshTrigger: 0,
-  triggerRefresh: () => set((state) => ({ refreshTrigger: state.refreshTrigger + 1 })),
-}));
+	refreshTrigger: 0,
+	triggerRefresh: () =>
+		set((state) => ({ refreshTrigger: state.refreshTrigger + 1 })),
+}))

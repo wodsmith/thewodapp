@@ -1,23 +1,23 @@
-"use server";
+"use server"
 
-import { z } from "zod";
-import { getAllTags } from "@/server/tags";
-import { ZSAError, createServerAction } from "zsa";
+import { getAllTags } from "@/server/tags"
+import { z } from "zod"
+import { ZSAError, createServerAction } from "zsa"
 
 /**
  * Get all tags in the system
  */
 export const getAllTagsAction = createServerAction().handler(async () => {
-  try {
-    const tags = await getAllTags();
-    return { success: true, data: tags };
-  } catch (error) {
-    console.error("Failed to get all tags:", error);
+	try {
+		const tags = await getAllTags()
+		return { success: true, data: tags }
+	} catch (error) {
+		console.error("Failed to get all tags:", error)
 
-    if (error instanceof ZSAError) {
-      throw error;
-    }
+		if (error instanceof ZSAError) {
+			throw error
+		}
 
-    throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get all tags");
-  }
-});
+		throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get all tags")
+	}
+})

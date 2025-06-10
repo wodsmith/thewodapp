@@ -1,37 +1,36 @@
-"use server";
+"use server"
 
-import { createServerAction, ZSAError } from "zsa";
-import { requireVerifiedEmail } from "@/utils/auth";
-import { getUserFromDB } from "@/utils/auth";
+import { requireVerifiedEmail } from "@/utils/auth"
+import { getUserFromDB } from "@/utils/auth"
+import { ZSAError, createServerAction } from "zsa"
 
 /**
  * Get the current user's profile data
  */
-export const getUserAction = createServerAction()
-  .handler(async () => {
-    try {
-      // Get the current session and ensure user is authenticated
-      const session = await requireVerifiedEmail();
+export const getUserAction = createServerAction().handler(async () => {
+	try {
+		// Get the current session and ensure user is authenticated
+		const session = await requireVerifiedEmail()
 
-      if (!session?.user?.id) {
-        throw new ZSAError("NOT_AUTHORIZED", "Not authenticated");
-      }
+		if (!session?.user?.id) {
+			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		}
 
-      // Get the user data from the database
-      const user = await getUserFromDB(session.user.id);
+		// Get the user data from the database
+		const user = await getUserFromDB(session.user.id)
 
-      if (!user) {
-        throw new ZSAError("NOT_FOUND", "User not found");
-      }
+		if (!user) {
+			throw new ZSAError("NOT_FOUND", "User not found")
+		}
 
-      return { success: true, data: user };
-    } catch (error) {
-      console.error("Failed to get user:", error);
+		return { success: true, data: user }
+	} catch (error) {
+		console.error("Failed to get user:", error)
 
-      if (error instanceof ZSAError) {
-        throw error;
-      }
+		if (error instanceof ZSAError) {
+			throw error
+		}
 
-      throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get user");
-    }
-  });
+		throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get user")
+	}
+})

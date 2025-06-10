@@ -1,5 +1,5 @@
-import { z } from "zod";
+import { z } from "zod"
 
 export const verifyEmailSchema = z.object({
-  token: z.string().min(1, "Verification token is required"),
-});
+	token: z.string().min(1, "Verification token is required"),
+})

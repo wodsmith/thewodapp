@@ -1,76 +1,76 @@
-import type { KVSession } from "./utils/kv-session";
-import type { Workout, Movement, Tag, Result, Set } from "@/db/schema";
+import type { Set as DBSet, Movement, Result, Tag, Workout } from "@/db/schema"
+import type { KVSession } from "./utils/kv-session"
 
-export type SessionValidationResult = KVSession | null;
+export type SessionValidationResult = KVSession | null
 
 // Workout related types
-export type WorkoutResult = Result;
-export type ResultSet = Set;
+export type WorkoutResult = Result
+export type ResultSet = DBSet
 
 export type WorkoutResultWithWorkoutName = Result & {
-  workoutName?: string;
-};
+	workoutName?: string
+}
 
 export type ResultSetInput = {
-  setNumber: number;
-  reps?: number | null;
-  weight?: number | null;
-  status?: "pass" | "fail" | null;
-  distance?: number | null;
-  time?: number | null;
-  score?: number | null;
-};
+	setNumber: number
+	reps?: number | null
+	weight?: number | null
+	status?: "pass" | "fail" | null
+	distance?: number | null
+	time?: number | null
+	score?: number | null
+}
 
 export type WorkoutWithTagsAndMovements = Workout & {
-  tags: Pick<Tag, "id" | "name">[];
-  movements: {
-    id: Movement["id"];
-    name: Movement["name"];
-    type: "monostructural" | "weightlifting" | "gymnastic";
-  }[];
-};
+	tags: Pick<Tag, "id" | "name">[]
+	movements: {
+		id: Movement["id"]
+		name: Movement["name"]
+		type: "monostructural" | "weightlifting" | "gymnastic"
+	}[]
+}
 
 export type WorkoutUpdate = Partial<
-  Pick<
-    Workout,
-    | "name"
-    | "description"
-    | "scheme"
-    | "scope"
-    | "repsPerRound"
-    | "roundsToScore"
-  >
->;
+	Pick<
+		Workout,
+		| "name"
+		| "description"
+		| "scheme"
+		| "scope"
+		| "repsPerRound"
+		| "roundsToScore"
+	>
+>
 
 export interface ParsedUserAgent {
-  ua: string;
-  browser: {
-    name?: string;
-    version?: string;
-    major?: string;
-  };
-  device: {
-    model?: string;
-    type?: string;
-    vendor?: string;
-  };
-  engine: {
-    name?: string;
-    version?: string;
-  };
-  os: {
-    name?: string;
-    version?: string;
-  };
+	ua: string
+	browser: {
+		name?: string
+		version?: string
+		major?: string
+	}
+	device: {
+		model?: string
+		type?: string
+		vendor?: string
+	}
+	engine: {
+		name?: string
+		version?: string
+	}
+	os: {
+		name?: string
+		version?: string
+	}
 }
 
 export interface SessionWithMeta extends KVSession {
-  isCurrentSession: boolean;
-  expiration?: Date;
-  createdAt: number;
-  userAgent?: string | null;
-  parsedUserAgent?: ParsedUserAgent;
+	isCurrentSession: boolean
+	expiration?: Date
+	createdAt: number
+	userAgent?: string | null
+	parsedUserAgent?: ParsedUserAgent
 }
 
 // Re-export common types for convenience
-export type { Workout, Movement, Tag } from "@/db/schema";
+export type { Workout, Movement, Tag } from "@/db/schema"
