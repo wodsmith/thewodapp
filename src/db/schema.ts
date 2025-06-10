@@ -1,6 +1,12 @@
 import { relations, sql } from "drizzle-orm"
 import type { InferSelectModel } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	integer,
+	primaryKey,
+	sqliteTable,
+	text,
+} from "drizzle-orm/sqlite-core"
 
 import type { Prettify } from "@/lib/utils"
 import { createId } from "@paralleldrive/cuid2"
@@ -259,6 +265,44 @@ export const TEAM_PERMISSIONS = {
 	// Add more as needed
 } as const
 
+// ---------------------------------------------
+// Programming Tracks & Scheduling (declare early to be referenced later)
+// ---------------------------------------------
+
+// Track types enum & tuple
+export const PROGRAMMING_TRACK_TYPE = {
+	SELF_PROGRAMMED: "self_programmed",
+	TEAM_OWNED: "team_owned",
+	OFFICIAL_3RD_PARTY: "official_3rd_party",
+} as const
+
+export const programmingTrackTypeTuple = Object.values(
+	PROGRAMMING_TRACK_TYPE,
+) as [string, ...string[]]
+
+// programming_tracks
+export const programmingTracksTable = sqliteTable(
+	"programming_track",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => `ptrk_${createId()}`)
+			.notNull(),
+		name: text({ length: 255 }).notNull(),
+		description: text({ length: 1000 }),
+		type: text({ enum: programmingTrackTypeTuple }).notNull(),
+		ownerTeamId: text().references(() => teamTable.id),
+		isPublic: integer().default(0).notNull(),
+	},
+	(table) => [
+		index("programming_track_type_idx").on(table.type),
+		index("programming_track_owner_idx").on(table.ownerTeamId),
+	],
+)
+
+// Note: further related tables (teamProgrammingTracksTable, trackWorkoutsTable) are declared later in this file after dependent tables are defined.
+
 // Team table
 export const teamTable = sqliteTable(
 	"team",
@@ -279,6 +323,7 @@ export const teamTable = sqliteTable(
 		planId: text({ length: 100 }),
 		planExpiresAt: integer({ mode: "timestamp" }),
 		creditBalance: integer().default(0).notNull(),
+		defaultTrackId: text().references(() => programmingTracksTable.id),
 	},
 	(table) => [index("team_slug_idx").on(table.slug)],
 )
@@ -555,6 +600,9 @@ export const workouts = sqliteTable("workouts", {
 			"points",
 		],
 	}),
+	sourceTrackId: text("source_track_id").references(
+		() => programmingTracksTable.id,
+	),
 })
 
 // Workout Movements junction table (no changes)
@@ -578,6 +626,9 @@ export const results = sqliteTable("results", {
 		enum: ["wod", "strength", "monostructural"],
 	}).notNull(),
 	notes: text("notes"),
+	programmingTrackId: text("programming_track_id").references(
+		() => programmingTracksTable.id,
+	),
 
 	// WOD specific results
 	scale: text("scale", { enum: ["rx", "scaled", "rx+"] }),
@@ -637,3 +688,68 @@ export type Set = Prettify<InferSelectModel<typeof sets>>
 export type WorkoutMovement = Prettify<
 	InferSelectModel<typeof workoutMovements>
 >
+
+// ---------------------------------------------
+// Programming Tracks & Scheduling
+// ---------------------------------------------
+
+// team_programming_tracks (join table)
+export const teamProgrammingTracksTable = sqliteTable(
+	"team_programming_track",
+	{
+		...commonColumns,
+		teamId: text()
+			.notNull()
+			.references(() => teamTable.id),
+		trackId: text()
+			.notNull()
+			.references(() => programmingTracksTable.id),
+		isActive: integer().default(1).notNull(),
+		addedAt: integer({ mode: "timestamp" })
+			.$defaultFn(() => new Date())
+			.notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.teamId, table.trackId] }),
+		index("team_programming_track_active_idx").on(table.isActive),
+	],
+)
+
+// track_workouts
+export const trackWorkoutsTable = sqliteTable(
+	"track_workout",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => `trwk_${createId()}`)
+			.notNull(),
+		trackId: text()
+			.notNull()
+			.references(() => programmingTracksTable.id),
+		workoutId: text()
+			.notNull()
+			.references(() => workouts.id),
+		dayNumber: integer().notNull(),
+		weekNumber: integer(),
+		notes: text({ length: 1000 }),
+	},
+	(table) => [
+		index("track_workout_track_idx").on(table.trackId),
+		index("track_workout_day_idx").on(table.dayNumber),
+		index("track_workout_unique_idx").on(
+			table.trackId,
+			table.workoutId,
+			table.dayNumber,
+		),
+	],
+)
+
+// New exported types
+export type ProgrammingTrack = Prettify<
+	InferSelectModel<typeof programmingTracksTable>
+>
+export type TeamProgrammingTrack = Prettify<
+	InferSelectModel<typeof teamProgrammingTracksTable>
+>
+export type TrackWorkout = Prettify<InferSelectModel<typeof trackWorkoutsTable>>

@@ -78,6 +78,13 @@
 			"when": 1749058975613,
 			"tag": "0010_add_notes_to_sets",
 			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "6",
+			"when": 1749578409497,
+			"tag": "0011_add_programming_and_track_workout_tables",
+			"breakpoints": true
 		}
 	]
 }
