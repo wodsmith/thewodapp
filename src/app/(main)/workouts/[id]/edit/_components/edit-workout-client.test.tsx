@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 import { fireEvent, render, screen } from "@testing-library/react"
 import React from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -14,14 +15,27 @@ vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: vi.fn() }),
 }))
 
+const baseMeta = {
+	createdAt: new Date(),
+	updatedAt: new Date(),
+	updateCounter: null,
+}
+
 const mockTags = [
-	{ id: "tag1", name: "Tag 1" },
-	{ id: "tag2", name: "Tag 2" },
+	{ id: "tag1", name: "Tag 1", ...baseMeta },
+	{ id: "tag2", name: "Tag 2", ...baseMeta },
 ]
+
 const mockMovements = [
-	{ id: "move1", name: "Movement 1", type: "weightlifting" },
-	{ id: "move2", name: "Movement 2", type: "gymnastic" },
+	{
+		id: "move1",
+		name: "Movement 1",
+		type: "weightlifting" as const,
+		...baseMeta,
+	},
+	{ id: "move2", name: "Movement 2", type: "gymnastic" as const, ...baseMeta },
 ]
+
 const mockWorkout = {
 	id: "1",
 	name: "Workout 1",
@@ -32,7 +46,13 @@ const mockWorkout = {
 	scope: "private",
 	repsPerRound: 10,
 	roundsToScore: 1,
-}
+	userId: null,
+	sugarId: null,
+	tiebreakScheme: null,
+	secondaryScheme: null,
+	sourceTrackId: null,
+	...baseMeta,
+} as WorkoutWithTagsAndMovements
 const mockUpdateWorkoutAction = vi.fn()
 
 function setup() {

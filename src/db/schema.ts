@@ -262,6 +262,9 @@ export const TEAM_PERMISSIONS = {
 	EDIT_COMPONENTS: "edit_components",
 	DELETE_COMPONENTS: "delete_components",
 
+	// Scheduling permissions
+	SCHEDULE_WORKOUTS: "schedule_workouts",
+
 	// Add more as needed
 } as const
 
