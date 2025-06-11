@@ -339,9 +339,9 @@ export function TrackWorkoutManager({ trackId, suggestedWorkouts }: Props) {
 				}
 
 				console.log(
-					"[TrackWorkoutManager] Server update successful. Explicitly refetching track workouts to ensure UI consistency.",
+					"[TrackWorkoutManager] Server update successful. UI already updated optimistically.",
 				)
-				await fetchTrackWorkouts()
+				// await fetchTrackWorkouts() // Removed: Explicitly refetching track workouts to ensure UI consistency.
 			} catch (err) {
 				const errorMessage =
 					err instanceof Error ? err.message : "An unknown error occurred."
