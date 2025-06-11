@@ -17,7 +17,7 @@ This commit creates a new centralized admin dashboard page at `src/app/dashboard
 
 ---
 
-## Commit 2: feat: implement enhanced calendar component with admin controls [docs/tasks/2025-06-11-12-41-centralized-admin-dashboard.md]
+## Commit 2: feat: implement enhanced calendar component with admin controls [docs/tasks/2025-06-11-12-41-centralized-admin-dashboard.md] - COMPLETED: e2fb8b8
 
 **Description:**
 This commit enhances the calendar functionality specifically for the admin dashboard by creating `src/components/admin/AdminScheduleCalendar.tsx` - a full-width calendar component that extends `TeamScheduleCalendar` with additional admin features. The enhanced calendar includes drag-and-drop scheduling, bulk operations for managing multiple workouts, quick edit modals for workout instances, and visual indicators for track assignments and workout status. The component integrates with existing scheduling services from `src/server/scheduling-service.ts` and leverages the established `schedulingActions.ts` server actions. Admin-specific permissions are enforced using `src/utils/team-auth.ts` with the `TEAM_PERMISSIONS.SCHEDULE_WORKOUTS` permission. The calendar supports month, week, and day views with smooth transitions and responsive design optimized for desktop admin usage. Comprehensive logging tracks all scheduling operations, permission checks, and user interactions.
