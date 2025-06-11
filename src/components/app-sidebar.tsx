@@ -10,6 +10,7 @@ import {
 	Frame,
 	Map as MapIcon,
 	PieChart,
+	Settings,
 	Settings2,
 	ShoppingCart,
 	SquareTerminal,
@@ -27,6 +28,7 @@ import {
 	SidebarHeader,
 	SidebarRail,
 } from "@/components/ui/sidebar"
+import { TEAM_PERMISSIONS } from "@/db/schema"
 import { useSessionStore } from "@/state/session"
 
 export type NavItem = {
@@ -58,6 +60,7 @@ type Data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { session } = useSessionStore()
 	const [formattedTeams, setFormattedTeams] = useState<Data["teams"]>([])
+	const [hasAdminPermissions, setHasAdminPermissions] = useState(false)
 
 	// Map session teams to the format expected by TeamSwitcher
 	useEffect(() => {
@@ -75,6 +78,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			})
 
 			setFormattedTeams(teamData)
+
+			// Check if user has admin permissions on any team
+			const hasAdmin = session.teams.some((team) =>
+				team.permissions.includes(TEAM_PERMISSIONS.SCHEDULE_WORKOUTS),
+			)
+			setHasAdminPermissions(hasAdmin)
 		}
 	}, [session])
 
@@ -96,6 +105,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				url: "/dashboard/teams" as Route,
 				icon: Users,
 			},
+			...(hasAdminPermissions
+				? [
+						{
+							title: "Admin Dashboard",
+							url: "/dashboard/admin" as Route,
+							icon: Settings,
+						},
+					]
+				: []),
 			{
 				title: "Marketplace",
 				url: "/dashboard/marketplace",
