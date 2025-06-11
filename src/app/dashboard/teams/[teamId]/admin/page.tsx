@@ -1,5 +1,5 @@
+import AdminScheduleCalendar from "@/components/admin/AdminScheduleCalendar"
 import ScheduleWorkoutModal from "@/components/schedule/ScheduleWorkoutModal"
-import TeamScheduleCalendar from "@/components/schedule/TeamScheduleCalendar"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { hasTeamPermission } from "@/utils/team-auth"
 import { redirect } from "next/navigation"
@@ -50,7 +50,7 @@ export default async function AdminDashboardPage({ params }: PageProps) {
 
 					{/* Main calendar area */}
 					<div className="lg:col-span-6 bg-white rounded-lg shadow p-6">
-						<TeamScheduleCalendar teamId={teamId} />
+						<AdminScheduleCalendar teamId={teamId} />
 					</div>
 
 					{/* Right sidebar placeholder */}
