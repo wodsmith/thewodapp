@@ -6,14 +6,15 @@ import {
 	type Team,
 	type TeamProgrammingTrack,
 	type TrackWorkout,
+	type Workout,
 	programmingTracksTable,
 	teamProgrammingTracksTable,
-	teamTable,
+	teamTable, // Corrected: teamTable (as per schema.ts)
 	trackWorkoutsTable,
-	workouts,
+	workouts, // Corrected: workouts (as per schema.ts)
 } from "@/db/schema"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq } from "drizzle-orm"
+import { and, asc, desc, eq, getTableColumns, sql } from "drizzle-orm"
 
 /* -------------------------------------------------------------------------- */
 /*                                Data Types                                  */
@@ -22,7 +23,7 @@ import { and, eq } from "drizzle-orm"
 export interface CreateTrackInput {
 	name: string
 	description?: string | null
-	type: (typeof programmingTracksTable._.columns.type)["data"]
+	type: "standard" | "onboarding" | "template" // This should align with your actual schema enum if different
 	ownerTeamId?: string | null
 	isPublic?: boolean
 }
@@ -35,6 +36,10 @@ export interface AddWorkoutToTrackInput {
 	notes?: string | null
 }
 
+export interface TrackWorkoutWithDetails extends TrackWorkout {
+	workout: Workout
+}
+
 /* -------------------------------------------------------------------------- */
 /*                              Core Functions                                 */
 /* -------------------------------------------------------------------------- */
@@ -44,31 +49,36 @@ export async function createProgrammingTrack(
 ): Promise<ProgrammingTrack> {
 	const db = getDB()
 
-	const [track] = await db
-		.insert(programmingTracksTable)
-		.values({
-			id: `ptrk_${createId()}`,
-			name: data.name,
-			description: data.description,
-			type: data.type,
-			ownerTeamId: data.ownerTeamId,
-			isPublic: data.isPublic ? 1 : 0,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		})
-		.returning()
+	const newTrack = {
+		id: `ptrk_${createId()}`,
+		name: data.name,
+		description: data.description,
+		// Ensure this 'type' matches the enum in programmingTracksTable schema
+		type: data.type as ProgrammingTrack["type"], // Cast if necessary, ensure data.type is valid
+		ownerTeamId: data.ownerTeamId,
+		isPublic: data.isPublic ? 1 : 0,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	}
 
-	return track
+	const result = await db
+		.insert(programmingTracksTable)
+		.values(newTrack)
+		.returning()
+		.get() // Assuming .get() for SQLite returning a single object
+
+	return result
 }
 
 export async function getProgrammingTrackById(
 	trackId: string,
 ): Promise<ProgrammingTrack | null> {
 	const db = getDB()
-	const [track] = await db
+	const track = await db
 		.select()
 		.from(programmingTracksTable)
 		.where(eq(programmingTracksTable.id, trackId))
+		.get() // Assuming .get() for SQLite to get a single record or null
 	return track ?? null
 }
 
@@ -77,19 +87,22 @@ export async function addWorkoutToTrack(
 ): Promise<TrackWorkout> {
 	const db = getDB()
 
-	const [trackWorkout] = await db
+	const newTrackWorkout = {
+		id: `trwk_${createId()}`,
+		trackId: data.trackId,
+		workoutId: data.workoutId,
+		dayNumber: data.dayNumber,
+		weekNumber: data.weekNumber,
+		notes: data.notes,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	}
+
+	const trackWorkout = await db
 		.insert(trackWorkoutsTable)
-		.values({
-			id: `trwk_${createId()}`,
-			trackId: data.trackId,
-			workoutId: data.workoutId,
-			dayNumber: data.dayNumber,
-			weekNumber: data.weekNumber,
-			notes: data.notes,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		})
+		.values(newTrackWorkout)
 		.returning()
+		.get() // Assuming .get() for SQLite
 
 	return trackWorkout
 }
@@ -102,6 +115,29 @@ export async function getWorkoutsForTrack(
 		.select()
 		.from(trackWorkoutsTable)
 		.where(eq(trackWorkoutsTable.trackId, trackId))
+		.orderBy(asc(trackWorkoutsTable.dayNumber)) // Added orderBy
+}
+
+export async function getTrackWorkoutsWithDetails(
+	currentTrackId: string,
+): Promise<TrackWorkoutWithDetails[]> {
+	const db = getDB()
+	const results = await db
+		.select({
+			// Select all columns from trackWorkoutsTable for the main part of TrackWorkoutWithDetails
+			...getTableColumns(trackWorkoutsTable),
+			// Nest workout details under the 'workout' key
+			workout: getTableColumns(workouts), // Corrected: workouts
+		})
+		.from(trackWorkoutsTable)
+		.leftJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id)) // Corrected: workouts
+		.where(eq(trackWorkoutsTable.trackId, currentTrackId))
+		.orderBy(asc(trackWorkoutsTable.dayNumber)) // Crucially order by dayNumber
+
+	// Drizzle's select with nested objects might directly return the desired structure.
+	// If not, a manual mapping step would be needed, but often it aligns well.
+	// Ensure that the 'workout' field in TrackWorkoutWithDetails matches what getTableColumns(workoutTable) provides.
+	return results as TrackWorkoutWithDetails[]
 }
 
 export async function assignTrackToTeam(
@@ -110,43 +146,21 @@ export async function assignTrackToTeam(
 	isActive = true,
 ): Promise<TeamProgrammingTrack> {
 	const db = getDB()
-
-	// Upsert behaviour: if record exists update isActive else insert
-	const existing = await db
-		.select()
-		.from(teamProgrammingTracksTable)
-		.where(
-			and(
-				eq(teamProgrammingTracksTable.teamId, teamId),
-				eq(teamProgrammingTracksTable.trackId, trackId),
-			),
-		)
-	if (existing.length > 0) {
-		const [updated] = await db
-			.update(teamProgrammingTracksTable)
-			.set({ isActive: isActive ? 1 : 0, updatedAt: new Date() })
-			.where(
-				and(
-					eq(teamProgrammingTracksTable.teamId, teamId),
-					eq(teamProgrammingTracksTable.trackId, trackId),
-				),
-			)
-			.returning()
-		return updated
+	const valuesToInsert = {
+		teamId,
+		trackId,
+		isActive: isActive ? 1 : 0,
+		addedAt: new Date(),
+		createdAt: new Date(), // Assuming commonColumns handles this if not specified
+		updatedAt: new Date(), // Assuming commonColumns handles this if not specified
 	}
-
-	const [created] = await db
+	// teamProgrammingTracksTable does not have an 'id' column based on schema, it has a composite PK.
+	const [teamTrack] = await db
 		.insert(teamProgrammingTracksTable)
-		.values({
-			teamId,
-			trackId,
-			isActive: isActive ? 1 : 0,
-			addedAt: new Date(),
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		})
+		.values(valuesToInsert)
 		.returning()
-	return created
+
+	return teamTrack
 }
 
 export async function getTeamTracks(
@@ -154,32 +168,48 @@ export async function getTeamTracks(
 	activeOnly = true,
 ): Promise<ProgrammingTrack[]> {
 	const db = getDB()
+	const conditions = [eq(teamProgrammingTracksTable.teamId, teamId)]
 
-	const joins = db
-		.select({ track: programmingTracksTable })
-		.from(programmingTracksTable)
+	if (activeOnly) {
+		conditions.push(eq(teamProgrammingTracksTable.isActive, 1))
+	}
+
+	const queryBuilder = db
+		.select(getTableColumns(programmingTracksTable))
+		.from(teamProgrammingTracksTable)
 		.innerJoin(
-			teamProgrammingTracksTable,
-			and(
-				eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
-				eq(teamProgrammingTracksTable.teamId, teamId),
-				activeOnly ? eq(teamProgrammingTracksTable.isActive, 1) : undefined, // ignore filter if not activeOnly
-			),
+			programmingTracksTable,
+			eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
 		)
+		.where(and(...conditions))
 
-	const records = await joins
-	return records.map((r) => r.track)
+	const results = await queryBuilder.orderBy(
+		desc(programmingTracksTable.createdAt),
+	)
+
+	return results
 }
 
 export async function updateTeamDefaultTrack(
 	teamId: string,
-	trackId: string | null,
+	newDefaultTrackId: string | null,
 ): Promise<Team> {
 	const db = getDB()
-	const [team] = await db
-		.update(teamTable)
-		.set({ defaultTrackId: trackId, updatedAt: new Date() })
+	const updatedTeam = await db
+		.update(teamTable) // Corrected: teamTable
+		.set({
+			defaultProgrammingTrackId: newDefaultTrackId,
+			updatedAt: new Date(),
+		})
 		.where(eq(teamTable.id, teamId))
 		.returning()
-	return team
+		.get() // Use .get() to retrieve the updated record
+
+	if (!updatedTeam) {
+		throw new Error(
+			`Failed to update team with ID ${teamId} or team not found.`,
+		)
+	}
+
+	return updatedTeam
 }

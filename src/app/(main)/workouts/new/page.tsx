@@ -7,6 +7,7 @@ import CreateWorkoutClient from "./_components/create-workout-client"
 
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { getAllTagsAction } from "@/actions/tag-actions"
+import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getSessionFromCookie } from "@/utils/auth"
 import type { Metadata } from "next"
 
@@ -45,10 +46,15 @@ export default async function CreateWorkoutPage() {
 		redirect("/login")
 	}
 
+	const teams = (session.teams || []).filter((team) =>
+		team.permissions.includes(TEAM_PERMISSIONS.SCHEDULE_WORKOUTS),
+	)
+
 	return (
 		<CreateWorkoutClient
 			movements={movements.data}
 			tags={tags.data}
+			teams={teams.map((t) => ({ id: t.id, name: t.name }))}
 			userId={session.user.id}
 		/>
 	)

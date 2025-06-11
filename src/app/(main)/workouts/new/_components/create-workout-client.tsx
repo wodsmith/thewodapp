@@ -39,6 +39,7 @@ import { useServerAction } from "zsa-react"
 interface Props {
 	movements: Movement[]
 	tags: Tag[]
+	teams?: Array<{ id: string; name: string }>
 	userId: string
 	createWorkoutAction?: typeof createWorkoutAction
 }
@@ -46,6 +47,7 @@ interface Props {
 export default function CreateWorkoutClient({
 	movements,
 	tags: initialTags,
+	teams = [],
 	userId,
 	createWorkoutAction: createWorkoutActionProp,
 }: Props) {
@@ -64,6 +66,7 @@ export default function CreateWorkoutClient({
 			repsPerRound: undefined,
 			selectedMovements: [],
 			selectedTags: [],
+			teamId: undefined,
 		},
 	})
 
@@ -140,6 +143,8 @@ export default function CreateWorkoutClient({
 				scope: data.scope,
 				roundsToScore: data.roundsToScore ?? null,
 				repsPerRound: data.repsPerRound ?? null,
+				teamId:
+					data.teamId === "personal" || !data.teamId ? undefined : data.teamId,
 				sugarId: null,
 				tiebreakScheme: null,
 				secondaryScheme: null,
@@ -317,6 +322,33 @@ export default function CreateWorkoutClient({
 												min="0"
 											/>
 										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="teamId"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="font-bold uppercase">Team</FormLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Personal" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value="personal">Personal</SelectItem>
+
+												{teams.map((team) => (
+													<SelectItem key={team.id} value={team.id}>
+														{team.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 										<FormMessage />
 									</FormItem>
 								)}

@@ -4,7 +4,6 @@ export default function Page() {
 	return (
 		<main className="container mx-auto p-4">
 			<h1 className="text-2xl font-semibold mb-4">Programming Tracks</h1>
-			{/* @ts-expect-error Async Server Component */}
 			<TrackList />
 		</main>
 	)

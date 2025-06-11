@@ -92,6 +92,13 @@
 			"when": 1749579222612,
 			"tag": "0012_add_scheduled_workout_instances_table",
 			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "6",
+			"when": 1749596026498,
+			"tag": "0013_add_team_to_workout",
+			"breakpoints": true
 		}
 	]
 }

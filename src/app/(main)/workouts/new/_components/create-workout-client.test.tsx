@@ -67,6 +67,7 @@ function setup() {
 			tags={mockTags}
 			movements={mockMovements}
 			userId="test-user"
+			teams={[]}
 			createWorkoutAction={mockCreateWorkoutAction}
 		/>,
 	)

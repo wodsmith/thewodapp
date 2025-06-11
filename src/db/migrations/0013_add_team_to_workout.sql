@@ -1,0 +1,1 @@
+ALTER TABLE `workouts` ADD `team_id` text REFERENCES team(id);

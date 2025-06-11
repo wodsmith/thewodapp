@@ -2,8 +2,10 @@ import "server-only"
 import { getDB } from "@/db"
 import {
 	movements,
+	programmingTracksTable,
 	results,
 	tags,
+	trackWorkoutsTable,
 	workoutMovements,
 	workoutTags,
 	workouts,
@@ -11,7 +13,19 @@ import {
 import type { Workout } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, gte, inArray, isNotNull, lt, or } from "drizzle-orm"
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	lt,
+	notInArray,
+	or,
+} from "drizzle-orm"
 import { ZSAError } from "zsa"
 
 /**
@@ -173,6 +187,7 @@ export async function createWorkout({
 }: {
 	workout: Omit<Workout, "id" | "updatedAt" | "updateCounter" | "userId"> & {
 		createdAt: Date
+		teamId?: string | null
 	}
 	tagIds: string[]
 	movementIds: string[]
@@ -194,6 +209,7 @@ export async function createWorkout({
 			sugarId: workout.sugarId,
 			tiebreakScheme: workout.tiebreakScheme,
 			secondaryScheme: workout.secondaryScheme,
+			teamId: workout.teamId ?? null,
 			userId,
 			createdAt: workout.createdAt,
 			updatedAt: new Date(),
@@ -326,4 +342,69 @@ export async function updateWorkout({
 			})),
 		)
 	}
+}
+
+/**
+ * Get workouts for a team that are not in the specified track, sorted by criteria
+ */
+export async function getTeamWorkoutsNotInTrackSorted(
+	currentTrackId: string,
+	ownerTeamId: string,
+): Promise<Workout[]> {
+	const db = getDB()
+
+	// 1. Get all workout IDs currently in the specified track
+	const workoutsInCurrentTrack = await db
+		.select({ workoutId: trackWorkoutsTable.workoutId })
+		.from(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.trackId, currentTrackId))
+
+	const workoutsInCurrentTrackIds = workoutsInCurrentTrack.map(
+		(w) => w.workoutId,
+	)
+
+	// 2. Get all workout IDs that are part of *any* track (for sorting)
+	// We only care about workouts that are in *other* tracks, not the current one.
+	const workoutsInOtherTracks = await db
+		.selectDistinct({ workoutId: trackWorkoutsTable.workoutId })
+		.from(trackWorkoutsTable)
+		.where(notInArray(trackWorkoutsTable.trackId, [currentTrackId])) // Exclude current track
+	const workoutsInOtherTracksIds = workoutsInOtherTracks.map((w) => w.workoutId)
+
+	// 3. Fetch workouts for the team, excluding those already in the current track
+	const teamWorkoutsQuery = db
+		.select()
+		.from(workouts) // Corrected: use 'workouts' table
+		.where(
+			and(
+				eq(workouts.teamId, ownerTeamId),
+				workoutsInCurrentTrackIds.length > 0
+					? notInArray(workouts.id, workoutsInCurrentTrackIds)
+					: undefined, // If no workouts in current track, this condition is omitted
+			),
+		)
+		.orderBy(
+			desc(workouts.createdAt), // Default sort by creation date
+		)
+
+	const availableTeamWorkouts = await teamWorkoutsQuery
+
+	// 4. Sort the results: workouts present in other tracks go to the bottom
+	const sortedWorkouts = availableTeamWorkouts.sort((a, b) => {
+		// Check if workout 'a' is in another track (and not the current one)
+		const aInOtherTrack = workoutsInOtherTracksIds.includes(a.id)
+		// Check if workout 'b' is in another track (and not the current one)
+		const bInOtherTrack = workoutsInOtherTracksIds.includes(b.id)
+
+		if (aInOtherTrack && !bInOtherTrack) {
+			return 1 // a comes after b
+		}
+		if (!aInOtherTrack && bInOtherTrack) {
+			return -1 // a comes before b
+		}
+		// If both are in other tracks or neither are, maintain original sort (e.g., by createdAt)
+		return 0
+	})
+
+	return sortedWorkouts
 }

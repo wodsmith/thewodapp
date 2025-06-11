@@ -265,6 +265,11 @@ export const TEAM_PERMISSIONS = {
 	// Scheduling permissions
 	SCHEDULE_WORKOUTS: "schedule_workouts",
 
+	// Track management
+	CREATE_TRACKS: "create_tracks",
+	EDIT_TRACKS: "edit_tracks",
+	DELETE_TRACKS: "delete_tracks",
+
 	// Add more as needed
 } as const
 
@@ -606,6 +611,7 @@ export const workouts = sqliteTable("workouts", {
 	sourceTrackId: text("source_track_id").references(
 		() => programmingTracksTable.id,
 	),
+	teamId: text("team_id").references(() => teamTable.id),
 })
 
 // Workout Movements junction table (no changes)

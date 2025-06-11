@@ -1,4 +1,5 @@
 import "server-only"
+import { getAllTracks } from "@/server/tracks"
 
 interface Track {
 	id: string
@@ -6,7 +7,7 @@ interface Track {
 }
 
 export default async function TrackList() {
-	const tracks: Track[] = []
+	const tracks: Track[] = await getAllTracks()
 
 	if (!tracks.length) {
 		return <p>No tracks yet.</p>

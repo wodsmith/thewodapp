@@ -50,6 +50,7 @@ const createWorkoutSchema = z.object({
 				"points",
 			])
 			.nullable(),
+		teamId: z.string().optional(),
 	}),
 	tagIds: z.array(z.string()).default([]),
 	movementIds: z.array(z.string()).default([]),
@@ -63,7 +64,13 @@ export const createWorkoutAction = createServerAction()
 	.input(createWorkoutSchema)
 	.handler(async ({ input }) => {
 		try {
-			const result = await createWorkout(input)
+			const result = await createWorkout({
+				...input,
+				workout: {
+					...input.workout,
+					createdAt: new Date(),
+				},
+			})
 			return result
 		} catch (error) {
 			console.error("Failed to create workout:", error)

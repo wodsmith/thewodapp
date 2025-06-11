@@ -1,5 +1,6 @@
 "use client"
 import { createTrackAction } from "@/app/actions/trackActions"
+import { PROGRAMMING_TRACK_TYPE } from "@/db/schema"
 import React from "react"
 import { type ChangeEvent, type FormEvent, useState } from "react"
 
@@ -11,17 +12,26 @@ interface FormState {
 	isPublic: boolean
 }
 
-function CreateTrackForm() {
+interface TeamOption {
+	id: string
+	name: string
+}
+
+interface Props {
+	teams: TeamOption[]
+}
+
+function CreateTrackForm({ teams }: Props) {
 	const [state, setState] = useState<FormState>({
 		name: "",
 		description: "",
 		type: "",
-		ownerTeam: "",
+		ownerTeam: teams[0]?.id ?? "",
 		isPublic: false,
 	})
 
 	function handleChange(
-		e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+		e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
 	) {
 		const { name, value, type, checked } = e.target as HTMLInputElement
 		setState((prev) => ({
@@ -60,20 +70,34 @@ function CreateTrackForm() {
 				onChange={handleChange}
 				className="w-full border p-2"
 			/>
-			<input
+			<select
 				name="type"
-				placeholder="Type"
 				value={state.type}
 				onChange={handleChange}
-				className="w-full border p-2"
-			/>
-			<input
+				className="w-full border p-2 bg-white dark:bg-gray-800"
+			>
+				<option value="">Select Track Type</option>
+				{Object.values(PROGRAMMING_TRACK_TYPE).map((trackType) => (
+					<option key={trackType} value={trackType}>
+						{trackType
+							.replace(/_/g, " ")
+							.replace(/\b\w/g, (c) => c.toUpperCase())}
+					</option>
+				))}
+			</select>
+			<select
 				name="ownerTeam"
-				placeholder="Owner Team"
 				value={state.ownerTeam}
 				onChange={handleChange}
-				className="w-full border p-2"
-			/>
+				className="w-full border p-2 bg-white dark:bg-gray-800"
+			>
+				<option value="">Select Team</option>
+				{teams.map((team) => (
+					<option key={team.id} value={team.id}>
+						{team.name}
+					</option>
+				))}
+			</select>
 			<label className="flex items-center space-x-2">
 				<input
 					type="checkbox"
