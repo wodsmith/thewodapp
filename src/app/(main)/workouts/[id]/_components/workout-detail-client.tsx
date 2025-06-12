@@ -1,15 +1,28 @@
-"use client";
+"use client"
 
-import type { Movement, ResultSet, Tag, WorkoutResult, WorkoutWithTagsAndMovements } from "@/types";
-import { ArrowLeft, Clock, Dumbbell, Edit, ListChecks, Tag as TagIcon } from "lucide-react";
-import Link from "next/link";
-import { Suspense } from "react";
-import { SetDetails } from "./set-details";
+import type {
+	Movement,
+	ResultSet,
+	Tag,
+	WorkoutResult,
+	WorkoutWithTagsAndMovements,
+} from "@/types"
+import {
+	ArrowLeft,
+	Clock,
+	Dumbbell,
+	Edit,
+	ListChecks,
+	Tag as TagIcon,
+} from "lucide-react"
+import Link from "next/link"
+import { Suspense } from "react"
+import { SetDetails } from "./set-details"
 
 // Define a new type for results with their sets
 export type WorkoutResultWithSets = WorkoutResult & {
-	sets: ResultSet[] | null;
-};
+	sets: ResultSet[] | null
+}
 
 export default function WorkoutDetailClient({
 	userId,
@@ -17,20 +30,20 @@ export default function WorkoutDetailClient({
 	workoutId,
 	resultsWithSets, // Changed from results and resultSetDetails
 }: {
-	userId: string;
-	workout: WorkoutWithTagsAndMovements;
-	workoutId: string;
-	resultsWithSets: WorkoutResultWithSets[]; // Use the new type
+	userId: string
+	workout: WorkoutWithTagsAndMovements
+	workoutId: string
+	resultsWithSets: WorkoutResultWithSets[] // Use the new type
 }) {
-	if (!workout) return <div>Loading...</div>;
+	if (!workout) return <div>Loading...</div>
 
-	const canEditWorkout = userId === workout.userId;
+	const canEditWorkout = userId === workout.userId
 
 	// Helper to format date
 	const formatDate = (timestamp: number | Date | null) => {
-		if (!timestamp) return "N/A";
-		return new Date(timestamp).toLocaleDateString();
-	};
+		if (!timestamp) return "N/A"
+		return new Date(timestamp).toLocaleDateString()
+	}
 
 	return (
 		<div>
@@ -189,5 +202,5 @@ export default function WorkoutDetailClient({
 				</div>
 			</div>
 		</div>
-	);
+	)
 }

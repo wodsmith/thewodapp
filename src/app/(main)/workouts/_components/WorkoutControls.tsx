@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { Input } from "@/components/ui/input";
 import {
@@ -15,44 +15,42 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface WorkoutControlsProps {
-  allTags: Tag["name"][];
-  allMovements: Movement["name"][];
+	allTags: Tag["name"][]
+	allMovements: Movement["name"][]
 }
 
 export default function WorkoutControls({
-  allTags,
-  allMovements,
+	allTags,
+	allMovements,
 }: WorkoutControlsProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(
-    searchParams.get("search") || ""
-  );
-  const [selectedTag, setSelectedTag] = useState(searchParams.get("tag") || "");
-  const [selectedMovement, setSelectedMovement] = useState(
-    searchParams.get("movement") || ""
-  );
+	const router = useRouter()
+	const pathname = usePathname()
+	const searchParams = useSearchParams()
+	const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "")
+	const [selectedTag, setSelectedTag] = useState(searchParams.get("tag") || "")
+	const [selectedMovement, setSelectedMovement] = useState(
+		searchParams.get("movement") || "",
+	)
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (searchTerm) {
-      params.set("search", searchTerm);
-    } else {
-      params.delete("search");
-    }
+	useEffect(() => {
+		const params = new URLSearchParams(searchParams.toString())
+		if (searchTerm) {
+			params.set("search", searchTerm)
+		} else {
+			params.delete("search")
+		}
 
-    if (selectedTag) {
-      params.set("tag", selectedTag);
-    } else {
-      params.delete("tag");
-    }
+		if (selectedTag) {
+			params.set("tag", selectedTag)
+		} else {
+			params.delete("tag")
+		}
 
-    if (selectedMovement) {
-      params.set("movement", selectedMovement);
-    } else {
-      params.delete("movement");
-    }
+		if (selectedMovement) {
+			params.set("movement", selectedMovement)
+		} else {
+			params.delete("movement")
+		}
 
     router.replace(`${pathname}?${params.toString()}` as Route, {
       scroll: false,
@@ -117,6 +115,6 @@ export default function WorkoutControls({
 				<Filter className="h-5 w-5" />
 				Filter
 			</button> */}
-    </div>
-  );
+		</div>
+	)
 }

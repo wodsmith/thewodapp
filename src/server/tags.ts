@@ -1,22 +1,22 @@
-import "server-only";
-import { getDB } from "@/db";
-import { tags } from "@/db/schema";
-import { requireVerifiedEmail } from "@/utils/auth";
-import { ZSAError } from "zsa";
+import "server-only"
+import { getDB } from "@/db"
+import { tags } from "@/db/schema"
+import { requireVerifiedEmail } from "@/utils/auth"
+import { ZSAError } from "zsa"
 
 /**
  * Get all tags available in the system
  */
 export async function getAllTags() {
-  const session = await requireVerifiedEmail();
+	const session = await requireVerifiedEmail()
 
-  if (!session) {
-    throw new ZSAError("NOT_AUTHORIZED", "Not authenticated");
-  }
+	if (!session) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
 
-  const db = getDB();
+	const db = getDB()
 
-  const allTags = await db.select().from(tags);
+	const allTags = await db.select().from(tags)
 
-  return allTags;
+	return allTags
 }

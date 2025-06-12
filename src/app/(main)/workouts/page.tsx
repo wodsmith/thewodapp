@@ -16,85 +16,85 @@ import {
 } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://spicywod.com"),
-  title: "Spicy Wod | Explore Workouts",
-  description: "Track your spicy workouts and progress.",
-  openGraph: {
-    title: "Spicy Wod | Explore Workouts", // Default title for layout
-    description: "Track your spicy workouts and progress.", // Default description
-    images: [
-      {
-        url: `/api/og?title=${encodeURIComponent(
-          "Spicy Wod | Explore Workouts"
-        )}`,
-        width: 1200,
-        height: 630,
-        alt: "Spicy Wod | Explore Workouts",
-      },
-    ],
-  },
-};
+	metadataBase: new URL("https://spicywod.com"),
+	title: "Spicy Wod | Explore Workouts",
+	description: "Track your spicy workouts and progress.",
+	openGraph: {
+		title: "Spicy Wod | Explore Workouts", // Default title for layout
+		description: "Track your spicy workouts and progress.", // Default description
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent(
+					"Spicy Wod | Explore Workouts",
+				)}`,
+				width: 1200,
+				height: 630,
+				alt: "Spicy Wod | Explore Workouts",
+			},
+		],
+	},
+}
 
 export default async function WorkoutsPage({
-  searchParams,
+	searchParams,
 }: {
-  searchParams?: Promise<{ search?: string; tag?: string; movement?: string }>;
+	searchParams?: Promise<{ search?: string; tag?: string; movement?: string }>
 }) {
-  const session = await requireVerifiedEmail();
+	const session = await requireVerifiedEmail()
 
-  if (!session || !session?.user?.id) {
-    console.log("[workouts/page] No user found");
-    redirect("/login");
-  }
+	if (!session || !session?.user?.id) {
+		console.log("[workouts/page] No user found")
+		redirect("/login")
+	}
 
-  const mySearchParams = await searchParams;
-  const [result, error] = await getUserWorkoutsAction({
-    userId: session.user.id,
-  });
+	const mySearchParams = await searchParams
+	const [result, error] = await getUserWorkoutsAction({
+		userId: session.user.id,
+	})
 
-  if (error || !result?.success) {
-    return notFound();
-  }
+	if (error || !result?.success) {
+		return notFound()
+	}
 
-  const allWorkouts = result.data;
-  const searchTerm = mySearchParams?.search?.toLowerCase() || "";
-  const selectedTag = mySearchParams?.tag || "";
-  const selectedMovement = mySearchParams?.movement || "";
-  const workouts = allWorkouts.filter((workout) => {
-    const nameMatch = workout.name.toLowerCase().includes(searchTerm);
-    const descriptionMatch = workout.description
-      ?.toLowerCase()
-      .includes(searchTerm);
-    const movementSearchMatch = workout.movements.some((movement) =>
-      movement?.name?.toLowerCase().includes(searchTerm)
-    );
-    const tagSearchMatch = workout.tags.some((tag) =>
-      tag.name.toLowerCase().includes(searchTerm)
-    );
-    const searchFilterPassed = searchTerm
-      ? nameMatch || descriptionMatch || movementSearchMatch || tagSearchMatch
-      : true;
-    const tagFilterPassed = selectedTag
-      ? workout.tags.some((tag) => tag.name === selectedTag)
-      : true;
-    const movementFilterPassed = selectedMovement
-      ? workout.movements.some(
-          (movement) => movement?.name === selectedMovement
-        )
-      : true;
-    return searchFilterPassed && tagFilterPassed && movementFilterPassed;
-  });
+	const allWorkouts = result.data
+	const searchTerm = mySearchParams?.search?.toLowerCase() || ""
+	const selectedTag = mySearchParams?.tag || ""
+	const selectedMovement = mySearchParams?.movement || ""
+	const workouts = allWorkouts.filter((workout) => {
+		const nameMatch = workout.name.toLowerCase().includes(searchTerm)
+		const descriptionMatch = workout.description
+			?.toLowerCase()
+			.includes(searchTerm)
+		const movementSearchMatch = workout.movements.some((movement) =>
+			movement?.name?.toLowerCase().includes(searchTerm),
+		)
+		const tagSearchMatch = workout.tags.some((tag) =>
+			tag.name.toLowerCase().includes(searchTerm),
+		)
+		const searchFilterPassed = searchTerm
+			? nameMatch || descriptionMatch || movementSearchMatch || tagSearchMatch
+			: true
+		const tagFilterPassed = selectedTag
+			? workout.tags.some((tag) => tag.name === selectedTag)
+			: true
+		const movementFilterPassed = selectedMovement
+			? workout.movements.some(
+					(movement) => movement?.name === selectedMovement,
+				)
+			: true
+		return searchFilterPassed && tagFilterPassed && movementFilterPassed
+	})
 
-  // Get today's date for filtering
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+	// Get today's date for filtering
+	const today = new Date()
+	today.setHours(0, 0, 0, 0) // Normalize to start of day for comparison
 
-  const todaysWorkouts = allWorkouts.filter((workout) => {
-    if (!workout.createdAt) return false;
-    const workoutDate = new Date(workout.createdAt);
-    workoutDate.setHours(0, 0, 0, 0); // Normalize to start of day
-    return workoutDate.getTime() === today.getTime();
-  });
+	const todaysWorkouts = allWorkouts.filter((workout) => {
+		if (!workout.createdAt) return false
+		const workoutDate = new Date(workout.createdAt)
+		workoutDate.setHours(0, 0, 0, 0) // Normalize to start of day
+		return workoutDate.getTime() === today.getTime()
+	})
 
   // Extract unique tags and movements for filter dropdowns
   const allTags = [

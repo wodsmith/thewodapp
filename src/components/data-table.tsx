@@ -56,17 +56,17 @@ interface DataTableProps<TData, TValue> {
 }
 
 export function DataTable<TData, TValue>({
-  columns,
-  data,
-  pageCount,
-  pageIndex,
-  pageSize,
-  onPageChange,
-  onPageSizeChange,
-  totalCount,
-  itemNameSingular,
-  itemNamePlural,
-  pageSizeOptions = [10, 20, 100],
+	columns,
+	data,
+	pageCount,
+	pageIndex,
+	pageSize,
+	onPageChange,
+	onPageSizeChange,
+	totalCount,
+	itemNameSingular,
+	itemNamePlural,
+	pageSizeOptions = [10, 20, 100],
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] =

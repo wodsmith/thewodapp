@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import type { Movement } from "@/types";
-import { ChevronDown, Filter, Search } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import type { Movement } from "@/types"
+import { ChevronDown, Filter, Search } from "lucide-react"
+import Link from "next/link"
+import { useMemo, useState } from "react"
 
 interface MovementListProps {
   movements: Movement[];

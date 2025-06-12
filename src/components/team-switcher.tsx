@@ -21,7 +21,7 @@ import {
 import Link from "next/link";
 
 export function TeamSwitcher({
-  teams,
+	teams,
 }: {
   teams: {
     name: string;
