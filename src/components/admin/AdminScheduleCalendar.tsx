@@ -98,6 +98,7 @@ export default function AdminScheduleCalendar({
 					classTimes: "9:00 AM, 6:00 PM",
 					createdAt: new Date(),
 					updatedAt: new Date(),
+					updateCounter: null,
 					trackWorkout: {
 						id: "trwk_1",
 						trackId: "track_1",
