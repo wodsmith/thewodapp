@@ -7,19 +7,19 @@ import type { Metadata } from "next"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
-	title: "Spicy WOD | Create Movement",
+	title: "WODsmith | Create Movement",
 	description: "Track your spicy workouts and progress.",
 	openGraph: {
-		title: "Spicy WOD | Create Movement", // Default title for layout
+		title: "WODsmith | Create Movement", // Default title for layout
 		description: "Track your spicy workouts and progress.", // Default description
 		images: [
 			{
 				url: `/api/og?title=${encodeURIComponent(
-					"Spicy WOD | Create Movement",
+					"WODsmith | Create Movement",
 				)}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy WOD | Create Movement",
+				alt: "WODsmith | Create Movement",
 			},
 		],
 	},

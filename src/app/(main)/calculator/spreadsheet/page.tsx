@@ -5,17 +5,17 @@ import type { Metadata } from "next"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
-	title: "Spicy WOD - % Calculator",
+	title: "WODsmith - % Calculator",
 	description: "Track your spicy workouts and progress.",
 	openGraph: {
-		title: "Spicy WOD - % Calculator", // Default title for layout
+		title: "WODsmith - % Calculator", // Default title for layout
 		description: "Track your spicy workouts and progress.", // Default description
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("Spicy WOD - % Calculator")}`,
+				url: `/api/og?title=${encodeURIComponent("WODsmith - % Calculator")}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy WOD - % Calculator",
+				alt: "WODsmith - % Calculator",
 			},
 		],
 	},

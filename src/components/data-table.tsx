@@ -1,16 +1,24 @@
 "use client"
 
+import * as React from "react"
 import {
-	type ColumnDef,
-	type SortingState,
-	type VisibilityState,
+	ColumnDef,
+	SortingState,
+	VisibilityState,
 	flexRender,
 	getCoreRowModel,
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table"
-import * as React from "react"
 
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import {
 	DropdownMenu,
@@ -26,19 +34,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
-import {
-	ChevronDown,
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
+	ChevronDown,
 } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
@@ -146,7 +146,7 @@ export function DataTable<TData, TValue>({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
-			<div className="rounded-md border">
+			<div className="  border">
 				<Table>
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
@@ -245,7 +245,7 @@ export function DataTable<TData, TValue>({
 					</div>
 				</div>
 			</div>
-			<div className="flex items-center justify-between" />
+			<div className="flex items-center justify-between"></div>
 		</div>
 	)
 }

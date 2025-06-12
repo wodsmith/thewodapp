@@ -145,7 +145,7 @@ export function Calendar({
 							className={cn(
 								"h-9 w-9 p-0 font-normal",
 								!isCurrentMonth && "text-muted-foreground opacity-50",
-								isToday && "bg-accent text-accent-foreground",
+								isToday && "bg-orange text-accent-foreground",
 								selected &&
 									"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
 							)}
