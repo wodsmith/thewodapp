@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 						width={40}
 						tw="ml-10 mr-2"
 					/>
-					<span tw="text-white">Spicy WOD</span>
+					<span tw="text-white">WODsmith</span>
 				</h2>
 				<div tw="bg-black flex">
 					<div tw="flex flex-col md:flex-row w-full py-12 px-4 md:items-center justify-center p-8">

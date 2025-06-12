@@ -15,20 +15,20 @@ export default async function MainNav() {
 				<Link href="/" className="flex items-center gap-2">
 					<Image
 						src="/spicywod-logo-black.png"
-						alt="spicy wod"
+						alt="wodsmith"
 						width={32}
 						height={32}
 						className="dark:hidden"
 					/>
 					<Image
 						src="/spicywod-logo-white.png"
-						alt="spicy wod"
+						alt="wodsmith"
 						width={32}
 						height={32}
 						className="hidden dark:block"
 					/>
-					<h1 className="font-black text-2xl text-foreground uppercase dark:text-dark-foreground">
-						spicy wod
+					<h1 className="text-2xl text-foreground dark:text-dark-foreground">
+						<span className="font-black uppercase">wod</span>smith
 					</h1>
 				</Link>
 				<nav className="hidden items-center gap-4 md:flex">

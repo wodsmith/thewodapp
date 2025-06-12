@@ -5,14 +5,14 @@ import type React from "react"
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
 	openGraph: {
-		title: "Spicy WOD", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		title: "WODsmith", // Default title for layout
+		description: "Track your workouts and progress.", // Default description
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("Spicy WOD")}`,
+				url: `/api/og?title=${encodeURIComponent("WODsmith")}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy WOD",
+				alt: "WODsmith",
 			},
 		],
 	},
@@ -32,7 +32,7 @@ export default function MainLayout({
 			<footer className="border-black border-t-2 p-4">
 				<div className="container mx-auto">
 					<p className="text-center">
-						&copy; {new Date().getFullYear()} spicy wod. All rights reserved.
+						&copy; {new Date().getFullYear()} WODsmith. All rights reserved.
 					</p>
 				</div>
 			</footer>

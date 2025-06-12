@@ -8,17 +8,17 @@ import { notFound } from "next/navigation"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
-	title: "Spicy WOD | Movements",
+	title: "WODsmith | Movements",
 	description: "Track your spicy workouts and progress.",
 	openGraph: {
-		title: "Spicy WOD | Movements", // Default title for layout
+		title: "WODsmith | Movements", // Default title for layout
 		description: "Track your spicy workouts and progress.", // Default description
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("Spicy WOD | Movements")}`,
+				url: `/api/og?title=${encodeURIComponent("WODsmith | Movements")}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy WOD | Movements",
+				alt: "WODsmith | Movements",
 			},
 		],
 	},

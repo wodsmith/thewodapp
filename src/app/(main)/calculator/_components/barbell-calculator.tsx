@@ -1,8 +1,8 @@
-"use client";
-import { Input } from "@/components/ui/input";
-import Cookies from "js-cookie";
-import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
-import React, { useState, useMemo, Suspense } from "react";
+"use client"
+import { Input } from "@/components/ui/input"
+import Cookies from "js-cookie"
+import { parseAsInteger, parseAsString, useQueryState } from "nuqs"
+import React, { useState, useMemo, Suspense } from "react"
 // Since we are not in a Next.js environment for this immersive,
 // we'll simulate Head by just letting the style tag be global.
 // import Head from 'next/head'; // Not available in this environment
@@ -199,53 +199,53 @@ const WarmupSet = ({
 	percentage: number
 	onPercentageChange: (newPercentage: number) => void
 }) => (
-  <div className="mb-2.5 border-2 border-black p-3.5 ">
-    <div className="mb-2.5 flex items-center justify-between">
-      <h4 className="mt-0 border-black border-b pb-1.25 text-black text-lg dark:text-black">
-        Set {setNumber}: {weight.toFixed(1)}
-        {unit}
-      </h4>
-      <div className="flex items-center gap-2">
-        <span className="text-neutral-600 text-sm">
-          ({(percentage * 100).toFixed(0)}%)
-        </span>
-        <Input
-          type="number"
-          value={(percentage * 100).toFixed(0)}
-          aria-label={`Percentage for Set ${setNumber}`}
-          onChange={(e) => {
-            const newPerc = Number.parseInt(e.target.value, 10) / 100;
-            if (!Number.isNaN(newPerc) && newPerc >= 0 && newPerc <= 1) {
-              onPercentageChange(newPerc);
-            }
-          }}
-          className="w-16 border border-black bg-white p-1 text-sm dark:text-black"
-          min="0"
-          max="100"
-          step="1"
-        />
-      </div>
-    </div>
-    <div className="flex flex-wrap items-center gap-1.25">
-      {plates.length > 0 ? (
-        plates.map((p: number, i: number) => (
-          <span
-            key={`warmup-plate-${setNumber}-${i}-${p}`}
-            className="rounded-sm border border-black px-2 py-0.5 font-bold text-sm"
-            style={{
-              backgroundColor: getPlateColor(p, isKg),
-              color: getPlateTextColor(getPlateColor(p, isKg)),
-            }}
-          >
-            {p}
-          </span>
-        ))
-      ) : (
-        <span className="italic">Just the bar!</span>
-      )}
-    </div>
-  </div>
-);
+	<div className="mb-2.5 border-2 border-black p-3.5 ">
+		<div className="mb-2.5 flex items-center justify-between">
+			<h4 className="mt-0 border-black border-b pb-1.25 text-black text-lg dark:text-black">
+				Set {setNumber}: {weight.toFixed(1)}
+				{unit}
+			</h4>
+			<div className="flex items-center gap-2">
+				<span className="text-neutral-600 text-sm">
+					({(percentage * 100).toFixed(0)}%)
+				</span>
+				<Input
+					type="number"
+					value={(percentage * 100).toFixed(0)}
+					aria-label={`Percentage for Set ${setNumber}`}
+					onChange={(e) => {
+						const newPerc = Number.parseInt(e.target.value, 10) / 100
+						if (!Number.isNaN(newPerc) && newPerc >= 0 && newPerc <= 1) {
+							onPercentageChange(newPerc)
+						}
+					}}
+					className="w-16 border border-black bg-white p-1 text-sm dark:text-black"
+					min="0"
+					max="100"
+					step="1"
+				/>
+			</div>
+		</div>
+		<div className="flex flex-wrap items-center gap-1.25">
+			{plates.length > 0 ? (
+				plates.map((p: number, i: number) => (
+					<span
+						key={`warmup-plate-${setNumber}-${i}-${p}`}
+						className="rounded-sm border border-black px-2 py-0.5 font-bold text-sm"
+						style={{
+							backgroundColor: getPlateColor(p, isKg),
+							color: getPlateTextColor(getPlateColor(p, isKg)),
+						}}
+					>
+						{p}
+					</span>
+				))
+			) : (
+				<span className="italic">Just the bar!</span>
+			)}
+		</div>
+	</div>
+)
 
 export default function BarbellCalculator() {
 	const [targetWeightQuery, setTargetWeightQuery] = useQueryState(
@@ -410,118 +410,118 @@ export default function BarbellCalculator() {
 					BARBELL CALCULATOR
 				</h1>
 
-        <form
-          onSubmit={handleWeightSubmit}
-          className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3.5 border-3 border-black p-3.5 "
-        >
-          <div className="flex flex-col">
-            <label
-              htmlFor="weightInput"
-              className="mb-2 font-bold text-base text-black dark:text-black"
-            >
-              TARGET WEIGHT:
-            </label>
-            <Input
-              id="weightInput"
-              type="number"
-              value={inputWeight}
-              onChange={(e) => setInputWeight(e.target.value)}
-              className="box-border w-full rounded-none border-2 border-black bg-white p-2.5 text-lg dark:text-black"
-              required
-              min="0"
-            />
-          </div>
-          <div className="flex flex-row gap-4">
-            <div className="flex h-full flex-col">
-              <label
-                htmlFor="units-lb"
-                className="mb-2 font-bold text-base text-black dark:text-black"
-              >
-                UNITS:
-              </label>
-              <div className="flex h-full items-center justify-center gap-2.5 rounded-none border-2 border-black bg-white p-2">
-                <label
-                  className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                    units === "lb" ? "bg-black text-black dark:text-black" : ""
-                  }`}
-                  htmlFor="units-lb"
-                >
-                  <Input
-                    id="units-lb"
-                    type="radio"
-                    name="units"
-                    value="lb"
-                    checked={units === "lb"}
-                    onChange={() => setUnits("lb")}
-                    className="hidden"
-                  />
-                  LB
-                </label>
-                <label
-                  className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                    units === "kg" ? "bg-black text-black" : ""
-                  }`}
-                  htmlFor="units-kg"
-                >
-                  <Input
-                    id="units-kg"
-                    type="radio"
-                    name="units"
-                    value="kg"
-                    checked={units === "kg"}
-                    onChange={() => setUnits("kg")}
-                    className="hidden"
-                  />
-                  KG
-                </label>
-              </div>
-            </div>
+				<form
+					onSubmit={handleWeightSubmit}
+					className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3.5 border-3 border-black p-3.5 "
+				>
+					<div className="flex flex-col">
+						<label
+							htmlFor="weightInput"
+							className="mb-2 font-bold text-base text-black dark:text-black"
+						>
+							TARGET WEIGHT:
+						</label>
+						<Input
+							id="weightInput"
+							type="number"
+							value={inputWeight}
+							onChange={(e) => setInputWeight(e.target.value)}
+							className="box-border w-full rounded-none border-2 border-black bg-white p-2.5 text-lg dark:text-black"
+							required
+							min="0"
+						/>
+					</div>
+					<div className="flex flex-row gap-4">
+						<div className="flex h-full flex-col">
+							<label
+								htmlFor="units-lb"
+								className="mb-2 font-bold text-base text-black dark:text-black"
+							>
+								UNITS:
+							</label>
+							<div className="flex h-full items-center justify-center gap-2.5 rounded-none border-2 border-black bg-white p-2">
+								<label
+									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
+										units === "lb" ? "bg-black text-black dark:text-black" : ""
+									}`}
+									htmlFor="units-lb"
+								>
+									<Input
+										id="units-lb"
+										type="radio"
+										name="units"
+										value="lb"
+										checked={units === "lb"}
+										onChange={() => setUnits("lb")}
+										className="hidden"
+									/>
+									LB
+								</label>
+								<label
+									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
+										units === "kg" ? "bg-black text-black" : ""
+									}`}
+									htmlFor="units-kg"
+								>
+									<Input
+										id="units-kg"
+										type="radio"
+										name="units"
+										value="kg"
+										checked={units === "kg"}
+										onChange={() => setUnits("kg")}
+										className="hidden"
+									/>
+									KG
+								</label>
+							</div>
+						</div>
 
-            <div className="flex w-full flex-col">
-              <label
-                htmlFor="bar-45"
-                className="mb-2 font-bold text-base text-black dark:text-black"
-              >
-                BAR (LB):
-              </label>
-              <div className="flex gap-2.5 rounded-none border-2 border-black bg-white p-2">
-                <label
-                  className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                    barWeightOption === 45 ? "bg-black text-black" : ""
-                  }`}
-                  htmlFor="bar-45"
-                >
-                  <Input
-                    id="bar-45"
-                    type="radio"
-                    name="bar"
-                    value={45}
-                    checked={barWeightOption === 45}
-                    onChange={() => setBarWeightOption(45)}
-                    className="hidden"
-                  />
-                  45 lb
-                </label>
-                <label
-                  className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-                    barWeightOption === 35 ? "bg-black text-black" : ""
-                  }`}
-                  htmlFor="bar-35"
-                >
-                  <Input
-                    id="bar-35"
-                    type="radio"
-                    name="bar"
-                    value={35}
-                    checked={barWeightOption === 35}
-                    onChange={() => setBarWeightOption(35)}
-                    className="hidden"
-                  />
-                  35 lb
-                </label>
-              </div>
-            </div>
-          </div>
+						<div className="flex w-full flex-col">
+							<label
+								htmlFor="bar-45"
+								className="mb-2 font-bold text-base text-black dark:text-black"
+							>
+								BAR (LB):
+							</label>
+							<div className="flex gap-2.5 rounded-none border-2 border-black bg-white p-2">
+								<label
+									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
+										barWeightOption === 45 ? "bg-black text-black" : ""
+									}`}
+									htmlFor="bar-45"
+								>
+									<Input
+										id="bar-45"
+										type="radio"
+										name="bar"
+										value={45}
+										checked={barWeightOption === 45}
+										onChange={() => setBarWeightOption(45)}
+										className="hidden"
+									/>
+									45 lb
+								</label>
+								<label
+									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
+										barWeightOption === 35 ? "bg-black text-black" : ""
+									}`}
+									htmlFor="bar-35"
+								>
+									<Input
+										id="bar-35"
+										type="radio"
+										name="bar"
+										value={35}
+										checked={barWeightOption === 35}
+										onChange={() => setBarWeightOption(35)}
+										className="hidden"
+									/>
+									35 lb
+								</label>
+							</div>
+						</div>
+					</div>
 
 					<button
 						type="submit"
@@ -560,7 +560,7 @@ export default function BarbellCalculator() {
 					))}
 				</div>
 				<div className="mt-5 border-neutral-500 border-t pt-2.5 text-center text-neutral-500 text-xs">
-					Spicy WOD - Barbell Calculator
+					WODsmith - Barbell Calculator
 				</div>
 			</div>
 		</Suspense>

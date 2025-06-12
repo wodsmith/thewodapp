@@ -10,22 +10,22 @@ import { notFound, redirect } from "next/navigation"
 import { Suspense } from "react"
 import LogCalendarClient from "./_components/log-calendar-client" // Import new calendar
 
-import type { Metadata } from "next";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next"
+import { Button } from "@/components/ui/button"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
-	title: "Spicy WOD | Your Scores",
+	title: "WODsmith | Your Scores",
 	description: "Track your spicy workouts and progress.",
 	openGraph: {
-		title: "Spicy WOD | Your Scores", // Default title for layout
+		title: "WODsmith | Your Scores", // Default title for layout
 		description: "Track your spicy workouts and progress.", // Default description
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("Spicy WOD | Your Scores")}`,
+				url: `/api/og?title=${encodeURIComponent("WODsmith | Your Scores")}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy WOD | Your Scores",
+				alt: "WODsmith | Your Scores",
 			},
 		],
 	},
@@ -48,57 +48,58 @@ export default async function LogPage() {
 		return notFound()
 	}
 
-  const logs = result.data;
-  return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="dark:text-white">WORKOUT LOG</h1>
-        <Button asChild>
-          <Link href="/log/new">Log New Result</Link>
-        </Button>
-      </div>
-      {/* Display recent results for now, calendar will be added here */}
-      <div className="flex flex-col gap-4 md:flex-row">
-        <div className="mb-8 flex-1">
-          <h2 className="mb-4 font-semibold text-xl dark:text-white">
-            RECENT RESULTS
-          </h2>
-          {/* Placeholder for recent results if needed, or remove if calendar is sufficient */}
-          {logs.length > 0 ? (
-            <div className="space-y-4">
-              {await Promise.all(
-                logs.map(async (log) => {
-                  return (
-                    <div
-                      key={log.id}
-                      className="rounded-none border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:border-neutral-700 dark:bg-neutral-800 dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]"
-                    >
-                      <div className="flex items-start justify-between p-4">
-                        <div>
-                          <Link href={`/workouts/${log.workoutId}`}>
-                            <h3 className="font-bold text-xl uppercase tracking-tight hover:underline dark:text-white">
-                              {log.workoutName || "Workout"}
-                            </h3>
-                          </Link>
-                          <p className="font-mono text-neutral-600 text-xs dark:text-neutral-400">
-                            {new Date(log.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right font-mono text-xs dark:text-neutral-300">
-                          {log.type && (
-                            <p>
-                              <span className="font-semibold">Type:</span>{" "}
-                              {log.type}
-                            </p>
-                          )}
-                          {log.scale && (
-                            <p>
-                              <span className="font-semibold">Scale:</span>{" "}
-                              {log.scale.toUpperCase()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+	const logs = result.data
+	return (
+		<div>
+			<div className="mb-6 flex items-center justify-between">
+				<h1 className="dark:text-white">WORKOUT LOG</h1>
+				<Button asChild>
+					<Link href="/log/new">Log New Result</Link>
+				</Button>
+			</div>
+			{/* Display recent results for now, calendar will be added here */}
+			<div className="flex flex-col gap-4 md:flex-row">
+				<div className="mb-8 flex-1">
+					<h2 className="mb-4 font-semibold text-xl dark:text-white">
+						RECENT RESULTS
+					</h2>
+					{/* Placeholder for recent results if needed, or remove if calendar is sufficient */}
+					{logs.length > 0 ? (
+						<div className="space-y-4">
+							{
+								await Promise.all(
+									logs.map(async (log) => {
+										return (
+											<div
+												key={log.id}
+												className="rounded-none border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:border-neutral-700 dark:bg-neutral-800 dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]"
+											>
+												<div className="flex items-start justify-between p-4">
+													<div>
+														<Link href={`/workouts/${log.workoutId}`}>
+															<h3 className="font-bold text-xl uppercase tracking-tight hover:underline dark:text-white">
+																{log.workoutName || "Workout"}
+															</h3>
+														</Link>
+														<p className="font-mono text-neutral-600 text-xs dark:text-neutral-400">
+															{new Date(log.date).toLocaleDateString()}
+														</p>
+													</div>
+													<div className="text-right font-mono text-xs dark:text-neutral-300">
+														{log.type && (
+															<p>
+																<span className="font-semibold">Type:</span>{" "}
+																{log.type}
+															</p>
+														)}
+														{log.scale && (
+															<p>
+																<span className="font-semibold">Scale:</span>{" "}
+																{log.scale.toUpperCase()}
+															</p>
+														)}
+													</div>
+												</div>
 
 												<div className="space-y-2 p-4">
 													{log.notes && (
