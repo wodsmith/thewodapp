@@ -36,6 +36,11 @@
 		]
 	},
 	"dependencies": {
+		"@fullcalendar/core": "^6.1.17",
+		"@fullcalendar/daygrid": "^6.1.17",
+		"@fullcalendar/interaction": "^6.1.17",
+		"@fullcalendar/react": "^6.1.17",
+		"@fullcalendar/timegrid": "^6.1.17",
 		"@heroicons/react": "^2.2.0",
 		"@heroui/react": "^2.7.6",
 		"@hookform/resolvers": "^3.10.0",

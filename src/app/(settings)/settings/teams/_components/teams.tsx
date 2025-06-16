@@ -29,17 +29,24 @@ export function TeamsClient({ teams, selectedTeamSlug }: TeamsClientProps) {
 							teams.map((team) => {
 								const isActive = team.slug === selectedTeamSlug
 								return (
-									<Link
-										key={team.id}
-										href={`/settings/teams/${team.slug}`}
-										className={`block rounded-lg border px-4 py-2 font-semibold transition-colors sm:w-1/2 ${
-											isActive
-												? "bg-primary text-primary-foreground border-primary shadow"
-												: "hover:bg-muted hover:border-muted-foreground"
-										}`}
-									>
-										{team.name}
-									</Link>
+									<div key={team.id} className="flex items-center gap-2">
+										<Link
+											href={`/settings/teams/${team.slug}`}
+											className={`flex-1 rounded-lg border px-4 py-2 font-semibold transition-colors ${
+												isActive
+													? "bg-primary text-primary-foreground border-primary shadow"
+													: "hover:bg-muted hover:border-muted-foreground"
+											}`}
+										>
+											{team.name}
+										</Link>
+										<Link
+											href={`/admin/teams/${team.slug}`}
+											className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 hover:border-blue-300"
+										>
+											Schedule Workouts
+										</Link>
+									</div>
 								)
 							})
 						) : (

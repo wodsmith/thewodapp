@@ -116,10 +116,10 @@
 
 /* Events */
 .team-scheduling-calendar .fc-event {
-	background: hsl(var(--primary));
-	border: 3px solid hsl(var(--foreground));
-	border-radius: 0;
-	color: hsl(var(--primary-foreground));
+	background: hsl(var(--primary)) !important;
+	border: 3px solid hsl(var(--foreground)) !important;
+	border-radius: 0 !important;
+	color: hsl(var(--primary-foreground)) !important;
 	font-weight: 900;
 	text-transform: uppercase;
 	font-size: 0.75rem;
@@ -131,8 +131,8 @@
 }
 
 .team-scheduling-calendar .fc-event:hover {
-	background: hsl(var(--orange));
-	border-color: hsl(var(--foreground));
+	background: hsl(var(--orange)) !important;
+	border-color: hsl(var(--foreground)) !important;
 	transform: translateY(-1px);
 	box-shadow: 2px 2px 0 hsl(var(--foreground));
 }
@@ -142,6 +142,39 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Fallback for dark mode if CSS variables aren't working properly */
+@media (prefers-color-scheme: dark) {
+	.team-scheduling-calendar .fc-event {
+		background: #2563eb !important;
+		border-color: #e5e7eb !important;
+		color: #ffffff !important;
+	}
+	
+	.team-scheduling-calendar .fc-event:hover {
+		background: #ea580c !important;
+	}
+	
+	.team-scheduling-calendar .fc-event-title {
+		color: #ffffff !important;
+	}
+}
+
+/* Additional fallback for Tailwind dark class */
+.dark .team-scheduling-calendar .fc-event {
+	background: #2563eb !important;
+	border-color: #e5e7eb !important;
+	color: #ffffff !important;
+}
+
+.dark .team-scheduling-calendar .fc-event:hover {
+	background: #ea580c !important;
+}
+
+.dark .team-scheduling-calendar .fc-event-title {
+	color: #ffffff !important;
 }
 
 /* More events link */

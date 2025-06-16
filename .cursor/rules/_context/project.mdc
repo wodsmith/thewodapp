@@ -1,0 +1,106 @@
+---
+description: Project workflow and coding rules for TheWodApp - a SaaS workout management platform
+globs:
+alwaysApply: true
+---
+
+# TheWodApp - Project Workflow Rules
+
+## 1. Project Overview
+
+goal: A SaaS workout management platform for CrossFit gyms and teams, enabling workout scheduling, team management, and member coordination. Built on Cloudflare Workers infrastructure for global scale and performance.
+type: Web Application (SaaS)
+key features:
+- Team-based workout scheduling with FullCalendar integration
+- Multi-tenancy with team management and role-based permissions
+- Workout programming with track-based organization
+- User authentication with session management
+- Admin dashboard for team and user management
+
+## 2. Technology Stack
+
+language(s): TypeScript 5.x (tsconfig.json with strict mode enabled)
+framework(s): Next.js 15.3.2 (App Router), React 19
+ui library/styling: Tailwind CSS v4, Shadcn UI (components.json), Radix UI primitives, Lucide React icons
+database(s): Cloudflare D1 (SQLite) via Drizzle ORM (drizzle.config.ts)
+state management: Zustand for client state, React Context for some features, Next.js Server Components for server state
+api layer: REST via Next.js API Routes, Server Actions with zsa (TypeScript-first server actions)
+key libraries:
+- @fullcalendar/react for workout scheduling interface
+- lucia-auth for authentication with session management
+- zod for runtime type validation and schema definition
+- date-fns for date manipulation and formatting
+- react-hook-form with @hookform/resolvers for form management
+- @paralleldrive/cuid2 for unique ID generation
+- arctic for OAuth integrations
+
+## 3. Project Structure
+
+main source directory: src/
+core directories:
+- app/: Next.js App Router with route groups - (admin), (auth), (dashboard), (main), (settings)
+- components/: Reusable UI components organized by feature (teams/, ui/, nav/)
+- db/: Database schema (schema.ts), migrations, and Drizzle configuration
+- server/: Business logic services (workouts.ts, teams.ts, scheduling-service.ts, programming-tracks.ts)
+- utils/: Shared utility functions including auth.ts and team-auth.ts
+- actions/: Server actions for client-server communication
+- hooks/: Custom React hooks
+- schemas/: Zod validation schemas
+diagram/link: [See docs/diagrams/database-erd.md for database architecture]
+
+## 4. Coding Standards & Conventions
+
+language usage: Strict TypeScript mode enabled, prefer async/await, use Server Components by default with "use client" only when necessary, avoid `any` type (enforced by Biome linting)
+naming conventions:
+- files/folders: kebab-case for files and folders
+- components: PascalCase for React components
+- variables/functions: camelCase for variables and functions
+- types/interfaces: PascalCase, no prefix conventions observed
+code style/formatting: Biome (biome.json) for formatting, linting, and import organization with tab indentation, ESLint replaced by Biome
+comments: English only, minimal comments preferred, JSDoc for public APIs
+imports: Absolute paths using @/* aliases (tsconfig.json paths), imports organized automatically by Biome
+
+## 5. Key Principles & Best Practices
+
+- Server-first architecture leveraging Next.js App Router and Server Components
+- Type-safety throughout the stack with TypeScript, Zod, and Drizzle ORM
+- Multi-tenancy with team-based isolation and role-based permissions
+- Consistent error handling with structured server actions using zsa
+- Performance optimization through Cloudflare edge deployment
+
+## 6. Testing
+
+framework: Vitest (vitest.config.mjs) with @testing-library/jest-dom
+types: Unit tests for server functions and components, integration tests for API endpoints
+location: Co-located test files in test/ directory, some tests alongside source files
+coverage expectations: [N/A - no explicit coverage requirements documented]
+
+## 7. Tooling & Workflow
+
+package manager: pnpm (pnpm-lock.yaml)
+build command(s): `pnpm build` for development, `pnpm opennext:build` for Cloudflare deployment
+run command(s) (dev): `pnpm dev` for Next.js development server
+version control: Git with conventional commits (enforced by husky and lint-staged), PRs to main branch
+ci/cd: [Deployment via Cloudflare Workers with OpenNext - GitHub Actions workflows available]
+ide recommendations: [N/A - no specific VS Code configuration found]
+
+## 8. Database / API Guidelines
+
+- Use Drizzle ORM methods exclusively, no direct SQL queries
+- Database migrations via `pnpm db:generate` and `pnpm db:migrate:dev`
+- All database operations should be in server/ directory services
+- Use Server Actions with zsa for type-safe client-server communication
+- Team-based data isolation - always filter by teamId in multi-tenant queries
+- Use CUID2 IDs with appropriate prefixes (e.g., team_, user_, workout_)
+
+## 9. Specific Feature Rules
+
+- Authentication: Lucia Auth with session management via Cloudflare KV, team-based permissions using requireTeamPermission utility
+- Team Management: Multi-tenancy with role-based access control, team switching via team-switcher component
+- Workout Scheduling: FullCalendar integration with drag-and-drop, modal-based workout selection from programming tracks
+- Database Schema: Common columns pattern (id, createdAt, updatedAt, updateCounter) for all entities
+- Logging: Console.log statements with structured tags for debugging (e.g., INFO: [ServiceName], DEBUG: [Component])
+
+## 10. Rule Referencing
+
+[N/A - no additional .mdc rule files found in .cursor/rules/ directory]

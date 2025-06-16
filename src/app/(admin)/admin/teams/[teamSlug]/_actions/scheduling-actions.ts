@@ -1,12 +1,12 @@
 "use server"
 
+import { TEAM_PERMISSIONS } from "@/db/schema"
 import {
+	type ScheduleWorkoutInput,
 	getScheduledWorkoutsForTeam,
 	scheduleWorkoutForTeam,
-	type ScheduleWorkoutInput,
 } from "@/server/scheduling-service"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { TEAM_PERMISSIONS } from "@/db/schema"
 import { z } from "zod"
 import { createServerAction } from "zsa"
 

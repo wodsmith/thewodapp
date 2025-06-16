@@ -280,29 +280,6 @@ export const programmingTrackTypeTuple = Object.values(
 	PROGRAMMING_TRACK_TYPE,
 ) as [string, ...string[]]
 
-// programming_tracks
-export const programmingTracksTable = sqliteTable(
-	"programming_track",
-	{
-		...commonColumns,
-		id: text()
-			.primaryKey()
-			.$defaultFn(() => `ptrk_${createId()}`)
-			.notNull(),
-		name: text({ length: 255 }).notNull(),
-		description: text({ length: 1000 }),
-		type: text({ enum: programmingTrackTypeTuple }).notNull(),
-		ownerTeamId: text().references(() => teamTable.id),
-		isPublic: integer().default(0).notNull(),
-	},
-	(table) => [
-		index("programming_track_type_idx").on(table.type),
-		index("programming_track_owner_idx").on(table.ownerTeamId),
-	],
-)
-
-// Note: further related tables (teamProgrammingTracksTable, trackWorkoutsTable) are declared later in this file after dependent tables are defined.
-
 // Team table
 export const teamTable = sqliteTable(
 	"team",
@@ -323,9 +300,29 @@ export const teamTable = sqliteTable(
 		planId: text({ length: 100 }),
 		planExpiresAt: integer({ mode: "timestamp" }),
 		creditBalance: integer().default(0).notNull(),
-		defaultTrackId: text().references(() => programmingTracksTable.id),
 	},
 	(table) => [index("team_slug_idx").on(table.slug)],
+)
+
+// programming_tracks
+export const programmingTracksTable = sqliteTable(
+	"programming_track",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => `ptrk_${createId()}`)
+			.notNull(),
+		name: text({ length: 255 }).notNull(),
+		description: text({ length: 1000 }),
+		type: text({ enum: programmingTrackTypeTuple }).notNull(),
+		ownerTeamId: text().references(() => teamTable.id),
+		isPublic: integer().default(0).notNull(),
+	},
+	(table) => [
+		index("programming_track_type_idx").on(table.type),
+		index("programming_track_owner_idx").on(table.ownerTeamId),
+	],
 )
 
 // Team membership table

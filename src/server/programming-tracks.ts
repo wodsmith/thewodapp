@@ -6,6 +6,7 @@ import {
 	type Team,
 	type TeamProgrammingTrack,
 	type TrackWorkout,
+	type Workout,
 	programmingTracksTable,
 	teamProgrammingTracksTable,
 	teamTable,
@@ -22,7 +23,7 @@ import { and, eq } from "drizzle-orm"
 export interface CreateTrackInput {
 	name: string
 	description?: string | null
-	type: (typeof programmingTracksTable._.columns.type)["data"]
+	type: (typeof programmingTracksTable._.columns.type)["dataType"]
 	ownerTeamId?: string | null
 	isPublic?: boolean
 }
@@ -96,9 +97,9 @@ export async function addWorkoutToTrack(
 
 export async function getWorkoutsForTrack(
 	trackId: string,
-): Promise<(TrackWorkout & { workout?: any })[]> {
+): Promise<(TrackWorkout & { workout?: Workout })[]> {
 	const db = getDB()
-	
+
 	const trackWorkouts = await db
 		.select({
 			trackWorkout: trackWorkoutsTable,
@@ -108,9 +109,9 @@ export async function getWorkoutsForTrack(
 		.leftJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
 
-	return trackWorkouts.map(row => ({
+	return trackWorkouts.map((row) => ({
 		...row.trackWorkout,
-		workout: row.workout,
+		workout: row.workout ?? undefined,
 	}))
 }
 
@@ -179,17 +180,4 @@ export async function getTeamTracks(
 
 	const records = await joins
 	return records.map((r) => r.track)
-}
-
-export async function updateTeamDefaultTrack(
-	teamId: string,
-	trackId: string | null,
-): Promise<Team> {
-	const db = getDB()
-	const [team] = await db
-		.update(teamTable)
-		.set({ defaultTrackId: trackId, updatedAt: new Date() })
-		.where(eq(teamTable.id, teamId))
-		.returning()
-	return team
 }

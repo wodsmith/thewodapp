@@ -368,6 +368,39 @@ export const requireAdmin = cache(
 	},
 )
 
+export const requireAdminForTeam = cache(
+	async ({
+		doNotThrowError = false,
+		teamIdOrSlug,
+	}: {
+		doNotThrowError?: boolean
+		teamIdOrSlug?: string
+	} = {}) => {
+		const session = await getSessionFromCookie()
+
+		if (!session) {
+			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		}
+
+		const team = session?.teams?.find(
+			(t) => t.id === teamIdOrSlug || t.slug === teamIdOrSlug,
+		)
+
+		console.log(teamIdOrSlug, session?.teams)
+
+		if (team?.role.name !== SYSTEM_ROLES_ENUM.OWNER) {
+			console.log("made it here")
+			if (doNotThrowError) {
+				return null
+			}
+
+			throw new ZSAError("FORBIDDEN", "Not authorized")
+		}
+
+		return session
+	},
+)
+
 interface DisposableEmailResponse {
 	disposable: string
 }
