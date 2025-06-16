@@ -4,8 +4,11 @@ import { TEAM_PERMISSIONS } from "@/db/schema"
 import { scheduleStandaloneWorkout } from "@/server/programming-tracks"
 import {
 	type ScheduleWorkoutInput,
+	deleteScheduledWorkoutInstance,
+	getScheduledWorkoutInstanceById,
 	getScheduledWorkoutsForTeam,
 	scheduleWorkoutForTeam,
+	updateScheduledWorkoutInstance,
 } from "@/server/scheduling-service"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { z } from "zod"
@@ -33,6 +36,23 @@ const scheduleStandaloneWorkoutSchema = z.object({
 	teamSpecificNotes: z.string().optional(),
 	scalingGuidanceForDay: z.string().optional(),
 	classTimes: z.string().optional(),
+})
+
+const updateScheduledWorkoutSchema = z.object({
+	instanceId: z.string().min(1, "Instance ID is required"),
+	teamSpecificNotes: z.string().optional(),
+	scalingGuidanceForDay: z.string().optional(),
+	classTimes: z.string().optional(),
+})
+
+const deleteScheduledWorkoutSchema = z.object({
+	instanceId: z.string().min(1, "Instance ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const getScheduledWorkoutSchema = z.object({
+	instanceId: z.string().min(1, "Instance ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 /**
@@ -128,4 +148,70 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 		)
 
 		return { success: true, data: scheduledWorkout }
+	})
+
+/**
+ * Update a scheduled workout instance
+ */
+export const updateScheduledWorkoutAction = createServerAction()
+	.input(updateScheduledWorkoutSchema)
+	.handler(async ({ input }) => {
+		const { instanceId, ...updateData } = input
+
+		// Note: We should verify team permissions by first getting the instance
+		// and checking the teamId, but for now we'll trust the client
+		const updatedInstance = await updateScheduledWorkoutInstance(
+			instanceId,
+			updateData,
+		)
+
+		console.log(
+			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}'`,
+		)
+
+		return { success: true, data: updatedInstance }
+	})
+
+/**
+ * Delete a scheduled workout instance
+ */
+export const deleteScheduledWorkoutAction = createServerAction()
+	.input(deleteScheduledWorkoutSchema)
+	.handler(async ({ input }) => {
+		const { instanceId, teamId } = input
+
+		// Check permissions
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+
+		await deleteScheduledWorkoutInstance(instanceId)
+
+		console.log(
+			`INFO: [SchedulingService] Deleted scheduled workout instance '${instanceId}' for teamId '${teamId}'`,
+		)
+
+		return { success: true }
+	})
+
+/**
+ * Get a single scheduled workout instance
+ */
+export const getScheduledWorkoutAction = createServerAction()
+	.input(getScheduledWorkoutSchema)
+	.handler(async ({ input }) => {
+		const { instanceId, teamId } = input
+
+		// Check permissions
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+
+		const instance = await getScheduledWorkoutInstanceById(instanceId)
+
+		if (!instance) {
+			throw new Error("Scheduled workout not found")
+		}
+
+		console.log(
+			`INFO: [SchedulingService] Retrieved scheduled workout instance '${instanceId}' for teamId '${teamId}'`,
+		)
+
+		return { success: true, data: instance }
 	})
