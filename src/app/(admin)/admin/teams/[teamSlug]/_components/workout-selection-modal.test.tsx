@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react"
 import React from "react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { WorkoutSelectionModal } from "./workout-selection-modal"
 
 // Mock all the server actions to return proper async results
@@ -39,7 +39,7 @@ describe("WorkoutSelectionModal (Refactored)", () => {
 		onClose: vi.fn(),
 		selectedDate: new Date("2025-06-16"),
 		teamId: "team1",
-		onWorkoutScheduled: vi.fn(),
+		onWorkoutScheduledAction: vi.fn(),
 	}
 
 	beforeEach(() => {

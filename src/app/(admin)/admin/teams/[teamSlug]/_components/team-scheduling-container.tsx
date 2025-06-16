@@ -10,8 +10,9 @@ import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
 import { getScheduledWorkoutsAction } from "../_actions/scheduling-actions"
+import { CalendarSkeleton } from "./calendar-skeleton"
 import { TeamSchedulingCalendar } from "./team-scheduling-calendar"
-import { WorkoutSelectionModal } from "./workout-selection-modal"
+import { WorkoutSelectionModal } from "./workout-selection-modal-refactored"
 
 interface CalendarEvent {
 	id: string
@@ -35,21 +36,35 @@ export function TeamSchedulingContainer({
 	const [events, setEvents] = useState<CalendarEvent[]>([])
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 	const [isModalOpen, setIsModalOpen] = useState(false)
+	const [isInitialLoading, setIsInitialLoading] = useState(true)
 
 	const { execute: getScheduledWorkouts, isPending: isLoadingWorkouts } =
 		useServerAction(getScheduledWorkoutsAction)
 
 	// Load scheduled workouts for the current month
+	const MIN_SKELETON_DISPLAY_MS = 800
+
 	const loadScheduledWorkouts = useCallback(async () => {
 		const now = new Date()
 		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 		const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+		// Add minimum loading time for better UX (remove in production if needed)
+		const startTime = Date.now()
 
 		const [result] = await getScheduledWorkouts({
 			teamId,
 			startDate: startOfMonth.toISOString(),
 			endDate: endOfMonth.toISOString(),
 		})
+
+		// Ensure minimum loading time for better UX
+		const elapsedTime = Date.now() - startTime
+		if (elapsedTime < MIN_SKELETON_DISPLAY_MS) {
+			await new Promise((resolve) =>
+				setTimeout(resolve, MIN_SKELETON_DISPLAY_MS - elapsedTime),
+			)
+		}
 
 		if (result?.success && result.data) {
 			const calendarEvents = result.data.map(
@@ -71,6 +86,8 @@ export function TeamSchedulingContainer({
 		} else {
 			toast.error("Failed to load scheduled workouts")
 		}
+
+		setIsInitialLoading(false)
 	}, [teamId, getScheduledWorkouts])
 
 	useEffect(() => {
@@ -105,32 +122,31 @@ export function TeamSchedulingContainer({
 	}
 
 	const handleWorkoutScheduled = () => {
-		// Reload the calendar events after scheduling
+		// Show loading state while reloading calendar events
+		setIsInitialLoading(true)
 		loadScheduledWorkouts()
 	}
 
 	return (
 		<div className="space-y-4">
-			{isLoadingWorkouts && (
-				<div className="text-center text-muted-foreground">
-					Loading scheduled workouts...
-				</div>
+			{isLoadingWorkouts || isInitialLoading ? (
+				<CalendarSkeleton />
+			) : (
+				<TeamSchedulingCalendar
+					teamId={teamId}
+					events={events}
+					onDateSelect={handleDateSelect}
+					onEventClick={handleEventClick}
+					onEventDrop={handleEventDrop}
+				/>
 			)}
-
-			<TeamSchedulingCalendar
-				teamId={teamId}
-				events={events}
-				onDateSelect={handleDateSelect}
-				onEventClick={handleEventClick}
-				onEventDrop={handleEventDrop}
-			/>
 
 			<WorkoutSelectionModal
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				selectedDate={selectedDate}
 				teamId={teamId}
-				onWorkoutScheduled={handleWorkoutScheduled}
+				onWorkoutScheduledAction={handleWorkoutScheduled}
 			/>
 		</div>
 	)

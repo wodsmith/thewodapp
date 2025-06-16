@@ -5,6 +5,8 @@ import { requireTeamPermission } from "@/utils/team-auth"
 import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
+import { CalendarSkeleton } from "./_components/calendar-skeleton"
 import { TeamSchedulingContainer } from "./_components/team-scheduling-container"
 
 interface TeamSchedulingPageProps {
@@ -83,7 +85,9 @@ export default async function TeamSchedulingPage({
 				</div>
 
 				<div className="bg-card rounded-lg border p-6">
-					<TeamSchedulingContainer teamId={team.id} />
+					<Suspense fallback={<CalendarSkeleton />}>
+						<TeamSchedulingContainer teamId={team.id} />
+					</Suspense>
 				</div>
 			</div>
 		</>
