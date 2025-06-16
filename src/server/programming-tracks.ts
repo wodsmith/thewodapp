@@ -96,12 +96,22 @@ export async function addWorkoutToTrack(
 
 export async function getWorkoutsForTrack(
 	trackId: string,
-): Promise<TrackWorkout[]> {
+): Promise<(TrackWorkout & { workout?: any })[]> {
 	const db = getDB()
-	return db
-		.select()
+	
+	const trackWorkouts = await db
+		.select({
+			trackWorkout: trackWorkoutsTable,
+			workout: workouts,
+		})
 		.from(trackWorkoutsTable)
+		.leftJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
+
+	return trackWorkouts.map(row => ({
+		...row.trackWorkout,
+		workout: row.workout,
+	}))
 }
 
 export async function assignTrackToTeam(
