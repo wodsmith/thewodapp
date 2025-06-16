@@ -1,6 +1,6 @@
 "use client"
 
-import { Shield, Users } from "lucide-react"
+import { Building2, Shield, Users } from "lucide-react"
 import type { Route } from "next"
 import type { ComponentType } from "react"
 
@@ -34,6 +34,11 @@ const adminNavItems: NavMainItem[] = [
 		url: "/admin",
 		icon: Users,
 		isActive: true,
+	},
+	{
+		title: "Teams",
+		url: "/admin/teams",
+		icon: Building2,
 	},
 ]
 
