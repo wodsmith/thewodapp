@@ -5,6 +5,7 @@ import { requireTeamPermission } from "@/utils/team-auth"
 import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { TeamSchedulingContainer } from "./_components/team-scheduling-container"
 
 interface TeamSchedulingPageProps {
 	params: Promise<{
@@ -82,9 +83,7 @@ export default async function TeamSchedulingPage({
 				</div>
 
 				<div className="bg-card rounded-lg border p-6">
-					<p className="text-center text-muted-foreground">
-						Calendar component will be integrated here
-					</p>
+					<TeamSchedulingContainer teamId={team.id} />
 				</div>
 			</div>
 		</>
