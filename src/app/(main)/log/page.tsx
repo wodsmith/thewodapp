@@ -11,20 +11,21 @@ import { Suspense } from "react"
 import LogCalendarClient from "./_components/log-calendar-client" // Import new calendar
 
 import type { Metadata } from "next"
+import { Button } from "@/components/ui/button"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
-	title: "Spicy WOD | Your Scores",
+	title: "WODsmith | Your Scores",
 	description: "Track your spicy workouts and progress.",
 	openGraph: {
-		title: "Spicy WOD | Your Scores", // Default title for layout
+		title: "WODsmith | Your Scores", // Default title for layout
 		description: "Track your spicy workouts and progress.", // Default description
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("Spicy WOD | Your Scores")}`,
+				url: `/api/og?title=${encodeURIComponent("WODsmith | Your Scores")}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy WOD | Your Scores",
+				alt: "WODsmith | Your Scores",
 			},
 		],
 	},
@@ -52,12 +53,9 @@ export default async function LogPage() {
 		<div>
 			<div className="mb-6 flex items-center justify-between">
 				<h1 className="dark:text-white">WORKOUT LOG</h1>
-				<a
-					href="/log/new"
-					className="btn border-black bg-white text-black hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:hover:bg-neutral-700"
-				>
-					Log New Result
-				</a>
+				<Button asChild>
+					<Link href="/log/new">Log New Result</Link>
+				</Button>
 			</div>
 			{/* Display recent results for now, calendar will be added here */}
 			<div className="flex flex-col gap-4 md:flex-row">

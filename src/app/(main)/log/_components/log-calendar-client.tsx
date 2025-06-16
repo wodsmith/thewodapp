@@ -63,12 +63,9 @@ export default function LogCalendarClient({ logs }: LogCalendarClientProps) {
 				}}
 			/>
 			{selectedLog && selectedLog.length > 0 && (
-				<div className="flex min-w-[358px] flex-col gap-4 rounded-md border p-4 md:w-1/3">
+				<div className="flex min-w-[358px] flex-col gap-4   border p-4 md:w-1/3">
 					{selectedLog.map((logEntry) => (
-						<div
-							key={logEntry.id}
-							className="rounded-md border-2 border-black p-4"
-						>
+						<div key={logEntry.id} className="  border-2 border-black p-4">
 							<h3 className="mb-2 font-bold text-lg">
 								{logEntry.workoutName || "Workout Result"}
 							</h3>
@@ -109,7 +106,7 @@ export default function LogCalendarClient({ logs }: LogCalendarClientProps) {
 				</div>
 			)}
 			{(!selectedLog || selectedLog.length === 0) && date && (
-				<div className="min-w-[358px] rounded-md border p-4 md:w-1/3">
+				<div className="min-w-[358px]   border p-4 md:w-1/3">
 					<h3 className="mb-2 font-bold text-sm">
 						No workout logged for this day.
 					</h3>
@@ -119,7 +116,7 @@ export default function LogCalendarClient({ logs }: LogCalendarClientProps) {
 				</div>
 			)}
 			{!date && (
-				<div className="min-w-[358px] rounded-md border p-4 md:w-1/3">
+				<div className="min-w-[358px]   border p-4 md:w-1/3">
 					<h3 className="mb-2 w-fit text-balance font-bold text-sm">
 						Select a date to view workout results.
 					</h3>

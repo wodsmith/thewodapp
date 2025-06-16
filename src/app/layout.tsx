@@ -4,11 +4,12 @@ import "./globals.css"
 import "server-only"
 
 import { ThemeProvider } from "@/components/providers"
-import { AgenticDevStudioStickyBanner } from "@/components/startup-studio-sticky-banner"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/constants"
 import NextTopLoader from "nextjs-toploader"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
 
 export const dynamic = "force-dynamic"
 
@@ -64,12 +65,17 @@ export default function BaseLayout({
 	children: React.ReactNode
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html
+			lang="en"
+			suppressHydrationWarning
+			className={`${GeistSans.variable} ${GeistMono.variable}`}
+		>
 			<body className={inter.className}>
 				<NextTopLoader
 					initialPosition={0.15}
 					shadow="0 0 10px #000, 0 0 5px #000"
 					height={4}
+					color="#ff7033"
 				/>
 				<ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
 					<TooltipProvider delayDuration={100} skipDelayDuration={50}>

@@ -32,19 +32,19 @@ export async function generateMetadata(
 	const workout = workoutResult.data
 
 	return {
-		title: `Spicy WOD | ${workout.name}`,
-		description: `Spicy WOD | ${workout.name}`,
+		title: `WODsmith | ${workout.name}`,
+		description: `WODsmith | ${workout.name}`,
 		openGraph: {
-			title: `Spicy WOD | ${workout.name}`,
-			description: `Spicy WOD | ${workout.name}`,
+			title: `WODsmith | ${workout.name}`,
+			description: `WODsmith | ${workout.name}`,
 			images: [
 				{
 					url: `/api/og?title=${encodeURIComponent(
-						`Spicy WOD | ${workout.name}`,
+						`WODsmith | ${workout.name}`,
 					)}`,
 					width: 1200,
 					height: 630,
-					alt: `Spicy WOD | ${workout.name}`,
+					alt: `WODsmith | ${workout.name}`,
 				},
 			],
 		},

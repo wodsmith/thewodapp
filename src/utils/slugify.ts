@@ -1,7 +1,7 @@
 import slugify from "slugify"
 
 /**
- * Converts a string to a URL-friendly slug using the slugify package
+ * Converts a string to a URL-sans slug using the slugify package
  */
 export function generateSlug(str: string): string {
 	return slugify(str, {

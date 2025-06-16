@@ -60,7 +60,7 @@ export default function MovementList({ movements }: MovementListProps) {
 						/>
 					</button>
 					{isFilterOpen && (
-						<div className="absolute right-0 z-10 mt-1 w-full min-w-[150px] rounded-md border border-gray-200 bg-white shadow-lg sm:right-auto sm:w-auto">
+						<div className="absolute right-0 z-10 mt-1 w-full min-w-[150px]   border border-gray-200 bg-white shadow-lg sm:right-auto sm:w-auto">
 							{movementTypes.map((type) => (
 								<button
 									key={type}

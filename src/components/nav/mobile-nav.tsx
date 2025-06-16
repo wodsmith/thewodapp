@@ -39,20 +39,20 @@ export default function MobileNav({ session }: MobileNavProps) {
 					>
 						<Image
 							src="/spicywod-logo-black.png"
-							alt="spicy wod"
+							alt="wodsmith"
 							width={32}
 							height={32}
 							className="dark:hidden"
 						/>
 						<Image
 							src="/spicywod-logo-white.png"
-							alt="spicy wod"
+							alt="wodsmith"
 							width={32}
 							height={32}
 							className="hidden dark:block"
 						/>
-						<span className="font-black text-2xl text-foreground uppercase dark:text-dark-foreground">
-							spicy wod
+						<span className="text-2xl text-foreground uppercase dark:text-dark-foreground">
+							<span className="font-black uppercase">WOD</span>smith
 						</span>
 					</Link>
 					{session?.user ? (

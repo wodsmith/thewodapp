@@ -104,6 +104,9 @@ importers:
       drizzle-orm:
         specifier: ^0.39.3
         version: 0.39.3(better-sqlite3@11.10.0)
+      geist:
+        specifier: ^1.4.2
+        version: 1.4.2(next@15.3.2(@babel/core@7.24.5)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))
       ipaddr.js:
         specifier: ^2.2.0
         version: 2.2.0
@@ -4855,6 +4858,11 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
+
+  geist@1.4.2:
+    resolution: {integrity: sha512-OQUga/KUc8ueijck6EbtT07L4tZ5+TZgjw8PyWfxo16sL5FWk7gNViPNU8hgCFjy6bJi9yuTP+CRpywzaGN8zw==}
+    peerDependencies:
+      next: '>=13.2.0'
 
   gel@2.0.1:
     resolution: {integrity: sha512-gfem3IGvqKqXwEq7XseBogyaRwGsQGuE7Cw/yQsjLGdgiyqX92G1xENPCE0ltunPGcsJIa6XBOTx/PK169mOqw==}
@@ -12525,6 +12533,10 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
+
+  geist@1.4.2(next@15.3.2(@babel/core@7.24.5)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)):
+    dependencies:
+      next: 15.3.2(@babel/core@7.24.5)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
 
   gel@2.0.1:
     dependencies:

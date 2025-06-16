@@ -1,5 +1,5 @@
-import { heroui } from "@heroui/react"
 import type { Config } from "tailwindcss"
+import { heroui } from "@heroui/react"
 
 // TODO: Upgrade to Tailwind V4 and move all of this to global.css
 const config: Config = {
@@ -39,7 +39,7 @@ const config: Config = {
 				},
 				secondary: {
 					DEFAULT: "hsl(var(--secondary))",
-					foreground: "hsl(var(--secondary-foreground))",
+					foreground: "hsl(var(--background))",
 				},
 				muted: {
 					DEFAULT: "hsl(var(--muted))",
@@ -53,6 +53,8 @@ const config: Config = {
 					DEFAULT: "hsl(var(--destructive))",
 					foreground: "hsl(var(--destructive-foreground))",
 				},
+				orange: "hsl(var(--orange))",
+				surface: "hsl(var(--surface))",
 				border: "hsl(var(--border))",
 				input: "hsl(var(--input))",
 				ring: "hsl(var(--ring))",
@@ -73,6 +75,11 @@ const config: Config = {
 					border: "hsl(var(--sidebar-border))",
 					ring: "hsl(var(--sidebar-ring))",
 				},
+			},
+			fontFamily: {
+				sans: ["var(--font-geist-sans)"],
+				mono: ["var(--font-geist-mono)"],
+				brutal: ["var(--font-geist-mono)"],
 			},
 			keyframes: {
 				"accordion-down": {
