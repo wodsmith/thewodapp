@@ -2,6 +2,7 @@ import "server-only"
 
 import { getDB } from "@/db"
 import {
+	PROGRAMMING_TRACK_TYPE,
 	type ProgrammingTrack,
 	type Team,
 	type TeamProgrammingTrack,
@@ -14,7 +15,7 @@ import {
 	workouts,
 } from "@/db/schema"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq } from "drizzle-orm"
+import { and, eq, notExists, or } from "drizzle-orm"
 
 /* -------------------------------------------------------------------------- */
 /*                                Data Types                                  */
@@ -23,7 +24,9 @@ import { and, eq } from "drizzle-orm"
 export interface CreateTrackInput {
 	name: string
 	description?: string | null
-	type: (typeof programmingTracksTable._.columns.type)["dataType"]
+	type:
+		| keyof typeof PROGRAMMING_TRACK_TYPE
+		| (typeof PROGRAMMING_TRACK_TYPE)[keyof typeof PROGRAMMING_TRACK_TYPE]
 	ownerTeamId?: string | null
 	isPublic?: boolean
 }
@@ -180,4 +183,75 @@ export async function getTeamTracks(
 
 	const records = await joins
 	return records.map((r) => r.track)
+}
+
+/**
+ * Get workouts that are not in any programming track
+ * These are "standalone" workouts that can be scheduled independently
+ */
+export async function getWorkoutsNotInTracks(
+	userId: string,
+): Promise<Workout[]> {
+	const db = getDB()
+
+	// Get workouts that are either public or belong to the user
+	// AND are not referenced in any track_workout record
+	const availableWorkouts = await db
+		.select()
+		.from(workouts)
+		.where(
+			and(
+				or(eq(workouts.scope, "public"), eq(workouts.userId, userId)),
+				notExists(
+					db
+						.select()
+						.from(trackWorkoutsTable)
+						.where(eq(trackWorkoutsTable.workoutId, workouts.id)),
+				),
+			),
+		)
+
+	return availableWorkouts
+}
+
+/**
+ * Schedule a standalone workout by creating a temporary track and track workout
+ * This allows us to use the existing scheduling infrastructure
+ */
+export async function scheduleStandaloneWorkout({
+	teamId,
+	workoutId,
+	scheduledDate,
+	teamSpecificNotes,
+	scalingGuidanceForDay,
+	classTimes,
+}: {
+	teamId: string
+	workoutId: string
+	scheduledDate: Date
+	teamSpecificNotes?: string
+	scalingGuidanceForDay?: string
+	classTimes?: string
+}): Promise<TrackWorkout> {
+	const db = getDB()
+
+	// Create a temporary track for this standalone workout
+	const tempTrack = await createProgrammingTrack({
+		name: `Standalone Workout Track - ${scheduledDate.toISOString().split("T")[0]}`,
+		description: "Temporary track for standalone workout scheduling",
+		type: PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+		ownerTeamId: teamId,
+		isPublic: false,
+	})
+
+	// Add the workout to the temporary track
+	const trackWorkout = await addWorkoutToTrack({
+		trackId: tempTrack.id,
+		workoutId: workoutId,
+		dayNumber: 1,
+		weekNumber: null,
+		notes: "Standalone workout",
+	})
+
+	return trackWorkout
 }

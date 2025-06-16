@@ -24,8 +24,12 @@ import { useServerAction } from "zsa-react"
 import {
 	getTeamTracksAction,
 	getWorkoutsForTrackAction,
+	getWorkoutsNotInTracksAction,
 } from "../_actions/programming-actions"
-import { scheduleWorkoutAction } from "../_actions/scheduling-actions"
+import {
+	scheduleStandaloneWorkoutAction,
+	scheduleWorkoutAction,
+} from "../_actions/scheduling-actions"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean
@@ -56,6 +60,16 @@ interface TrackWorkout {
 	}
 }
 
+interface StandaloneWorkout {
+	id: string
+	name: string
+	description: string
+	scheme: string
+}
+
+// Special track ID for standalone workouts
+const STANDALONE_TRACK_ID = "standalone"
+
 export function WorkoutSelectionModal({
 	isOpen,
 	onClose,
@@ -69,8 +83,13 @@ export function WorkoutSelectionModal({
 	const [selectedWorkout, setSelectedWorkout] = useState<TrackWorkout | null>(
 		null,
 	)
+	const [selectedStandaloneWorkout, setSelectedStandaloneWorkout] =
+		useState<StandaloneWorkout | null>(null)
 	const [tracks, setTracks] = useState<ProgrammingTrack[]>([])
 	const [trackWorkouts, setTrackWorkouts] = useState<TrackWorkout[]>([])
+	const [standaloneWorkouts, setStandaloneWorkouts] = useState<
+		StandaloneWorkout[]
+	>([])
 	const [classTimes, setClassTimes] = useState("")
 	const [teamNotes, setTeamNotes] = useState("")
 	const [scalingGuidance, setScalingGuidance] = useState("")
@@ -79,9 +98,17 @@ export function WorkoutSelectionModal({
 		useServerAction(getTeamTracksAction)
 	const { execute: getWorkoutsForTrack, isPending: isLoadingWorkouts } =
 		useServerAction(getWorkoutsForTrackAction)
+	const {
+		execute: getWorkoutsNotInTracks,
+		isPending: isLoadingStandaloneWorkouts,
+	} = useServerAction(getWorkoutsNotInTracksAction)
 	const { execute: scheduleWorkout, isPending: isScheduling } = useServerAction(
 		scheduleWorkoutAction,
 	)
+	const {
+		execute: scheduleStandaloneWorkout,
+		isPending: isSchedulingStandalone,
+	} = useServerAction(scheduleStandaloneWorkoutAction)
 
 	// Load team tracks when modal opens
 	useEffect(() => {
@@ -93,7 +120,11 @@ export function WorkoutSelectionModal({
 	// Load workouts when track is selected
 	useEffect(() => {
 		if (selectedTrack) {
-			loadTrackWorkouts(selectedTrack.id)
+			if (selectedTrack.id === STANDALONE_TRACK_ID) {
+				loadStandaloneWorkouts()
+			} else {
+				loadTrackWorkouts(selectedTrack.id)
+			}
 		}
 	}, [selectedTrack])
 
@@ -115,15 +146,59 @@ export function WorkoutSelectionModal({
 		}
 	}
 
+	const loadStandaloneWorkouts = async () => {
+		const [result] = await getWorkoutsNotInTracks({ teamId })
+		if (result?.success && result.data) {
+			setStandaloneWorkouts(result.data)
+		} else {
+			toast.error("Failed to load standalone workouts")
+		}
+	}
+
 	const handleScheduleWorkout = async () => {
-		if (!selectedWorkout || !selectedDate) {
-			toast.error("Please select a workout and date")
+		// Check if either a track workout or standalone workout is selected
+		if (!selectedWorkout && !selectedStandaloneWorkout) {
+			toast.error("Please select a workout")
 			return
 		}
 
+		if (!selectedDate) {
+			toast.error("Please select a date")
+			return
+		}
+
+		// Handle standalone workouts
+		if (selectedStandaloneWorkout) {
+			const [result] = await scheduleStandaloneWorkout({
+				teamId,
+				workoutId: selectedStandaloneWorkout.id,
+				scheduledDate: selectedDate.toISOString(),
+				teamSpecificNotes: teamNotes || undefined,
+				scalingGuidanceForDay: scalingGuidance || undefined,
+				classTimes: classTimes || undefined,
+			})
+
+			if (result?.success) {
+				console.log(
+					`INFO: [WorkoutScheduling] Workflow completed: selected standalone workout '${
+						selectedStandaloneWorkout.id
+					}' scheduled for '${selectedDate.toISOString().split("T")[0]}' with ${
+						classTimes ? "1" : "0"
+					} class time`,
+				)
+				toast.success("Standalone workout scheduled successfully!")
+				onWorkoutScheduled()
+				handleClose()
+			} else {
+				toast.error("Failed to schedule standalone workout")
+			}
+			return
+		}
+
+		// Original logic for track workouts
 		const [result] = await scheduleWorkout({
 			teamId,
-			trackWorkoutId: selectedWorkout.id,
+			trackWorkoutId: selectedWorkout?.id,
 			scheduledDate: selectedDate.toISOString(),
 			teamSpecificNotes: teamNotes || undefined,
 			scalingGuidanceForDay: scalingGuidance || undefined,
@@ -133,7 +208,7 @@ export function WorkoutSelectionModal({
 		if (result?.success) {
 			console.log(
 				`INFO: [WorkoutScheduling] Workflow completed: selected workout '${
-					selectedWorkout.workoutId
+					selectedWorkout?.workoutId
 				}' from track '${selectedTrack?.id}' scheduled for '${
 					selectedDate.toISOString().split("T")[0]
 				}' with ${classTimes ? "1" : "0"} class time`,
@@ -149,7 +224,9 @@ export function WorkoutSelectionModal({
 	const handleClose = () => {
 		setSelectedTrack(null)
 		setSelectedWorkout(null)
+		setSelectedStandaloneWorkout(null)
 		setTrackWorkouts([])
+		setStandaloneWorkouts([])
 		setClassTimes("")
 		setTeamNotes("")
 		setScalingGuidance("")
@@ -177,6 +254,36 @@ export function WorkoutSelectionModal({
 							</div>
 						) : (
 							<div className="space-y-2">
+								{/* Standalone Workouts Option */}
+								<Card
+									className={`cursor-pointer transition-colors ${
+										selectedTrack?.id === STANDALONE_TRACK_ID
+											? "border-primary bg-primary/10"
+											: "hover:bg-muted/50"
+									}`}
+									onClick={() => {
+										setSelectedTrack({
+											id: STANDALONE_TRACK_ID,
+											name: "All Available Workouts",
+											description:
+												"Workouts not assigned to any programming track",
+											type: "standalone",
+										})
+										// Clear track workout selection when switching to standalone
+										setSelectedWorkout(null)
+									}}
+								>
+									<CardHeader className="pb-2">
+										<CardTitle className="text-sm">
+											All Available Workouts
+										</CardTitle>
+										<CardDescription className="text-xs">
+											Workouts not assigned to any programming track
+										</CardDescription>
+									</CardHeader>
+								</Card>
+
+								{/* Programming Tracks */}
 								{tracks.map((track) => (
 									<Card
 										key={track.id}
@@ -185,7 +292,11 @@ export function WorkoutSelectionModal({
 												? "border-primary bg-primary/10"
 												: "hover:bg-muted/50"
 										}`}
-										onClick={() => setSelectedTrack(track)}
+										onClick={() => {
+											setSelectedTrack(track)
+											// Clear standalone workout selection when switching to track
+											setSelectedStandaloneWorkout(null)
+										}}
 									>
 										<CardHeader className="pb-2">
 											<CardTitle className="text-sm">{track.name}</CardTitle>
@@ -208,7 +319,53 @@ export function WorkoutSelectionModal({
 							<div className="text-center text-muted-foreground">
 								Select a track to view workouts
 							</div>
-						) : isLoadingWorkouts ? (
+						) : selectedTrack.id === STANDALONE_TRACK_ID ? (
+							// Show standalone workouts
+							isLoadingStandaloneWorkouts ? (
+								<div className="text-center text-muted-foreground">
+									Loading workouts...
+								</div>
+							) : (
+								<div className="space-y-2">
+									{standaloneWorkouts.map((workout) => (
+										<Card
+											key={workout.id}
+											className={`cursor-pointer transition-colors ${
+												selectedStandaloneWorkout?.id === workout.id
+													? "border-primary bg-primary/10"
+													: "hover:bg-muted/50"
+											}`}
+											onClick={() => {
+												setSelectedStandaloneWorkout(workout)
+												// Clear track workout selection when switching to standalone
+												setSelectedWorkout(null)
+											}}
+										>
+											<CardHeader className="pb-2">
+												<CardTitle className="text-sm">
+													{workout.name}
+												</CardTitle>
+												<CardDescription className="text-xs">
+													{workout.scheme}
+												</CardDescription>
+												{workout.description && (
+													<CardDescription className="text-xs">
+														{workout.description}
+													</CardDescription>
+												)}
+											</CardHeader>
+										</Card>
+									))}
+									{standaloneWorkouts.length === 0 && (
+										<div className="text-center text-muted-foreground">
+											No standalone workouts available. All workouts are
+											assigned to programming tracks.
+										</div>
+									)}
+								</div>
+							)
+						) : // Show track workouts (existing logic)
+						isLoadingWorkouts ? (
 							<div className="text-center text-muted-foreground">
 								Loading workouts...
 							</div>
@@ -222,7 +379,11 @@ export function WorkoutSelectionModal({
 												? "border-primary bg-primary/10"
 												: "hover:bg-muted/50"
 										}`}
-										onClick={() => setSelectedWorkout(trackWorkout)}
+										onClick={() => {
+											setSelectedWorkout(trackWorkout)
+											// Clear standalone workout selection when switching to track workout
+											setSelectedStandaloneWorkout(null)
+										}}
 									>
 										<CardHeader className="pb-2">
 											<CardTitle className="text-sm">
@@ -250,9 +411,25 @@ export function WorkoutSelectionModal({
 				</div>
 
 				{/* Scheduling Details */}
-				{selectedWorkout && (
+				{(selectedWorkout || selectedStandaloneWorkout) && (
 					<div className="space-y-4 border-t pt-4">
 						<h3 className="text-lg font-semibold">Scheduling Details</h3>
+
+						{/* Show selected workout info */}
+						<div className="bg-muted/50 p-3 rounded-lg">
+							<h4 className="font-medium text-sm mb-1">Selected Workout:</h4>
+							{selectedWorkout ? (
+								<p className="text-sm text-muted-foreground">
+									{selectedWorkout.workout?.name} from {selectedTrack?.name}
+									{selectedWorkout.dayNumber &&
+										` (Day ${selectedWorkout.dayNumber})`}
+								</p>
+							) : selectedStandaloneWorkout ? (
+								<p className="text-sm text-muted-foreground">
+									{selectedStandaloneWorkout.name} (Standalone workout)
+								</p>
+							) : null}
+						</div>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="space-y-2">
@@ -266,7 +443,7 @@ export function WorkoutSelectionModal({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="teamNotes">Team Notes (optional)</Label>
+								<Label htmlFor="teamNotes">Staff Notes (optional)</Label>
 								<Textarea
 									id="teamNotes"
 									placeholder="Any team-specific notes..."
@@ -298,9 +475,15 @@ export function WorkoutSelectionModal({
 					</Button>
 					<Button
 						onClick={handleScheduleWorkout}
-						disabled={!selectedWorkout || isScheduling}
+						disabled={
+							(!selectedWorkout && !selectedStandaloneWorkout) ||
+							isScheduling ||
+							isSchedulingStandalone
+						}
 					>
-						{isScheduling ? "Scheduling..." : "Schedule Workout"}
+						{isScheduling || isSchedulingStandalone
+							? "Scheduling..."
+							: "Schedule Workout"}
 					</Button>
 				</div>
 			</DialogContent>

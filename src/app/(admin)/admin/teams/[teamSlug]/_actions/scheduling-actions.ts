@@ -1,6 +1,7 @@
 "use server"
 
 import { TEAM_PERMISSIONS } from "@/db/schema"
+import { scheduleStandaloneWorkout } from "@/server/programming-tracks"
 import {
 	type ScheduleWorkoutInput,
 	getScheduledWorkoutsForTeam,
@@ -18,7 +19,16 @@ const getScheduledWorkoutsSchema = z.object({
 
 const scheduleWorkoutSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
-	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required").optional(),
+	scheduledDate: z.string(),
+	teamSpecificNotes: z.string().optional(),
+	scalingGuidanceForDay: z.string().optional(),
+	classTimes: z.string().optional(),
+})
+
+const scheduleStandaloneWorkoutSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	workoutId: z.string().min(1, "Workout ID is required"),
 	scheduledDate: z.string(),
 	teamSpecificNotes: z.string().optional(),
 	scalingGuidanceForDay: z.string().optional(),
@@ -64,6 +74,10 @@ export const scheduleWorkoutAction = createServerAction()
 		// Check permissions
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
+		if (!trackWorkoutId) {
+			throw new Error("Track workout ID is required to schedule a workout")
+		}
+
 		const scheduleData: ScheduleWorkoutInput = {
 			teamId,
 			trackWorkoutId,
@@ -75,6 +89,42 @@ export const scheduleWorkoutAction = createServerAction()
 
 		console.log(
 			`INFO: [SchedulingService] Scheduled trackWorkoutId '${trackWorkoutId}' for teamId '${teamId}' on '${scheduledDate}'. InstanceId: '${scheduledWorkout.id}'`,
+		)
+
+		return { success: true, data: scheduledWorkout }
+	})
+
+/**
+ * Schedule a standalone workout (not from a programming track)
+ */
+export const scheduleStandaloneWorkoutAction = createServerAction()
+	.input(scheduleStandaloneWorkoutSchema)
+	.handler(async ({ input }) => {
+		const { teamId, workoutId, scheduledDate, ...rest } = input
+
+		// Check permissions
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+
+		// Create temporary track and track workout for the standalone workout
+		const trackWorkout = await scheduleStandaloneWorkout({
+			teamId,
+			workoutId,
+			scheduledDate: new Date(scheduledDate),
+			...rest,
+		})
+
+		// Now schedule it using the existing scheduling system
+		const scheduleData: ScheduleWorkoutInput = {
+			teamId,
+			trackWorkoutId: trackWorkout.id,
+			scheduledDate: new Date(scheduledDate),
+			...rest,
+		}
+
+		const scheduledWorkout = await scheduleWorkoutForTeam(scheduleData)
+
+		console.log(
+			`INFO: [SchedulingService] Scheduled standalone workoutId '${workoutId}' for teamId '${teamId}' on '${scheduledDate}'. InstanceId: '${scheduledWorkout.id}'`,
 		)
 
 		return { success: true, data: scheduledWorkout }
