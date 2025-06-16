@@ -1,13 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
 import {
 	Drawer,
 	DrawerContent,
@@ -15,10 +7,8 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { useEffect, useState } from "react"
+import React from "react"
+import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
 import {
@@ -33,6 +23,17 @@ import {
 	scheduleWorkoutAction,
 	updateScheduledWorkoutAction,
 } from "../_actions/scheduling-actions"
+import {
+	type ProgrammingTrack,
+	STANDALONE_TRACK_ID,
+	type ScheduledWorkoutWithDetails,
+	ScheduledWorkouts,
+	SchedulingDetails,
+	type StandaloneWorkout,
+	TrackSelection,
+	type TrackWorkout,
+	WorkoutSelection,
+} from "./workout-selection"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean
@@ -42,62 +43,6 @@ interface WorkoutSelectionModalProps {
 	onWorkoutScheduled: () => void
 }
 
-interface ProgrammingTrack {
-	id: string
-	name: string
-	description: string | null
-	type: string
-}
-
-interface TrackWorkout {
-	id: string
-	dayNumber: number
-	weekNumber: number | null
-	notes: string | null
-	workoutId: string
-	workout?: {
-		id: string
-		name: string
-		description: string
-		scheme: string
-	}
-}
-
-interface StandaloneWorkout {
-	id: string
-	name: string
-	description: string
-	scheme: string
-}
-
-interface ScheduledWorkoutWithDetails {
-	id: string
-	teamId: string
-	trackWorkoutId: string
-	scheduledDate: Date
-	teamSpecificNotes: string | null
-	scalingGuidanceForDay: string | null
-	classTimes: string | null
-	createdAt: Date
-	updatedAt: Date
-	trackWorkout?: {
-		id: string
-		dayNumber: number
-		weekNumber: number | null
-		notes: string | null
-		workoutId: string
-		workout?: {
-			id: string
-			name: string
-			description: string
-			scheme: string
-		}
-	} | null
-}
-
-// Special track ID for standalone workouts
-const STANDALONE_TRACK_ID = "standalone"
-
 export function WorkoutSelectionModal({
 	isOpen,
 	onClose,
@@ -105,6 +50,7 @@ export function WorkoutSelectionModal({
 	teamId,
 	onWorkoutScheduled,
 }: WorkoutSelectionModalProps) {
+	// State for component selections and data
 	const [selectedTrack, setSelectedTrack] = useState<ProgrammingTrack | null>(
 		null,
 	)
@@ -122,10 +68,13 @@ export function WorkoutSelectionModal({
 		ScheduledWorkoutWithDetails[]
 	>([])
 	const [editingScheduled, setEditingScheduled] = useState<string | null>(null)
+
+	// Form state
 	const [classTimes, setClassTimes] = useState("")
 	const [teamNotes, setTeamNotes] = useState("")
 	const [scalingGuidance, setScalingGuidance] = useState("")
 
+	// Server actions
 	const { execute: getTeamTracks, isPending: isLoadingTracks } =
 		useServerAction(getTeamTracksAction)
 	const { execute: getWorkoutsForTrack, isPending: isLoadingWorkouts } =
@@ -148,7 +97,7 @@ export function WorkoutSelectionModal({
 	const { execute: deleteScheduledWorkout, isPending: isDeletingScheduled } =
 		useServerAction(deleteScheduledWorkoutAction)
 
-	// Load team tracks when modal opens
+	// Load data when modal opens
 	useEffect(() => {
 		if (isOpen && teamId) {
 			loadTeamTracks()
@@ -167,34 +116,37 @@ export function WorkoutSelectionModal({
 		}
 	}, [selectedTrack])
 
-	const loadTeamTracks = async () => {
+	const loadTeamTracks = useCallback(async () => {
 		const [result] = await getTeamTracks({ teamId })
 		if (result?.success && result.data) {
 			setTracks(result.data)
 		} else {
 			toast.error("Failed to load team tracks")
 		}
-	}
+	}, [teamId, getTeamTracks])
 
-	const loadTrackWorkouts = async (trackId: string) => {
-		const [result] = await getWorkoutsForTrack({ trackId })
-		if (result?.success && result.data) {
-			setTrackWorkouts(result.data)
-		} else {
-			toast.error("Failed to load track workouts")
-		}
-	}
+	const loadTrackWorkouts = useCallback(
+		async (trackId: string) => {
+			const [result] = await getWorkoutsForTrack({ trackId })
+			if (result?.success && result.data) {
+				setTrackWorkouts(result.data)
+			} else {
+				toast.error("Failed to load track workouts")
+			}
+		},
+		[getWorkoutsForTrack],
+	)
 
-	const loadStandaloneWorkouts = async () => {
+	const loadStandaloneWorkouts = useCallback(async () => {
 		const [result] = await getWorkoutsNotInTracks({ teamId })
 		if (result?.success && result.data) {
 			setStandaloneWorkouts(result.data)
 		} else {
 			toast.error("Failed to load standalone workouts")
 		}
-	}
+	}, [teamId, getWorkoutsNotInTracks])
 
-	const loadScheduledWorkouts = async () => {
+	const loadScheduledWorkouts = useCallback(async () => {
 		if (!selectedDate) return
 
 		// Get the start and end of the selected date
@@ -214,9 +166,35 @@ export function WorkoutSelectionModal({
 		} else {
 			toast.error("Failed to load scheduled workouts")
 		}
+	}, [selectedDate, teamId, getScheduledWorkouts])
+
+	// Track selection handlers
+	const handleTrackSelect = (track: ProgrammingTrack) => {
+		setSelectedTrack(track)
+		// Clear workout selections when switching tracks
+		setSelectedWorkout(null)
+		setSelectedStandaloneWorkout(null)
 	}
 
+	// Workout selection handlers
+	const handleWorkoutSelect = (workout: TrackWorkout) => {
+		setSelectedWorkout(workout)
+		setSelectedStandaloneWorkout(null)
+	}
+
+	const handleStandaloneWorkoutSelect = (workout: StandaloneWorkout) => {
+		setSelectedStandaloneWorkout(workout)
+		setSelectedWorkout(null)
+	}
+
+	// Scheduling handlers
 	const handleScheduleWorkout = async () => {
+		if (process.env.LOG_LEVEL === "info") {
+			console.log(
+				`INFO: [WorkoutSelectionModal] Scheduling workout: track=${selectedTrack?.id}, workout=${selectedWorkout?.id || selectedStandaloneWorkout?.id}`,
+			)
+		}
+
 		// Check if either a track workout or standalone workout is selected
 		if (!selectedWorkout && !selectedStandaloneWorkout) {
 			toast.error("Please select a workout")
@@ -256,7 +234,7 @@ export function WorkoutSelectionModal({
 			return
 		}
 
-		// Original logic for track workouts
+		// Handle track workouts
 		const [result] = await scheduleWorkout({
 			teamId,
 			trackWorkoutId: selectedWorkout?.id,
@@ -282,7 +260,15 @@ export function WorkoutSelectionModal({
 		}
 	}
 
-	const handleUpdateScheduledWorkout = async (instanceId: string) => {
+	// Scheduled workout management handlers
+	const handleEditScheduled = (scheduled: ScheduledWorkoutWithDetails) => {
+		setEditingScheduled(scheduled.id)
+		setTeamNotes(scheduled.teamSpecificNotes || "")
+		setScalingGuidance(scheduled.scalingGuidanceForDay || "")
+		setClassTimes(scheduled.classTimes || "")
+	}
+
+	const handleUpdateScheduled = async (instanceId: string) => {
 		const [result] = await updateScheduledWorkout({
 			instanceId,
 			teamSpecificNotes: teamNotes || undefined,
@@ -300,11 +286,7 @@ export function WorkoutSelectionModal({
 		}
 	}
 
-	const handleDeleteScheduledWorkout = async (instanceId: string) => {
-		if (!confirm("Are you sure you want to remove this scheduled workout?")) {
-			return
-		}
-
+	const handleDeleteScheduled = async (instanceId: string) => {
 		const [result] = await deleteScheduledWorkout({
 			instanceId,
 			teamId,
@@ -319,14 +301,17 @@ export function WorkoutSelectionModal({
 		}
 	}
 
-	const handleEditScheduled = (scheduled: ScheduledWorkoutWithDetails) => {
-		setEditingScheduled(scheduled.id)
-		setTeamNotes(scheduled.teamSpecificNotes || "")
-		setScalingGuidance(scheduled.scalingGuidanceForDay || "")
-		setClassTimes(scheduled.classTimes || "")
+	const handleCancelEdit = () => {
+		setEditingScheduled(null)
+		// Reset form fields
+		setClassTimes("")
+		setTeamNotes("")
+		setScalingGuidance("")
 	}
 
+	// Modal handlers
 	const handleClose = () => {
+		// Reset all state
 		setSelectedTrack(null)
 		setSelectedWorkout(null)
 		setSelectedStandaloneWorkout(null)
@@ -338,6 +323,10 @@ export function WorkoutSelectionModal({
 		setTeamNotes("")
 		setScalingGuidance("")
 		onClose()
+	}
+
+	const handleCancel = () => {
+		handleClose()
 	}
 
 	return (
@@ -353,390 +342,63 @@ export function WorkoutSelectionModal({
 
 				<div className="overflow-y-auto px-4">
 					{/* Scheduled Workouts Section */}
-					{scheduledWorkouts.length > 0 && (
-						<div className="space-y-4 border-b pb-6 mb-6">
-							<h3 className="text-lg font-semibold">
-								Scheduled Workouts for {selectedDate?.toDateString()}
-							</h3>
-							{isLoadingScheduled ? (
-								<div className="text-center text-muted-foreground">
-									Loading scheduled workouts...
-								</div>
-							) : (
-								<div className="space-y-3">
-									{scheduledWorkouts.map((scheduled) => (
-										<Card key={scheduled.id} className="p-4">
-											<div className="flex items-start justify-between">
-												<div className="flex-1">
-													<h4 className="font-medium text-sm mb-1">
-														{scheduled.trackWorkout?.workout?.name ||
-															"Unknown Workout"}
-													</h4>
-													<p className="text-xs text-muted-foreground mb-2">
-														{scheduled.trackWorkout?.dayNumber &&
-															`Day ${scheduled.trackWorkout.dayNumber}`}
-														{scheduled.trackWorkout?.weekNumber &&
-															` - Week ${scheduled.trackWorkout.weekNumber}`}
-													</p>
-													{scheduled.teamSpecificNotes && (
-														<p className="text-xs text-muted-foreground mb-1">
-															<strong>Notes:</strong>{" "}
-															{scheduled.teamSpecificNotes}
-														</p>
-													)}
-													{scheduled.scalingGuidanceForDay && (
-														<p className="text-xs text-muted-foreground mb-1">
-															<strong>Scaling:</strong>{" "}
-															{scheduled.scalingGuidanceForDay}
-														</p>
-													)}
-													{scheduled.classTimes && (
-														<p className="text-xs text-muted-foreground">
-															<strong>Class Times:</strong>{" "}
-															{scheduled.classTimes}
-														</p>
-													)}
-												</div>
-												<div className="flex gap-2 ml-4">
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => handleEditScheduled(scheduled)}
-														disabled={
-															isUpdatingScheduled || isDeletingScheduled
-														}
-													>
-														Edit
-													</Button>
-													<Button
-														size="sm"
-														variant="destructive"
-														onClick={() =>
-															handleDeleteScheduledWorkout(scheduled.id)
-														}
-														disabled={
-															isUpdatingScheduled || isDeletingScheduled
-														}
-													>
-														Remove
-													</Button>
-												</div>
-											</div>
+					<ScheduledWorkouts
+						scheduledWorkouts={scheduledWorkouts}
+						selectedDate={selectedDate}
+						editingScheduled={editingScheduled}
+						onEdit={handleEditScheduled}
+						onUpdate={handleUpdateScheduled}
+						onDelete={handleDeleteScheduled}
+						isUpdating={isUpdatingScheduled}
+						isDeleting={isDeletingScheduled}
+						isLoading={isLoadingScheduled}
+						classTimes={classTimes}
+						teamNotes={teamNotes}
+						scalingGuidance={scalingGuidance}
+						onClassTimesChange={setClassTimes}
+						onTeamNotesChange={setTeamNotes}
+						onScalingGuidanceChange={setScalingGuidance}
+						onCancelEdit={handleCancelEdit}
+					/>
 
-											{/* Edit form for this scheduled workout */}
-											{editingScheduled === scheduled.id && (
-												<div className="mt-4 pt-4 border-t space-y-3">
-													<div className="space-y-2">
-														<Label htmlFor={`edit-classTimes-${scheduled.id}`}>
-															Class Times (optional)
-														</Label>
-														<Input
-															id={`edit-classTimes-${scheduled.id}`}
-															placeholder="e.g., 6:00 AM, 12:00 PM, 6:00 PM"
-															value={classTimes}
-															onChange={(e) => setClassTimes(e.target.value)}
-														/>
-													</div>
-													<div className="space-y-2">
-														<Label htmlFor={`edit-teamNotes-${scheduled.id}`}>
-															Staff Notes (optional)
-														</Label>
-														<Textarea
-															id={`edit-teamNotes-${scheduled.id}`}
-															placeholder="Any team-specific notes..."
-															value={teamNotes}
-															onChange={(e) => setTeamNotes(e.target.value)}
-															rows={2}
-														/>
-													</div>
-													<div className="space-y-2">
-														<Label
-															htmlFor={`edit-scalingGuidance-${scheduled.id}`}
-														>
-															Scaling Guidance (optional)
-														</Label>
-														<Textarea
-															id={`edit-scalingGuidance-${scheduled.id}`}
-															placeholder="Scaling options and modifications..."
-															value={scalingGuidance}
-															onChange={(e) =>
-																setScalingGuidance(e.target.value)
-															}
-															rows={2}
-														/>
-													</div>
-													<div className="flex gap-2">
-														<Button
-															size="sm"
-															onClick={() =>
-																handleUpdateScheduledWorkout(scheduled.id)
-															}
-															disabled={isUpdatingScheduled}
-														>
-															{isUpdatingScheduled ? "Updating..." : "Update"}
-														</Button>
-														<Button
-															size="sm"
-															variant="outline"
-															onClick={() => setEditingScheduled(null)}
-															disabled={isUpdatingScheduled}
-														>
-															Cancel
-														</Button>
-													</div>
-												</div>
-											)}
-										</Card>
-									))}
-								</div>
-							)}
-						</div>
-					)}
 					<div className="flex gap-6 min-h-[456px]">
 						{/* Track Selection */}
-						<section className="max-w-sm">
-							<h3 className="text-lg font-semibold">
-								Select Programming Track
-							</h3>
-							{isLoadingTracks ? (
-								<div className="text-center text-muted-foreground">
-									Loading tracks...
-								</div>
-							) : (
-								<div className="space-y-2">
-									{/* Standalone Workouts Option */}
-									<Card
-										className={`cursor-pointer transition-colors p-4 ${
-											selectedTrack?.id === STANDALONE_TRACK_ID
-												? "border-primary bg-primary/10"
-												: "hover:bg-muted/50"
-										}`}
-										onClick={() => {
-											setSelectedTrack({
-												id: STANDALONE_TRACK_ID,
-												name: "All Available Workouts",
-												description:
-													"Workouts not assigned to any programming track",
-												type: "standalone",
-											})
-											// Clear track workout selection when switching to standalone
-											setSelectedWorkout(null)
-										}}
-									>
-										<CardHeader className="pb-2">
-											<CardTitle className="text-sm">
-												All Available Workouts
-											</CardTitle>
-											<CardDescription className="text-xs">
-												Workouts not assigned to any programming track
-											</CardDescription>
-										</CardHeader>
-									</Card>
-
-									{/* Programming Tracks */}
-									{tracks.map((track) => (
-										<Card
-											key={track.id}
-											className={`cursor-pointer transition-colors p-4 ${
-												selectedTrack?.id === track.id
-													? "border-primary bg-primary/10"
-													: "hover:bg-muted/50"
-											}`}
-											onClick={() => {
-												setSelectedTrack(track)
-												// Clear standalone workout selection when switching to track
-												setSelectedStandaloneWorkout(null)
-											}}
-										>
-											<CardHeader className="pb-2">
-												<CardTitle className="text-sm">{track.name}</CardTitle>
-												{track.description && (
-													<CardDescription className="text-xs">
-														{track.description}
-													</CardDescription>
-												)}
-											</CardHeader>
-										</Card>
-									))}
-								</div>
-							)}
-						</section>
+						<TrackSelection
+							tracks={tracks}
+							selectedTrack={selectedTrack}
+							onTrackSelect={handleTrackSelect}
+							isLoading={isLoadingTracks}
+						/>
 
 						{/* Workout Selection */}
-						<section className="space-y-4 max-w-sm">
-							<h3 className="text-lg font-semibold">Select Workout</h3>
-							{!selectedTrack ? (
-								<div className="text-center text-muted-foreground">
-									Select a track to view workouts
-								</div>
-							) : selectedTrack.id === STANDALONE_TRACK_ID ? (
-								// Show standalone workouts
-								isLoadingStandaloneWorkouts ? (
-									<div className="text-center text-muted-foreground">
-										Loading workouts...
-									</div>
-								) : (
-									<div className="space-y-2 min-w-[360px]">
-										{standaloneWorkouts.map((workout) => (
-											<Card
-												key={workout.id}
-												className={`cursor-pointer transition-colors p-4${
-													selectedStandaloneWorkout?.id === workout.id
-														? "border-primary bg-primary/10"
-														: "hover:bg-muted/50"
-												}`}
-												onClick={() => {
-													setSelectedStandaloneWorkout(workout)
-													// Clear track workout selection when switching to standalone
-													setSelectedWorkout(null)
-												}}
-											>
-												<CardHeader className="pb-2">
-													<CardTitle className="text-sm">
-														{workout.name}
-													</CardTitle>
-													<CardDescription className="text-xs">
-														{workout.scheme}
-													</CardDescription>
-													{workout.description && (
-														<CardDescription className="text-xs">
-															{workout.description}
-														</CardDescription>
-													)}
-												</CardHeader>
-											</Card>
-										))}
-										{standaloneWorkouts.length === 0 && (
-											<div className="text-center text-muted-foreground">
-												No standalone workouts available. All workouts are
-												assigned to programming tracks.
-											</div>
-										)}
-									</div>
-								)
-							) : // Show track workouts (existing logic)
-							isLoadingWorkouts ? (
-								<div className="text-center text-muted-foreground">
-									Loading workouts...
-								</div>
-							) : (
-								<div className="space-y-2">
-									{trackWorkouts.map((trackWorkout) => (
-										<Card
-											key={trackWorkout.id}
-											className={`cursor-pointer transition-colors ${
-												selectedWorkout?.id === trackWorkout.id
-													? "border-primary bg-primary/10"
-													: "hover:bg-muted/50"
-											}`}
-											onClick={() => {
-												setSelectedWorkout(trackWorkout)
-												// Clear standalone workout selection when switching to track workout
-												setSelectedStandaloneWorkout(null)
-											}}
-										>
-											<CardHeader className="pb-2">
-												<CardTitle className="text-sm">
-													Day {trackWorkout.dayNumber}
-													{trackWorkout.weekNumber &&
-														` - Week ${trackWorkout.weekNumber}`}
-												</CardTitle>
-												{trackWorkout.workout && (
-													<CardDescription className="text-xs">
-														{trackWorkout.workout.name} (
-														{trackWorkout.workout.scheme})
-													</CardDescription>
-												)}
-												{trackWorkout.notes && (
-													<CardDescription className="text-xs">
-														{trackWorkout.notes}
-													</CardDescription>
-												)}
-											</CardHeader>
-										</Card>
-									))}
-								</div>
-							)}
-						</section>
+						<WorkoutSelection
+							selectedTrack={selectedTrack}
+							selectedWorkout={selectedWorkout}
+							selectedStandaloneWorkout={selectedStandaloneWorkout}
+							trackWorkouts={trackWorkouts}
+							standaloneWorkouts={standaloneWorkouts}
+							onWorkoutSelect={handleWorkoutSelect}
+							onStandaloneWorkoutSelect={handleStandaloneWorkoutSelect}
+							isLoadingWorkouts={isLoadingWorkouts}
+							isLoadingStandaloneWorkouts={isLoadingStandaloneWorkouts}
+						/>
 
-						{/* Scheduling Details - Now inline with workout selection */}
-						{(selectedWorkout || selectedStandaloneWorkout) && (
-							<section className="flex-1 space-y-4 pl-6 border-l">
-								<h3 className="text-lg font-semibold">Scheduling Details</h3>
-
-								{/* Show selected workout info */}
-								<div className="bg-muted/50 p-3 rounded-lg">
-									<h4 className="font-medium text-sm mb-1">
-										Selected Workout:
-									</h4>
-									{selectedWorkout ? (
-										<p className="text-sm text-muted-foreground">
-											{selectedWorkout.workout?.name} from {selectedTrack?.name}
-											{selectedWorkout.dayNumber &&
-												` (Day ${selectedWorkout.dayNumber})`}
-										</p>
-									) : selectedStandaloneWorkout ? (
-										<p className="text-sm text-muted-foreground">
-											{selectedStandaloneWorkout.name} (Standalone workout)
-										</p>
-									) : null}
-								</div>
-
-								<div className="grid grid-cols-1 gap-4">
-									<div className="space-y-2">
-										<Label htmlFor="classTimes">Class Times (optional)</Label>
-										<Input
-											id="classTimes"
-											placeholder="e.g., 6:00 AM, 12:00 PM, 6:00 PM"
-											value={classTimes}
-											onChange={(e) => setClassTimes(e.target.value)}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="teamNotes">Staff Notes (optional)</Label>
-										<Textarea
-											id="teamNotes"
-											placeholder="Any team-specific notes..."
-											value={teamNotes}
-											onChange={(e) => setTeamNotes(e.target.value)}
-											rows={2}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="scalingGuidance">
-											Scaling Guidance (optional)
-										</Label>
-										<Textarea
-											id="scalingGuidance"
-											placeholder="Scaling options and modifications..."
-											value={scalingGuidance}
-											onChange={(e) => setScalingGuidance(e.target.value)}
-											rows={3}
-										/>
-									</div>
-								</div>
-							</section>
-						)}
-					</div>
-
-					<div className="flex justify-end space-x-2 border-t pt-4 mt-6 pb-4">
-						<Button variant="outline" onClick={handleClose}>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleScheduleWorkout}
-							disabled={
-								(!selectedWorkout && !selectedStandaloneWorkout) ||
-								isScheduling ||
-								isSchedulingStandalone
-							}
-						>
-							{isScheduling || isSchedulingStandalone
-								? "Scheduling..."
-								: "Schedule Workout"}
-						</Button>
+						{/* Scheduling Details */}
+						<SchedulingDetails
+							selectedWorkout={selectedWorkout}
+							selectedStandaloneWorkout={selectedStandaloneWorkout}
+							selectedTrack={selectedTrack}
+							classTimes={classTimes}
+							teamNotes={teamNotes}
+							scalingGuidance={scalingGuidance}
+							onClassTimesChange={setClassTimes}
+							onTeamNotesChange={setTeamNotes}
+							onScalingGuidanceChange={setScalingGuidance}
+							onSchedule={handleScheduleWorkout}
+							onCancel={handleCancel}
+							isScheduling={isScheduling}
+							isSchedulingStandalone={isSchedulingStandalone}
+						/>
 					</div>
 				</div>
 			</DrawerContent>
