@@ -74,134 +74,130 @@ export function ScheduledWorkouts({
 	}
 
 	return (
-		<div className="space-y-4 border-b pb-6 mb-6">
-			<h3 className="text-lg font-semibold">
+		<div className="border-b pb-6 mb-6">
+			<h3 className="text-lg font-semibold mb-4">
 				Scheduled Workouts for {selectedDate?.toDateString()}
 			</h3>
-			{isLoading ? (
-				<div className="text-center text-muted-foreground">
-					Loading scheduled workouts...
-				</div>
-			) : (
-				<div className="space-y-3">
-					{scheduledWorkouts.map((scheduled) => (
-						<Card
-							key={scheduled.id}
-							className="p-4"
-							data-testid="scheduled-workout-card"
-						>
-							<div className="flex items-start justify-between">
-								<div className="flex-1">
-									<h4 className="font-medium text-sm mb-1">
-										{scheduled.trackWorkout?.workout?.name || "Unknown Workout"}
-									</h4>
-									<p className="text-xs text-muted-foreground mb-2">
-										{scheduled.trackWorkout?.dayNumber &&
-											`Day ${scheduled.trackWorkout.dayNumber}`}
-										{scheduled.trackWorkout?.weekNumber &&
-											` - Week ${scheduled.trackWorkout.weekNumber}`}
-									</p>
-									{scheduled.teamSpecificNotes && (
-										<p className="text-xs text-muted-foreground mb-1">
-											<strong>Notes:</strong> {scheduled.teamSpecificNotes}
-										</p>
-									)}
-									{scheduled.scalingGuidanceForDay && (
-										<p className="text-xs text-muted-foreground mb-1">
-											<strong>Scaling:</strong>{" "}
-											{scheduled.scalingGuidanceForDay}
-										</p>
-									)}
-									{scheduled.classTimes && (
-										<p className="text-xs text-muted-foreground">
-											<strong>Class Times:</strong> {scheduled.classTimes}
-										</p>
-									)}
-								</div>
-								<div className="flex gap-2 ml-4">
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={() => handleEdit(scheduled)}
-										disabled={isUpdating || isDeleting}
-									>
-										Edit
-									</Button>
-									<Button
-										size="sm"
-										variant="destructive"
-										onClick={() => handleDelete(scheduled.id)}
-										disabled={isUpdating || isDeleting}
-									>
-										Remove
-									</Button>
-								</div>
-							</div>
 
-							{/* Edit form for this scheduled workout */}
-							{editingScheduled === scheduled.id && (
-								<div
-									className="mt-4 pt-4 border-t space-y-3"
-									data-testid="edit-form"
+			<div className="flex gap-6">
+				{/* Scheduled Workout Selection */}
+				<section className="max-w-sm">
+					<h4 className="font-medium mb-2">Select Scheduled Workout to Edit</h4>
+					{isLoading ? (
+						<div className="text-center text-muted-foreground">
+							Loading scheduled workouts...
+						</div>
+					) : (
+						<div className="space-y-2">
+							{scheduledWorkouts.map((scheduled) => (
+								<Card
+									key={scheduled.id}
+									className={`cursor-pointer transition-colors p-3 ${
+										editingScheduled === scheduled.id
+											? "border-primary bg-primary/10"
+											: "hover:bg-muted/50"
+									}`}
+									onClick={() => handleEdit(scheduled)}
+									data-testid="scheduled-workout-card"
 								>
-									<div className="space-y-2">
-										<Label htmlFor={`edit-classTimes-${scheduled.id}`}>
-											Class Times (optional)
-										</Label>
-										<Input
-											id={`edit-classTimes-${scheduled.id}`}
-											placeholder="e.g., 6:00 AM, 12:00 PM, 6:00 PM"
-											value={classTimes}
-											onChange={(e) => onClassTimesChange(e.target.value)}
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor={`edit-teamNotes-${scheduled.id}`}>
-											Staff Notes (optional)
-										</Label>
-										<Textarea
-											id={`edit-teamNotes-${scheduled.id}`}
-											placeholder="Any team-specific notes..."
-											value={teamNotes}
-											onChange={(e) => onTeamNotesChange(e.target.value)}
-											rows={2}
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor={`edit-scalingGuidance-${scheduled.id}`}>
-											Scaling Guidance (optional)
-										</Label>
-										<Textarea
-											id={`edit-scalingGuidance-${scheduled.id}`}
-											placeholder="Scaling options and modifications..."
-											value={scalingGuidance}
-											onChange={(e) => onScalingGuidanceChange(e.target.value)}
-											rows={2}
-										/>
-									</div>
-									<div className="flex gap-2">
+									<div className="flex items-start justify-between">
+										<div className="flex-1 min-w-0">
+											<h5 className="font-medium text-sm truncate">
+												{scheduled.trackWorkout?.workout?.name ||
+													"Unknown Workout"}
+											</h5>
+											<p className="text-xs text-muted-foreground">
+												{scheduled.trackWorkout?.dayNumber &&
+													`Day ${scheduled.trackWorkout.dayNumber}`}
+												{scheduled.trackWorkout?.weekNumber &&
+													` - Week ${scheduled.trackWorkout.weekNumber}`}
+											</p>
+										</div>
 										<Button
 											size="sm"
-											onClick={() => handleUpdate(scheduled.id)}
-											disabled={isUpdating}
+											variant="destructive"
+											onClick={(e) => {
+												e.stopPropagation()
+												handleDelete(scheduled.id)
+											}}
+											disabled={isUpdating || isDeleting}
+											className="ml-2 flex-shrink-0"
 										>
-											{isUpdating ? "Updating..." : "Update"}
-										</Button>
-										<Button
-											size="sm"
-											variant="outline"
-											onClick={onCancelEdit}
-											disabled={isUpdating}
-										>
-											Cancel
+											Remove
 										</Button>
 									</div>
-								</div>
-							)}
-						</Card>
-					))}
-				</div>
-			)}
+								</Card>
+							))}
+						</div>
+					)}
+				</section>
+
+				{/* Edit Form */}
+				{editingScheduled && (
+					<section className="flex-1 space-y-4 pl-6 border-l ">
+						<h4 className="font-medium">Edit Scheduled Workout</h4>
+						<div className="space-y-3" data-testid="edit-form">
+							<div className="space-y-2">
+								<Label htmlFor="edit-classTimes">Class Times (optional)</Label>
+								<Input
+									id="edit-classTimes"
+									placeholder="e.g., 6:00 AM, 12:00 PM, 6:00 PM"
+									value={classTimes}
+									onChange={(e) => onClassTimesChange(e.target.value)}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="edit-teamNotes">Staff Notes (optional)</Label>
+								<Textarea
+									id="edit-teamNotes"
+									placeholder="Any team-specific notes..."
+									value={teamNotes}
+									onChange={(e) => onTeamNotesChange(e.target.value)}
+									rows={2}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="edit-scalingGuidance">
+									Scaling Guidance (optional)
+								</Label>
+								<Textarea
+									id="edit-scalingGuidance"
+									placeholder="Scaling options and modifications..."
+									value={scalingGuidance}
+									onChange={(e) => onScalingGuidanceChange(e.target.value)}
+									rows={2}
+								/>
+							</div>
+							<div className="flex gap-2">
+								<Button
+									size="sm"
+									onClick={() => handleUpdate(editingScheduled)}
+									disabled={isUpdating}
+								>
+									{isUpdating ? "Updating..." : "Update"}
+								</Button>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={onCancelEdit}
+									disabled={isUpdating}
+								>
+									Cancel
+								</Button>
+							</div>
+						</div>
+					</section>
+				)}
+
+				{/* Placeholder when no workout is selected for editing */}
+				{!editingScheduled && (
+					<section className="flex-1 pl-6 border-l min-h-[405px]">
+						<div className="text-center text-muted-foreground py-8">
+							Select a scheduled workout to edit
+						</div>
+					</section>
+				)}
+			</div>
 		</div>
 	)
 }
