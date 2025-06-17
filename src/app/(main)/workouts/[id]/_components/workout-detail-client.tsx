@@ -96,21 +96,27 @@ export default function WorkoutDetailClient({
 								<h3>MOVEMENTS</h3>
 							</div>
 							<div className="space-y-4">
-								{(workout.movements || []).map((movement: Movement) => (
-									<div
-										key={movement.id}
-										className="border-2 border-black p-4 dark:border-dark-border"
-									>
-										<div className="flex items-center justify-between">
-											<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
-												{movement.name}
-											</p>
-											<span className="bg-black px-2 py-1 font-bold text-white text-xs uppercase dark:bg-dark-foreground dark:text-dark-background">
-												{movement.type}
-											</span>
+								{(workout.movements || []).map(
+									(movement: {
+										id: string
+										name: string
+										type: "weightlifting" | "gymnastic" | "monostructural"
+									}) => (
+										<div
+											key={movement.id}
+											className="border-2 border-black p-4 dark:border-dark-border"
+										>
+											<div className="flex items-center justify-between">
+												<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
+													{movement.name}
+												</p>
+												<span className="bg-black px-2 py-1 font-bold text-white text-xs uppercase dark:bg-dark-foreground dark:text-dark-background">
+													{movement.type}
+												</span>
+											</div>
 										</div>
-									</div>
-								))}
+									),
+								)}
 							</div>
 
 							{workout.tags && workout.tags.length > 0 && (
@@ -120,7 +126,7 @@ export default function WorkoutDetailClient({
 										<h3>TAGS</h3>
 									</div>
 									<div className="mb-6 flex flex-wrap gap-2">
-										{(workout.tags || []).map((tag: Tag) => (
+										{(workout.tags || []).map((tag) => (
 											<span
 												key={tag.id}
 												className="inline-block border-2 border-black px-3 py-1 text-foreground dark:border-dark-border dark:text-dark-foreground"

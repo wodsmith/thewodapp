@@ -86,7 +86,7 @@ export async function createTeam({
 	}
 
 	// Insert the team
-	const newTeam = await db
+	const newTeam = (await db
 		.insert(teamTable)
 		.values({
 			name,
@@ -95,15 +95,14 @@ export async function createTeam({
 			avatarUrl,
 			creditBalance: 0,
 		})
-		.returning()
+		.returning()) as unknown as Array<typeof teamTable.$inferInsert>
 
-	const team = newTeam?.[0]
-
-	if (!team) {
+	const team = Array.isArray(newTeam) ? newTeam[0] : undefined
+	if (!team || !team.id) {
 		throw new ZSAError("ERROR", "Could not create team")
 	}
 
-	const teamId = team.id
+	const teamId: string = team.id
 
 	// Add the creator as an owner
 	await db.insert(teamMembershipTable).values({

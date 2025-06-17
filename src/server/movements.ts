@@ -15,7 +15,8 @@ const MOVEMENT_TYPE_SCHEMA = z.enum(MOVEMENT_TYPE_VALUES)
 /**
  * Get all movements available in the system
  */
-export async function getAllMovements(db: ReturnType<typeof getDB>) {
+export async function getAllMovements() {
+	const db = getDB()
 	const session = await requireVerifiedEmail()
 
 	if (!session) {

@@ -149,8 +149,12 @@ export async function getUserTeamsWithPermissions(userId: string) {
 
 			return {
 				id: membership.teamId,
-				name: membership.team.name,
-				slug: membership.team.slug,
+				name: Array.isArray(membership.team)
+					? ""
+					: (membership.team.name ?? ""),
+				slug: Array.isArray(membership.team)
+					? ""
+					: (membership.team.slug ?? ""),
 				role: {
 					id: membership.roleId,
 					name: roleName,

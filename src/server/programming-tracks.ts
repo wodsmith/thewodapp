@@ -2,12 +2,10 @@ import "server-only"
 
 import { getDB } from "@/db"
 import {
-	PROGRAMMING_TRACK_TYPE,
 	type ProgrammingTrack,
 	type Team,
 	type TeamProgrammingTrack,
 	type TrackWorkout,
-	type Workout,
 	programmingTracksTable,
 	teamProgrammingTracksTable,
 	teamTable,
@@ -24,9 +22,7 @@ import { and, eq, notExists, or } from "drizzle-orm"
 export interface CreateTrackInput {
 	name: string
 	description?: string | null
-	type:
-		| keyof typeof PROGRAMMING_TRACK_TYPE
-		| (typeof PROGRAMMING_TRACK_TYPE)[keyof typeof PROGRAMMING_TRACK_TYPE]
+	type: ProgrammingTrack["type"]
 	ownerTeamId?: string | null
 	isPublic?: boolean
 }
@@ -48,7 +44,7 @@ export async function createProgrammingTrack(
 ): Promise<ProgrammingTrack> {
 	const db = getDB()
 
-	const [track] = await db
+	const result = await db
 		.insert(programmingTracksTable)
 		.values({
 			id: `ptrk_${createId()}`,
@@ -62,6 +58,7 @@ export async function createProgrammingTrack(
 		})
 		.returning()
 
+	const [track] = Array.isArray(result) ? result : []
 	return track
 }
 
@@ -100,22 +97,12 @@ export async function addWorkoutToTrack(
 
 export async function getWorkoutsForTrack(
 	trackId: string,
-): Promise<(TrackWorkout & { workout?: Workout })[]> {
+): Promise<TrackWorkout[]> {
 	const db = getDB()
-
-	const trackWorkouts = await db
-		.select({
-			trackWorkout: trackWorkoutsTable,
-			workout: workouts,
-		})
+	return db
+		.select()
 		.from(trackWorkoutsTable)
-		.leftJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
-
-	return trackWorkouts.map((row) => ({
-		...row.trackWorkout,
-		workout: row.workout ?? undefined,
-	}))
 }
 
 export async function assignTrackToTeam(
@@ -194,9 +181,7 @@ export async function getWorkoutsNotInTracks(
 ): Promise<Workout[]> {
 	const db = getDB()
 
-	// Get workouts that are either public or belong to the user
-	// AND are not referenced in any track_workout record
-	const availableWorkouts = await db
+	return await db
 		.select()
 		.from(workouts)
 		.where(
@@ -210,48 +195,18 @@ export async function getWorkoutsNotInTracks(
 				),
 			),
 		)
-
-	return availableWorkouts
 }
 
-/**
- * Schedule a standalone workout by creating a temporary track and track workout
- * This allows us to use the existing scheduling infrastructure
- */
-export async function scheduleStandaloneWorkout({
-	teamId,
-	workoutId,
-	scheduledDate,
-	teamSpecificNotes,
-	scalingGuidanceForDay,
-	classTimes,
-}: {
-	teamId: string
-	workoutId: string
-	scheduledDate: Date
-	teamSpecificNotes?: string
-	scalingGuidanceForDay?: string
-	classTimes?: string
-}): Promise<TrackWorkout> {
+export async function updateTeamDefaultTrack(
+	teamId: string,
+	trackId: string | null,
+): Promise<Team> {
 	const db = getDB()
-
-	// Create a temporary track for this standalone workout
-	const tempTrack = await createProgrammingTrack({
-		name: `Standalone Workout Track - ${scheduledDate.toISOString().split("T")[0]}`,
-		description: "Temporary track for standalone workout scheduling",
-		type: PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
-		ownerTeamId: teamId,
-		isPublic: false,
-	})
-
-	// Add the workout to the temporary track
-	const trackWorkout = await addWorkoutToTrack({
-		trackId: tempTrack.id,
-		workoutId: workoutId,
-		dayNumber: 1,
-		weekNumber: null,
-		notes: "Standalone workout",
-	})
-
-	return trackWorkout
+	const result = await db
+		.update(teamTable)
+		.set({ defaultTrackId: trackId, updatedAt: new Date() })
+		.where(eq(teamTable.id, teamId))
+		.returning()
+	const [team] = Array.isArray(result) ? result : []
+	return team
 }

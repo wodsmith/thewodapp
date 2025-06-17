@@ -73,13 +73,16 @@ export async function getTeamMembers(teamId: string) {
 				isSystemRole: Boolean(member.isSystemRole),
 				isActive: Boolean(member.isActive),
 				joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
-				user: {
-					id: member.user.id,
-					firstName: member.user.firstName,
-					lastName: member.user.lastName,
-					email: member.user.email,
-					avatar: member.user.avatar,
-				},
+				user: (() => {
+					const user = Array.isArray(member.user) ? member.user[0] : member.user
+					return {
+						id: user?.id,
+						firstName: user?.firstName,
+						lastName: user?.lastName,
+						email: user?.email,
+						avatar: user?.avatar,
+					}
+				})(),
 			}
 		}),
 	)
@@ -478,9 +481,18 @@ export async function acceptTeamInvitation(token: string) {
 	// Update the user's session to include this team
 	await updateAllSessionsOfUser(session.userId)
 
+	// get team from invitation to return team slug
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, invitation.teamId),
+	})
+	if (!team) {
+		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
 	return {
 		success: true,
 		teamId: invitation.teamId,
+		teamSlug: team.slug,
 	}
 }
 
@@ -519,13 +531,18 @@ export async function getTeamInvitations(teamId: string) {
 		isSystemRole: Boolean(invitation.isSystemRole),
 		createdAt: new Date(invitation.createdAt),
 		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
-		invitedBy: {
-			id: invitation.invitedByUser.id,
-			firstName: invitation.invitedByUser.firstName,
-			lastName: invitation.invitedByUser.lastName,
-			email: invitation.invitedByUser.email,
-			avatar: invitation.invitedByUser.avatar,
-		},
+		invitedBy: (() => {
+			const user = Array.isArray(invitation.invitedByUser)
+				? invitation.invitedByUser[0]
+				: invitation.invitedByUser
+			return {
+				id: user?.id,
+				firstName: user?.firstName,
+				lastName: user?.lastName,
+				email: user?.email,
+				avatar: user?.avatar,
+			}
+		})(),
 	}))
 }
 
@@ -603,22 +620,32 @@ export async function getPendingInvitationsForCurrentUser() {
 		id: invitation.id,
 		token: invitation.token,
 		teamId: invitation.teamId,
-		team: {
-			id: invitation.team.id,
-			name: invitation.team.name,
-			slug: invitation.team.slug,
-			avatarUrl: invitation.team.avatarUrl,
-		},
+		team: (() => {
+			const team = Array.isArray(invitation.team)
+				? invitation.team[0]
+				: invitation.team
+			return {
+				id: team?.id,
+				name: team?.name,
+				slug: team?.slug,
+				avatarUrl: team?.avatarUrl,
+			}
+		})(),
 		roleId: invitation.roleId,
 		isSystemRole: Boolean(invitation.isSystemRole),
 		createdAt: new Date(invitation.createdAt),
 		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
-		invitedBy: {
-			id: invitation.invitedByUser.id,
-			firstName: invitation.invitedByUser.firstName,
-			lastName: invitation.invitedByUser.lastName,
-			email: invitation.invitedByUser.email,
-			avatar: invitation.invitedByUser.avatar,
-		},
+		invitedBy: (() => {
+			const user = Array.isArray(invitation.invitedByUser)
+				? invitation.invitedByUser[0]
+				: invitation.invitedByUser
+			return {
+				id: user?.id,
+				firstName: user?.firstName,
+				lastName: user?.lastName,
+				email: user?.email,
+				avatar: user?.avatar,
+			}
+		})(),
 	}))
 }

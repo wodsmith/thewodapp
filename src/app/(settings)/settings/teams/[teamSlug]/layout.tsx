@@ -11,9 +11,9 @@ interface TeamsLayoutProps {
 
 export default async function TeamsLayout({
 	children,
-	params,
+	params: teamParams,
 }: TeamsLayoutProps) {
-	const { teamSlug } = await params
+	const params = await teamParams
 	const session = await getSessionFromCookie()
 	if (!session) {
 		redirect("/sign-in")
@@ -31,7 +31,7 @@ export default async function TeamsLayout({
 	return (
 		<div className="flex flex-col gap-8">
 			<aside className="w-full">
-				<TeamsClient teams={teams} selectedTeamSlug={teamSlug} />
+				<TeamsClient teams={teams} selectedTeamSlug={params.teamSlug} />
 			</aside>
 			<main className="flex-1">{children}</main>
 		</div>

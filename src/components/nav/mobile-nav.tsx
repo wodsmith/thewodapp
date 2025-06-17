@@ -8,15 +8,15 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet"
+import type { SessionValidationResult } from "@/types"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Dumbbell, Menu, User } from "lucide-react"
-import type { Session } from "next-auth"
 import Image from "next/image"
 import Link from "next/link"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
 interface MobileNavProps {
-	session: Session | null
+	session: SessionValidationResult | null
 }
 
 export default function MobileNav({ session }: MobileNavProps) {
@@ -70,7 +70,7 @@ export default function MobileNav({ session }: MobileNavProps) {
 								Log
 							</Link>
 							<hr className="my-2" />
-							<Link href="/profile" className="hover:text-primary">
+							<Link href="/settings/profile" className="hover:text-primary">
 								<div className="flex items-center gap-2">
 									<User className="h-5 w-5" />
 									<span>Profile</span>
@@ -84,10 +84,10 @@ export default function MobileNav({ session }: MobileNavProps) {
 							<Link href="/calculator" className="hover:text-primary">
 								Calculator
 							</Link>
-							<Link href="/login" className="hover:text-primary">
+							<Link href="/sign-in" className="hover:text-primary">
 								Login
 							</Link>
-							<Link href="/signup" className="hover:text-primary">
+							<Link href="/sign-up" className="hover:text-primary">
 								Sign Up
 							</Link>
 							<DarkModeToggle />

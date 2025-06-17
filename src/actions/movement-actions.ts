@@ -12,7 +12,7 @@ import { ZSAError, createServerAction } from "zsa"
 export const getAllMovementsAction = createServerAction().handler(async () => {
 	try {
 		const db = getDB()
-		const movements = await getAllMovements(db)
+		const movements = await getAllMovements()
 		return { success: true, data: movements }
 	} catch (error) {
 		console.error("Failed to get movements:", error)

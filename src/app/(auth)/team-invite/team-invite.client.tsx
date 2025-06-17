@@ -42,18 +42,18 @@ export default function TeamInviteClientComponent() {
 
 			// Redirect to the team dashboard, with fallback to general dashboard
 			setTimeout(() => {
-				if (data && typeof data === "object" && "teamId" in data) {
-					router.push(`/dashboard/teams/${data.teamId}`)
+				if (data && typeof data === "object" && "teamSlug" in data) {
+					router.push(`/settings/teams/${data.teamSlug}`)
 				} else if (
 					data &&
 					typeof data === "object" &&
 					data.data &&
-					"teamId" in data.data
+					"teamSlug" in data.data
 				) {
-					router.push(`/dashboard/teams/${data.data.teamId}`)
+					router.push(`/settings/teams/${data.data.teamSlug}`)
 				} else {
-					// Fallback to dashboard if teamId is not found
-					router.push("/dashboard")
+					// Fallback to dashboard if teamSlug is not found
+					router.push("/settings")
 				}
 			}, 500)
 		},

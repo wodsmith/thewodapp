@@ -39,12 +39,10 @@ export default function EditWorkoutClient({
 	const [scope, setScope] = useState(workout?.scope || "private")
 	const [tags, setTags] = useState<TagWithoutSaved[]>(initialTags)
 	const [selectedMovements, setSelectedMovements] = useState<string[]>(
-		(workout?.movements || []).map((m: Movement) => m.id),
+		(workout?.movements || []).map((m) => m.id),
 	)
 	const [selectedTags, setSelectedTags] = useState<string[]>(
-		(workout?.tags || []).map((t: TagWithoutSaved | string) =>
-			typeof t === "string" ? t : t.id,
-		),
+		(workout?.tags || []).map((t) => (typeof t === "string" ? t : t.id)),
 	)
 	const [newTag, setNewTag] = useState("")
 	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(

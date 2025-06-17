@@ -4,8 +4,8 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"account_id": "82e5aa3e06eba55221231ef482269452",
-	"name": "cloudflare-workers-nextjs-saas-template",
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"name": "WODsmith",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-03-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -36,9 +36,9 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"EMAIL_FROM": "no-reply@notifications.agenticdev.agency",
-		"EMAIL_FROM_NAME": "AgenticDev.agency",
-		"EMAIL_REPLY_TO": "support@agenticdev.agency"
+		"EMAIL_FROM": "zacjones93@gmail.com",
+		"EMAIL_FROM_NAME": "Zac from WODsmith",
+		"EMAIL_REPLY_TO": "zacjones93@gmail.com"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
@@ -75,15 +75,15 @@
 	"d1_databases": [
 		{
 			"binding": "NEXT_TAG_CACHE_D1",
-			"database_name": "spicy-db",
-			"database_id": "94dd1269-a29c-4621-adff-1762d1af6926",
+			"database_name": "wodsmith-db",
+			"database_id": "931185e9-99e5-48f0-bf70-d03ca5936f2d",
 			"migrations_dir": "src/db/migrations"
 		}
 	],
 	"kv_namespaces": [
 		{
 			"binding": "NEXT_INC_CACHE_KV",
-			"id": "c6f2b077e0a34a84b3598558eb833055"
+			"id": "e7a18a19d2cb4afbaf02be597cbecb35"
 		}
 	]
 }
