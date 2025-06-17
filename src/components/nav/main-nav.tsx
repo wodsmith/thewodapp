@@ -1,3 +1,4 @@
+"use server"
 import LogoutButton from "@/components/nav/logout-button"
 import MobileNav from "@/components/nav/mobile-nav"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
