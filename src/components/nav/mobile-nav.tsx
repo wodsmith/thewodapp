@@ -1,5 +1,3 @@
-"use client"
-
 import LogoutButton from "@/components/nav/logout-button"
 import { Button } from "@/components/ui/button"
 import {
