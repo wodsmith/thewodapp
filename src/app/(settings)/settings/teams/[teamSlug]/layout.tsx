@@ -6,13 +6,14 @@ import { TeamsClient } from "../_components/teams"
 
 interface TeamsLayoutProps {
 	children: ReactNode
-	params: { teamSlug: string }
+	params: Promise<{ teamSlug: string }>
 }
 
 export default async function TeamsLayout({
 	children,
-	params,
+	params: teamParams,
 }: TeamsLayoutProps) {
+	const params = await teamParams
 	const session = await getSessionFromCookie()
 	if (!session) {
 		redirect("/sign-in")

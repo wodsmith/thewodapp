@@ -1,7 +1,7 @@
 "use client"
 
-import * as React from "react"
 import { Building2, ChevronsUpDown, Plus } from "lucide-react"
+import * as React from "react"
 
 import {
 	DropdownMenu,
@@ -102,7 +102,7 @@ export function TeamSwitcher({
 						)}
 						<DropdownMenuSeparator />
 						<DropdownMenuItem className="gap-2 p-2 cursor-pointer" asChild>
-							<Link href="/dashboard/teams/create">
+							<Link href="/settings/teams/create">
 								<div className="flex size-6 items-center justify-center   border bg-background">
 									<Plus className="size-4" />
 								</div>

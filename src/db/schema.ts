@@ -280,29 +280,6 @@ export const programmingTrackTypeTuple = Object.values(
 	PROGRAMMING_TRACK_TYPE,
 ) as [string, ...string[]]
 
-// programming_tracks
-export const programmingTracksTable = sqliteTable(
-	"programming_track",
-	{
-		...commonColumns,
-		id: text()
-			.primaryKey()
-			.$defaultFn(() => `ptrk_${createId()}`)
-			.notNull(),
-		name: text({ length: 255 }).notNull(),
-		description: text({ length: 1000 }),
-		type: text({ enum: programmingTrackTypeTuple }).notNull(),
-		ownerTeamId: text().references(() => teamTable.id),
-		isPublic: integer().default(0).notNull(),
-	},
-	(table) => [
-		index("programming_track_type_idx").on(table.type),
-		index("programming_track_owner_idx").on(table.ownerTeamId),
-	],
-)
-
-// Note: further related tables (teamProgrammingTracksTable, trackWorkoutsTable) are declared later in this file after dependent tables are defined.
-
 // Team table
 export const teamTable = sqliteTable(
 	"team",
@@ -323,9 +300,30 @@ export const teamTable = sqliteTable(
 		planId: text({ length: 100 }),
 		planExpiresAt: integer({ mode: "timestamp" }),
 		creditBalance: integer().default(0).notNull(),
-		defaultTrackId: text().references(() => programmingTracksTable.id),
+		defaultTrackId: text(),
 	},
 	(table) => [index("team_slug_idx").on(table.slug)],
+)
+
+// programming_tracks
+export const programmingTracksTable = sqliteTable(
+	"programming_track",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => `ptrk_${createId()}`)
+			.notNull(),
+		name: text({ length: 255 }).notNull(),
+		description: text({ length: 1000 }),
+		type: text({ enum: programmingTrackTypeTuple }).notNull(),
+		ownerTeamId: text().references(() => teamTable.id),
+		isPublic: integer().default(0).notNull(),
+	},
+	(table) => [
+		index("programming_track_type_idx").on(table.type),
+		index("programming_track_owner_idx").on(table.ownerTeamId),
+	],
 )
 
 // Team membership table
@@ -421,10 +419,15 @@ export const teamInvitationTable = sqliteTable(
 	],
 )
 
-export const teamRelations = relations(teamTable, ({ many }) => ({
+export const teamRelations = relations(teamTable, ({ many, one }) => ({
 	memberships: many(teamMembershipTable),
 	invitations: many(teamInvitationTable),
 	roles: many(teamRoleTable),
+	defaultTrack: one(programmingTracksTable, {
+		fields: [teamTable.defaultTrackId],
+		references: [programmingTracksTable.id],
+	}),
+	programmingTracks: many(teamProgrammingTracksTable),
 }))
 
 export const teamRoleRelations = relations(teamRoleTable, ({ one }) => ({
@@ -794,3 +797,62 @@ export const scheduledWorkoutInstancesTable = sqliteTable(
 export type ScheduledWorkoutInstance = Prettify<
 	InferSelectModel<typeof scheduledWorkoutInstancesTable>
 >
+
+// ---------------------------------------------
+// Programming Tracks & Scheduling Relations
+// ---------------------------------------------
+
+export const programmingTracksRelations = relations(
+	programmingTracksTable,
+	({ one, many }) => ({
+		ownerTeam: one(teamTable, {
+			fields: [programmingTracksTable.ownerTeamId],
+			references: [teamTable.id],
+		}),
+		teamProgrammingTracks: many(teamProgrammingTracksTable),
+		trackWorkouts: many(trackWorkoutsTable),
+	}),
+)
+
+export const teamProgrammingTracksRelations = relations(
+	teamProgrammingTracksTable,
+	({ one }) => ({
+		team: one(teamTable, {
+			fields: [teamProgrammingTracksTable.teamId],
+			references: [teamTable.id],
+		}),
+		track: one(programmingTracksTable, {
+			fields: [teamProgrammingTracksTable.trackId],
+			references: [programmingTracksTable.id],
+		}),
+	}),
+)
+
+export const trackWorkoutsRelations = relations(
+	trackWorkoutsTable,
+	({ one, many }) => ({
+		track: one(programmingTracksTable, {
+			fields: [trackWorkoutsTable.trackId],
+			references: [programmingTracksTable.id],
+		}),
+		workout: one(workouts, {
+			fields: [trackWorkoutsTable.workoutId],
+			references: [workouts.id],
+		}),
+		scheduledInstances: many(scheduledWorkoutInstancesTable),
+	}),
+)
+
+export const scheduledWorkoutInstancesRelations = relations(
+	scheduledWorkoutInstancesTable,
+	({ one }) => ({
+		team: one(teamTable, {
+			fields: [scheduledWorkoutInstancesTable.teamId],
+			references: [teamTable.id],
+		}),
+		trackWorkout: one(trackWorkoutsTable, {
+			fields: [scheduledWorkoutInstancesTable.trackWorkoutId],
+			references: [trackWorkoutsTable.id],
+		}),
+	}),
+)

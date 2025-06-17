@@ -22,7 +22,7 @@ import { and, eq } from "drizzle-orm"
 export interface CreateTrackInput {
 	name: string
 	description?: string | null
-	type: (typeof programmingTracksTable._.columns.type)["data"]
+	type: ProgrammingTrack["type"]
 	ownerTeamId?: string | null
 	isPublic?: boolean
 }
@@ -44,7 +44,7 @@ export async function createProgrammingTrack(
 ): Promise<ProgrammingTrack> {
 	const db = getDB()
 
-	const [track] = await db
+	const result = await db
 		.insert(programmingTracksTable)
 		.values({
 			id: `ptrk_${createId()}`,
@@ -58,6 +58,7 @@ export async function createProgrammingTrack(
 		})
 		.returning()
 
+	const [track] = Array.isArray(result) ? result : []
 	return track
 }
 
@@ -176,10 +177,11 @@ export async function updateTeamDefaultTrack(
 	trackId: string | null,
 ): Promise<Team> {
 	const db = getDB()
-	const [team] = await db
+	const result = await db
 		.update(teamTable)
 		.set({ defaultTrackId: trackId, updatedAt: new Date() })
 		.where(eq(teamTable.id, teamId))
 		.returning()
+	const [team] = Array.isArray(result) ? result : []
 	return team
 }
