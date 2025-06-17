@@ -10,7 +10,8 @@ import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 
 /**
- * Get the list of staged TypeScript files
+ * Retrieves the list of staged TypeScript files in the git index.
+ * @return {string[]} An array of staged `.ts` and `.tsx` file paths that currently exist in the filesystem.
  */
 function getStagedTSFiles() {
 	try {
@@ -32,7 +33,12 @@ function getStagedTSFiles() {
 }
 
 /**
- * Run TypeScript type checking, excluding test files for now
+ * Runs TypeScript type checking on the provided files, skipping test files.
+ *
+ * Separates application files from test files based on naming patterns. Skips type checking for test files and only runs the TypeScript compiler on application files. Returns true if type checking passes or only test files are staged; returns false if type checking fails.
+ *
+ * @param {string[]} files - List of staged TypeScript file paths to check.
+ * @returns {boolean} True if type checking passes or only test files are staged; false if type checking fails.
  */
 function runTypeCheck(files) {
 	try {
@@ -93,7 +99,8 @@ function runTypeCheck(files) {
 }
 
 /**
- * Main function
+ * Orchestrates the process of retrieving staged TypeScript files and running type checks before commit.
+ * Exits the process with code 0 if type checking passes or no files are staged, or with code 1 if type checking fails.
  */
 function main() {
 	const stagedTSFiles = getStagedTSFiles()
