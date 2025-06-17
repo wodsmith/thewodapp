@@ -6,6 +6,7 @@ import {
 	type Team,
 	type TeamProgrammingTrack,
 	type TrackWorkout,
+	type Workout,
 	programmingTracksTable,
 	teamProgrammingTracksTable,
 	teamTable,
