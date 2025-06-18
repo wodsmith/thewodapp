@@ -1,3 +1,5 @@
+"use server"
+
 import { getDB } from "@/db"
 import { MOVEMENT_TYPE_VALUES } from "@/db/schema"
 import {

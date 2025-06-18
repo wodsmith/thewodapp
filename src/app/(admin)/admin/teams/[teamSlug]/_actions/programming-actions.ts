@@ -17,6 +17,7 @@ const getTeamTracksSchema = z.object({
 
 const getWorkoutsForTrackSchema = z.object({
 	trackId: z.string().min(1, "Track ID is required"),
+	teamId: z.string().optional(),
 })
 
 const getWorkoutsNotInTracksSchema = z.object({
@@ -49,13 +50,15 @@ export const getTeamTracksAction = createServerAction()
 export const getWorkoutsForTrackAction = createServerAction()
 	.input(getWorkoutsForTrackSchema)
 	.handler(async ({ input }) => {
-		const { trackId } = input
+		const { trackId, teamId } = input
 
 		// Note: We might want to add team permission check here based on track ownership
-		const workouts = await getWorkoutsForTrack(trackId)
+		const workouts = await getWorkoutsForTrack(trackId, teamId)
 
 		console.log(
-			`INFO: [ProgrammingTracks] Retrieved ${workouts.length} workouts for trackId '${trackId}'`,
+			`INFO: [ProgrammingTracks] Retrieved ${workouts.length} workouts for trackId '${trackId}'${
+				teamId ? ` (teamId: ${teamId})` : ""
+			}`,
 		)
 
 		return { success: true, data: workouts }
@@ -78,10 +81,10 @@ export const getWorkoutsNotInTracksAction = createServerAction()
 			throw new Error("Unauthorized")
 		}
 
-		const workouts = await getWorkoutsNotInTracks(session.userId)
+		const workouts = await getWorkoutsNotInTracks(session.userId, teamId)
 
 		console.log(
-			`INFO: [ProgrammingTracks] Retrieved ${workouts.length} standalone workouts not in tracks for userId '${session.userId}'`,
+			`INFO: [ProgrammingTracks] Retrieved ${workouts.length} standalone workouts not in tracks for userId '${session.userId}' (teamId: ${teamId})`,
 		)
 
 		return { success: true, data: workouts }

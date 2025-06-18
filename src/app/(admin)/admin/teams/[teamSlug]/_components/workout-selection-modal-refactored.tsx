@@ -1,5 +1,9 @@
 "use client"
 
+import { getAllMovementsAction } from "@/actions/movement-actions"
+import { getAllTagsAction } from "@/actions/tag-actions"
+import { getWorkoutByIdAction } from "@/actions/workout-actions"
+import { updateWorkoutAction } from "@/actions/workout-actions"
 import {
 	Drawer,
 	DrawerContent,
@@ -7,6 +11,12 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer"
+import type {
+	Movement,
+	Tag,
+	WorkoutUpdate,
+	WorkoutWithTagsAndMovements,
+} from "@/types"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
@@ -22,6 +32,7 @@ import {
 	scheduleWorkoutAction,
 	updateScheduledWorkoutAction,
 } from "../_actions/scheduling-actions"
+import EditWorkoutClientCompact from "./edit-workout-client-compact"
 import {
 	type ProgrammingTrack,
 	STANDALONE_TRACK_ID,
@@ -53,20 +64,35 @@ export function WorkoutSelectionModal({
 	const [selectedTrack, setSelectedTrack] = useState<ProgrammingTrack | null>(
 		null,
 	)
-	const [selectedWorkout, setSelectedWorkout] = useState<TrackWorkout | null>(
-		null,
-	)
-	const [selectedStandaloneWorkout, setSelectedStandaloneWorkout] =
-		useState<StandaloneWorkout | null>(null)
+	const [selectedWorkout, setSelectedWorkout] = useState<
+		| (TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })
+		| null
+	>(null)
+	const [selectedStandaloneWorkout, setSelectedStandaloneWorkout] = useState<
+		| (StandaloneWorkout & {
+				isScheduled?: boolean
+				lastScheduledAt?: Date | null
+		  })
+		| null
+	>(null)
 	const [tracks, setTracks] = useState<ProgrammingTrack[]>([])
-	const [trackWorkouts, setTrackWorkouts] = useState<TrackWorkout[]>([])
+	const [trackWorkouts, setTrackWorkouts] = useState<
+		(TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
+	>([])
 	const [standaloneWorkouts, setStandaloneWorkouts] = useState<
-		StandaloneWorkout[]
+		(StandaloneWorkout & {
+			isScheduled?: boolean
+			lastScheduledAt?: Date | null
+		})[]
 	>([])
 	const [scheduledWorkouts, setScheduledWorkouts] = useState<
 		ScheduledWorkoutWithDetails[]
 	>([])
 	const [editingScheduled, setEditingScheduled] = useState<string | null>(null)
+	const [editingWorkout, setEditingWorkout] =
+		useState<WorkoutWithTagsAndMovements | null>(null)
+	const [allMovements, setAllMovements] = useState<Movement[]>([])
+	const [allTags, setAllTags] = useState<Tag[]>([])
 
 	// Form state
 	const [classTimes, setClassTimes] = useState("")
@@ -95,6 +121,13 @@ export function WorkoutSelectionModal({
 		useServerAction(updateScheduledWorkoutAction)
 	const { execute: deleteScheduledWorkout, isPending: isDeletingScheduled } =
 		useServerAction(deleteScheduledWorkoutAction)
+	const { execute: getWorkoutById, isPending: isLoadingWorkoutDetails } =
+		useServerAction(getWorkoutByIdAction)
+	const { execute: getAllMovements, isPending: isLoadingAllMovements } =
+		useServerAction(getAllMovementsAction)
+	const { execute: getAllTags, isPending: isLoadingAllTags } =
+		useServerAction(getAllTagsAction)
+	const { execute: updateWorkout } = useServerAction(updateWorkoutAction)
 
 	// Load data when modal opens
 	useEffect(() => {
@@ -126,14 +159,14 @@ export function WorkoutSelectionModal({
 
 	const loadTrackWorkouts = useCallback(
 		async (trackId: string) => {
-			const [result] = await getWorkoutsForTrack({ trackId })
+			const [result] = await getWorkoutsForTrack({ trackId, teamId })
 			if (result?.success && result.data) {
 				setTrackWorkouts(result.data)
 			} else {
 				toast.error("Failed to load track workouts")
 			}
 		},
-		[getWorkoutsForTrack],
+		[getWorkoutsForTrack, teamId],
 	)
 
 	const loadStandaloneWorkouts = useCallback(async () => {
@@ -176,12 +209,22 @@ export function WorkoutSelectionModal({
 	}
 
 	// Workout selection handlers
-	const handleWorkoutSelect = (workout: TrackWorkout) => {
+	const handleWorkoutSelect = (
+		workout: TrackWorkout & {
+			isScheduled?: boolean
+			lastScheduledAt?: Date | null
+		},
+	) => {
 		setSelectedWorkout(workout)
 		setSelectedStandaloneWorkout(null)
 	}
 
-	const handleStandaloneWorkoutSelect = (workout: StandaloneWorkout) => {
+	const handleStandaloneWorkoutSelect = (
+		workout: StandaloneWorkout & {
+			isScheduled?: boolean
+			lastScheduledAt?: Date | null
+		},
+	) => {
 		setSelectedStandaloneWorkout(workout)
 		setSelectedWorkout(null)
 	}
@@ -236,37 +279,84 @@ export function WorkoutSelectionModal({
 		}
 
 		// Handle track workouts
-		const [result] = await scheduleWorkout({
-			teamId,
-			trackWorkoutId: selectedWorkout?.id,
-			scheduledDate: selectedDate.toISOString(),
-			teamSpecificNotes: teamNotes || undefined,
-			scalingGuidanceForDay: scalingGuidance || undefined,
-			classTimes: classTimes || undefined,
-		})
+		if (selectedWorkout) {
+			const [result] = await scheduleWorkout({
+				teamId,
+				trackWorkoutId: selectedWorkout.id,
+				scheduledDate: selectedDate.toISOString(),
+				teamSpecificNotes: teamNotes || undefined,
+				scalingGuidanceForDay: scalingGuidance || undefined,
+				classTimes: classTimes || undefined,
+			})
 
-		if (result?.success) {
-			console.log(
-				`INFO: [WorkoutScheduling] Workflow completed: selected workout '${
-					selectedWorkout?.workoutId
-				}' from track '${selectedTrack?.id}' scheduled for '${
-					selectedDate.toISOString().split("T")[0]
-				}' with ${classTimes ? "1" : "0"} class time`,
-			)
-			toast.success("Workout scheduled successfully!")
-			onWorkoutScheduledAction()
-			handleClose()
-		} else {
-			toast.error("Failed to schedule workout")
+			if (result?.success) {
+				console.log(
+					`INFO: [WorkoutScheduling] Workflow completed: selected workout '${
+						selectedWorkout.workoutId
+					}' from track '${selectedTrack?.id}' scheduled for '${
+						selectedDate.toISOString().split("T")[0]
+					}' with ${classTimes ? "1" : "0"} class time`,
+				)
+				toast.success("Workout scheduled successfully!")
+				onWorkoutScheduledAction()
+				handleClose()
+			} else {
+				toast.error("Failed to schedule workout")
+			}
 		}
 	}
 
 	// Scheduled workout management handlers
-	const handleEditScheduled = (scheduled: ScheduledWorkoutWithDetails) => {
+	const handleEditScheduled = async (
+		scheduled: ScheduledWorkoutWithDetails,
+	) => {
 		setEditingScheduled(scheduled.id)
 		setTeamNotes(scheduled.teamSpecificNotes || "")
 		setScalingGuidance(scheduled.scalingGuidanceForDay || "")
 		setClassTimes(scheduled.classTimes || "")
+
+		if (!scheduled.trackWorkout || !scheduled) {
+			toast.error("No workout details available for this scheduled workout.")
+			return
+		}
+
+		const workoutId = scheduled.trackWorkout?.workout?.id || scheduled.id
+
+		if (workoutId) {
+			const [workoutResult, movementsResult, tagsResult] = await Promise.all([
+				getWorkoutById({ id: workoutId }),
+				allMovements.length === 0
+					? getAllMovements()
+					: Promise.resolve([null, null]),
+				allTags.length === 0 ? getAllTags() : Promise.resolve([null, null]),
+			])
+
+			const [workoutData, workoutError] = workoutResult
+			if (workoutError || !workoutData?.success) {
+				toast.error("Failed to load workout details.")
+				setEditingScheduled(null)
+				return
+			}
+			setEditingWorkout(workoutData.data)
+
+			const [movementsData, movementsError] = movementsResult
+			if (movementsData) {
+				if (movementsError || !movementsData.success) {
+					toast.error("Failed to load movements.")
+				} else {
+					setAllMovements(movementsData.data)
+				}
+			}
+
+			const [tagsData, tagsError] = tagsResult
+			if (tagsData) {
+				if (tagsError || !tagsData.success) {
+					toast.error("Failed to load tags.")
+				} else {
+					setAllTags(tagsData.data)
+				}
+			}
+		}
 	}
 
 	const handleUpdateScheduled = async (instanceId: string) => {
@@ -287,6 +377,24 @@ export function WorkoutSelectionModal({
 		}
 	}
 
+	const handleUpdateWorkout = async (data: {
+		id: string
+		workout: WorkoutUpdate
+		tagIds: string[]
+		movementIds: string[]
+	}) => {
+		const [result, error] = await updateWorkout(data)
+
+		if (error || !result?.success) {
+			toast.error("Failed to update workout.")
+		} else {
+			toast.success("Workout updated successfully!")
+			await loadScheduledWorkouts()
+			setEditingScheduled(null)
+			setEditingWorkout(null)
+		}
+	}
+
 	const handleDeleteScheduled = async (instanceId: string) => {
 		const [result] = await deleteScheduledWorkout({
 			instanceId,
@@ -304,6 +412,7 @@ export function WorkoutSelectionModal({
 
 	const handleCancelEdit = () => {
 		setEditingScheduled(null)
+		setEditingWorkout(null)
 		// Reset form fields
 		setClassTimes("")
 		setTeamNotes("")
@@ -330,6 +439,14 @@ export function WorkoutSelectionModal({
 		handleClose()
 	}
 
+	const trackWorkoutForScheduling = selectedWorkout
+
+	const standaloneWorkoutForScheduling = selectedStandaloneWorkout
+
+	const scheduledWorkoutToEdit = editingScheduled
+		? scheduledWorkouts.find((w) => w.id === editingScheduled)
+		: null
+
 	return (
 		<Drawer open={isOpen} onOpenChange={handleClose}>
 			<DrawerContent className="max-h-[85vh]">
@@ -342,64 +459,112 @@ export function WorkoutSelectionModal({
 				</DrawerHeader>
 
 				<div className="overflow-y-auto px-4">
-					{/* Scheduled Workouts Section */}
-					<ScheduledWorkouts
-						scheduledWorkouts={scheduledWorkouts}
-						selectedDate={selectedDate}
-						editingScheduled={editingScheduled}
-						onEdit={handleEditScheduled}
-						onUpdate={handleUpdateScheduled}
-						onDelete={handleDeleteScheduled}
-						isUpdating={isUpdatingScheduled}
-						isDeleting={isDeletingScheduled}
-						isLoading={isLoadingScheduled}
-						classTimes={classTimes}
-						teamNotes={teamNotes}
-						scalingGuidance={scalingGuidance}
-						onClassTimesChange={setClassTimes}
-						onTeamNotesChange={setTeamNotes}
-						onScalingGuidanceChange={setScalingGuidance}
-						onCancelEdit={handleCancelEdit}
-					/>
+					<div
+						key={editingScheduled ? "editing" : "viewing"}
+						className="animate-in fade-in-0 duration-300"
+					>
+						{editingScheduled && editingWorkout && scheduledWorkoutToEdit ? (
+							<div className="flex gap-6">
+								<div className="w-1/2">
+									<ScheduledWorkouts
+										scheduledWorkouts={[scheduledWorkoutToEdit]}
+										selectedDate={selectedDate}
+										editingScheduled={editingScheduled}
+										onEdit={handleEditScheduled}
+										onUpdate={handleUpdateScheduled}
+										onDelete={handleDeleteScheduled}
+										isUpdating={isUpdatingScheduled}
+										isDeleting={isDeletingScheduled}
+										isLoading={isLoadingScheduled}
+										classTimes={classTimes}
+										teamNotes={teamNotes}
+										scalingGuidance={scalingGuidance}
+										onClassTimesChange={setClassTimes}
+										onTeamNotesChange={setTeamNotes}
+										onScalingGuidanceChange={setScalingGuidance}
+										onCancelEdit={handleCancelEdit}
+									/>
+								</div>
+								<div className="w-1/2">
+									{isLoadingWorkoutDetails ||
+									isLoadingAllMovements ||
+									isLoadingAllTags ? (
+										<p>Loading workout editor...</p>
+									) : (
+										<EditWorkoutClientCompact
+											workout={editingWorkout}
+											movements={allMovements}
+											tags={allTags}
+											workoutId={editingWorkout.id}
+											updateWorkoutAction={handleUpdateWorkout}
+											onCancel={handleCancelEdit}
+										/>
+									)}
+								</div>
+							</div>
+						) : (
+							<div>
+								{/* Scheduled Workouts Section */}
+								<ScheduledWorkouts
+									scheduledWorkouts={scheduledWorkouts}
+									selectedDate={selectedDate}
+									editingScheduled={editingScheduled}
+									onEdit={handleEditScheduled}
+									onUpdate={handleUpdateScheduled}
+									onDelete={handleDeleteScheduled}
+									isUpdating={isUpdatingScheduled}
+									isDeleting={isDeletingScheduled}
+									isLoading={isLoadingScheduled}
+									classTimes={classTimes}
+									teamNotes={teamNotes}
+									scalingGuidance={scalingGuidance}
+									onClassTimesChange={setClassTimes}
+									onTeamNotesChange={setTeamNotes}
+									onScalingGuidanceChange={setScalingGuidance}
+									onCancelEdit={handleCancelEdit}
+								/>
 
-					<div className="flex gap-6 min-h-[456px]">
-						{/* Track Selection */}
-						<TrackSelection
-							tracks={tracks}
-							selectedTrack={selectedTrack}
-							onTrackSelect={handleTrackSelect}
-							isLoading={isLoadingTracks}
-						/>
+								<div className="flex gap-6 min-h-[456px]">
+									{/* Track Selection */}
+									<TrackSelection
+										tracks={tracks}
+										selectedTrack={selectedTrack}
+										onTrackSelect={handleTrackSelect}
+										isLoading={isLoadingTracks}
+									/>
 
-						{/* Workout Selection */}
-						<WorkoutSelection
-							selectedTrack={selectedTrack}
-							selectedWorkout={selectedWorkout}
-							selectedStandaloneWorkout={selectedStandaloneWorkout}
-							trackWorkouts={trackWorkouts}
-							standaloneWorkouts={standaloneWorkouts}
-							onWorkoutSelect={handleWorkoutSelect}
-							onStandaloneWorkoutSelect={handleStandaloneWorkoutSelect}
-							isLoadingWorkouts={isLoadingWorkouts}
-							isLoadingStandaloneWorkouts={isLoadingStandaloneWorkouts}
-						/>
+									{/* Workout Selection */}
+									<WorkoutSelection
+										selectedTrack={selectedTrack}
+										selectedWorkout={selectedWorkout}
+										selectedStandaloneWorkout={selectedStandaloneWorkout}
+										trackWorkouts={trackWorkouts}
+										standaloneWorkouts={standaloneWorkouts}
+										onWorkoutSelect={handleWorkoutSelect}
+										onStandaloneWorkoutSelect={handleStandaloneWorkoutSelect}
+										isLoadingWorkouts={isLoadingWorkouts}
+										isLoadingStandaloneWorkouts={isLoadingStandaloneWorkouts}
+									/>
 
-						{/* Scheduling Details */}
-						<SchedulingDetails
-							selectedWorkout={selectedWorkout}
-							selectedStandaloneWorkout={selectedStandaloneWorkout}
-							selectedTrack={selectedTrack}
-							classTimes={classTimes}
-							teamNotes={teamNotes}
-							scalingGuidance={scalingGuidance}
-							onClassTimesChange={setClassTimes}
-							onTeamNotesChange={setTeamNotes}
-							onScalingGuidanceChange={setScalingGuidance}
-							onSchedule={handleScheduleWorkout}
-							onCancel={handleCancel}
-							isScheduling={isScheduling}
-							isSchedulingStandalone={isSchedulingStandalone}
-						/>
+									{/* Scheduling Details */}
+									<SchedulingDetails
+										selectedWorkout={trackWorkoutForScheduling}
+										selectedStandaloneWorkout={standaloneWorkoutForScheduling}
+										selectedTrack={selectedTrack}
+										classTimes={classTimes}
+										teamNotes={teamNotes}
+										scalingGuidance={scalingGuidance}
+										onClassTimesChange={setClassTimes}
+										onTeamNotesChange={setTeamNotes}
+										onScalingGuidanceChange={setScalingGuidance}
+										onSchedule={handleScheduleWorkout}
+										onCancel={handleCancel}
+										isScheduling={isScheduling}
+										isSchedulingStandalone={isSchedulingStandalone}
+									/>
+								</div>
+							</div>
+						)}
 					</div>
 				</div>
 			</DrawerContent>

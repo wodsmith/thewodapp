@@ -135,7 +135,7 @@ export function ScheduledWorkouts({
 				{/* Edit Form */}
 				{editingScheduled && (
 					<section className="flex-1 space-y-4 pl-6 border-l ">
-						<h4 className="font-medium">Edit Scheduled Workout</h4>
+						<h4 className="font-medium">Edit Scheduled Workout Notes</h4>
 						<div className="space-y-3" data-testid="edit-form">
 							<div className="space-y-2">
 								<Label htmlFor="edit-classTimes">Class Times (optional)</Label>

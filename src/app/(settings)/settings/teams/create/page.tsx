@@ -13,7 +13,7 @@ export default async function CreateTeamPage() {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
-		redirect("/sign-in?redirect=/dashboard/teams/create")
+		redirect("/sign-in?redirect=/settings/teams/create")
 	}
 
 	return (
