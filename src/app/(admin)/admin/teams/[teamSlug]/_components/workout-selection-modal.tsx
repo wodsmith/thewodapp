@@ -14,7 +14,7 @@ import {
 	useWorkoutEditing,
 	useWorkoutScheduling,
 	useWorkoutSelection,
-} from "../_hooks"
+} from "../_utils"
 import EditWorkoutClientCompact from "./edit-workout-client-compact"
 import {
 	ScheduledWorkouts,
