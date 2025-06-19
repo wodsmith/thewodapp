@@ -36,7 +36,7 @@ vi.mock("zsa-react", () => ({
 describe("WorkoutSelectionModal (Refactored)", () => {
 	const defaultProps = {
 		isOpen: true,
-		onClose: vi.fn(),
+		onCloseAction: vi.fn(),
 		selectedDate: new Date("2025-06-16"),
 		teamId: "team1",
 		onWorkoutScheduledAction: vi.fn(),

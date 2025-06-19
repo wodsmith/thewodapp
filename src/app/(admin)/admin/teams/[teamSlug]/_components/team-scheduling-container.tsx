@@ -12,7 +12,7 @@ import { useServerAction } from "zsa-react"
 import { getScheduledWorkoutsAction } from "../_actions/scheduling-actions"
 import { CalendarSkeleton } from "./calendar-skeleton"
 import { TeamSchedulingCalendar } from "./team-scheduling-calendar"
-import { WorkoutSelectionModal } from "./workout-selection-modal-refactored"
+import { WorkoutSelectionModal } from "./workout-selection-modal"
 
 interface CalendarEvent {
 	id: string
@@ -143,7 +143,7 @@ export function TeamSchedulingContainer({
 
 			<WorkoutSelectionModal
 				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
+				onCloseAction={() => setIsModalOpen(false)}
 				selectedDate={selectedDate}
 				teamId={teamId}
 				onWorkoutScheduledAction={handleWorkoutScheduled}
