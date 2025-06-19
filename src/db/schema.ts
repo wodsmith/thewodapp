@@ -745,6 +745,7 @@ export const trackWorkoutsTable = sqliteTable(
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
 		index("track_workout_day_idx").on(table.dayNumber),
+		index("track_workout_workoutid_idx").on(table.workoutId),
 		index("track_workout_unique_idx").on(
 			table.trackId,
 			table.workoutId,
