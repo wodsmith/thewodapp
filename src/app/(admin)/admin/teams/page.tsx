@@ -6,6 +6,7 @@ import {
 	Card,
 	CardContent,
 	CardDescription,
+	CardFooter,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
@@ -84,9 +85,12 @@ export default async function AdminTeamsPage() {
 						</div>
 					</div>
 				) : (
-					<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+					<div className="flex gap-6">
 						{teams.map((team) => (
-							<Card key={team.id} className="hover:shadow-md transition-shadow">
+							<Card
+								key={team.id}
+								className="hover:shadow-md transition-shadow flex flex-col"
+							>
 								<CardHeader className="pb-3">
 									<div className="flex items-start justify-between">
 										<div className="space-y-1">
@@ -102,13 +106,15 @@ export default async function AdminTeamsPage() {
 										</Badge>
 									</div>
 								</CardHeader>
-								<CardContent className="pt-0">
+								<CardContent className="pt-0 flex-1">
 									<div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
 										<div className="flex items-center gap-1">
 											<Users className="w-4 h-4" />
 											<span>Slug: {team.slug}</span>
 										</div>
 									</div>
+								</CardContent>
+								<CardFooter className="mt-auto">
 									<div className="flex gap-2">
 										<Button asChild className="flex-1">
 											<Link
@@ -116,7 +122,7 @@ export default async function AdminTeamsPage() {
 												className="flex items-center gap-2"
 											>
 												<Calendar className="w-4 h-4" />
-												Admin Dashboard
+												Schedule Workouts
 											</Link>
 										</Button>
 										<Button asChild variant="outline" size="icon">
@@ -126,7 +132,7 @@ export default async function AdminTeamsPage() {
 											</Link>
 										</Button>
 									</div>
-								</CardContent>
+								</CardFooter>
 							</Card>
 						))}
 					</div>
