@@ -32,17 +32,17 @@ export function TeamsClient({ teams, selectedTeamSlug }: TeamsClientProps) {
 									<div key={team.id} className="flex items-center gap-2">
 										<Link
 											href={`/settings/teams/${team.slug}`}
-											className={`flex-1 rounded-lg border px-4 py-2 font-semibold transition-colors ${
+											className={`flex-1 border-2 border-primary px-4 py-2 font-mono font-semibold transition-colors ${
 												isActive
-													? "bg-primary text-primary-foreground border-primary shadow"
-													: "hover:bg-muted hover:border-muted-foreground"
+													? "bg-primary text-primary-foreground shadow-[4px_4px_0px_0px] shadow-primary"
+													: "bg-background hover:bg-orange hover:text-white shadow-[2px_2px_0px_0px] shadow-primary"
 											}`}
 										>
 											{team.name}
 										</Link>
 										<Link
 											href={`/admin/teams/${team.slug}`}
-											className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 hover:border-blue-300"
+											className="inline-flex items-center justify-center font-mono border-2 border-primary bg-orange px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600 shadow-[4px_4px_0px_0px] shadow-primary"
 										>
 											Schedule Workouts
 										</Link>

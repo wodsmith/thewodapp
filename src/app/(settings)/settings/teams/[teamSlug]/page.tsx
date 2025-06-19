@@ -133,7 +133,7 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 						)}
 
 						{team.avatarUrl ? (
-							<div className="h-16 w-16 rounded-md overflow-hidden">
+							<div className="h-16 w-16 border-2 border-primary overflow-hidden shadow-[2px_2px_0px_0px] shadow-primary">
 								{/* eslint-disable-next-line @next/next/no-img-element */}
 								<img
 									src={team.avatarUrl || ""}
@@ -148,30 +148,30 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 					{/* Quick stats */}
 					<div className="col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div className="p-6 border rounded-lg bg-card flex flex-col">
-							<span className="text-sm font-medium text-muted-foreground">
+						<div className="p-6 border-2 border-primary bg-card flex flex-col shadow-[4px_4px_0px_0px] shadow-primary">
+							<span className="text-sm font-mono font-medium text-muted-foreground">
 								Team Credits
 							</span>
-							<span className="text-2xl font-bold">
+							<span className="text-2xl font-mono font-bold">
 								{team.creditBalance || 0}
 							</span>
 						</div>
 
-						<div className="p-6 border rounded-lg bg-card flex flex-col">
-							<span className="text-sm font-medium text-muted-foreground">
+						<div className="p-6 border-2 border-primary bg-card flex flex-col shadow-[4px_4px_0px_0px] shadow-primary">
+							<span className="text-sm font-mono font-medium text-muted-foreground">
 								Your Role
 							</span>
-							<span className="text-2xl font-bold capitalize">
+							<span className="text-2xl font-mono font-bold capitalize">
 								{teamSession?.teams?.find((t) => t.id === team.id)?.role.name ||
 									"Member"}
 							</span>
 						</div>
 
-						<div className="p-6 border rounded-lg bg-card flex flex-col">
-							<span className="text-sm font-medium text-muted-foreground">
+						<div className="p-6 border-2 border-primary bg-card flex flex-col shadow-[4px_4px_0px_0px] shadow-primary">
+							<span className="text-sm font-mono font-medium text-muted-foreground">
 								Created
 							</span>
-							<span className="text-2xl font-bold">
+							<span className="text-2xl font-mono font-bold">
 								{new Date(team.createdAt).toLocaleDateString()}
 							</span>
 						</div>
@@ -186,8 +186,10 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 					<div className="col-span-3 flex flex-wrap gap-4" />
 
 					{/* Team Members Table */}
-					<div className="col-span-3 border rounded-lg p-6 bg-card">
-						<h2 className="text-xl font-semibold mb-4">Team Members</h2>
+					<div className="col-span-3 border-2 border-primary p-6 bg-card shadow-[4px_4px_0px_0px] shadow-primary">
+						<h2 className="text-xl font-mono font-semibold mb-4">
+							Team Members
+						</h2>
 
 						{/* Table view for desktop */}
 						<div className="hidden md:block">
