@@ -133,64 +133,68 @@ export function ScheduledWorkouts({
 				</section>
 
 				{/* Edit Form */}
-				{editingScheduled && (
-					<section className="flex-1 space-y-4 pl-6 border-l ">
-						<h4 className="font-medium">Edit Scheduled Workout Notes</h4>
-						<div className="space-y-3" data-testid="edit-form">
-							<div className="space-y-2">
-								<Label htmlFor="edit-classTimes">Class Times (optional)</Label>
-								<Input
-									id="edit-classTimes"
-									placeholder="e.g., 6:00 AM, 12:00 PM, 6:00 PM"
-									value={classTimes}
-									onChange={(e) => onClassTimesChange(e.target.value)}
-								/>
+				{editingScheduled &&
+					scheduledWorkouts.some((sw) => sw.id === editingScheduled) && (
+						<section className="flex-1 space-y-4 pl-6 border-l ">
+							<h4 className="font-medium">Edit Scheduled Workout Notes</h4>
+							<div className="space-y-3" data-testid="edit-form">
+								<div className="space-y-2">
+									<Label htmlFor="edit-classTimes">
+										Class Times (optional)
+									</Label>
+									<Input
+										id="edit-classTimes"
+										placeholder="e.g., 6:00 AM, 12:00 PM, 6:00 PM"
+										value={classTimes}
+										onChange={(e) => onClassTimesChange(e.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="edit-teamNotes">Staff Notes (optional)</Label>
+									<Textarea
+										id="edit-teamNotes"
+										placeholder="Any team-specific notes..."
+										value={teamNotes}
+										onChange={(e) => onTeamNotesChange(e.target.value)}
+										rows={2}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="edit-scalingGuidance">
+										Scaling Guidance (optional)
+									</Label>
+									<Textarea
+										id="edit-scalingGuidance"
+										placeholder="Scaling options and modifications..."
+										value={scalingGuidance}
+										onChange={(e) => onScalingGuidanceChange(e.target.value)}
+										rows={2}
+									/>
+								</div>
+								<div className="flex gap-2">
+									<Button
+										size="sm"
+										onClick={() => handleUpdate(editingScheduled)}
+										disabled={isUpdating}
+									>
+										{isUpdating ? "Updating..." : "Update"}
+									</Button>
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={onCancelEdit}
+										disabled={isUpdating}
+									>
+										Cancel
+									</Button>
+								</div>
 							</div>
-							<div className="space-y-2">
-								<Label htmlFor="edit-teamNotes">Staff Notes (optional)</Label>
-								<Textarea
-									id="edit-teamNotes"
-									placeholder="Any team-specific notes..."
-									value={teamNotes}
-									onChange={(e) => onTeamNotesChange(e.target.value)}
-									rows={2}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="edit-scalingGuidance">
-									Scaling Guidance (optional)
-								</Label>
-								<Textarea
-									id="edit-scalingGuidance"
-									placeholder="Scaling options and modifications..."
-									value={scalingGuidance}
-									onChange={(e) => onScalingGuidanceChange(e.target.value)}
-									rows={2}
-								/>
-							</div>
-							<div className="flex gap-2">
-								<Button
-									size="sm"
-									onClick={() => handleUpdate(editingScheduled)}
-									disabled={isUpdating}
-								>
-									{isUpdating ? "Updating..." : "Update"}
-								</Button>
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={onCancelEdit}
-									disabled={isUpdating}
-								>
-									Cancel
-								</Button>
-							</div>
-						</div>
-					</section>
-				)}
+						</section>
+					)}
 
 				{/* Placeholder when no workout is selected for editing */}
-				{!editingScheduled && (
+				{(!editingScheduled ||
+					!scheduledWorkouts.some((sw) => sw.id === editingScheduled)) && (
 					<section className="flex-1 pl-6 border-l min-h-[405px]">
 						<div className="text-center text-muted-foreground py-8">
 							Select a scheduled workout to edit
