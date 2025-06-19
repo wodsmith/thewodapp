@@ -40,6 +40,11 @@
 		"*.{ts,tsx}": ["pnpm type-check:changed"]
 	},
 	"dependencies": {
+		"@fullcalendar/core": "^6.1.17",
+		"@fullcalendar/daygrid": "^6.1.17",
+		"@fullcalendar/interaction": "^6.1.17",
+		"@fullcalendar/react": "^6.1.17",
+		"@fullcalendar/timegrid": "^6.1.17",
 		"@heroicons/react": "^2.2.0",
 		"@heroui/react": "^2.7.6",
 		"@hookform/resolvers": "^3.10.0",
@@ -94,6 +99,7 @@
 		"tailwindcss-animate": "^1.0.7",
 		"ua-parser-js": "^2.0.0",
 		"usehooks-ts": "^3.1.0",
+		"vaul": "^1.1.2",
 		"zod": "^3.25.28",
 		"zsa": "^0.6.0",
 		"zsa-react": "^0.2.3",

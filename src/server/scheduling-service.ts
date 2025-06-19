@@ -4,8 +4,10 @@ import { getDB } from "@/db"
 import {
 	type ScheduledWorkoutInstance,
 	type TrackWorkout,
+	type Workout,
 	scheduledWorkoutInstancesTable,
 	trackWorkoutsTable,
+	workouts,
 } from "@/db/schema"
 import { createId } from "@paralleldrive/cuid2"
 import { and, between, eq } from "drizzle-orm"
@@ -30,7 +32,7 @@ export interface UpdateScheduleInput {
 }
 
 export type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
-	trackWorkout?: TrackWorkout | null
+	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -70,12 +72,14 @@ export async function getScheduledWorkoutsForTeam(
 		.select({
 			instance: scheduledWorkoutInstancesTable,
 			trackWorkout: trackWorkoutsTable,
+			workout: workouts,
 		})
 		.from(scheduledWorkoutInstancesTable)
 		.leftJoin(
 			trackWorkoutsTable,
 			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
 		)
+		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 		.where(
 			and(
 				eq(scheduledWorkoutInstancesTable.teamId, teamId),
@@ -89,7 +93,12 @@ export async function getScheduledWorkoutsForTeam(
 
 	return rows.map((r) => ({
 		...r.instance,
-		trackWorkout: r.trackWorkout ?? null,
+		trackWorkout: r.trackWorkout
+			? {
+					...r.trackWorkout,
+					workout: r.workout ?? undefined,
+				}
+			: null,
 	}))
 }
 
@@ -101,19 +110,26 @@ export async function getScheduledWorkoutInstanceById(
 		.select({
 			instance: scheduledWorkoutInstancesTable,
 			trackWorkout: trackWorkoutsTable,
+			workout: workouts,
 		})
 		.from(scheduledWorkoutInstancesTable)
 		.leftJoin(
 			trackWorkoutsTable,
 			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
 		)
+		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 		.where(eq(scheduledWorkoutInstancesTable.id, instanceId))
 
 	if (rows.length === 0) return null
 	const row = rows[0]
 	return {
 		...row.instance,
-		trackWorkout: row.trackWorkout ?? null,
+		trackWorkout: row.trackWorkout
+			? {
+					...row.trackWorkout,
+					workout: row.workout ?? undefined,
+				}
+			: null,
 	}
 }
 

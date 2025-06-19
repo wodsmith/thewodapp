@@ -3,6 +3,7 @@
 import {
 	createTeam,
 	deleteTeam,
+	getOwnedTeams,
 	getTeam,
 	getUserTeams,
 	updateTeam,
@@ -141,3 +142,21 @@ export const getTeamAction = createServerAction()
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get team")
 		}
 	})
+
+/**
+ * Get teams owned by the current user
+ */
+export const getOwnedTeamsAction = createServerAction().handler(async () => {
+	try {
+		const teams = await getOwnedTeams()
+		return { success: true, data: teams }
+	} catch (error) {
+		console.error("Failed to get owned teams:", error)
+
+		if (error instanceof ZSAError) {
+			throw error
+		}
+
+		throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get owned teams")
+	}
+})

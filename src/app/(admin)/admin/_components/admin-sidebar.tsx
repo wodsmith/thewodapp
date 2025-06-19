@@ -1,67 +1,65 @@
 "use client"
 
-import { Shield, Users } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
+import { cn } from "@/lib/utils"
+import { ScrollShadow } from "@heroui/react"
+import { Building2, Shield } from "lucide-react"
 import type { Route } from "next"
-import type { ComponentType } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
-import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarGroup,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-	SidebarRail,
-} from "@/components/ui/sidebar"
-
-export type NavItem = {
+interface AdminNavItem {
 	title: string
-	url: Route
-	icon?: ComponentType
+	href: Route
+	icon: React.ComponentType<{ className?: string }>
 }
 
-export type NavMainItem = NavItem & {
-	isActive?: boolean
-	items?: NavItem[]
-}
-
-const adminNavItems: NavMainItem[] = [
+const adminNavItems: AdminNavItem[] = [
 	{
-		title: "Users",
-		url: "/admin",
-		icon: Users,
-		isActive: true,
+		title: "Team Management",
+		href: "/admin/teams",
+		icon: Building2,
 	},
 ]
 
-export function AdminSidebar({
-	...props
-}: React.ComponentProps<typeof Sidebar>) {
+export function AdminSidebar() {
+	const pathname = usePathname()
+	const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER")
+
 	return (
-		<Sidebar collapsible="icon" {...props}>
-			<SidebarContent>
-				<SidebarGroup>
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								className="pointer-events-none"
-								tooltip="Admin Panel"
-							>
-								<Shield size={24} />
-								<span className="text-lg font-bold">Admin Panel</span>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarGroup>
-				<NavMain items={adminNavItems} />
-			</SidebarContent>
-			<SidebarFooter>
-				<NavUser />
-			</SidebarFooter>
-			<SidebarRail />
-		</Sidebar>
+		<div className="space-y-4">
+			{/* Header */}
+			<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary">
+				<Shield className="h-6 w-6" />
+				<span className="text-lg font-mono font-bold">Admin Panel</span>
+			</div>
+
+			{/* Navigation */}
+			<ScrollShadow
+				className="w-full lg:w-auto whitespace-nowrap pb-2"
+				orientation="horizontal"
+				isEnabled={isLgAndSmaller}
+			>
+				<nav className="flex items-center lg:items-stretch min-w-full space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1">
+					{adminNavItems.map((item) => (
+						<Link
+							key={item.href}
+							href={item.href}
+							className={cn(
+								buttonVariants({ variant: "ghost" }),
+								pathname.startsWith(item.href)
+									? "bg-orange text-white hover:bg-orange-600 border-2 border-primary shadow-[2px_2px_0px_0px] shadow-primary font-mono"
+									: "hover:bg-orange hover:text-white border-2 border-transparent hover:border-primary hover:shadow-[2px_2px_0px_0px] hover:shadow-primary font-mono",
+								"justify-start hover:no-underline whitespace-nowrap",
+							)}
+						>
+							<item.icon className="mr-2 h-4 w-4" />
+							{item.title}
+						</Link>
+					))}
+				</nav>
+			</ScrollShadow>
+		</div>
 	)
 }

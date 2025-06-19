@@ -297,3 +297,29 @@ export async function getUserTeams() {
 
 	return userTeams.map((membership) => membership.team)
 }
+
+/**
+ * Get teams owned by the current user
+ */
+export async function getOwnedTeams() {
+	const session = await requireVerifiedEmail()
+
+	if (!session) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const db = getDB()
+
+	const ownedTeams = await db.query.teamMembershipTable.findMany({
+		where: and(
+			eq(teamMembershipTable.userId, session.userId),
+			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
+			eq(teamMembershipTable.isSystemRole, 1),
+		),
+		with: {
+			team: true,
+		},
+	})
+
+	return ownedTeams.map((membership) => membership.team)
+}

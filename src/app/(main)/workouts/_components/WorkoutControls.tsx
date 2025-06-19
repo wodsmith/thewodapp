@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/select"
 import type { Movement, Tag } from "@/types"
 import { Search } from "lucide-react"
-import { Route } from "next"
+import type { Route } from "next"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 
 interface WorkoutControlsProps {
 	allTags: Tag["name"][]
