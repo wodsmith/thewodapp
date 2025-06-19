@@ -12,6 +12,8 @@
 		"lint": "biome lint .",
 		"format": "biome format --write . --no-errors-on-unmatched .",
 		"check": "biome check .",
+		"type-check": "pnpm exec tsc --noEmit",
+		"type-check:changed": "pnpm exec node scripts/type-check-changed.mjs",
 		"deploy:prod": "pnpm run opennext:build && opennextjs-cloudflare deploy",
 		"preview": "pnpm run opennext:build && opennextjs-cloudflare preview",
 		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
@@ -34,7 +36,8 @@
 			"biome check --write --unsafe --no-errors-on-unmatched",
 			"biome format --write --no-errors-on-unmatched",
 			"biome lint --write --no-errors-on-unmatched"
-		]
+		],
+		"*.{ts,tsx}": ["pnpm type-check:changed"]
 	},
 	"dependencies": {
 		"@heroicons/react": "^2.2.0",
