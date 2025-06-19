@@ -40,6 +40,7 @@ const scheduleStandaloneWorkoutSchema = z.object({
 
 const updateScheduledWorkoutSchema = z.object({
 	instanceId: z.string().min(1, "Instance ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
 	teamSpecificNotes: z.string().optional(),
 	scalingGuidanceForDay: z.string().optional(),
 	classTimes: z.string().optional(),
@@ -156,17 +157,31 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 export const updateScheduledWorkoutAction = createServerAction()
 	.input(updateScheduledWorkoutSchema)
 	.handler(async ({ input }) => {
-		const { instanceId, ...updateData } = input
+		const { instanceId, teamId, ...updateData } = input
 
-		// Note: We should verify team permissions by first getting the instance
-		// and checking the teamId, but for now we'll trust the client
+		// Check permissions
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+
+		// Verify that the instance exists and belongs to the specified team for extra security
+		const existingInstance = await getScheduledWorkoutInstanceById(instanceId)
+		if (!existingInstance) {
+			throw new Error("Scheduled workout not found")
+		}
+
+		// Verify the instance belongs to the team
+		if (existingInstance.teamId !== teamId) {
+			throw new Error(
+				"Unauthorized: This scheduled workout belongs to a different team",
+			)
+		}
+
 		const updatedInstance = await updateScheduledWorkoutInstance(
 			instanceId,
 			updateData,
 		)
 
 		console.log(
-			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}'`,
+			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}' for teamId '${teamId}'`,
 		)
 
 		return { success: true, data: updatedInstance }

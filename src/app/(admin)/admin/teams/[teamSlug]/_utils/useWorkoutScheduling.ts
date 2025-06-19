@@ -163,6 +163,7 @@ export function useWorkoutScheduling({
 
 			const [result] = await updateScheduledWorkout({
 				instanceId,
+				teamId,
 				teamSpecificNotes: teamNotes || undefined,
 				scalingGuidanceForDay: scalingGuidance || undefined,
 				classTimes: classTimes || undefined,
@@ -177,7 +178,12 @@ export function useWorkoutScheduling({
 			toast.error("Failed to update scheduled workout")
 			return false
 		},
-		[updateScheduledWorkout, loadScheduledWorkouts, onWorkoutScheduledAction],
+		[
+			updateScheduledWorkout,
+			teamId,
+			loadScheduledWorkouts,
+			onWorkoutScheduledAction,
+		],
 	)
 
 	const handleDeleteScheduled = useCallback(
