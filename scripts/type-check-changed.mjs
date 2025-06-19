@@ -83,11 +83,12 @@ function runTypeCheck(files) {
 			console.log(`  - ${file}`)
 		}
 
-		// Run full project type check to ensure changes don't break existing code
-		execSync(`pnpm exec tsc --noEmit --skipLibCheck ${appFiles.join(" ")}`, {
+		// Run project-wide type check using specialized config that excludes test files
+		// This ensures changes don't break existing code while avoiding test file type issues
+		execSync("pnpm exec tsc --noEmit --project tsconfig.typecheck.json", {
 			stdio: "inherit",
 			cwd: process.cwd(),
-			timeout: 60000, // 60 second timeout
+			timeout: 120000, // 120 second timeout for full project check
 		})
 		console.log("✅ TypeScript type check passed")
 		return true

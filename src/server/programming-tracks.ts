@@ -75,6 +75,51 @@ export async function getProgrammingTrackById(
 	return track ?? null
 }
 
+/**
+ * Check if a team has access to a programming track
+ * A team has access if:
+ * 1. The track is owned by the team (ownerTeamId matches)
+ * 2. The track is assigned to the team via team_programming_tracks
+ * 3. The track is public
+ */
+export async function hasTrackAccess(
+	teamId: string,
+	trackId: string,
+): Promise<boolean> {
+	const db = getDB()
+
+	// Get the track details
+	const track = await getProgrammingTrackById(trackId)
+	if (!track) {
+		return false
+	}
+
+	// Check if track is public
+	if (track.isPublic) {
+		return true
+	}
+
+	// Check if team owns the track
+	if (track.ownerTeamId === teamId) {
+		return true
+	}
+
+	// Check if track is assigned to the team
+	const teamTrackAssignment = await db
+		.select()
+		.from(teamProgrammingTracksTable)
+		.where(
+			and(
+				eq(teamProgrammingTracksTable.teamId, teamId),
+				eq(teamProgrammingTracksTable.trackId, trackId),
+				eq(teamProgrammingTracksTable.isActive, 1),
+			),
+		)
+		.limit(1)
+
+	return teamTrackAssignment.length > 0
+}
+
 export async function addWorkoutToTrack(
 	data: AddWorkoutToTrackInput,
 ): Promise<TrackWorkout> {

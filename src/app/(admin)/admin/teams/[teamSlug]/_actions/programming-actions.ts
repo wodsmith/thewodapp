@@ -5,6 +5,7 @@ import {
 	getTeamTracks,
 	getWorkoutsForTrack,
 	getWorkoutsNotInTracks,
+	hasTrackAccess,
 } from "@/server/programming-tracks"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -52,7 +53,20 @@ export const getWorkoutsForTrackAction = createServerAction()
 	.handler(async ({ input }) => {
 		const { trackId, teamId } = input
 
-		// Note: We might want to add team permission check here based on track ownership
+		// If teamId is provided, check permissions
+		if (teamId) {
+			// Check team access permission first
+			await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+
+			// Verify team has access to this specific track
+			const hasAccess = await hasTrackAccess(teamId, trackId)
+			if (!hasAccess) {
+				throw new Error(
+					"Access denied: Team does not have permission to access this programming track",
+				)
+			}
+		}
+
 		const workouts = await getWorkoutsForTrack(trackId, teamId)
 
 		console.log(

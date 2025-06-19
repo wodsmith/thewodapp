@@ -386,22 +386,21 @@ export const requireAdminForTeam = cache(
 			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 		}
 
-        const team = session?.teams?.find(
-            (t) => t.id === teamIdOrSlug || t.slug === teamIdOrSlug,
-        )
+		const team = session?.teams?.find(
+			(t) => t.id === teamIdOrSlug || t.slug === teamIdOrSlug,
+		)
 
-        // Allow both OWNER and ADMIN roles
-        if (
-            !team ||
-            (team.role.name !== SYSTEM_ROLES_ENUM.OWNER &&
-             team.role.name !== SYSTEM_ROLES_ENUM.ADMIN)
-        ) {
-            if (doNotThrowError) {
-                return null
-            }
+		// Allow both OWNER and ADMIN roles
+		if (
+			!team ||
+			(team.role.name !== SYSTEM_ROLES_ENUM.OWNER &&
+				team.role.name !== SYSTEM_ROLES_ENUM.ADMIN)
+		) {
+			if (doNotThrowError) {
+				return null
+			}
 
-            throw new ZSAError("FORBIDDEN", "Not authorized")
-        }
+			throw new ZSAError("FORBIDDEN", "Not authorized")
 		}
 
 		return session
