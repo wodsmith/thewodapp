@@ -16,7 +16,7 @@ export async function createPersonalTeamForUser(
 	const db = getDB()
 
 	// Create a personal team for the user
-	const personalTeamName = `${user.firstName || "Personal"}'s Team`
+	const personalTeamName = `${user.firstName || "Personal"}'s Team (personal)`
 	const personalTeamSlug = `${user.firstName?.toLowerCase() || "personal"}-${user.id.slice(-6)}`
 
 	const [personalTeam] = await db
