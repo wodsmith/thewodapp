@@ -881,26 +881,26 @@ export const programmingTrackPaymentsTable = sqliteTable(
 			.notNull()
 			.references(() => programmingTracksTable.id),
 		amount: integer().notNull(), // Amount in cents
-		currency: text({ length: 3 }).notNull(),
+		currency: text({ length: 3 }).notNull(), // ISO currency code
 		paymentType: text({
-			enum: ["one_time", "recurring_initial", "recurring_renewal"],
+			enum: ["one_time", "recurring"],
 		}).notNull(),
 		status: text({
 			enum: ["pending", "succeeded", "failed", "cancelled", "refunded"],
 		}).notNull(),
 
-		// Stripe fields
+		// Stripe integration fields
 		stripePaymentIntentId: text({ length: 255 }),
 		stripeSubscriptionId: text({ length: 255 }),
 		stripeInvoiceId: text({ length: 255 }),
 		stripeCustomerId: text({ length: 255 }).notNull(),
 
-		// Metadata
+		// Failure and refund tracking
 		failureReason: text({ length: 500 }),
 		refundedAt: integer({ mode: "timestamp" }),
-		refundAmount: integer(), // Refund amount in cents
+		refundAmount: integer(),
 
-		// Period tracking for subscriptions
+		// Billing period (for recurring payments)
 		periodStart: integer({ mode: "timestamp" }),
 		periodEnd: integer({ mode: "timestamp" }),
 	},
