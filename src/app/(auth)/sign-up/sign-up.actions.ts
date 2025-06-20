@@ -5,6 +5,7 @@ import { getDB } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { signUpSchema } from "@/schemas/signup.schema"
+import { createPersonalTeamForUser } from "@/server/user"
 import {
 	canSignUp,
 	createSession,
@@ -67,6 +68,9 @@ export const signUpAction = createServerAction()
 			if (!user || !user.email) {
 				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create user")
 			}
+
+			// Create a personal team for the user
+			await createPersonalTeamForUser(user)
 
 			try {
 				// Create a session

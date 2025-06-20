@@ -236,7 +236,6 @@ export async function assignTrackToTeam(
 			teamId,
 			trackId,
 			isActive: isActive ? 1 : 0,
-			addedAt: new Date(),
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		})

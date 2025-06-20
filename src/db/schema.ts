@@ -280,6 +280,29 @@ export const programmingTrackTypeTuple = Object.values(
 	PROGRAMMING_TRACK_TYPE,
 ) as [string, ...string[]]
 
+// Pricing types for programming tracks
+export const PROGRAMMING_TRACK_PRICING_TYPE = {
+	FREE: "free",
+	ONE_TIME: "one_time",
+	RECURRING: "recurring",
+} as const
+
+export const programmingTrackPricingTypeTuple = Object.values(
+	PROGRAMMING_TRACK_PRICING_TYPE,
+) as [string, ...string[]]
+
+// Recurring billing intervals
+export const BILLING_INTERVAL = {
+	WEEK: "week",
+	MONTH: "month",
+	YEAR: "year",
+} as const
+
+export const billingIntervalTuple = Object.values(BILLING_INTERVAL) as [
+	string,
+	...string[],
+]
+
 // Team table
 export const teamTable = sqliteTable(
 	"team",
@@ -301,8 +324,15 @@ export const teamTable = sqliteTable(
 		planExpiresAt: integer({ mode: "timestamp" }),
 		creditBalance: integer().default(0).notNull(),
 		defaultTrackId: text(),
+		// Flag to indicate if this is a personal team (created automatically for each user)
+		isPersonalTeam: integer().default(0).notNull(),
+		// For personal teams, store the owner user ID
+		personalTeamOwnerId: text().references(() => userTable.id),
 	},
-	(table) => [index("team_slug_idx").on(table.slug)],
+	(table) => [
+		index("team_slug_idx").on(table.slug),
+		index("team_personal_owner_idx").on(table.personalTeamOwnerId),
+	],
 )
 
 // programming_tracks
@@ -319,10 +349,27 @@ export const programmingTracksTable = sqliteTable(
 		type: text({ enum: programmingTrackTypeTuple }).notNull(),
 		ownerTeamId: text().references(() => teamTable.id),
 		isPublic: integer().default(0).notNull(),
+
+		// Pricing fields
+		pricingType: text({ enum: programmingTrackPricingTypeTuple })
+			.default(PROGRAMMING_TRACK_PRICING_TYPE.FREE)
+			.notNull(),
+		price: integer(), // Price in cents (for Stripe compatibility)
+		currency: text({ length: 3 }).default("usd"), // ISO currency code
+		billingInterval: text({ enum: billingIntervalTuple }), // Only for recurring payments
+
+		// Stripe integration fields
+		stripePriceId: text({ length: 255 }), // Stripe Price ID
+		stripeProductId: text({ length: 255 }), // Stripe Product ID
+
+		// Trial period (in days) for recurring subscriptions
+		trialPeriodDays: integer().default(0),
 	},
 	(table) => [
 		index("programming_track_type_idx").on(table.type),
 		index("programming_track_owner_idx").on(table.ownerTeamId),
+		index("programming_track_pricing_type_idx").on(table.pricingType),
+		index("programming_track_stripe_price_idx").on(table.stripePriceId),
 	],
 )
 
@@ -428,6 +475,13 @@ export const teamRelations = relations(teamTable, ({ many, one }) => ({
 		references: [programmingTracksTable.id],
 	}),
 	programmingTracks: many(teamProgrammingTracksTable),
+	scheduledInstances: many(scheduledWorkoutInstancesTable),
+	// Personal team owner relation
+	personalTeamOwner: one(userTable, {
+		fields: [teamTable.personalTeamOwnerId],
+		references: [userTable.id],
+		relationName: "personalTeamOwner",
+	}),
 }))
 
 export const teamRoleRelations = relations(teamRoleTable, ({ one }) => ({
@@ -512,6 +566,11 @@ export const userRelations = relations(userTable, ({ many }) => ({
 	}),
 	acceptedTeamInvitations: many(teamInvitationTable, {
 		relationName: "acceptor",
+	}),
+	programmingTrackPayments: many(programmingTrackPaymentsTable),
+	// Personal team relation
+	personalTeam: many(teamTable, {
+		relationName: "personalTeamOwner",
 	}),
 }))
 
@@ -633,7 +692,7 @@ export const results = sqliteTable("results", {
 		() => programmingTracksTable.id,
 	),
 
-	// New reference to scheduled workout instance
+	// References to scheduled workout instances (team-based)
 	scheduledWorkoutInstanceId: text("scheduled_workout_instance_id").references(
 		() => scheduledWorkoutInstancesTable.id,
 	),
@@ -701,7 +760,7 @@ export type WorkoutMovement = Prettify<
 // Programming Tracks & Scheduling
 // ---------------------------------------------
 
-// team_programming_tracks (join table)
+// team_programming_tracks (join table) - Enhanced with payment functionality
 export const teamProgrammingTracksTable = sqliteTable(
 	"team_programming_track",
 	{
@@ -713,13 +772,36 @@ export const teamProgrammingTracksTable = sqliteTable(
 			.notNull()
 			.references(() => programmingTracksTable.id),
 		isActive: integer().default(1).notNull(),
-		addedAt: integer({ mode: "timestamp" })
+		subscribedAt: integer({ mode: "timestamp" })
 			.$defaultFn(() => new Date())
 			.notNull(),
+		// Optional: allow teams to customize their start day within the track
+		startDayOffset: integer().default(0).notNull(),
+
+		// Payment tracking fields (moved from user_programming_tracks)
+		paymentStatus: text({
+			enum: ["pending", "paid", "failed", "cancelled", "refunded"],
+		})
+			.default("pending")
+			.notNull(),
+		stripeCustomerId: text({ length: 255 }),
+		stripeSubscriptionId: text({ length: 255 }), // For recurring payments
+		stripePaymentIntentId: text({ length: 255 }), // For one-time payments
+		subscriptionExpiresAt: integer({ mode: "timestamp" }), // For recurring subscriptions
+		cancelledAt: integer({ mode: "timestamp" }),
+		cancelAtPeriodEnd: integer().default(0).notNull(), // Boolean for graceful subscription cancellation
 	},
 	(table) => [
 		primaryKey({ columns: [table.teamId, table.trackId] }),
 		index("team_programming_track_active_idx").on(table.isActive),
+		index("team_programming_track_team_idx").on(table.teamId),
+		index("team_programming_track_payment_status_idx").on(table.paymentStatus),
+		index("team_programming_track_stripe_subscription_idx").on(
+			table.stripeSubscriptionId,
+		),
+		index("team_programming_track_expires_at_idx").on(
+			table.subscriptionExpiresAt,
+		),
 	],
 )
 
@@ -754,15 +836,6 @@ export const trackWorkoutsTable = sqliteTable(
 	],
 )
 
-// New exported types
-export type ProgrammingTrack = Prettify<
-	InferSelectModel<typeof programmingTracksTable>
->
-export type TeamProgrammingTrack = Prettify<
-	InferSelectModel<typeof teamProgrammingTracksTable>
->
-export type TrackWorkout = Prettify<InferSelectModel<typeof trackWorkoutsTable>>
-
 // ---------------------------------------------
 // Scheduled Workout Instances
 // ---------------------------------------------
@@ -792,11 +865,74 @@ export const scheduledWorkoutInstancesTable = sqliteTable(
 	],
 )
 
+// Programming track payments table - NEW
+export const programmingTrackPaymentsTable = sqliteTable(
+	"programming_track_payment",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => `ptpay_${createId()}`)
+			.notNull(),
+		userId: text()
+			.notNull()
+			.references(() => userTable.id),
+		trackId: text()
+			.notNull()
+			.references(() => programmingTracksTable.id),
+		amount: integer().notNull(), // Amount in cents
+		currency: text({ length: 3 }).notNull(),
+		paymentType: text({
+			enum: ["one_time", "recurring_initial", "recurring_renewal"],
+		}).notNull(),
+		status: text({
+			enum: ["pending", "succeeded", "failed", "cancelled", "refunded"],
+		}).notNull(),
+
+		// Stripe fields
+		stripePaymentIntentId: text({ length: 255 }),
+		stripeSubscriptionId: text({ length: 255 }),
+		stripeInvoiceId: text({ length: 255 }),
+		stripeCustomerId: text({ length: 255 }).notNull(),
+
+		// Metadata
+		failureReason: text({ length: 500 }),
+		refundedAt: integer({ mode: "timestamp" }),
+		refundAmount: integer(), // Refund amount in cents
+
+		// Period tracking for subscriptions
+		periodStart: integer({ mode: "timestamp" }),
+		periodEnd: integer({ mode: "timestamp" }),
+	},
+	(table) => [
+		index("programming_track_payment_user_idx").on(table.userId),
+		index("programming_track_payment_track_idx").on(table.trackId),
+		index("programming_track_payment_status_idx").on(table.status),
+		index("programming_track_payment_stripe_payment_intent_idx").on(
+			table.stripePaymentIntentId,
+		),
+		index("programming_track_payment_stripe_subscription_idx").on(
+			table.stripeSubscriptionId,
+		),
+		index("programming_track_payment_created_at_idx").on(table.createdAt),
+	],
+)
+
 // ---------------------------------------------
-// Export types for new table
+// Export types for new tables
 // ---------------------------------------------
 export type ScheduledWorkoutInstance = Prettify<
 	InferSelectModel<typeof scheduledWorkoutInstancesTable>
+>
+export type ProgrammingTrack = Prettify<
+	InferSelectModel<typeof programmingTracksTable>
+>
+export type TeamProgrammingTrack = Prettify<
+	InferSelectModel<typeof teamProgrammingTracksTable>
+>
+export type TrackWorkout = Prettify<InferSelectModel<typeof trackWorkoutsTable>>
+export type ProgrammingTrackPayment = Prettify<
+	InferSelectModel<typeof programmingTrackPaymentsTable>
 >
 
 // ---------------------------------------------
@@ -812,6 +948,7 @@ export const programmingTracksRelations = relations(
 		}),
 		teamProgrammingTracks: many(teamProgrammingTracksTable),
 		trackWorkouts: many(trackWorkoutsTable),
+		payments: many(programmingTrackPaymentsTable),
 	}),
 )
 
@@ -846,7 +983,7 @@ export const trackWorkoutsRelations = relations(
 
 export const scheduledWorkoutInstancesRelations = relations(
 	scheduledWorkoutInstancesTable,
-	({ one }) => ({
+	({ one, many }) => ({
 		team: one(teamTable, {
 			fields: [scheduledWorkoutInstancesTable.teamId],
 			references: [teamTable.id],
@@ -854,6 +991,21 @@ export const scheduledWorkoutInstancesRelations = relations(
 		trackWorkout: one(trackWorkoutsTable, {
 			fields: [scheduledWorkoutInstancesTable.trackWorkoutId],
 			references: [trackWorkoutsTable.id],
+		}),
+		results: many(results),
+	}),
+)
+
+export const programmingTrackPaymentsRelations = relations(
+	programmingTrackPaymentsTable,
+	({ one }) => ({
+		user: one(userTable, {
+			fields: [programmingTrackPaymentsTable.userId],
+			references: [userTable.id],
+		}),
+		track: one(programmingTracksTable, {
+			fields: [programmingTrackPaymentsTable.trackId],
+			references: [programmingTracksTable.id],
 		}),
 	}),
 )
