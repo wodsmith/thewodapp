@@ -125,7 +125,10 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 		resolver: zodResolver(passkeyEmailSchema),
 	})
 
-	const captchaToken = useWatch({ control: form.control, name: "captchaToken" })
+	const captchaToken = useWatch({
+		control: form.control,
+		name: "captchaToken",
+	})
 	const passkeyCaptchaToken = useWatch({
 		control: passkeyForm.control,
 		name: "captchaToken",
