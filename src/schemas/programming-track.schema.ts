@@ -1,3 +1,4 @@
+import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 import { z } from "zod"
 
 export const createProgrammingTrackSchema = z.object({
@@ -7,7 +8,11 @@ export const createProgrammingTrackSchema = z.object({
 		.min(1, "Track name is required")
 		.max(255, "Name is too long"),
 	description: z.string().max(1000, "Description is too long").optional(),
-	type: z.enum(["pre_built", "self_programmed", "hybrid"]),
+	type: z.enum([
+		PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+		PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
+	]),
 	isPublic: z.boolean().optional().default(false),
 })
 

@@ -1,3 +1,4 @@
+import { DebugSessionInfo } from "@/components/debug-session-info"
 import { PageHeader } from "@/components/page-header"
 import { getDB } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
@@ -52,12 +53,17 @@ export default async function ProgrammingTrackPage({
 		where: eq(teamTable.slug, teamSlug),
 	})
 
+	console.log(`DEBUG: [Programming] Team found: ${team ? team : "not found"}`)
+
 	if (!team) {
 		notFound()
 	}
 
 	// Check if user has permission to manage programming tracks
 	try {
+		console.log(
+			`DEBUG: [Programming] About to check permission '${TEAM_PERMISSIONS.MANAGE_PROGRAMMING}' for teamId '${team.id}'`,
+		)
 		await requireTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 		console.log(
 			`INFO: [TeamAuth] User authorized for programming track management on teamId '${team.id}'`,
@@ -65,6 +71,7 @@ export default async function ProgrammingTrackPage({
 	} catch (error) {
 		console.error(
 			`ERROR: [TeamAuth] Unauthorized access attempt for programming track management on teamId '${team.id}'`,
+			error,
 		)
 		notFound()
 	}

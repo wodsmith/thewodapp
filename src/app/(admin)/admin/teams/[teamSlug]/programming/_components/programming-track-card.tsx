@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ProgrammingTrack } from "@/db/schema"
+import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 import { Edit, Trash2, Users } from "lucide-react"
 import { useState } from "react"
 import { ProgrammingTrackDeleteDialog } from "./programming-track-delete-dialog"
@@ -23,11 +24,11 @@ export function ProgrammingTrackCard({
 
 	const getTypeColor = (type: string) => {
 		switch (type) {
-			case "pre_built":
-				return "bg-blue-500 text-white border-2 border-blue-700 font-mono"
-			case "self_programmed":
+			case PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED:
 				return "bg-green-500 text-white border-2 border-green-700 font-mono"
-			case "hybrid":
+			case PROGRAMMING_TRACK_TYPE.TEAM_OWNED:
+				return "bg-blue-500 text-white border-2 border-blue-700 font-mono"
+			case PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY:
 				return "bg-purple-500 text-white border-2 border-purple-700 font-mono"
 			default:
 				return "bg-gray-500 text-white border-2 border-gray-700 font-mono"
@@ -36,12 +37,12 @@ export function ProgrammingTrackCard({
 
 	const getTypeLabel = (type: string) => {
 		switch (type) {
-			case "pre_built":
-				return "Pre-built"
-			case "self_programmed":
+			case PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED:
 				return "Self-programmed"
-			case "hybrid":
-				return "Hybrid"
+			case PROGRAMMING_TRACK_TYPE.TEAM_OWNED:
+				return "Team-owned"
+			case PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY:
+				return "Official 3rd Party"
 			default:
 				return type
 		}

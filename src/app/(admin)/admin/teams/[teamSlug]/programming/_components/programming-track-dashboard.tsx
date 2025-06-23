@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import type { ProgrammingTrack } from "@/db/schema"
 import { Plus } from "lucide-react"
-import { useOptimistic, useState } from "react"
+import { startTransition, useOptimistic, useState } from "react"
 import { ProgrammingTrackCard } from "./programming-track-card"
 import { ProgrammingTrackCreateDialog } from "./programming-track-create-dialog"
 
@@ -39,12 +39,16 @@ export function ProgrammingTrackDashboard({
 	)
 
 	const handleTrackCreated = (track: ProgrammingTrack) => {
-		setOptimisticTracks({ type: "add", track })
+		startTransition(() => {
+			setOptimisticTracks({ type: "add", track })
+		})
 		setIsCreateDialogOpen(false)
 	}
 
 	const handleTrackDeleted = (trackId: string) => {
-		setOptimisticTracks({ type: "delete", trackId })
+		startTransition(() => {
+			setOptimisticTracks({ type: "delete", trackId })
+		})
 	}
 
 	console.log(

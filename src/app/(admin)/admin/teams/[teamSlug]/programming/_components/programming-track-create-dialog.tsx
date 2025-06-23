@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { ProgrammingTrack } from "@/db/schema"
+import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRef } from "react"
 import { useForm } from "react-hook-form"
@@ -41,7 +42,11 @@ const formSchema = z.object({
 		.min(1, "Track name is required")
 		.max(255, "Name is too long"),
 	description: z.string().max(1000, "Description is too long").optional(),
-	type: z.enum(["pre_built", "self_programmed", "hybrid"]),
+	type: z.enum([
+		PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+		PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
+	]),
 	isPublic: z.boolean().optional().default(false),
 })
 
@@ -69,7 +74,7 @@ export function ProgrammingTrackCreateDialog({
 		defaultValues: {
 			name: "",
 			description: "",
-			type: "self_programmed",
+			type: PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
 			isPublic: false,
 		},
 	})
@@ -179,14 +184,23 @@ export function ProgrammingTrackCreateDialog({
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent className="border-2 border-primary rounded-none font-mono">
-											<SelectItem value="pre_built" className="font-mono">
-												Pre-built
-											</SelectItem>
-											<SelectItem value="self_programmed" className="font-mono">
+											<SelectItem
+												value={PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED}
+												className="font-mono"
+											>
 												Self-programmed
 											</SelectItem>
-											<SelectItem value="hybrid" className="font-mono">
-												Hybrid
+											<SelectItem
+												value={PROGRAMMING_TRACK_TYPE.TEAM_OWNED}
+												className="font-mono"
+											>
+												Team-owned
+											</SelectItem>
+											<SelectItem
+												value={PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY}
+												className="font-mono"
+											>
+												Official 3rd Party
 											</SelectItem>
 										</SelectContent>
 									</Select>
@@ -199,7 +213,7 @@ export function ProgrammingTrackCreateDialog({
 							<DialogClose ref={dialogCloseRef} asChild>
 								<Button
 									type="button"
-									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-black text-primary hover:bg-surface rounded-none"
 								>
 									Cancel
 								</Button>
