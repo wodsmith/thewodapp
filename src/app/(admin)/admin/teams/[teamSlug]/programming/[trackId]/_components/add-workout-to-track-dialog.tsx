@@ -160,7 +160,7 @@ export function AddWorkoutToTrackDialog({
 									<Button
 										type="button"
 										onClick={handleBackToSelection}
-										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-black text-primary hover:bg-surface rounded-none"
 									>
 										Change Workout
 									</Button>
@@ -256,7 +256,7 @@ export function AddWorkoutToTrackDialog({
 								<Button
 									type="button"
 									onClick={onCloseAction}
-									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-black text-primary hover:bg-surface rounded-none"
 								>
 									Cancel
 								</Button>

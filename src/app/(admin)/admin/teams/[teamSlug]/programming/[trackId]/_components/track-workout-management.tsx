@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ProgrammingTrack, TrackWorkout } from "@/db/schema"
 import { Plus } from "lucide-react"
-import { useOptimistic, useState } from "react"
+import { startTransition, useOptimistic, useState } from "react"
 import {
 	addWorkoutToTrackAction,
 	removeWorkoutFromTrackAction,
@@ -72,19 +72,21 @@ export function TrackWorkoutManagement({
 		)
 
 		try {
-			// Optimistic update
-			const tempTrackWorkout: TrackWorkout = {
-				id: `temp_${Date.now()}`,
-				trackId,
-				workoutId: data.workoutId,
-				dayNumber: data.dayNumber,
-				weekNumber: data.weekNumber || null,
-				notes: data.notes || null,
-				updateCounter: null,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			}
-			setOptimisticTrackWorkouts({ type: "add", workout: tempTrackWorkout })
+			// Optimistic update wrapped in startTransition
+			startTransition(() => {
+				const tempTrackWorkout: TrackWorkout = {
+					id: `temp_${Date.now()}`,
+					trackId,
+					workoutId: data.workoutId,
+					dayNumber: data.dayNumber,
+					weekNumber: data.weekNumber || null,
+					notes: data.notes || null,
+					updateCounter: null,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				}
+				setOptimisticTrackWorkouts({ type: "add", workout: tempTrackWorkout })
+			})
 
 			const [result, error] = await addWorkoutToTrackAction({
 				teamId,
@@ -110,8 +112,10 @@ export function TrackWorkoutManagement({
 		console.log(`DEBUG: [UI] Removing workout from track: ${trackWorkoutId}`)
 
 		try {
-			// Optimistic update
-			setOptimisticTrackWorkouts({ type: "remove", trackWorkoutId })
+			// Optimistic update wrapped in startTransition
+			startTransition(() => {
+				setOptimisticTrackWorkouts({ type: "remove", trackWorkoutId })
+			})
 
 			const [result, error] = await removeWorkoutFromTrackAction({
 				teamId,
@@ -142,11 +146,13 @@ export function TrackWorkoutManagement({
 		)
 
 		try {
-			// Optimistic update
-			setOptimisticTrackWorkouts({
-				type: "update",
-				trackWorkoutId,
-				updates: { ...updates, updatedAt: new Date() },
+			// Optimistic update wrapped in startTransition
+			startTransition(() => {
+				setOptimisticTrackWorkouts({
+					type: "update",
+					trackWorkoutId,
+					updates: { ...updates, updatedAt: new Date() },
+				})
 			})
 
 			const [result, error] = await updateTrackWorkoutAction({

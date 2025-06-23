@@ -27,7 +27,7 @@ export async function generateMetadata({
 	const db = getDB()
 
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamSlug),
 	})
 
 	const track = await getProgrammingTrackById(trackId)
@@ -47,16 +47,16 @@ export async function generateMetadata({
 export default async function TrackWorkoutPage({
 	params,
 }: TrackWorkoutPageProps) {
-	const { teamSlug, trackId } = await params
+	const { teamSlug: teamId, trackId } = await params
 	const db = getDB()
 
 	console.log(
-		`DEBUG: [TrackWorkout] Loading track workouts for track: ${trackId} in team: ${teamSlug}`,
+		`DEBUG: [TrackWorkout] Loading track workouts for track: ${trackId} in team: ${teamId}`,
 	)
 
 	// Get team by slug
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	console.log({ team })
@@ -102,13 +102,13 @@ export default async function TrackWorkoutPage({
 				items={[
 					{ href: "/admin", label: "Admin" },
 					{ href: "/admin/teams", label: "Teams" },
-					{ href: `/admin/teams/${teamSlug}`, label: team.name },
+					{ href: `/admin/teams/${teamId}`, label: team.name },
 					{
-						href: `/admin/teams/${teamSlug}/programming`,
+						href: `/admin/teams/${teamId}/programming`,
 						label: "Programming",
 					},
 					{
-						href: `/admin/teams/${teamSlug}/programming/${trackId}`,
+						href: `/admin/teams/${teamId}/programming/${trackId}`,
 						label: track.name,
 					},
 				]}
