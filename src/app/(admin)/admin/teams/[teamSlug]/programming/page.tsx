@@ -79,6 +79,16 @@ export default async function ProgrammingTrackPage({
 	// Get team tracks
 	const tracks = await getTeamTracks(team.id)
 
+	console.log(
+		`DEBUG: [Programming] Retrieved ${tracks.length} tracks for team ${team.name} (ID: ${team.id}):`,
+		tracks.map((t) => ({
+			id: t.id,
+			name: t.name,
+			type: t.type,
+			ownerTeamId: t.ownerTeamId,
+		})),
+	)
+
 	return (
 		<>
 			<PageHeader

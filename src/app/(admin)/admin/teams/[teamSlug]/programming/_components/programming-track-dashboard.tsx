@@ -54,6 +54,15 @@ export function ProgrammingTrackDashboard({
 	console.log(
 		"DEBUG: [UI] Programming track dashboard rendered with tracks:",
 		optimisticTracks.length,
+		"initialTracks:",
+		initialTracks.length,
+		"tracks data:",
+		optimisticTracks.map((t) => ({
+			id: t.id,
+			name: t.name,
+			type: t.type,
+			ownerTeamId: t.ownerTeamId,
+		})),
 	)
 
 	return (

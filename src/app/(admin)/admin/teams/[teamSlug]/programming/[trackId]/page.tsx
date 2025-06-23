@@ -59,6 +59,8 @@ export default async function TrackWorkoutPage({
 		where: eq(teamTable.slug, teamSlug),
 	})
 
+	console.log({ team })
+
 	if (!team) {
 		notFound()
 	}

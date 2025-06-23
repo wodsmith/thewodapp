@@ -249,7 +249,20 @@ export async function getTeamTracks(
 ): Promise<ProgrammingTrack[]> {
 	const db = getDB()
 
-	const joins = db
+	console.log(
+		`DEBUG: [getTeamTracks] Fetching tracks for teamId: ${teamId}, activeOnly: ${activeOnly}`,
+	)
+
+	// Get tracks owned by the team
+	const ownedTracks = await db
+		.select()
+		.from(programmingTracksTable)
+		.where(eq(programmingTracksTable.ownerTeamId, teamId))
+
+	console.log(`DEBUG: [getTeamTracks] Found ${ownedTracks.length} owned tracks`)
+
+	// Get tracks assigned to the team via team_programming_tracks table
+	const assignedTracksQuery = db
 		.select({ track: programmingTracksTable })
 		.from(programmingTracksTable)
 		.innerJoin(
@@ -261,8 +274,25 @@ export async function getTeamTracks(
 			),
 		)
 
-	const records = await joins
-	return records.map((r) => r.track)
+	const assignedRecords = await assignedTracksQuery
+	const assignedTracks = assignedRecords.map((r) => r.track)
+
+	console.log(
+		`DEBUG: [getTeamTracks] Found ${assignedTracks.length} assigned tracks`,
+	)
+
+	// Combine and deduplicate tracks (in case a team owns a track and is also assigned to it)
+	const allTracks = [...ownedTracks, ...assignedTracks]
+	const uniqueTracks = allTracks.filter(
+		(track, index, array) =>
+			array.findIndex((t) => t.id === track.id) === index,
+	)
+
+	console.log(
+		`DEBUG: [getTeamTracks] Returning ${uniqueTracks.length} total unique tracks`,
+	)
+
+	return uniqueTracks
 }
 
 /**
