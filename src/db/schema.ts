@@ -34,31 +34,6 @@ import {
 // Cross-schema relations to ensure proper relation names and avoid conflicts
 import { relations } from "drizzle-orm"
 
-// Define reverse relations from userTable to other tables with proper relation names
-export const userReverseRelations = relations(userTable, ({ many }) => ({
-	// Billing relations
-	creditTransactions: many(creditTransactionTable, {
-		relationName: "creditTransactions",
-	}),
-	purchasedItems: many(purchasedItemsTable, { relationName: "purchasedItems" }),
-	// Team relations
-	teamMemberships: many(teamMembershipTable, { relationName: "member" }),
-	invitedMemberships: many(teamTable, { relationName: "inviter" }),
-	invitedTeamInvitations: many(teamInvitationTable, {
-		relationName: "inviter",
-	}),
-	acceptedTeamInvitations: many(teamInvitationTable, {
-		relationName: "acceptor",
-	}),
-	// Workout relations
-	workouts: many(workouts, { relationName: "workouts" }),
-	results: many(results, { relationName: "results" }),
-	// Programming relations
-	programmingTrackPayments: many(programmingTrackPaymentsTable, {
-		relationName: "programmingTrackPayments",
-	}),
-}))
-
 // Team reverse relations for programming tracks
 export const teamReverseRelations = relations(teamTable, ({ many }) => ({
 	programmingTracks: many(programmingTracksTable),
