@@ -408,3 +408,24 @@ export async function scheduleStandaloneWorkout({
 
 	return trackWorkout
 }
+
+export async function deleteProgrammingTrack(trackId: string): Promise<void> {
+	const db = getDB()
+
+	// Delete associated track workouts first (foreign key constraint)
+	await db
+		.delete(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.trackId, trackId))
+
+	// Delete team programming track associations
+	await db
+		.delete(teamProgrammingTracksTable)
+		.where(eq(teamProgrammingTracksTable.trackId, trackId))
+
+	// Delete the programming track
+	await db
+		.delete(programmingTracksTable)
+		.where(eq(programmingTracksTable.id, trackId))
+
+	console.log(`INFO: [ProgrammingTrack] Deleted programming track: ${trackId}`)
+}
