@@ -96,7 +96,10 @@ export function WorkoutSelectionList({
 			<div className="space-y-4">
 				<div className="animate-pulse space-y-4">
 					{Array.from({ length: 3 }, (_, i) => (
-						<Card key={`loading-${i + 1}`}>
+						<Card
+							key={`loading-${i + 1}`}
+							className="border-2 border-primary rounded-none"
+						>
 							<CardContent className="pt-6">
 								<div className="h-4 bg-muted rounded w-1/3 mb-2" />
 								<div className="h-3 bg-muted rounded w-2/3" />
@@ -112,7 +115,9 @@ export function WorkoutSelectionList({
 		<div className="space-y-4">
 			{/* Search */}
 			<div className="space-y-2">
-				<Label htmlFor="workout-search">Search Workouts</Label>
+				<Label htmlFor="workout-search" className="font-mono font-semibold">
+					Search Workouts
+				</Label>
 				<div className="relative">
 					<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
@@ -120,7 +125,7 @@ export function WorkoutSelectionList({
 						placeholder="Search by name, description, or tags..."
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
-						className="pl-8"
+						className="pl-8 border-2 border-primary rounded-none font-mono"
 					/>
 				</div>
 			</div>
@@ -128,9 +133,9 @@ export function WorkoutSelectionList({
 			{/* Workout List */}
 			<div className="max-h-96 overflow-y-auto space-y-2">
 				{filteredWorkouts.length === 0 ? (
-					<Card>
+					<Card className="border-2 border-primary rounded-none">
 						<CardContent className="pt-6">
-							<p className="text-center text-muted-foreground">
+							<p className="text-center text-muted-foreground font-mono">
 								{searchTerm
 									? "No workouts found matching your search."
 									: "No workouts available."}
@@ -139,24 +144,29 @@ export function WorkoutSelectionList({
 					</Card>
 				) : (
 					filteredWorkouts.map((workout) => (
-						<Card key={workout.id} className="cursor-pointer hover:bg-muted/50">
+						<Card
+							key={workout.id}
+							className="cursor-pointer hover:bg-muted/50 border-2 border-primary rounded-none shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all"
+						>
 							<CardHeader className="pb-2">
 								<div className="flex justify-between items-start">
 									<div className="flex-1">
-										<CardTitle className="text-base">{workout.name}</CardTitle>
+										<CardTitle className="text-base font-mono tracking-tight">
+											{workout.name}
+										</CardTitle>
 										{workout.description && (
-											<p className="text-sm text-muted-foreground mt-1">
+											<p className="text-sm text-muted-foreground mt-1 font-mono">
 												{workout.description}
 											</p>
 										)}
-										<div className="flex gap-4 text-xs text-muted-foreground mt-2">
+										<div className="flex gap-4 text-xs text-muted-foreground mt-2 font-mono">
 											<span>Scheme: {workout.scheme}</span>
 											<span>Scope: {workout.scope}</span>
 										</div>
 									</div>
 									<Button
-										size="sm"
 										onClick={() => onWorkoutSelectAction(workout)}
+										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
 									>
 										Select
 									</Button>

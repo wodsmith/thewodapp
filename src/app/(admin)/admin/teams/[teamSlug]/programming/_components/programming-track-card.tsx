@@ -24,13 +24,13 @@ export function ProgrammingTrackCard({
 	const getTypeColor = (type: string) => {
 		switch (type) {
 			case "pre_built":
-				return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+				return "bg-blue-500 text-white border-2 border-blue-700 font-mono"
 			case "self_programmed":
-				return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+				return "bg-green-500 text-white border-2 border-green-700 font-mono"
 			case "hybrid":
-				return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+				return "bg-purple-500 text-white border-2 border-purple-700 font-mono"
 			default:
-				return "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300"
+				return "bg-gray-500 text-white border-2 border-gray-700 font-mono"
 		}
 	}
 
@@ -53,22 +53,26 @@ export function ProgrammingTrackCard({
 	}
 
 	return (
-		<Card className="h-full">
+		<Card className="h-full border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary bg-surface rounded-none">
 			<CardHeader className="pb-3">
 				<div className="flex items-start justify-between">
 					<div className="space-y-1">
-						<CardTitle className="text-lg">{track.name}</CardTitle>
+						<CardTitle className="text-lg font-mono tracking-tight">
+							{track.name}
+						</CardTitle>
 						<div className="flex items-center gap-2">
 							<Badge className={getTypeColor(track.type)}>
 								{getTypeLabel(track.type)}
 							</Badge>
 							{track.isPublic ? (
-								<Badge variant="secondary">
+								<Badge className="bg-orange-500 text-white border-2 border-orange-700 font-mono">
 									<Users className="h-3 w-3 mr-1" />
 									Public
 								</Badge>
 							) : (
-								<Badge variant="outline">Private</Badge>
+								<Badge className="bg-gray-500 text-white border-2 border-gray-700 font-mono">
+									Private
+								</Badge>
 							)}
 						</div>
 					</div>
@@ -76,12 +80,12 @@ export function ProgrammingTrackCard({
 			</CardHeader>
 			<CardContent className="pt-0">
 				{track.description && (
-					<p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+					<p className="text-sm text-muted-foreground mb-4 line-clamp-3 font-mono">
 						{track.description}
 					</p>
 				)}
 				<div className="flex items-center gap-2">
-					<Button variant="outline" size="sm" className="flex-1">
+					<Button className="flex-1 border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface">
 						<Edit className="h-4 w-4 mr-2" />
 						Edit
 					</Button>
@@ -89,11 +93,7 @@ export function ProgrammingTrackCard({
 						track={track}
 						teamId={teamId}
 						trigger={
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-red-600 hover:text-red-700"
-							>
+							<Button className="border-2 border-red-500 shadow-[4px_4px_0px_0px] shadow-red-500 hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-red-500 hover:bg-red-50">
 								<Trash2 className="h-4 w-4" />
 							</Button>
 						}

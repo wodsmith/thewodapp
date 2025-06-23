@@ -121,10 +121,12 @@ export function AddWorkoutToTrackDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={(open) => !open && onCloseAction()}>
-			<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+			<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary rounded-none">
 				<DialogHeader>
-					<DialogTitle>Add Workout to Track</DialogTitle>
-					<DialogDescription>
+					<DialogTitle className="font-mono text-xl tracking-tight">
+						Add Workout to Track
+					</DialogTitle>
+					<DialogDescription className="font-mono">
 						{showWorkoutSelection
 							? "Select a workout to add to this programming track."
 							: `Configure details for "${selectedWorkout?.name}"`}
@@ -143,21 +145,22 @@ export function AddWorkoutToTrackDialog({
 							className="space-y-4"
 						>
 							{/* Selected Workout Display */}
-							<div className="border rounded-lg p-4 bg-muted/50">
+							<div className="border-2 border-primary rounded-none p-4 bg-surface">
 								<div className="flex justify-between items-start">
 									<div>
-										<h4 className="font-semibold">{selectedWorkout?.name}</h4>
+										<h4 className="font-semibold font-mono">
+											{selectedWorkout?.name}
+										</h4>
 										{selectedWorkout?.description && (
-											<p className="text-sm text-muted-foreground mt-1">
+											<p className="text-sm text-muted-foreground mt-1 font-mono">
 												{selectedWorkout.description}
 											</p>
 										)}
 									</div>
 									<Button
 										type="button"
-										variant="outline"
-										size="sm"
 										onClick={handleBackToSelection}
+										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
 									>
 										Change Workout
 									</Button>
@@ -170,7 +173,9 @@ export function AddWorkoutToTrackDialog({
 								name="dayNumber"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Day Number</FormLabel>
+										<FormLabel className="font-mono font-semibold">
+											Day Number
+										</FormLabel>
 										<FormControl>
 											<Input
 												type="number"
@@ -179,9 +184,10 @@ export function AddWorkoutToTrackDialog({
 												onChange={(e) =>
 													field.onChange(Number.parseInt(e.target.value))
 												}
+												className="border-2 border-primary rounded-none font-mono"
 											/>
 										</FormControl>
-										<FormDescription>
+										<FormDescription className="font-mono text-xs">
 											The day number in the track (e.g., Day 1, Day 2, etc.)
 										</FormDescription>
 										<FormMessage />
@@ -195,7 +201,9 @@ export function AddWorkoutToTrackDialog({
 								name="weekNumber"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Week Number (Optional)</FormLabel>
+										<FormLabel className="font-mono font-semibold">
+											Week Number (Optional)
+										</FormLabel>
 										<FormControl>
 											<Input
 												type="number"
@@ -208,9 +216,10 @@ export function AddWorkoutToTrackDialog({
 															: undefined,
 													)
 												}
+												className="border-2 border-primary rounded-none font-mono"
 											/>
 										</FormControl>
-										<FormDescription>
+										<FormDescription className="font-mono text-xs">
 											The week number in the track (leave empty if not
 											applicable)
 										</FormDescription>
@@ -225,14 +234,17 @@ export function AddWorkoutToTrackDialog({
 								name="notes"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Notes (Optional)</FormLabel>
+										<FormLabel className="font-mono font-semibold">
+											Notes (Optional)
+										</FormLabel>
 										<FormControl>
 											<Textarea
 												placeholder="Add any specific notes for this workout in the track..."
 												{...field}
+												className="border-2 border-primary rounded-none font-mono"
 											/>
 										</FormControl>
-										<FormDescription>
+										<FormDescription className="font-mono text-xs">
 											Optional notes or modifications for this workout
 										</FormDescription>
 										<FormMessage />
@@ -241,10 +253,18 @@ export function AddWorkoutToTrackDialog({
 							/>
 
 							<DialogFooter>
-								<Button type="button" variant="outline" onClick={onCloseAction}>
+								<Button
+									type="button"
+									onClick={onCloseAction}
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+								>
 									Cancel
 								</Button>
-								<Button type="submit" disabled={isSubmitting}>
+								<Button
+									type="submit"
+									disabled={isSubmitting}
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+								>
 									{isSubmitting ? "Adding..." : "Add Workout"}
 								</Button>
 							</DialogFooter>

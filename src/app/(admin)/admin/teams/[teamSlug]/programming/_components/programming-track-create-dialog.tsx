@@ -109,9 +109,11 @@ export function ProgrammingTrackCreateDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogTrigger asChild>{trigger}</DialogTrigger>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="sm:max-w-md border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary rounded-none">
 				<DialogHeader>
-					<DialogTitle>Create Programming Track</DialogTitle>
+					<DialogTitle className="font-mono text-xl tracking-tight">
+						Create Programming Track
+					</DialogTitle>
 				</DialogHeader>
 
 				<Form {...form}>
@@ -124,9 +126,15 @@ export function ProgrammingTrackCreateDialog({
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Track Name</FormLabel>
+									<FormLabel className="font-mono font-semibold">
+										Track Name
+									</FormLabel>
 									<FormControl>
-										<Input placeholder="Enter track name" {...field} />
+										<Input
+											placeholder="Enter track name"
+											{...field}
+											className="border-2 border-primary rounded-none font-mono"
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -138,11 +146,14 @@ export function ProgrammingTrackCreateDialog({
 							name="description"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Description (Optional)</FormLabel>
+									<FormLabel className="font-mono font-semibold">
+										Description (Optional)
+									</FormLabel>
 									<FormControl>
 										<Textarea
 											placeholder="Enter track description"
 											{...field}
+											className="border-2 border-primary rounded-none font-mono"
 										/>
 									</FormControl>
 									<FormMessage />
@@ -155,22 +166,28 @@ export function ProgrammingTrackCreateDialog({
 							name="type"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Track Type</FormLabel>
+									<FormLabel className="font-mono font-semibold">
+										Track Type
+									</FormLabel>
 									<Select
 										onValueChange={field.onChange}
 										defaultValue={field.value}
 									>
 										<FormControl>
-											<SelectTrigger>
+											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
 												<SelectValue placeholder="Select track type" />
 											</SelectTrigger>
 										</FormControl>
-										<SelectContent>
-											<SelectItem value="pre_built">Pre-built</SelectItem>
-											<SelectItem value="self_programmed">
+										<SelectContent className="border-2 border-primary rounded-none font-mono">
+											<SelectItem value="pre_built" className="font-mono">
+												Pre-built
+											</SelectItem>
+											<SelectItem value="self_programmed" className="font-mono">
 												Self-programmed
 											</SelectItem>
-											<SelectItem value="hybrid">Hybrid</SelectItem>
+											<SelectItem value="hybrid" className="font-mono">
+												Hybrid
+											</SelectItem>
 										</SelectContent>
 									</Select>
 									<FormMessage />
@@ -180,12 +197,19 @@ export function ProgrammingTrackCreateDialog({
 
 						<div className="flex justify-end gap-2 pt-2">
 							<DialogClose ref={dialogCloseRef} asChild>
-								<Button type="button" variant="outline">
+								<Button
+									type="button"
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+								>
 									Cancel
 								</Button>
 							</DialogClose>
 
-							<Button type="submit" disabled={isPending}>
+							<Button
+								type="submit"
+								disabled={isPending}
+								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+							>
 								{isPending ? "Creating..." : "Create Track"}
 							</Button>
 						</div>

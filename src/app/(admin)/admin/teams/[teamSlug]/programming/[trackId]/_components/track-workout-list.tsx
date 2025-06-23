@@ -87,7 +87,7 @@ export function TrackWorkoutList({
 
 	if (sortedWorkouts.length === 0) {
 		return (
-			<div className="text-center py-8 text-muted-foreground">
+			<div className="text-center py-8 text-muted-foreground font-mono">
 				No workouts in this track yet.
 			</div>
 		)
@@ -96,12 +96,20 @@ export function TrackWorkoutList({
 	return (
 		<div className="space-y-4">
 			{sortedWorkouts.map((workout) => (
-				<Card key={workout.id} className="relative">
+				<Card
+					key={workout.id}
+					className="relative border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary bg-surface rounded-none"
+				>
 					{editingWorkout === workout.id ? (
 						<CardContent className="pt-6">
 							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 								<div>
-									<Label htmlFor={`day-${workout.id}`}>Day Number</Label>
+									<Label
+										htmlFor={`day-${workout.id}`}
+										className="font-mono font-semibold"
+									>
+										Day Number
+									</Label>
 									<Input
 										id={`day-${workout.id}`}
 										type="number"
@@ -113,10 +121,16 @@ export function TrackWorkoutList({
 												dayNumber: Number.parseInt(e.target.value),
 											}))
 										}
+										className="border-2 border-primary rounded-none font-mono"
 									/>
 								</div>
 								<div>
-									<Label htmlFor={`week-${workout.id}`}>Week Number</Label>
+									<Label
+										htmlFor={`week-${workout.id}`}
+										className="font-mono font-semibold"
+									>
+										Week Number
+									</Label>
 									<Input
 										id={`week-${workout.id}`}
 										type="number"
@@ -131,10 +145,16 @@ export function TrackWorkoutList({
 											}))
 										}
 										placeholder="Optional"
+										className="border-2 border-primary rounded-none font-mono"
 									/>
 								</div>
 								<div className="md:col-span-3">
-									<Label htmlFor={`notes-${workout.id}`}>Notes</Label>
+									<Label
+										htmlFor={`notes-${workout.id}`}
+										className="font-mono font-semibold"
+									>
+										Notes
+									</Label>
 									<Textarea
 										id={`notes-${workout.id}`}
 										value={editForm.notes || ""}
@@ -146,15 +166,22 @@ export function TrackWorkoutList({
 										}
 										placeholder="Optional workout notes..."
 										rows={3}
+										className="border-2 border-primary rounded-none font-mono"
 									/>
 								</div>
 							</div>
 							<div className="flex gap-2 mt-4">
-								<Button size="sm" onClick={() => handleSaveEdit(workout.id)}>
+								<Button
+									onClick={() => handleSaveEdit(workout.id)}
+									className="border-2 border-green-500 shadow-[4px_4px_0px_0px] shadow-green-500 hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-green-500 text-white hover:bg-green-600 rounded-none"
+								>
 									<Save className="h-4 w-4 mr-2" />
 									Save
 								</Button>
-								<Button size="sm" variant="outline" onClick={handleCancelEdit}>
+								<Button
+									onClick={handleCancelEdit}
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+								>
 									<X className="h-4 w-4 mr-2" />
 									Cancel
 								</Button>
@@ -167,11 +194,11 @@ export function TrackWorkoutList({
 									<div className="flex items-center gap-2">
 										<GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
 										<div>
-											<CardTitle className="text-base">
+											<CardTitle className="text-base font-mono tracking-tight">
 												Day {workout.dayNumber}
 												{workout.weekNumber && ` (Week ${workout.weekNumber})`}
 											</CardTitle>
-											<div className="flex gap-4 text-xs text-muted-foreground mt-1">
+											<div className="flex gap-4 text-xs text-muted-foreground mt-1 font-mono">
 												<span>Workout ID: {workout.workoutId}</span>
 												{workout.isScheduled && (
 													<span className="text-green-600">● Scheduled</span>
@@ -181,16 +208,14 @@ export function TrackWorkoutList({
 									</div>
 									<div className="flex gap-1">
 										<Button
-											size="sm"
-											variant="outline"
 											onClick={() => handleStartEdit(workout)}
+											className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
 										>
 											<Edit2 className="h-4 w-4" />
 										</Button>
 										<Button
-											size="sm"
-											variant="outline"
 											onClick={() => handleRemove(workout.id)}
+											className="border-2 border-red-500 shadow-[4px_4px_0px_0px] shadow-red-500 hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-red-500 hover:bg-red-50 rounded-none"
 										>
 											<Trash2 className="h-4 w-4" />
 										</Button>
@@ -199,8 +224,8 @@ export function TrackWorkoutList({
 							</CardHeader>
 							{workout.notes && (
 								<CardContent className="pt-0">
-									<div className="bg-muted/50 rounded p-3">
-										<p className="text-sm">{workout.notes}</p>
+									<div className="bg-surface border-2 border-primary rounded-none p-3">
+										<p className="text-sm font-mono">{workout.notes}</p>
 									</div>
 								</CardContent>
 							)}

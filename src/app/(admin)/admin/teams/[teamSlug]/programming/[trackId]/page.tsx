@@ -114,22 +114,26 @@ export default async function TrackWorkoutPage({
 			<div className="container mx-auto px-5 pb-12">
 				<div className="flex justify-between items-start mb-8">
 					<div>
-						<h1 className="text-3xl font-bold mb-2">
+						<h1 className="text-3xl font-bold mb-2 font-mono tracking-tight">
 							{track.name} - Workout Management
 						</h1>
-						<p className="text-muted-foreground">
+						<p className="text-muted-foreground font-mono">
 							Manage workouts in the {track.name} track for {team.name}
 						</p>
 						{track.description && (
-							<p className="text-sm text-muted-foreground mt-2">
+							<p className="text-sm text-muted-foreground mt-2 font-mono">
 								{track.description}
 							</p>
 						)}
 					</div>
 				</div>
 
-				<div className="bg-card rounded-lg border p-6">
-					<Suspense fallback={<div>Loading track workouts...</div>}>
+				<div className="bg-card border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary rounded-none p-6">
+					<Suspense
+						fallback={
+							<div className="font-mono">Loading track workouts...</div>
+						}
+					>
 						<TrackWorkoutManagement
 							teamId={team.id}
 							trackId={trackId}

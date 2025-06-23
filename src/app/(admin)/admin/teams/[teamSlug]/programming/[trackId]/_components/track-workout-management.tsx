@@ -170,13 +170,18 @@ export function TrackWorkoutManagement({
 			{/* Header with Add Workout Button */}
 			<div className="flex justify-between items-center">
 				<div>
-					<h3 className="text-lg font-semibold">Track Workouts</h3>
-					<p className="text-sm text-muted-foreground">
+					<h3 className="text-lg font-semibold font-mono tracking-tight">
+						Track Workouts
+					</h3>
+					<p className="text-sm text-muted-foreground font-mono">
 						{optimisticTrackWorkouts.length} workout
 						{optimisticTrackWorkouts.length !== 1 ? "s" : ""} in this track
 					</p>
 				</div>
-				<Button onClick={() => setShowAddDialog(true)}>
+				<Button
+					onClick={() => setShowAddDialog(true)}
+					className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary hover:shadow-[4px_4px_0px_0px] transition-all font-mono rounded-none"
+				>
 					<Plus className="h-4 w-4 mr-2" />
 					Add Workout
 				</Button>
@@ -184,13 +189,16 @@ export function TrackWorkoutManagement({
 
 			{/* Track Workouts */}
 			{optimisticTrackWorkouts.length === 0 ? (
-				<Card>
+				<Card className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary bg-surface rounded-none">
 					<CardContent className="pt-6">
 						<div className="text-center py-8">
-							<p className="text-muted-foreground mb-4">
+							<p className="text-muted-foreground mb-4 font-mono">
 								No workouts added to this track yet.
 							</p>
-							<Button onClick={() => setShowAddDialog(true)}>
+							<Button
+								onClick={() => setShowAddDialog(true)}
+								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+							>
 								<Plus className="h-4 w-4 mr-2" />
 								Add First Workout
 							</Button>
@@ -198,9 +206,11 @@ export function TrackWorkoutManagement({
 					</CardContent>
 				</Card>
 			) : (
-				<Card>
+				<Card className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary bg-surface rounded-none">
 					<CardHeader>
-						<CardTitle>Workout Schedule</CardTitle>
+						<CardTitle className="font-mono text-xl tracking-tight">
+							Workout Schedule
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<TrackWorkoutList

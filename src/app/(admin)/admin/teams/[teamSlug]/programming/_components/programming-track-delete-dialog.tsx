@@ -60,10 +60,12 @@ export function ProgrammingTrackDeleteDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogTrigger asChild>{trigger}</DialogTrigger>
-			<DialogContent>
+			<DialogContent className="border-4 border-red-500 shadow-[8px_8px_0px_0px] shadow-red-500 rounded-none">
 				<DialogHeader>
-					<DialogTitle>Delete Programming Track</DialogTitle>
-					<DialogDescription>
+					<DialogTitle className="font-mono text-xl tracking-tight text-red-600">
+						Delete Programming Track
+					</DialogTitle>
+					<DialogDescription className="font-mono text-sm">
 						Are you sure you want to delete "{track.name}"? This action cannot
 						be undone. All workouts associated with this track will also be
 						removed.
@@ -71,15 +73,14 @@ export function ProgrammingTrackDeleteDialog({
 				</DialogHeader>
 				<DialogFooter className="mt-4 flex flex-col gap-4 sm:flex-row">
 					<DialogClose ref={dialogCloseRef} asChild>
-						<Button variant="outline" className="sm:w-auto w-full">
+						<Button className="sm:w-auto w-full border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none">
 							Cancel
 						</Button>
 					</DialogClose>
 					<Button
-						variant="destructive"
 						onClick={handleDelete}
 						disabled={isPending}
-						className="sm:w-auto w-full"
+						className="sm:w-auto w-full border-2 border-red-500 shadow-[4px_4px_0px_0px] shadow-red-500 hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-red-500 text-white hover:bg-red-600 rounded-none"
 					>
 						{isPending ? "Deleting..." : "Delete Track"}
 					</Button>
