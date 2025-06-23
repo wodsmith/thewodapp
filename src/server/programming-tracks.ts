@@ -429,3 +429,48 @@ export async function deleteProgrammingTrack(trackId: string): Promise<void> {
 
 	console.log(`INFO: [ProgrammingTrack] Deleted programming track: ${trackId}`)
 }
+
+export async function removeWorkoutFromTrack(
+	trackWorkoutId: string,
+): Promise<void> {
+	const db = getDB()
+
+	await db
+		.delete(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+
+	console.log(
+		`INFO: [TrackWorkout] Removed workout from track: ${trackWorkoutId}`,
+	)
+}
+
+export async function updateTrackWorkout({
+	trackWorkoutId,
+	dayNumber,
+	weekNumber,
+	notes,
+}: {
+	trackWorkoutId: string
+	dayNumber?: number
+	weekNumber?: number | null
+	notes?: string | null
+}): Promise<TrackWorkout> {
+	const db = getDB()
+
+	const updateData: Partial<TrackWorkout> = {
+		updatedAt: new Date(),
+	}
+
+	if (dayNumber !== undefined) updateData.dayNumber = dayNumber
+	if (weekNumber !== undefined) updateData.weekNumber = weekNumber
+	if (notes !== undefined) updateData.notes = notes
+
+	const [trackWorkout] = await db
+		.update(trackWorkoutsTable)
+		.set(updateData)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+		.returning()
+
+	console.log(`INFO: [TrackWorkout] Updated track workout: ${trackWorkoutId}`)
+	return trackWorkout
+}

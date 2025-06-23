@@ -20,6 +20,40 @@ export const getTeamTracksSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
+// Track workout management schemas
+export const addWorkoutToTrackSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+	workoutId: z.string().min(1, "Workout ID is required"),
+	dayNumber: z.number().int().min(1, "Day number must be at least 1"),
+	weekNumber: z.number().int().min(1).optional(),
+	notes: z.string().max(1000, "Notes are too long").optional(),
+})
+
+export const removeWorkoutFromTrackSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+export const updateTrackWorkoutSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	dayNumber: z
+		.number()
+		.int()
+		.min(1, "Day number must be at least 1")
+		.optional(),
+	weekNumber: z.number().int().min(1).optional(),
+	notes: z.string().max(1000, "Notes are too long").optional(),
+})
+
+export const getTrackWorkoutsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+})
+
 export type CreateProgrammingTrackInput = z.infer<
 	typeof createProgrammingTrackSchema
 >
@@ -27,3 +61,11 @@ export type DeleteProgrammingTrackInput = z.infer<
 	typeof deleteProgrammingTrackSchema
 >
 export type GetTeamTracksInput = z.infer<typeof getTeamTracksSchema>
+
+// Track workout management types
+export type AddWorkoutToTrackInput = z.infer<typeof addWorkoutToTrackSchema>
+export type RemoveWorkoutFromTrackInput = z.infer<
+	typeof removeWorkoutFromTrackSchema
+>
+export type UpdateTrackWorkoutInput = z.infer<typeof updateTrackWorkoutSchema>
+export type GetTrackWorkoutsInput = z.infer<typeof getTrackWorkoutsSchema>
