@@ -1,0 +1,111 @@
+import { PageHeader } from "@/components/page-header"
+import { getDB } from "@/db"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { getTeamTracks } from "@/server/programming-tracks"
+import { requireTeamPermission } from "@/utils/team-auth"
+import { eq } from "drizzle-orm"
+import type { Metadata } from "next"
+import { notFound } from "next/navigation"
+import { Suspense } from "react"
+import { ProgrammingTrackDashboard } from "./_components/programming-track-dashboard"
+
+interface ProgrammingTrackPageProps {
+	params: Promise<{
+		teamSlug: string
+	}>
+}
+
+export async function generateMetadata({
+	params,
+}: ProgrammingTrackPageProps): Promise<Metadata> {
+	const { teamSlug } = await params
+	const db = getDB()
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.slug, teamSlug),
+	})
+
+	if (!team) {
+		return {
+			title: "Team Not Found",
+		}
+	}
+
+	return {
+		title: `${team.name} - Programming Tracks`,
+		description: `Manage programming tracks for ${team.name}`,
+	}
+}
+
+export default async function ProgrammingTrackPage({
+	params,
+}: ProgrammingTrackPageProps) {
+	const { teamSlug } = await params
+	const db = getDB()
+
+	console.log(
+		`DEBUG: [Programming] Loading programming tracks for team: ${teamSlug}`,
+	)
+
+	// Get team by slug
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.slug, teamSlug),
+	})
+
+	if (!team) {
+		notFound()
+	}
+
+	// Check if user has permission to manage programming tracks
+	try {
+		await requireTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		console.log(
+			`INFO: [TeamAuth] User authorized for programming track management on teamId '${team.id}'`,
+		)
+	} catch (error) {
+		console.error(
+			`ERROR: [TeamAuth] Unauthorized access attempt for programming track management on teamId '${team.id}'`,
+		)
+		notFound()
+	}
+
+	// Get team tracks
+	const tracks = await getTeamTracks(team.id)
+
+	return (
+		<>
+			<PageHeader
+				items={[
+					{ href: "/admin", label: "Admin" },
+					{ href: "/admin/teams", label: "Teams" },
+					{ href: `/admin/teams/${teamSlug}`, label: team.name },
+					{
+						href: `/admin/teams/${teamSlug}/programming`,
+						label: "Programming",
+					},
+				]}
+			/>
+			<div className="container mx-auto px-5 pb-12">
+				<div className="flex justify-between items-start mb-8">
+					<div>
+						<h1 className="text-3xl font-bold mb-2">
+							Programming Track Management
+						</h1>
+						<p className="text-muted-foreground">
+							Manage programming tracks for {team.name}
+						</p>
+					</div>
+				</div>
+
+				<div className="bg-card rounded-lg border p-6">
+					<Suspense fallback={<div>Loading programming tracks...</div>}>
+						<ProgrammingTrackDashboard
+							teamId={team.id}
+							initialTracks={tracks}
+						/>
+					</Suspense>
+				</div>
+			</div>
+		</>
+	)
+}

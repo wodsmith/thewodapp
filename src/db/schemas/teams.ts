@@ -49,6 +49,9 @@ export const TEAM_PERMISSIONS = {
 	EDIT_COMPONENTS: "edit_components",
 	DELETE_COMPONENTS: "delete_components",
 
+	// Programming track permissions
+	MANAGE_PROGRAMMING: "manage_programming",
+
 	// Add more as needed
 } as const
 
