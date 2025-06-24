@@ -4,112 +4,95 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { Workout } from "@/db/schema"
-import { Search } from "lucide-react"
+import type { Movement, Tag, Workout } from "@/db/schema"
+import { Plus, Search } from "lucide-react"
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
+import { addWorkoutToTrackAction } from "../../../_actions/programming-track-actions"
+import { CreateWorkoutModal } from "./create-workout-modal"
 
 interface WorkoutSelectionListProps {
 	teamId: string
+	trackId: string
 	onWorkoutSelectAction: (workout: Workout) => void
+	userWorkouts: (Workout & {
+		tags: { id: string; name: string }[]
+		movements: { id: string; name: string }[]
+		resultsToday: { id: string }[]
+	})[]
+	movements: Movement[]
+	tags: Tag[]
+	userId: string
 }
 
 export function WorkoutSelectionList({
 	teamId,
+	trackId,
 	onWorkoutSelectAction,
+	userWorkouts,
+	movements,
+	tags,
+	userId,
 }: WorkoutSelectionListProps) {
-	const [workouts, setWorkouts] = useState<Workout[]>([])
-	const [filteredWorkouts, setFilteredWorkouts] = useState<Workout[]>([])
+	const [filteredWorkouts, setFilteredWorkouts] =
+		useState<
+			(Workout & {
+				tags: { id: string; name: string }[]
+				movements: { id: string; name: string }[]
+				resultsToday: { id: string }[]
+			})[]
+		>(userWorkouts)
 	const [searchTerm, setSearchTerm] = useState("")
-	const [isLoading, setIsLoading] = useState(true)
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-	// TODO: Replace with actual API call to get available workouts
-	useEffect(() => {
-		const loadWorkouts = async () => {
-			setIsLoading(true)
-			try {
-				// Mock data for now - should be replaced with actual API call
-				const mockWorkouts: Workout[] = [
-					{
-						id: "wkt_001",
-						name: "Fran",
-						description: "21-15-9 Thrusters (95/65) + Pull-ups",
-						scope: "public",
-						scheme: "time",
-						repsPerRound: null,
-						roundsToScore: 1,
-						userId: "user_001",
-						sugarId: null,
-						tiebreakScheme: null,
-						secondaryScheme: null,
-						sourceTrackId: null,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-						updateCounter: 1,
-					},
-					{
-						id: "wkt_002",
-						name: "Helen",
-						description:
-							"3 rounds: 400m Run + 21 KB Swings (53/35) + 12 Pull-ups",
-						scope: "public",
-						scheme: "time",
-						repsPerRound: null,
-						roundsToScore: 1,
-						userId: "user_001",
-						sugarId: null,
-						tiebreakScheme: null,
-						secondaryScheme: null,
-						sourceTrackId: null,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-						updateCounter: 1,
-					},
-				]
-				setWorkouts(mockWorkouts)
-				setFilteredWorkouts(mockWorkouts)
-			} catch (error) {
-				console.error("Failed to load workouts:", error)
-			} finally {
-				setIsLoading(false)
+	// Server action to add workout to track
+	const { execute: addWorkoutToTrack, isPending: isAddingToTrack } =
+		useServerAction(addWorkoutToTrackAction)
+
+	// Handle successful workout creation and addition to track
+	const handleWorkoutCreated = async (workout: Workout) => {
+		try {
+			// Add the workout to the current track
+			const [result, error] = await addWorkoutToTrack({
+				teamId,
+				trackId,
+				workoutId: workout.id,
+				dayNumber: 1, // Add to day 1 by default
+				notes: "Created via workout creation modal",
+			})
+
+			if (error || !result) {
+				toast.error("Workout created but failed to add to track")
+				return
 			}
-		}
 
-		loadWorkouts()
-	}, [])
+			toast.success("Workout created and added to track successfully!")
+
+			// Close the modal
+			setIsCreateModalOpen(false)
+
+			// Refresh the page to show the updated workout list
+			window.location.reload()
+		} catch (error) {
+			console.error("Failed to add workout to track:", error)
+			toast.error("Workout created but failed to add to track")
+		}
+	}
 
 	// Filter workouts based on search term
 	useEffect(() => {
 		if (!searchTerm) {
-			setFilteredWorkouts(workouts)
+			setFilteredWorkouts(userWorkouts)
 		} else {
-			const filtered = workouts.filter(
+			const filtered = userWorkouts.filter(
 				(workout) =>
 					workout.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 					workout.description?.toLowerCase().includes(searchTerm.toLowerCase()),
 			)
 			setFilteredWorkouts(filtered)
 		}
-	}, [searchTerm, workouts])
-
-	if (isLoading) {
-		return (
-			<div className="space-y-4">
-				<div className="animate-pulse space-y-4">
-					{Array.from({ length: 3 }, (_, i) => (
-						<Card
-							key={`loading-${i + 1}`}
-							className="border-2 border-primary rounded-none"
-						>
-							<CardContent className="pt-6">
-								<div className="h-4 bg-muted rounded w-1/3 mb-2" />
-								<div className="h-3 bg-muted rounded w-2/3" />
-							</CardContent>
-						</Card>
-					))}
-				</div>
-			</div>
-		)
-	}
+	}, [searchTerm, userWorkouts])
 
 	return (
 		<div className="space-y-4">
@@ -130,16 +113,40 @@ export function WorkoutSelectionList({
 				</div>
 			</div>
 
+			{/* Create Workout Button */}
+			<div className="flex justify-end">
+				<Button
+					onClick={() => setIsCreateModalOpen(true)}
+					disabled={isAddingToTrack}
+					className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+				>
+					<Plus className="h-4 w-4 mr-2" />
+					Create Workout
+				</Button>
+			</div>
+
 			{/* Workout List */}
 			<div className="max-h-96 overflow-y-auto space-y-2">
 				{filteredWorkouts.length === 0 ? (
 					<Card className="border-2 border-primary rounded-none">
 						<CardContent className="pt-6">
-							<p className="text-center text-muted-foreground font-mono">
-								{searchTerm
-									? "No workouts found matching your search."
-									: "No workouts available."}
-							</p>
+							<div className="text-center space-y-4">
+								<p className="text-muted-foreground font-mono">
+									{searchTerm
+										? "No workouts found matching your search."
+										: "No workouts available."}
+								</p>
+								{!searchTerm && userWorkouts.length === 0 && (
+									<Button
+										onClick={() => setIsCreateModalOpen(true)}
+										disabled={isAddingToTrack}
+										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+									>
+										<Plus className="h-4 w-4 mr-2" />
+										Create Workout
+									</Button>
+								)}
+							</div>
 						</CardContent>
 					</Card>
 				) : (
@@ -176,6 +183,18 @@ export function WorkoutSelectionList({
 					))
 				)}
 			</div>
+
+			{/* Create Workout Modal */}
+			<CreateWorkoutModal
+				open={isCreateModalOpen}
+				onCloseAction={() => setIsCreateModalOpen(false)}
+				onWorkoutCreatedAction={handleWorkoutCreated}
+				teamId={teamId}
+				trackId={trackId}
+				userId={userId}
+				movements={movements}
+				tags={tags}
+			/>
 		</div>
 	)
 }

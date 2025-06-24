@@ -19,15 +19,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Workout } from "@/db/schema"
+import type { Movement, Tag, Workout } from "@/db/schema"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -55,6 +48,14 @@ interface AddWorkoutToTrackDialogProps {
 	teamId: string
 	trackId: string
 	existingDays: number[]
+	userWorkouts: (Workout & {
+		tags: { id: string; name: string }[]
+		movements: { id: string; name: string }[]
+		resultsToday: { id: string }[]
+	})[]
+	movements: Movement[]
+	tags: Tag[]
+	userId: string
 }
 
 export function AddWorkoutToTrackDialog({
@@ -64,6 +65,10 @@ export function AddWorkoutToTrackDialog({
 	teamId,
 	trackId,
 	existingDays,
+	userWorkouts,
+	movements,
+	tags,
+	userId,
 }: AddWorkoutToTrackDialogProps) {
 	const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
 	const [showWorkoutSelection, setShowWorkoutSelection] = useState(true)
@@ -136,7 +141,12 @@ export function AddWorkoutToTrackDialog({
 				{showWorkoutSelection ? (
 					<WorkoutSelectionList
 						teamId={teamId}
+						trackId={trackId}
 						onWorkoutSelectAction={handleWorkoutSelect}
+						userWorkouts={userWorkouts}
+						movements={movements}
+						tags={tags}
+						userId={userId}
 					/>
 				) : (
 					<Form {...form}>

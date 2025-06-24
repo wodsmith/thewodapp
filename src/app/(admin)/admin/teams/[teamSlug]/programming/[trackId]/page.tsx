@@ -1,11 +1,15 @@
 import { PageHeader } from "@/components/page-header"
 import { getDB } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { getAllMovements } from "@/server/movements"
 import {
 	getProgrammingTrackById,
 	getWorkoutsForTrack,
 	hasTrackAccess,
 } from "@/server/programming-tracks"
+import { getAllTags } from "@/server/tags"
+import { getUserWorkouts } from "@/server/workouts"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
@@ -96,6 +100,20 @@ export default async function TrackWorkoutPage({
 	// Get track workouts
 	const trackWorkouts = await getWorkoutsForTrack(trackId, team.id)
 
+	// Get user's available workouts for adding to track
+	const session = await getSessionFromCookie()
+	if (!session?.userId) {
+		console.error(
+			"ERROR: [TrackWorkout] No user session found after verification",
+		)
+		notFound()
+	}
+	const userWorkouts = await getUserWorkouts({ userId: session.userId })
+
+	// Get movements and tags for workout creation
+	const movements = await getAllMovements()
+	const tags = await getAllTags()
+
 	return (
 		<>
 			<PageHeader
@@ -141,6 +159,10 @@ export default async function TrackWorkoutPage({
 							trackId={trackId}
 							track={track}
 							initialTrackWorkouts={trackWorkouts}
+							userWorkouts={userWorkouts}
+							movements={movements}
+							tags={tags}
+							userId={session.userId}
 						/>
 					</Suspense>
 				</div>

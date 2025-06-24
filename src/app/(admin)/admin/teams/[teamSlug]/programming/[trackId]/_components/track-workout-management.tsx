@@ -2,7 +2,13 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { ProgrammingTrack, TrackWorkout } from "@/db/schema"
+import type {
+	Movement,
+	ProgrammingTrack,
+	Tag,
+	TrackWorkout,
+	Workout,
+} from "@/db/schema"
 import { Plus } from "lucide-react"
 import { startTransition, useOptimistic, useState } from "react"
 import {
@@ -21,6 +27,14 @@ interface TrackWorkoutManagementProps {
 		isScheduled?: boolean
 		lastScheduledAt?: Date | null
 	})[]
+	userWorkouts: (Workout & {
+		tags: { id: string; name: string }[]
+		movements: { id: string; name: string }[]
+		resultsToday: { id: string }[]
+	})[]
+	movements: Movement[]
+	tags: Tag[]
+	userId: string
 }
 
 export function TrackWorkoutManagement({
@@ -28,6 +42,10 @@ export function TrackWorkoutManagement({
 	trackId,
 	track,
 	initialTrackWorkouts,
+	userWorkouts,
+	movements,
+	tags,
+	userId,
 }: TrackWorkoutManagementProps) {
 	const [showAddDialog, setShowAddDialog] = useState(false)
 
@@ -236,6 +254,10 @@ export function TrackWorkoutManagement({
 				teamId={teamId}
 				trackId={trackId}
 				existingDays={optimisticTrackWorkouts.map((tw) => tw.dayNumber)}
+				userWorkouts={userWorkouts}
+				movements={movements}
+				tags={tags}
+				userId={userId}
 			/>
 		</div>
 	)
