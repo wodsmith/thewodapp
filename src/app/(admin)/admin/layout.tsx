@@ -1,7 +1,5 @@
 import MainNav from "@/components/nav/main-nav"
-import { requireAdminForTeam } from "@/utils/auth"
-import { redirect } from "next/navigation"
-import { AdminSidebar } from "./_components/admin-sidebar"
+import { AdminLayoutWrapper } from "./_components/admin-layout-wrapper"
 
 export default async function AdminLayout({
 	children,
@@ -13,14 +11,9 @@ export default async function AdminLayout({
 	return (
 		<div className="sm:h-screen">
 			<MainNav />
-			<div className="flex flex-col max-w-screen-xl mx-auto">
+			<div className="flex flex-col">
 				<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-					<div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
-						<aside className="lg:w-1/5">
-							<AdminSidebar />
-						</aside>
-						<div className="flex-1">{children}</div>
-					</div>
+					<AdminLayoutWrapper>{children}</AdminLayoutWrapper>
 				</div>
 			</div>
 		</div>

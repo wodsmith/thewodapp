@@ -102,7 +102,7 @@ export default async function ProgrammingTrackPage({
 					},
 				]}
 			/>
-			<div className="container mx-auto px-5 pb-12">
+			<div className="px-5 pb-12">
 				<div className="flex justify-between items-start mb-8">
 					<div>
 						<h1 className="text-3xl font-bold mb-2 font-mono tracking-tight">
