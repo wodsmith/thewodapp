@@ -11,18 +11,18 @@ import { TeamSchedulingContainer } from "./_components/team-scheduling-container
 
 interface TeamSchedulingPageProps {
 	params: Promise<{
-		teamSlug: string
+		teamId: string
 	}>
 }
 
 export async function generateMetadata({
 	params,
 }: TeamSchedulingPageProps): Promise<Metadata> {
-	const { teamSlug } = await params
+	const { teamId } = await params
 	const db = getDB()
 
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	if (!team) {
@@ -40,12 +40,12 @@ export async function generateMetadata({
 export default async function TeamSchedulingPage({
 	params,
 }: TeamSchedulingPageProps) {
-	const { teamSlug } = await params
+	const { teamId } = await params
 	const db = getDB()
 
-	// Get team by slug
+	// Get team by ID
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	if (!team) {
@@ -71,7 +71,7 @@ export default async function TeamSchedulingPage({
 				items={[
 					{ href: "/admin", label: "Admin" },
 					{ href: "/admin/teams", label: "Teams" },
-					{ href: `/admin/teams/${teamSlug}`, label: team.name },
+					{ href: `/admin/teams/${teamId}`, label: team.name },
 				]}
 			/>
 			<div className="container mx-auto px-5 pb-12">

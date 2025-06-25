@@ -19,7 +19,7 @@ import { TrackWorkoutManagement } from "./_components/track-workout-management"
 
 interface TrackWorkoutPageProps {
 	params: Promise<{
-		teamSlug: string
+		teamId: string
 		trackId: string
 	}>
 }
@@ -27,11 +27,11 @@ interface TrackWorkoutPageProps {
 export async function generateMetadata({
 	params,
 }: TrackWorkoutPageProps): Promise<Metadata> {
-	const { teamSlug, trackId } = await params
+	const { teamId, trackId } = await params
 	const db = getDB()
 
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.id, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	const track = await getProgrammingTrackById(trackId)
@@ -51,7 +51,7 @@ export async function generateMetadata({
 export default async function TrackWorkoutPage({
 	params,
 }: TrackWorkoutPageProps) {
-	const { teamSlug: teamId, trackId } = await params
+	const { teamId, trackId } = await params
 	const db = getDB()
 
 	console.log(

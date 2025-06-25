@@ -11,7 +11,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
 	const pathname = usePathname()
 
 	// Check if this is a team-specific route (which has its own layout)
-	// Pattern: /admin/teams/[teamSlug] (but not /admin/teams without slug)
+	// Pattern: /admin/teams/[teamId] (but not /admin/teams without id)
 	const isTeamSpecificRoute = /^\/admin\/teams\/[^\/]+/.test(pathname)
 
 	if (isTeamSpecificRoute) {

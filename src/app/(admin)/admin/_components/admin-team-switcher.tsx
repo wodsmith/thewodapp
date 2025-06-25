@@ -13,27 +13,25 @@ import type { Route } from "next"
 import { useRouter } from "next/navigation"
 
 interface AdminTeamSwitcherProps {
-	currentTeamSlug: string
+	currentTeamId: string
 }
 
-export function AdminTeamSwitcher({ currentTeamSlug }: AdminTeamSwitcherProps) {
+export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 	const { session } = useSessionStore()
 	const router = useRouter()
 
 	// Find the current team from the session
-	const currentTeam = session?.teams?.find(
-		(team) => team.slug === currentTeamSlug,
-	)
+	const currentTeam = session?.teams?.find((team) => team.id === currentTeamId)
 
 	// Get all teams that the user has access to
 	const availableTeams = session?.teams || []
 
-	const handleTeamSwitch = (teamSlug: string) => {
-		// Navigate to the same route but with the new team slug
+	const handleTeamSwitch = (teamId: string) => {
+		// Navigate to the same route but with the new team id
 		const currentPath = window.location.pathname
 		const pathSegments = currentPath.split("/")
 
-		// Find the admin/teams/[teamSlug] part and replace the team slug
+		// Find the admin/teams/[teamId] part and replace the team id
 		const adminIndex = pathSegments.indexOf("admin")
 		const teamsIndex = pathSegments.indexOf("teams")
 
@@ -42,7 +40,7 @@ export function AdminTeamSwitcher({ currentTeamSlug }: AdminTeamSwitcherProps) {
 			teamsIndex !== -1 &&
 			pathSegments[teamsIndex + 1]
 		) {
-			pathSegments[teamsIndex + 1] = teamSlug
+			pathSegments[teamsIndex + 1] = teamId
 			const newPath = pathSegments.join("/") as Route
 			router.push(newPath)
 		}
@@ -77,9 +75,9 @@ export function AdminTeamSwitcher({ currentTeamSlug }: AdminTeamSwitcherProps) {
 					availableTeams.map((team) => (
 						<DropdownMenuItem
 							key={team.id}
-							onClick={() => handleTeamSwitch(team.slug)}
+							onClick={() => handleTeamSwitch(team.id)}
 							className={`flex items-center gap-3 p-3 font-mono cursor-pointer ${
-								team.slug === currentTeamSlug
+								team.id === currentTeamId
 									? "bg-orange text-white"
 									: "hover:bg-orange/10"
 							}`}
@@ -91,7 +89,7 @@ export function AdminTeamSwitcher({ currentTeamSlug }: AdminTeamSwitcherProps) {
 									{team.role.name} Role
 								</div>
 							</div>
-							{team.slug === currentTeamSlug && (
+							{team.id === currentTeamId && (
 								<div className="text-xs font-bold">CURRENT</div>
 							)}
 						</DropdownMenuItem>

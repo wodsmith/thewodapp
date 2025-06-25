@@ -118,7 +118,7 @@ export default async function AdminTeamsPage() {
 									<div className="flex gap-2">
 										<Button asChild className="flex-1">
 											<Link
-												href={`/admin/teams/${team.slug}`}
+												href={`/admin/teams/${team.id}`}
 												className="flex items-center gap-2"
 											>
 												<Calendar className="w-4 h-4" />

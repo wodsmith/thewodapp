@@ -12,18 +12,18 @@ import { ProgrammingTrackDashboard } from "./_components/programming-track-dashb
 
 interface ProgrammingTrackPageProps {
 	params: Promise<{
-		teamSlug: string
+		teamId: string
 	}>
 }
 
 export async function generateMetadata({
 	params,
 }: ProgrammingTrackPageProps): Promise<Metadata> {
-	const { teamSlug } = await params
+	const { teamId } = await params
 	const db = getDB()
 
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	if (!team) {
@@ -41,16 +41,16 @@ export async function generateMetadata({
 export default async function ProgrammingTrackPage({
 	params,
 }: ProgrammingTrackPageProps) {
-	const { teamSlug } = await params
+	const { teamId } = await params
 	const db = getDB()
 
 	console.log(
-		`DEBUG: [Programming] Loading programming tracks for team: ${teamSlug}`,
+		`DEBUG: [Programming] Loading programming tracks for team: ${teamId}`,
 	)
 
-	// Get team by slug
+	// Get team by ID
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	console.log(`DEBUG: [Programming] Team found: ${team ? team : "not found"}`)
@@ -95,9 +95,9 @@ export default async function ProgrammingTrackPage({
 				items={[
 					{ href: "/admin", label: "Admin" },
 					{ href: "/admin/teams", label: "Teams" },
-					{ href: `/admin/teams/${teamSlug}`, label: team.name },
+					{ href: `/admin/teams/${teamId}`, label: team.name },
 					{
-						href: `/admin/teams/${teamSlug}/programming`,
+						href: `/admin/teams/${teamId}/programming`,
 						label: "Programming",
 					},
 				]}

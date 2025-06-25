@@ -17,33 +17,33 @@ interface AdminNavItem {
 	icon: React.ComponentType<{ className?: string }>
 }
 
-const getAdminNavItems = (currentTeamSlug: string): AdminNavItem[] => [
+const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 	{
 		title: "Team Scheduling",
-		href: `/admin/teams/${currentTeamSlug}` as Route,
+		href: `/admin/teams/${currentTeamId}` as Route,
 		icon: CalendarDaysIcon,
 	},
 	{
 		title: "Programming",
-		href: `/admin/teams/${currentTeamSlug}/programming/` as Route,
+		href: `/admin/teams/${currentTeamId}/programming/` as Route,
 		icon: BookOpenIcon,
 	},
 ]
 
 interface AdminSidebarProps {
-	currentTeamSlug?: string
+	currentTeamId?: string
 }
 
-export function AdminSidebar({ currentTeamSlug }: AdminSidebarProps) {
+export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 	const pathname = usePathname()
 	const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER")
 
 	return (
 		<div className="space-y-4">
 			{/* Team Switcher Header */}
-			{currentTeamSlug ? (
+			{currentTeamId ? (
 				<>
-					<AdminTeamSwitcher currentTeamSlug={currentTeamSlug} />
+					<AdminTeamSwitcher currentTeamId={currentTeamId} />
 					{/* Navigation */}
 					<ScrollShadow
 						className="w-full lg:w-auto whitespace-nowrap pb-2"
@@ -51,13 +51,13 @@ export function AdminSidebar({ currentTeamSlug }: AdminSidebarProps) {
 						isEnabled={isLgAndSmaller}
 					>
 						<nav className="flex items-center lg:items-stretch min-w-full space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1">
-							{getAdminNavItems(currentTeamSlug).map((item) => {
+							{getAdminNavItems(currentTeamId).map((item) => {
 								// Normalize both paths by removing trailing slashes for comparison
 								const normalizedPathname = pathname.replace(/\/$/, "")
 								const normalizedHref = item.href.replace(/\/$/, "")
 
 								// Get all nav items to check for more specific matches
-								const allItems = getAdminNavItems(currentTeamSlug)
+								const allItems = getAdminNavItems(currentTeamId)
 
 								// Check if there's a more specific route that matches the current path
 								const hasMoreSpecificMatch = allItems.some((otherItem) => {
