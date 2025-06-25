@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import EditWorkoutClient from "./edit-workout-client"
 
 // Mock the updateWorkoutAction
-vi.mock("../../../../../actions/updateWorkoutAction", () => ({
+vi.mock("../../../../../actions/workout-actions", () => ({
 	updateWorkoutAction: vi.fn(),
 }))
 
@@ -42,7 +42,6 @@ function setup() {
 			tags={mockTags}
 			movements={mockMovements}
 			workoutId={mockWorkout.id}
-			updateWorkoutAction={mockUpdateWorkoutAction}
 		/>,
 	)
 }
@@ -78,13 +77,13 @@ describe("EditWorkoutClient", () => {
 		if (movementButton) fireEvent.click(movementButton)
 	})
 
-	it("submits form and calls updateWorkoutAction", () => {
+	it("submits form and calls updateWorkoutAction", async () => {
 		setup()
 		const nameInput = screen.getByLabelText(/name/i)
 		fireEvent.change(nameInput, { target: { value: "Updated Name" } })
 		const form = document.querySelector("form")
 		expect(form).toBeInTheDocument()
 		if (form) fireEvent.submit(form)
-		expect(mockUpdateWorkoutAction).toHaveBeenCalled()
+		await vi.waitFor(() => expect(mockUpdateWorkoutAction).toHaveBeenCalled())
 	})
 })

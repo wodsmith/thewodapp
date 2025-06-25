@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm"
 import type { InferSelectModel } from "drizzle-orm"
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
+import { teamTable } from "./teams"
 import { userTable } from "./users"
 
 // Movement types
@@ -56,7 +57,7 @@ export const workouts = sqliteTable("workouts", {
 	}).notNull(),
 	repsPerRound: integer("reps_per_round"),
 	roundsToScore: integer("rounds_to_score").default(1),
-	userId: text("user_id").references(() => userTable.id),
+	teamId: text("team_id").references(() => teamTable.id),
 	sugarId: text("sugar_id"),
 	tiebreakScheme: text("tiebreak_scheme", { enum: ["time", "reps"] }),
 	secondaryScheme: text("secondary_scheme", {
@@ -151,9 +152,9 @@ export const workoutRelations = relations(workouts, ({ many, one }) => ({
 	tags: many(workoutTags),
 	movements: many(workoutMovements),
 	results: many(results),
-	user: one(userTable, {
-		fields: [workouts.userId],
-		references: [userTable.id],
+	team: one(teamTable, {
+		fields: [workouts.teamId],
+		references: [teamTable.id],
 		relationName: "workouts",
 	}),
 }))

@@ -30,7 +30,7 @@ interface TrackWorkoutManagementProps {
 	userWorkouts: (Workout & {
 		tags: { id: string; name: string }[]
 		movements: { id: string; name: string }[]
-		resultsToday: { id: string }[]
+		lastScheduledAt?: Date | null
 	})[]
 	movements: Movement[]
 	tags: Tag[]
@@ -230,20 +230,48 @@ export function TrackWorkoutManagement({
 					</CardContent>
 				</Card>
 			) : (
-				<Card className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary bg-surface rounded-none">
-					<CardHeader>
-						<CardTitle className="font-mono text-xl tracking-tight">
-							Workout Schedule
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<TrackWorkoutList
-							trackWorkouts={optimisticTrackWorkouts}
-							onRemoveWorkoutAction={handleRemoveWorkout}
-							onUpdateWorkoutAction={handleUpdateWorkout}
-						/>
-					</CardContent>
-				</Card>
+				<div className="space-y-4">
+					{optimisticTrackWorkouts.map((trackWorkout, index) => {
+						const workoutDetails = userWorkouts.find(
+							(workout) => workout.id === trackWorkout.workoutId,
+						)
+						return (
+							<div
+								key={trackWorkout.id}
+								className="border border-primary p-4 rounded-md shadow-md w-fit"
+							>
+								<div className="flex items-center justify-between">
+									<span className="text-sm font-bold">
+										{index + 1}
+										{trackWorkout.isScheduled && (
+											<span className="ml-2 text-green-400 text-sm">
+												● Scheduled
+											</span>
+										)}
+									</span>
+									<button
+										type="button"
+										onClick={() => handleRemoveWorkout(trackWorkout.id)}
+										className="text-red-500 hover:text-red-700"
+									>
+										Remove
+									</button>
+								</div>
+								{workoutDetails && (
+									<div className="mt-2">
+										<h4 className="text-xl font-semibold">
+											{workoutDetails.name}
+										</h4>
+										<p className="text-sm text-gray-600">
+											Scheme: {workoutDetails.scheme}
+										</p>
+										<p className="text-xl">{workoutDetails.description}</p>
+									</div>
+								)}
+							</div>
+						)
+					})}
+				</div>
 			)}
 
 			{/* Add Workout Dialog */}

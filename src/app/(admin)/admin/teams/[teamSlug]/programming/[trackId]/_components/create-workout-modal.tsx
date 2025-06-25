@@ -72,7 +72,6 @@ interface CreateWorkoutModalProps {
 	onWorkoutCreatedAction: (workout: Workout) => void
 	teamId: string
 	trackId: string
-	userId: string
 	movements: Movement[]
 	tags: Tag[]
 }
@@ -83,7 +82,6 @@ export function CreateWorkoutModal({
 	onWorkoutCreatedAction,
 	teamId,
 	trackId,
-	userId,
 	movements,
 	tags: initialTags,
 }: CreateWorkoutModalProps) {
@@ -142,7 +140,7 @@ export function CreateWorkoutModal({
 				},
 				tagIds: data.selectedTags,
 				movementIds: data.selectedMovements,
-				userId,
+				teamId,
 			})
 
 			if (error || !result) {

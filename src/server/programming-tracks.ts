@@ -300,8 +300,7 @@ export async function getTeamTracks(
  * These are "standalone" workouts that can be scheduled independently
  */
 export async function getWorkoutsNotInTracks(
-	userId: string,
-	teamId?: string,
+	teamId: string,
 ): Promise<
 	(Workout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
 > {
@@ -311,7 +310,7 @@ export async function getWorkoutsNotInTracks(
 		.from(workouts)
 		.where(
 			and(
-				or(eq(workouts.scope, "public"), eq(workouts.userId, userId)),
+				eq(workouts.teamId, teamId),
 				notExists(
 					db
 						.select()

@@ -77,7 +77,6 @@ export default async function WorkoutDetailPage({
 	const [resultsResult, resultsError] =
 		await getWorkoutResultsByWorkoutAndUserAction({
 			workoutId: myParams.id,
-			userId: session.userId,
 		})
 
 	if (resultsError || !resultsResult?.success) {
@@ -110,9 +109,14 @@ export default async function WorkoutDetailPage({
 		return Promise.all(allSetsPromises)
 	})()
 
+	// Check if user can edit this workout (based on team ownership)
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const userPersonalTeamId = await getUserPersonalTeamId(session.userId)
+	const canEdit = workout.teamId === userPersonalTeamId
+
 	return (
 		<WorkoutDetailClient
-			userId={session.userId}
+			canEdit={canEdit}
 			workout={workout}
 			workoutId={myParams.id}
 			resultsWithSets={resultsWithSets}

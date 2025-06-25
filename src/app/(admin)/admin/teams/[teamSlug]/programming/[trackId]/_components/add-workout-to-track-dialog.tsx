@@ -51,7 +51,7 @@ interface AddWorkoutToTrackDialogProps {
 	userWorkouts: (Workout & {
 		tags: { id: string; name: string }[]
 		movements: { id: string; name: string }[]
-		resultsToday: { id: string }[]
+		lastScheduledAt?: Date | null
 	})[]
 	movements: Movement[]
 	tags: Tag[]

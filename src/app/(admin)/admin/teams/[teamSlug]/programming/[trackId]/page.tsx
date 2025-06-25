@@ -8,7 +8,7 @@ import {
 	hasTrackAccess,
 } from "@/server/programming-tracks"
 import { getAllTags } from "@/server/tags"
-import { getUserWorkouts } from "@/server/workouts"
+import { getUserWorkoutsWithTrackScheduling } from "@/server/workouts"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { eq } from "drizzle-orm"
@@ -108,7 +108,10 @@ export default async function TrackWorkoutPage({
 		)
 		notFound()
 	}
-	const userWorkouts = await getUserWorkouts({ userId: session.userId })
+	const userWorkouts = await getUserWorkoutsWithTrackScheduling({
+		trackId,
+		teamId: team.id,
+	})
 
 	// Get movements and tags for workout creation
 	const movements = await getAllMovements()

@@ -25,19 +25,19 @@ export type WorkoutResultWithSets = WorkoutResult & {
 }
 
 export default function WorkoutDetailClient({
-	userId,
+	canEdit,
 	workout,
 	workoutId,
 	resultsWithSets, // Changed from results and resultSetDetails
 }: {
-	userId: string
+	canEdit: boolean
 	workout: WorkoutWithTagsAndMovements
 	workoutId: string
 	resultsWithSets: WorkoutResultWithSets[] // Use the new type
 }) {
 	if (!workout) return <div>Loading...</div>
 
-	const canEditWorkout = userId === workout.userId
+	const canEditWorkout = canEdit
 
 	// Helper to format date
 	const formatDate = (timestamp: number | Date | null) => {

@@ -1,0 +1,23 @@
+[
+	"^ ",
+	"~:classpath",
+	["~#set", []],
+	"~:project-hash",
+	"",
+	"~:project-root",
+	"/Users/zacjones/Documents/02.Areas/thewodapp/thewodapp",
+	"~:kondo-config-hash",
+	"fb0d0826351b7bab29e6071f52d23a4337ad3c344da05ac6622c40501da2fd30",
+	"~:dependency-scheme",
+	"jar",
+	"~:analysis",
+	null,
+	"~:analysis-checksums",
+	["^ "],
+	"~:project-analysis-type",
+	"~:project-and-full-dependencies",
+	"~:version",
+	12,
+	"~:stubs-generation-namespaces",
+	["^1", []]
+]

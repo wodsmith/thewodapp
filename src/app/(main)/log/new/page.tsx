@@ -39,8 +39,12 @@ export default async function LogNewResultPage({
 		redirect("/login")
 	}
 
+	// Get user's personal team ID
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const teamId = await getUserPersonalTeamId(session.user.id)
+
 	const [result, error] = await getUserWorkoutsAction({
-		userId: session.user.id,
+		teamId,
 	})
 
 	if (error || !result?.success) {

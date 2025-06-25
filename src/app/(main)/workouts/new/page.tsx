@@ -43,11 +43,15 @@ export default async function CreateWorkoutPage() {
 		redirect("/login")
 	}
 
+	// Get user's personal team ID
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const teamId = await getUserPersonalTeamId(session.user.id)
+
 	return (
 		<CreateWorkoutClient
 			movements={movements.data}
 			tags={tags.data}
-			userId={session.user.id}
+			teamId={teamId}
 		/>
 	)
 }

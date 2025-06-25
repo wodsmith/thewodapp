@@ -13,6 +13,11 @@ interface TrackWorkoutListProps {
 	trackWorkouts: (TrackWorkout & {
 		isScheduled?: boolean
 		lastScheduledAt?: Date | null
+		workoutDetails?: {
+			name: string
+			description: string
+			scheme: string
+		}
 	})[]
 	onRemoveWorkoutAction: (trackWorkoutId: string) => Promise<void>
 	onUpdateWorkoutAction: (
@@ -226,6 +231,21 @@ export function TrackWorkoutList({
 								<CardContent className="pt-0">
 									<div className="bg-surface border-2 border-primary rounded-none p-3">
 										<p className="text-sm font-mono">{workout.notes}</p>
+									</div>
+								</CardContent>
+							)}
+							{workout.workoutDetails && (
+								<CardContent className="pt-0">
+									<div className="bg-surface border-2 border-primary rounded-none p-3">
+										<p className="text-sm font-mono font-semibold">
+											{workout.workoutDetails.name}
+										</p>
+										<p className="text-sm font-mono text-muted-foreground">
+											{workout.workoutDetails.description}
+										</p>
+										<p className="text-sm font-mono text-muted-foreground">
+											Scheme: {workout.workoutDetails.scheme}
+										</p>
 									</div>
 								</CardContent>
 							)}

@@ -1,10 +1,4 @@
-import { Plus } from "lucide-react"
-import type { Metadata } from "next"
-import Link from "next/link"
-import WorkoutControls from "./_components/WorkoutControls"
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
-import { notFound, redirect } from "next/navigation"
-import { requireVerifiedEmail } from "@/utils/auth"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -14,6 +8,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { requireVerifiedEmail } from "@/utils/auth"
+import { Plus } from "lucide-react"
+import type { Metadata } from "next"
+import Link from "next/link"
+import { notFound, redirect } from "next/navigation"
+import WorkoutControls from "./_components/WorkoutControls"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -47,9 +47,13 @@ export default async function WorkoutsPage({
 		redirect("/login")
 	}
 
+	// Get user's personal team ID
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const teamId = await getUserPersonalTeamId(session.user.id)
+
 	const mySearchParams = await searchParams
 	const [result, error] = await getUserWorkoutsAction({
-		userId: session.user.id,
+		teamId,
 	})
 
 	if (error || !result?.success) {

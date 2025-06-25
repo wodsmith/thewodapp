@@ -19,7 +19,7 @@ interface WorkoutSelectionListProps {
 	userWorkouts: (Workout & {
 		tags: { id: string; name: string }[]
 		movements: { id: string; name: string }[]
-		resultsToday: { id: string }[]
+		lastScheduledAt?: Date | null
 	})[]
 	movements: Movement[]
 	tags: Tag[]
@@ -35,14 +35,18 @@ export function WorkoutSelectionList({
 	tags,
 	userId,
 }: WorkoutSelectionListProps) {
-	const [filteredWorkouts, setFilteredWorkouts] =
-		useState<
-			(Workout & {
-				tags: { id: string; name: string }[]
-				movements: { id: string; name: string }[]
-				resultsToday: { id: string }[]
-			})[]
-		>(userWorkouts)
+	const [filteredWorkouts, setFilteredWorkouts] = useState(
+		userWorkouts.sort((a, b) => {
+			// Sort by last scheduled date - workouts scheduled more recently come first
+			// Unscheduled workouts come last
+			if (a.lastScheduledAt && !b.lastScheduledAt) return -1
+			if (!a.lastScheduledAt && b.lastScheduledAt) return 1
+			if (a.lastScheduledAt && b.lastScheduledAt) {
+				return b.lastScheduledAt.getTime() - a.lastScheduledAt.getTime()
+			}
+			return 0
+		}),
+	)
 	const [searchTerm, setSearchTerm] = useState("")
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
@@ -179,6 +183,14 @@ export function WorkoutSelectionList({
 									</Button>
 								</div>
 							</CardHeader>
+							{workout.lastScheduledAt && (
+								<div className="px-4 py-2 border-t border-muted">
+									<p className="text-sm text-muted-foreground font-mono">
+										Last scheduled:{" "}
+										{workout.lastScheduledAt.toLocaleDateString()}
+									</p>
+								</div>
+							)}
 						</Card>
 					))
 				)}
@@ -191,7 +203,6 @@ export function WorkoutSelectionList({
 				onWorkoutCreatedAction={handleWorkoutCreated}
 				teamId={teamId}
 				trackId={trackId}
-				userId={userId}
 				movements={movements}
 				tags={tags}
 			/>

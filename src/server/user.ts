@@ -3,6 +3,7 @@ import "server-only"
 import { getDB } from "@/db"
 import { teamMembershipTable, teamTable } from "@/db/schema"
 import type { User } from "@/db/schema"
+import { and, eq } from "drizzle-orm"
 import { ZSAError } from "zsa"
 
 /**
@@ -49,4 +50,27 @@ export async function createPersonalTeamForUser(
 	})
 
 	return { teamId: personalTeam.id }
+}
+
+/**
+ * Get a user's personal team ID
+ * @param userId - The user's ID
+ * @returns Promise<string> - The personal team's ID
+ */
+export async function getUserPersonalTeamId(userId: string): Promise<string> {
+	const db = getDB()
+
+	const personalTeam = await db.query.teamTable.findFirst({
+		where: and(
+			eq(teamTable.personalTeamOwnerId, userId),
+			eq(teamTable.isPersonalTeam, 1),
+		),
+		columns: { id: true },
+	})
+
+	if (!personalTeam) {
+		throw new ZSAError("NOT_FOUND", "Personal team not found for user")
+	}
+
+	return personalTeam.id
 }

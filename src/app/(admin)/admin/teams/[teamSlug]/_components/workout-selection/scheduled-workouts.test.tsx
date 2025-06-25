@@ -85,6 +85,8 @@ describe("ScheduledWorkouts", () => {
 	it("renders scheduled workouts with correct details", () => {
 		render(<ScheduledWorkouts {...defaultProps} />)
 
+		fireEvent.click(screen.getByText("Strength Training"))
+
 		expect(
 			screen.getByText("Scheduled Workouts for Sun Jun 15 2025"),
 		).toBeInTheDocument()
@@ -101,10 +103,12 @@ describe("ScheduledWorkouts", () => {
 	it("renders workout without optional fields", () => {
 		render(<ScheduledWorkouts {...defaultProps} />)
 
+		fireEvent.click(screen.getByText("Cardio Blast"))
+
 		expect(screen.getByText("Cardio Blast")).toBeInTheDocument()
 		expect(screen.getByText("Day 2")).toBeInTheDocument()
 		// Should not show empty fields for second workout which has null values
-		expect(screen.queryByText("Notes:")).toBeInTheDocument() // First workout has notes
+		expect(screen.queryByText("Notes:")).not.toBeInTheDocument()
 		expect(screen.getAllByTestId("scheduled-workout-card")).toHaveLength(2)
 	})
 
@@ -119,8 +123,10 @@ describe("ScheduledWorkouts", () => {
 		const onEdit = vi.fn()
 		render(<ScheduledWorkouts {...defaultProps} onEdit={onEdit} />)
 
-		const editButtons = screen.getAllByText("Edit")
-		fireEvent.click(editButtons[0])
+		fireEvent.click(screen.getByText("Strength Training"))
+
+		const editButton = screen.getByText("Edit")
+		fireEvent.click(editButton)
 
 		expect(onEdit).toHaveBeenCalledWith(mockScheduledWorkouts[0])
 	})
@@ -129,7 +135,7 @@ describe("ScheduledWorkouts", () => {
 		render(
 			<ScheduledWorkouts
 				{...defaultProps}
-				editingScheduled="sw1"
+				editingScheduled={mockScheduledWorkouts[0]}
 				classTimes="6:00 AM"
 				teamNotes="Test notes"
 				scalingGuidance="Test scaling"
@@ -235,18 +241,15 @@ describe("ScheduledWorkouts", () => {
 				{...defaultProps}
 				isUpdating={true}
 				isDeleting={true}
+				editingScheduled={mockScheduledWorkouts[0]}
 			/>,
 		)
 
-		const editButtons = screen.getAllByText("Edit")
-		const deleteButtons = screen.getAllByText("Remove")
+		const updateButton = screen.getByText("Update")
+		const removeButton = screen.getByText("Remove")
 
-		for (const button of editButtons) {
-			expect(button).toBeDisabled()
-		}
-		for (const button of deleteButtons) {
-			expect(button).toBeDisabled()
-		}
+		expect(updateButton).toBeDisabled()
+		expect(removeButton).toBeDisabled()
 	})
 
 	it("cancel edit calls correct handler", () => {

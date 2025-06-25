@@ -39,14 +39,14 @@ import { useServerAction } from "zsa-react"
 interface Props {
 	movements: Movement[]
 	tags: Tag[]
-	userId: string
+	teamId: string
 	createWorkoutAction?: typeof createWorkoutAction
 }
 
 export default function CreateWorkoutClient({
 	movements,
 	tags: initialTags,
-	userId,
+	teamId,
 	createWorkoutAction: createWorkoutActionProp,
 }: Props) {
 	const [tags, setTags] = useState<Tag[]>(initialTags)
@@ -146,7 +146,7 @@ export default function CreateWorkoutClient({
 			},
 			tagIds: data.selectedTags,
 			movementIds: data.selectedMovements,
-			userId,
+			teamId,
 		})
 	}
 

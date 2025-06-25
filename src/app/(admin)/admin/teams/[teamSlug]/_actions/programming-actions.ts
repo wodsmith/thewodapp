@@ -95,10 +95,10 @@ export const getWorkoutsNotInTracksAction = createServerAction()
 			throw new Error("Unauthorized")
 		}
 
-		const workouts = await getWorkoutsNotInTracks(session.userId, teamId)
+		const workouts = await getWorkoutsNotInTracks(teamId)
 
 		console.log(
-			`INFO: [ProgrammingTracks] Retrieved ${workouts.length} standalone workouts not in tracks for userId '${session.userId}' (teamId: ${teamId})`,
+			`INFO: [ProgrammingTracks] Retrieved ${workouts.length} standalone workouts not in tracks for teamId: ${teamId}`,
 		)
 
 		return { success: true, data: workouts }
