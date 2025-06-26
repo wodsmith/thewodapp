@@ -4,11 +4,10 @@ import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import * as React from "react"
 
-import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import type { WorkoutResultWithWorkoutName } from "@/types"
-import Link from "next/link"
+import { LogRowCard } from "./log-row-card"
 
 interface LogCalendarClientProps {
 	logs: WorkoutResultWithWorkoutName[]
@@ -63,46 +62,12 @@ export default function LogCalendarClient({ logs }: LogCalendarClientProps) {
 				}}
 			/>
 			{selectedLog && selectedLog.length > 0 && (
-				<div className="flex min-w-[358px] flex-col gap-4   border p-4 md:w-1/3">
-					{selectedLog.map((logEntry) => (
-						<div key={logEntry.id} className="  border-2 border-black p-4">
-							<h3 className="mb-2 font-bold text-lg">
-								{logEntry.workoutName || "Workout Result"}
-							</h3>
-							<div className="mb-2 flex items-center justify-between">
-								<p className="text-muted-foreground text-sm">
-									{new Date(logEntry.date).toLocaleDateString()}
-								</p>
-								{logEntry.scale && (
-									<span className="rounded-sm bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase">
-										{logEntry.scale}
-									</span>
-								)}
-							</div>
-							{logEntry.wodScore && (
-								<p className="mb-1 text-xl">{logEntry.wodScore}</p>
-							)}
-							{logEntry.time && (
-								<p className="mt-1">Duration: {logEntry.time}</p>
-							)}
-							{logEntry.setCount && (
-								<p className="mt-1">Sets: {logEntry.setCount}</p>
-							)}
-							{logEntry.notes && (
-								<p className="mt-2 text-gray-600 text-sm">{logEntry.notes}</p>
-							)}
-							{logEntry.workoutId && (
-								<Button
-									asChild
-									className="mt-4 w-full border border-black bg-white text-black"
-								>
-									<Link href={`/workouts/${logEntry.workoutId}`}>
-										View Workout
-									</Link>
-								</Button>
-							)}
-						</div>
-					))}
+				<div className="flex flex-col gap-4 border p-4">
+					<ul className="space-y-2">
+						{selectedLog.map((logEntry) => (
+							<LogRowCard key={logEntry.id} logEntry={logEntry} />
+						))}
+					</ul>
 				</div>
 			)}
 			{(!selectedLog || selectedLog.length === 0) && date && (
