@@ -1,5 +1,5 @@
-import type { Config } from "tailwindcss"
 import { heroui } from "@heroui/react"
+import type { Config } from "tailwindcss"
 
 // TODO: Upgrade to Tailwind V4 and move all of this to global.css
 const config: Config = {
@@ -39,7 +39,7 @@ const config: Config = {
 				},
 				secondary: {
 					DEFAULT: "hsl(var(--secondary))",
-					foreground: "hsl(var(--background))",
+					foreground: "hsl(var(--secondary-foreground))",
 				},
 				muted: {
 					DEFAULT: "hsl(var(--muted))",
