@@ -113,16 +113,16 @@ export default function WorkoutRowCard({
 
 			<div className="flex items-center gap-4">
 				<ListItem.Meta>
-					{displayMovements.map(
-						(movement) =>
-							movement && (
-								<Link href={`/movements/${movement.id}`} key={movement.id}>
-									<Badge variant="secondary" clickable>
-										{movement.name}
-									</Badge>
-								</Link>
-							),
-					)}
+					{displayMovements
+						.filter((movement) => movement !== undefined)
+						.map((movement) => (
+							<Link href={`/movements/${movement.id}`} key={movement.id}>
+								<Badge variant="secondary" clickable>
+									{movement.name}
+								</Badge>
+							</Link>
+						))}
+
 					{displayTags.map((tag) => (
 						<Badge key={tag.id} variant="outline">
 							{tag.name}

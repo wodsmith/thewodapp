@@ -33,14 +33,15 @@ export default function MovementDetailClient({
 					<div className="space-y-4">
 						{workouts.map((workout) => {
 							const resultsForWorkout = workoutResults[workout.id] || []
-							// Get the most recent result for display in the card
 							const mostRecentResult =
 								resultsForWorkout.length > 0
-									? resultsForWorkout.sort(
-											(a, b) =>
-												new Date(b.date || 0).getTime() -
-												new Date(a.date || 0).getTime(),
-										)[0]
+									? resultsForWorkout
+											.filter((result) => result.date)
+											.sort(
+												(a, b) =>
+													new Date(b.date).getTime() -
+													new Date(a.date).getTime(),
+											)[0]
 									: undefined
 
 							return (
