@@ -64,6 +64,25 @@ export async function createProgrammingTrack(
 	return track
 }
 
+export async function updateProgrammingTrack(
+	trackId: string,
+	data: { isPublic?: boolean },
+): Promise<ProgrammingTrack> {
+	const db = getDB()
+
+	const result = await db
+		.update(programmingTracksTable)
+		.set({
+			isPublic: data.isPublic ? 1 : 0,
+			updatedAt: new Date(),
+		})
+		.where(eq(programmingTracksTable.id, trackId))
+		.returning()
+
+	const [track] = Array.isArray(result) ? result : []
+	return track
+}
+
 export async function getProgrammingTrackById(
 	trackId: string,
 ): Promise<ProgrammingTrack | null> {

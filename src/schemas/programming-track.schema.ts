@@ -21,6 +21,12 @@ export const deleteProgrammingTrackSchema = z.object({
 	trackId: z.string().min(1, "Track ID is required"),
 })
 
+export const updateProgrammingTrackSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+	isPublic: z.boolean(),
+})
+
 export const getTeamTracksSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 })
@@ -64,6 +70,9 @@ export type CreateProgrammingTrackInput = z.infer<
 >
 export type DeleteProgrammingTrackInput = z.infer<
 	typeof deleteProgrammingTrackSchema
+>
+export type UpdateProgrammingTrackInput = z.infer<
+	typeof updateProgrammingTrackSchema
 >
 export type GetTeamTracksInput = z.infer<typeof getTeamTracksSchema>
 

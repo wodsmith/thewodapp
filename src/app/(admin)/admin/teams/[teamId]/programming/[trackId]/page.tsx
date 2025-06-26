@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
+import { TrackVisibilitySelector } from "./_components/track-visibility-selector"
 import { TrackWorkoutManagement } from "./_components/track-workout-management"
 
 interface TrackWorkoutPageProps {
@@ -148,6 +149,9 @@ export default async function TrackWorkoutPage({
 								{track.description}
 							</p>
 						)}
+					</div>
+					<div className="flex flex-col items-end space-y-2">
+						<TrackVisibilitySelector teamId={team.id} track={track} />
 					</div>
 				</div>
 

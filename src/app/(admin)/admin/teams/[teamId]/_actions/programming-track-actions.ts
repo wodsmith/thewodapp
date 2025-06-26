@@ -8,6 +8,7 @@ import {
 	getTeamTracksSchema,
 	getTrackWorkoutsSchema,
 	removeWorkoutFromTrackSchema,
+	updateProgrammingTrackSchema,
 	updateTrackWorkoutSchema,
 } from "@/schemas/programming-track.schema"
 import {
@@ -18,6 +19,7 @@ import {
 	getWorkoutsForTrack,
 	hasTrackAccess,
 	removeWorkoutFromTrack,
+	updateProgrammingTrack,
 	updateTrackWorkout,
 } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -89,6 +91,44 @@ export const deleteProgrammingTrackAction = createServerAction()
 				throw new Error(`Failed to delete programming track: ${error.message}`)
 			}
 			throw new Error("Failed to delete programming track")
+		}
+	})
+
+/**
+ * Update a programming track
+ */
+export const updateProgrammingTrackAction = createServerAction()
+	.input(updateProgrammingTrackSchema)
+	.handler(async ({ input }) => {
+		const { teamId, trackId, isPublic } = input
+
+		try {
+			// Check permissions
+			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+
+			// Check track access
+			const trackAccess = await hasTrackAccess(teamId, trackId)
+			if (!trackAccess) {
+				throw new Error("Team does not have access to this track")
+			}
+
+			const track = await updateProgrammingTrack(trackId, { isPublic })
+
+			console.log(
+				`INFO: [ProgrammingTrack] Updated track: ${trackId} for team: ${teamId} - isPublic: ${isPublic}`,
+			)
+
+			// Revalidate the programming page and track page
+			revalidatePath("/admin/teams/*/programming")
+			revalidatePath(`/admin/teams/${teamId}/programming/${trackId}`)
+
+			return { success: true, data: track }
+		} catch (error) {
+			console.error("Failed to update programming track:", error)
+			if (error instanceof Error) {
+				throw new Error(`Failed to update programming track: ${error.message}`)
+			}
+			throw new Error("Failed to update programming track")
 		}
 	})
 
