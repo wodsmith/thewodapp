@@ -17,7 +17,7 @@ import {
 	updateTrackWorkoutAction,
 } from "../../../_actions/programming-track-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
-import { TrackWorkoutList } from "./track-workout-list"
+import { TrackWorkoutRow } from "./track-workout-row"
 
 interface TrackWorkoutManagementProps {
 	teamId: string
@@ -126,30 +126,6 @@ export function TrackWorkoutManagement({
 		}
 	}
 
-	const handleRemoveWorkout = async (trackWorkoutId: string) => {
-		console.log(`DEBUG: [UI] Removing workout from track: ${trackWorkoutId}`)
-
-		try {
-			// Optimistic update wrapped in startTransition
-			startTransition(() => {
-				setOptimisticTrackWorkouts({ type: "remove", trackWorkoutId })
-			})
-
-			const [result, error] = await removeWorkoutFromTrackAction({
-				teamId,
-				trackId,
-				trackWorkoutId,
-			})
-
-			if (error || !result?.success) {
-				throw new Error(error?.message || "Failed to remove workout from track")
-			}
-		} catch (error) {
-			console.error("Error removing workout from track:", error)
-			// The optimistic update will be reverted automatically
-		}
-	}
-
 	const handleUpdateWorkout = async (
 		trackWorkoutId: string,
 		updates: {
@@ -231,44 +207,18 @@ export function TrackWorkoutManagement({
 				</Card>
 			) : (
 				<div className="space-y-4">
-					{optimisticTrackWorkouts.map((trackWorkout, index) => {
+					{optimisticTrackWorkouts.map((trackWorkout) => {
 						const workoutDetails = userWorkouts.find(
 							(workout) => workout.id === trackWorkout.workoutId,
 						)
 						return (
-							<div
+							<TrackWorkoutRow
 								key={trackWorkout.id}
-								className="border border-primary p-4 rounded-md shadow-md w-fit"
-							>
-								<div className="flex items-center justify-between">
-									<span className="text-sm font-bold">
-										{index + 1}
-										{trackWorkout.isScheduled && (
-											<span className="ml-2 text-green-400 text-sm">
-												● Scheduled
-											</span>
-										)}
-									</span>
-									<button
-										type="button"
-										onClick={() => handleRemoveWorkout(trackWorkout.id)}
-										className="text-red-500 hover:text-red-700"
-									>
-										Remove
-									</button>
-								</div>
-								{workoutDetails && (
-									<div className="mt-2">
-										<h4 className="text-xl font-semibold">
-											{workoutDetails.name}
-										</h4>
-										<p className="text-sm text-gray-600">
-											Scheme: {workoutDetails.scheme}
-										</p>
-										<p className="text-xl">{workoutDetails.description}</p>
-									</div>
-								)}
-							</div>
+								teamId={teamId}
+								trackId={trackId}
+								trackWorkout={trackWorkout}
+								workoutDetails={workoutDetails}
+							/>
 						)
 					})}
 				</div>

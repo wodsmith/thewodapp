@@ -114,7 +114,7 @@ export default async function ProgrammingTrackPage({
 					</div>
 				</div>
 
-				<div className="bg-card border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary rounded-none p-6">
+				<div className="bg-card border-4 border-primary rounded-none p-6">
 					<Suspense
 						fallback={
 							<div className="font-mono">Loading programming tracks...</div>

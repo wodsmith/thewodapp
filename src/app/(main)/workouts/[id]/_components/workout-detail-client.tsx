@@ -1,5 +1,13 @@
 "use client"
 
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import type {
 	Movement,
 	ResultSet,
@@ -15,7 +23,9 @@ import {
 	ListChecks,
 	Tag as TagIcon,
 } from "lucide-react"
+import type { Route } from "next"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { SetDetails } from "./set-details"
 
@@ -35,6 +45,9 @@ export default function WorkoutDetailClient({
 	workoutId: string
 	resultsWithSets: WorkoutResultWithSets[] // Use the new type
 }) {
+	const searchParams = useSearchParams()
+	const redirectUrl = searchParams.get("redirectUrl")
+
 	if (!workout) return <div>Loading...</div>
 
 	const canEditWorkout = canEdit
@@ -45,12 +58,67 @@ export default function WorkoutDetailClient({
 		return new Date(timestamp).toLocaleDateString()
 	}
 
+	// Helper to parse breadcrumb items from redirect URL
+	const getBreadcrumbItems = () => {
+		if (!redirectUrl) return null
+
+		// Parse URL pattern: /admin/teams/{teamId}/programming/{trackId}
+		const urlMatch = redirectUrl.match(
+			/\/admin\/teams\/([^\/]+)\/programming\/([^\/]+)/,
+		)
+		if (urlMatch) {
+			const [, teamId, trackId] = urlMatch
+			return {
+				teamId,
+				trackId,
+				redirectUrl: redirectUrl as string,
+			}
+		}
+		return null
+	}
+
+	const breadcrumbData = getBreadcrumbItems()
+
 	return (
 		<div>
+			{breadcrumbData && (
+				<div className="mb-6">
+					<Breadcrumb>
+						<BreadcrumbList>
+							<BreadcrumbItem>
+								<BreadcrumbLink asChild>
+									<Link href="/admin">Admin</Link>
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbLink asChild>
+									<Link href={`/admin/teams/${breadcrumbData.teamId}`}>
+										Team
+									</Link>
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbLink asChild>
+									<Link href={breadcrumbData.redirectUrl as Route}>
+										Programming Track
+									</Link>
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbPage>{workout.name}</BreadcrumbPage>
+							</BreadcrumbItem>
+						</BreadcrumbList>
+					</Breadcrumb>
+				</div>
+			)}
+
 			<div className="mb-6 flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<Link
-						href="/workouts"
+						href={(breadcrumbData?.redirectUrl as Route) || "/workouts"}
 						className="btn-outline p-2 dark:border-dark-border dark:text-dark-foreground dark:hover:bg-dark-accent dark:hover:text-dark-accent-foreground"
 					>
 						<ArrowLeft className="h-5 w-5" />

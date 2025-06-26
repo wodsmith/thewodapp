@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button"
 import type { ProgrammingTrack } from "@/db/schema"
 import { Plus } from "lucide-react"
 import { startTransition, useOptimistic, useState } from "react"
-import { ProgrammingTrackCard } from "./programming-track-card"
 import { ProgrammingTrackCreateDialog } from "./programming-track-create-dialog"
+import { ProgrammingTrackRow } from "./programming-track-row"
 
 interface ProgrammingTrackDashboardProps {
 	teamId: string
@@ -22,16 +22,13 @@ export function ProgrammingTrackDashboard({
 		(
 			state,
 			action: {
-				type: "add" | "delete"
+				type: "add"
 				track?: ProgrammingTrack
-				trackId?: string
 			},
 		) => {
 			switch (action.type) {
 				case "add":
 					return action.track ? [...state, action.track] : state
-				case "delete":
-					return state.filter((track) => track.id !== action.trackId)
 				default:
 					return state
 			}
@@ -43,12 +40,6 @@ export function ProgrammingTrackDashboard({
 			setOptimisticTracks({ type: "add", track })
 		})
 		setIsCreateDialogOpen(false)
-	}
-
-	const handleTrackDeleted = (trackId: string) => {
-		startTransition(() => {
-			setOptimisticTracks({ type: "delete", trackId })
-		})
 	}
 
 	console.log(
@@ -79,7 +70,7 @@ export function ProgrammingTrackDashboard({
 				<ProgrammingTrackCreateDialog
 					teamId={teamId}
 					trigger={
-						<Button className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary hover:shadow-[4px_4px_0px_0px] transition-all font-mono">
+						<Button className="border-4 border-primary transition-all font-mono">
 							<Plus className="h-4 w-4 mr-2" />
 							Create Track
 						</Button>
@@ -97,21 +88,16 @@ export function ProgrammingTrackDashboard({
 					</p>
 					<Button
 						onClick={() => setIsCreateDialogOpen(true)}
-						className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary hover:shadow-[4px_4px_0px_0px] transition-all font-mono"
+						className="border-4 border-primary transition-all font-mono"
 					>
 						<Plus className="h-4 w-4 mr-2" />
 						Create your first track
 					</Button>
 				</div>
 			) : (
-				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+				<div className="space-y-4">
 					{optimisticTracks.map((track) => (
-						<ProgrammingTrackCard
-							key={track.id}
-							track={track}
-							teamId={teamId}
-							onDeletedAction={() => handleTrackDeleted(track.id)}
-						/>
+						<ProgrammingTrackRow key={track.id} track={track} teamId={teamId} />
 					))}
 				</div>
 			)}

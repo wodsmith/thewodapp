@@ -122,7 +122,7 @@ export function WorkoutSelectionList({
 				<Button
 					onClick={() => setIsCreateModalOpen(true)}
 					disabled={isAddingToTrack}
-					className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+					className="border-2 hover:border-primary transition-all font-mono rounded-none"
 				>
 					<Plus className="h-4 w-4 mr-2" />
 					Create Workout
@@ -144,7 +144,7 @@ export function WorkoutSelectionList({
 									<Button
 										onClick={() => setIsCreateModalOpen(true)}
 										disabled={isAddingToTrack}
-										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+										className="border-2 hover:border-primary border-transparent transition-all font-mono rounded-none"
 									>
 										<Plus className="h-4 w-4 mr-2" />
 										Create Workout
@@ -154,45 +154,38 @@ export function WorkoutSelectionList({
 						</CardContent>
 					</Card>
 				) : (
-					filteredWorkouts.map((workout) => (
-						<Card
-							key={workout.id}
-							className="cursor-pointer hover:bg-muted/50 border-2 border-primary rounded-none shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all"
-						>
-							<CardHeader className="pb-2">
-								<div className="flex justify-between items-start">
-									<div className="flex-1">
-										<CardTitle className="text-base font-mono tracking-tight">
-											{workout.name}
-										</CardTitle>
-										{workout.description && (
-											<p className="text-sm text-muted-foreground mt-1 font-mono">
-												{workout.description}
-											</p>
-										)}
-										<div className="flex gap-4 text-xs text-muted-foreground mt-2 font-mono">
-											<span>Scheme: {workout.scheme}</span>
-											<span>Scope: {workout.scope}</span>
-										</div>
-									</div>
-									<Button
-										onClick={() => onWorkoutSelectAction(workout)}
-										className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
-									>
-										Select
-									</Button>
+					<div className="space-y-1">
+						{filteredWorkouts.map((workout, index) => (
+							<div
+								key={workout.id}
+								className={`flex items-center justify-between p-2 border-2 hover:border-primary border-transparent shadow-primary transition-all cursor-pointer ${
+									index % 2 === 0 ? "bg-white/10" : ""
+								}`}
+							>
+								<div className="flex-1">
+									<p className="text-sm font-mono font-semibold truncate">
+										{workout.name}
+									</p>
+									{workout.description && (
+										<p className="text-xs text-muted-foreground font-mono truncate">
+											{workout.description}
+										</p>
+									)}
 								</div>
-							</CardHeader>
-							{workout.lastScheduledAt && (
-								<div className="px-4 py-2 border-t border-muted">
-									<p className="text-sm text-muted-foreground font-mono">
-										Last scheduled:{" "}
+								{workout.lastScheduledAt && (
+									<p className="text-xs text-muted-foreground font-mono ml-4">
 										{workout.lastScheduledAt.toLocaleDateString()}
 									</p>
-								</div>
-							)}
-						</Card>
-					))
+								)}
+								<Button
+									onClick={() => onWorkoutSelectAction(workout)}
+									className="ml-4 border-2 border-transparent hover:shadow-primary transition-all font-mono rounded-none"
+								>
+									Select
+								</Button>
+							</div>
+						))}
+					</div>
 				)}
 			</div>
 
