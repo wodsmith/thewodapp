@@ -50,7 +50,7 @@ jobs:
         run: pnpm run db:migrate:dev
 
       - name: Deploy
-        run: pnpm run deploy
+        run: pnpm run deploy:prod
         env:
           DATABASE_ID: ${{ env.D1_DATABASE_ID }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
