@@ -2,8 +2,10 @@
 
 import { Badge } from "@/components/ui/badge"
 import type { Workout } from "@/db/schema"
+import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/adapter/element"
 import { ChevronRight } from "lucide-react"
 import Link from "next/link"
+import { useEffect, useRef, useState } from "react"
 
 interface TrackWorkoutRowProps {
 	teamId: string
@@ -26,13 +28,35 @@ export function TrackWorkoutRow({
 	trackWorkout,
 	workoutDetails,
 }: TrackWorkoutRowProps) {
+	const [isDragging, setIsDragging] = useState(false)
+	const rowRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		if (rowRef.current) {
+			const cleanup = monitorForElements({
+				element: rowRef.current,
+				onDragStart: () => setIsDragging(true),
+				onDragEnd: () => setIsDragging(false),
+				data: { trackWorkoutId: trackWorkout.id },
+			})
+			return () => {
+				if (typeof cleanup === "function") {
+					cleanup()
+				}
+			}
+		}
+	}, [trackWorkout.id])
+
 	if (!workoutDetails) {
 		return null // Or a loading/placeholder state
 	}
+
 	return (
-		<Link
-			href={`/workouts/${workoutDetails.id}?redirectUrl=/admin/teams/${teamId}/programming/${trackId}`}
-			className="block bg-surface rounded-none border-4 hover:border-primary border-transparent transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary p-2"
+		<div
+			ref={rowRef}
+			className={`block bg-surface rounded-none border-4 hover:border-primary border-transparent transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary p-2 ${
+				isDragging ? "opacity-50" : ""
+			}`}
 		>
 			<div className="flex items-center justify-between gap-4">
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow items-center">
@@ -77,6 +101,6 @@ export function TrackWorkoutRow({
 					<ChevronRight className="h-6 w-6 text-primary" />
 				</div>
 			</div>
-		</Link>
+		</div>
 	)
 }

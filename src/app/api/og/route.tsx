@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 					<img
 						alt="spicy-wod"
 						height={40}
-						src="https://github.com/zacjones93/spicy-wod-3/blob/main/public/spicywod-logo-white.png?raw=true"
+						src="https://github.com/zacjones93/spicy-wod-3/blob/main/public/wodsmith-logo-1000.png?raw=true"
 						width={40}
 						tw="ml-10 mr-2"
 					/>

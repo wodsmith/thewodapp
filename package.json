@@ -40,6 +40,8 @@
 		"*.{ts,tsx}": ["pnpm type-check:changed"]
 	},
 	"dependencies": {
+		"@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
+		"@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.1",
 		"@fullcalendar/core": "^6.1.17",
 		"@fullcalendar/daygrid": "^6.1.17",
 		"@fullcalendar/interaction": "^6.1.17",

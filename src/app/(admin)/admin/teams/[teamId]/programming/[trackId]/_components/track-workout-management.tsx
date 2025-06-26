@@ -9,8 +9,17 @@ import type {
 	TrackWorkout,
 	Workout,
 } from "@/db/schema"
+import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator"
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/adapter/element"
+import type { DropEvent } from "@atlaskit/pragmatic-drag-and-drop/adapter/element"
 import { Plus } from "lucide-react"
-import { startTransition, useOptimistic, useState } from "react"
+import {
+	startTransition,
+	useEffect,
+	useOptimistic,
+	useRef,
+	useState,
+} from "react"
 import { toast } from "sonner"
 import {
 	addWorkoutToTrackAction,
@@ -62,7 +71,8 @@ export function TrackWorkoutManagement({
 						type: "update"
 						trackWorkoutId: string
 						updates: Partial<TrackWorkout>
-				  },
+				  }
+				| { type: "reorder"; sourceIndex: number; destinationIndex: number },
 		) => {
 			switch (action.type) {
 				case "add":
@@ -73,11 +83,51 @@ export function TrackWorkoutManagement({
 					return state.map((tw) =>
 						tw.id === action.trackWorkoutId ? { ...tw, ...action.updates } : tw,
 					)
+				case "reorder": {
+					const updatedWorkouts = [...state]
+					const [movedWorkout] = updatedWorkouts.splice(action.sourceIndex, 1)
+					updatedWorkouts.splice(action.destinationIndex, 0, movedWorkout)
+					return updatedWorkouts
+				}
 				default:
 					return state
 			}
 		},
 	)
+
+	const containerRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		if (containerRef.current) {
+			const cleanup = dropTargetForElements({
+				element: containerRef.current,
+				onDrop: (event: DropEvent) => {
+					const { source, destination } = event
+					if (source && destination) {
+						const sourceIndex = optimisticTrackWorkouts.findIndex(
+							(tw) => tw.id === source.data.trackWorkoutId,
+						)
+						const destinationIndex = optimisticTrackWorkouts.findIndex(
+							(tw) => tw.id === destination.data.trackWorkoutId,
+						)
+
+						if (sourceIndex !== -1 && destinationIndex !== -1) {
+							setOptimisticTrackWorkouts({
+								type: "reorder",
+								sourceIndex,
+								destinationIndex,
+							})
+						}
+					}
+				},
+			})
+			return () => {
+				if (typeof cleanup === "function") {
+					cleanup()
+				}
+			}
+		}
+	}, [optimisticTrackWorkouts, setOptimisticTrackWorkouts])
 
 	const handleAddWorkouts = async (workoutIds: string[]) => {
 		console.log(
@@ -230,22 +280,28 @@ export function TrackWorkoutManagement({
 				</Card>
 			) : (
 				<div className="space-y-4">
-					{optimisticTrackWorkouts
-						.sort((a, b) => b.dayNumber - a.dayNumber)
-						.map((trackWorkout) => {
-							const workoutDetails = userWorkouts.find(
-								(workout) => workout.id === trackWorkout.workoutId,
-							)
-							return (
-								<TrackWorkoutRow
-									key={trackWorkout.id}
-									teamId={teamId}
-									trackId={trackId}
-									trackWorkout={trackWorkout}
-									workoutDetails={workoutDetails}
-								/>
-							)
-						})}
+					<div ref={containerRef} className="track-workout-management">
+						{optimisticTrackWorkouts
+							.sort((a, b) => b.dayNumber - a.dayNumber)
+							.map((trackWorkout, index) => {
+								const workoutDetails = userWorkouts.find(
+									(workout) => workout.id === trackWorkout.workoutId,
+								)
+								return (
+									<div key={trackWorkout.id}>
+										<TrackWorkoutRow
+											teamId={teamId}
+											trackId={trackId}
+											trackWorkout={trackWorkout}
+											workoutDetails={workoutDetails}
+										/>
+										{index < optimisticTrackWorkouts.length - 1 && (
+											<DropIndicator />
+										)}
+									</div>
+								)
+							})}
+					</div>
 				</div>
 			)}
 
