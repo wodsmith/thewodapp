@@ -20,6 +20,7 @@ interface AddWorkoutToTrackDialogProps {
 	teamId: string
 	trackId: string
 	existingDays: number[]
+	existingWorkoutIds: string[]
 	userWorkouts: (Workout & {
 		tags: { id: string; name: string }[]
 		movements: { id: string; name: string }[]
@@ -37,6 +38,7 @@ export function AddWorkoutToTrackDialog({
 	teamId,
 	trackId,
 	existingDays,
+	existingWorkoutIds,
 	userWorkouts,
 	movements,
 	tags,
@@ -102,6 +104,7 @@ export function AddWorkoutToTrackDialog({
 					trackId={trackId}
 					onWorkoutToggleAction={handleWorkoutToggle}
 					selectedWorkoutIds={selectedWorkoutIds}
+					existingWorkoutIds={existingWorkoutIds}
 					userWorkouts={userWorkouts}
 					movements={movements}
 					tags={tags}
@@ -113,7 +116,7 @@ export function AddWorkoutToTrackDialog({
 					<Button
 						type="button"
 						onClick={onCloseAction}
-						className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-black text-primary hover:bg-surface rounded-none"
+						className="border-2 border-transparent hover:border-primary transition-all font-mono bg-black text-primary hover:bg-surface rounded-none"
 					>
 						Cancel
 					</Button>
@@ -121,7 +124,7 @@ export function AddWorkoutToTrackDialog({
 						type="button"
 						onClick={handleSubmit}
 						disabled={isSubmitting || selectedWorkoutIds.length === 0}
-						className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+						className="border-2 border-transparent hover:border-primary transition-all font-mono rounded-none"
 					>
 						{isSubmitting
 							? "Adding..."

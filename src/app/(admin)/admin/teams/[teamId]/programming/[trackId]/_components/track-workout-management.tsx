@@ -257,6 +257,7 @@ export function TrackWorkoutManagement({
 				teamId={teamId}
 				trackId={trackId}
 				existingDays={optimisticTrackWorkouts.map((tw) => tw.dayNumber)}
+				existingWorkoutIds={optimisticTrackWorkouts.map((tw) => tw.workoutId)}
 				userWorkouts={userWorkouts}
 				movements={movements}
 				tags={tags}
