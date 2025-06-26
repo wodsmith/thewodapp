@@ -9,13 +9,25 @@ import type {
 	TrackWorkout,
 	Workout,
 } from "@/db/schema"
-import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator"
-import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/adapter/element"
-import type { DropEvent } from "@atlaskit/pragmatic-drag-and-drop/adapter/element"
+import {
+	type Edge,
+	extractClosestEdge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
+import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index"
+import { DragHandleButton } from "@atlaskit/pragmatic-drag-and-drop-react-accessibility/drag-handle-button"
+import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
+import {
+	type ElementDropTargetEventBasePayload,
+	dropTargetForElements,
+	monitorForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder"
 import { Plus } from "lucide-react"
 import {
 	startTransition,
+	useCallback,
 	useEffect,
+	useMemo,
 	useOptimistic,
 	useRef,
 	useState,
@@ -28,6 +40,44 @@ import {
 } from "../../../_actions/programming-track-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
 import { TrackWorkoutRow } from "./track-workout-row"
+
+// Type definitions for drag and drop
+const trackWorkoutKey = Symbol("track-workout")
+type TrackWorkoutData = {
+	[trackWorkoutKey]: true
+	trackWorkout: TrackWorkout & {
+		isScheduled?: boolean
+		lastScheduledAt?: Date | null
+	}
+	index: number
+	instanceId: symbol
+}
+
+function getTrackWorkoutData({
+	trackWorkout,
+	index,
+	instanceId,
+}: {
+	trackWorkout: TrackWorkout & {
+		isScheduled?: boolean
+		lastScheduledAt?: Date | null
+	}
+	index: number
+	instanceId: symbol
+}): TrackWorkoutData {
+	return {
+		[trackWorkoutKey]: true,
+		trackWorkout,
+		index,
+		instanceId,
+	}
+}
+
+function isTrackWorkoutData(
+	data: Record<string | symbol, unknown>,
+): data is TrackWorkoutData {
+	return data[trackWorkoutKey] === true
+}
 
 interface TrackWorkoutManagementProps {
 	teamId: string
@@ -84,10 +134,11 @@ export function TrackWorkoutManagement({
 						tw.id === action.trackWorkoutId ? { ...tw, ...action.updates } : tw,
 					)
 				case "reorder": {
-					const updatedWorkouts = [...state]
-					const [movedWorkout] = updatedWorkouts.splice(action.sourceIndex, 1)
-					updatedWorkouts.splice(action.destinationIndex, 0, movedWorkout)
-					return updatedWorkouts
+					return reorder({
+						list: state,
+						startIndex: action.sourceIndex,
+						finishIndex: action.destinationIndex,
+					})
 				}
 				default:
 					return state
@@ -95,39 +146,81 @@ export function TrackWorkoutManagement({
 		},
 	)
 
-	const containerRef = useRef<HTMLDivElement>(null)
+	// Instance ID for isolating drag and drop
+	const [instanceId] = useState(() => Symbol("track-workout-instance"))
+
+	const reorderTrackWorkout = useCallback(
+		({
+			startIndex,
+			indexOfTarget,
+			closestEdgeOfTarget,
+		}: {
+			startIndex: number
+			indexOfTarget: number
+			closestEdgeOfTarget: Edge | null
+		}) => {
+			const finishIndex = getReorderDestinationIndex({
+				startIndex,
+				closestEdgeOfTarget,
+				indexOfTarget,
+				axis: "vertical",
+			})
+
+			if (finishIndex === startIndex) {
+				return
+			}
+
+			startTransition(() => {
+				setOptimisticTrackWorkouts({
+					type: "reorder",
+					sourceIndex: startIndex,
+					destinationIndex: finishIndex,
+				})
+			})
+		},
+		[setOptimisticTrackWorkouts],
+	)
 
 	useEffect(() => {
-		if (containerRef.current) {
-			const cleanup = dropTargetForElements({
-				element: containerRef.current,
-				onDrop: (event: DropEvent) => {
-					const { source, destination } = event
-					if (source && destination) {
-						const sourceIndex = optimisticTrackWorkouts.findIndex(
-							(tw) => tw.id === source.data.trackWorkoutId,
-						)
-						const destinationIndex = optimisticTrackWorkouts.findIndex(
-							(tw) => tw.id === destination.data.trackWorkoutId,
-						)
-
-						if (sourceIndex !== -1 && destinationIndex !== -1) {
-							setOptimisticTrackWorkouts({
-								type: "reorder",
-								sourceIndex,
-								destinationIndex,
-							})
-						}
-					}
-				},
-			})
-			return () => {
-				if (typeof cleanup === "function") {
-					cleanup()
+		return monitorForElements({
+			canMonitor({ source }) {
+				return (
+					isTrackWorkoutData(source.data) &&
+					source.data.instanceId === instanceId
+				)
+			},
+			onDrop({ location, source }) {
+				const target = location.current.dropTargets[0]
+				if (!target) {
+					return
 				}
-			}
-		}
-	}, [optimisticTrackWorkouts, setOptimisticTrackWorkouts])
+
+				const sourceData = source.data
+				const targetData = target.data
+				if (
+					!isTrackWorkoutData(sourceData) ||
+					!isTrackWorkoutData(targetData)
+				) {
+					return
+				}
+
+				const indexOfTarget = optimisticTrackWorkouts.findIndex(
+					(tw) => tw.id === targetData.trackWorkout.id,
+				)
+				if (indexOfTarget < 0) {
+					return
+				}
+
+				const closestEdgeOfTarget = extractClosestEdge(targetData)
+
+				reorderTrackWorkout({
+					startIndex: sourceData.index,
+					indexOfTarget,
+					closestEdgeOfTarget,
+				})
+			},
+		})
+	}, [instanceId, optimisticTrackWorkouts, reorderTrackWorkout])
 
 	const handleAddWorkouts = async (workoutIds: string[]) => {
 		console.log(
@@ -280,7 +373,7 @@ export function TrackWorkoutManagement({
 				</Card>
 			) : (
 				<div className="space-y-4">
-					<div ref={containerRef} className="track-workout-management">
+					<div className="track-workout-management">
 						{optimisticTrackWorkouts
 							.sort((a, b) => b.dayNumber - a.dayNumber)
 							.map((trackWorkout, index) => {
@@ -288,17 +381,15 @@ export function TrackWorkoutManagement({
 									(workout) => workout.id === trackWorkout.workoutId,
 								)
 								return (
-									<div key={trackWorkout.id}>
-										<TrackWorkoutRow
-											teamId={teamId}
-											trackId={trackId}
-											trackWorkout={trackWorkout}
-											workoutDetails={workoutDetails}
-										/>
-										{index < optimisticTrackWorkouts.length - 1 && (
-											<DropIndicator />
-										)}
-									</div>
+									<TrackWorkoutRow
+										key={trackWorkout.id}
+										teamId={teamId}
+										trackId={trackId}
+										trackWorkout={trackWorkout}
+										workoutDetails={workoutDetails}
+										index={index}
+										instanceId={instanceId}
+									/>
 								)
 							})}
 					</div>
