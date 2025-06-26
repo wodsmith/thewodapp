@@ -36,48 +36,12 @@ import { toast } from "sonner"
 import {
 	addWorkoutToTrackAction,
 	removeWorkoutFromTrackAction,
+	reorderTrackWorkoutsAction,
 	updateTrackWorkoutAction,
 } from "../../../_actions/programming-track-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
+import { isTrackWorkoutData } from "./drag-drop-types"
 import { TrackWorkoutRow } from "./track-workout-row"
-
-// Type definitions for drag and drop
-const trackWorkoutKey = Symbol("track-workout")
-type TrackWorkoutData = {
-	[trackWorkoutKey]: true
-	trackWorkout: TrackWorkout & {
-		isScheduled?: boolean
-		lastScheduledAt?: Date | null
-	}
-	index: number
-	instanceId: symbol
-}
-
-function getTrackWorkoutData({
-	trackWorkout,
-	index,
-	instanceId,
-}: {
-	trackWorkout: TrackWorkout & {
-		isScheduled?: boolean
-		lastScheduledAt?: Date | null
-	}
-	index: number
-	instanceId: symbol
-}): TrackWorkoutData {
-	return {
-		[trackWorkoutKey]: true,
-		trackWorkout,
-		index,
-		instanceId,
-	}
-}
-
-function isTrackWorkoutData(
-	data: Record<string | symbol, unknown>,
-): data is TrackWorkoutData {
-	return data[trackWorkoutKey] === true
-}
 
 interface TrackWorkoutManagementProps {
 	teamId: string
@@ -124,21 +88,61 @@ export function TrackWorkoutManagement({
 				  }
 				| { type: "reorder"; sourceIndex: number; destinationIndex: number },
 		) => {
+			console.log(
+				"DEBUG: [OptimisticState] Processing action:",
+				action.type,
+				action,
+			)
+
 			switch (action.type) {
 				case "add":
+					console.log(
+						"DEBUG: [OptimisticState] Adding workout:",
+						action.workout.id,
+					)
 					return [...state, { ...action.workout, isScheduled: false }]
 				case "remove":
+					console.log(
+						"DEBUG: [OptimisticState] Removing workout:",
+						action.trackWorkoutId,
+					)
 					return state.filter((tw) => tw.id !== action.trackWorkoutId)
 				case "update":
+					console.log(
+						"DEBUG: [OptimisticState] Updating workout:",
+						action.trackWorkoutId,
+						action.updates,
+					)
 					return state.map((tw) =>
 						tw.id === action.trackWorkoutId ? { ...tw, ...action.updates } : tw,
 					)
 				case "reorder": {
-					return reorder({
+					console.log("DEBUG: [OptimisticState] Reordering:", {
+						sourceIndex: action.sourceIndex,
+						destinationIndex: action.destinationIndex,
+						beforeReorder: state.map((tw, i) => ({
+							index: i,
+							id: tw.id,
+							dayNumber: tw.dayNumber,
+						})),
+					})
+
+					const reorderedState = reorder({
 						list: state,
 						startIndex: action.sourceIndex,
 						finishIndex: action.destinationIndex,
 					})
+
+					console.log(
+						"DEBUG: [OptimisticState] After reorder:",
+						reorderedState.map((tw, i) => ({
+							index: i,
+							id: tw.id,
+							dayNumber: tw.dayNumber,
+						})),
+					)
+
+					return reorderedState
 				}
 				default:
 					return state
@@ -149,8 +153,14 @@ export function TrackWorkoutManagement({
 	// Instance ID for isolating drag and drop
 	const [instanceId] = useState(() => Symbol("track-workout-instance"))
 
+	// Get the sorted list of workouts for consistent indexing
+	const sortedTrackWorkouts = useMemo(
+		() => optimisticTrackWorkouts.sort((a, b) => b.dayNumber - a.dayNumber),
+		[optimisticTrackWorkouts],
+	)
+
 	const reorderTrackWorkout = useCallback(
-		({
+		async ({
 			startIndex,
 			indexOfTarget,
 			closestEdgeOfTarget,
@@ -159,6 +169,17 @@ export function TrackWorkoutManagement({
 			indexOfTarget: number
 			closestEdgeOfTarget: Edge | null
 		}) => {
+			console.log("DEBUG: [Reorder] Starting reorder operation:", {
+				startIndex,
+				indexOfTarget,
+				closestEdgeOfTarget,
+				currentWorkouts: sortedTrackWorkouts.map((tw, i) => ({
+					index: i,
+					id: tw.id,
+					dayNumber: tw.dayNumber,
+				})),
+			})
+
 			const finishIndex = getReorderDestinationIndex({
 				startIndex,
 				closestEdgeOfTarget,
@@ -166,10 +187,15 @@ export function TrackWorkoutManagement({
 				axis: "vertical",
 			})
 
+			console.log("DEBUG: [Reorder] Calculated finish index:", finishIndex)
+
 			if (finishIndex === startIndex) {
+				console.log("DEBUG: [Reorder] No reorder needed - same position")
 				return
 			}
 
+			// Optimistic update first - use the sorted list for reordering
+			console.log("DEBUG: [Reorder] Applying optimistic update")
 			startTransition(() => {
 				setOptimisticTrackWorkouts({
 					type: "reorder",
@@ -177,50 +203,198 @@ export function TrackWorkoutManagement({
 					destinationIndex: finishIndex,
 				})
 			})
+
+			try {
+				// Calculate the new order using the sorted list
+				const reorderedList = reorder({
+					list: sortedTrackWorkouts,
+					startIndex,
+					finishIndex,
+				})
+
+				console.log(
+					"DEBUG: [Reorder] Reordered list:",
+					reorderedList.map((tw, i) => ({
+						index: i,
+						id: tw.id,
+						oldDayNumber: tw.dayNumber,
+						newDayNumber: reorderedList.length - i,
+					})),
+				)
+
+				// Create updates array with trackWorkoutId and new dayNumber
+				// Since we're sorting by dayNumber descending, we need to reverse the logic
+				const updates = reorderedList.map((trackWorkout, index) => ({
+					trackWorkoutId: trackWorkout.id,
+					dayNumber: reorderedList.length - index, // Reverse order for descending sort
+				}))
+
+				console.log("DEBUG: [Reorder] Prepared updates array:", updates)
+
+				// Validate each update object
+				const validUpdates = updates.filter((update) => {
+					const isValid =
+						update.trackWorkoutId &&
+						typeof update.trackWorkoutId === "string" &&
+						update.trackWorkoutId.length > 0 &&
+						typeof update.dayNumber === "number" &&
+						update.dayNumber >= 1
+
+					if (!isValid) {
+						console.error("DEBUG: [Reorder] Invalid update object:", update)
+					}
+
+					return isValid
+				})
+
+				console.log("DEBUG: [Reorder] Valid updates:", validUpdates)
+
+				if (validUpdates.length === 0) {
+					console.error("ERROR: [Reorder] No valid updates to process")
+					throw new Error("No valid updates to process")
+				}
+
+				console.log(
+					"DEBUG: [Reorder] Calling reorderTrackWorkoutsAction with:",
+					{ teamId, trackId, updates: validUpdates },
+				)
+
+				const [result, error] = await reorderTrackWorkoutsAction({
+					teamId,
+					trackId,
+					updates: validUpdates,
+				})
+
+				console.log("DEBUG: [Reorder] Action response:", { result, error })
+
+				if (error || !result?.success) {
+					console.error("ERROR: [Reorder] Action failed:", { error, result })
+					console.error("ERROR: [Reorder] Error details:", error)
+					throw new Error(error?.message || "Failed to reorder track workouts")
+				}
+
+				console.log(
+					`SUCCESS: [Reorder] Successfully reordered ${result.updateCount} track workouts`,
+				)
+			} catch (error) {
+				console.error(
+					"ERROR: [Reorder] Failed to reorder track workouts:",
+					error,
+				)
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "Failed to reorder track workouts",
+				)
+				// The optimistic update will be reverted automatically
+			}
 		},
-		[setOptimisticTrackWorkouts],
+		[setOptimisticTrackWorkouts, sortedTrackWorkouts, teamId, trackId],
 	)
 
 	useEffect(() => {
+		console.log(
+			"DEBUG: [DnD] Setting up drag and drop monitor with instanceId:",
+			instanceId,
+		)
+
 		return monitorForElements({
 			canMonitor({ source }) {
-				return (
-					isTrackWorkoutData(source.data) &&
-					source.data.instanceId === instanceId
+				console.log(
+					"DEBUG: [DnD] CanMonitor called with source.data:",
+					source.data,
 				)
+
+				// Simplified check - just check if any data exists
+				const hasData = source.data && typeof source.data === "object"
+				console.log("DEBUG: [DnD] Has data:", hasData)
+
+				if (hasData) {
+					// Check if it has the properties we expect
+					const hasTrackWorkoutId = "trackWorkoutId" in source.data
+					const hasIndex = "index" in source.data
+					const hasInstanceId = "instanceId" in source.data
+
+					console.log("DEBUG: [DnD] Data properties:", {
+						hasTrackWorkoutId,
+						hasIndex,
+						hasInstanceId,
+						sourceInstanceId: source.data.instanceId,
+						expectedInstanceId: instanceId,
+						instanceMatch: source.data.instanceId === instanceId,
+					})
+
+					return (
+						hasTrackWorkoutId &&
+						hasIndex &&
+						hasInstanceId &&
+						source.data.instanceId === instanceId
+					)
+				}
+
+				return false
+			},
+			onDragStart({ source }) {
+				console.log("DEBUG: [DnD] Drag started with data:", source.data)
 			},
 			onDrop({ location, source }) {
+				console.log("DEBUG: [DnD] Drop event triggered")
+
 				const target = location.current.dropTargets[0]
 				if (!target) {
+					console.log("DEBUG: [DnD] No target found for drop")
 					return
 				}
 
 				const sourceData = source.data
 				const targetData = target.data
+
+				console.log("DEBUG: [DnD] Drop data:", {
+					source: sourceData,
+					target: targetData,
+				})
+
+				// Check if both source and target have the required properties
 				if (
-					!isTrackWorkoutData(sourceData) ||
-					!isTrackWorkoutData(targetData)
+					!sourceData ||
+					!targetData ||
+					!("trackWorkoutId" in sourceData) ||
+					!("trackWorkoutId" in targetData) ||
+					!("index" in sourceData) ||
+					!("index" in targetData)
 				) {
+					console.log("DEBUG: [DnD] Invalid source or target data")
 					return
 				}
 
-				const indexOfTarget = optimisticTrackWorkouts.findIndex(
-					(tw) => tw.id === targetData.trackWorkout.id,
+				const indexOfTarget = sortedTrackWorkouts.findIndex(
+					(tw) => tw.id === targetData.trackWorkoutId,
 				)
 				if (indexOfTarget < 0) {
+					console.log("DEBUG: [DnD] Target index not found in sorted workouts")
 					return
 				}
 
 				const closestEdgeOfTarget = extractClosestEdge(targetData)
 
-				reorderTrackWorkout({
+				console.log("DEBUG: [DnD] Reorder parameters:", {
 					startIndex: sourceData.index,
 					indexOfTarget,
 					closestEdgeOfTarget,
+					sortedWorkoutsLength: sortedTrackWorkouts.length,
+				})
+
+				// Call the async reorderTrackWorkout function
+				reorderTrackWorkout({
+					startIndex: sourceData.index as number,
+					indexOfTarget,
+					closestEdgeOfTarget,
+				}).catch((error) => {
+					console.error("ERROR: [DnD] Error in drag and drop reorder:", error)
 				})
 			},
 		})
-	}, [instanceId, optimisticTrackWorkouts, reorderTrackWorkout])
+	}, [instanceId, sortedTrackWorkouts, reorderTrackWorkout])
 
 	const handleAddWorkouts = async (workoutIds: string[]) => {
 		console.log(
@@ -374,24 +548,22 @@ export function TrackWorkoutManagement({
 			) : (
 				<div className="space-y-4">
 					<div className="track-workout-management">
-						{optimisticTrackWorkouts
-							.sort((a, b) => b.dayNumber - a.dayNumber)
-							.map((trackWorkout, index) => {
-								const workoutDetails = userWorkouts.find(
-									(workout) => workout.id === trackWorkout.workoutId,
-								)
-								return (
-									<TrackWorkoutRow
-										key={trackWorkout.id}
-										teamId={teamId}
-										trackId={trackId}
-										trackWorkout={trackWorkout}
-										workoutDetails={workoutDetails}
-										index={index}
-										instanceId={instanceId}
-									/>
-								)
-							})}
+						{sortedTrackWorkouts.map((trackWorkout, index) => {
+							const workoutDetails = userWorkouts.find(
+								(workout) => workout.id === trackWorkout.workoutId,
+							)
+							return (
+								<TrackWorkoutRow
+									key={trackWorkout.id}
+									teamId={teamId}
+									trackId={trackId}
+									trackWorkout={trackWorkout}
+									workoutDetails={workoutDetails}
+									index={index}
+									instanceId={instanceId}
+								/>
+							)
+						})}
 					</div>
 				</div>
 			)}

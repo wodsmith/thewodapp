@@ -325,18 +325,35 @@ export const getTrackWorkoutsAction = createServerAction()
 export const reorderTrackWorkoutsAction = createServerAction()
 	.input(reorderTrackWorkoutsSchema)
 	.handler(async ({ input }) => {
+		console.log("DEBUG: [ReorderAction] Starting with input:", input)
 		const { teamId, trackId, updates } = input
 
 		try {
+			console.log(
+				"DEBUG: [ReorderAction] Checking permissions for teamId:",
+				teamId,
+			)
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+			console.log("DEBUG: [ReorderAction] Permission check passed")
 
+			console.log("DEBUG: [ReorderAction] Calling reorderTrackWorkouts with:", {
+				trackId,
+				updatesCount: updates.length,
+			})
 			// Perform the reorder operation
 			const updateCount = await reorderTrackWorkouts(trackId, updates)
+			console.log(
+				"DEBUG: [ReorderAction] Reorder completed with updateCount:",
+				updateCount,
+			)
 
 			console.log(
 				`INFO: [ProgrammingTracks] Successfully reordered ${updateCount} track workouts in transaction for track: ${trackId}`,
 			)
+
+			// Revalidate the track page to reflect the new order
+			revalidatePath(`/admin/teams/${teamId}/programming/${trackId}`)
 
 			return { success: true, updateCount }
 		} catch (error) {
@@ -344,6 +361,17 @@ export const reorderTrackWorkoutsAction = createServerAction()
 				`ERROR: [ProgrammingTracks] Failed to reorder track workouts for track: ${trackId}`,
 				error,
 			)
-			throw new Error("Failed to reorder track workouts.")
+			console.error("ERROR: [ReorderAction] Error details:", {
+				message: error instanceof Error ? error.message : "Unknown error",
+				stack: error instanceof Error ? error.stack : undefined,
+				error,
+			})
+
+			// Preserve the original error message when possible
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: "Failed to reorder track workouts"
+			throw new Error(`Failed to reorder track workouts: ${errorMessage}`)
 		}
 	})

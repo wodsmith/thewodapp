@@ -71,7 +71,7 @@ export const reorderTrackWorkoutsSchema = z.object({
 	updates: z
 		.array(
 			z.object({
-				workoutId: z.string().min(1, "Workout ID is required"),
+				trackWorkoutId: z.string().min(1, "Track Workout ID is required"),
 				dayNumber: z.number().int().min(1, "Day number must be at least 1"),
 			}),
 		)

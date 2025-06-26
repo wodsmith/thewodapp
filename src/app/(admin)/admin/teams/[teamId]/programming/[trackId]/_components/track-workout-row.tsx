@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import type { Workout } from "@/db/schema"
+import type { TrackWorkout } from "@/db/schema"
 import {
 	type Edge,
 	attachClosestEdge,
@@ -19,57 +20,14 @@ import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/eleme
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
 import { ChevronRight, GripVertical } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
-
-// Type definitions matching the parent component
-const trackWorkoutKey = Symbol("track-workout")
-type TrackWorkoutData = {
-	[trackWorkoutKey]: true
-	trackWorkout: {
-		id: string
-		dayNumber: number
-		isScheduled?: boolean
-		lastScheduled?: Date
-	}
-	index: number
-	instanceId: symbol
-}
-
-function getTrackWorkoutData({
-	trackWorkout,
-	index,
-	instanceId,
-}: {
-	trackWorkout: {
-		id: string
-		dayNumber: number
-		isScheduled?: boolean
-		lastScheduled?: Date
-	}
-	index: number
-	instanceId: symbol
-}): TrackWorkoutData {
-	return {
-		[trackWorkoutKey]: true,
-		trackWorkout,
-		index,
-		instanceId,
-	}
-}
-
-function isTrackWorkoutData(
-	data: Record<string | symbol, unknown>,
-): data is TrackWorkoutData {
-	return data[trackWorkoutKey] === true
-}
+import { getTrackWorkoutData, isTrackWorkoutData } from "./drag-drop-types"
 
 interface TrackWorkoutRowProps {
 	teamId: string
 	trackId: string
-	trackWorkout: {
-		id: string
-		dayNumber: number
+	trackWorkout: TrackWorkout & {
 		isScheduled?: boolean
-		lastScheduled?: Date
+		lastScheduledAt?: Date | null
 	}
 	workoutDetails?: Workout & {
 		tags: { id: string; name: string }[]
@@ -98,7 +56,15 @@ export function TrackWorkoutRow({
 		const dragHandle = dragHandleRef.current
 		if (!element || !dragHandle) return
 
-		const data = getTrackWorkoutData({ trackWorkout, index, instanceId })
+		// Simplified data structure
+		const simplifiedData = {
+			trackWorkoutId: trackWorkout.id,
+			index,
+			instanceId,
+			dayNumber: trackWorkout.dayNumber,
+		}
+
+		console.log("DEBUG: [Row] Creating simplified drag data:", simplifiedData)
 
 		function onChange({ source, self }: ElementDropTargetEventBasePayload) {
 			const isSource = source.element === dragHandle
@@ -130,7 +96,13 @@ export function TrackWorkoutRow({
 		return combine(
 			draggable({
 				element: dragHandle,
-				getInitialData: () => data,
+				getInitialData: () => {
+					console.log(
+						"DEBUG: [Row] getInitialData called for:",
+						trackWorkout.id,
+					)
+					return simplifiedData
+				},
 				onGenerateDragPreview({ nativeSetDragImage }) {
 					// Create a custom drag preview with the workout title
 					setCustomNativeDragPreview({
@@ -173,13 +145,16 @@ export function TrackWorkoutRow({
 			dropTargetForElements({
 				element,
 				canDrop({ source }) {
+					console.log("DEBUG: [Row] canDrop check:", source.data)
 					return (
-						isTrackWorkoutData(source.data) &&
+						source.data &&
+						"trackWorkoutId" in source.data &&
+						"instanceId" in source.data &&
 						source.data.instanceId === instanceId
 					)
 				},
 				getData({ input }) {
-					return attachClosestEdge(data, {
+					return attachClosestEdge(simplifiedData, {
 						element,
 						input,
 						allowedEdges: ["top", "bottom"],

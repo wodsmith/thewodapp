@@ -527,27 +527,104 @@ export async function updateTrackWorkout({
  * Reorder track workouts by updating their day numbers in bulk.
  *
  * @param trackId - The ID of the track containing the workouts.
- * @param updates - An array of objects containing workout IDs and their new day numbers.
+ * @param updates - An array of objects containing track workout IDs and their new day numbers.
  * @returns The number of updated records.
  */
 export async function reorderTrackWorkouts(
 	trackId: string,
-	updates: { workoutId: string; dayNumber: number }[],
+	updates: { trackWorkoutId: string; dayNumber: number }[],
 ): Promise<number> {
 	const db = getDB()
 
-	return await db.transaction(async (trx) => {
-		let updateCount = 0
+	console.log(
+		"DEBUG: [ReorderFunction] Starting with trackId:",
+		trackId,
+		"updates:",
+		updates,
+	)
 
-		for (const { workoutId, dayNumber } of updates) {
-			await trx
-				.update(trackWorkoutsTable)
-				.set({ dayNumber })
-				.where(eq(trackWorkoutsTable.id, workoutId))
+	try {
+		// First, validate all track workouts exist and belong to this track
+		const existingWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				dayNumber: trackWorkoutsTable.dayNumber,
+			})
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.trackId, trackId))
 
-			updateCount += 1 // Increment for each successful update
+		console.log(
+			"DEBUG: [ReorderFunction] Found existing workouts for track:",
+			existingWorkouts,
+		)
+
+		const trackWorkoutIds = existingWorkouts.map((w) => w.id)
+
+		// Validate all updates refer to valid track workouts
+		for (const { trackWorkoutId } of updates) {
+			if (!trackWorkoutIds.includes(trackWorkoutId)) {
+				console.error("ERROR: [ReorderFunction] Invalid track workout ID:", {
+					trackWorkoutId,
+					trackId,
+					validIds: trackWorkoutIds,
+				})
+				throw new Error(
+					`Track workout ${trackWorkoutId} does not belong to track ${trackId}`,
+				)
+			}
 		}
 
+		// Perform the updates without using a transaction for Cloudflare D1 compatibility
+		let updateCount = 0
+		for (const { trackWorkoutId, dayNumber } of updates) {
+			console.log("DEBUG: [ReorderFunction] Updating track workout:", {
+				trackWorkoutId,
+				dayNumber,
+			})
+
+			try {
+				const updateResult = await db
+					.update(trackWorkoutsTable)
+					.set({ dayNumber, updatedAt: new Date() })
+					.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+					.returning({
+						id: trackWorkoutsTable.id,
+						dayNumber: trackWorkoutsTable.dayNumber,
+					})
+
+				console.log("DEBUG: [ReorderFunction] Update successful:", updateResult)
+				updateCount += 1
+			} catch (updateError) {
+				console.error(
+					"ERROR: [ReorderFunction] Failed to update individual track workout:",
+					{
+						trackWorkoutId,
+						dayNumber,
+						error: updateError,
+					},
+				)
+				throw updateError
+			}
+		}
+
+		console.log(
+			"DEBUG: [ReorderFunction] All updates completed successfully, updateCount:",
+			updateCount,
+		)
 		return updateCount
-	})
+	} catch (error) {
+		console.error("ERROR: [ReorderFunction] Reorder operation failed:", error)
+		console.error("ERROR: [ReorderFunction] Full error details:", {
+			name: error instanceof Error ? error.name : "Unknown",
+			message: error instanceof Error ? error.message : "Unknown error",
+			stack: error instanceof Error ? error.stack : undefined,
+			trackId,
+			updatesCount: updates.length,
+			updates: updates.map((u) => ({
+				trackWorkoutId: u.trackWorkoutId,
+				dayNumber: u.dayNumber,
+			})),
+		})
+		throw error
+	}
 }
