@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { Movement, Tag, Workout } from "@/db/schema"
@@ -15,7 +16,9 @@ import { CreateWorkoutModal } from "./create-workout-modal"
 interface WorkoutSelectionListProps {
 	teamId: string
 	trackId: string
-	onWorkoutSelectAction: (workout: Workout) => void
+	onWorkoutSelectAction?: (workout: Workout) => void
+	onWorkoutToggleAction?: (workoutId: string) => void
+	selectedWorkoutIds?: string[]
 	userWorkouts: (Workout & {
 		tags: { id: string; name: string }[]
 		movements: { id: string; name: string }[]
@@ -24,16 +27,20 @@ interface WorkoutSelectionListProps {
 	movements: Movement[]
 	tags: Tag[]
 	userId: string
+	multiSelect?: boolean
 }
 
 export function WorkoutSelectionList({
 	teamId,
 	trackId,
 	onWorkoutSelectAction,
+	onWorkoutToggleAction,
+	selectedWorkoutIds = [],
 	userWorkouts,
 	movements,
 	tags,
 	userId,
+	multiSelect = false,
 }: WorkoutSelectionListProps) {
 	const [filteredWorkouts, setFilteredWorkouts] = useState(
 		userWorkouts.sort((a, b) => {
@@ -158,10 +165,21 @@ export function WorkoutSelectionList({
 						{filteredWorkouts.map((workout, index) => (
 							<div
 								key={workout.id}
-								className={`flex items-center justify-between p-2 border-2 hover:border-primary border-transparent shadow-primary transition-all cursor-pointer ${
+								className={`flex items-center justify-between p-2 border-2 hover:border-primary border-transparent shadow-primary transition-all ${
 									index % 2 === 0 ? "bg-white/10" : ""
+								} ${
+									multiSelect && selectedWorkoutIds.includes(workout.id)
+										? "border-primary bg-primary/10"
+										: ""
 								}`}
 							>
+								{multiSelect && (
+									<Checkbox
+										checked={selectedWorkoutIds.includes(workout.id)}
+										onCheckedChange={() => onWorkoutToggleAction?.(workout.id)}
+										className="mr-3"
+									/>
+								)}
 								<div className="flex-1">
 									<p className="text-sm font-mono font-semibold truncate">
 										{workout.name}
@@ -177,12 +195,14 @@ export function WorkoutSelectionList({
 										{workout.lastScheduledAt.toLocaleDateString()}
 									</p>
 								)}
-								<Button
-									onClick={() => onWorkoutSelectAction(workout)}
-									className="ml-4 border-2 border-transparent hover:shadow-primary transition-all font-mono rounded-none"
-								>
-									Select
-								</Button>
+								{!multiSelect && (
+									<Button
+										onClick={() => onWorkoutSelectAction?.(workout)}
+										className="ml-4 border-2 border-transparent hover:shadow-primary transition-all font-mono rounded-none"
+									>
+										Select
+									</Button>
+								)}
 							</div>
 						))}
 					</div>

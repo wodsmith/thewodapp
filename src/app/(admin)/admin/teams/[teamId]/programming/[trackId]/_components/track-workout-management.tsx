@@ -11,6 +11,7 @@ import type {
 } from "@/db/schema"
 import { Plus } from "lucide-react"
 import { startTransition, useOptimistic, useState } from "react"
+import { toast } from "sonner"
 import {
 	addWorkoutToTrackAction,
 	removeWorkoutFromTrackAction,
@@ -78,51 +79,73 @@ export function TrackWorkoutManagement({
 		},
 	)
 
-	const handleAddWorkout = async (data: {
-		workoutId: string
-		dayNumber: number
-		weekNumber?: number
-		notes?: string
-	}) => {
+	const handleAddWorkouts = async (workoutIds: string[]) => {
 		console.log(
-			"DEBUG: [UI] Adding workout to track with data:",
-			JSON.stringify(data),
+			"DEBUG: [UI] Adding workouts to track:",
+			JSON.stringify({ workoutIds, trackId }),
 		)
 
 		try {
-			// Optimistic update wrapped in startTransition
-			startTransition(() => {
-				const tempTrackWorkout: TrackWorkout = {
-					id: `temp_${Date.now()}`,
+			const startingDayNumber =
+				Math.max(...optimisticTrackWorkouts.map((tw) => tw.dayNumber), 0) + 1
+
+			// Add workouts sequentially with auto-incrementing day numbers
+			for (let i = 0; i < workoutIds.length; i++) {
+				const workoutId = workoutIds[i]
+				const dayNumber = startingDayNumber + i
+
+				// Optimistic update wrapped in startTransition
+				startTransition(() => {
+					const tempTrackWorkout: TrackWorkout = {
+						id: `temp_${Date.now()}_${i}`,
+						trackId,
+						workoutId,
+						dayNumber,
+						weekNumber: null,
+						notes: null,
+						updateCounter: null,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					}
+					setOptimisticTrackWorkouts({
+						type: "add",
+						workout: tempTrackWorkout,
+					})
+				})
+
+				const [result, error] = await addWorkoutToTrackAction({
+					teamId,
 					trackId,
-					workoutId: data.workoutId,
-					dayNumber: data.dayNumber,
-					weekNumber: data.weekNumber || null,
-					notes: data.notes || null,
-					updateCounter: null,
-					createdAt: new Date(),
-					updatedAt: new Date(),
+					workoutId,
+					dayNumber,
+				})
+
+				if (error || !result?.success) {
+					console.error("Failed to add workout to track:", error)
+					throw new Error(
+						error?.message || `Failed to add workout ${workoutId} to track`,
+					)
 				}
-				setOptimisticTrackWorkouts({ type: "add", workout: tempTrackWorkout })
-			})
 
-			const [result, error] = await addWorkoutToTrackAction({
-				teamId,
-				trackId,
-				workoutId: data.workoutId,
-				dayNumber: data.dayNumber,
-				weekNumber: data.weekNumber,
-				notes: data.notes,
-			})
-
-			if (error || !result?.success) {
-				throw new Error(error?.message || "Failed to add workout to track")
+				console.log(
+					`INFO: [UI] Successfully added workout ${workoutId} to track at day ${dayNumber}`,
+				)
 			}
 
+			// Close dialog after successful addition
 			setShowAddDialog(false)
+			toast.success(
+				`Successfully added ${workoutIds.length} workout${
+					workoutIds.length === 1 ? "" : "s"
+				} to track`,
+			)
 		} catch (error) {
-			console.error("Error adding workout to track:", error)
-			// The optimistic update will be reverted automatically
+			console.error("Failed to add workouts to track:", error)
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to add workouts to track",
+			)
 		}
 	}
 
@@ -180,7 +203,7 @@ export function TrackWorkoutManagement({
 				</div>
 				<Button
 					onClick={() => setShowAddDialog(true)}
-					className="border-4 border-primary shadow-[6px_6px_0px_0px] shadow-primary hover:shadow-[4px_4px_0px_0px] transition-all font-mono rounded-none"
+					className="border-4 border-transparent hover:border-primary transition-all font-mono rounded-none"
 				>
 					<Plus className="h-4 w-4 mr-2" />
 					Add Workout
@@ -207,20 +230,22 @@ export function TrackWorkoutManagement({
 				</Card>
 			) : (
 				<div className="space-y-4">
-					{optimisticTrackWorkouts.map((trackWorkout) => {
-						const workoutDetails = userWorkouts.find(
-							(workout) => workout.id === trackWorkout.workoutId,
-						)
-						return (
-							<TrackWorkoutRow
-								key={trackWorkout.id}
-								teamId={teamId}
-								trackId={trackId}
-								trackWorkout={trackWorkout}
-								workoutDetails={workoutDetails}
-							/>
-						)
-					})}
+					{optimisticTrackWorkouts
+						.sort((a, b) => b.dayNumber - a.dayNumber)
+						.map((trackWorkout) => {
+							const workoutDetails = userWorkouts.find(
+								(workout) => workout.id === trackWorkout.workoutId,
+							)
+							return (
+								<TrackWorkoutRow
+									key={trackWorkout.id}
+									teamId={teamId}
+									trackId={trackId}
+									trackWorkout={trackWorkout}
+									workoutDetails={workoutDetails}
+								/>
+							)
+						})}
 				</div>
 			)}
 
@@ -228,7 +253,7 @@ export function TrackWorkoutManagement({
 			<AddWorkoutToTrackDialog
 				open={showAddDialog}
 				onCloseAction={() => setShowAddDialog(false)}
-				onAddWorkoutAction={handleAddWorkout}
+				onAddWorkoutsAction={handleAddWorkouts}
 				teamId={teamId}
 				trackId={trackId}
 				existingDays={optimisticTrackWorkouts.map((tw) => tw.dayNumber)}

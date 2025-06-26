@@ -103,7 +103,7 @@ export function TrackWorkoutList({
 			{sortedWorkouts.map((workout) => (
 				<Card
 					key={workout.id}
-					className="relative border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary bg-surface rounded-none"
+					className="relative border-2 border-primary shadow-primary bg-surface rounded-none"
 				>
 					{editingWorkout === workout.id ? (
 						<CardContent className="pt-6">
@@ -178,14 +178,14 @@ export function TrackWorkoutList({
 							<div className="flex gap-2 mt-4">
 								<Button
 									onClick={() => handleSaveEdit(workout.id)}
-									className="border-2 border-green-500 shadow-[4px_4px_0px_0px] shadow-green-500 hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-green-500 text-white hover:bg-green-600 rounded-none"
+									className="border-2 border-transparent hover:border-green-500 transition-all font-mono bg-green-500 text-white hover:bg-green-600 rounded-none"
 								>
 									<Save className="h-4 w-4 mr-2" />
 									Save
 								</Button>
 								<Button
 									onClick={handleCancelEdit}
-									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
+									className="border-2 border-transparent hover:border-primary transition-all font-mono bg-white text-primary hover:bg-surface rounded-none"
 								>
 									<X className="h-4 w-4 mr-2" />
 									Cancel

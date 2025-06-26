@@ -10,6 +10,7 @@ interface TrackWorkoutRowProps {
 	trackId: string
 	trackWorkout: {
 		id: string
+		dayNumber: number
 		isScheduled?: boolean
 		lastScheduled?: Date
 	}
@@ -35,14 +36,21 @@ export function TrackWorkoutRow({
 		>
 			<div className="flex items-center justify-between gap-4">
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow items-center">
-					{/* Column 1: Name and Scheme */}
+					{/* Column 1: Day, Name and Scheme */}
 					<div className="md:col-span-1">
-						<h3 className="text-lg font-mono tracking-tight font-bold">
-							{workoutDetails.name}
-						</h3>
-						<p className="text-sm text-muted-foreground font-mono">
-							{workoutDetails.scheme}
-						</p>
+						<div className="flex flex-row gap-2 items-center">
+							<div className="flex items-center gap-3 mb-1 opacity-70">
+								<div className="text-primary px-2 py-1 text-xs font-mono font-bold">
+									{trackWorkout.dayNumber}
+								</div>
+							</div>
+							<h3 className="text-lg font-mono tracking-tight font-bold">
+								{workoutDetails.name}
+							</h3>
+							<p className="text-sm text-muted-foreground font-mono">
+								{workoutDetails.scheme}
+							</p>
+						</div>
 					</div>
 
 					{/* Column 2: Description */}
