@@ -65,6 +65,19 @@ export const getTrackWorkoutsSchema = z.object({
 	trackId: z.string().min(1, "Track ID is required"),
 })
 
+export const reorderTrackWorkoutsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+	updates: z
+		.array(
+			z.object({
+				workoutId: z.string().min(1, "Workout ID is required"),
+				dayNumber: z.number().int().min(1, "Day number must be at least 1"),
+			}),
+		)
+		.min(1, "At least one update is required"),
+})
+
 export type CreateProgrammingTrackInput = z.infer<
 	typeof createProgrammingTrackSchema
 >

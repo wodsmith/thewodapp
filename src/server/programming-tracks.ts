@@ -522,3 +522,32 @@ export async function updateTrackWorkout({
 	console.log(`INFO: [TrackWorkout] Updated track workout: ${trackWorkoutId}`)
 	return trackWorkout
 }
+
+/**
+ * Reorder track workouts by updating their day numbers in bulk.
+ *
+ * @param trackId - The ID of the track containing the workouts.
+ * @param updates - An array of objects containing workout IDs and their new day numbers.
+ * @returns The number of updated records.
+ */
+export async function reorderTrackWorkouts(
+	trackId: string,
+	updates: { workoutId: string; dayNumber: number }[],
+): Promise<number> {
+	const db = getDB()
+
+	return await db.transaction(async (trx) => {
+		let updateCount = 0
+
+		for (const { workoutId, dayNumber } of updates) {
+			await trx
+				.update(trackWorkoutsTable)
+				.set({ dayNumber })
+				.where(eq(trackWorkoutsTable.id, workoutId))
+
+			updateCount += 1 // Increment for each successful update
+		}
+
+		return updateCount
+	})
+}

@@ -8,6 +8,7 @@ import {
 	getTeamTracksSchema,
 	getTrackWorkoutsSchema,
 	removeWorkoutFromTrackSchema,
+	reorderTrackWorkoutsSchema,
 	updateProgrammingTrackSchema,
 	updateTrackWorkoutSchema,
 } from "@/schemas/programming-track.schema"
@@ -19,6 +20,7 @@ import {
 	getWorkoutsForTrack,
 	hasTrackAccess,
 	removeWorkoutFromTrack,
+	reorderTrackWorkouts,
 	updateProgrammingTrack,
 	updateTrackWorkout,
 } from "@/server/programming-tracks"
@@ -314,5 +316,34 @@ export const getTrackWorkoutsAction = createServerAction()
 				throw new Error(`Failed to get track workouts: ${error.message}`)
 			}
 			throw new Error("Failed to get track workouts")
+		}
+	})
+
+/**
+ * Reorder track workouts by updating their day numbers in bulk.
+ */
+export const reorderTrackWorkoutsAction = createServerAction()
+	.input(reorderTrackWorkoutsSchema)
+	.handler(async ({ input }) => {
+		const { teamId, trackId, updates } = input
+
+		try {
+			// Check permissions
+			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+
+			// Perform the reorder operation
+			const updateCount = await reorderTrackWorkouts(trackId, updates)
+
+			console.log(
+				`INFO: [ProgrammingTracks] Successfully reordered ${updateCount} track workouts in transaction for track: ${trackId}`,
+			)
+
+			return { success: true, updateCount }
+		} catch (error) {
+			console.error(
+				`ERROR: [ProgrammingTracks] Failed to reorder track workouts for track: ${trackId}`,
+				error,
+			)
+			throw new Error("Failed to reorder track workouts.")
 		}
 	})
