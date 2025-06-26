@@ -18,32 +18,21 @@ import {
 import Link from "next/link"
 import type * as React from "react"
 
-const SCHEME_MAP: Record<Workout["scheme"], React.ElementType> = {
-	time: ClockIcon,
-	points: FireIcon,
-	"time-with-cap": ClockIcon,
-	"pass-fail": BoltIcon,
-	"rounds-reps": ArrowPathIcon,
-	reps: ChartBarIcon,
-	emom: ClockIcon,
-	load: FireIcon,
-	calories: FireIcon,
-	meters: ChartBarIcon,
-	feet: ChartBarIcon,
-}
-
-const SCHEME_TO_LABEL: Record<Workout["scheme"], string> = {
-	time: "Time",
-	points: "Points",
-	"time-with-cap": "Time with Cap",
-	"pass-fail": "Pass/Fail",
-	"rounds-reps": "Rounds/Reps",
-	reps: "Reps",
-	emom: "EMOM",
-	load: "Load",
-	calories: "Calories",
-	meters: "Meters",
-	feet: "Feet",
+const SCHEME_CONFIG: Record<
+	Workout["scheme"],
+	{ icon: React.ElementType; label: string }
+> = {
+	time: { icon: ClockIcon, label: "Time" },
+	points: { icon: FireIcon, label: "Points" },
+	"time-with-cap": { icon: ClockIcon, label: "Time with Cap" },
+	"pass-fail": { icon: BoltIcon, label: "Pass/Fail" },
+	"rounds-reps": { icon: ArrowPathIcon, label: "Rounds/Reps" },
+	reps: { icon: ChartBarIcon, label: "Reps" },
+	emom: { icon: ClockIcon, label: "EMOM" },
+	load: { icon: FireIcon, label: "Load" },
+	calories: { icon: FireIcon, label: "Calories" },
+	meters: { icon: ChartBarIcon, label: "Meters" },
+	feet: { icon: ChartBarIcon, label: "Feet" },
 }
 
 function SchemeIcon({
@@ -53,14 +42,14 @@ function SchemeIcon({
 	scheme: Workout["scheme"]
 	className?: string
 }) {
-	const Icon = SCHEME_MAP[scheme]
+	const Icon = SCHEME_CONFIG[scheme].icon
 	return (
 		<HoverCard>
 			<HoverCardTrigger asChild>
 				<Icon className={cn("size-5", className)} />
 			</HoverCardTrigger>
 			<HoverCardContent className="w-full">
-				<p>{SCHEME_TO_LABEL[scheme]}</p>
+				<p>{SCHEME_CONFIG[scheme].label}</p>
 			</HoverCardContent>
 		</HoverCard>
 	)
@@ -99,7 +88,7 @@ export default function WorkoutRowCard({
 								<div className="flex items-center gap-1 mb-1">
 									<SchemeIcon scheme={workout.scheme} className="size-4" />{" "}
 									<span className="text-sm">
-										{SCHEME_TO_LABEL[workout.scheme]}
+										{SCHEME_CONFIG[workout.scheme].label}
 									</span>
 								</div>
 								<p className="whitespace-pre-wrap text-sm">
