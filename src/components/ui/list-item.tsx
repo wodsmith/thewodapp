@@ -64,7 +64,7 @@ export function ListItem({
 				className={cn(
 					"flex gap-4 px-4 py-2 transition-colors hover:bg-muted/50",
 					direction === "row"
-						? "flex-col sm:flex-row sm:items-center sm:justify-between"
+						? "flex-col sm:flex-row sm:items-center"
 						: "flex-col",
 					className,
 				)}
@@ -74,7 +74,7 @@ export function ListItem({
 					{content}
 				</div>
 
-				<div className="flex items-center gap-4">
+				<div className="flex justify-end gap-4">
 					{meta && (
 						<div
 							className={cn(
