@@ -23,5 +23,32 @@
 	"peacock.color": "#42b883",
 	"editor.defaultFormatter": "biomejs.biome",
 	"peacock.remoteColor": "#e83acb",
-	"editor.formatOnPaste": false
+	"editor.formatOnPaste": false,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 2,
+	"editor.detectIndentation": false,
+	"[typescript]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
+	},
+	"[typescriptreact]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
+	},
+	"[javascript]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
+	},
+	"[javascriptreact]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
+	},
+	"[json]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
+	},
+	"[jsonc]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 2
+	}
 }

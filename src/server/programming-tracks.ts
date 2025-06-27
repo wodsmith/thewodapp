@@ -168,13 +168,29 @@ export async function getWorkoutsForTrack(
 	(TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
 > {
 	const db = getDB()
-	const workouts = await db
-		.select()
+	const rows = await db
+		.select({
+			trackWorkout: trackWorkoutsTable,
+			workout: workouts,
+		})
 		.from(trackWorkoutsTable)
+		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
 
+	const trackWorkoutsWithWorkouts = rows.map((r) => ({
+		...r.trackWorkout,
+		workout: r.workout
+			? {
+					id: r.workout.id,
+					name: r.workout.name,
+					description: r.workout.description,
+					scheme: r.workout.scheme,
+				}
+			: undefined,
+	}))
+
 	if (!teamId) {
-		return workouts.map((w) => ({
+		return trackWorkoutsWithWorkouts.map((w) => ({
 			...w,
 			isScheduled: false,
 			lastScheduledAt: null,
@@ -202,7 +218,7 @@ export async function getWorkoutsForTrack(
 		}
 	}
 
-	const workoutsWithScheduledInfo = workouts.map((w) => ({
+	const workoutsWithScheduledInfo = trackWorkoutsWithWorkouts.map((w) => ({
 		...w,
 		isScheduled: scheduledDatesMap.has(w.id),
 		lastScheduledAt: scheduledDatesMap.get(w.id) ?? null,
@@ -423,8 +439,6 @@ export async function scheduleStandaloneWorkout({
 	workoutId,
 	scheduledDate,
 	teamSpecificNotes,
-	scalingGuidanceForDay,
-	classTimes,
 }: {
 	teamId: string
 	workoutId: string
