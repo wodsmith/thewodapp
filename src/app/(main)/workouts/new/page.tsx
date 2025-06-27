@@ -40,7 +40,7 @@ export default async function CreateWorkoutPage() {
 
 	if (!session?.user?.id) {
 		console.log("[log/page] No user found")
-		redirect("/login")
+		redirect("/sign-in")
 	}
 
 	// Get user's personal team ID

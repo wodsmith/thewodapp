@@ -30,7 +30,7 @@ export default async function CreateMovementPage() {
 
 	if (!session || !session?.user?.id) {
 		console.log("[movements/new/page] No user found")
-		redirect("/login")
+		redirect("/sign-in")
 	}
 
 	async function createMovementActionHandler(data: {
