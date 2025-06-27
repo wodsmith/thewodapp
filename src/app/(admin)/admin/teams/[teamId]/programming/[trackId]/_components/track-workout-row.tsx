@@ -107,8 +107,11 @@ export function TrackWorkoutRow({
 						}),
 						render({ container }) {
 							const preview = document.createElement("div")
+
+							// Apply theme-aware styling using CSS custom properties
+							// The preview element needs to be styled in a way that works with both themes
 							preview.style.cssText = `
-                background: white;
+                background: hsl(var(--surface));
                 border: 4px solid hsl(var(--primary));
                 border-radius: 0;
                 padding: 12px 16px;
@@ -121,7 +124,27 @@ export function TrackWorkoutRow({
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                position: relative;
+                z-index: 9999;
               `
+
+							// Copy the CSS custom properties from the document to the preview element
+							// This ensures the preview uses the correct theme colors
+							const computedStyle = getComputedStyle(document.documentElement)
+							const cssVars = [
+								"--surface",
+								"--primary",
+								"--foreground",
+								"--background",
+							]
+
+							for (const varName of cssVars) {
+								const value = computedStyle.getPropertyValue(varName)
+								if (value) {
+									preview.style.setProperty(varName, value)
+								}
+							}
+
 							preview.textContent = `Day ${trackWorkout.dayNumber}: ${
 								workoutDetails?.name || "Workout"
 							}`

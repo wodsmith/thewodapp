@@ -58,7 +58,7 @@ export function TrackVisibilitySelector({
 		<div className="flex items-center space-x-2">
 			<Badge
 				variant={isPublic ? "default" : "secondary"}
-				className="text-md font-mono dark:bg-white bg-black"
+				className="text-md font-mono "
 			>
 				{isPublic ? (
 					<>
