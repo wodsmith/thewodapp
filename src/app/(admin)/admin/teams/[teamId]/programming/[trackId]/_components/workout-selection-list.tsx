@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { Movement, Tag, Workout } from "@/db/schema"
 import { ChevronDown, ChevronRight, Plus, Search } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
@@ -49,6 +50,7 @@ export function WorkoutSelectionList({
 	userId,
 	multiSelect = false,
 }: WorkoutSelectionListProps) {
+	const router = useRouter()
 	const [searchTerm, setSearchTerm] = useState("")
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 	const [isAvailableWorkoutsOpen, setIsAvailableWorkoutsOpen] = useState(true)
@@ -119,7 +121,7 @@ export function WorkoutSelectionList({
 			setIsCreateModalOpen(false)
 
 			// Refresh the page to show the updated workout list
-			window.location.reload()
+			router.refresh()
 		} catch (error) {
 			console.error("Failed to add workout to track:", error)
 			toast.error("Workout created but failed to add to track")
