@@ -5,6 +5,16 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import type { CreateMovementActionInput } from "@/actions/movement-actions"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { MOVEMENT_TYPE_VALUES } from "@/db/schema"
 import type { Movement } from "@/types"
 
@@ -49,29 +59,25 @@ export default function CreateMovementForm({ createMovementAction }: Props) {
 		<div>
 			<div className="mb-6 flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<Link href="/movements" className="btn-outline p-2">
-						<ArrowLeft className="h-5 w-5" />
-					</Link>
+					<Button asChild variant="outline" size="icon">
+						<Link href="/movements">
+							<ArrowLeft className="h-5 w-5" />
+						</Link>
+					</Button>
 					<h1>CREATE MOVEMENT</h1>
 				</div>
 			</div>
 
 			<form
-				className="mx-auto max-w-md border-2 border-black p-6"
+				className="mx-auto max-w-md border-2 border-black p-6 dark:border-white"
 				onSubmit={handleSubmit}
 			>
 				<div className="space-y-6">
 					<div>
-						<label
-							htmlFor="movementName"
-							className="mb-2 block font-bold uppercase"
-						>
-							Movement Name
-						</label>
-						<input
+						<Label htmlFor="movementName">Movement Name</Label>
+						<Input
 							id="movementName"
 							type="text"
-							className="input"
 							placeholder="e.g., Back Squat, Thruster, Burpee"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
@@ -80,33 +86,29 @@ export default function CreateMovementForm({ createMovementAction }: Props) {
 					</div>
 
 					<div>
-						<label
-							htmlFor="movementType"
-							className="mb-2 block font-bold uppercase"
-						>
-							Movement Type
-						</label>
-						<select
-							id="movementType"
-							className="select"
+						<Label htmlFor="movementType">Movement Type</Label>
+						<Select
 							value={type}
-							onChange={(e) => setType(e.target.value as Movement["type"])}
-							required
+							onValueChange={(value) => setType(value as Movement["type"])}
 						>
-							<option value="">Select a type</option>
-							{MOVEMENT_TYPE_VALUES.map((movementType) => (
-								<option key={movementType} value={movementType}>
-									{movementType}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="movementType">
+								<SelectValue placeholder="Select a type" />
+							</SelectTrigger>
+							<SelectContent>
+								{MOVEMENT_TYPE_VALUES.map((movementType) => (
+									<SelectItem key={movementType} value={movementType}>
+										{movementType}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					{error && <p className="text-red-500">{error}</p>}
 
-					<button type="submit" className="btn w-full" disabled={isSubmitting}>
+					<Button type="submit" disabled={isSubmitting} className="w-full">
 						{isSubmitting ? "Creating..." : "Create Movement"}
-					</button>
+					</Button>
 				</div>
 			</form>
 		</div>

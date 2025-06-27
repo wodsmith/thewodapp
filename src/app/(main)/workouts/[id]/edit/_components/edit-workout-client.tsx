@@ -4,6 +4,17 @@ import { ArrowLeft, Plus, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -102,9 +113,11 @@ export default function EditWorkoutClient({
 		<div>
 			<div className="mb-6 flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<Link href={`/workouts/${workoutId}`} className="btn-outline p-2">
-						<ArrowLeft className="h-5 w-5" />
-					</Link>
+					<Button variant="outline" size="icon" asChild>
+						<Link href={`/workouts/${workoutId}`}>
+							<ArrowLeft className="h-5 w-5" />
+						</Link>
+					</Button>
 					<h1>EDIT WORKOUT</h1>
 				</div>
 			</div>
@@ -116,16 +129,10 @@ export default function EditWorkoutClient({
 				<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<div className="space-y-6">
 						<div>
-							<label
-								htmlFor="workout-name"
-								className="mb-2 block font-bold uppercase"
-							>
-								Workout Name
-							</label>
-							<input
+							<Label htmlFor="workout-name">Workout Name</Label>
+							<Input
 								id="workout-name"
 								type="text"
-								className="input"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
 								required
@@ -133,15 +140,9 @@ export default function EditWorkoutClient({
 						</div>
 
 						<div>
-							<label
-								htmlFor="workout-description"
-								className="mb-2 block font-bold uppercase"
-							>
-								Description
-							</label>
-							<textarea
+							<Label htmlFor="workout-description">Description</Label>
+							<Textarea
 								id="workout-description"
-								className="textarea"
 								rows={10}
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
@@ -150,64 +151,55 @@ export default function EditWorkoutClient({
 						</div>
 
 						<div>
-							<label
-								htmlFor="workout-scheme"
-								className="mb-2 block font-bold uppercase"
-							>
-								Scheme
-							</label>
-							<select
-								id="workout-scheme"
-								className="select"
+							<Label htmlFor="workout-scheme">Scheme</Label>
+							<Select
 								value={scheme}
-								onChange={(e) =>
-									setScheme(e.target.value as WorkoutUpdate["scheme"])
+								onValueChange={(value) =>
+									setScheme(value as WorkoutUpdate["scheme"])
 								}
-								required
 							>
-								<option value="">Select a scheme</option>
-								<option value="time">For Time</option>
-								<option value="time-with-cap">For Time (with cap)</option>
-								<option value="rounds-reps">AMRAP (Rounds + Reps)</option>
-								<option value="reps">Max Reps</option>
-								<option value="emom">EMOM</option>
-								<option value="load">Max Load</option>
-								<option value="calories">Calories</option>
-								<option value="meters">Meters</option>
-								<option value="pass-fail">Pass/Fail</option>
-							</select>
+								<SelectTrigger id="workout-scheme">
+									<SelectValue placeholder="Select a scheme" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="time">For Time</SelectItem>
+									<SelectItem value="time-with-cap">
+										For Time (with cap)
+									</SelectItem>
+									<SelectItem value="rounds-reps">
+										AMRAP (Rounds + Reps)
+									</SelectItem>
+									<SelectItem value="reps">Max Reps</SelectItem>
+									<SelectItem value="emom">EMOM</SelectItem>
+									<SelectItem value="load">Max Load</SelectItem>
+									<SelectItem value="calories">Calories</SelectItem>
+									<SelectItem value="meters">Meters</SelectItem>
+									<SelectItem value="pass-fail">Pass/Fail</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 
 						<div>
-							<label
-								htmlFor="workout-scope"
-								className="mb-2 block font-bold uppercase"
-							>
-								Scope
-							</label>
-							<select
-								id="workout-scope"
-								className="select"
+							<Label htmlFor="workout-scope">Scope</Label>
+							<Select
 								value={scope}
-								onChange={(e) => setScope(e.target.value as Workout["scope"])}
-								required
+								onValueChange={(value) => setScope(value as Workout["scope"])}
 							>
-								<option value="private">Private</option>
-								<option value="public">Public</option>
-							</select>
+								<SelectTrigger id="workout-scope">
+									<SelectValue placeholder="Select a scope" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="private">Private</SelectItem>
+									<SelectItem value="public">Public</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 
 						<div>
-							<label
-								htmlFor="reps-per-round"
-								className="mb-2 block font-bold uppercase"
-							>
-								Reps Per Round
-							</label>
-							<input
+							<Label htmlFor="reps-per-round">Reps Per Round</Label>
+							<Input
 								id="reps-per-round"
 								type="number"
-								className="input"
 								value={repsPerRound === undefined ? "" : repsPerRound}
 								onChange={(e) =>
 									setRepsPerRound(
@@ -220,16 +212,10 @@ export default function EditWorkoutClient({
 						</div>
 
 						<div>
-							<label
-								htmlFor="rounds-to-score"
-								className="mb-2 block font-bold uppercase"
-							>
-								Rounds to Score
-							</label>
-							<input
+							<Label htmlFor="rounds-to-score">Rounds to Score</Label>
+							<Input
 								id="rounds-to-score"
 								type="number"
-								className="input"
 								value={roundsToScore === undefined ? "" : roundsToScore}
 								onChange={(e) =>
 									setRoundsToScore(
@@ -242,17 +228,11 @@ export default function EditWorkoutClient({
 						</div>
 
 						<div>
-							<label
-								htmlFor="add-tag-input"
-								className="mb-2 block font-bold uppercase"
-							>
-								Tags
-							</label>
+							<Label htmlFor="add-tag-input">Tags</Label>
 							<div className="mb-2 flex gap-2">
-								<input
+								<Input
 									id="add-tag-input"
 									type="text"
-									className="input flex-1"
 									placeholder="Add a tag"
 									value={newTag}
 									onChange={(e) => setNewTag(e.target.value)}
@@ -263,79 +243,62 @@ export default function EditWorkoutClient({
 										}
 									}}
 								/>
-								<button type="button" className="btn" onClick={handleAddTag}>
+								<Button type="button" onClick={handleAddTag} size="icon">
 									<Plus className="h-5 w-5" />
-								</button>
+								</Button>
 							</div>
 
 							<div className="mt-2 flex flex-wrap gap-2">
 								{tags.map((tag) => (
-									<button
+									<Button
 										type="button"
 										key={tag.id}
-										className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 text-left ${
-											selectedTags.includes(tag.id) ? "bg-black text-white" : ""
-										}`}
+										variant={
+											selectedTags.includes(tag.id) ? "default" : "outline"
+										}
 										onClick={() => handleTagToggle(tag.id)}
-										tabIndex={0}
-										onKeyDown={(e) => {
-											if (e.key === "Enter" || e.key === " ")
-												handleTagToggle(tag.id)
-										}}
 									>
-										<span className="mr-2">{tag.name}</span>
+										{tag.name}
 										{selectedTags.includes(tag.id) && (
 											<button
 												type="button"
+												className="ml-2 text-red-500"
 												onClick={(e) => {
 													e.stopPropagation()
 													handleRemoveTag(tag.id)
 												}}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === " ") {
-														e.stopPropagation()
-														handleRemoveTag(tag.id)
-													}
-												}}
-												className="text-red-500 cursor-pointer"
 											>
 												<X className="h-4 w-4" />
 											</button>
 										)}
-									</button>
+									</Button>
 								))}
 							</div>
 						</div>
 					</div>
 
 					<div>
-						<label
-							htmlFor="movements-list"
-							className="mb-2 block font-bold uppercase"
-						>
-							Movements
-						</label>
+						<Label>Movements</Label>
 						<div
 							id="movements-list"
-							className="h-[500px] overflow-y-auto border-2 border-black p-4"
+							className="h-[500px] overflow-y-auto border-2 border-black p-4 dark:border-white"
 						>
 							<div className="space-y-2">
 								{movements.map((movement) => (
-									<button
+									<Button
 										type="button"
 										key={movement.id}
-										className={`w-full border-2 p-3 text-left ${
+										variant={
 											selectedMovements.includes(movement.id)
-												? "border-black bg-black text-white"
-												: "border-gray-300"
-										} cursor-pointer`}
+												? "default"
+												: "outline"
+										}
+										className="w-full justify-between"
 										onClick={() => handleMovementToggle(movement.id)}
 									>
-										<div className="flex items-center justify-between">
-											<span className="font-bold">{movement.name}</span>
-											<span className="text-xs uppercase">{movement.type}</span>
-										</div>
-									</button>
+										<span className="font-bold">{movement.name}</span>
+										<span className="text-xs uppercase">{movement.type}</span>
+									</Button>
 								))}
 							</div>
 						</div>
@@ -343,12 +306,10 @@ export default function EditWorkoutClient({
 				</div>
 
 				<div className="mt-6 flex justify-end gap-4">
-					<Link href={`/workouts/${workoutId}`} className="btn-outline">
-						Cancel
-					</Link>
-					<button type="submit" className="btn">
-						Save Changes
-					</button>
+					<Button asChild variant="outline">
+						<Link href={`/workouts/${workoutId}`}>Cancel</Link>
+					</Button>
+					<Button type="submit">Save Changes</Button>
 				</div>
 			</form>
 		</div>

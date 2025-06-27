@@ -2,7 +2,9 @@
 import Cookies from "js-cookie"
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs"
 import React, { Suspense, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 // Since we are not in a Next.js environment for this immersive,
 // we'll simulate Head by just letting the style tag be global.
@@ -220,7 +222,6 @@ const WarmupSet = ({
 							onPercentageChange(newPerc)
 						}
 					}}
-					className="w-16 border border-black bg-white p-1 text-sm dark:text-black"
 					min="0"
 					max="100"
 					step="1"
@@ -416,32 +417,21 @@ export default function BarbellCalculator() {
 					className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-3.5 border-3 border-black p-3.5 "
 				>
 					<div className="flex flex-col">
-						<label
-							htmlFor="weightInput"
-							className="mb-2 font-bold text-base text-black dark:text-black"
-						>
-							TARGET WEIGHT:
-						</label>
+						<Label htmlFor="weightInput">TARGET WEIGHT:</Label>
 						<Input
 							id="weightInput"
 							type="number"
 							value={inputWeight}
 							onChange={(e) => setInputWeight(e.target.value)}
-							className="box-border w-full rounded-none border-2 border-black bg-white p-2.5 text-lg dark:text-black"
 							required
 							min="0"
 						/>
 					</div>
 					<div className="flex flex-row gap-4">
 						<div className="flex h-full flex-col">
-							<label
-								htmlFor="units-lb"
-								className="mb-2 font-bold text-base text-black dark:text-black"
-							>
-								UNITS:
-							</label>
+							<Label htmlFor="units-lb">UNITS:</Label>
 							<div className="flex h-full items-center justify-center gap-2.5 rounded-none border-2 border-black bg-white p-2">
-								<label
+								<Label
 									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
 										units === "lb" ? "bg-black text-black dark:text-black" : ""
 									}`}
@@ -457,8 +447,8 @@ export default function BarbellCalculator() {
 										className="hidden"
 									/>
 									LB
-								</label>
-								<label
+								</Label>
+								<Label
 									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
 										units === "kg" ? "bg-black text-black" : ""
 									}`}
@@ -474,19 +464,14 @@ export default function BarbellCalculator() {
 										className="hidden"
 									/>
 									KG
-								</label>
+								</Label>
 							</div>
 						</div>
 
 						<div className="flex w-full flex-col">
-							<label
-								htmlFor="bar-45"
-								className="mb-2 font-bold text-base text-black dark:text-black"
-							>
-								BAR (LB):
-							</label>
+							<Label htmlFor="bar-45">BAR (LB):</Label>
 							<div className="flex gap-2.5 rounded-none border-2 border-black bg-white p-2">
-								<label
+								<Label
 									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
 										barWeightOption === 45 ? "bg-black text-black" : ""
 									}`}
@@ -502,8 +487,8 @@ export default function BarbellCalculator() {
 										className="hidden"
 									/>
 									45 lb
-								</label>
-								<label
+								</Label>
+								<Label
 									className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
 										barWeightOption === 35 ? "bg-black text-black" : ""
 									}`}
@@ -519,17 +504,12 @@ export default function BarbellCalculator() {
 										className="hidden"
 									/>
 									35 lb
-								</label>
+								</Label>
 							</div>
 						</div>
 					</div>
 
-					<button
-						type="submit"
-						className="col-span-full cursor-pointer rounded-none border-3 border-black bg-black px-3.5 py-2.5 text-center font-bold text-lg text-white shadow-[3px_3px_0px_#000] transition-all duration-100 ease-in-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_#000] dark:text-white"
-					>
-						Calculate
-					</button>
+					<Button type="submit">Calculate</Button>
 				</form>
 
 				<div className="mb-5 border-3 border-black p-3.5 text-center font-bold text-4xl text-black dark:text-black">
