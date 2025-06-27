@@ -28,21 +28,23 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 
 	const handleTeamSwitch = (teamId: string) => {
 		// Navigate to the same route but with the new team id
-		const currentPath = window.location.pathname
-		const pathSegments = currentPath.split("/")
+		const currentUrl = new URL(window.location.href)
+		const pathname = currentUrl.pathname
 
-		// Find the admin/teams/[teamId] part and replace the team id
-		const adminIndex = pathSegments.indexOf("admin")
-		const teamsIndex = pathSegments.indexOf("teams")
+		// Use regex to find and replace the team ID in the path
+		// This pattern matches /admin/teams/{teamId} and captures everything before and after
+		const teamPathRegex = /^(\/admin\/teams\/)([^\/]+)(.*)$/
+		const match = pathname.match(teamPathRegex)
 
-		if (
-			adminIndex !== -1 &&
-			teamsIndex !== -1 &&
-			pathSegments[teamsIndex + 1]
-		) {
-			pathSegments[teamsIndex + 1] = teamId
-			const newPath = pathSegments.join("/") as Route
+		if (match) {
+			// Reconstruct the path with the new team ID
+			const [, prefix, , suffix] = match
+			const newPath = `${prefix}${teamId}${suffix}` as Route
 			router.push(newPath)
+		} else {
+			// Fallback: if the current path doesn't match the expected pattern,
+			// navigate to the basic team admin page
+			router.push(`/admin/teams/${teamId}` as Route)
 		}
 	}
 
