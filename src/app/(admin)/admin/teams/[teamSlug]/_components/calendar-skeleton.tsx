@@ -73,7 +73,7 @@ export function CalendarSkeleton() {
 			<div className="border-4 border-border rounded-none">
 				{/* Days of week header */}
 				<div className="grid grid-cols-7 bg-muted border-b-4 border-border">
-					{["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day, i) => (
+					{["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
 						<div
 							key={day}
 							className="border-r-2 border-border last:border-r-0 p-3"

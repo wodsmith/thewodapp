@@ -1,4 +1,5 @@
 import "server-only"
+import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm"
 import { CREDIT_PACKAGES, FREE_MONTHLY_CREDITS } from "@/constants"
 import { getDB } from "@/db"
 import {
@@ -7,7 +8,6 @@ import {
 	purchasedItemsTable,
 	userTable,
 } from "@/db/schema"
-import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm"
 import { type KVSession, updateAllSessionsOfUser } from "./kv-session"
 
 export type CreditPackage = (typeof CREDIT_PACKAGES)[number]
@@ -198,7 +198,10 @@ export async function addFreeMonthlyCreditsIfNeeded(
 export async function hasEnoughCredits({
 	userId,
 	requiredCredits,
-}: { userId: string; requiredCredits: number }) {
+}: {
+	userId: string
+	requiredCredits: number
+}) {
 	const user = await getDB().query.userTable.findFirst({
 		where: eq(userTable.id, userId),
 		columns: {
@@ -214,7 +217,11 @@ export async function consumeCredits({
 	userId,
 	amount,
 	description,
-}: { userId: string; amount: number; description: string }) {
+}: {
+	userId: string
+	amount: number
+	description: string
+}) {
 	const db = getDB()
 
 	// First check if user has enough credits

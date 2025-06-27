@@ -1,5 +1,11 @@
 "use client"
 
+import { ScrollShadow } from "@heroui/react"
+import { Lock, LogOut, Smartphone, User, Users } from "lucide-react"
+import type { Route } from "next"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useRef } from "react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
 	Dialog,
@@ -14,12 +20,6 @@ import {
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import useSignOut from "@/hooks/useSignOut"
 import { cn } from "@/lib/utils"
-import { ScrollShadow } from "@heroui/react"
-import { Lock, LogOut, Smartphone, User, Users } from "lucide-react"
-import type { Route } from "next"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useRef } from "react"
 
 interface SidebarNavItem {
 	title: string

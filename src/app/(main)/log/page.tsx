@@ -1,12 +1,11 @@
-import { getLogsByUserAction } from "@/actions/log-actions"
-import { getSessionFromCookie } from "@/utils/auth"
+import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
+import { getLogsByUserAction } from "@/actions/log-actions"
+import { Button } from "@/components/ui/button"
+import { getSessionFromCookie } from "@/utils/auth"
 import LogCalendarClient from "./_components/log-calendar-client" // Import new calendar
 import { LogRowCard } from "./_components/log-row-card"
-
-import { Button } from "@/components/ui/button"
-import type { Metadata } from "next"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

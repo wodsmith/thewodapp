@@ -1,7 +1,7 @@
-import { getUserTeamsAction } from "@/actions/team-actions"
-import { getSessionFromCookie } from "@/utils/auth"
 import { redirect } from "next/navigation"
 import type { ReactNode } from "react"
+import { getUserTeamsAction } from "@/actions/team-actions"
+import { getSessionFromCookie } from "@/utils/auth"
 import { TeamsClient } from "../_components/teams"
 
 interface TeamsLayoutProps {

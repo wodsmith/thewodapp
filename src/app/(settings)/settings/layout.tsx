@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation"
 import MainNav from "@/components/nav/main-nav"
 import { getSessionFromCookie } from "@/utils/auth"
-import { redirect } from "next/navigation"
 import { SettingsBreadcrumbs } from "./settings-breadcrumbs"
 import { SettingsSidebar } from "./settings-sidebar"
 

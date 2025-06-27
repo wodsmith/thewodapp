@@ -1,9 +1,9 @@
-import { createMovementAction } from "@/actions/movement-actions"
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import CreateMovementForm from "./_components/create-movement-form"
+import { createMovementAction } from "@/actions/movement-actions"
 
 import { getSessionFromCookie } from "@/utils/auth"
-import type { Metadata } from "next"
+import CreateMovementForm from "./_components/create-movement-form"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

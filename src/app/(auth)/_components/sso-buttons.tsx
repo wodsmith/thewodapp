@@ -1,8 +1,8 @@
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import Google from "@/icons/google"
 import { useConfigStore } from "@/state/config"
-import Link from "next/link"
 
 export default function SSOButtons({
 	isSignIn = false,

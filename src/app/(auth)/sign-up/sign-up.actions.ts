@@ -1,5 +1,9 @@
 "use server"
 
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { createId } from "@paralleldrive/cuid2"
+import { eq } from "drizzle-orm"
+import { createServerAction, ZSAError } from "zsa"
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDB } from "@/db"
 import { userTable } from "@/db/schema"
@@ -17,10 +21,6 @@ import { getIP } from "@/utils/get-IP"
 import { hashPassword } from "@/utils/password-hasher"
 import { validateTurnstileToken } from "@/utils/validate-captcha"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { createId } from "@paralleldrive/cuid2"
-import { eq } from "drizzle-orm"
-import { ZSAError, createServerAction } from "zsa"
 
 export const signUpAction = createServerAction()
 	.input(signUpSchema)

@@ -1,5 +1,7 @@
 "use server"
 
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import {
 	createTeam,
 	deleteTeam,
@@ -8,8 +10,6 @@ import {
 	getUserTeams,
 	updateTeam,
 } from "@/server/teams"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 // Update team schema
 const updateTeamSchema = z.object({

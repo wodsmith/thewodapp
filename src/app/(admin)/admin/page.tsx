@@ -1,8 +1,7 @@
-import { PageHeader } from "@/components/page-header"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { PageHeader } from "@/components/page-header"
 import { AdminStats } from "./_components/admin-stats"
-import { UsersTable } from "./_components/users/users-table"
 
 export const metadata: Metadata = {
 	title: "User Management",

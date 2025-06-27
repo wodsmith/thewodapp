@@ -6,6 +6,7 @@ import { headers } from "next/headers"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
 import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
 import { getIP } from "./get-IP"
+
 const SESSION_PREFIX = "session:"
 
 export function getSessionKey(userId: string, sessionId: string): string {

@@ -1,8 +1,8 @@
 import "server-only"
+import { ZSAError } from "zsa"
 import { getDB } from "@/db"
 import { tags } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { ZSAError } from "zsa"
 
 /**
  * Get all tags available in the system

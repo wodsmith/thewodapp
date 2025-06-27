@@ -1,5 +1,12 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import type * as z from "zod"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -21,13 +28,6 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { userSettingsSchema } from "@/schemas/settings.schema"
 import { useSessionStore } from "@/state/session"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { toast } from "sonner"
-import type * as z from "zod"
-import { useServerAction } from "zsa-react"
 import { updateUserProfileAction } from "./settings.actions"
 
 export function SettingsForm() {

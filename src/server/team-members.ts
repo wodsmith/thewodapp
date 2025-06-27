@@ -1,23 +1,22 @@
 import "server-only"
+import { createId } from "@paralleldrive/cuid2"
+import { and, count, eq, isNull } from "drizzle-orm"
+import { ZSAError } from "zsa"
 import { MAX_TEAMS_JOINED_PER_USER } from "@/constants"
 import { getDB } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
+	TEAM_PERMISSIONS,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamRoleTable,
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { TEAM_PERMISSIONS } from "@/db/schema"
-import { getSessionFromCookie } from "@/utils/auth"
-import { canSignUp } from "@/utils/auth"
+import { canSignUp, getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, isNull } from "drizzle-orm"
-import { ZSAError } from "zsa"
 
 /**
  * Get all members of a team

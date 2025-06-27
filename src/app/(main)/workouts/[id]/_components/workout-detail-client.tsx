@@ -1,12 +1,5 @@
 "use client"
 
-import type {
-	Movement,
-	ResultSet,
-	Tag,
-	WorkoutResult,
-	WorkoutWithTagsAndMovements,
-} from "@/types"
 import {
 	ArrowLeft,
 	Clock,
@@ -17,6 +10,11 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { Suspense } from "react"
+import type {
+	ResultSet,
+	WorkoutResult,
+	WorkoutWithTagsAndMovements,
+} from "@/types"
 import { SetDetails } from "./set-details"
 
 // Define a new type for results with their sets
@@ -62,10 +60,8 @@ export default function WorkoutDetailClient({
 						href={`/workouts/${workoutId}/edit`}
 						className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
 					>
-						<>
-							<Edit className="h-5 w-5" />
-							Edit Workout
-						</>
+						<Edit className="h-5 w-5" />
+						Edit Workout
 					</Link>
 				)}
 			</div>

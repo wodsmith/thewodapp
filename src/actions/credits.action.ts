@@ -1,5 +1,6 @@
 "use server"
 
+import ms from "ms"
 import {
 	CREDITS_EXPIRATION_YEARS,
 	MAX_TRANSACTIONS_PER_PAGE,
@@ -14,7 +15,6 @@ import {
 	updateUserCredits,
 } from "@/utils/credits"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import ms from "ms"
 
 // Action types
 type GetTransactionsInput = {

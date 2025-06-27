@@ -1,5 +1,6 @@
 "use client"
 
+import { useSelectedLayoutSegment } from "next/navigation"
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -9,7 +10,6 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { capitalize } from "@/utils/text"
-import { useSelectedLayoutSegment } from "next/navigation"
 
 export function SettingsBreadcrumbs() {
 	const segment = useSelectedLayoutSegment()

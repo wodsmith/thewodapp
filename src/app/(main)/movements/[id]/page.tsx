@@ -1,3 +1,5 @@
+import type { Metadata } from "next"
+import { notFound, redirect } from "next/navigation"
 import {
 	getMovementByIdAction,
 	getWorkoutsByMovementIdAction,
@@ -5,8 +7,6 @@ import {
 import { getWorkoutResultsByWorkoutAndUserAction } from "@/actions/workout-actions"
 import type { WorkoutResult } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
-import type { Metadata } from "next"
-import { notFound, redirect } from "next/navigation"
 import MovementDetailClient from "./_components/movement-detail-client"
 
 export const dynamic = "force-dynamic"

@@ -1,3 +1,4 @@
+import React from "react"
 import {
 	Breadcrumb,
 	BreadcrumbItem as BreadcrumbItemComponent,
@@ -7,7 +8,6 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import React from "react"
 
 interface BreadcrumbItem {
 	href: string

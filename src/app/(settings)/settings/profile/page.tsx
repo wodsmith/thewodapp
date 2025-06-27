@@ -1,8 +1,8 @@
+import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getSessionFromCookie } from "@/utils/auth"
-import { redirect } from "next/navigation"
-import { Suspense } from "react"
 import { SettingsForm } from "../settings-form"
 
 function SettingsFormSkeleton() {

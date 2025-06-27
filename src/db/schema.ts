@@ -1,5 +1,6 @@
-import { relations, sql } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
 import type { InferSelectModel } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
 	index,
 	integer,
@@ -7,9 +8,7 @@ import {
 	sqliteTable,
 	text,
 } from "drizzle-orm/sqlite-core"
-
 import type { Prettify } from "@/lib/utils"
-import { createId } from "@paralleldrive/cuid2"
 
 export const ROLES_ENUM = {
 	ADMIN: "admin",

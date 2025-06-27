@@ -1,5 +1,8 @@
 "use server"
 
+import { UAParser } from "ua-parser-js"
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import type { SessionWithMeta } from "@/types"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
@@ -8,9 +11,6 @@ import {
 	getKVSession,
 } from "@/utils/kv-session"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { UAParser } from "ua-parser-js"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 function isValidSession(session: unknown): session is SessionWithMeta {
 	if (!session || typeof session !== "object") return false

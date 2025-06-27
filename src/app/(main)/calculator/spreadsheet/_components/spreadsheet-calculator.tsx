@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input" // Assuming Input component is available
 import {
@@ -11,7 +12,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { useState } from "react"
 
 export default function SpreadsheetCalculator() {
 	const [oneRepMax, setOneRepMax] = useState<number | string>("")

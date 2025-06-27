@@ -1,7 +1,7 @@
 import "server-only"
 
-import { SITE_URL } from "@/constants"
 import { Google } from "arctic"
+import { SITE_URL } from "@/constants"
 
 export const getGoogleSSOClient = () => {
 	return new Google(

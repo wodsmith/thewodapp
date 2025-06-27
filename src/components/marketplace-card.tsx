@@ -12,7 +12,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import type { PURCHASABLE_ITEM_TYPE } from "@/db/schema"
-import * as React from "react"
 
 interface MarketplaceCardProps {
 	id: string

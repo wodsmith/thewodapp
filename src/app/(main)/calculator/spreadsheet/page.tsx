@@ -1,7 +1,6 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import SpreadsheetCalculator from "./_components/spreadsheet-calculator"
-
-import type { Metadata } from "next"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

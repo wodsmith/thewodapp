@@ -1,5 +1,9 @@
 "use client"
 
+import { Coins, Sparkles, Zap } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 import { createPaymentIntent } from "@/actions/credits.action"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,11 +19,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { CREDIT_PACKAGES, FREE_MONTHLY_CREDITS } from "@/constants"
 import { useSessionStore } from "@/state/session"
 import { useTransactionStore } from "@/state/transaction"
-import { Coins, Sparkles, Zap } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { toast } from "sonner"
 import { StripePaymentForm } from "./stripe-payment-form"
+
 type CreditPackage = (typeof CREDIT_PACKAGES)[number]
 
 export const getPackageIcon = (index: number) => {

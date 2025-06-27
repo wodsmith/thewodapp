@@ -1,14 +1,10 @@
 import MainNav from "@/components/nav/main-nav"
-import { requireAdminForTeam } from "@/utils/auth"
-import { redirect } from "next/navigation"
 import { AdminSidebar } from "./_components/admin-sidebar"
 
 export default async function AdminLayout({
 	children,
-	params,
 }: {
 	children: React.ReactNode
-	params: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
 	return (
 		<div className="sm:h-screen">

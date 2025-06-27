@@ -1,3 +1,7 @@
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import { Dumbbell, Menu, User } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -7,10 +11,6 @@ import {
 	SheetTrigger,
 } from "@/components/ui/sheet"
 import type { SessionValidationResult } from "@/types"
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
-import { Dumbbell, Menu, User } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
 interface MobileNavProps {

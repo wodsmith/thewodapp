@@ -1,4 +1,7 @@
 import "server-only"
+import { createId } from "@paralleldrive/cuid2"
+import { and, count, eq, not } from "drizzle-orm"
+import { ZSAError } from "zsa"
 import {
 	MAX_TEAMS_CREATED_PER_USER,
 	MAX_TEAMS_JOINED_PER_USER,
@@ -15,9 +18,6 @@ import { requireVerifiedEmail } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, not } from "drizzle-orm"
-import { ZSAError } from "zsa"
 
 /**
  * Create a new team with the current user as owner

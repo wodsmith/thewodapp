@@ -1,21 +1,21 @@
 "use client"
 
-import type { getConfig } from "@/flags"
-import { useConfigStore } from "@/state/config"
-import { useSessionStore } from "@/state/session"
-import type { SessionValidationResult } from "@/types"
 import { HeroUIProvider } from "@heroui/react"
-import { ThemeProvider as NextThemesProvider } from "next-themes"
 import {
 	useParams,
 	usePathname,
 	useRouter,
 	useSearchParams,
 } from "next/navigation"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { useTopLoader } from "nextjs-toploader"
 import type * as React from "react"
 import { type RefObject, Suspense, useCallback, useEffect, useRef } from "react"
 import { useDebounceCallback, useEventListener } from "usehooks-ts"
+import type { getConfig } from "@/flags"
+import { useConfigStore } from "@/state/config"
+import { useSessionStore } from "@/state/session"
+import type { SessionValidationResult } from "@/types"
 import { EmailVerificationDialog } from "./email-verification-dialog"
 
 function RouterChecker() {
@@ -39,20 +39,15 @@ function RouterChecker() {
 
 		// Monkey patch: https://github.com/vercel/next.js/discussions/42016#discussioncomment-9027313
 		router.refresh = () => {
-			// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 			start()
-			// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 			fetchSession?.()
-			// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 			_refresh()
 		}
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 	}, [])
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: its fine for now
 	useEffect(() => {
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 		done()
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 		fetchSession?.()
 	}, [pathname, searchParams, params])
 
@@ -115,7 +110,7 @@ export function ThemeProvider({
 		() => {
 			fetchSession()
 		},
-    // @ts-expect-error window is not defined in the server
+		// @ts-expect-error window is not defined in the server
 		windowRef,
 	)
 

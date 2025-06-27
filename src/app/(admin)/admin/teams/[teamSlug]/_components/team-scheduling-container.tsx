@@ -1,6 +1,5 @@
 "use client"
 
-import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import type {
 	DateSelectArg,
 	EventClickArg,
@@ -9,6 +8,7 @@ import type {
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
+import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import { getScheduledWorkoutsAction } from "../_actions/scheduling-actions"
 import { CalendarSkeleton } from "./calendar-skeleton"
 import { TeamSchedulingCalendar } from "./team-scheduling-calendar"
@@ -111,9 +111,6 @@ export function TeamSchedulingContainer({
 	}
 
 	const handleEventDrop = async (dropInfo: EventDropArg) => {
-		const { event } = dropInfo
-		const newDate = event.start
-
 		// For now, just revert the drop since we need to implement the reschedule logic
 		dropInfo.revert()
 		toast.info(
@@ -133,7 +130,6 @@ export function TeamSchedulingContainer({
 				<CalendarSkeleton />
 			) : (
 				<TeamSchedulingCalendar
-					teamId={teamId}
 					events={events}
 					onDateSelect={handleDateSelect}
 					onEventClick={handleEventClick}

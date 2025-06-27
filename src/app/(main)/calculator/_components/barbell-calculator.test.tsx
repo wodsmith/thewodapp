@@ -2,8 +2,7 @@ import "@testing-library/jest-dom"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import Cookies from "js-cookie"
 import * as nuqs from "nuqs"
-import React from "react"
-import { type Mock, beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest"
 import BarbellCalculator from "./barbell-calculator"
 
 // Helper constant from the component, ideally this would be exported or part of a shared config

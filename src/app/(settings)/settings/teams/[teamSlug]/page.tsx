@@ -1,3 +1,7 @@
+import { Alert } from "@heroui/react"
+import { eq } from "drizzle-orm"
+import Link from "next/link"
+import { notFound, redirect } from "next/navigation"
 import { InviteMemberModal } from "@/components/teams/invite-member-modal"
 import { RemoveMemberButton } from "@/components/teams/remove-member-button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,16 +15,11 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import { getDB } from "@/db"
-import { teamTable } from "@/db/schema"
-import { TEAM_PERMISSIONS } from "@/db/schema"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { formatDate } from "@/utils/format-date"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
-import { Alert } from "@heroui/react"
-import { eq } from "drizzle-orm"
-import Link from "next/link"
-import { notFound, redirect } from "next/navigation"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
 
@@ -134,7 +133,7 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 
 						{team.avatarUrl ? (
 							<div className="h-16 w-16 border-2 border-primary overflow-hidden shadow-[2px_2px_0px_0px] shadow-primary">
-								{/* eslint-disable-next-line @next/next/no-img-element */}
+								{/** biome-ignore lint/performance/noImgElement: its fine for now */}
 								<img
 									src={team.avatarUrl || ""}
 									alt={`${team.name} avatar`}

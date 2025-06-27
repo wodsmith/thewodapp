@@ -7,7 +7,7 @@ import {
 	CreditCard,
 	LogOut,
 } from "lucide-react"
-
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -28,7 +28,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import useSignOut from "@/hooks/useSignOut"
 import { useSessionStore } from "@/state/session"
-import { useRouter } from "next/navigation"
 import ThemeSwitch from "./theme-switch"
 
 export function NavUser() {

@@ -1,16 +1,13 @@
 "use client"
 
-import {
-	type PasskeyEmailSchema,
-	passkeyEmailSchema,
-} from "@/schemas/passkey.schema"
-import { type SignUpSchema, signUpSchema } from "@/schemas/signup.schema"
-import {
-	completePasskeyRegistrationAction,
-	startPasskeyRegistrationAction,
-} from "./passkey-sign-up.actions"
-import { signUpAction } from "./sign-up.actions"
-
+import { zodResolver } from "@hookform/resolvers/zod"
+import { startRegistration } from "@simplewebauthn/browser"
+import { KeyIcon } from "lucide-react"
+import Link from "next/link"
+import { useState } from "react"
+import { useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Captcha } from "@/components/captcha"
 import SeparatorWithText from "@/components/separator-with-text"
 import { Button } from "@/components/ui/button"
@@ -29,18 +26,19 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
-
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
+import {
+	type PasskeyEmailSchema,
+	passkeyEmailSchema,
+} from "@/schemas/passkey.schema"
+import { type SignUpSchema, signUpSchema } from "@/schemas/signup.schema"
 import { useConfigStore } from "@/state/config"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { startRegistration } from "@simplewebauthn/browser"
-import { KeyIcon } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import SSOButtons from "../_components/sso-buttons"
+import {
+	completePasskeyRegistrationAction,
+	startPasskeyRegistrationAction,
+} from "./passkey-sign-up.actions"
+import { signUpAction } from "./sign-up.actions"
 
 interface SignUpClientProps {
 	redirectPath: string

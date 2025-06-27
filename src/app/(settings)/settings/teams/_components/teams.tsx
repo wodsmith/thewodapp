@@ -1,3 +1,4 @@
+import Link from "next/link"
 import {
 	Card,
 	CardContent,
@@ -6,7 +7,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import type { Team } from "@/db/schema"
-import Link from "next/link"
 
 interface TeamsClientProps {
 	teams: Team[]

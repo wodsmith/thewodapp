@@ -1,9 +1,17 @@
 "use client"
 
-import { type SignInSchema, signInSchema } from "@/schemas/signin.schema"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { startAuthentication } from "@simplewebauthn/browser"
+import { KeyIcon } from "lucide-react"
+import Link from "next/link"
 import { type ReactNode, useState } from "react"
-import { signInAction } from "./sign-in.actions"
-
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
+import {
+	generateAuthenticationOptionsAction,
+	verifyAuthenticationAction,
+} from "@/app/(settings)/settings/security/passkey-settings.actions"
 import SeparatorWithText from "@/components/separator-with-text"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,19 +22,9 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-
-import {
-	generateAuthenticationOptionsAction,
-	verifyAuthenticationAction,
-} from "@/app/(settings)/settings/security/passkey-settings.actions"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { startAuthentication } from "@simplewebauthn/browser"
-import { KeyIcon } from "lucide-react"
-import Link from "next/link"
-import { useForm } from "react-hook-form"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { type SignInSchema, signInSchema } from "@/schemas/signin.schema"
 import SSOButtons from "../_components/sso-buttons"
+import { signInAction } from "./sign-in.actions"
 
 interface SignInClientProps {
 	redirectPath: string

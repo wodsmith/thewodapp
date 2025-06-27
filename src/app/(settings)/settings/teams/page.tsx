@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation"
 import { getUserTeamsAction } from "@/actions/team-actions"
 import type { Team } from "@/db/schema"
-import { redirect } from "next/navigation"
 
 export default async function TeamsPage() {
 	const [result] = await getUserTeamsAction()

@@ -1,11 +1,11 @@
-import { PageHeader } from "@/components/page-header"
-import { getDB } from "@/db"
-import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
-import { requireTeamPermission } from "@/utils/team-auth"
 import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
+import { PageHeader } from "@/components/page-header"
+import { getDB } from "@/db"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { requireTeamPermission } from "@/utils/team-auth"
 import { CalendarSkeleton } from "./_components/calendar-skeleton"
 import { TeamSchedulingContainer } from "./_components/team-scheduling-container"
 
@@ -58,7 +58,7 @@ export default async function TeamSchedulingPage({
 		console.log(
 			`INFO: [TeamAuth] User authorized for team scheduling on teamId '${team.id}'`,
 		)
-	} catch (error) {
+	} catch {
 		console.error(
 			`ERROR: [TeamAuth] Unauthorized access attempt for team scheduling on teamId '${team.id}'`,
 		)

@@ -1,5 +1,13 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { ArrowLeft, Search } from "lucide-react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { submitLogFormAction } from "@/actions/log-actions"
 import {
 	type LogFormSchema,
@@ -21,14 +29,6 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import type { Workout } from "@/types"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, Search } from "lucide-react"
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 
 export default function LogFormClient({
 	workouts,

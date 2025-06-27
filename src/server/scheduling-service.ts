@@ -1,16 +1,16 @@
 import "server-only"
 
+import { createId } from "@paralleldrive/cuid2"
+import { and, between, eq } from "drizzle-orm"
 import { getDB } from "@/db"
 import {
 	type ScheduledWorkoutInstance,
-	type TrackWorkout,
-	type Workout,
 	scheduledWorkoutInstancesTable,
+	type TrackWorkout,
 	trackWorkoutsTable,
+	type Workout,
 	workouts,
 } from "@/db/schema"
-import { createId } from "@paralleldrive/cuid2"
-import { and, between, eq } from "drizzle-orm"
 
 /* -------------------------------------------------------------------------- */
 /*                             Data Type Helpers                               */

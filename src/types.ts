@@ -73,4 +73,4 @@ export interface SessionWithMeta extends KVSession {
 }
 
 // Re-export common types for convenience
-export type { Workout, Movement, Tag } from "@/db/schema"
+export type { Movement, Tag, Workout } from "@/db/schema"
