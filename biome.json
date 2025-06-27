@@ -1,14 +1,36 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
 	"root": true,
-	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"]
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.tsx",
+			"src/**/*.js",
+			"src/**/*.jsx",
+			"*.json",
+			"*.mjs",
+			"*.ts"
+		]
 	},
 	"linter": {
 		"enabled": true,
-		"includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.tsx",
+			"src/**/*.js",
+			"src/**/*.jsx",
+			"*.json",
+			"*.mjs",
+			"*.ts"
+		],
 		"rules": {
 			"recommended": true,
 			"nursery": {
@@ -18,7 +40,15 @@
 	},
 	"formatter": {
 		"enabled": true,
-		"includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.tsx",
+			"src/**/*.js",
+			"src/**/*.jsx",
+			"*.json",
+			"*.mjs",
+			"*.ts"
+		],
 		"indentStyle": "tab"
 	},
 	"javascript": {
