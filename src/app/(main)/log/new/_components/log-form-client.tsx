@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -243,37 +244,27 @@ export default function LogFormClient({
 															{filteredWorkouts.length > 0 ? (
 																<div className="divide-y">
 																	{filteredWorkouts.map((workout: Workout) => (
-																		<button
+																		<Button
 																			key={workout.id}
 																			type="button"
 																			onClick={() => {
 																				handleWorkoutSelection(workout.id)
 																				field.onChange(workout.id)
 																			}}
-																			onKeyDown={(e) => {
-																				if (
-																					e.key === "Enter" ||
-																					e.key === " "
-																				) {
-																					handleWorkoutSelection(workout.id)
-																					field.onChange(workout.id)
-																				}
-																			}}
-																			className={`w-full p-4 text-left transition-colors hover:bg-muted ${
+																			variant={
 																				selectedWorkout === workout.id
-																					? "bg-primary text-primary-foreground"
-																					: ""
-																			}`}
+																					? "default"
+																					: "ghost"
+																			}
+																			className="w-full justify-between p-4 h-auto"
 																		>
-																			<div className="flex items-center justify-between">
-																				<h3 className="font-semibold">
-																					{workout.name}
-																				</h3>
-																				{selectedWorkout === workout.id && (
-																					<Badge variant="secondary">✓</Badge>
-																				)}
-																			</div>
-																		</button>
+																			<h3 className="font-semibold">
+																				{workout.name}
+																			</h3>
+																			{selectedWorkout === workout.id && (
+																				<Badge variant="secondary">✓</Badge>
+																			)}
+																		</Button>
 																	))}
 																</div>
 															) : (
@@ -325,36 +316,33 @@ export default function LogFormClient({
 															<FormLabel>Scale</FormLabel>
 															<FormControl>
 																<div className="flex gap-4">
-																	<label className="flex items-center gap-2 cursor-pointer">
-																		<input
-																			type="radio"
-																			value="rx"
+																	<Label className="flex items-center gap-2 cursor-pointer">
+																		<Checkbox
 																			checked={field.value === "rx"}
-																			onChange={() => field.onChange("rx")}
-																			className="h-4 w-4"
+																			onCheckedChange={() =>
+																				field.onChange("rx")
+																			}
 																		/>
 																		<span className="text-sm">RX</span>
-																	</label>
-																	<label className="flex items-center gap-2 cursor-pointer">
-																		<input
-																			type="radio"
-																			value="rx+"
+																	</Label>
+																	<Label className="flex items-center gap-2 cursor-pointer">
+																		<Checkbox
 																			checked={field.value === "rx+"}
-																			onChange={() => field.onChange("rx+")}
-																			className="h-4 w-4"
+																			onCheckedChange={() =>
+																				field.onChange("rx+")
+																			}
 																		/>
 																		<span className="text-sm">RX+</span>
-																	</label>
-																	<label className="flex items-center gap-2 cursor-pointer">
-																		<input
-																			type="radio"
-																			value="scaled"
+																	</Label>
+																	<Label className="flex items-center gap-2 cursor-pointer">
+																		<Checkbox
 																			checked={field.value === "scaled"}
-																			onChange={() => field.onChange("scaled")}
-																			className="h-4 w-4"
+																			onCheckedChange={() =>
+																				field.onChange("scaled")
+																			}
 																		/>
 																		<span className="text-sm">Scaled</span>
-																	</label>
+																	</Label>
 																</div>
 															</FormControl>
 															<FormMessage />

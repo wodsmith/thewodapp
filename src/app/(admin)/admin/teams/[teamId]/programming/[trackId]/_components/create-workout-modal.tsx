@@ -9,6 +9,7 @@ import { z } from "zod"
 import { useServerAction } from "zsa-react"
 import { createWorkoutAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Dialog,
 	DialogContent,
@@ -81,7 +82,6 @@ export function CreateWorkoutModal({
 	onCloseAction,
 	onWorkoutCreatedAction,
 	teamId,
-	trackId,
 	movements,
 	tags: initialTags,
 }: CreateWorkoutModalProps) {
@@ -190,14 +190,11 @@ export function CreateWorkoutModal({
 								name="name"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="font-mono font-semibold">
-											Workout Name
-										</FormLabel>
+										<FormLabel>Workout Name</FormLabel>
 										<FormControl>
 											<Input
 												{...field}
 												placeholder="e.g., Fran, Murph, Daily WOD..."
-												className="border-2 border-primary rounded-none font-mono"
 											/>
 										</FormControl>
 										<FormMessage />
@@ -210,14 +207,11 @@ export function CreateWorkoutModal({
 								name="description"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="font-mono font-semibold">
-											Description
-										</FormLabel>
+										<FormLabel>Description</FormLabel>
 										<FormControl>
 											<Textarea
 												{...field}
 												placeholder="Describe the workout format, movements, and structure..."
-												className="border-2 border-primary rounded-none font-mono min-h-[100px]"
 											/>
 										</FormControl>
 										<FormMessage />
@@ -230,15 +224,13 @@ export function CreateWorkoutModal({
 								name="scheme"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="font-mono font-semibold">
-											Scoring Scheme
-										</FormLabel>
+										<FormLabel>Scoring Scheme</FormLabel>
 										<Select
 											onValueChange={field.onChange}
 											defaultValue={field.value}
 										>
 											<FormControl>
-												<SelectTrigger className="border-2 border-primary rounded-none font-mono">
+												<SelectTrigger>
 													<SelectValue placeholder="Select scoring method" />
 												</SelectTrigger>
 											</FormControl>
@@ -269,16 +261,13 @@ export function CreateWorkoutModal({
 									name="roundsToScore"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel className="font-mono font-semibold">
-												Rounds to Score
-											</FormLabel>
+											<FormLabel>Rounds to Score</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
 													type="number"
 													min="1"
 													placeholder="Optional"
-													className="border-2 border-primary rounded-none font-mono"
 													onChange={(e) =>
 														field.onChange(
 															e.target.value
@@ -288,7 +277,7 @@ export function CreateWorkoutModal({
 													}
 												/>
 											</FormControl>
-											<FormDescription className="text-xs font-mono">
+											<FormDescription>
 												Number of rounds to track for scoring
 											</FormDescription>
 											<FormMessage />
@@ -301,16 +290,13 @@ export function CreateWorkoutModal({
 									name="repsPerRound"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel className="font-mono font-semibold">
-												Reps per Round
-											</FormLabel>
+											<FormLabel>Reps per Round</FormLabel>
 											<FormControl>
 												<Input
 													{...field}
 													type="number"
 													min="1"
 													placeholder="Optional"
-													className="border-2 border-primary rounded-none font-mono"
 													onChange={(e) =>
 														field.onChange(
 															e.target.value
@@ -320,9 +306,7 @@ export function CreateWorkoutModal({
 													}
 												/>
 											</FormControl>
-											<FormDescription className="text-xs font-mono">
-												Total reps per round
-											</FormDescription>
+											<FormDescription>Total reps per round</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)}
@@ -334,15 +318,13 @@ export function CreateWorkoutModal({
 								name="scope"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="font-mono font-semibold">
-											Visibility
-										</FormLabel>
+										<FormLabel>Visibility</FormLabel>
 										<Select
 											onValueChange={field.onChange}
 											defaultValue={field.value}
 										>
 											<FormControl>
-												<SelectTrigger className="border-2 border-primary rounded-none font-mono">
+												<SelectTrigger>
 													<SelectValue />
 												</SelectTrigger>
 											</FormControl>
@@ -363,7 +345,7 @@ export function CreateWorkoutModal({
 
 						{/* Movements Section */}
 						<div className="space-y-3">
-							<Label className="font-mono font-semibold">Movements</Label>
+							<Label>Movements</Label>
 							<FormField
 								control={form.control}
 								name="selectedMovements"
@@ -371,23 +353,21 @@ export function CreateWorkoutModal({
 									<FormItem>
 										<div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border-2 border-primary p-3 rounded-none">
 											{movements.map((movement) => (
-												<label
+												<Label
 													key={movement.id}
 													className="flex items-center space-x-2 cursor-pointer font-mono text-sm"
 												>
-													<input
-														type="checkbox"
+													<Checkbox
 														checked={field.value.includes(movement.id)}
-														onChange={(e) => {
-															const newValue = e.target.checked
+														onCheckedChange={(checked) => {
+															const newValue = checked
 																? [...field.value, movement.id]
 																: field.value.filter((id) => id !== movement.id)
 															field.onChange(newValue)
 														}}
-														className="accent-primary"
 													/>
 													<span>{movement.name}</span>
-												</label>
+												</Label>
 											))}
 										</div>
 										<FormMessage />
@@ -398,7 +378,7 @@ export function CreateWorkoutModal({
 
 						{/* Tags Section */}
 						<div className="space-y-3">
-							<Label className="font-mono font-semibold">Tags</Label>
+							<Label>Tags</Label>
 
 							{/* Add New Tag */}
 							<div className="flex gap-2">
@@ -406,7 +386,6 @@ export function CreateWorkoutModal({
 									value={newTag}
 									onChange={(e) => setNewTag(e.target.value)}
 									placeholder="Add new tag..."
-									className="border-2 border-primary rounded-none font-mono flex-1"
 									onKeyDown={(e) => {
 										if (e.key === "Enter") {
 											e.preventDefault()
@@ -414,11 +393,7 @@ export function CreateWorkoutModal({
 										}
 									}}
 								/>
-								<Button
-									type="button"
-									onClick={handleAddTag}
-									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
-								>
+								<Button type="button" onClick={handleAddTag} size="icon">
 									<Plus className="h-4 w-4" />
 								</Button>
 							</div>
@@ -431,7 +406,7 @@ export function CreateWorkoutModal({
 									<FormItem>
 										<div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto border-2 border-primary p-3 rounded-none">
 											{tags.map((tag) => (
-												<button
+												<Button
 													key={tag.id}
 													type="button"
 													onClick={() => {
@@ -440,17 +415,15 @@ export function CreateWorkoutModal({
 															: [...field.value, tag.id]
 														field.onChange(newValue)
 													}}
-													className={`px-2 py-1 text-xs font-mono border-2 transition-colors ${
-														field.value.includes(tag.id)
-															? "bg-primary text-primary-foreground border-primary"
-															: "bg-background border-primary hover:bg-muted"
-													}`}
+													variant={
+														field.value.includes(tag.id) ? "default" : "outline"
+													}
 												>
 													{tag.name}
 													{field.value.includes(tag.id) && (
 														<X className="inline ml-1 h-3 w-3" />
 													)}
-												</button>
+												</Button>
 											))}
 										</div>
 										<FormMessage />
@@ -460,19 +433,10 @@ export function CreateWorkoutModal({
 						</div>
 
 						<DialogFooter className="flex gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={handleClose}
-								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
-							>
+							<Button type="button" variant="outline" onClick={handleClose}>
 								Cancel
 							</Button>
-							<Button
-								type="submit"
-								disabled={isSubmitting}
-								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
-							>
+							<Button type="submit" disabled={isSubmitting}>
 								{isSubmitting ? "Creating..." : "Create Workout"}
 							</Button>
 						</DialogFooter>

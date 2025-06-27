@@ -2,6 +2,9 @@ import type React from "react"
 import { useState } from "react"
 import { useServerAction } from "zsa-react"
 import { inviteUserAction } from "@/actions/team-membership-actions"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface InviteMemberProps {
 	teamId: string
@@ -29,19 +32,18 @@ export function InviteMember({ teamId, userRole }: InviteMemberProps) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<div>
-				<label htmlFor="email-invite">Email</label>
-				<input
+				<Label htmlFor="email-invite">Email</Label>
+				<Input
 					id="email-invite"
 					type="email"
 					value={email}
 					onChange={(e) => setEmail(e.target.value)}
-					className="input"
 					required
 				/>
 			</div>
-			<button type="submit" disabled={isPending} className="btn">
+			<Button type="submit" disabled={isPending}>
 				Invite
-			</button>
+			</Button>
 			{error && <div className="text-red-500">Error: {error.message}</div>}
 			{success && <div className="text-green-500">Invitation sent!</div>}
 		</form>

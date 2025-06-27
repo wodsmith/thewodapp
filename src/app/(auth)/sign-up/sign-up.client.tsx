@@ -161,10 +161,7 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 				<div className="space-y-4">
 					<SSOButtons />
 
-					<Button
-						className="w-full bg-secondary border-4 border-primary text-primary hover:bg-orange hover:text-white shadow-[4px_4px_0px_0px] shadow-primary transition-all font-mono font-bold uppercase"
-						onClick={() => setIsPasskeyModalOpen(true)}
-					>
+					<Button onClick={() => setIsPasskeyModalOpen(true)}>
 						<KeyIcon className="w-5 h-5 mr-2" />
 						SIGN UP WITH PASSKEY
 					</Button>
@@ -190,11 +187,10 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 										<Input
 											type="email"
 											placeholder="EMAIL ADDRESS"
-											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 											{...field}
 										/>
 									</FormControl>
-									<FormMessage className="font-mono text-destructive" />
+									<FormMessage />
 								</FormItem>
 							)}
 						/>
@@ -205,13 +201,9 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input
-											placeholder="FIRST NAME"
-											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
-											{...field}
-										/>
+										<Input placeholder="FIRST NAME" {...field} />
 									</FormControl>
-									<FormMessage className="font-mono text-destructive" />
+									<FormMessage />
 								</FormItem>
 							)}
 						/>
@@ -222,13 +214,9 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input
-											placeholder="LAST NAME"
-											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
-											{...field}
-										/>
+										<Input placeholder="LAST NAME" {...field} />
 									</FormControl>
-									<FormMessage className="font-mono text-destructive" />
+									<FormMessage />
 								</FormItem>
 							)}
 						/>
@@ -239,14 +227,9 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input
-											type="password"
-											placeholder="PASSWORD"
-											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
-											{...field}
-										/>
+										<Input type="password" placeholder="PASSWORD" {...field} />
 									</FormControl>
-									<FormMessage className="font-mono text-destructive" />
+									<FormMessage />
 								</FormItem>
 							)}
 						/>
@@ -259,7 +242,6 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 
 							<Button
 								type="submit"
-								className="w-full flex justify-center py-3 mt-8 font-mono font-bold uppercase text-lg"
 								disabled={Boolean(isTurnstileEnabled && !captchaToken)}
 							>
 								CREATE ACCOUNT
@@ -309,12 +291,11 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 											<Input
 												type="email"
 												placeholder="EMAIL ADDRESS"
-												className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 												disabled={isRegistering}
 												{...field}
 											/>
 										</FormControl>
-										<FormMessage className="font-mono text-destructive" />
+										<FormMessage />
 									</FormItem>
 								)}
 							/>
@@ -326,12 +307,11 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 										<FormControl>
 											<Input
 												placeholder="FIRST NAME"
-												className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 												disabled={isRegistering}
 												{...field}
 											/>
 										</FormControl>
-										<FormMessage className="font-mono text-destructive" />
+										<FormMessage />
 									</FormItem>
 								)}
 							/>
@@ -343,12 +323,11 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 										<FormControl>
 											<Input
 												placeholder="LAST NAME"
-												className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 												disabled={isRegistering}
 												{...field}
 											/>
 										</FormControl>
-										<FormMessage className="font-mono text-destructive" />
+										<FormMessage />
 									</FormItem>
 								)}
 							/>
@@ -364,7 +343,6 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 
 								<Button
 									type="submit"
-									className="w-full mt-8 font-mono font-bold uppercase"
 									disabled={
 										isRegistering ||
 										Boolean(isTurnstileEnabled && !passkeyCaptchaToken)
