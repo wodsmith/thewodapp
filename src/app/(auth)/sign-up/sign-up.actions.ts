@@ -70,7 +70,19 @@ export const signUpAction = createServerAction()
 			}
 
 			// Create a personal team for the user
-			await createPersonalTeamForUser(user)
+			try {
+				await createPersonalTeamForUser(user)
+			} catch (error) {
+				console.error(
+					"Failed to create personal team for user:",
+					user.id,
+					error,
+				)
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					"Failed to set up user account. Please try again.",
+				)
+			}
 
 			try {
 				// Create a session
