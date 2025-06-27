@@ -41,7 +41,14 @@ export default async function LogNewResultPage({
 
 	// Get user's personal team ID
 	const { getUserPersonalTeamId } = await import("@/server/user")
-	const teamId = await getUserPersonalTeamId(session.user.id)
+
+	let teamId: string
+	try {
+		teamId = await getUserPersonalTeamId(session.user.id)
+	} catch (error) {
+		console.error("[log/new] Failed to get user's personal team ID:", error)
+		redirect("/login")
+	}
 
 	const [result, error] = await getUserWorkoutsAction({
 		teamId,
