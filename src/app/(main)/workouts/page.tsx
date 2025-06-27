@@ -1,18 +1,12 @@
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
+import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 
 export const metadata: Metadata = {
@@ -173,12 +167,15 @@ export default async function WorkoutsPage({
 										<h4 className="mb-1 font-semibold">Movements:</h4>
 										<div className="flex flex-wrap gap-2">
 											{workout.movements.map((movement) => (
-												<span
+												<Badge
 													key={movement?.id || movement?.name}
-													className="inline-block bg-black px-2 py-1 font-bold text-white text-xs dark:bg-dark-foreground dark:text-dark-background"
+													variant="secondary"
+													clickable
 												>
-													{movement?.name}
-												</span>
+													<Link href={`/movements/${movement?.id}`}>
+														{movement?.name}
+													</Link>
+												</Badge>
 											))}
 										</div>
 									</div>
@@ -186,8 +183,8 @@ export default async function WorkoutsPage({
 
 								{/* Display Today's Results if any */}
 								{workout.resultsToday && workout.resultsToday.length > 0 && (
-									<div className="mt-4 border-gray-200 border-t pt-4 dark:border-dark-border/50">
-										<h4 className="mb-2 font-semibold text-gray-600 text-sm uppercase dark:text-dark-muted-foreground">
+									<div className="mt-4 border-gray-200 border-t pt-4">
+										<h4 className="mb-2 font-semibold text-secondary-foreground text-sm uppercase">
 											Your Logged Result
 											{workout.resultsToday.length > 1 ? "s" : ""} for Today:
 										</h4>
@@ -195,28 +192,20 @@ export default async function WorkoutsPage({
 											{workout.resultsToday.map((result) => (
 												<div
 													key={result.id}
-													className="w-fit   border border-gray-200 bg-gray-50 p-3 dark:border-dark-border dark:bg-dark-accent"
+													className="w-fit border border-card-foreground bg-card p-3"
 												>
 													<div className="flex items-center justify-between gap-4">
-														<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
+														<p className="font-bold text-foreground text-lg">
 															{result.wodScore}
 														</p>
 														{result.scale && (
-															<span
-																className={`px-2 py-0.5 font-semibold text-xs ${
-																	result.scale === "rx"
-																		? "bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100"
-																		: result.scale === "rx+"
-																			? "bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100"
-																			: "bg-yellow-100 text-yellow-700 dark:bg-yellow-700 dark:text-yellow-100"
-																}`}
-															>
+															<Badge variant={result.scale}>
 																{result.scale.toUpperCase()}
-															</span>
+															</Badge>
 														)}
 													</div>
 													{result.notes && (
-														<p className="mt-1 text-gray-700 text-sm italic dark:text-dark-muted-foreground">
+														<p className="mt-1 text-secondary-foreground text-sm italic">
 															Notes: {result.notes}
 														</p>
 													)}
@@ -234,44 +223,17 @@ export default async function WorkoutsPage({
 			)}
 
 			<WorkoutControls allTags={allTags} allMovements={allMovements} />
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+			<ul className="space-y-4">
 				{workouts.map((workout) => (
-					<Link key={workout.id} href={`/workouts/${workout.id}`}>
-						<Card>
-							<CardHeader>
-								<CardTitle className="mb-2">{workout.name}</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<CardDescription className="mb-3 line-clamp-6 whitespace-pre-wrap text-sm">
-									{workout.description}
-								</CardDescription>
-							</CardContent>
-							<CardFooter>
-								<div className="mb-3 flex flex-wrap gap-2">
-									{workout.movements.map((movement) => (
-										<span
-											key={movement?.id || movement?.name}
-											className="inline-block bg-black px-2 py-1 font-bold text-white text-xs dark:bg-dark-foreground dark:text-dark-background"
-										>
-											{movement?.name}
-										</span>
-									))}
-								</div>
-								<div className="flex flex-wrap gap-1">
-									{workout.tags.map((tag) => (
-										<span
-											key={tag.id}
-											className="inline-block border border-black px-2 py-1 text-xs dark:border-dark-border dark:text-dark-foreground"
-										>
-											{tag.name}
-										</span>
-									))}
-								</div>
-							</CardFooter>
-						</Card>
-					</Link>
+					<WorkoutRowCard
+						key={workout.id}
+						workout={workout}
+						movements={workout.movements}
+						tags={workout.tags}
+						result={workout.resultsToday?.[0]}
+					/>
 				))}
-			</div>
+			</ul>
 		</div>
 	)
 }

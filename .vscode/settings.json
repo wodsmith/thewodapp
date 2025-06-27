@@ -21,5 +21,7 @@
 		"titleBar.inactiveForeground": "#15202b99"
 	},
 	"peacock.color": "#42b883",
-	"editor.defaultFormatter": "biomejs.biome"
+	"editor.defaultFormatter": "biomejs.biome",
+	"peacock.remoteColor": "#e83acb",
+	"editor.formatOnPaste": false
 }
