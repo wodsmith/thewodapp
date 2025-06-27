@@ -1,5 +1,9 @@
 "use client"
 
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useRef } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -11,10 +15,6 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import { verifyEmailSchema } from "@/schemas/verify-email.schema"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useRef } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { verifyEmailAction } from "./verify-email.action"
 
 export default function VerifyEmailClientComponent() {

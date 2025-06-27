@@ -1,10 +1,10 @@
 import "server-only"
 
+import { render } from "@react-email/render"
 import { SITE_DOMAIN, SITE_URL } from "@/constants"
 import { ResetPasswordEmail } from "@/react-email/reset-password"
 import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
-import { render } from "@react-email/render"
 import isProd from "./is-prod"
 
 interface BrevoEmailOptions {

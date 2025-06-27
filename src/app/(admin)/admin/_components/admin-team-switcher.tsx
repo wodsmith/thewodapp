@@ -1,5 +1,8 @@
 "use client"
 
+import { Building2, ChevronDown } from "lucide-react"
+import type { Route } from "next"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
 	DropdownMenu,
@@ -8,9 +11,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useSessionStore } from "@/state/session"
-import { Building2, ChevronDown } from "lucide-react"
-import type { Route } from "next"
-import { useRouter } from "next/navigation"
 
 interface AdminTeamSwitcherProps {
 	currentTeamId: string
@@ -33,7 +33,7 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 
 		// Use regex to find and replace the team ID in the path
 		// This pattern matches /admin/teams/{teamId} and captures everything before and after
-		const teamPathRegex = /^(\/admin\/teams\/)([^\/]+)(.*)$/
+		const teamPathRegex = /^(\/admin\/teams\/)([^/]+)(.*)$/
 		const match = pathname.match(teamPathRegex)
 
 		if (match) {

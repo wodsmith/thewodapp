@@ -1,5 +1,11 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
+import { useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
+import type { z } from "zod"
+import { useServerAction } from "zsa-react"
 import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,12 +27,6 @@ import { Input } from "@/components/ui/input"
 import { forgotPasswordSchema } from "@/schemas/forgot-password.schema"
 import { useConfigStore } from "@/state/config"
 import { useSessionStore } from "@/state/session"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
-import { useForm, useWatch } from "react-hook-form"
-import { toast } from "sonner"
-import type { z } from "zod"
-import { useServerAction } from "zsa-react"
 import { forgotPasswordAction } from "./forgot-password.action"
 
 type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>

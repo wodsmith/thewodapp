@@ -1,7 +1,7 @@
+import { redirect } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { CreateTeamForm } from "@/components/teams/create-team-form"
 import { getSessionFromCookie } from "@/utils/auth"
-import { redirect } from "next/navigation"
 
 export const metadata = {
 	title: "Create Team",

@@ -9,8 +9,8 @@ import {
 import { getScheduledWorkoutsAction } from "../_actions/scheduling-actions"
 import {
 	type ProgrammingTrack,
-	STANDALONE_TRACK_ID,
 	type ScheduledWorkoutWithDetails,
+	STANDALONE_TRACK_ID,
 	type StandaloneWorkout,
 	type TrackWorkout,
 } from "../_components/workout-selection"

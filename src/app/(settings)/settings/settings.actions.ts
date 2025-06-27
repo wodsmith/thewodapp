@@ -1,14 +1,14 @@
 "use server"
 
+import { eq } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
+import { createServerAction, ZSAError } from "zsa"
 import { getDB } from "@/db"
 import { userTable } from "@/db/schema"
 import { userSettingsSchema } from "@/schemas/settings.schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { eq } from "drizzle-orm"
-import { revalidatePath } from "next/cache"
-import { ZSAError, createServerAction } from "zsa"
 
 export const updateUserProfileAction = createServerAction()
 	.input(userSettingsSchema)

@@ -1,8 +1,4 @@
 import {
-	EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
-	SITE_DOMAIN,
-} from "@/constants"
-import {
 	Body,
 	Container,
 	Head,
@@ -12,7 +8,10 @@ import {
 	Section,
 	Text,
 } from "@react-email/components"
-import * as React from "react"
+import {
+	EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
+	SITE_DOMAIN,
+} from "@/constants"
 
 interface VerifyEmailProps {
 	verificationLink?: string

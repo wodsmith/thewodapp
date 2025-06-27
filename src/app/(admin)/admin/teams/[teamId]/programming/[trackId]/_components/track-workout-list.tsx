@@ -1,13 +1,13 @@
 "use client"
 
+import { Edit2, GripVertical, Save, Trash2, X } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { TrackWorkout } from "@/db/schema"
-import { Edit2, GripVertical, Save, Trash2, X } from "lucide-react"
-import { useState } from "react"
 
 interface TrackWorkoutListProps {
 	trackWorkouts: (TrackWorkout & {

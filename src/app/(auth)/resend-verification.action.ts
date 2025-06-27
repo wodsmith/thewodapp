@@ -1,14 +1,14 @@
 "use server"
 
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { createId } from "@paralleldrive/cuid2"
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getVerificationTokenKey } from "@/utils/auth-utils"
 import { sendVerificationEmail } from "@/utils/email"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { createId } from "@paralleldrive/cuid2"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 export const resendVerificationAction = createServerAction()
 	.input(z.void())

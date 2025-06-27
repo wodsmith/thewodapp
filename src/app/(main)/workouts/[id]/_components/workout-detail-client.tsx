@@ -1,21 +1,6 @@
 "use client"
 
 import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import type {
-	Movement,
-	ResultSet,
-	Tag,
-	WorkoutResult,
-	WorkoutWithTagsAndMovements,
-} from "@/types"
-import {
 	ArrowLeft,
 	Clock,
 	Dumbbell,
@@ -27,6 +12,19 @@ import type { Route } from "next"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import type {
+	ResultSet,
+	WorkoutResult,
+	WorkoutWithTagsAndMovements,
+} from "@/types"
 import { SetDetails } from "./set-details"
 
 // Define a new type for results with their sets
@@ -64,7 +62,7 @@ export default function WorkoutDetailClient({
 
 		// Parse URL pattern: /admin/teams/{teamId}/programming/{trackId}
 		const urlMatch = redirectUrl.match(
-			/\/admin\/teams\/([^\/]+)\/programming\/([^\/]+)/,
+			/\/admin\/teams\/([^/]+)\/programming\/([^/]+)/,
 		)
 		if (urlMatch) {
 			const [, teamId, trackId] = urlMatch
@@ -130,10 +128,8 @@ export default function WorkoutDetailClient({
 						href={`/workouts/${workoutId}/edit`}
 						className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
 					>
-						<>
-							<Edit className="h-5 w-5" />
-							Edit Workout
-						</>
+						<Edit className="h-5 w-5" />
+						Edit Workout
 					</Link>
 				)}
 			</div>

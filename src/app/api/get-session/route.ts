@@ -1,7 +1,7 @@
+import { NextResponse } from "next/server"
 import { getConfig } from "@/flags"
 import { tryCatch } from "@/lib/try-catch"
 import { getSessionFromCookie } from "@/utils/auth"
-import { NextResponse } from "next/server"
 
 export async function GET() {
 	const { data: session, error } = await tryCatch(getSessionFromCookie())

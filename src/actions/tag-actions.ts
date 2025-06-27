@@ -1,8 +1,7 @@
 "use server"
 
+import { createServerAction, ZSAError } from "zsa"
 import { getAllTags } from "@/server/tags"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 /**
  * Get all tags in the system

@@ -1,29 +1,29 @@
 "use client"
 
-import type { getConfig } from "@/flags"
-import { useConfigStore } from "@/state/config"
-import { useSessionStore } from "@/state/session"
-import type { SessionValidationResult } from "@/types"
 import { HeroUIProvider } from "@heroui/react"
-import { ThemeProvider as NextThemesProvider } from "next-themes"
 import {
 	useParams,
 	usePathname,
 	useRouter,
 	useSearchParams,
 } from "next/navigation"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { useTopLoader } from "nextjs-toploader"
 import type * as React from "react"
 import { type RefObject, Suspense, useCallback, useEffect, useRef } from "react"
 import { useDebounceCallback, useEventListener } from "usehooks-ts"
+import type { getConfig } from "@/flags"
+import { useConfigStore } from "@/state/config"
+import { useSessionStore } from "@/state/session"
+import type { SessionValidationResult } from "@/types"
 import { EmailVerificationDialog } from "./email-verification-dialog"
 
 function RouterChecker() {
 	const { start, done } = useTopLoader()
-	const pathname = usePathname()
-	const searchParams = useSearchParams()
+	const _pathname = usePathname()
+	const _searchParams = useSearchParams()
 	const router = useRouter()
-	const params = useParams()
+	const _params = useParams()
 	const fetchSession = useSessionStore((store) => store.fetchSession)
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: template code
@@ -54,7 +54,11 @@ function RouterChecker() {
 		done()
 		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 		fetchSession?.()
-	}, [pathname, searchParams, params])
+	}, [
+		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
+		done, // biome-ignore lint/correctness/useExhaustiveDependencies: template code
+		fetchSession,
+	])
 
 	return null
 }
@@ -115,7 +119,7 @@ export function ThemeProvider({
 		() => {
 			fetchSession()
 		},
-    // @ts-expect-error window is not defined in the server
+		// @ts-expect-error window is not defined in the server
 		windowRef,
 	)
 

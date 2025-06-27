@@ -1,7 +1,24 @@
 "use client"
 
+import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder"
+import {
+	type Edge,
+	extractClosestEdge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
+import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index"
+import { Plus } from "lucide-react"
+import {
+	startTransition,
+	useCallback,
+	useEffect,
+	useMemo,
+	useOptimistic,
+	useState,
+} from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type {
 	Movement,
 	ProgrammingTrack,
@@ -10,37 +27,11 @@ import type {
 	Workout,
 } from "@/db/schema"
 import {
-	type Edge,
-	extractClosestEdge,
-} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
-import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index"
-import { DragHandleButton } from "@atlaskit/pragmatic-drag-and-drop-react-accessibility/drag-handle-button"
-import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
-import {
-	type ElementDropTargetEventBasePayload,
-	dropTargetForElements,
-	monitorForElements,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder"
-import { Plus } from "lucide-react"
-import {
-	startTransition,
-	useCallback,
-	useEffect,
-	useMemo,
-	useOptimistic,
-	useRef,
-	useState,
-} from "react"
-import { toast } from "sonner"
-import {
 	addWorkoutToTrackAction,
-	removeWorkoutFromTrackAction,
 	reorderTrackWorkoutsAction,
 	updateTrackWorkoutAction,
 } from "../../../_actions/programming-track-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
-import { isTrackWorkoutData } from "./drag-drop-types"
 import { TrackWorkoutRow } from "./track-workout-row"
 
 interface TrackWorkoutManagementProps {
@@ -466,7 +457,7 @@ export function TrackWorkoutManagement({
 		}
 	}
 
-	const handleUpdateWorkout = async (
+	const _handleUpdateWorkout = async (
 		trackWorkoutId: string,
 		updates: {
 			dayNumber?: number

@@ -1,5 +1,9 @@
 "use client"
 
+import { ChevronDown, Eye, EyeOff, Loader2 } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,10 +13,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { ProgrammingTrack } from "@/db/schema"
-import { ChevronDown, Eye, EyeOff, Loader2 } from "lucide-react"
-import { useState } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { updateProgrammingTrackAction } from "../../../_actions/programming-track-actions"
 
 interface TrackVisibilitySelectorProps {

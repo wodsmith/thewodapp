@@ -3,13 +3,13 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import "server-only"
 
+import { GeistMono } from "geist/font/mono"
+import { GeistSans } from "geist/font/sans"
+import NextTopLoader from "nextjs-toploader"
 import { ThemeProvider } from "@/components/providers"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/constants"
-import NextTopLoader from "nextjs-toploader"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
 
 export const dynamic = "force-dynamic"
 

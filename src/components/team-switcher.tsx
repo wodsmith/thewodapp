@@ -1,8 +1,8 @@
 "use client"
 
 import { Building2, ChevronsUpDown, Plus } from "lucide-react"
+import Link from "next/link"
 import * as React from "react"
-
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -18,7 +18,6 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar"
-import Link from "next/link"
 
 export function TeamSwitcher({
 	teams,

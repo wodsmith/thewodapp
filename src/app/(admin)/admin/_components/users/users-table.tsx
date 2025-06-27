@@ -1,10 +1,10 @@
 "use client"
 
-import { DataTable } from "@/components/data-table"
-import { Input } from "@/components/ui/input"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
+import { DataTable } from "@/components/data-table"
+import { Input } from "@/components/ui/input"
 import { getUsersAction } from "../../_actions/get-users.action"
 import { PAGE_SIZE_OPTIONS } from "../../admin-constants"
 import { columns } from "./columns"

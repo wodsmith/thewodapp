@@ -1,11 +1,11 @@
 "use server"
+import { User } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
 import MobileNav from "@/components/nav/mobile-nav"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getSessionFromCookie } from "@/utils/auth"
-import { User } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
 
 export default async function MainNav() {
 	const session = await getSessionFromCookie()

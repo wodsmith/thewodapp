@@ -1,6 +1,6 @@
-import { Skeleton } from "@/components/ui/skeleton"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getSessionsAction } from "./sessions.actions"
 import { SessionsClient } from "./sessions.client"
 

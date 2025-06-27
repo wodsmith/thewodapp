@@ -1,9 +1,9 @@
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import LogFormClient from "./_components/log-form-client"
 
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { getSessionFromCookie } from "@/utils/auth"
-import type { Metadata } from "next"
+import LogFormClient from "./_components/log-form-client"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

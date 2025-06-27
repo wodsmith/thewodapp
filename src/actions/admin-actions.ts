@@ -1,7 +1,7 @@
 "use server"
 
-import { getAdminStats } from "@/server/admin-stats"
 import { createServerAction } from "zsa"
+import { getAdminStats } from "@/server/admin-stats"
 
 /**
  * Server action to get admin dashboard statistics

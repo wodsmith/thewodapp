@@ -1,7 +1,7 @@
-import { getResetTokenKey } from "@/utils/auth-utils"
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { getResetTokenKey } from "@/utils/auth-utils"
 import ResetPasswordClientComponent from "./reset-password.client"
 
 export const metadata: Metadata = {

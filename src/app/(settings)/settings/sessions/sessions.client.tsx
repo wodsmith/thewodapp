@@ -1,5 +1,11 @@
 "use client"
 
+import { formatDistanceToNow } from "date-fns"
+import { useRouter } from "next/navigation"
+import React from "react"
+import { capitalize } from "remeda"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,12 +26,6 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { SessionWithMeta } from "@/types"
-import { formatDistanceToNow } from "date-fns"
-import { useRouter } from "next/navigation"
-import React from "react"
-import { capitalize } from "remeda"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { deleteSessionAction } from "./sessions.actions"
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" })

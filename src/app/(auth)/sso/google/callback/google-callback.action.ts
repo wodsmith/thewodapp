@@ -1,5 +1,9 @@
 "use server"
 
+import { decodeIdToken, type OAuth2Tokens } from "arctic"
+import { eq } from "drizzle-orm"
+import { cookies } from "next/headers"
+import { createServerAction, ZSAError } from "zsa"
 import {
 	GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME,
 	GOOGLE_OAUTH_STATE_COOKIE_NAME,
@@ -12,10 +16,6 @@ import { googleSSOCallbackSchema } from "@/schemas/google-sso-callback.schema"
 import { canSignUp, createAndStoreSession } from "@/utils/auth"
 import { getIP } from "@/utils/get-IP"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { type OAuth2Tokens, decodeIdToken } from "arctic"
-import { eq } from "drizzle-orm"
-import { cookies } from "next/headers"
-import { ZSAError, createServerAction } from "zsa"
 
 type GoogleSSOResponse = {
 	/**

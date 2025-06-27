@@ -9,7 +9,6 @@ import {
 } from "../_actions/scheduling-actions"
 import type {
 	ProgrammingTrack,
-	ScheduledWorkoutWithDetails,
 	StandaloneWorkout,
 	TrackWorkout,
 } from "../_components/workout-selection"

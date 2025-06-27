@@ -1,7 +1,7 @@
 "use server"
 
+import { createServerAction, ZSAError } from "zsa"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { ZSAError, createServerAction } from "zsa"
 
 export const debugUserSessionAction = createServerAction().handler(async () => {
 	try {

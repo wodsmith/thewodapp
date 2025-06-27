@@ -1,8 +1,5 @@
 import "server-only"
 
-import { SITE_DOMAIN, SITE_NAME, SITE_URL } from "@/constants"
-import { getDB } from "@/db"
-import { passKeyCredentialTable } from "@/db/schema"
 import {
 	generateAuthenticationOptions,
 	generateRegistrationOptions,
@@ -15,6 +12,9 @@ import type {
 	RegistrationResponseJSON,
 } from "@simplewebauthn/types"
 import { eq } from "drizzle-orm"
+import { SITE_DOMAIN, SITE_NAME, SITE_URL } from "@/constants"
+import { getDB } from "@/db"
+import { passKeyCredentialTable } from "@/db/schema"
 import isProd from "./is-prod"
 
 const rpName = SITE_NAME

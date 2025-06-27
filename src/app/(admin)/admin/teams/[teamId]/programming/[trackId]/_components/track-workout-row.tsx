@@ -1,26 +1,24 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
-import type { Workout } from "@/db/schema"
-import type { TrackWorkout } from "@/db/schema"
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
 import {
-	type Edge,
+	draggable,
+	dropTargetForElements,
+	type ElementDropTargetEventBasePayload,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
+import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
+import {
 	attachClosestEdge,
+	type Edge,
 	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DragHandleButton } from "@atlaskit/pragmatic-drag-and-drop-react-accessibility/drag-handle-button"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
-import {
-	type ElementDropTargetEventBasePayload,
-	draggable,
-	dropTargetForElements,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
-import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
-import { ChevronRight, GripVertical } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
-import { getTrackWorkoutData, isTrackWorkoutData } from "./drag-drop-types"
+import { Badge } from "@/components/ui/badge"
+import type { TrackWorkout, Workout } from "@/db/schema"
 
 interface TrackWorkoutRowProps {
 	teamId: string

@@ -1,12 +1,12 @@
 "use client"
 
+import { ListChecks } from "lucide-react"
 import WorkoutRowCard from "@/components/WorkoutRowCard"
 import type {
 	Movement,
 	WorkoutResult,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
-import { ListChecks } from "lucide-react"
 
 interface MovementDetailClientProps {
 	movement: Movement

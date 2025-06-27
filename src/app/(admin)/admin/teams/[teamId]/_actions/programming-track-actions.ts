@@ -1,5 +1,7 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
+import { createServerAction } from "zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import {
 	addWorkoutToTrackSchema,
@@ -25,8 +27,6 @@ import {
 	updateTrackWorkout,
 } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { revalidatePath } from "next/cache"
-import { createServerAction } from "zsa"
 
 /**
  * Create a new programming track

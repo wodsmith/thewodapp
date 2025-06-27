@@ -1,13 +1,13 @@
 import "server-only"
 
-import { getDB } from "@/db"
-import { passKeyCredentialTable } from "@/db/schema"
-import type { PassKeyCredential } from "@/db/schema"
-import type { ParsedUserAgent } from "@/types"
-import { getSessionFromCookie } from "@/utils/auth"
 import { eq } from "drizzle-orm"
 import { redirect } from "next/navigation"
 import { UAParser } from "ua-parser-js"
+import { getDB } from "@/db"
+import type { PassKeyCredential } from "@/db/schema"
+import { passKeyCredentialTable } from "@/db/schema"
+import type { ParsedUserAgent } from "@/types"
+import { getSessionFromCookie } from "@/utils/auth"
 import { PasskeysList } from "./passkey.client"
 
 interface ParsedPasskey extends Omit<PassKeyCredential, "userAgent"> {

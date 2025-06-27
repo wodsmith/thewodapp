@@ -1,5 +1,12 @@
 import "server-only"
 
+import { encodeHexLowerCase } from "@oslojs/encoding"
+import { init } from "@paralleldrive/cuid2"
+import { eq } from "drizzle-orm"
+import ms from "ms"
+import { cookies } from "next/headers"
+import { cache } from "react"
+import { ZSAError } from "zsa"
 import { SESSION_COOKIE_NAME } from "@/constants"
 import { getDB } from "@/db"
 import {
@@ -12,21 +19,14 @@ import {
 } from "@/db/schema"
 import type { SessionValidationResult } from "@/types"
 import isProd from "@/utils/is-prod"
-import { encodeHexLowerCase } from "@oslojs/encoding"
-import { init } from "@paralleldrive/cuid2"
-import { eq } from "drizzle-orm"
-import ms from "ms"
-import { cookies } from "next/headers"
-import { cache } from "react"
-import { ZSAError } from "zsa"
 import { addFreeMonthlyCreditsIfNeeded } from "./credits"
 import {
-	CURRENT_SESSION_VERSION,
 	type CreateKVSessionParams,
-	type KVSession,
+	CURRENT_SESSION_VERSION,
 	createKVSession,
 	deleteKVSession,
 	getKVSession,
+	type KVSession,
 	updateKVSession,
 } from "./kv-session"
 import { getInitials } from "./name-initials"
@@ -365,11 +365,7 @@ export const getSessionFromCookie = cache(
 )
 
 export const requireVerifiedEmail = cache(
-	async ({
-		doNotThrowError = false,
-	}: {
-		doNotThrowError?: boolean
-	} = {}) => {
+	async ({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) => {
 		const session = await getSessionFromCookie()
 
 		if (!session) {
@@ -389,11 +385,7 @@ export const requireVerifiedEmail = cache(
 )
 
 export const requireAdmin = cache(
-	async ({
-		doNotThrowError = false,
-	}: {
-		doNotThrowError?: boolean
-	} = {}) => {
+	async ({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) => {
 		const session = await getSessionFromCookie()
 
 		if (!session) {

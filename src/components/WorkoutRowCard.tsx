@@ -1,3 +1,12 @@
+import {
+	ArrowPathIcon,
+	BoltIcon,
+	ChartBarIcon,
+	ClockIcon,
+	FireIcon,
+} from "@heroicons/react/24/outline"
+import Link from "next/link"
+import type * as React from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,15 +17,6 @@ import {
 import { ListItem } from "@/components/ui/list-item"
 import { cn } from "@/lib/utils"
 import type { Movement, Tag, Workout, WorkoutResult } from "@/types"
-import {
-	ArrowPathIcon,
-	BoltIcon,
-	ChartBarIcon,
-	ClockIcon,
-	FireIcon,
-} from "@heroicons/react/24/outline"
-import Link from "next/link"
-import type * as React from "react"
 
 const SCHEME_CONFIG: Record<
 	Workout["scheme"],

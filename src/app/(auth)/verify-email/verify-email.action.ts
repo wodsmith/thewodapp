@@ -1,15 +1,15 @@
 "use server"
 
 import "server-only"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { eq } from "drizzle-orm"
+import { createServerAction, ZSAError } from "zsa"
 import { getDB } from "@/db"
 import { userTable } from "@/db/schema"
 import { verifyEmailSchema } from "@/schemas/verify-email.schema"
 import { getVerificationTokenKey } from "@/utils/auth-utils"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { eq } from "drizzle-orm"
-import { ZSAError, createServerAction } from "zsa"
 
 export const verifyEmailAction = createServerAction()
 	.input(verifyEmailSchema)

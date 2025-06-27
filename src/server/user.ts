@@ -1,10 +1,10 @@
 import "server-only"
 
-import { getDB } from "@/db"
-import { teamMembershipTable, teamTable } from "@/db/schema"
-import type { User } from "@/db/schema"
 import { and, eq } from "drizzle-orm"
 import { ZSAError } from "zsa"
+import { getDB } from "@/db"
+import type { User } from "@/db/schema"
+import { teamMembershipTable, teamTable } from "@/db/schema"
 
 /**
  * Creates a personal team for a user upon account creation

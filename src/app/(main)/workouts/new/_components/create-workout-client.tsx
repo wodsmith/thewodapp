@@ -1,5 +1,13 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { ArrowLeft, Plus } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { createWorkoutAction } from "@/actions/workout-actions"
 import {
 	type CreateWorkoutSchema,
@@ -24,17 +32,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Movement } from "@/db/schema"
-import type { Tag } from "@/db/schema"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, Plus } from "lucide-react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import React from "react"
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import type { Movement, Tag } from "@/db/schema"
 
 interface Props {
 	movements: Movement[]

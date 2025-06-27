@@ -1,15 +1,15 @@
 "use client"
 
-import { Button, buttonVariants } from "@/components/ui/button"
-import { useActiveNavItem } from "@/hooks/useActiveNavItem"
-import { useMediaQuery } from "@/hooks/useMediaQuery"
-import { cn } from "@/lib/utils"
 import { BookOpenIcon, CalendarDaysIcon } from "@heroicons/react/24/outline"
 import { ScrollShadow } from "@heroui/react"
 import { Building2 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { buttonVariants } from "@/components/ui/button"
+import { useActiveNavItem } from "@/hooks/useActiveNavItem"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
+import { cn } from "@/lib/utils"
 import { AdminTeamSwitcher } from "./admin-team-switcher"
 
 interface AdminNavItem {

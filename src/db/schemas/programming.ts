@@ -1,5 +1,5 @@
-import { relations } from "drizzle-orm"
 import type { InferSelectModel } from "drizzle-orm"
+import { relations } from "drizzle-orm"
 import {
 	index,
 	integer,

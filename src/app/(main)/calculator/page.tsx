@@ -1,6 +1,5 @@
-import BarbellCalculator from "./_components/barbell-calculator"
-
 import type { Metadata } from "next"
+import BarbellCalculator from "./_components/barbell-calculator"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

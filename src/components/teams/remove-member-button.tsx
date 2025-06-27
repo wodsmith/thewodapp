@@ -1,5 +1,10 @@
 "use client"
 
+import { TrashIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useRef } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { removeTeamMemberAction } from "@/actions/team-membership-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,11 +23,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { TrashIcon } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useRef } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 
 interface RemoveMemberButtonProps {
 	teamId: string

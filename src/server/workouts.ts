@@ -1,5 +1,9 @@
 import "server-only"
+import { createId } from "@paralleldrive/cuid2"
+import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm"
+import { ZSAError } from "zsa"
 import { getDB } from "@/db"
+import type { Workout } from "@/db/schema"
 import {
 	movements,
 	results,
@@ -7,14 +11,10 @@ import {
 	tags,
 	trackWorkoutsTable,
 	workoutMovements,
-	workoutTags,
 	workouts,
+	workoutTags,
 } from "@/db/schema"
-import type { Workout } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { createId } from "@paralleldrive/cuid2"
-import { and, eq, gte, inArray, isNotNull, lt, or } from "drizzle-orm"
-import { ZSAError } from "zsa"
 
 /**
  * Helper function to fetch tags by workout IDs

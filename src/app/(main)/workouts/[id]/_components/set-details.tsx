@@ -1,6 +1,5 @@
 import { formatSecondsToTime } from "@/lib/utils"
 import type { ResultSet as WorkoutSet } from "@/types"
-import React from "react"
 
 export function SetDetails({ sets }: { sets: WorkoutSet[] | null }) {
 	return (

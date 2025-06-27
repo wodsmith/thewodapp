@@ -1,18 +1,18 @@
 "use server"
 
+import { z } from "zod"
+import { createServerAction } from "zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { scheduleStandaloneWorkout } from "@/server/programming-tracks"
 import {
-	type ScheduleWorkoutInput,
 	deleteScheduledWorkoutInstance,
 	getScheduledWorkoutInstanceById,
 	getScheduledWorkoutsForTeam,
+	type ScheduleWorkoutInput,
 	scheduleWorkoutForTeam,
 	updateScheduledWorkoutInstance,
 } from "@/server/scheduling-service"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { z } from "zod"
-import { createServerAction } from "zsa"
 
 const getScheduledWorkoutsSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),

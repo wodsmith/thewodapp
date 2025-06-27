@@ -1,5 +1,11 @@
 "use client"
 
+import { Alert } from "@heroui/react"
+import type { Route } from "next"
+import { usePathname } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { resendVerificationAction } from "@/app/(auth)/resend-verification.action"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,12 +18,6 @@ import {
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { useSessionStore } from "@/state/session"
 import isProd from "@/utils/is-prod"
-import { Alert } from "@heroui/react"
-import type { Route } from "next"
-import { usePathname } from "next/navigation"
-import { useState } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 
 const pagesToBypass: Route[] = [
 	"/verify-email",

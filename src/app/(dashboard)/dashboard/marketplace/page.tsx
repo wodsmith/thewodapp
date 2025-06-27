@@ -1,8 +1,8 @@
+import { Alert } from "@heroui/react"
 import { MarketplaceCard } from "@/components/marketplace-card"
 import { PageHeader } from "@/components/page-header"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getUserPurchasedItems } from "@/utils/credits"
-import { Alert } from "@heroui/react"
 import { COMPONENTS } from "./components-catalog"
 
 export default async function MarketplacePage() {

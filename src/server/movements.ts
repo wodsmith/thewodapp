@@ -1,12 +1,18 @@
 import "server-only"
-import { getDB } from "@/db"
-import { MOVEMENT_TYPE_VALUES, movements } from "@/db/schema"
-import { tags, workoutMovements, workoutTags, workouts } from "@/db/schema"
-import { requireVerifiedEmail } from "@/utils/auth"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { ZSAError } from "zsa"
+import { getDB } from "@/db"
+import {
+	MOVEMENT_TYPE_VALUES,
+	movements,
+	tags,
+	workoutMovements,
+	workouts,
+	workoutTags,
+} from "@/db/schema"
+import { requireVerifiedEmail } from "@/utils/auth"
 
 export const VALID_MOVEMENT_TYPES = movements.type
 

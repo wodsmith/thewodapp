@@ -1,7 +1,7 @@
 "use client"
-import { getTeamInvitationsAction } from "@/actions/team-membership-actions"
-import React, { useEffect } from "react"
+import { useEffect } from "react"
 import { useServerAction } from "zsa-react"
+import { getTeamInvitationsAction } from "@/actions/team-membership-actions"
 
 interface TeamInvitationsProps {
 	teamId: string

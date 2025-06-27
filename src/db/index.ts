@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { drizzle } from "drizzle-orm/d1"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
+import { drizzle } from "drizzle-orm/d1"
 
 import * as schema from "./schema"
 
