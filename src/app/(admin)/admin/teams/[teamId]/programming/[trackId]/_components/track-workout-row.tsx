@@ -64,8 +64,6 @@ export function TrackWorkoutRow({
 			dayNumber: trackWorkout.dayNumber,
 		}
 
-		console.log("DEBUG: [Row] Creating simplified drag data:", simplifiedData)
-
 		function onChange({ source, self }: ElementDropTargetEventBasePayload) {
 			const isSource = source.element === dragHandle
 			if (isSource) {
@@ -97,10 +95,6 @@ export function TrackWorkoutRow({
 			draggable({
 				element: dragHandle,
 				getInitialData: () => {
-					console.log(
-						"DEBUG: [Row] getInitialData called for:",
-						trackWorkout.id,
-					)
 					return simplifiedData
 				},
 				onGenerateDragPreview({ nativeSetDragImage }) {
@@ -145,7 +139,6 @@ export function TrackWorkoutRow({
 			dropTargetForElements({
 				element,
 				canDrop({ source }) {
-					console.log("DEBUG: [Row] canDrop check:", source.data)
 					return (
 						source.data &&
 						"trackWorkoutId" in source.data &&
