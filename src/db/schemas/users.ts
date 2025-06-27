@@ -39,7 +39,7 @@ export const userTable = sqliteTable(
 			mode: "timestamp",
 		}),
 		signUpIpAddress: text({
-			length: 100,
+			length: 128,
 		}),
 		googleAccountId: text({
 			length: 255,
@@ -98,7 +98,7 @@ export const passKeyCredentialTable = sqliteTable(
 		}),
 		// The IP address that created the passkey
 		ipAddress: text({
-			length: 100,
+			length: 128,
 		}),
 	},
 	(table) => [

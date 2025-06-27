@@ -10,12 +10,10 @@ import {
 import {
 	commonColumns,
 	createProgrammingTrackId,
-	createProgrammingTrackPaymentId,
 	createScheduledWorkoutInstanceId,
 	createTrackWorkoutId,
 } from "./common"
 import { teamTable } from "./teams"
-import { userTable } from "./users"
 import { workouts } from "./workouts"
 
 // Track types enum & tuple
@@ -28,29 +26,6 @@ export const PROGRAMMING_TRACK_TYPE = {
 export const programmingTrackTypeTuple = Object.values(
 	PROGRAMMING_TRACK_TYPE,
 ) as [string, ...string[]]
-
-// Pricing types for programming tracks
-export const PROGRAMMING_TRACK_PRICING_TYPE = {
-	FREE: "free",
-	ONE_TIME: "one_time",
-	RECURRING: "recurring",
-} as const
-
-export const programmingTrackPricingTypeTuple = Object.values(
-	PROGRAMMING_TRACK_PRICING_TYPE,
-) as [string, ...string[]]
-
-// Recurring billing intervals
-export const BILLING_INTERVAL = {
-	WEEK: "week",
-	MONTH: "month",
-	YEAR: "year",
-} as const
-
-export const billingIntervalTuple = Object.values(BILLING_INTERVAL) as [
-	string,
-	...string[],
-]
 
 // Programming tracks table
 export const programmingTracksTable = sqliteTable(
@@ -66,31 +41,14 @@ export const programmingTracksTable = sqliteTable(
 		type: text({ enum: programmingTrackTypeTuple }).notNull(),
 		ownerTeamId: text().references(() => teamTable.id),
 		isPublic: integer().default(0).notNull(),
-
-		// Pricing fields
-		pricingType: text({ enum: programmingTrackPricingTypeTuple })
-			.default(PROGRAMMING_TRACK_PRICING_TYPE.FREE)
-			.notNull(),
-		price: integer(), // Price in cents (for Stripe compatibility)
-		currency: text({ length: 3 }).default("usd"), // ISO currency code
-		billingInterval: text({ enum: billingIntervalTuple }), // Only for recurring payments
-
-		// Stripe integration fields
-		stripePriceId: text({ length: 255 }), // Stripe Price ID
-		stripeProductId: text({ length: 255 }), // Stripe Product ID
-
-		// Trial period (in days) for recurring subscriptions
-		trialPeriodDays: integer().default(0),
 	},
 	(table) => [
 		index("programming_track_type_idx").on(table.type),
 		index("programming_track_owner_idx").on(table.ownerTeamId),
-		index("programming_track_pricing_type_idx").on(table.pricingType),
-		index("programming_track_stripe_price_idx").on(table.stripePriceId),
 	],
 )
 
-// Team programming tracks (join table) - Enhanced with payment functionality
+// Team programming tracks (join table)
 export const teamProgrammingTracksTable = sqliteTable(
 	"team_programming_track",
 	{
@@ -107,31 +65,11 @@ export const teamProgrammingTracksTable = sqliteTable(
 			.notNull(),
 		// Optional: allow teams to customize their start day within the track
 		startDayOffset: integer().default(0).notNull(),
-
-		// Payment tracking fields (moved from user_programming_tracks)
-		paymentStatus: text({
-			enum: ["pending", "paid", "failed", "cancelled", "refunded"],
-		})
-			.default("pending")
-			.notNull(),
-		stripeCustomerId: text({ length: 255 }),
-		stripeSubscriptionId: text({ length: 255 }), // For recurring payments
-		stripePaymentIntentId: text({ length: 255 }), // For one-time payments
-		subscriptionExpiresAt: integer({ mode: "timestamp" }), // For recurring subscriptions
-		cancelledAt: integer({ mode: "timestamp" }),
-		cancelAtPeriodEnd: integer().default(0).notNull(), // Boolean for graceful subscription cancellation
 	},
 	(table) => [
 		primaryKey({ columns: [table.teamId, table.trackId] }),
 		index("team_programming_track_active_idx").on(table.isActive),
 		index("team_programming_track_team_idx").on(table.teamId),
-		index("team_programming_track_payment_status_idx").on(table.paymentStatus),
-		index("team_programming_track_stripe_subscription_idx").on(
-			table.stripeSubscriptionId,
-		),
-		index("team_programming_track_expires_at_idx").on(
-			table.subscriptionExpiresAt,
-		),
 	],
 )
 
@@ -192,59 +130,6 @@ export const scheduledWorkoutInstancesTable = sqliteTable(
 	],
 )
 
-// Programming track payments - Individual payment records
-export const programmingTrackPaymentsTable = sqliteTable(
-	"programming_track_payment",
-	{
-		...commonColumns,
-		id: text()
-			.primaryKey()
-			.$defaultFn(() => createProgrammingTrackPaymentId())
-			.notNull(),
-		userId: text()
-			.notNull()
-			.references(() => userTable.id),
-		trackId: text()
-			.notNull()
-			.references(() => programmingTracksTable.id),
-		amount: integer().notNull(), // Amount in cents
-		currency: text({ length: 3 }).notNull(), // ISO currency code
-		paymentType: text({
-			enum: ["one_time", "recurring"],
-		}).notNull(),
-		status: text({
-			enum: ["pending", "succeeded", "failed", "cancelled", "refunded"],
-		}).notNull(),
-
-		// Stripe integration fields
-		stripePaymentIntentId: text({ length: 255 }),
-		stripeSubscriptionId: text({ length: 255 }),
-		stripeInvoiceId: text({ length: 255 }),
-		stripeCustomerId: text({ length: 255 }).notNull(),
-
-		// Failure and refund tracking
-		failureReason: text({ length: 500 }),
-		refundedAt: integer({ mode: "timestamp" }),
-		refundAmount: integer(),
-
-		// Billing period (for recurring payments)
-		periodStart: integer({ mode: "timestamp" }),
-		periodEnd: integer({ mode: "timestamp" }),
-	},
-	(table) => [
-		index("programming_track_payment_user_idx").on(table.userId),
-		index("programming_track_payment_track_idx").on(table.trackId),
-		index("programming_track_payment_status_idx").on(table.status),
-		index("programming_track_payment_stripe_payment_intent_idx").on(
-			table.stripePaymentIntentId,
-		),
-		index("programming_track_payment_stripe_subscription_idx").on(
-			table.stripeSubscriptionId,
-		),
-		index("programming_track_payment_created_at_idx").on(table.createdAt),
-	],
-)
-
 // Relations
 export const programmingTracksRelations = relations(
 	programmingTracksTable,
@@ -255,7 +140,6 @@ export const programmingTracksRelations = relations(
 		}),
 		teamProgrammingTracks: many(teamProgrammingTracksTable),
 		trackWorkouts: many(trackWorkoutsTable),
-		payments: many(programmingTrackPaymentsTable),
 	}),
 )
 
@@ -302,21 +186,6 @@ export const scheduledWorkoutInstancesRelations = relations(
 	}),
 )
 
-export const programmingTrackPaymentsRelations = relations(
-	programmingTrackPaymentsTable,
-	({ one }) => ({
-		user: one(userTable, {
-			fields: [programmingTrackPaymentsTable.userId],
-			references: [userTable.id],
-			relationName: "programmingTrackPayments",
-		}),
-		track: one(programmingTracksTable, {
-			fields: [programmingTrackPaymentsTable.trackId],
-			references: [programmingTracksTable.id],
-		}),
-	}),
-)
-
 // Type exports
 export type ProgrammingTrack = InferSelectModel<typeof programmingTracksTable>
 export type TeamProgrammingTrack = InferSelectModel<
@@ -325,7 +194,4 @@ export type TeamProgrammingTrack = InferSelectModel<
 export type TrackWorkout = InferSelectModel<typeof trackWorkoutsTable>
 export type ScheduledWorkoutInstance = InferSelectModel<
 	typeof scheduledWorkoutInstancesTable
->
-export type ProgrammingTrackPayment = InferSelectModel<
-	typeof programmingTrackPaymentsTable
 >

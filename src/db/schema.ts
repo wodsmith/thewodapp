@@ -8,7 +8,6 @@ export * from "./schemas/programming"
 
 import { creditTransactionTable, purchasedItemsTable } from "./schemas/billing"
 import {
-	programmingTrackPaymentsTable,
 	programmingTracksTable,
 	scheduledWorkoutInstancesTable,
 	trackWorkoutsTable,
