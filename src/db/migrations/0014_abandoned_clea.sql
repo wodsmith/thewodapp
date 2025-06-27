@@ -1,3 +1,5 @@
+PRAGMA defer_foreign_keys = ON;
+
 ALTER TABLE `team_programming_track` RENAME COLUMN "addedAt" TO "subscribedAt";--> statement-breakpoint
 ALTER TABLE `team_programming_track` ADD `startDayOffset` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 CREATE INDEX `team_programming_track_team_idx` ON `team_programming_track` (`teamId`);--> statement-breakpoint
@@ -96,3 +98,5 @@ CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakp
 CREATE INDEX `email_idx` ON `user` (`email`);--> statement-breakpoint
 CREATE INDEX `google_account_id_idx` ON `user` (`googleAccountId`);--> statement-breakpoint
 CREATE INDEX `role_idx` ON `user` (`role`);
+
+PRAGMA defer_foreign_keys = OFF;
