@@ -55,16 +55,10 @@ export default async function TrackWorkoutPage({
 	const { teamId, trackId } = await params
 	const db = getDB()
 
-	console.log(
-		`DEBUG: [TrackWorkout] Loading track workouts for track: ${trackId} in team: ${teamId}`,
-	)
-
 	// Get team by slug
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
 	})
-
-	console.log({ team })
 
 	if (!team) {
 		notFound()
@@ -73,13 +67,7 @@ export default async function TrackWorkoutPage({
 	// Check if user has permission to manage programming tracks
 	try {
 		await requireTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
-		console.log(
-			`INFO: [TeamAuth] User authorized for track workout management on teamId '${team.id}' trackId '${trackId}'`,
-		)
 	} catch (error) {
-		console.error(
-			`ERROR: [TeamAuth] Unauthorized access attempt for track workout management on teamId '${team.id}' trackId '${trackId}'`,
-		)
 		notFound()
 	}
 
@@ -92,9 +80,6 @@ export default async function TrackWorkoutPage({
 	// Check if team has access to this track
 	const trackAccess = await hasTrackAccess(team.id, trackId)
 	if (!trackAccess) {
-		console.error(
-			`ERROR: [TrackAccess] Team '${team.id}' does not have access to track '${trackId}'`,
-		)
 		notFound()
 	}
 
@@ -104,9 +89,6 @@ export default async function TrackWorkoutPage({
 	// Get user's available workouts for adding to track
 	const session = await getSessionFromCookie()
 	if (!session?.userId) {
-		console.error(
-			"ERROR: [TrackWorkout] No user session found after verification",
-		)
 		notFound()
 	}
 	const userWorkouts = await getUserWorkoutsWithTrackScheduling({
