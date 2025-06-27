@@ -30,14 +30,14 @@
 	},
 	"lint-staged": {
 		"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
-			"biome check --fix --files-ignore-unknown=true",
-			"biome check --write --no-errors-on-unmatched",
-			"biome check --write --organize-imports-enabled=false --no-errors-on-unmatched",
-			"biome check --write --unsafe --no-errors-on-unmatched",
-			"biome format --write --no-errors-on-unmatched",
-			"biome lint --write --no-errors-on-unmatched"
-		],
-		"*.{ts,tsx}": ["pnpm type-check:changed"]
+			"biome lint",
+			"biome format --write --no-errors-on-unmatched"
+		]
+	},
+	"husky": {
+		"hooks": {
+			"pre-push": "pnpm type-check"
+		}
 	},
 	"dependencies": {
 		"@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
@@ -113,7 +113,7 @@
 		"zustand": "^5.0.5"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
+		"@biomejs/biome": "2.0.6",
 		"@next/bundle-analyzer": "^15.3.2",
 		"@simplewebauthn/types": "^12.0.0",
 		"@tailwindcss/typography": "^0.5.16",
