@@ -3,10 +3,8 @@ import { AdminLayoutWrapper } from "./_components/admin-layout-wrapper"
 
 export default async function AdminLayout({
 	children,
-	params,
 }: {
 	children: React.ReactNode
-	params: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
 	return (
 		<div className="sm:h-screen">

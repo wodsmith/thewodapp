@@ -1,3 +1,4 @@
+import { notFound, redirect } from "next/navigation"
 import {
 	getWorkoutByIdAction,
 	updateWorkoutAction,
@@ -6,7 +7,6 @@ import { getAllMovements } from "@/server/movements"
 import { getAllTags } from "@/server/tags"
 import type { WorkoutUpdate } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
-import { notFound, redirect } from "next/navigation"
 import EditWorkoutClient from "./_components/edit-workout-client"
 
 export const dynamic = "force-dynamic"

@@ -1,6 +1,6 @@
-import { relations } from "drizzle-orm"
 import type { InferSelectModel } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { relations } from "drizzle-orm"
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"

@@ -1,9 +1,5 @@
 "use client"
 
-import { confirmPayment } from "@/actions/credits.action"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { CREDITS_EXPIRATION_YEARS } from "@/constants"
 import {
 	Elements,
 	PaymentElement,
@@ -14,6 +10,10 @@ import { loadStripe } from "@stripe/stripe-js"
 import { useTheme } from "next-themes"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
+import { confirmPayment } from "@/actions/credits.action"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { CREDITS_EXPIRATION_YEARS } from "@/constants"
 import { getPackageIcon } from "./credit-packages"
 
 interface StripePaymentFormProps {

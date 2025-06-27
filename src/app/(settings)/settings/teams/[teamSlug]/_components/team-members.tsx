@@ -3,7 +3,6 @@ import { RemoveMemberButton } from "@/components/teams/remove-member-button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatDate } from "@/utils/format-date-client"
-import React from "react"
 
 interface TeamMemberListItem {
 	id: string

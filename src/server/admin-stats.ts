@@ -1,14 +1,9 @@
 import "server-only"
-import { getDB } from "@/db"
-import {
-	teamMembershipTable,
-	teamTable,
-	userTable,
-	workouts,
-} from "@/db/schema"
-import { requireVerifiedEmail } from "@/utils/auth"
 import { count, countDistinct, eq, or } from "drizzle-orm"
 import { ZSAError } from "zsa"
+import { getDB } from "@/db"
+import { teamMembershipTable, workouts } from "@/db/schema"
+import { requireVerifiedEmail } from "@/utils/auth"
 
 export interface AdminStats {
 	totalUsers: number

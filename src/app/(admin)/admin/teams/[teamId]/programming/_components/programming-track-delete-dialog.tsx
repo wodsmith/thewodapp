@@ -1,5 +1,8 @@
 "use client"
 
+import { useRef } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -12,9 +15,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog"
 import type { ProgrammingTrack } from "@/db/schema"
-import { useRef } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { deleteProgrammingTrackAction } from "../../_actions/programming-track-actions"
 
 interface ProgrammingTrackDeleteDialogProps {

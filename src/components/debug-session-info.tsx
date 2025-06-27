@@ -1,8 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { debugUserSessionAction } from "@/actions/debug-actions"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
 
 interface SessionData {
 	userId: string

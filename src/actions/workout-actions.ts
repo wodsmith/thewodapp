@@ -1,5 +1,7 @@
 "use server"
 
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import {
 	getResultSetsById,
 	getWorkoutResultsByWorkoutAndUser,
@@ -11,8 +13,6 @@ import {
 	updateWorkout,
 } from "@/server/workouts"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 const createWorkoutSchema = z.object({
 	workout: z.object({

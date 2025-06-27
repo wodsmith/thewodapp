@@ -1,8 +1,8 @@
 import "server-only"
+import { and, eq } from "drizzle-orm"
 import { getDB } from "@/db"
 import { results, sets } from "@/db/schema"
 import type { ResultSet, WorkoutResult } from "@/types"
-import { and, eq } from "drizzle-orm"
 
 /**
  * Get workout results by workout ID and user ID

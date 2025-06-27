@@ -1,7 +1,7 @@
-import { inviteUserAction } from "@/actions/team-membership-actions"
 import type React from "react"
 import { useState } from "react"
 import { useServerAction } from "zsa-react"
+import { inviteUserAction } from "@/actions/team-membership-actions"
 
 interface InviteMemberProps {
 	teamId: string

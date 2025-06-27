@@ -1,5 +1,9 @@
 "use client"
 
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useRef } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -10,10 +14,6 @@ import {
 } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { teamInviteSchema } from "@/schemas/team-invite.schema"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useRef } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { acceptTeamInviteAction } from "./team-invite.action"
 
 export default function TeamInviteClientComponent() {

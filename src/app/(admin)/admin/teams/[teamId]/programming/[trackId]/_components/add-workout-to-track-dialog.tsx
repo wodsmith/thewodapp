@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -10,7 +11,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog"
 import type { Movement, Tag, Workout } from "@/db/schema"
-import { useEffect, useState } from "react"
 import { WorkoutSelectionList } from "./workout-selection-list"
 
 interface AddWorkoutToTrackDialogProps {

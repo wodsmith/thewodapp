@@ -1,11 +1,8 @@
 "use client"
 
-import { format } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
 import * as React from "react"
 
 import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
 import type { WorkoutResultWithWorkoutName } from "@/types"
 import { LogRowCard } from "./log-row-card"
 

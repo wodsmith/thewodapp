@@ -1,8 +1,9 @@
 "use client"
-import { Input } from "@/components/ui/input"
 import Cookies from "js-cookie"
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs"
-import React, { useState, useMemo, Suspense } from "react"
+import React, { Suspense, useMemo, useState } from "react"
+import { Input } from "@/components/ui/input"
+
 // Since we are not in a Next.js environment for this immersive,
 // we'll simulate Head by just letting the style tag be global.
 // import Head from 'next/head'; // Not available in this environment
@@ -12,7 +13,7 @@ const LB_PLATES_FULL = [45, 35, 25, 15, 10, 5, 2.5]
 const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25] // Standard KG plates
 const WARMUP_PERCENTAGES = [0.4, 0.55, 0.7, 0.8, 0.9]
 const LB_TO_KG = 0.453592
-const KG_TO_LB = 2.20462
+const _KG_TO_LB = 2.20462
 
 // --- Helper Functions ---
 const roundToNearestIncrement = (weight: number, increment: number): number => {
@@ -302,7 +303,7 @@ export default function BarbellCalculator() {
 	const displayUnit = isKg ? "kg" : "lb"
 
 	// Target weight in the currently selected unit system
-	const currentDisplayTargetWeight = isKg
+	const _currentDisplayTargetWeight = isKg
 		? roundToNearestIncrement(targetWeightQuery * LB_TO_KG, 2.5) // If input was LB, convert to KG
 		: targetWeightQuery // If input was KG, it's already in LB by query (or if it's LB, it's LB)
 

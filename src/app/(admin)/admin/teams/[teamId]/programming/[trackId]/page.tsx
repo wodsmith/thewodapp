@@ -1,3 +1,7 @@
+import { eq } from "drizzle-orm"
+import type { Metadata } from "next"
+import { notFound } from "next/navigation"
+import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { getDB } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
@@ -9,12 +13,8 @@ import {
 } from "@/server/programming-tracks"
 import { getAllTags } from "@/server/tags"
 import { getUserWorkoutsWithTrackScheduling } from "@/server/workouts"
-import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
+import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { eq } from "drizzle-orm"
-import type { Metadata } from "next"
-import { notFound } from "next/navigation"
-import { Suspense } from "react"
 import { TrackVisibilitySelector } from "./_components/track-visibility-selector"
 import { TrackWorkoutManagement } from "./_components/track-workout-management"
 
@@ -67,7 +67,7 @@ export default async function TrackWorkoutPage({
 	// Check if user has permission to manage programming tracks
 	try {
 		await requireTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
-	} catch (error) {
+	} catch (_error) {
 		notFound()
 	}
 

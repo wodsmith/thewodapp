@@ -1,11 +1,10 @@
 "use client"
 
+import { Users } from "lucide-react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import type { ProgrammingTrack, Team } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
-import { Users } from "lucide-react"
-import type { Route } from "next"
-import Link from "next/link"
 
 interface ProgrammingTrackRowProps {
 	track: ProgrammingTrack

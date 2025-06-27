@@ -1,7 +1,8 @@
 "use client"
 
 import { ChevronRight } from "lucide-react"
-
+import type { Route } from "next"
+import Link from "next/link"
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -17,8 +18,6 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
-import type { Route } from "next"
-import Link from "next/link"
 import type { NavMainItem } from "./app-sidebar"
 
 type Props = {

@@ -1,5 +1,11 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -17,14 +23,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { resetPasswordSchema } from "@/schemas/reset-password.schema"
 import type { ResetPasswordSchema } from "@/schemas/reset-password.schema"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { resetPasswordSchema } from "@/schemas/reset-password.schema"
 import { resetPasswordAction } from "./reset-password.action"
 
 export default function ResetPasswordClientComponent() {

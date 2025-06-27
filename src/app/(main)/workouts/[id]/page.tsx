@@ -1,11 +1,11 @@
+import type { Metadata, ResolvingMetadata } from "next"
+import { notFound, redirect } from "next/navigation"
 import {
 	getResultSetsByIdAction,
 	getWorkoutByIdAction,
 	getWorkoutResultsByWorkoutAndUserAction,
 } from "@/actions/workout-actions"
 import { getSessionFromCookie } from "@/utils/auth"
-import type { Metadata, ResolvingMetadata } from "next"
-import { notFound, redirect } from "next/navigation"
 import WorkoutDetailClient from "./_components/workout-detail-client"
 
 type Props = {
@@ -15,7 +15,7 @@ type Props = {
 
 export async function generateMetadata(
 	{ params, searchParams }: Props,
-	parent: ResolvingMetadata,
+	_parent: ResolvingMetadata,
 ): Promise<Metadata> {
 	const id = (await params).id
 
@@ -96,7 +96,7 @@ export default async function WorkoutDetailPage({
 		}
 
 		const allSetsPromises = results.map(async (result) => {
-			const [setsResult, setsError] = await getResultSetsByIdAction({
+			const [setsResult, _setsError] = await getResultSetsByIdAction({
 				resultId: result.id,
 			})
 			const sets =

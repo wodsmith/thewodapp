@@ -1,5 +1,16 @@
 "use server"
 
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { createId } from "@paralleldrive/cuid2"
+import type {
+	PublicKeyCredentialCreationOptionsJSON,
+	RegistrationResponseJSON,
+} from "@simplewebauthn/types"
+import { eq } from "drizzle-orm"
+import ms from "ms"
+import { cookies, headers } from "next/headers"
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDB } from "@/db"
 import { userTable } from "@/db/schema"
@@ -21,17 +32,6 @@ import {
 	verifyPasskeyRegistration,
 } from "@/utils/webauthn"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { createId } from "@paralleldrive/cuid2"
-import type {
-	PublicKeyCredentialCreationOptionsJSON,
-	RegistrationResponseJSON,
-} from "@simplewebauthn/types"
-import { eq } from "drizzle-orm"
-import ms from "ms"
-import { cookies, headers } from "next/headers"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 const PASSKEY_CHALLENGE_COOKIE_NAME = "passkey_challenge"
 const PASSKEY_USER_ID_COOKIE_NAME = "passkey_user_id"

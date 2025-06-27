@@ -1,6 +1,7 @@
+import { toast } from "sonner"
 import { signOutAction } from "@/actions/sign-out.action"
 import { useSessionStore } from "@/state/session"
-import { toast } from "sonner"
+
 const useSignOut = () => {
 	const { clearSession } = useSessionStore()
 

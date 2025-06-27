@@ -1,14 +1,9 @@
-import { createWorkoutAction } from "@/actions/workout-actions"
-import type { Movement, Tag, Workout } from "@/db/schema"
-import { fromZonedTime } from "date-fns-tz"
-import { headers } from "next/headers"
+import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
-import CreateWorkoutClient from "./_components/create-workout-client"
-
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { getAllTagsAction } from "@/actions/tag-actions"
 import { getSessionFromCookie } from "@/utils/auth"
-import type { Metadata } from "next"
+import CreateWorkoutClient from "./_components/create-workout-client"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

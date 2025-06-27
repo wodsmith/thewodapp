@@ -1,13 +1,12 @@
-import { DebugSessionInfo } from "@/components/debug-session-info"
+import { eq } from "drizzle-orm"
+import type { Metadata } from "next"
+import { notFound } from "next/navigation"
+import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { getDB } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getTeamTracks } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { eq } from "drizzle-orm"
-import type { Metadata } from "next"
-import { notFound } from "next/navigation"
-import { Suspense } from "react"
 import { ProgrammingTrackDashboard } from "./_components/programming-track-dashboard"
 
 interface ProgrammingTrackPageProps {

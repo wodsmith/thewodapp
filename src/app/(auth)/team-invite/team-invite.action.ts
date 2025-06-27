@@ -1,11 +1,11 @@
 "use server"
 
 import "server-only"
+import { createServerAction, ZSAError } from "zsa"
 import { teamInviteSchema } from "@/schemas/team-invite.schema"
 import { acceptTeamInvitation } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { ZSAError, createServerAction } from "zsa"
 
 export const acceptTeamInviteAction = createServerAction()
 	.input(teamInviteSchema)

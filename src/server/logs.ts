@@ -1,4 +1,9 @@
 import "server-only"
+import { createId } from "@paralleldrive/cuid2"
+import { fromZonedTime } from "date-fns-tz"
+import { desc, eq } from "drizzle-orm"
+import { headers } from "next/headers"
+import { ZSAError } from "zsa"
 import { getDB } from "@/db"
 import { results, sets, workouts } from "@/db/schema"
 import { formatSecondsToTime, parseTimeScoreToSeconds } from "@/lib/utils"
@@ -9,11 +14,6 @@ import type {
 	WorkoutResultWithWorkoutName,
 } from "@/types"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { createId } from "@paralleldrive/cuid2"
-import { fromZonedTime } from "date-fns-tz"
-import { desc, eq } from "drizzle-orm"
-import { headers } from "next/headers"
-import { ZSAError } from "zsa"
 
 /**
  * Get all logs by user ID with workout names

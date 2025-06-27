@@ -1,11 +1,11 @@
 "use server"
 
-import { getDB } from "@/db"
-import { userTable } from "@/db/schema"
-import { requireAdmin } from "@/utils/auth"
 import { sql } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction } from "zsa"
+import { getDB } from "@/db"
+import { userTable } from "@/db/schema"
+import { requireAdmin } from "@/utils/auth"
 import { PAGE_SIZE_OPTIONS } from "../admin-constants"
 
 const getUsersSchema = z.object({

@@ -1,7 +1,12 @@
 "use client"
 
+import { ChevronDown, ChevronRight, Plus, Search } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Collapsible,
@@ -11,11 +16,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { Movement, Tag, Workout } from "@/db/schema"
-import { ChevronDown, ChevronRight, Plus, Search } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { addWorkoutToTrackAction } from "../../../_actions/programming-track-actions"
 import { CreateWorkoutModal } from "./create-workout-modal"
 

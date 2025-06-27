@@ -1,5 +1,8 @@
 "use client"
 
+import { Plus, X } from "lucide-react"
+import type React from "react"
+import { useState } from "react"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -8,9 +11,6 @@ import type {
 	WorkoutUpdate,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
-import { Plus, X } from "lucide-react"
-import type React from "react"
-import { useState } from "react"
 
 type Props = Prettify<{
 	workout: WorkoutWithTagsAndMovements

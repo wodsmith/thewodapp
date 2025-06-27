@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from "@testing-library/react"
-import React from "react"
 import { describe, expect, it, vi } from "vitest"
 import { TrackSelection } from "./track-selection"
 import { type ProgrammingTrack, STANDALONE_TRACK_ID } from "./types"

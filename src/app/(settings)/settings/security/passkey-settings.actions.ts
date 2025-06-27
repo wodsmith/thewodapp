@@ -1,8 +1,16 @@
 "use server"
 
+import type {
+	AuthenticationResponseJSON,
+	RegistrationResponseJSON,
+} from "@simplewebauthn/types"
+import { eq } from "drizzle-orm"
+import { headers } from "next/headers"
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import { getDB } from "@/db"
-import { passKeyCredentialTable, userTable } from "@/db/schema"
 import type { User } from "@/db/schema"
+import { passKeyCredentialTable, userTable } from "@/db/schema"
 import { createAndStoreSession, requireVerifiedEmail } from "@/utils/auth"
 import { getIP } from "@/utils/get-IP"
 import {
@@ -12,14 +20,6 @@ import {
 	verifyPasskeyRegistration,
 } from "@/utils/webauthn"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import type {
-	AuthenticationResponseJSON,
-	RegistrationResponseJSON,
-} from "@simplewebauthn/types"
-import { eq } from "drizzle-orm"
-import { headers } from "next/headers"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 const generateRegistrationOptionsSchema = z.object({
 	email: z.string().email(),

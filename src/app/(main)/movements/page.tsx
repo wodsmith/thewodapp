@@ -1,10 +1,9 @@
 import { Plus } from "lucide-react"
-import Link from "next/link"
-import MovementList from "./_components/movement-list"
-
-import { getAllMovementsAction } from "@/actions/movement-actions"
 import type { Metadata } from "next"
+import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getAllMovementsAction } from "@/actions/movement-actions"
+import MovementList from "./_components/movement-list"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),

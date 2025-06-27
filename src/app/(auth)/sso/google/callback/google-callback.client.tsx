@@ -1,5 +1,9 @@
 "use client"
 
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useRef } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -11,10 +15,6 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import { googleSSOCallbackSchema } from "@/schemas/google-sso-callback.schema"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useRef } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import { googleSSOCallbackAction } from "./google-callback.action"
 
 export default function GoogleCallbackClientComponent() {

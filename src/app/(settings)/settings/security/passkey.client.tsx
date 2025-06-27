@@ -1,5 +1,11 @@
 "use client"
 
+import { startRegistration } from "@simplewebauthn/browser"
+import { formatDistanceToNow } from "date-fns"
+import { useRouter } from "next/navigation"
+import { useRef, useState } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,12 +27,6 @@ import {
 import { cn } from "@/lib/utils"
 import type { ParsedUserAgent } from "@/types"
 import { PASSKEY_AUTHENTICATOR_IDS } from "@/utils/passkey-authenticator-ids"
-import { startRegistration } from "@simplewebauthn/browser"
-import { formatDistanceToNow } from "date-fns"
-import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
 import {
 	deletePasskeyAction,
 	generateRegistrationOptionsAction,

@@ -1,3 +1,6 @@
+import { Calendar, Settings, Users } from "lucide-react"
+import type { Metadata } from "next"
+import Link from "next/link"
 import { getOwnedTeamsAction } from "@/actions/team-actions"
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
@@ -10,9 +13,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Calendar, Settings, Users } from "lucide-react"
-import type { Metadata } from "next"
-import Link from "next/link"
 
 export const metadata: Metadata = {
 	title: "Team Management",

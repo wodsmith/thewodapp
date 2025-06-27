@@ -1,5 +1,7 @@
 "use server"
 
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import { getDB } from "@/db"
 import { MOVEMENT_TYPE_VALUES } from "@/db/schema"
 import {
@@ -8,12 +10,9 @@ import {
 	getMovementById,
 	getWorkoutsByMovementId,
 } from "@/server/movements"
-import { z } from "zod"
-import { ZSAError, createServerAction } from "zsa"
 
 export const getAllMovementsAction = createServerAction().handler(async () => {
 	try {
-		const db = getDB()
 		const movements = await getAllMovements()
 		return { success: true, data: movements }
 	} catch (error) {

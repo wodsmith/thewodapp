@@ -12,7 +12,6 @@ import timeGridPlugin from "@fullcalendar/timegrid"
 import "./team-scheduling-calendar.css"
 
 interface TeamSchedulingCalendarProps {
-	teamId: string
 	events: Array<{
 		id: string
 		title: string
@@ -30,7 +29,6 @@ interface TeamSchedulingCalendarProps {
 }
 
 export function TeamSchedulingCalendar({
-	teamId,
 	events,
 	onDateSelect,
 	onEventClick,

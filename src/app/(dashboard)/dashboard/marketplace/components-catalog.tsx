@@ -1,10 +1,10 @@
+import { Boxes } from "lucide-react"
 import { NavUser } from "@/components/nav-user"
 import { PageHeader } from "@/components/page-header"
 import SeparatorWithText from "@/components/separator-with-text"
 import { TeamSwitcher } from "@/components/team-switcher"
 import ThemeSwitch from "@/components/theme-switch"
 import { Button } from "@/components/ui/button"
-import { Boxes } from "lucide-react"
 
 interface MarketplaceComponent {
 	id: string

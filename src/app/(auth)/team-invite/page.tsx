@@ -1,6 +1,6 @@
-import { getSessionFromCookie } from "@/utils/auth"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
+import { getSessionFromCookie } from "@/utils/auth"
 import TeamInviteClientComponent from "./team-invite.client"
 
 export const metadata: Metadata = {

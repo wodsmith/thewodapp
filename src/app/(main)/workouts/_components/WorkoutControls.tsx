@@ -1,5 +1,9 @@
 "use client"
 
+import { Search } from "lucide-react"
+import type { Route } from "next"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import {
 	Select,
@@ -9,10 +13,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import type { Movement, Tag } from "@/types"
-import { Search } from "lucide-react"
-import type { Route } from "next"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import React, { useEffect, useState } from "react"
 
 interface WorkoutControlsProps {
 	allTags: Tag["name"][]

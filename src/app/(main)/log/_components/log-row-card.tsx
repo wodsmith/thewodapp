@@ -1,9 +1,9 @@
+import { format } from "date-fns"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ListItem } from "@/components/ui/list-item"
 import type { WorkoutResultWithWorkoutName } from "@/types"
-import { format } from "date-fns"
-import Link from "next/link"
 
 interface LogRowCardProps {
 	logEntry: WorkoutResultWithWorkoutName

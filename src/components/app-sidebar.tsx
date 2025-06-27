@@ -1,11 +1,7 @@
 "use client"
 
-import type { Route } from "next"
-import { type ComponentType, useEffect, useState } from "react"
-
 import {
 	Building2,
-	Calculator,
 	CreditCard,
 	Frame,
 	Map as MapIcon,
@@ -15,6 +11,8 @@ import {
 	SquareTerminal,
 	Users,
 } from "lucide-react"
+import type { Route } from "next"
+import { type ComponentType, useEffect, useState } from "react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"

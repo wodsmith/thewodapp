@@ -1,21 +1,21 @@
 import "server-only"
 
+import { createId } from "@paralleldrive/cuid2"
+import { and, eq, notExists, or } from "drizzle-orm"
 import { getDB } from "@/db"
 import {
 	type ProgrammingTrack,
+	programmingTracksTable,
+	scheduledWorkoutInstancesTable,
 	type Team,
 	type TeamProgrammingTrack,
 	type TrackWorkout,
-	type Workout,
-	programmingTracksTable,
-	scheduledWorkoutInstancesTable,
 	teamProgrammingTracksTable,
 	teamTable,
 	trackWorkoutsTable,
+	type Workout,
 	workouts,
 } from "@/db/schema"
-import { createId } from "@paralleldrive/cuid2"
-import { and, eq, notExists, or } from "drizzle-orm"
 
 /* -------------------------------------------------------------------------- */
 /*                                Data Types                                  */
@@ -433,7 +433,7 @@ export async function scheduleStandaloneWorkout({
 	scalingGuidanceForDay?: string | null
 	classTimes?: string | null
 }): Promise<TrackWorkout> {
-	const db = getDB()
+	const _db = getDB()
 	// 1. Create a temporary programming track for this standalone workout
 	const track = await createProgrammingTrack({
 		name: `Standalone - ${workoutId} - ${scheduledDate.toISOString().slice(0, 10)}`,

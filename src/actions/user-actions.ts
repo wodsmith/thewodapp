@@ -1,8 +1,7 @@
 "use server"
 
-import { requireVerifiedEmail } from "@/utils/auth"
-import { getUserFromDB } from "@/utils/auth"
-import { ZSAError, createServerAction } from "zsa"
+import { createServerAction, ZSAError } from "zsa"
+import { getUserFromDB, requireVerifiedEmail } from "@/utils/auth"
 
 /**
  * Get the current user's profile data

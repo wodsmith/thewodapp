@@ -1,5 +1,5 @@
-import NavFooterLayout from "@/layouts/NavFooterLayout"
 import type { ReactNode } from "react"
+import NavFooterLayout from "@/layouts/NavFooterLayout"
 
 export default function LegalLayout({ children }: { children: ReactNode }) {
 	return (

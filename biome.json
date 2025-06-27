@@ -1,31 +1,24 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-	"organizeImports": {
-		"enabled": true
-	},
+	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+	"root": true,
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
 	"files": {
-		"ignore": [
-			"node_modules",
-			"dist",
-			"build",
-			"public",
-			"public/**",
-			"public/*",
-			"public/static",
-			"public/static/**",
-			"public/static/*",
-			"cloudflare-env.d.ts",
-			"src/components/providers.tsx"
-		]
+		"ignoreUnknown": false,
+		"includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"]
 	},
 	"linter": {
 		"enabled": true,
+		"includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"nursery": {
+				"useUniqueElementIds": "off"
+			}
 		}
 	},
 	"formatter": {
 		"enabled": true,
+		"includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
 		"indentStyle": "tab"
 	},
 	"javascript": {
@@ -37,7 +30,7 @@
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
-		"useIgnoreFile": true,
+		"useIgnoreFile": false,
 		"defaultBranch": "main"
 	}
 }

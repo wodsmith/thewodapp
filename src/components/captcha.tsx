@@ -1,8 +1,8 @@
 "use client"
 
-import { useConfigStore } from "@/state/config"
 import dynamic from "next/dynamic"
 import type { ComponentProps } from "react"
+import { useConfigStore } from "@/state/config"
 import { FormMessage } from "./ui/form"
 
 const Turnstile = dynamic(

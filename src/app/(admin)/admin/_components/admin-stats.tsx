@@ -1,8 +1,8 @@
 "use client"
 
-import { getAdminStatsAction } from "@/actions/admin-actions"
 import { useEffect } from "react"
 import { useServerAction } from "zsa-react"
+import { getAdminStatsAction } from "@/actions/admin-actions"
 
 export function AdminStats() {
 	const { execute, data, isPending } = useServerAction(getAdminStatsAction)

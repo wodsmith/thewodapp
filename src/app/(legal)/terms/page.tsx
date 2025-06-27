@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button"
-import { CREDITS_EXPIRATION_YEARS } from "@/constants"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { CREDITS_EXPIRATION_YEARS } from "@/constants"
 
 export const metadata: Metadata = {
 	title: "Terms of Service",
