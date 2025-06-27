@@ -1,9 +1,269 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "c58fe0d8-5ac4-4993-bd97-8534065fbd8d",
+	"id": "4d7954ef-0530-4043-8cc1-c92c74d1fd14",
 	"prevId": "3c6af42e-0935-4996-a4dd-e02bbebedfe9",
 	"tables": {
+		"passkey_credential": {
+			"name": "passkey_credential",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"userId": {
+					"name": "userId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"credentialId": {
+					"name": "credentialId",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"credentialPublicKey": {
+					"name": "credentialPublicKey",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"counter": {
+					"name": "counter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"transports": {
+					"name": "transports",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"aaguid": {
+					"name": "aaguid",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"userAgent": {
+					"name": "userAgent",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"ipAddress": {
+					"name": "ipAddress",
+					"type": "text(128)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"passkey_credential_credentialId_unique": {
+					"name": "passkey_credential_credentialId_unique",
+					"columns": ["credentialId"],
+					"isUnique": true
+				},
+				"user_id_idx": {
+					"name": "user_id_idx",
+					"columns": ["userId"],
+					"isUnique": false
+				},
+				"credential_id_idx": {
+					"name": "credential_id_idx",
+					"columns": ["credentialId"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"passkey_credential_userId_user_id_fk": {
+					"name": "passkey_credential_userId_user_id_fk",
+					"tableFrom": "passkey_credential",
+					"tableTo": "user",
+					"columnsFrom": ["userId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"user": {
+			"name": "user",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"firstName": {
+					"name": "firstName",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"lastName": {
+					"name": "lastName",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"email": {
+					"name": "email",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"passwordHash": {
+					"name": "passwordHash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"role": {
+					"name": "role",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'user'"
+				},
+				"emailVerified": {
+					"name": "emailVerified",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"signUpIpAddress": {
+					"name": "signUpIpAddress",
+					"type": "text(128)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"googleAccountId": {
+					"name": "googleAccountId",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"avatar": {
+					"name": "avatar",
+					"type": "text(600)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"currentCredits": {
+					"name": "currentCredits",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
+				"lastCreditRefreshAt": {
+					"name": "lastCreditRefreshAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"user_email_unique": {
+					"name": "user_email_unique",
+					"columns": ["email"],
+					"isUnique": true
+				},
+				"email_idx": {
+					"name": "email_idx",
+					"columns": ["email"],
+					"isUnique": false
+				},
+				"google_account_id_idx": {
+					"name": "google_account_id_idx",
+					"columns": ["googleAccountId"],
+					"isUnique": false
+				},
+				"role_idx": {
+					"name": "role_idx",
+					"columns": ["role"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
 		"credit_transaction": {
 			"name": "credit_transaction",
 			"columns": {
@@ -136,532 +396,6 @@
 			"uniqueConstraints": {},
 			"checkConstraints": {}
 		},
-		"movements": {
-			"name": "movements",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"name": {
-					"name": "name",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"type": {
-					"name": "type",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				}
-			},
-			"indexes": {},
-			"foreignKeys": {},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"passkey_credential": {
-			"name": "passkey_credential",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"userId": {
-					"name": "userId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"credentialId": {
-					"name": "credentialId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"credentialPublicKey": {
-					"name": "credentialPublicKey",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"counter": {
-					"name": "counter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"transports": {
-					"name": "transports",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"aaguid": {
-					"name": "aaguid",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"userAgent": {
-					"name": "userAgent",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"ipAddress": {
-					"name": "ipAddress",
-					"type": "text(100)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				}
-			},
-			"indexes": {
-				"passkey_credential_credentialId_unique": {
-					"name": "passkey_credential_credentialId_unique",
-					"columns": ["credentialId"],
-					"isUnique": true
-				},
-				"user_id_idx": {
-					"name": "user_id_idx",
-					"columns": ["userId"],
-					"isUnique": false
-				},
-				"credential_id_idx": {
-					"name": "credential_id_idx",
-					"columns": ["credentialId"],
-					"isUnique": false
-				}
-			},
-			"foreignKeys": {
-				"passkey_credential_userId_user_id_fk": {
-					"name": "passkey_credential_userId_user_id_fk",
-					"tableFrom": "passkey_credential",
-					"tableTo": "user",
-					"columnsFrom": ["userId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"programming_track_payment": {
-			"name": "programming_track_payment",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"userId": {
-					"name": "userId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"trackId": {
-					"name": "trackId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"amount": {
-					"name": "amount",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"currency": {
-					"name": "currency",
-					"type": "text(3)",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"paymentType": {
-					"name": "paymentType",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"status": {
-					"name": "status",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"stripePaymentIntentId": {
-					"name": "stripePaymentIntentId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripeSubscriptionId": {
-					"name": "stripeSubscriptionId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripeInvoiceId": {
-					"name": "stripeInvoiceId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripeCustomerId": {
-					"name": "stripeCustomerId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"failureReason": {
-					"name": "failureReason",
-					"type": "text(500)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"refundedAt": {
-					"name": "refundedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"refundAmount": {
-					"name": "refundAmount",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"periodStart": {
-					"name": "periodStart",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"periodEnd": {
-					"name": "periodEnd",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				}
-			},
-			"indexes": {
-				"programming_track_payment_user_idx": {
-					"name": "programming_track_payment_user_idx",
-					"columns": ["userId"],
-					"isUnique": false
-				},
-				"programming_track_payment_track_idx": {
-					"name": "programming_track_payment_track_idx",
-					"columns": ["trackId"],
-					"isUnique": false
-				},
-				"programming_track_payment_status_idx": {
-					"name": "programming_track_payment_status_idx",
-					"columns": ["status"],
-					"isUnique": false
-				},
-				"programming_track_payment_stripe_payment_intent_idx": {
-					"name": "programming_track_payment_stripe_payment_intent_idx",
-					"columns": ["stripePaymentIntentId"],
-					"isUnique": false
-				},
-				"programming_track_payment_stripe_subscription_idx": {
-					"name": "programming_track_payment_stripe_subscription_idx",
-					"columns": ["stripeSubscriptionId"],
-					"isUnique": false
-				},
-				"programming_track_payment_created_at_idx": {
-					"name": "programming_track_payment_created_at_idx",
-					"columns": ["createdAt"],
-					"isUnique": false
-				}
-			},
-			"foreignKeys": {
-				"programming_track_payment_userId_user_id_fk": {
-					"name": "programming_track_payment_userId_user_id_fk",
-					"tableFrom": "programming_track_payment",
-					"tableTo": "user",
-					"columnsFrom": ["userId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				},
-				"programming_track_payment_trackId_programming_track_id_fk": {
-					"name": "programming_track_payment_trackId_programming_track_id_fk",
-					"tableFrom": "programming_track_payment",
-					"tableTo": "programming_track",
-					"columnsFrom": ["trackId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"programming_track": {
-			"name": "programming_track",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"name": {
-					"name": "name",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"description": {
-					"name": "description",
-					"type": "text(1000)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"type": {
-					"name": "type",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"ownerTeamId": {
-					"name": "ownerTeamId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"isPublic": {
-					"name": "isPublic",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": 0
-				},
-				"pricingType": {
-					"name": "pricingType",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": "'free'"
-				},
-				"price": {
-					"name": "price",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"currency": {
-					"name": "currency",
-					"type": "text(3)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": "'usd'"
-				},
-				"billingInterval": {
-					"name": "billingInterval",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripePriceId": {
-					"name": "stripePriceId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripeProductId": {
-					"name": "stripeProductId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"trialPeriodDays": {
-					"name": "trialPeriodDays",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				}
-			},
-			"indexes": {
-				"programming_track_type_idx": {
-					"name": "programming_track_type_idx",
-					"columns": ["type"],
-					"isUnique": false
-				},
-				"programming_track_owner_idx": {
-					"name": "programming_track_owner_idx",
-					"columns": ["ownerTeamId"],
-					"isUnique": false
-				},
-				"programming_track_pricing_type_idx": {
-					"name": "programming_track_pricing_type_idx",
-					"columns": ["pricingType"],
-					"isUnique": false
-				},
-				"programming_track_stripe_price_idx": {
-					"name": "programming_track_stripe_price_idx",
-					"columns": ["stripePriceId"],
-					"isUnique": false
-				}
-			},
-			"foreignKeys": {
-				"programming_track_ownerTeamId_team_id_fk": {
-					"name": "programming_track_ownerTeamId_team_id_fk",
-					"tableFrom": "programming_track",
-					"tableTo": "team",
-					"columnsFrom": ["ownerTeamId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
 		"purchased_item": {
 			"name": "purchased_item",
 			"columns": {
@@ -751,441 +485,6 @@
 					"onUpdate": "no action"
 				}
 			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"results": {
-			"name": "results",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"user_id": {
-					"name": "user_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"date": {
-					"name": "date",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"workout_id": {
-					"name": "workout_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"type": {
-					"name": "type",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"notes": {
-					"name": "notes",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"programming_track_id": {
-					"name": "programming_track_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"scheduled_workout_instance_id": {
-					"name": "scheduled_workout_instance_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"scale": {
-					"name": "scale",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"wod_score": {
-					"name": "wod_score",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"set_count": {
-					"name": "set_count",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"distance": {
-					"name": "distance",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"time": {
-					"name": "time",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				}
-			},
-			"indexes": {},
-			"foreignKeys": {
-				"results_user_id_user_id_fk": {
-					"name": "results_user_id_user_id_fk",
-					"tableFrom": "results",
-					"tableTo": "user",
-					"columnsFrom": ["user_id"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				},
-				"results_workout_id_workouts_id_fk": {
-					"name": "results_workout_id_workouts_id_fk",
-					"tableFrom": "results",
-					"tableTo": "workouts",
-					"columnsFrom": ["workout_id"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				},
-				"results_programming_track_id_programming_track_id_fk": {
-					"name": "results_programming_track_id_programming_track_id_fk",
-					"tableFrom": "results",
-					"tableTo": "programming_track",
-					"columnsFrom": ["programming_track_id"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				},
-				"results_scheduled_workout_instance_id_scheduled_workout_instance_id_fk": {
-					"name": "results_scheduled_workout_instance_id_scheduled_workout_instance_id_fk",
-					"tableFrom": "results",
-					"tableTo": "scheduled_workout_instance",
-					"columnsFrom": ["scheduled_workout_instance_id"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"scheduled_workout_instance": {
-			"name": "scheduled_workout_instance",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"teamId": {
-					"name": "teamId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"trackWorkoutId": {
-					"name": "trackWorkoutId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"scheduledDate": {
-					"name": "scheduledDate",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"teamSpecificNotes": {
-					"name": "teamSpecificNotes",
-					"type": "text(1000)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"scalingGuidanceForDay": {
-					"name": "scalingGuidanceForDay",
-					"type": "text(1000)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"classTimes": {
-					"name": "classTimes",
-					"type": "text(500)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				}
-			},
-			"indexes": {
-				"scheduled_workout_instance_team_idx": {
-					"name": "scheduled_workout_instance_team_idx",
-					"columns": ["teamId"],
-					"isUnique": false
-				},
-				"scheduled_workout_instance_date_idx": {
-					"name": "scheduled_workout_instance_date_idx",
-					"columns": ["scheduledDate"],
-					"isUnique": false
-				}
-			},
-			"foreignKeys": {
-				"scheduled_workout_instance_teamId_team_id_fk": {
-					"name": "scheduled_workout_instance_teamId_team_id_fk",
-					"tableFrom": "scheduled_workout_instance",
-					"tableTo": "team",
-					"columnsFrom": ["teamId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				},
-				"scheduled_workout_instance_trackWorkoutId_track_workout_id_fk": {
-					"name": "scheduled_workout_instance_trackWorkoutId_track_workout_id_fk",
-					"tableFrom": "scheduled_workout_instance",
-					"tableTo": "track_workout",
-					"columnsFrom": ["trackWorkoutId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"sets": {
-			"name": "sets",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"result_id": {
-					"name": "result_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"set_number": {
-					"name": "set_number",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"notes": {
-					"name": "notes",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"reps": {
-					"name": "reps",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"weight": {
-					"name": "weight",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"status": {
-					"name": "status",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"distance": {
-					"name": "distance",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"time": {
-					"name": "time",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"score": {
-					"name": "score",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				}
-			},
-			"indexes": {},
-			"foreignKeys": {
-				"sets_result_id_results_id_fk": {
-					"name": "sets_result_id_results_id_fk",
-					"tableFrom": "sets",
-					"tableTo": "results",
-					"columnsFrom": ["result_id"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
-		"spicy_tags": {
-			"name": "spicy_tags",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"id": {
-					"name": "id",
-					"type": "text",
-					"primaryKey": true,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"name": {
-					"name": "name",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				}
-			},
-			"indexes": {
-				"spicy_tags_name_unique": {
-					"name": "spicy_tags_name_unique",
-					"columns": ["name"],
-					"isUnique": true
-				}
-			},
-			"foreignKeys": {},
 			"compositePrimaryKeys": {},
 			"uniqueConstraints": {},
 			"checkConstraints": {}
@@ -1490,176 +789,6 @@
 			"uniqueConstraints": {},
 			"checkConstraints": {}
 		},
-		"team_programming_track": {
-			"name": "team_programming_track",
-			"columns": {
-				"createdAt": {
-					"name": "createdAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updatedAt": {
-					"name": "updatedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"updateCounter": {
-					"name": "updateCounter",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false,
-					"default": 0
-				},
-				"teamId": {
-					"name": "teamId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"trackId": {
-					"name": "trackId",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"isActive": {
-					"name": "isActive",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": 1
-				},
-				"subscribedAt": {
-					"name": "subscribedAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"startDayOffset": {
-					"name": "startDayOffset",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": 0
-				},
-				"paymentStatus": {
-					"name": "paymentStatus",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": "'pending'"
-				},
-				"stripeCustomerId": {
-					"name": "stripeCustomerId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripeSubscriptionId": {
-					"name": "stripeSubscriptionId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"stripePaymentIntentId": {
-					"name": "stripePaymentIntentId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"subscriptionExpiresAt": {
-					"name": "subscriptionExpiresAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"cancelledAt": {
-					"name": "cancelledAt",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"cancelAtPeriodEnd": {
-					"name": "cancelAtPeriodEnd",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": 0
-				}
-			},
-			"indexes": {
-				"team_programming_track_active_idx": {
-					"name": "team_programming_track_active_idx",
-					"columns": ["isActive"],
-					"isUnique": false
-				},
-				"team_programming_track_team_idx": {
-					"name": "team_programming_track_team_idx",
-					"columns": ["teamId"],
-					"isUnique": false
-				},
-				"team_programming_track_payment_status_idx": {
-					"name": "team_programming_track_payment_status_idx",
-					"columns": ["paymentStatus"],
-					"isUnique": false
-				},
-				"team_programming_track_stripe_subscription_idx": {
-					"name": "team_programming_track_stripe_subscription_idx",
-					"columns": ["stripeSubscriptionId"],
-					"isUnique": false
-				},
-				"team_programming_track_expires_at_idx": {
-					"name": "team_programming_track_expires_at_idx",
-					"columns": ["subscriptionExpiresAt"],
-					"isUnique": false
-				}
-			},
-			"foreignKeys": {
-				"team_programming_track_teamId_team_id_fk": {
-					"name": "team_programming_track_teamId_team_id_fk",
-					"tableFrom": "team_programming_track",
-					"tableTo": "team",
-					"columnsFrom": ["teamId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				},
-				"team_programming_track_trackId_programming_track_id_fk": {
-					"name": "team_programming_track_trackId_programming_track_id_fk",
-					"tableFrom": "team_programming_track",
-					"tableTo": "programming_track",
-					"columnsFrom": ["trackId"],
-					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {
-				"team_programming_track_teamId_trackId_pk": {
-					"columns": ["teamId", "trackId"],
-					"name": "team_programming_track_teamId_trackId_pk"
-				}
-			},
-			"uniqueConstraints": {},
-			"checkConstraints": {}
-		},
 		"team_role": {
 			"name": "team_role",
 			"columns": {
@@ -1914,8 +1043,8 @@
 			"uniqueConstraints": {},
 			"checkConstraints": {}
 		},
-		"track_workout": {
-			"name": "track_workout",
+		"movements": {
+			"name": "movements",
 			"columns": {
 				"createdAt": {
 					"name": "createdAt",
@@ -1946,79 +1075,160 @@
 					"notNull": true,
 					"autoincrement": false
 				},
-				"trackId": {
-					"name": "trackId",
+				"name": {
+					"name": "name",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": true,
 					"autoincrement": false
 				},
-				"workoutId": {
-					"name": "workoutId",
+				"type": {
+					"name": "type",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": true,
 					"autoincrement": false
-				},
-				"dayNumber": {
-					"name": "dayNumber",
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"results": {
+			"name": "results",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
 					"type": "integer",
 					"primaryKey": false,
 					"notNull": true,
 					"autoincrement": false
 				},
-				"weekNumber": {
-					"name": "weekNumber",
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
 					"type": "integer",
 					"primaryKey": false,
 					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"date": {
+					"name": "date",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"workout_id": {
+					"name": "workout_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"type": {
+					"name": "type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
 					"autoincrement": false
 				},
 				"notes": {
 					"name": "notes",
-					"type": "text(1000)",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"programming_track_id": {
+					"name": "programming_track_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"scheduled_workout_instance_id": {
+					"name": "scheduled_workout_instance_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"scale": {
+					"name": "scale",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"wod_score": {
+					"name": "wod_score",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"set_count": {
+					"name": "set_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"distance": {
+					"name": "distance",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"time": {
+					"name": "time",
+					"type": "integer",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
 				}
 			},
-			"indexes": {
-				"track_workout_track_idx": {
-					"name": "track_workout_track_idx",
-					"columns": ["trackId"],
-					"isUnique": false
-				},
-				"track_workout_day_idx": {
-					"name": "track_workout_day_idx",
-					"columns": ["dayNumber"],
-					"isUnique": false
-				},
-				"track_workout_workoutid_idx": {
-					"name": "track_workout_workoutid_idx",
-					"columns": ["workoutId"],
-					"isUnique": false
-				},
-				"track_workout_unique_idx": {
-					"name": "track_workout_unique_idx",
-					"columns": ["trackId", "workoutId", "dayNumber"],
-					"isUnique": false
-				}
-			},
+			"indexes": {},
 			"foreignKeys": {
-				"track_workout_trackId_programming_track_id_fk": {
-					"name": "track_workout_trackId_programming_track_id_fk",
-					"tableFrom": "track_workout",
-					"tableTo": "programming_track",
-					"columnsFrom": ["trackId"],
+				"results_user_id_user_id_fk": {
+					"name": "results_user_id_user_id_fk",
+					"tableFrom": "results",
+					"tableTo": "user",
+					"columnsFrom": ["user_id"],
 					"columnsTo": ["id"],
 					"onDelete": "no action",
 					"onUpdate": "no action"
 				},
-				"track_workout_workoutId_workouts_id_fk": {
-					"name": "track_workout_workoutId_workouts_id_fk",
-					"tableFrom": "track_workout",
+				"results_workout_id_workouts_id_fk": {
+					"name": "results_workout_id_workouts_id_fk",
+					"tableFrom": "results",
 					"tableTo": "workouts",
-					"columnsFrom": ["workoutId"],
+					"columnsFrom": ["workout_id"],
 					"columnsTo": ["id"],
 					"onDelete": "no action",
 					"onUpdate": "no action"
@@ -2028,8 +1238,8 @@
 			"uniqueConstraints": {},
 			"checkConstraints": {}
 		},
-		"user": {
-			"name": "user",
+		"sets": {
+			"name": "sets",
 			"columns": {
 				"createdAt": {
 					"name": "createdAt",
@@ -2060,106 +1270,131 @@
 					"notNull": true,
 					"autoincrement": false
 				},
-				"firstName": {
-					"name": "firstName",
-					"type": "text(255)",
+				"result_id": {
+					"name": "result_id",
+					"type": "text",
 					"primaryKey": false,
-					"notNull": false,
+					"notNull": true,
 					"autoincrement": false
 				},
-				"lastName": {
-					"name": "lastName",
-					"type": "text(255)",
+				"set_number": {
+					"name": "set_number",
+					"type": "integer",
 					"primaryKey": false,
-					"notNull": false,
+					"notNull": true,
 					"autoincrement": false
 				},
-				"email": {
-					"name": "email",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"passwordHash": {
-					"name": "passwordHash",
+				"notes": {
+					"name": "notes",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
 				},
-				"role": {
-					"name": "role",
+				"reps": {
+					"name": "reps",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"weight": {
+					"name": "weight",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"status": {
+					"name": "status",
 					"type": "text",
 					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": "'user'"
+					"notNull": false,
+					"autoincrement": false
 				},
-				"emailVerified": {
-					"name": "emailVerified",
+				"distance": {
+					"name": "distance",
 					"type": "integer",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
 				},
-				"signUpIpAddress": {
-					"name": "signUpIpAddress",
-					"type": "text(100)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"googleAccountId": {
-					"name": "googleAccountId",
-					"type": "text(255)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"avatar": {
-					"name": "avatar",
-					"type": "text(600)",
-					"primaryKey": false,
-					"notNull": false,
-					"autoincrement": false
-				},
-				"currentCredits": {
-					"name": "currentCredits",
+				"time": {
+					"name": "time",
 					"type": "integer",
 					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false,
-					"default": 0
+					"notNull": false,
+					"autoincrement": false
 				},
-				"lastCreditRefreshAt": {
-					"name": "lastCreditRefreshAt",
+				"score": {
+					"name": "score",
 					"type": "integer",
 					"primaryKey": false,
 					"notNull": false,
 					"autoincrement": false
 				}
 			},
+			"indexes": {},
+			"foreignKeys": {
+				"sets_result_id_results_id_fk": {
+					"name": "sets_result_id_results_id_fk",
+					"tableFrom": "sets",
+					"tableTo": "results",
+					"columnsFrom": ["result_id"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"spicy_tags": {
+			"name": "spicy_tags",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				}
+			},
 			"indexes": {
-				"user_email_unique": {
-					"name": "user_email_unique",
-					"columns": ["email"],
+				"spicy_tags_name_unique": {
+					"name": "spicy_tags_name_unique",
+					"columns": ["name"],
 					"isUnique": true
-				},
-				"email_idx": {
-					"name": "email_idx",
-					"columns": ["email"],
-					"isUnique": false
-				},
-				"google_account_id_idx": {
-					"name": "google_account_id_idx",
-					"columns": ["googleAccountId"],
-					"isUnique": false
-				},
-				"role_idx": {
-					"name": "role_idx",
-					"columns": ["role"],
-					"isUnique": false
 				}
 			},
 			"foreignKeys": {},
@@ -2387,8 +1622,8 @@
 					"autoincrement": false,
 					"default": 1
 				},
-				"user_id": {
-					"name": "user_id",
+				"team_id": {
+					"name": "team_id",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": false,
@@ -2425,20 +1660,436 @@
 			},
 			"indexes": {},
 			"foreignKeys": {
-				"workouts_user_id_user_id_fk": {
-					"name": "workouts_user_id_user_id_fk",
+				"workouts_team_id_team_id_fk": {
+					"name": "workouts_team_id_team_id_fk",
 					"tableFrom": "workouts",
-					"tableTo": "user",
-					"columnsFrom": ["user_id"],
+					"tableTo": "team",
+					"columnsFrom": ["team_id"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"programming_track": {
+			"name": "programming_track",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"name": {
+					"name": "name",
+					"type": "text(255)",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"description": {
+					"name": "description",
+					"type": "text(1000)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"type": {
+					"name": "type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"ownerTeamId": {
+					"name": "ownerTeamId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"isPublic": {
+					"name": "isPublic",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				}
+			},
+			"indexes": {
+				"programming_track_type_idx": {
+					"name": "programming_track_type_idx",
+					"columns": ["type"],
+					"isUnique": false
+				},
+				"programming_track_owner_idx": {
+					"name": "programming_track_owner_idx",
+					"columns": ["ownerTeamId"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"programming_track_ownerTeamId_team_id_fk": {
+					"name": "programming_track_ownerTeamId_team_id_fk",
+					"tableFrom": "programming_track",
+					"tableTo": "team",
+					"columnsFrom": ["ownerTeamId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"scheduled_workout_instance": {
+			"name": "scheduled_workout_instance",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"teamId": {
+					"name": "teamId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"trackWorkoutId": {
+					"name": "trackWorkoutId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"scheduledDate": {
+					"name": "scheduledDate",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"teamSpecificNotes": {
+					"name": "teamSpecificNotes",
+					"type": "text(1000)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"scalingGuidanceForDay": {
+					"name": "scalingGuidanceForDay",
+					"type": "text(1000)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"classTimes": {
+					"name": "classTimes",
+					"type": "text(500)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"scheduled_workout_instance_team_idx": {
+					"name": "scheduled_workout_instance_team_idx",
+					"columns": ["teamId"],
+					"isUnique": false
+				},
+				"scheduled_workout_instance_date_idx": {
+					"name": "scheduled_workout_instance_date_idx",
+					"columns": ["scheduledDate"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"scheduled_workout_instance_teamId_team_id_fk": {
+					"name": "scheduled_workout_instance_teamId_team_id_fk",
+					"tableFrom": "scheduled_workout_instance",
+					"tableTo": "team",
+					"columnsFrom": ["teamId"],
 					"columnsTo": ["id"],
 					"onDelete": "no action",
 					"onUpdate": "no action"
 				},
-				"workouts_source_track_id_programming_track_id_fk": {
-					"name": "workouts_source_track_id_programming_track_id_fk",
-					"tableFrom": "workouts",
+				"scheduled_workout_instance_trackWorkoutId_track_workout_id_fk": {
+					"name": "scheduled_workout_instance_trackWorkoutId_track_workout_id_fk",
+					"tableFrom": "scheduled_workout_instance",
+					"tableTo": "track_workout",
+					"columnsFrom": ["trackWorkoutId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"team_programming_track": {
+			"name": "team_programming_track",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"teamId": {
+					"name": "teamId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"trackId": {
+					"name": "trackId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"isActive": {
+					"name": "isActive",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 1
+				},
+				"subscribedAt": {
+					"name": "subscribedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"startDayOffset": {
+					"name": "startDayOffset",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				}
+			},
+			"indexes": {
+				"team_programming_track_active_idx": {
+					"name": "team_programming_track_active_idx",
+					"columns": ["isActive"],
+					"isUnique": false
+				},
+				"team_programming_track_team_idx": {
+					"name": "team_programming_track_team_idx",
+					"columns": ["teamId"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"team_programming_track_teamId_team_id_fk": {
+					"name": "team_programming_track_teamId_team_id_fk",
+					"tableFrom": "team_programming_track",
+					"tableTo": "team",
+					"columnsFrom": ["teamId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
+				"team_programming_track_trackId_programming_track_id_fk": {
+					"name": "team_programming_track_trackId_programming_track_id_fk",
+					"tableFrom": "team_programming_track",
 					"tableTo": "programming_track",
-					"columnsFrom": ["source_track_id"],
+					"columnsFrom": ["trackId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"team_programming_track_teamId_trackId_pk": {
+					"columns": ["teamId", "trackId"],
+					"name": "team_programming_track_teamId_trackId_pk"
+				}
+			},
+			"uniqueConstraints": {},
+			"checkConstraints": {}
+		},
+		"track_workout": {
+			"name": "track_workout",
+			"columns": {
+				"createdAt": {
+					"name": "createdAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updatedAt": {
+					"name": "updatedAt",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"updateCounter": {
+					"name": "updateCounter",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": 0
+				},
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"trackId": {
+					"name": "trackId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"workoutId": {
+					"name": "workoutId",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"dayNumber": {
+					"name": "dayNumber",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
+				"weekNumber": {
+					"name": "weekNumber",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"notes": {
+					"name": "notes",
+					"type": "text(1000)",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				}
+			},
+			"indexes": {
+				"track_workout_track_idx": {
+					"name": "track_workout_track_idx",
+					"columns": ["trackId"],
+					"isUnique": false
+				},
+				"track_workout_day_idx": {
+					"name": "track_workout_day_idx",
+					"columns": ["dayNumber"],
+					"isUnique": false
+				},
+				"track_workout_workoutid_idx": {
+					"name": "track_workout_workoutid_idx",
+					"columns": ["workoutId"],
+					"isUnique": false
+				},
+				"track_workout_unique_idx": {
+					"name": "track_workout_unique_idx",
+					"columns": ["trackId", "workoutId", "dayNumber"],
+					"isUnique": false
+				}
+			},
+			"foreignKeys": {
+				"track_workout_trackId_programming_track_id_fk": {
+					"name": "track_workout_trackId_programming_track_id_fk",
+					"tableFrom": "track_workout",
+					"tableTo": "programming_track",
+					"columnsFrom": ["trackId"],
+					"columnsTo": ["id"],
+					"onDelete": "no action",
+					"onUpdate": "no action"
+				},
+				"track_workout_workoutId_workouts_id_fk": {
+					"name": "track_workout_workoutId_workouts_id_fk",
+					"tableFrom": "track_workout",
+					"tableTo": "workouts",
+					"columnsFrom": ["workoutId"],
 					"columnsTo": ["id"],
 					"onDelete": "no action",
 					"onUpdate": "no action"
@@ -2454,7 +2105,10 @@
 	"_meta": {
 		"schemas": {},
 		"tables": {},
-		"columns": {}
+		"columns": {
+			"\"team_programming_track\".\"addedAt\"": "\"team_programming_track\".\"subscribedAt\"",
+			"\"workouts\".\"user_id\"": "\"workouts\".\"team_id\""
+		}
 	},
 	"internal": {
 		"indexes": {}
