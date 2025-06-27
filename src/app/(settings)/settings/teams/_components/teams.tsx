@@ -41,7 +41,7 @@ export function TeamsClient({ teams, selectedTeamSlug }: TeamsClientProps) {
 											{team.name}
 										</Link>
 										<Link
-											href={`/admin/teams/${team.slug}`}
+											href={`/admin/teams/${team.id}`}
 											className="inline-flex items-center justify-center font-mono border-2 border-primary bg-orange px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600 shadow-[4px_4px_0px_0px] shadow-primary"
 										>
 											Schedule Workouts

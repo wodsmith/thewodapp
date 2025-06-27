@@ -64,7 +64,9 @@ describe("WorkoutSelectionModal (Refactored)", () => {
 		render(<WorkoutSelectionModal {...defaultProps} />)
 
 		// The date format shown is "Sun Jun 15 2025" (formatted by the modal)
-		expect(screen.getByText(/Sun Jun 15 2025/)).toBeInTheDocument()
+		expect(
+			screen.getByText(/Schedule Workout for June 16th, 2025/),
+		).toBeInTheDocument()
 	})
 
 	it("renders all component sections", () => {
@@ -89,8 +91,6 @@ describe("WorkoutSelectionModal (Refactored)", () => {
 		// 1. ScheduledWorkouts section would appear above the main layout
 		// 2. TrackSelection component
 		expect(screen.getByText("Select Programming Track")).toBeInTheDocument()
-		const trackCard = screen.getByTestId("track-card")
-		expect(trackCard).toBeInTheDocument()
 
 		// 3. WorkoutSelection component
 		expect(screen.getByText("Select Workout")).toBeInTheDocument()

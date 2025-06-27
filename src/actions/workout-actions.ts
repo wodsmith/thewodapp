@@ -10,6 +10,7 @@ import {
 	getWorkoutById,
 	updateWorkout,
 } from "@/server/workouts"
+import { requireVerifiedEmail } from "@/utils/auth"
 import { z } from "zod"
 import { ZSAError, createServerAction } from "zsa"
 
@@ -53,7 +54,7 @@ const createWorkoutSchema = z.object({
 	}),
 	tagIds: z.array(z.string()).default([]),
 	movementIds: z.array(z.string()).default([]),
-	userId: z.string().min(1, "User ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 /**
@@ -89,7 +90,7 @@ export const createWorkoutAction = createServerAction()
 export const getUserWorkoutsAction = createServerAction()
 	.input(
 		z.object({
-			userId: z.string().min(1, "User ID is required"),
+			teamId: z.string().min(1, "Team ID is required"),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -134,14 +135,19 @@ export const getWorkoutResultsByWorkoutAndUserAction = createServerAction()
 	.input(
 		z.object({
 			workoutId: z.string().min(1, "Workout ID is required"),
-			userId: z.string().min(1, "User ID is required"),
 		}),
 	)
 	.handler(async ({ input }) => {
 		try {
+			const session = await requireVerifiedEmail()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+			}
+
 			const results = await getWorkoutResultsByWorkoutAndUser(
 				input.workoutId,
-				input.userId,
+				session.user.id,
 			)
 			return { success: true, data: results }
 		} catch (error) {

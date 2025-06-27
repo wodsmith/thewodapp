@@ -64,6 +64,25 @@ export async function createProgrammingTrack(
 	return track
 }
 
+export async function updateProgrammingTrack(
+	trackId: string,
+	data: { isPublic?: boolean },
+): Promise<ProgrammingTrack> {
+	const db = getDB()
+
+	const result = await db
+		.update(programmingTracksTable)
+		.set({
+			isPublic: data.isPublic ? 1 : 0,
+			updatedAt: new Date(),
+		})
+		.where(eq(programmingTracksTable.id, trackId))
+		.returning()
+
+	const [track] = Array.isArray(result) ? result : []
+	return track
+}
+
 export async function getProgrammingTrackById(
 	trackId: string,
 ): Promise<ProgrammingTrack | null> {
@@ -236,7 +255,6 @@ export async function assignTrackToTeam(
 			teamId,
 			trackId,
 			isActive: isActive ? 1 : 0,
-			addedAt: new Date(),
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		})
@@ -250,7 +268,20 @@ export async function getTeamTracks(
 ): Promise<ProgrammingTrack[]> {
 	const db = getDB()
 
-	const joins = db
+	console.log(
+		`DEBUG: [getTeamTracks] Fetching tracks for teamId: ${teamId}, activeOnly: ${activeOnly}`,
+	)
+
+	// Get tracks owned by the team
+	const ownedTracks = await db
+		.select()
+		.from(programmingTracksTable)
+		.where(eq(programmingTracksTable.ownerTeamId, teamId))
+
+	console.log(`DEBUG: [getTeamTracks] Found ${ownedTracks.length} owned tracks`)
+
+	// Get tracks assigned to the team via team_programming_tracks table
+	const assignedTracksQuery = db
 		.select({ track: programmingTracksTable })
 		.from(programmingTracksTable)
 		.innerJoin(
@@ -262,8 +293,25 @@ export async function getTeamTracks(
 			),
 		)
 
-	const records = await joins
-	return records.map((r) => r.track)
+	const assignedRecords = await assignedTracksQuery
+	const assignedTracks = assignedRecords.map((r) => r.track)
+
+	console.log(
+		`DEBUG: [getTeamTracks] Found ${assignedTracks.length} assigned tracks`,
+	)
+
+	// Combine and deduplicate tracks (in case a team owns a track and is also assigned to it)
+	const allTracks = [...ownedTracks, ...assignedTracks]
+	const uniqueTracks = allTracks.filter(
+		(track, index, array) =>
+			array.findIndex((t) => t.id === track.id) === index,
+	)
+
+	console.log(
+		`DEBUG: [getTeamTracks] Returning ${uniqueTracks.length} total unique tracks`,
+	)
+
+	return uniqueTracks
 }
 
 /**
@@ -271,8 +319,7 @@ export async function getTeamTracks(
  * These are "standalone" workouts that can be scheduled independently
  */
 export async function getWorkoutsNotInTracks(
-	userId: string,
-	teamId?: string,
+	teamId: string,
 ): Promise<
 	(Workout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
 > {
@@ -282,7 +329,7 @@ export async function getWorkoutsNotInTracks(
 		.from(workouts)
 		.where(
 			and(
-				or(eq(workouts.scope, "public"), eq(workouts.userId, userId)),
+				eq(workouts.teamId, teamId),
 				notExists(
 					db
 						.select()
@@ -408,4 +455,176 @@ export async function scheduleStandaloneWorkout({
 	await assignTrackToTeam(teamId, track.id, false)
 
 	return trackWorkout
+}
+
+export async function deleteProgrammingTrack(trackId: string): Promise<void> {
+	const db = getDB()
+
+	// Delete associated track workouts first (foreign key constraint)
+	await db
+		.delete(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.trackId, trackId))
+
+	// Delete team programming track associations
+	await db
+		.delete(teamProgrammingTracksTable)
+		.where(eq(teamProgrammingTracksTable.trackId, trackId))
+
+	// Delete the programming track
+	await db
+		.delete(programmingTracksTable)
+		.where(eq(programmingTracksTable.id, trackId))
+
+	console.log(`INFO: [ProgrammingTrack] Deleted programming track: ${trackId}`)
+}
+
+export async function removeWorkoutFromTrack(
+	trackWorkoutId: string,
+): Promise<void> {
+	const db = getDB()
+
+	await db
+		.delete(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+
+	console.log(
+		`INFO: [TrackWorkout] Removed workout from track: ${trackWorkoutId}`,
+	)
+}
+
+export async function updateTrackWorkout({
+	trackWorkoutId,
+	dayNumber,
+	weekNumber,
+	notes,
+}: {
+	trackWorkoutId: string
+	dayNumber?: number
+	weekNumber?: number | null
+	notes?: string | null
+}): Promise<TrackWorkout> {
+	const db = getDB()
+
+	const updateData: Partial<TrackWorkout> = {
+		updatedAt: new Date(),
+	}
+
+	if (dayNumber !== undefined) updateData.dayNumber = dayNumber
+	if (weekNumber !== undefined) updateData.weekNumber = weekNumber
+	if (notes !== undefined) updateData.notes = notes
+
+	const [trackWorkout] = await db
+		.update(trackWorkoutsTable)
+		.set(updateData)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+		.returning()
+
+	console.log(`INFO: [TrackWorkout] Updated track workout: ${trackWorkoutId}`)
+	return trackWorkout
+}
+
+/**
+ * Reorder track workouts by updating their day numbers in bulk.
+ *
+ * @param trackId - The ID of the track containing the workouts.
+ * @param updates - An array of objects containing track workout IDs and their new day numbers.
+ * @returns The number of updated records.
+ */
+export async function reorderTrackWorkouts(
+	trackId: string,
+	updates: { trackWorkoutId: string; dayNumber: number }[],
+): Promise<number> {
+	const db = getDB()
+
+	console.log(
+		"DEBUG: [ReorderFunction] Starting with trackId:",
+		trackId,
+		"updates:",
+		updates,
+	)
+
+	try {
+		// First, validate all track workouts exist and belong to this track
+		const existingWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				dayNumber: trackWorkoutsTable.dayNumber,
+			})
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.trackId, trackId))
+
+		console.log(
+			"DEBUG: [ReorderFunction] Found existing workouts for track:",
+			existingWorkouts,
+		)
+
+		const trackWorkoutIds = existingWorkouts.map((w) => w.id)
+
+		// Validate all updates refer to valid track workouts
+		for (const { trackWorkoutId } of updates) {
+			if (!trackWorkoutIds.includes(trackWorkoutId)) {
+				console.error("ERROR: [ReorderFunction] Invalid track workout ID:", {
+					trackWorkoutId,
+					trackId,
+					validIds: trackWorkoutIds,
+				})
+				throw new Error(
+					`Track workout ${trackWorkoutId} does not belong to track ${trackId}`,
+				)
+			}
+		}
+
+		// Perform the updates without using a transaction for Cloudflare D1 compatibility
+		let updateCount = 0
+		for (const { trackWorkoutId, dayNumber } of updates) {
+			console.log("DEBUG: [ReorderFunction] Updating track workout:", {
+				trackWorkoutId,
+				dayNumber,
+			})
+
+			try {
+				const updateResult = await db
+					.update(trackWorkoutsTable)
+					.set({ dayNumber, updatedAt: new Date() })
+					.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+					.returning({
+						id: trackWorkoutsTable.id,
+						dayNumber: trackWorkoutsTable.dayNumber,
+					})
+
+				console.log("DEBUG: [ReorderFunction] Update successful:", updateResult)
+				updateCount += 1
+			} catch (updateError) {
+				console.error(
+					"ERROR: [ReorderFunction] Failed to update individual track workout:",
+					{
+						trackWorkoutId,
+						dayNumber,
+						error: updateError,
+					},
+				)
+				throw updateError
+			}
+		}
+
+		console.log(
+			"DEBUG: [ReorderFunction] All updates completed successfully, updateCount:",
+			updateCount,
+		)
+		return updateCount
+	} catch (error) {
+		console.error("ERROR: [ReorderFunction] Reorder operation failed:", error)
+		console.error("ERROR: [ReorderFunction] Full error details:", {
+			name: error instanceof Error ? error.name : "Unknown",
+			message: error instanceof Error ? error.message : "Unknown error",
+			stack: error instanceof Error ? error.stack : undefined,
+			trackId,
+			updatesCount: updates.length,
+			updates: updates.map((u) => ({
+				trackWorkoutId: u.trackWorkoutId,
+				dayNumber: u.dayNumber,
+			})),
+		})
+		throw error
+	}
 }

@@ -96,7 +96,6 @@ export default async function MovementDetailPage({
 		const [resultsResult, resultsError] =
 			await getWorkoutResultsByWorkoutAndUserAction({
 				workoutId: workout.id,
-				userId: session.userId,
 			})
 
 		if (resultsError || !resultsResult?.success) {

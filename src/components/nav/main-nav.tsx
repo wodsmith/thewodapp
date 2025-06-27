@@ -15,14 +15,14 @@ export default async function MainNav() {
 			<div className="container mx-auto flex items-center justify-between">
 				<Link href="/" className="flex items-center gap-2">
 					<Image
-						src="/spicywod-logo-black.png"
+						src="/wodsmith-logo-1000.png"
 						alt="wodsmith"
 						width={32}
 						height={32}
 						className="dark:hidden"
 					/>
 					<Image
-						src="/spicywod-logo-white.png"
+						src="/wodsmith-logo-1000.png"
 						alt="wodsmith"
 						width={32}
 						height={32}

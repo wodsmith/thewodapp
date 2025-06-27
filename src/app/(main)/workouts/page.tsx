@@ -38,12 +38,16 @@ export default async function WorkoutsPage({
 
 	if (!session || !session?.user?.id) {
 		console.log("[workouts/page] No user found")
-		redirect("/login")
+		redirect("/sign-in")
 	}
+
+	// Get user's personal team ID
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const teamId = await getUserPersonalTeamId(session.user.id)
 
 	const mySearchParams = await searchParams
 	const [result, error] = await getUserWorkoutsAction({
-		userId: session.user.id,
+		teamId,
 	})
 
 	if (error || !result?.success) {

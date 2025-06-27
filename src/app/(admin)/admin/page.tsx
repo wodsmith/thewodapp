@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function AdminPage() {
 	return (
-		<>
+		<div className="max-w-3xl">
 			<PageHeader items={[{ href: "/admin", label: "Admin" }]} />
 
 			<div className="space-y-6">
@@ -102,6 +102,6 @@ export default function AdminPage() {
 					</div>
 				</div>
 			</div>
-		</>
+		</div>
 	)
 }

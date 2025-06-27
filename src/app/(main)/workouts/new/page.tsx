@@ -40,14 +40,18 @@ export default async function CreateWorkoutPage() {
 
 	if (!session?.user?.id) {
 		console.log("[log/page] No user found")
-		redirect("/login")
+		redirect("/sign-in")
 	}
+
+	// Get user's personal team ID
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const teamId = await getUserPersonalTeamId(session.user.id)
 
 	return (
 		<CreateWorkoutClient
 			movements={movements.data}
 			tags={tags.data}
-			userId={session.user.id}
+			teamId={teamId}
 		/>
 	)
 }

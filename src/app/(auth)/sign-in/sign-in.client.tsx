@@ -143,18 +143,18 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 
 	return (
 		<div className="min-h-[90vh] flex flex-col items-center px-4 justify-center bg-background my-6 md:my-10">
-			<div className="w-full max-w-md space-y-8 p-6 md:p-10 bg-card rounded-xl shadow-lg border border-border">
+			<div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary">
 				<div className="text-center">
-					<h2 className="mt-2 text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-						Sign in to your account
+					<h2 className="mt-2 text-3xl md:text-4xl font-mono font-bold tracking-tight text-primary uppercase">
+						SIGN IN
 					</h2>
-					<p className="mt-2 text-muted-foreground">
-						Or{" "}
+					<p className="mt-4 text-primary font-mono">
+						OR{" "}
 						<Link
 							href={`/sign-up?redirect=${encodeURIComponent(redirectPath)}`}
-							className="font-medium text-primary hover:text-primary/90 underline"
+							className="font-bold text-orange underline hover:no-underline"
 						>
-							create a new account
+							CREATE ACCOUNT
 						</Link>
 					</p>
 				</div>
@@ -163,16 +163,18 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 					<SSOButtons isSignIn />
 
 					<PasskeyAuthenticationButton
-						className="w-full"
+						className="w-full bg-secondary border-4 border-primary text-primary hover:bg-orange hover:text-white shadow-[4px_4px_0px_0px] shadow-primary transition-all font-mono font-bold uppercase"
 						redirectPath={redirectPath}
 					>
 						<KeyIcon className="w-5 h-5 mr-2" />
-						Sign in with a Passkey
+						SIGN IN WITH PASSKEY
 					</PasskeyAuthenticationButton>
 				</div>
 
 				<SeparatorWithText>
-					<span className="uppercase text-muted-foreground">Or</span>
+					<span className="uppercase text-primary font-mono font-bold text-sm">
+						OR
+					</span>
 				</SeparatorWithText>
 
 				<Form {...form}>
@@ -187,13 +189,13 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 								<FormItem>
 									<FormControl>
 										<Input
-											placeholder="Email address"
+											placeholder="EMAIL ADDRESS"
 											type="email"
-											className="w-full px-3 py-2"
+											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 											{...field}
 										/>
 									</FormControl>
-									<FormMessage />
+									<FormMessage className="font-mono text-destructive" />
 								</FormItem>
 							)}
 						/>
@@ -206,30 +208,33 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 									<FormControl>
 										<Input
 											type="password"
-											placeholder="Password"
-											className="w-full px-3 py-2"
+											placeholder="PASSWORD"
+											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 											{...field}
 										/>
 									</FormControl>
-									<FormMessage />
+									<FormMessage className="font-mono text-destructive" />
 								</FormItem>
 							)}
 						/>
 
-						<Button type="submit" className="w-full flex justify-center py-2.5">
-							Sign In with Password
+						<Button
+							type="submit"
+							className="w-full flex justify-center py-3 mt-6 font-mono font-bold uppercase text-lg"
+						>
+							SIGN IN
 						</Button>
 					</form>
 				</Form>
 			</div>
 
-			<div className="mt-6">
-				<p className="text-center text-sm text-muted-foreground">
+			<div className="mt-8">
+				<p className="text-center text-sm text-primary font-mono">
 					<Link
 						href="/forgot-password"
-						className="font-medium text-primary hover:text-primary/90"
+						className="font-bold text-orange underline hover:no-underline uppercase"
 					>
-						Forgot your password?
+						FORGOT PASSWORD?
 					</Link>
 				</p>
 			</div>

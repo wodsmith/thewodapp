@@ -3,7 +3,9 @@ import { getDB } from "@/db"
 import {
 	movements,
 	results,
+	scheduledWorkoutInstancesTable,
 	tags,
+	trackWorkoutsTable,
 	workoutMovements,
 	workoutTags,
 	workouts,
@@ -132,16 +134,21 @@ async function fetchTodaysResultsByWorkoutId(
 }
 
 /**
- * Get all workouts for the current user (public workouts + user's private workouts)
+ * Get all workouts for the current team
  */
-export async function getUserWorkouts({ userId }: { userId: string }) {
+export async function getUserWorkouts({ teamId }: { teamId: string }) {
 	const db = getDB()
+	const session = await requireVerifiedEmail()
+
+	if (!session?.user?.id) {
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+	}
 
 	// Base workouts and ids
 	const allWorkouts = await db
 		.select()
 		.from(workouts)
-		.where(or(eq(workouts.scope, "public"), eq(workouts.userId, userId)))
+		.where(eq(workouts.teamId, teamId))
 
 	const workoutIds = allWorkouts.map((w) => w.id)
 
@@ -150,7 +157,7 @@ export async function getUserWorkouts({ userId }: { userId: string }) {
 		await Promise.all([
 			fetchTagsByWorkoutId(db, workoutIds),
 			fetchMovementsByWorkoutId(db, workoutIds),
-			fetchTodaysResultsByWorkoutId(db, userId, workoutIds),
+			fetchTodaysResultsByWorkoutId(db, session.user.id, workoutIds),
 		])
 
 	// Compose final structure
@@ -169,14 +176,14 @@ export async function createWorkout({
 	workout,
 	tagIds,
 	movementIds,
-	userId,
+	teamId,
 }: {
-	workout: Omit<Workout, "id" | "updatedAt" | "updateCounter" | "userId"> & {
+	workout: Omit<Workout, "id" | "updatedAt" | "updateCounter" | "teamId"> & {
 		createdAt: Date
 	}
 	tagIds: string[]
 	movementIds: string[]
-	userId: string
+	teamId: string
 }) {
 	const db = getDB()
 
@@ -194,7 +201,7 @@ export async function createWorkout({
 			sugarId: workout.sugarId,
 			tiebreakScheme: workout.tiebreakScheme,
 			secondaryScheme: workout.secondaryScheme,
-			userId,
+			teamId,
 			createdAt: workout.createdAt,
 			updatedAt: new Date(),
 			updateCounter: 0,
@@ -326,4 +333,59 @@ export async function updateWorkout({
 			})),
 		)
 	}
+}
+
+/**
+ * Get user workouts with track scheduling information
+ */
+export async function getUserWorkoutsWithTrackScheduling({
+	trackId,
+	teamId,
+}: {
+	trackId: string
+	teamId: string
+}) {
+	const db = getDB()
+
+	// Get all team workouts
+	const userWorkouts = await getUserWorkouts({ teamId })
+
+	// Get scheduling information for workouts in this track
+	const scheduledWorkouts = await db
+		.select({
+			workoutId: trackWorkoutsTable.workoutId,
+			scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+		})
+		.from(trackWorkoutsTable)
+		.leftJoin(
+			scheduledWorkoutInstancesTable,
+			eq(scheduledWorkoutInstancesTable.trackWorkoutId, trackWorkoutsTable.id),
+		)
+		.where(
+			and(
+				eq(trackWorkoutsTable.trackId, trackId),
+				eq(scheduledWorkoutInstancesTable.teamId, teamId),
+			),
+		)
+
+	// Create a map of workout ID to last scheduled date
+	const schedulingMap = new Map<string, Date>()
+	for (const row of scheduledWorkouts) {
+		if (row.workoutId && row.scheduledDate) {
+			const existingDate = schedulingMap.get(row.workoutId)
+			if (!existingDate || row.scheduledDate > existingDate) {
+				schedulingMap.set(row.workoutId, row.scheduledDate)
+			}
+		}
+	}
+
+	// Combine user workouts with scheduling information
+	return userWorkouts.map((workout) => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { resultsToday, ...workoutWithoutResults } = workout
+		return {
+			...workoutWithoutResults,
+			lastScheduledAt: schedulingMap.get(workout.id) ?? null,
+		}
+	})
 }

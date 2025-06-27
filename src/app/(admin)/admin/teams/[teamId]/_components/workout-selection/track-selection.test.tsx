@@ -39,7 +39,7 @@ describe("TrackSelection", () => {
 	it("standalone option appears first", () => {
 		render(<TrackSelection {...defaultProps} />)
 
-		const cards = screen.getAllByRole("generic")
+		const cards = screen.getAllByTestId("track-card")
 		const standaloneCard = cards.find((card) =>
 			card.textContent?.includes("All Available Workouts"),
 		)
@@ -84,11 +84,9 @@ describe("TrackSelection", () => {
 	it("highlights selected track correctly", () => {
 		render(<TrackSelection {...defaultProps} selectedTrack={mockTracks[0]} />)
 
-		const selectedCard =
-			screen
-				.getByText("Strength Track")
-				.closest("[data-testid='track-card']") ||
-			screen.getByText("Strength Track").closest(".cursor-pointer")
+		const selectedCard = screen
+			.getByText("Strength Track")
+			.closest("[data-testid='track-card']")
 		expect(selectedCard).toHaveClass("border-primary", "bg-primary/10")
 	})
 
@@ -102,11 +100,9 @@ describe("TrackSelection", () => {
 
 		render(<TrackSelection {...defaultProps} selectedTrack={standaloneTrack} />)
 
-		const selectedCard =
-			screen
-				.getByText("All Available Workouts")
-				.closest("[data-testid='track-card']") ||
-			screen.getByText("All Available Workouts").closest(".cursor-pointer")
+		const selectedCard = screen
+			.getByText("All Available Workouts")
+			.closest("[data-testid='track-card']")
 		expect(selectedCard).toHaveClass("border-primary", "bg-primary/10")
 	})
 })

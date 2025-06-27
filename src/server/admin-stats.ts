@@ -63,13 +63,12 @@ export async function getAdminStats(): Promise<AdminStats> {
 	// Count active teams (teams the user is a member of)
 	const activeTeams = userTeamIds.length
 
-	// Count total workouts available to the user (public + their private ones)
+	// Count total workouts (all workouts regardless of ownership)
 	const workoutCountResult = await db
 		.select({
 			count: count(),
 		})
 		.from(workouts)
-		.where(or(eq(workouts.scope, "public"), eq(workouts.userId, userId)))
 
 	const totalWorkouts = workoutCountResult[0]?.count || 0
 

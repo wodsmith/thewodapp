@@ -18,10 +18,14 @@ export default function SSOButtons({
 	return (
 		<>
 			{isGoogleSSOEnabled && (
-				<Button className="w-full" asChild size="lg">
+				<Button
+					className="w-full bg-secondary border-4 border-primary text-primary hover:bg-orange hover:text-white shadow-[4px_4px_0px_0px] shadow-primary transition-all font-mono font-bold uppercase"
+					asChild
+					size="lg"
+				>
 					<Link href="/sso/google">
-						<Google className="w-[22px] h-[22px] mr-1" />
-						{isSignIn ? "Sign in with Google" : "Sign up with Google"}
+						<Google className="w-[22px] h-[22px] mr-2" />
+						{isSignIn ? "SIGN IN WITH GOOGLE" : "SIGN UP WITH GOOGLE"}
 					</Link>
 				</Button>
 			)}

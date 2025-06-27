@@ -36,7 +36,22 @@ export default async function EditWorkoutPage({
 
 	const workout = workoutResult.data
 
-	if (workout?.userId !== session.userId) {
+	// Get user's personal team ID to check ownership
+	const { getUserPersonalTeamId } = await import("@/server/user")
+
+	let userPersonalTeamId: string
+	try {
+		userPersonalTeamId = await getUserPersonalTeamId(session.userId)
+	} catch (error) {
+		console.error(
+			"[EditWorkoutPage] Failed to get user's personal team ID:",
+			error,
+		)
+		// If we can't get the user's personal team, redirect to sign-in
+		redirect("/sign-in")
+	}
+
+	if (workout?.teamId !== userPersonalTeamId) {
 		redirect(`/workouts/${workout?.id}`)
 	}
 

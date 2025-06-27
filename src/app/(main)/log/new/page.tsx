@@ -36,16 +36,27 @@ export default async function LogNewResultPage({
 
 	if (!session || !session?.user?.id) {
 		console.log("[log/page] No user found")
-		redirect("/login")
+		redirect("/sign-in")
+	}
+
+	// Get user's personal team ID
+	const { getUserPersonalTeamId } = await import("@/server/user")
+
+	let teamId: string
+	try {
+		teamId = await getUserPersonalTeamId(session.user.id)
+	} catch (error) {
+		console.error("[log/new] Failed to get user's personal team ID:", error)
+		redirect("/sign-in")
 	}
 
 	const [result, error] = await getUserWorkoutsAction({
-		userId: session.user.id,
+		teamId,
 	})
 
 	if (error || !result?.success) {
 		console.error("[log/new] Failed to fetch workouts")
-		redirect("/login")
+		redirect("/sign-in")
 	}
 
 	return (

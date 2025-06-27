@@ -5,6 +5,7 @@ import { getDB } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { passkeyEmailSchema } from "@/schemas/passkey.schema"
+import { createPersonalTeamForUser } from "@/server/user"
 import {
 	canSignUp,
 	createSession,
@@ -78,6 +79,9 @@ export const startPasskeyRegistrationAction = createServerAction()
 			if (!user) {
 				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create user")
 			}
+
+			// Create a personal team for the user
+			await createPersonalTeamForUser(user)
 
 			// Generate passkey registration options
 			const options = await generatePasskeyRegistrationOptions(
