@@ -1,6 +1,7 @@
 "use client"
 
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useActiveNavItem } from "@/hooks/useActiveNavItem"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { cn } from "@/lib/utils"
 import { BookOpenIcon, CalendarDaysIcon } from "@heroicons/react/24/outline"
@@ -38,6 +39,9 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 	const pathname = usePathname()
 	const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER")
 
+	const navItems = currentTeamId ? getAdminNavItems(currentTeamId) : []
+	const isActiveNavItem = useActiveNavItem(pathname, navItems)
+
 	return (
 		<div className="space-y-4">
 			{/* Team Switcher Header */}
@@ -51,29 +55,8 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 						isEnabled={isLgAndSmaller}
 					>
 						<nav className="flex items-center lg:items-stretch min-w-full space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1">
-							{getAdminNavItems(currentTeamId).map((item) => {
-								// Normalize both paths by removing trailing slashes for comparison
-								const normalizedPathname = pathname.replace(/\/$/, "")
-								const normalizedHref = item.href.replace(/\/$/, "")
-
-								// Get all nav items to check for more specific matches
-								const allItems = getAdminNavItems(currentTeamId)
-
-								// Check if there's a more specific route that matches the current path
-								const hasMoreSpecificMatch = allItems.some((otherItem) => {
-									const otherNormalizedHref = otherItem.href.replace(/\/$/, "")
-									return (
-										otherNormalizedHref !== normalizedHref && // Different route
-										otherNormalizedHref.length > normalizedHref.length && // More specific (longer)
-										normalizedPathname.startsWith(otherNormalizedHref) // Current path matches the longer route
-									)
-								})
-
-								// Only mark as active if it matches and there's no more specific match
-								const isActive =
-									!hasMoreSpecificMatch &&
-									(normalizedPathname === normalizedHref ||
-										normalizedPathname.startsWith(`${normalizedHref}/`))
+							{navItems.map((item) => {
+								const isActive = isActiveNavItem(item)
 
 								return (
 									<Link
