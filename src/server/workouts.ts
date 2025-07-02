@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm"
+import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDB } from "@/db"
 import type { Workout } from "@/db/schema"
@@ -134,7 +134,7 @@ async function fetchTodaysResultsByWorkoutId(
 }
 
 /**
- * Get all workouts for the current team
+ * Get all workouts for the current team (team-owned + public workouts)
  */
 export async function getUserWorkouts({ teamId }: { teamId: string }) {
 	const db = getDB()
@@ -144,11 +144,16 @@ export async function getUserWorkouts({ teamId }: { teamId: string }) {
 		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
 	}
 
-	// Base workouts and ids
+	// Base workouts and ids - include both team workouts and public workouts
 	const allWorkouts = await db
 		.select()
 		.from(workouts)
-		.where(eq(workouts.teamId, teamId))
+		.where(
+			or(
+				eq(workouts.teamId, teamId), // Team-owned workouts
+				and(isNull(workouts.teamId), eq(workouts.scope, "public")), // Public workouts
+			),
+		)
 
 	const workoutIds = allWorkouts.map((w) => w.id)
 
