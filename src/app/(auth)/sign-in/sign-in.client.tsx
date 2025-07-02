@@ -161,7 +161,7 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 					<SSOButtons isSignIn />
 
 					<PasskeyAuthenticationButton
-						className="w-full bg-secondary border-4 border-primary text-primary hover:bg-orange hover:text-white shadow-[4px_4px_0px_0px] shadow-primary transition-all font-mono font-bold uppercase"
+						className="w-full"
 						redirectPath={redirectPath}
 					>
 						<KeyIcon className="w-5 h-5 mr-2" />
@@ -189,11 +189,10 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 										<Input
 											placeholder="EMAIL ADDRESS"
 											type="email"
-											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
 											{...field}
 										/>
 									</FormControl>
-									<FormMessage className="font-mono text-destructive" />
+									<FormMessage />
 								</FormItem>
 							)}
 						/>
@@ -204,22 +203,14 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input
-											type="password"
-											placeholder="PASSWORD"
-											className="w-full px-4 py-3 border-4 border-primary font-mono placeholder:text-primary/60 placeholder:font-mono placeholder:uppercase bg-background focus:border-orange focus:ring-0 focus:outline-none transition-colors"
-											{...field}
-										/>
+										<Input type="password" placeholder="PASSWORD" {...field} />
 									</FormControl>
-									<FormMessage className="font-mono text-destructive" />
+									<FormMessage />
 								</FormItem>
 							)}
 						/>
 
-						<Button
-							type="submit"
-							className="w-full flex justify-center py-3 mt-6 font-mono font-bold uppercase text-lg"
-						>
+						<Button type="submit" className="w-full">
 							SIGN IN
 						</Button>
 					</form>

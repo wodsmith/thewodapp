@@ -110,11 +110,10 @@ export default function ForgotPasswordClientComponent() {
 								defaultValue={session?.user?.email || undefined}
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="text-sm font-medium">Email</FormLabel>
+										<FormLabel>Email</FormLabel>
 										<FormControl>
 											<Input
 												type="email"
-												className="w-full px-3 py-2"
 												placeholder="name@example.com"
 												{...field}
 											/>
@@ -131,7 +130,6 @@ export default function ForgotPasswordClientComponent() {
 
 								<Button
 									type="submit"
-									className="mt-8 mb-2"
 									disabled={Boolean(isTurnstileEnabled && !captchaToken)}
 								>
 									Send Reset Instructions

@@ -3,6 +3,8 @@
 import { ChevronDown, Filter, Search } from "lucide-react"
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { Movement } from "@/types"
 
 interface MovementListProps {
@@ -37,19 +39,19 @@ export default function MovementList({ movements }: MovementListProps) {
 			<div className="mb-6 flex flex-col gap-4 sm:flex-row">
 				<div className="relative flex-1">
 					<Search className="-translate-y-1/2 absolute top-1/2 left-3 transform text-gray-500" />
-					<input
+					<Input
 						type="text"
 						placeholder="Search movements..."
-						className="input w-full pl-10"
+						className="pl-10"
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
 				<div className="relative">
-					<button
-						className="btn-outline flex w-full items-center justify-between gap-2 sm:w-auto"
+					<Button
+						variant="outline"
+						className="w-full justify-between sm:w-auto"
 						onClick={() => setIsFilterOpen(!isFilterOpen)}
-						type="button"
 					>
 						<Filter className="h-5 w-5" />
 						<span>{selectedType || "Filter by Type"}</span>
@@ -58,21 +60,21 @@ export default function MovementList({ movements }: MovementListProps) {
 								isFilterOpen ? "rotate-180" : ""
 							}`}
 						/>
-					</button>
+					</Button>
 					{isFilterOpen && (
 						<div className="absolute right-0 z-10 mt-1 w-full min-w-[150px]   border border-gray-200 bg-white shadow-lg sm:right-auto sm:w-auto">
 							{movementTypes.map((type) => (
-								<button
+								<Button
 									key={type}
-									className="block w-full px-4 py-2 text-left text-gray-700 text-sm hover:bg-gray-100"
+									variant="ghost"
+									className="w-full justify-start"
 									onClick={() => {
 										setSelectedType(type === "All" ? null : type)
 										setIsFilterOpen(false)
 									}}
-									type="button"
 								>
 									{type}
-								</button>
+								</Button>
 							))}
 						</div>
 					)}
