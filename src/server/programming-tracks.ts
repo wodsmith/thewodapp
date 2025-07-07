@@ -1,7 +1,7 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, notExists, or } from "drizzle-orm"
+import { and, eq, notExists, or, sql } from "drizzle-orm"
 import { getDB } from "@/db"
 import {
 	type ProgrammingTrack,
@@ -334,7 +334,7 @@ export async function getTeamTracks(
  * Fetch all public programming tracks.
  * Returns minimal safe fields to expose on a public index.
  */
-export async function getPublicProgrammingTracks(): Promise<
+export async function getPublicProgrammingTracks(search?: string): Promise<
 	{
 		id: string
 		name: string
@@ -345,10 +345,16 @@ export async function getPublicProgrammingTracks(): Promise<
 > {
 	const db = getDB()
 
-	console.log("INFO: [getPublicProgrammingTracks] fetching public tracks")
+	console.log(
+		`INFO: [getPublicProgrammingTracks] fetching public tracks (search = "${search}")`,
+	)
 
 	// NOTE: We intentionally select only non-sensitive columns to expose on the
 	// public index page. Avoid leaking internal metadata like createdAt.
+
+	const searchClause = search
+		? sql`(${programmingTracksTable.name} LIKE ${`%${search}%`} OR ${programmingTracksTable.description} LIKE ${`%${search}%`})`
+		: undefined
 
 	const tracks = await db
 		.select({
@@ -359,7 +365,7 @@ export async function getPublicProgrammingTracks(): Promise<
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 		})
 		.from(programmingTracksTable)
-		.where(eq(programmingTracksTable.isPublic, 1))
+		.where(and(eq(programmingTracksTable.isPublic, 1), searchClause))
 
 	console.log(
 		`INFO: [getPublicProgrammingTracks] fetched ${tracks.length} public tracks`,

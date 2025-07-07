@@ -10,8 +10,7 @@ import { ThemeProvider } from "@/components/providers"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/constants"
-
-export const dynamic = "force-dynamic"
+import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -71,24 +70,26 @@ export default function BaseLayout({
 			className={`${GeistSans.variable} ${GeistMono.variable}`}
 		>
 			<body className={inter.className}>
-				<NextTopLoader
-					initialPosition={0.15}
-					shadow="0 0 10px #000, 0 0 5px #000"
-					height={4}
-					color="#ff7033"
-				/>
-				<ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-					<TooltipProvider delayDuration={100} skipDelayDuration={50}>
-						{children}
-					</TooltipProvider>
-				</ThemeProvider>
-				<Toaster
-					richColors
-					closeButton
-					position="top-right"
-					expand
-					duration={7000}
-				/>
+				<NuqsAdapter>
+					<NextTopLoader
+						initialPosition={0.15}
+						shadow="0 0 10px #000, 0 0 5px #000"
+						height={4}
+						color="#ff7033"
+					/>
+					<ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+						<TooltipProvider delayDuration={100} skipDelayDuration={50}>
+							{children}
+						</TooltipProvider>
+					</ThemeProvider>
+					<Toaster
+						richColors
+						closeButton
+						position="top-right"
+						expand
+						duration={7000}
+					/>
+				</NuqsAdapter>
 			</body>
 		</html>
 	)
