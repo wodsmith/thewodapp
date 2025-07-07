@@ -331,6 +331,41 @@ export async function getTeamTracks(
 }
 
 /**
+ * Fetch all public programming tracks.
+ * Returns minimal safe fields to expose on a public index.
+ */
+export async function getPublicProgrammingTracks(): Promise<
+	{
+		id: string
+		name: string
+		description: string | null
+		type: ProgrammingTrack["type"]
+		ownerTeamId: string | null
+	}[]
+> {
+	const db = getDB()
+
+	console.log("INFO: [getPublicProgrammingTracks] fetching public tracks")
+
+	const tracks = await db
+		.select({
+			id: programmingTracksTable.id,
+			name: programmingTracksTable.name,
+			description: programmingTracksTable.description,
+			type: programmingTracksTable.type,
+			ownerTeamId: programmingTracksTable.ownerTeamId,
+		})
+		.from(programmingTracksTable)
+		.where(eq(programmingTracksTable.isPublic, 1))
+
+	console.log(
+		`INFO: [getPublicProgrammingTracks] fetched ${tracks.length} public tracks`,
+	)
+
+	return tracks
+}
+
+/**
  * Get workouts that are not in any programming track
  * These are "standalone" workouts that can be scheduled independently
  */
