@@ -486,4 +486,8 @@ Current Implementation:
 - [x] Implemented React Email templates for transactional emails
 - [x] Added forgot password functionality with secure token handling
 
+## Upcoming Features
+
+- Public Programming Tracks Index Page allowing users to discover and subscribe to official 3rd-party programming tracks.
+
 This plan will be regularly updated as the project progresses.
