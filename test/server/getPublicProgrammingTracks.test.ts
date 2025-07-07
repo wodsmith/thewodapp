@@ -1,3 +1,5 @@
+// test/server/getPublicProgrammingTracks.test.ts – unit tests for getPublicProgrammingTracks helper
+// -----------------------------------------------------------------------------
 import { describe, expect, it, vi } from "vitest"
 
 /**

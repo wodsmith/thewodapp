@@ -347,6 +347,9 @@ export async function getPublicProgrammingTracks(): Promise<
 
 	console.log("INFO: [getPublicProgrammingTracks] fetching public tracks")
 
+	// NOTE: We intentionally select only non-sensitive columns to expose on the
+	// public index page. Avoid leaking internal metadata like createdAt.
+
 	const tracks = await db
 		.select({
 			id: programmingTracksTable.id,
