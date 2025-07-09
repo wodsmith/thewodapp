@@ -323,3 +323,19 @@ export async function getOwnedTeams() {
 
 	return ownedTeams.map((membership) => membership.team)
 }
+
+/**
+ * Get the personal team for a specific user
+ */
+export async function getUserPersonalTeam(userId: string) {
+	const db = getDB()
+
+	const personalTeam = await db.query.teamTable.findFirst({
+		where: and(
+			eq(teamTable.personalTeamOwnerId, userId),
+			eq(teamTable.isPersonalTeam, 1),
+		),
+	})
+
+	return personalTeam
+}
