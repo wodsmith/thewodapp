@@ -1,14 +1,14 @@
-import { db } from "@/db"
+import { getDd } from "@/db"
 import {
 	coachesTable,
 	coachToSkillsTable,
 	coachBlackoutDatesTable,
 	coachRecurringUnavailabilityTable,
-	skillsTable,
 } from "@/db/schemas/scheduling"
-import { and, eq, inArray } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-// import { authAction } from "@/lib/safe-action"
+import { createServerAction } from "zsa"
 
 // Schemas for input validation
 const createCoachSchema = z.object({
@@ -36,6 +36,15 @@ const updateCoachSchema = z.object({
 })
 
 const deleteCoachSchema = z.object({
+	id: z.string(),
+	teamId: z.string(),
+})
+
+const getCoachesByTeamSchema = z.object({
+	teamId: z.string(),
+})
+
+const getCoachByIdSchema = z.object({
 	id: z.string(),
 	teamId: z.string(),
 })
@@ -70,137 +79,159 @@ const deleteCoachRecurringUnavailabilitySchema = z.object({
 })
 
 // Server Actions for Coaches
-export const createCoach = async (input: z.infer<typeof createCoachSchema>) => {
-	const { userId, teamId, skillIds, ...rest } = input
-	const [newCoach] = await db
-		.insert(coachesTable)
-		.values({ userId, teamId, ...rest })
-		.returning()
+export const createCoach = createServerAction()
+	.input(createCoachSchema)
+	.handler(async ({ input }) => {
+		const { userId, teamId, skillIds, ...rest } = input
+		const db = getDd()
+		const [newCoach] = await db
+			.insert(coachesTable)
+			.values({
+				id: `coach_${createId()}`,
+				userId,
+				teamId,
+				...rest,
+				isActive: rest.isActive ? 1 : 0,
+			})
+			.returning()
 
-	if (skillIds && newCoach) {
-		const coachSkills = skillIds.map((skillId) => ({
-			coachId: newCoach.id,
-			skillId,
-		}))
-		await db.insert(coachToSkillsTable).values(coachSkills)
-	}
-	return newCoach
-}
-
-export const updateCoach = async (input: z.infer<typeof updateCoachSchema>) => {
-	const { id, teamId, skillIds, ...rest } = input
-	const [updatedCoach] = await db
-		.update(coachesTable)
-		.set({ ...rest })
-		.where(and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)))
-		.returning()
-
-	if (updatedCoach && skillIds !== undefined) {
-		// Delete existing skills for this coach
-		await db
-			.delete(coachToSkillsTable)
-			.where(eq(coachToSkillsTable.coachId, id))
-		// Insert new skills
-		if (skillIds.length > 0) {
-			const coachSkills = skillIds.map((skillId) => ({ coachId: id, skillId }))
+		if (skillIds && newCoach) {
+			const coachSkills = skillIds.map((skillId) => ({
+				coachId: newCoach.id,
+				skillId,
+			}))
 			await db.insert(coachToSkillsTable).values(coachSkills)
 		}
-	}
-	return updatedCoach
-}
-
-export const deleteCoach = async ({
-	id,
-	teamId,
-}: z.infer<typeof deleteCoachSchema>) => {
-	const [deletedCoach] = await db
-		.delete(coachesTable)
-		.where(and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)))
-		.returning()
-	return deletedCoach
-}
-
-export const getCoachesByTeam = async ({ teamId }: { teamId: string }) => {
-	const coaches = await db.query.coachesTable.findMany({
-		where: eq(coachesTable.teamId, teamId),
-		with: {
-			user: true,
-			skills: { with: { skill: true } },
-			blackoutDates: true,
-			recurringUnavailability: true,
-		},
+		return newCoach
 	})
-	return coaches
-}
 
-export const getCoachById = async ({
-	id,
-	teamId,
-}: {
-	id: string
-	teamId: string
-}) => {
-	const coach = await db.query.coachesTable.findFirst({
-		where: and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)),
-		with: {
-			user: true,
-			skills: { with: { skill: true } },
-			blackoutDates: true,
-			recurringUnavailability: true,
-		},
+export const updateCoach = createServerAction()
+	.input(updateCoachSchema)
+	.handler(async ({ input }) => {
+		const { id, teamId, skillIds, ...rest } = input
+		const db = getDd()
+		const [updatedCoach] = await db
+			.update(coachesTable)
+			.set({ ...rest, isActive: rest.isActive ? 1 : 0 })
+			.where(and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)))
+			.returning()
+
+		if (updatedCoach && skillIds !== undefined) {
+			// Delete existing skills for this coach
+			await db
+				.delete(coachToSkillsTable)
+				.where(eq(coachToSkillsTable.coachId, id))
+			// Insert new skills
+			if (skillIds.length > 0) {
+				const coachSkills = skillIds.map((skillId) => ({
+					coachId: id,
+					skillId,
+				}))
+				await db.insert(coachToSkillsTable).values(coachSkills)
+			}
+		}
+		return updatedCoach
 	})
-	return coach
-}
+
+export const deleteCoach = createServerAction()
+	.input(deleteCoachSchema)
+	.handler(async ({ input }) => {
+		const { id, teamId } = input
+		const db = getDd()
+		const [deletedCoach] = await db
+			.delete(coachesTable)
+			.where(and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)))
+			.returning()
+		return deletedCoach
+	})
+
+export const getCoachesByTeam = createServerAction()
+	.input(getCoachesByTeamSchema)
+	.handler(async ({ input }) => {
+		const { teamId } = input
+		const db = getDd()
+		const coaches = await db.query.coachesTable.findMany({
+			where: eq(coachesTable.teamId, teamId),
+			with: {
+				user: true,
+				skills: { with: { skill: true } },
+				blackoutDates: true,
+				recurringUnavailability: true,
+			},
+		})
+		return coaches
+	})
+
+export const getCoachById = createServerAction()
+	.input(getCoachByIdSchema)
+	.handler(async ({ input }) => {
+		const { id, teamId } = input
+		const db = getDd()
+		const coach = await db.query.coachesTable.findFirst({
+			where: and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)),
+			with: {
+				user: true,
+				skills: { with: { skill: true } },
+				blackoutDates: true,
+				recurringUnavailability: true,
+			},
+		})
+		return coach
+	})
 
 // Server Actions for Coach Blackout Dates
-export const createCoachBlackoutDate = async (
-	input: z.infer<typeof createCoachBlackoutDateSchema>,
-) => {
-	const [newBlackoutDate] = await db
-		.insert(coachBlackoutDatesTable)
-		.values(input)
-		.returning()
-	return newBlackoutDate
-}
+export const createCoachBlackoutDate = createServerAction()
+	.input(createCoachBlackoutDateSchema)
+	.handler(async ({ input }) => {
+		const db = getDd()
+		const [newBlackoutDate] = await db
+			.insert(coachBlackoutDatesTable)
+			.values({ id: `cbd_${createId()}`, ...input })
+			.returning()
+		return newBlackoutDate
+	})
 
-export const deleteCoachBlackoutDate = async ({
-	id,
-	coachId,
-}: z.infer<typeof deleteCoachBlackoutDateSchema>) => {
-	const [deletedBlackoutDate] = await db
-		.delete(coachBlackoutDatesTable)
-		.where(
-			and(
-				eq(coachBlackoutDatesTable.id, id),
-				eq(coachBlackoutDatesTable.coachId, coachId),
-			),
-		)
-		.returning()
-	return deletedBlackoutDate
-}
+export const deleteCoachBlackoutDate = createServerAction()
+	.input(deleteCoachBlackoutDateSchema)
+	.handler(async ({ input }) => {
+		const { id, coachId } = input
+		const db = getDd()
+		const [deletedBlackoutDate] = await db
+			.delete(coachBlackoutDatesTable)
+			.where(
+				and(
+					eq(coachBlackoutDatesTable.id, id),
+					eq(coachBlackoutDatesTable.coachId, coachId),
+				),
+			)
+			.returning()
+		return deletedBlackoutDate
+	})
 
 // Server Actions for Coach Recurring Unavailability
-export const createCoachRecurringUnavailability = async (
-	input: z.infer<typeof createCoachRecurringUnavailabilitySchema>,
-) => {
-	const [newRecurringUnavailability] = await db
-		.insert(coachRecurringUnavailabilityTable)
-		.values(input)
-		.returning()
-	return newRecurringUnavailability
-}
+export const createCoachRecurringUnavailability = createServerAction()
+	.input(createCoachRecurringUnavailabilitySchema)
+	.handler(async ({ input }) => {
+		const db = getDd()
+		const [newRecurringUnavailability] = await db
+			.insert(coachRecurringUnavailabilityTable)
+			.values({ id: `cru_${createId()}`, ...input })
+			.returning()
+		return newRecurringUnavailability
+	})
 
-export const deleteCoachRecurringUnavailability = async (
-	input: z.infer<typeof deleteCoachRecurringUnavailabilitySchema>,
-) => {
-	const [deletedRecurringUnavailability] = await db
-		.delete(coachRecurringUnavailabilityTable)
-		.where(
-			and(
-				eq(coachRecurringUnavailabilityTable.id, input.id),
-				eq(coachRecurringUnavailabilityTable.coachId, input.coachId),
-			),
-		)
-		.returning()
-	return deletedRecurringUnavailability
-}
+export const deleteCoachRecurringUnavailability = createServerAction()
+	.input(deleteCoachRecurringUnavailabilitySchema)
+	.handler(async ({ input }) => {
+		const db = getDd()
+		const [deletedRecurringUnavailability] = await db
+			.delete(coachRecurringUnavailabilityTable)
+			.where(
+				and(
+					eq(coachRecurringUnavailabilityTable.id, input.id),
+					eq(coachRecurringUnavailabilityTable.coachId, input.coachId),
+				),
+			)
+			.returning()
+		return deletedRecurringUnavailability
+	})

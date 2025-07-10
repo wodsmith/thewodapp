@@ -7,6 +7,7 @@ import {
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
+import { createServerAction } from "zsa"
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({
@@ -21,6 +22,15 @@ const updateScheduleTemplateSchema = z.object({
 })
 
 const deleteScheduleTemplateSchema = z.object({
+	id: z.string(),
+	teamId: z.string(),
+})
+
+const getScheduleTemplatesByTeamSchema = z.object({
+	teamId: z.string(),
+})
+
+const getScheduleTemplateByIdSchema = z.object({
 	id: z.string(),
 	teamId: z.string(),
 })
@@ -64,156 +74,155 @@ const deleteScheduleTemplateClassSchema = z.object({
 })
 
 // Server Actions for Schedule Templates
-export const createScheduleTemplate = async ({
-	teamId,
-	name,
-}: z.infer<typeof createScheduleTemplateSchema>) => {
-	const db = getDd()
-	const [newTemplate] = await db
-		.insert(scheduleTemplatesTable)
-		.values({ id: `st_${createId()}`, teamId, name })
-		.returning()
-	return newTemplate
-}
+export const createScheduleTemplate = createServerAction()
+	.input(createScheduleTemplateSchema)
+	.handler(async ({ input }) => {
+		const { teamId, name } = input
+		const db = getDd()
+		const [newTemplate] = await db
+			.insert(scheduleTemplatesTable)
+			.values({ id: `st_${createId()}`, teamId, name })
+			.returning()
+		return newTemplate
+	})
 
-export const updateScheduleTemplate = async ({
-	id,
-	teamId,
-	name,
-}: z.infer<typeof updateScheduleTemplateSchema>) => {
-	const db = getDd()
-	const [updatedTemplate] = await db
-		.update(scheduleTemplatesTable)
-		.set({ name })
-		.where(
-			and(
+export const updateScheduleTemplate = createServerAction()
+	.input(updateScheduleTemplateSchema)
+	.handler(async ({ input }) => {
+		const { id, teamId, name } = input
+		const db = getDd()
+		const [updatedTemplate] = await db
+			.update(scheduleTemplatesTable)
+			.set({ name })
+			.where(
+				and(
+					eq(scheduleTemplatesTable.id, id),
+					eq(scheduleTemplatesTable.teamId, teamId),
+				),
+			)
+			.returning()
+		return updatedTemplate
+	})
+
+export const deleteScheduleTemplate = createServerAction()
+	.input(deleteScheduleTemplateSchema)
+	.handler(async ({ input }) => {
+		const { id, teamId } = input
+		const db = getDd()
+		const [deletedTemplate] = await db
+			.delete(scheduleTemplatesTable)
+			.where(
+				and(
+					eq(scheduleTemplatesTable.id, id),
+					eq(scheduleTemplatesTable.teamId, teamId),
+				),
+			)
+			.returning()
+		return deletedTemplate
+	})
+
+export const getScheduleTemplatesByTeam = createServerAction()
+	.input(getScheduleTemplatesByTeamSchema)
+	.handler(async ({ input }) => {
+		const { teamId } = input
+		const db = getDd()
+		const templates = await db.query.scheduleTemplatesTable.findMany({
+			where: eq(scheduleTemplatesTable.teamId, teamId),
+			with: {
+				templateClasses: {
+					with: { requiredSkills: { with: { skill: true } } },
+				},
+			},
+		})
+		return templates
+	})
+
+export const getScheduleTemplateById = createServerAction()
+	.input(getScheduleTemplateByIdSchema)
+	.handler(async ({ input }) => {
+		const { id, teamId } = input
+		const db = getDd()
+		const template = await db.query.scheduleTemplatesTable.findFirst({
+			where: and(
 				eq(scheduleTemplatesTable.id, id),
 				eq(scheduleTemplatesTable.teamId, teamId),
 			),
-		)
-		.returning()
-	return updatedTemplate
-}
-
-export const deleteScheduleTemplate = async ({
-	id,
-	teamId,
-}: z.infer<typeof deleteScheduleTemplateSchema>) => {
-	const db = getDd()
-	const [deletedTemplate] = await db
-		.delete(scheduleTemplatesTable)
-		.where(
-			and(
-				eq(scheduleTemplatesTable.id, id),
-				eq(scheduleTemplatesTable.teamId, teamId),
-			),
-		)
-		.returning()
-	return deletedTemplate
-}
-
-export const getScheduleTemplatesByTeam = async ({
-	teamId,
-}: {
-	teamId: string
-}) => {
-	const db = getDd()
-	const templates = await db.query.scheduleTemplatesTable.findMany({
-		where: eq(scheduleTemplatesTable.teamId, teamId),
-		with: {
-			templateClasses: { with: { requiredSkills: { with: { skill: true } } } },
-		},
+			with: {
+				templateClasses: {
+					with: { requiredSkills: { with: { skill: true } } },
+				},
+			},
+		})
+		return template
 	})
-	return templates
-}
-
-export const getScheduleTemplateById = async ({
-	id,
-	teamId,
-}: {
-	id: string
-	teamId: string
-}) => {
-	const db = getDd()
-	const template = await db.query.scheduleTemplatesTable.findFirst({
-		where: and(
-			eq(scheduleTemplatesTable.id, id),
-			eq(scheduleTemplatesTable.teamId, teamId),
-		),
-		with: {
-			templateClasses: { with: { requiredSkills: { with: { skill: true } } } },
-		},
-	})
-	return template
-}
 
 // Server Actions for Schedule Template Classes
-export const createScheduleTemplateClass = async (
-	input: z.infer<typeof createScheduleTemplateClassSchema>,
-) => {
-	const db = getDd()
-	const { requiredSkillIds, ...rest } = input
-	const [newTemplateClass] = await db
-		.insert(scheduleTemplateClassesTable)
-		.values({ ...rest, id: `stc_${createId()}` })
-		.returning()
+export const createScheduleTemplateClass = createServerAction()
+	.input(createScheduleTemplateClassSchema)
+	.handler(async ({ input }) => {
+		const db = getDd()
+		const { requiredSkillIds, ...rest } = input
+		const [newTemplateClass] = await db
+			.insert(scheduleTemplateClassesTable)
+			.values({ ...rest, id: `stc_${createId()}` })
+			.returning()
 
-	if (requiredSkillIds && newTemplateClass) {
-		const skills = requiredSkillIds.map((skillId) => ({
-			templateClassId: newTemplateClass.id,
-			skillId,
-		}))
-		await db.insert(scheduleTemplateClassRequiredSkillsTable).values(skills)
-	}
-	return newTemplateClass
-}
-
-export const updateScheduleTemplateClass = async (
-	input: z.infer<typeof updateScheduleTemplateClassSchema>,
-) => {
-	const db = getDd()
-	const { id, templateId, requiredSkillIds, ...rest } = input
-	const [updatedTemplateClass] = await db
-		.update(scheduleTemplateClassesTable)
-		.set(rest)
-		.where(
-			and(
-				eq(scheduleTemplateClassesTable.id, id),
-				eq(scheduleTemplateClassesTable.templateId, templateId),
-			),
-		)
-		.returning()
-
-	if (updatedTemplateClass && requiredSkillIds !== undefined) {
-		// Delete existing skills for this template class
-		await db
-			.delete(scheduleTemplateClassRequiredSkillsTable)
-			.where(eq(scheduleTemplateClassRequiredSkillsTable.templateClassId, id))
-		// Insert new skills
-		if (requiredSkillIds.length > 0) {
+		if (requiredSkillIds && newTemplateClass) {
 			const skills = requiredSkillIds.map((skillId) => ({
-				templateClassId: id,
+				templateClassId: newTemplateClass.id,
 				skillId,
 			}))
 			await db.insert(scheduleTemplateClassRequiredSkillsTable).values(skills)
 		}
-	}
-	return updatedTemplateClass
-}
+		return newTemplateClass
+	})
 
-export const deleteScheduleTemplateClass = async ({
-	id,
-	templateId,
-}: z.infer<typeof deleteScheduleTemplateClassSchema>) => {
-	const db = getDd()
-	const [deletedTemplateClass] = await db
-		.delete(scheduleTemplateClassesTable)
-		.where(
-			and(
-				eq(scheduleTemplateClassesTable.id, id),
-				eq(scheduleTemplateClassesTable.templateId, templateId),
-			),
-		)
-		.returning()
-	return deletedTemplateClass
-}
+export const updateScheduleTemplateClass = createServerAction()
+	.input(updateScheduleTemplateClassSchema)
+	.handler(async ({ input }) => {
+		const db = getDd()
+		const { id, templateId, requiredSkillIds, ...rest } = input
+		const [updatedTemplateClass] = await db
+			.update(scheduleTemplateClassesTable)
+			.set(rest)
+			.where(
+				and(
+					eq(scheduleTemplateClassesTable.id, id),
+					eq(scheduleTemplateClassesTable.templateId, templateId),
+				),
+			)
+			.returning()
+
+		if (updatedTemplateClass && requiredSkillIds !== undefined) {
+			// Delete existing skills for this template class
+			await db
+				.delete(scheduleTemplateClassRequiredSkillsTable)
+				.where(eq(scheduleTemplateClassRequiredSkillsTable.templateClassId, id))
+			// Insert new skills
+			if (requiredSkillIds.length > 0) {
+				const skills = requiredSkillIds.map((skillId) => ({
+					templateClassId: id,
+					skillId,
+				}))
+				await db.insert(scheduleTemplateClassRequiredSkillsTable).values(skills)
+			}
+		}
+		return updatedTemplateClass
+	})
+
+export const deleteScheduleTemplateClass = createServerAction()
+	.input(deleteScheduleTemplateClassSchema)
+	.handler(async ({ input }) => {
+		const { id, templateId } = input
+		const db = getDd()
+		const [deletedTemplateClass] = await db
+			.delete(scheduleTemplateClassesTable)
+			.where(
+				and(
+					eq(scheduleTemplateClassesTable.id, id),
+					eq(scheduleTemplateClassesTable.templateId, templateId),
+				),
+			)
+			.returning()
+		return deletedTemplateClass
+	})

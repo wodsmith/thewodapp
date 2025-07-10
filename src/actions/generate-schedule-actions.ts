@@ -1,6 +1,6 @@
 import { generateSchedule } from "@/server/ai/scheduler"
 import { z } from "zod"
-// import { authAction } from "@/lib/safe-action"
+import { createServerAction } from "zsa"
 
 const generateScheduleSchema = z.object({
 	templateId: z.string(),
@@ -8,9 +8,9 @@ const generateScheduleSchema = z.object({
 	teamId: z.string(),
 })
 
-export const generateScheduleAction = async (
-	input: z.infer<typeof generateScheduleSchema>,
-) => {
-	const result = await generateSchedule(input)
-	return result
-}
+export const generateScheduleAction = createServerAction()
+	.input(generateScheduleSchema)
+	.handler(async ({ input }) => {
+		const result = await generateSchedule(input)
+		return result
+	})
