@@ -266,6 +266,115 @@ export async function getTeamsWithScheduledWorkouts(
 	return result
 }
 
+export async function getTeamScheduledWorkouts(
+	teamId: string,
+): Promise<ScheduledWorkoutWithTrackDetails[]> {
+	if (process.env.LOG_LEVEL === "info") {
+		console.log(
+			`INFO: [getTeamScheduledWorkouts] Fetching scheduled workouts for team: ${teamId}`,
+		)
+	}
+
+	const db = getDB()
+
+	// Get scheduled workouts for the specific team with full details
+	const scheduledWorkoutsData = await db
+		.select({
+			// Scheduled workout instance fields
+			instanceId: scheduledWorkoutInstancesTable.id,
+			scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+			teamSpecificNotes: scheduledWorkoutInstancesTable.teamSpecificNotes,
+			scalingGuidanceForDay:
+				scheduledWorkoutInstancesTable.scalingGuidanceForDay,
+			classTimes: scheduledWorkoutInstancesTable.classTimes,
+			// Track workout fields
+			trackWorkoutId: trackWorkoutsTable.id,
+			dayNumber: trackWorkoutsTable.dayNumber,
+			weekNumber: trackWorkoutsTable.weekNumber,
+			trackWorkoutNotes: trackWorkoutsTable.notes,
+			// Workout fields
+			workoutId: workouts.id,
+			workoutName: workouts.name,
+			workoutDescription: workouts.description,
+			workoutScheme: workouts.scheme,
+			workoutRepsPerRound: workouts.repsPerRound,
+			workoutScope: workouts.scope,
+			// Programming track fields
+			trackId: programmingTracksTable.id,
+			trackName: programmingTracksTable.name,
+			trackDescription: programmingTracksTable.description,
+			trackType: programmingTracksTable.type,
+		})
+		.from(scheduledWorkoutInstancesTable)
+		.innerJoin(
+			trackWorkoutsTable,
+			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
+		)
+		.innerJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
+		.innerJoin(
+			programmingTracksTable,
+			eq(programmingTracksTable.id, trackWorkoutsTable.trackId),
+		)
+		.where(eq(scheduledWorkoutInstancesTable.teamId, teamId))
+		.orderBy(scheduledWorkoutInstancesTable.scheduledDate)
+
+	// Transform data to match the expected interface
+	const result = scheduledWorkoutsData.map((row) => ({
+		id: row.instanceId,
+		scheduledDate: row.scheduledDate,
+		teamSpecificNotes: row.teamSpecificNotes,
+		scalingGuidanceForDay: row.scalingGuidanceForDay,
+		classTimes: row.classTimes,
+		trackWorkout: {
+			id: row.trackWorkoutId,
+			trackId: row.trackId,
+			workoutId: row.workoutId,
+			dayNumber: row.dayNumber,
+			weekNumber: row.weekNumber,
+			notes: row.trackWorkoutNotes,
+			createdAt: new Date(), // These will be properly populated from DB
+			updatedAt: new Date(),
+			updateCounter: 0,
+			workout: {
+				id: row.workoutId,
+				name: row.workoutName,
+				description: row.workoutDescription,
+				scheme: row.workoutScheme,
+				repsPerRound: row.workoutRepsPerRound,
+				scope: row.workoutScope,
+				createdAt: new Date(), // These will be properly populated from DB
+				updatedAt: new Date(),
+				updateCounter: 0,
+				roundsToScore: 1, // Default value
+				teamId: teamId,
+				sugarId: null,
+				tiebreakScheme: null,
+				secondaryScheme: null,
+				sourceTrackId: null,
+			},
+			track: {
+				id: row.trackId,
+				name: row.trackName,
+				description: row.trackDescription,
+				type: row.trackType,
+				ownerTeamId: teamId, // This should come from actual track data
+				isPublic: 0, // This should come from actual track data
+				createdAt: new Date(), // These will be properly populated from DB
+				updatedAt: new Date(),
+				updateCounter: 0,
+			},
+		},
+	}))
+
+	if (process.env.LOG_LEVEL === "info") {
+		console.log(
+			`INFO: [getTeamScheduledWorkouts] Fetched ${result.length} scheduled workouts for team: ${teamId}`,
+		)
+	}
+
+	return result
+}
+
 export const TeamProgrammingTrackService = {
 	subscribeTeamToTrack: async (input: { teamId: string; trackId: string }) => {
 		return await tryCatch(
