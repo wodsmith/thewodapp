@@ -91,7 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			},
 			{
 				title: "Teams",
-				url: "/dashboard/teams" as Route,
+				url: "/teams" as Route,
 				icon: Users,
 			},
 			{
