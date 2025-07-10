@@ -4,32 +4,60 @@ import {
 	getProgrammingTrackById,
 	getWorkoutsForTrack,
 } from "@/server/programming-tracks"
+import { SubscribeButton } from "@/components/programming/subscribe-button"
+import {
+	subscribeTrackAction,
+	unsubscribeTrackAction,
+	getTrackSubscriptionStatusAction,
+} from "@/actions/subscribe-track.action"
+import { getUserTeamsAction } from "@/actions/team-actions"
 
 interface PageProps {
-	params: {
+	params: Promise<{
 		trackId: string
-	}
+	}>
 }
 
 export default async function ProgrammingTrackDetailPage({
 	params,
 }: PageProps) {
-	const { trackId } = params
+	const { trackId } = await params
 
 	const track = await getProgrammingTrackById(trackId)
 	if (!track) {
 		notFound()
 	}
 
-	const workouts = await getWorkoutsForTrack(trackId)
+	// Fetch data in parallel
+	const [workouts, subscriptionResult, userTeamsResult] = await Promise.all([
+		getWorkoutsForTrack(trackId),
+		getTrackSubscriptionStatusAction({ trackId }).catch(() => [null, null]),
+		getUserTeamsAction().catch(() => [null, null]),
+	])
+
+	// Extract data from server action results
+	const subscriptionStatus = subscriptionResult?.[0]?.success
+		? subscriptionResult[0].data
+		: { isSubscribed: false, teamId: null }
+
+	const userTeams = userTeamsResult?.[0]?.success ? userTeamsResult[0].data : []
 
 	return (
 		<div className="container mx-auto py-8 space-y-6">
-			<div>
-				<h1 className="text-3xl font-bold tracking-tight">{track.name}</h1>
-				{track.description && (
-					<p className="text-muted-foreground mt-2">{track.description}</p>
-				)}
+			<div className="flex items-start justify-between">
+				<div>
+					<h1 className="text-3xl font-bold tracking-tight">{track.name}</h1>
+					{track.description && (
+						<p className="text-muted-foreground mt-2">{track.description}</p>
+					)}
+				</div>
+				<SubscribeButton
+					trackId={track.id}
+					isSubscribed={subscriptionStatus.isSubscribed}
+					userTeams={userTeams}
+					subscribeAction={subscribeTrackAction}
+					unsubscribeAction={unsubscribeTrackAction}
+				/>
 			</div>
 
 			<div className="border rounded-md divide-y">

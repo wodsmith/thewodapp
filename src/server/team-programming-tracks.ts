@@ -9,25 +9,64 @@ import {
 
 export const TeamProgrammingTrackService = {
 	subscribeTeamToTrack: async (input: { teamId: string; trackId: string }) => {
-		return await tryCatch(async () => {
-			const db = getDB()
-			const { teamId, trackId } = subscribeTeamToTrackSchema.parse(input)
+		return await tryCatch(
+			(async () => {
+				const db = getDB()
+				const { teamId, trackId } = subscribeTeamToTrackSchema.parse(input)
 
-			console.log(
-				`INFO: [TeamProgrammingTrackService] teamId="${teamId}" trackId="${trackId}" action="subscribe"`,
-			)
+				console.log(
+					`INFO: [TeamProgrammingTrackService] teamId="${teamId}" trackId="${trackId}" action="subscribe"`,
+				)
 
-			const existing = await db.query.teamProgrammingTracksTable.findFirst({
-				where: and(
-					eq(teamProgrammingTracksTable.teamId, teamId),
-					eq(teamProgrammingTracksTable.trackId, trackId),
-				),
-			})
+				const existing = await db.query.teamProgrammingTracksTable.findFirst({
+					where: and(
+						eq(teamProgrammingTracksTable.teamId, teamId),
+						eq(teamProgrammingTracksTable.trackId, trackId),
+					),
+				})
 
-			if (existing) {
+				if (existing) {
+					return await db
+						.update(teamProgrammingTracksTable)
+						.set({ isActive: 1 })
+						.where(
+							and(
+								eq(teamProgrammingTracksTable.teamId, teamId),
+								eq(teamProgrammingTracksTable.trackId, trackId),
+							),
+						)
+						.returning()
+				} else {
+					return await db
+						.insert(teamProgrammingTracksTable)
+						.values({
+							teamId,
+							trackId,
+							isActive: 1,
+							startDayOffset: 0,
+						})
+						.returning()
+				}
+			})(),
+		)
+	},
+
+	unsubscribeTeamFromTrack: async (input: {
+		teamId: string
+		trackId: string
+	}) => {
+		return await tryCatch(
+			(async () => {
+				const db = getDB()
+				const { teamId, trackId } = unsubscribeTeamFromTrackSchema.parse(input)
+
+				console.log(
+					`INFO: [TeamProgrammingTrackService] teamId="${teamId}" trackId="${trackId}" action="unsubscribe"`,
+				)
+
 				return await db
 					.update(teamProgrammingTracksTable)
-					.set({ isActive: true })
+					.set({ isActive: 0 })
 					.where(
 						and(
 							eq(teamProgrammingTracksTable.teamId, teamId),
@@ -35,42 +74,7 @@ export const TeamProgrammingTrackService = {
 						),
 					)
 					.returning()
-			} else {
-				return await db
-					.insert(teamProgrammingTracksTable)
-					.values({
-						teamId,
-						trackId,
-						isActive: true,
-						startDayOffset: 0,
-					})
-					.returning()
-			}
-		})
-	},
-
-	unsubscribeTeamFromTrack: async (input: {
-		teamId: string
-		trackId: string
-	}) => {
-		return await tryCatch(async () => {
-			const db = getDB()
-			const { teamId, trackId } = unsubscribeTeamFromTrackSchema.parse(input)
-
-			console.log(
-				`INFO: [TeamProgrammingTrackService] teamId="${teamId}" trackId="${trackId}" action="unsubscribe"`,
-			)
-
-			return await db
-				.update(teamProgrammingTracksTable)
-				.set({ isActive: false })
-				.where(
-					and(
-						eq(teamProgrammingTracksTable.teamId, teamId),
-						eq(teamProgrammingTracksTable.trackId, trackId),
-					),
-				)
-				.returning()
-		})
+			})(),
+		)
 	},
 }

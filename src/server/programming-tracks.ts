@@ -165,7 +165,16 @@ export async function getWorkoutsForTrack(
 	trackId: string,
 	teamId?: string,
 ): Promise<
-	(TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
+	(TrackWorkout & {
+		workout?: {
+			id: string
+			name: string
+			description: string | null
+			scheme: string
+		}
+		isScheduled?: boolean
+		lastScheduledAt?: Date | null
+	})[]
 > {
 	const db = getDB()
 	const rows = await db
