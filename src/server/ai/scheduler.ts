@@ -1,16 +1,13 @@
 import { db } from "@/db"
 import {
 	coachesTable,
-	classCatalogTable,
-	locationsTable,
 	scheduleTemplatesTable,
-	scheduleTemplateClassesTable,
-	scheduleTemplateClassRequiredSkillsTable,
 	generatedSchedulesTable,
 	scheduledClassesTable,
+	skillsTable,
 } from "@/db/schemas/scheduling"
-import { and, eq, inArray, sql } from "drizzle-orm"
-import { Coach, ScheduleTemplateClass, Skill } from "@/db/schemas/scheduling"
+import { and, eq } from "drizzle-orm"
+import type { Coach } from "@/db/schemas/scheduling"
 
 // This is a simplified mock for the LLM interaction. In a real scenario,
 // this would involve calling an actual LLM API.
@@ -33,8 +30,12 @@ export async function generateSchedule({
 	weekStartDate,
 	teamId,
 }: ScheduleInput) {
+	if (!db) {
+		throw new Error("Database not initialized.")
+	}
+
 	// 1. Fetch all necessary data
-	const template = await db.query.scheduleTemplatesTable.findFirst({
+	const template = await db?.query.scheduleTemplatesTable.findFirst({
 		where: and(
 			eq(scheduleTemplatesTable.id, templateId),
 			eq(scheduleTemplatesTable.teamId, teamId),
@@ -54,7 +55,7 @@ export async function generateSchedule({
 		throw new Error("Schedule template not found.")
 	}
 
-	const coaches = await db.query.coachesTable.findMany({
+	const coaches = await db?.query.coachesTable.findMany({
 		where: eq(coachesTable.teamId, teamId),
 		with: {
 			user: true,
@@ -62,10 +63,6 @@ export async function generateSchedule({
 			blackoutDates: true,
 			recurringUnavailability: true,
 		},
-	})
-
-	const allSkills = await db.query.skillsTable.findMany({
-		where: eq(skillsTable.teamId, teamId),
 	})
 
 	const generatedClasses: (typeof scheduledClassesTable.$inferInsert)[] = []
@@ -85,11 +82,11 @@ export async function generateSchedule({
 		const classEndTime = new Date(classStartTime)
 		classEndTime.setHours(endHour, endMinute, 0, 0)
 
-		let assignedCoach: Coach | null = null
-		let eligibleCoaches: Coach[] = []
+		let assignedCoach: (typeof coaches)[number] | null = null
+		const eligibleCoaches: (typeof coaches)[number][] = []
 
 		// Filter coaches based on hard constraints
-		for (const coach of coaches) {
+		for (const coach of coaches || []) {
 			let isEligible = true
 
 			// Check weekly class limit (simplified: assumes we track this externally or in a more complex way)
@@ -153,13 +150,14 @@ export async function generateSchedule({
 		if (eligibleCoaches.length > 0) {
 			// In a real scenario, you'd construct a detailed prompt for the LLM
 			// including coach preferences, historical data, etc.
-			const llmPrompt = `Select the best coach for ${templateClass.classCatalog.name} at ${templateClass.location.name} on ${classStartTime.toDateString()} ${templateClass.startTime}. Eligible coaches: ${eligibleCoaches.map((c) => c.user.firstName + " " + c.user.lastName + " (Pref: " + c.schedulingPreference + ", Notes: " + c.schedulingNotes + ")").join(", ")}. Consider their preferences and notes.`
-			const llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
+			const llmPrompt = `Select the best coach for ${templateClass.classCatalog.name} at ${templateClass.location.name} on ${classStartTime.toDateString()} ${templateClass.startTime}. Eligible coaches: ${eligibleCoaches.map((c) => `${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`).join(", ")}. Consider their preferences and notes.`
+			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
 
 			// For now, just pick the first eligible coach as a mock decision
 			assignedCoach = eligibleCoaches[0]
 
 			generatedClasses.push({
+				id: "",
 				scheduleId: "", // Will be filled after generated_schedules is inserted
 				coachId: assignedCoach.id,
 				classCatalogId: templateClass.classCatalogId,
@@ -170,6 +168,7 @@ export async function generateSchedule({
 		} else {
 			// No eligible coaches, class is unstaffed
 			unstaffedClasses.push({
+				id: "",
 				scheduleId: "", // Will be filled after generated_schedules is inserted
 				coachId: null, // Explicitly null for unstaffed
 				classCatalogId: templateClass.classCatalogId,
@@ -184,6 +183,7 @@ export async function generateSchedule({
 	const [newGeneratedSchedule] = await db
 		.insert(generatedSchedulesTable)
 		.values({
+			id: "",
 			teamId,
 			weekStartDate,
 		})
@@ -204,10 +204,10 @@ export async function generateSchedule({
 	}))
 
 	if (finalScheduledClasses.length > 0) {
-		await db.insert(scheduledClassesTable).values(finalScheduledClasses)
+		await db?.insert(scheduledClassesTable).values(finalScheduledClasses)
 	}
 	if (finalUnstaffedClasses.length > 0) {
-		await db.insert(scheduledClassesTable).values(finalUnstaffedClasses)
+		await db?.insert(scheduledClassesTable).values(finalUnstaffedClasses)
 	}
 
 	return {

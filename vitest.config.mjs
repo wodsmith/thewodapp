@@ -10,11 +10,13 @@ export default defineConfig({
 		environment: "jsdom",
 		globals: true,
 		setupFiles: ["./test/setup.ts"],
+		include: ["./test/**/*.test.ts"],
 	},
 	plugins: [tsconfigPaths()],
 	resolve: {
 		alias: {
 			"server-only": resolve(__dirname, "./test/__mocks__/server-only.js"),
+			"@": resolve(__dirname, "./src"),
 		},
 	},
 })

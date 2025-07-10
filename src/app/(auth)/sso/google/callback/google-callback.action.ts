@@ -8,7 +8,7 @@ import {
 	GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME,
 	GOOGLE_OAUTH_STATE_COOKIE_NAME,
 } from "@/constants"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { isGoogleSSOEnabled } from "@/flags"
 import { getGoogleSSOClient } from "@/lib/sso/google-sso"
@@ -99,7 +99,7 @@ export const googleSSOCallbackAction = createServerAction()
 			// Check if email is disposable
 			await canSignUp({ email })
 
-			const db = getDB()
+			const db = getDd()
 
 			try {
 				// First check if user exists with this Google account ID

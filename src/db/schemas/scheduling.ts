@@ -75,9 +75,7 @@ export const coachToSkillsTable = sqliteTable(
 			.notNull()
 			.references(() => skillsTable.id),
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.coachId, table.skillId] }),
-	}),
+	(table) => [primaryKey({ columns: [table.coachId, table.skillId] })],
 )
 
 export const coachBlackoutDatesTable = sqliteTable("coach_blackout_dates", {
@@ -147,9 +145,7 @@ export const scheduleTemplateClassRequiredSkillsTable = sqliteTable(
 			.notNull()
 			.references(() => skillsTable.id),
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.templateClassId, table.skillId] }),
-	}),
+	(table) => [primaryKey({ columns: [table.templateClassId, table.skillId] })],
 )
 
 // Generated schedule tables

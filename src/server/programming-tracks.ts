@@ -2,7 +2,7 @@ import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, notExists, or } from "drizzle-orm"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -44,7 +44,7 @@ export interface AddWorkoutToTrackInput {
 export async function createProgrammingTrack(
 	data: CreateTrackInput,
 ): Promise<ProgrammingTrack> {
-	const db = getDB()
+	const db = getDd()
 
 	const result = await db
 		.insert(programmingTracksTable)
@@ -68,7 +68,7 @@ export async function updateProgrammingTrack(
 	trackId: string,
 	data: { isPublic?: boolean },
 ): Promise<ProgrammingTrack> {
-	const db = getDB()
+	const db = getDd()
 
 	const result = await db
 		.update(programmingTracksTable)
@@ -86,7 +86,7 @@ export async function updateProgrammingTrack(
 export async function getProgrammingTrackById(
 	trackId: string,
 ): Promise<ProgrammingTrack | null> {
-	const db = getDB()
+	const db = getDd()
 	const [track] = await db
 		.select()
 		.from(programmingTracksTable)
@@ -105,7 +105,7 @@ export async function hasTrackAccess(
 	teamId: string,
 	trackId: string,
 ): Promise<boolean> {
-	const db = getDB()
+	const db = getDd()
 
 	// Get the track details
 	const track = await getProgrammingTrackById(trackId)
@@ -142,7 +142,7 @@ export async function hasTrackAccess(
 export async function addWorkoutToTrack(
 	data: AddWorkoutToTrackInput,
 ): Promise<TrackWorkout> {
-	const db = getDB()
+	const db = getDd()
 
 	const [trackWorkout] = await db
 		.insert(trackWorkoutsTable)
@@ -167,7 +167,7 @@ export async function getWorkoutsForTrack(
 ): Promise<
 	(TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
 > {
-	const db = getDB()
+	const db = getDd()
 	const workouts = await db
 		.select()
 		.from(trackWorkoutsTable)
@@ -223,7 +223,7 @@ export async function assignTrackToTeam(
 	trackId: string,
 	isActive = true,
 ): Promise<TeamProgrammingTrack> {
-	const db = getDB()
+	const db = getDd()
 
 	// Upsert behaviour: if record exists update isActive else insert
 	const existing = await db
@@ -266,7 +266,7 @@ export async function getTeamTracks(
 	teamId: string,
 	activeOnly = true,
 ): Promise<ProgrammingTrack[]> {
-	const db = getDB()
+	const db = getDd()
 
 	console.log(
 		`DEBUG: [getTeamTracks] Fetching tracks for teamId: ${teamId}, activeOnly: ${activeOnly}`,
@@ -323,7 +323,7 @@ export async function getWorkoutsNotInTracks(
 ): Promise<
 	(Workout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
 > {
-	const db = getDB()
+	const db = getDd()
 	const allWorkouts = await db
 		.select()
 		.from(workouts)
@@ -404,7 +404,7 @@ export async function updateTeamDefaultTrack(
 	teamId: string,
 	trackId: string | null,
 ): Promise<Team> {
-	const db = getDB()
+	const db = getDd()
 	const result = await db
 		.update(teamTable)
 		.set({ defaultTrackId: trackId, updatedAt: new Date() })
@@ -433,7 +433,7 @@ export async function scheduleStandaloneWorkout({
 	scalingGuidanceForDay?: string | null
 	classTimes?: string | null
 }): Promise<TrackWorkout> {
-	const _db = getDB()
+	const _db = getDd()
 	// 1. Create a temporary programming track for this standalone workout
 	const track = await createProgrammingTrack({
 		name: `Standalone - ${workoutId} - ${scheduledDate.toISOString().slice(0, 10)}`,
@@ -458,7 +458,7 @@ export async function scheduleStandaloneWorkout({
 }
 
 export async function deleteProgrammingTrack(trackId: string): Promise<void> {
-	const db = getDB()
+	const db = getDd()
 
 	// Delete associated track workouts first (foreign key constraint)
 	await db
@@ -481,7 +481,7 @@ export async function deleteProgrammingTrack(trackId: string): Promise<void> {
 export async function removeWorkoutFromTrack(
 	trackWorkoutId: string,
 ): Promise<void> {
-	const db = getDB()
+	const db = getDd()
 
 	await db
 		.delete(trackWorkoutsTable)
@@ -503,7 +503,7 @@ export async function updateTrackWorkout({
 	weekNumber?: number | null
 	notes?: string | null
 }): Promise<TrackWorkout> {
-	const db = getDB()
+	const db = getDd()
 
 	const updateData: Partial<TrackWorkout> = {
 		updatedAt: new Date(),
@@ -534,7 +534,7 @@ export async function reorderTrackWorkouts(
 	trackId: string,
 	updates: { trackWorkoutId: string; dayNumber: number }[],
 ): Promise<number> {
-	const db = getDB()
+	const db = getDd()
 
 	console.log(
 		"DEBUG: [ReorderFunction] Starting with trackId:",

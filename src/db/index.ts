@@ -6,7 +6,7 @@ import * as schema from "./schema"
 
 export let db: DrizzleD1Database<typeof schema> | null = null
 
-export const getDB = () => {
+export const getDd = () => {
 	if (db) {
 		return db
 	}

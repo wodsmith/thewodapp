@@ -1,10 +1,10 @@
 import { createWorkoutAction } from "@/actions/workout-actions"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { teamTable } from "@/db/schema"
 import { beforeAll, expect, test } from "vitest"
 
 beforeAll(async () => {
-	const db = getDB()
+	const db = getDd()
 	await db
 		.insert(teamTable)
 		.values({

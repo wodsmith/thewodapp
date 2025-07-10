@@ -1,9 +1,10 @@
-import { db } from "@/db"
+import { getDd } from "@/db"
 import {
 	scheduleTemplatesTable,
 	scheduleTemplateClassesTable,
 	scheduleTemplateClassRequiredSkillsTable,
 } from "@/db/schemas/scheduling"
+import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 
@@ -67,9 +68,10 @@ export const createScheduleTemplate = async ({
 	teamId,
 	name,
 }: z.infer<typeof createScheduleTemplateSchema>) => {
+	const db = getDd()
 	const [newTemplate] = await db
 		.insert(scheduleTemplatesTable)
-		.values({ teamId, name })
+		.values({ id: `st_${createId()}`, teamId, name })
 		.returning()
 	return newTemplate
 }
@@ -79,6 +81,7 @@ export const updateScheduleTemplate = async ({
 	teamId,
 	name,
 }: z.infer<typeof updateScheduleTemplateSchema>) => {
+	const db = getDd()
 	const [updatedTemplate] = await db
 		.update(scheduleTemplatesTable)
 		.set({ name })
@@ -96,6 +99,7 @@ export const deleteScheduleTemplate = async ({
 	id,
 	teamId,
 }: z.infer<typeof deleteScheduleTemplateSchema>) => {
+	const db = getDd()
 	const [deletedTemplate] = await db
 		.delete(scheduleTemplatesTable)
 		.where(
@@ -113,6 +117,7 @@ export const getScheduleTemplatesByTeam = async ({
 }: {
 	teamId: string
 }) => {
+	const db = getDd()
 	const templates = await db.query.scheduleTemplatesTable.findMany({
 		where: eq(scheduleTemplatesTable.teamId, teamId),
 		with: {
@@ -129,6 +134,7 @@ export const getScheduleTemplateById = async ({
 	id: string
 	teamId: string
 }) => {
+	const db = getDd()
 	const template = await db.query.scheduleTemplatesTable.findFirst({
 		where: and(
 			eq(scheduleTemplatesTable.id, id),
@@ -145,10 +151,11 @@ export const getScheduleTemplateById = async ({
 export const createScheduleTemplateClass = async (
 	input: z.infer<typeof createScheduleTemplateClassSchema>,
 ) => {
+	const db = getDd()
 	const { requiredSkillIds, ...rest } = input
 	const [newTemplateClass] = await db
 		.insert(scheduleTemplateClassesTable)
-		.values(rest)
+		.values({ ...rest, id: `stc_${createId()}` })
 		.returning()
 
 	if (requiredSkillIds && newTemplateClass) {
@@ -164,6 +171,7 @@ export const createScheduleTemplateClass = async (
 export const updateScheduleTemplateClass = async (
 	input: z.infer<typeof updateScheduleTemplateClassSchema>,
 ) => {
+	const db = getDd()
 	const { id, templateId, requiredSkillIds, ...rest } = input
 	const [updatedTemplateClass] = await db
 		.update(scheduleTemplateClassesTable)
@@ -197,6 +205,7 @@ export const deleteScheduleTemplateClass = async ({
 	id,
 	templateId,
 }: z.infer<typeof deleteScheduleTemplateClassSchema>) => {
+	const db = getDd()
 	const [deletedTemplateClass] = await db
 		.delete(scheduleTemplateClassesTable)
 		.where(

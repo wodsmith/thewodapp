@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getAllMovements } from "@/server/movements"
 import {
@@ -29,7 +29,7 @@ export async function generateMetadata({
 	params,
 }: TrackWorkoutPageProps): Promise<Metadata> {
 	const { teamId, trackId } = await params
-	const db = getDB()
+	const db = getDd()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -53,7 +53,7 @@ export default async function TrackWorkoutPage({
 	params,
 }: TrackWorkoutPageProps) {
 	const { teamId, trackId } = await params
-	const db = getDB()
+	const db = getDd()
 
 	// Get team by slug
 	const team = await db.query.teamTable.findFirst({
