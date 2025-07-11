@@ -7,6 +7,7 @@ import { requireVerifiedEmail } from "@/utils/auth"
 import { hasTeamMembership } from "@/utils/team-auth"
 import { getTeamScheduledWorkoutsAction } from "../_actions/team-scheduled-workouts.action"
 import { SingleTeamScheduledWorkouts } from "../_components/single-team-scheduled-workouts"
+import { TeamWeeklyWorkouts } from "./_components/team-weekly-workouts"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -77,7 +78,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
 							Back to Teams
 						</Link>
 					</Button>
-					<h1 className="mb-4">{teamName.toUpperCase()}</h1>
+					<h1 className="">{teamName.toUpperCase()}</h1>
 				</div>
 				<div className="space-y-6">
 					<div className="card p-6">
@@ -109,10 +110,15 @@ export default async function TeamPage({ params }: TeamPageProps) {
 						Back to Teams
 					</Link>
 				</Button>
-				<h1 className="mb-4">{teamName.toUpperCase()}</h1>
+				<h1 className="">{teamName.toUpperCase()}</h1>
 			</div>
 
 			<div className="space-y-6">
+				<TeamWeeklyWorkouts
+					scheduledWorkouts={result?.scheduledWorkouts || []}
+					teamName={teamName}
+				/>
+
 				<SingleTeamScheduledWorkouts
 					scheduledWorkouts={result?.scheduledWorkouts || []}
 					teamName={teamName}

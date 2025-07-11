@@ -81,8 +81,8 @@ export function SingleTeamScheduledWorkouts({
 					{scheduledWorkouts
 						.sort(
 							(a, b) =>
-								new Date(a.scheduledDate).getTime() -
-								new Date(b.scheduledDate).getTime(),
+								new Date(b.scheduledDate).getTime() -
+								new Date(a.scheduledDate).getTime(),
 						)
 						.map((scheduledWorkout) => (
 							<Card

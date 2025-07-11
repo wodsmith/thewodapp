@@ -1,0 +1,26 @@
+/* Weekly Calendar Brutalist Styling */
+.weekly-calendar-wrapper {
+  @apply border-2 border-black rounded-none;
+}
+
+.weekly-calendar-header {
+  @apply bg-black text-white p-4;
+}
+
+.weekly-calendar-grid {
+  @apply border-t-2 border-black;
+}
+
+.weekly-calendar-day {
+  @apply border-r-2 border-black last:border-r-0;
+}
+
+.weekly-calendar-day-header {
+  @apply border-b-2 border-black p-2 font-bold uppercase;
+}
+
+.weekly-calendar-event {
+  @apply border-2 border-black bg-white hover:bg-gray-100 transition-colors;
+  @apply shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)];
+  @apply hover:translate-x-[-2px] hover:translate-y-[-2px];
+}
