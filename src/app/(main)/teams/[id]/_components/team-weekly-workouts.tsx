@@ -14,14 +14,14 @@ import type { ScheduledWorkoutWithTrackDetails } from "@/server/team-programming
 interface TeamWeeklyWorkoutsProps {
 	scheduledWorkouts: ScheduledWorkoutWithTrackDetails[]
 	teamName: string
-	selectedWorkout?: ScheduledWorkoutWithTrackDetails | null
-	onWorkoutSelect?: (workout: ScheduledWorkoutWithTrackDetails | null) => void
+	selectedDate?: Date | null
+	onDateSelect?: (date: Date) => void
 }
 
 export function TeamWeeklyWorkouts({
 	scheduledWorkouts,
-	selectedWorkout,
-	onWorkoutSelect,
+	selectedDate,
+	onDateSelect,
 }: TeamWeeklyWorkoutsProps) {
 	const [currentWeek, setCurrentWeek] = useState(new Date())
 
@@ -39,9 +39,8 @@ export function TeamWeeklyWorkouts({
 		}),
 	)
 
-	const handleEventClick = (event: WeeklyCalendarEvent) => {
-		const workout = event.metadata?.workout as ScheduledWorkoutWithTrackDetails
-		onWorkoutSelect?.(workout)
+	const handleDayClick = (date: Date) => {
+		onDateSelect?.(date)
 	}
 
 	const navigateWeek = (direction: "prev" | "next") => {
@@ -92,7 +91,8 @@ export function TeamWeeklyWorkouts({
 					<WeeklyCalendar
 						events={calendarEvents}
 						currentDate={currentWeek}
-						onEventClick={handleEventClick}
+						onDayClick={handleDayClick}
+						selectedDate={selectedDate}
 					/>
 				</CardContent>
 			</Card>
