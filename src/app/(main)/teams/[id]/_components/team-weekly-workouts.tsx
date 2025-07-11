@@ -5,7 +5,6 @@ import { format } from "date-fns"
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import {
 	WeeklyCalendar,
 	type WeeklyCalendarEvent,
@@ -15,14 +14,16 @@ import type { ScheduledWorkoutWithTrackDetails } from "@/server/team-programming
 interface TeamWeeklyWorkoutsProps {
 	scheduledWorkouts: ScheduledWorkoutWithTrackDetails[]
 	teamName: string
+	selectedWorkout?: ScheduledWorkoutWithTrackDetails | null
+	onWorkoutSelect?: (workout: ScheduledWorkoutWithTrackDetails | null) => void
 }
 
 export function TeamWeeklyWorkouts({
 	scheduledWorkouts,
+	selectedWorkout,
+	onWorkoutSelect,
 }: TeamWeeklyWorkoutsProps) {
 	const [currentWeek, setCurrentWeek] = useState(new Date())
-	const [selectedWorkout, setSelectedWorkout] =
-		useState<ScheduledWorkoutWithTrackDetails | null>(null)
 
 	// Convert scheduled workouts to calendar events
 	const calendarEvents: WeeklyCalendarEvent[] = scheduledWorkouts.map(
@@ -40,7 +41,7 @@ export function TeamWeeklyWorkouts({
 
 	const handleEventClick = (event: WeeklyCalendarEvent) => {
 		const workout = event.metadata?.workout as ScheduledWorkoutWithTrackDetails
-		setSelectedWorkout(workout)
+		onWorkoutSelect?.(workout)
 	}
 
 	const navigateWeek = (direction: "prev" | "next") => {
@@ -95,86 +96,6 @@ export function TeamWeeklyWorkouts({
 					/>
 				</CardContent>
 			</Card>
-
-			{/* Selected Workout Details */}
-			{selectedWorkout && (
-				<Card>
-					<CardHeader>
-						<div className="flex items-start justify-between">
-							<div>
-								<CardTitle className="text-lg">
-									{selectedWorkout.trackWorkout.workout.name}
-								</CardTitle>
-								<p className="text-sm text-muted-foreground mt-1">
-									{format(
-										new Date(selectedWorkout.scheduledDate),
-										"EEEE, MMMM d",
-									)}
-									{selectedWorkout.classTimes &&
-										` • ${selectedWorkout.classTimes}`}
-								</p>
-							</div>
-							<div className="flex gap-2">
-								<Badge variant="outline">
-									{selectedWorkout.trackWorkout.track.name}
-								</Badge>
-								{selectedWorkout.trackWorkout.dayNumber && (
-									<Badge variant="secondary">
-										Day {selectedWorkout.trackWorkout.dayNumber}
-									</Badge>
-								)}
-							</div>
-						</div>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{selectedWorkout.trackWorkout.workout.description && (
-							<div>
-								<h4 className="font-medium mb-1">Description</h4>
-								<p className="text-sm text-muted-foreground whitespace-pre-wrap">
-									{selectedWorkout.trackWorkout.workout.description}
-								</p>
-							</div>
-						)}
-
-						{selectedWorkout.trackWorkout.workout.scheme && (
-							<div>
-								<h4 className="font-medium mb-1">Scheme</h4>
-								<Badge variant="outline">
-									{selectedWorkout.trackWorkout.workout.scheme.toUpperCase()}
-								</Badge>
-							</div>
-						)}
-
-						{selectedWorkout.scalingGuidanceForDay && (
-							<div>
-								<h4 className="font-medium mb-1">Scaling Guidance</h4>
-								<p className="text-sm text-muted-foreground whitespace-pre-wrap">
-									{selectedWorkout.scalingGuidanceForDay}
-								</p>
-							</div>
-						)}
-
-						{selectedWorkout.teamSpecificNotes && (
-							<div>
-								<h4 className="font-medium mb-1">Team Notes</h4>
-								<p className="text-sm text-muted-foreground whitespace-pre-wrap">
-									{selectedWorkout.teamSpecificNotes}
-								</p>
-							</div>
-						)}
-
-						<div className="pt-4 border-t">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setSelectedWorkout(null)}
-							>
-								Close Details
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			)}
 		</div>
 	)
 }
