@@ -1,7 +1,7 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, notExists, or } from "drizzle-orm"
+import { and, eq, notExists, or, sql } from "drizzle-orm"
 import { getDB } from "@/db"
 import {
 	type ProgrammingTrack,
@@ -165,16 +165,41 @@ export async function getWorkoutsForTrack(
 	trackId: string,
 	teamId?: string,
 ): Promise<
-	(TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
+	(TrackWorkout & {
+		workout?: {
+			id: string
+			name: string
+			description: string | null
+			scheme: string
+		}
+		isScheduled?: boolean
+		lastScheduledAt?: Date | null
+	})[]
 > {
 	const db = getDB()
-	const workouts = await db
-		.select()
+	const rows = await db
+		.select({
+			trackWorkout: trackWorkoutsTable,
+			workout: workouts,
+		})
 		.from(trackWorkoutsTable)
+		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
 
+	const trackWorkoutsWithWorkouts = rows.map((r) => ({
+		...r.trackWorkout,
+		workout: r.workout
+			? {
+					id: r.workout.id,
+					name: r.workout.name,
+					description: r.workout.description,
+					scheme: r.workout.scheme,
+				}
+			: undefined,
+	}))
+
 	if (!teamId) {
-		return workouts.map((w) => ({
+		return trackWorkoutsWithWorkouts.map((w) => ({
 			...w,
 			isScheduled: false,
 			lastScheduledAt: null,
@@ -202,7 +227,7 @@ export async function getWorkoutsForTrack(
 		}
 	}
 
-	const workoutsWithScheduledInfo = workouts.map((w) => ({
+	const workoutsWithScheduledInfo = trackWorkoutsWithWorkouts.map((w) => ({
 		...w,
 		isScheduled: scheduledDatesMap.has(w.id),
 		lastScheduledAt: scheduledDatesMap.get(w.id) ?? null,
@@ -315,6 +340,50 @@ export async function getTeamTracks(
 }
 
 /**
+ * Fetch all public programming tracks.
+ * Returns minimal safe fields to expose on a public index.
+ */
+export async function getPublicProgrammingTracks(search?: string): Promise<
+	{
+		id: string
+		name: string
+		description: string | null
+		type: ProgrammingTrack["type"]
+		ownerTeamId: string | null
+	}[]
+> {
+	const db = getDB()
+
+	console.log(
+		`INFO: [getPublicProgrammingTracks] fetching public tracks (search = "${search}")`,
+	)
+
+	// NOTE: We intentionally select only non-sensitive columns to expose on the
+	// public index page. Avoid leaking internal metadata like createdAt.
+
+	const searchClause = search
+		? sql`(${programmingTracksTable.name} LIKE ${`%${search}%`} OR ${programmingTracksTable.description} LIKE ${`%${search}%`})`
+		: undefined
+
+	const tracks = await db
+		.select({
+			id: programmingTracksTable.id,
+			name: programmingTracksTable.name,
+			description: programmingTracksTable.description,
+			type: programmingTracksTable.type,
+			ownerTeamId: programmingTracksTable.ownerTeamId,
+		})
+		.from(programmingTracksTable)
+		.where(and(eq(programmingTracksTable.isPublic, 1), searchClause))
+
+	console.log(
+		`INFO: [getPublicProgrammingTracks] fetched ${tracks.length} public tracks`,
+	)
+
+	return tracks
+}
+
+/**
  * Get workouts that are not in any programming track
  * These are "standalone" workouts that can be scheduled independently
  */
@@ -423,8 +492,6 @@ export async function scheduleStandaloneWorkout({
 	workoutId,
 	scheduledDate,
 	teamSpecificNotes,
-	scalingGuidanceForDay,
-	classTimes,
 }: {
 	teamId: string
 	workoutId: string
@@ -536,95 +603,20 @@ export async function reorderTrackWorkouts(
 ): Promise<number> {
 	const db = getDB()
 
-	console.log(
-		"DEBUG: [ReorderFunction] Starting with trackId:",
-		trackId,
-		"updates:",
-		updates,
+	// Build a transaction-like operation using Promise.all
+	const updatePromises = updates.map(({ trackWorkoutId, dayNumber }) =>
+		db
+			.update(trackWorkoutsTable)
+			.set({
+				dayNumber,
+				updatedAt: new Date(),
+			})
+			.where(eq(trackWorkoutsTable.id, trackWorkoutId)),
 	)
 
-	try {
-		// First, validate all track workouts exist and belong to this track
-		const existingWorkouts = await db
-			.select({
-				id: trackWorkoutsTable.id,
-				dayNumber: trackWorkoutsTable.dayNumber,
-			})
-			.from(trackWorkoutsTable)
-			.where(eq(trackWorkoutsTable.trackId, trackId))
-
-		console.log(
-			"DEBUG: [ReorderFunction] Found existing workouts for track:",
-			existingWorkouts,
-		)
-
-		const trackWorkoutIds = existingWorkouts.map((w) => w.id)
-
-		// Validate all updates refer to valid track workouts
-		for (const { trackWorkoutId } of updates) {
-			if (!trackWorkoutIds.includes(trackWorkoutId)) {
-				console.error("ERROR: [ReorderFunction] Invalid track workout ID:", {
-					trackWorkoutId,
-					trackId,
-					validIds: trackWorkoutIds,
-				})
-				throw new Error(
-					`Track workout ${trackWorkoutId} does not belong to track ${trackId}`,
-				)
-			}
-		}
-
-		// Perform the updates without using a transaction for Cloudflare D1 compatibility
-		let updateCount = 0
-		for (const { trackWorkoutId, dayNumber } of updates) {
-			console.log("DEBUG: [ReorderFunction] Updating track workout:", {
-				trackWorkoutId,
-				dayNumber,
-			})
-
-			try {
-				const updateResult = await db
-					.update(trackWorkoutsTable)
-					.set({ dayNumber, updatedAt: new Date() })
-					.where(eq(trackWorkoutsTable.id, trackWorkoutId))
-					.returning({
-						id: trackWorkoutsTable.id,
-						dayNumber: trackWorkoutsTable.dayNumber,
-					})
-
-				console.log("DEBUG: [ReorderFunction] Update successful:", updateResult)
-				updateCount += 1
-			} catch (updateError) {
-				console.error(
-					"ERROR: [ReorderFunction] Failed to update individual track workout:",
-					{
-						trackWorkoutId,
-						dayNumber,
-						error: updateError,
-					},
-				)
-				throw updateError
-			}
-		}
-
-		console.log(
-			"DEBUG: [ReorderFunction] All updates completed successfully, updateCount:",
-			updateCount,
-		)
-		return updateCount
-	} catch (error) {
-		console.error("ERROR: [ReorderFunction] Reorder operation failed:", error)
-		console.error("ERROR: [ReorderFunction] Full error details:", {
-			name: error instanceof Error ? error.name : "Unknown",
-			message: error instanceof Error ? error.message : "Unknown error",
-			stack: error instanceof Error ? error.stack : undefined,
-			trackId,
-			updatesCount: updates.length,
-			updates: updates.map((u) => ({
-				trackWorkoutId: u.trackWorkoutId,
-				dayNumber: u.dayNumber,
-			})),
-		})
-		throw error
-	}
+	await Promise.all(updatePromises)
+	return updates.length
 }
+
+// Export team programming track subscription functions
+export { TeamProgrammingTrackService } from "./team-programming-tracks"

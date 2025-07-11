@@ -180,6 +180,188 @@ await hasTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS);
 await requireTeamPermission(teamId, TEAM_PERMISSIONS.DELETE_TEAM);
 ```
 
+## Track Subscription Ownership Logic
+
+### Overview
+The track subscription feature implements robust ownership and permission checks to ensure users can only subscribe teams they have appropriate access to. This section details the ownership validation logic for team programming track subscriptions.
+
+### Ownership Check Flow
+
+#### 1. Team Access Validation
+```typescript
+// Server action validates team access before subscription
+export const subscribeTrackAction = createServerAction()
+  .input(subscribeTrackSchema)
+  .handler(async ({ input }) => {
+    const session = await getSessionFromCookie();
+    if (!session?.user) throw new Error("Unauthorized");
+
+    const { trackId, teamId } = input;
+
+    // If teamId not provided, use personal team
+    const targetTeamId = teamId || await getUserPersonalTeam(session.user.id);
+
+    // Validate user has permission to subscribe this team
+    await requireTeamPermission(targetTeamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD);
+
+    // Execute subscription
+    return await TeamProgrammingTrackService.subscribeTeamToTrack({
+      teamId: targetTeamId,
+      trackId
+    });
+  });
+```
+
+#### 2. Team Membership Verification
+The system verifies team membership through the `team_membership` table:
+
+```sql
+-- Check if user is active member of team
+SELECT tm.* FROM team_membership tm
+WHERE tm.teamId = ?
+  AND tm.userId = ?
+  AND tm.isActive = 1
+  AND (tm.expiresAt IS NULL OR tm.expiresAt > ?)
+```
+
+#### 3. Permission-Based Access Control
+Subscription permissions are checked using the existing RBAC system:
+
+```typescript
+// Permission levels for subscription actions
+const SUBSCRIPTION_PERMISSIONS = {
+  SUBSCRIBE_TEAM: "access_dashboard",    // Minimum: dashboard access
+  MANAGE_SUBSCRIPTIONS: "admin",         // Advanced: admin role required
+  BULK_SUBSCRIBE: "owner"                // Full control: owner only
+};
+```
+
+### Personal Team Handling
+
+#### Automatic Personal Team Resolution
+When no `teamId` is provided in subscription requests, the system automatically resolves to the user's personal team:
+
+```typescript
+export async function getUserPersonalTeam(userId: string) {
+  const db = getDB();
+
+  const personalTeam = await db.query.teamTable.findFirst({
+    where: and(
+      eq(teamTable.personalTeamOwnerId, userId),
+      eq(teamTable.isPersonalTeam, 1)
+    )
+  });
+
+  if (!personalTeam) {
+    throw new Error("Personal team not found");
+  }
+
+  return personalTeam.id;
+}
+```
+
+#### Personal Team Characteristics
+- Created automatically on user registration
+- User is always the owner with full permissions
+- Cannot be deleted or transferred
+- Enables individual user subscriptions
+
+### Multi-Team Subscription Workflow
+
+#### Client-Side Team Selection
+```typescript
+// UI component handles multi-team scenarios
+const SubscribeButton = ({ trackId }: { trackId: string }) => {
+  const [userTeams, setUserTeams] = useState([]);
+
+  const handleSubscribe = async (selectedTeamId?: string) => {
+    // Load user teams if not already loaded
+    if (!userTeams.length) {
+      const teams = await getUserAccessibleTeams();
+      setUserTeams(teams);
+    }
+
+    // Single team: direct subscription
+    if (teams.length === 1) {
+      return await subscribeTrackAction({ trackId, teamId: teams[0].id });
+    }
+
+    // Multiple teams: show selection dropdown
+    if (!selectedTeamId) {
+      // Show team selection UI
+      return;
+    }
+
+    // Subscribe with selected team
+    return await subscribeTrackAction({ trackId, teamId: selectedTeamId });
+  };
+};
+```
+
+#### Team Access Filtering
+Only teams where the user has subscription permissions are shown:
+
+```typescript
+async function getUserAccessibleTeams(userId: string) {
+  const db = getDB();
+
+  return await db.query.teamTable.findMany({
+    where: exists(
+      db.select()
+        .from(teamMembershipTable)
+        .where(and(
+          eq(teamMembershipTable.teamId, teamTable.id),
+          eq(teamMembershipTable.userId, userId),
+          eq(teamMembershipTable.isActive, 1)
+        ))
+    )
+  });
+}
+```
+
+### Security Considerations
+
+#### Validation Layers
+1. **Client-side**: UI only shows accessible teams
+2. **Server-side**: Strict permission validation in server actions
+3. **Database**: Foreign key constraints ensure data integrity
+
+#### Attack Prevention
+- **Team ID tampering**: Server validates all team access
+- **Unauthorized subscriptions**: Permission checks prevent access
+- **Data isolation**: Team-scoped queries prevent cross-tenant access
+
+#### Error Handling
+```typescript
+// Standardized error responses
+if (!hasTeamAccess) {
+  throw new ZSAError("FORBIDDEN", "Insufficient team permissions");
+}
+
+if (!teamExists) {
+  throw new ZSAError("NOT_FOUND", "Team not found");
+}
+
+if (!trackExists) {
+  throw new ZSAError("NOT_FOUND", "Programming track not found");
+}
+```
+
+### Audit Trail
+
+#### Subscription Tracking
+All subscription actions are logged with full context:
+
+```typescript
+console.log(`INFO: [TeamProgrammingTrackService] teamId="${teamId}" trackId="${trackId}" action="subscribe"`);
+console.log(`ACTION: subscribeTrack user="${userId}" teamId="${teamId}" trackId="${trackId}"`);
+```
+
+#### Database Audit Fields
+- `subscribedAt`: Timestamp of subscription creation
+- `createdAt`/`updatedAt`: Standard audit fields
+- `updateCounter`: Optimistic locking support
+
 ## API Reference
 
 ### Team Management APIs
