@@ -1,3 +1,4 @@
+"use server"
 import { getDd } from "@/db"
 import {
 	scheduleTemplatesTable,
@@ -72,6 +73,74 @@ const deleteScheduleTemplateClassSchema = z.object({
 	id: z.string(),
 	templateId: z.string(),
 })
+
+// Schema for bulk creating schedule template classes using cron expressions
+// Cron format: "minute hour day-of-month month day-of-week"
+// Example: "0 9 * * 1" = Every Monday at 9:00 AM
+// Day of week: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+const bulkCreateScheduleTemplateClassesSchema = z.object({
+	templateId: z.string(),
+	classCatalogId: z.string(),
+	locationId: z.string(),
+	cronExpressions: z.array(z.string()),
+	duration: z.number().int().min(1).optional().default(60), // duration in minutes
+	requiredCoaches: z.number().int().min(1).optional(),
+	requiredSkillIds: z.array(z.string()).optional(),
+})
+
+// Helper function to parse cron expression
+function parseCronExpression(cronExpression: string) {
+	const parts = cronExpression.trim().split(/\s+/)
+
+	if (parts.length !== 5) {
+		throw new Error(
+			`Invalid cron expression: ${cronExpression}. Expected format: "minute hour day-of-month month day-of-week"`,
+		)
+	}
+
+	const [minute, hour, dayOfMonth, month, dayOfWeek] = parts
+
+	// Parse minute
+	const minuteNum = parseInt(minute, 10)
+	if (Number.isNaN(minuteNum) || minuteNum < 0 || minuteNum > 59) {
+		throw new Error(`Invalid minute in cron expression: ${minute}`)
+	}
+
+	// Parse hour
+	const hourNum = parseInt(hour, 10)
+	if (Number.isNaN(hourNum) || hourNum < 0 || hourNum > 23) {
+		throw new Error(`Invalid hour in cron expression: ${hour}`)
+	}
+
+	// Parse day of week (0 = Sunday, 6 = Saturday)
+	const dayOfWeekNum = parseInt(dayOfWeek, 10)
+	if (Number.isNaN(dayOfWeekNum) || dayOfWeekNum < 0 || dayOfWeekNum > 6) {
+		throw new Error(`Invalid day of week in cron expression: ${dayOfWeek}`)
+	}
+
+	return {
+		minute: minuteNum,
+		hour: hourNum,
+		dayOfWeek: dayOfWeekNum,
+	}
+}
+
+// Helper function to format time
+function formatTime(hour: number, minute: number): string {
+	return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
+}
+
+// Helper function to calculate end time
+function calculateEndTime(
+	startHour: number,
+	startMinute: number,
+	durationMinutes: number,
+): string {
+	const totalMinutes = startHour * 60 + startMinute + durationMinutes
+	const endHour = Math.floor(totalMinutes / 60) % 24
+	const endMinute = totalMinutes % 60
+	return formatTime(endHour, endMinute)
+}
 
 // Server Actions for Schedule Templates
 export const createScheduleTemplate = createServerAction()
@@ -225,4 +294,64 @@ export const deleteScheduleTemplateClass = createServerAction()
 			)
 			.returning()
 		return deletedTemplateClass
+	})
+
+export const bulkCreateScheduleTemplateClasses = createServerAction()
+	.input(bulkCreateScheduleTemplateClassesSchema)
+	.handler(async ({ input }) => {
+		const {
+			templateId,
+			classCatalogId,
+			locationId,
+			cronExpressions,
+			duration,
+			requiredCoaches,
+			requiredSkillIds,
+		} = input
+		const db = getDd()
+
+		// Parse and validate all cron expressions first
+		const parsedSchedules = cronExpressions.map((cronExpression) => {
+			try {
+				const parsed = parseCronExpression(cronExpression)
+				const startTime = formatTime(parsed.hour, parsed.minute)
+				const endTime = calculateEndTime(parsed.hour, parsed.minute, duration)
+
+				return {
+					id: `stc_${createId()}`,
+					templateId,
+					classCatalogId,
+					locationId,
+					dayOfWeek: parsed.dayOfWeek,
+					startTime,
+					endTime,
+					requiredCoaches,
+				}
+			} catch (error) {
+				throw new Error(
+					`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
+				)
+			}
+		})
+
+		// Insert all template classes
+		const newTemplateClasses = await db
+			.insert(scheduleTemplateClassesTable)
+			.values(parsedSchedules)
+			.returning()
+
+		// Insert required skills if provided
+		if (requiredSkillIds && requiredSkillIds.length > 0) {
+			const skillsToInsert = newTemplateClasses.flatMap((templateClass) =>
+				requiredSkillIds.map((skillId) => ({
+					templateClassId: templateClass.id,
+					skillId,
+				})),
+			)
+			await db
+				.insert(scheduleTemplateClassRequiredSkillsTable)
+				.values(skillsToInsert)
+		}
+
+		return newTemplateClasses
 	})

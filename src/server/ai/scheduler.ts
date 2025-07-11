@@ -1,10 +1,14 @@
-import { db } from "@/db"
+import "server-only"
+import { createId } from "@paralleldrive/cuid2"
+import { getDd } from "@/db"
 import {
 	coachesTable,
 	scheduleTemplatesTable,
 	generatedSchedulesTable,
 	scheduledClassesTable,
 	skillsTable,
+	classCatalogTable,
+	locationsTable,
 } from "@/db/schemas/scheduling"
 import { and, eq } from "drizzle-orm"
 import type { Coach } from "@/db/schemas/scheduling"
@@ -30,6 +34,7 @@ export async function generateSchedule({
 	weekStartDate,
 	teamId,
 }: ScheduleInput) {
+	const db = getDd()
 	if (!db) {
 		throw new Error("Database not initialized.")
 	}
@@ -157,7 +162,7 @@ export async function generateSchedule({
 			assignedCoach = eligibleCoaches[0]
 
 			generatedClasses.push({
-				id: "",
+				id: `sc_${createId()}`,
 				scheduleId: "", // Will be filled after generated_schedules is inserted
 				coachId: assignedCoach.id,
 				classCatalogId: templateClass.classCatalogId,
@@ -168,7 +173,7 @@ export async function generateSchedule({
 		} else {
 			// No eligible coaches, class is unstaffed
 			unstaffedClasses.push({
-				id: "",
+				id: `sc_${createId()}`,
 				scheduleId: "", // Will be filled after generated_schedules is inserted
 				coachId: null, // Explicitly null for unstaffed
 				classCatalogId: templateClass.classCatalogId,
@@ -183,7 +188,7 @@ export async function generateSchedule({
 	const [newGeneratedSchedule] = await db
 		.insert(generatedSchedulesTable)
 		.values({
-			id: "",
+			id: `gs_${createId()}`,
 			teamId,
 			weekStartDate,
 		})
@@ -203,15 +208,113 @@ export async function generateSchedule({
 		scheduleId: newGeneratedSchedule.id,
 	}))
 
+	// Insert scheduled classes individually to avoid SQL variables limit
 	if (finalScheduledClasses.length > 0) {
-		await db?.insert(scheduledClassesTable).values(finalScheduledClasses)
+		console.log(
+			`INFO: [generateSchedule] Inserting ${finalScheduledClasses.length} scheduled classes individually`,
+		)
+
+		for (let i = 0; i < finalScheduledClasses.length; i++) {
+			const scheduledClass = finalScheduledClasses[i]
+
+			try {
+				await db?.insert(scheduledClassesTable).values(scheduledClass)
+
+				if ((i + 1) % 10 === 0) {
+					console.log(
+						`INFO: [generateSchedule] Progress: ${i + 1}/${finalScheduledClasses.length} scheduled classes inserted`,
+					)
+				}
+			} catch (error) {
+				console.error(
+					`ERROR: [generateSchedule] Failed to insert scheduled class ${i + 1}:`,
+					error,
+				)
+				throw error
+			}
+		}
 	}
+
+	// Insert unstaffed classes individually to avoid SQL variables limit
 	if (finalUnstaffedClasses.length > 0) {
-		await db?.insert(scheduledClassesTable).values(finalUnstaffedClasses)
+		console.log(
+			`INFO: [generateSchedule] Inserting ${finalUnstaffedClasses.length} unstaffed classes individually`,
+		)
+
+		for (let i = 0; i < finalUnstaffedClasses.length; i++) {
+			const unstaffedClass = finalUnstaffedClasses[i]
+
+			try {
+				await db?.insert(scheduledClassesTable).values(unstaffedClass)
+
+				if ((i + 1) % 10 === 0) {
+					console.log(
+						`INFO: [generateSchedule] Progress: ${i + 1}/${finalUnstaffedClasses.length} unstaffed classes inserted`,
+					)
+				}
+			} catch (error) {
+				console.error(
+					`ERROR: [generateSchedule] Failed to insert unstaffed class ${i + 1}:`,
+					error,
+				)
+				throw error
+			}
+		}
 	}
 
 	return {
 		newGeneratedSchedule,
 		unstaffedClasses: finalUnstaffedClasses.length,
 	}
+}
+
+// Function to fetch scheduled classes with all related data for display
+export async function getScheduledClassesForDisplay({
+	scheduleId,
+	teamId,
+}: {
+	scheduleId: string
+	teamId: string
+}) {
+	const db = getDd()
+
+	const scheduledClasses = await db.query.scheduledClassesTable.findMany({
+		where: eq(scheduledClassesTable.scheduleId, scheduleId),
+		with: {
+			coach: {
+				with: {
+					user: true,
+				},
+			},
+			classCatalog: true,
+			location: true,
+		},
+	})
+
+	return scheduledClasses
+}
+
+// Function to get all generated schedules for a team
+export async function getGeneratedSchedulesForTeam(teamId: string) {
+	const db = getDd()
+
+	const schedules = await db.query.generatedSchedulesTable.findMany({
+		where: eq(generatedSchedulesTable.teamId, teamId),
+		with: {
+			scheduledClasses: {
+				with: {
+					coach: {
+						with: {
+							user: true,
+						},
+					},
+					classCatalog: true,
+					location: true,
+				},
+			},
+		},
+		orderBy: (schedules, { desc }) => [desc(schedules.weekStartDate)],
+	})
+
+	return schedules
 }

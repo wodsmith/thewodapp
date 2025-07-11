@@ -1,0 +1,52 @@
+import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
+import { getOwnedTeamsAction } from "@/actions/team-actions"
+import { TestGenerateScheduleClient } from "./_components/test-client"
+import { CreateTemplateForm } from "./_components/create-template-form"
+
+export default async function TestGenerateSchedulePage() {
+	const [result] = await getOwnedTeamsAction()
+
+	// For testing, we'll get templates for the first team if available
+	if (!result?.success || !result.data) {
+		return <div>Error</div>
+	}
+
+	const firstTeam = result.data[0]
+	const [templatesResult, templatesError] = await getScheduleTemplatesByTeam({
+		teamId: firstTeam.id,
+	})
+
+	if (templatesError) {
+		return <div>Error loading templates</div>
+	}
+
+	// Show create template form if no templates exist
+	if (!templatesResult || templatesResult.length === 0) {
+		return (
+			<div className="container mx-auto p-8">
+				<h1 className="text-2xl font-bold mb-6">
+					Test Generate Schedule Action
+				</h1>
+				<div className="mb-8">
+					<p className="text-muted-foreground mb-6">
+						No schedule templates found for your team. Create one to get started
+						with automated scheduling.
+					</p>
+					<CreateTemplateForm teamId={firstTeam.id} />
+				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div className="container mx-auto p-8">
+			<h1 className="text-2xl font-bold mb-6">Test Generate Schedule Action</h1>
+
+			<TestGenerateScheduleClient
+				teams={result.data}
+				templates={templatesResult || []}
+				defaultTeamId={firstTeam?.id || ""}
+			/>
+		</div>
+	)
+}

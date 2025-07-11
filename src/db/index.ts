@@ -11,13 +11,20 @@ export const getDd = () => {
 		return db
 	}
 
-	const { env } = getCloudflareContext()
+	try {
+		const { env } = getCloudflareContext()
 
-	if (!env.NEXT_TAG_CACHE_D1) {
-		throw new Error("D1 database not found")
+		if (!env.NEXT_TAG_CACHE_D1) {
+			throw new Error("D1 database not found")
+		}
+
+		db = drizzle(env.NEXT_TAG_CACHE_D1, { schema, logger: true })
+
+		return db
+	} catch (error) {
+		console.error("Error getting Cloudflare context:", error)
+		throw new Error(
+			"Failed to initialize database connection. Make sure you're running in a Cloudflare Workers environment or have properly configured development mode.",
+		)
 	}
-
-	db = drizzle(env.NEXT_TAG_CACHE_D1, { schema, logger: true })
-
-	return db
 }

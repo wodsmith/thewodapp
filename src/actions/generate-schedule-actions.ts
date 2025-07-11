@@ -1,3 +1,4 @@
+"use server"
 import { generateSchedule } from "@/server/ai/scheduler"
 import { z } from "zod"
 import { createServerAction } from "zsa"
