@@ -18,33 +18,25 @@ export function TeamPageClient({
 	scheduledWorkouts,
 	teamName,
 }: TeamPageClientProps) {
-	const [selectedWorkout, setSelectedWorkout] =
-		useState<ScheduledWorkoutWithTrackDetails | null>(null)
-	const [isToday, setIsToday] = useState(false)
+	const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
-	// Set default to today's workout on mount
+	// Set default to today on mount
 	useEffect(() => {
-		const today = new Date()
-		const todaysWorkout = scheduledWorkouts.find((workout) =>
-			isSameDay(new Date(workout.scheduledDate), today),
-		)
-		if (todaysWorkout) {
-			setSelectedWorkout(todaysWorkout)
-			setIsToday(true)
-		}
-	}, [scheduledWorkouts])
+		setSelectedDate(new Date())
+	}, [])
 
-	const handleWorkoutSelect = (
-		workout: ScheduledWorkoutWithTrackDetails | null,
-	) => {
-		setSelectedWorkout(workout)
-		if (workout) {
-			const today = new Date()
-			setIsToday(isSameDay(new Date(workout.scheduledDate), today))
-		} else {
-			setIsToday(false)
-		}
+	const handleDateSelect = (date: Date) => {
+		setSelectedDate(date)
 	}
+
+	// Get workouts for the selected date
+	const selectedDateWorkouts = selectedDate
+		? scheduledWorkouts.filter((workout) =>
+				isSameDay(new Date(workout.scheduledDate), selectedDate),
+			)
+		: []
+
+	const isToday = selectedDate ? isSameDay(selectedDate, new Date()) : false
 
 	return (
 		<div>
@@ -62,11 +54,15 @@ export function TeamPageClient({
 				<TeamWeeklyWorkouts
 					scheduledWorkouts={scheduledWorkouts}
 					teamName={teamName}
-					selectedWorkout={selectedWorkout}
-					onWorkoutSelect={handleWorkoutSelect}
+					selectedDate={selectedDate}
+					onDateSelect={handleDateSelect}
 				/>
 
-				<ExpandedWorkoutView workout={selectedWorkout} isToday={isToday} />
+				<ExpandedWorkoutView
+					workouts={selectedDateWorkouts}
+					selectedDate={selectedDate}
+					isToday={isToday}
+				/>
 			</div>
 		</div>
 	)
