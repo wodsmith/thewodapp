@@ -13,7 +13,7 @@ import type {
 } from "@simplewebauthn/types"
 import { eq } from "drizzle-orm"
 import { SITE_DOMAIN, SITE_NAME, SITE_URL } from "@/constants"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { passKeyCredentialTable } from "@/db/schema"
 import isProd from "./is-prod"
 
@@ -25,7 +25,7 @@ export async function generatePasskeyRegistrationOptions(
 	userId: string,
 	email: string,
 ) {
-	const db = getDB()
+	const db = getDd()
 	const existingCredentials = await db.query.passKeyCredentialTable.findMany({
 		where: eq(passKeyCredentialTable.userId, userId),
 	})
@@ -74,7 +74,7 @@ export async function verifyPasskeyRegistration({
 
 	const { credential, aaguid } = verification.registrationInfo
 
-	const db = getDB()
+	const db = getDd()
 	await db.insert(passKeyCredentialTable).values({
 		userId,
 		credentialId: credential.id,
@@ -94,7 +94,7 @@ export async function verifyPasskeyRegistration({
 }
 
 export async function generatePasskeyAuthenticationOptions() {
-	const db = getDB()
+	const db = getDd()
 	const credentials = await db.query.passKeyCredentialTable.findMany()
 
 	const options = await generateAuthenticationOptions({
@@ -117,7 +117,7 @@ export async function verifyPasskeyAuthentication(
 ) {
 	const credentialId = response.id
 
-	const db = getDB()
+	const db = getDd()
 	const credential = await db.query.passKeyCredentialTable.findFirst({
 		where: eq(passKeyCredentialTable.credentialId, credentialId),
 	})

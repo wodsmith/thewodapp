@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getTeamTracks } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -19,7 +19,7 @@ export async function generateMetadata({
 	params,
 }: ProgrammingTrackPageProps): Promise<Metadata> {
 	const { teamId } = await params
-	const db = getDB()
+	const db = getDd()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -41,7 +41,7 @@ export default async function ProgrammingTrackPage({
 	params,
 }: ProgrammingTrackPageProps) {
 	const { teamId } = await params
-	const db = getDB()
+	const db = getDd()
 
 	console.log(
 		`DEBUG: [Programming] Loading programming tracks for team: ${teamId}`,

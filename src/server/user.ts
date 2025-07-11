@@ -2,7 +2,7 @@ import "server-only"
 
 import { and, eq } from "drizzle-orm"
 import { ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import type { User } from "@/db/schema"
 import { teamMembershipTable, teamTable } from "@/db/schema"
 
@@ -14,7 +14,7 @@ import { teamMembershipTable, teamTable } from "@/db/schema"
 export async function createPersonalTeamForUser(
 	user: User,
 ): Promise<{ teamId: string }> {
-	const db = getDB()
+	const db = getDd()
 
 	// Create a personal team for the user
 	const personalTeamName = `${user.firstName || "Personal"}'s Team (personal)`
@@ -58,7 +58,7 @@ export async function createPersonalTeamForUser(
  * @returns Promise<string> - The personal team's ID
  */
 export async function getUserPersonalTeamId(userId: string): Promise<string> {
-	const db = getDB()
+	const db = getDd()
 
 	const personalTeam = await db.query.teamTable.findFirst({
 		where: and(

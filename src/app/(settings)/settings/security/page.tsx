@@ -3,7 +3,7 @@ import "server-only"
 import { eq } from "drizzle-orm"
 import { redirect } from "next/navigation"
 import { UAParser } from "ua-parser-js"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import type { PassKeyCredential } from "@/db/schema"
 import { passKeyCredentialTable } from "@/db/schema"
 import type { ParsedUserAgent } from "@/types"
@@ -22,7 +22,7 @@ export default async function SecurityPage() {
 		return redirect("/sign-in")
 	}
 
-	const db = getDB()
+	const db = getDd()
 	const passkeys = await db
 		.select()
 		.from(passKeyCredentialTable)

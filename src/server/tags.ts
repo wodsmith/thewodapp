@@ -1,6 +1,6 @@
 import "server-only"
 import { ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { tags } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 
@@ -14,7 +14,7 @@ export async function getAllTags() {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDB()
+	const db = getDd()
 
 	const allTags = await db.select().from(tags)
 

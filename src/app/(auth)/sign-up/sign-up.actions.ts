@@ -5,7 +5,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "zsa"
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { signUpSchema } from "@/schemas/signup.schema"
@@ -27,7 +27,7 @@ export const signUpAction = createServerAction()
 	.input(signUpSchema)
 	.handler(async ({ input }) => {
 		return withRateLimit(async () => {
-			const db = getDB()
+			const db = getDd()
 			const { env } = getCloudflareContext()
 
 			if ((await isTurnstileEnabled()) && input.captchaToken) {

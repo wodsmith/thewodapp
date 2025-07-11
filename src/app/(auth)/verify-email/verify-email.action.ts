@@ -4,7 +4,7 @@ import "server-only"
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { verifyEmailSchema } from "@/schemas/verify-email.schema"
 import { getVerificationTokenKey } from "@/utils/auth-utils"
@@ -49,7 +49,7 @@ export const verifyEmailAction = createServerAction()
 				)
 			}
 
-			const db = getDB()
+			const db = getDd()
 
 			// Find user
 			const user = await db.query.userTable.findFirst({

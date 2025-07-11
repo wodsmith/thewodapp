@@ -4,7 +4,7 @@ import { fromZonedTime } from "date-fns-tz"
 import { desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { results, sets, workouts } from "@/db/schema"
 import { formatSecondsToTime, parseTimeScoreToSeconds } from "@/lib/utils"
 import type {
@@ -21,7 +21,7 @@ import { requireVerifiedEmail } from "@/utils/auth"
 export async function getLogsByUser(
 	userId: string,
 ): Promise<WorkoutResultWithWorkoutName[]> {
-	const db = getDB()
+	const db = getDd()
 	console.log(`[getLogsByUser] Fetching logs for userId: ${userId}`)
 
 	try {
@@ -90,7 +90,7 @@ export async function addLog({
 	if (!session) {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
-	const db = getDB()
+	const db = getDd()
 	const resultId = `result_${createId()}`
 
 	console.log(
@@ -144,7 +144,7 @@ export async function addLog({
 export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
-	const db = getDB()
+	const db = getDd()
 	console.log(`[getResultSetsById] Fetching sets for resultId: ${resultId}`)
 
 	try {

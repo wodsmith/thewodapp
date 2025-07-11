@@ -8,7 +8,7 @@ import { cookies } from "next/headers"
 import { cache } from "react"
 import { ZSAError } from "zsa"
 import { SESSION_COOKIE_NAME } from "@/constants"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
@@ -40,7 +40,7 @@ const getSessionLength = () => {
  */
 
 export async function getUserFromDB(userId: string) {
-	const db = getDB()
+	const db = getDd()
 	return await db.query.userTable.findFirst({
 		where: eq(userTable.id, userId),
 		columns: {
@@ -96,7 +96,7 @@ interface CreateSessionParams
 }
 
 export async function getUserTeamsWithPermissions(userId: string) {
-	const db = getDB()
+	const db = getDd()
 
 	console.log(
 		`DEBUG: [Auth] Getting teams with permissions for userId: ${userId}`,

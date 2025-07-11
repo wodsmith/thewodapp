@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
 import { COMPONENTS } from "@/app/(dashboard)/dashboard/marketplace/components-catalog"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { PURCHASABLE_ITEM_TYPE, purchasedItemsTable } from "@/db/schema"
 import { getSessionFromCookie } from "@/utils/auth"
 import { consumeCredits, hasEnoughCredits } from "@/utils/credits"
@@ -54,7 +54,7 @@ export const purchaseAction = createServerAction()
 				)
 			}
 
-			const db = getDB()
+			const db = getDd()
 
 			// Check if user already owns the item
 			const existingPurchase = await db.query.purchasedItemsTable.findFirst({

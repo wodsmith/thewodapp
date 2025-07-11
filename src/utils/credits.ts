@@ -1,7 +1,7 @@
 import "server-only"
 import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm"
 import { CREDIT_PACKAGES, FREE_MONTHLY_CREDITS } from "@/constants"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import {
 	CREDIT_TRANSACTION_TYPE,
 	creditTransactionTable,
@@ -31,7 +31,7 @@ function shouldRefreshCredits(session: KVSession, currentTime: Date): boolean {
 }
 
 async function processExpiredCredits(userId: string, currentTime: Date) {
-	const db = getDB()
+	const db = getDd()
 	// Find all expired transactions that haven't been processed and have remaining credits
 	// Order by type to process MONTHLY_REFRESH first, then by creation date
 	const expiredTransactions = await db.query.creditTransactionTable.findMany({
@@ -80,7 +80,7 @@ async function processExpiredCredits(userId: string, currentTime: Date) {
 }
 
 export async function updateUserCredits(userId: string, creditsToAdd: number) {
-	const db = getDB()
+	const db = getDd()
 	await db
 		.update(userTable)
 		.set({
@@ -93,7 +93,7 @@ export async function updateUserCredits(userId: string, creditsToAdd: number) {
 }
 
 async function updateLastRefreshDate(userId: string, date: Date) {
-	const db = getDB()
+	const db = getDd()
 	await db
 		.update(userTable)
 		.set({
@@ -117,7 +117,7 @@ export async function logTransaction({
 	expirationDate?: Date
 	paymentIntentId?: string
 }) {
-	const db = getDB()
+	const db = getDd()
 	await db.insert(creditTransactionTable).values({
 		userId,
 		amount,
@@ -137,7 +137,7 @@ export async function addFreeMonthlyCreditsIfNeeded(
 	// Check if it's been at least a month since last refresh
 	if (shouldRefreshCredits(session, currentTime)) {
 		// Double check the last refresh date from the database to prevent race conditions
-		const db = getDB()
+		const db = getDd()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, session.userId),
 			columns: {
@@ -202,7 +202,7 @@ export async function hasEnoughCredits({
 	userId: string
 	requiredCredits: number
 }) {
-	const user = await getDB().query.userTable.findFirst({
+	const user = await getDd().query.userTable.findFirst({
 		where: eq(userTable.id, userId),
 		columns: {
 			currentCredits: true,
@@ -222,7 +222,7 @@ export async function consumeCredits({
 	amount: number
 	description: string
 }) {
-	const db = getDB()
+	const db = getDd()
 
 	// First check if user has enough credits
 	const user = await db.query.userTable.findFirst({
@@ -314,7 +314,7 @@ export async function getCreditTransactions({
 	page?: number
 	limit?: number
 }) {
-	const db = getDB()
+	const db = getDd()
 	const transactions = await db.query.creditTransactionTable.findMany({
 		where: eq(creditTransactionTable.userId, userId),
 		orderBy: [desc(creditTransactionTable.createdAt)],
@@ -344,7 +344,7 @@ export async function getCreditTransactions({
 }
 
 export async function getUserPurchasedItems(userId: string) {
-	const db = getDB()
+	const db = getDd()
 	const purchasedItems = await db.query.purchasedItemsTable.findMany({
 		where: eq(purchasedItemsTable.userId, userId),
 	})

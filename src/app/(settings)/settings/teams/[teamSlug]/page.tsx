@@ -14,7 +14,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -32,7 +32,7 @@ interface TeamPageProps {
 // TODO Test the removal process
 export async function generateMetadata({ params }: TeamPageProps) {
 	const { teamSlug } = await params
-	const db = getDB()
+	const db = getDd()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.slug, teamSlug),
@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: TeamPageProps) {
 
 export default async function TeamDashboardPage({ params }: TeamPageProps) {
 	const { teamSlug } = await params
-	const db = getDB()
+	const db = getDd()
 
 	// Find the team by slug
 	const team = await db.query.teamTable.findFirst({

@@ -1,13 +1,13 @@
 import "server-only"
 import { GITHUB_REPO_URL } from "@/constants"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { CACHE_KEYS, withKVCache } from "./with-kv-cache"
 
 export async function getTotalUsers() {
 	return withKVCache(
 		async () => {
-			const db = getDB()
+			const db = getDd()
 
 			return await db.$count(userTable)
 		},
