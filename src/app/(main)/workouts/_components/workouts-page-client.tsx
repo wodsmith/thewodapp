@@ -10,7 +10,7 @@ import { TeamWeeklyWorkouts } from "@/app/(main)/teams/[id]/_components/team-wee
 import { ExpandedWorkoutView } from "./expanded-workout-view-with-teams"
 import WorkoutControls from "./WorkoutControls"
 import WorkoutRowCard from "@/components/WorkoutRowCard"
-import type { Movement, Tag, Workout, WorkoutResult } from "@/types"
+import type { Workout, WorkoutResult } from "@/types"
 
 interface ScheduledWorkoutWithTeam extends ScheduledWorkoutWithTrackDetails {
 	teamId: string
@@ -19,8 +19,15 @@ interface ScheduledWorkoutWithTeam extends ScheduledWorkoutWithTrackDetails {
 }
 
 interface WorkoutWithDetails extends Workout {
-	movements: Movement[]
-	tags: Tag[]
+	movements: Array<{
+		id: string
+		name: string
+		type: string
+	}>
+	tags: Array<{
+		id: string
+		name: string
+	}>
 	resultsToday?: WorkoutResult[]
 }
 
