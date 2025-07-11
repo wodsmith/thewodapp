@@ -1,13 +1,9 @@
-import { ChevronLeft } from "lucide-react"
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { hasTeamMembership } from "@/utils/team-auth"
 import { getTeamScheduledWorkoutsAction } from "../_actions/team-scheduled-workouts.action"
-import { SingleTeamScheduledWorkouts } from "../_components/single-team-scheduled-workouts"
-import { TeamWeeklyWorkouts } from "./_components/team-weekly-workouts"
+import { TeamPageClient } from "./_components/team-page-client"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -68,31 +64,8 @@ export default async function TeamPage({ params }: TeamPageProps) {
 				error,
 			)
 		}
-		// Handle error gracefully
-		return (
-			<div>
-				<div className="mb-6 flex items-center gap-4">
-					<Button variant="ghost" size="sm" asChild>
-						<Link href="/teams">
-							<ChevronLeft className="h-4 w-4 mr-2" />
-							Back to Teams
-						</Link>
-					</Button>
-					<h1 className="">{teamName.toUpperCase()}</h1>
-				</div>
-				<div className="space-y-6">
-					<div className="card p-6">
-						<h2 className="mb-4 font-semibold text-xl">
-							Error Loading Workouts
-						</h2>
-						<p className="text-muted-foreground">
-							There was an error loading scheduled workouts for this team.
-							Please try again later.
-						</p>
-					</div>
-				</div>
-			</div>
-		)
+		// Handle error gracefully - still use client component for consistency
+		return <TeamPageClient scheduledWorkouts={[]} teamName={teamName} />
 	}
 
 	if (process.env.LOG_LEVEL === "info") {
@@ -102,28 +75,9 @@ export default async function TeamPage({ params }: TeamPageProps) {
 	}
 
 	return (
-		<div>
-			<div className="mb-6 flex items-center gap-4">
-				<Button variant="ghost" size="sm" asChild>
-					<Link href="/teams">
-						<ChevronLeft className="h-4 w-4 mr-2" />
-						Back to Teams
-					</Link>
-				</Button>
-				<h1 className="">{teamName.toUpperCase()}</h1>
-			</div>
-
-			<div className="space-y-6">
-				<TeamWeeklyWorkouts
-					scheduledWorkouts={result?.scheduledWorkouts || []}
-					teamName={teamName}
-				/>
-
-				<SingleTeamScheduledWorkouts
-					scheduledWorkouts={result?.scheduledWorkouts || []}
-					teamName={teamName}
-				/>
-			</div>
-		</div>
+		<TeamPageClient
+			scheduledWorkouts={result?.scheduledWorkouts || []}
+			teamName={teamName}
+		/>
 	)
 }
