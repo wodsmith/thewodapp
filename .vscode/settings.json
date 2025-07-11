@@ -23,5 +23,8 @@
   "peacock.color": "#42b883",
   "editor.defaultFormatter": "biomejs.biome",
   "peacock.remoteColor": "#e83acb",
-  "editor.formatOnPaste": false
+  "editor.formatOnPaste": false,
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  }
 }
