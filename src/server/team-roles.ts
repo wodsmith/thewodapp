@@ -1,7 +1,7 @@
 import "server-only"
 import { and, eq, not } from "drizzle-orm"
 import { ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamRoleTable } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -12,7 +12,7 @@ export async function getTeamRoles(teamId: string) {
 	// Check if user has access to the team
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-	const db = getDB()
+	const db = getDd()
 
 	const roles = await db.query.teamRoleTable.findMany({
 		where: eq(teamRoleTable.teamId, teamId),
@@ -47,7 +47,7 @@ export async function createTeamRole({
 	// Check if user has permission to create roles
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.CREATE_ROLES)
 
-	const db = getDB()
+	const db = getDd()
 
 	// Check if a role with the same name already exists
 	const existingRole = await db.query.teamRoleTable.findFirst({
@@ -106,7 +106,7 @@ export async function updateTeamRole({
 	// Check if user has permission to edit roles
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_ROLES)
 
-	const db = getDB()
+	const db = getDd()
 
 	// Find the role to update
 	const role = await db.query.teamRoleTable.findFirst({
@@ -179,7 +179,7 @@ export async function deleteTeamRole({
 	// Check if user has permission to delete roles
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.DELETE_ROLES)
 
-	const db = getDB()
+	const db = getDd()
 
 	// Find the role to delete
 	const role = await db.query.teamRoleTable.findFirst({

@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { signInSchema } from "@/schemas/signin.schema"
 import { createAndStoreSession } from "@/utils/auth"
@@ -13,7 +13,7 @@ export const signInAction = createServerAction()
 	.input(signInSchema)
 	.handler(async ({ input }) => {
 		return withRateLimit(async () => {
-			const db = getDB()
+			const db = getDd()
 
 			try {
 				// Find user by email

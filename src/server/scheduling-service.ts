@@ -2,7 +2,7 @@ import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
 import { and, between, eq } from "drizzle-orm"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import {
 	type ScheduledWorkoutInstance,
 	scheduledWorkoutInstancesTable,
@@ -42,7 +42,7 @@ export type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 export async function scheduleWorkoutForTeam(
 	data: ScheduleWorkoutInput,
 ): Promise<ScheduledWorkoutInstance> {
-	const db = getDB()
+	const db = getDd()
 
 	const [instance] = await db
 		.insert(scheduledWorkoutInstancesTable)
@@ -66,7 +66,7 @@ export async function getScheduledWorkoutsForTeam(
 	teamId: string,
 	dateRange: { start: Date; end: Date },
 ): Promise<ScheduledWorkoutInstanceWithDetails[]> {
-	const db = getDB()
+	const db = getDd()
 
 	const rows = await db
 		.select({
@@ -105,7 +105,7 @@ export async function getScheduledWorkoutsForTeam(
 export async function getScheduledWorkoutInstanceById(
 	instanceId: string,
 ): Promise<ScheduledWorkoutInstanceWithDetails | null> {
-	const db = getDB()
+	const db = getDd()
 	const rows = await db
 		.select({
 			instance: scheduledWorkoutInstancesTable,
@@ -137,7 +137,7 @@ export async function updateScheduledWorkoutInstance(
 	instanceId: string,
 	data: UpdateScheduleInput,
 ): Promise<ScheduledWorkoutInstance> {
-	const db = getDB()
+	const db = getDd()
 	const [updated] = await db
 		.update(scheduledWorkoutInstancesTable)
 		.set({ ...data, updatedAt: new Date() })
@@ -149,7 +149,7 @@ export async function updateScheduledWorkoutInstance(
 export async function deleteScheduledWorkoutInstance(
 	instanceId: string,
 ): Promise<void> {
-	const db = getDB()
+	const db = getDd()
 	await db
 		.delete(scheduledWorkoutInstancesTable)
 		.where(eq(scheduledWorkoutInstancesTable.id, instanceId))

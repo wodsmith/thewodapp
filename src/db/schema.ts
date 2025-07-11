@@ -3,6 +3,7 @@
 export * from "./schemas/billing"
 export * from "./schemas/common"
 export * from "./schemas/programming"
+export * from "./schemas/scheduling"
 export * from "./schemas/teams"
 export * from "./schemas/users"
 export * from "./schemas/workouts"

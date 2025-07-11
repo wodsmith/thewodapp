@@ -2,7 +2,7 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm"
 import { ZSAError } from "zsa"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import type { Workout } from "@/db/schema"
 import {
 	movements,
@@ -20,7 +20,7 @@ import { requireVerifiedEmail } from "@/utils/auth"
  * Helper function to fetch tags by workout IDs
  */
 async function fetchTagsByWorkoutId(
-	db: ReturnType<typeof getDB>,
+	db: ReturnType<typeof getDd>,
 	workoutIds: string[],
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
@@ -54,7 +54,7 @@ async function fetchTagsByWorkoutId(
  * Helper function to fetch movements by workout IDs
  */
 async function fetchMovementsByWorkoutId(
-	db: ReturnType<typeof getDB>,
+	db: ReturnType<typeof getDd>,
 	workoutIds: string[],
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
 	if (workoutIds.length === 0) return new Map()
@@ -93,7 +93,7 @@ async function fetchMovementsByWorkoutId(
  * Helper function to fetch today's results by workout IDs
  */
 async function fetchTodaysResultsByWorkoutId(
-	db: ReturnType<typeof getDB>,
+	db: ReturnType<typeof getDd>,
 	userId: string,
 	workoutIds: string[],
 ): Promise<Map<string, Array<(typeof todaysResults)[0]>>> {
@@ -137,7 +137,7 @@ async function fetchTodaysResultsByWorkoutId(
  * Get all workouts for the current team (team-owned + public workouts)
  */
 export async function getUserWorkouts({ teamId }: { teamId: string }) {
-	const db = getDB()
+	const db = getDd()
 	const session = await requireVerifiedEmail()
 
 	if (!session?.user?.id) {
@@ -190,7 +190,7 @@ export async function createWorkout({
 	movementIds: string[]
 	teamId: string
 }) {
-	const db = getDB()
+	const db = getDd()
 
 	// Create the workout first
 	const newWorkout = await db
@@ -243,7 +243,7 @@ export async function createWorkout({
  * Get a single workout by ID with its tags and movements
  */
 export async function getWorkoutById(id: string) {
-	const db = getDB()
+	const db = getDd()
 
 	const workout = await db
 		.select()
@@ -307,7 +307,7 @@ export async function updateWorkout({
 	tagIds: string[]
 	movementIds: string[]
 }) {
-	const db = getDB()
+	const db = getDd()
 
 	await db
 		.update(workouts)
@@ -350,7 +350,7 @@ export async function getUserWorkoutsWithTrackScheduling({
 	trackId: string
 	teamId: string
 }) {
-	const db = getDB()
+	const db = getDd()
 
 	// Get all team workouts
 	const userWorkouts = await getUserWorkouts({ teamId })

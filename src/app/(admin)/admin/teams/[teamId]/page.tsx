@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { CalendarSkeleton } from "./_components/calendar-skeleton"
@@ -19,7 +19,7 @@ export async function generateMetadata({
 	params,
 }: TeamSchedulingPageProps): Promise<Metadata> {
 	const { teamId } = await params
-	const db = getDB()
+	const db = getDd()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -41,7 +41,7 @@ export default async function TeamSchedulingPage({
 	params,
 }: TeamSchedulingPageProps) {
 	const { teamId } = await params
-	const db = getDB()
+	const db = getDd()
 
 	// Get team by ID
 	const team = await db.query.teamTable.findFirst({

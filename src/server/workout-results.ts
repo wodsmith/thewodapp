@@ -1,6 +1,6 @@
 import "server-only"
 import { and, eq } from "drizzle-orm"
-import { getDB } from "@/db"
+import { getDd } from "@/db"
 import { results, sets } from "@/db/schema"
 import type { ResultSet, WorkoutResult } from "@/types"
 
@@ -11,7 +11,7 @@ export async function getWorkoutResultsByWorkoutAndUser(
 	workoutId: string,
 	userId: string,
 ): Promise<WorkoutResult[]> {
-	const db = getDB()
+	const db = getDd()
 	console.log(
 		`Fetching workout results for workoutId: ${workoutId}, userId: ${userId}`,
 	)
@@ -41,7 +41,7 @@ export async function getWorkoutResultsByWorkoutAndUser(
 export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
-	const db = getDB()
+	const db = getDd()
 	console.log(`Fetching sets for resultId: ${resultId}`)
 	try {
 		const setDetails = await db
