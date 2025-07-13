@@ -38,6 +38,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		href: `/admin/teams/${currentTeamId}/coaches` as Route,
 		icon: UserGroupIcon,
 	},
+	{
+		title: "Classes",
+		href: `/admin/teams/${currentTeamId}/classes` as Route,
+		icon: BookOpenIcon,
+	},
 ]
 
 interface AdminSidebarProps {
