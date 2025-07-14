@@ -52,17 +52,35 @@ const GymSetup = ({
 	const router = useRouter()
 	const [locations, setLocations] = useState(initialLocations)
 	const [skills, setSkills] = useState(initialSkills)
-	const currentSettings = JSON.parse(team.settings || "{}")
+	let currentSettings: { country?: string } = {}
+	try {
+		currentSettings = JSON.parse(team.settings || "{}")
+	} catch (error) {
+		console.error("Error parsing team settings:", error)
+	}
 	const [country, setCountry] = useState(
 		currentSettings.country || "United States",
 	)
 
 	const { execute: updateTeamExecute } = useServerAction(updateTeamAction)
-
 	const handleCountryChange = async (value: string) => {
+		const prevCountry = country
 		setCountry(value)
-		const newSettings = JSON.stringify({ ...currentSettings, country: value })
-		await updateTeamExecute({ teamId, data: { settings: newSettings } })
+		try {
+			const newSettings = JSON.stringify({ ...currentSettings, country: value })
+			const [result, err] = await updateTeamExecute({
+				teamId,
+				data: { settings: newSettings },
+			})
+			if (err) {
+				console.error("Error updating team country:", err)
+				setCountry(prevCountry)
+				return
+			}
+		} catch (error) {
+			console.error("Unexpected error updating team country:", error)
+			setCountry(prevCountry)
+		}
 	}
 
 	// Location form
@@ -95,8 +113,16 @@ const GymSetup = ({
 
 	const { execute: deleteLocationExecute } = useServerAction(deleteLocation)
 	const handleDeleteLocation = async (id: string) => {
-		await deleteLocationExecute({ id, teamId })
-		setLocations(locations.filter((l) => l.id !== id))
+		try {
+			const [result, err] = await deleteLocationExecute({ id, teamId })
+			if (err) {
+				console.error("Error deleting location:", err)
+				return
+			}
+			setLocations(locations.filter((l) => l.id !== id))
+		} catch (error) {
+			console.error("Unexpected error deleting location:", error)
+		}
 	}
 
 	// Skill form
@@ -128,8 +154,16 @@ const GymSetup = ({
 
 	const { execute: deleteSkillExecute } = useServerAction(deleteSkill)
 	const handleDeleteSkill = async (id: string) => {
-		await deleteSkillExecute({ id, teamId })
-		setSkills(skills.filter((s) => s.id !== id))
+		try {
+			const [result, err] = await deleteSkillExecute({ id, teamId })
+			if (err) {
+				console.error("Error deleting skill:", err)
+				return
+			}
+			setSkills(skills.filter((s) => s.id !== id))
+		} catch (error) {
+			console.error("Unexpected error deleting skill:", error)
+		}
 	}
 
 	return (
