@@ -136,7 +136,7 @@ export function ExpandedWorkoutView({
 								<p className="text-xs text-muted-foreground">
 									Track Type:{" "}
 									{workout.trackWorkout.track.type
-										.replace("_", " ")
+										.replaceAll("_", " ")
 										.toLowerCase()}
 								</p>
 							</div>

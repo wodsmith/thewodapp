@@ -17,7 +17,8 @@
 			"src/**/*.jsx",
 			"*.json",
 			"*.mjs",
-			"*.ts"
+			"*.ts",
+			"!.vscode/settings.json"
 		]
 	},
 	"linter": {
@@ -47,7 +48,8 @@
 			"src/**/*.jsx",
 			"*.json",
 			"*.mjs",
-			"*.ts"
+			"*.ts",
+			"!.vscode/settings.json"
 		],
 		"indentStyle": "tab"
 	},
