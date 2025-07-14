@@ -1,11 +1,15 @@
+"use server"
 import { getDd } from "@/db"
 import {
 	classCatalogTable,
+	classCatalogToSkillsTable,
 	locationsTable,
 	skillsTable,
+	scheduledClassesTable,
+	scheduleTemplateClassesTable,
 } from "@/db/schemas/scheduling"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq } from "drizzle-orm"
+import { and, eq, count } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
 
@@ -34,6 +38,15 @@ const createClassCatalogSchema = z.object({
 	teamId: z.string(),
 	name: z.string().min(1, "Class name cannot be empty"),
 	description: z.string().optional(),
+	durationMinutes: z.coerce
+		.number()
+		.int()
+		.min(1, "Duration must be at least 1 minute"),
+	maxParticipants: z.coerce
+		.number()
+		.int()
+		.min(1, "Max participants must be at least 1"),
+	skillIds: z.array(z.string()).optional(),
 })
 
 const updateClassCatalogSchema = z.object({
@@ -41,6 +54,15 @@ const updateClassCatalogSchema = z.object({
 	teamId: z.string(),
 	name: z.string().min(1, "Class name cannot be empty"),
 	description: z.string().optional(),
+	durationMinutes: z.coerce
+		.number()
+		.int()
+		.min(1, "Duration must be at least 1 minute"),
+	maxParticipants: z.coerce
+		.number()
+		.int()
+		.min(1, "Max participants must be at least 1"),
+	skillIds: z.array(z.string()).optional(),
 })
 
 const deleteClassCatalogSchema = z.object({
@@ -173,7 +195,14 @@ export const createClassCatalog = createServerAction()
 	.input(createClassCatalogSchema)
 	.handler(async ({ input }) => {
 		try {
-			const { teamId, name, description } = input
+			const {
+				teamId,
+				name,
+				description,
+				durationMinutes,
+				maxParticipants,
+				skillIds,
+			} = input
 			const db = getDd()
 			const [newClass] = await db
 				.insert(classCatalogTable)
@@ -182,8 +211,17 @@ export const createClassCatalog = createServerAction()
 					teamId,
 					name,
 					description,
+					durationMinutes,
+					maxParticipants,
 				})
 				.returning()
+			if (skillIds?.length) {
+				const values = skillIds.map((skillId) => ({
+					classCatalogId: newClass.id,
+					skillId,
+				}))
+				await db.insert(classCatalogToSkillsTable).values(values)
+			}
 			return { success: true, data: newClass }
 		} catch (error) {
 			console.error("Failed to create class catalog:", error)
@@ -203,11 +241,19 @@ export const updateClassCatalog = createServerAction()
 	.input(updateClassCatalogSchema)
 	.handler(async ({ input }) => {
 		try {
-			const { id, teamId, name, description } = input
+			const {
+				id,
+				teamId,
+				name,
+				description,
+				durationMinutes,
+				maxParticipants,
+				skillIds,
+			} = input
 			const db = getDd()
 			const [updatedClass] = await db
 				.update(classCatalogTable)
-				.set({ name, description })
+				.set({ name, description, durationMinutes, maxParticipants })
 				.where(
 					and(
 						eq(classCatalogTable.id, id),
@@ -215,6 +261,18 @@ export const updateClassCatalog = createServerAction()
 					),
 				)
 				.returning()
+			if (skillIds !== undefined) {
+				await db
+					.delete(classCatalogToSkillsTable)
+					.where(eq(classCatalogToSkillsTable.classCatalogId, id))
+				if (skillIds.length) {
+					const values = skillIds.map((skillId) => ({
+						classCatalogId: id,
+						skillId,
+					}))
+					await db.insert(classCatalogToSkillsTable).values(values)
+				}
+			}
 			return { success: true, data: updatedClass }
 		} catch (error) {
 			console.error("Failed to update class catalog:", error)
@@ -236,6 +294,27 @@ export const deleteClassCatalog = createServerAction()
 		try {
 			const { id, teamId } = input
 			const db = getDd()
+			const scheduledCount = (
+				await db
+					.select({ count: count() })
+					.from(scheduledClassesTable)
+					.where(eq(scheduledClassesTable.classCatalogId, id))
+			)[0].count
+			const templateCount = (
+				await db
+					.select({ count: count() })
+					.from(scheduleTemplateClassesTable)
+					.where(eq(scheduleTemplateClassesTable.classCatalogId, id))
+			)[0].count
+			if (scheduledCount > 0 || templateCount > 0) {
+				throw new ZSAError(
+					"CONFLICT",
+					"Cannot delete class catalog entry that is used in schedules or templates.",
+				)
+			}
+			await db
+				.delete(classCatalogToSkillsTable)
+				.where(eq(classCatalogToSkillsTable.classCatalogId, id))
 			const [deletedClass] = await db
 				.delete(classCatalogTable)
 				.where(
@@ -268,6 +347,13 @@ export const getClassCatalogByTeam = createServerAction()
 			const db = getDd()
 			const classes = await db.query.classCatalogTable.findMany({
 				where: eq(classCatalogTable.teamId, teamId),
+				with: {
+					classToSkills: {
+						with: {
+							skill: true,
+						},
+					},
+				},
 			})
 			return { success: true, data: classes }
 		} catch (error) {

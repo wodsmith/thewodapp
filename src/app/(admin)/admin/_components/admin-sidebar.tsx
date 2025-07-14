@@ -1,6 +1,7 @@
 "use client"
 
 import {
+	AcademicCapIcon,
 	BookOpenIcon,
 	CalendarDaysIcon,
 	UserGroupIcon,
@@ -37,6 +38,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		title: "Coaches",
 		href: `/admin/teams/${currentTeamId}/coaches` as Route,
 		icon: UserGroupIcon,
+	},
+	{
+		title: "Classes",
+		href: `/admin/teams/${currentTeamId}/classes` as Route,
+		icon: AcademicCapIcon,
 	},
 ]
 
