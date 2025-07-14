@@ -1,5 +1,4 @@
 "use client"
-import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -70,7 +69,6 @@ const Classes = ({
 	teamId,
 	teamSlug,
 }: ClassesProps) => {
-	const [selectedSkills, setSelectedSkills] = useState<string[]>([])
 	const router = useRouter()
 
 	const { execute: createExecute, isPending } =
@@ -89,12 +87,13 @@ const Classes = ({
 		},
 	})
 
+	const selectedSkills = form.watch("skillIds") ?? []
+
 	const onSubmit = async (data: CreateClassFormData) => {
 		try {
 			const [result, error] = await createExecute({
 				...data,
 				teamId,
-				skillIds: selectedSkills,
 			})
 
 			if (error) {
@@ -106,7 +105,6 @@ const Classes = ({
 			if (result?.success) {
 				toast.success("Class created successfully!")
 				form.reset()
-				setSelectedSkills([])
 				router.refresh()
 			}
 		} catch (error) {
@@ -116,13 +114,18 @@ const Classes = ({
 	}
 
 	const handleSkillSelect = (skillId: string) => {
-		if (!selectedSkills.includes(skillId)) {
-			setSelectedSkills([...selectedSkills, skillId])
+		const current = form.getValues("skillIds") ?? []
+		if (!current.includes(skillId)) {
+			form.setValue("skillIds", [...current, skillId])
 		}
 	}
 
 	const handleSkillRemove = (skillId: string) => {
-		setSelectedSkills(selectedSkills.filter((id) => id !== skillId))
+		const current = form.getValues("skillIds") ?? []
+		form.setValue(
+			"skillIds",
+			current.filter((id) => id !== skillId),
+		)
 	}
 
 	return (
@@ -272,7 +275,7 @@ const Classes = ({
 										<p className="text-sm text-slate-600 mt-2">
 											No skills available.{" "}
 											<a
-												href={`/admin/teams/${teamId}/gym-setup`}
+												href={`/admin/teams/${teamSlug}/gym-setup`}
 												className="text-blue-600 hover:text-blue-800 underline"
 											>
 												Add skills
