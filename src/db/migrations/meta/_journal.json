@@ -120,6 +120,13 @@
       "when": 1752381836189,
       "tag": "0016_add_class_catalog_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1752501431266,
+      "tag": "0017_add_location_capacity",
+      "breakpoints": true
     }
   ]
 }
