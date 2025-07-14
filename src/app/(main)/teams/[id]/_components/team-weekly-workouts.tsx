@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { format } from "date-fns"
+import { format, addWeeks } from "date-fns"
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,8 +44,8 @@ export function TeamWeeklyWorkouts({
 	}
 
 	const navigateWeek = (direction: "prev" | "next") => {
-		const newDate = new Date(currentWeek)
-		newDate.setDate(currentWeek.getDate() + (direction === "next" ? 7 : -7))
+		const weeks = direction === "next" ? 1 : -1
+		const newDate = addWeeks(currentWeek, weeks)
 		setCurrentWeek(newDate)
 	}
 

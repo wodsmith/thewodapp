@@ -177,7 +177,7 @@ export function SingleTeamScheduledWorkouts({
 										<div className="text-xs text-muted-foreground">
 											Track:{" "}
 											{scheduledWorkout.trackWorkout.track.type.replace(
-												"_",
+												/_/g,
 												" ",
 											)}
 										</div>
