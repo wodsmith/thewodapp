@@ -39,6 +39,7 @@ import type { inferServerActionReturnData } from "zsa"
 import type { getTeamMembersAction } from "@/actions/team-membership-actions"
 import type { Coach } from "@/db/schema"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface CoachesProps {
 	coaches: inferServerActionReturnData<typeof getCoachesByTeam>["data"]
@@ -206,12 +207,12 @@ const Coaches = ({
 											{availableMembers.length === 0 && (
 												<p className="text-sm text-slate-600 mt-2">
 													No available team members to assign as coaches.{" "}
-													<a
+													<Link
 														href={`/settings/teams/${teamSlug}`}
 														className="text-blue-600 hover:text-blue-800 underline"
 													>
 														Invite new team members
-													</a>{" "}
+													</Link>{" "}
 													if you don't see the person you're looking for.
 												</p>
 											)}
