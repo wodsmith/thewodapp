@@ -31,14 +31,29 @@ export default async function ProgrammingTrackDetailPage({
 	// Fetch data in parallel
 	const [workouts, subscriptionResult, userTeamsResult] = await Promise.all([
 		getWorkoutsForTrack(trackId),
-		getTrackSubscriptionStatusAction({ trackId }).catch(() => [null, null]),
+		getTrackSubscriptionStatusAction({ trackId }),
 		getUserTeamsAction().catch(() => [null, null]),
 	])
 
+	function extractSubscriptionStatus(
+		result:
+			| [
+					{
+						success: boolean
+						data: { isSubscribed: boolean; teamId: string | null }
+					} | null,
+					unknown,
+			  ]
+			| [null, null],
+	): { isSubscribed: boolean; teamId: string | null } {
+		if (result?.[0]?.success && result?.[0]?.data) {
+			return result[0].data
+		}
+		return { isSubscribed: false, teamId: null }
+	}
+
 	// Extract data from server action results
-	const subscriptionStatus = subscriptionResult?.[0]?.success
-		? subscriptionResult[0].data
-		: { isSubscribed: false, teamId: null }
+	const subscriptionStatus = extractSubscriptionStatus(subscriptionResult)
 
 	const userTeams = userTeamsResult?.[0]?.success ? userTeamsResult[0].data : []
 
