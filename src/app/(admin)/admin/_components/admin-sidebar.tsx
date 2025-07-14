@@ -4,9 +4,9 @@ import {
 	BookOpenIcon,
 	CalendarDaysIcon,
 	UserGroupIcon,
+	BuildingOfficeIcon,
 } from "@heroicons/react/24/outline"
 import { ScrollShadow } from "@heroui/react"
-import { Building2 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -42,6 +42,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		title: "Classes",
 		href: `/admin/teams/${currentTeamId}/classes` as Route,
 		icon: BookOpenIcon,
+	},
+	{
+		title: "Gym Setup",
+		href: `/admin/teams/${currentTeamId}/gym-setup` as Route,
+		icon: BuildingOfficeIcon,
 	},
 ]
 
@@ -99,7 +104,7 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 				</>
 			) : (
 				<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary">
-					<Building2 className="h-6 w-6" />
+					<BuildingOfficeIcon className="h-6 w-6" />
 					<span className="text-lg font-mono font-bold">Select Team</span>
 				</div>
 			)}

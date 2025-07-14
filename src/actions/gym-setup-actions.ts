@@ -7,6 +7,8 @@ import {
 	skillsTable,
 	scheduledClassesTable,
 	scheduleTemplateClassesTable,
+	coachToSkillsTable,
+	scheduleTemplateClassRequiredSkillsTable,
 } from "@/db/schemas/scheduling"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, count } from "drizzle-orm"
@@ -17,12 +19,14 @@ import { createServerAction, ZSAError } from "zsa"
 const createLocationSchema = z.object({
 	teamId: z.string(),
 	name: z.string().min(1, "Location name cannot be empty"),
+	capacity: z.coerce.number().int().min(1, "Capacity must be at least 1"),
 })
 
 const updateLocationSchema = z.object({
 	id: z.string(),
 	teamId: z.string(),
 	name: z.string().min(1, "Location name cannot be empty"),
+	capacity: z.coerce.number().int().min(1, "Capacity must be at least 1"),
 })
 
 const deleteLocationSchema = z.object({
@@ -99,11 +103,11 @@ export const createLocation = createServerAction()
 	.input(createLocationSchema)
 	.handler(async ({ input }) => {
 		try {
-			const { teamId, name } = input
+			const { teamId, name, capacity } = input
 			const db = getDd()
 			const [newLocation] = await db
 				.insert(locationsTable)
-				.values({ id: `location_${createId()}`, teamId, name })
+				.values({ id: `location_${createId()}`, teamId, name, capacity })
 				.returning()
 			return { success: true, data: newLocation }
 		} catch (error) {
@@ -121,11 +125,11 @@ export const updateLocation = createServerAction()
 	.input(updateLocationSchema)
 	.handler(async ({ input }) => {
 		try {
-			const { id, teamId, name } = input
+			const { id, teamId, name, capacity } = input
 			const db = getDd()
 			const [updatedLocation] = await db
 				.update(locationsTable)
-				.set({ name })
+				.set({ name, capacity })
 				.where(
 					and(eq(locationsTable.id, id), eq(locationsTable.teamId, teamId)),
 				)
@@ -148,6 +152,24 @@ export const deleteLocation = createServerAction()
 		try {
 			const { id, teamId } = input
 			const db = getDd()
+			const templateCount = (
+				await db
+					.select({ count: count() })
+					.from(scheduleTemplateClassesTable)
+					.where(eq(scheduleTemplateClassesTable.locationId, id))
+			)[0].count
+			const scheduledCount = (
+				await db
+					.select({ count: count() })
+					.from(scheduledClassesTable)
+					.where(eq(scheduledClassesTable.locationId, id))
+			)[0].count
+			if (templateCount > 0 || scheduledCount > 0) {
+				throw new ZSAError(
+					"CONFLICT",
+					"Cannot delete location that is used in schedules or templates.",
+				)
+			}
 			const [deletedLocation] = await db
 				.delete(locationsTable)
 				.where(
@@ -422,6 +444,30 @@ export const deleteSkill = createServerAction()
 		try {
 			const { id, teamId } = input
 			const db = getDd()
+			const classCatalogCount = (
+				await db
+					.select({ count: count() })
+					.from(classCatalogToSkillsTable)
+					.where(eq(classCatalogToSkillsTable.skillId, id))
+			)[0].count
+			const coachCount = (
+				await db
+					.select({ count: count() })
+					.from(coachToSkillsTable)
+					.where(eq(coachToSkillsTable.skillId, id))
+			)[0].count
+			const templateSkillsCount = (
+				await db
+					.select({ count: count() })
+					.from(scheduleTemplateClassRequiredSkillsTable)
+					.where(eq(scheduleTemplateClassRequiredSkillsTable.skillId, id))
+			)[0].count
+			if (classCatalogCount > 0 || coachCount > 0 || templateSkillsCount > 0) {
+				throw new ZSAError(
+					"CONFLICT",
+					"Cannot delete skill that is used in classes, coaches or templates.",
+				)
+			}
 			const [deletedSkill] = await db
 				.delete(skillsTable)
 				.where(and(eq(skillsTable.id, id), eq(skillsTable.teamId, teamId)))

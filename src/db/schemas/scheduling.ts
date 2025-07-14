@@ -43,6 +43,7 @@ export const locationsTable = sqliteTable("locations", {
 		.notNull()
 		.references(() => teamTable.id),
 	name: text("name").notNull(),
+	capacity: integer("capacity").default(20).notNull(),
 })
 
 export const classCatalogTable = sqliteTable("class_catalog", {
