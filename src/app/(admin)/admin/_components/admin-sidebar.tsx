@@ -1,6 +1,10 @@
 "use client"
 
-import { BookOpenIcon, CalendarDaysIcon } from "@heroicons/react/24/outline"
+import {
+	BookOpenIcon,
+	CalendarDaysIcon,
+	UserGroupIcon,
+} from "@heroicons/react/24/outline"
 import { ScrollShadow } from "@heroui/react"
 import { Building2 } from "lucide-react"
 import type { Route } from "next"
@@ -28,6 +32,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		title: "Programming",
 		href: `/admin/teams/${currentTeamId}/programming/` as Route,
 		icon: BookOpenIcon,
+	},
+	{
+		title: "Coaches",
+		href: `/admin/teams/${currentTeamId}/coaches` as Route,
+		icon: UserGroupIcon,
 	},
 ]
 
