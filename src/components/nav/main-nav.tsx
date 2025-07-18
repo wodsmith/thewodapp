@@ -54,10 +54,10 @@ export default async function MainNav() {
 								Log
 							</Link>
 							<Link
-								href="/calculator"
+								href="/programming"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
-								Calculator
+								Programming
 							</Link>
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
 							<Link
@@ -76,6 +76,12 @@ export default async function MainNav() {
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Calculator
+							</Link>
+							<Link
+								href="/programming"
+								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+							>
+								Programming
 							</Link>
 							<Link href="/sign-in" className="btn-outline">
 								Login

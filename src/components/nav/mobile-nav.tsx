@@ -61,8 +61,8 @@ export default function MobileNav({ session }: MobileNavProps) {
 							<Link href="/movements" className="hover:text-primary">
 								Movements
 							</Link>
-							<Link href="/calculator" className="hover:text-primary">
-								Calculator
+							<Link href="/programming" className="hover:text-primary">
+								Programming
 							</Link>
 							<Link href="/log" className="hover:text-primary">
 								Log
@@ -81,6 +81,9 @@ export default function MobileNav({ session }: MobileNavProps) {
 						<>
 							<Link href="/calculator" className="hover:text-primary">
 								Calculator
+							</Link>
+							<Link href="/programming" className="hover:text-primary">
+								Programming
 							</Link>
 							<Link href="/sign-in" className="hover:text-primary">
 								Login
