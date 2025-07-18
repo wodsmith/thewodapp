@@ -127,6 +127,13 @@
       "when": 1752501431266,
       "tag": "0017_add_location_capacity",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1752763868614,
+      "tag": "0018_move_class_location_to_template",
+      "breakpoints": true
     }
   ]
 }

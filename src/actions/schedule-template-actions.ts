@@ -6,20 +6,25 @@ import {
 	scheduleTemplateClassRequiredSkillsTable,
 } from "@/db/schemas/scheduling"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import { batchInsert } from "@/lib/utils"
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({
 	teamId: z.string(),
 	name: z.string().min(1, "Template name cannot be empty"),
+	classCatalogId: z.string(),
+	locationId: z.string(),
 })
 
 const updateScheduleTemplateSchema = z.object({
 	id: z.string(),
 	teamId: z.string(),
 	name: z.string().min(1, "Template name cannot be empty").optional(),
+	classCatalogId: z.string().optional(),
+	locationId: z.string().optional(),
 })
 
 const deleteScheduleTemplateSchema = z.object({
@@ -38,8 +43,6 @@ const getScheduleTemplateByIdSchema = z.object({
 
 const createScheduleTemplateClassSchema = z.object({
 	templateId: z.string(),
-	classCatalogId: z.string(),
-	locationId: z.string(),
 	dayOfWeek: z.number().int().min(0).max(6),
 	startTime: z
 		.string()
@@ -54,8 +57,6 @@ const createScheduleTemplateClassSchema = z.object({
 const updateScheduleTemplateClassSchema = z.object({
 	id: z.string(),
 	templateId: z.string(),
-	classCatalogId: z.string().optional(),
-	locationId: z.string().optional(),
 	dayOfWeek: z.number().int().min(0).max(6).optional(),
 	startTime: z
 		.string()
@@ -80,12 +81,15 @@ const deleteScheduleTemplateClassSchema = z.object({
 // Day of week: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 const bulkCreateScheduleTemplateClassesSchema = z.object({
 	templateId: z.string(),
-	classCatalogId: z.string(),
-	locationId: z.string(),
 	cronExpressions: z.array(z.string()),
 	duration: z.number().int().min(1).optional().default(60), // duration in minutes
 	requiredCoaches: z.number().int().min(1).optional(),
 	requiredSkillIds: z.array(z.string()).optional(),
+})
+
+// Schema for deleting all classes for a template
+const deleteAllScheduleTemplateClassesSchema = z.object({
+	templateId: z.string(),
 })
 
 // Helper function to parse cron expression
@@ -146,12 +150,18 @@ function calculateEndTime(
 export const createScheduleTemplate = createServerAction()
 	.input(createScheduleTemplateSchema)
 	.handler(async ({ input }) => {
-		const { teamId, name } = input
+		const { teamId, name, classCatalogId, locationId } = input
 		const db = getDd()
 		try {
 			const [newTemplate] = await db
 				.insert(scheduleTemplatesTable)
-				.values({ id: `st_${createId()}`, teamId, name })
+				.values({
+					id: `st_${createId()}`,
+					teamId,
+					name,
+					classCatalogId,
+					locationId,
+				})
 				.returning()
 			return newTemplate
 		} catch (error) {
@@ -169,12 +179,12 @@ export const createScheduleTemplate = createServerAction()
 export const updateScheduleTemplate = createServerAction()
 	.input(updateScheduleTemplateSchema)
 	.handler(async ({ input }) => {
-		const { id, teamId, name } = input
+		const { id, teamId, name, classCatalogId, locationId } = input
 		const db = getDd()
 		try {
 			const [updatedTemplate] = await db
 				.update(scheduleTemplatesTable)
-				.set({ name })
+				.set({ name, classCatalogId, locationId })
 				.where(
 					and(
 						eq(scheduleTemplatesTable.id, id),
@@ -265,6 +275,8 @@ export const getScheduleTemplateById = createServerAction()
 					templateClasses: {
 						with: { requiredSkills: { with: { skill: true } } },
 					},
+					classCatalog: true,
+					location: true,
 				},
 			})
 			return template
@@ -393,8 +405,6 @@ export const bulkCreateScheduleTemplateClasses = createServerAction()
 	.handler(async ({ input }) => {
 		const {
 			templateId,
-			classCatalogId,
-			locationId,
 			cronExpressions,
 			duration,
 			requiredCoaches,
@@ -403,37 +413,162 @@ export const bulkCreateScheduleTemplateClasses = createServerAction()
 		const db = getDd()
 
 		// Parse and validate all cron expressions first
+		// try {
+		// 	const parsedSchedules = cronExpressions.map((cronExpression) => {
+		// 		try {
+		// 			const parsed = parseCronExpression(cronExpression)
+		// 			const startTime = formatTime(parsed.hour, parsed.minute)
+		// 			const endTime = calculateEndTime(parsed.hour, parsed.minute, duration)
+
+		// 			return {
+		// 				id: `stc_${createId()}`,
+		// 				templateId,
+		// 				dayOfWeek: parsed.dayOfWeek,
+		// 				startTime,
+		// 				endTime,
+		// 				requiredCoaches,
+		// 			}
+		// 		} catch (error) {
+		// 			throw new Error(
+		// 				`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
+		// 			)
+		// 		}
+		// 	})
+
+		// 	// Insert all template classes
+		// 	await batchInsert(
+		// 		db,
+		// 		scheduleTemplateClassesTable,
+		// 		parsedSchedules,
+		// 	)
+		// 	const newTemplateClasses = await db
+		// 		.select()
+		// 		.from(scheduleTemplateClassesTable)
+		// 		.where(inArray(scheduleTemplateClassesTable.id, parsedSchedules.map((s) => s.id)))
+
+		// 	// Insert required skills if provided
+		// 	if (requiredSkillIds && requiredSkillIds.length > 0) {
+		// 		const skillsToInsert = await batchInsert(
+		// 			db,
+		// 			scheduleTemplateClassRequiredSkillsTable,
+		// 			requiredSkillIds.map((skillId) => ({
+		// 				templateClassId: newTemplateClasses[0].id,
+		// 				skillId,
+		// 			})),
+		// 		const skillsToInsert = newTemplateClasses.flatMap((templateClass) =>
+		// 			requiredSkillIds.map((skillId) => ({
+		// 				templateClassId: templateClass.id,
+		// 				skillId,
+		// 			})),
+		// 		)
+		// 		const skillsBatchSize = 50
+		// 		for (let i = 0; i < skillsToInsert.length; i += skillsBatchSize) {
+		// 			const chunk = skillsToInsert.slice(i, i + skillsBatchSize)
+		// 			await db
+		// 				.insert(scheduleTemplateClassRequiredSkillsTable)
+		// 				.values(chunk)
+		// 		}
+		// 	}
+
+		// 	return newTemplateClasses
+		// } catch (error) {
+		// 	console.error("Failed to bulk create schedule template classes:", error)
+		// 	if (error instanceof ZSAError) {
+		// 		throw error
+		// 	}
+		// 	throw new ZSAError(
+		// 		"INTERNAL_SERVER_ERROR",
+		// 		"Failed to bulk create schedule template classes",
+		// 	)
+		// }
+	})
+
+// Server Action to delete all classes for a template
+export const deleteAllScheduleTemplateClassesForTemplate = createServerAction()
+	.input(deleteAllScheduleTemplateClassesSchema)
+	.handler(async ({ input }) => {
+		const db = getDd()
 		try {
-			const parsedSchedules = cronExpressions.map((cronExpression) => {
-				try {
-					const parsed = parseCronExpression(cronExpression)
-					const startTime = formatTime(parsed.hour, parsed.minute)
-					const endTime = calculateEndTime(parsed.hour, parsed.minute, duration)
+			// Delete required skills first
+			await db
+				.delete(scheduleTemplateClassRequiredSkillsTable)
+				.where(
+					inArray(
+						scheduleTemplateClassRequiredSkillsTable.templateClassId,
+						db
+							.select({ id: scheduleTemplateClassesTable.id })
+							.from(scheduleTemplateClassesTable)
+							.where(
+								eq(scheduleTemplateClassesTable.templateId, input.templateId),
+							),
+					),
+				)
+			// Then delete the classes
+			await db
+				.delete(scheduleTemplateClassesTable)
+				.where(eq(scheduleTemplateClassesTable.templateId, input.templateId))
+			return { deleted: true }
+		} catch (error) {
+			console.error("Failed to delete all schedule template classes:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to delete all schedule template classes",
+			)
+		}
+	})
 
-					return {
-						id: `stc_${createId()}`,
-						templateId,
-						classCatalogId,
-						locationId,
-						dayOfWeek: parsed.dayOfWeek,
-						startTime,
-						endTime,
-						requiredCoaches,
-					}
-				} catch (error) {
-					throw new Error(
-						`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
-					)
-				}
-			})
+// Schema for simple bulk create without cron
+const bulkCreateScheduleTemplateClassesSimpleSchema = z.object({
+	templateId: z.string(),
+	timeSlots: z.array(
+		z.object({
+			dayOfWeek: z.number().int().min(0).max(6),
+			startTime: z
+				.string()
+				.regex(
+					/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+					"Invalid time format (HH:MM)",
+				),
+			endTime: z
+				.string()
+				.regex(
+					/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+					"Invalid time format (HH:MM)",
+				),
+		}),
+	),
+	requiredCoaches: z.number().int().min(1).optional(),
+	requiredSkillIds: z.array(z.string()).optional(),
+})
 
-			// Insert all template classes
-			const newTemplateClasses = await db
-				.insert(scheduleTemplateClassesTable)
-				.values(parsedSchedules)
-				.returning()
-
-			// Insert required skills if provided
+// Server Action for simple bulk create
+export const bulkCreateScheduleTemplateClassesSimple = createServerAction()
+	.input(bulkCreateScheduleTemplateClassesSimpleSchema)
+	.handler(async ({ input }) => {
+		const { templateId, timeSlots, requiredCoaches, requiredSkillIds } = input
+		const db = getDd()
+		try {
+			const toInsert = timeSlots.map((slot) => ({
+				id: `stc_${createId()}`,
+				templateId,
+				dayOfWeek: slot.dayOfWeek,
+				startTime: slot.startTime,
+				endTime: slot.endTime,
+				requiredCoaches,
+			}))
+			const newTemplateClasses = []
+			const batchSize = 20
+			for (let i = 0; i < toInsert.length; i += batchSize) {
+				const chunk = toInsert.slice(i, i + batchSize)
+				const chunkResults = await db
+					.insert(scheduleTemplateClassesTable)
+					.values(chunk)
+					.returning()
+				newTemplateClasses.push(...chunkResults)
+			}
 			if (requiredSkillIds && requiredSkillIds.length > 0) {
 				const skillsToInsert = newTemplateClasses.flatMap((templateClass) =>
 					requiredSkillIds.map((skillId) => ({
@@ -441,11 +576,14 @@ export const bulkCreateScheduleTemplateClasses = createServerAction()
 						skillId,
 					})),
 				)
-				await db
-					.insert(scheduleTemplateClassRequiredSkillsTable)
-					.values(skillsToInsert)
+				const skillsBatchSize = 50
+				for (let i = 0; i < skillsToInsert.length; i += skillsBatchSize) {
+					const chunk = skillsToInsert.slice(i, i + skillsBatchSize)
+					await db
+						.insert(scheduleTemplateClassRequiredSkillsTable)
+						.values(chunk)
+				}
 			}
-
 			return newTemplateClasses
 		} catch (error) {
 			console.error("Failed to bulk create schedule template classes:", error)

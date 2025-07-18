@@ -92,6 +92,8 @@ type Props = {
 
 const createTemplateSchema = z.object({
 	name: z.string().min(1, "Name is required"),
+	classCatalogId: z.string().min(1),
+	locationId: z.string().min(1),
 })
 
 type CreateTemplateData = z.infer<typeof createTemplateSchema>
@@ -151,7 +153,7 @@ const ScheduleTemplates = ({
 	// Create template form
 	const createTemplateForm = useForm<CreateTemplateData>({
 		resolver: zodResolver(createTemplateSchema),
-		defaultValues: { name: "" },
+		defaultValues: { name: "", classCatalogId: "", locationId: "" },
 	})
 
 	const { execute: createTemplateExec, isPending: creatingTemplate } =
@@ -349,6 +351,56 @@ const ScheduleTemplates = ({
 										<FormControl>
 											<Input {...field} />
 										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={createTemplateForm.control}
+								name="classCatalogId"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Class Catalog</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Select a class catalog" />
+											</SelectTrigger>
+											<SelectContent>
+												{classCatalog.map((catalog) => (
+													<SelectItem key={catalog.id} value={catalog.id}>
+														{catalog.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={createTemplateForm.control}
+								name="locationId"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Location</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Select a location" />
+											</SelectTrigger>
+											<SelectContent>
+												{locations.map((location) => (
+													<SelectItem key={location.id} value={location.id}>
+														{location.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 										<FormMessage />
 									</FormItem>
 								)}

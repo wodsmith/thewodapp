@@ -6,6 +6,7 @@ import {
 	CalendarDaysIcon,
 	UserGroupIcon,
 	BuildingOfficeIcon,
+	DocumentTextIcon,
 } from "@heroicons/react/24/outline"
 import { ScrollShadow } from "@heroui/react"
 import type { Route } from "next"
@@ -48,6 +49,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		title: "Gym Setup",
 		href: `/admin/teams/${currentTeamId}/gym-setup` as Route,
 		icon: BuildingOfficeIcon,
+	},
+	{
+		title: "Schedule Templates",
+		href: `/admin/teams/${currentTeamId}/schedule-templates` as Route,
+		icon: DocumentTextIcon,
 	},
 ]
 
