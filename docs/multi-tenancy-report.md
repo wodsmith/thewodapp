@@ -4,6 +4,35 @@
 
 This application implements a comprehensive multi-tenancy system built around **Teams** as the primary organizational unit. The system provides robust organization management, role-based access control (RBAC), and permission-based authorization suitable for SaaS applications.
 
+## Quick Start: Track Subscription Ownership
+
+### 🎯 **Ownership Check Logic for Programming Tracks**
+
+The track subscription feature implements robust ownership validation to ensure users can only subscribe teams they have appropriate access to:
+
+**Key Validation Steps:**
+1. **Team Access**: User must be an active member of the target team
+2. **Permission Check**: User must have `access_dashboard` permission minimum
+3. **Personal Team Fallback**: If no team specified, automatically use user's personal team
+4. **Multi-Team Handling**: UI shows dropdown when user belongs to multiple teams
+
+**Security Guarantees:**
+- ✅ Server-side validation prevents unauthorized subscriptions
+- ✅ Team isolation ensures cross-tenant data protection
+- ✅ Permission-based access control with role validation
+- ✅ Audit logging for all subscription actions
+
+**Usage Example:**
+```typescript
+// Server action validates ownership before subscription
+const result = await subscribeTrackAction({
+  trackId: "track_abc123",
+  teamId: "team_xyz789" // Optional - defaults to personal team
+});
+```
+
+For detailed implementation, see the [Track Subscription Ownership Logic](#track-subscription-ownership-logic) section below.
+
 ## Architecture Overview
 
 ### Core Entities
