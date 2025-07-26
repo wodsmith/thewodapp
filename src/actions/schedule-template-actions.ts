@@ -560,7 +560,7 @@ export const bulkCreateScheduleTemplateClassesSimple = createServerAction()
 				requiredCoaches,
 			}))
 			const newTemplateClasses = []
-			const batchSize = 20
+			const batchSize = 10
 			for (let i = 0; i < toInsert.length; i += batchSize) {
 				const chunk = toInsert.slice(i, i + batchSize)
 				const chunkResults = await db
