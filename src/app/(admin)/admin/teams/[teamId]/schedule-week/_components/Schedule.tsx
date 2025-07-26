@@ -14,7 +14,6 @@ import {
 	MapPin,
 } from "lucide-react"
 import ScheduleStats from "./ScheduleStats"
-import TimeSlotManager from "./TimeSlotManager"
 import ScheduleGrid from "./ScheduleGrid"
 import MasterSchedule from "./MasterSchedule"
 import CreateScheduleDialog from "./CreateScheduleDialog"
@@ -92,7 +91,12 @@ const Schedule = ({
 	}, [currentSchedules, loadAllScheduledClasses])
 
 
-	const unscheduledCount = scheduledClasses.filter((cls) => !cls.coachId).length
+	// Count locations without schedules as needing attention
+	const locationsWithoutSchedules = locations.filter(location => 
+		!currentSchedules.some(schedule => schedule.locationId === location.id)
+	).length
+
+	const unscheduledCount = scheduledClasses.filter((cls) => !cls.coachId).length + locationsWithoutSchedules
 	const totalScheduled = scheduledClasses.filter((cls) => cls.coachId).length
 
 	const formatWeekRange = (date: Date) => {
@@ -107,107 +111,96 @@ const Schedule = ({
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-			<header className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
-				<div className="container mx-auto px-6 py-4">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center space-x-3">
-							<div className="bg-gradient-to-br from-orange-500 to-pink-600 p-2 rounded-xl">
-								<Calendar className="h-6 w-6 text-white" />
-							</div>
+		<div className="space-y-6">
+			<div className="flex items-center justify-between">
+				<div className="flex items-center space-x-3">
+					<div className="bg-gradient-to-br from-orange-500 to-pink-600 p-2 rounded-xl">
+						<Calendar className="h-6 w-6 text-white" />
+					</div>
+					<div>
+						<h1 className="text-2xl font-bold">
+							Weekly Schedule
+						</h1>
+						<p className="text-sm text-muted-foreground">
+							Assign coaches to scheduled classes
+						</p>
+					</div>
+				</div>
+				<div className="flex items-center space-x-4">
+					{/* Week Navigation */}
+					<div className="flex items-center space-x-2">
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() => handleWeekChange("prev")}
+						>
+							<ChevronLeft className="h-4 w-4" />
+						</Button>
+						<span className="text-sm font-medium min-w-[150px] text-center">
+							{formatWeekRange(currentWeekDate)}
+						</span>
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() => handleWeekChange("next")}
+						>
+							<ChevronRight className="h-4 w-4" />
+						</Button>
+					</div>
+
+					<div className="flex space-x-2">
+						<Button
+							onClick={() =>
+								setViewMode(viewMode === "grid" ? "master" : "grid")
+							}
+							variant="outline"
+						>
+							{viewMode === "grid" ? (
+								<>
+									<List className="h-4 w-4 mr-2" />
+									Master View
+								</>
+							) : (
+								<>
+									<Grid className="h-4 w-4 mr-2" />
+									Grid View
+								</>
+							)}
+						</Button>
+						<Button
+							onClick={() => setShowTimeSlotManager(!showTimeSlotManager)}
+							variant="outline"
+						>
+							<Settings className="h-4 w-4 mr-2" />
+							Time Slots
+						</Button>
+					</div>
+				</div>
+			</div>
+			<ScheduleStats
+				currentWeek={formatWeekRange(currentWeekDate)}
+				totalScheduled={totalScheduled}
+				unscheduledCount={unscheduledCount}
+			/>
+
+			{/* Alert for unscheduled classes */}
+			{currentSchedules.length > 0 && unscheduledCount > 0 && (
+				<Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+					<CardContent className="p-4">
+						<div className="flex items-center space-x-2">
+							<AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
 							<div>
-								<h1 className="text-2xl font-bold text-slate-800">
-									Weekly Schedule
-								</h1>
-								<p className="text-sm text-slate-600">
-									Assign coaches to scheduled classes
+								<h3 className="font-medium text-orange-800 dark:text-orange-200">
+									{unscheduledCount} classes need manual assignment
+								</h3>
+								<p className="text-sm text-orange-700 dark:text-orange-300">
+									Click on any class to assign a coach.
 								</p>
 							</div>
 						</div>
-						<div className="flex items-center space-x-4">
-							{/* Week Navigation */}
-							<div className="flex items-center space-x-2">
-								<Button
-									variant="outline"
-									size="icon"
-									onClick={() => handleWeekChange("prev")}
-								>
-									<ChevronLeft className="h-4 w-4" />
-								</Button>
-								<span className="text-sm font-medium min-w-[150px] text-center">
-									{formatWeekRange(currentWeekDate)}
-								</span>
-								<Button
-									variant="outline"
-									size="icon"
-									onClick={() => handleWeekChange("next")}
-								>
-									<ChevronRight className="h-4 w-4" />
-								</Button>
-							</div>
-
-							<div className="flex space-x-2">
-								<Button
-									onClick={() =>
-										setViewMode(viewMode === "grid" ? "master" : "grid")
-									}
-									variant="outline"
-									className="border-slate-300"
-								>
-									{viewMode === "grid" ? (
-										<>
-											<List className="h-4 w-4 mr-2" />
-											Master View
-										</>
-									) : (
-										<>
-											<Grid className="h-4 w-4 mr-2" />
-											Grid View
-										</>
-									)}
-								</Button>
-								<Button
-									onClick={() => setShowTimeSlotManager(!showTimeSlotManager)}
-									variant="outline"
-									className="border-slate-300"
-								>
-									<Settings className="h-4 w-4 mr-2" />
-									Time Slots
-								</Button>
-							</div>
-						</div>
-					</div>
-				</div>
-			</header>
-
-			<main className="container mx-auto px-6 py-8">
-				<ScheduleStats
-					currentWeek={formatWeekRange(currentWeekDate)}
-					totalScheduled={totalScheduled}
-					unscheduledCount={unscheduledCount}
-				/>
-
-
-				{/* Time slot manager removed as we use templates now */}
-
-				{/* Alert for unscheduled classes */}
-				{currentSchedules.length > 0 && unscheduledCount > 0 && (
-					<Card className="bg-orange-50 border-orange-200 mb-6">
-						<CardContent className="p-4">
-							<div className="flex items-center space-x-2">
-								<AlertTriangle className="h-5 w-5 text-orange-600" />
-								<div>
-									<h3 className="font-medium text-orange-800">
-										{unscheduledCount} classes need manual assignment
-									</h3>
-									<p className="text-sm text-orange-700">
-										Click on any class to assign a coach.
-									</p>
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				)}
+					</CardContent>
+				</Card>
+			)}
 
 				{viewMode === "grid" ? (
 					<div className="space-y-6">
@@ -240,18 +233,18 @@ const Schedule = ({
 							} else {
 								// Location doesn't have a schedule - show create button
 								return (
-									<Card key={location.id} className="bg-white/60 backdrop-blur-sm border-white/20">
+									<Card key={location.id}>
 										<CardContent className="p-8">
 											<div className="flex items-center justify-between">
 												<div className="flex items-center space-x-4">
-													<div className="bg-gradient-to-br from-slate-100 to-blue-100 p-3 rounded-xl">
-														<MapPin className="h-6 w-6 text-slate-600" />
+													<div className="bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-800 dark:to-slate-700 p-3 rounded-xl">
+														<MapPin className="h-6 w-6 text-slate-600 dark:text-slate-400" />
 													</div>
 													<div>
-														<h3 className="text-lg font-semibold text-slate-800">
+														<h3 className="text-lg font-semibold">
 															{location.name}
 														</h3>
-														<p className="text-sm text-slate-600">
+														<p className="text-sm text-muted-foreground">
 															No schedule exists for this week
 														</p>
 													</div>
@@ -282,22 +275,21 @@ const Schedule = ({
 					/>
 				)}
 
-				{/* Create Schedule Dialog */}
-				<CreateScheduleDialog
-					isOpen={showCreateDialog}
-					onClose={() => {
-						setShowCreateDialog(false)
-						setSelectedLocationId(null)
-					}}
-					teamId={teamId}
-					weekStartDate={currentWeekDate}
-					locations={selectedLocationId ? locations.filter(l => l.id === selectedLocationId) : locations}
-					onScheduleCreated={() => {
-						// Reload the page to fetch the new schedule
-						window.location.reload()
-					}}
-				/>
-			</main>
+			{/* Create Schedule Dialog */}
+			<CreateScheduleDialog
+				isOpen={showCreateDialog}
+				onClose={() => {
+					setShowCreateDialog(false)
+					setSelectedLocationId(null)
+				}}
+				teamId={teamId}
+				weekStartDate={currentWeekDate}
+				locations={selectedLocationId ? locations.filter(l => l.id === selectedLocationId) : locations}
+				onScheduleCreated={() => {
+					// Reload the page to fetch the new schedule
+					window.location.reload()
+				}}
+			/>
 		</div>
 	)
 }

@@ -142,7 +142,7 @@ const ScheduleGrid = ({
 
 		if (!scheduledClass) {
 			return (
-				<div className="h-16 border border-slate-200 rounded bg-white/50"></div>
+				<div className="h-16 border rounded bg-muted/30"></div>
 			)
 		}
 
@@ -155,27 +155,27 @@ const ScheduleGrid = ({
 				variant="ghost"
 				className={`h-16 border rounded p-2 text-xs cursor-pointer hover:shadow-md transition-shadow ${
 					!scheduledClass.coachId
-						? "border-orange-300 bg-orange-50 hover:bg-orange-100"
-						: "border-slate-200 bg-white hover:bg-slate-50"
+						? "border-orange-300 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950 dark:border-orange-800 dark:hover:bg-orange-900"
+						: "border-border bg-background hover:bg-muted"
 				}`}
 				onClick={() => handleSlotClick(scheduledClass)}
 			>
 				<div className="flex items-center justify-between h-full w-full">
 					<div className="flex-1 min-w-0">
-						<div className="font-medium text-slate-800 truncate">
+						<div className="font-medium truncate">
 							{scheduledClass.classCatalog?.name || "Class"}
 						</div>
 						{coachUser ? (
-							<div className="text-slate-600 truncate flex items-center gap-1">
+							<div className="text-muted-foreground truncate flex items-center gap-1">
 								<User className="h-3 w-3" />
 								{coachUser.name || coachUser.email}
 							</div>
 						) : (
-							<div className="text-orange-600 font-medium">Click to assign</div>
+							<div className="text-orange-600 dark:text-orange-400 font-medium">Click to assign</div>
 						)}
 					</div>
 					{!scheduledClass.coachId && (
-						<AlertTriangle className="h-3 w-3 text-orange-500 flex-shrink-0 ml-1" />
+						<AlertTriangle className="h-3 w-3 text-orange-500 dark:text-orange-400 flex-shrink-0 ml-1" />
 					)}
 				</div>
 			</Button>
@@ -185,7 +185,7 @@ const ScheduleGrid = ({
 
 	return (
 		<>
-			<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center space-x-2">
 						<Calendar className="h-5 w-5" />
@@ -204,22 +204,22 @@ const ScheduleGrid = ({
 
 							return (
 								<div key={location.id} className="mb-8">
-									<div className="flex items-center space-x-2 mb-4 p-3 bg-gradient-to-r from-slate-100 to-blue-100 rounded-lg">
-										<MapPin className="h-4 w-4 text-slate-600" />
-										<h3 className="font-semibold text-slate-800">
+									<div className="flex items-center space-x-2 mb-4 p-3 bg-muted rounded-lg">
+										<MapPin className="h-4 w-4" />
+										<h3 className="font-semibold">
 											{location.name}
 										</h3>
 									</div>
 
 									<div className="grid grid-cols-8 gap-2 min-w-[800px]">
 										{/* Header row */}
-										<div className="font-medium text-slate-600 text-sm p-2">
+										<div className="font-medium text-muted-foreground text-sm p-2">
 											Time
 										</div>
 										{days.map((day) => (
 											<div
 												key={day}
-												className="font-medium text-slate-600 text-sm p-2 text-center"
+												className="font-medium text-muted-foreground text-sm p-2 text-center"
 											>
 												{day}
 											</div>
@@ -228,7 +228,7 @@ const ScheduleGrid = ({
 										{/* Schedule rows */}
 										{locationTimeSlots.map((time) => (
 											<Fragment key={`${location.id}-${time}`}>
-												<div className="text-xs text-slate-500 p-2 flex items-center">
+												<div className="text-xs text-muted-foreground p-2 flex items-center">
 													{time}
 												</div>
 												{days.map((day) => (

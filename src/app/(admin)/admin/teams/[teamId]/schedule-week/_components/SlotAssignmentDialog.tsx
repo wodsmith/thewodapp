@@ -16,9 +16,20 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { User, Clock, MapPin, Award, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import {
+	User,
+	Clock,
+	MapPin,
+	Award,
+	AlertCircle,
+	CheckCircle,
+	XCircle,
+} from "lucide-react"
 import type { Coach } from "@/db/schemas/scheduling"
-import { getAvailableCoachesForClassAction, updateScheduledClassAction } from "@/actions/generate-schedule-actions"
+import {
+	getAvailableCoachesForClassAction,
+	updateScheduledClassAction,
+} from "@/actions/generate-schedule-actions"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -79,7 +90,9 @@ const SlotAssignmentDialog = ({
 	teamId,
 	onScheduleUpdate,
 }: SlotAssignmentDialogProps) => {
-	const [selectedCoachId, setSelectedCoachId] = useState(scheduledClass.coachId || "")
+	const [selectedCoachId, setSelectedCoachId] = useState(
+		scheduledClass.coachId || "",
+	)
 	const [availableCoaches, setAvailableCoaches] = useState<AvailableCoach[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [isUpdating, setIsUpdating] = useState(false)
@@ -96,14 +109,14 @@ const SlotAssignmentDialog = ({
 	const loadAvailableCoaches = async () => {
 		setIsLoading(true)
 		try {
-			const [result] = await getAvailableCoachesForClassAction({ 
+			const [result] = await getAvailableCoachesForClassAction({
 				classId: scheduledClass.id,
-				teamId 
+				teamId,
 			})
 			if (result) {
 				// Transform the data to match the expected format
 				const transformedCoaches: AvailableCoach[] = []
-				
+
 				// Add available coaches
 				result.availableCoaches?.forEach((coach: any) => {
 					transformedCoaches.push({
@@ -119,7 +132,7 @@ const SlotAssignmentDialog = ({
 						reasons: [],
 					})
 				})
-				
+
 				// Add unavailable coaches
 				result.unavailableCoaches?.forEach((coach: any) => {
 					transformedCoaches.push({
@@ -135,7 +148,7 @@ const SlotAssignmentDialog = ({
 						reasons: [coach.unavailabilityReason],
 					})
 				})
-				
+
 				setAvailableCoaches(transformedCoaches)
 			}
 		} catch (error) {
@@ -156,7 +169,7 @@ const SlotAssignmentDialog = ({
 				teamId,
 				coachId: selectedCoachId || null,
 			})
-			
+
 			if (result) {
 				toast.success("Coach assigned successfully")
 				onScheduleUpdate()
@@ -178,7 +191,7 @@ const SlotAssignmentDialog = ({
 				teamId,
 				coachId: null,
 			})
-			
+
 			if (result) {
 				toast.success("Coach removed successfully")
 				onScheduleUpdate()
@@ -199,19 +212,19 @@ const SlotAssignmentDialog = ({
 	const location = scheduledClass.location
 
 	// Find current coach info
-	const currentCoach = coaches.find(c => c.id === scheduledClass.coachId)
+	const currentCoach = coaches.find((c) => c.id === scheduledClass.coachId)
 	const currentCoachUser = currentCoach?.user
 
 	// Separate available and unavailable coaches
-	const qualifiedCoaches = availableCoaches.filter(ac => ac.isAvailable)
-	const unavailableCoaches = availableCoaches.filter(ac => !ac.isAvailable)
+	const qualifiedCoaches = availableCoaches.filter((ac) => ac.isAvailable)
+	const unavailableCoaches = availableCoaches.filter((ac) => !ac.isAvailable)
 
 	// Handle coach selection
 	const handleCoachSelect = (coachId: string) => {
 		setSelectedCoachId(coachId)
-		
+
 		// Check if the selected coach is unavailable
-		const selectedCoach = availableCoaches.find(ac => ac.coach.id === coachId)
+		const selectedCoach = availableCoaches.find((ac) => ac.coach.id === coachId)
 		if (selectedCoach && !selectedCoach.isAvailable) {
 			setShowWarning(true)
 			setWarningMessage(`Warning: ${selectedCoach.reasons.join(". ")}`)
@@ -239,7 +252,9 @@ const SlotAssignmentDialog = ({
 					<div className="p-4 bg-slate-50 rounded-lg space-y-2">
 						<div className="flex items-center space-x-2">
 							<Award className="h-4 w-4 text-slate-600" />
-							<span className="font-medium">{scheduledClass.classCatalog?.name || "Class"}</span>
+							<span className="font-medium">
+								{scheduledClass.classCatalog?.name || "Class"}
+							</span>
 						</div>
 						<div className="flex items-center space-x-2">
 							<Clock className="h-4 w-4 text-slate-600" />
@@ -249,7 +264,9 @@ const SlotAssignmentDialog = ({
 						</div>
 						<div className="flex items-center space-x-2">
 							<MapPin className="h-4 w-4 text-slate-600" />
-							<span className="text-sm text-slate-600">{location?.name || "Location"}</span>
+							<span className="text-sm text-slate-600">
+								{location?.name || "Location"}
+							</span>
 						</div>
 					</div>
 
@@ -257,7 +274,10 @@ const SlotAssignmentDialog = ({
 					{currentCoachUser && (
 						<div className="p-3 bg-blue-50 rounded-lg">
 							<p className="text-sm text-blue-700">
-								Currently assigned to: <strong>{currentCoachUser.name || currentCoachUser.email}</strong>
+								Currently assigned to:{" "}
+								<strong>
+									{currentCoachUser.name || currentCoachUser.email}
+								</strong>
 							</p>
 						</div>
 					)}
@@ -307,7 +327,7 @@ const SlotAssignmentDialog = ({
 											))}
 										</>
 									)}
-									
+
 									{unavailableCoaches.length > 0 && (
 										<>
 											<div className="px-2 py-1.5 text-xs font-semibold text-slate-500">
@@ -318,7 +338,9 @@ const SlotAssignmentDialog = ({
 													<div className="flex items-center justify-between w-full">
 														<div className="flex items-center space-x-2">
 															<XCircle className="h-3 w-3 text-orange-500" />
-															<span>{coach.user?.name || coach.user?.email}</span>
+															<span>
+																{coach.user?.name || coach.user?.email}
+															</span>
 														</div>
 														<div className="text-xs text-orange-600">
 															{reasons.join(", ")}
@@ -341,36 +363,37 @@ const SlotAssignmentDialog = ({
 								<p className="text-sm text-orange-700 font-medium">
 									Admin Override Warning
 								</p>
+								<p className="text-xs text-orange-600 mt-1">{warningMessage}</p>
 								<p className="text-xs text-orange-600 mt-1">
-									{warningMessage}
-								</p>
-								<p className="text-xs text-orange-600 mt-1">
-									As an admin, you can still assign this coach, but please be aware of the constraints.
+									As an admin, you can still assign this coach, but please be
+									aware of the constraints.
 								</p>
 							</div>
 						</div>
 					)}
 
-					{qualifiedCoaches.length === 0 && unavailableCoaches.length === 0 && !isLoading && (
-						<div className="p-3 bg-red-50 rounded-lg flex items-start space-x-2">
-							<AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-							<div>
-								<p className="text-sm text-red-700 font-medium">
-									No coaches found
-								</p>
-								<p className="text-xs text-red-600 mt-1">
-									There are no coaches available for this team.
-								</p>
+					{qualifiedCoaches.length === 0 &&
+						unavailableCoaches.length === 0 &&
+						!isLoading && (
+							<div className="p-3 bg-red-50 rounded-lg flex items-start space-x-2">
+								<AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+								<div>
+									<p className="text-sm text-red-700 font-medium">
+										No coaches found
+									</p>
+									<p className="text-xs text-red-600 mt-1">
+										There are no coaches available for this team.
+									</p>
+								</div>
 							</div>
-						</div>
-					)}
+						)}
 				</div>
 
 				<DialogFooter className="flex justify-between">
 					<div>
 						{currentCoach && (
-							<Button 
-								variant="destructive" 
+							<Button
+								variant="destructive"
 								onClick={handleRemove}
 								disabled={isUpdating}
 							>
@@ -387,7 +410,11 @@ const SlotAssignmentDialog = ({
 							disabled={!selectedCoachId || isUpdating}
 							variant={showWarning ? "destructive" : "default"}
 						>
-							{isUpdating ? "Updating..." : showWarning ? "Assign Anyway" : "Assign Coach"}
+							{isUpdating
+								? "Updating..."
+								: showWarning
+									? "Assign Anyway"
+									: "Assign Coach"}
 						</Button>
 					</div>
 				</DialogFooter>

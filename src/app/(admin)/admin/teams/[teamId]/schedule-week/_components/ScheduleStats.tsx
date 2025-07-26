@@ -13,26 +13,26 @@ const ScheduleStats = ({
 }: ScheduleStatsProps) => {
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-			<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+			<Card>
 				<CardContent className="p-4 text-center">
-					<div className="text-2xl font-bold text-blue-600">{currentWeek}</div>
-					<div className="text-sm text-slate-600">Current Week</div>
+					<div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{currentWeek}</div>
+					<div className="text-sm text-muted-foreground">Current Week</div>
 				</CardContent>
 			</Card>
-			<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+			<Card>
 				<CardContent className="p-4 text-center">
-					<div className="text-2xl font-bold text-green-600">
+					<div className="text-2xl font-bold text-green-600 dark:text-green-400">
 						{totalScheduled}
 					</div>
-					<div className="text-sm text-slate-600">Classes Scheduled</div>
+					<div className="text-sm text-muted-foreground">Classes Scheduled</div>
 				</CardContent>
 			</Card>
-			<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+			<Card>
 				<CardContent className="p-4 text-center">
-					<div className="text-2xl font-bold text-orange-600">
+					<div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
 						{unscheduledCount}
 					</div>
-					<div className="text-sm text-slate-600">Need Attention</div>
+					<div className="text-sm text-muted-foreground">Need Attention</div>
 				</CardContent>
 			</Card>
 		</div>
