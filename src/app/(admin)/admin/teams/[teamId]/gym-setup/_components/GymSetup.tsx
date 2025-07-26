@@ -167,179 +167,168 @@ const GymSetup = ({
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-			<header className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
-				<div className="container mx-auto px-6 py-4">
-					<div className="flex items-center space-x-3">
-						<div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2 rounded-xl">
-							<Settings className="h-6 w-6 text-white" />
-						</div>
-						<div>
-							<h1 className="text-2xl font-bold text-slate-800">Gym Setup</h1>
-							<p className="text-sm text-slate-600">
-								Configure your gym's locations and settings
-							</p>
-						</div>
-					</div>
+		<div className="space-y-6">
+			<div className="flex items-center space-x-3">
+				<div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2 rounded-xl">
+					<Settings className="h-6 w-6 text-white" />
 				</div>
-			</header>
-
-			<main className="container mx-auto px-6 py-8">
-				<div className="grid lg:grid-cols-2 gap-8">
-					{/* General Settings */}
-					<Card className="bg-white/60 backdrop-blur-sm border-white/20">
-						<CardHeader>
-							<CardTitle>General Settings</CardTitle>
-							<CardDescription>Configure basic gym information</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div>
-								<Label htmlFor="country">Country</Label>
-								<Select value={country} onValueChange={handleCountryChange}>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="United States">United States</SelectItem>
-										<SelectItem value="Canada">Canada</SelectItem>
-										<SelectItem value="United Kingdom">
-											United Kingdom
-										</SelectItem>
-										<SelectItem value="Australia">Australia</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Manage Skills */}
-					<Card className="bg-white/60 backdrop-blur-sm border-white/20">
-						<CardHeader>
-							<CardTitle>Coach Skills</CardTitle>
-							<CardDescription>
-								Define skills and certifications for your coaches
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<form
-								onSubmit={skillForm.handleSubmit(handleAddSkill)}
-								className="flex space-x-2"
-							>
-								<Input
-									placeholder="Add new skill..."
-									{...skillForm.register("name")}
-								/>
-								<Button type="submit" size="sm" disabled={addSkillPending}>
-									<Plus className="h-4 w-4" />
-								</Button>
-							</form>
-							<div className="flex flex-wrap gap-2">
-								{skills.map((skill) => (
-									<Badge
-										key={skill.id}
-										variant="secondary"
-										className="flex items-center space-x-1"
-									>
-										<span>{skill.name}</span>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={() => handleDeleteSkill(skill.id)}
-										>
-											<Trash2 className="h-3 w-3" />
-										</Button>
-									</Badge>
-								))}
-							</div>
-						</CardContent>
-					</Card>
+				<div>
+					<h1 className="text-2xl font-bold">Gym Setup</h1>
+					<p className="text-sm text-muted-foreground">
+						Configure your gym's locations and settings
+					</p>
 				</div>
-
-				{/* Manage Locations */}
-				<Card className="bg-white/60 backdrop-blur-sm border-white/20 mt-8">
+			</div>
+			<div className="grid lg:grid-cols-2 gap-8">
+				{/* General Settings */}
+				<Card>
 					<CardHeader>
-						<CardTitle className="flex items-center space-x-2">
-							<MapPin className="h-5 w-5" />
-							<span>Locations</span>
-						</CardTitle>
-						<CardDescription>Manage your gym's class locations</CardDescription>
+						<CardTitle>General Settings</CardTitle>
+						<CardDescription>Configure basic gym information</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-6">
-						{/* Add New Location */}
-						<form
-							onSubmit={locationForm.handleSubmit(handleAddLocation)}
-							className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-lg"
-						>
-							<div>
-								<Label htmlFor="locationName">Location Name</Label>
-								<Input id="locationName" {...locationForm.register("name")} />
-								{locationForm.formState.errors.name && (
-									<p className="text-red-500 text-sm">
-										{locationForm.formState.errors.name.message}
-									</p>
-								)}
-							</div>
-							<div>
-								<Label htmlFor="capacity">Capacity</Label>
-								<Input
-									id="capacity"
-									type="number"
-									{...locationForm.register("capacity", {
-										valueAsNumber: true,
-									})}
-								/>
-								{locationForm.formState.errors.capacity && (
-									<p className="text-red-500 text-sm">
-										{locationForm.formState.errors.capacity.message}
-									</p>
-								)}
-							</div>
-							<div className="flex items-end">
-								<Button
-									type="submit"
-									disabled={addLocationPending}
-									className="w-full"
-								>
-									<Plus className="h-4 w-4 mr-2" />
-									Add Location
-								</Button>
-							</div>
-						</form>
+					<CardContent className="space-y-4">
+						<div>
+							<Label htmlFor="country">Country</Label>
+							<Select value={country} onValueChange={handleCountryChange}>
+								<SelectTrigger>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="United States">United States</SelectItem>
+									<SelectItem value="Canada">Canada</SelectItem>
+									<SelectItem value="United Kingdom">United Kingdom</SelectItem>
+									<SelectItem value="Australia">Australia</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+					</CardContent>
+				</Card>
 
-						{/* Existing Locations */}
-						<div className="grid gap-4">
-							{locations.map((location) => (
-								<div
-									key={location.id}
-									className="flex items-center justify-between p-4 bg-white rounded-lg border"
+				{/* Manage Skills */}
+				<Card>
+					<CardHeader>
+						<CardTitle>Coach Skills</CardTitle>
+						<CardDescription>
+							Define skills and certifications for your coaches
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<form
+							onSubmit={skillForm.handleSubmit(handleAddSkill)}
+							className="flex space-x-2"
+						>
+							<Input
+								placeholder="Add new skill..."
+								{...skillForm.register("name")}
+							/>
+							<Button type="submit" size="sm" disabled={addSkillPending}>
+								<Plus className="h-4 w-4" />
+							</Button>
+						</form>
+						<div className="flex flex-wrap gap-2">
+							{skills.map((skill) => (
+								<Badge
+									key={skill.id}
+									variant="secondary"
+									className="flex items-center space-x-1"
 								>
-									<div className="flex items-center space-x-4">
-										<div className="bg-gradient-to-br from-teal-500 to-blue-600 p-2 rounded-lg">
-											<MapPin className="h-4 w-4 text-white" />
-										</div>
-										<div>
-											<h3 className="font-medium text-slate-800">
-												{location.name}
-											</h3>
-											<p className="text-sm text-slate-600">
-												Capacity: {location.capacity} people
-											</p>
-										</div>
-									</div>
+									<span>{skill.name}</span>
 									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => handleDeleteLocation(location.id)}
-										className="text-red-600 hover:text-red-700"
+										variant="ghost"
+										size="icon"
+										onClick={() => handleDeleteSkill(skill.id)}
 									>
-										<Trash2 className="h-4 w-4" />
+										<Trash2 className="h-3 w-3" />
 									</Button>
-								</div>
+								</Badge>
 							))}
 						</div>
 					</CardContent>
 				</Card>
-			</main>
+			</div>
+
+			{/* Manage Locations */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center space-x-2">
+						<MapPin className="h-5 w-5" />
+						<span>Locations</span>
+					</CardTitle>
+					<CardDescription>Manage your gym's class locations</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Add New Location */}
+					<form
+						onSubmit={locationForm.handleSubmit(handleAddLocation)}
+						className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg"
+					>
+						<div>
+							<Label htmlFor="locationName">Location Name</Label>
+							<Input id="locationName" {...locationForm.register("name")} />
+							{locationForm.formState.errors.name && (
+								<p className="text-red-500 text-sm">
+									{locationForm.formState.errors.name.message}
+								</p>
+							)}
+						</div>
+						<div>
+							<Label htmlFor="capacity">Capacity</Label>
+							<Input
+								id="capacity"
+								type="number"
+								{...locationForm.register("capacity", {
+									valueAsNumber: true,
+								})}
+							/>
+							{locationForm.formState.errors.capacity && (
+								<p className="text-red-500 text-sm">
+									{locationForm.formState.errors.capacity.message}
+								</p>
+							)}
+						</div>
+						<div className="flex items-end">
+							<Button
+								type="submit"
+								disabled={addLocationPending}
+								className="w-full"
+							>
+								<Plus className="h-4 w-4 mr-2" />
+								Add Location
+							</Button>
+						</div>
+					</form>
+
+					{/* Existing Locations */}
+					<div className="grid gap-4">
+						{locations.map((location) => (
+							<div
+								key={location.id}
+								className="flex items-center justify-between p-4 bg-background rounded-lg border"
+							>
+								<div className="flex items-center space-x-4">
+									<div className="bg-gradient-to-br from-teal-500 to-blue-600 p-2 rounded-lg">
+										<MapPin className="h-4 w-4 text-white" />
+									</div>
+									<div>
+										<h3 className="font-medium">{location.name}</h3>
+										<p className="text-sm text-muted-foreground">
+											Capacity: {location.capacity} people
+										</p>
+									</div>
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => handleDeleteLocation(location.id)}
+									className="text-red-600 hover:text-red-700"
+								>
+									<Trash2 className="h-4 w-4" />
+								</Button>
+							</div>
+						))}
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }
