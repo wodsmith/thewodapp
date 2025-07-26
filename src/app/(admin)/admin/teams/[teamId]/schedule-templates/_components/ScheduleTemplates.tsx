@@ -93,14 +93,11 @@ type Props = {
 const createTemplateSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
 })
 
 type CreateTemplateData = z.infer<typeof createTemplateSchema>
 
 const createClassSchema = z.object({
-	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
 	dayOfWeek: z.coerce.number().min(0).max(6),
 	startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
 	endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
@@ -111,8 +108,6 @@ const createClassSchema = z.object({
 type CreateClassData = z.infer<typeof createClassSchema>
 
 const bulkCreateSchema = z.object({
-	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
 	cronExpressions: z.string(),
 	duration: z.coerce.number().min(1).default(60),
 	requiredCoaches: z.coerce.number().min(1).optional(),
@@ -153,7 +148,7 @@ const ScheduleTemplates = ({
 	// Create template form
 	const createTemplateForm = useForm<CreateTemplateData>({
 		resolver: zodResolver(createTemplateSchema),
-		defaultValues: { name: "", classCatalogId: "", locationId: "" },
+		defaultValues: { name: "", classCatalogId: "" },
 	})
 
 	const { execute: createTemplateExec, isPending: creatingTemplate } =
@@ -210,8 +205,6 @@ const ScheduleTemplates = ({
 	const createClassForm = useForm<CreateClassData>({
 		resolver: zodResolver(createClassSchema),
 		defaultValues: {
-			classCatalogId: "",
-			locationId: "",
 			dayOfWeek: 1,
 			startTime: "09:00",
 			endTime: "10:00",
@@ -257,8 +250,6 @@ const ScheduleTemplates = ({
 	const bulkForm = useForm<BulkCreateData>({
 		resolver: zodResolver(bulkCreateSchema),
 		defaultValues: {
-			classCatalogId: "",
-			locationId: "",
 			cronExpressions: "",
 			duration: 60,
 			requiredCoaches: 1,
@@ -372,31 +363,6 @@ const ScheduleTemplates = ({
 												{classCatalog.map((catalog) => (
 													<SelectItem key={catalog.id} value={catalog.id}>
 														{catalog.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-							<FormField
-								control={createTemplateForm.control}
-								name="locationId"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Location</FormLabel>
-										<Select
-											onValueChange={field.onChange}
-											defaultValue={field.value}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder="Select a location" />
-											</SelectTrigger>
-											<SelectContent>
-												{locations.map((location) => (
-													<SelectItem key={location.id} value={location.id}>
-														{location.name}
 													</SelectItem>
 												))}
 											</SelectContent>

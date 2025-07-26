@@ -2,37 +2,24 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { getDd } from "@/db"
 import {
-	coachesTable,
 	scheduleTemplatesTable,
 	generatedSchedulesTable,
 	scheduledClassesTable,
-	skillsTable,
-	classCatalogTable,
-	locationsTable,
 } from "@/db/schemas/scheduling"
 import { and, eq } from "drizzle-orm"
-import type { Coach } from "@/db/schemas/scheduling"
-
-// This is a simplified mock for the LLM interaction. In a real scenario,
-// this would involve calling an actual LLM API.
-async function callLLMForSchedulingOptimization(
-	prompt: string,
-): Promise<string> {
-	console.log("LLM Prompt:", prompt)
-	// Mock LLM response for now
-	return "Coach A is the best fit for this slot based on preferences."
-}
 
 interface ScheduleInput {
 	templateId: string
 	weekStartDate: Date
 	teamId: string
+	locationId: string
 }
 
 export async function generateSchedule({
 	templateId,
 	weekStartDate,
 	teamId,
+	locationId,
 }: ScheduleInput) {
 	const db = getDd()
 	if (!db) {
@@ -49,10 +36,9 @@ export async function generateSchedule({
 			templateClasses: {
 				with: {
 					requiredSkills: { with: { skill: true } },
-					classCatalog: true,
-					location: true,
 				},
 			},
+			classCatalog: true,
 		},
 	})
 
@@ -60,20 +46,12 @@ export async function generateSchedule({
 		throw new Error("Schedule template not found.")
 	}
 
-	const coaches = await db?.query.coachesTable.findMany({
-		where: eq(coachesTable.teamId, teamId),
-		with: {
-			user: true,
-			skills: { with: { skill: true } },
-			blackoutDates: true,
-			recurringUnavailability: true,
-		},
-	})
+	// No longer auto-assigning coaches, so we don't need to fetch them
 
 	const generatedClasses: (typeof scheduledClassesTable.$inferInsert)[] = []
 	const unstaffedClasses: (typeof scheduledClassesTable.$inferInsert)[] = []
 
-	// 2. Iterate through template classes and attempt to schedule
+	// 2. Iterate through template classes and create them without auto-assigning coaches
 	for (const templateClass of template.templateClasses) {
 		const classStartTime = new Date(weekStartDate)
 		classStartTime.setDate(weekStartDate.getDate() + templateClass.dayOfWeek)
@@ -87,101 +65,16 @@ export async function generateSchedule({
 		const classEndTime = new Date(classStartTime)
 		classEndTime.setHours(endHour, endMinute, 0, 0)
 
-		let assignedCoach: (typeof coaches)[number] | null = null
-		const eligibleCoaches: (typeof coaches)[number][] = []
-
-		// Filter coaches based on hard constraints
-		for (const coach of coaches || []) {
-			let isEligible = true
-
-			// Check weekly class limit (simplified: assumes we track this externally or in a more complex way)
-			// For now, just check if they are active
-			if (!coach.isActive) {
-				isEligible = false
-			}
-
-			// Check blackout dates
-			for (const blackout of coach.blackoutDates) {
-				if (
-					(classStartTime >= blackout.startDate &&
-						classStartTime < blackout.endDate) ||
-					(classEndTime > blackout.startDate &&
-						classEndTime <= blackout.endDate)
-				) {
-					isEligible = false
-					break
-				}
-			}
-			if (!isEligible) continue
-
-			// Check recurring unavailability
-			for (const recurring of coach.recurringUnavailability) {
-				if (
-					recurring.dayOfWeek === templateClass.dayOfWeek &&
-					// Simple time overlap check (HH:MM strings)
-					templateClass.startTime < recurring.endTime &&
-					templateClass.endTime > recurring.startTime
-				) {
-					isEligible = false
-					break
-				}
-			}
-			if (!isEligible) continue
-
-			// Check skill constraint
-			const requiredSkillIds = templateClass.requiredSkills.map(
-				(rs) => rs.skillId,
-			)
-			const coachSkillIds = coach.skills.map((cs) => cs.skillId)
-
-			const hasAllRequiredSkills = requiredSkillIds.every((skillId) =>
-				coachSkillIds.includes(skillId),
-			)
-			if (!hasAllRequiredSkills) {
-				isEligible = false
-			}
-			if (!isEligible) continue
-
-			// Check location constraint (simplified: assumes one class per location at a time)
-			// This would require checking other scheduled classes for the same time/location
-			// For now, we'll assume the AI handles this by not double-booking
-
-			if (isEligible) {
-				eligibleCoaches.push(coach)
-			}
-		}
-
-		// 3. Select best coach (using LLM for soft constraints)
-		if (eligibleCoaches.length > 0) {
-			// In a real scenario, you'd construct a detailed prompt for the LLM
-			// including coach preferences, historical data, etc.
-			const llmPrompt = `Select the best coach for ${templateClass.classCatalog.name} at ${templateClass.location.name} on ${classStartTime.toDateString()} ${templateClass.startTime}. Eligible coaches: ${eligibleCoaches.map((c) => `${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`).join(", ")}. Consider their preferences and notes.`
-			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
-
-			// For now, just pick the first eligible coach as a mock decision
-			assignedCoach = eligibleCoaches[0]
-
-			generatedClasses.push({
-				id: `sc_${createId()}`,
-				scheduleId: "", // Will be filled after generated_schedules is inserted
-				coachId: assignedCoach.id,
-				classCatalogId: templateClass.classCatalogId,
-				locationId: templateClass.locationId,
-				startTime: classStartTime,
-				endTime: classEndTime,
-			})
-		} else {
-			// No eligible coaches, class is unstaffed
-			unstaffedClasses.push({
-				id: `sc_${createId()}`,
-				scheduleId: "", // Will be filled after generated_schedules is inserted
-				coachId: null, // Explicitly null for unstaffed
-				classCatalogId: templateClass.classCatalogId,
-				locationId: templateClass.locationId,
-				startTime: classStartTime,
-				endTime: classEndTime,
-			})
-		}
+		// Create all classes as unstaffed - admin will assign coaches manually
+		unstaffedClasses.push({
+			id: `sc_${createId()}`,
+			scheduleId: "", // Will be filled after generated_schedules is inserted
+			coachId: null, // Explicitly null for unstaffed
+			classCatalogId: template.classCatalogId,
+			locationId: locationId,
+			startTime: classStartTime,
+			endTime: classEndTime,
+		})
 	}
 
 	// 4. Save the generated schedule and classes to the database
@@ -190,6 +83,7 @@ export async function generateSchedule({
 		.values({
 			id: `gs_${createId()}`,
 			teamId,
+			locationId,
 			weekStartDate,
 		})
 		.returning()
@@ -313,7 +207,7 @@ export async function getGeneratedSchedulesForTeam(teamId: string) {
 				},
 			},
 		},
-		orderBy: (schedules, { desc }) => [desc(schedules.weekStartDate)],
+		orderBy: (_schedules, { desc }) => [desc(generatedSchedulesTable.weekStartDate)],
 	})
 
 	return schedules

@@ -58,8 +58,6 @@ interface Skill {
 }
 
 const createClassSchema = z.object({
-	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
 	dayOfWeek: z.coerce.number().min(0).max(6),
 	startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
 	endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
@@ -69,8 +67,6 @@ const createClassSchema = z.object({
 type CreateClassData = z.infer<typeof createClassSchema>
 
 const bulkCreateSchema = z.object({
-	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
 	cronExpressions: z.string(),
 	duration: z.coerce.number().min(1).default(60),
 	requiredCoaches: z.coerce.number().min(1).optional(),
@@ -112,8 +108,6 @@ export default function ScheduleTemplateDetails({
 	const createClassForm = useForm<CreateClassData>({
 		resolver: zodResolver(createClassSchema),
 		defaultValues: {
-			classCatalogId: "",
-			locationId: "",
 			dayOfWeek: 1,
 			startTime: "09:00",
 			endTime: "10:00",
@@ -128,8 +122,6 @@ export default function ScheduleTemplateDetails({
 	const bulkForm = useForm<BulkCreateData>({
 		resolver: zodResolver(bulkCreateSchema),
 		defaultValues: {
-			classCatalogId: "",
-			locationId: "",
 			cronExpressions: "",
 			duration: 60,
 			requiredCoaches: 1,
@@ -251,8 +243,6 @@ export default function ScheduleTemplateDetails({
 
 	const startEditingClass = (cls: ExtendedClassType) => {
 		setEditingClassId(cls.id)
-		updateClassForm.setValue("classCatalogId", cls.classCatalogId)
-		updateClassForm.setValue("locationId", cls.locationId)
 		updateClassForm.setValue("dayOfWeek", cls.dayOfWeek)
 		updateClassForm.setValue("startTime", cls.startTime)
 		updateClassForm.setValue("endTime", cls.endTime)
@@ -277,10 +267,7 @@ export default function ScheduleTemplateDetails({
 						</p>
 						<p>
 							Class:{" "}
-							{classCatalog.find((c) => c.id === cls.classCatalogId)?.name}
-						</p>
-						<p>
-							Location: {locations.find((l) => l.id === cls.locationId)?.name}
+							{template.classCatalog?.name}
 						</p>
 						<p>Coaches: {cls.requiredCoaches}</p>
 						<div>
@@ -320,59 +307,7 @@ export default function ScheduleTemplateDetails({
 					}
 					className="space-y-4 mt-4"
 				>
-					<FormField
-						control={
-							editingClassId ? updateClassForm.control : createClassForm.control
-						}
-						name="classCatalogId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Class Type</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select class type" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{classCatalog.map((cls) => (
-											<SelectItem key={cls.id} value={cls.id}>
-												{cls.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					{/* Similar for other fields: locationId, dayOfWeek, startTime, endTime, requiredCoaches */}
-					<FormField
-						control={
-							editingClassId ? updateClassForm.control : createClassForm.control
-						}
-						name="locationId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Location</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select location" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{locations.map((loc) => (
-											<SelectItem key={loc.id} value={loc.id}>
-												{loc.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
+					{/* dayOfWeek, startTime, endTime, requiredCoaches fields */}
 					<FormField
 						control={
 							editingClassId ? updateClassForm.control : createClassForm.control
@@ -499,55 +434,7 @@ export default function ScheduleTemplateDetails({
 							</FormItem>
 						)}
 					/>
-					{/* Similar for other bulk fields */}
-					<FormField
-						control={bulkForm.control}
-						name="classCatalogId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Class Type</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select class type" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{classCatalog.map((cls) => (
-											<SelectItem key={cls.id} value={cls.id}>
-												{cls.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					<FormField
-						control={bulkForm.control}
-						name="locationId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Location</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select location" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{locations.map((loc) => (
-											<SelectItem key={loc.id} value={loc.id}>
-												{loc.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
+					{/* Other bulk fields */}
 					<FormField
 						control={bulkForm.control}
 						name="duration"
