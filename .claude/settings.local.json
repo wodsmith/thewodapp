@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__deepwiki__read_wiki_structure",
+      "Bash(pnpm db:generate:*)",
+      "Bash(pnpm vitest run:*)",
+      "Bash(pnpm db:migrate:dev:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(trash-put:*)",
+      "Bash(git restore:*)",
+      "Bash(git reset:*)",
+      "Bash(git rm:*)"
+    ],
+    "deny": []
+  }
+}
