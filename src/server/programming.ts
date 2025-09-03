@@ -30,6 +30,7 @@ export async function getPublicProgrammingTracks(): Promise<
 			isPublic: programmingTracksTable.isPublic,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
+			updateCounter: programmingTracksTable.updateCounter,
 			ownerTeam: {
 				id: teamTable.id,
 				name: teamTable.name,
@@ -55,6 +56,7 @@ export async function getTeamProgrammingTracks(
 			isPublic: programmingTracksTable.isPublic,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
+			updateCounter: programmingTracksTable.updateCounter,
 			ownerTeam: {
 				id: teamTable.id,
 				name: teamTable.name,
