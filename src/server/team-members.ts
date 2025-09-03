@@ -106,6 +106,20 @@ export async function updateTeamMemberRole({
 
 	const db = getDd()
 
+	// Get team info to check if it's a personal team
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, teamId),
+	})
+
+	if (!team) {
+		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Prevent role changes in personal teams (they should only have one member)
+	if (team.isPersonalTeam) {
+		throw new ZSAError("FORBIDDEN", "Cannot change roles in a personal team")
+	}
+
 	// Verify membership exists
 	const membership = await db.query.teamMembershipTable.findFirst({
 		where: and(
@@ -153,6 +167,23 @@ export async function removeTeamMember({
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.REMOVE_MEMBERS)
 
 	const db = getDd()
+
+	// Get team info to check if it's a personal team
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, teamId),
+	})
+
+	if (!team) {
+		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Prevent removing members from personal teams (they should only have one member)
+	if (team.isPersonalTeam) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"Cannot remove members from a personal team",
+		)
+	}
 
 	// Verify membership exists
 	const membership = await db.query.teamMembershipTable.findFirst({
@@ -232,6 +263,11 @@ export async function inviteUserToTeam({
 
 	if (!team) {
 		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Prevent inviting members to personal teams
+	if (team.isPersonalTeam) {
+		throw new ZSAError("FORBIDDEN", "Cannot invite members to a personal team")
 	}
 
 	const teamName = (team.name as string) || "Team"
