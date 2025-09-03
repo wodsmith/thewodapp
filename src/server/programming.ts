@@ -1,6 +1,6 @@
 import "server-only"
 import { eq, and } from "drizzle-orm"
-import { db } from "@/db"
+import { getDd } from "@/db"
 import {
 	programmingTracksTable,
 	teamProgrammingTracksTable,
@@ -20,6 +20,7 @@ export async function getPublicProgrammingTracks(): Promise<
 > {
 	console.info("INFO: Fetching public programming tracks")
 
+	const db = getDd()
 	const tracks = await db
 		.select({
 			id: programmingTracksTable.id,
@@ -46,6 +47,7 @@ export async function getPublicProgrammingTracks(): Promise<
 export async function getTeamProgrammingTracks(
 	teamId: string,
 ): Promise<(PublicProgrammingTrack & { subscribedAt: Date })[]> {
+	const db = getDd()
 	const tracks = await db
 		.select({
 			id: programmingTracksTable.id,

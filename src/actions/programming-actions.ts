@@ -5,7 +5,7 @@ import { createServerAction, ZSAError } from "zsa"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { db } from "@/db"
+import { getDd } from "@/db"
 import {
 	teamProgrammingTracksTable,
 	programmingTracksTable,
@@ -54,6 +54,8 @@ export const subscribeToTrackAction = createServerAction()
 			console.info(
 				`INFO: Track subscription UI action initiated for track: ${input.trackId} by team: ${input.teamId}`,
 			)
+
+			const db = getDd()
 
 			// Check if track exists and is public
 			const track = await db
@@ -141,6 +143,8 @@ export const unsubscribeFromTrackAction = createServerAction()
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
+			const db = getDd()
+
 			// Deactivate subscription instead of deleting
 			const result = await db
 				.update(teamProgrammingTracksTable)
@@ -181,6 +185,8 @@ export const getTeamSubscriptionsAction = createServerAction()
 				input.teamId,
 				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
 			)
+
+			const db = getDd()
 
 			const subscriptions = await db
 				.select({
@@ -240,6 +246,8 @@ export const setDefaultTrackAction = createServerAction()
 				input.teamId,
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
+
+			const db = getDd()
 
 			// Verify the team is subscribed to this track
 			const subscription = await db
