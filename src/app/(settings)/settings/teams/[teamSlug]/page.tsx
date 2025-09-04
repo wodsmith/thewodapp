@@ -103,8 +103,6 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 		TEAM_PERMISSIONS.REMOVE_MEMBERS,
 	)
 
-	console.log({ canInviteMembers, canRemoveMembers })
-
 	// Fetch team members
 	const teamMembers = await getTeamMembers(team.id)
 

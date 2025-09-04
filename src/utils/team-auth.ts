@@ -76,42 +76,17 @@ export const hasTeamPermission = cache(
 		const session = await requireVerifiedEmail()
 
 		if (!session) {
-			console.log("DEBUG: [TeamAuth] No session found for permission check")
 			return false
 		}
-
-		console.log(
-			`DEBUG: [TeamAuth] Checking permission '${permission}' for teamId '${teamId}'`,
-		)
-		console.log(
-			`DEBUG: [TeamAuth] User has ${session.teams?.length || 0} teams`,
-		)
 
 		const team = session.teams?.find((t) => t.id === teamId)
 
 		if (!team) {
-			console.log(
-				`DEBUG: [TeamAuth] Team '${teamId}' not found in user's session teams`,
-			)
-			console.log(
-				"DEBUG: [TeamAuth] Available teams:",
-				session.teams?.map((t) => ({ id: t.id, name: t.name, role: t.role })),
-			)
 			return false
 		}
 
-		console.log(
-			`DEBUG: [TeamAuth] Found team '${team.name}' with role '${team.role.name}' (${team.role.isSystemRole ? "system" : "custom"})`,
-		)
-		console.log("DEBUG: [TeamAuth] Team permissions:", team.permissions)
-
 		// Check if the permission is in the user's permissions for this team
-		const hasPermission = team.permissions.includes(permission)
-		console.log(
-			`DEBUG: [TeamAuth] Has permission '${permission}': ${hasPermission}`,
-		)
-
-		return hasPermission
+		return team.permissions.includes(permission)
 	},
 )
 

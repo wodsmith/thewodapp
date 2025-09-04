@@ -98,10 +98,6 @@ interface CreateSessionParams
 export async function getUserTeamsWithPermissions(userId: string) {
 	const db = getDd()
 
-	console.log(
-		`DEBUG: [Auth] Getting teams with permissions for userId: ${userId}`,
-	)
-
 	// Get user's team memberships
 	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, userId),
@@ -110,100 +106,71 @@ export async function getUserTeamsWithPermissions(userId: string) {
 		},
 	})
 
-	console.log(
-		`DEBUG: [Auth] Found ${userTeamMemberships.length} team memberships`,
-	)
+	// Get all custom role IDs that need to be fetched
+	const customRoleIds = userTeamMemberships
+		.filter((m) => !m.isSystemRole)
+		.map((m) => m.roleId)
 
-	// Fetch permissions for each membership
-	return Promise.all(
-		userTeamMemberships.map(async (membership) => {
-			console.log(
-				`DEBUG: [Auth] Processing membership for teamId: ${membership.teamId}, roleId: ${membership.roleId}, isSystemRole: ${membership.isSystemRole}`,
-			)
-
-			let roleName = ""
-			let permissions: string[] = []
-
-			// Handle system roles
-			if (membership.isSystemRole) {
-				roleName = membership.roleId // For system roles, roleId contains the role name
-
-				console.log(`DEBUG: [Auth] Processing system role: ${roleName}`)
-
-				// For system roles, get permissions based on role
-				if (
-					membership.roleId === SYSTEM_ROLES_ENUM.OWNER ||
-					membership.roleId === SYSTEM_ROLES_ENUM.ADMIN
-				) {
-					// Owners and admins have all permissions
-					permissions = Object.values(TEAM_PERMISSIONS)
-					console.log(
-						`DEBUG: [Auth] Granted all permissions to ${roleName}, total: ${permissions.length}`,
-					)
-				} else if (membership.roleId === SYSTEM_ROLES_ENUM.MEMBER) {
-					// Default permissions for members
-					permissions = [
-						TEAM_PERMISSIONS.ACCESS_DASHBOARD,
-						TEAM_PERMISSIONS.CREATE_COMPONENTS,
-						TEAM_PERMISSIONS.EDIT_COMPONENTS,
-					]
-					console.log(
-						`DEBUG: [Auth] Granted member permissions: ${permissions.join(", ")}`,
-					)
-				} else if (membership.roleId === SYSTEM_ROLES_ENUM.GUEST) {
-					// Guest permissions are limited
-					permissions = [TEAM_PERMISSIONS.ACCESS_DASHBOARD]
-					console.log(
-						`DEBUG: [Auth] Granted guest permissions: ${permissions.join(", ")}`,
-					)
-				}
-			} else {
-				console.log(
-					`DEBUG: [Auth] Processing custom role with roleId: ${membership.roleId}`,
-				)
-				// Handle custom roles
-				const role = await db.query.teamRoleTable.findFirst({
-					where: eq(teamRoleTable.id, membership.roleId),
+	// Fetch all custom roles in one query
+	const customRoles =
+		customRoleIds.length > 0
+			? await db.query.teamRoleTable.findMany({
+					where: (table, { inArray }) => inArray(table.id, customRoleIds),
 				})
+			: []
 
-				if (role) {
-					roleName = role.name
-					// Parse the stored JSON permissions
-					permissions = role.permissions as string[]
-					console.log(
-						`DEBUG: [Auth] Custom role '${roleName}' has permissions: ${permissions.join(", ")}`,
-					)
-				} else {
-					console.log(
-						`DEBUG: [Auth] Custom role not found for roleId: ${membership.roleId}`,
-					)
-				}
+	// Create a map for quick role lookup
+	const roleMap = new Map(customRoles.map((role) => [role.id, role]))
+
+	// Process memberships without async operations
+	return userTeamMemberships.map((membership) => {
+		let roleName = ""
+		let permissions: string[] = []
+
+		// Handle system roles
+		if (membership.isSystemRole) {
+			roleName = membership.roleId // For system roles, roleId contains the role name
+
+			// For system roles, get permissions based on role
+			if (
+				membership.roleId === SYSTEM_ROLES_ENUM.OWNER ||
+				membership.roleId === SYSTEM_ROLES_ENUM.ADMIN
+			) {
+				// Owners and admins have all permissions
+				permissions = Object.values(TEAM_PERMISSIONS)
+			} else if (membership.roleId === SYSTEM_ROLES_ENUM.MEMBER) {
+				// Default permissions for members
+				permissions = [
+					TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+					TEAM_PERMISSIONS.CREATE_COMPONENTS,
+					TEAM_PERMISSIONS.EDIT_COMPONENTS,
+				]
+			} else if (membership.roleId === SYSTEM_ROLES_ENUM.GUEST) {
+				// Guest permissions are limited
+				permissions = [TEAM_PERMISSIONS.ACCESS_DASHBOARD]
 			}
-
-			const teamInfo = {
-				id: membership.teamId,
-				name: Array.isArray(membership.team)
-					? ""
-					: (membership.team.name ?? ""),
-				slug: Array.isArray(membership.team)
-					? ""
-					: (membership.team.slug ?? ""),
-				role: {
-					id: membership.roleId,
-					name: roleName,
-					isSystemRole: !!membership.isSystemRole,
-				},
-				permissions,
+		} else {
+			// Handle custom roles using pre-fetched data
+			const role = roleMap.get(membership.roleId)
+			if (role) {
+				roleName = role.name
+				// Parse the stored JSON permissions
+				permissions = role.permissions as string[]
 			}
+		}
 
-			console.log(
-				`DEBUG: [Auth] Final team info for ${teamInfo.name}:`,
-				teamInfo,
-			)
-
-			return teamInfo
-		}),
-	)
+		return {
+			id: membership.teamId,
+			name: Array.isArray(membership.team) ? "" : (membership.team.name ?? ""),
+			slug: Array.isArray(membership.team) ? "" : (membership.team.slug ?? ""),
+			role: {
+				id: membership.roleId,
+				name: roleName,
+				isSystemRole: !!membership.isSystemRole,
+			},
+			permissions,
+		}
+	})
 }
 
 export async function createSession({
