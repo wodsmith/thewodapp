@@ -50,41 +50,38 @@ export async function getTeamMembers(teamId: string) {
 	// Map roles by ID for easy lookup
 	const roleMap = new Map(teamRoles.map((role) => [role.id, role.name]))
 
-	return Promise.all(
-		members.map(async (member) => {
-			let roleName = "Unknown"
+	return members.map((member) => {
+		let roleName = "Unknown"
 
-			// For system roles, use the roleId directly as the name
-			if (member.isSystemRole) {
-				// Capitalize the first letter for display
-				roleName =
-					member.roleId.charAt(0).toUpperCase() + member.roleId.slice(1)
-			} else {
-				// For custom roles, look up the name in our roleMap
-				roleName = roleMap.get(member.roleId) || "Custom Role"
-			}
+		// For system roles, use the roleId directly as the name
+		if (member.isSystemRole) {
+			// Capitalize the first letter for display
+			roleName = member.roleId.charAt(0).toUpperCase() + member.roleId.slice(1)
+		} else {
+			// For custom roles, look up the name in our roleMap
+			roleName = roleMap.get(member.roleId) || "Custom Role"
+		}
 
-			return {
-				id: member.id,
-				userId: member.userId,
-				roleId: member.roleId,
-				roleName,
-				isSystemRole: Boolean(member.isSystemRole),
-				isActive: Boolean(member.isActive),
-				joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
-				user: (() => {
-					const user = Array.isArray(member.user) ? member.user[0] : member.user
-					return {
-						id: user?.id,
-						firstName: user?.firstName,
-						lastName: user?.lastName,
-						email: user?.email,
-						avatar: user?.avatar,
-					}
-				})(),
-			}
-		}),
-	)
+		return {
+			id: member.id,
+			userId: member.userId,
+			roleId: member.roleId,
+			roleName,
+			isSystemRole: Boolean(member.isSystemRole),
+			isActive: Boolean(member.isActive),
+			joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
+			user: (() => {
+				const user = Array.isArray(member.user) ? member.user[0] : member.user
+				return {
+					id: user?.id,
+					firstName: user?.firstName,
+					lastName: user?.lastName,
+					email: user?.email,
+					avatar: user?.avatar,
+				}
+			})(),
+		}
+	})
 }
 
 /**
