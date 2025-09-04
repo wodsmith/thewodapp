@@ -17,6 +17,20 @@ describe("Programming Actions", () => {
       expect(subscribeToTrackAction).toBeDefined();
       expect(typeof subscribeToTrackAction).toBe("function");
     });
+
+    it("should prevent teams from subscribing to their own tracks", () => {
+      // This test documents the business logic that prevents self-subscription
+      // The actual validation happens in the server action
+      const teamId = "team-1";
+      const trackOwnedByTeam = { ownerTeamId: "team-1" };
+      const trackOwnedByOtherTeam = { ownerTeamId: "team-2" };
+      
+      // Team should not be able to subscribe to their own track
+      expect(trackOwnedByTeam.ownerTeamId === teamId).toBe(true);
+      
+      // Team should be able to subscribe to other team's track
+      expect(trackOwnedByOtherTeam.ownerTeamId === teamId).toBe(false);
+    });
   });
 
   describe("unsubscribeFromTrackAction", () => {

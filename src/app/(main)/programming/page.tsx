@@ -1,9 +1,18 @@
 import "server-only"
 import { getPublicProgrammingTracks } from "@/server/programming"
 import { TrackList } from "@/components/programming/track-list"
+import { getSessionFromCookie } from "@/utils/auth"
 
 export default async function ProgrammingPage() {
+	const session = await getSessionFromCookie()
+	const currentTeamId = session?.teams?.[0]?.id
+
 	const tracks = await getPublicProgrammingTracks()
+
+	// Filter out tracks owned by the current team
+	const otherTeamsTracks = tracks.filter(
+		(track) => track.ownerTeamId !== currentTeamId,
+	)
 
 	return (
 		<div className="container mx-auto py-8">
@@ -15,7 +24,7 @@ export default async function ProgrammingPage() {
 					Subscribe to public programming tracks created by other teams
 				</p>
 			</div>
-			<TrackList tracks={tracks} />
+			<TrackList tracks={otherTeamsTracks} />
 		</div>
 	)
 }

@@ -72,6 +72,14 @@ export const subscribeToTrackAction = createServerAction()
 				throw new ZSAError("FORBIDDEN", "Cannot subscribe to private track")
 			}
 
+			// Prevent teams from subscribing to their own tracks
+			if (track.ownerTeamId === input.teamId) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"Cannot subscribe to your own team's track",
+				)
+			}
+
 			// Check if already subscribed
 			const existing = await db
 				.select()

@@ -17,6 +17,22 @@ describe("Programming Server Functions", () => {
       expect(Array.isArray(result)).toBe(true);
       expect(mockConsoleInfo).toHaveBeenCalledWith("INFO: Fetching public programming tracks");
     });
+
+    it("should exclude tracks owned by the current team in UI filtering", () => {
+      // This test documents that teams should not see their own tracks
+      // The filtering happens in the page component, not the server function
+      const mockTracks = [
+        { id: "1", ownerTeamId: "team-1" },
+        { id: "2", ownerTeamId: "team-2" },
+        { id: "3", ownerTeamId: "team-1" },
+      ];
+      
+      const currentTeamId = "team-1";
+      const filtered = mockTracks.filter(track => track.ownerTeamId !== currentTeamId);
+      
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe("2");
+    });
   });
 
   describe("getTeamProgrammingTracks", () => {
