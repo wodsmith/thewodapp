@@ -17,9 +17,10 @@ interface PublicProgrammingTrack {
 
 interface TrackCardProps {
 	track: PublicProgrammingTrack
+	isSubscribed?: boolean
 }
 
-export function TrackCard({ track }: TrackCardProps) {
+export function TrackCard({ track, isSubscribed = false }: TrackCardProps) {
 	return (
 		<Card>
 			<CardHeader>
@@ -40,7 +41,8 @@ export function TrackCard({ track }: TrackCardProps) {
 					<div className="text-sm text-muted-foreground">
 						by {track.ownerTeam?.name || "Unknown"}
 					</div>
-					<SubscribeButton trackId={track.id} />
+					{!isSubscribed && <SubscribeButton trackId={track.id} />}
+					{isSubscribed && <Badge variant="default">Subscribed</Badge>}
 				</div>
 			</CardContent>
 		</Card>

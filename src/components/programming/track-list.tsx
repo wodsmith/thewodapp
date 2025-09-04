@@ -15,9 +15,10 @@ interface PublicProgrammingTrack {
 
 interface TrackListProps {
 	tracks: PublicProgrammingTrack[]
+	isSubscribed?: boolean
 }
 
-export function TrackList({ tracks }: TrackListProps) {
+export function TrackList({ tracks, isSubscribed = false }: TrackListProps) {
 	if (tracks.length === 0) {
 		return (
 			<div className="text-center py-12">
@@ -31,7 +32,7 @@ export function TrackList({ tracks }: TrackListProps) {
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			{tracks.map((track) => (
-				<TrackCard key={track.id} track={track} />
+				<TrackCard key={track.id} track={track} isSubscribed={isSubscribed} />
 			))}
 		</div>
 	)
