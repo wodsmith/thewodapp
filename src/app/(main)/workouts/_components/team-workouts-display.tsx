@@ -40,6 +40,7 @@ interface TeamWorkoutDisplayProps {
 // Session storage key prefix for caching
 const CACHE_KEY_PREFIX = "team-workouts-"
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+const IS_DEVELOPMENT = process.env.NODE_ENV === "development"
 
 interface CachedWorkoutData {
 	data: ScheduledWorkoutInstanceWithDetails[]
@@ -82,6 +83,9 @@ export function TeamWorkoutsDisplay({
 			teamId: string,
 			mode: ViewMode,
 		): ScheduledWorkoutInstanceWithDetails[] | null => {
+			// Disable cache in development
+			if (IS_DEVELOPMENT) return null
+
 			if (typeof window === "undefined") return null
 
 			try {
@@ -114,6 +118,9 @@ export function TeamWorkoutsDisplay({
 			mode: ViewMode,
 			data: ScheduledWorkoutInstanceWithDetails[],
 		) => {
+			// Disable cache in development
+			if (IS_DEVELOPMENT) return
+
 			if (typeof window === "undefined") return
 
 			try {
@@ -139,6 +146,7 @@ export function TeamWorkoutsDisplay({
 			start.setHours(0, 0, 0, 0)
 			const end = new Date(start)
 			end.setDate(start.getDate() + 1)
+			end.setMilliseconds(end.getMilliseconds() - 1) // Make end exclusive
 			return { start, end }
 		} else {
 			// Weekly view - get current week
@@ -147,6 +155,7 @@ export function TeamWorkoutsDisplay({
 			start.setHours(0, 0, 0, 0)
 			const end = new Date(start)
 			end.setDate(start.getDate() + 7) // End of week
+			end.setMilliseconds(end.getMilliseconds() - 1) // Make end exclusive
 			return { start, end }
 		}
 	}, [])

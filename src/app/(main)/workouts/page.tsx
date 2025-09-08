@@ -58,6 +58,7 @@ export default async function WorkoutsPage({
 	todayDate.setHours(0, 0, 0, 0)
 	const tomorrowDate = new Date(todayDate)
 	tomorrowDate.setDate(todayDate.getDate() + 1)
+	tomorrowDate.setMilliseconds(tomorrowDate.getMilliseconds() - 1) // Make end exclusive
 
 	const scheduledWorkoutsPromises = userTeams.map(async (team) => ({
 		teamId: team.id,
