@@ -1,14 +1,16 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, between, eq } from "drizzle-orm"
+import { and, between, eq, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
+	movements,
 	type ScheduledWorkoutInstance,
 	scheduledWorkoutInstancesTable,
 	type TrackWorkout,
 	trackWorkoutsTable,
 	type Workout,
+	workoutMovements,
 	workouts,
 } from "@/db/schema"
 
@@ -31,8 +33,12 @@ export interface UpdateScheduleInput {
 	classTimes?: string | null
 }
 
+export type WorkoutWithMovements = Workout & {
+	movements?: Array<{ id: string; name: string; type: string }>
+}
+
 export type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
-	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
+	trackWorkout?: (TrackWorkout & { workout?: WorkoutWithMovements }) | null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -91,12 +97,51 @@ export async function getScheduledWorkoutsForTeam(
 			),
 		)
 
+	// Extract workout IDs to fetch movements
+	const workoutIds = rows
+		.map((r) => r.workout?.id)
+		.filter((id): id is string => id !== null && id !== undefined)
+
+	// Fetch movements for all workouts
+	let movementsByWorkoutId = new Map<
+		string,
+		Array<{ id: string; name: string; type: string }>
+	>()
+	if (workoutIds.length > 0) {
+		const workoutMovementsData = await db
+			.select({
+				workoutId: workoutMovements.workoutId,
+				movementId: movements.id,
+				movementName: movements.name,
+				movementType: movements.type,
+			})
+			.from(workoutMovements)
+			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+			.where(inArray(workoutMovements.workoutId, workoutIds))
+
+		for (const item of workoutMovementsData) {
+			if (!movementsByWorkoutId.has(item?.workoutId || "")) {
+				movementsByWorkoutId.set(item?.workoutId || "", [])
+			}
+			movementsByWorkoutId.get(item?.workoutId || "")?.push({
+				id: item.movementId,
+				name: item.movementName,
+				type: item.movementType,
+			})
+		}
+	}
+
 	return rows.map((r) => ({
 		...r.instance,
 		trackWorkout: r.trackWorkout
 			? {
 					...r.trackWorkout,
-					workout: r.workout ?? undefined,
+					workout: r.workout
+						? {
+								...r.workout,
+								movements: movementsByWorkoutId.get(r.workout.id) || [],
+							}
+						: undefined,
 				}
 			: null,
 	}))

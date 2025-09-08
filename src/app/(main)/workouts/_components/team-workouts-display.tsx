@@ -344,17 +344,33 @@ export function TeamWorkoutsDisplay({
 											return (
 												<div
 													key={instance.id || index}
-													className="border-l-4 border-primary pl-4"
+													className={`${
+														viewMode === "daily"
+															? "border-2 border-black dark:border-dark-border p-6 rounded-lg bg-card"
+															: "border-l-4 border-primary pl-4"
+													}`}
 												>
 													<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
 														<div className="flex-1">
 															<Link href={`/workouts/${workout.id}`}>
-																<h4 className="font-medium text-lg hover:underline mb-1">
+																<h4
+																	className={`font-bold hover:underline mb-2 ${
+																		viewMode === "daily"
+																			? "text-xl"
+																			: "text-lg font-medium"
+																	}`}
+																>
 																	{workout.name}
 																</h4>
 															</Link>
 
-															<div className="flex items-center gap-4 mb-2 text-sm text-muted-foreground">
+															<div
+																className={`flex items-center gap-4 text-muted-foreground ${
+																	viewMode === "daily"
+																		? "mb-4 text-base"
+																		: "mb-2 text-sm"
+																}`}
+															>
 																<span className="flex items-center gap-1">
 																	<CalendarIcon className="h-4 w-4" />
 																	{format(
@@ -371,46 +387,106 @@ export function TeamWorkoutsDisplay({
 																)}
 															</div>
 
+															{/* Scheme Display - Only for Today view */}
+															{viewMode === "daily" && workout.scheme && (
+																<div className="mb-3">
+																	<div className="inline-block border-2 border-black dark:border-dark-border px-3 py-1">
+																		<p className="font-bold text-sm uppercase">
+																			{workout.scheme}
+																		</p>
+																	</div>
+																</div>
+															)}
+
 															{workout.description && (
-																<p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+																<p
+																	className={`text-muted-foreground mb-3 ${viewMode === "daily" ? "text-base whitespace-pre-wrap" : "text-sm line-clamp-2"}`}
+																>
 																	{workout.description}
 																</p>
 															)}
 
+															{/* Movements Display - Enhanced for Today view */}
+															{viewMode === "daily" &&
+																workout.movements &&
+																workout.movements.length > 0 && (
+																	<div className="mb-3">
+																		<p className="text-sm font-semibold mb-2">
+																			Movements:
+																		</p>
+																		<div className="flex flex-wrap gap-2">
+																			{workout.movements.map(
+																				(movement: any) => (
+																					<span
+																						key={movement.id}
+																						className="inline-block border border-muted-foreground/30 px-2 py-1 text-sm"
+																					>
+																						{movement.name}
+																					</span>
+																				),
+																			)}
+																		</div>
+																	</div>
+																)}
+
 															{instance.teamSpecificNotes && (
-																<p className="text-sm bg-muted p-2 rounded mb-2">
-																	<strong>Team Notes:</strong>{" "}
-																	{instance.teamSpecificNotes}
-																</p>
+																<div
+																	className={`bg-muted rounded ${viewMode === "daily" ? "p-3 mb-3" : "p-2 mb-2"}`}
+																>
+																	<p
+																		className={`${viewMode === "daily" ? "text-base" : "text-sm"}`}
+																	>
+																		<strong>Team Notes:</strong>{" "}
+																		{instance.teamSpecificNotes}
+																	</p>
+																</div>
 															)}
 
 															{instance.scalingGuidanceForDay && (
-																<p className="text-sm bg-muted p-2 rounded mb-2">
-																	<strong>Scaling:</strong>{" "}
-																	{instance.scalingGuidanceForDay}
-																</p>
+																<div
+																	className={`bg-muted rounded ${viewMode === "daily" ? "p-3 mb-3" : "p-2 mb-2"}`}
+																>
+																	<p
+																		className={`${viewMode === "daily" ? "text-base" : "text-sm"}`}
+																	>
+																		<strong>Scaling:</strong>{" "}
+																		{instance.scalingGuidanceForDay}
+																	</p>
+																</div>
 															)}
 														</div>
 
-														<Button
-															asChild
-															variant="secondary"
-															size="sm"
-															className="mt-2 sm:mt-0"
+														<div
+															className={
+																viewMode === "daily"
+																	? "mt-4 sm:mt-0 sm:ml-6"
+																	: "mt-2 sm:mt-0"
+															}
 														>
-															<Link
-																href={{
-																	pathname: "/log/new",
-																	query: {
-																		workoutId: workout.id,
-																		scheduledInstanceId: instance.id,
-																		redirectUrl: "/workouts",
-																	},
-																}}
+															<Button
+																asChild
+																variant={
+																	viewMode === "daily" ? "default" : "secondary"
+																}
+																size={viewMode === "daily" ? "default" : "sm"}
+																className={
+																	viewMode === "daily" ? "w-full sm:w-auto" : ""
+																}
 															>
-																Log Result
-															</Link>
-														</Button>
+																<Link
+																	href={{
+																		pathname: "/log/new",
+																		query: {
+																			workoutId: workout.id,
+																			scheduledInstanceId: instance.id,
+																			redirectUrl: "/workouts",
+																		},
+																	}}
+																>
+																	Log Result
+																</Link>
+															</Button>
+														</div>
 													</div>
 												</div>
 											)
