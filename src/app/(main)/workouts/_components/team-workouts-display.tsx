@@ -14,6 +14,14 @@ import type {
 	TrackWorkout,
 	Workout,
 } from "@/db/schema"
+import {
+	toLocalDate,
+	startOfLocalDay,
+	endOfLocalDay,
+	getLocalDateKey,
+	startOfLocalWeek,
+	endOfLocalWeek,
+} from "@/utils/date-utils"
 
 type ViewMode = "daily" | "weekly"
 
@@ -66,7 +74,22 @@ export function TeamWorkoutsDisplay({
 
 	const [scheduledWorkouts, setScheduledWorkouts] = useState<
 		Record<string, ScheduledWorkoutInstanceWithDetails[]>
-	>(initialScheduledWorkouts)
+	>(() => {
+		// Filter initial data to only show today's workouts for daily view
+		const filtered: Record<string, ScheduledWorkoutInstanceWithDetails[]> = {}
+		const todayKey = getLocalDateKey(new Date())
+
+		for (const teamId in initialScheduledWorkouts) {
+			const teamWorkouts = initialScheduledWorkouts[teamId]
+			// Filter to only include today's workouts initially
+			filtered[teamId] = teamWorkouts.filter((workout) => {
+				const workoutDateKey = getLocalDateKey(workout.scheduledDate)
+				return workoutDateKey === todayKey
+			})
+		}
+
+		return filtered
+	})
 
 	const [teamLoadingStates, setTeamLoadingStates] = useState<
 		Record<string, boolean>
@@ -138,24 +161,16 @@ export function TeamWorkoutsDisplay({
 		[],
 	)
 
-	// Get date ranges for daily/weekly views
+	// Get date ranges for daily/weekly views in user's local timezone
 	const getDateRange = useCallback((mode: ViewMode) => {
-		const now = new Date()
 		if (mode === "daily") {
-			const start = new Date(now)
-			start.setHours(0, 0, 0, 0)
-			const end = new Date(start)
-			end.setDate(start.getDate() + 1)
-			end.setMilliseconds(end.getMilliseconds() - 1) // Make end exclusive
+			const start = startOfLocalDay()
+			const end = endOfLocalDay()
 			return { start, end }
 		} else {
-			// Weekly view - get current week
-			const start = new Date(now)
-			start.setDate(now.getDate() - now.getDay()) // Start of week (Sunday)
-			start.setHours(0, 0, 0, 0)
-			const end = new Date(start)
-			end.setDate(start.getDate() + 7) // End of week
-			end.setMilliseconds(end.getMilliseconds() - 1) // Make end exclusive
+			// Weekly view - get current week in local timezone
+			const start = startOfLocalWeek()
+			const end = endOfLocalWeek()
 			return { start, end }
 		}
 	}, [])
@@ -243,8 +258,14 @@ export function TeamWorkoutsDisplay({
 			for (const team of teams) {
 				const teamWorkouts = initialScheduledWorkouts[team.id]
 				if (teamWorkouts && teamWorkouts.length > 0) {
-					// Cache initial data for daily view (default)
-					setCachedData(team.id, "daily", teamWorkouts)
+					// Filter initial data to only include today's workouts for daily view
+					const todayKey = getLocalDateKey(new Date())
+					const todaysWorkouts = teamWorkouts.filter((workout) => {
+						const workoutDateKey = getLocalDateKey(workout.scheduledDate)
+						return workoutDateKey === todayKey
+					})
+					// Cache filtered data for daily view (default)
+					setCachedData(team.id, "daily", todaysWorkouts)
 				}
 			}
 		}
@@ -342,9 +363,9 @@ export function TeamWorkoutsDisplay({
 														return acc
 													}
 
-													const dateKey = format(
-														new Date(instance.scheduledDate),
-														"yyyy-MM-dd",
+													// Use local timezone for date grouping
+													const dateKey = getLocalDateKey(
+														instance.scheduledDate,
 													)
 													if (!acc[dateKey]) {
 														acc[dateKey] = []
@@ -372,7 +393,7 @@ export function TeamWorkoutsDisplay({
 																className={`font-semibold ${viewMode === "daily" ? "text-lg" : "text-base"}`}
 															>
 																{format(
-																	new Date(dateKey),
+																	toLocalDate(dateKey),
 																	"EEEE, MMMM d, yyyy",
 																)}
 															</h3>

@@ -51,14 +51,19 @@ export default async function WorkoutsPage({
 	const userTeams = await getUserTeams()
 
 	// Get scheduled workouts for today
+	// Note: Server runs in UTC, so we need to fetch a wider range and filter on client
 	const { getScheduledWorkoutsForTeam } = await import(
 		"@/server/scheduling-service"
 	)
-	const todayDate = new Date()
-	todayDate.setHours(0, 0, 0, 0)
-	const tomorrowDate = new Date(todayDate)
-	tomorrowDate.setDate(todayDate.getDate() + 1)
-	tomorrowDate.setMilliseconds(tomorrowDate.getMilliseconds() - 1) // Make end exclusive
+	// Fetch 2 days worth of data to account for timezone differences
+	// Client will filter to actual local date
+	const now = new Date()
+	const todayDate = new Date(now)
+	todayDate.setUTCHours(0, 0, 0, 0)
+	todayDate.setUTCDate(todayDate.getUTCDate() - 1) // Start from yesterday UTC
+	const tomorrowDate = new Date(now)
+	tomorrowDate.setUTCHours(23, 59, 59, 999)
+	tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1) // End at tomorrow UTC
 
 	const scheduledWorkoutsPromises = userTeams.map(async (team) => ({
 		teamId: team.id,
@@ -115,16 +120,9 @@ export default async function WorkoutsPage({
 		return searchFilterPassed && tagFilterPassed && movementFilterPassed
 	})
 
-	// Get today's date for filtering
-	const today = new Date()
-	today.setHours(0, 0, 0, 0) // Normalize to start of day for comparison
-
-	const todaysWorkouts = allWorkouts.filter((workout) => {
-		if (!workout.createdAt) return false
-		const workoutDate = new Date(workout.createdAt)
-		workoutDate.setHours(0, 0, 0, 0) // Normalize to start of day
-		return workoutDate.getTime() === today.getTime()
-	})
+	// Don't filter for "today" on server side since server runs in UTC
+	// Pass all workouts and let client filter based on local timezone
+	const todaysWorkouts = [] // Will be handled client-side
 
 	// Extract unique tags and movements for filter dropdowns
 	const allTags = [
@@ -161,105 +159,7 @@ export default async function WorkoutsPage({
 				initialScheduledWorkouts={scheduledWorkoutsMap}
 			/>
 
-			{todaysWorkouts.length > 0 && (
-				<div className="mb-12">
-					<h2 className="text-2xl font-bold mb-6 pb-3 border-b-2 border-primary/20 text-center sm:text-left">
-						Workout{todaysWorkouts.length > 1 ? "s" : ""} of the Day
-					</h2>
-					<div className="space-y-6">
-						{todaysWorkouts.map((workout) => (
-							<div key={workout.id} className="card p-6">
-								<div className="flex flex-col items-start justify-between sm:flex-row">
-									<Link href={`/workouts/${workout.id}`}>
-										<h3 className="mb-2 font-semibold text-xl underline">
-											{workout.name}
-										</h3>
-									</Link>
-									<Button asChild variant="secondary">
-										<Link
-											href={{
-												pathname: "/log/new",
-												query: {
-													workoutId: workout.id,
-													redirectUrl: "/workouts",
-												},
-											}}
-											className="btn btn-primary btn-sm mb-2"
-										>
-											Log Result
-										</Link>
-									</Button>
-								</div>
-								<p className="mb-1 text-muted-foreground text-sm">
-									Created:{" "}
-									{workout.createdAt
-										? workout.createdAt.toLocaleDateString()
-										: "N/A"}
-								</p>
-								{workout.description && (
-									<p className="mb-4 whitespace-pre-wrap text-md">
-										{workout.description}
-									</p>
-								)}
-								{workout.movements && workout.movements.length > 0 && (
-									<div className="mb-4">
-										<h4 className="mb-1 font-semibold">Movements:</h4>
-										<div className="flex flex-wrap gap-2">
-											{workout.movements.map((movement) => (
-												<Badge
-													key={movement?.id || movement?.name}
-													variant="secondary"
-													clickable
-												>
-													<Link href={`/movements/${movement?.id}`}>
-														{movement?.name}
-													</Link>
-												</Badge>
-											))}
-										</div>
-									</div>
-								)}
-
-								{/* Display Today's Results if any */}
-								{workout.resultsToday && workout.resultsToday.length > 0 && (
-									<div className="mt-4 border-gray-200 border-t pt-4">
-										<h4 className="mb-2 font-semibold text-secondary-foreground text-sm uppercase">
-											Your Logged Result
-											{workout.resultsToday.length > 1 ? "s" : ""} for Today:
-										</h4>
-										<div className="space-y-3">
-											{workout.resultsToday.map((result) => (
-												<div
-													key={result.id}
-													className="w-fit border border-card-foreground bg-card p-3"
-												>
-													<div className="flex items-center justify-between gap-4">
-														<p className="font-bold text-foreground text-lg">
-															{result.wodScore}
-														</p>
-														{result.scale && (
-															<Badge variant={result.scale}>
-																{result.scale.toUpperCase()}
-															</Badge>
-														)}
-													</div>
-													{result.notes && (
-														<p className="mt-1 text-secondary-foreground text-sm italic">
-															Notes: {result.notes}
-														</p>
-													)}
-													{/* Consider adding a link to view/edit the specific log entry if needed */}
-												</div>
-											))}
-										</div>
-									</div>
-								)}
-								{/* Optionally, add more details like tags if needed */}
-							</div>
-						))}
-					</div>
-				</div>
-			)}
+			{/* Workout of the Day section removed - date filtering needs to happen client-side */}
 
 			<WorkoutControls allTags={allTags} allMovements={allMovements} />
 			<ul className="space-y-4">
