@@ -119,9 +119,7 @@ export function WorkoutSelection({
 						>
 							<CardHeader className="pb-2">
 								<CardTitle className="text-sm">
-									Day {trackWorkout.dayNumber}
-									{trackWorkout.weekNumber &&
-										` - Week ${trackWorkout.weekNumber}`}
+									{trackWorkout.workout?.name}
 								</CardTitle>
 								{trackWorkout.workout && (
 									<CardDescription className="text-xs">
@@ -129,8 +127,8 @@ export function WorkoutSelection({
 									</CardDescription>
 								)}
 								{trackWorkout.notes && (
-									<CardDescription className="text-xs">
-										{trackWorkout.notes}
+									<CardDescription className="text-xs line-clamp-3">
+										{trackWorkout.workout?.description}
 									</CardDescription>
 								)}
 							</CardHeader>
