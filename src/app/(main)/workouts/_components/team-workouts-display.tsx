@@ -261,7 +261,7 @@ export function TeamWorkoutsDisplay({
 
 	return (
 		<div className={className}>
-			<h2 className="mb-6 border-b pb-2 text-center font-bold text-2xl sm:text-left">
+			<h2 className="text-2xl font-bold mb-6 pb-3 border-b-2 border-primary/20 text-center sm:text-left">
 				Scheduled Workouts
 			</h2>
 
@@ -326,171 +326,241 @@ export function TeamWorkoutsDisplay({
 										<Skeleton className="h-4 w-3/4" />
 									</div>
 								) : teamWorkouts.length > 0 ? (
-									<div className="space-y-4">
-										{teamWorkouts.map((scheduledWorkout, index) => {
-											// The server returns objects with instance properties spread at root level,
-											// plus a trackWorkout property that contains the workout
-											const instance = scheduledWorkout
-											const workout = scheduledWorkout.trackWorkout?.workout
+									<div className="space-y-6">
+										{(() => {
+											// Group workouts by date
+											const workoutsByDate = teamWorkouts.reduce(
+												(acc, scheduledWorkout) => {
+													const instance = scheduledWorkout
+													const workout = scheduledWorkout.trackWorkout?.workout
 
-											if (!instance || !workout) {
-												console.log(
-													"[TeamWorkoutsDisplay] Skipping workout - missing instance or workout data",
-													{ scheduledWorkout, workout },
-												)
-												return null
-											}
+													if (!instance || !workout) {
+														console.log(
+															"[TeamWorkoutsDisplay] Skipping workout - missing instance or workout data",
+															{ scheduledWorkout, workout },
+														)
+														return acc
+													}
 
-											return (
-												<div
-													key={instance.id || index}
-													className={`${
-														viewMode === "daily"
-															? "border-2 border-black dark:border-dark-border p-6 rounded-lg bg-card"
-															: "border-l-4 border-primary pl-4"
-													}`}
-												>
-													<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
-														<div className="flex-1">
-															<Link href={`/workouts/${workout.id}`}>
-																<h4
-																	className={`font-bold hover:underline mb-2 ${
+													const dateKey = format(
+														new Date(instance.scheduledDate),
+														"yyyy-MM-dd",
+													)
+													if (!acc[dateKey]) {
+														acc[dateKey] = []
+													}
+													acc[dateKey].push({ instance, workout })
+													return acc
+												},
+												{} as Record<
+													string,
+													Array<{ instance: any; workout: any }>
+												>,
+											)
+
+											// Sort dates and render
+											return Object.entries(workoutsByDate)
+												.sort(([a], [b]) => a.localeCompare(b))
+												.map(([dateKey, workouts]) => (
+													<div key={dateKey} className="space-y-4">
+														{/* Date Header */}
+														<div className="flex items-center gap-2">
+															<CalendarIcon
+																className={`${viewMode === "daily" ? "h-5 w-5" : "h-4 w-4"} text-primary`}
+															/>
+															<h3
+																className={`font-semibold ${viewMode === "daily" ? "text-lg" : "text-base"}`}
+															>
+																{format(
+																	new Date(dateKey),
+																	"EEEE, MMMM d, yyyy",
+																)}
+															</h3>
+														</div>
+
+														{/* Workouts for this date */}
+														<div className="space-y-4 ml-7">
+															{workouts.map(({ instance, workout }, index) => (
+																<div
+																	key={instance.id || index}
+																	className={`${
 																		viewMode === "daily"
-																			? "text-xl"
-																			: "text-lg font-medium"
+																			? "border-2 border-black dark:border-dark-border p-6 rounded-lg bg-card"
+																			: "border-l-4 border-primary pl-4"
 																	}`}
 																>
-																	{workout.name}
-																</h4>
-															</Link>
+																	<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+																		<div className="flex-1">
+																			<Link href={`/workouts/${workout.id}`}>
+																				<h4
+																					className={`font-bold hover:underline ${
+																						viewMode === "daily"
+																							? "text-2xl mb-3 leading-tight"
+																							: "text-lg mb-2"
+																					}`}
+																				>
+																					{workout.name}
+																				</h4>
+																			</Link>
 
-															<div
-																className={`flex items-center gap-4 text-muted-foreground ${
-																	viewMode === "daily"
-																		? "mb-4 text-base"
-																		: "mb-2 text-sm"
-																}`}
-															>
-																<span className="flex items-center gap-1">
-																	<CalendarIcon className="h-4 w-4" />
-																	{format(
-																		new Date(instance.scheduledDate),
-																		"MMM d, yyyy",
-																	)}
-																</span>
+																			{/* Only show class times, not date */}
+																			{instance.classTimes && (
+																				<div
+																					className={`flex items-center gap-2 text-muted-foreground ${
+																						viewMode === "daily"
+																							? "mb-4 text-base"
+																							: "mb-2 text-sm"
+																					}`}
+																				>
+																					<ClockIcon
+																						className={`${viewMode === "daily" ? "h-4 w-4" : "h-3 w-3"}`}
+																					/>
+																					<span>{instance.classTimes}</span>
+																				</div>
+																			)}
 
-																{instance.classTimes && (
-																	<span className="flex items-center gap-1">
-																		<ClockIcon className="h-4 w-4" />
-																		{instance.classTimes}
-																	</span>
-																)}
-															</div>
+																			{/* Scheme Display - Only for Today view */}
+																			{viewMode === "daily" &&
+																				workout.scheme && (
+																					<div className="mb-4">
+																						<div className="inline-block bg-primary text-primary-foreground px-3 py-2 rounded-sm">
+																							<p className="font-bold text-sm uppercase tracking-wide">
+																								{workout.scheme}
+																							</p>
+																						</div>
+																					</div>
+																				)}
 
-															{/* Scheme Display - Only for Today view */}
-															{viewMode === "daily" && workout.scheme && (
-																<div className="mb-3">
-																	<div className="inline-block border-2 border-black dark:border-dark-border px-3 py-1">
-																		<p className="font-bold text-sm uppercase">
-																			{workout.scheme}
-																		</p>
-																	</div>
-																</div>
-															)}
+																			{workout.description && (
+																				<p
+																					className={`text-muted-foreground mb-3 ${viewMode === "daily" ? "text-base whitespace-pre-wrap" : "text-sm line-clamp-2"}`}
+																				>
+																					{workout.description}
+																				</p>
+																			)}
 
-															{workout.description && (
-																<p
-																	className={`text-muted-foreground mb-3 ${viewMode === "daily" ? "text-base whitespace-pre-wrap" : "text-sm line-clamp-2"}`}
-																>
-																	{workout.description}
-																</p>
-															)}
+																			{/* Movements Display - Enhanced for Today view */}
+																			{viewMode === "daily" &&
+																				workout.movements &&
+																				workout.movements.length > 0 && (
+																					<div className="mb-4">
+																						<p className="text-sm font-semibold mb-3 uppercase tracking-wide text-muted-foreground">
+																							Movements
+																						</p>
+																						<div className="flex flex-wrap gap-2">
+																							{workout.movements.map(
+																								(movement: any) => (
+																									<span
+																										key={movement.id}
+																										className="inline-block bg-secondary text-secondary-foreground px-3 py-1 text-sm font-medium rounded-sm"
+																									>
+																										{movement.name}
+																									</span>
+																								),
+																							)}
+																						</div>
+																					</div>
+																				)}
 
-															{/* Movements Display - Enhanced for Today view */}
-															{viewMode === "daily" &&
-																workout.movements &&
-																workout.movements.length > 0 && (
-																	<div className="mb-3">
-																		<p className="text-sm font-semibold mb-2">
-																			Movements:
-																		</p>
-																		<div className="flex flex-wrap gap-2">
-																			{workout.movements.map(
-																				(movement: any) => (
-																					<span
-																						key={movement.id}
-																						className="inline-block border border-muted-foreground/30 px-2 py-1 text-sm"
-																					>
-																						{movement.name}
-																					</span>
-																				),
+																			{instance.teamSpecificNotes && (
+																				<div
+																					className={
+																						viewMode === "daily"
+																							? "border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-950/20 pl-4 py-3 mb-4 rounded-r"
+																							: "bg-muted rounded p-2 mb-2"
+																					}
+																				>
+																					{viewMode === "daily" ? (
+																						<>
+																							<p className="text-sm font-semibold text-orange-700 dark:text-orange-300 mb-1">
+																								Team Notes
+																							</p>
+																							<p className="text-base">
+																								{instance.teamSpecificNotes}
+																							</p>
+																						</>
+																					) : (
+																						<p className="text-sm">
+																							<strong>Team Notes:</strong>{" "}
+																							{instance.teamSpecificNotes}
+																						</p>
+																					)}
+																				</div>
+																			)}
+
+																			{instance.scalingGuidanceForDay && (
+																				<div
+																					className={
+																						viewMode === "daily"
+																							? "border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950/20 pl-4 py-3 mb-4 rounded-r"
+																							: "bg-muted rounded p-2 mb-2"
+																					}
+																				>
+																					{viewMode === "daily" ? (
+																						<>
+																							<p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">
+																								Scaling Options
+																							</p>
+																							<p className="text-base">
+																								{instance.scalingGuidanceForDay}
+																							</p>
+																						</>
+																					) : (
+																						<p className="text-sm">
+																							<strong>Scaling:</strong>{" "}
+																							{instance.scalingGuidanceForDay}
+																						</p>
+																					)}
+																				</div>
 																			)}
 																		</div>
+
+																		<div
+																			className={
+																				viewMode === "daily"
+																					? "mt-4 sm:mt-0 sm:ml-6"
+																					: "mt-2 sm:mt-0"
+																			}
+																		>
+																			<Button
+																				asChild
+																				variant={
+																					viewMode === "daily"
+																						? "default"
+																						: "secondary"
+																				}
+																				size={
+																					viewMode === "daily"
+																						? "default"
+																						: "sm"
+																				}
+																				className={
+																					viewMode === "daily"
+																						? "w-full sm:w-auto"
+																						: ""
+																				}
+																			>
+																				<Link
+																					href={{
+																						pathname: "/log/new",
+																						query: {
+																							workoutId: workout.id,
+																							scheduledInstanceId: instance.id,
+																							redirectUrl: "/workouts",
+																						},
+																					}}
+																				>
+																					Log Result
+																				</Link>
+																			</Button>
+																		</div>
 																	</div>
-																)}
-
-															{instance.teamSpecificNotes && (
-																<div
-																	className={`bg-muted rounded ${viewMode === "daily" ? "p-3 mb-3" : "p-2 mb-2"}`}
-																>
-																	<p
-																		className={`${viewMode === "daily" ? "text-base" : "text-sm"}`}
-																	>
-																		<strong>Team Notes:</strong>{" "}
-																		{instance.teamSpecificNotes}
-																	</p>
 																</div>
-															)}
-
-															{instance.scalingGuidanceForDay && (
-																<div
-																	className={`bg-muted rounded ${viewMode === "daily" ? "p-3 mb-3" : "p-2 mb-2"}`}
-																>
-																	<p
-																		className={`${viewMode === "daily" ? "text-base" : "text-sm"}`}
-																	>
-																		<strong>Scaling:</strong>{" "}
-																		{instance.scalingGuidanceForDay}
-																	</p>
-																</div>
-															)}
-														</div>
-
-														<div
-															className={
-																viewMode === "daily"
-																	? "mt-4 sm:mt-0 sm:ml-6"
-																	: "mt-2 sm:mt-0"
-															}
-														>
-															<Button
-																asChild
-																variant={
-																	viewMode === "daily" ? "default" : "secondary"
-																}
-																size={viewMode === "daily" ? "default" : "sm"}
-																className={
-																	viewMode === "daily" ? "w-full sm:w-auto" : ""
-																}
-															>
-																<Link
-																	href={{
-																		pathname: "/log/new",
-																		query: {
-																			workoutId: workout.id,
-																			scheduledInstanceId: instance.id,
-																			redirectUrl: "/workouts",
-																		},
-																	}}
-																>
-																	Log Result
-																</Link>
-															</Button>
+															))}
 														</div>
 													</div>
-												</div>
-											)
-										})}
+												))
+										})()}
 									</div>
 								) : (
 									<div className="flex flex-col items-center justify-center py-12 px-4 text-center">

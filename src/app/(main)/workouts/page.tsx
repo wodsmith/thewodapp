@@ -142,7 +142,7 @@ export default async function WorkoutsPage({
 	return (
 		<div>
 			<div className="mb-6 flex flex-col items-center justify-between sm:flex-row">
-				<h1 className="mb-4">WORKOUTS</h1>
+				<h1 className="text-4xl font-bold mb-6 tracking-tight">WORKOUTS</h1>
 				<Button asChild>
 					<Link
 						href="/workouts/new"
@@ -163,7 +163,7 @@ export default async function WorkoutsPage({
 
 			{todaysWorkouts.length > 0 && (
 				<div className="mb-12">
-					<h2 className="mb-4 border-b pb-2 text-center font-bold text-2xl sm:text-left">
+					<h2 className="text-2xl font-bold mb-6 pb-3 border-b-2 border-primary/20 text-center sm:text-left">
 						Workout{todaysWorkouts.length > 1 ? "s" : ""} of the Day
 					</h2>
 					<div className="space-y-6">
