@@ -6,8 +6,10 @@ import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { getUserTeams } from "@/server/teams"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
+import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -44,6 +46,35 @@ export default async function WorkoutsPage({
 	// Get user's personal team ID
 	const { getUserPersonalTeamId } = await import("@/server/user")
 	const teamId = await getUserPersonalTeamId(session.user.id)
+
+	// Get user's teams for team workouts display
+	const userTeams = await getUserTeams()
+
+	// Get scheduled workouts for today
+	const { getScheduledWorkoutsForTeam } = await import(
+		"@/server/scheduling-service"
+	)
+	const todayDate = new Date()
+	todayDate.setHours(0, 0, 0, 0)
+	const tomorrowDate = new Date(todayDate)
+	tomorrowDate.setDate(todayDate.getDate() + 1)
+
+	const scheduledWorkoutsPromises = userTeams.map(async (team) => ({
+		teamId: team.id,
+		workouts: await getScheduledWorkoutsForTeam(team.id, {
+			start: todayDate,
+			end: tomorrowDate,
+		}),
+	}))
+
+	const allScheduledWorkouts = await Promise.all(scheduledWorkoutsPromises)
+	const scheduledWorkoutsMap = allScheduledWorkouts.reduce(
+		(acc, { teamId, workouts }) => {
+			acc[teamId] = workouts
+			return acc
+		},
+		{} as Record<string, any[]>,
+	)
 
 	const mySearchParams = await searchParams
 	const [result, error] = await getUserWorkoutsAction({
@@ -121,6 +152,13 @@ export default async function WorkoutsPage({
 					</Link>
 				</Button>
 			</div>
+
+			{/* Team Workouts Section */}
+			<TeamWorkoutsDisplay
+				className="mb-12"
+				teams={userTeams}
+				initialScheduledWorkouts={scheduledWorkoutsMap}
+			/>
 
 			{todaysWorkouts.length > 0 && (
 				<div className="mb-12">
