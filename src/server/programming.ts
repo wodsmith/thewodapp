@@ -80,3 +80,33 @@ export async function getTeamProgrammingTracks(
 
 	return tracks
 }
+
+export async function getProgrammingTrackById(
+	trackId: string,
+): Promise<PublicProgrammingTrack | null> {
+	console.info("INFO: Fetching programming track by ID", { trackId })
+
+	const db = getDd()
+	const result = await db
+		.select({
+			id: programmingTracksTable.id,
+			name: programmingTracksTable.name,
+			description: programmingTracksTable.description,
+			type: programmingTracksTable.type,
+			ownerTeamId: programmingTracksTable.ownerTeamId,
+			isPublic: programmingTracksTable.isPublic,
+			createdAt: programmingTracksTable.createdAt,
+			updatedAt: programmingTracksTable.updatedAt,
+			updateCounter: programmingTracksTable.updateCounter,
+			ownerTeam: {
+				id: teamTable.id,
+				name: teamTable.name,
+			},
+		})
+		.from(programmingTracksTable)
+		.leftJoin(teamTable, eq(programmingTracksTable.ownerTeamId, teamTable.id))
+		.where(eq(programmingTracksTable.id, trackId))
+		.limit(1)
+
+	return result[0] || null
+}
