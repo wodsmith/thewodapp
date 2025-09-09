@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useServerAction } from "zsa-react"
-import { getScheduledTeamWorkoutsAction } from "@/actions/workout-actions"
+import {
+	getScheduledTeamWorkoutsAction,
+	getScheduledTeamWorkoutsWithResultsAction,
+} from "@/actions/workout-actions"
+import { useSessionStore } from "@/state/session"
 import type {
 	ScheduledWorkoutInstance,
 	TrackWorkout,
@@ -39,6 +43,7 @@ interface TeamWorkoutDisplayProps {
 		ScheduledWorkoutInstanceWithDetails[]
 	>
 	workoutResults?: Record<string, any>
+	userId?: string
 }
 
 // Session storage key prefix for caching
@@ -56,6 +61,7 @@ export function TeamWorkoutsDisplay({
 	className,
 	teams,
 	initialScheduledWorkouts,
+	userId: propUserId,
 }: TeamWorkoutDisplayProps) {
 	const [teamViewModes, setTeamViewModes] = useState<Record<string, ViewMode>>(
 		() => {
@@ -91,9 +97,15 @@ export function TeamWorkoutsDisplay({
 		Record<string, boolean>
 	>({})
 
-	// Fetch scheduled workouts
+	// Get user ID from session or prop
+	const session = useSessionStore((state) => state.session)
+	const userId = propUserId || session?.userId
+
+	// Fetch scheduled workouts (use with results action if user ID is available)
 	const { execute: fetchScheduledWorkouts } = useServerAction(
-		getScheduledTeamWorkoutsAction,
+		userId
+			? getScheduledTeamWorkoutsWithResultsAction
+			: getScheduledTeamWorkoutsAction,
 	)
 
 	// Get cached data from session storage
@@ -195,11 +207,20 @@ export function TeamWorkoutsDisplay({
 			}))
 
 			try {
-				const result = await fetchScheduledWorkouts({
-					teamId,
-					startDate: start.toISOString(),
-					endDate: end.toISOString(),
-				})
+				const params = userId
+					? {
+							teamId,
+							startDate: start.toISOString(),
+							endDate: end.toISOString(),
+							userId,
+						}
+					: {
+							teamId,
+							startDate: start.toISOString(),
+							endDate: end.toISOString(),
+						}
+
+				const result = await fetchScheduledWorkouts(params as any)
 
 				const [serverResult, serverError] = result
 
@@ -233,7 +254,13 @@ export function TeamWorkoutsDisplay({
 				}))
 			}
 		},
-		[fetchScheduledWorkouts, getDateRange, getCachedData, setCachedData],
+		[
+			fetchScheduledWorkouts,
+			getDateRange,
+			getCachedData,
+			setCachedData,
+			userId,
+		],
 	)
 
 	// Handle view mode change for a team

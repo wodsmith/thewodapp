@@ -6,7 +6,9 @@ import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { getUserTeams } from "@/server/teams"
+import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
+import { startOfLocalDay, endOfLocalDay } from "@/utils/date-utils"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
@@ -50,67 +52,40 @@ export default async function WorkoutsPage({
 	// Get user's teams for team workouts display
 	const userTeams = await getUserTeams()
 
-	// Get scheduled workouts for today
-	// Note: Server runs in UTC, so we need to fetch a wider range and filter on client
-	const { getScheduledWorkoutsForTeam } = await import(
-		"@/server/scheduling-service"
-	)
-	// Fetch 2 days worth of data to account for timezone differences
-	// Client will filter to actual local date
-	const now = new Date()
-	const todayDate = new Date(now)
-	todayDate.setUTCHours(0, 0, 0, 0)
-	todayDate.setUTCDate(todayDate.getUTCDate() - 1) // Start from yesterday UTC
-	const tomorrowDate = new Date(now)
-	tomorrowDate.setUTCHours(23, 59, 59, 999)
-	tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1) // End at tomorrow UTC
-
-	const scheduledWorkoutsPromises = userTeams.map(async (team) => ({
-		teamId: team.id,
-		workouts: await getScheduledWorkoutsForTeam(team.id, {
-			start: todayDate,
-			end: tomorrowDate,
-		}),
-	}))
-
-	const allScheduledWorkouts = await Promise.all(scheduledWorkoutsPromises)
-
-	// Fetch workout results for all scheduled instances
-	const allInstances: Array<{
-		id: string
-		scheduledDate: Date
-		workoutId?: string
-	}> = []
-	for (const { workouts } of allScheduledWorkouts) {
-		for (const workout of workouts) {
-			if (workout.id && workout.scheduledDate) {
-				allInstances.push({
-					id: workout.id,
-					scheduledDate: workout.scheduledDate,
-					workoutId:
-						workout.trackWorkout?.workoutId ||
-						workout.trackWorkout?.workout?.id,
-				})
-			}
-		}
+	// Fetch initial scheduled workouts for today for all teams
+	const dateRange = {
+		start: startOfLocalDay(),
+		end: endOfLocalDay(),
 	}
 
-	const workoutResults = await getWorkoutResultsForScheduledInstances(
-		allInstances,
-		session.user.id,
-	)
+	const initialScheduledWorkouts: Record<string, any[]> = {}
 
-	// Attach results to scheduled workouts
-	const scheduledWorkoutsMap = allScheduledWorkouts.reduce(
-		(acc, { teamId, workouts }) => {
-			acc[teamId] = workouts.map((workout) => ({
-				...workout,
-				result: workout.id ? workoutResults[workout.id] || null : null,
-			}))
-			return acc
-		},
-		{} as Record<string, any[]>,
-	)
+	for (const team of userTeams) {
+		const scheduledWorkouts = await getScheduledWorkoutsForTeam(
+			team.id,
+			dateRange,
+		)
+
+		// Prepare instances for result fetching
+		const instances = scheduledWorkouts.map((workout) => ({
+			id: workout.id,
+			scheduledDate: workout.scheduledDate,
+			workoutId:
+				workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+		}))
+
+		// Fetch results for all instances
+		const workoutResults = await getWorkoutResultsForScheduledInstances(
+			instances,
+			session.user.id,
+		)
+
+		// Attach results to scheduled workouts
+		initialScheduledWorkouts[team.id] = scheduledWorkouts.map((workout) => ({
+			...workout,
+			result: workout.id ? workoutResults[workout.id] || null : null,
+		}))
+	}
 
 	const mySearchParams = await searchParams
 	const [result, error] = await getUserWorkoutsAction({
@@ -185,7 +160,8 @@ export default async function WorkoutsPage({
 			<TeamWorkoutsDisplay
 				className="mb-12"
 				teams={userTeams}
-				initialScheduledWorkouts={scheduledWorkoutsMap}
+				initialScheduledWorkouts={initialScheduledWorkouts}
+				userId={session.user.id}
 			/>
 
 			{/* Workout of the Day section removed - date filtering needs to happen client-side */}

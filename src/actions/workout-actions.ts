@@ -14,6 +14,7 @@ import {
 	updateWorkout,
 } from "@/server/workouts"
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
+import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getUserTeams } from "@/server/teams"
 import { requireVerifiedEmail } from "@/utils/auth"
 
@@ -290,6 +291,66 @@ export const getScheduledTeamWorkoutsAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to get scheduled team workouts",
+			)
+		}
+	})
+
+/**
+ * Get scheduled workouts with results for a team within a date range
+ */
+export const getScheduledTeamWorkoutsWithResultsAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			startDate: z.string().datetime(),
+			endDate: z.string().datetime(),
+			userId: z.string().min(1, "User ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, startDate, endDate, userId } = input
+
+			// Get scheduled workouts
+			const scheduledWorkouts = await getScheduledWorkoutsForTeam(teamId, {
+				start: new Date(startDate),
+				end: new Date(endDate),
+			})
+
+			// Prepare instances for result fetching
+			const instances = scheduledWorkouts.map((workout) => ({
+				id: workout.id,
+				scheduledDate: workout.scheduledDate,
+				workoutId:
+					workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+			}))
+
+			// Fetch results for all instances
+			const workoutResults = await getWorkoutResultsForScheduledInstances(
+				instances,
+				userId,
+			)
+
+			// Attach results to scheduled workouts
+			const workoutsWithResults = scheduledWorkouts.map((workout) => ({
+				...workout,
+				result: workout.id ? workoutResults[workout.id] || null : null,
+			}))
+
+			return { success: true, data: workoutsWithResults }
+		} catch (error) {
+			console.error(
+				"Failed to get scheduled team workouts with results:",
+				error,
+			)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled team workouts with results",
 			)
 		}
 	})

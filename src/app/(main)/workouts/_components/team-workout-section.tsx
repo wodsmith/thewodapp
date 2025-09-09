@@ -7,10 +7,17 @@ import { ToggleGroup } from "@/components/ui/toggle-group"
 import { WorkoutDateGroup } from "./workout-date-group"
 import { EmptyWorkouts } from "./empty-workouts"
 import { getLocalDateKey } from "@/utils/date-utils"
-import type { TrackWorkout, Workout } from "@/db/schema"
+import type {
+	TrackWorkout,
+	Workout,
+	ScheduledWorkoutInstance,
+} from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
-type ScheduledWorkoutInstanceWithDetails = any
+type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
+	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
+	result?: any | null
+}
 
 interface Team {
 	id: string
