@@ -90,6 +90,10 @@ export function TeamWorkoutsDisplay({
 		Record<string, boolean>
 	>({})
 
+	const [teamErrors, setTeamErrors] = useState<Record<string, string | null>>(
+		{},
+	)
+
 	// Get user ID from session or prop
 	const session = useSessionStore((state) => state.session)
 	const userId = propUserId || session?.userId
@@ -223,12 +227,17 @@ export function TeamWorkoutsDisplay({
 						...prev,
 						[teamId]: data,
 					}))
+					setTeamErrors((prev) => ({ ...prev, [teamId]: null }))
 					// Cache the successful result
 					setCachedData(teamId, mode, data)
 				} else {
 					setScheduledWorkouts((prev) => ({
 						...prev,
 						[teamId]: [],
+					}))
+					setTeamErrors((prev) => ({
+						...prev,
+						[teamId]: "Failed to load workouts. Try again.",
 					}))
 					// Cache empty result too
 					setCachedData(teamId, mode, [])
@@ -238,6 +247,10 @@ export function TeamWorkoutsDisplay({
 				setScheduledWorkouts((prev) => ({
 					...prev,
 					[teamId]: [],
+				}))
+				setTeamErrors((prev) => ({
+					...prev,
+					[teamId]: "Failed to load workouts. Try again.",
 				}))
 			} finally {
 				// Clear loading state for this team
@@ -309,6 +322,7 @@ export function TeamWorkoutsDisplay({
 					const viewMode = teamViewModes[team.id] || "daily"
 					const teamWorkouts = scheduledWorkouts[team.id] || []
 					const isLoading = teamLoadingStates[team.id] || false
+					const error = teamErrors[team.id] || null
 
 					return (
 						<TeamWorkoutSection
@@ -317,6 +331,7 @@ export function TeamWorkoutsDisplay({
 							viewMode={viewMode}
 							teamWorkouts={teamWorkouts}
 							isLoading={isLoading}
+							error={error}
 							onViewModeChange={handleViewModeChange}
 							onRefresh={fetchTeamWorkouts}
 						/>

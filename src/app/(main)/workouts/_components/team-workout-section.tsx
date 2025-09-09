@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { CalendarIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup } from "@/components/ui/toggle-group"
@@ -35,6 +36,7 @@ interface TeamWorkoutSectionProps {
 	viewMode: ViewMode
 	teamWorkouts: ScheduledWorkoutInstanceWithDetails[]
 	isLoading: boolean
+	error?: string | null
 	onViewModeChange: (teamId: string, mode: ViewMode) => void
 	onRefresh: (
 		teamId: string,
@@ -48,6 +50,7 @@ export function TeamWorkoutSection({
 	viewMode,
 	teamWorkouts,
 	isLoading,
+	error,
 	onViewModeChange,
 	onRefresh,
 }: TeamWorkoutSectionProps) {
@@ -243,6 +246,16 @@ export function TeamWorkoutSection({
 							))}
 						</div>
 					)
+				) : error ? (
+					<div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+						<CalendarIcon className="h-12 w-12 text-destructive/50 mb-4" />
+						<h4 className="text-base font-medium text-foreground mb-2">
+							{error}
+						</h4>
+						<Button size="sm" variant="secondary" onClick={handleRefresh}>
+							Retry
+						</Button>
+					</div>
 				) : teamWorkouts.length > 0 ? (
 					<div className="space-y-6">
 						{Object.entries(workoutsByDate)
