@@ -151,7 +151,7 @@ export async function getUserWorkouts({ teamId }: { teamId: string }) {
 		.where(
 			or(
 				eq(workouts.teamId, teamId), // Team-owned workouts
-				and(isNull(workouts.teamId), eq(workouts.scope, "public")), // Public workouts
+				eq(workouts.scope, "public"), // Public workouts
 			),
 		)
 

@@ -82,7 +82,7 @@ export function TeamWorkoutCard({
 						<p
 							className={`text-muted-foreground mb-3 ${
 								viewMode === "daily"
-									? "text-base whitespace-pre-wrap"
+									? "text-base whitespace-pre-wrap line-clamp-[12]"
 									: "text-sm line-clamp-2"
 							}`}
 						>

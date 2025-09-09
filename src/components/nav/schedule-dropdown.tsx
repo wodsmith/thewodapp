@@ -22,7 +22,7 @@ export default function ScheduleDropdown({ session }: ScheduleDropdownProps) {
 
 	// Filter teams where the user is an owner
 	const ownedTeams =
-		session?.teams?.filter((team) => team.role.name === "Owner") || []
+		session?.teams?.filter((team) => team.role.name === "owner") || []
 
 	// Don't show the dropdown if user doesn't own any teams
 	if (ownedTeams.length === 0) {
