@@ -68,9 +68,17 @@ export const getScheduledWorkoutsAction = createServerAction()
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
 		// Parse dates as UTC to ensure consistent date handling
+		// If the date already includes time and timezone, use it as-is
+		const startDateObj = startDate.includes("T")
+			? new Date(startDate)
+			: new Date(`${startDate}T00:00:00Z`)
+		const endDateObj = endDate.includes("T")
+			? new Date(endDate)
+			: new Date(`${endDate}T23:59:59Z`)
+
 		const dateRange = {
-			start: new Date(`${startDate}T00:00:00Z`),
-			end: new Date(`${endDate}T23:59:59Z`),
+			start: startDateObj,
+			end: endDateObj,
 		}
 
 		const scheduledWorkouts = await getScheduledWorkoutsForTeam(
