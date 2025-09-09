@@ -67,9 +67,18 @@ export const getScheduledWorkoutsAction = createServerAction()
 		// Check permissions
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
+		// Parse dates as UTC to ensure consistent date handling
+		// If the date already includes time and timezone, use it as-is
+		const startDateObj = startDate.includes("T")
+			? new Date(startDate)
+			: new Date(`${startDate}T00:00:00Z`)
+		const endDateObj = endDate.includes("T")
+			? new Date(endDate)
+			: new Date(`${endDate}T23:59:59Z`)
+
 		const dateRange = {
-			start: new Date(startDate),
-			end: new Date(endDate),
+			start: startDateObj,
+			end: endDateObj,
 		}
 
 		const scheduledWorkouts = await getScheduledWorkoutsForTeam(
@@ -99,10 +108,12 @@ export const scheduleWorkoutAction = createServerAction()
 			throw new Error("Track workout ID is required to schedule a workout")
 		}
 
+		// Parse YYYY-MM-DD string as a date at noon UTC to avoid timezone boundary issues
+		// This ensures the date remains stable across all timezones
 		const scheduleData: ScheduleWorkoutInput = {
 			teamId,
 			trackWorkoutId,
-			scheduledDate: new Date(scheduledDate),
+			scheduledDate: new Date(`${scheduledDate}T12:00:00Z`),
 			...rest,
 		}
 
@@ -126,11 +137,15 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 		// Check permissions
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
+		// Parse YYYY-MM-DD string as a date at noon UTC to avoid timezone boundary issues
+		// This ensures the date remains stable across all timezones
+		const scheduledDateUTC = new Date(`${scheduledDate}T12:00:00Z`)
+
 		// Create temporary track and track workout for the standalone workout
 		const trackWorkout = await scheduleStandaloneWorkout({
 			teamId,
 			workoutId,
-			scheduledDate: new Date(scheduledDate),
+			scheduledDate: scheduledDateUTC,
 			...rest,
 		})
 
@@ -138,7 +153,7 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 		const scheduleData: ScheduleWorkoutInput = {
 			teamId,
 			trackWorkoutId: trackWorkout.id,
-			scheduledDate: new Date(scheduledDate),
+			scheduledDate: scheduledDateUTC,
 			...rest,
 		}
 

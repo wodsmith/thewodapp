@@ -1,5 +1,6 @@
 import { format } from "date-fns"
 import Link from "next/link"
+import { PencilIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ListItem } from "@/components/ui/list-item"
@@ -43,6 +44,23 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
 				</ListItem.Meta>
 
 				<ListItem.Actions>
+					<Button
+						asChild
+						variant="secondary"
+						size="sm"
+						className="flex items-center gap-2"
+					>
+						<Link
+							href={{
+								pathname: `/log/${logEntry.id}/edit`,
+								query: {
+									redirectUrl: "/log",
+								},
+							}}
+						>
+							Edit
+						</Link>
+					</Button>
 					{logEntry.workoutId && (
 						<Button asChild size="sm" variant="secondary">
 							<Link href={`/workouts/${logEntry.workoutId}`}>View</Link>

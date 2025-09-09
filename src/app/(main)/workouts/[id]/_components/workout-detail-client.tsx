@@ -6,6 +6,7 @@ import {
 	Dumbbell,
 	Edit,
 	ListChecks,
+	PencilIcon,
 	Tag as TagIcon,
 } from "lucide-react"
 import type { Route } from "next"
@@ -20,6 +21,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { Button } from "@/components/ui/button"
 import type {
 	ResultSet,
 	WorkoutResult,
@@ -228,20 +230,42 @@ export default function WorkoutDetailClient({
 								>
 									<div className="p-4">
 										<div className="mb-2 flex items-center justify-between">
-											<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
-												{formatDate(result.date)}
-											</p>
-											{result.scale && (
-												<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
-													{result.scale}
-												</span>
-											)}
+											<div>
+												<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
+													{formatDate(result.date)}
+												</p>
+												{result.wodScore && (
+													<p className="mb-1 text-foreground text-xl dark:text-dark-foreground">
+														{result.wodScore}
+													</p>
+												)}
+											</div>
+											<div className="flex items-center gap-2">
+												{result.scale && (
+													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
+														{result.scale}
+													</span>
+												)}
+												<Button
+													asChild
+													variant="outline"
+													size="sm"
+													className="flex items-center gap-2"
+												>
+													<Link
+														href={{
+															pathname: `/log/${result.id}/edit`,
+															query: {
+																redirectUrl: `/workouts/${workoutId}`,
+															},
+														}}
+													>
+														<PencilIcon className="h-4 w-4" />
+														Edit
+													</Link>
+												</Button>
+											</div>
 										</div>
-										{result.wodScore && (
-											<p className="mb-1 text-foreground text-xl dark:text-dark-foreground">
-												{result.wodScore}
-											</p>
-										)}
 										{result.notes && (
 											<p className="text-gray-600 text-sm dark:text-dark-muted-foreground">
 												Notes: {result.notes}

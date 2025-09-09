@@ -22,6 +22,7 @@ import {
 	TrackSelection,
 	WorkoutSelection,
 } from "./workout-selection"
+import { useEffect } from "react"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean
@@ -66,6 +67,10 @@ export function WorkoutSelectionModal({
 		selectedDate,
 		selectedTrack,
 	})
+
+	useEffect(() => {
+		console.log({ trackWorkouts })
+	}, [trackWorkouts])
 
 	const {
 		classTimes,
