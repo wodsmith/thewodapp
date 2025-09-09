@@ -1,6 +1,10 @@
 "use client"
 
-import { CalendarIcon, ClockIcon } from "@heroicons/react/24/outline"
+import {
+	CalendarIcon,
+	ClockIcon,
+	PencilIcon,
+} from "@heroicons/react/24/outline"
 import { format } from "date-fns"
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -34,6 +38,7 @@ interface Team {
 // Type that matches what the server returns
 type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
+	result?: any | null
 }
 
 interface TeamWorkoutDisplayProps {
@@ -43,6 +48,7 @@ interface TeamWorkoutDisplayProps {
 		string,
 		ScheduledWorkoutInstanceWithDetails[]
 	>
+	workoutResults?: Record<string, any>
 }
 
 // Session storage key prefix for caching
@@ -555,35 +561,95 @@ export function TeamWorkoutsDisplay({
 																					: "mt-2"
 																			}
 																		>
-																			<Button
-																				asChild
-																				variant={
-																					viewMode === "daily"
-																						? "default"
-																						: "secondary"
+																			{(() => {
+																				const result = instance.result
+
+																				if (result) {
+																					// Show the result with an edit button
+																					return (
+																						<div className="space-y-3">
+																							<div className="bg-green-50 dark:bg-green-950/20 border-2 border-green-500 rounded-lg p-4">
+																								<div className="flex items-center justify-between">
+																									<div>
+																										<p className="text-sm font-semibold text-green-700 dark:text-green-300 mb-1">
+																											Result Logged
+																										</p>
+																										<p className="text-lg font-bold">
+																											{result.wodScore ||
+																												"Completed"}
+																										</p>
+																										{result.scale && (
+																											<span className="inline-block mt-1 px-2 py-1 text-xs font-medium bg-green-600 text-white rounded">
+																												{result.scale.toUpperCase()}
+																											</span>
+																										)}
+																									</div>
+																									<Button
+																										asChild
+																										variant="outline"
+																										size="sm"
+																										className="flex items-center gap-2"
+																									>
+																										<Link
+																											href={{
+																												pathname: `/log/${result.id}/edit`,
+																												query: {
+																													redirectUrl:
+																														"/workouts",
+																												},
+																											}}
+																										>
+																											<PencilIcon className="h-4 w-4" />
+																											Edit
+																										</Link>
+																									</Button>
+																								</div>
+																								{result.notes && (
+																									<p className="mt-2 text-sm text-muted-foreground">
+																										{result.notes}
+																									</p>
+																								)}
+																							</div>
+																						</div>
+																					)
 																				}
-																				size={
-																					viewMode === "daily"
-																						? "default"
-																						: "sm"
-																				}
-																				className={
-																					viewMode === "daily" ? "w-full" : ""
-																				}
-																			>
-																				<Link
-																					href={{
-																						pathname: "/log/new",
-																						query: {
-																							workoutId: workout.id,
-																							scheduledInstanceId: instance.id,
-																							redirectUrl: "/workouts",
-																						},
-																					}}
-																				>
-																					Log Result
-																				</Link>
-																			</Button>
+
+																				// Show the log button if no result exists
+																				return (
+																					<Button
+																						asChild
+																						variant={
+																							viewMode === "daily"
+																								? "default"
+																								: "secondary"
+																						}
+																						size={
+																							viewMode === "daily"
+																								? "default"
+																								: "sm"
+																						}
+																						className={
+																							viewMode === "daily"
+																								? "w-full"
+																								: ""
+																						}
+																					>
+																						<Link
+																							href={{
+																								pathname: "/log/new",
+																								query: {
+																									workoutId: workout.id,
+																									scheduledInstanceId:
+																										instance.id,
+																									redirectUrl: "/workouts",
+																								},
+																							}}
+																						>
+																							Log Result
+																						</Link>
+																					</Button>
+																				)
+																			})()}
 																		</div>
 																	</div>
 																</div>

@@ -3,10 +3,10 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { getUserTeams } from "@/server/teams"
+import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
@@ -74,9 +74,39 @@ export default async function WorkoutsPage({
 	}))
 
 	const allScheduledWorkouts = await Promise.all(scheduledWorkoutsPromises)
+
+	// Fetch workout results for all scheduled instances
+	const allInstances: Array<{
+		id: string
+		scheduledDate: Date
+		workoutId?: string
+	}> = []
+	for (const { workouts } of allScheduledWorkouts) {
+		for (const workout of workouts) {
+			if (workout.id && workout.scheduledDate) {
+				allInstances.push({
+					id: workout.id,
+					scheduledDate: workout.scheduledDate,
+					workoutId:
+						workout.trackWorkout?.workoutId ||
+						workout.trackWorkout?.workout?.id,
+				})
+			}
+		}
+	}
+
+	const workoutResults = await getWorkoutResultsForScheduledInstances(
+		allInstances,
+		session.user.id,
+	)
+
+	// Attach results to scheduled workouts
 	const scheduledWorkoutsMap = allScheduledWorkouts.reduce(
 		(acc, { teamId, workouts }) => {
-			acc[teamId] = workouts
+			acc[teamId] = workouts.map((workout) => ({
+				...workout,
+				result: workout.id ? workoutResults[workout.id] || null : null,
+			}))
 			return acc
 		},
 		{} as Record<string, any[]>,
@@ -122,7 +152,6 @@ export default async function WorkoutsPage({
 
 	// Don't filter for "today" on server side since server runs in UTC
 	// Pass all workouts and let client filter based on local timezone
-	const todaysWorkouts = [] // Will be handled client-side
 
 	// Extract unique tags and movements for filter dropdowns
 	const allTags = [

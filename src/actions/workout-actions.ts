@@ -5,6 +5,7 @@ import { createServerAction, ZSAError } from "zsa"
 import {
 	getResultSetsById,
 	getWorkoutResultsByWorkoutAndUser,
+	getWorkoutResultForScheduledInstance,
 } from "@/server/workout-results"
 import {
 	createWorkout,
@@ -289,6 +290,47 @@ export const getScheduledTeamWorkoutsAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to get scheduled team workouts",
+			)
+		}
+	})
+
+/**
+ * Get workout result for a scheduled workout instance
+ */
+export const getScheduledWorkoutResultAction = createServerAction()
+	.input(
+		z.object({
+			scheduledInstanceId: z
+				.string()
+				.min(1, "Scheduled instance ID is required"),
+			date: z.string().datetime(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+			}
+
+			const result = await getWorkoutResultForScheduledInstance(
+				input.scheduledInstanceId,
+				session.user.id,
+				new Date(input.date),
+			)
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get scheduled workout result:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled workout result",
 			)
 		}
 	})
