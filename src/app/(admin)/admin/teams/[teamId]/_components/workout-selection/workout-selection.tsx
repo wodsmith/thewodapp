@@ -126,9 +126,14 @@ export function WorkoutSelection({
 										{trackWorkout.workout.name} ({trackWorkout.workout.scheme})
 									</CardDescription>
 								)}
+								{trackWorkout.workout?.description && (
+									<CardDescription className="text-xs line-clamp-3">
+										{trackWorkout.workout.description}
+									</CardDescription>
+								)}
 								{trackWorkout.notes && (
 									<CardDescription className="text-xs line-clamp-3">
-										{trackWorkout.workout?.description}
+										{trackWorkout.notes}
 									</CardDescription>
 								)}
 							</CardHeader>
