@@ -16,7 +16,7 @@ export function ToggleGroup({
 	return (
 		<div
 			className={cn(
-				"inline-flex items-center justify-center rounded-md bg-muted p-1",
+				"inline-flex items-center justify-center rounded-md bg-muted dark:bg-white/10 p-1",
 				className,
 			)}
 			role="tablist"

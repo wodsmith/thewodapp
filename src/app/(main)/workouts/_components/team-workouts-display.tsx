@@ -400,17 +400,29 @@ export function TeamWorkoutsDisplay({
 														</div>
 
 														{/* Workouts for this date */}
-														<div className="space-y-4 ml-7">
+														<div
+															className={`${
+																viewMode === "daily"
+																	? "ml-7 grid grid-cols-1 sm:grid-cols-2 gap-4"
+																	: "flex flex-col gap-4"
+															}`}
+														>
 															{workouts.map(({ instance, workout }, index) => (
 																<div
 																	key={instance.id || index}
 																	className={`${
 																		viewMode === "daily"
-																			? "border-2 border-black dark:border-dark-border p-6 rounded-lg bg-card"
-																			: "border-l-4 border-primary pl-4"
+																			? "border-2 border-black dark:border-dark-border p-6 rounded-lg bg-background/10 dark:bg-white/10 flex flex-col"
+																			: "border-l-4 border-primary pl-4 ml-2"
 																	}`}
 																>
-																	<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+																	<div
+																		className={`${
+																			viewMode === "daily"
+																				? "flex flex-col h-full"
+																				: "flex flex-col sm:flex-row sm:items-start sm:justify-between"
+																		}`}
+																	>
 																		<div className="flex-1">
 																			<Link href={`/workouts/${workout.id}`}>
 																				<h4
@@ -539,8 +551,8 @@ export function TeamWorkoutsDisplay({
 																		<div
 																			className={
 																				viewMode === "daily"
-																					? "mt-4 sm:mt-0 sm:ml-6"
-																					: "mt-2 sm:mt-0"
+																					? "mt-6 pt-4 border-t border-black/10 dark:border-white/10"
+																					: "mt-2"
 																			}
 																		>
 																			<Button
@@ -556,9 +568,7 @@ export function TeamWorkoutsDisplay({
 																						: "sm"
 																				}
 																				className={
-																					viewMode === "daily"
-																						? "w-full sm:w-auto"
-																						: ""
+																					viewMode === "daily" ? "w-full" : ""
 																				}
 																			>
 																				<Link
