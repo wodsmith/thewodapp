@@ -49,6 +49,12 @@ export function TeamSchedulingContainer({
 		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 		const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
+		console.log("Loading workouts for date range:", {
+			now: now.toISOString(),
+			startOfMonth: startOfMonth.toISOString(),
+			endOfMonth: endOfMonth.toISOString(),
+		})
+
 		// Add minimum loading time for better UX (remove in production if needed)
 		const startTime = Date.now()
 
@@ -67,6 +73,12 @@ export function TeamSchedulingContainer({
 		}
 
 		if (result?.success && result.data) {
+			console.log(
+				"Received scheduled workouts:",
+				result.data.length,
+				result.data,
+			)
+
 			const calendarEvents = result.data.map(
 				(workout: ScheduledWorkoutInstanceWithDetails): CalendarEvent => ({
 					id: workout.id,
@@ -82,8 +94,10 @@ export function TeamSchedulingContainer({
 				}),
 			)
 
+			console.log("Calendar events to display:", calendarEvents)
 			setEvents(calendarEvents)
 		} else {
+			console.error("Failed to load scheduled workouts:", result)
 			toast.error("Failed to load scheduled workouts")
 		}
 

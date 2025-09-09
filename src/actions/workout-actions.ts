@@ -5,6 +5,7 @@ import { createServerAction, ZSAError } from "zsa"
 import {
 	getResultSetsById,
 	getWorkoutResultsByWorkoutAndUser,
+	getWorkoutResultForScheduledInstance,
 } from "@/server/workout-results"
 import {
 	createWorkout,
@@ -12,6 +13,9 @@ import {
 	getWorkoutById,
 	updateWorkout,
 } from "@/server/workouts"
+import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
+import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
+import { getUserTeams } from "@/server/teams"
 import { requireVerifiedEmail } from "@/utils/auth"
 
 const createWorkoutSchema = z.object({
@@ -233,5 +237,161 @@ export const updateWorkoutAction = createServerAction()
 			}
 
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update workout")
+		}
+	})
+
+/**
+ * Get user teams
+ */
+export const getUserTeamsAction = createServerAction()
+	.input(z.object({}))
+	.handler(async () => {
+		try {
+			const teams = await getUserTeams()
+			return { success: true, data: teams }
+		} catch (error) {
+			console.error("Failed to get user teams:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get user teams")
+		}
+	})
+
+/**
+ * Get scheduled workouts for a team within a date range
+ */
+export const getScheduledTeamWorkoutsAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			startDate: z.string().datetime(),
+			endDate: z.string().datetime(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, startDate, endDate } = input
+
+			const scheduledWorkouts = await getScheduledWorkoutsForTeam(teamId, {
+				start: new Date(startDate),
+				end: new Date(endDate),
+			})
+
+			return { success: true, data: scheduledWorkouts }
+		} catch (error) {
+			console.error("Failed to get scheduled team workouts:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled team workouts",
+			)
+		}
+	})
+
+/**
+ * Get scheduled workouts with results for a team within a date range
+ */
+export const getScheduledTeamWorkoutsWithResultsAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			startDate: z.string().datetime(),
+			endDate: z.string().datetime(),
+			userId: z.string().min(1, "User ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, startDate, endDate, userId } = input
+
+			// Get scheduled workouts
+			const scheduledWorkouts = await getScheduledWorkoutsForTeam(teamId, {
+				start: new Date(startDate),
+				end: new Date(endDate),
+			})
+
+			// Prepare instances for result fetching
+			const instances = scheduledWorkouts.map((workout) => ({
+				id: workout.id,
+				scheduledDate: workout.scheduledDate,
+				workoutId:
+					workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+			}))
+
+			// Fetch results for all instances
+			const workoutResults = await getWorkoutResultsForScheduledInstances(
+				instances,
+				userId,
+			)
+
+			// Attach results to scheduled workouts
+			const workoutsWithResults = scheduledWorkouts.map((workout) => ({
+				...workout,
+				result: workout.id ? workoutResults[workout.id] || null : null,
+			}))
+
+			return { success: true, data: workoutsWithResults }
+		} catch (error) {
+			console.error(
+				"Failed to get scheduled team workouts with results:",
+				error,
+			)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled team workouts with results",
+			)
+		}
+	})
+
+/**
+ * Get workout result for a scheduled workout instance
+ */
+export const getScheduledWorkoutResultAction = createServerAction()
+	.input(
+		z.object({
+			scheduledInstanceId: z
+				.string()
+				.min(1, "Scheduled instance ID is required"),
+			date: z.string().datetime(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+			}
+
+			const result = await getWorkoutResultForScheduledInstance(
+				input.scheduledInstanceId,
+				session.user.id,
+				new Date(input.date),
+			)
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get scheduled workout result:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled workout result",
+			)
 		}
 	})

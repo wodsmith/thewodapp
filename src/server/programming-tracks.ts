@@ -165,17 +165,26 @@ export async function getWorkoutsForTrack(
 	trackId: string,
 	teamId?: string,
 ): Promise<
-	(TrackWorkout & { isScheduled?: boolean; lastScheduledAt?: Date | null })[]
+	(TrackWorkout & {
+		workout: Workout
+		isScheduled?: boolean
+		lastScheduledAt?: Date | null
+	})[]
 > {
 	const db = getDd()
-	const workouts = await db
-		.select()
+	const workoutsResult = await db
+		.select({
+			trackWorkout: trackWorkoutsTable,
+			workout: workouts,
+		})
 		.from(trackWorkoutsTable)
+		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
 
 	if (!teamId) {
-		return workouts.map((w) => ({
-			...w,
+		return workoutsResult.map((w) => ({
+			...w.trackWorkout,
+			workout: w.workout,
 			isScheduled: false,
 			lastScheduledAt: null,
 		}))
@@ -202,10 +211,11 @@ export async function getWorkoutsForTrack(
 		}
 	}
 
-	const workoutsWithScheduledInfo = workouts.map((w) => ({
-		...w,
-		isScheduled: scheduledDatesMap.has(w.id),
-		lastScheduledAt: scheduledDatesMap.get(w.id) ?? null,
+	const workoutsWithScheduledInfo = workoutsResult.map((w) => ({
+		...w.trackWorkout,
+		workout: w.workout,
+		isScheduled: scheduledDatesMap.has(w.trackWorkout.id),
+		lastScheduledAt: scheduledDatesMap.get(w.trackWorkout.id) ?? null,
 	}))
 
 	// Sort: unscheduled first, then scheduled
