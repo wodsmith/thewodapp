@@ -60,32 +60,45 @@ export default async function WorkoutsPage({
 
 	const initialScheduledWorkouts: Record<string, any[]> = {}
 
-	for (const team of userTeams) {
-		const scheduledWorkouts = await getScheduledWorkoutsForTeam(
-			team.id,
-			dateRange,
-		)
+	// Fetch scheduled workouts for all teams with error handling
+	const scheduledWorkoutsPromises = userTeams.map(async (team) => {
+		try {
+			const scheduledWorkouts = await getScheduledWorkoutsForTeam(
+				team.id,
+				dateRange,
+			)
 
-		// Prepare instances for result fetching
-		const instances = scheduledWorkouts.map((workout) => ({
-			id: workout.id,
-			scheduledDate: workout.scheduledDate,
-			workoutId:
-				workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
-		}))
+			// Prepare instances for result fetching
+			const instances = scheduledWorkouts.map((workout) => ({
+				id: workout.id,
+				scheduledDate: workout.scheduledDate,
+				workoutId:
+					workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+			}))
 
-		// Fetch results for all instances
-		const workoutResults = await getWorkoutResultsForScheduledInstances(
-			instances,
-			session.user.id,
-		)
+			// Fetch results for all instances
+			const workoutResults = await getWorkoutResultsForScheduledInstances(
+				instances,
+				session.user.id,
+			)
 
-		// Attach results to scheduled workouts
-		initialScheduledWorkouts[team.id] = scheduledWorkouts.map((workout) => ({
-			...workout,
-			result: workout.id ? workoutResults[workout.id] || null : null,
-		}))
-	}
+			// Attach results to scheduled workouts
+			const workoutsWithResults = scheduledWorkouts.map((workout) => ({
+				...workout,
+				result: workout.id ? workoutResults[workout.id] || null : null,
+			}))
+
+			return { teamId: team.id, workouts: workoutsWithResults }
+		} catch (error) {
+			console.error(`Failed to fetch workouts for team ${team.id}:`, error)
+			return { teamId: team.id, workouts: [] }
+		}
+	})
+
+	const allScheduledWorkouts = await Promise.all(scheduledWorkoutsPromises)
+	allScheduledWorkouts.forEach(({ teamId, workouts }) => {
+		initialScheduledWorkouts[teamId] = workouts
+	})
 
 	const mySearchParams = await searchParams
 	const [result, error] = await getUserWorkoutsAction({
