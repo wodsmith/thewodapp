@@ -5,10 +5,7 @@ import { parseAsInteger, useQueryState } from "nuqs"
 import { useServerAction } from "zsa-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PaginationWithUrl } from "@/components/ui/pagination"
-import {
-	TrackWorkoutCard,
-	TrackWorkoutCardSkeleton,
-} from "./track-workout-card"
+import { TrackWorkoutRow, TrackWorkoutRowSkeleton } from "./track-workout-row"
 import { getPaginatedTrackWorkoutsAction } from "@/actions/programming-track-workouts-actions"
 import { AlertCircle } from "lucide-react"
 
@@ -51,9 +48,9 @@ export function PaginatedTrackWorkouts({
 	if (isPending && !result) {
 		return (
 			<div className="space-y-6">
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				<div className="space-y-3">
 					{Array.from({ length: pageSize }, () => (
-						<TrackWorkoutCardSkeleton key={`skeleton-${crypto.randomUUID()}`} />
+						<TrackWorkoutRowSkeleton key={`skeleton-${crypto.randomUUID()}`} />
 					))}
 				</div>
 			</div>
@@ -118,16 +115,16 @@ export function PaginatedTrackWorkouts({
 
 	return (
 		<div className="space-y-6">
-			{/* Workout grid with loading overlay during navigation */}
+			{/* Workout list with loading overlay during navigation */}
 			<div className="relative">
 				{isPending && (
 					<div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
 						<div className="text-sm text-muted-foreground">Loading...</div>
 					</div>
 				)}
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				<div className="space-y-3">
 					{workouts.map((trackWorkout) => (
-						<TrackWorkoutCard
+						<TrackWorkoutRow
 							key={trackWorkout.id}
 							trackWorkout={trackWorkout}
 						/>

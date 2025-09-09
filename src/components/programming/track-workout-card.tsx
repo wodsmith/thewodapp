@@ -12,7 +12,7 @@ interface TrackWorkoutCardProps {
 }
 
 export function TrackWorkoutCard({ trackWorkout }: TrackWorkoutCardProps) {
-	const { workout, dayNumber, isScheduled, weekNumber } = trackWorkout
+	const { workout, dayNumber, isScheduled } = trackWorkout
 
 	return (
 		<Card className="hover:shadow-md transition-shadow">
@@ -25,11 +25,6 @@ export function TrackWorkoutCard({ trackWorkout }: TrackWorkoutCardProps) {
 						<Badge variant="outline" className="text-xs">
 							Day {dayNumber}
 						</Badge>
-						{weekNumber && (
-							<Badge variant="secondary" className="text-xs">
-								Week {weekNumber}
-							</Badge>
-						)}
 					</div>
 				</div>
 			</CardHeader>
