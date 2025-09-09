@@ -85,5 +85,11 @@
 			"binding": "NEXT_INC_CACHE_KV",
 			"id": "e7a18a19d2cb4afbaf02be597cbecb35"
 		}
+	],
+	"routes": [
+		{
+			"pattern": "wodsmith.com",
+			"custom_domain": true
+		}
 	]
 }

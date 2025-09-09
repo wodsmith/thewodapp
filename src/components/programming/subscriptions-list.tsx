@@ -23,7 +23,6 @@ interface Subscription {
 		name: string
 	} | null
 	subscribedAt: Date
-	isActive: number
 }
 
 interface SubscriptionsListProps {
@@ -48,7 +47,7 @@ export function SubscriptionsList({
 				toast.success("Successfully set as default track")
 			},
 			onError: (error) => {
-				toast.error(error.message || "Failed to set default track")
+				toast.error(error.err.message || "Failed to set default track")
 			},
 		})
 
@@ -61,7 +60,7 @@ export function SubscriptionsList({
 				window.location.reload()
 			},
 			onError: (error) => {
-				toast.error(error.message || "Failed to unsubscribe from track")
+				toast.error(error.err.message || "Failed to unsubscribe from track")
 			},
 		},
 	)

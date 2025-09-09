@@ -10,6 +10,7 @@ import {
 	updateResult,
 } from "@/server/logs"
 import type { Workout, Set as DBSet } from "@/db/schema"
+import type { ResultSetInput } from "@/types"
 
 /**
  * Get logs by user ID
@@ -218,7 +219,7 @@ async function updateResultForm(
 	const { fromZonedTime } = await import("date-fns-tz")
 
 	// Process scores similar to submitLogForm
-	const setsForDb: Omit<DBSet, "createdAt" | "updatedAt">[] = []
+	const setsForDb: ResultSetInput[] = []
 	let totalSecondsForWodScore = 0
 	const isRoundsAndRepsWorkout =
 		!!workout.repsPerRound && workout.repsPerRound > 0

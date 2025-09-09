@@ -43,7 +43,7 @@ export function SubscribeButton({
 				onSubscriptionChange?.(true)
 			},
 			onError: (error) => {
-				toast.error(error.message || "Failed to subscribe to track")
+				toast.error(error.err.message || "Failed to subscribe to track")
 			},
 		},
 	)
@@ -56,7 +56,7 @@ export function SubscribeButton({
 				onSubscriptionChange?.(false)
 			},
 			onError: (error) => {
-				toast.error(error.message || "Failed to unsubscribe from track")
+				toast.error(error.err.message || "Failed to unsubscribe from track")
 			},
 		},
 	)

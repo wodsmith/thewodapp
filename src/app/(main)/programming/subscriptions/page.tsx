@@ -6,9 +6,9 @@ import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { SubscriptionsList } from "@/components/programming/subscriptions-list"
 
 interface SubscriptionsPageProps {
-	searchParams: {
+	searchParams: Promise<{
 		team?: string
-	}
+	}>
 }
 
 export default async function SubscriptionsPage({
@@ -20,7 +20,8 @@ export default async function SubscriptionsPage({
 	}
 
 	// For now, use first team or the team from search params
-	const teamId = searchParams.team || session.teams?.[0]?.id
+	const { team } = await searchParams
+	const teamId = team || session.teams?.[0]?.id
 
 	if (!teamId) {
 		return <div>No team selected.</div>

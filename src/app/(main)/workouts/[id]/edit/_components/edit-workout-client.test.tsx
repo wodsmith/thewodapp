@@ -14,12 +14,38 @@ vi.mock("next/navigation", () => ({
 }))
 
 const mockTags = [
-	{ id: "tag1", name: "Tag 1" },
-	{ id: "tag2", name: "Tag 2" },
+	{
+		id: "tag1",
+		name: "Tag 1",
+		createdAt: new Date("2024-01-01"),
+		updatedAt: new Date("2024-01-01"),
+		updateCounter: 0,
+	},
+	{
+		id: "tag2",
+		name: "Tag 2",
+		createdAt: new Date("2024-01-01"),
+		updatedAt: new Date("2024-01-01"),
+		updateCounter: 0,
+	},
 ]
 const mockMovements = [
-	{ id: "move1", name: "Movement 1", type: "weightlifting" },
-	{ id: "move2", name: "Movement 2", type: "gymnastic" },
+	{
+		id: "move1",
+		name: "Movement 1",
+		type: "weightlifting" as const,
+		createdAt: new Date("2024-01-01"),
+		updatedAt: new Date("2024-01-01"),
+		updateCounter: 0,
+	},
+	{
+		id: "move2",
+		name: "Movement 2",
+		type: "gymnastic" as const,
+		createdAt: new Date("2024-01-01"),
+		updatedAt: new Date("2024-01-01"),
+		updateCounter: 0,
+	},
 ]
 const mockWorkout = {
 	id: "1",
@@ -27,10 +53,18 @@ const mockWorkout = {
 	description: "desc",
 	tags: [mockTags[0]],
 	movements: [mockMovements[0]],
-	scheme: "time",
-	scope: "private",
+	scheme: "time" as const,
+	scope: "private" as const,
 	repsPerRound: 10,
 	roundsToScore: 1,
+	createdAt: new Date("2024-01-01"),
+	updatedAt: new Date("2024-01-01"),
+	updateCounter: 0,
+	teamId: "team1",
+	sugarId: "sugar1",
+	tiebreakScheme: null,
+	secondaryScheme: null,
+	sourceTrackId: null,
 }
 const mockUpdateWorkoutAction = vi.fn()
 
@@ -41,6 +75,7 @@ function setup() {
 			tags={mockTags}
 			movements={mockMovements}
 			workoutId={mockWorkout.id}
+			updateWorkoutAction={mockUpdateWorkoutAction}
 		/>,
 	)
 }

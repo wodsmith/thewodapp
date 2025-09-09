@@ -1,9 +1,14 @@
-import { db } from "@/db"
+import { getDd } from "@/db"
 import {
 	classCatalogTable,
 	locationsTable,
 	skillsTable,
 } from "@/db/schemas/scheduling"
+import {
+	createLocationId,
+	createSkillId,
+	createClassCatalogId,
+} from "@/db/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 // import { authAction } from "@/lib/safe-action"
@@ -64,9 +69,10 @@ export const createLocation = async ({
 	teamId,
 	name,
 }: z.infer<typeof createLocationSchema>) => {
+	const db = getDd()
 	const [newLocation] = await db
 		.insert(locationsTable)
-		.values({ teamId, name })
+		.values({ id: createLocationId(), teamId, name })
 		.returning()
 	return newLocation
 }
@@ -76,6 +82,7 @@ export const updateLocation = async ({
 	teamId,
 	name,
 }: z.infer<typeof updateLocationSchema>) => {
+	const db = getDd()
 	const [updatedLocation] = await db
 		.update(locationsTable)
 		.set({ name })
@@ -88,6 +95,7 @@ export const deleteLocation = async ({
 	id,
 	teamId,
 }: z.infer<typeof deleteLocationSchema>) => {
+	const db = getDd()
 	const [deletedLocation] = await db
 		.delete(locationsTable)
 		.where(and(eq(locationsTable.id, id), eq(locationsTable.teamId, teamId)))
@@ -96,6 +104,7 @@ export const deleteLocation = async ({
 }
 
 export const getLocationsByTeam = async ({ teamId }: { teamId: string }) => {
+	const db = getDd()
 	const locations = await db.query.locationsTable.findMany({
 		where: eq(locationsTable.teamId, teamId),
 	})
@@ -108,9 +117,10 @@ export const createClassCatalog = async ({
 	name,
 	description,
 }: z.infer<typeof createClassCatalogSchema>) => {
+	const db = getDd()
 	const [newClass] = await db
 		.insert(classCatalogTable)
-		.values({ teamId, name, description })
+		.values({ id: createClassCatalogId(), teamId, name, description })
 		.returning()
 	return newClass
 }
@@ -121,6 +131,7 @@ export const updateClassCatalog = async ({
 	name,
 	description,
 }: z.infer<typeof updateClassCatalogSchema>) => {
+	const db = getDd()
 	const [updatedClass] = await db
 		.update(classCatalogTable)
 		.set({ name, description })
@@ -135,6 +146,7 @@ export const deleteClassCatalog = async ({
 	id,
 	teamId,
 }: z.infer<typeof deleteClassCatalogSchema>) => {
+	const db = getDd()
 	const [deletedClass] = await db
 		.delete(classCatalogTable)
 		.where(
@@ -145,6 +157,7 @@ export const deleteClassCatalog = async ({
 }
 
 export const getClassCatalogByTeam = async ({ teamId }: { teamId: string }) => {
+	const db = getDd()
 	const classes = await db.query.classCatalogTable.findMany({
 		where: eq(classCatalogTable.teamId, teamId),
 	})
@@ -156,9 +169,10 @@ export const createSkill = async ({
 	teamId,
 	name,
 }: z.infer<typeof createSkillSchema>) => {
+	const db = getDd()
 	const [newSkill] = await db
 		.insert(skillsTable)
-		.values({ teamId, name })
+		.values({ id: createSkillId(), teamId, name })
 		.returning()
 	return newSkill
 }
@@ -168,6 +182,7 @@ export const updateSkill = async ({
 	teamId,
 	name,
 }: z.infer<typeof updateSkillSchema>) => {
+	const db = getDd()
 	const [updatedSkill] = await db
 		.update(skillsTable)
 		.set({ name })
@@ -180,6 +195,7 @@ export const deleteSkill = async ({
 	id,
 	teamId,
 }: z.infer<typeof deleteSkillSchema>) => {
+	const db = getDd()
 	const [deletedSkill] = await db
 		.delete(skillsTable)
 		.where(and(eq(skillsTable.id, id), eq(skillsTable.teamId, teamId)))
@@ -188,6 +204,7 @@ export const deleteSkill = async ({
 }
 
 export const getSkillsByTeam = async ({ teamId }: { teamId: string }) => {
+	const db = getDd()
 	const skills = await db.query.skillsTable.findMany({
 		where: eq(skillsTable.teamId, teamId),
 	})

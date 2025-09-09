@@ -122,7 +122,7 @@ export const subscribeToTrackAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			console.error(
-				`ERROR: Unauthorized subscription attempt - User ${session?.user?.id} lacks MANAGE_PROGRAMMING permission for team ${input.teamId}`,
+				`ERROR: Unauthorized subscription attempt - User lacks MANAGE_PROGRAMMING permission for team ${input.teamId}`,
 			)
 
 			if (error instanceof ZSAError) {
