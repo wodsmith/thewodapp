@@ -103,7 +103,7 @@ export async function getScheduledWorkoutsForTeam(
 		.filter((id): id is string => id !== null && id !== undefined)
 
 	// Fetch movements for all workouts
-	let movementsByWorkoutId = new Map<
+	const movementsByWorkoutId = new Map<
 		string,
 		Array<{ id: string; name: string; type: string }>
 	>()

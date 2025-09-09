@@ -2,7 +2,14 @@
 
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
-import { getLogsByUser, getResultSetsById, submitLogForm } from "@/server/logs"
+import {
+	getLogsByUser,
+	getResultById,
+	getResultSetsById,
+	submitLogForm,
+	updateResult,
+} from "@/server/logs"
+import type { Workout, Set as DBSet } from "@/db/schema"
 
 /**
  * Get logs by user ID
@@ -71,3 +78,265 @@ export const submitLogFormAction = createServerAction()
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to submit log form")
 		}
 	})
+
+/**
+ * Get a single result by ID
+ */
+export const getResultByIdAction = createServerAction()
+	.input(z.object({ resultId: z.string().min(1, "Result ID is required") }))
+	.handler(async ({ input }) => {
+		try {
+			const result = await getResultById(input.resultId)
+			if (!result) {
+				throw new ZSAError("NOT_FOUND", "Result not found")
+			}
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get result by ID:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get result")
+		}
+	})
+
+/**
+ * Update an existing result
+ */
+export const updateResultAction = createServerAction()
+	.input(
+		z.object({
+			resultId: z.string().min(1, "Result ID is required"),
+			userId: z.string().min(1, "User ID is required"),
+			workouts: z.array(z.any()),
+			formData: z.instanceof(FormData),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			// Parse form data similar to submitLogForm
+			const result = await updateResultForm(
+				input.resultId,
+				input.userId,
+				input.workouts,
+				input.formData,
+			)
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to update result:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update result")
+		}
+	})
+
+// Helper function to update result form
+async function updateResultForm(
+	resultId: string,
+	userId: string,
+	workouts: Workout[],
+	formData: FormData,
+) {
+	const { headers } = await import("next/headers")
+	const headerList = await headers()
+	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
+
+	// Reuse the same parsing logic from submitLogForm
+	const parseBasicFormData = (formData: FormData) => {
+		const selectedWorkoutId = formData.get("selectedWorkoutId") as string | null
+		const dateStr = formData.get("date") as string
+		const scaleValue = formData.get("scale") as "rx" | "scaled" | "rx+"
+		const notesValue = formData.get("notes") as string
+		const scheduledInstanceId = formData.get("scheduledInstanceId") as
+			| string
+			| null
+		const programmingTrackId = formData.get("programmingTrackId") as
+			| string
+			| null
+		return {
+			selectedWorkoutId,
+			dateStr,
+			scaleValue,
+			notesValue,
+			scheduledInstanceId,
+			programmingTrackId,
+		}
+	}
+
+	const parseScoreEntries = (
+		formData: FormData,
+	): Array<{ parts: string[] }> => {
+		const parsedScoreEntries: Array<{ parts: string[] }> = []
+		let roundIdx = 0
+		while (formData.has(`scores[${roundIdx}][0]`)) {
+			const parts: string[] = []
+			let partIdx = 0
+			while (formData.has(`scores[${roundIdx}][${partIdx}]`)) {
+				parts.push(
+					(formData.get(`scores[${roundIdx}][${partIdx}]`) as string) || "",
+				)
+				partIdx++
+			}
+			if (parts.length > 0) {
+				parsedScoreEntries.push({ parts })
+			}
+			roundIdx++
+		}
+		return parsedScoreEntries
+	}
+
+	const {
+		selectedWorkoutId,
+		dateStr,
+		scaleValue,
+		notesValue,
+		scheduledInstanceId,
+		programmingTrackId,
+	} = parseBasicFormData(formData)
+
+	if (!selectedWorkoutId) {
+		throw new ZSAError("ERROR", "No workout selected")
+	}
+
+	const workout = workouts.find((w) => w.id === selectedWorkoutId)
+	if (!workout) {
+		throw new ZSAError("NOT_FOUND", "Selected workout not found")
+	}
+
+	// Parse and process scores (similar to submitLogForm)
+	const parsedScoreEntries = parseScoreEntries(formData)
+
+	// Import necessary utilities
+	const { parseTimeScoreToSeconds, formatSecondsToTime } = await import(
+		"@/lib/utils"
+	)
+	const { fromZonedTime } = await import("date-fns-tz")
+
+	// Process scores similar to submitLogForm
+	const setsForDb: Omit<DBSet, "createdAt" | "updatedAt">[] = []
+	let totalSecondsForWodScore = 0
+	const isRoundsAndRepsWorkout =
+		!!workout.repsPerRound && workout.repsPerRound > 0
+	const isTimeBasedWodScore =
+		workout.scheme === "time" || workout.scheme === "time-with-cap"
+
+	// Process each score entry
+	for (let k = 0; k < parsedScoreEntries.length; k++) {
+		const entry = parsedScoreEntries[k]
+		const setNumber = k + 1
+		const scoreParts = entry.parts
+
+		if (isRoundsAndRepsWorkout) {
+			const roundsStr = scoreParts[0] || "0"
+			const repsStr = scoreParts[1] || "0"
+			const roundsCompleted = Number.parseInt(roundsStr, 10)
+			const repsCompleted = Number.parseInt(repsStr, 10)
+
+			if (!Number.isNaN(roundsCompleted) && !Number.isNaN(repsCompleted)) {
+				const totalReps =
+					roundsCompleted * (workout.repsPerRound ?? 0) + repsCompleted
+				setsForDb.push({
+					setNumber,
+					reps: totalReps,
+					score: null,
+					weight: null,
+					status: null,
+					distance: null,
+					time: null,
+				})
+			}
+		} else if (workout.scheme === "time") {
+			const timeStr = scoreParts[0]
+			if (timeStr && timeStr.trim() !== "") {
+				const timeInSeconds = parseTimeScoreToSeconds(timeStr)
+				if (timeInSeconds !== null) {
+					if (isTimeBasedWodScore) {
+						totalSecondsForWodScore += timeInSeconds
+					}
+					setsForDb.push({
+						setNumber,
+						time: timeInSeconds,
+						reps: null,
+						weight: null,
+						status: null,
+						distance: null,
+						score: null,
+					})
+				}
+			}
+		} else {
+			const scoreStr = scoreParts[0]
+			if (scoreStr && scoreStr.trim() !== "") {
+				const numericScore = Number.parseInt(scoreStr, 10)
+				if (!Number.isNaN(numericScore)) {
+					setsForDb.push({
+						setNumber,
+						score: numericScore,
+						reps: null,
+						weight: null,
+						status: null,
+						distance: null,
+						time: null,
+					})
+				}
+			}
+		}
+	}
+
+	// Generate WOD score summary
+	let finalWodScoreSummary = ""
+	if (isTimeBasedWodScore) {
+		finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
+	} else {
+		const scoreSummaries: string[] = []
+		for (let k = 0; k < parsedScoreEntries.length; k++) {
+			const entry = parsedScoreEntries[k]
+			const scoreParts = entry.parts
+
+			if (isRoundsAndRepsWorkout) {
+				const roundsStr = scoreParts[0] || "0"
+				const repsStr = scoreParts[1] || "0"
+				if (roundsStr !== "0" || repsStr !== "0") {
+					scoreSummaries.push(`${roundsStr} + ${repsStr}`)
+				}
+			} else if (workout.scheme === "time") {
+				const timeStr = scoreParts[0]
+				if (timeStr && timeStr.trim() !== "") {
+					scoreSummaries.push(timeStr)
+				}
+			} else {
+				const scoreStr = scoreParts[0]
+				if (scoreStr && scoreStr.trim() !== "") {
+					scoreSummaries.push(scoreStr)
+				}
+			}
+		}
+		finalWodScoreSummary = scoreSummaries.join(", ")
+	}
+
+	// Convert date to timestamp
+	const dateInTargetTz = fromZonedTime(`${dateStr}T00:00:00`, timezone)
+	const timestamp = dateInTargetTz.getTime()
+
+	// Update the result
+	await updateResult({
+		resultId,
+		userId,
+		workoutId: selectedWorkoutId,
+		date: timestamp,
+		scale: scaleValue,
+		wodScore: finalWodScoreSummary,
+		notes: notesValue,
+		setsData: setsForDb,
+		type: "wod",
+		scheduledWorkoutInstanceId: scheduledInstanceId,
+		programmingTrackId: programmingTrackId,
+	})
+
+	return { success: true }
+}
