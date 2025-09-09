@@ -1,5 +1,5 @@
 import "server-only"
-import { eq, and, asc, sql } from "drizzle-orm"
+import { eq, and, asc, desc, sql } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	programmingTracksTable,
@@ -169,7 +169,7 @@ export async function getPaginatedTrackWorkouts(
 		.from(trackWorkoutsTable)
 		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
-		.orderBy(asc(trackWorkoutsTable.dayNumber))
+		.orderBy(desc(trackWorkoutsTable.dayNumber))
 		.limit(validPageSize)
 		.offset(offset)
 
