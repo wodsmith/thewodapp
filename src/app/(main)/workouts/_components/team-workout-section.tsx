@@ -16,7 +16,12 @@ import type {
 type ViewMode = "daily" | "weekly"
 type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
-	result?: any | null
+	result?: {
+		id: string
+		wodScore?: string
+		scale?: string
+		notes?: string
+	} | null
 }
 
 interface Team {
@@ -86,7 +91,7 @@ export function TeamWorkoutSection({
 		{} as Record<
 			string,
 			Array<{
-				instance: any
+				instance: ScheduledWorkoutInstance
 				workout: Workout
 				trackWorkout?: TrackWorkout | null
 			}>
@@ -137,10 +142,107 @@ export function TeamWorkoutSection({
 
 			<div className="min-h-[200px]">
 				{isLoading ? (
-					<div className="space-y-3 py-12">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-3/4" />
-					</div>
+					viewMode === "daily" ? (
+						// Daily view skeleton - matches actual workout cards
+						<div className="space-y-6">
+							<div className="space-y-4">
+								{/* Date header */}
+								<div className="flex items-center gap-2">
+									<Skeleton className="h-5 w-5 rounded" />
+									<Skeleton className="h-7 w-64" />
+								</div>
+
+								{/* Workout cards */}
+								<div className="ml-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+									{["skeleton-card-1", "skeleton-card-2"].map((skeletonId) => (
+										<div
+											key={skeletonId}
+											className="border-2 border-black dark:border-dark-border p-6 bg-background/10 dark:bg-white/10 flex flex-col"
+										>
+											<div className="flex flex-col h-full">
+												<div className="flex-1">
+													{/* Title */}
+													<Skeleton className="h-9 w-3/4 mb-3" />
+
+													{/* Clock icon + time */}
+													<div className="flex items-center gap-2 mb-4">
+														<Skeleton className="h-4 w-4 rounded" />
+														<Skeleton className="h-4 w-20" />
+													</div>
+
+													{/* Scheme badge */}
+													<div className="mb-4">
+														<div className="inline-block">
+															<Skeleton className="h-10 w-32" />
+														</div>
+													</div>
+
+													{/* Description */}
+													<div className="mb-3 space-y-1">
+														<Skeleton className="h-4 w-full" />
+														<Skeleton className="h-4 w-5/6" />
+														<Skeleton className="h-4 w-2/3" />
+													</div>
+
+													{/* Movements */}
+													<div className="mb-4">
+														<Skeleton className="h-4 w-24 mb-3" />
+														<div className="flex flex-wrap gap-2">
+															<Skeleton className="h-7 w-24" />
+															<Skeleton className="h-7 w-32" />
+															<Skeleton className="h-7 w-28" />
+															<Skeleton className="h-7 w-20" />
+														</div>
+													</div>
+												</div>
+
+												{/* Log Result button */}
+												<div className="mt-6 pt-4 border-t border-black/10 dark:border-white/10">
+													<Skeleton className="h-10 w-full" />
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						</div>
+					) : (
+						// Weekly view skeleton - compact list
+						<div className="space-y-6">
+							{["day-1", "day-2", "day-3"].map((dayId) => (
+								<div key={dayId} className="space-y-4">
+									{/* Date header */}
+									<div className="flex items-center gap-2">
+										<Skeleton className="h-4 w-4 rounded" />
+										<Skeleton className="h-6 w-56" />
+									</div>
+
+									{/* Workout items */}
+									<div className="flex flex-col gap-4">
+										{["workout-1", "workout-2"].map((workoutId) => (
+											<div
+												key={`${dayId}-${workoutId}`}
+												className="border-l-4 border-primary pl-4 ml-2"
+											>
+												<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+													<div className="flex-1">
+														<Skeleton className="h-5 w-48 mb-2" />
+														<div className="space-y-1 mb-3">
+															<Skeleton className="h-3 w-full max-w-md" />
+															<Skeleton className="h-3 w-3/4 max-w-sm" />
+														</div>
+													</div>
+													<div className="flex items-center gap-2">
+														<Skeleton className="h-9 w-20" />
+													</div>
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							))}
+						</div>
+					)
 				) : teamWorkouts.length > 0 ? (
 					<div className="space-y-6">
 						{Object.entries(workoutsByDate)
