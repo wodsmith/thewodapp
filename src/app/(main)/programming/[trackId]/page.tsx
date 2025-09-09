@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getProgrammingTrackById } from "@/server/programming"
+import { PaginatedTrackWorkouts } from "@/components/programming/paginated-track-workouts"
 
 interface ProgrammingTrackPageProps {
 	params: Promise<{
@@ -25,6 +26,8 @@ export default async function ProgrammingTrackPage({
 	if (!track) {
 		notFound()
 	}
+
+	const teamId = session.teams[0].id
 
 	return (
 		<div className="container mx-auto py-8">
@@ -49,17 +52,19 @@ export default async function ProgrammingTrackPage({
 				)}
 			</div>
 
-			{/* Placeholder for workout listings - will be implemented in task-5 */}
-			<div className="border-2 border-dashed border-muted rounded-lg p-8">
-				<div className="text-center text-muted-foreground">
-					<p className="text-lg font-medium mb-2">
-						Workout listings coming soon
-					</p>
-					<p className="text-sm">
-						This section will display all workouts in this programming track
-						with pagination.
+			{/* Paginated workout listings */}
+			<div className="space-y-6">
+				<div className="flex items-center justify-between">
+					<h2 className="text-xl font-semibold tracking-tight">Workouts</h2>
+					<p className="text-sm text-muted-foreground">
+						Programming track workouts
 					</p>
 				</div>
+				<PaginatedTrackWorkouts
+					trackId={trackId}
+					teamId={teamId}
+					pageSize={12}
+				/>
 			</div>
 		</div>
 	)
