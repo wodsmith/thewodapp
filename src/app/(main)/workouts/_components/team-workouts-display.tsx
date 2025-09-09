@@ -7,11 +7,7 @@ import {
 	getScheduledTeamWorkoutsWithResultsAction,
 } from "@/actions/workout-actions"
 import { useSessionStore } from "@/state/session"
-import type {
-	ScheduledWorkoutInstance,
-	TrackWorkout,
-	Workout,
-} from "@/db/schema"
+import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import {
 	startOfLocalDay,
 	endOfLocalDay,
@@ -29,19 +25,16 @@ interface Team {
 	isPersonalTeam?: number | boolean
 }
 
-// Type that matches what the server returns
-type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
-	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
-	result?: any | null
-}
+// Uses server type: ScheduledWorkoutInstanceWithDetails (includes WorkoutWithMovements)
+type ScheduledWorkoutInstanceWithResult =
+	ScheduledWorkoutInstanceWithDetails & {
+		result?: any | null
+	}
 
 interface TeamWorkoutDisplayProps {
 	className?: string
 	teams: Team[]
-	initialScheduledWorkouts: Record<
-		string,
-		ScheduledWorkoutInstanceWithDetails[]
-	>
+	initialScheduledWorkouts: Record<string, ScheduledWorkoutInstanceWithResult[]>
 	workoutResults?: Record<string, any>
 	userId?: string
 }
@@ -52,7 +45,7 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 const IS_DEVELOPMENT = process.env.NODE_ENV === "development"
 
 interface CachedWorkoutData {
-	data: ScheduledWorkoutInstanceWithDetails[]
+	data: ScheduledWorkoutInstanceWithResult[]
 	timestamp: number
 	viewMode: ViewMode
 }
@@ -75,10 +68,10 @@ export function TeamWorkoutsDisplay({
 	)
 
 	const [scheduledWorkouts, setScheduledWorkouts] = useState<
-		Record<string, ScheduledWorkoutInstanceWithDetails[]>
+		Record<string, ScheduledWorkoutInstanceWithResult[]>
 	>(() => {
 		// Filter initial data to only show today's workouts for daily view
-		const filtered: Record<string, ScheduledWorkoutInstanceWithDetails[]> = {}
+		const filtered: Record<string, ScheduledWorkoutInstanceWithResult[]> = {}
 		const todayKey = getLocalDateKey(new Date())
 
 		for (const teamId in initialScheduledWorkouts) {
@@ -113,7 +106,7 @@ export function TeamWorkoutsDisplay({
 		(
 			teamId: string,
 			mode: ViewMode,
-		): ScheduledWorkoutInstanceWithDetails[] | null => {
+		): ScheduledWorkoutInstanceWithResult[] | null => {
 			// Disable cache in development
 			if (IS_DEVELOPMENT) return null
 
@@ -147,7 +140,7 @@ export function TeamWorkoutsDisplay({
 		(
 			teamId: string,
 			mode: ViewMode,
-			data: ScheduledWorkoutInstanceWithDetails[],
+			data: ScheduledWorkoutInstanceWithResult[],
 		) => {
 			// Disable cache in development
 			if (IS_DEVELOPMENT) return
