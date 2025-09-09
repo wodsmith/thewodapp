@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
 	Dialog,
 	DialogContent,
@@ -25,13 +25,13 @@ import {
 	CheckCircle,
 	XCircle,
 } from "lucide-react"
-import type { Coach } from "@/db/schemas/scheduling"
 import {
 	getAvailableCoachesForClassAction,
 	updateScheduledClassAction,
 } from "@/actions/generate-schedule-actions"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import type { inferServerActionReturnData } from "zsa"
 
 // Type for ScheduledClass with relationships populated
 type ScheduledClassWithRelations = {
@@ -67,17 +67,39 @@ type ScheduledClassWithRelations = {
 	} | null
 }
 
+// Type for coaches returned from getAvailableCoachesForClassAction
+type AvailableCoachesResult = inferServerActionReturnData<
+	typeof getAvailableCoachesForClassAction
+>
+
+type CoachData = {
+	id: string
+	userId: string
+	name: string
+	email: string | null
+	schedulingPreference?: string | null
+	schedulingNotes?: string | null
+	skills: Array<{
+		id: string
+		name: string
+		description?: string | null
+		teamId: string
+		createdAt: Date
+		updatedAt: Date
+	}>
+}
+
 interface SlotAssignmentDialogProps {
 	isOpen: boolean
 	onClose: () => void
 	scheduledClass: ScheduledClassWithRelations
-	coaches: Coach[]
+	coaches: CoachData[]
 	teamId: string
 	onScheduleUpdate: () => void
 }
 
 interface AvailableCoach {
-	coach: Coach & { user: any; skills: any[] }
+	coach: CoachData
 	isAvailable: boolean
 	reasons: string[]
 }
@@ -99,14 +121,7 @@ const SlotAssignmentDialog = ({
 	const [showWarning, setShowWarning] = useState(false)
 	const [warningMessage, setWarningMessage] = useState("")
 
-	useEffect(() => {
-		if (scheduledClass.id) {
-			loadAvailableCoaches()
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [scheduledClass.id])
-
-	const loadAvailableCoaches = async () => {
+	const loadAvailableCoaches = useCallback(async () => {
 		setIsLoading(true)
 		try {
 			const [result] = await getAvailableCoachesForClassAction({
@@ -118,32 +133,18 @@ const SlotAssignmentDialog = ({
 				const transformedCoaches: AvailableCoach[] = []
 
 				// Add available coaches
-				result.availableCoaches?.forEach((coach: any) => {
+				result.availableCoaches?.forEach((coach) => {
 					transformedCoaches.push({
-						coach: {
-							id: coach.id,
-							user: {
-								email: coach.email,
-								name: coach.name,
-							},
-							skills: coach.skills,
-						} as any,
+						coach,
 						isAvailable: true,
 						reasons: [],
 					})
 				})
 
 				// Add unavailable coaches
-				result.unavailableCoaches?.forEach((coach: any) => {
+				result.unavailableCoaches?.forEach((coach) => {
 					transformedCoaches.push({
-						coach: {
-							id: coach.id,
-							user: {
-								email: coach.email,
-								name: coach.name,
-							},
-							skills: coach.skills,
-						} as any,
+						coach,
 						isAvailable: false,
 						reasons: [coach.unavailabilityReason],
 					})
@@ -157,7 +158,14 @@ const SlotAssignmentDialog = ({
 		} finally {
 			setIsLoading(false)
 		}
-	}
+	}, [scheduledClass.id, teamId])
+
+	useEffect(() => {
+		if (scheduledClass.id) {
+			loadAvailableCoaches()
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [scheduledClass.id, loadAvailableCoaches])
 
 	const handleAssign = async () => {
 		if (!selectedCoachId) return
@@ -213,7 +221,7 @@ const SlotAssignmentDialog = ({
 
 	// Find current coach info
 	const currentCoach = coaches.find((c) => c.id === scheduledClass.coachId)
-	const currentCoachUser = currentCoach?.user
+	const currentCoachName = currentCoach?.name || currentCoach?.email
 
 	// Separate available and unavailable coaches
 	const qualifiedCoaches = availableCoaches.filter((ac) => ac.isAvailable)
@@ -271,13 +279,10 @@ const SlotAssignmentDialog = ({
 					</div>
 
 					{/* Current Assignment */}
-					{currentCoachUser && (
+					{currentCoachName && (
 						<div className="p-3 bg-blue-50 rounded-lg">
 							<p className="text-sm text-blue-700">
-								Currently assigned to:{" "}
-								<strong>
-									{currentCoachUser.name || currentCoachUser.email}
-								</strong>
+								Currently assigned to: <strong>{currentCoachName}</strong>
 							</p>
 						</div>
 					)}
@@ -310,9 +315,9 @@ const SlotAssignmentDialog = ({
 												<SelectItem key={coach.id} value={coach.id}>
 													<div className="flex items-center space-x-2">
 														<CheckCircle className="h-3 w-3 text-green-500" />
-														<span>{coach.user?.name || coach.user?.email}</span>
+														<span>{coach.name}</span>
 														<div className="flex space-x-1">
-															{coach.skills?.map((skill: any) => (
+															{coach.skills?.map((skill) => (
 																<Badge
 																	key={skill.id}
 																	variant="secondary"
@@ -338,9 +343,7 @@ const SlotAssignmentDialog = ({
 													<div className="flex items-center justify-between w-full">
 														<div className="flex items-center space-x-2">
 															<XCircle className="h-3 w-3 text-orange-500" />
-															<span>
-																{coach.user?.name || coach.user?.email}
-															</span>
+															<span>{coach.name}</span>
 														</div>
 														<div className="text-xs text-orange-600">
 															{reasons.join(", ")}

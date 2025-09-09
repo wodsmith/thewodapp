@@ -9,12 +9,7 @@ import {
 import { Calendar, MapPin, AlertTriangle, User } from "lucide-react"
 import SlotAssignmentDialog from "./SlotAssignmentDialog"
 import { Button } from "@/components/ui/button"
-import type {
-	ScheduleTemplate,
-	Location,
-	Coach,
-	ScheduleTemplateClass,
-} from "@/db/schemas/scheduling"
+import type { ScheduleTemplate, Location, Coach } from "@/db/schemas/scheduling"
 
 // Type for ScheduledClass with relationships populated
 type ScheduledClassWithRelations = {
@@ -49,7 +44,7 @@ type ScheduledClassWithRelations = {
 		capacity?: number | null
 	} | null
 }
-import { format, addDays, startOfWeek } from "date-fns"
+import { format } from "date-fns"
 
 interface ScheduleGridProps {
 	scheduledClasses: ScheduledClassWithRelations[]
@@ -64,11 +59,9 @@ interface ScheduleGridProps {
 
 const ScheduleGrid = ({
 	scheduledClasses,
-	templates,
 	locations,
 	coaches,
 	currentWeek,
-	scheduleId,
 	teamId,
 	onScheduleUpdate,
 }: ScheduleGridProps) => {
@@ -141,9 +134,7 @@ const ScheduleGrid = ({
 		const scheduledClass = scheduleByLocation[location.id]?.[key]
 
 		if (!scheduledClass) {
-			return (
-				<div className="h-16 border rounded bg-muted/30"></div>
-			)
+			return <div className="h-16 border rounded bg-muted/30"></div>
 		}
 
 		// Find the coach info
@@ -171,7 +162,9 @@ const ScheduleGrid = ({
 								{coachUser.name || coachUser.email}
 							</div>
 						) : (
-							<div className="text-orange-600 dark:text-orange-400 font-medium">Click to assign</div>
+							<div className="text-orange-600 dark:text-orange-400 font-medium">
+								Click to assign
+							</div>
 						)}
 					</div>
 					{!scheduledClass.coachId && (
@@ -206,9 +199,7 @@ const ScheduleGrid = ({
 								<div key={location.id} className="mb-8">
 									<div className="flex items-center space-x-2 mb-4 p-3 bg-muted rounded-lg">
 										<MapPin className="h-4 w-4" />
-										<h3 className="font-semibold">
-											{location.name}
-										</h3>
+										<h3 className="font-semibold">{location.name}</h3>
 									</div>
 
 									<div className="grid grid-cols-8 gap-2 min-w-[800px]">

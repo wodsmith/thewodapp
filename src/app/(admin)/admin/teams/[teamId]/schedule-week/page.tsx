@@ -6,20 +6,25 @@ import { getTeamAction } from "@/actions/team-actions"
 import Schedule from "./_components/Schedule"
 
 interface SchedulePageProps {
-	params: { teamId: string }
+	params: Promise<{ teamId: string }>
 }
 
 const SchedulePage = async (props: SchedulePageProps) => {
 	const { teamId } = await props.params
 
-	const [[schedulesRes], [templatesRes], [locationsRes], [coachesRes], [teamRes]] =
-		await Promise.all([
-			getGeneratedSchedulesByTeamAction({ teamId }),
-			getScheduleTemplatesByTeam({ teamId }),
-			getLocationsByTeam({ teamId }),
-			getCoachesByTeam({ teamId }),
-			getTeamAction({ teamId }),
-		])
+	const [
+		[schedulesRes],
+		[templatesRes],
+		[locationsRes],
+		[coachesRes],
+		[teamRes],
+	] = await Promise.all([
+		getGeneratedSchedulesByTeamAction({ teamId }),
+		getScheduleTemplatesByTeam({ teamId }),
+		getLocationsByTeam({ teamId }),
+		getCoachesByTeam({ teamId }),
+		getTeamAction({ teamId }),
+	])
 
 	if (
 		!schedulesRes?.success ||
