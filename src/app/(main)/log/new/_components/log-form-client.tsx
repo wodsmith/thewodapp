@@ -36,11 +36,15 @@ export default function LogFormClient({
 	userId,
 	selectedWorkoutId,
 	redirectUrl,
+	scheduledInstanceId,
+	programmingTrackId,
 }: {
 	workouts: Workout[]
 	userId: string
 	selectedWorkoutId?: string
 	redirectUrl?: string
+	scheduledInstanceId?: string
+	programmingTrackId?: string
 }) {
 	const router = useRouter()
 	const pathname = usePathname()
@@ -184,6 +188,14 @@ export default function LogFormClient({
 					)
 				})
 			})
+		}
+
+		// Add scheduledInstanceId and programmingTrackId if they exist
+		if (scheduledInstanceId) {
+			formData.set("scheduledInstanceId", scheduledInstanceId)
+		}
+		if (programmingTrackId) {
+			formData.set("programmingTrackId", programmingTrackId)
 		}
 
 		await submitLogForm({

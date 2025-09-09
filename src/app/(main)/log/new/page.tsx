@@ -28,7 +28,12 @@ export const metadata: Metadata = {
 export default async function LogNewResultPage({
 	searchParams,
 }: {
-	searchParams?: Promise<{ workoutId?: string; redirectUrl?: string }>
+	searchParams?: Promise<{
+		workoutId?: string
+		redirectUrl?: string
+		scheduledInstanceId?: string
+		programmingTrackId?: string
+	}>
 }) {
 	console.log("[log/new] Fetching workouts for log form")
 	const session = await getSessionFromCookie()
@@ -65,6 +70,8 @@ export default async function LogNewResultPage({
 			userId={session.user.id}
 			selectedWorkoutId={mySearchParams?.workoutId}
 			redirectUrl={mySearchParams?.redirectUrl}
+			scheduledInstanceId={mySearchParams?.scheduledInstanceId}
+			programmingTrackId={mySearchParams?.programmingTrackId}
 		/>
 	)
 }

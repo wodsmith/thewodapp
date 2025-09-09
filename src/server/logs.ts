@@ -76,6 +76,8 @@ export async function addLog({
 	notes,
 	setsData,
 	type,
+	scheduledWorkoutInstanceId,
+	programmingTrackId,
 }: {
 	userId: string
 	workoutId: string
@@ -85,6 +87,8 @@ export async function addLog({
 	notes: string
 	setsData: ResultSetInput[]
 	type: "wod" | "strength" | "monostructural"
+	scheduledWorkoutInstanceId?: string | null
+	programmingTrackId?: string | null
 }): Promise<void> {
 	const session = await requireVerifiedEmail()
 	if (!session) {
@@ -109,6 +113,8 @@ export async function addLog({
 			wodScore,
 			notes: notes || null,
 			setCount: setsData.length || null,
+			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
+			programmingTrackId: programmingTrackId || null,
 		})
 
 		// Insert sets if any
@@ -175,6 +181,8 @@ interface BasicFormData {
 	scaleValue: "rx" | "scaled" | "rx+"
 	notesValue: string
 	redirectUrl: string | null
+	scheduledInstanceId: string | null
+	programmingTrackId: string | null
 }
 
 function parseBasicFormData(formData: FormData): BasicFormData {
@@ -183,12 +191,18 @@ function parseBasicFormData(formData: FormData): BasicFormData {
 	const scaleValue = formData.get("scale") as "rx" | "scaled" | "rx+"
 	const notesValue = formData.get("notes") as string
 	const redirectUrl = formData.get("redirectUrl") as string | null
+	const scheduledInstanceId = formData.get("scheduledInstanceId") as
+		| string
+		| null
+	const programmingTrackId = formData.get("programmingTrackId") as string | null
 	return {
 		selectedWorkoutId,
 		dateStr,
 		scaleValue,
 		notesValue,
 		redirectUrl,
+		scheduledInstanceId,
+		programmingTrackId,
 	}
 }
 
@@ -505,6 +519,8 @@ async function submitLogToDatabase(
 	finalWodScoreSummary: string,
 	notesValue: string,
 	setsForDb: ResultSetInput[],
+	scheduledInstanceId?: string | null,
+	programmingTrackId?: string | null,
 ) {
 	console.log("[Action] Submitting log with sets:", {
 		userId,
@@ -535,6 +551,8 @@ async function submitLogToDatabase(
 			notes: notesValue,
 			setsData: setsForDb,
 			type: "wod",
+			scheduledWorkoutInstanceId: scheduledInstanceId,
+			programmingTrackId: programmingTrackId,
 		})
 	} catch (error) {
 		console.error("[Action] Failed to add log with sets:", error)
@@ -553,8 +571,14 @@ export async function submitLogForm(
 ) {
 	const headerList = await headers()
 	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
-	const { selectedWorkoutId, dateStr, scaleValue, notesValue } =
-		parseBasicFormData(formData)
+	const {
+		selectedWorkoutId,
+		dateStr,
+		scaleValue,
+		notesValue,
+		scheduledInstanceId,
+		programmingTrackId,
+	} = parseBasicFormData(formData)
 
 	console.log("[Action] Date:", dateStr)
 
@@ -636,5 +660,7 @@ export async function submitLogForm(
 		finalWodScoreSummary,
 		notesValue,
 		setsForDb,
+		scheduledInstanceId,
+		programmingTrackId,
 	)
 }
