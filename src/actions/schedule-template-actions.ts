@@ -150,7 +150,7 @@ function calculateEndTime(
 export const createScheduleTemplate = createServerAction()
 	.input(createScheduleTemplateSchema)
 	.handler(async ({ input }) => {
-		const { teamId, name, classCatalogId, locationId } = input
+		const { teamId, name, classCatalogId } = input
 		const db = getDd()
 		try {
 			const [newTemplate] = await db
@@ -160,7 +160,6 @@ export const createScheduleTemplate = createServerAction()
 					teamId,
 					name,
 					classCatalogId,
-					locationId,
 				})
 				.returning()
 			return newTemplate
@@ -179,12 +178,12 @@ export const createScheduleTemplate = createServerAction()
 export const updateScheduleTemplate = createServerAction()
 	.input(updateScheduleTemplateSchema)
 	.handler(async ({ input }) => {
-		const { id, teamId, name, classCatalogId, locationId } = input
+		const { id, teamId, name, classCatalogId } = input
 		const db = getDd()
 		try {
 			const [updatedTemplate] = await db
 				.update(scheduleTemplatesTable)
-				.set({ name, classCatalogId, locationId })
+				.set({ name, classCatalogId })
 				.where(
 					and(
 						eq(scheduleTemplatesTable.id, id),
@@ -276,7 +275,6 @@ export const getScheduleTemplateById = createServerAction()
 						with: { requiredSkills: { with: { skill: true } } },
 					},
 					classCatalog: true,
-					location: true,
 				},
 			})
 			return template

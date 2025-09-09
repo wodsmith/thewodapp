@@ -131,9 +131,6 @@ export const scheduleTemplatesTable = sqliteTable("schedule_templates", {
 	classCatalogId: text("class_catalog_id")
 		.notNull()
 		.references(() => classCatalogTable.id),
-	locationId: text("location_id")
-		.notNull()
-		.references(() => locationsTable.id),
 })
 
 export const scheduleTemplateClassesTable = sqliteTable(
@@ -171,6 +168,9 @@ export const generatedSchedulesTable = sqliteTable("generated_schedules", {
 	teamId: text("team_id")
 		.notNull()
 		.references(() => teamTable.id),
+	locationId: text("location_id")
+		.notNull()
+		.references(() => locationsTable.id),
 	weekStartDate: integer("week_start_date", { mode: "timestamp" }).notNull(),
 })
 
@@ -281,10 +281,6 @@ export const scheduleTemplatesRelations = relations(
 		classCatalog: one(classCatalogTable, {
 			fields: [scheduleTemplatesTable.classCatalogId],
 			references: [classCatalogTable.id],
-		}),
-		location: one(locationsTable, {
-			fields: [scheduleTemplatesTable.locationId],
-			references: [locationsTable.id],
 		}),
 	}),
 )

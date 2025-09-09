@@ -6,7 +6,7 @@ import {
 	locationsTable,
 	skillsTable,
 	scheduledClassesTable,
-	scheduleTemplateClassesTable,
+	scheduleTemplatesTable,
 	coachToSkillsTable,
 	scheduleTemplateClassRequiredSkillsTable,
 } from "@/db/schemas/scheduling"
@@ -152,12 +152,8 @@ export const deleteLocation = createServerAction()
 		try {
 			const { id, teamId } = input
 			const db = getDd()
-			const templateCount = (
-				await db
-					.select({ count: count() })
-					.from(scheduleTemplateClassesTable)
-					.where(eq(scheduleTemplateClassesTable.locationId, id))
-			)[0].count
+			// Template classes no longer have locationId, so we don't need to check them
+			const templateCount = 0
 			const scheduledCount = (
 				await db
 					.select({ count: count() })
@@ -322,11 +318,12 @@ export const deleteClassCatalog = createServerAction()
 					.from(scheduledClassesTable)
 					.where(eq(scheduledClassesTable.classCatalogId, id))
 			)[0].count
+			// Check if any templates use this class catalog
 			const templateCount = (
 				await db
 					.select({ count: count() })
-					.from(scheduleTemplateClassesTable)
-					.where(eq(scheduleTemplateClassesTable.classCatalogId, id))
+					.from(scheduleTemplatesTable)
+					.where(eq(scheduleTemplatesTable.classCatalogId, id))
 			)[0].count
 			if (scheduledCount > 0 || templateCount > 0) {
 				throw new ZSAError(

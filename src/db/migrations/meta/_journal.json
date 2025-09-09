@@ -134,6 +134,20 @@
       "when": 1752763868614,
       "tag": "0018_move_class_location_to_template",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1753565564129,
+      "tag": "0019_remove_location_from_schedule_template",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1753570399906,
+      "tag": "0020_small_warbound",
+      "breakpoints": true
     }
   ]
 }

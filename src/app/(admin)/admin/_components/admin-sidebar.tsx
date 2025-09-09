@@ -55,6 +55,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		href: `/admin/teams/${currentTeamId}/schedule-templates` as Route,
 		icon: DocumentTextIcon,
 	},
+	{
+		title: "Weekly Schedule",
+		href: `/admin/teams/${currentTeamId}/schedule-week` as Route,
+		icon: CalendarDaysIcon,
+	},
 ]
 
 interface AdminSidebarProps {

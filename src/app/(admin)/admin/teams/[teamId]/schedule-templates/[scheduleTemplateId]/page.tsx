@@ -4,7 +4,7 @@ import ClassTemplateScheduler from "./_components/ClassTemplateScheduler"
 export default async function ScheduleTemplatePage({
 	params,
 }: {
-	params: { teamId: string; scheduleTemplateId: string }
+	params: Promise<{ teamId: string; scheduleTemplateId: string }>
 }) {
 	const { teamId, scheduleTemplateId } = await params
 	const [[templateRes]] = await Promise.all([

@@ -5,16 +5,17 @@ import { getTeamAction } from "@/actions/team-actions"
 import { getSkillsByTeam } from "@/actions/gym-setup-actions"
 
 interface CoachesPageProps {
-	params: { teamId: string }
+	params: Promise<{ teamId: string }>
 }
 
 const CoachesPage = async ({ params }: CoachesPageProps) => {
+	const { teamId } = await params
 	const [[coachesResult], [teamMembersResult], [teamResult], [skillsResult]] =
 		await Promise.all([
-			getCoachesByTeam({ teamId: params.teamId }),
-			getTeamMembersAction({ teamId: params.teamId }),
-			getTeamAction({ teamId: params.teamId }),
-			getSkillsByTeam({ teamId: params.teamId }),
+			getCoachesByTeam({ teamId }),
+			getTeamMembersAction({ teamId }),
+			getTeamAction({ teamId }),
+			getSkillsByTeam({ teamId }),
 		])
 
 	if (
@@ -30,7 +31,7 @@ const CoachesPage = async ({ params }: CoachesPageProps) => {
 		<Coaches
 			coaches={coachesResult.data ?? []}
 			teamMembers={teamMembersResult.data ?? []}
-			teamId={params.teamId}
+			teamId={teamId}
 			teamSlug={teamResult.data?.slug ?? ""}
 			availableSkills={skillsResult.data ?? []}
 		/>
