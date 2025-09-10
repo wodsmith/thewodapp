@@ -18,7 +18,10 @@ import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getUserTeams } from "@/server/teams"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { shouldCreateRemix } from "@/utils/workout-permissions"
+import {
+	canUserEditWorkout,
+	shouldCreateRemix,
+} from "@/utils/workout-permissions"
 
 const createWorkoutRemixSchema = z.object({
 	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
@@ -278,8 +281,66 @@ export const updateWorkoutAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		try {
-			await updateWorkout(input)
-			return { success: true }
+			const session = await requireVerifiedEmail()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+			}
+
+			// Check if user can edit the workout directly
+			const canEdit = await canUserEditWorkout(input.id)
+
+			if (canEdit) {
+				// User owns the workout, update it directly
+				await updateWorkout(input)
+				return {
+					success: true,
+					action: "updated",
+					message: "Workout updated successfully",
+				}
+			} else {
+				// User doesn't own the workout, create a remix instead
+				// Get user's teams to determine which team to create the remix in
+				const userTeams = session.teams || []
+
+				if (userTeams.length === 0) {
+					throw new ZSAError(
+						"FORBIDDEN",
+						"User must be a member of at least one team",
+					)
+				}
+
+				// Use the first team as the default, or we could add logic to choose
+				const targetTeamId = userTeams[0].id
+
+				// Create a remix with the updated data
+				const remixResult = await createWorkoutRemix({
+					sourceWorkoutId: input.id,
+					teamId: targetTeamId,
+				})
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Now update the remixed workout with the new data
+				await updateWorkout({
+					id: remixResult.id,
+					workout: input.workout,
+					tagIds: input.tagIds,
+					movementIds: input.movementIds,
+				})
+
+				return {
+					success: true,
+					action: "remixed",
+					data: remixResult,
+					message: "Workout remix created successfully",
+				}
+			}
 		} catch (error) {
 			console.error("Failed to update workout:", error)
 
