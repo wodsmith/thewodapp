@@ -10,6 +10,7 @@ import {
 import {
 	createWorkout,
 	createWorkoutRemix,
+	createProgrammingTrackWorkoutRemix,
 	getUserWorkouts,
 	getWorkoutById,
 	getRemixedWorkouts,
@@ -26,6 +27,12 @@ import {
 
 const createWorkoutRemixSchema = z.object({
 	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const createProgrammingTrackWorkoutRemixSchema = z.object({
+	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	sourceTrackId: z.string().min(1, "Source track ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
@@ -112,6 +119,45 @@ export const createWorkoutRemixAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to create workout remix",
+			)
+		}
+	})
+
+/**
+ * Create a remix of a programming track workout
+ */
+export const createProgrammingTrackWorkoutRemixAction = createServerAction()
+	.input(createProgrammingTrackWorkoutRemixSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { sourceWorkoutId, sourceTrackId, teamId } = input
+
+			// Note: For programming track remixes, we don't need the same permission check
+			// as regular remixes since this is specifically for external track workouts
+			// The permission validation is handled within the createProgrammingTrackWorkoutRemix function
+
+			// Create the remix
+			const remixedWorkout = await createProgrammingTrackWorkoutRemix({
+				sourceWorkoutId,
+				sourceTrackId,
+				teamId,
+			})
+
+			return {
+				success: true,
+				data: remixedWorkout,
+				message: "Programming track workout remix created successfully",
+			}
+		} catch (error) {
+			console.error("Failed to create programming track workout remix:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create programming track workout remix",
 			)
 		}
 	})

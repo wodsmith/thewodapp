@@ -674,6 +674,110 @@ export async function createWorkoutRemix({
 }
 
 /**
+ * Create a remix of a programming track workout
+ * Copies all workout data and assigns it to the specified team with both sourceWorkoutId and sourceTrackId references
+ */
+export async function createProgrammingTrackWorkoutRemix({
+	sourceWorkoutId,
+	sourceTrackId,
+	teamId,
+}: {
+	sourceWorkoutId: string
+	sourceTrackId: string
+	teamId: string
+}) {
+	const db = getDd()
+	const session = await requireVerifiedEmail()
+
+	if (!session?.user?.id) {
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+	}
+
+	// First, get the source workout with all related data
+	const sourceWorkout = await getWorkoutById(sourceWorkoutId)
+
+	if (!sourceWorkout) {
+		throw new ZSAError("NOT_FOUND", "Source workout not found")
+	}
+
+	// Check if user can view the source workout
+	// User can view if: it's public OR they belong to the workout's team
+	const canViewSource =
+		sourceWorkout.scope === "public" ||
+		sourceWorkout.teamId === teamId ||
+		session.teams?.some((team) => team.id === sourceWorkout.teamId)
+
+	if (!canViewSource) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"You don't have permission to view the source workout",
+		)
+	}
+
+	// Extract tag and movement IDs from the source workout
+	const tagIds = sourceWorkout.tags.map((tag) => tag.id)
+	const movementIds = sourceWorkout.movements.map((movement) => movement.id)
+
+	// Create the remixed workout (D1 doesn't support transactions)
+	// Create the workout first
+	const newWorkout = await db
+		.insert(workouts)
+		.values({
+			id: `workout_${createId()}`,
+			name: sourceWorkout.name,
+			description: sourceWorkout.description,
+			scheme: sourceWorkout.scheme,
+			scope: "private", // Remixes start as private
+			repsPerRound: sourceWorkout.repsPerRound,
+			roundsToScore: sourceWorkout.roundsToScore,
+			sugarId: sourceWorkout.sugarId,
+			tiebreakScheme: sourceWorkout.tiebreakScheme,
+			secondaryScheme: sourceWorkout.secondaryScheme,
+			teamId,
+			sourceWorkoutId, // Reference to the original workout
+			sourceTrackId, // Reference to the original programming track
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			updateCounter: 0,
+		})
+		.returning()
+		.get()
+
+	// Insert workout-tag relationships
+	if (tagIds.length > 0) {
+		await db.insert(workoutTags).values(
+			tagIds.map((tagId) => ({
+				id: `workout_tag_${createId()}`,
+				workoutId: newWorkout.id,
+				tagId,
+			})),
+		)
+	}
+
+	// Insert workout-movement relationships
+	if (movementIds.length > 0) {
+		await db.insert(workoutMovements).values(
+			movementIds.map((movementId) => ({
+				id: `workout_movement_${createId()}`,
+				workoutId: newWorkout.id,
+				movementId,
+			})),
+		)
+	}
+
+	console.info("INFO: Created programming track workout remix", {
+		originalWorkoutId: sourceWorkoutId,
+		sourceTrackId,
+		newWorkoutId: newWorkout.id,
+		teamId,
+	})
+
+	// Return the newly created workout with all related data
+	const result = await getWorkoutById(newWorkout.id)
+	return result
+}
+
+/**
  * Get workouts that are remixes of a given workout
  */
 export async function getRemixedWorkouts(sourceWorkoutId: string) {
