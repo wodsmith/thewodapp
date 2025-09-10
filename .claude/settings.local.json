@@ -10,7 +10,6 @@
       "Bash(trash-put:*)",
       "Bash(git restore:*)",
       "Bash(git reset:*)",
-<<<<<<< Updated upstream
       "Bash(git rm:*)",
       "Bash(pnpm type-check:*)",
       "Bash(pnpm lint:*)",
@@ -33,9 +32,6 @@
       "mcp__linear-server__list_teams",
       "mcp__linear-server__create_project",
       "mcp__linear-server__create_issue"
-=======
-      "Bash(git rm:*)"
->>>>>>> Stashed changes
     ],
     "deny": []
   }
