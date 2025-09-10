@@ -148,32 +148,32 @@ async function fetchTodaysResultsByWorkoutId(
  * Get all workouts for the current team (team-owned + public workouts)
  */
 export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
-  Array<
-    Workout & {
-      tags: Array<{ id: string; name: string }>
-      movements: Array<{ id: string; name: string; type: string }>
-      resultsToday: Array<{
-        id: string
-        userId: string
-        date: Date
-        workoutId: string | null
-        type: "wod" | "strength" | "monostructural"
-        notes: string | null
-        scale: string | null
-        wodScore: string | null
-        setCount: number | null
-        distance: number | null
-        time: number | null
-      }>
-      // Optional remix information
-      sourceWorkout?: {
-        id: string
-        name: string
-        teamName?: string
-      } | null
-      remixCount?: number
-    }
-  >
+	Array<
+		Workout & {
+			tags: Array<{ id: string; name: string }>
+			movements: Array<{ id: string; name: string; type: string }>
+			resultsToday: Array<{
+				id: string
+				userId: string
+				date: Date
+				workoutId: string | null
+				type: "wod" | "strength" | "monostructural"
+				notes: string | null
+				scale: string | null
+				wodScore: string | null
+				setCount: number | null
+				distance: number | null
+				time: number | null
+			}>
+			// Optional remix information
+			sourceWorkout?: {
+				id: string
+				name: string
+				teamName?: string
+			} | null
+			remixCount?: number
+		}
+	>
 > {
 	const db = getDd()
 	const session = await requireVerifiedEmail()
@@ -204,10 +204,15 @@ export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
 		])
 
 	// Fetch remix information for workouts that have sourceWorkoutId
-	const workoutsWithSource = allWorkouts.filter(w => w.sourceWorkoutId)
-	const sourceWorkoutIds = workoutsWithSource.map(w => w.sourceWorkoutId).filter((id): id is string => id !== null)
+	const workoutsWithSource = allWorkouts.filter((w) => w.sourceWorkoutId)
+	const sourceWorkoutIds = workoutsWithSource
+		.map((w) => w.sourceWorkoutId)
+		.filter((id): id is string => id !== null)
 
-	let sourceWorkoutsMap = new Map<string, { id: string; name: string; teamId: string | null }>()
+	let sourceWorkoutsMap = new Map<
+		string,
+		{ id: string; name: string; teamId: string | null }
+	>()
 	if (sourceWorkoutIds.length > 0) {
 		const sourceWorkouts = await db
 			.select({
@@ -218,14 +223,12 @@ export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
 			.from(workouts)
 			.where(inArray(workouts.id, sourceWorkoutIds))
 
-		sourceWorkoutsMap = new Map(
-			sourceWorkouts.map(w => [w.id, w])
-		)
+		sourceWorkoutsMap = new Map(sourceWorkouts.map((w) => [w.id, w]))
 	}
 
 	// Fetch team names for source workouts
 	const teamIds = Array.from(sourceWorkoutsMap.values())
-		.map(w => w.teamId)
+		.map((w) => w.teamId)
 		.filter((id): id is string => id !== null)
 
 	let teamsMap = new Map<string, { name: string }>()
@@ -235,7 +238,7 @@ export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
 			.from(teamTable)
 			.where(inArray(teamTable.id, teamIds))
 
-		teamsMap = new Map(teams.map(t => [t.id, { name: t.name }]))
+		teamsMap = new Map(teams.map((t) => [t.id, { name: t.name }]))
 	}
 
 	// Fetch remix counts for all workouts
@@ -245,31 +248,39 @@ export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
 			count: count(),
 		})
 		.from(workouts)
-		.where(and(
-			isNotNull(workouts.sourceWorkoutId),
-			inArray(workouts.sourceWorkoutId, workoutIds)
-		))
+		.where(
+			and(
+				isNotNull(workouts.sourceWorkoutId),
+				inArray(workouts.sourceWorkoutId, workoutIds),
+			),
+		)
 		.groupBy(workouts.sourceWorkoutId)
 
 	const remixCountsMap = new Map(
-		remixCounts.map(rc => [rc.sourceWorkoutId, rc.count])
+		remixCounts.map((rc) => [rc.sourceWorkoutId, rc.count]),
 	)
 
 	// Compose final structure
 	return allWorkouts.map((w) => {
-		const sourceWorkoutData = w.sourceWorkoutId ? sourceWorkoutsMap.get(w.sourceWorkoutId) : null
-		const teamData = sourceWorkoutData?.teamId ? teamsMap.get(sourceWorkoutData.teamId) : null
+		const sourceWorkoutData = w.sourceWorkoutId
+			? sourceWorkoutsMap.get(w.sourceWorkoutId)
+			: null
+		const teamData = sourceWorkoutData?.teamId
+			? teamsMap.get(sourceWorkoutData.teamId)
+			: null
 
 		return {
 			...w,
 			tags: tagsByWorkoutId.get(w.id) || [],
 			movements: movementsByWorkoutId.get(w.id) || [],
 			resultsToday: resultsByWorkoutId.get(w.id) || [],
-			sourceWorkout: sourceWorkoutData ? {
-				id: sourceWorkoutData.id,
-				name: sourceWorkoutData.name,
-				teamName: teamData?.name,
-			} : null,
+			sourceWorkout: sourceWorkoutData
+				? {
+						id: sourceWorkoutData.id,
+						name: sourceWorkoutData.name,
+						teamName: teamData?.name,
+					}
+				: null,
 			remixCount: remixCountsMap.get(w.id) || 0,
 		}
 	})
