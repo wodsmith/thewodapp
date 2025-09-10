@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 export default async function WorkoutsPage({
 	searchParams,
 }: {
-	searchParams?: Promise<{ search?: string; tag?: string; movement?: string }>
+	searchParams?: Promise<{ search?: string; tag?: string; movement?: string; type?: string }>
 }) {
 	const session = await requireVerifiedEmail()
 
@@ -113,6 +113,7 @@ export default async function WorkoutsPage({
 	const searchTerm = mySearchParams?.search?.toLowerCase() || ""
 	const selectedTag = mySearchParams?.tag || ""
 	const selectedMovement = mySearchParams?.movement || ""
+	const workoutType = mySearchParams?.type || ""
 	const workouts = allWorkouts.filter((workout) => {
 		const nameMatch = workout.name.toLowerCase().includes(searchTerm)
 		const descriptionMatch = workout.description
@@ -135,7 +136,13 @@ export default async function WorkoutsPage({
 					(movement) => movement?.name === selectedMovement,
 				)
 			: true
-		return searchFilterPassed && tagFilterPassed && movementFilterPassed
+		const typeFilterPassed = (() => {
+			if (!workoutType || workoutType === "all") return true
+			if (workoutType === "original") return !workout.sourceWorkout
+			if (workoutType === "remix") return !!workout.sourceWorkout
+			return true
+		})()
+		return searchFilterPassed && tagFilterPassed && movementFilterPassed && typeFilterPassed
 	})
 
 	// Don't filter for "today" on server side since server runs in UTC
