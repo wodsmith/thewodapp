@@ -7,6 +7,10 @@ import { getAllMovements } from "@/server/movements"
 import { getAllTags } from "@/server/tags"
 import type { WorkoutUpdate } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
+import {
+	canUserEditWorkout,
+	shouldCreateRemix,
+} from "@/utils/workout-permissions"
 import type { WorkoutWithTagsAndMovements } from "@/types"
 import EditWorkoutClient from "./_components/edit-workout-client"
 
@@ -38,22 +42,12 @@ export default async function EditWorkoutPage({
 	// Extract workout data, filtering out remix information for component compatibility
 	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
-	// Get user's personal team ID to check ownership
-	const { getUserPersonalTeamId } = await import("@/server/user")
+	// Determine if user can edit or should create a remix
+	const canEdit = await canUserEditWorkout(myParams.id)
+	const shouldRemix = await shouldCreateRemix(myParams.id)
 
-	let userPersonalTeamId: string
-	try {
-		userPersonalTeamId = await getUserPersonalTeamId(session.userId)
-	} catch (error) {
-		console.error(
-			"[EditWorkoutPage] Failed to get user's personal team ID:",
-			error,
-		)
-		// If we can't get the user's personal team, redirect to sign-in
-		redirect("/sign-in")
-	}
-
-	if (workout?.teamId !== userPersonalTeamId) {
+	// If user cannot edit and should not remix, redirect to workout detail
+	if (!canEdit && !shouldRemix) {
 		redirect(`/workouts/${workout?.id}`)
 	}
 
@@ -76,11 +70,19 @@ export default async function EditWorkoutPage({
 				console.error("[EditWorkoutPage] Error updating workout", error)
 				throw new Error("Error updating workout")
 			}
+
+			// Determine redirect URL based on action type
+			let redirectId = data.id // Default to original workout ID
+			if (result.action === "remixed" && result.data?.id) {
+				// If it was a remix, redirect to the new workout
+				redirectId = result.data.id
+			}
+
+			redirect(`/workouts/${redirectId}`)
 		} catch (error) {
 			console.error("[EditWorkoutPage] Error updating workout", error)
 			throw new Error("Error updating workout")
 		}
-		redirect(`/workouts/${data.id}`)
 	}
 
 	return (
@@ -89,6 +91,7 @@ export default async function EditWorkoutPage({
 			movements={movements}
 			tags={tags}
 			workoutId={myParams.id}
+			isRemixMode={shouldRemix}
 			updateWorkoutAction={updateWorkoutServerAction}
 		/>
 	)

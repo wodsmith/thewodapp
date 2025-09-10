@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft, Plus, X } from "lucide-react"
+import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
 import { useState } from "react"
@@ -29,6 +29,7 @@ type Props = Prettify<{
 	movements: Movement[]
 	tags: Tag[]
 	workoutId: string
+	isRemixMode?: boolean
 	updateWorkoutAction: (data: {
 		id: string
 		workout: WorkoutUpdate
@@ -42,6 +43,7 @@ export default function EditWorkoutClient({
 	movements,
 	tags: initialTags,
 	workoutId,
+	isRemixMode = false,
 	updateWorkoutAction,
 }: Props) {
 	const [name, setName] = useState(workout?.name || "")
@@ -118,9 +120,44 @@ export default function EditWorkoutClient({
 							<ArrowLeft className="h-5 w-5" />
 						</Link>
 					</Button>
-					<h1>EDIT WORKOUT</h1>
+					<div>
+						<h1>{isRemixMode ? "CREATE REMIX" : "EDIT WORKOUT"}</h1>
+						{isRemixMode && (
+							<p className="text-sm text-muted-foreground mt-1">
+								You're creating a remix of this workout. Make your changes and
+								save as a new workout.
+							</p>
+						)}
+					</div>
 				</div>
 			</div>
+
+			{/* Source Workout Information for Remix Mode */}
+			{isRemixMode && workout?.sourceWorkout && (
+				<div className="mb-6 border-2 border-orange-500 bg-orange-50 p-4 dark:border-orange-600 dark:bg-orange-950">
+					<div className="flex items-center gap-2 mb-2">
+						<Shuffle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+						<h3 className="font-bold text-orange-800 text-lg dark:text-orange-200">
+							Creating a Remix
+						</h3>
+					</div>
+					<p className="text-orange-700 dark:text-orange-300">
+						This form is pre-populated with data from{" "}
+						<Link
+							href={`/workouts/${workout.sourceWorkout.id}`}
+							className="font-semibold underline hover:no-underline"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							"{workout.sourceWorkout.name}"
+						</Link>
+						{workout.sourceWorkout.teamName && (
+							<span> by {workout.sourceWorkout.teamName}</span>
+						)}
+						. Make your changes and create your own version of this workout.
+					</p>
+				</div>
+			)}
 
 			<form
 				className="border-2 border-black p-6 dark:border-white"
@@ -309,7 +346,9 @@ export default function EditWorkoutClient({
 					<Button asChild variant="outline">
 						<Link href={`/workouts/${workoutId}`}>Cancel</Link>
 					</Button>
-					<Button type="submit">Save Changes</Button>
+					<Button type="submit">
+						{isRemixMode ? "Create Remix" : "Save Changes"}
+					</Button>
 				</div>
 			</form>
 		</div>
