@@ -1,3 +1,5 @@
+"use client"
+
 import {
 	ArrowPathIcon,
 	BoltIcon,
@@ -165,9 +167,9 @@ export default function WorkoutRowCard({
 						<Badge
 							variant="outline"
 							className="text-xs text-orange-600 border-orange-300 dark:text-orange-400 dark:border-orange-600"
-							title={`${workout.remixCount} remix${workout.remixCount === 1 ? '' : 'es'} of this workout`}
+							title={`${workout.remixCount} remix${workout.remixCount === 1 ? "" : "es"} of this workout`}
 						>
-							{workout.remixCount} remix{workout.remixCount === 1 ? '' : 'es'}
+							{workout.remixCount} remix{workout.remixCount === 1 ? "" : "es"}
 						</Badge>
 					)}
 				</ListItem.Meta>
