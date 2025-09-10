@@ -1,5 +1,5 @@
 import "server-only"
-import { eq, and, asc, desc, sql } from "drizzle-orm"
+import { eq, and, asc, desc, sql, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	programmingTracksTable,
@@ -11,6 +11,7 @@ import {
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
 import { workouts, type Workout } from "@/db/schemas/workouts"
+import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 
 interface PublicProgrammingTrack extends ProgrammingTrack {
 	ownerTeam: {
@@ -212,4 +213,159 @@ export async function getPaginatedTrackWorkouts(
 			hasPrevPage: validPage > 1,
 		},
 	}
+}
+
+export interface ExternalWorkoutDetectionResult {
+	scheduledWorkout: ScheduledWorkoutInstanceWithDetails
+	isExternal: boolean
+	trackOwnership: {
+		trackId: string
+		trackOwnerTeamId: string | null
+		isOwnedByTeam: boolean
+	} | null
+}
+
+export async function detectExternalProgrammingTrackWorkouts(
+	teamId: string,
+	scheduledWorkoutIds: string[],
+): Promise<ExternalWorkoutDetectionResult[]> {
+	console.info("INFO: Detecting external programming track workouts", {
+		teamId,
+		scheduledWorkoutIds,
+	})
+
+	if (scheduledWorkoutIds.length === 0) {
+		return []
+	}
+
+	const db = getDd()
+
+	// Get scheduled workout instances with track workouts and programming tracks
+	const rows = await db
+		.select({
+			// Scheduled workout instance fields
+			instanceId: scheduledWorkoutInstancesTable.id,
+			instanceTeamId: scheduledWorkoutInstancesTable.teamId,
+			instanceTrackWorkoutId: scheduledWorkoutInstancesTable.trackWorkoutId,
+			instanceScheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+			instanceTeamSpecificNotes:
+				scheduledWorkoutInstancesTable.teamSpecificNotes,
+			instanceScalingGuidanceForDay:
+				scheduledWorkoutInstancesTable.scalingGuidanceForDay,
+			instanceClassTimes: scheduledWorkoutInstancesTable.classTimes,
+			instanceCreatedAt: scheduledWorkoutInstancesTable.createdAt,
+			instanceUpdatedAt: scheduledWorkoutInstancesTable.updatedAt,
+			instanceUpdateCounter: scheduledWorkoutInstancesTable.updateCounter,
+
+			// Track workout fields
+			trackWorkoutId: trackWorkoutsTable.id,
+			trackWorkoutTrackId: trackWorkoutsTable.trackId,
+			trackWorkoutWorkoutId: trackWorkoutsTable.workoutId,
+			trackWorkoutDayNumber: trackWorkoutsTable.dayNumber,
+			trackWorkoutWeekNumber: trackWorkoutsTable.weekNumber,
+			trackWorkoutNotes: trackWorkoutsTable.notes,
+			trackWorkoutCreatedAt: trackWorkoutsTable.createdAt,
+			trackWorkoutUpdatedAt: trackWorkoutsTable.updatedAt,
+			trackWorkoutUpdateCounter: trackWorkoutsTable.updateCounter,
+
+			// Workout fields
+			workoutId: workouts.id,
+			workoutName: workouts.name,
+			workoutDescription: workouts.description,
+			workoutScheme: workouts.scheme,
+			workoutScope: workouts.scope,
+			workoutTeamId: workouts.teamId,
+			workoutCreatedAt: workouts.createdAt,
+			workoutUpdatedAt: workouts.updatedAt,
+			workoutUpdateCounter: workouts.updateCounter,
+			workoutSourceWorkoutId: workouts.sourceWorkoutId,
+			workoutSourceTrackId: workouts.sourceTrackId,
+
+			// Programming track fields
+			trackId: programmingTracksTable.id,
+			trackName: programmingTracksTable.name,
+			trackDescription: programmingTracksTable.description,
+			trackType: programmingTracksTable.type,
+			trackOwnerTeamId: programmingTracksTable.ownerTeamId,
+			trackIsPublic: programmingTracksTable.isPublic,
+			trackCreatedAt: programmingTracksTable.createdAt,
+			trackUpdatedAt: programmingTracksTable.updatedAt,
+			trackUpdateCounter: programmingTracksTable.updateCounter,
+		})
+		.from(scheduledWorkoutInstancesTable)
+		.leftJoin(
+			trackWorkoutsTable,
+			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
+		)
+		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
+		.leftJoin(
+			programmingTracksTable,
+			eq(programmingTracksTable.id, trackWorkoutsTable.trackId),
+		)
+		.where(inArray(scheduledWorkoutInstancesTable.id, scheduledWorkoutIds))
+
+	return rows.map((row) => {
+		// Build scheduled workout instance
+		const scheduledWorkout: ScheduledWorkoutInstanceWithDetails = {
+			id: row.instanceId,
+			teamId: row.instanceTeamId,
+			trackWorkoutId: row.instanceTrackWorkoutId,
+			scheduledDate: row.instanceScheduledDate,
+			teamSpecificNotes: row.instanceTeamSpecificNotes,
+			scalingGuidanceForDay: row.instanceScalingGuidanceForDay,
+			classTimes: row.instanceClassTimes,
+			createdAt: row.instanceCreatedAt,
+			updatedAt: row.instanceUpdatedAt,
+			updateCounter: row.instanceUpdateCounter,
+			trackWorkout: row.trackWorkoutId
+				? {
+						id: row.trackWorkoutId,
+						trackId: row.trackWorkoutTrackId,
+						workoutId: row.trackWorkoutWorkoutId,
+						dayNumber: row.trackWorkoutDayNumber,
+						weekNumber: row.trackWorkoutWeekNumber,
+						notes: row.trackWorkoutNotes,
+						createdAt: row.trackWorkoutCreatedAt,
+						updatedAt: row.trackWorkoutUpdatedAt,
+						updateCounter: row.trackWorkoutUpdateCounter,
+						workout: row.workoutId
+							? {
+									id: row.workoutId,
+									name: row.workoutName,
+									description: row.workoutDescription,
+									scheme: row.workoutScheme,
+									scope: row.workoutScope,
+									teamId: row.workoutTeamId,
+									createdAt: row.workoutCreatedAt,
+									updatedAt: row.workoutUpdatedAt,
+									updateCounter: row.workoutUpdateCounter,
+									sourceWorkoutId: row.workoutSourceWorkoutId,
+									sourceTrackId: row.workoutSourceTrackId,
+								}
+							: undefined,
+					}
+				: null,
+		}
+
+		// Determine if this is external
+		let isExternal = false
+		let trackOwnership: ExternalWorkoutDetectionResult["trackOwnership"] = null
+
+		if (row.trackId) {
+			const isOwnedByTeam = row.trackOwnerTeamId === teamId
+			isExternal = !isOwnedByTeam
+
+			trackOwnership = {
+				trackId: row.trackId,
+				trackOwnerTeamId: row.trackOwnerTeamId,
+				isOwnedByTeam,
+			}
+		}
+
+		return {
+			scheduledWorkout,
+			isExternal,
+			trackOwnership,
+		}
+	})
 }
