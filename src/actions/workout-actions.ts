@@ -9,6 +9,7 @@ import {
 } from "@/server/workout-results"
 import {
 	createWorkout,
+	createWorkoutRemix,
 	getUserWorkouts,
 	getWorkoutById,
 	updateWorkout,
@@ -17,6 +18,12 @@ import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getUserTeams } from "@/server/teams"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { shouldCreateRemix } from "@/utils/workout-permissions"
+
+const createWorkoutRemixSchema = z.object({
+	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
 
 const createWorkoutSchema = z.object({
 	workout: z.object({
@@ -60,6 +67,50 @@ const createWorkoutSchema = z.object({
 	movementIds: z.array(z.string()).default([]),
 	teamId: z.string().min(1, "Team ID is required"),
 })
+
+/**
+ * Create a remix of an existing workout
+ */
+export const createWorkoutRemixAction = createServerAction()
+	.input(createWorkoutRemixSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { sourceWorkoutId, teamId } = input
+
+			// Check if user should create a remix (permission validation)
+			const shouldRemix = await shouldCreateRemix(sourceWorkoutId)
+
+			if (!shouldRemix) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to remix this workout or should edit it directly instead",
+				)
+			}
+
+			// Create the remix
+			const remixedWorkout = await createWorkoutRemix({
+				sourceWorkoutId,
+				teamId,
+			})
+
+			return {
+				success: true,
+				data: remixedWorkout,
+				message: "Workout remix created successfully",
+			}
+		} catch (error) {
+			console.error("Failed to create workout remix:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create workout remix",
+			)
+		}
+	})
 
 /**
  * Create a new workout
