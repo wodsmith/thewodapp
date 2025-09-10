@@ -394,3 +394,101 @@ export async function getUserWorkoutsWithTrackScheduling({
 		}
 	})
 }
+
+/**
+ * Create a remix of an existing workout
+ * Copies all workout data and assigns it to the specified team with sourceWorkoutId reference
+ */
+export async function createWorkoutRemix({
+	sourceWorkoutId,
+	teamId,
+}: {
+	sourceWorkoutId: string
+	teamId: string
+}) {
+	const db = getDd()
+	const session = await requireVerifiedEmail()
+
+	if (!session?.user?.id) {
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+	}
+
+	// First, get the source workout with all related data
+	const sourceWorkout = await getWorkoutById(sourceWorkoutId)
+
+	if (!sourceWorkout) {
+		throw new ZSAError("NOT_FOUND", "Source workout not found")
+	}
+
+	// Check if user can view the source workout
+	// User can view if: it's public OR they belong to the workout's team
+	const canViewSource =
+		sourceWorkout.scope === "public" ||
+		sourceWorkout.teamId === teamId ||
+		session.teams?.some((team) => team.id === sourceWorkout.teamId)
+
+	if (!canViewSource) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"You don't have permission to view the source workout",
+		)
+	}
+
+	// Extract tag and movement IDs from the source workout
+	const tagIds = sourceWorkout.tags.map((tag) => tag.id)
+	const movementIds = sourceWorkout.movements.map((movement) => movement.id)
+
+	// Create the remixed workout using the existing createWorkout function
+	// but with the sourceWorkoutId set
+	const remixedWorkout = await db.transaction(async (tx) => {
+		// Create the workout first
+		const newWorkout = await tx
+			.insert(workouts)
+			.values({
+				id: `workout_${createId()}`,
+				name: sourceWorkout.name,
+				description: sourceWorkout.description,
+				scheme: sourceWorkout.scheme,
+				scope: "private", // Remixes start as private
+				repsPerRound: sourceWorkout.repsPerRound,
+				roundsToScore: sourceWorkout.roundsToScore,
+				sugarId: sourceWorkout.sugarId,
+				tiebreakScheme: sourceWorkout.tiebreakScheme,
+				secondaryScheme: sourceWorkout.secondaryScheme,
+				teamId,
+				sourceWorkoutId, // Reference to the original workout
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: 0,
+			})
+			.returning()
+			.get()
+
+		// Insert workout-tag relationships
+		if (tagIds.length > 0) {
+			await tx.insert(workoutTags).values(
+				tagIds.map((tagId) => ({
+					id: `workout_tag_${createId()}`,
+					workoutId: newWorkout.id,
+					tagId,
+				})),
+			)
+		}
+
+		// Insert workout-movement relationships
+		if (movementIds.length > 0) {
+			await tx.insert(workoutMovements).values(
+				movementIds.map((movementId) => ({
+					id: `workout_movement_${createId()}`,
+					workoutId: newWorkout.id,
+					movementId,
+				})),
+			)
+		}
+
+		return newWorkout
+	})
+
+	// Return the newly created workout with all related data
+	return await getWorkoutById(remixedWorkout.id)
+}
