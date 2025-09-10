@@ -13,6 +13,7 @@ import {
 	workoutMovements,
 	workouts,
 } from "@/db/schema"
+import { getTeamSpecificWorkout } from "./workouts"
 
 /* -------------------------------------------------------------------------- */
 /*                             Data Type Helpers                               */
@@ -74,18 +75,17 @@ export async function getScheduledWorkoutsForTeam(
 ): Promise<ScheduledWorkoutInstanceWithDetails[]> {
 	const db = getDd()
 
+	// First, get the basic scheduled workout data with track workouts
 	const rows = await db
 		.select({
 			instance: scheduledWorkoutInstancesTable,
 			trackWorkout: trackWorkoutsTable,
-			workout: workouts,
 		})
 		.from(scheduledWorkoutInstancesTable)
 		.leftJoin(
 			trackWorkoutsTable,
 			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
 		)
-		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 		.where(
 			and(
 				eq(scheduledWorkoutInstancesTable.teamId, teamId),
@@ -97,17 +97,45 @@ export async function getScheduledWorkoutsForTeam(
 			),
 		)
 
-	// Extract workout IDs to fetch movements
-	const workoutIds = rows
-		.map((r) => r.workout?.id)
-		.filter((id): id is string => id !== null && id !== undefined)
+	// Resolve team-specific workouts for each track workout
+	const resolvedWorkouts = new Map<string, Workout>()
+	for (const row of rows) {
+		if (row.trackWorkout?.workoutId) {
+			try {
+				const teamSpecificWorkout = await getTeamSpecificWorkout({
+					originalWorkoutId: row.trackWorkout.workoutId,
+					teamId,
+				})
+				resolvedWorkouts.set(row.trackWorkout.workoutId, teamSpecificWorkout)
+			} catch (error) {
+				console.error(
+					`Failed to resolve team-specific workout for ${row.trackWorkout.workoutId}:`,
+					error,
+				)
+				// Fall back to querying the original workout directly
+				const fallbackWorkout = await db
+					.select()
+					.from(workouts)
+					.where(eq(workouts.id, row.trackWorkout.workoutId))
+					.get()
+				if (fallbackWorkout) {
+					resolvedWorkouts.set(row.trackWorkout.workoutId, fallbackWorkout)
+				}
+			}
+		}
+	}
 
-	// Fetch movements for all workouts
+	// Extract resolved workout IDs to fetch movements
+	const resolvedWorkoutIds = Array.from(resolvedWorkouts.values()).map(
+		(w) => w.id,
+	)
+
+	// Fetch movements for all resolved workouts
 	const movementsByWorkoutId = new Map<
 		string,
 		Array<{ id: string; name: string; type: string }>
 	>()
-	if (workoutIds.length > 0) {
+	if (resolvedWorkoutIds.length > 0) {
 		const workoutMovementsData = await db
 			.select({
 				workoutId: workoutMovements.workoutId,
@@ -117,7 +145,7 @@ export async function getScheduledWorkoutsForTeam(
 			})
 			.from(workoutMovements)
 			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-			.where(inArray(workoutMovements.workoutId, workoutIds))
+			.where(inArray(workoutMovements.workoutId, resolvedWorkoutIds))
 
 		for (const item of workoutMovementsData) {
 			if (!movementsByWorkoutId.has(item?.workoutId || "")) {
@@ -131,20 +159,26 @@ export async function getScheduledWorkoutsForTeam(
 		}
 	}
 
-	return rows.map((r) => ({
-		...r.instance,
-		trackWorkout: r.trackWorkout
-			? {
-					...r.trackWorkout,
-					workout: r.workout
-						? {
-								...r.workout,
-								movements: movementsByWorkoutId.get(r.workout.id) || [],
-							}
-						: undefined,
-				}
-			: null,
-	}))
+	return rows.map((r) => {
+		const resolvedWorkout = r.trackWorkout?.workoutId
+			? resolvedWorkouts.get(r.trackWorkout.workoutId)
+			: undefined
+
+		return {
+			...r.instance,
+			trackWorkout: r.trackWorkout
+				? {
+						...r.trackWorkout,
+						workout: resolvedWorkout
+							? {
+									...resolvedWorkout,
+									movements: movementsByWorkoutId.get(resolvedWorkout.id) || [],
+								}
+							: undefined,
+					}
+				: null,
+		}
+	})
 }
 
 export async function getScheduledWorkoutInstanceById(
@@ -155,24 +189,45 @@ export async function getScheduledWorkoutInstanceById(
 		.select({
 			instance: scheduledWorkoutInstancesTable,
 			trackWorkout: trackWorkoutsTable,
-			workout: workouts,
 		})
 		.from(scheduledWorkoutInstancesTable)
 		.leftJoin(
 			trackWorkoutsTable,
 			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
 		)
-		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 		.where(eq(scheduledWorkoutInstancesTable.id, instanceId))
 
 	if (rows.length === 0) return null
 	const row = rows[0]
+
+	// Resolve team-specific workout if track workout exists
+	let resolvedWorkout: Workout | undefined
+	if (row.trackWorkout?.workoutId && row.instance.teamId) {
+		try {
+			resolvedWorkout = await getTeamSpecificWorkout({
+				originalWorkoutId: row.trackWorkout.workoutId,
+				teamId: row.instance.teamId,
+			})
+		} catch (error) {
+			console.error(
+				`Failed to resolve team-specific workout for ${row.trackWorkout.workoutId}:`,
+				error,
+			)
+			// Fall back to original workout
+			resolvedWorkout = await db
+				.select()
+				.from(workouts)
+				.where(eq(workouts.id, row.trackWorkout.workoutId))
+				.get()
+		}
+	}
+
 	return {
 		...row.instance,
 		trackWorkout: row.trackWorkout
 			? {
 					...row.trackWorkout,
-					workout: row.workout ?? undefined,
+					workout: resolvedWorkout,
 				}
 			: null,
 	}

@@ -15,7 +15,7 @@ import {
 	getWorkoutById,
 	getRemixedWorkouts,
 	updateWorkout,
-	updateScheduledWorkoutAfterRemix,
+	getTeamSpecificWorkout,
 } from "@/server/workouts"
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
@@ -37,9 +37,8 @@ const createProgrammingTrackWorkoutRemixSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
-const updateScheduledWorkoutAfterRemixSchema = z.object({
-	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
-	newWorkoutId: z.string().min(1, "New workout ID is required"),
+const getTeamSpecificWorkoutSchema = z.object({
+	originalWorkoutId: z.string().min(1, "Original workout ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
@@ -591,27 +590,25 @@ export const getRemixedWorkoutsAction = createServerAction()
 	})
 
 /**
- * Update scheduled workout reference after remix
+ * Get team-specific workout (checks for team remix, otherwise returns original)
  */
-export const updateScheduledWorkoutAfterRemixAction = createServerAction()
-	.input(updateScheduledWorkoutAfterRemixSchema)
+export const getTeamSpecificWorkoutAction = createServerAction()
+	.input(getTeamSpecificWorkoutSchema)
 	.handler(async ({ input }) => {
 		try {
-			const { trackWorkoutId, newWorkoutId, teamId } = input
+			const { originalWorkoutId, teamId } = input
 
-			const updatedTrackWorkout = await updateScheduledWorkoutAfterRemix({
-				trackWorkoutId,
-				newWorkoutId,
+			const workout = await getTeamSpecificWorkout({
+				originalWorkoutId,
 				teamId,
 			})
 
 			return {
 				success: true,
-				data: updatedTrackWorkout,
-				message: "Scheduled workout reference updated successfully",
+				data: workout,
 			}
 		} catch (error) {
-			console.error("Failed to update scheduled workout after remix:", error)
+			console.error("Failed to get team-specific workout:", error)
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -619,7 +616,7 @@ export const updateScheduledWorkoutAfterRemixAction = createServerAction()
 
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
-				"Failed to update scheduled workout after remix",
+				"Failed to get team-specific workout",
 			)
 		}
 	})

@@ -78,6 +78,12 @@
 			"database_name": "wodsmith-db",
 			"database_id": "931185e9-99e5-48f0-bf70-d03ca5936f2d",
 			"migrations_dir": "src/db/migrations"
+		},
+		{
+			"binding": "STAGING_D1",
+			"database_name": "wodsmith-db-staging", 
+			"database_id": "e1e200c5-1671-455f-b40d-855b155cac48",
+			"migrations_dir": "src/db/migrations"
 		}
 	],
 	"kv_namespaces": [
