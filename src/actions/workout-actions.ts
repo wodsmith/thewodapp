@@ -12,6 +12,7 @@ import {
 	createWorkoutRemix,
 	getUserWorkouts,
 	getWorkoutById,
+	getRemixedWorkouts,
 	updateWorkout,
 } from "@/server/workouts"
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
@@ -504,6 +505,33 @@ export const getScheduledWorkoutResultAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to get scheduled workout result",
+			)
+		}
+	})
+
+/**
+ * Get workouts that are remixes of a given workout
+ */
+export const getRemixedWorkoutsAction = createServerAction()
+	.input(
+		z.object({
+			sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const remixedWorkouts = await getRemixedWorkouts(input.sourceWorkoutId)
+			return { success: true, data: remixedWorkouts }
+		} catch (error) {
+			console.error("Failed to get remixed workouts:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get remixed workouts",
 			)
 		}
 	})
