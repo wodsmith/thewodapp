@@ -4,6 +4,7 @@ import {
 	getResultSetsByIdAction,
 	getWorkoutByIdAction,
 	getWorkoutResultsByWorkoutAndUserAction,
+	getRemixedWorkoutsAction,
 } from "@/actions/workout-actions"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
@@ -122,6 +123,16 @@ export default async function WorkoutDetailPage({
 	// Get source workout info if this is a remix
 	const sourceWorkout = workout.sourceWorkout
 
+	// Get remixed workouts (workouts that are based on this one)
+	const [remixedWorkoutsResult, remixedWorkoutsError] =
+		await getRemixedWorkoutsAction({
+			sourceWorkoutId: myParams.id,
+		})
+
+	const remixedWorkouts = remixedWorkoutsResult?.success
+		? remixedWorkoutsResult.data
+		: []
+
 	return (
 		<WorkoutDetailClient
 			canEdit={canEdit}
@@ -130,6 +141,7 @@ export default async function WorkoutDetailPage({
 			workout={workout}
 			workoutId={myParams.id}
 			resultsWithSets={resultsWithSets}
+			remixedWorkouts={remixedWorkouts}
 		/>
 	)
 }

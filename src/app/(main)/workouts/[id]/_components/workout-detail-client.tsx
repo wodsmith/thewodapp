@@ -42,6 +42,7 @@ export default function WorkoutDetailClient({
 	workout,
 	workoutId,
 	resultsWithSets, // Changed from results and resultSetDetails
+	remixedWorkouts = [],
 }: {
 	canEdit: boolean
 	shouldRemix: boolean
@@ -53,6 +54,16 @@ export default function WorkoutDetailClient({
 	workout: WorkoutWithTagsAndMovements
 	workoutId: string
 	resultsWithSets: WorkoutResultWithSets[] // Use the new type
+	remixedWorkouts?: Array<{
+		id: string
+		name: string
+		description: string
+		scheme: string
+		scope: string
+		createdAt: Date
+		teamId: string
+		teamName: string
+	}>
 }) {
 	const searchParams = useSearchParams()
 	const redirectUrl = searchParams.get("redirectUrl")
@@ -339,6 +350,64 @@ export default function WorkoutDetailClient({
 					)}
 				</div>
 			</div>
+
+			{/* Remixed Workouts Section */}
+			{remixedWorkouts.length > 0 && (
+				<div className="mt-8 border-2 border-black dark:border-dark-border">
+					<div className="border-black border-b-2 p-6 dark:border-dark-border">
+						<div className="flex items-center gap-2 mb-4">
+							<Shuffle className="h-5 w-5" />
+							<h2>REMIXED WORKOUTS</h2>
+						</div>
+						<p className="text-gray-600 dark:text-dark-muted-foreground mb-4">
+							Workouts based on this original workout:
+						</p>
+
+						<div className="space-y-4">
+							{remixedWorkouts.map((remix) => (
+								<div
+									key={remix.id}
+									className="border-2 border-black dark:border-dark-border p-4"
+								>
+									<div className="flex items-center justify-between mb-2">
+										<div>
+											<Link
+												href={`/workouts/${remix.id}`}
+												className="font-bold text-foreground text-lg underline-offset-4 hover:underline dark:text-dark-foreground"
+											>
+												{remix.name}
+											</Link>
+											<div className="flex items-center gap-2 mt-1">
+												<span className="text-sm text-gray-600 dark:text-dark-muted-foreground">
+													by {remix.teamName}
+												</span>
+												{remix.scope === "public" && (
+													<span className="bg-green-100 text-green-800 px-2 py-1 text-xs font-bold uppercase dark:bg-green-900 dark:text-green-200">
+														Public
+													</span>
+												)}
+											</div>
+										</div>
+										<div className="text-right">
+											<p className="text-sm text-gray-500 dark:text-dark-muted-foreground">
+												{formatDate(remix.createdAt)}
+											</p>
+											<span className="bg-black px-2 py-1 font-bold text-white text-xs uppercase dark:bg-dark-foreground dark:text-dark-background">
+												{remix.scheme}
+											</span>
+										</div>
+									</div>
+									{remix.description && (
+										<p className="text-gray-600 dark:text-dark-muted-foreground text-sm">
+											{remix.description}
+										</p>
+									)}
+								</div>
+							))}
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }
