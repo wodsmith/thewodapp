@@ -7,6 +7,7 @@ import {
 	Edit,
 	ListChecks,
 	PencilIcon,
+	Shuffle,
 	Tag as TagIcon,
 } from "lucide-react"
 import type { Route } from "next"
@@ -36,11 +37,19 @@ export type WorkoutResultWithSets = WorkoutResult & {
 
 export default function WorkoutDetailClient({
 	canEdit,
+	shouldRemix,
+	sourceWorkout,
 	workout,
 	workoutId,
 	resultsWithSets, // Changed from results and resultSetDetails
 }: {
 	canEdit: boolean
+	shouldRemix: boolean
+	sourceWorkout?: {
+		id: string
+		name: string
+		teamName?: string
+	} | null
 	workout: WorkoutWithTagsAndMovements
 	workoutId: string
 	resultsWithSets: WorkoutResultWithSets[] // Use the new type
@@ -125,16 +134,51 @@ export default function WorkoutDetailClient({
 					</Link>
 					<h1>{workout.name}</h1>
 				</div>
-				{canEditWorkout && (
-					<Link
-						href={`/workouts/${workoutId}/edit`}
-						className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
-					>
-						<Edit className="h-5 w-5" />
-						Edit Workout
-					</Link>
-				)}
+				<div className="flex gap-2">
+					{canEdit && (
+						<Link
+							href={`/workouts/${workoutId}/edit`}
+							className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
+						>
+							<Edit className="h-5 w-5" />
+							Edit Workout
+						</Link>
+					)}
+					{shouldRemix && (
+						<Link
+							href={`/workouts/${workoutId}/edit`}
+							className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-secondary dark:text-dark-secondary-foreground dark:hover:bg-dark-secondary/90"
+						>
+							<Shuffle className="h-5 w-5" />
+							Create Remix
+						</Link>
+					)}
+				</div>
 			</div>
+
+			{/* Source Workout Information */}
+			{sourceWorkout && (
+				<div className="mb-6 border-2 border-orange-500 bg-orange-50 p-4 dark:border-orange-600 dark:bg-orange-950">
+					<div className="flex items-center gap-2 mb-2">
+						<Shuffle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+						<h3 className="font-bold text-orange-800 text-lg dark:text-orange-200">
+							This is a remix
+						</h3>
+					</div>
+					<p className="text-orange-700 dark:text-orange-300">
+						This workout is based on{" "}
+						<Link
+							href={`/workouts/${sourceWorkout.id}`}
+							className="font-semibold underline hover:no-underline"
+						>
+							"{sourceWorkout.name}"
+						</Link>
+						{sourceWorkout.teamName && (
+							<span> by {sourceWorkout.teamName}</span>
+						)}
+					</p>
+				</div>
+			)}
 
 			<div className="mb-6 border-2 border-black dark:border-dark-border">
 				{/* Workout Details Section */}

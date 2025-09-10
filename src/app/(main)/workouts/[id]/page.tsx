@@ -6,6 +6,10 @@ import {
 	getWorkoutResultsByWorkoutAndUserAction,
 } from "@/actions/workout-actions"
 import { getSessionFromCookie } from "@/utils/auth"
+import {
+	canUserEditWorkout,
+	shouldCreateRemix,
+} from "@/utils/workout-permissions"
 import type { WorkoutWithTagsAndMovements } from "@/types"
 import WorkoutDetailClient from "./_components/workout-detail-client"
 
@@ -111,14 +115,18 @@ export default async function WorkoutDetailPage({
 		return Promise.all(allSetsPromises)
 	})()
 
-	// Check if user can edit this workout (based on team ownership)
-	const { getUserPersonalTeamId } = await import("@/server/user")
-	const userPersonalTeamId = await getUserPersonalTeamId(session.userId)
-	const canEdit = workout.teamId === userPersonalTeamId
+	// Determine ownership and appropriate action
+	const canEdit = await canUserEditWorkout(myParams.id)
+	const shouldRemix = await shouldCreateRemix(myParams.id)
+
+	// Get source workout info if this is a remix
+	const sourceWorkout = workout.sourceWorkout
 
 	return (
 		<WorkoutDetailClient
 			canEdit={canEdit}
+			shouldRemix={shouldRemix}
+			sourceWorkout={sourceWorkout}
 			workout={workout}
 			workoutId={myParams.id}
 			resultsWithSets={resultsWithSets}
