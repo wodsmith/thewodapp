@@ -10,6 +10,7 @@ import {
 	lt,
 	or,
 	count,
+	desc,
 } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -24,8 +25,9 @@ import {
 	workouts,
 	workoutTags,
 	teamTable,
+	teamMembershipTable,
 } from "@/db/schema"
-import { requireVerifiedEmail } from "@/utils/auth"
+import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
 
 /**
  * Helper function to fetch tags by workout IDs
@@ -618,58 +620,97 @@ export async function createWorkoutRemix({
 	const tagIds = sourceWorkout.tags.map((tag) => tag.id)
 	const movementIds = sourceWorkout.movements.map((movement) => movement.id)
 
-	// Create the remixed workout using the existing createWorkout function
-	// but with the sourceWorkoutId set
-	const remixedWorkout = await db.transaction(async (tx) => {
-		// Create the workout first
-		const newWorkout = await tx
-			.insert(workouts)
-			.values({
-				id: `workout_${createId()}`,
-				name: sourceWorkout.name,
-				description: sourceWorkout.description,
-				scheme: sourceWorkout.scheme,
-				scope: "private", // Remixes start as private
-				repsPerRound: sourceWorkout.repsPerRound,
-				roundsToScore: sourceWorkout.roundsToScore,
-				sugarId: sourceWorkout.sugarId,
-				tiebreakScheme: sourceWorkout.tiebreakScheme,
-				secondaryScheme: sourceWorkout.secondaryScheme,
-				teamId,
-				sourceWorkoutId, // Reference to the original workout
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				updateCounter: 0,
-			})
-			.returning()
-			.get()
+	// Create the remixed workout (D1 doesn't support transactions)
+	// Create the workout first
+	const newWorkout = await db
+		.insert(workouts)
+		.values({
+			id: `workout_${createId()}`,
+			name: sourceWorkout.name,
+			description: sourceWorkout.description,
+			scheme: sourceWorkout.scheme,
+			scope: "private", // Remixes start as private
+			repsPerRound: sourceWorkout.repsPerRound,
+			roundsToScore: sourceWorkout.roundsToScore,
+			sugarId: sourceWorkout.sugarId,
+			tiebreakScheme: sourceWorkout.tiebreakScheme,
+			secondaryScheme: sourceWorkout.secondaryScheme,
+			teamId,
+			sourceWorkoutId, // Reference to the original workout
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			updateCounter: 0,
+		})
+		.returning()
+		.get()
 
-		// Insert workout-tag relationships
-		if (tagIds.length > 0) {
-			await tx.insert(workoutTags).values(
-				tagIds.map((tagId) => ({
-					id: `workout_tag_${createId()}`,
-					workoutId: newWorkout.id,
-					tagId,
-				})),
-			)
-		}
+	// Insert workout-tag relationships
+	if (tagIds.length > 0) {
+		await db.insert(workoutTags).values(
+			tagIds.map((tagId) => ({
+				id: `workout_tag_${createId()}`,
+				workoutId: newWorkout.id,
+				tagId,
+			})),
+		)
+	}
 
-		// Insert workout-movement relationships
-		if (movementIds.length > 0) {
-			await tx.insert(workoutMovements).values(
-				movementIds.map((movementId) => ({
-					id: `workout_movement_${createId()}`,
-					workoutId: newWorkout.id,
-					movementId,
-				})),
-			)
-		}
+	// Insert workout-movement relationships
+	if (movementIds.length > 0) {
+		await db.insert(workoutMovements).values(
+			movementIds.map((movementId) => ({
+				id: `workout_movement_${createId()}`,
+				workoutId: newWorkout.id,
+				movementId,
+			})),
+		)
+	}
 
-		return newWorkout
-	})
+	const remixedWorkout = newWorkout
 
 	// Return the newly created workout with all related data
 	const result = await getWorkoutById(remixedWorkout.id)
 	return result
+}
+
+/**
+ * Get workouts that are remixes of a given workout
+ */
+export async function getRemixedWorkouts(sourceWorkoutId: string) {
+	const db = getDd()
+	const session = await getSessionFromCookie()
+	if (!session) throw new ZSAError("NOT_AUTHORIZED", "No session found")
+
+	const remixedWorkouts = await db
+		.select({
+			id: workouts.id,
+			name: workouts.name,
+			description: workouts.description,
+			scheme: workouts.scheme,
+			scope: workouts.scope,
+			createdAt: workouts.createdAt,
+			teamId: workouts.teamId,
+			teamName: teamTable.name,
+		})
+		.from(workouts)
+		.innerJoin(teamTable, eq(workouts.teamId, teamTable.id))
+		.where(
+			and(
+				eq(workouts.sourceWorkoutId, sourceWorkoutId),
+				// Only show public remixes or remixes from teams the user has access to
+				or(
+					eq(workouts.scope, "public"),
+					inArray(
+						workouts.teamId,
+						db
+							.select({ teamId: teamMembershipTable.teamId })
+							.from(teamMembershipTable)
+							.where(eq(teamMembershipTable.userId, session.userId)),
+					),
+				),
+			),
+		)
+		.orderBy(desc(workouts.createdAt))
+
+	return remixedWorkouts
 }
