@@ -4,6 +4,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
+import { programmingTracksTable } from "./programming"
 
 // Movement types
 export const MOVEMENT_TYPE_VALUES = [
@@ -74,8 +75,10 @@ export const workouts = sqliteTable("workouts", {
 			"points",
 		],
 	}),
-	// Will be set as foreign key reference in main schema file
-	sourceTrackId: text("source_track_id"),
+	sourceTrackId: text("source_track_id").references(
+		() => programmingTracksTable.id,
+	),
+	sourceWorkoutId: text("source_workout_id").references(() => workouts.id),
 })
 
 // Workout Tags junction table
@@ -156,6 +159,14 @@ export const workoutRelations = relations(workouts, ({ many, one }) => ({
 		fields: [workouts.teamId],
 		references: [teamTable.id],
 		relationName: "workouts",
+	}),
+	sourceWorkout: one(workouts, {
+		fields: [workouts.sourceWorkoutId],
+		references: [workouts.id],
+		relationName: "workoutRemixes",
+	}),
+	remixes: many(workouts, {
+		relationName: "workoutRemixes",
 	}),
 }))
 

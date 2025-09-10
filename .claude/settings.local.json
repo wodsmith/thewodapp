@@ -28,7 +28,10 @@
       "mcp__playwright__browser_type",
       "Bash(pnpm db:studio:*)",
       "Bash(gh pr view:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "mcp__linear-server__list_teams",
+      "mcp__linear-server__create_project",
+      "mcp__linear-server__create_issue"
     ],
     "deny": []
   }
