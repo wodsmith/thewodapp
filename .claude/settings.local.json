@@ -31,7 +31,12 @@
       "Bash(gh api:*)",
       "mcp__linear-server__list_teams",
       "mcp__linear-server__create_project",
-      "mcp__linear-server__create_issue"
+      "mcp__linear-server__create_issue",
+      "mcp__linear-server__list_projects",
+      "mcp__linear-server__get_issue",
+      "mcp__linear-server__update_issue",
+      "Bash(pnpm test:*)",
+      "mcp__linear-server__create_comment"
     ],
     "deny": []
   }

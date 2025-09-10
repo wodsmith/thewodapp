@@ -15,6 +15,7 @@ import {
 	getWorkoutById,
 	getRemixedWorkouts,
 	updateWorkout,
+	updateScheduledWorkoutAfterRemix,
 } from "@/server/workouts"
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
@@ -33,6 +34,12 @@ const createWorkoutRemixSchema = z.object({
 const createProgrammingTrackWorkoutRemixSchema = z.object({
 	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
 	sourceTrackId: z.string().min(1, "Source track ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const updateScheduledWorkoutAfterRemixSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	newWorkoutId: z.string().min(1, "New workout ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
@@ -175,6 +182,7 @@ export const createWorkoutAction = createServerAction()
 					...input.workout,
 					createdAt: new Date(),
 					sourceTrackId: null,
+					sourceWorkoutId: null,
 				},
 			})
 			return result
@@ -578,6 +586,40 @@ export const getRemixedWorkoutsAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to get remixed workouts",
+			)
+		}
+	})
+
+/**
+ * Update scheduled workout reference after remix
+ */
+export const updateScheduledWorkoutAfterRemixAction = createServerAction()
+	.input(updateScheduledWorkoutAfterRemixSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { trackWorkoutId, newWorkoutId, teamId } = input
+
+			const updatedTrackWorkout = await updateScheduledWorkoutAfterRemix({
+				trackWorkoutId,
+				newWorkoutId,
+				teamId,
+			})
+
+			return {
+				success: true,
+				data: updatedTrackWorkout,
+				message: "Scheduled workout reference updated successfully",
+			}
+		} catch (error) {
+			console.error("Failed to update scheduled workout after remix:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update scheduled workout after remix",
 			)
 		}
 	})

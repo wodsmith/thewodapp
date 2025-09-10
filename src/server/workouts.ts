@@ -6,7 +6,6 @@ import {
 	gte,
 	inArray,
 	isNotNull,
-	isNull,
 	lt,
 	or,
 	count,
@@ -775,6 +774,108 @@ export async function createProgrammingTrackWorkoutRemix({
 	// Return the newly created workout with all related data
 	const result = await getWorkoutById(newWorkout.id)
 	return result
+}
+
+/**
+ * Update scheduled workout reference after remix
+ * Updates a track workout to point to the newly remixed workout while preserving all scheduling metadata
+ */
+export async function updateScheduledWorkoutAfterRemix({
+	trackWorkoutId,
+	newWorkoutId,
+	teamId,
+}: {
+	trackWorkoutId: string
+	newWorkoutId: string
+	teamId: string
+}) {
+	const db = getDd()
+	const session = await requireVerifiedEmail()
+
+	if (!session?.user?.id) {
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+	}
+
+	// First, verify the track workout exists and belongs to an accessible track
+	const trackWorkout = await db
+		.select({
+			id: trackWorkoutsTable.id,
+			trackId: trackWorkoutsTable.trackId,
+			workoutId: trackWorkoutsTable.workoutId,
+			dayNumber: trackWorkoutsTable.dayNumber,
+			weekNumber: trackWorkoutsTable.weekNumber,
+			notes: trackWorkoutsTable.notes,
+		})
+		.from(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+		.get()
+
+	if (!trackWorkout) {
+		throw new ZSAError("NOT_FOUND", "Track workout not found")
+	}
+
+	// Verify the new workout exists and is accessible to the team
+	const newWorkout = await db
+		.select({
+			id: workouts.id,
+			teamId: workouts.teamId,
+			scope: workouts.scope,
+		})
+		.from(workouts)
+		.where(eq(workouts.id, newWorkoutId))
+		.get()
+
+	if (!newWorkout) {
+		throw new ZSAError("NOT_FOUND", "New workout not found")
+	}
+
+	// Check if team can access the new workout (team-owned or public)
+	const canAccessWorkout =
+		newWorkout.scope === "public" || newWorkout.teamId === teamId
+
+	if (!canAccessWorkout) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"Team does not have access to the specified workout",
+		)
+	}
+
+	// Verify team has access to scheduled instances using this track workout
+	const scheduledInstance = await db
+		.select({
+			id: scheduledWorkoutInstancesTable.id,
+			teamId: scheduledWorkoutInstancesTable.teamId,
+		})
+		.from(scheduledWorkoutInstancesTable)
+		.where(eq(scheduledWorkoutInstancesTable.trackWorkoutId, trackWorkoutId))
+		.get()
+
+	if (scheduledInstance && scheduledInstance.teamId !== teamId) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"Team does not have permission to modify this scheduled workout",
+		)
+	}
+
+	// Update the track workout to reference the new workout
+	const updatedTrackWorkout = await db
+		.update(trackWorkoutsTable)
+		.set({
+			workoutId: newWorkoutId,
+			updatedAt: new Date(),
+		})
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+		.returning()
+		.get()
+
+	console.info("INFO: Updated scheduled workout reference after remix", {
+		trackWorkoutId,
+		originalWorkoutId: trackWorkout.workoutId,
+		newWorkoutId,
+		teamId,
+	})
+
+	return updatedTrackWorkout
 }
 
 /**
