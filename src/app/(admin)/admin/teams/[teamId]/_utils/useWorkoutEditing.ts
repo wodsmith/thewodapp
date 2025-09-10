@@ -81,7 +81,10 @@ export function useWorkoutEditing({
 					setEditingScheduled(null)
 					return
 				}
-				setEditingWorkout(workoutData.data)
+				// Extract workout data, filtering out remix information for component compatibility
+				const workoutForEditing =
+					workoutData.data as WorkoutWithTagsAndMovements
+				setEditingWorkout(workoutForEditing)
 
 				const [movementsData, movementsError] = movementsResult
 				if (movementsData) {

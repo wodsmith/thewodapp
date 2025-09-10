@@ -7,6 +7,7 @@ import { getAllMovements } from "@/server/movements"
 import { getAllTags } from "@/server/tags"
 import type { WorkoutUpdate } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 import EditWorkoutClient from "./_components/edit-workout-client"
 
 export const dynamic = "force-dynamic"
@@ -34,7 +35,8 @@ export default async function EditWorkoutPage({
 		return notFound()
 	}
 
-	const workout = workoutResult.data
+	// Extract workout data, filtering out remix information for component compatibility
+	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
 	// Get user's personal team ID to check ownership
 	const { getUserPersonalTeamId } = await import("@/server/user")

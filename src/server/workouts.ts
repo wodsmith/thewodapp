@@ -1,6 +1,16 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm"
+import {
+	and,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	isNull,
+	lt,
+	or,
+	count,
+} from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
 import type { Workout } from "@/db/schema"
@@ -13,6 +23,7 @@ import {
 	workoutMovements,
 	workouts,
 	workoutTags,
+	teamTable,
 } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 
@@ -136,7 +147,27 @@ async function fetchTodaysResultsByWorkoutId(
 /**
  * Get all workouts for the current team (team-owned + public workouts)
  */
-export async function getUserWorkouts({ teamId }: { teamId: string }) {
+export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
+	Array<
+		Workout & {
+			tags: Array<{ id: string; name: string }>
+			movements: Array<{ id: string; name: string; type: string }>
+			resultsToday: Array<{
+				id: string
+				userId: string
+				date: Date
+				workoutId: string | null
+				type: "wod" | "strength" | "monostructural"
+				notes: string | null
+				scale: string | null
+				wodScore: string | null
+				setCount: number | null
+				distance: number | null
+				time: number | null
+			}>
+		}
+	>
+> {
 	const db = getDd()
 	const session = await requireVerifiedEmail()
 
@@ -240,9 +271,35 @@ export async function createWorkout({
 }
 
 /**
- * Get a single workout by ID with its tags and movements
+ * Get a single workout by ID with its tags and movements, including remix information
  */
-export async function getWorkoutById(id: string) {
+export async function getWorkoutById(id: string): Promise<
+	| (Workout & {
+			tags: Array<{
+				id: string
+				name: string
+				createdAt: Date
+				updatedAt: Date
+				updateCounter: number | null
+			}>
+			movements: Array<{
+				id: string
+				name: string
+				type: string
+				createdAt: Date
+				updatedAt: Date
+				updateCounter: number | null
+			}>
+			// Optional remix information
+			sourceWorkout?: {
+				id: string
+				name: string
+				teamName?: string
+			} | null
+			remixCount?: number
+	  })
+	| null
+> {
 	const db = getDd()
 
 	const workout = await db
@@ -276,10 +333,52 @@ export async function getWorkoutById(id: string) {
 				.where(inArray(movements.id, movementIds))
 		: []
 
+	// Fetch source workout info if this is a remix
+	let sourceWorkout = null
+	if (workout.sourceWorkoutId) {
+		const source = await db
+			.select({
+				id: workouts.id,
+				name: workouts.name,
+				teamId: workouts.teamId,
+			})
+			.from(workouts)
+			.where(eq(workouts.id, workout.sourceWorkoutId))
+			.get()
+
+		if (source) {
+			// Get team name for source workout
+			const teamInfo = source.teamId
+				? await db
+						.select({ name: teamTable.name })
+						.from(teamTable)
+						.where(eq(teamTable.id, source.teamId))
+						.get()
+				: null
+
+			sourceWorkout = {
+				id: source.id,
+				name: source.name,
+				teamName: teamInfo?.name,
+			}
+		}
+	}
+
+	// Count how many times this workout has been remixed
+	const remixCountResult = await db
+		.select({ count: count() })
+		.from(workouts)
+		.where(eq(workouts.sourceWorkoutId, id))
+		.get()
+
+	const remixCount = remixCountResult?.count || 0
+
 	return {
 		...workout,
 		tags: tagObjs,
 		movements: movementObjs,
+		sourceWorkout,
+		remixCount,
 	}
 }
 
@@ -490,5 +589,6 @@ export async function createWorkoutRemix({
 	})
 
 	// Return the newly created workout with all related data
-	return await getWorkoutById(remixedWorkout.id)
+	const result = await getWorkoutById(remixedWorkout.id)
+	return result
 }

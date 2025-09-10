@@ -65,6 +65,7 @@ const mockWorkout = {
 	tiebreakScheme: null,
 	secondaryScheme: null,
 	sourceTrackId: null,
+	sourceWorkoutId: null,
 }
 const mockUpdateWorkoutAction = vi.fn()
 

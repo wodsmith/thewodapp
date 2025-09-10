@@ -6,6 +6,7 @@ import {
 	getWorkoutResultsByWorkoutAndUserAction,
 } from "@/actions/workout-actions"
 import { getSessionFromCookie } from "@/utils/auth"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 import WorkoutDetailClient from "./_components/workout-detail-client"
 
 type Props = {
@@ -72,7 +73,8 @@ export default async function WorkoutDetailPage({
 		return notFound()
 	}
 
-	const workout = workoutResult.data
+	// Extract workout data, filtering out remix information for component compatibility
+	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
 	const [resultsResult, resultsError] =
 		await getWorkoutResultsByWorkoutAndUserAction({

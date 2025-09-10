@@ -30,7 +30,7 @@ export const tags = sqliteTable("spicy_tags", {
 	name: text("name").notNull().unique(),
 })
 
-// Workouts table
+// Workouts table - defined as a function to handle self-reference
 export const workouts = sqliteTable("workouts", {
 	...commonColumns,
 	id: text("id").primaryKey(),
@@ -78,7 +78,7 @@ export const workouts = sqliteTable("workouts", {
 	sourceTrackId: text("source_track_id").references(
 		() => programmingTracksTable.id,
 	),
-	sourceWorkoutId: text("source_workout_id").references(() => workouts.id),
+	sourceWorkoutId: text("source_workout_id").references((): any => workouts.id),
 })
 
 // Workout Tags junction table
