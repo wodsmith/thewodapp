@@ -32,6 +32,15 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog"
+import {
 	Form,
 	FormControl,
 	FormField,
@@ -149,6 +158,10 @@ const ScheduleTemplates = ({
 	)
 	const [editingClassId, setEditingClassId] = useState<string | null>(null)
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+	const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
+	const [deletingTemplates, setDeletingTemplates] = useState<Set<string>>(
+		new Set(),
+	)
 
 	// Create template form
 	const createTemplateForm = useForm<CreateTemplateData>({
@@ -198,12 +211,25 @@ const ScheduleTemplates = ({
 		deleteScheduleTemplate,
 	)
 
-	const onDeleteTemplate = async (id: string) => {
-		const [res, err] = await deleteTemplateExec({ id, teamId })
-		if (err) return toast.error("Error deleting template")
-		setTemplates(templates.filter((t) => t.id !== id))
-		toast.success("Template deleted")
-		router.refresh()
+	const handleConfirmedDeleteTemplate = async () => {
+		if (!templateToDelete) return
+
+		setDeletingTemplates((prev) => new Set(prev).add(templateToDelete))
+		const [, err] = await deleteTemplateExec({ id: templateToDelete, teamId })
+		setDeletingTemplates((prev) => {
+			const updated = new Set(prev)
+			updated.delete(templateToDelete)
+			return updated
+		})
+		setTemplateToDelete(null)
+
+		if (err) {
+			toast.error("Failed to delete template.")
+		} else {
+			setTemplates(templates.filter((t) => t.id !== templateToDelete))
+			toast.success("Template deleted successfully!")
+			router.refresh()
+		}
 	}
 
 	// Create class form
@@ -437,13 +463,50 @@ const ScheduleTemplates = ({
 						>
 							<Edit className="h-4 w-4" />
 						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => onDeleteTemplate(template.id)}
+						<Dialog
+							open={templateToDelete === template.id}
+							onOpenChange={(open) => {
+								if (!open) setTemplateToDelete(null)
+							}}
 						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
+							<DialogTrigger asChild>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => setTemplateToDelete(template.id)}
+									disabled={deletingTemplates.has(template.id)}
+								>
+									<Trash2 className="h-4 w-4" />
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Delete Schedule Template</DialogTitle>
+									<DialogDescription>
+										Are you sure you want to delete the template{" "}
+										<strong>{template.name}</strong>? This will also delete all
+										associated classes and cannot be undone.
+									</DialogDescription>
+								</DialogHeader>
+								<DialogFooter>
+									<Button
+										variant="outline"
+										onClick={() => setTemplateToDelete(null)}
+									>
+										Cancel
+									</Button>
+									<Button
+										variant="destructive"
+										onClick={handleConfirmedDeleteTemplate}
+										disabled={deletingTemplates.has(template.id)}
+									>
+										{deletingTemplates.has(template.id)
+											? "Deleting..."
+											: "Delete"}
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
 					</div>
 				</div>
 			))}

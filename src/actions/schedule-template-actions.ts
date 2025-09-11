@@ -217,6 +217,28 @@ export const deleteScheduleTemplate = createServerAction()
 		const { id, teamId } = input
 		const db = getDd()
 		try {
+			// First, get all template classes for this template
+			const templateClasses = await db
+				.select({ id: scheduleTemplateClassesTable.id })
+				.from(scheduleTemplateClassesTable)
+				.where(eq(scheduleTemplateClassesTable.templateId, id))
+
+			// Delete schedule template class required skills first (if any exist)
+			if (templateClasses.length > 0) {
+				await db.delete(scheduleTemplateClassRequiredSkillsTable).where(
+					inArray(
+						scheduleTemplateClassRequiredSkillsTable.templateClassId,
+						templateClasses.map((tc) => tc.id),
+					),
+				)
+
+				// Then delete the template classes
+				await db
+					.delete(scheduleTemplateClassesTable)
+					.where(eq(scheduleTemplateClassesTable.templateId, id))
+			}
+
+			// Finally, delete the schedule template
 			const [deletedTemplate] = await db
 				.delete(scheduleTemplatesTable)
 				.where(
