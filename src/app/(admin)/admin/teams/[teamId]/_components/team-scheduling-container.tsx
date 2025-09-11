@@ -37,6 +37,9 @@ export function TeamSchedulingContainer({
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 	const [isModalOpen, setIsModalOpen] = useState(false)
 	const [isInitialLoading, setIsInitialLoading] = useState(true)
+	const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(
+		null,
+	)
 
 	const { execute: getScheduledWorkouts, isPending: isLoadingWorkouts } =
 		useServerAction(getScheduledWorkoutsAction)
@@ -48,6 +51,12 @@ export function TeamSchedulingContainer({
 		const now = new Date()
 		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 		const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+		console.log("Loading workouts for date range:", {
+			now: now.toISOString(),
+			startOfMonth: startOfMonth.toISOString(),
+			endOfMonth: endOfMonth.toISOString(),
+		})
 
 		// Add minimum loading time for better UX (remove in production if needed)
 		const startTime = Date.now()
@@ -67,23 +76,38 @@ export function TeamSchedulingContainer({
 		}
 
 		if (result?.success && result.data) {
-			const calendarEvents = result.data.map(
-				(workout: ScheduledWorkoutInstanceWithDetails): CalendarEvent => ({
-					id: workout.id,
-					title: workout.trackWorkout?.workout?.name || "Unknown Workout",
-					start: new Date(workout.scheduledDate).toISOString(),
-					allDay: true,
-					extendedProps: {
-						workoutName:
-							workout.trackWorkout?.workout?.name || "Unknown Workout",
-						notes: workout.teamSpecificNotes || undefined,
-						classTimes: workout.classTimes || undefined,
-					},
-				}),
+			console.log(
+				"Received scheduled workouts:",
+				result.data.length,
+				result.data,
 			)
 
+			const calendarEvents = result.data.map(
+				(workout: ScheduledWorkoutInstanceWithDetails): CalendarEvent => {
+					// Get workout name from either track workout or standalone workout
+					const workoutName =
+						workout.trackWorkout?.workout?.name ||
+						workout.workout?.name ||
+						"Unknown Workout"
+
+					return {
+						id: workout.id,
+						title: workoutName,
+						start: new Date(workout.scheduledDate).toISOString(),
+						allDay: true,
+						extendedProps: {
+							workoutName,
+							notes: workout.teamSpecificNotes || undefined,
+							classTimes: workout.classTimes || undefined,
+						},
+					}
+				},
+			)
+
+			console.log("Calendar events to display:", calendarEvents)
 			setEvents(calendarEvents)
 		} else {
+			console.error("Failed to load scheduled workouts:", result)
 			toast.error("Failed to load scheduled workouts")
 		}
 
@@ -96,23 +120,22 @@ export function TeamSchedulingContainer({
 
 	const handleDateSelect = (selectInfo: DateSelectArg) => {
 		setSelectedDate(new Date(selectInfo.start))
+		setSelectedWorkoutId(null) // Clear any previously selected workout
 		setIsModalOpen(true)
 	}
 
 	const handleEventClick = (clickInfo: EventClickArg) => {
 		const { event } = clickInfo
-		const props = event.extendedProps
 
-		toast.info(
-			`Workout: ${props.workoutName || "Unknown"}${
-				props.notes ? `\nNotes: ${props.notes}` : ""
-			}`,
-		)
+		// Open the drawer with the clicked workout pre-selected
+		if (event.start) {
+			setSelectedDate(new Date(event.start))
+			setSelectedWorkoutId(event.id) // Pass the scheduled workout ID
+			setIsModalOpen(true)
+		}
 	}
 
 	const handleEventDrop = async (dropInfo: EventDropArg) => {
-		const { event } = dropInfo
-
 		// For now, just revert the drop since we need to implement the reschedule logic
 		dropInfo.revert()
 		toast.info(
@@ -141,10 +164,14 @@ export function TeamSchedulingContainer({
 
 			<WorkoutSelectionModal
 				isOpen={isModalOpen}
-				onCloseAction={() => setIsModalOpen(false)}
+				onCloseAction={() => {
+					setIsModalOpen(false)
+					setSelectedWorkoutId(null) // Clear selected workout on close
+				}}
 				selectedDate={selectedDate}
 				teamId={teamId}
 				onWorkoutScheduledAction={handleWorkoutScheduled}
+				preSelectedWorkoutId={selectedWorkoutId}
 			/>
 		</div>
 	)

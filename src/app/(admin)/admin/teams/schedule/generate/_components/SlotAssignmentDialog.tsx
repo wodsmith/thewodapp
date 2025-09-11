@@ -118,12 +118,8 @@ const SlotAssignmentDialog = ({
 						<label htmlFor="coach-select" className="text-sm font-medium">
 							Select Coach
 						</label>
-						<Select
-							id="coach-select"
-							value={selectedCoach}
-							onValueChange={setSelectedCoach}
-						>
-							<SelectTrigger>
+						<Select value={selectedCoach} onValueChange={setSelectedCoach}>
+							<SelectTrigger id="coach-select">
 								<SelectValue placeholder="Choose a coach..." />
 							</SelectTrigger>
 							<SelectContent>

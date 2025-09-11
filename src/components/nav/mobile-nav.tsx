@@ -1,7 +1,10 @@
+"use client"
+
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
-import { Menu, User } from "lucide-react"
+import { Calendar, Menu, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import LogoutButton from "@/components/nav/logout-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,6 +21,12 @@ interface MobileNavProps {
 }
 
 export default function MobileNav({ session }: MobileNavProps) {
+	const router = useRouter()
+
+	// Filter teams where the user is an owner
+	const ownedTeams =
+		session?.teams?.filter((team) => team.role.name === "Owner") || []
+
 	return (
 		<Sheet>
 			<SheetTrigger asChild>
@@ -58,15 +67,32 @@ export default function MobileNav({ session }: MobileNavProps) {
 							<Link href="/workouts" className="hover:text-primary">
 								Workouts
 							</Link>
-							<Link href="/movements" className="hover:text-primary">
-								Movements
-							</Link>
-							<Link href="/calculator" className="hover:text-primary">
-								Calculator
+							<Link href="/programming" className="hover:text-primary">
+								Programming
 							</Link>
 							<Link href="/log" className="hover:text-primary">
 								Log
 							</Link>
+							{ownedTeams.length > 0 && (
+								<>
+									<div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+										<Calendar className="h-4 w-4" />
+										Schedule
+									</div>
+									{ownedTeams.map((team) => (
+										<button
+											type="button"
+											key={team.id}
+											onClick={() => {
+												router.push(`/admin/teams/${team.id}`)
+											}}
+											className="ml-4 text-left hover:text-primary"
+										>
+											{team.name}
+										</button>
+									))}
+								</>
+							)}
 							<hr className="my-2" />
 							<Link href="/settings/profile" className="hover:text-primary">
 								<div className="flex items-center gap-2">
@@ -79,9 +105,6 @@ export default function MobileNav({ session }: MobileNavProps) {
 						</>
 					) : (
 						<>
-							<Link href="/calculator" className="hover:text-primary">
-								Calculator
-							</Link>
 							<Link href="/sign-in" className="hover:text-primary">
 								Login
 							</Link>

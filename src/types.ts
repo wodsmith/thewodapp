@@ -22,12 +22,26 @@ export type ResultSetInput = {
 }
 
 export type WorkoutWithTagsAndMovements = Workout & {
-	tags: Pick<Tag, "id" | "name">[]
+	tags: (Pick<Tag, "id" | "name"> & {
+		createdAt?: Date
+		updatedAt?: Date
+		updateCounter?: number | null
+	})[]
 	movements: {
 		id: Movement["id"]
 		name: Movement["name"]
 		type: "monostructural" | "weightlifting" | "gymnastic"
+		createdAt?: Date
+		updatedAt?: Date
+		updateCounter?: number | null
 	}[]
+	// Optional remix information
+	sourceWorkout?: {
+		id: string
+		name: string
+		teamName?: string
+	} | null
+	remixCount?: number
 }
 
 export type WorkoutUpdate = Partial<

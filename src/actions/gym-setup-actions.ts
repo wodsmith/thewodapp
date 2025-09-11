@@ -8,10 +8,15 @@ import {
 	scheduledClassesTable,
 	scheduleTemplateClassesTable,
 } from "@/db/schemas/scheduling"
-import { createId } from "@paralleldrive/cuid2"
+import {
+	createLocationId,
+	createClassCatalogId,
+	createSkillId,
+} from "@/db/schemas/common"
 import { and, eq, count } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import { requireTeamMembership } from "@/utils/team-auth"
 
 // Schemas for input validation
 const createLocationSchema = z.object({
@@ -100,10 +105,14 @@ export const createLocation = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [newLocation] = await db
 				.insert(locationsTable)
-				.values({ id: `location_${createId()}`, teamId, name })
+				.values({ id: createLocationId(), teamId, name })
 				.returning()
 			return { success: true, data: newLocation }
 		} catch (error) {
@@ -122,6 +131,10 @@ export const updateLocation = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [updatedLocation] = await db
 				.update(locationsTable)
@@ -147,6 +160,10 @@ export const deleteLocation = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [deletedLocation] = await db
 				.delete(locationsTable)
@@ -171,6 +188,10 @@ export const getLocationsByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const locations = await db.query.locationsTable.findMany({
 				where: eq(locationsTable.teamId, teamId),
@@ -203,11 +224,15 @@ export const createClassCatalog = createServerAction()
 				maxParticipants,
 				skillIds,
 			} = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [newClass] = await db
 				.insert(classCatalogTable)
 				.values({
-					id: `class_catalog_${createId()}`,
+					id: createClassCatalogId(),
 					teamId,
 					name,
 					description,
@@ -215,6 +240,8 @@ export const createClassCatalog = createServerAction()
 					maxParticipants,
 				})
 				.returning()
+
+			// Link skills if provided
 			if (skillIds?.length) {
 				const values = skillIds.map((skillId) => ({
 					classCatalogId: newClass.id,
@@ -222,6 +249,7 @@ export const createClassCatalog = createServerAction()
 				}))
 				await db.insert(classCatalogToSkillsTable).values(values)
 			}
+
 			return { success: true, data: newClass }
 		} catch (error) {
 			console.error("Failed to create class catalog:", error)
@@ -250,6 +278,10 @@ export const updateClassCatalog = createServerAction()
 				maxParticipants,
 				skillIds,
 			} = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [updatedClass] = await db
 				.update(classCatalogTable)
@@ -261,10 +293,15 @@ export const updateClassCatalog = createServerAction()
 					),
 				)
 				.returning()
+
+			// Update skill associations if provided
 			if (skillIds !== undefined) {
+				// Remove existing associations
 				await db
 					.delete(classCatalogToSkillsTable)
 					.where(eq(classCatalogToSkillsTable.classCatalogId, id))
+
+				// Add new associations
 				if (skillIds.length) {
 					const values = skillIds.map((skillId) => ({
 						classCatalogId: id,
@@ -273,6 +310,7 @@ export const updateClassCatalog = createServerAction()
 					await db.insert(classCatalogToSkillsTable).values(values)
 				}
 			}
+
 			return { success: true, data: updatedClass }
 		} catch (error) {
 			console.error("Failed to update class catalog:", error)
@@ -293,28 +331,40 @@ export const deleteClassCatalog = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
+
+			// Check if class is referenced in schedules or templates
 			const scheduledCount = (
 				await db
 					.select({ count: count() })
 					.from(scheduledClassesTable)
 					.where(eq(scheduledClassesTable.classCatalogId, id))
 			)[0].count
+
 			const templateCount = (
 				await db
 					.select({ count: count() })
 					.from(scheduleTemplateClassesTable)
 					.where(eq(scheduleTemplateClassesTable.classCatalogId, id))
 			)[0].count
+
 			if (scheduledCount > 0 || templateCount > 0) {
 				throw new ZSAError(
 					"CONFLICT",
 					"Cannot delete class catalog entry that is used in schedules or templates.",
 				)
 			}
+
+			// Delete skill associations first
 			await db
 				.delete(classCatalogToSkillsTable)
 				.where(eq(classCatalogToSkillsTable.classCatalogId, id))
+
+			// Delete the class catalog entry
 			const [deletedClass] = await db
 				.delete(classCatalogTable)
 				.where(
@@ -324,6 +374,7 @@ export const deleteClassCatalog = createServerAction()
 					),
 				)
 				.returning()
+
 			return { success: true, data: deletedClass }
 		} catch (error) {
 			console.error("Failed to delete class catalog:", error)
@@ -344,6 +395,10 @@ export const getClassCatalogByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const classes = await db.query.classCatalogTable.findMany({
 				where: eq(classCatalogTable.teamId, teamId),
@@ -376,10 +431,14 @@ export const createSkill = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [newSkill] = await db
 				.insert(skillsTable)
-				.values({ id: `skill_${createId()}`, teamId, name })
+				.values({ id: createSkillId(), teamId, name })
 				.returning()
 			return { success: true, data: newSkill }
 		} catch (error) {
@@ -398,6 +457,10 @@ export const updateSkill = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [updatedSkill] = await db
 				.update(skillsTable)
@@ -421,6 +484,10 @@ export const deleteSkill = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [deletedSkill] = await db
 				.delete(skillsTable)
@@ -443,6 +510,10 @@ export const getSkillsByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const skills = await db.query.skillsTable.findMany({
 				where: eq(skillsTable.teamId, teamId),
