@@ -32,7 +32,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { toast } from "sonner"
-import { Users, Plus, Trash2, Clock, User, Mail, Phone } from "lucide-react"
+import { Users, Plus, Trash2, Clock, User, Mail } from "lucide-react"
 import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
 import type { getCoachesByTeam } from "@/actions/coach-actions"
 import type { inferServerActionReturnData } from "zsa"
@@ -88,11 +88,8 @@ const Coaches = ({
 	] satisfies Coach["schedulingPreference"][]
 
 	// Server action hook
-	const {
-		execute: createCoachExecute,
-		isPending,
-		error,
-	} = useServerAction(createCoach)
+	const { execute: createCoachExecute, isPending } =
+		useServerAction(createCoach)
 	const { execute: deleteCoachExecute, isPending: isDeleting } =
 		useServerAction(deleteCoach)
 
@@ -419,7 +416,7 @@ const Coaches = ({
 											size="sm"
 											className="text-red-600 hover:text-red-700 ml-4"
 											onClick={async () => {
-												const [result, err] = await deleteCoachExecute({
+												const [err] = await deleteCoachExecute({
 													id: coach.id,
 													teamId,
 												})
