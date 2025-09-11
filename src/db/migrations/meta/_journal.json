@@ -155,13 +155,6 @@
       "when": 1757621109682,
       "tag": "0021_conscious_vision",
       "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "6",
-      "when": 1757628510837,
-      "tag": "0022_chunky_nomad",
-      "breakpoints": true
     }
   ]
 }
