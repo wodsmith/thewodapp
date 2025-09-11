@@ -172,9 +172,12 @@ export const updateScheduleTemplate = createServerAction()
 		const { id, teamId, name } = input
 		const db = getDd()
 		try {
+			const updates: Partial<typeof scheduleTemplatesTable.$inferInsert> = {}
+			if (name !== undefined) updates.name = name
+
 			const [updatedTemplate] = await db
 				.update(scheduleTemplatesTable)
-				.set({ name })
+				.set(updates)
 				.where(
 					and(
 						eq(scheduleTemplatesTable.id, id),
@@ -318,9 +321,13 @@ export const updateScheduleTemplateClass = createServerAction()
 		const db = getDd()
 		try {
 			const { id, templateId, requiredSkillIds, ...rest } = input
+			const updates = Object.fromEntries(
+				Object.entries(rest).filter(([, value]) => value !== undefined),
+			)
+
 			const [updatedTemplateClass] = await db
 				.update(scheduleTemplateClassesTable)
-				.set(rest)
+				.set(updates)
 				.where(
 					and(
 						eq(scheduleTemplateClassesTable.id, id),
