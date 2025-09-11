@@ -790,7 +790,7 @@ export async function getTeamSpecificWorkout({
 	const db = getDd()
 
 	// Check if team has a remix of this workout
-	const teamRemix = await db
+	const teamRemixResult = await db
 		.select()
 		.from(workouts)
 		.where(
@@ -799,7 +799,7 @@ export async function getTeamSpecificWorkout({
 				eq(workouts.teamId, teamId),
 			),
 		)
-		.get()
+	const teamRemix = teamRemixResult[0]
 
 	if (teamRemix) {
 		console.info("INFO: Using team-specific remix for workout", {
@@ -811,11 +811,11 @@ export async function getTeamSpecificWorkout({
 	}
 
 	// Return original workout if no team remix exists
-	const originalWorkout = await db
+	const originalWorkoutResult = await db
 		.select()
 		.from(workouts)
 		.where(eq(workouts.id, originalWorkoutId))
-		.get()
+	const originalWorkout = originalWorkoutResult[0]
 
 	if (!originalWorkout) {
 		throw new ZSAError("NOT_FOUND", "Original workout not found")
