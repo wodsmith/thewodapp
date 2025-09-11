@@ -28,6 +28,15 @@ export interface ScheduleWorkoutInput {
 	classTimes?: string | null
 }
 
+export interface ScheduleStandaloneWorkoutInput {
+	teamId: string
+	workoutId: string // Required for standalone workouts
+	scheduledDate: Date
+	teamSpecificNotes?: string | null
+	scalingGuidanceForDay?: string | null
+	classTimes?: string | null
+}
+
 export interface UpdateScheduleInput {
 	workoutId?: string | null
 	teamSpecificNotes?: string | null
@@ -41,6 +50,7 @@ export type WorkoutWithMovements = Workout & {
 
 export type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 	trackWorkout?: (TrackWorkout & { workout?: WorkoutWithMovements }) | null
+	workout?: WorkoutWithMovements // Direct workout for standalone scheduled instances
 }
 
 /* -------------------------------------------------------------------------- */
@@ -73,6 +83,30 @@ export async function scheduleWorkoutForTeam(
 			teamId: data.teamId,
 			trackWorkoutId: data.trackWorkoutId,
 			workoutId, // Now explicitly storing the workout selection
+			scheduledDate: data.scheduledDate,
+			teamSpecificNotes: data.teamSpecificNotes,
+			scalingGuidanceForDay: data.scalingGuidanceForDay,
+			classTimes: data.classTimes,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		})
+		.returning()
+
+	return instance
+}
+
+export async function scheduleStandaloneWorkoutForTeam(
+	data: ScheduleStandaloneWorkoutInput,
+): Promise<ScheduledWorkoutInstance> {
+	const db = getDd()
+
+	const [instance] = await db
+		.insert(scheduledWorkoutInstancesTable)
+		.values({
+			id: `swi_${createId()}`,
+			teamId: data.teamId,
+			trackWorkoutId: null, // No track workout for standalone
+			workoutId: data.workoutId, // Direct workout reference
 			scheduledDate: data.scheduledDate,
 			teamSpecificNotes: data.teamSpecificNotes,
 			scalingGuidanceForDay: data.scalingGuidanceForDay,
@@ -179,6 +213,19 @@ export async function getScheduledWorkoutsForTeam(
 				? resolvedWorkouts.get(r.trackWorkout.workoutId)
 				: undefined
 
+		// For standalone workouts (no trackWorkout), return the instance with workout directly
+		// We'll need to handle this case differently in the UI
+		if (!r.trackWorkout && r.instance.workoutId && resolvedWorkout) {
+			return {
+				...r.instance,
+				trackWorkout: null,
+				workout: {
+					...resolvedWorkout,
+					movements: movementsByWorkoutId.get(resolvedWorkout.id) || [],
+				},
+			}
+		}
+
 		return {
 			...r.instance,
 			trackWorkout: r.trackWorkout
@@ -232,6 +279,30 @@ export async function getScheduledWorkoutInstanceById(
 			.from(workouts)
 			.where(eq(workouts.id, row.trackWorkout.workoutId))
 			.get()
+	}
+
+	// For standalone workouts (no trackWorkout), return the instance with workout directly
+	// We'll need to handle this case differently in the UI
+	if (!row.trackWorkout && row.instance.workoutId && resolvedWorkout) {
+		// Fetch movements for the standalone workout
+		const workoutMovementsList = await db
+			.select({
+				id: movements.id,
+				name: movements.name,
+				type: movements.type,
+			})
+			.from(workoutMovements)
+			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+			.where(eq(workoutMovements.workoutId, resolvedWorkout.id))
+
+		return {
+			...row.instance,
+			trackWorkout: null,
+			workout: {
+				...resolvedWorkout,
+				movements: workoutMovementsList,
+			},
+		}
 	}
 
 	return {
