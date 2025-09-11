@@ -8,7 +8,7 @@ import {
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction } from "zsa"
+import { createServerAction, ZSAError } from "zsa"
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({
@@ -148,11 +148,22 @@ export const createScheduleTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const { teamId, name } = input
 		const db = getDd()
-		const [newTemplate] = await db
-			.insert(scheduleTemplatesTable)
-			.values({ id: `st_${createId()}`, teamId, name })
-			.returning()
-		return newTemplate
+		try {
+			const [newTemplate] = await db
+				.insert(scheduleTemplatesTable)
+				.values({ id: `st_${createId()}`, teamId, name })
+				.returning()
+			return newTemplate
+		} catch (error) {
+			console.error("Failed to create schedule template:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create schedule template",
+			)
+		}
 	})
 
 export const updateScheduleTemplate = createServerAction()
@@ -160,17 +171,31 @@ export const updateScheduleTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, teamId, name } = input
 		const db = getDd()
-		const [updatedTemplate] = await db
-			.update(scheduleTemplatesTable)
-			.set({ name })
-			.where(
-				and(
-					eq(scheduleTemplatesTable.id, id),
-					eq(scheduleTemplatesTable.teamId, teamId),
-				),
+		try {
+			const updates: Partial<typeof scheduleTemplatesTable.$inferInsert> = {}
+			if (name !== undefined) updates.name = name
+
+			const [updatedTemplate] = await db
+				.update(scheduleTemplatesTable)
+				.set(updates)
+				.where(
+					and(
+						eq(scheduleTemplatesTable.id, id),
+						eq(scheduleTemplatesTable.teamId, teamId),
+					),
+				)
+				.returning()
+			return updatedTemplate
+		} catch (error) {
+			console.error("Failed to update schedule template:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update schedule template",
 			)
-			.returning()
-		return updatedTemplate
+		}
 	})
 
 export const deleteScheduleTemplate = createServerAction()
@@ -178,16 +203,27 @@ export const deleteScheduleTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, teamId } = input
 		const db = getDd()
-		const [deletedTemplate] = await db
-			.delete(scheduleTemplatesTable)
-			.where(
-				and(
-					eq(scheduleTemplatesTable.id, id),
-					eq(scheduleTemplatesTable.teamId, teamId),
-				),
+		try {
+			const [deletedTemplate] = await db
+				.delete(scheduleTemplatesTable)
+				.where(
+					and(
+						eq(scheduleTemplatesTable.id, id),
+						eq(scheduleTemplatesTable.teamId, teamId),
+					),
+				)
+				.returning()
+			return deletedTemplate
+		} catch (error) {
+			console.error("Failed to delete schedule template:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to delete schedule template",
 			)
-			.returning()
-		return deletedTemplate
+		}
 	})
 
 export const getScheduleTemplatesByTeam = createServerAction()
@@ -195,15 +231,26 @@ export const getScheduleTemplatesByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		const { teamId } = input
 		const db = getDd()
-		const templates = await db.query.scheduleTemplatesTable.findMany({
-			where: eq(scheduleTemplatesTable.teamId, teamId),
-			with: {
-				templateClasses: {
-					with: { requiredSkills: { with: { skill: true } } },
+		try {
+			const templates = await db.query.scheduleTemplatesTable.findMany({
+				where: eq(scheduleTemplatesTable.teamId, teamId),
+				with: {
+					templateClasses: {
+						with: { requiredSkills: { with: { skill: true } } },
+					},
 				},
-			},
-		})
-		return templates
+			})
+			return templates
+		} catch (error) {
+			console.error("Failed to get schedule templates by team:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get schedule templates by team",
+			)
+		}
 	})
 
 export const getScheduleTemplateById = createServerAction()
@@ -211,18 +258,29 @@ export const getScheduleTemplateById = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, teamId } = input
 		const db = getDd()
-		const template = await db.query.scheduleTemplatesTable.findFirst({
-			where: and(
-				eq(scheduleTemplatesTable.id, id),
-				eq(scheduleTemplatesTable.teamId, teamId),
-			),
-			with: {
-				templateClasses: {
-					with: { requiredSkills: { with: { skill: true } } },
+		try {
+			const template = await db.query.scheduleTemplatesTable.findFirst({
+				where: and(
+					eq(scheduleTemplatesTable.id, id),
+					eq(scheduleTemplatesTable.teamId, teamId),
+				),
+				with: {
+					templateClasses: {
+						with: { requiredSkills: { with: { skill: true } } },
+					},
 				},
-			},
-		})
-		return template
+			})
+			return template
+		} catch (error) {
+			console.error("Failed to get schedule template by ID:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get schedule template by ID",
+			)
+		}
 	})
 
 // Server Actions for Schedule Template Classes
@@ -230,53 +288,83 @@ export const createScheduleTemplateClass = createServerAction()
 	.input(createScheduleTemplateClassSchema)
 	.handler(async ({ input }) => {
 		const db = getDd()
-		const { requiredSkillIds, ...rest } = input
-		const [newTemplateClass] = await db
-			.insert(scheduleTemplateClassesTable)
-			.values({ ...rest, id: `stc_${createId()}` })
-			.returning()
+		try {
+			const { requiredSkillIds, ...rest } = input
+			const [newTemplateClass] = await db
+				.insert(scheduleTemplateClassesTable)
+				.values({ ...rest, id: `stc_${createId()}` })
+				.returning()
 
-		if (requiredSkillIds && newTemplateClass) {
-			const skills = requiredSkillIds.map((skillId) => ({
-				templateClassId: newTemplateClass.id,
-				skillId,
-			}))
-			await db.insert(scheduleTemplateClassRequiredSkillsTable).values(skills)
+			if (requiredSkillIds && newTemplateClass) {
+				const skills = requiredSkillIds.map((skillId) => ({
+					templateClassId: newTemplateClass.id,
+					skillId,
+				}))
+				await db.insert(scheduleTemplateClassRequiredSkillsTable).values(skills)
+			}
+			return newTemplateClass
+		} catch (error) {
+			console.error("Failed to create schedule template class:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create schedule template class",
+			)
 		}
-		return newTemplateClass
 	})
 
 export const updateScheduleTemplateClass = createServerAction()
 	.input(updateScheduleTemplateClassSchema)
 	.handler(async ({ input }) => {
 		const db = getDd()
-		const { id, templateId, requiredSkillIds, ...rest } = input
-		const [updatedTemplateClass] = await db
-			.update(scheduleTemplateClassesTable)
-			.set(rest)
-			.where(
-				and(
-					eq(scheduleTemplateClassesTable.id, id),
-					eq(scheduleTemplateClassesTable.templateId, templateId),
-				),
+		try {
+			const { id, templateId, requiredSkillIds, ...rest } = input
+			const updates = Object.fromEntries(
+				Object.entries(rest).filter(([, value]) => value !== undefined),
 			)
-			.returning()
 
-		if (updatedTemplateClass && requiredSkillIds !== undefined) {
-			// Delete existing skills for this template class
-			await db
-				.delete(scheduleTemplateClassRequiredSkillsTable)
-				.where(eq(scheduleTemplateClassRequiredSkillsTable.templateClassId, id))
-			// Insert new skills
-			if (requiredSkillIds.length > 0) {
-				const skills = requiredSkillIds.map((skillId) => ({
-					templateClassId: id,
-					skillId,
-				}))
-				await db.insert(scheduleTemplateClassRequiredSkillsTable).values(skills)
+			const [updatedTemplateClass] = await db
+				.update(scheduleTemplateClassesTable)
+				.set(updates)
+				.where(
+					and(
+						eq(scheduleTemplateClassesTable.id, id),
+						eq(scheduleTemplateClassesTable.templateId, templateId),
+					),
+				)
+				.returning()
+
+			if (updatedTemplateClass && requiredSkillIds !== undefined) {
+				// Delete existing skills for this template class
+				await db
+					.delete(scheduleTemplateClassRequiredSkillsTable)
+					.where(
+						eq(scheduleTemplateClassRequiredSkillsTable.templateClassId, id),
+					)
+				// Insert new skills
+				if (requiredSkillIds.length > 0) {
+					const skills = requiredSkillIds.map((skillId) => ({
+						templateClassId: id,
+						skillId,
+					}))
+					await db
+						.insert(scheduleTemplateClassRequiredSkillsTable)
+						.values(skills)
+				}
 			}
+			return updatedTemplateClass
+		} catch (error) {
+			console.error("Failed to update schedule template class:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update schedule template class",
+			)
 		}
-		return updatedTemplateClass
 	})
 
 export const deleteScheduleTemplateClass = createServerAction()
@@ -284,16 +372,27 @@ export const deleteScheduleTemplateClass = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, templateId } = input
 		const db = getDd()
-		const [deletedTemplateClass] = await db
-			.delete(scheduleTemplateClassesTable)
-			.where(
-				and(
-					eq(scheduleTemplateClassesTable.id, id),
-					eq(scheduleTemplateClassesTable.templateId, templateId),
-				),
+		try {
+			const [deletedTemplateClass] = await db
+				.delete(scheduleTemplateClassesTable)
+				.where(
+					and(
+						eq(scheduleTemplateClassesTable.id, id),
+						eq(scheduleTemplateClassesTable.templateId, templateId),
+					),
+				)
+				.returning()
+			return deletedTemplateClass
+		} catch (error) {
+			console.error("Failed to delete schedule template class:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to delete schedule template class",
 			)
-			.returning()
-		return deletedTemplateClass
+		}
 	})
 
 export const bulkCreateScheduleTemplateClasses = createServerAction()
@@ -311,47 +410,58 @@ export const bulkCreateScheduleTemplateClasses = createServerAction()
 		const db = getDd()
 
 		// Parse and validate all cron expressions first
-		const parsedSchedules = cronExpressions.map((cronExpression) => {
-			try {
-				const parsed = parseCronExpression(cronExpression)
-				const startTime = formatTime(parsed.hour, parsed.minute)
-				const endTime = calculateEndTime(parsed.hour, parsed.minute, duration)
+		try {
+			const parsedSchedules = cronExpressions.map((cronExpression) => {
+				try {
+					const parsed = parseCronExpression(cronExpression)
+					const startTime = formatTime(parsed.hour, parsed.minute)
+					const endTime = calculateEndTime(parsed.hour, parsed.minute, duration)
 
-				return {
-					id: `stc_${createId()}`,
-					templateId,
-					classCatalogId,
-					locationId,
-					dayOfWeek: parsed.dayOfWeek,
-					startTime,
-					endTime,
-					requiredCoaches,
+					return {
+						id: `stc_${createId()}`,
+						templateId,
+						classCatalogId,
+						locationId,
+						dayOfWeek: parsed.dayOfWeek,
+						startTime,
+						endTime,
+						requiredCoaches,
+					}
+				} catch (error) {
+					throw new Error(
+						`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
+					)
 				}
-			} catch (error) {
-				throw new Error(
-					`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
+			})
+
+			// Insert all template classes
+			const newTemplateClasses = await db
+				.insert(scheduleTemplateClassesTable)
+				.values(parsedSchedules)
+				.returning()
+
+			// Insert required skills if provided
+			if (requiredSkillIds && requiredSkillIds.length > 0) {
+				const skillsToInsert = newTemplateClasses.flatMap((templateClass) =>
+					requiredSkillIds.map((skillId) => ({
+						templateClassId: templateClass.id,
+						skillId,
+					})),
 				)
+				await db
+					.insert(scheduleTemplateClassRequiredSkillsTable)
+					.values(skillsToInsert)
 			}
-		})
 
-		// Insert all template classes
-		const newTemplateClasses = await db
-			.insert(scheduleTemplateClassesTable)
-			.values(parsedSchedules)
-			.returning()
-
-		// Insert required skills if provided
-		if (requiredSkillIds && requiredSkillIds.length > 0) {
-			const skillsToInsert = newTemplateClasses.flatMap((templateClass) =>
-				requiredSkillIds.map((skillId) => ({
-					templateClassId: templateClass.id,
-					skillId,
-				})),
+			return newTemplateClasses
+		} catch (error) {
+			console.error("Failed to bulk create schedule template classes:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to bulk create schedule template classes",
 			)
-			await db
-				.insert(scheduleTemplateClassRequiredSkillsTable)
-				.values(skillsToInsert)
 		}
-
-		return newTemplateClasses
 	})
