@@ -10,6 +10,7 @@ import {
 	ShoppingCart,
 	SquareTerminal,
 	Users,
+	Code,
 } from "lucide-react"
 import type { Route } from "next"
 import { type ComponentType, useEffect, useState } from "react"
@@ -88,6 +89,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				url: "/dashboard",
 				icon: SquareTerminal,
 				isActive: true,
+			},
+			{
+				title: "Programming",
+				url: "/programming",
+				icon: Code,
 			},
 			{
 				title: "Teams",

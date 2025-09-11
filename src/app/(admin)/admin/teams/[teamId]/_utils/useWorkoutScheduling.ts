@@ -89,10 +89,16 @@ export function useWorkoutScheduling({
 
 			// Handle standalone workouts
 			if (selectedStandaloneWorkout) {
+				// Format date as YYYY-MM-DD in local timezone to preserve the selected date
+				const year = selectedDate.getFullYear()
+				const month = String(selectedDate.getMonth() + 1).padStart(2, "0")
+				const day = String(selectedDate.getDate()).padStart(2, "0")
+				const localDateString = `${year}-${month}-${day}`
+
 				const [result] = await scheduleStandaloneWorkout({
 					teamId,
 					workoutId: selectedStandaloneWorkout.id,
-					scheduledDate: selectedDate.toISOString(),
+					scheduledDate: localDateString,
 					teamSpecificNotes: teamNotes || undefined,
 					scalingGuidanceForDay: scalingGuidance || undefined,
 					classTimes: classTimes || undefined,
@@ -117,10 +123,16 @@ export function useWorkoutScheduling({
 
 			// Handle track workouts
 			if (selectedWorkout) {
+				// Format date as YYYY-MM-DD in local timezone to preserve the selected date
+				const year = selectedDate.getFullYear()
+				const month = String(selectedDate.getMonth() + 1).padStart(2, "0")
+				const day = String(selectedDate.getDate()).padStart(2, "0")
+				const localDateString = `${year}-${month}-${day}`
+
 				const [result] = await scheduleWorkout({
 					teamId,
 					trackWorkoutId: selectedWorkout.id,
-					scheduledDate: selectedDate.toISOString(),
+					scheduledDate: localDateString,
 					teamSpecificNotes: teamNotes || undefined,
 					scalingGuidanceForDay: scalingGuidance || undefined,
 					classTimes: classTimes || undefined,

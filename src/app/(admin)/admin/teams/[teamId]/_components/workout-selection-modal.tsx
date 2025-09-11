@@ -22,6 +22,7 @@ import {
 	TrackSelection,
 	WorkoutSelection,
 } from "./workout-selection"
+import { useEffect } from "react"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean
@@ -29,6 +30,7 @@ interface WorkoutSelectionModalProps {
 	selectedDate: Date | null
 	teamId: string
 	onWorkoutScheduledAction: () => void
+	preSelectedWorkoutId?: string | null
 }
 
 export function WorkoutSelectionModal({
@@ -37,6 +39,7 @@ export function WorkoutSelectionModal({
 	selectedDate,
 	teamId,
 	onWorkoutScheduledAction,
+	preSelectedWorkoutId,
 }: WorkoutSelectionModalProps) {
 	// Custom hooks for different concerns
 	const {
@@ -66,6 +69,10 @@ export function WorkoutSelectionModal({
 		selectedDate,
 		selectedTrack,
 	})
+
+	useEffect(() => {
+		console.log({ trackWorkouts })
+	}, [trackWorkouts])
 
 	const {
 		classTimes,
@@ -115,6 +122,26 @@ export function WorkoutSelectionModal({
 		loadScheduledWorkouts,
 	})
 
+	// Auto-select the workout when opening from calendar click
+	useEffect(() => {
+		if (isOpen && preSelectedWorkoutId && scheduledWorkouts.length > 0) {
+			const workoutToEdit = scheduledWorkouts.find(
+				(sw) => sw.id === preSelectedWorkoutId,
+			)
+			if (workoutToEdit) {
+				// Auto-select the workout for editing
+				handleEditScheduled(workoutToEdit, setFormData)
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		isOpen,
+		preSelectedWorkoutId,
+		scheduledWorkouts, // Auto-select the workout for editing
+		handleEditScheduled,
+		setFormData,
+	])
+
 	// Modal handlers
 	const handleClose = () => {
 		// Reset all state
@@ -160,6 +187,8 @@ export function WorkoutSelectionModal({
 		const success = await handleUpdateWorkout(data)
 		if (success) {
 			handleCancelEdit()
+			// Refresh the main calendar after workout update/remix
+			onWorkoutScheduledAction()
 		}
 	}
 
@@ -217,6 +246,7 @@ export function WorkoutSelectionModal({
 											movements={allMovements}
 											tags={allTags}
 											workoutId={editingWorkout.id}
+											teamId={teamId}
 											updateWorkoutAction={wrappedUpdateWorkout}
 											onCancel={wrappedCancelEdit}
 										/>

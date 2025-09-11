@@ -76,6 +76,8 @@ export async function addLog({
 	notes,
 	setsData,
 	type,
+	scheduledWorkoutInstanceId,
+	programmingTrackId,
 }: {
 	userId: string
 	workoutId: string
@@ -85,6 +87,8 @@ export async function addLog({
 	notes: string
 	setsData: ResultSetInput[]
 	type: "wod" | "strength" | "monostructural"
+	scheduledWorkoutInstanceId?: string | null
+	programmingTrackId?: string | null
 }): Promise<void> {
 	const session = await requireVerifiedEmail()
 	if (!session) {
@@ -109,6 +113,8 @@ export async function addLog({
 			wodScore,
 			notes: notes || null,
 			setCount: setsData.length || null,
+			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
+			programmingTrackId: programmingTrackId || null,
 		})
 
 		// Insert sets if any
@@ -167,6 +173,150 @@ export async function getResultSetsById(
 	}
 }
 
+/**
+ * Get a single result by ID with workout details
+ */
+export async function getResultById(resultId: string) {
+	const db = getDd()
+	console.log(`[getResultById] Fetching result with id: ${resultId}`)
+
+	try {
+		const [result] = await db
+			.select({
+				id: results.id,
+				userId: results.userId,
+				date: results.date,
+				workoutId: results.workoutId,
+				type: results.type,
+				notes: results.notes,
+				scale: results.scale,
+				wodScore: results.wodScore,
+				setCount: results.setCount,
+				distance: results.distance,
+				time: results.time,
+				createdAt: results.createdAt,
+				updatedAt: results.updatedAt,
+				updateCounter: results.updateCounter,
+				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
+				programmingTrackId: results.programmingTrackId,
+				workoutName: workouts.name,
+				workoutScheme: workouts.scheme,
+				workoutRepsPerRound: workouts.repsPerRound,
+				workoutRoundsToScore: workouts.roundsToScore,
+			})
+			.from(results)
+			.leftJoin(workouts, eq(results.workoutId, workouts.id))
+			.where(eq(results.id, resultId))
+			.limit(1)
+
+		if (!result) {
+			console.log(`[getResultById] No result found with id: ${resultId}`)
+			return null
+		}
+
+		console.log(`[getResultById] Found result for id: ${resultId}`)
+		return result
+	} catch (error) {
+		console.error(
+			`[getResultById] Error fetching result with id ${resultId}:`,
+			error,
+		)
+		return null
+	}
+}
+
+/**
+ * Update an existing result with sets
+ */
+export async function updateResult({
+	resultId,
+	userId,
+	workoutId,
+	date,
+	scale,
+	wodScore,
+	notes,
+	setsData,
+	type,
+	scheduledWorkoutInstanceId,
+	programmingTrackId,
+}: {
+	resultId: string
+	userId: string
+	workoutId: string
+	date: number
+	scale: "rx" | "scaled" | "rx+"
+	wodScore: string
+	notes: string
+	setsData: ResultSetInput[]
+	type: "wod" | "strength" | "monostructural"
+	scheduledWorkoutInstanceId?: string | null
+	programmingTrackId?: string | null
+}): Promise<void> {
+	const session = await requireVerifiedEmail()
+	if (!session) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const db = getDd()
+
+	console.log(
+		`[updateResult] Updating result with id: ${resultId}, userId: ${userId}, workoutId: ${workoutId}`,
+	)
+
+	try {
+		// Update the main result
+		await db
+			.update(results)
+			.set({
+				workoutId,
+				date: new Date(date),
+				type,
+				scale,
+				wodScore,
+				notes: notes || null,
+				setCount: setsData.length || null,
+				scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
+				programmingTrackId: programmingTrackId || null,
+				updatedAt: new Date(),
+			})
+			.where(eq(results.id, resultId))
+
+		// Delete existing sets
+		await db.delete(sets).where(eq(sets.resultId, resultId))
+
+		// Insert new sets if any
+		if (setsData.length > 0) {
+			const setsToInsert = setsData.map((set) => ({
+				id: `set_${createId()}`,
+				resultId,
+				setNumber: set.setNumber,
+				reps: set.reps || null,
+				weight: set.weight || null,
+				distance: set.distance || null,
+				time: set.time || null,
+				score: set.score || null,
+				status: set.status || null,
+			}))
+
+			await db.insert(sets).values(setsToInsert)
+			console.log(
+				`[updateResult] Updated ${setsToInsert.length} sets for resultId: ${resultId}`,
+			)
+		}
+
+		console.log(
+			`[updateResult] Successfully updated result with id: ${resultId}`,
+		)
+	} catch (error) {
+		console.error(
+			`[updateResult] Error updating result with id ${resultId}:`,
+			error,
+		)
+		throw error
+	}
+}
+
 // Form submission logic moved from actions.ts
 
 interface BasicFormData {
@@ -175,6 +325,8 @@ interface BasicFormData {
 	scaleValue: "rx" | "scaled" | "rx+"
 	notesValue: string
 	redirectUrl: string | null
+	scheduledInstanceId: string | null
+	programmingTrackId: string | null
 }
 
 function parseBasicFormData(formData: FormData): BasicFormData {
@@ -183,12 +335,18 @@ function parseBasicFormData(formData: FormData): BasicFormData {
 	const scaleValue = formData.get("scale") as "rx" | "scaled" | "rx+"
 	const notesValue = formData.get("notes") as string
 	const redirectUrl = formData.get("redirectUrl") as string | null
+	const scheduledInstanceId = formData.get("scheduledInstanceId") as
+		| string
+		| null
+	const programmingTrackId = formData.get("programmingTrackId") as string | null
 	return {
 		selectedWorkoutId,
 		dateStr,
 		scaleValue,
 		notesValue,
 		redirectUrl,
+		scheduledInstanceId,
+		programmingTrackId,
 	}
 }
 
@@ -505,6 +663,8 @@ async function submitLogToDatabase(
 	finalWodScoreSummary: string,
 	notesValue: string,
 	setsForDb: ResultSetInput[],
+	scheduledInstanceId?: string | null,
+	programmingTrackId?: string | null,
 ) {
 	console.log("[Action] Submitting log with sets:", {
 		userId,
@@ -535,6 +695,8 @@ async function submitLogToDatabase(
 			notes: notesValue,
 			setsData: setsForDb,
 			type: "wod",
+			scheduledWorkoutInstanceId: scheduledInstanceId,
+			programmingTrackId: programmingTrackId,
 		})
 	} catch (error) {
 		console.error("[Action] Failed to add log with sets:", error)
@@ -553,8 +715,14 @@ export async function submitLogForm(
 ) {
 	const headerList = await headers()
 	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
-	const { selectedWorkoutId, dateStr, scaleValue, notesValue } =
-		parseBasicFormData(formData)
+	const {
+		selectedWorkoutId,
+		dateStr,
+		scaleValue,
+		notesValue,
+		scheduledInstanceId,
+		programmingTrackId,
+	} = parseBasicFormData(formData)
 
 	console.log("[Action] Date:", dateStr)
 
@@ -636,5 +804,7 @@ export async function submitLogForm(
 		finalWodScoreSummary,
 		notesValue,
 		setsForDb,
+		scheduledInstanceId,
+		programmingTrackId,
 	)
 }

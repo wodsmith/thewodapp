@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft, Plus, X } from "lucide-react"
+import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
 import { useState } from "react"
@@ -29,12 +29,15 @@ type Props = Prettify<{
 	movements: Movement[]
 	tags: Tag[]
 	workoutId: string
+	isRemixMode?: boolean
 	updateWorkoutAction: (data: {
 		id: string
 		workout: WorkoutUpdate
 		tagIds: string[]
 		movementIds: string[]
+		remixTeamId?: string
 	}) => Promise<void>
+	userTeams?: Array<{ id: string; name: string }>
 }>
 type TagWithoutSaved = Omit<Tag, "createdAt" | "updatedAt" | "updateCounter">
 export default function EditWorkoutClient({
@@ -42,7 +45,9 @@ export default function EditWorkoutClient({
 	movements,
 	tags: initialTags,
 	workoutId,
+	isRemixMode = false,
 	updateWorkoutAction,
+	userTeams = [],
 }: Props) {
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
@@ -59,8 +64,11 @@ export default function EditWorkoutClient({
 	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
 		workout?.repsPerRound === null ? undefined : workout?.repsPerRound,
 	)
-	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
-		workout?.roundsToScore === null ? 1 : workout?.roundsToScore || 1,
+	const [roundsToScore, setRoundsToScore] = useState<number | null>(
+		workout?.roundsToScore ?? null,
+	)
+	const [selectedTeamId, setSelectedTeamId] = useState<string>(
+		userTeams.length > 0 ? userTeams[0].id : "",
 	)
 
 	const handleAddTag = () => {
@@ -96,13 +104,14 @@ export default function EditWorkoutClient({
 		e.preventDefault()
 		await updateWorkoutAction({
 			id: workoutId,
+			remixTeamId: isRemixMode ? selectedTeamId : undefined,
 			workout: {
 				name,
 				description,
 				scheme,
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
-				roundsToScore: roundsToScore === undefined ? null : roundsToScore,
+				roundsToScore: roundsToScore,
 			},
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
@@ -118,9 +127,44 @@ export default function EditWorkoutClient({
 							<ArrowLeft className="h-5 w-5" />
 						</Link>
 					</Button>
-					<h1>EDIT WORKOUT</h1>
+					<div>
+						<h1>{isRemixMode ? "CREATE REMIX" : "EDIT WORKOUT"}</h1>
+						{isRemixMode && (
+							<p className="text-sm text-muted-foreground mt-1">
+								You're creating a remix of this workout. Make your changes and
+								save as a new workout.
+							</p>
+						)}
+					</div>
 				</div>
 			</div>
+
+			{/* Source Workout Information for Remix Mode */}
+			{isRemixMode && workout?.sourceWorkout && (
+				<div className="mb-6 border-2 border-orange-500 bg-orange-50 p-4 dark:border-orange-600 dark:bg-orange-950">
+					<div className="flex items-center gap-2 mb-2">
+						<Shuffle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+						<h3 className="font-bold text-orange-800 text-lg dark:text-orange-200">
+							Creating a Remix
+						</h3>
+					</div>
+					<p className="text-orange-700 dark:text-orange-300">
+						This form is pre-populated with data from{" "}
+						<Link
+							href={`/workouts/${workout.sourceWorkout.id}`}
+							className="font-semibold underline hover:no-underline"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							"{workout.sourceWorkout.name}"
+						</Link>
+						{workout.sourceWorkout.teamName && (
+							<span> by {workout.sourceWorkout.teamName}</span>
+						)}
+						. Make your changes and create your own version of this workout.
+					</p>
+				</div>
+			)}
 
 			<form
 				className="border-2 border-black p-6 dark:border-white"
@@ -128,6 +172,31 @@ export default function EditWorkoutClient({
 			>
 				<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<div className="space-y-6">
+						{/* Team Selector for Remix Mode */}
+						{isRemixMode && userTeams.length > 0 && (
+							<div>
+								<Label htmlFor="remix-team">Create Remix Under Team</Label>
+								<Select
+									value={selectedTeamId}
+									onValueChange={setSelectedTeamId}
+								>
+									<SelectTrigger id="remix-team">
+										<SelectValue placeholder="Select a team" />
+									</SelectTrigger>
+									<SelectContent>
+										{userTeams.map((team) => (
+											<SelectItem key={team.id} value={team.id}>
+												{team.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-sm text-muted-foreground mt-1">
+									This determines who can access and edit the remixed workout
+								</p>
+							</div>
+						)}
+
 						<div>
 							<Label htmlFor="workout-name">Workout Name</Label>
 							<Input
@@ -216,11 +285,11 @@ export default function EditWorkoutClient({
 							<Input
 								id="rounds-to-score"
 								type="number"
-								value={roundsToScore === undefined ? "" : roundsToScore}
+								value={roundsToScore === null ? "" : roundsToScore}
 								onChange={(e) =>
 									setRoundsToScore(
 										e.target.value === ""
-											? undefined
+											? null
 											: Number.parseInt(e.target.value),
 									)
 								}
@@ -309,7 +378,9 @@ export default function EditWorkoutClient({
 					<Button asChild variant="outline">
 						<Link href={`/workouts/${workoutId}`}>Cancel</Link>
 					</Button>
-					<Button type="submit">Save Changes</Button>
+					<Button type="submit">
+						{isRemixMode ? "Create Remix" : "Save Changes"}
+					</Button>
 				</div>
 			</form>
 		</div>
