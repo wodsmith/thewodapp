@@ -5,14 +5,47 @@ import { createServerAction, ZSAError } from "zsa"
 import {
 	getResultSetsById,
 	getWorkoutResultsByWorkoutAndUser,
+	getWorkoutResultForScheduledInstance,
 } from "@/server/workout-results"
 import {
 	createWorkout,
+	createWorkoutRemix,
+	createProgrammingTrackWorkoutRemix,
 	getUserWorkouts,
 	getWorkoutById,
+	getRemixedWorkouts,
 	updateWorkout,
+	getTeamSpecificWorkout,
 } from "@/server/workouts"
+import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
+import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
+import { getUserTeams } from "@/server/teams"
 import { requireVerifiedEmail } from "@/utils/auth"
+import {
+	requireTeamMembership,
+	hasTeamPermission,
+	isTeamMember,
+} from "@/utils/team-auth"
+import {
+	canUserEditWorkout,
+	shouldCreateRemix,
+} from "@/utils/workout-permissions"
+
+const createWorkoutRemixSchema = z.object({
+	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const createProgrammingTrackWorkoutRemixSchema = z.object({
+	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	sourceTrackId: z.string().min(1, "Source track ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+const getTeamSpecificWorkoutSchema = z.object({
+	originalWorkoutId: z.string().min(1, "Original workout ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+})
 
 const createWorkoutSchema = z.object({
 	workout: z.object({
@@ -58,6 +91,118 @@ const createWorkoutSchema = z.object({
 })
 
 /**
+ * Create a remix of an existing workout
+ */
+export const createWorkoutRemixAction = createServerAction()
+	.input(createWorkoutRemixSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { sourceWorkoutId, teamId } = input
+
+			// Ensure the user is a member of the target team
+			await requireTeamMembership(teamId)
+
+			// Check if user has EDIT_COMPONENTS permission for the team
+			const hasEditPermission = await hasTeamPermission(
+				teamId,
+				"EDIT_COMPONENTS",
+			)
+			if (!hasEditPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to create workouts in this team",
+				)
+			}
+
+			// Check if user should create a remix (permission validation)
+			const shouldRemix = await shouldCreateRemix(sourceWorkoutId)
+
+			if (!shouldRemix) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to remix this workout or should edit it directly instead",
+				)
+			}
+
+			// Create the remix
+			const remixedWorkout = await createWorkoutRemix({
+				sourceWorkoutId,
+				teamId,
+			})
+
+			return {
+				success: true,
+				data: remixedWorkout,
+				message: "Workout remix created successfully",
+			}
+		} catch (error) {
+			console.error("Failed to create workout remix:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create workout remix",
+			)
+		}
+	})
+
+/**
+ * Create a remix of a programming track workout
+ */
+export const createProgrammingTrackWorkoutRemixAction = createServerAction()
+	.input(createProgrammingTrackWorkoutRemixSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { sourceWorkoutId, sourceTrackId, teamId } = input
+
+			// Ensure the user is a member of the target team
+			await requireTeamMembership(teamId)
+
+			// Check if user has EDIT_COMPONENTS permission for the team
+			const hasEditPermission = await hasTeamPermission(
+				teamId,
+				"EDIT_COMPONENTS",
+			)
+			if (!hasEditPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to create workouts in this team",
+				)
+			}
+
+			// Note: For programming track remixes, we don't need the shouldCreateRemix check
+			// as this is specifically for external track workouts
+
+			// Create the remix
+			const remixedWorkout = await createProgrammingTrackWorkoutRemix({
+				sourceWorkoutId,
+				sourceTrackId,
+				teamId,
+			})
+
+			return {
+				success: true,
+				data: remixedWorkout,
+				message: "Programming track workout remix created successfully",
+			}
+		} catch (error) {
+			console.error("Failed to create programming track workout remix:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create programming track workout remix",
+			)
+		}
+	})
+
+/**
  * Create a new workout
  */
 export const createWorkoutAction = createServerAction()
@@ -70,6 +215,7 @@ export const createWorkoutAction = createServerAction()
 					...input.workout,
 					createdAt: new Date(),
 					sourceTrackId: null,
+					sourceWorkoutId: null,
 				},
 			})
 			return result
@@ -219,12 +365,82 @@ export const updateWorkoutAction = createServerAction()
 			}),
 			tagIds: z.array(z.string()).default([]),
 			movementIds: z.array(z.string()).default([]),
+			remixTeamId: z.string().optional(), // Optional team ID for creating remixes
 		}),
 	)
 	.handler(async ({ input }) => {
 		try {
-			await updateWorkout(input)
-			return { success: true }
+			const session = await requireVerifiedEmail()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+			}
+
+			// Check if user can edit the workout directly
+			const canEdit = await canUserEditWorkout(input.id)
+
+			if (canEdit) {
+				// User owns the workout, update it directly
+				await updateWorkout(input)
+				return {
+					success: true,
+					action: "updated",
+					message: "Workout updated successfully",
+				}
+			} else {
+				// User doesn't own the workout, create a remix instead
+				// Get user's teams to determine which team to create the remix in
+				const userTeams = session.teams || []
+
+				if (userTeams.length === 0) {
+					throw new ZSAError(
+						"FORBIDDEN",
+						"User must be a member of at least one team",
+					)
+				}
+
+				// Use provided remixTeamId or fallback to first team
+				const targetTeamId = input.remixTeamId || userTeams[0].id
+
+				// Verify user has access to the specified team
+				if (
+					input.remixTeamId &&
+					!userTeams.some((t) => t.id === input.remixTeamId)
+				) {
+					throw new ZSAError(
+						"FORBIDDEN",
+						"User must be a member of the specified team",
+					)
+				}
+
+				// Create a remix with the updated data
+				const remixResult = await createWorkoutRemix({
+					sourceWorkoutId: input.id,
+					teamId: targetTeamId,
+				})
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Now update the remixed workout with the new data
+				await updateWorkout({
+					id: remixResult.id,
+					workout: input.workout,
+					tagIds: input.tagIds,
+					movementIds: input.movementIds,
+				})
+
+				return {
+					success: true,
+					action: "remixed",
+					data: remixResult,
+					message: "Workout remix created successfully",
+				}
+			}
 		} catch (error) {
 			console.error("Failed to update workout:", error)
 
@@ -233,5 +449,236 @@ export const updateWorkoutAction = createServerAction()
 			}
 
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update workout")
+		}
+	})
+
+/**
+ * Get user teams
+ */
+export const getUserTeamsAction = createServerAction()
+	.input(z.object({}))
+	.handler(async () => {
+		try {
+			const teams = await getUserTeams()
+			return { success: true, data: teams }
+		} catch (error) {
+			console.error("Failed to get user teams:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get user teams")
+		}
+	})
+
+/**
+ * Get scheduled workouts for a team within a date range
+ */
+export const getScheduledTeamWorkoutsAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			startDate: z.string().datetime(),
+			endDate: z.string().datetime(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, startDate, endDate } = input
+
+			const scheduledWorkouts = await getScheduledWorkoutsForTeam(teamId, {
+				start: new Date(startDate),
+				end: new Date(endDate),
+			})
+
+			return { success: true, data: scheduledWorkouts }
+		} catch (error) {
+			console.error("Failed to get scheduled team workouts:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled team workouts",
+			)
+		}
+	})
+
+/**
+ * Get scheduled workouts with results for a team within a date range
+ */
+export const getScheduledTeamWorkoutsWithResultsAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			startDate: z.string().datetime(),
+			endDate: z.string().datetime(),
+			userId: z.string().min(1, "User ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, startDate, endDate, userId } = input
+
+			// Get scheduled workouts
+			const scheduledWorkouts = await getScheduledWorkoutsForTeam(teamId, {
+				start: new Date(startDate),
+				end: new Date(endDate),
+			})
+
+			// Prepare instances for result fetching
+			const instances = scheduledWorkouts.map((workout) => ({
+				id: workout.id,
+				scheduledDate: workout.scheduledDate,
+				workoutId:
+					workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+			}))
+
+			// Fetch results for all instances
+			const workoutResults = await getWorkoutResultsForScheduledInstances(
+				instances,
+				userId,
+			)
+
+			// Attach results to scheduled workouts
+			const workoutsWithResults = scheduledWorkouts.map((workout) => ({
+				...workout,
+				result: workout.id ? workoutResults[workout.id] || null : null,
+			}))
+
+			return { success: true, data: workoutsWithResults }
+		} catch (error) {
+			console.error(
+				"Failed to get scheduled team workouts with results:",
+				error,
+			)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled team workouts with results",
+			)
+		}
+	})
+
+/**
+ * Get workout result for a scheduled workout instance
+ */
+export const getScheduledWorkoutResultAction = createServerAction()
+	.input(
+		z.object({
+			scheduledInstanceId: z
+				.string()
+				.min(1, "Scheduled instance ID is required"),
+			date: z.string().datetime(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+			}
+
+			const result = await getWorkoutResultForScheduledInstance(
+				input.scheduledInstanceId,
+				session.user.id,
+				new Date(input.date),
+			)
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get scheduled workout result:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get scheduled workout result",
+			)
+		}
+	})
+
+/**
+ * Get workouts that are remixes of a given workout
+ */
+export const getRemixedWorkoutsAction = createServerAction()
+	.input(
+		z.object({
+			sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const remixedWorkouts = await getRemixedWorkouts(input.sourceWorkoutId)
+			return { success: true, data: remixedWorkouts }
+		} catch (error) {
+			console.error("Failed to get remixed workouts:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get remixed workouts",
+			)
+		}
+	})
+
+/**
+ * Get team-specific workout (checks for team remix, otherwise returns original)
+ */
+export const getTeamSpecificWorkoutAction = createServerAction()
+	.input(getTeamSpecificWorkoutSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { originalWorkoutId, teamId } = input
+
+			// Require authentication first
+			const session = await requireVerifiedEmail()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Authentication required")
+			}
+
+			// Verify the user is a member of the specified team
+			const isMember = await isTeamMember(teamId)
+			if (!isMember) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You are not authorized to access this team's workouts",
+				)
+			}
+
+			// Only fetch the workout after authorization checks pass
+			const workout = await getTeamSpecificWorkout({
+				originalWorkoutId,
+				teamId,
+			})
+
+			return {
+				success: true,
+				data: workout,
+			}
+		} catch (error) {
+			console.error("Failed to get team-specific workout:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get team-specific workout",
+			)
 		}
 	})

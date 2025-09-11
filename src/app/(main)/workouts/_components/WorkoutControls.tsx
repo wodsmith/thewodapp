@@ -31,6 +31,7 @@ export default function WorkoutControls({
 	const [selectedMovement, setSelectedMovement] = useState(
 		searchParams.get("movement") || "",
 	)
+	const [workoutType, setWorkoutType] = useState(searchParams.get("type") || "")
 
 	useEffect(() => {
 		const params = new URLSearchParams(searchParams.toString())
@@ -52,6 +53,12 @@ export default function WorkoutControls({
 			params.delete("movement")
 		}
 
+		if (workoutType) {
+			params.set("type", workoutType)
+		} else {
+			params.delete("type")
+		}
+
 		router.replace(`${pathname}?${params.toString()}` as Route, {
 			scroll: false,
 		})
@@ -59,6 +66,7 @@ export default function WorkoutControls({
 		searchTerm,
 		selectedTag,
 		selectedMovement,
+		workoutType,
 		router,
 		pathname,
 		searchParams,
@@ -107,6 +115,19 @@ export default function WorkoutControls({
 								{movement}
 							</SelectItem>
 						))}
+					</SelectContent>
+				</Select>
+				<Select
+					value={workoutType}
+					onValueChange={(value) => setWorkoutType(value)}
+				>
+					<SelectTrigger className="w-[180px]">
+						<SelectValue placeholder="All Workouts" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All Workouts</SelectItem>
+						<SelectItem value="original">Original Only</SelectItem>
+						<SelectItem value="remix">Remixes Only</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>

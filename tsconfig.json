@@ -25,6 +25,7 @@
 		"baseUrl": ".",
 		"types": [
 			"./cloudflare-env.d.ts",
+			"./custom-env.d.ts",
 			"node",
 			"vitest",
 			"@testing-library/jest-dom"

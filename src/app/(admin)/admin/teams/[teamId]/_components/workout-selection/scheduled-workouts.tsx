@@ -103,13 +103,20 @@ export function ScheduledWorkouts({
 										<div className="flex-1 min-w-0">
 											<h5 className="font-medium text-sm truncate">
 												{scheduled.trackWorkout?.workout?.name ||
+													scheduled.workout?.name ||
 													"Unknown Workout"}
 											</h5>
 											<p className="text-xs text-muted-foreground">
-												{scheduled.trackWorkout?.dayNumber &&
-													`Day ${scheduled.trackWorkout.dayNumber}`}
-												{scheduled.trackWorkout?.weekNumber &&
-													` - Week ${scheduled.trackWorkout.weekNumber}`}
+												{scheduled.trackWorkout ? (
+													<>
+														{scheduled.trackWorkout.dayNumber &&
+															`Day ${scheduled.trackWorkout.dayNumber}`}
+														{scheduled.trackWorkout.weekNumber &&
+															` - Week ${scheduled.trackWorkout.weekNumber}`}
+													</>
+												) : (
+													"Standalone Workout"
+												)}
 											</p>
 										</div>
 										<Button

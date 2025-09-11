@@ -7,6 +7,7 @@ import {
 	getWorkoutByIdAction,
 	updateWorkoutAction,
 } from "@/actions/workout-actions"
+import { updateScheduledWorkoutInstanceAction } from "../_actions/scheduling-actions"
 import type {
 	Movement,
 	Tag,
@@ -45,6 +46,9 @@ export function useWorkoutEditing({
 	const { execute: getAllTags, isPending: isLoadingAllTags } =
 		useServerAction(getAllTagsAction)
 	const { execute: updateWorkout } = useServerAction(updateWorkoutAction)
+	const { execute: updateScheduledInstance } = useServerAction(
+		updateScheduledWorkoutInstanceAction,
+	)
 
 	// Handlers
 	const handleEditScheduled = useCallback(
@@ -81,7 +85,10 @@ export function useWorkoutEditing({
 					setEditingScheduled(null)
 					return
 				}
-				setEditingWorkout(workoutData.data)
+				// Extract workout data, filtering out remix information for component compatibility
+				const workoutForEditing =
+					workoutData.data as WorkoutWithTagsAndMovements
+				setEditingWorkout(workoutForEditing)
 
 				const [movementsData, movementsError] = movementsResult
 				if (movementsData) {
@@ -124,11 +131,38 @@ export function useWorkoutEditing({
 				toast.error("Failed to update workout.")
 				return false
 			}
-			toast.success("Workout updated successfully!")
+
+			// Check if a remix was created
+			if (result.action === "remixed" && result.data && editingScheduled) {
+				// Update the scheduled workout instance to use the new remixed workout
+				const [updateResult, updateError] = await updateScheduledInstance({
+					instanceId: editingScheduled,
+					data: {
+						workoutId: result.data.id, // Use the new remixed workout ID
+					},
+				})
+
+				if (updateError || !updateResult?.success) {
+					toast.error("Failed to update scheduled workout with remix.")
+					return false
+				}
+
+				toast.success("Workout remixed and scheduled successfully!")
+			} else if (result.action === "updated") {
+				toast.success("Workout updated successfully!")
+			} else {
+				toast.success("Workout updated successfully!")
+			}
+
 			await loadScheduledWorkouts()
 			return true
 		},
-		[updateWorkout, loadScheduledWorkouts],
+		[
+			updateWorkout,
+			updateScheduledInstance,
+			editingScheduled,
+			loadScheduledWorkouts,
+		],
 	)
 
 	const handleCancelEdit = useCallback(() => {

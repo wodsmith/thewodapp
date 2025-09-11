@@ -19,6 +19,30 @@ const mockD1Client = {
 		]),
 }
 
+// Mock the db object that is null in test environment
+const mockDb = {
+	select: vi.fn().mockReturnThis(),
+	from: vi.fn().mockReturnThis(),
+	leftJoin: vi.fn().mockReturnThis(),
+	innerJoin: vi.fn().mockReturnThis(),
+	where: vi.fn().mockReturnThis(),
+	limit: vi.fn().mockImplementation(() => Promise.resolve([])),
+	orderBy: vi.fn().mockReturnThis(),
+	offset: vi.fn().mockImplementation(() => Promise.resolve([])),
+	insert: vi.fn().mockReturnThis(),
+	values: vi.fn().mockReturnThis(),
+	returning: vi.fn().mockResolvedValue([{ id: "test_id", name: "Test" }]),
+	delete: vi.fn().mockResolvedValue({ changes: 0 }),
+	update: vi.fn().mockReturnThis(),
+	set: vi.fn().mockReturnThis(),
+	get: vi.fn().mockResolvedValue(null),
+}
+
+vi.mock("@/db", () => ({
+	db: null,
+	getDd: vi.fn(() => mockDb),
+}))
+
 vi.mock("@opennextjs/cloudflare", () => ({
 	getCloudflareContext: () => ({
 		env: {

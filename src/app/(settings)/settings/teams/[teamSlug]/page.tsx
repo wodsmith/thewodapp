@@ -103,8 +103,6 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 		TEAM_PERMISSIONS.REMOVE_MEMBERS,
 	)
 
-	console.log({ canInviteMembers, canRemoveMembers })
-
 	// Fetch team members
 	const teamMembers = await getTeamMembers(team.id)
 
@@ -121,7 +119,7 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 				</div>
 
 				<div className="flex items-center gap-4">
-					{canInviteMembers && (
+					{canInviteMembers && !team.isPersonalTeam && (
 						<InviteMemberModal
 							teamId={team.id}
 							trigger={<Button>Invite Members</Button>}
@@ -175,7 +173,9 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 
 				{/* Team Members and Invitations */}
 				<div className="col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-					{canInviteMembers && <TeamInvitations teamId={team.id} />}
+					{canInviteMembers && !team.isPersonalTeam && (
+						<TeamInvitations teamId={team.id} />
+					)}
 				</div>
 
 				{/* Team actions */}

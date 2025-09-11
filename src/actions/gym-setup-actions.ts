@@ -4,7 +4,11 @@ import {
 	locationsTable,
 	skillsTable,
 } from "@/db/schemas/scheduling"
-import { createId } from "@paralleldrive/cuid2"
+import {
+	createLocationId,
+	createClassCatalogId,
+	createSkillId,
+} from "@/db/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
@@ -81,7 +85,7 @@ export const createLocation = createServerAction()
 			const db = getDd()
 			const [newLocation] = await db
 				.insert(locationsTable)
-				.values({ id: `location_${createId()}`, teamId, name })
+				.values({ id: createLocationId(), teamId, name })
 				.returning()
 			return { success: true, data: newLocation }
 		} catch (error) {
@@ -178,7 +182,7 @@ export const createClassCatalog = createServerAction()
 			const [newClass] = await db
 				.insert(classCatalogTable)
 				.values({
-					id: `class_catalog_${createId()}`,
+					id: createClassCatalogId(),
 					teamId,
 					name,
 					description,
@@ -293,7 +297,7 @@ export const createSkill = createServerAction()
 			const db = getDd()
 			const [newSkill] = await db
 				.insert(skillsTable)
-				.values({ id: `skill_${createId()}`, teamId, name })
+				.values({ id: createSkillId(), teamId, name })
 				.returning()
 			return { success: true, data: newSkill }
 		} catch (error) {
