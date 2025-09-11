@@ -80,18 +80,25 @@ export function TeamSchedulingContainer({
 			)
 
 			const calendarEvents = result.data.map(
-				(workout: ScheduledWorkoutInstanceWithDetails): CalendarEvent => ({
-					id: workout.id,
-					title: workout.trackWorkout?.workout?.name || "Unknown Workout",
-					start: new Date(workout.scheduledDate).toISOString(),
-					allDay: true,
-					extendedProps: {
-						workoutName:
-							workout.trackWorkout?.workout?.name || "Unknown Workout",
-						notes: workout.teamSpecificNotes || undefined,
-						classTimes: workout.classTimes || undefined,
-					},
-				}),
+				(workout: ScheduledWorkoutInstanceWithDetails): CalendarEvent => {
+					// Get workout name from either track workout or standalone workout
+					const workoutName =
+						workout.trackWorkout?.workout?.name ||
+						workout.workout?.name ||
+						"Unknown Workout"
+
+					return {
+						id: workout.id,
+						title: workoutName,
+						start: new Date(workout.scheduledDate).toISOString(),
+						allDay: true,
+						extendedProps: {
+							workoutName,
+							notes: workout.teamSpecificNotes || undefined,
+							classTimes: workout.classTimes || undefined,
+						},
+					}
+				},
 			)
 
 			console.log("Calendar events to display:", calendarEvents)
