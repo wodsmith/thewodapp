@@ -182,9 +182,15 @@ export const updateScheduleTemplate = createServerAction()
 		const { id, teamId, name, classCatalogId, locationId } = input
 		const db = getDd()
 		try {
+			const updates = Object.fromEntries(
+				Object.entries({ name, classCatalogId, locationId }).filter(
+					([, value]) => value !== undefined,
+				),
+			)
+
 			const [updatedTemplate] = await db
 				.update(scheduleTemplatesTable)
-				.set({ name, classCatalogId, locationId })
+				.set(updates)
 				.where(
 					and(
 						eq(scheduleTemplatesTable.id, id),
@@ -330,9 +336,13 @@ export const updateScheduleTemplateClass = createServerAction()
 		const db = getDd()
 		try {
 			const { id, templateId, requiredSkillIds, ...rest } = input
+			const updates = Object.fromEntries(
+				Object.entries(rest).filter(([, value]) => value !== undefined),
+			)
+
 			const [updatedTemplateClass] = await db
 				.update(scheduleTemplateClassesTable)
-				.set(rest)
+				.set(updates)
 				.where(
 					and(
 						eq(scheduleTemplateClassesTable.id, id),

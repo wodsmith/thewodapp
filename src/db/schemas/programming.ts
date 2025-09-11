@@ -116,9 +116,8 @@ export const scheduledWorkoutInstancesTable = sqliteTable(
 		teamId: text()
 			.notNull()
 			.references(() => teamTable.id),
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id),
+		trackWorkoutId: text().references(() => trackWorkoutsTable.id),
+		workoutId: text().references(() => workouts.id), // Explicit workout selection (required for standalone, optional for track workouts)
 		scheduledDate: integer({ mode: "timestamp" }).notNull(),
 		teamSpecificNotes: text({ length: 1000 }),
 		scalingGuidanceForDay: text({ length: 1000 }),
@@ -127,6 +126,7 @@ export const scheduledWorkoutInstancesTable = sqliteTable(
 	(table) => [
 		index("scheduled_workout_instance_team_idx").on(table.teamId),
 		index("scheduled_workout_instance_date_idx").on(table.scheduledDate),
+		index("scheduled_workout_instance_workout_idx").on(table.workoutId),
 	],
 )
 
@@ -182,6 +182,10 @@ export const scheduledWorkoutInstancesRelations = relations(
 		trackWorkout: one(trackWorkoutsTable, {
 			fields: [scheduledWorkoutInstancesTable.trackWorkoutId],
 			references: [trackWorkoutsTable.id],
+		}),
+		workout: one(workouts, {
+			fields: [scheduledWorkoutInstancesTable.workoutId],
+			references: [workouts.id],
 		}),
 	}),
 )

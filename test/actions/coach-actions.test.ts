@@ -46,59 +46,59 @@ describe('Coach Actions', () => {
   it('should create a coach', async () => {
     const result = await createCoach({ userId: 'user1', teamId: 'team1', weeklyClassLimit: 10, schedulingPreference: 'morning', schedulingNotes: 'notes', isActive: true, skillIds: ['skill1', 'skill2'] })
     expect(result).toBeDefined()
-    expect(db.insert).toHaveBeenCalledWith(coachesTable)
-    expect(db.insert).toHaveBeenCalledWith(coachToSkillsTable)
+    expect(db?.insert).toHaveBeenCalledWith(coachesTable)
+    expect(db?.insert).toHaveBeenCalledWith(coachToSkillsTable)
   })
 
   it('should update a coach', async () => {
     const result = await updateCoach({ id: 'coach1', teamId: 'team1', weeklyClassLimit: 12, schedulingPreference: 'afternoon', schedulingNotes: 'updated notes', isActive: false, skillIds: ['skill3'] })
     expect(result).toBeDefined()
-    expect(db.update).toHaveBeenCalledWith(coachesTable)
-    expect(db.delete).toHaveBeenCalledWith(coachToSkillsTable)
-    expect(db.insert).toHaveBeenCalledWith(coachToSkillsTable)
+    expect(db?.update).toHaveBeenCalledWith(coachesTable)
+    expect(db?.delete).toHaveBeenCalledWith(coachToSkillsTable)
+    expect(db?.insert).toHaveBeenCalledWith(coachToSkillsTable)
   })
 
   it('should delete a coach', async () => {
     const result = await deleteCoach({ id: 'coach1', teamId: 'team1' })
     expect(result).toBeDefined()
-    expect(db.delete).toHaveBeenCalledWith(coachesTable)
+    expect(db?.delete).toHaveBeenCalledWith(coachesTable)
   })
 
   it('should get coaches by team', async () => {
     const result = await getCoachesByTeam({ teamId: 'team1' })
     expect(result).toBeDefined()
-    expect(db.query.coachesTable.findMany).toHaveBeenCalledWith(expect.any(Object))
+    expect(db?.query.coachesTable.findMany).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should get coach by id', async () => {
     const result = await getCoachById({ id: 'coach1', teamId: 'team1' })
     expect(result).toBeDefined()
-    expect(db.query.coachesTable.findFirst).toHaveBeenCalledWith(expect.any(Object))
+    expect(db?.query.coachesTable.findFirst).toHaveBeenCalledWith(expect.any(Object))
   })
 
   // Blackout Dates
   it('should create a coach blackout date', async () => {
     const result = await createCoachBlackoutDate({ coachId: 'coach1', startDate: new Date(), endDate: new Date(), reason: 'Vacation' })
     expect(result).toBeDefined()
-    expect(db.insert).toHaveBeenCalledWith(coachBlackoutDatesTable)
+    expect(db?.insert).toHaveBeenCalledWith(coachBlackoutDatesTable)
   })
 
   it('should delete a coach blackout date', async () => {
     const result = await deleteCoachBlackoutDate({ id: 'blackout1', coachId: 'coach1' })
     expect(result).toBeDefined()
-    expect(db.delete).toHaveBeenCalledWith(coachBlackoutDatesTable)
+    expect(db?.delete).toHaveBeenCalledWith(coachBlackoutDatesTable)
   })
 
   // Recurring Unavailability
   it('should create a coach recurring unavailability', async () => {
     const result = await createCoachRecurringUnavailability({ coachId: 'coach1', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', description: 'Weekly Meeting' })
     expect(result).toBeDefined()
-    expect(db.insert).toHaveBeenCalledWith(coachRecurringUnavailabilityTable)
+    expect(db?.insert).toHaveBeenCalledWith(coachRecurringUnavailabilityTable)
   })
 
   it('should delete a coach recurring unavailability', async () => {
     const result = await deleteCoachRecurringUnavailability({ id: 'recurring1', coachId: 'coach1' })
     expect(result).toBeDefined()
-    expect(db.delete).toHaveBeenCalledWith(coachRecurringUnavailabilityTable)
+    expect(db?.delete).toHaveBeenCalledWith(coachRecurringUnavailabilityTable)
   })
 })

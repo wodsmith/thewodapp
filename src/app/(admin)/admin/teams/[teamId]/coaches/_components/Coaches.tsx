@@ -31,8 +31,17 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Users, Plus, Trash2, Clock, User, Mail, Phone } from "lucide-react"
+import { Users, Plus, Trash2, Clock, User, Mail } from "lucide-react"
 import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
 import type { getCoachesByTeam } from "@/actions/coach-actions"
 import type { inferServerActionReturnData } from "zsa"
@@ -73,6 +82,8 @@ const Coaches = ({
 	availableSkills,
 }: CoachesProps) => {
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+	const [deletingCoaches, setDeletingCoaches] = useState<Set<string>>(new Set())
+	const [coachToDelete, setCoachToDelete] = useState<string | null>(null)
 	const router = useRouter()
 
 	// Filter out team members who are already coaches
@@ -88,13 +99,9 @@ const Coaches = ({
 	] satisfies Coach["schedulingPreference"][]
 
 	// Server action hook
-	const {
-		execute: createCoachExecute,
-		isPending,
-		error,
-	} = useServerAction(createCoach)
-	const { execute: deleteCoachExecute, isPending: isDeleting } =
-		useServerAction(deleteCoach)
+	const { execute: createCoachExecute, isPending } =
+		useServerAction(createCoach)
+	const { execute: deleteCoachExecute } = useServerAction(deleteCoach)
 
 	// Form setup
 	const form = useForm<CreateCoachFormData>({
@@ -145,6 +152,30 @@ const Coaches = ({
 	// Handle skill removal
 	const handleSkillRemove = (skillId: string) => {
 		setSelectedSkills(selectedSkills.filter((id) => id !== skillId))
+	}
+
+	// Handle confirmed coach deletion
+	const handleConfirmedDelete = async () => {
+		if (!coachToDelete) return
+
+		setDeletingCoaches((prev) => new Set(prev).add(coachToDelete))
+		const [, err] = await deleteCoachExecute({
+			id: coachToDelete,
+			teamId,
+		})
+		setDeletingCoaches((prev) => {
+			const updated = new Set(prev)
+			updated.delete(coachToDelete)
+			return updated
+		})
+		setCoachToDelete(null)
+
+		if (err) {
+			toast.error("Failed to delete coach.")
+		} else {
+			toast.success("Coach deleted successfully!")
+			router.refresh()
+		}
 	}
 
 	return (
@@ -414,26 +445,53 @@ const Coaches = ({
 											</div>
 										</div>
 
-										<Button
-											variant="outline"
-											size="sm"
-											className="text-red-600 hover:text-red-700 ml-4"
-											onClick={async () => {
-												const [result, err] = await deleteCoachExecute({
-													id: coach.id,
-													teamId,
-												})
-												if (err) {
-													toast.error("Failed to delete coach.")
-												} else {
-													toast.success("Coach deleted successfully!")
-													router.refresh()
-												}
+										<Dialog
+											open={coachToDelete === coach.id}
+											onOpenChange={(open) => {
+												if (!open) setCoachToDelete(null)
 											}}
-											disabled={isDeleting}
 										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
+											<DialogTrigger asChild>
+												<Button
+													variant="outline"
+													size="sm"
+													className="text-red-600 hover:text-red-700 ml-4"
+													onClick={() => setCoachToDelete(coach.id)}
+													disabled={deletingCoaches.has(coach.id)}
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</DialogTrigger>
+											<DialogContent>
+												<DialogHeader>
+													<DialogTitle>Delete Coach</DialogTitle>
+													<DialogDescription>
+														Are you sure you want to delete{" "}
+														<strong>
+															{coach.user.firstName} {coach.user.lastName}
+														</strong>
+														? This action cannot be undone.
+													</DialogDescription>
+												</DialogHeader>
+												<DialogFooter>
+													<Button
+														variant="outline"
+														onClick={() => setCoachToDelete(null)}
+													>
+														Cancel
+													</Button>
+													<Button
+														variant="destructive"
+														onClick={handleConfirmedDelete}
+														disabled={deletingCoaches.has(coach.id)}
+													>
+														{deletingCoaches.has(coach.id)
+															? "Deleting..."
+															: "Delete"}
+													</Button>
+												</DialogFooter>
+											</DialogContent>
+										</Dialog>
 									</div>
 								</CardContent>
 							</Card>

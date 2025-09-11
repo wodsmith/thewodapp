@@ -28,6 +28,7 @@ type Props = Prettify<{
 	movements: Movement[]
 	tags: Tag[]
 	workoutId: string
+	teamId?: string
 	updateWorkoutAction: (data: {
 		id: string
 		workout: WorkoutUpdate
@@ -42,6 +43,7 @@ export default function EditWorkoutClientCompact({
 	movements,
 	tags: initialTags,
 	workoutId,
+	teamId,
 	updateWorkoutAction,
 	onCancel,
 }: Props) {
@@ -302,7 +304,11 @@ export default function EditWorkoutClientCompact({
 					<Button type="button" variant="outline" onClick={onCancel}>
 						Cancel
 					</Button>
-					<Button type="submit">Save Changes</Button>
+					<Button type="submit">
+						{workout?.teamId && teamId && workout.teamId !== teamId
+							? "Remix and Save"
+							: "Save Changes"}
+					</Button>
 				</div>
 			</form>
 		</div>
