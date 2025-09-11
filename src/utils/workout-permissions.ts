@@ -5,7 +5,6 @@ import { TEAM_PERMISSIONS, workouts } from "@/db/schema"
 import { getDd } from "@/db"
 import { requireVerifiedEmail } from "./auth"
 import { hasTeamPermission } from "./team-auth"
-import type { Workout } from "@/db/schema"
 
 /**
  * Permission context for workout operations
@@ -47,8 +46,9 @@ const getWorkoutDetails = cache(async (workoutId: string) => {
  *
  * A user can edit a workout if:
  * 1. They have edit permissions in the workout's team
- * 2. The workout is not a remix (doesn't have sourceWorkoutId)
- * 3. The workout belongs to a team they're a member of
+ * 2. The workout belongs to a team they're a member of
+ *
+ * Note: Users can edit remixed workouts if they belong to their team
  */
 export const canUserEditWorkout = cache(
 	async (workoutId: string): Promise<boolean> => {
@@ -87,11 +87,7 @@ export const canUserEditWorkout = cache(
 			return false
 		}
 
-		// Cannot edit if it's already a remix
-		if (workout.sourceWorkoutId) {
-			return false
-		}
-
+		// Users can edit any workout in their team, including remixes
 		return true
 	},
 )
@@ -102,8 +98,9 @@ export const canUserEditWorkout = cache(
  * A user should create a remix if:
  * 1. They don't have direct edit permissions for the workout
  * 2. The workout belongs to a different team
- * 3. The workout is already a remix
- * 4. They only have view permissions for the workout's team
+ * 3. They only have view permissions for the workout's team
+ *
+ * Note: Users with edit permissions can edit remixes in their own team
  */
 export const shouldCreateRemix = cache(
 	async (workoutId: string): Promise<boolean> => {
@@ -138,17 +135,9 @@ export const shouldCreateRemix = cache(
 			TEAM_PERMISSIONS.EDIT_COMPONENTS,
 		)
 
-		if (!hasEditPermission) {
-			return true // No edit permissions, should create remix
-		}
-
-		// If it's already a remix, they should create another remix
-		if (workout.sourceWorkoutId) {
-			return true
-		}
-
-		// If they have edit permissions and it's not a remix, they can edit directly
-		return false
+		// If they have edit permissions for the team, they can edit directly (even remixes)
+		// Otherwise, they should create a remix
+		return !hasEditPermission
 	},
 )
 

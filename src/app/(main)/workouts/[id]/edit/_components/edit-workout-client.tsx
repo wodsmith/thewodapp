@@ -35,7 +35,9 @@ type Props = Prettify<{
 		workout: WorkoutUpdate
 		tagIds: string[]
 		movementIds: string[]
+		remixTeamId?: string
 	}) => Promise<void>
+	userTeams?: Array<{ id: string; name: string }>
 }>
 type TagWithoutSaved = Omit<Tag, "createdAt" | "updatedAt" | "updateCounter">
 export default function EditWorkoutClient({
@@ -45,6 +47,7 @@ export default function EditWorkoutClient({
 	workoutId,
 	isRemixMode = false,
 	updateWorkoutAction,
+	userTeams = [],
 }: Props) {
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
@@ -63,6 +66,9 @@ export default function EditWorkoutClient({
 	)
 	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
 		workout?.roundsToScore === null ? 1 : workout?.roundsToScore || 1,
+	)
+	const [selectedTeamId, setSelectedTeamId] = useState<string>(
+		userTeams.length > 0 ? userTeams[0].id : "",
 	)
 
 	const handleAddTag = () => {
@@ -98,6 +104,7 @@ export default function EditWorkoutClient({
 		e.preventDefault()
 		await updateWorkoutAction({
 			id: workoutId,
+			remixTeamId: isRemixMode ? selectedTeamId : undefined,
 			workout: {
 				name,
 				description,
@@ -165,6 +172,31 @@ export default function EditWorkoutClient({
 			>
 				<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<div className="space-y-6">
+						{/* Team Selector for Remix Mode */}
+						{isRemixMode && userTeams.length > 0 && (
+							<div>
+								<Label htmlFor="remix-team">Create Remix Under Team</Label>
+								<Select
+									value={selectedTeamId}
+									onValueChange={setSelectedTeamId}
+								>
+									<SelectTrigger id="remix-team">
+										<SelectValue placeholder="Select a team" />
+									</SelectTrigger>
+									<SelectContent>
+										{userTeams.map((team) => (
+											<SelectItem key={team.id} value={team.id}>
+												{team.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-sm text-muted-foreground mt-1">
+									This determines who can access and edit the remixed workout
+								</p>
+							</div>
+						)}
+
 						<div>
 							<Label htmlFor="workout-name">Workout Name</Label>
 							<Input

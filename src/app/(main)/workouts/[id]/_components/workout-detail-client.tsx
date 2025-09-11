@@ -37,7 +37,6 @@ export type WorkoutResultWithSets = WorkoutResult & {
 
 export default function WorkoutDetailClient({
 	canEdit,
-	shouldRemix,
 	sourceWorkout,
 	workout,
 	workoutId,
@@ -45,7 +44,6 @@ export default function WorkoutDetailClient({
 	remixedWorkouts = [],
 }: {
 	canEdit: boolean
-	shouldRemix: boolean
 	sourceWorkout?: {
 		id: string
 		name: string
@@ -69,8 +67,6 @@ export default function WorkoutDetailClient({
 	const redirectUrl = searchParams.get("redirectUrl")
 
 	if (!workout) return <div>Loading...</div>
-
-	const canEditWorkout = canEdit
 
 	// Helper to format date
 	const formatDate = (timestamp: number | Date | null) => {
@@ -155,15 +151,14 @@ export default function WorkoutDetailClient({
 							Edit Workout
 						</Link>
 					)}
-					{shouldRemix && (
-						<Link
-							href={`/workouts/${workoutId}/edit`}
-							className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-secondary dark:text-dark-secondary-foreground dark:hover:bg-dark-secondary/90"
-						>
-							<Shuffle className="h-5 w-5" />
-							Create Remix
-						</Link>
-					)}
+					{/* Always show remix button so users can create remixes of their own workouts */}
+					<Link
+						href={`/workouts/${workoutId}/edit?remix=true`}
+						className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-secondary dark:text-dark-secondary-foreground dark:hover:bg-dark-secondary/90"
+					>
+						<Shuffle className="h-5 w-5" />
+						Create Remix
+					</Link>
 				</div>
 			</div>
 

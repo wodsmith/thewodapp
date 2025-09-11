@@ -331,6 +331,7 @@ export const updateWorkoutAction = createServerAction()
 			}),
 			tagIds: z.array(z.string()).default([]),
 			movementIds: z.array(z.string()).default([]),
+			remixTeamId: z.string().optional(), // Optional team ID for creating remixes
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -364,8 +365,19 @@ export const updateWorkoutAction = createServerAction()
 					)
 				}
 
-				// Use the first team as the default, or we could add logic to choose
-				const targetTeamId = userTeams[0].id
+				// Use provided remixTeamId or fallback to first team
+				const targetTeamId = input.remixTeamId || userTeams[0].id
+
+				// Verify user has access to the specified team
+				if (
+					input.remixTeamId &&
+					!userTeams.some((t) => t.id === input.remixTeamId)
+				) {
+					throw new ZSAError(
+						"FORBIDDEN",
+						"User must be a member of the specified team",
+					)
+				}
 
 				// Create a remix with the updated data
 				const remixResult = await createWorkoutRemix({

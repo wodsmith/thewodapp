@@ -18,10 +18,13 @@ export const dynamic = "force-dynamic"
 
 export default async function EditWorkoutPage({
 	params,
+	searchParams,
 }: {
 	params: Promise<{ id: string }>
+	searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
 	const myParams = await params
+	const mySearchParams = await searchParams
 	const session = await getSessionFromCookie()
 
 	if (!session?.userId) {
@@ -42,9 +45,12 @@ export default async function EditWorkoutPage({
 	// Extract workout data, filtering out remix information for component compatibility
 	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
+	// Check if user explicitly wants to remix (via query param)
+	const forceRemix = mySearchParams.remix === "true"
+
 	// Determine if user can edit or should create a remix
 	const canEdit = await canUserEditWorkout(myParams.id)
-	const shouldRemix = await shouldCreateRemix(myParams.id)
+	const shouldRemix = forceRemix || (await shouldCreateRemix(myParams.id))
 
 	// If user cannot edit and should not remix, redirect to workout detail
 	if (!canEdit && !shouldRemix) {
@@ -56,6 +62,7 @@ export default async function EditWorkoutPage({
 		workout: WorkoutUpdate
 		tagIds: string[]
 		movementIds: string[]
+		remixTeamId?: string
 	}) {
 		"use server"
 		try {
@@ -64,6 +71,7 @@ export default async function EditWorkoutPage({
 				workout: data.workout,
 				tagIds: data.tagIds,
 				movementIds: data.movementIds,
+				remixTeamId: data.remixTeamId,
 			})
 
 			if (error || !result?.success) {
@@ -80,10 +88,17 @@ export default async function EditWorkoutPage({
 
 			redirect(`/workouts/${redirectId}`)
 		} catch (error) {
+			// Check if this is a Next.js redirect (which is expected behavior)
+			if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+				throw error // Re-throw the redirect
+			}
 			console.error("[EditWorkoutPage] Error updating workout", error)
 			throw new Error("Error updating workout")
 		}
 	}
+
+	// Get user teams for remix team selection
+	const userTeams = session.teams || []
 
 	return (
 		<EditWorkoutClient
@@ -93,6 +108,7 @@ export default async function EditWorkoutPage({
 			workoutId={myParams.id}
 			isRemixMode={shouldRemix}
 			updateWorkoutAction={updateWorkoutServerAction}
+			userTeams={userTeams}
 		/>
 	)
 }
