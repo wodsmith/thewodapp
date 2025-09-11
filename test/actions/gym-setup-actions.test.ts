@@ -76,14 +76,27 @@ describe('Gym Setup Actions', () => {
 
   // Class Catalog
   it('should create a class catalog entry', async () => {
-    const result = await createClassCatalog({ teamId: 'test-team-id', name: 'Test Class', description: 'Desc' })
+    const result = await createClassCatalog({ 
+      teamId: 'test-team-id', 
+      name: 'Test Class', 
+      description: 'Desc',
+      durationMinutes: 60,
+      maxParticipants: 10
+    })
     expect(result).toBeDefined()
 
     expect(db?.insert).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should update a class catalog entry', async () => {
-    const result = await updateClassCatalog({ id: 'cls1', teamId: 'test-team-id', name: 'Updated Class', description: 'Updated Desc' })
+    const result = await updateClassCatalog({ 
+      id: 'cls1', 
+      teamId: 'test-team-id', 
+      name: 'Updated Class', 
+      description: 'Updated Desc',
+      durationMinutes: 90,
+      maxParticipants: 15
+    })
     expect(result).toBeDefined()
 
     expect(db?.update).toHaveBeenCalledWith(expect.any(Object))
