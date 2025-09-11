@@ -120,6 +120,20 @@
       "when": 1757523099383,
       "tag": "0016_fix_team_personal_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1757609193124,
+      "tag": "0017_lying_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1757609275223,
+      "tag": "0018_careless_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

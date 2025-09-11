@@ -29,6 +29,7 @@ export interface ScheduleWorkoutInput {
 }
 
 export interface UpdateScheduleInput {
+	workoutId?: string | null
 	teamSpecificNotes?: string | null
 	scalingGuidanceForDay?: string | null
 	classTimes?: string | null

@@ -222,6 +222,7 @@ export function WorkoutSelectionModal({
 											movements={allMovements}
 											tags={allTags}
 											workoutId={editingWorkout.id}
+											teamId={teamId}
 											updateWorkoutAction={wrappedUpdateWorkout}
 											onCancel={wrappedCancelEdit}
 										/>

@@ -172,5 +172,33 @@ describe("Team-Specific Workout Resolution", () => {
 			expect(mockDb.from).toHaveBeenCalled()
 			expect(mockDb.where).toHaveBeenCalled()
 		})
+
+		it("should return original workout when preferOriginal is true, even if remix exists", async () => {
+			const originalWorkout = {
+				id: "original-workout-id",
+				name: "Original Grace",
+				description: "30 Clean and Jerks for Time",
+				scheme: "time",
+				scope: "public",
+				teamId: null,
+				sourceWorkoutId: null,
+			}
+
+			// Mock original workout found (should skip remix check)
+			mockDb.where.mockResolvedValueOnce([originalWorkout])
+
+			const result = await getTeamSpecificWorkout({
+				originalWorkoutId: "original-workout-id",
+				teamId: "team-a",
+				preferOriginal: true,
+			})
+
+			expect(result.id).toBe("original-workout-id")
+			expect(result.name).toBe("Original Grace")
+			expect(result.sourceWorkoutId).toBe(null)
+			
+			// Should only have called the database once (for original workout, skipping remix check)
+			expect(mockDb.where).toHaveBeenCalledTimes(1)
+		})
 	})
 })

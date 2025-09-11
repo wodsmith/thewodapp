@@ -245,3 +245,46 @@ export const getScheduledWorkoutAction = createServerAction()
 
 		return { success: true, data: instance }
 	})
+
+const updateScheduledWorkoutInstanceSchema = z.object({
+	instanceId: z.string().min(1, "Instance ID is required"),
+	data: z.object({
+		workoutId: z.string().optional(),
+		teamSpecificNotes: z.string().optional(),
+		scalingGuidanceForDay: z.string().optional(),
+		classTimes: z.string().optional(),
+	}),
+})
+
+/**
+ * Update a scheduled workout instance (including workoutId for remixes)
+ */
+export const updateScheduledWorkoutInstanceAction = createServerAction()
+	.input(updateScheduledWorkoutInstanceSchema)
+	.handler(async ({ input }) => {
+		const { instanceId, data } = input
+
+		// Get the instance to check team permissions
+		const instance = await getScheduledWorkoutInstanceById(instanceId)
+		if (!instance) {
+			throw new Error("Scheduled workout not found")
+		}
+
+		// Check permissions
+		await requireTeamPermission(
+			instance.teamId,
+			TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+		)
+
+		const updatedInstance = await updateScheduledWorkoutInstance(
+			instanceId,
+			data,
+		)
+
+		console.log(
+			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}' with data:`,
+			data,
+		)
+
+		return { success: true, data: updatedInstance }
+	})

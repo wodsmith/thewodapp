@@ -905,11 +905,28 @@ export async function createProgrammingTrackWorkoutRemix({
 export async function getTeamSpecificWorkout({
 	originalWorkoutId,
 	teamId,
+	preferOriginal = false,
 }: {
 	originalWorkoutId: string
 	teamId: string
+	preferOriginal?: boolean
 }) {
 	const db = getDd()
+
+	// If preferOriginal is true, skip remix lookup and return the original workout directly
+	if (preferOriginal) {
+		const originalWorkoutResult = await db
+			.select()
+			.from(workouts)
+			.where(eq(workouts.id, originalWorkoutId))
+		const originalWorkout = originalWorkoutResult[0]
+
+		if (!originalWorkout) {
+			throw new ZSAError("NOT_FOUND", "Original workout not found")
+		}
+
+		return originalWorkout
+	}
 
 	// Check if team has a remix of this workout
 	const teamRemixResult = await db
