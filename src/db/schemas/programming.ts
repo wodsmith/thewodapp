@@ -116,10 +116,8 @@ export const scheduledWorkoutInstancesTable = sqliteTable(
 		teamId: text()
 			.notNull()
 			.references(() => teamTable.id),
-		trackWorkoutId: text()
-			.notNull()
-			.references(() => trackWorkoutsTable.id),
-		workoutId: text(), // Explicit workout selection (original or remix)
+		trackWorkoutId: text().references(() => trackWorkoutsTable.id),
+		workoutId: text().references(() => workouts.id), // Explicit workout selection (required for standalone, optional for track workouts)
 		scheduledDate: integer({ mode: "timestamp" }).notNull(),
 		teamSpecificNotes: text({ length: 1000 }),
 		scalingGuidanceForDay: text({ length: 1000 }),

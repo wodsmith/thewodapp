@@ -134,6 +134,13 @@
       "when": 1757609275223,
       "tag": "0018_careless_steel_serpent",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1757611168727,
+      "tag": "0019_worthless_professor_monster",
+      "breakpoints": true
     }
   ]
 }
