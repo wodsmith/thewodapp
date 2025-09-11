@@ -165,6 +165,8 @@ export function WorkoutSelectionModal({
 		const success = await handleUpdateWorkout(data)
 		if (success) {
 			handleCancelEdit()
+			// Refresh the main calendar after workout update/remix
+			onWorkoutScheduledAction()
 		}
 	}
 

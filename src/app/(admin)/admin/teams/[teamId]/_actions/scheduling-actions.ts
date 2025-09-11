@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction } from "zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
@@ -123,6 +124,10 @@ export const scheduleWorkoutAction = createServerAction()
 			`INFO: [SchedulingService] Scheduled trackWorkoutId '${trackWorkoutId}' for teamId '${teamId}' on '${scheduledDate}'. InstanceId: '${scheduledWorkout.id}'`,
 		)
 
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${teamId}`)
+		revalidatePath(`/admin/teams/${teamId}/schedule`)
+
 		return { success: true, data: scheduledWorkout }
 	})
 
@@ -198,6 +203,10 @@ export const updateScheduledWorkoutAction = createServerAction()
 		console.log(
 			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}' for teamId '${teamId}'`,
 		)
+
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${teamId}`)
+		revalidatePath(`/admin/teams/${teamId}/schedule`)
 
 		return { success: true, data: updatedInstance }
 	})
@@ -285,6 +294,10 @@ export const updateScheduledWorkoutInstanceAction = createServerAction()
 			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}' with data:`,
 			data,
 		)
+
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${instance.teamId}`)
+		revalidatePath(`/admin/teams/${instance.teamId}/schedule`)
 
 		return { success: true, data: updatedInstance }
 	})
