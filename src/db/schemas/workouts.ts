@@ -1,6 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { integer, sqliteTable, text, foreignKey } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
@@ -30,66 +30,85 @@ export const tags = sqliteTable("spicy_tags", {
 	name: text("name").notNull().unique(),
 })
 
-// Workouts table - defined as a function to handle self-reference
-export const workouts = sqliteTable("workouts", {
-	...commonColumns,
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	description: text("description").notNull(),
-	scope: text("scope", {
-		enum: ["private", "public"],
-	})
-		.default("private")
-		.notNull(),
-	scheme: text("scheme", {
-		enum: [
-			"time",
-			"time-with-cap",
-			"pass-fail",
-			"rounds-reps",
-			"reps",
-			"emom",
-			"load",
-			"calories",
-			"meters",
-			"feet",
-			"points",
-		],
-	}).notNull(),
-	repsPerRound: integer("reps_per_round"),
-	roundsToScore: integer("rounds_to_score").default(1),
-	teamId: text("team_id").references(() => teamTable.id),
-	sugarId: text("sugar_id"),
-	tiebreakScheme: text("tiebreak_scheme", { enum: ["time", "reps"] }),
-	secondaryScheme: text("secondary_scheme", {
-		enum: [
-			"time",
-			"pass-fail",
-			"rounds-reps",
-			"reps",
-			"emom",
-			"load",
-			"calories",
-			"meters",
-			"feet",
-			"points",
-		],
+// Workouts table - using third argument for self-referencing foreign key
+export const workouts = sqliteTable(
+	"workouts",
+	{
+		...commonColumns,
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		description: text("description").notNull(),
+		scope: text("scope", {
+			enum: ["private", "public"],
+		})
+			.default("private")
+			.notNull(),
+		scheme: text("scheme", {
+			enum: [
+				"time",
+				"time-with-cap",
+				"pass-fail",
+				"rounds-reps",
+				"reps",
+				"emom",
+				"load",
+				"calories",
+				"meters",
+				"feet",
+				"points",
+			],
+		}).notNull(),
+		repsPerRound: integer("reps_per_round"),
+		roundsToScore: integer("rounds_to_score").default(1),
+		teamId: text("team_id").references(() => teamTable.id, {
+			onDelete: "set null",
+		}),
+		sugarId: text("sugar_id"),
+		tiebreakScheme: text("tiebreak_scheme", { enum: ["time", "reps"] }),
+		secondaryScheme: text("secondary_scheme", {
+			enum: [
+				"time",
+				"pass-fail",
+				"rounds-reps",
+				"reps",
+				"emom",
+				"load",
+				"calories",
+				"meters",
+				"feet",
+				"points",
+			],
+		}),
+		sourceTrackId: text("source_track_id").references(
+			() => programmingTracksTable.id,
+			{
+				onDelete: "set null",
+			},
+		),
+		sourceWorkoutId: text("source_workout_id"),
+	},
+	(workouts) => ({
+		sourceWorkoutSelfRef: foreignKey({
+			columns: [workouts.sourceWorkoutId],
+			foreignColumns: [workouts.id],
+			name: "workouts_source_workout_id_fkey",
+		}).onDelete("set null"),
 	}),
-	sourceTrackId: text("source_track_id").references(
-		() => programmingTracksTable.id,
-	),
-	sourceWorkoutId: text("source_workout_id").references((): any => workouts.id),
-})
+)
 
 // Workout Tags junction table
 export const workoutTags = sqliteTable("workout_tags", {
 	...commonColumns,
 	id: text("id").primaryKey(),
 	workoutId: text("workout_id")
-		.references(() => workouts.id)
+		.references(() => workouts.id, {
+			onDelete: "cascade",
+		})
 		.notNull(),
 	tagId: text("tag_id")
-		.references(() => tags.id)
+		.references(() => tags.id, {
+			onDelete: "cascade",
+		})
 		.notNull(),
 })
 
@@ -97,8 +116,12 @@ export const workoutTags = sqliteTable("workout_tags", {
 export const workoutMovements = sqliteTable("workout_movements", {
 	...commonColumns,
 	id: text("id").primaryKey(),
-	workoutId: text("workout_id").references(() => workouts.id),
-	movementId: text("movement_id").references(() => movements.id),
+	workoutId: text("workout_id").references(() => workouts.id, {
+		onDelete: "cascade",
+	}),
+	movementId: text("movement_id").references(() => movements.id, {
+		onDelete: "cascade",
+	}),
 })
 
 // Results base table (consolidated)
@@ -106,10 +129,14 @@ export const results = sqliteTable("results", {
 	...commonColumns,
 	id: text("id").primaryKey(),
 	userId: text("user_id")
-		.references(() => userTable.id)
+		.references(() => userTable.id, {
+			onDelete: "cascade",
+		})
 		.notNull(),
 	date: integer("date", { mode: "timestamp" }).notNull(),
-	workoutId: text("workout_id").references(() => workouts.id), // Optional, for WOD results
+	workoutId: text("workout_id").references(() => workouts.id, {
+		onDelete: "set null",
+	}), // Optional, for WOD results
 	type: text("type", {
 		enum: ["wod", "strength", "monostructural"],
 	}).notNull(),
@@ -136,7 +163,9 @@ export const sets = sqliteTable("sets", {
 	...commonColumns,
 	id: text("id").primaryKey(),
 	resultId: text("result_id")
-		.references(() => results.id)
+		.references(() => results.id, {
+			onDelete: "cascade",
+		})
 		.notNull(),
 	setNumber: integer("set_number").notNull(),
 	notes: text("notes"),

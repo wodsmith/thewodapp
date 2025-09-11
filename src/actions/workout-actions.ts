@@ -22,6 +22,11 @@ import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results
 import { getUserTeams } from "@/server/teams"
 import { requireVerifiedEmail } from "@/utils/auth"
 import {
+	requireTeamMembership,
+	hasTeamPermission,
+	isTeamMember,
+} from "@/utils/team-auth"
+import {
 	canUserEditWorkout,
 	shouldCreateRemix,
 } from "@/utils/workout-permissions"
@@ -94,6 +99,21 @@ export const createWorkoutRemixAction = createServerAction()
 		try {
 			const { sourceWorkoutId, teamId } = input
 
+			// Ensure the user is a member of the target team
+			await requireTeamMembership(teamId)
+
+			// Check if user has EDIT_COMPONENTS permission for the team
+			const hasEditPermission = await hasTeamPermission(
+				teamId,
+				"EDIT_COMPONENTS",
+			)
+			if (!hasEditPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to create workouts in this team",
+				)
+			}
+
 			// Check if user should create a remix (permission validation)
 			const shouldRemix = await shouldCreateRemix(sourceWorkoutId)
 
@@ -138,9 +158,23 @@ export const createProgrammingTrackWorkoutRemixAction = createServerAction()
 		try {
 			const { sourceWorkoutId, sourceTrackId, teamId } = input
 
-			// Note: For programming track remixes, we don't need the same permission check
-			// as regular remixes since this is specifically for external track workouts
-			// The permission validation is handled within the createProgrammingTrackWorkoutRemix function
+			// Ensure the user is a member of the target team
+			await requireTeamMembership(teamId)
+
+			// Check if user has EDIT_COMPONENTS permission for the team
+			const hasEditPermission = await hasTeamPermission(
+				teamId,
+				"EDIT_COMPONENTS",
+			)
+			if (!hasEditPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to create workouts in this team",
+				)
+			}
+
+			// Note: For programming track remixes, we don't need the shouldCreateRemix check
+			// as this is specifically for external track workouts
 
 			// Create the remix
 			const remixedWorkout = await createProgrammingTrackWorkoutRemix({
@@ -610,6 +644,22 @@ export const getTeamSpecificWorkoutAction = createServerAction()
 		try {
 			const { originalWorkoutId, teamId } = input
 
+			// Require authentication first
+			const session = await requireVerifiedEmail()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Authentication required")
+			}
+
+			// Verify the user is a member of the specified team
+			const isMember = await isTeamMember(teamId)
+			if (!isMember) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You are not authorized to access this team's workouts",
+				)
+			}
+
+			// Only fetch the workout after authorization checks pass
 			const workout = await getTeamSpecificWorkout({
 				originalWorkoutId,
 				teamId,

@@ -141,6 +141,20 @@
       "when": 1757611168727,
       "tag": "0019_worthless_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1757620538536,
+      "tag": "0020_fix-foreign-key-ondelete-rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1757621109682,
+      "tag": "0021_conscious_vision",
+      "breakpoints": true
     }
   ]
 }

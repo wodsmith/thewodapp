@@ -234,7 +234,7 @@ export function WorkoutSelectionList({
 													{workout.name}
 												</p>
 												{workout.description && (
-													<p className="text-xs text-muted-foreground font-mono truncate whitespace-pre-wrap line-clamp-2 max-w-[75ch]">
+													<p className="text-xs text-muted-foreground font-mono whitespace-pre-wrap line-clamp-2 max-w-[75ch]">
 														{workout.description}
 													</p>
 												)}

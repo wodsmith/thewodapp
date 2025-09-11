@@ -27,6 +27,7 @@ import {
 	teamMembershipTable,
 } from "@/db/schema"
 import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
+import { isTeamMember } from "@/utils/team-auth"
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
@@ -598,6 +599,15 @@ export async function createWorkoutRemix({
 		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
 	}
 
+	// Validate that the user is a member of the target team
+	const isMember = await isTeamMember(teamId)
+	if (!isMember) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"You are not authorized to create workouts for this team",
+		)
+	}
+
 	// First, get the source workout with all related data
 	const sourceWorkout = await getWorkoutById(sourceWorkoutId)
 
@@ -754,6 +764,15 @@ export async function createProgrammingTrackWorkoutRemix({
 
 	if (!session?.user?.id) {
 		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+	}
+
+	// Validate that the user is a member of the target team
+	const isMember = await isTeamMember(teamId)
+	if (!isMember) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"You are not authorized to create workouts for this team",
+		)
 	}
 
 	// First, get the source workout with all related data
@@ -971,6 +990,12 @@ export async function getRemixedWorkouts(sourceWorkoutId: string) {
 	const session = await getSessionFromCookie()
 	if (!session) throw new ZSAError("NOT_AUTHORIZED", "No session found")
 
+	// Guard against missing user information
+	const userId = session.userId || session.user?.id
+	if (!userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "User ID not found in session")
+	}
+
 	const remixedWorkouts = await db
 		.select({
 			id: workouts.id,
@@ -995,7 +1020,7 @@ export async function getRemixedWorkouts(sourceWorkoutId: string) {
 						db
 							.select({ teamId: teamMembershipTable.teamId })
 							.from(teamMembershipTable)
-							.where(eq(teamMembershipTable.userId, session.userId)),
+							.where(eq(teamMembershipTable.userId, userId)),
 					),
 				),
 			),

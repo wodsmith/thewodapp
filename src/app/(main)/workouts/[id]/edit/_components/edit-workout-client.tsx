@@ -64,8 +64,8 @@ export default function EditWorkoutClient({
 	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
 		workout?.repsPerRound === null ? undefined : workout?.repsPerRound,
 	)
-	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
-		workout?.roundsToScore === null ? 1 : workout?.roundsToScore || 1,
+	const [roundsToScore, setRoundsToScore] = useState<number | null>(
+		workout?.roundsToScore ?? null,
 	)
 	const [selectedTeamId, setSelectedTeamId] = useState<string>(
 		userTeams.length > 0 ? userTeams[0].id : "",
@@ -111,7 +111,7 @@ export default function EditWorkoutClient({
 				scheme,
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
-				roundsToScore: roundsToScore === undefined ? null : roundsToScore,
+				roundsToScore: roundsToScore,
 			},
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
@@ -285,11 +285,11 @@ export default function EditWorkoutClient({
 							<Input
 								id="rounds-to-score"
 								type="number"
-								value={roundsToScore === undefined ? "" : roundsToScore}
+								value={roundsToScore === null ? "" : roundsToScore}
 								onChange={(e) =>
 									setRoundsToScore(
 										e.target.value === ""
-											? undefined
+											? null
 											: Number.parseInt(e.target.value),
 									)
 								}
