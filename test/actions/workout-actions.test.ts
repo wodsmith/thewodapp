@@ -5,7 +5,7 @@ import { beforeAll, expect, test, describe, it, vi, beforeEach, afterEach } from
 import { requireVerifiedEmail } from "@/utils/auth"
 import { canUserEditWorkout, shouldCreateRemix } from "@/utils/workout-permissions"
 import { createWorkoutRemix, getWorkoutById, updateWorkout } from "@/server/workouts"
-import type { Session } from "@/types"
+import type { SessionWithMeta } from "@/types"
 
 // Mock the dependencies
 vi.mock("@/utils/auth", () => ({
@@ -24,18 +24,36 @@ vi.mock("@/server/workouts", () => ({
   updateWorkout: vi.fn(),
 }))
 
-const mockSession: Session = {
+const mockSession: SessionWithMeta = {
+  id: "session-123",
+  userId: "user-123",
+  expiresAt: Date.now() + 86400000,
+  createdAt: Date.now(),
+  isCurrentSession: true,
   user: {
     id: "user-123",
     email: "test@example.com",
-    name: "Test User",
-    emailVerified: true,
+    firstName: "Test",
+    lastName: "User",
+    emailVerified: new Date(),
+    role: "user",
+    avatar: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    currentCredits: 100,
+    lastCreditRefreshAt: null,
   },
   teams: [
     {
-      id: "test_team_id",
+      id: "team-123",
       name: "Test Team",
-      isPersonalTeam: 0,
+      slug: "test-team",
+      role: {
+        id: "member",
+        name: "Member",
+        isSystemRole: true,
+      },
+      permissions: ["access_dashboard", "create_components", "edit_components"],
     },
   ],
 }

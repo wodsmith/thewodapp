@@ -68,11 +68,11 @@ describe("WorkoutRowCard", () => {
 		updateCounter: 0,
 	}
 
-	const mockMovements: Movement[] = [
+	const mockMovements: Array<Pick<Movement, "id" | "name"> & { type: "weightlifting" }> = [
 		{ id: "movement-1", name: "Squat", type: "weightlifting" },
 	]
 
-	const mockTags: Tag[] = [
+	const mockTags: Array<Pick<Tag, "id" | "name">> = [
 		{ id: "tag-1", name: "Strength" },
 	]
 

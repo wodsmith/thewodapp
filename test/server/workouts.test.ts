@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { getDd } from "@/db"
 import { workouts, workoutTags, workoutMovements } from "@/db/schema"
-import type { Session } from "@/types"
+import type { SessionWithMeta } from "@/types"
 
 // Mock the dependencies
 vi.mock("@/utils/auth", () => ({
@@ -46,18 +46,36 @@ vi.mock("@/server/workouts", () => ({
 }))
 
 describe("workouts server functions", () => {
-  const mockSession: Session = {
+  const mockSession: SessionWithMeta = {
+    id: "session-123",
+    userId: "user-123",
+    expiresAt: Date.now() + 86400000,
+    createdAt: Date.now(),
+    isCurrentSession: true,
     user: {
       id: "user-123",
       email: "test@example.com",
-      name: "Test User",
-      emailVerified: true,
+      firstName: "Test",
+      lastName: "User",
+      emailVerified: new Date(),
+      role: "user",
+      avatar: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      currentCredits: 100,
+      lastCreditRefreshAt: null,
     },
     teams: [
       {
         id: "team-123",
         name: "Test Team",
-        isPersonalTeam: 0,
+        slug: "test-team",
+        role: {
+          id: "member",
+          name: "Member",
+          isSystemRole: true,
+        },
+        permissions: ["access_dashboard", "create_components", "edit_components"],
       },
     ],
   }

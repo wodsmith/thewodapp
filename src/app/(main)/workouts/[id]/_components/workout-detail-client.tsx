@@ -61,7 +61,7 @@ export default function WorkoutDetailClient({
 		scheme: string
 		scope: string
 		createdAt: Date
-		teamId: string
+		teamId: string | null
 		teamName: string
 	}>
 }) {

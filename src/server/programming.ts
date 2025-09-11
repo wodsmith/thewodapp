@@ -309,6 +309,7 @@ export async function detectExternalProgrammingTrackWorkouts(
 		const scheduledWorkout: ScheduledWorkoutInstanceWithDetails = {
 			id: row.instanceId,
 			teamId: row.instanceTeamId,
+			workoutId: row.workoutId,
 			trackWorkoutId: row.instanceTrackWorkoutId,
 			scheduledDate: row.instanceScheduledDate,
 			teamSpecificNotes: row.instanceTeamSpecificNotes,
@@ -320,27 +321,33 @@ export async function detectExternalProgrammingTrackWorkouts(
 			trackWorkout: row.trackWorkoutId
 				? {
 						id: row.trackWorkoutId,
-						trackId: row.trackWorkoutTrackId,
-						workoutId: row.trackWorkoutWorkoutId,
-						dayNumber: row.trackWorkoutDayNumber,
+						trackId: row.trackWorkoutTrackId as string,
+						workoutId: row.trackWorkoutWorkoutId as string,
+						dayNumber: (row.trackWorkoutDayNumber ?? 0) as number,
 						weekNumber: row.trackWorkoutWeekNumber,
 						notes: row.trackWorkoutNotes,
-						createdAt: row.trackWorkoutCreatedAt,
-						updatedAt: row.trackWorkoutUpdatedAt,
+						createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
+						updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,
 						updateCounter: row.trackWorkoutUpdateCounter,
 						workout: row.workoutId
 							? {
 									id: row.workoutId,
-									name: row.workoutName,
-									description: row.workoutDescription,
-									scheme: row.workoutScheme,
-									scope: row.workoutScope,
+									name: (row.workoutName ?? "") as string,
+									description: (row.workoutDescription ?? "") as string,
+									scheme: (row.workoutScheme ?? "reps") as any,
+									scope: (row.workoutScope ?? "public") as any,
 									teamId: row.workoutTeamId,
-									createdAt: row.workoutCreatedAt,
-									updatedAt: row.workoutUpdatedAt,
+									createdAt: (row.workoutCreatedAt ?? new Date()) as Date,
+									updatedAt: (row.workoutUpdatedAt ?? new Date()) as Date,
 									updateCounter: row.workoutUpdateCounter,
 									sourceWorkoutId: row.workoutSourceWorkoutId,
 									sourceTrackId: row.workoutSourceTrackId,
+									// Satisfy Workout shape with safe defaults
+									repsPerRound: null,
+									roundsToScore: null,
+									sugarId: null,
+									tiebreakScheme: null,
+									secondaryScheme: null,
 								}
 							: undefined,
 					}

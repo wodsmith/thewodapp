@@ -5,7 +5,7 @@ import { hasTeamPermission } from "@/utils/team-auth"
 import { getDd } from "@/db"
 import { eq } from "drizzle-orm"
 import { workouts } from "@/db/schema"
-import type { Session } from "@/types"
+import type { KVSession } from "@/utils/kv-session"
 
 // Mock the dependencies
 vi.mock("@/utils/auth", () => ({
@@ -16,11 +16,13 @@ vi.mock("@/utils/team-auth", () => ({
   hasTeamPermission: vi.fn(),
 }))
 
+const mockFindFirst = vi.fn()
+
 vi.mock("@/db", () => ({
   getDd: vi.fn(() => ({
     query: {
       workouts: {
-        findFirst: vi.fn(),
+        findFirst: mockFindFirst,
       },
     },
   })),
@@ -38,18 +40,35 @@ vi.mock("drizzle-orm", () => ({
 }))
 
 describe("workout-permissions", () => {
-  const mockSession: Session = {
+  const mockSession: KVSession = {
+    id: "session-123",
+    userId: "user-123",
+    expiresAt: Date.now() + 86400000,
+    createdAt: Date.now(),
     user: {
       id: "user-123",
       email: "test@example.com",
-      name: "Test User",
-      emailVerified: true,
+      firstName: "Test",
+      lastName: "User",
+      role: "user",
+      emailVerified: new Date(Date.now()),
+      avatar: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      currentCredits: 100,
+      lastCreditRefreshAt: null,
     },
     teams: [
       {
         id: "team-123",
         name: "Test Team",
-        isPersonalTeam: 0,
+        slug: "test-team",
+        role: {
+          id: "member",
+          name: "Member",
+          isSystemRole: true,
+        },
+        permissions: ["access_dashboard", "create_components", "edit_components"],
       },
     ],
   }
@@ -76,10 +95,7 @@ describe("workout-permissions", () => {
     // Setup default mocks
     vi.mocked(requireVerifiedEmail).mockResolvedValue(mockSession)
     vi.mocked(hasTeamPermission).mockResolvedValue(true)
-
-    const mockFindFirst = vi.fn()
-    const mockDb = vi.mocked(getDd)()
-    mockDb.query.workouts.findFirst = mockFindFirst
+    mockFindFirst.mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -88,14 +104,13 @@ describe("workout-permissions", () => {
 
   describe("canUserEditWorkout", () => {
     it("should return true for workout owned by user's team with edit permissions", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockWorkout)
+      mockFindFirst.mockResolvedValue(mockWorkout)
 
       const result = await canUserEditWorkout("workout-123")
 
       expect(result).toBe(true)
-      expect(mockDb.query.workouts.findFirst).toHaveBeenCalledWith({
-        where: expect.any(Function),
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: undefined,
         columns: {
           id: true,
           teamId: true,
@@ -116,8 +131,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if workout doesn't exist", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(null)
+      mockFindFirst.mockResolvedValue(null)
 
       const result = await canUserEditWorkout("workout-123")
 
@@ -125,8 +139,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if workout doesn't belong to a team", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockWorkout,
         teamId: null,
       })
@@ -137,8 +150,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if user is not a team member", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockWorkout,
         teamId: "different-team",
       })
@@ -149,8 +161,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if user lacks edit permissions", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockWorkout)
+      mockFindFirst.mockResolvedValue(mockWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(false)
 
       const result = await canUserEditWorkout("workout-123")
@@ -160,8 +171,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if workout is already a remix", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockRemixWorkout)
+      mockFindFirst.mockResolvedValue(mockRemixWorkout)
 
       const result = await canUserEditWorkout("workout-456")
 
@@ -179,8 +189,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return true if workout doesn't exist", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(null)
+      mockFindFirst.mockResolvedValue(null)
 
       const result = await shouldCreateRemix("workout-123")
 
@@ -188,8 +197,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return true if workout doesn't belong to a team", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockWorkout,
         teamId: null,
       })
@@ -200,8 +208,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return true if user is not a team member", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockWorkout,
         teamId: "different-team",
       })
@@ -212,8 +219,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return true if user lacks edit permissions", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockWorkout)
+      mockFindFirst.mockResolvedValue(mockWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(false)
 
       const result = await shouldCreateRemix("workout-123")
@@ -223,8 +229,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return true if workout is already a remix", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockRemixWorkout)
+      mockFindFirst.mockResolvedValue(mockRemixWorkout)
 
       const result = await shouldCreateRemix("workout-456")
 
@@ -232,8 +237,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if user can edit directly", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockWorkout)
+      mockFindFirst.mockResolvedValue(mockWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(true)
 
       const result = await shouldCreateRemix("workout-123")
@@ -244,8 +248,7 @@ describe("workout-permissions", () => {
 
   describe("getWorkoutPermissions", () => {
     it("should return comprehensive permissions for editable workout", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockWorkout)
+      mockFindFirst.mockResolvedValue(mockWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(true)
 
       const result = await getWorkoutPermissions("workout-123")
@@ -258,8 +261,7 @@ describe("workout-permissions", () => {
     })
 
     it("should return remix permissions for non-editable workout", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(mockRemixWorkout)
+      mockFindFirst.mockResolvedValue(mockRemixWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(true)
 
       const result = await getWorkoutPermissions("workout-456")
@@ -272,8 +274,7 @@ describe("workout-permissions", () => {
     })
 
     it("should handle edge case where neither edit nor remix is possible", async () => {
-      const mockDb = vi.mocked(getDd)()
-      mockDb.query.workouts.findFirst.mockResolvedValue(null)
+      mockFindFirst.mockResolvedValue(null)
 
       const result = await getWorkoutPermissions("workout-999")
 

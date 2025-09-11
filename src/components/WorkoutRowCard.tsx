@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/hover-card"
 import { ListItem } from "@/components/ui/list-item"
 import { cn } from "@/lib/utils"
-import type { Movement, Tag, Workout, WorkoutResult } from "@/types"
+import type { Movement, Tag, Workout } from "@/types"
 
 const SCHEME_CONFIG: Record<
 	Workout["scheme"],
@@ -58,6 +58,13 @@ function SchemeIcon({
 	)
 }
 
+type ResultSummary = {
+	id: string
+	date: Date
+	wodScore: string | null
+	scale: string | null
+}
+
 interface WorkoutRowCardProps {
 	workout: Workout & {
 		sourceWorkout?: {
@@ -69,7 +76,7 @@ interface WorkoutRowCardProps {
 	}
 	movements?: Pick<Movement, "id" | "name">[]
 	tags?: Pick<Tag, "id" | "name">[]
-	result?: WorkoutResult
+	result?: ResultSummary | null
 }
 
 export default function WorkoutRowCard({
@@ -178,11 +185,20 @@ export default function WorkoutRowCard({
 					{displayResult && (
 						<div className="flex items-center gap-2 text-sm">
 							<span className="font-semibold">{displayResult.wodScore}</span>
-							{displayResult.scale && (
-								<Badge variant={displayResult.scale}>
-									{displayResult.scale.toUpperCase()}
-								</Badge>
-							)}
+							{displayResult.scale &&
+								(() => {
+									const badgeVariant: "rx" | "rx+" | "scaled" | "secondary" =
+										displayResult.scale === "rx" ||
+										displayResult.scale === "rx+" ||
+										displayResult.scale === "scaled"
+											? (displayResult.scale as "rx" | "rx+" | "scaled")
+											: "secondary"
+									return (
+										<Badge variant={badgeVariant}>
+											{displayResult.scale.toUpperCase()}
+										</Badge>
+									)
+								})()}
 						</div>
 					)}
 					<Button asChild size="sm" variant="secondary">
