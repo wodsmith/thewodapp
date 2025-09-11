@@ -30,6 +30,7 @@ interface WorkoutSelectionModalProps {
 	selectedDate: Date | null
 	teamId: string
 	onWorkoutScheduledAction: () => void
+	preSelectedWorkoutId?: string | null
 }
 
 export function WorkoutSelectionModal({
@@ -38,6 +39,7 @@ export function WorkoutSelectionModal({
 	selectedDate,
 	teamId,
 	onWorkoutScheduledAction,
+	preSelectedWorkoutId,
 }: WorkoutSelectionModalProps) {
 	// Custom hooks for different concerns
 	const {
@@ -119,6 +121,26 @@ export function WorkoutSelectionModal({
 		scheduledWorkouts,
 		loadScheduledWorkouts,
 	})
+
+	// Auto-select the workout when opening from calendar click
+	useEffect(() => {
+		if (isOpen && preSelectedWorkoutId && scheduledWorkouts.length > 0) {
+			const workoutToEdit = scheduledWorkouts.find(
+				(sw) => sw.id === preSelectedWorkoutId,
+			)
+			if (workoutToEdit) {
+				// Auto-select the workout for editing
+				handleEditScheduled(workoutToEdit, setFormData)
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		isOpen,
+		preSelectedWorkoutId,
+		scheduledWorkouts, // Auto-select the workout for editing
+		handleEditScheduled,
+		setFormData,
+	])
 
 	// Modal handlers
 	const handleClose = () => {
