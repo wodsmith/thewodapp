@@ -1,1 +1,1 @@
-PATH="/Users/zacjones/.nvm/versions/node/v22.17.1/bin:$PATH" /Users/zacjones/Library/pnpm/pnpm lint-staged
+lint-staged

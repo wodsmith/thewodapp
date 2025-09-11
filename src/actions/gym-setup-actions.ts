@@ -3,15 +3,18 @@ import {
 	classCatalogTable,
 	locationsTable,
 	skillsTable,
+	scheduleTemplateClassesTable,
+	scheduledClassesTable,
 } from "@/db/schemas/scheduling"
 import {
 	createLocationId,
-	createSkillId,
 	createClassCatalogId,
+	createSkillId,
 } from "@/db/schemas/common"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-// import { authAction } from "@/lib/safe-action"
+import { createServerAction, ZSAError } from "zsa"
+import { requireTeamMembership } from "@/utils/team-auth"
 
 // Schemas for input validation
 const createLocationSchema = z.object({
@@ -27,6 +30,10 @@ const updateLocationSchema = z.object({
 
 const deleteLocationSchema = z.object({
 	id: z.string(),
+	teamId: z.string(),
+})
+
+const getLocationsByTeamSchema = z.object({
 	teamId: z.string(),
 })
 
@@ -48,6 +55,10 @@ const deleteClassCatalogSchema = z.object({
 	teamId: z.string(),
 })
 
+const getClassCatalogByTeamSchema = z.object({
+	teamId: z.string(),
+})
+
 const createSkillSchema = z.object({
 	teamId: z.string(),
 	name: z.string().min(1, "Skill name cannot be empty"),
@@ -64,149 +75,376 @@ const deleteSkillSchema = z.object({
 	teamId: z.string(),
 })
 
+const getSkillsByTeamSchema = z.object({
+	teamId: z.string(),
+})
+
 // Server Actions for Locations
-export const createLocation = async ({
-	teamId,
-	name,
-}: z.infer<typeof createLocationSchema>) => {
-	const db = getDd()
-	const [newLocation] = await db
-		.insert(locationsTable)
-		.values({ id: createLocationId(), teamId, name })
-		.returning()
-	return newLocation
-}
+export const createLocation = createServerAction()
+	.input(createLocationSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, name } = input
 
-export const updateLocation = async ({
-	id,
-	teamId,
-	name,
-}: z.infer<typeof updateLocationSchema>) => {
-	const db = getDd()
-	const [updatedLocation] = await db
-		.update(locationsTable)
-		.set({ name })
-		.where(and(eq(locationsTable.id, id), eq(locationsTable.teamId, teamId)))
-		.returning()
-	return updatedLocation
-}
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
 
-export const deleteLocation = async ({
-	id,
-	teamId,
-}: z.infer<typeof deleteLocationSchema>) => {
-	const db = getDd()
-	const [deletedLocation] = await db
-		.delete(locationsTable)
-		.where(and(eq(locationsTable.id, id), eq(locationsTable.teamId, teamId)))
-		.returning()
-	return deletedLocation
-}
+			const db = getDd()
+			const [newLocation] = await db
+				.insert(locationsTable)
+				.values({ id: createLocationId(), teamId, name })
+				.returning()
+			return { success: true, data: newLocation }
+		} catch (error) {
+			console.error("Failed to create location:", error)
 
-export const getLocationsByTeam = async ({ teamId }: { teamId: string }) => {
-	const db = getDd()
-	const locations = await db.query.locationsTable.findMany({
-		where: eq(locationsTable.teamId, teamId),
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create location")
+		}
 	})
-	return locations
-}
+
+export const updateLocation = createServerAction()
+	.input(updateLocationSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { id, teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const [updatedLocation] = await db
+				.update(locationsTable)
+				.set({ name })
+				.where(
+					and(eq(locationsTable.id, id), eq(locationsTable.teamId, teamId)),
+				)
+				.returning()
+			return { success: true, data: updatedLocation }
+		} catch (error) {
+			console.error("Failed to update location:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update location")
+		}
+	})
+
+export const deleteLocation = createServerAction()
+	.input(deleteLocationSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const [deletedLocation] = await db
+				.delete(locationsTable)
+				.where(
+					and(eq(locationsTable.id, id), eq(locationsTable.teamId, teamId)),
+				)
+				.returning()
+			return { success: true, data: deletedLocation }
+		} catch (error) {
+			console.error("Failed to delete location:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to delete location")
+		}
+	})
+
+export const getLocationsByTeam = createServerAction()
+	.input(getLocationsByTeamSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const locations = await db.query.locationsTable.findMany({
+				where: eq(locationsTable.teamId, teamId),
+			})
+			return { success: true, data: locations }
+		} catch (error) {
+			console.error("Failed to get locations by team:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get locations by team",
+			)
+		}
+	})
 
 // Server Actions for Class Catalog
-export const createClassCatalog = async ({
-	teamId,
-	name,
-	description,
-}: z.infer<typeof createClassCatalogSchema>) => {
-	const db = getDd()
-	const [newClass] = await db
-		.insert(classCatalogTable)
-		.values({ id: createClassCatalogId(), teamId, name, description })
-		.returning()
-	return newClass
-}
+export const createClassCatalog = createServerAction()
+	.input(createClassCatalogSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, name, description } = input
 
-export const updateClassCatalog = async ({
-	id,
-	teamId,
-	name,
-	description,
-}: z.infer<typeof updateClassCatalogSchema>) => {
-	const db = getDd()
-	const [updatedClass] = await db
-		.update(classCatalogTable)
-		.set({ name, description })
-		.where(
-			and(eq(classCatalogTable.id, id), eq(classCatalogTable.teamId, teamId)),
-		)
-		.returning()
-	return updatedClass
-}
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
 
-export const deleteClassCatalog = async ({
-	id,
-	teamId,
-}: z.infer<typeof deleteClassCatalogSchema>) => {
-	const db = getDd()
-	const [deletedClass] = await db
-		.delete(classCatalogTable)
-		.where(
-			and(eq(classCatalogTable.id, id), eq(classCatalogTable.teamId, teamId)),
-		)
-		.returning()
-	return deletedClass
-}
+			const db = getDd()
+			const [newClass] = await db
+				.insert(classCatalogTable)
+				.values({
+					id: createClassCatalogId(),
+					teamId,
+					name,
+					description,
+				})
+				.returning()
+			return { success: true, data: newClass }
+		} catch (error) {
+			console.error("Failed to create class catalog:", error)
 
-export const getClassCatalogByTeam = async ({ teamId }: { teamId: string }) => {
-	const db = getDd()
-	const classes = await db.query.classCatalogTable.findMany({
-		where: eq(classCatalogTable.teamId, teamId),
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create class catalog",
+			)
+		}
 	})
-	return classes
-}
+
+export const updateClassCatalog = createServerAction()
+	.input(updateClassCatalogSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { id, teamId, name, description } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const [updatedClass] = await db
+				.update(classCatalogTable)
+				.set({ name, description })
+				.where(
+					and(
+						eq(classCatalogTable.id, id),
+						eq(classCatalogTable.teamId, teamId),
+					),
+				)
+				.returning()
+			return { success: true, data: updatedClass }
+		} catch (error) {
+			console.error("Failed to update class catalog:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update class catalog",
+			)
+		}
+	})
+
+export const deleteClassCatalog = createServerAction()
+	.input(deleteClassCatalogSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+
+			// Start transaction
+			const result = await db.transaction(async (tx) => {
+				// Delete from scheduled_classes table first
+				await tx
+					.delete(scheduledClassesTable)
+					.where(eq(scheduledClassesTable.classCatalogId, id))
+
+				// Delete from schedule_template_classes table
+				await tx
+					.delete(scheduleTemplateClassesTable)
+					.where(eq(scheduleTemplateClassesTable.classCatalogId, id))
+
+				// Finally delete the class catalog (with team validation)
+				const [deletedClass] = await tx
+					.delete(classCatalogTable)
+					.where(
+						and(
+							eq(classCatalogTable.id, id),
+							eq(classCatalogTable.teamId, teamId),
+						),
+					)
+					.returning()
+
+				return deletedClass
+			})
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to delete class catalog:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to delete class catalog",
+			)
+		}
+	})
+
+export const getClassCatalogByTeam = createServerAction()
+	.input(getClassCatalogByTeamSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const classes = await db.query.classCatalogTable.findMany({
+				where: eq(classCatalogTable.teamId, teamId),
+			})
+			return { success: true, data: classes }
+		} catch (error) {
+			console.error("Failed to get class catalog by team:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get class catalog by team",
+			)
+		}
+	})
 
 // Server Actions for Skills
-export const createSkill = async ({
-	teamId,
-	name,
-}: z.infer<typeof createSkillSchema>) => {
-	const db = getDd()
-	const [newSkill] = await db
-		.insert(skillsTable)
-		.values({ id: createSkillId(), teamId, name })
-		.returning()
-	return newSkill
-}
+export const createSkill = createServerAction()
+	.input(createSkillSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId, name } = input
 
-export const updateSkill = async ({
-	id,
-	teamId,
-	name,
-}: z.infer<typeof updateSkillSchema>) => {
-	const db = getDd()
-	const [updatedSkill] = await db
-		.update(skillsTable)
-		.set({ name })
-		.where(and(eq(skillsTable.id, id), eq(skillsTable.teamId, teamId)))
-		.returning()
-	return updatedSkill
-}
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
 
-export const deleteSkill = async ({
-	id,
-	teamId,
-}: z.infer<typeof deleteSkillSchema>) => {
-	const db = getDd()
-	const [deletedSkill] = await db
-		.delete(skillsTable)
-		.where(and(eq(skillsTable.id, id), eq(skillsTable.teamId, teamId)))
-		.returning()
-	return deletedSkill
-}
+			const db = getDd()
+			const [newSkill] = await db
+				.insert(skillsTable)
+				.values({ id: createSkillId(), teamId, name })
+				.returning()
+			return { success: true, data: newSkill }
+		} catch (error) {
+			console.error("Failed to create skill:", error)
 
-export const getSkillsByTeam = async ({ teamId }: { teamId: string }) => {
-	const db = getDd()
-	const skills = await db.query.skillsTable.findMany({
-		where: eq(skillsTable.teamId, teamId),
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create skill")
+		}
 	})
-	return skills
-}
+
+export const updateSkill = createServerAction()
+	.input(updateSkillSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { id, teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const [updatedSkill] = await db
+				.update(skillsTable)
+				.set({ name })
+				.where(and(eq(skillsTable.id, id), eq(skillsTable.teamId, teamId)))
+				.returning()
+			return { success: true, data: updatedSkill }
+		} catch (error) {
+			console.error("Failed to update skill:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update skill")
+		}
+	})
+
+export const deleteSkill = createServerAction()
+	.input(deleteSkillSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const [deletedSkill] = await db
+				.delete(skillsTable)
+				.where(and(eq(skillsTable.id, id), eq(skillsTable.teamId, teamId)))
+				.returning()
+			return { success: true, data: deletedSkill }
+		} catch (error) {
+			console.error("Failed to delete skill:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to delete skill")
+		}
+	})
+
+export const getSkillsByTeam = createServerAction()
+	.input(getSkillsByTeamSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
+			const db = getDd()
+			const skills = await db.query.skillsTable.findMany({
+				where: eq(skillsTable.teamId, teamId),
+			})
+			return { success: true, data: skills }
+		} catch (error) {
+			console.error("Failed to get skills by team:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get skills by team",
+			)
+		}
+	})

@@ -235,9 +235,9 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 												{member.roleName}
 											</TableCell>
 											<TableCell>
-												{member.joinedAt !== null
+												{/* {member.joinedAt !== null
 													? formatDate(member.joinedAt)
-													: "Not joined"}
+													: "Not joined"} */}
 											</TableCell>
 											<TableCell>
 												{member.isActive ? (
