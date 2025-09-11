@@ -302,7 +302,12 @@ export async function detectExternalProgrammingTrackWorkouts(
 			programmingTracksTable,
 			eq(programmingTracksTable.id, trackWorkoutsTable.trackId),
 		)
-		.where(inArray(scheduledWorkoutInstancesTable.id, scheduledWorkoutIds))
+		.where(
+			and(
+				inArray(scheduledWorkoutInstancesTable.id, scheduledWorkoutIds),
+				eq(scheduledWorkoutInstancesTable.teamId, teamId),
+			),
+		)
 
 	return rows.map((row) => {
 		// Build scheduled workout instance
