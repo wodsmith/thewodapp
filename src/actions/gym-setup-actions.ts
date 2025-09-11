@@ -14,6 +14,7 @@ import {
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import { requireTeamMembership } from "@/utils/team-auth"
 
 // Schemas for input validation
 const createLocationSchema = z.object({
@@ -84,6 +85,10 @@ export const createLocation = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [newLocation] = await db
 				.insert(locationsTable)
@@ -106,6 +111,10 @@ export const updateLocation = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [updatedLocation] = await db
 				.update(locationsTable)
@@ -131,6 +140,10 @@ export const deleteLocation = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [deletedLocation] = await db
 				.delete(locationsTable)
@@ -155,6 +168,10 @@ export const getLocationsByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const locations = await db.query.locationsTable.findMany({
 				where: eq(locationsTable.teamId, teamId),
@@ -180,6 +197,10 @@ export const createClassCatalog = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId, name, description } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [newClass] = await db
 				.insert(classCatalogTable)
@@ -210,6 +231,10 @@ export const updateClassCatalog = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId, name, description } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [updatedClass] = await db
 				.update(classCatalogTable)
@@ -241,6 +266,10 @@ export const deleteClassCatalog = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 
 			// Start transaction
@@ -289,6 +318,10 @@ export const getClassCatalogByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const classes = await db.query.classCatalogTable.findMany({
 				where: eq(classCatalogTable.teamId, teamId),
@@ -314,6 +347,10 @@ export const createSkill = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [newSkill] = await db
 				.insert(skillsTable)
@@ -336,6 +373,10 @@ export const updateSkill = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId, name } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [updatedSkill] = await db
 				.update(skillsTable)
@@ -359,6 +400,10 @@ export const deleteSkill = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const [deletedSkill] = await db
 				.delete(skillsTable)
@@ -381,6 +426,10 @@ export const getSkillsByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
+
+			// Validate session and team membership
+			await requireTeamMembership(teamId)
+
 			const db = getDd()
 			const skills = await db.query.skillsTable.findMany({
 				where: eq(skillsTable.teamId, teamId),
