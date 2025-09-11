@@ -3,6 +3,8 @@ import {
 	classCatalogTable,
 	locationsTable,
 	skillsTable,
+	scheduleTemplateClassesTable,
+	scheduledClassesTable,
 } from "@/db/schemas/scheduling"
 import {
 	createLocationId,
@@ -240,16 +242,34 @@ export const deleteClassCatalog = createServerAction()
 		try {
 			const { id, teamId } = input
 			const db = getDd()
-			const [deletedClass] = await db
-				.delete(classCatalogTable)
-				.where(
-					and(
-						eq(classCatalogTable.id, id),
-						eq(classCatalogTable.teamId, teamId),
-					),
-				)
-				.returning()
-			return { success: true, data: deletedClass }
+
+			// Start transaction
+			const result = await db.transaction(async (tx) => {
+				// Delete from scheduled_classes table first
+				await tx
+					.delete(scheduledClassesTable)
+					.where(eq(scheduledClassesTable.classCatalogId, id))
+
+				// Delete from schedule_template_classes table
+				await tx
+					.delete(scheduleTemplateClassesTable)
+					.where(eq(scheduleTemplateClassesTable.classCatalogId, id))
+
+				// Finally delete the class catalog (with team validation)
+				const [deletedClass] = await tx
+					.delete(classCatalogTable)
+					.where(
+						and(
+							eq(classCatalogTable.id, id),
+							eq(classCatalogTable.teamId, teamId),
+						),
+					)
+					.returning()
+
+				return deletedClass
+			})
+
+			return { success: true, data: result }
 		} catch (error) {
 			console.error("Failed to delete class catalog:", error)
 
