@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getPublicProgrammingTracks, getTeamProgrammingTracks } from "@/server/programming";
+import { getPublicProgrammingTracks, getTeamProgrammingTracks, isTeamSubscribedToProgrammingTrack, isWorkoutInTeamSubscribedTrack } from "@/server/programming";
 
 // Mock console.info to avoid log output during tests
 const mockConsoleInfo = vi.spyOn(console, 'info').mockImplementation(() => {});
@@ -41,6 +41,22 @@ describe("Programming Server Functions", () => {
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe("isTeamSubscribedToProgrammingTrack", () => {
+    it("returns boolean value for any team/track combination", async () => {
+      const result = await isTeamSubscribedToProgrammingTrack("test-team", "test-track");
+      
+      expect(typeof result).toBe("boolean");
+    });
+  });
+
+  describe("isWorkoutInTeamSubscribedTrack", () => {
+    it("returns boolean value for any team/workout combination", async () => {
+      const result = await isWorkoutInTeamSubscribedTrack("test-team", "test-workout");
+      
+      expect(typeof result).toBe("boolean");
     });
   });
 });

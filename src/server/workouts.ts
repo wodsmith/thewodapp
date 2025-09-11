@@ -27,6 +27,10 @@ import {
 	teamMembershipTable,
 } from "@/db/schema"
 import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
+import {
+	isTeamSubscribedToProgrammingTrack,
+	isWorkoutInTeamSubscribedTrack,
+} from "@/server/programming"
 
 /**
  * Helper function to fetch tags by workout IDs
@@ -602,11 +606,71 @@ export async function createWorkoutRemix({
 	}
 
 	// Check if user can view the source workout
-	// User can view if: it's public OR they belong to the workout's team
-	const canViewSource =
+	// User can view if: it's public OR they belong to the workout's team OR they're subscribed to the programming track
+	console.log("🔍 Permission Debug - createWorkoutRemix:", {
+		sourceWorkoutId,
+		teamId,
+		sourceWorkout: {
+			id: sourceWorkout.id,
+			scope: sourceWorkout.scope,
+			teamId: sourceWorkout.teamId,
+			sourceTrackId: sourceWorkout.sourceTrackId,
+		},
+		session: {
+			userId: session.user?.id,
+			teams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
+		},
+	})
+
+	let canViewSource =
 		sourceWorkout.scope === "public" ||
 		sourceWorkout.teamId === teamId ||
 		session.teams?.some((team) => team.id === sourceWorkout.teamId)
+
+	console.log("🔍 Initial permission check:", {
+		isPublic: sourceWorkout.scope === "public",
+		isOwnedByTeam: sourceWorkout.teamId === teamId,
+		isInUserTeams: session.teams?.some(
+			(team) => team.id === sourceWorkout.teamId,
+		),
+		canViewSource,
+	})
+
+	// If not already allowed, check if this workout is in any programming track the team is subscribed to
+	if (!canViewSource) {
+		// First try the sourceTrackId approach if available
+		if (sourceWorkout.sourceTrackId) {
+			console.log("🔍 Checking programming track subscription:", {
+				teamId,
+				sourceTrackId: sourceWorkout.sourceTrackId,
+			})
+
+			canViewSource = await isTeamSubscribedToProgrammingTrack(
+				teamId,
+				sourceWorkout.sourceTrackId,
+			)
+
+			console.log("🔍 Programming track subscription result:", {
+				canViewSource,
+			})
+		}
+
+		// If still not allowed, check if this workout exists in any subscribed programming track
+		if (!canViewSource) {
+			console.log(
+				"🔍 Checking if workout is in any subscribed programming track",
+			)
+
+			canViewSource = await isWorkoutInTeamSubscribedTrack(
+				teamId,
+				sourceWorkout.id,
+			)
+
+			console.log("🔍 Workout in subscribed track result:", { canViewSource })
+		}
+	}
+
+	console.log("🔍 Final permission result:", { canViewSource })
 
 	if (!canViewSource) {
 		throw new ZSAError(
@@ -700,11 +764,69 @@ export async function createProgrammingTrackWorkoutRemix({
 	}
 
 	// Check if user can view the source workout
-	// User can view if: it's public OR they belong to the workout's team
-	const canViewSource =
+	// User can view if: it's public OR they belong to the workout's team OR they're subscribed to the programming track
+	console.log("🔍 Permission Debug - createProgrammingTrackWorkoutRemix:", {
+		sourceWorkoutId,
+		sourceTrackId,
+		teamId,
+		sourceWorkout: {
+			id: sourceWorkout.id,
+			scope: sourceWorkout.scope,
+			teamId: sourceWorkout.teamId,
+			sourceTrackId: sourceWorkout.sourceTrackId,
+		},
+		session: {
+			userId: session.user?.id,
+			teams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
+		},
+	})
+
+	let canViewSource =
 		sourceWorkout.scope === "public" ||
 		sourceWorkout.teamId === teamId ||
 		session.teams?.some((team) => team.id === sourceWorkout.teamId)
+
+	console.log("🔍 Initial permission check (Programming Track):", {
+		isPublic: sourceWorkout.scope === "public",
+		isOwnedByTeam: sourceWorkout.teamId === teamId,
+		isInUserTeams: session.teams?.some(
+			(team) => team.id === sourceWorkout.teamId,
+		),
+		canViewSource,
+	})
+
+	// If not already allowed, check programming track subscription
+	if (!canViewSource) {
+		console.log("🔍 Checking programming track subscription:", {
+			teamId,
+			sourceTrackId,
+		})
+
+		canViewSource = await isTeamSubscribedToProgrammingTrack(
+			teamId,
+			sourceTrackId,
+		)
+
+		console.log("🔍 Programming track subscription result:", { canViewSource })
+
+		// If still not allowed, check if this workout exists in any subscribed programming track
+		if (!canViewSource) {
+			console.log(
+				"🔍 Checking if workout is in any subscribed programming track",
+			)
+
+			canViewSource = await isWorkoutInTeamSubscribedTrack(
+				teamId,
+				sourceWorkout.id,
+			)
+
+			console.log("🔍 Workout in subscribed track result:", { canViewSource })
+		}
+	}
+
+	console.log("🔍 Final permission result (Programming Track):", {
+		canViewSource,
+	})
 
 	if (!canViewSource) {
 		throw new ZSAError(

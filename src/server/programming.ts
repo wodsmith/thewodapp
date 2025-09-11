@@ -1,5 +1,5 @@
 import "server-only"
-import { eq, and, asc, desc, sql, inArray } from "drizzle-orm"
+import { eq, and, desc, sql, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	programmingTracksTable,
@@ -368,4 +368,65 @@ export async function detectExternalProgrammingTrackWorkouts(
 			trackOwnership,
 		}
 	})
+}
+
+export async function isTeamSubscribedToProgrammingTrack(
+	teamId: string,
+	trackId: string,
+): Promise<boolean> {
+	console.log("🔍 Checking team subscription:", { teamId, trackId })
+
+	const db = getDd()
+	const result = await db
+		.select({ trackId: teamProgrammingTracksTable.trackId })
+		.from(teamProgrammingTracksTable)
+		.where(
+			and(
+				eq(teamProgrammingTracksTable.teamId, teamId),
+				eq(teamProgrammingTracksTable.trackId, trackId),
+				eq(teamProgrammingTracksTable.isActive, 1),
+			),
+		)
+		.limit(1)
+
+	console.log("🔍 Subscription query result:", {
+		result,
+		isSubscribed: result.length > 0,
+	})
+	return result.length > 0
+}
+
+export async function isWorkoutInTeamSubscribedTrack(
+	teamId: string,
+	workoutId: string,
+): Promise<boolean> {
+	console.log("🔍 Checking if workout is in team subscribed track:", {
+		teamId,
+		workoutId,
+	})
+
+	const db = getDd()
+
+	// Find track workouts that contain this workout and check if team is subscribed to those tracks
+	const result = await db
+		.select({ trackId: trackWorkoutsTable.trackId })
+		.from(trackWorkoutsTable)
+		.innerJoin(
+			teamProgrammingTracksTable,
+			eq(trackWorkoutsTable.trackId, teamProgrammingTracksTable.trackId),
+		)
+		.where(
+			and(
+				eq(trackWorkoutsTable.workoutId, workoutId),
+				eq(teamProgrammingTracksTable.teamId, teamId),
+				eq(teamProgrammingTracksTable.isActive, 1),
+			),
+		)
+		.limit(1)
+
+	console.log("🔍 Workout in subscribed track query result:", {
+		result,
+		isInSubscribedTrack: result.length > 0,
+	})
+	return result.length > 0
 }
