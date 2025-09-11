@@ -7,16 +7,24 @@ import { getAllMovements } from "@/server/movements"
 import { getAllTags } from "@/server/tags"
 import type { WorkoutUpdate } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
+import {
+	canUserEditWorkout,
+	shouldCreateRemix,
+} from "@/utils/workout-permissions"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 import EditWorkoutClient from "./_components/edit-workout-client"
 
 export const dynamic = "force-dynamic"
 
 export default async function EditWorkoutPage({
 	params,
+	searchParams,
 }: {
 	params: Promise<{ id: string }>
+	searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
 	const myParams = await params
+	const mySearchParams = await searchParams
 	const session = await getSessionFromCookie()
 
 	if (!session?.userId) {
@@ -34,24 +42,18 @@ export default async function EditWorkoutPage({
 		return notFound()
 	}
 
-	const workout = workoutResult.data
+	// Extract workout data, filtering out remix information for component compatibility
+	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
-	// Get user's personal team ID to check ownership
-	const { getUserPersonalTeamId } = await import("@/server/user")
+	// Check if user explicitly wants to remix (via query param)
+	const forceRemix = mySearchParams.remix === "true"
 
-	let userPersonalTeamId: string
-	try {
-		userPersonalTeamId = await getUserPersonalTeamId(session.userId)
-	} catch (error) {
-		console.error(
-			"[EditWorkoutPage] Failed to get user's personal team ID:",
-			error,
-		)
-		// If we can't get the user's personal team, redirect to sign-in
-		redirect("/sign-in")
-	}
+	// Determine if user can edit or should create a remix
+	const canEdit = await canUserEditWorkout(myParams.id)
+	const shouldRemix = forceRemix || (await shouldCreateRemix(myParams.id))
 
-	if (workout?.teamId !== userPersonalTeamId) {
+	// If user cannot edit and should not remix, redirect to workout detail
+	if (!canEdit && !shouldRemix) {
 		redirect(`/workouts/${workout?.id}`)
 	}
 
@@ -60,6 +62,7 @@ export default async function EditWorkoutPage({
 		workout: WorkoutUpdate
 		tagIds: string[]
 		movementIds: string[]
+		remixTeamId?: string
 	}) {
 		"use server"
 		try {
@@ -68,18 +71,34 @@ export default async function EditWorkoutPage({
 				workout: data.workout,
 				tagIds: data.tagIds,
 				movementIds: data.movementIds,
+				remixTeamId: data.remixTeamId,
 			})
 
 			if (error || !result?.success) {
 				console.error("[EditWorkoutPage] Error updating workout", error)
 				throw new Error("Error updating workout")
 			}
+
+			// Determine redirect URL based on action type
+			let redirectId = data.id // Default to original workout ID
+			if (result.action === "remixed" && result.data?.id) {
+				// If it was a remix, redirect to the new workout
+				redirectId = result.data.id
+			}
+
+			redirect(`/workouts/${redirectId}`)
 		} catch (error) {
+			// Check if this is a Next.js redirect (which is expected behavior)
+			if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+				throw error // Re-throw the redirect
+			}
 			console.error("[EditWorkoutPage] Error updating workout", error)
 			throw new Error("Error updating workout")
 		}
-		redirect(`/workouts/${data.id}`)
 	}
+
+	// Get user teams for remix team selection
+	const userTeams = session.teams || []
 
 	return (
 		<EditWorkoutClient
@@ -87,7 +106,9 @@ export default async function EditWorkoutPage({
 			movements={movements}
 			tags={tags}
 			workoutId={myParams.id}
+			isRemixMode={shouldRemix}
 			updateWorkoutAction={updateWorkoutServerAction}
+			userTeams={userTeams}
 		/>
 	)
 }
