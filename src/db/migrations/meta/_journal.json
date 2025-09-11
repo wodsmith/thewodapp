@@ -117,8 +117,43 @@
     {
       "idx": 16,
       "version": "6",
-      "when": 1752381836189,
-      "tag": "0016_add_class_catalog_fields",
+      "when": 1757523099383,
+      "tag": "0016_fix_team_personal_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1757609193124,
+      "tag": "0017_lying_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1757609275223,
+      "tag": "0018_careless_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1757611168727,
+      "tag": "0019_worthless_professor_monster",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1757620538536,
+      "tag": "0020_fix-foreign-key-ondelete-rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1757621109682,
+      "tag": "0021_conscious_vision",
       "breakpoints": true
     },
     {

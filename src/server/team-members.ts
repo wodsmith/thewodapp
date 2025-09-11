@@ -50,41 +50,38 @@ export async function getTeamMembers(teamId: string) {
 	// Map roles by ID for easy lookup
 	const roleMap = new Map(teamRoles.map((role) => [role.id, role.name]))
 
-	return Promise.all(
-		members.map(async (member) => {
-			let roleName = "Unknown"
+	return members.map((member) => {
+		let roleName = "Unknown"
 
-			// For system roles, use the roleId directly as the name
-			if (member.isSystemRole) {
-				// Capitalize the first letter for display
-				roleName =
-					member.roleId.charAt(0).toUpperCase() + member.roleId.slice(1)
-			} else {
-				// For custom roles, look up the name in our roleMap
-				roleName = roleMap.get(member.roleId) || "Custom Role"
-			}
+		// For system roles, use the roleId directly as the name
+		if (member.isSystemRole) {
+			// Capitalize the first letter for display
+			roleName = member.roleId.charAt(0).toUpperCase() + member.roleId.slice(1)
+		} else {
+			// For custom roles, look up the name in our roleMap
+			roleName = roleMap.get(member.roleId) || "Custom Role"
+		}
 
-			return {
-				id: member.id,
-				userId: member.userId,
-				roleId: member.roleId,
-				roleName,
-				isSystemRole: Boolean(member.isSystemRole),
-				isActive: Boolean(member.isActive),
-				joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
-				user: (() => {
-					const user = Array.isArray(member.user) ? member.user[0] : member.user
-					return {
-						id: user?.id,
-						firstName: user?.firstName,
-						lastName: user?.lastName,
-						email: user?.email,
-						avatar: user?.avatar,
-					}
-				})(),
-			}
-		}),
-	)
+		return {
+			id: member.id,
+			userId: member.userId,
+			roleId: member.roleId,
+			roleName,
+			isSystemRole: Boolean(member.isSystemRole),
+			isActive: Boolean(member.isActive),
+			joinedAt: member.joinedAt ? new Date(member.joinedAt) : null,
+			user: (() => {
+				const user = Array.isArray(member.user) ? member.user[0] : member.user
+				return {
+					id: user?.id,
+					firstName: user?.firstName,
+					lastName: user?.lastName,
+					email: user?.email,
+					avatar: user?.avatar,
+				}
+			})(),
+		}
+	})
 }
 
 /**
@@ -105,6 +102,20 @@ export async function updateTeamMemberRole({
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.CHANGE_MEMBER_ROLES)
 
 	const db = getDd()
+
+	// Get team info to check if it's a personal team
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, teamId),
+	})
+
+	if (!team) {
+		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Prevent role changes in personal teams (they should only have one member)
+	if (team.isPersonalTeam) {
+		throw new ZSAError("FORBIDDEN", "Cannot change roles in a personal team")
+	}
 
 	// Verify membership exists
 	const membership = await db.query.teamMembershipTable.findFirst({
@@ -153,6 +164,23 @@ export async function removeTeamMember({
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.REMOVE_MEMBERS)
 
 	const db = getDd()
+
+	// Get team info to check if it's a personal team
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, teamId),
+	})
+
+	if (!team) {
+		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Prevent removing members from personal teams (they should only have one member)
+	if (team.isPersonalTeam) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"Cannot remove members from a personal team",
+		)
+	}
 
 	// Verify membership exists
 	const membership = await db.query.teamMembershipTable.findFirst({
@@ -232,6 +260,11 @@ export async function inviteUserToTeam({
 
 	if (!team) {
 		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Prevent inviting members to personal teams
+	if (team.isPersonalTeam) {
+		throw new ZSAError("FORBIDDEN", "Cannot invite members to a personal team")
 	}
 
 	const teamName = (team.name as string) || "Team"

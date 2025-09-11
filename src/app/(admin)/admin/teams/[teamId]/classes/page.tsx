@@ -6,16 +6,17 @@ import { getTeamAction } from "@/actions/team-actions"
 import Classes from "./_components/Classes"
 
 interface ClassesPageProps {
-	params: {
+	params: Promise<{
 		teamId: string
-	}
+	}>
 }
 
 const ClassesPage = async ({ params }: ClassesPageProps) => {
+	const { teamId } = await params
 	const [[classesResult], [skillsResult], [teamResult]] = await Promise.all([
-		getClassCatalogByTeam({ teamId: params.teamId }),
-		getSkillsByTeam({ teamId: params.teamId }),
-		getTeamAction({ teamId: params.teamId }),
+		getClassCatalogByTeam({ teamId }),
+		getSkillsByTeam({ teamId }),
+		getTeamAction({ teamId }),
 	])
 
 	if (
@@ -30,7 +31,7 @@ const ClassesPage = async ({ params }: ClassesPageProps) => {
 		<Classes
 			classes={classesResult.data ?? []}
 			availableSkills={skillsResult.data ?? []}
-			teamId={params.teamId}
+			teamId={teamId}
 			teamSlug={teamResult.data.slug}
 		/>
 	)

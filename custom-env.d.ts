@@ -1,3 +1,5 @@
+/// <reference types="vitest/globals" />
+
 interface CloudflareEnv {
 	// TODO Remove them from here because we are not longer loading them from the Cloudflare Context
 	RESEND_API_KEY?: string
@@ -6,4 +8,9 @@ interface CloudflareEnv {
 	BREVO_API_KEY?: string
 	GOOGLE_CLIENT_ID?: string
 	GOOGLE_CLIENT_SECRET?: string
+}
+
+declare global {
+	var __mockReplace: ReturnType<typeof vi.fn>
+	var __searchParams: URLSearchParams
 }
