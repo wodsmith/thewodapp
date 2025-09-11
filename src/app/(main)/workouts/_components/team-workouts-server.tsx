@@ -41,7 +41,10 @@ async function fetchTeamWorkoutsWithResults(
 		id: workout.id,
 		scheduledDate: workout.scheduledDate,
 		workoutId:
-			workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+			workout.workoutId || // Direct workoutId for standalone workouts
+			workout.trackWorkout?.workoutId ||
+			workout.trackWorkout?.workout?.id ||
+			workout.workout?.id, // Fallback to workout.workout.id for standalone
 	}))
 
 	// Fetch results for all instances

@@ -1,5 +1,5 @@
 import "server-only"
-import { eq, and, asc, desc, sql } from "drizzle-orm"
+import { eq, and, desc, sql, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	programmingTracksTable,
@@ -11,6 +11,7 @@ import {
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
 import { workouts, type Workout } from "@/db/schemas/workouts"
+import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 
 interface PublicProgrammingTrack extends ProgrammingTrack {
 	ownerTeam: {
@@ -212,4 +213,232 @@ export async function getPaginatedTrackWorkouts(
 			hasPrevPage: validPage > 1,
 		},
 	}
+}
+
+export interface ExternalWorkoutDetectionResult {
+	scheduledWorkout: ScheduledWorkoutInstanceWithDetails
+	isExternal: boolean
+	trackOwnership: {
+		trackId: string
+		trackOwnerTeamId: string | null
+		isOwnedByTeam: boolean
+	} | null
+}
+
+export async function detectExternalProgrammingTrackWorkouts(
+	teamId: string,
+	scheduledWorkoutIds: string[],
+): Promise<ExternalWorkoutDetectionResult[]> {
+	console.info("INFO: Detecting external programming track workouts", {
+		teamId,
+		scheduledWorkoutIds,
+	})
+
+	if (scheduledWorkoutIds.length === 0) {
+		return []
+	}
+
+	const db = getDd()
+
+	// Get scheduled workout instances with track workouts and programming tracks
+	const rows = await db
+		.select({
+			// Scheduled workout instance fields
+			instanceId: scheduledWorkoutInstancesTable.id,
+			instanceTeamId: scheduledWorkoutInstancesTable.teamId,
+			instanceTrackWorkoutId: scheduledWorkoutInstancesTable.trackWorkoutId,
+			instanceScheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+			instanceTeamSpecificNotes:
+				scheduledWorkoutInstancesTable.teamSpecificNotes,
+			instanceScalingGuidanceForDay:
+				scheduledWorkoutInstancesTable.scalingGuidanceForDay,
+			instanceClassTimes: scheduledWorkoutInstancesTable.classTimes,
+			instanceCreatedAt: scheduledWorkoutInstancesTable.createdAt,
+			instanceUpdatedAt: scheduledWorkoutInstancesTable.updatedAt,
+			instanceUpdateCounter: scheduledWorkoutInstancesTable.updateCounter,
+
+			// Track workout fields
+			trackWorkoutId: trackWorkoutsTable.id,
+			trackWorkoutTrackId: trackWorkoutsTable.trackId,
+			trackWorkoutWorkoutId: trackWorkoutsTable.workoutId,
+			trackWorkoutDayNumber: trackWorkoutsTable.dayNumber,
+			trackWorkoutWeekNumber: trackWorkoutsTable.weekNumber,
+			trackWorkoutNotes: trackWorkoutsTable.notes,
+			trackWorkoutCreatedAt: trackWorkoutsTable.createdAt,
+			trackWorkoutUpdatedAt: trackWorkoutsTable.updatedAt,
+			trackWorkoutUpdateCounter: trackWorkoutsTable.updateCounter,
+
+			// Workout fields
+			workoutId: workouts.id,
+			workoutName: workouts.name,
+			workoutDescription: workouts.description,
+			workoutScheme: workouts.scheme,
+			workoutScope: workouts.scope,
+			workoutTeamId: workouts.teamId,
+			workoutCreatedAt: workouts.createdAt,
+			workoutUpdatedAt: workouts.updatedAt,
+			workoutUpdateCounter: workouts.updateCounter,
+			workoutSourceWorkoutId: workouts.sourceWorkoutId,
+			workoutSourceTrackId: workouts.sourceTrackId,
+
+			// Programming track fields
+			trackId: programmingTracksTable.id,
+			trackName: programmingTracksTable.name,
+			trackDescription: programmingTracksTable.description,
+			trackType: programmingTracksTable.type,
+			trackOwnerTeamId: programmingTracksTable.ownerTeamId,
+			trackIsPublic: programmingTracksTable.isPublic,
+			trackCreatedAt: programmingTracksTable.createdAt,
+			trackUpdatedAt: programmingTracksTable.updatedAt,
+			trackUpdateCounter: programmingTracksTable.updateCounter,
+		})
+		.from(scheduledWorkoutInstancesTable)
+		.leftJoin(
+			trackWorkoutsTable,
+			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
+		)
+		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
+		.leftJoin(
+			programmingTracksTable,
+			eq(programmingTracksTable.id, trackWorkoutsTable.trackId),
+		)
+		.where(
+			and(
+				inArray(scheduledWorkoutInstancesTable.id, scheduledWorkoutIds),
+				eq(scheduledWorkoutInstancesTable.teamId, teamId),
+			),
+		)
+
+	return rows.map((row) => {
+		// Build scheduled workout instance
+		const scheduledWorkout: ScheduledWorkoutInstanceWithDetails = {
+			id: row.instanceId,
+			teamId: row.instanceTeamId,
+			workoutId: row.workoutId,
+			trackWorkoutId: row.instanceTrackWorkoutId,
+			scheduledDate: row.instanceScheduledDate,
+			teamSpecificNotes: row.instanceTeamSpecificNotes,
+			scalingGuidanceForDay: row.instanceScalingGuidanceForDay,
+			classTimes: row.instanceClassTimes,
+			createdAt: row.instanceCreatedAt,
+			updatedAt: row.instanceUpdatedAt,
+			updateCounter: row.instanceUpdateCounter,
+			trackWorkout: row.trackWorkoutId
+				? {
+						id: row.trackWorkoutId,
+						trackId: row.trackWorkoutTrackId as string,
+						workoutId: row.trackWorkoutWorkoutId as string,
+						dayNumber: (row.trackWorkoutDayNumber ?? 0) as number,
+						weekNumber: row.trackWorkoutWeekNumber,
+						notes: row.trackWorkoutNotes,
+						createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
+						updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,
+						updateCounter: row.trackWorkoutUpdateCounter,
+						workout: row.workoutId
+							? {
+									id: row.workoutId,
+									name: (row.workoutName ?? "") as string,
+									description: (row.workoutDescription ?? "") as string,
+									scheme: (row.workoutScheme ?? "reps") as any,
+									scope: (row.workoutScope ?? "public") as any,
+									teamId: row.workoutTeamId,
+									createdAt: (row.workoutCreatedAt ?? new Date()) as Date,
+									updatedAt: (row.workoutUpdatedAt ?? new Date()) as Date,
+									updateCounter: row.workoutUpdateCounter,
+									sourceWorkoutId: row.workoutSourceWorkoutId,
+									sourceTrackId: row.workoutSourceTrackId,
+									// Satisfy Workout shape with safe defaults
+									repsPerRound: null,
+									roundsToScore: null,
+									sugarId: null,
+									tiebreakScheme: null,
+									secondaryScheme: null,
+								}
+							: undefined,
+					}
+				: null,
+		}
+
+		// Determine if this is external
+		let isExternal = false
+		let trackOwnership: ExternalWorkoutDetectionResult["trackOwnership"] = null
+
+		if (row.trackId) {
+			const isOwnedByTeam = row.trackOwnerTeamId === teamId
+			isExternal = !isOwnedByTeam
+
+			trackOwnership = {
+				trackId: row.trackId,
+				trackOwnerTeamId: row.trackOwnerTeamId,
+				isOwnedByTeam,
+			}
+		}
+
+		return {
+			scheduledWorkout,
+			isExternal,
+			trackOwnership,
+		}
+	})
+}
+
+export async function isTeamSubscribedToProgrammingTrack(
+	teamId: string,
+	trackId: string,
+): Promise<boolean> {
+	console.log("🔍 Checking team subscription:", { teamId, trackId })
+
+	const db = getDd()
+	const result = await db
+		.select({ trackId: teamProgrammingTracksTable.trackId })
+		.from(teamProgrammingTracksTable)
+		.where(
+			and(
+				eq(teamProgrammingTracksTable.teamId, teamId),
+				eq(teamProgrammingTracksTable.trackId, trackId),
+				eq(teamProgrammingTracksTable.isActive, 1),
+			),
+		)
+		.limit(1)
+
+	console.log("🔍 Subscription query result:", {
+		result,
+		isSubscribed: result.length > 0,
+	})
+	return result.length > 0
+}
+
+export async function isWorkoutInTeamSubscribedTrack(
+	teamId: string,
+	workoutId: string,
+): Promise<boolean> {
+	console.log("🔍 Checking if workout is in team subscribed track:", {
+		teamId,
+		workoutId,
+	})
+
+	const db = getDd()
+
+	// Find track workouts that contain this workout and check if team is subscribed to those tracks
+	const result = await db
+		.select({ trackId: trackWorkoutsTable.trackId })
+		.from(trackWorkoutsTable)
+		.innerJoin(
+			teamProgrammingTracksTable,
+			eq(trackWorkoutsTable.trackId, teamProgrammingTracksTable.trackId),
+		)
+		.where(
+			and(
+				eq(trackWorkoutsTable.workoutId, workoutId),
+				eq(teamProgrammingTracksTable.teamId, teamId),
+				eq(teamProgrammingTracksTable.isActive, 1),
+			),
+		)
+		.limit(1)
+
+	console.log("🔍 Workout in subscribed track query result:", {
+		result,
+		isInSubscribedTrack: result.length > 0,
+	})
+	return result.length > 0
 }

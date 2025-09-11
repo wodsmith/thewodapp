@@ -29,7 +29,8 @@ export interface StandaloneWorkout {
 export interface ScheduledWorkoutWithDetails {
 	id: string
 	teamId: string
-	trackWorkoutId: string
+	trackWorkoutId: string | null
+	workoutId?: string | null
 	scheduledDate: Date
 	teamSpecificNotes: string | null
 	scalingGuidanceForDay: string | null
@@ -38,6 +39,7 @@ export interface ScheduledWorkoutWithDetails {
 	updatedAt: Date
 	trackWorkout?: {
 		id: string
+		trackId?: string | null
 		dayNumber: number
 		weekNumber: number | null
 		notes: string | null
@@ -49,6 +51,12 @@ export interface ScheduledWorkoutWithDetails {
 			scheme: string
 		}
 	} | null
+	workout?: {
+		id: string
+		name: string
+		description: string
+		scheme: string
+	}
 }
 
 // Special track ID for standalone workouts

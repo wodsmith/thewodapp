@@ -1,15 +1,16 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction } from "zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
-import { scheduleStandaloneWorkout } from "@/server/programming-tracks"
 import {
 	deleteScheduledWorkoutInstance,
 	getScheduledWorkoutInstanceById,
 	getScheduledWorkoutsForTeam,
 	type ScheduleWorkoutInput,
 	scheduleWorkoutForTeam,
+	scheduleStandaloneWorkoutForTeam,
 	updateScheduledWorkoutInstance,
 } from "@/server/scheduling-service"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -123,6 +124,10 @@ export const scheduleWorkoutAction = createServerAction()
 			`INFO: [SchedulingService] Scheduled trackWorkoutId '${trackWorkoutId}' for teamId '${teamId}' on '${scheduledDate}'. InstanceId: '${scheduledWorkout.id}'`,
 		)
 
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${teamId}`)
+		revalidatePath(`/admin/teams/${teamId}/schedule`)
+
 		return { success: true, data: scheduledWorkout }
 	})
 
@@ -141,27 +146,21 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 		// This ensures the date remains stable across all timezones
 		const scheduledDateUTC = new Date(`${scheduledDate}T12:00:00Z`)
 
-		// Create temporary track and track workout for the standalone workout
-		const trackWorkout = await scheduleStandaloneWorkout({
+		// Schedule the standalone workout directly without creating a programming track
+		const scheduledWorkout = await scheduleStandaloneWorkoutForTeam({
 			teamId,
 			workoutId,
 			scheduledDate: scheduledDateUTC,
 			...rest,
 		})
 
-		// Now schedule it using the existing scheduling system
-		const scheduleData: ScheduleWorkoutInput = {
-			teamId,
-			trackWorkoutId: trackWorkout.id,
-			scheduledDate: scheduledDateUTC,
-			...rest,
-		}
-
-		const scheduledWorkout = await scheduleWorkoutForTeam(scheduleData)
-
 		console.log(
 			`INFO: [SchedulingService] Scheduled standalone workoutId '${workoutId}' for teamId '${teamId}' on '${scheduledDate}'. InstanceId: '${scheduledWorkout.id}'`,
 		)
+
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${teamId}`)
+		revalidatePath(`/admin/teams/${teamId}/schedule`)
 
 		return { success: true, data: scheduledWorkout }
 	})
@@ -198,6 +197,10 @@ export const updateScheduledWorkoutAction = createServerAction()
 		console.log(
 			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}' for teamId '${teamId}'`,
 		)
+
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${teamId}`)
+		revalidatePath(`/admin/teams/${teamId}/schedule`)
 
 		return { success: true, data: updatedInstance }
 	})
@@ -244,4 +247,51 @@ export const getScheduledWorkoutAction = createServerAction()
 		)
 
 		return { success: true, data: instance }
+	})
+
+const updateScheduledWorkoutInstanceSchema = z.object({
+	instanceId: z.string().min(1, "Instance ID is required"),
+	data: z.object({
+		workoutId: z.string().optional(),
+		teamSpecificNotes: z.string().optional(),
+		scalingGuidanceForDay: z.string().optional(),
+		classTimes: z.string().optional(),
+	}),
+})
+
+/**
+ * Update a scheduled workout instance (including workoutId for remixes)
+ */
+export const updateScheduledWorkoutInstanceAction = createServerAction()
+	.input(updateScheduledWorkoutInstanceSchema)
+	.handler(async ({ input }) => {
+		const { instanceId, data } = input
+
+		// Get the instance to check team permissions
+		const instance = await getScheduledWorkoutInstanceById(instanceId)
+		if (!instance) {
+			throw new Error("Scheduled workout not found")
+		}
+
+		// Check permissions
+		await requireTeamPermission(
+			instance.teamId,
+			TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+		)
+
+		const updatedInstance = await updateScheduledWorkoutInstance(
+			instanceId,
+			data,
+		)
+
+		console.log(
+			`INFO: [SchedulingService] Updated scheduled workout instance '${instanceId}' with data:`,
+			data,
+		)
+
+		// Revalidate the team scheduling page to refresh calendar
+		revalidatePath(`/admin/teams/${instance.teamId}`)
+		revalidatePath(`/admin/teams/${instance.teamId}/schedule`)
+
+		return { success: true, data: updatedInstance }
 	})

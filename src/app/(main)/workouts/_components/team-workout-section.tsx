@@ -17,6 +17,7 @@ import type {
 type ViewMode = "daily" | "weekly"
 type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 	trackWorkout?: (TrackWorkout & { workout?: Workout }) | null
+	workout?: Workout // Direct workout for standalone scheduled instances
 	result?: {
 		id: string
 		wodScore?: string
@@ -69,7 +70,9 @@ export function TeamWorkoutSection({
 	const workoutsByDate = teamWorkouts.reduce(
 		(acc, scheduledWorkout) => {
 			const instance = scheduledWorkout
-			const workout = scheduledWorkout.trackWorkout?.workout
+			// Get workout from either track workout or standalone workout
+			const workout =
+				scheduledWorkout.trackWorkout?.workout || scheduledWorkout.workout
 
 			if (!instance || !workout) {
 				console.log(

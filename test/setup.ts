@@ -25,23 +25,10 @@ const mockDb = {
 	from: vi.fn().mockReturnThis(),
 	leftJoin: vi.fn().mockReturnThis(),
 	innerJoin: vi.fn().mockReturnThis(),
-	where: vi.fn().mockImplementation(() => Promise.resolve([
-		{
-			id: "test_track_id",
-			name: "Test Track",
-			description: "Test Description",
-			type: "team_owned",
-			ownerTeamId: "test_team_id",
-			isPublic: 1,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			updateCounter: 1,
-			ownerTeam: {
-				id: "test_team_id",
-				name: "Test Team",
-			},
-		}
-	])),
+	where: vi.fn().mockReturnThis(),
+	limit: vi.fn().mockImplementation(() => Promise.resolve([])),
+	orderBy: vi.fn().mockReturnThis(),
+	offset: vi.fn().mockImplementation(() => Promise.resolve([])),
 	insert: vi.fn().mockReturnThis(),
 	values: vi.fn().mockReturnThis(),
 	returning: vi.fn().mockResolvedValue([{ id: "test_id", name: "Test" }]),
