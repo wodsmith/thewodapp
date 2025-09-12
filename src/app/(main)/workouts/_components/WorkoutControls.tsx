@@ -103,7 +103,7 @@ export default function WorkoutControls({
 					onChange={(e) => setSearchTerm(e.target.value)}
 				/>
 			</div>
-			<div className="flex gap-4">
+			<div className="flex flex-wrap gap-2 sm:gap-4">
 				<SearchableSelect
 					value={selectedTag}
 					onValueChange={(value) =>
@@ -112,7 +112,7 @@ export default function WorkoutControls({
 					options={allTags}
 					placeholder="All Tags"
 					searchPlaceholder="Search tags..."
-					className="w-[180px]"
+					className="w-full sm:w-[180px]"
 				/>
 				<SearchableSelect
 					value={selectedMovement}
@@ -122,7 +122,7 @@ export default function WorkoutControls({
 					options={allMovements}
 					placeholder="All Movements"
 					searchPlaceholder="Search movements..."
-					className="w-[180px]"
+					className="w-full sm:w-[180px]"
 				/>
 				<Select
 					value={workoutType}
@@ -130,7 +130,7 @@ export default function WorkoutControls({
 						setWorkoutType(value === "all" ? "" : value)
 					}
 				>
-					<SelectTrigger className="w-[180px]">
+					<SelectTrigger className="w-full sm:w-[180px]">
 						<SelectValue placeholder="All Workouts" />
 					</SelectTrigger>
 					<SelectContent>
@@ -151,7 +151,7 @@ export default function WorkoutControls({
 						}))}
 						placeholder="All Tracks"
 						searchPlaceholder="Search tracks..."
-						className="w-[180px]"
+						className="w-full sm:w-[180px]"
 					/>
 				)}
 			</div>
