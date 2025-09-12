@@ -244,7 +244,9 @@ describe("workout actions", () => {
     })
 
     it("should handle authentication errors", async () => {
-      vi.mocked(requireVerifiedEmail).mockResolvedValue(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValue(
+        new Error("Not authenticated")
+      )
 
       const [data, err] = await updateWorkoutAction({
         id: "workout-123",
