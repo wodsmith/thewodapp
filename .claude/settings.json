@@ -42,8 +42,7 @@
       "Bash(find:*)",
       "WebSearch",
       "mcp__grep__searchGitHub",
-      "Bash(python3:*)",
-      "Bash(sed:*)"
+      "Bash(git diff:*)"
     ],
     "deny": []
   }
