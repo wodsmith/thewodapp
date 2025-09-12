@@ -25,7 +25,7 @@ export default function MobileNav({ session }: MobileNavProps) {
 
 	// Filter teams where the user is an owner
 	const ownedTeams =
-		session?.teams?.filter((team) => team.role.name === "Owner") || []
+		session?.teams?.filter((team) => team.role.name === "owner") || []
 
 	return (
 		<Sheet>
@@ -45,14 +45,14 @@ export default function MobileNav({ session }: MobileNavProps) {
 						className="mb-4 flex items-center gap-2 font-semibold text-lg"
 					>
 						<Image
-							src="/spicywod-logo-black.png"
+							src="/wodsmith-logo-no-text.png"
 							alt="wodsmith"
 							width={32}
 							height={32}
 							className="dark:hidden"
 						/>
 						<Image
-							src="/spicywod-logo-white.png"
+							src="/wodsmith-logo-no-text.png"
 							alt="wodsmith"
 							width={32}
 							height={32}
