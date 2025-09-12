@@ -57,8 +57,7 @@ interface Skill {
 }
 
 const createClassSchema = z.object({
-	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
+const createClassSchema = z.object({
 	dayOfWeek: z.coerce.number().min(0).max(6),
 	startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
 	endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),

@@ -41,7 +41,6 @@ export default function ClassTemplateScheduler({
 }: {
 	template: inferServerActionReturnData<typeof getScheduleTemplateById>
 }) {
-	console.log(template)
 	const [classTemplate, setClassTemplate] = useState<ClassTemplate>({
 		templateId: template.id,
 		timeSlots: template.templateClasses.map((c) => ({
