@@ -6,12 +6,16 @@ import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { getUserTeams } from "@/server/teams"
-import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
+import {
+	getScheduledWorkoutsForTeam,
+	type ScheduledWorkoutInstanceWithDetails,
+} from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { startOfLocalDay, endOfLocalDay } from "@/utils/date-utils"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
+import { PaginationWithUrl } from "@/components/ui/pagination"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -41,6 +45,7 @@ export default async function WorkoutsPage({
 		tag?: string
 		movement?: string
 		type?: string
+		page?: string
 	}>
 }) {
 	const session = await requireVerifiedEmail()
@@ -63,7 +68,10 @@ export default async function WorkoutsPage({
 		end: endOfLocalDay(),
 	}
 
-	const initialScheduledWorkouts: Record<string, any[]> = {}
+	const initialScheduledWorkouts: Record<
+		string,
+		ScheduledWorkoutInstanceWithDetails[]
+	> = {}
 
 	// Fetch scheduled workouts for all teams with error handling
 	const scheduledWorkoutsPromises = userTeams.map(async (team) => {
@@ -106,8 +114,12 @@ export default async function WorkoutsPage({
 	})
 
 	const mySearchParams = await searchParams
+	const currentPage = Number.parseInt(mySearchParams?.page || "1", 10)
+
 	const [result, error] = await getUserWorkoutsAction({
 		teamId,
+		page: currentPage,
+		pageSize: 50,
 	})
 
 	if (error || !result?.success) {
@@ -115,6 +127,7 @@ export default async function WorkoutsPage({
 	}
 
 	const allWorkouts = result.data
+	const { totalCount } = result
 	const searchTerm = mySearchParams?.search?.toLowerCase() || ""
 	const selectedTag = mySearchParams?.tag || ""
 	const selectedMovement = mySearchParams?.movement || ""
@@ -208,6 +221,14 @@ export default async function WorkoutsPage({
 					/>
 				))}
 			</ul>
+
+			{totalCount > 50 && (
+				<PaginationWithUrl
+					totalItems={totalCount}
+					pageSize={50}
+					className="mt-8"
+				/>
+			)}
 		</div>
 	)
 }

@@ -12,6 +12,7 @@ import {
 	createWorkoutRemix,
 	createProgrammingTrackWorkoutRemix,
 	getUserWorkouts,
+	getUserWorkoutsCount,
 	getWorkoutById,
 	getRemixedWorkouts,
 	updateWorkout,
@@ -237,12 +238,31 @@ export const getUserWorkoutsAction = createServerAction()
 	.input(
 		z.object({
 			teamId: z.string().min(1, "Team ID is required"),
+			page: z.number().int().min(1).optional().default(1),
+			pageSize: z.number().int().min(1).max(100).optional().default(50),
 		}),
 	)
 	.handler(async ({ input }) => {
 		try {
-			const workouts = await getUserWorkouts(input)
-			return { success: true, data: workouts }
+			const offset = (input.page - 1) * input.pageSize
+
+			const [workouts, totalCount] = await Promise.all([
+				getUserWorkouts({
+					teamId: input.teamId,
+					limit: input.pageSize,
+					offset,
+				}),
+				getUserWorkoutsCount({ teamId: input.teamId }),
+			])
+
+			return {
+				success: true,
+				data: workouts,
+				totalCount,
+				currentPage: input.page,
+				pageSize: input.pageSize,
+				totalPages: Math.ceil(totalCount / input.pageSize),
+			}
 		} catch (error) {
 			console.error("Failed to get user workouts:", error)
 
