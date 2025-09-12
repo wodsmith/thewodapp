@@ -23,3 +23,7 @@ PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE INDEX `scheduled_workout_instance_team_idx` ON `scheduled_workout_instance` (`teamId`);--> statement-breakpoint
 CREATE INDEX `scheduled_workout_instance_date_idx` ON `scheduled_workout_instance` (`scheduledDate`);--> statement-breakpoint
 CREATE INDEX `scheduled_workout_instance_workout_idx` ON `scheduled_workout_instance` (`workoutId`);
+
+
+
+	

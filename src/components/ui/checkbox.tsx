@@ -9,6 +9,7 @@ interface CheckboxProps {
 	onCheckedChange?: (checked: boolean) => void
 	className?: string
 	disabled?: boolean
+	id?: string
 }
 
 export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
