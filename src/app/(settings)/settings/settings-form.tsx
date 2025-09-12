@@ -54,13 +54,19 @@ export function SettingsForm() {
 	const { session, isLoading } = useSessionStore()
 	const form = useForm<z.infer<typeof userSettingsSchema>>({
 		resolver: zodResolver(userSettingsSchema),
+		defaultValues: {
+			firstName: "",
+			lastName: "",
+		},
 	})
 
 	useEffect(() => {
-		form.reset({
-			firstName: session?.user.firstName ?? "",
-			lastName: session?.user.lastName ?? "",
-		})
+		if (session?.user) {
+			form.reset({
+				firstName: session.user.firstName ?? "",
+				lastName: session.user.lastName ?? "",
+			})
+		}
 	}, [session, form.reset])
 
 	if (!session || isLoading) {
