@@ -5,8 +5,12 @@ import {
 import { getTeamAction } from "@/actions/team-actions"
 import GymSetup from "./_components/GymSetup"
 
-async function Page({ params }: { params: { teamId: string } }) {
-	const teamId = params.teamId
+interface PageProps {
+	params: Promise<{ teamId: string }>
+}
+
+async function Page({ params }: PageProps) {
+	const { teamId } = await params
 
 	const [[locationsRes], [skillsRes], [teamRes]] = await Promise.all([
 		getLocationsByTeam({ teamId }),

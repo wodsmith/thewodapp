@@ -47,14 +47,14 @@ describe('Gym Setup Actions', () => {
 
   // Locations
   it('should create a location', async () => {
-    const result = await createLocation({ teamId: 'test-team-id', name: 'Test Location' })
+    const result = await createLocation({ teamId: 'test-team-id', name: 'Test Location', capacity: 20 })
     expect(result).toBeDefined()
 
     expect(db?.insert).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should update a location', async () => {
-    const result = await updateLocation({ id: 'loc1', teamId: 'test-team-id', name: 'Updated Location' })
+    const result = await updateLocation({ id: 'loc1', teamId: 'test-team-id', name: 'Updated Location', capacity: 25 })
     expect(result).toBeDefined()
 
     expect(db?.update).toHaveBeenCalledWith(expect.any(Object))
