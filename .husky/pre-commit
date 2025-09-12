@@ -1,5 +1,4 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
 
 # Ensure node is in PATH by sourcing common locations
 if command -v node >/dev/null 2>&1; then
