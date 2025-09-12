@@ -155,8 +155,35 @@ export function EnhancedSubscribeButton({
 		)
 	}
 
-	// No team filter - check if we have any eligible teams
+	// No team filter - check subscription status for all user teams
+	// Check subscription status across ALL teams, not just eligible ones
+	const allTeamsSubscribed = userTeams.every((t) =>
+		localSubscriptions.has(t.id),
+	)
+	const someTeamsSubscribed = userTeams.some((t) =>
+		localSubscriptions.has(t.id),
+	)
+
+	// If no teams have permission to manage subscriptions
 	if (teamsToWorkWith.length === 0) {
+		// But some teams are subscribed, show read-only subscription status
+		if (allTeamsSubscribed) {
+			return (
+				<Button size="sm" disabled variant="secondary">
+					<Check className="h-3 w-3 mr-1" />
+					Subscribed
+				</Button>
+			)
+		}
+		if (someTeamsSubscribed) {
+			return (
+				<Button size="sm" disabled variant="secondary">
+					<Check className="h-3 w-3 mr-1" />
+					Partial Subscription
+				</Button>
+			)
+		}
+		// No teams are subscribed and no teams have permission
 		return (
 			<Button size="sm" disabled variant="outline">
 				No teams with access
