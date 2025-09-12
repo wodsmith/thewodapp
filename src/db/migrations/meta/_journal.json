@@ -125,7 +125,7 @@
       "idx": 17,
       "version": "6",
       "when": 1757609193124,
-      "tag": "0017_lying_lady_mastermind",
+      "tag": "0017_add_source_workout_id",
       "breakpoints": true
     },
     {
@@ -157,17 +157,17 @@
       "breakpoints": true
     },
     {
-      "idx": 17,
+      "idx": 22,
       "version": "6",
-      "when": 1752501431266,
-      "tag": "0017_add_location_capacity",
+      "when": 1757631211994,
+      "tag": "0022_add_class_catalog_fields",
       "breakpoints": true
     },
     {
-      "idx": 18,
+      "idx": 23,
       "version": "6",
-      "when": 1757631211994,
-      "tag": "0018_daily_rachel_grey",
+      "when": 1752501431266,
+      "tag": "0023_add_location_capacity",
       "breakpoints": true
     }
   ]
