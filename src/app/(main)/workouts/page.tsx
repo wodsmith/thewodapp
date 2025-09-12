@@ -16,6 +16,9 @@ import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
 import { PaginationWithUrl } from "@/components/ui/pagination"
+import { Session } from "inspector"
+import { SessionWithMeta } from "@/types"
+import { KVSession } from "@/utils/kv-session"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -48,11 +51,14 @@ export default async function WorkoutsPage({
 		page?: string
 	}>
 }) {
-	const session = await requireVerifiedEmail()
-
-	if (!session || !session?.user?.id) {
-		console.log("[workouts/page] No user found")
-		redirect("/sign-in")
+	let session: KVSession | null = null
+	try {
+		session = await requireVerifiedEmail()
+	} catch (error) {
+		if (!session || !session?.user?.id) {
+			console.log("[workouts/page] No user found")
+			redirect("/sign-in")
+		}
 	}
 
 	// Get user's personal team ID
