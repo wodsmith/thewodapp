@@ -8,20 +8,34 @@ import { getSessionFromCookie } from "@/utils/auth"
 
 export default async function ProgrammingPage() {
 	const session = await getSessionFromCookie()
-	const currentTeamId = session?.teams?.[0]?.id
+	const userTeamIds = session?.teams?.map((team) => team.id) || []
 
-	const [allTracks, subscribedTracks] = await Promise.all([
-		getPublicProgrammingTracks(),
-		currentTeamId
-			? getTeamProgrammingTracks(currentTeamId)
-			: Promise.resolve([]),
+	// Get subscribed tracks from all teams user is part of
+	const allTracksPromise = getPublicProgrammingTracks()
+	const subscribedTracksPromises = userTeamIds.map((teamId) =>
+		getTeamProgrammingTracks(teamId),
+	)
+
+	const [allTracks, ...subscribedTracksByTeam] = await Promise.all([
+		allTracksPromise,
+		...subscribedTracksPromises,
 	])
 
-	// Filter out tracks owned by the current team and already subscribed tracks
+	// Combine subscribed tracks from all teams (deduplicate by track ID)
+	const subscribedTracksMap = new Map()
+	for (const teamTracks of subscribedTracksByTeam) {
+		for (const track of teamTracks) {
+			subscribedTracksMap.set(track.id, track)
+		}
+	}
+	const subscribedTracks = Array.from(subscribedTracksMap.values())
+
+	// Filter out tracks owned by any of user's teams and already subscribed tracks
 	const subscribedTrackIds = new Set(subscribedTracks.map((track) => track.id))
 	const availableTracks = allTracks.filter(
 		(track) =>
-			track.ownerTeamId !== currentTeamId && !subscribedTrackIds.has(track.id),
+			!userTeamIds.includes(track.ownerTeamId || "") &&
+			!subscribedTrackIds.has(track.id),
 	)
 
 	return (

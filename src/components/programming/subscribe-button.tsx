@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -10,6 +10,7 @@ import {
 	unsubscribeFromTrackAction,
 } from "@/actions/programming-actions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { TeamProgrammingSelector } from "./team-programming-selector"
 
 interface SubscribeButtonProps {
 	trackId: string
@@ -25,19 +26,32 @@ export function SubscribeButton({
 	const session = useSessionStore((state) => state.session)
 	const hasTeamPermission = useSessionStore((state) => state.hasTeamPermission)
 
-	// Get the current team from session or URL params
-	const currentTeam = session?.teams?.[0] // Simplified for now
-	const teamId = currentTeam?.id
+	// Filter teams where user has MANAGE_PROGRAMMING permission
+	const eligibleTeams =
+		session?.teams?.filter((team) =>
+			hasTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
+		) || []
+
+	// State for selected team
+	const [selectedTeamId, setSelectedTeamId] = useState<string>("")
+
+	// Auto-select first eligible team if only one or none selected
+	useEffect(() => {
+		if (eligibleTeams.length > 0 && !selectedTeamId) {
+			setSelectedTeamId(eligibleTeams[0].id)
+		}
+	}, [eligibleTeams, selectedTeamId])
 
 	const canManageProgramming =
-		teamId && hasTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		selectedTeamId &&
+		hasTeamPermission(selectedTeamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
 	const { execute: subscribe, isPending: isSubscribing } = useServerAction(
 		subscribeToTrackAction,
 		{
 			onSuccess: () => {
 				console.info(
-					`INFO: Track subscription UI action initiated for track: ${trackId} by team: ${teamId}`,
+					`INFO: Track subscription UI action initiated for track: ${trackId} by team: ${selectedTeamId}`,
 				)
 				toast.success("Successfully subscribed to programming track")
 				onSubscriptionChange?.(true)
@@ -62,7 +76,7 @@ export function SubscribeButton({
 	)
 
 	const handleClick = async () => {
-		if (!teamId) {
+		if (!selectedTeamId) {
 			toast.error("No team selected")
 			return
 		}
@@ -75,29 +89,45 @@ export function SubscribeButton({
 		}
 
 		if (isSubscribed) {
-			await unsubscribe({ teamId, trackId })
+			await unsubscribe({ teamId: selectedTeamId, trackId })
 		} else {
-			await subscribe({ teamId, trackId })
+			await subscribe({ teamId: selectedTeamId, trackId })
 		}
 	}
 
 	const isLoading = isSubscribing || isUnsubscribing
-	const disabled = !canManageProgramming || isLoading
+	const disabled = !canManageProgramming || isLoading || !selectedTeamId
+
+	// If no eligible teams, show message
+	if (eligibleTeams.length === 0) {
+		return (
+			<Button size="sm" disabled variant="outline">
+				No teams with programming access
+			</Button>
+		)
+	}
 
 	return (
-		<Button
-			size="sm"
-			onClick={handleClick}
-			disabled={disabled}
-			variant={isSubscribed ? "outline" : "default"}
-		>
-			{isLoading
-				? isSubscribed
-					? "Unsubscribing..."
-					: "Subscribing..."
-				: isSubscribed
-					? "Unsubscribe"
-					: "Subscribe"}
-		</Button>
+		<div className="flex items-center gap-2">
+			<TeamProgrammingSelector
+				selectedTeamId={selectedTeamId}
+				onTeamSelect={setSelectedTeamId}
+				disabled={isLoading}
+			/>
+			<Button
+				size="sm"
+				onClick={handleClick}
+				disabled={disabled}
+				variant={isSubscribed ? "outline" : "default"}
+			>
+				{isLoading
+					? isSubscribed
+						? "Unsubscribing..."
+						: "Subscribing..."
+					: isSubscribed
+						? "Unsubscribe"
+						: "Subscribe"}
+			</Button>
+		</div>
 	)
 }
