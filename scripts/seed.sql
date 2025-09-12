@@ -12,6 +12,12 @@ DELETE FROM workout_tags;
 DELETE FROM workouts;
 DELETE FROM spicy_tags;
 DELETE FROM movements;
+DELETE FROM coach_to_skills;
+DELETE FROM class_catalog_to_skills;
+DELETE FROM coaches;
+DELETE FROM class_catalog;
+DELETE FROM skills;
+DELETE FROM locations;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
@@ -45,7 +51,6 @@ INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole,
 ('tmem_coach_personal', 'team_personalcoach', 'usr_demo2coach', 'owner', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 1),
 ('tmem_john_personal', 'team_personaljohn', 'usr_demo3member', 'owner', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 1),
 ('tmem_jane_personal', 'team_personaljane', 'usr_demo4member', 'owner', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 1);
-
 
 -- Creates CrossFit user, team, and all Girls benchmark workouts in a programming track
 -- Create CrossFit user
@@ -81,9 +86,110 @@ INSERT OR IGNORE INTO spicy_tags (id, name, createdAt, updatedAt, updateCounter)
 ('tag_emom', 'emom', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tag_partner', 'partner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
--- Create all required movements
-INSERT OR IGNORE INTO movements (id, name, type, createdAt, updatedAt, updateCounter) VALUES 
+-- Seed skills table
+INSERT INTO skills (id, team_id, name, createdAt, updatedAt, updateCounter) VALUES 
+-- CrossFit Box One skills
+('skill_cf1_l1', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Level 1 Trainer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_l2', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Level 2 Trainer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_l3', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Level 3 Trainer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_oly', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Olympic Weightlifting', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_gym', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Gymnastics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_power', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Powerlifting', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_endurance', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Endurance', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_nutrition', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Nutrition Coaching', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_mobility', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Mobility & Recovery', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_cf1_kettlebell', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Kettlebell Sport', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 
+-- Home Gym Heroes skills
+('skill_hgh_bodyweight', 'team_homeymgym', 'Bodyweight Training', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_hgh_calisthenics', 'team_homeymgym', 'Calisthenics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_hgh_yoga', 'team_homeymgym', 'Yoga', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_hgh_hiit', 'team_homeymgym', 'HIIT Training', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('skill_hgh_functional', 'team_homeymgym', 'Functional Movement', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Seed locations table
+INSERT INTO locations (id, team_id, name, createdAt, updatedAt, updateCounter) VALUES 
+-- CrossFit Box One locations
+('loc_cf1_main', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Main Floor', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('loc_cf1_outdoor', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Outdoor Area', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('loc_cf1_strength', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Strength Room', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+
+-- Home Gym Heroes locations
+('loc_hgh_online', 'team_homeymgym', 'Online Platform', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('loc_hgh_park', 'team_homeymgym', 'Local Park', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Seed class catalog table
+INSERT INTO class_catalog (id, team_id, name, description, duration_minutes, max_participants, createdAt, updatedAt, updateCounter) VALUES 
+-- CrossFit Box One classes
+('class_cf1_wod', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit WOD', 'Daily CrossFit workout of the day with scaling options for all levels', 60, 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('class_cf1_strength', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Strength & Conditioning', 'Focused strength training with barbell movements and accessory work', 75, 8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('class_cf1_oly', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Olympic Lifting', 'Technical instruction and practice of snatch and clean & jerk', 90, 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('class_cf1_beginners', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Beginners Fundamentals', 'Introduction to CrossFit movements and methodology for new athletes', 45, 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('class_cf1_open_gym', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'Open Gym', 'Self-directed training time with coach supervision', 90, 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+
+-- Home Gym Heroes classes  
+('class_hgh_hiit', 'team_homeymgym', 'HIIT Bodyweight', 'High-intensity bodyweight circuits requiring no equipment', 45, 20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('class_hgh_yoga', 'team_homeymgym', 'Flow Yoga', 'Dynamic yoga flows for mobility and mindfulness', 60, 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('class_hgh_calisthenics', 'team_homeymgym', 'Calisthenics Progressions', 'Progressive bodyweight skills training', 75, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Seed coaches table
+INSERT INTO coaches (id, team_id, user_id, weekly_class_limit, scheduling_preference, is_active, createdAt, updatedAt, updateCounter) VALUES 
+-- CrossFit Box One coaches
+('coach_cf1_admin', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'usr_demo1admin', 20, 'any', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('coach_cf1_smith', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'usr_demo2coach', 15, 'morning', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+
+-- Home Gym Heroes coach  
+('coach_hgh_jane', 'team_homeymgym', 'usr_demo4member', 12, 'afternoon', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Seed coach to skills relationships
+INSERT INTO coach_to_skills (coach_id, skill_id) VALUES 
+-- Admin (owns multiple certifications)
+('coach_cf1_admin', 'skill_cf1_l3'),
+('coach_cf1_admin', 'skill_cf1_oly'),
+('coach_cf1_admin', 'skill_cf1_power'),
+('coach_cf1_admin', 'skill_cf1_nutrition'),
+
+-- Coach Smith (solid foundation)
+('coach_cf1_smith', 'skill_cf1_l2'),
+('coach_cf1_smith', 'skill_cf1_gym'),
+('coach_cf1_smith', 'skill_cf1_mobility'),
+
+-- Jane (home gym specialist)
+('coach_hgh_jane', 'skill_hgh_yoga'),
+('coach_hgh_jane', 'skill_hgh_hiit'),
+('coach_hgh_jane', 'skill_hgh_functional');
+
+-- Seed class catalog to skills relationships
+INSERT INTO class_catalog_to_skills (class_catalog_id, skill_id) VALUES 
+-- CrossFit WOD requires general training
+('class_cf1_wod', 'skill_cf1_l1'),
+
+-- Strength class requires powerlifting knowledge
+('class_cf1_strength', 'skill_cf1_power'),
+('class_cf1_strength', 'skill_cf1_l2'),
+
+-- Olympic lifting requires specific certification
+('class_cf1_oly', 'skill_cf1_oly'),
+('class_cf1_oly', 'skill_cf1_l2'),
+
+-- Beginners class needs patient, certified coaches  
+('class_cf1_beginners', 'skill_cf1_l2'),
+
+-- Open gym needs supervision
+('class_cf1_open_gym', 'skill_cf1_l1'),
+
+-- HIIT requires HIIT certification
+('class_hgh_hiit', 'skill_hgh_hiit'),
+
+-- Yoga requires yoga certification
+('class_hgh_yoga', 'skill_hgh_yoga'),
+
+-- Calisthenics requires bodyweight expertise
+('class_hgh_calisthenics', 'skill_hgh_calisthenics'),
+('class_hgh_calisthenics', 'skill_hgh_bodyweight');
+
+-- Create all required movements
+INSERT OR IGNORE INTO movements (id, name, type, createdAt, updatedAt, updateCounter) VALUES
 -- Weightlifting movements
 ('mov_snatch', 'snatch', 'weightlifting', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('mov_clean', 'clean', 'weightlifting', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
@@ -541,9 +647,10 @@ INSERT INTO workout_movements (id, workout_id, movement_id, createdAt, updatedAt
 ('wm_maggie_pullup', 'wod_maggie', 'mov_pullup', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('wm_maggie_pistol', 'wod_maggie', 'mov_pistol', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 
--- Marguerita: Burpees, Push-ups, (jumping jack not in movements), Sit-ups, Handstand Push-ups
+-- Marguerita: Burpees, Push-ups, Jumping Jacks, Sit-ups, Handstand Push-ups
 ('wm_marguerita_burpee', 'wod_marguerita', 'mov_burpee', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('wm_marguerita_pushup', 'wod_marguerita', 'mov_pushup', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('wm_marguerita_jumpingjack', 'wod_marguerita', 'mov_jumpingjack', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('wm_marguerita_situp', 'wod_marguerita', 'mov_situp', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('wm_marguerita_hspu', 'wod_marguerita', 'mov_hspu', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 

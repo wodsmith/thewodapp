@@ -159,7 +159,7 @@ const Coaches = ({
 		if (!coachToDelete) return
 
 		setDeletingCoaches((prev) => new Set(prev).add(coachToDelete))
-		const [data, err] = await deleteCoachExecute({
+		const [, err] = await deleteCoachExecute({
 			id: coachToDelete,
 			teamId,
 		})

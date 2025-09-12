@@ -43,6 +43,7 @@ export const locationsTable = sqliteTable("locations", {
 		.notNull()
 		.references(() => teamTable.id),
 	name: text("name").notNull(),
+	capacity: integer("capacity").default(20).notNull(),
 })
 
 export const classCatalogTable = sqliteTable("class_catalog", {
@@ -53,6 +54,8 @@ export const classCatalogTable = sqliteTable("class_catalog", {
 		.references(() => teamTable.id),
 	name: text("name").notNull(),
 	description: text("description"),
+	durationMinutes: integer("duration_minutes").notNull().default(60),
+	maxParticipants: integer("max_participants").notNull().default(20),
 })
 
 export const skillsTable = sqliteTable("skills", {
@@ -63,6 +66,19 @@ export const skillsTable = sqliteTable("skills", {
 		.references(() => teamTable.id),
 	name: text("name").notNull(),
 })
+
+export const classCatalogToSkillsTable = sqliteTable(
+	"class_catalog_to_skills",
+	{
+		classCatalogId: text("class_catalog_id")
+			.notNull()
+			.references(() => classCatalogTable.id, { onDelete: "cascade" }),
+		skillId: text("skill_id")
+			.notNull()
+			.references(() => skillsTable.id, { onDelete: "cascade" }),
+	},
+	(table) => [primaryKey({ columns: [table.classCatalogId, table.skillId] })],
+)
 
 // Coach constraint tables
 export const coachToSkillsTable = sqliteTable(
@@ -201,11 +217,12 @@ export const locationsRelations = relations(locationsTable, ({ one }) => ({
 
 export const classCatalogRelations = relations(
 	classCatalogTable,
-	({ one }) => ({
+	({ one, many }) => ({
 		team: one(teamTable, {
 			fields: [classCatalogTable.teamId],
 			references: [teamTable.id],
 		}),
+		classToSkills: many(classCatalogToSkillsTable),
 	}),
 )
 
@@ -216,6 +233,7 @@ export const skillsRelations = relations(skillsTable, ({ one, many }) => ({
 	}),
 	coachSkills: many(coachToSkillsTable),
 	templateClassSkills: many(scheduleTemplateClassRequiredSkillsTable),
+	classCatalogSkills: many(classCatalogToSkillsTable),
 }))
 
 export const coachToSkillsRelations = relations(
@@ -325,6 +343,20 @@ export const scheduledClassesRelations = relations(
 		location: one(locationsTable, {
 			fields: [scheduledClassesTable.locationId],
 			references: [locationsTable.id],
+		}),
+	}),
+)
+
+export const classCatalogToSkillsRelations = relations(
+	classCatalogToSkillsTable,
+	({ one }) => ({
+		classCatalog: one(classCatalogTable, {
+			fields: [classCatalogToSkillsTable.classCatalogId],
+			references: [classCatalogTable.id],
+		}),
+		skill: one(skillsTable, {
+			fields: [classCatalogToSkillsTable.skillId],
+			references: [skillsTable.id],
 		}),
 	}),
 )

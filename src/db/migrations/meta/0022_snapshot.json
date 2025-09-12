@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ba86a7ed-b8c2-4ee0-aa28-c3345fc7ab44",
-  "prevId": "9c172e01-7579-4519-bde4-0145f1939163",
+  "id": "9c172e01-7579-4519-bde4-0145f1939163",
+  "prevId": "d9295182-2103-4d54-a5e0-747d99ac31be",
   "tables": {
     "credit_transaction": {
       "name": "credit_transaction",
@@ -1367,14 +1367,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "capacity": {
-          "name": "capacity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 20
         }
       },
       "indexes": {},
