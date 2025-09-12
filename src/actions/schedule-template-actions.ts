@@ -9,6 +9,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import { requireTeamMembership } from "@/utils/team-auth"
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({
@@ -84,6 +85,7 @@ export const createScheduleTemplate = createServerAction()
 	.input(createScheduleTemplateSchema)
 	.handler(async ({ input }) => {
 		const { teamId, name, classCatalogId, locationId } = input
+		await requireTeamMembership(teamId)
 		const db = getDd()
 		try {
 			const [newTemplate] = await db
@@ -113,6 +115,7 @@ export const updateScheduleTemplate = createServerAction()
 	.input(updateScheduleTemplateSchema)
 	.handler(async ({ input }) => {
 		const { id, teamId, name, classCatalogId, locationId } = input
+		await requireTeamMembership(teamId)
 		const db = getDd()
 		try {
 			const updates = Object.fromEntries(
@@ -148,6 +151,7 @@ export const deleteScheduleTemplate = createServerAction()
 	.input(deleteScheduleTemplateSchema)
 	.handler(async ({ input }) => {
 		const { id, teamId } = input
+		await requireTeamMembership(teamId)
 		const db = getDd()
 		try {
 			// First, get all template classes for this template
@@ -198,6 +202,7 @@ export const getScheduleTemplatesByTeam = createServerAction()
 	.input(getScheduleTemplatesByTeamSchema)
 	.handler(async ({ input }) => {
 		const { teamId } = input
+		await requireTeamMembership(teamId)
 		const db = getDd()
 		try {
 			const templates = await db.query.scheduleTemplatesTable.findMany({
@@ -225,6 +230,7 @@ export const getScheduleTemplateById = createServerAction()
 	.input(getScheduleTemplateByIdSchema)
 	.handler(async ({ input }) => {
 		const { id, teamId } = input
+		await requireTeamMembership(teamId)
 		const db = getDd()
 		try {
 			const template = await db.query.scheduleTemplatesTable.findFirst({
@@ -259,6 +265,15 @@ export const createScheduleTemplateClass = createServerAction()
 	.handler(async ({ input }) => {
 		const db = getDd()
 		try {
+			// Verify team membership by checking template ownership
+			const template = await db.query.scheduleTemplatesTable.findFirst({
+				where: eq(scheduleTemplatesTable.id, input.templateId),
+				columns: { teamId: true },
+			})
+			if (!template) {
+				throw new ZSAError("NOT_FOUND", "Schedule template not found")
+			}
+			await requireTeamMembership(template.teamId)
 			const { requiredSkillIds, ...rest } = input
 			const [newTemplateClass] = await db
 				.insert(scheduleTemplateClassesTable)
@@ -290,6 +305,15 @@ export const updateScheduleTemplateClass = createServerAction()
 	.handler(async ({ input }) => {
 		const db = getDd()
 		try {
+			// Verify team membership by checking template ownership
+			const template = await db.query.scheduleTemplatesTable.findFirst({
+				where: eq(scheduleTemplatesTable.id, input.templateId),
+				columns: { teamId: true },
+			})
+			if (!template) {
+				throw new ZSAError("NOT_FOUND", "Schedule template not found")
+			}
+			await requireTeamMembership(template.teamId)
 			const { id, templateId, requiredSkillIds, ...rest } = input
 			const updates = Object.fromEntries(
 				Object.entries(rest).filter(([, value]) => value !== undefined),
@@ -343,6 +367,15 @@ export const deleteScheduleTemplateClass = createServerAction()
 		const { id, templateId } = input
 		const db = getDd()
 		try {
+			// Verify team membership by checking template ownership
+			const template = await db.query.scheduleTemplatesTable.findFirst({
+				where: eq(scheduleTemplatesTable.id, templateId),
+				columns: { teamId: true },
+			})
+			if (!template) {
+				throw new ZSAError("NOT_FOUND", "Schedule template not found")
+			}
+			await requireTeamMembership(template.teamId)
 			const [deletedTemplateClass] = await db
 				.delete(scheduleTemplateClassesTable)
 				.where(
@@ -371,6 +404,15 @@ export const deleteAllScheduleTemplateClassesForTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const db = getDd()
 		try {
+			// Verify team membership by checking template ownership
+			const template = await db.query.scheduleTemplatesTable.findFirst({
+				where: eq(scheduleTemplatesTable.id, input.templateId),
+				columns: { teamId: true },
+			})
+			if (!template) {
+				throw new ZSAError("NOT_FOUND", "Schedule template not found")
+			}
+			await requireTeamMembership(template.teamId)
 			// Delete required skills first
 			await db
 				.delete(scheduleTemplateClassRequiredSkillsTable)
@@ -433,6 +475,15 @@ export const bulkCreateScheduleTemplateClassesSimple = createServerAction()
 		const { templateId, timeSlots, requiredCoaches, requiredSkillIds } = input
 		const db = getDd()
 		try {
+			// Verify team membership by checking template ownership
+			const template = await db.query.scheduleTemplatesTable.findFirst({
+				where: eq(scheduleTemplatesTable.id, templateId),
+				columns: { teamId: true },
+			})
+			if (!template) {
+				throw new ZSAError("NOT_FOUND", "Schedule template not found")
+			}
+			await requireTeamMembership(template.teamId)
 			const toInsert = timeSlots.map((slot) => ({
 				id: `stc_${createId()}`,
 				templateId,
