@@ -111,17 +111,61 @@ export function EnhancedSubscribeButton({
 
 	const isLoading = isSubscribing || isUnsubscribing
 
-	// If no eligible teams, show message
-	if (teamsToWorkWith.length === 0) {
+	// When filtered to a specific team, check if that team is already subscribed
+	if (currentTeamId) {
+		const isSubscribed = localSubscriptions.has(currentTeamId)
+		const hasPermission = teamsToWorkWith.length > 0
+
+		// If already subscribed, show subscribed state regardless of permission
+		if (isSubscribed) {
+			return (
+				<Button
+					size="sm"
+					onClick={() =>
+						hasPermission ? handleSubscribe(currentTeamId) : undefined
+					}
+					disabled={!hasPermission || isLoading}
+					variant="secondary"
+				>
+					<Check className="h-3 w-3 mr-1" />
+					Subscribed
+				</Button>
+			)
+		}
+
+		// Not subscribed - check permission
+		if (!hasPermission) {
+			return (
+				<Button size="sm" disabled variant="outline">
+					No permission for this team
+				</Button>
+			)
+		}
+
+		// Has permission and not subscribed
 		return (
-			<Button size="sm" disabled variant="outline">
-				{currentTeamId ? "No permission for this team" : "No teams with access"}
+			<Button
+				size="sm"
+				onClick={() => handleSubscribe(currentTeamId)}
+				disabled={isLoading}
+				variant="default"
+			>
+				{isLoading ? "Loading..." : "Subscribe"}
 			</Button>
 		)
 	}
 
-	// When filtered to a specific team OR only one eligible team - simple button
-	if (currentTeamId || teamsToWorkWith.length === 1) {
+	// No team filter - check if we have any eligible teams
+	if (teamsToWorkWith.length === 0) {
+		return (
+			<Button size="sm" disabled variant="outline">
+				No teams with access
+			</Button>
+		)
+	}
+
+	// Single eligible team (no filter active)
+	if (teamsToWorkWith.length === 1) {
 		const team = teamsToWorkWith[0]
 		const isSubscribed = localSubscriptions.has(team.id)
 

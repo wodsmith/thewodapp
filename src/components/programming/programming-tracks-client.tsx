@@ -22,7 +22,7 @@ export function ProgrammingTracksClient({
 	userTeams,
 	userTeamIds,
 }: ProgrammingTracksClientProps) {
-	const { currentTeamId, setCurrentTeam } = useTeamContext()
+	const { currentTeamId } = useTeamContext()
 	const [filteredTracks, setFilteredTracks] = useState<{
 		subscribedTracks: ProgrammingTrackWithTeamSubscriptions[]
 		ownedTracks: ProgrammingTrackWithTeamSubscriptions[]
@@ -33,23 +33,21 @@ export function ProgrammingTracksClient({
 		availableTracks: [],
 	})
 
-	// Auto-select first team if none selected
-	useEffect(() => {
-		if (!currentTeamId && userTeams.length > 0) {
-			setCurrentTeam(userTeams[0].id)
-		}
-	}, [currentTeamId, userTeams, setCurrentTeam])
+	// Don't auto-select - let user choose or stay in "All Teams" view
 
 	// Filter tracks based on current team context
 	useEffect(() => {
-		if (!currentTeamId) {
-			// No team selected, show all
+		// When "All Teams" is selected or no team selected
+		if (!currentTeamId || currentTeamId === "") {
+			// Show all tracks with any team subscriptions
 			const subscribedTracks = allTracks.filter(
 				(track) => track.subscribedTeams.length > 0,
 			)
+			// Show tracks owned by any of user's teams
 			const ownedTracks = allTracks.filter((track) =>
 				userTeamIds.includes(track.ownerTeamId || ""),
 			)
+			// Show tracks that no user's teams are subscribed to and not owned
 			const availableTracks = allTracks.filter(
 				(track) =>
 					track.subscribedTeams.length === 0 &&

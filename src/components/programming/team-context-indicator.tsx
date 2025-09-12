@@ -26,13 +26,7 @@ interface TeamContextIndicatorProps {
 export function TeamContextIndicator({ teams }: TeamContextIndicatorProps) {
 	const { currentTeamId, setCurrentTeam, clearCurrentTeam } = useTeamContext()
 
-	// Auto-select first team if none selected
-	useEffect(() => {
-		if (!currentTeamId && teams.length > 0) {
-			setCurrentTeam(teams[0].id)
-		}
-	}, [currentTeamId, teams, setCurrentTeam])
-
+	// Don't auto-select - start with "All Teams" view
 	const currentTeam = teams.find((t) => t.id === currentTeamId)
 
 	if (teams.length <= 1) {
