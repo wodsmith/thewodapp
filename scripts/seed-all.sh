@@ -11,7 +11,7 @@ echo "Seeding database: $DB_NAME"
 echo "Running base seed..."
 wrangler d1 execute "$DB_NAME" --local --file ./scripts/seed.sql
 
-Run CrossFit Heroes seed (Part 1)
+# Run CrossFit Heroes seed (Part 1)
 echo "Running CrossFit Heroes seed (Part 1)..."
 wrangler d1 execute "$DB_NAME" --local --file ./scripts/seed-crossfit-heroes.sql
 
