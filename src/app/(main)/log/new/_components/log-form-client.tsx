@@ -66,7 +66,6 @@ export default function LogFormClient({
 		control: form.control,
 		name: "selectedWorkoutId",
 	})
-	const scores = useWatch({ control: form.control, name: "scores" })
 
 	const { execute: submitLogForm } = useServerAction(submitLogFormAction, {
 		onError: (error) => {
@@ -109,7 +108,8 @@ export default function LogFormClient({
 	// Update scores when selected workout changes
 	useEffect(() => {
 		if (!selectedWorkout) {
-			if (scores && scores.length !== 0) {
+			const currentScores = form.getValues("scores")
+			if (currentScores && currentScores.length !== 0) {
 				form.setValue("scores", [])
 			}
 			if (prevSelectedWorkoutIdRef.current !== null) {
@@ -125,10 +125,11 @@ export default function LogFormClient({
 
 		const workoutIdContextChanged =
 			prevSelectedWorkoutIdRef.current !== selectedWorkout
+		const currentScores = form.getValues("scores")
 		const scoresNeedRestructure =
-			!scores ||
-			scores.length !== numRoundsForInputs ||
-			scores.some((parts) => parts.length !== expectedPartsPerScore)
+			!currentScores ||
+			currentScores.length !== numRoundsForInputs ||
+			currentScores.some((parts) => parts.length !== expectedPartsPerScore)
 
 		if (workoutIdContextChanged || scoresNeedRestructure) {
 			const newInitialScores = Array(numRoundsForInputs)
@@ -137,7 +138,7 @@ export default function LogFormClient({
 			form.setValue("scores", newInitialScores)
 			prevSelectedWorkoutIdRef.current = selectedWorkout
 		}
-	}, [selectedWorkout, workouts, scores, form])
+	}, [selectedWorkout, workouts, form])
 
 	const handleScoreChange = (
 		roundIndex: number,
@@ -366,27 +367,83 @@ export default function LogFormClient({
 												<div className="space-y-2">
 													<Label>Score</Label>
 													<div className="space-y-3">
-														{scores?.map((scoreParts, roundIndex) => {
-															const currentWorkoutDetails = getSelectedWorkout()
-															const hasRepsPerRound =
-																!!currentWorkoutDetails?.repsPerRound
-															const repsPerRoundValue =
-																currentWorkoutDetails?.repsPerRound
+														{form
+															.watch("scores")
+															?.map((scoreParts, roundIndex) => {
+																const currentWorkoutDetails =
+																	getSelectedWorkout()
+																const hasRepsPerRound =
+																	!!currentWorkoutDetails?.repsPerRound
+																const repsPerRoundValue =
+																	currentWorkoutDetails?.repsPerRound
 
-															return (
-																// biome-ignore lint/suspicious/noArrayIndexKey: The order of rounds is stable and does not change.
-																<div key={roundIndex} className="space-y-2">
-																	{currentWorkoutDetails?.roundsToScore &&
-																		currentWorkoutDetails.roundsToScore > 1 && (
-																			<Label className="text-sm text-muted-foreground">
-																				Round {roundIndex + 1} Score
-																			</Label>
-																		)}
-																	{hasRepsPerRound ? (
-																		<div className="flex items-center gap-2">
+																return (
+																	<div
+																		key={`score-${selectedWorkout || "default"}-${roundIndex}`}
+																		className="space-y-2"
+																	>
+																		{currentWorkoutDetails?.roundsToScore &&
+																			currentWorkoutDetails.roundsToScore >
+																				1 && (
+																				<Label className="text-sm text-muted-foreground">
+																					Round {roundIndex + 1} Score
+																				</Label>
+																			)}
+																		{hasRepsPerRound ? (
+																			<div className="flex items-center gap-2">
+																				<Input
+																					type="number"
+																					placeholder="Rounds"
+																					value={scoreParts[0] || ""}
+																					onChange={(e) =>
+																						handleScoreChange(
+																							roundIndex,
+																							0,
+																							e.target.value,
+																						)
+																					}
+																					min="0"
+																				/>
+																				<span className="text-muted-foreground">
+																					+
+																				</span>
+																				<Input
+																					type="number"
+																					placeholder={`Reps (max ${
+																						repsPerRoundValue
+																							? repsPerRoundValue - 1
+																							: "N/A"
+																					})`}
+																					value={scoreParts[1] || ""}
+																					onChange={(e) =>
+																						handleScoreChange(
+																							roundIndex,
+																							1,
+																							e.target.value,
+																						)
+																					}
+																					min="0"
+																					max={
+																						repsPerRoundValue
+																							? repsPerRoundValue - 1
+																							: undefined
+																					}
+																				/>
+																			</div>
+																		) : (
 																			<Input
-																				type="number"
-																				placeholder="Rounds"
+																				type={
+																					currentWorkoutDetails?.scheme ===
+																					"time"
+																						? "text"
+																						: "number"
+																				}
+																				placeholder={
+																					currentWorkoutDetails?.scheme ===
+																					"time"
+																						? "e.g. 3:21"
+																						: "Reps/Load"
+																				}
 																				value={scoreParts[0] || ""}
 																				onChange={(e) =>
 																					handleScoreChange(
@@ -395,64 +452,17 @@ export default function LogFormClient({
 																						e.target.value,
 																					)
 																				}
-																				min="0"
-																			/>
-																			<span className="text-muted-foreground">
-																				+
-																			</span>
-																			<Input
-																				type="number"
-																				placeholder={`Reps (max ${
-																					repsPerRoundValue
-																						? repsPerRoundValue - 1
-																						: "N/A"
-																				})`}
-																				value={scoreParts[1] || ""}
-																				onChange={(e) =>
-																					handleScoreChange(
-																						roundIndex,
-																						1,
-																						e.target.value,
-																					)
-																				}
-																				min="0"
-																				max={
-																					repsPerRoundValue
-																						? repsPerRoundValue - 1
+																				min={
+																					currentWorkoutDetails?.scheme !==
+																					"time"
+																						? "0"
 																						: undefined
 																				}
 																			/>
-																		</div>
-																	) : (
-																		<Input
-																			type={
-																				currentWorkoutDetails?.scheme === "time"
-																					? "text"
-																					: "number"
-																			}
-																			placeholder={
-																				currentWorkoutDetails?.scheme === "time"
-																					? "e.g. 3:21"
-																					: "Reps/Load"
-																			}
-																			value={scoreParts[0] || ""}
-																			onChange={(e) =>
-																				handleScoreChange(
-																					roundIndex,
-																					0,
-																					e.target.value,
-																				)
-																			}
-																			min={
-																				currentWorkoutDetails?.scheme !== "time"
-																					? "0"
-																					: undefined
-																			}
-																		/>
-																	)}
-																</div>
-															)
-														})}
+																		)}
+																	</div>
+																)
+															})}
 													</div>
 												</div>
 

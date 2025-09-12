@@ -151,9 +151,45 @@ async function fetchTodaysResultsByWorkoutId(
 }
 
 /**
+ * Get total count of user workouts for pagination
+ */
+export async function getUserWorkoutsCount({
+	teamId,
+}: {
+	teamId: string
+}): Promise<number> {
+	const db = getDd()
+	const session = await requireVerifiedEmail()
+
+	if (!session?.user?.id) {
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+	}
+
+	const result = await db
+		.select({ count: count() })
+		.from(workouts)
+		.where(
+			or(
+				eq(workouts.teamId, teamId), // Team-owned workouts
+				eq(workouts.scope, "public"), // Public workouts
+			),
+		)
+
+	return result[0]?.count || 0
+}
+
+/**
  * Get all workouts for the current team (team-owned + public workouts)
  */
-export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
+export async function getUserWorkouts({
+	teamId,
+	limit = 50,
+	offset = 0,
+}: {
+	teamId: string
+	limit?: number
+	offset?: number
+}): Promise<
 	Array<
 		Workout & {
 			tags: Array<{ id: string; name: string }>
@@ -198,6 +234,9 @@ export async function getUserWorkouts({ teamId }: { teamId: string }): Promise<
 				eq(workouts.scope, "public"), // Public workouts
 			),
 		)
+		.orderBy(desc(workouts.createdAt))
+		.limit(limit)
+		.offset(offset)
 
 	const workoutIds = allWorkouts.map((w) => w.id)
 
@@ -572,8 +611,7 @@ export async function getUserWorkoutsWithTrackScheduling({
 
 	// Combine user workouts with scheduling information
 	return userWorkouts.map((workout) => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { resultsToday, ...workoutWithoutResults } = workout
+		const { resultsToday: _resultsToday, ...workoutWithoutResults } = workout
 		return {
 			...workoutWithoutResults,
 			lastScheduledAt: schedulingMap.get(workout.id) ?? null,

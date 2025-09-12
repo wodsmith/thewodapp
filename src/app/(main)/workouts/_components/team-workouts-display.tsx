@@ -300,9 +300,21 @@ export function TeamWorkoutsDisplay({
 		}
 	}, [teams, initialScheduledWorkouts, setCachedData]) // Run when dependencies change
 
-	// Include all teams (personal and non-personal) for scheduled workouts
+	// Sort teams to put personal teams on top
 	const allTeams = useMemo(() => {
-		return teams.filter((team) => team)
+		return teams
+			.filter((team) => team)
+			.sort((a, b) => {
+				// Personal teams first (isPersonalTeam is truthy)
+				const aIsPersonal = Boolean(a.isPersonalTeam)
+				const bIsPersonal = Boolean(b.isPersonalTeam)
+
+				if (aIsPersonal && !bIsPersonal) return -1
+				if (!aIsPersonal && bIsPersonal) return 1
+
+				// Within same type, sort alphabetically
+				return a.name.localeCompare(b.name)
+			})
 	}, [teams])
 
 	if (allTeams.length === 0) {
