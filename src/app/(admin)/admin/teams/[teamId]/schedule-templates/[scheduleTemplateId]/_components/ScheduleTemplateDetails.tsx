@@ -32,7 +32,6 @@ import {
 	createScheduleTemplateClass,
 	updateScheduleTemplateClass,
 	deleteScheduleTemplateClass,
-	bulkCreateScheduleTemplateClasses,
 	type getScheduleTemplateById,
 } from "@/actions/schedule-template-actions"
 import type {
@@ -251,8 +250,8 @@ export default function ScheduleTemplateDetails({
 
 	const startEditingClass = (cls: ExtendedClassType) => {
 		setEditingClassId(cls.id)
-		updateClassForm.setValue("classCatalogId", cls.classCatalogId)
-		updateClassForm.setValue("locationId", cls.locationId)
+		updateClassForm.setValue("classCatalogId", template.classCatalogId)
+		updateClassForm.setValue("locationId", template.locationId)
 		updateClassForm.setValue("dayOfWeek", cls.dayOfWeek)
 		updateClassForm.setValue("startTime", cls.startTime)
 		updateClassForm.setValue("endTime", cls.endTime)

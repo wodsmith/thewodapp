@@ -72,7 +72,6 @@ import {
 	createScheduleTemplateClass,
 	updateScheduleTemplateClass,
 	deleteScheduleTemplateClass,
-	bulkCreateScheduleTemplateClasses,
 } from "@/actions/schedule-template-actions"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
@@ -118,17 +117,6 @@ const createClassSchema = z.object({
 })
 
 type CreateClassData = z.infer<typeof createClassSchema>
-
-const bulkCreateSchema = z.object({
-	classCatalogId: z.string().min(1),
-	locationId: z.string().min(1),
-	cronExpressions: z.string(),
-	duration: z.coerce.number().min(1).default(60),
-	requiredCoaches: z.coerce.number().min(1).optional(),
-	requiredSkillIds: z.array(z.string()).optional(),
-})
-
-type BulkCreateData = z.infer<typeof bulkCreateSchema>
 
 const dayNames = [
 	"Sunday",
@@ -280,55 +268,6 @@ const ScheduleTemplates = ({
 	}
 
 	// Bulk create form
-	const bulkForm = useForm<BulkCreateData>({
-		resolver: zodResolver(bulkCreateSchema),
-		defaultValues: {
-			classCatalogId: "",
-			locationId: "",
-			cronExpressions: "",
-			duration: 60,
-			requiredCoaches: 1,
-			requiredSkillIds: [],
-		},
-	})
-
-	const { execute: bulkExec } = useServerAction(
-		bulkCreateScheduleTemplateClasses,
-	)
-
-	const onBulkCreate = async (data: BulkCreateData) => {
-		if (!selectedTemplateId) return
-		const cronExpressions = data.cronExpressions
-			.split("\n")
-			.map((s) => s.trim())
-			.filter(Boolean)
-		const [res, err] = await bulkExec({
-			templateId: selectedTemplateId,
-			...data,
-			cronExpressions,
-			requiredSkillIds: selectedSkills,
-		})
-		if (err) return toast.error("Error bulk adding classes")
-		const newClasses = res.map((cls) => ({
-			...cls,
-			requiredSkills: selectedSkills.map((skillId) => ({
-				skillId,
-				templateClassId: cls.id,
-				skill: availableSkills.find((s) => s.id === skillId)!,
-			})),
-		}))
-		setTemplates(
-			templates.map((t) =>
-				t.id === selectedTemplateId
-					? { ...t, templateClasses: [...t.templateClasses, ...newClasses] }
-					: t,
-			),
-		)
-		bulkForm.reset()
-		setSelectedSkills([])
-		toast.success("Classes added")
-		router.refresh()
-	}
 
 	// Similar for update class and delete class
 
@@ -389,7 +328,7 @@ const ScheduleTemplates = ({
 										<FormLabel>Class Catalog</FormLabel>
 										<Select
 											onValueChange={field.onChange}
-											defaultValue={field.value}
+											value={field.value ?? ""}
 										>
 											<SelectTrigger>
 												<SelectValue placeholder="Select a class catalog" />
@@ -414,7 +353,7 @@ const ScheduleTemplates = ({
 										<FormLabel>Location</FormLabel>
 										<Select
 											onValueChange={field.onChange}
-											defaultValue={field.value}
+											value={field.value ?? ""}
 										>
 											<SelectTrigger>
 												<SelectValue placeholder="Select a location" />

@@ -9,7 +9,6 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
-import { batchInsert } from "@/lib/utils"
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({
@@ -75,76 +74,10 @@ const deleteScheduleTemplateClassSchema = z.object({
 	templateId: z.string(),
 })
 
-// Schema for bulk creating schedule template classes using cron expressions
-// Cron format: "minute hour day-of-month month day-of-week"
-// Example: "0 9 * * 1" = Every Monday at 9:00 AM
-// Day of week: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-const bulkCreateScheduleTemplateClassesSchema = z.object({
-	templateId: z.string(),
-	cronExpressions: z.array(z.string()),
-	duration: z.number().int().min(1).optional().default(60), // duration in minutes
-	requiredCoaches: z.number().int().min(1).optional(),
-	requiredSkillIds: z.array(z.string()).optional(),
-})
-
 // Schema for deleting all classes for a template
 const deleteAllScheduleTemplateClassesSchema = z.object({
 	templateId: z.string(),
 })
-
-// Helper function to parse cron expression
-function parseCronExpression(cronExpression: string) {
-	const parts = cronExpression.trim().split(/\s+/)
-
-	if (parts.length !== 5) {
-		throw new Error(
-			`Invalid cron expression: ${cronExpression}. Expected format: "minute hour day-of-month month day-of-week"`,
-		)
-	}
-
-	const [minute, hour, dayOfMonth, month, dayOfWeek] = parts
-
-	// Parse minute
-	const minuteNum = parseInt(minute, 10)
-	if (Number.isNaN(minuteNum) || minuteNum < 0 || minuteNum > 59) {
-		throw new Error(`Invalid minute in cron expression: ${minute}`)
-	}
-
-	// Parse hour
-	const hourNum = parseInt(hour, 10)
-	if (Number.isNaN(hourNum) || hourNum < 0 || hourNum > 23) {
-		throw new Error(`Invalid hour in cron expression: ${hour}`)
-	}
-
-	// Parse day of week (0 = Sunday, 6 = Saturday)
-	const dayOfWeekNum = parseInt(dayOfWeek, 10)
-	if (Number.isNaN(dayOfWeekNum) || dayOfWeekNum < 0 || dayOfWeekNum > 6) {
-		throw new Error(`Invalid day of week in cron expression: ${dayOfWeek}`)
-	}
-
-	return {
-		minute: minuteNum,
-		hour: hourNum,
-		dayOfWeek: dayOfWeekNum,
-	}
-}
-
-// Helper function to format time
-function formatTime(hour: number, minute: number): string {
-	return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
-}
-
-// Helper function to calculate end time
-function calculateEndTime(
-	startHour: number,
-	startMinute: number,
-	durationMinutes: number,
-): string {
-	const totalMinutes = startHour * 60 + startMinute + durationMinutes
-	const endHour = Math.floor(totalMinutes / 60) % 24
-	const endMinute = totalMinutes % 60
-	return formatTime(endHour, endMinute)
-}
 
 // Server Actions for Schedule Templates
 export const createScheduleTemplate = createServerAction()
@@ -430,89 +363,6 @@ export const deleteScheduleTemplateClass = createServerAction()
 				"Failed to delete schedule template class",
 			)
 		}
-	})
-
-export const bulkCreateScheduleTemplateClasses = createServerAction()
-	.input(bulkCreateScheduleTemplateClassesSchema)
-	.handler(async ({ input }) => {
-		const {
-			templateId,
-			cronExpressions,
-			duration,
-			requiredCoaches,
-			requiredSkillIds,
-		} = input
-		const db = getDd()
-
-		// Parse and validate all cron expressions first
-		// try {
-		// 	const parsedSchedules = cronExpressions.map((cronExpression) => {
-		// 		try {
-		// 			const parsed = parseCronExpression(cronExpression)
-		// 			const startTime = formatTime(parsed.hour, parsed.minute)
-		// 			const endTime = calculateEndTime(parsed.hour, parsed.minute, duration)
-
-		// 			return {
-		// 				id: `stc_${createId()}`,
-		// 				templateId,
-		// 				dayOfWeek: parsed.dayOfWeek,
-		// 				startTime,
-		// 				endTime,
-		// 				requiredCoaches,
-		// 			}
-		// 		} catch (error) {
-		// 			throw new Error(
-		// 				`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
-		// 			)
-		// 		}
-		// 	})
-
-		// 	// Insert all template classes
-		// 	await batchInsert(
-		// 		db,
-		// 		scheduleTemplateClassesTable,
-		// 		parsedSchedules,
-		// 	)
-		// 	const newTemplateClasses = await db
-		// 		.select()
-		// 		.from(scheduleTemplateClassesTable)
-		// 		.where(inArray(scheduleTemplateClassesTable.id, parsedSchedules.map((s) => s.id)))
-
-		// 	// Insert required skills if provided
-		// 	if (requiredSkillIds && requiredSkillIds.length > 0) {
-		// 		const skillsToInsert = await batchInsert(
-		// 			db,
-		// 			scheduleTemplateClassRequiredSkillsTable,
-		// 			requiredSkillIds.map((skillId) => ({
-		// 				templateClassId: newTemplateClasses[0].id,
-		// 				skillId,
-		// 			})),
-		// 		const skillsToInsert = newTemplateClasses.flatMap((templateClass) =>
-		// 			requiredSkillIds.map((skillId) => ({
-		// 				templateClassId: templateClass.id,
-		// 				skillId,
-		// 			})),
-		// 		)
-		// 		const skillsBatchSize = 50
-		// 		for (let i = 0; i < skillsToInsert.length; i += skillsBatchSize) {
-		// 			const chunk = skillsToInsert.slice(i, i + skillsBatchSize)
-		// 			await db
-		// 				.insert(scheduleTemplateClassRequiredSkillsTable)
-		// 				.values(chunk)
-		// 		}
-		// 	}
-
-		// 	return newTemplateClasses
-		// } catch (error) {
-		// 	console.error("Failed to bulk create schedule template classes:", error)
-		// 	if (error instanceof ZSAError) {
-		// 		throw error
-		// 	}
-		// 	throw new ZSAError(
-		// 		"INTERNAL_SERVER_ERROR",
-		// 		"Failed to bulk create schedule template classes",
-		// 	)
-		// }
 	})
 
 // Server Action to delete all classes for a template
