@@ -61,6 +61,11 @@ export default async function WorkoutsPage({
 		}
 	}
 
+	if (!session || !session?.user?.id) {
+		console.log("[workouts/page] No user found")
+		redirect("/sign-in")
+	}
+
 	// Get user's personal team ID
 	const { getUserPersonalTeamId } = await import("@/server/user")
 	const teamId = await getUserPersonalTeamId(session.user.id)
