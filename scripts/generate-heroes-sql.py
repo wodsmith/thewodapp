@@ -8,6 +8,9 @@ import re
 import sys
 from pathlib import Path
 
+# Constants
+CROSSFIT_TEAM_ID = 'team_cokkpu1klwo0ulfhl1iwzpvn'
+
 def slugify(text):
     """Convert text to SQL-safe slug."""
     return re.sub(r'[^\w]', '_', text.lower()).strip('_')
@@ -57,7 +60,7 @@ def extract_movements(description):
         'double-unders': 'mov_doubleunder', 'double unders': 'mov_doubleunder', 'dus': 'mov_doubleunder',
         'single-unders': 'mov_singleunder', 'single unders': 'mov_singleunder',
         'toes-to-bars': 'mov_toestobar', 'toes to bar': 'mov_toestobar', 'ttb': 'mov_toestobar',
-        'knees-to-elbows': 'mov_toestobar', 'knees to elbows': 'mov_toestobar',
+        'knees-to-elbows': 'mov_knees_to_elbows', 'knees to elbows': 'mov_knees_to_elbows',
         'sit-ups': 'mov_situp', 'sit up': 'mov_situp', 'situps': 'mov_situp',
         'muscle-ups': 'mov_muscleup', 'muscle up': 'mov_muscleup',
         'ring muscle-ups': 'mov_ringmuscleup', 'ring muscle up': 'mov_ringmuscleup',
@@ -160,7 +163,7 @@ INSERT INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_s
     workout_inserts = []
     for workout in workouts:
         workout_inserts.append(f"""-- {workout['name']}
-('wod_{workout['slug']}', '{workout['name']}', '{workout['description']}', '{workout['scheme']}', 'public', 'team_crossfit', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)""")
+('wod_{workout['slug']}', '{workout['name']}', '{workout['description']}', '{workout['scheme']}', 'public', '{CROSSFIT_TEAM_ID}', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)""")
     
     sql_parts.append(',\n\n'.join(workout_inserts) + ';')
     

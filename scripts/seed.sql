@@ -220,6 +220,7 @@ INSERT OR IGNORE INTO movements (id, name, type, createdAt, updatedAt, updateCou
 ('mov_muscleup', 'muscle up', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('mov_ringmuscleup', 'ring muscle up', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('mov_toestobar', 'toes to bar', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('mov_knees_to_elbows', 'knees to elbows', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('mov_situp', 'sit up', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('mov_burpee', 'burpee', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('mov_boxjump', 'box jump', 'gymnastic', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),

@@ -5,6 +5,13 @@ set -e
 # Get the database name
 DB_NAME=$(node scripts/get-db-name.mjs)
 
+# Trim whitespace and validate DB_NAME is non-empty
+DB_NAME=$(echo "$DB_NAME" | xargs)
+if [[ -z "$DB_NAME" ]]; then
+    echo "Error: DB_NAME is empty. Unable to determine database name from scripts/get-db-name.mjs" >&2
+    exit 1
+fi
+
 echo "Seeding database: $DB_NAME"
 
 # Run base seed file

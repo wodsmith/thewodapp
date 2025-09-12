@@ -16,8 +16,6 @@ import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
 import { PaginationWithUrl } from "@/components/ui/pagination"
-import { Session } from "inspector"
-import { SessionWithMeta } from "@/types"
 import { KVSession } from "@/utils/kv-session"
 
 export const metadata: Metadata = {
@@ -55,13 +53,11 @@ export default async function WorkoutsPage({
 	try {
 		session = await requireVerifiedEmail()
 	} catch (error) {
-		if (!session || !session?.user?.id) {
-			console.log("[workouts/page] No user found")
-			redirect("/sign-in")
-		}
+		console.log("[workouts/page] No user found")
+		redirect("/sign-in")
 	}
 
-	if (!session || !session?.user?.id) {
+	if (!session?.user?.id) {
 		console.log("[workouts/page] No user found")
 		redirect("/sign-in")
 	}
@@ -125,7 +121,13 @@ export default async function WorkoutsPage({
 	})
 
 	const mySearchParams = await searchParams
-	const currentPage = Number.parseInt(mySearchParams?.page || "1", 10)
+	const parsedPage = Number.parseInt(mySearchParams?.page || "1", 10)
+	const currentPage =
+		Number.isFinite(parsedPage) &&
+		Number.isInteger(parsedPage) &&
+		parsedPage >= 1
+			? parsedPage
+			: 1
 
 	const [result, error] = await getUserWorkoutsAction({
 		teamId,

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -27,19 +27,28 @@ export function SubscribeButton({
 	const hasTeamPermission = useSessionStore((state) => state.hasTeamPermission)
 
 	// Filter teams where user has MANAGE_PROGRAMMING permission
-	const eligibleTeams =
-		session?.teams?.filter((team) =>
-			hasTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
-		) || []
+	const eligibleTeams = useMemo(
+		() =>
+			session?.teams?.filter((team) =>
+				hasTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
+			) || [],
+		[session?.teams, hasTeamPermission],
+	)
 
 	// State for selected team
 	const [selectedTeamId, setSelectedTeamId] = useState<string>("")
 
 	// Auto-select first eligible team if only one or none selected
 	useEffect(() => {
-		if (eligibleTeams.length > 0 && !selectedTeamId) {
+		if (eligibleTeams.length === 0) {
+			setSelectedTeamId("")
+		} else if (
+			!selectedTeamId ||
+			!eligibleTeams.some((team) => team.id === selectedTeamId)
+		) {
 			setSelectedTeamId(eligibleTeams[0].id)
 		}
+		// Otherwise do nothing - selectedTeamId is valid
 	}, [eligibleTeams, selectedTeamId])
 
 	const canManageProgramming =

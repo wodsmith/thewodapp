@@ -56,13 +56,13 @@ export function TeamProgrammingSelector({
 					className="w-[200px] justify-between text-sm"
 					disabled={disabled}
 				>
-					<div className="flex items-center gap-2">
-						<Building2 className="h-4 w-4" />
+					<div className="flex items-center gap-2 min-w-0 flex-1">
+						<Building2 className="h-4 w-4 shrink-0" />
 						<span className="truncate">
 							{selectedTeam ? selectedTeam.name : "Select team..."}
 						</span>
 					</div>
-					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+					<ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-[200px]" align="start">
