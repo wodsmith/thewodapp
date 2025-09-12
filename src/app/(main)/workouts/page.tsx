@@ -46,6 +46,7 @@ export default async function WorkoutsPage({
 		tag?: string
 		movement?: string
 		type?: string
+		trackId?: string
 		page?: string
 	}>
 }) {
@@ -68,6 +69,11 @@ export default async function WorkoutsPage({
 
 	// Get user's teams for team workouts display
 	const userTeams = await getUserTeams()
+
+	// Get all programming tracks the user has access to through their teams
+	const { getUserProgrammingTracks } = await import("@/server/programming")
+	const userTeamIds = userTeams.map((team) => team.id)
+	const userProgrammingTracks = await getUserProgrammingTracks(userTeamIds)
 
 	// Fetch initial scheduled workouts for today for all teams
 	const dateRange = {
@@ -129,74 +135,35 @@ export default async function WorkoutsPage({
 			? parsedPage
 			: 1
 
+	// Pass all filters to the server action
 	const [result, error] = await getUserWorkoutsAction({
 		teamId,
 		page: currentPage,
 		pageSize: 50,
+		search: mySearchParams?.search,
+		tag: mySearchParams?.tag,
+		movement: mySearchParams?.movement,
+		type: mySearchParams?.type as "all" | "original" | "remix" | undefined,
+		trackId: mySearchParams?.trackId,
 	})
 
 	if (error || !result?.success) {
 		return notFound()
 	}
 
-	const allWorkouts = result.data
+	const workouts = result.data
 	const { totalCount } = result
-	const searchTerm = mySearchParams?.search?.toLowerCase() || ""
-	const selectedTag = mySearchParams?.tag || ""
-	const selectedMovement = mySearchParams?.movement || ""
-	const workoutType = mySearchParams?.type || ""
-	const workouts = allWorkouts.filter((workout) => {
-		const nameMatch = workout.name.toLowerCase().includes(searchTerm)
-		const descriptionMatch = workout.description
-			?.toLowerCase()
-			.includes(searchTerm)
-		const movementSearchMatch = workout.movements.some((movement) =>
-			movement?.name?.toLowerCase().includes(searchTerm),
-		)
-		const tagSearchMatch = workout.tags.some((tag) =>
-			tag.name.toLowerCase().includes(searchTerm),
-		)
-		const searchFilterPassed = searchTerm
-			? nameMatch || descriptionMatch || movementSearchMatch || tagSearchMatch
-			: true
-		const tagFilterPassed = selectedTag
-			? workout.tags.some((tag) => tag.name === selectedTag)
-			: true
-		const movementFilterPassed = selectedMovement
-			? workout.movements.some(
-					(movement) => movement?.name === selectedMovement,
-				)
-			: true
-		const typeFilterPassed = (() => {
-			if (!workoutType || workoutType === "all") return true
-			if (workoutType === "original") return !workout.sourceWorkout
-			if (workoutType === "remix") return !!workout.sourceWorkout
-			return true
-		})()
-		return (
-			searchFilterPassed &&
-			tagFilterPassed &&
-			movementFilterPassed &&
-			typeFilterPassed
-		)
-	})
 
 	// Don't filter for "today" on server side since server runs in UTC
 	// Pass all workouts and let client filter based on local timezone
 
-	// Extract unique tags and movements for filter dropdowns
-	const allTags = [
-		...new Set(
-			allWorkouts.flatMap((workout) => workout.tags.map((tag) => tag.name)),
-		),
-	].sort() as string[]
-	const allMovements = [
-		...new Set(
-			allWorkouts.flatMap((workout) =>
-				workout.movements.map((m) => m?.name).filter(Boolean),
-			),
-		),
-	].sort() as string[]
+	// Fetch all available tags and movements for filter dropdowns
+	const { getAvailableWorkoutTags, getAvailableWorkoutMovements } =
+		await import("@/server/workouts")
+	const [allTags, allMovements] = await Promise.all([
+		getAvailableWorkoutTags(teamId),
+		getAvailableWorkoutMovements(teamId),
+	])
 	return (
 		<div>
 			<div className="mb-6 flex flex-col items-center justify-between sm:flex-row">
@@ -222,7 +189,11 @@ export default async function WorkoutsPage({
 
 			{/* Workout of the Day section removed - date filtering needs to happen client-side */}
 
-			<WorkoutControls allTags={allTags} allMovements={allMovements} />
+			<WorkoutControls
+				allTags={allTags}
+				allMovements={allMovements}
+				programmingTracks={userProgrammingTracks}
+			/>
 			<ul className="space-y-4">
 				{workouts.map((workout) => (
 					<WorkoutRowCard

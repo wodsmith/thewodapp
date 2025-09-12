@@ -238,6 +238,11 @@ export const getUserWorkoutsAction = createServerAction()
 	.input(
 		z.object({
 			teamId: z.string().min(1, "Team ID is required"),
+			trackId: z.string().optional(),
+			search: z.string().optional(),
+			tag: z.string().optional(),
+			movement: z.string().optional(),
+			type: z.enum(["all", "original", "remix"]).optional(),
 			page: z.number().int().min(1).optional().default(1),
 			pageSize: z.number().int().min(1).max(100).optional().default(50),
 		}),
@@ -246,13 +251,22 @@ export const getUserWorkoutsAction = createServerAction()
 		try {
 			const offset = (input.page - 1) * input.pageSize
 
+			const filters = {
+				search: input.search,
+				tag: input.tag,
+				movement: input.movement,
+				type: input.type,
+				trackId: input.trackId,
+			}
+
 			const [workouts, totalCount] = await Promise.all([
 				getUserWorkouts({
 					teamId: input.teamId,
+					...filters,
 					limit: input.pageSize,
 					offset,
 				}),
-				getUserWorkoutsCount({ teamId: input.teamId }),
+				getUserWorkoutsCount({ teamId: input.teamId, ...filters }),
 			])
 
 			return {

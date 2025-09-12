@@ -12,16 +12,25 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import type { Movement, Tag } from "@/types"
 
 interface WorkoutControlsProps {
 	allTags: Tag["name"][]
 	allMovements: Movement["name"][]
+	programmingTracks?: {
+		trackId: string
+		trackName: string
+		trackDescription: string | null
+		subscribedTeamId: string
+		subscribedTeamName: string
+	}[]
 }
 
 export default function WorkoutControls({
 	allTags,
 	allMovements,
+	programmingTracks = [],
 }: WorkoutControlsProps) {
 	const router = useRouter()
 	const pathname = usePathname()
@@ -32,6 +41,9 @@ export default function WorkoutControls({
 		searchParams.get("movement") || "",
 	)
 	const [workoutType, setWorkoutType] = useState(searchParams.get("type") || "")
+	const [selectedTrackId, setSelectedTrackId] = useState(
+		searchParams.get("trackId") || "",
+	)
 
 	useEffect(() => {
 		const params = new URLSearchParams(searchParams.toString())
@@ -59,6 +71,12 @@ export default function WorkoutControls({
 			params.delete("type")
 		}
 
+		if (selectedTrackId) {
+			params.set("trackId", selectedTrackId)
+		} else {
+			params.delete("trackId")
+		}
+
 		router.replace(`${pathname}?${params.toString()}` as Route, {
 			scroll: false,
 		})
@@ -67,6 +85,7 @@ export default function WorkoutControls({
 		selectedTag,
 		selectedMovement,
 		workoutType,
+		selectedTrackId,
 		router,
 		pathname,
 		searchParams,
@@ -85,42 +104,26 @@ export default function WorkoutControls({
 				/>
 			</div>
 			<div className="flex gap-4">
-				<Select
+				<SearchableSelect
 					value={selectedTag}
 					onValueChange={(value) =>
 						setSelectedTag(value === "all" ? "" : value)
 					}
-				>
-					<SelectTrigger className="w-[180px]">
-						<SelectValue placeholder="All Tags" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All Tags</SelectItem>
-						{allTags.map((tag) => (
-							<SelectItem key={tag} value={tag}>
-								{tag}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				<Select
+					options={allTags}
+					placeholder="All Tags"
+					searchPlaceholder="Search tags..."
+					className="w-[180px]"
+				/>
+				<SearchableSelect
 					value={selectedMovement}
 					onValueChange={(value) =>
 						setSelectedMovement(value === "all" ? "" : value)
 					}
-				>
-					<SelectTrigger className="w-[180px]">
-						<SelectValue placeholder="All Movements" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All Movements</SelectItem>
-						{allMovements.map((movement) => (
-							<SelectItem key={movement} value={movement}>
-								{movement}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					options={allMovements}
+					placeholder="All Movements"
+					searchPlaceholder="Search movements..."
+					className="w-[180px]"
+				/>
 				<Select
 					value={workoutType}
 					onValueChange={(value) =>
@@ -136,6 +139,21 @@ export default function WorkoutControls({
 						<SelectItem value="remix">Remixes Only</SelectItem>
 					</SelectContent>
 				</Select>
+				{programmingTracks.length > 0 && (
+					<SearchableSelect
+						value={selectedTrackId}
+						onValueChange={(value) =>
+							setSelectedTrackId(value === "all" ? "" : value)
+						}
+						options={programmingTracks.map((track) => ({
+							value: track.trackId,
+							label: track.trackName,
+						}))}
+						placeholder="All Tracks"
+						searchPlaceholder="Search tracks..."
+						className="w-[180px]"
+					/>
+				)}
 			</div>
 			{/* The Filter button is currently not used for modal functionality */}
 			{/* <button className="btn-outline flex items-center gap-2">

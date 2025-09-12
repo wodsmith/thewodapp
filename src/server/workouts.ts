@@ -6,10 +6,12 @@ import {
 	gte,
 	inArray,
 	isNotNull,
+	isNull,
 	lt,
 	or,
 	count,
 	desc,
+	sql,
 } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -19,13 +21,13 @@ import {
 	results,
 	scheduledWorkoutInstancesTable,
 	tags,
-	trackWorkoutsTable,
 	workoutMovements,
 	workouts,
 	workoutTags,
 	teamTable,
 	teamMembershipTable,
 } from "@/db/schema"
+import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
 import { isTeamMember } from "@/utils/team-auth"
 import {
@@ -155,8 +157,18 @@ async function fetchTodaysResultsByWorkoutId(
  */
 export async function getUserWorkoutsCount({
 	teamId,
+	trackId,
+	search,
+	tag,
+	movement,
+	type,
 }: {
 	teamId: string
+	trackId?: string
+	search?: string
+	tag?: string
+	movement?: string
+	type?: "all" | "original" | "remix"
 }): Promise<number> {
 	const db = getDd()
 	const session = await requireVerifiedEmail()
@@ -165,16 +177,78 @@ export async function getUserWorkoutsCount({
 		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
 	}
 
-	const result = await db
-		.select({ count: count() })
-		.from(workouts)
-		.where(
+	// Build a single query with all necessary joins
+	const needsTrackJoin = !!trackId
+	const needsTagJoin = !!tag
+	const needsMovementJoin = !!movement
+
+	// Build conditions
+	const conditions: any[] = []
+
+	// Base condition: team-owned or public workouts
+	conditions.push(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
+
+	// Type filter
+	if (type === "original") {
+		conditions.push(isNull(workouts.sourceWorkoutId))
+	} else if (type === "remix") {
+		conditions.push(isNotNull(workouts.sourceWorkoutId))
+	}
+
+	// Track filter
+	if (trackId) {
+		conditions.push(eq(trackWorkoutsTable.trackId, trackId))
+	}
+
+	// Tag filter
+	if (tag) {
+		conditions.push(eq(tags.name, tag))
+	}
+
+	// Movement filter
+	if (movement) {
+		conditions.push(eq(movements.name, movement))
+	}
+
+	// Search filter
+	if (search) {
+		const searchLower = search.toLowerCase()
+		conditions.push(
 			or(
-				eq(workouts.teamId, teamId), // Team-owned workouts
-				eq(workouts.scope, "public"), // Public workouts
+				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
+				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
 			),
 		)
+	}
 
+	// Build the complete query based on needed joins
+	let baseQuery = db
+		.select({
+			count: sql<number>`COUNT(DISTINCT ${workouts.id})`,
+		})
+		.from(workouts)
+
+	if (needsTrackJoin) {
+		baseQuery = baseQuery.innerJoin(
+			trackWorkoutsTable,
+			eq(trackWorkoutsTable.workoutId, workouts.id),
+		) as any
+	}
+	if (needsTagJoin) {
+		baseQuery = baseQuery
+			.innerJoin(workoutTags, eq(workoutTags.workoutId, workouts.id))
+			.innerJoin(tags, eq(tags.id, workoutTags.tagId)) as any
+	}
+	if (needsMovementJoin) {
+		baseQuery = baseQuery
+			.innerJoin(workoutMovements, eq(workoutMovements.workoutId, workouts.id))
+			.innerJoin(
+				movements,
+				eq(movements.id, workoutMovements.movementId),
+			) as any
+	}
+
+	const result = await baseQuery.where(and(...conditions))
 	return result[0]?.count || 0
 }
 
@@ -183,10 +257,20 @@ export async function getUserWorkoutsCount({
  */
 export async function getUserWorkouts({
 	teamId,
+	trackId,
+	search,
+	tag,
+	movement,
+	type,
 	limit = 50,
 	offset = 0,
 }: {
 	teamId: string
+	trackId?: string
+	search?: string
+	tag?: string
+	movement?: string
+	type?: "all" | "original" | "remix"
 	limit?: number
 	offset?: number
 }): Promise<
@@ -224,16 +308,94 @@ export async function getUserWorkouts({
 		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
 	}
 
-	// Base workouts and ids - include both team workouts and public workouts
-	const allWorkouts = await db
-		.select()
-		.from(workouts)
-		.where(
+	// Determine which joins we need
+	const needsTrackJoin = !!trackId
+	const needsTagJoin = !!tag
+	const needsMovementJoin = !!movement
+
+	// Build conditions
+	const conditions: any[] = []
+
+	// Base condition: team-owned or public workouts
+	conditions.push(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
+
+	// Type filter
+	if (type === "original") {
+		conditions.push(isNull(workouts.sourceWorkoutId))
+	} else if (type === "remix") {
+		conditions.push(isNotNull(workouts.sourceWorkoutId))
+	}
+
+	// Track filter
+	if (trackId) {
+		conditions.push(eq(trackWorkoutsTable.trackId, trackId))
+	}
+
+	// Tag filter
+	if (tag) {
+		conditions.push(eq(tags.name, tag))
+	}
+
+	// Movement filter
+	if (movement) {
+		conditions.push(eq(movements.name, movement))
+	}
+
+	// Search filter
+	if (search) {
+		const searchLower = search.toLowerCase()
+		conditions.push(
 			or(
-				eq(workouts.teamId, teamId), // Team-owned workouts
-				eq(workouts.scope, "public"), // Public workouts
+				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
+				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
 			),
 		)
+	}
+
+	// Build the complete query based on needed joins
+	let baseQuery = db
+		.selectDistinct({
+			id: workouts.id,
+			name: workouts.name,
+			description: workouts.description,
+			scheme: workouts.scheme,
+			scope: workouts.scope,
+			teamId: workouts.teamId,
+			repsPerRound: workouts.repsPerRound,
+			roundsToScore: workouts.roundsToScore,
+			sugarId: workouts.sugarId,
+			tiebreakScheme: workouts.tiebreakScheme,
+			secondaryScheme: workouts.secondaryScheme,
+			sourceWorkoutId: workouts.sourceWorkoutId,
+			sourceTrackId: workouts.sourceTrackId,
+			createdAt: workouts.createdAt,
+			updatedAt: workouts.updatedAt,
+			updateCounter: workouts.updateCounter,
+		})
+		.from(workouts)
+
+	if (needsTrackJoin) {
+		baseQuery = baseQuery.innerJoin(
+			trackWorkoutsTable,
+			eq(trackWorkoutsTable.workoutId, workouts.id),
+		) as any
+	}
+	if (needsTagJoin) {
+		baseQuery = baseQuery
+			.innerJoin(workoutTags, eq(workoutTags.workoutId, workouts.id))
+			.innerJoin(tags, eq(tags.id, workoutTags.tagId)) as any
+	}
+	if (needsMovementJoin) {
+		baseQuery = baseQuery
+			.innerJoin(workoutMovements, eq(workoutMovements.workoutId, workouts.id))
+			.innerJoin(
+				movements,
+				eq(movements.id, workoutMovements.movementId),
+			) as any
+	}
+
+	const allWorkouts = await baseQuery
+		.where(and(...conditions))
 		.orderBy(desc(workouts.createdAt))
 		.limit(limit)
 		.offset(offset)
@@ -578,7 +740,7 @@ export async function getUserWorkoutsWithTrackScheduling({
 	const db = getDd()
 
 	// Get all team workouts
-	const userWorkouts = await getUserWorkouts({ teamId })
+	const userWorkouts = await getUserWorkouts({ teamId, trackId: undefined })
 
 	// Get scheduling information for workouts in this track
 	const scheduledWorkouts = await db
@@ -617,6 +779,46 @@ export async function getUserWorkoutsWithTrackScheduling({
 			lastScheduledAt: schedulingMap.get(workout.id) ?? null,
 		}
 	})
+}
+
+/**
+ * Get all available tags for workouts accessible to a team
+ */
+export async function getAvailableWorkoutTags(
+	teamId: string,
+): Promise<string[]> {
+	const db = getDd()
+
+	// Get tags from workouts that are either team-owned or public
+	const result = await db
+		.selectDistinct({ name: tags.name })
+		.from(tags)
+		.innerJoin(workoutTags, eq(workoutTags.tagId, tags.id))
+		.innerJoin(workouts, eq(workouts.id, workoutTags.workoutId))
+		.where(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
+		.orderBy(tags.name)
+
+	return result.map((r) => r.name).filter(Boolean) as string[]
+}
+
+/**
+ * Get all available movements for workouts accessible to a team
+ */
+export async function getAvailableWorkoutMovements(
+	teamId: string,
+): Promise<string[]> {
+	const db = getDd()
+
+	// Get movements from workouts that are either team-owned or public
+	const result = await db
+		.selectDistinct({ name: movements.name })
+		.from(movements)
+		.innerJoin(workoutMovements, eq(workoutMovements.movementId, movements.id))
+		.innerJoin(workouts, eq(workouts.id, workoutMovements.workoutId))
+		.where(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
+		.orderBy(movements.name)
+
+	return result.map((r) => r.name).filter(Boolean) as string[]
 }
 
 /**
