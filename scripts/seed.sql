@@ -63,7 +63,7 @@ INSERT INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt,
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 
-('ptrk_girls', 'Girls', 'Classic CrossFit Girls benchmark workouts - foundational CrossFit WODs named after women', 'team_owned', 'team_cokkpu1klwo0ulfhl1iwzpvn', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('ptrk_girls', 'Girls', 'Classic CrossFit Girls benchmark workouts - foundational CrossFit WODs named after women', 'official_third_party', 'team_cokkpu1klwo0ulfhl1iwzpvn', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Subscribe CrossFit team to Girls programming track
 INSERT INTO team_programming_track (teamId, trackId, isActive, subscribedAt, startDayOffset, createdAt, updatedAt, updateCounter) VALUES 
