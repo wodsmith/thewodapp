@@ -20,6 +20,14 @@ import { ListItem } from "@/components/ui/list-item"
 import { cn } from "@/lib/utils"
 import type { Movement, Tag, Workout } from "@/types"
 
+// Helper function to remove empty lines from markdown text
+function removeEmptyLines(text: string): string {
+	return text
+		.split("\n")
+		.filter((line) => line.trim().length > 0)
+		.join("\n")
+}
+
 const SCHEME_CONFIG: Record<
 	Workout["scheme"],
 	{ icon: React.ElementType; label: string }
@@ -131,14 +139,16 @@ export default function WorkoutRowCard({
 										</div>
 									)}
 									<p className="whitespace-pre-wrap text-sm">
-										{workout.description || "No description available."}
+										{workout.description
+											? removeEmptyLines(workout.description)
+											: "No description available."}
 									</p>
 								</HoverCardContent>
 							</HoverCard>
 						</div>
 						{workout.description && (
 							<div className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
-								{workout.description}
+								{removeEmptyLines(workout.description)}
 							</div>
 						)}
 					</div>
