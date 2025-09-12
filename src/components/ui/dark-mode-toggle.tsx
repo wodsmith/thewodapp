@@ -6,15 +6,26 @@ import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button" // Assuming a Button component exists
 
 export function DarkModeToggle() {
-	const { setTheme, theme } = useTheme()
+	const { setTheme, theme, systemTheme } = useTheme()
 
-	const isDarkMode = theme === "dark"
+	const isDarkMode =
+		theme === "dark" || (theme === "system" && systemTheme === "dark")
 
 	const toggleTheme = () => {
 		if (process.env.LOG_LEVEL === "debug") {
 			console.log(`Theme changed to ${isDarkMode ? "light" : "dark"}`)
 		}
 		setTheme(isDarkMode ? "light" : "dark")
+	}
+
+	// Prevent hydration mismatch by not rendering until mounted
+	if (theme === undefined) {
+		return (
+			<Button variant="outline" size="icon">
+				<div className="h-[1.2rem] w-[1.2rem]" />
+				<span className="sr-only">Toggle theme</span>
+			</Button>
+		)
 	}
 
 	return (

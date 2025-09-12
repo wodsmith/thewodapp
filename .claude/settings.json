@@ -39,7 +39,10 @@
       "mcp__linear-server__create_comment",
       "mcp__linear-server__list_issues",
       "Bash(pnpm biome lint:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebSearch",
+      "mcp__grep__searchGitHub",
+      "Bash(git diff:*)"
     ],
     "deny": []
   }

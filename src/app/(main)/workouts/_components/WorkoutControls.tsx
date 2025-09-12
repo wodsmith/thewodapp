@@ -87,7 +87,9 @@ export default function WorkoutControls({
 			<div className="flex gap-4">
 				<Select
 					value={selectedTag}
-					onValueChange={(value) => setSelectedTag(value)}
+					onValueChange={(value) =>
+						setSelectedTag(value === "all" ? "" : value)
+					}
 				>
 					<SelectTrigger className="w-[180px]">
 						<SelectValue placeholder="All Tags" />
@@ -103,7 +105,9 @@ export default function WorkoutControls({
 				</Select>
 				<Select
 					value={selectedMovement}
-					onValueChange={(value) => setSelectedMovement(value)}
+					onValueChange={(value) =>
+						setSelectedMovement(value === "all" ? "" : value)
+					}
 				>
 					<SelectTrigger className="w-[180px]">
 						<SelectValue placeholder="All Movements" />
@@ -119,7 +123,9 @@ export default function WorkoutControls({
 				</Select>
 				<Select
 					value={workoutType}
-					onValueChange={(value) => setWorkoutType(value)}
+					onValueChange={(value) =>
+						setWorkoutType(value === "all" ? "" : value)
+					}
 				>
 					<SelectTrigger className="w-[180px]">
 						<SelectValue placeholder="All Workouts" />
