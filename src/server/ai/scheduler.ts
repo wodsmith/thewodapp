@@ -49,10 +49,10 @@ export async function generateSchedule({
 			templateClasses: {
 				with: {
 					requiredSkills: { with: { skill: true } },
-					classCatalog: true,
-					location: true,
 				},
 			},
+			classCatalog: true,
+			location: true,
 		},
 	})
 
@@ -155,7 +155,7 @@ export async function generateSchedule({
 		if (eligibleCoaches.length > 0) {
 			// In a real scenario, you'd construct a detailed prompt for the LLM
 			// including coach preferences, historical data, etc.
-			const llmPrompt = `Select the best coach for ${templateClass.classCatalog.name} at ${templateClass.location.name} on ${classStartTime.toDateString()} ${templateClass.startTime}. Eligible coaches: ${eligibleCoaches.map((c) => `${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`).join(", ")}. Consider their preferences and notes.`
+			const llmPrompt = `Select the best coach for ${template.classCatalog?.name || "class"} at ${template.location?.name || "location"} on ${classStartTime.toDateString()} ${templateClass.startTime}. Eligible coaches: ${eligibleCoaches.map((c) => `${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`).join(", ")}. Consider their preferences and notes.`
 			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
 
 			// For now, just pick the first eligible coach as a mock decision
@@ -165,8 +165,8 @@ export async function generateSchedule({
 				id: `sc_${createId()}`,
 				scheduleId: "", // Will be filled after generated_schedules is inserted
 				coachId: assignedCoach.id,
-				classCatalogId: templateClass.classCatalogId,
-				locationId: templateClass.locationId,
+				classCatalogId: template.classCatalogId,
+				locationId: template.locationId,
 				startTime: classStartTime,
 				endTime: classEndTime,
 			})
@@ -176,8 +176,8 @@ export async function generateSchedule({
 				id: `sc_${createId()}`,
 				scheduleId: "", // Will be filled after generated_schedules is inserted
 				coachId: null, // Explicitly null for unstaffed
-				classCatalogId: templateClass.classCatalogId,
-				locationId: templateClass.locationId,
+				classCatalogId: template.classCatalogId,
+				locationId: template.locationId,
 				startTime: classStartTime,
 				endTime: classEndTime,
 			})

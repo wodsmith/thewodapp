@@ -102,7 +102,7 @@ describe("workout actions", () => {
 
     expect(err).toBeNull()
     expect(data).toBeDefined()
-    expect(data?.teamId).toBe("test_team_id")
+    expect(data?.data.teamId).toBe("test_team_id")
   })
 
   describe("createWorkoutRemixAction", () => {
@@ -244,7 +244,9 @@ describe("workout actions", () => {
     })
 
     it("should handle authentication errors", async () => {
-      vi.mocked(requireVerifiedEmail).mockResolvedValue(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValue(
+        new Error("Not authenticated")
+      )
 
       const [data, err] = await updateWorkoutAction({
         id: "workout-123",

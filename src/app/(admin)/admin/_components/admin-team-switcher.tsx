@@ -50,9 +50,11 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 
 	if (!currentTeam) {
 		return (
-			<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary">
-				<Building2 className="h-6 w-6" />
-				<span className="text-lg font-mono font-bold">Team Not Found</span>
+			<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary w-full min-w-0">
+				<Building2 className="h-6 w-6 flex-shrink-0" />
+				<span className="text-lg font-mono font-bold truncate flex-1 min-w-0">
+					Team Not Found
+				</span>
 			</div>
 		)
 	}
@@ -62,11 +64,11 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 			<DropdownMenuTrigger asChild>
 				<Button
 					variant="outline"
-					className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] hover:shadow-primary transition-all font-mono font-bold text-sm h-auto"
+					className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] hover:shadow-primary transition-all font-mono font-bold text-sm h-auto w-full min-w-0"
 				>
-					<Building2 className="h-6 w-6" />
-					<span className="truncate">{currentTeam.name}</span>
-					<ChevronDown className="h-4 w-4 ml-auto" />
+					<Building2 className="h-6 w-6 flex-shrink-0" />
+					<span className="truncate flex-1 min-w-0">{currentTeam.name}</span>
+					<ChevronDown className="h-4 w-4 flex-shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent

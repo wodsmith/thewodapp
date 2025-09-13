@@ -1,7 +1,7 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, notExists, or } from "drizzle-orm"
+import { and, eq, notExists, or, max } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	type ProgrammingTrack,
@@ -32,7 +32,7 @@ export interface CreateTrackInput {
 export interface AddWorkoutToTrackInput {
 	trackId: string
 	workoutId: string
-	dayNumber: number
+	dayNumber?: number
 	weekNumber?: number | null
 	notes?: string | null
 }
@@ -139,10 +139,28 @@ export async function hasTrackAccess(
 	return teamTrackAssignment.length > 0
 }
 
+export async function getNextDayNumberForTrack(
+	trackId: string,
+): Promise<number> {
+	const db = getDd()
+
+	const result = await db
+		.select({ maxDay: max(trackWorkoutsTable.dayNumber) })
+		.from(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.trackId, trackId))
+
+	const maxDay = result[0]?.maxDay ?? 0
+	return maxDay + 1
+}
+
 export async function addWorkoutToTrack(
 	data: AddWorkoutToTrackInput,
 ): Promise<TrackWorkout> {
 	const db = getDd()
+
+	// If no day number provided, get the next available one
+	const dayNumber =
+		data.dayNumber ?? (await getNextDayNumberForTrack(data.trackId))
 
 	const [trackWorkout] = await db
 		.insert(trackWorkoutsTable)
@@ -150,7 +168,7 @@ export async function addWorkoutToTrack(
 			id: `trwk_${createId()}`,
 			trackId: data.trackId,
 			workoutId: data.workoutId,
-			dayNumber: data.dayNumber,
+			dayNumber: dayNumber,
 			weekNumber: data.weekNumber,
 			notes: data.notes,
 			createdAt: new Date(),
@@ -270,6 +288,19 @@ export async function assignTrackToTeam(
 		})
 		.returning()
 	return created
+}
+
+export async function getTracksOwnedByTeam(
+	teamId: string,
+): Promise<ProgrammingTrack[]> {
+	const db = getDd()
+
+	const ownedTracks = await db
+		.select()
+		.from(programmingTracksTable)
+		.where(eq(programmingTracksTable.ownerTeamId, teamId))
+
+	return ownedTracks
 }
 
 export async function getTeamTracks(

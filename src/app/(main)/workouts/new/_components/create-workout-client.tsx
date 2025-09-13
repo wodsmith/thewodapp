@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, CalendarIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -32,12 +32,29 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Movement, Tag } from "@/db/schema"
+import { Calendar } from "@/components/ui/calendar"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import type {
+	Movement,
+	Tag,
+	ProgrammingTrack,
+	TeamMembership,
+} from "@/db/schema"
 
 interface Props {
 	movements: Movement[]
 	tags: Tag[]
 	teamId: string
+	ownedTracks: ProgrammingTrack[]
+	teamsWithProgrammingPermission: (TeamMembership & {
+		team: { id: string; name: string; isPersonalTeam: number } | null
+	})[]
 	createWorkoutAction?: typeof createWorkoutAction
 }
 
@@ -45,6 +62,8 @@ export default function CreateWorkoutClient({
 	movements,
 	tags: initialTags,
 	teamId,
+	ownedTracks,
+	teamsWithProgrammingPermission,
 	createWorkoutAction: createWorkoutActionProp,
 }: Props) {
 	const [tags, setTags] = useState<Tag[]>(initialTags)
@@ -62,6 +81,12 @@ export default function CreateWorkoutClient({
 			repsPerRound: undefined,
 			selectedMovements: [],
 			selectedTags: [],
+			trackId: undefined,
+			scheduledDate: undefined,
+			selectedTeamId:
+				teamsWithProgrammingPermission.length > 0
+					? teamsWithProgrammingPermission[0]?.teamId
+					: undefined,
 		},
 	})
 
@@ -75,15 +100,22 @@ export default function CreateWorkoutClient({
 				)
 			},
 			onSuccess: (result) => {
+				console.log("[DEBUG] Create workout result:", result)
 				toast.success("Workout created successfully")
-				router.push(`/workouts/${result.data.id}`)
+				if (result?.data?.data?.id) {
+					router.push(`/workouts/${result.data.data.id}`)
+				} else {
+					console.error("[ERROR] No workout ID in result:", result)
+					router.push("/workouts")
+				}
 			},
 		},
 	)
 
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
-			const id = crypto.randomUUID()
+			// Use a special prefix for new tags that need to be created
+			const id = `new_tag_${crypto.randomUUID()}`
 			const newTagObj = {
 				id,
 				name: newTag,
@@ -127,11 +159,17 @@ export default function CreateWorkoutClient({
 	}
 
 	const onSubmit = async (data: CreateWorkoutSchema) => {
-		const workoutId = `workout_${crypto.randomUUID()}`
+		// Separate existing tags from new tags
+		const existingTagIds = data.selectedTags.filter(
+			(id) => !id.startsWith("new_tag_"),
+		)
+		const newTagNames = data.selectedTags
+			.filter((id) => id.startsWith("new_tag_"))
+			.map((id) => tags.find((t) => t.id === id)?.name)
+			.filter((name): name is string => name !== undefined)
 
 		await executeCreateWorkout({
 			workout: {
-				id: workoutId,
 				name: data.name,
 				description: data.description,
 				scheme: data.scheme,
@@ -142,9 +180,12 @@ export default function CreateWorkoutClient({
 				tiebreakScheme: null,
 				secondaryScheme: null,
 			},
-			tagIds: data.selectedTags,
+			tagIds: existingTagIds,
+			newTagNames,
 			movementIds: data.selectedMovements,
-			teamId,
+			teamId: data.selectedTeamId || teamId,
+			trackId: data.trackId,
+			scheduledDate: data.scheduledDate,
 		})
 	}
 
@@ -319,6 +360,119 @@ export default function CreateWorkoutClient({
 									</FormItem>
 								)}
 							/>
+
+							<FormField
+								control={form.control}
+								name="trackId"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="font-bold uppercase">
+											Add to Programming Track (Optional)
+										</FormLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select a track you own" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												{ownedTracks.length === 0 ? (
+													<SelectItem value="no-tracks" disabled>
+														No programming tracks available
+													</SelectItem>
+												) : (
+													ownedTracks.map((track) => (
+														<SelectItem key={track.id} value={track.id}>
+															{track.name}
+														</SelectItem>
+													))
+												)}
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+								<FormField
+									control={form.control}
+									name="scheduledDate"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="font-bold uppercase">
+												Schedule Workout (Optional)
+											</FormLabel>
+											<Popover>
+												<PopoverTrigger asChild>
+													<FormControl>
+														<Button
+															variant="outline"
+															className={cn(
+																"w-full justify-start text-left font-normal",
+																!field.value && "text-muted-foreground",
+															)}
+														>
+															<CalendarIcon className="mr-2 h-4 w-4" />
+															{field.value ? (
+																format(field.value, "PPP")
+															) : (
+																<span>Pick a date</span>
+															)}
+														</Button>
+													</FormControl>
+												</PopoverTrigger>
+												<PopoverContent className="w-auto p-0" align="start">
+													<Calendar
+														mode="single"
+														selected={field.value}
+														onSelect={field.onChange}
+														className="border"
+													/>
+												</PopoverContent>
+											</Popover>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{teamsWithProgrammingPermission.length > 1 && (
+									<FormField
+										control={form.control}
+										name="selectedTeamId"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel className="font-bold uppercase">
+													Schedule for Team
+												</FormLabel>
+												<Select
+													onValueChange={field.onChange}
+													value={field.value}
+												>
+													<FormControl>
+														<SelectTrigger className="w-full justify-start text-left font-normal h-10">
+															<SelectValue placeholder="Select team" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														{teamsWithProgrammingPermission.map(
+															(membership) => (
+																<SelectItem
+																	key={membership.teamId}
+																	value={membership.teamId}
+																>
+																	{membership.team?.name || membership.teamId}
+																</SelectItem>
+															),
+														)}
+													</SelectContent>
+												</Select>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								)}
+							</div>
 
 							<div>
 								<Label

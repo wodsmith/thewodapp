@@ -442,3 +442,64 @@ export async function isWorkoutInTeamSubscribedTrack(
 	})
 	return result.length > 0
 }
+
+export async function getUserProgrammingTracks(userTeamIds: string[]): Promise<
+	{
+		trackId: string
+		trackName: string
+		trackDescription: string | null
+		subscribedTeamId: string
+		subscribedTeamName: string
+	}[]
+> {
+	console.info("INFO: Fetching programming tracks for user teams", {
+		teamCount: userTeamIds.length,
+	})
+
+	if (userTeamIds.length === 0) {
+		return []
+	}
+
+	const db = getDd()
+	const tracks = await db
+		.select({
+			trackId: programmingTracksTable.id,
+			trackName: programmingTracksTable.name,
+			trackDescription: programmingTracksTable.description,
+			subscribedTeamId: teamTable.id,
+			subscribedTeamName: teamTable.name,
+		})
+		.from(teamProgrammingTracksTable)
+		.innerJoin(
+			programmingTracksTable,
+			eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
+		)
+		.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
+		.where(
+			and(
+				inArray(teamProgrammingTracksTable.teamId, userTeamIds),
+				eq(teamProgrammingTracksTable.isActive, 1),
+			),
+		)
+		.orderBy(programmingTracksTable.name)
+
+	// Deduplicate tracks by ID while preserving team info
+	const uniqueTracks = new Map<
+		string,
+		{
+			trackId: string
+			trackName: string
+			trackDescription: string | null
+			subscribedTeamId: string
+			subscribedTeamName: string
+		}
+	>()
+
+	for (const track of tracks) {
+		if (!uniqueTracks.has(track.trackId)) {
+			uniqueTracks.set(track.trackId, track)
+		}
+	}
+
+	return Array.from(uniqueTracks.values())
+}

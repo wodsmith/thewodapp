@@ -8,7 +8,7 @@ import { getTeamAction } from "@/actions/team-actions"
 import ScheduleTemplates from "./_components/ScheduleTemplates"
 
 interface ScheduleTemplatesPageProps {
-	params: { teamId: string }
+	params: Promise<{ teamId: string }>
 }
 
 const ScheduleTemplatesPage = async (props: ScheduleTemplatesPageProps) => {

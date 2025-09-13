@@ -2,9 +2,15 @@ import "server-only"
 
 import { and, eq } from "drizzle-orm"
 import { ZSAError } from "zsa"
+import { getDefaultProgrammingTracks } from "@/config/programming-tracks"
 import { getDd } from "@/db"
 import type { User } from "@/db/schema"
-import { teamMembershipTable, teamTable } from "@/db/schema"
+import {
+	programmingTracksTable,
+	teamMembershipTable,
+	teamProgrammingTracksTable,
+	teamTable,
+} from "@/db/schema"
 
 /**
  * Creates a personal team for a user upon account creation
@@ -48,6 +54,46 @@ export async function createPersonalTeamForUser(
 		joinedAt: new Date(),
 		isActive: 1,
 	})
+
+	// Auto-subscribe to default programming tracks (Girls and Heroes)
+	try {
+		const defaultTracks = getDefaultProgrammingTracks()
+		const trackIds = [
+			defaultTracks.girls,
+			defaultTracks.heroes,
+			defaultTracks.open,
+		]
+
+		// Verify that the tracks exist before subscribing
+		const existingTracks = await db.query.programmingTracksTable.findMany({
+			where: (tracks, { inArray }) =>
+				inArray(programmingTracksTable.id, trackIds),
+			columns: { id: true },
+		})
+
+		if (existingTracks.length > 0) {
+			// Subscribe to the tracks that exist
+			const subscriptions = existingTracks.map((track) => ({
+				teamId: personalTeam.id,
+				trackId: track.id,
+				isActive: 1,
+				subscribedAt: new Date(),
+				startDayOffset: 0,
+			}))
+
+			await db.insert(teamProgrammingTracksTable).values(subscriptions)
+			console.log(
+				`Auto-subscribed personal team ${personalTeam.id} to ${existingTracks.length} programming tracks`,
+			)
+		} else {
+			console.warn(
+				"Default programming tracks not found. Skipping auto-subscription.",
+			)
+		}
+	} catch (error) {
+		// Log error but don't fail the user creation
+		console.error("Failed to auto-subscribe to programming tracks:", error)
+	}
 
 	return { teamId: personalTeam.id }
 }

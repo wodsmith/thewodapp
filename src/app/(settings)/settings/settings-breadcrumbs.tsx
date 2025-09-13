@@ -18,15 +18,19 @@ export function SettingsBreadcrumbs() {
 		: "Overview"
 
 	return (
-		<Breadcrumb>
+		<Breadcrumb className="hidden md:block">
 			<BreadcrumbList>
-				<BreadcrumbItem className="hidden md:block">
+				<BreadcrumbItem>
 					<BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
 				</BreadcrumbItem>
-				<BreadcrumbSeparator className="hidden md:block" />
-				<BreadcrumbItem>
-					<BreadcrumbPage>{pageTitle}</BreadcrumbPage>
-				</BreadcrumbItem>
+				{segment && (
+					<>
+						<BreadcrumbSeparator />
+						<BreadcrumbItem>
+							<BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+						</BreadcrumbItem>
+					</>
+				)}
 			</BreadcrumbList>
 		</Breadcrumb>
 	)

@@ -1,10 +1,8 @@
 "use server"
 
 import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { createId } from "@paralleldrive/cuid2"
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "zsa"
-import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
@@ -16,8 +14,6 @@ import {
 	generateSessionToken,
 	setSessionTokenCookie,
 } from "@/utils/auth"
-import { getVerificationTokenKey } from "@/utils/auth-utils"
-import { sendVerificationEmail } from "@/utils/email"
 import { getIP } from "@/utils/get-IP"
 import { hashPassword } from "@/utils/password-hasher"
 import { validateTurnstileToken } from "@/utils/validate-captcha"
@@ -53,7 +49,7 @@ export const signUpAction = createServerAction()
 			// Hash the password
 			const hashedPassword = await hashPassword({ password: input.password })
 
-			// Create the user
+			// Create the user with auto-verified email
 			const [user] = await db
 				.insert(userTable)
 				.values({
@@ -62,6 +58,7 @@ export const signUpAction = createServerAction()
 					lastName: input.lastName,
 					passwordHash: hashedPassword,
 					signUpIpAddress: await getIP(),
+					emailVerified: new Date(), // Auto-verify email on signup
 				})
 				.returning()
 
@@ -100,36 +97,8 @@ export const signUpAction = createServerAction()
 					expiresAt: new Date(session.expiresAt),
 				})
 
-				// Generate verification token
-				const verificationToken = createId()
-				const expiresAt = new Date(
-					Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS * 1000,
-				)
-
-				if (!env?.NEXT_INC_CACHE_KV) {
-					throw new Error("Can't connect to KV store")
-				}
-
-				// Save verification token in KV with expiration
-				await env.NEXT_INC_CACHE_KV.put(
-					getVerificationTokenKey(verificationToken),
-					JSON.stringify({
-						userId: user.id,
-						expiresAt: expiresAt.toISOString(),
-					}),
-					{
-						expirationTtl: Math.floor(
-							(expiresAt.getTime() - Date.now()) / 1000,
-						),
-					},
-				)
-
-				// Send verification email
-				await sendVerificationEmail({
-					email: user.email,
-					verificationToken,
-					username: user.firstName || user.email,
-				})
+				// Skip email verification since we auto-verify on signup
+				// No need to generate verification token or send email
 			} catch (error) {
 				console.error(error)
 

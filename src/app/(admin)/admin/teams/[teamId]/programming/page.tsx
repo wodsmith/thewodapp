@@ -101,19 +101,19 @@ export default async function ProgrammingTrackPage({
 					},
 				]}
 			/>
-			<div className="px-5 pb-12">
+			<div className="px-4 sm:px-5 pb-12">
 				<div className="flex justify-between items-start mb-8">
-					<div>
-						<h1 className="text-3xl font-bold mb-2 font-mono tracking-tight">
+					<div className="min-w-0 flex-1">
+						<h1 className="text-2xl sm:text-3xl font-bold mb-2 font-mono tracking-tight">
 							Programming Track Management
 						</h1>
-						<p className="text-muted-foreground font-mono">
+						<p className="text-muted-foreground font-mono text-sm sm:text-base">
 							Manage programming tracks for {team.name}
 						</p>
 					</div>
 				</div>
 
-				<div className="bg-card border-4 border-primary rounded-none p-6">
+				<div className="bg-card border-4 border-primary rounded-none p-4 sm:p-6">
 					<Suspense
 						fallback={
 							<div className="font-mono">Loading programming tracks...</div>

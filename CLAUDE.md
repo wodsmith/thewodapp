@@ -108,6 +108,7 @@ Database is modularly structured in `src/db/schemas/`:
 - Client session: `useSessionStore()` from `src/state/session.ts`
 - Team authorization utilities in `src/utils/team-auth.ts`
 - Protect routes with team context validation
+- When checking roles use available roles from @src/db/schemas/teams.ts
 
 ### State Management
 - Server state: React Server Components

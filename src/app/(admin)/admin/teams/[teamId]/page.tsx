@@ -74,7 +74,7 @@ export default async function TeamSchedulingPage({
 					{ href: `/admin/teams/${teamId}`, label: team.name },
 				]}
 			/>
-			<div className="container mx-auto px-5 pb-12">
+			<div className="container mx-auto sm:px-5 pb-12">
 				<div className="flex justify-between items-start mb-8">
 					<div>
 						<h1 className="text-3xl font-bold mb-2">Team Scheduling</h1>
@@ -84,7 +84,7 @@ export default async function TeamSchedulingPage({
 					</div>
 				</div>
 
-				<div className="bg-card rounded-lg border p-6">
+				<div className="bg-card rounded-lg border sm:p-6">
 					<Suspense fallback={<CalendarSkeleton />}>
 						<TeamSchedulingContainer teamId={team.id} />
 					</Suspense>

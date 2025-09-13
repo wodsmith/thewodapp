@@ -1,7 +1,9 @@
 import "server-only"
+import { eq } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
 import { tags } from "@/db/schema"
+import { createTagId } from "@/db/schemas/common"
 import { requireVerifiedEmail } from "@/utils/auth"
 
 /**
@@ -19,4 +21,37 @@ export async function getAllTags() {
 	const allTags = await db.select().from(tags)
 
 	return allTags
+}
+
+/**
+ * Create a new tag if it doesn't exist, or return the existing one
+ */
+export async function findOrCreateTag(tagName: string) {
+	const db = getDd()
+
+	// First check if tag exists
+	const existingTags = await db
+		.select()
+		.from(tags)
+		.where(eq(tags.name, tagName))
+		.limit(1)
+
+	if (existingTags.length > 0) {
+		return existingTags[0]
+	}
+
+	// Create new tag
+	const newTag = await db
+		.insert(tags)
+		.values({
+			id: createTagId(),
+			name: tagName,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			updateCounter: 0,
+		})
+		.returning()
+		.get()
+
+	return newTag
 }

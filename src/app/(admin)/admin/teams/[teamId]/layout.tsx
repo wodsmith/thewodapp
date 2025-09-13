@@ -14,7 +14,7 @@ export default async function TeamAdminLayout({
 	const { teamId } = await params
 
 	return (
-		<div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0">
+		<div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0 bg-background dark:bg-dark-background">
 			<aside className="">
 				<AdminSidebar currentTeamId={teamId} />
 			</aside>
