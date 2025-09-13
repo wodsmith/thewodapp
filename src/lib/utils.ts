@@ -1,4 +1,11 @@
 import { type ClassValue, clsx } from "clsx"
+import { DrizzleD1Database } from "drizzle-orm/d1"
+import {
+	SQLiteInsertBuilder,
+	SQLiteInsertValue,
+	SQLiteTable,
+	TableConfig,
+} from "drizzle-orm/sqlite-core"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -91,4 +98,18 @@ export function formatSecondsToTime(totalSeconds: number): string {
 		return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
 	}
 	return `${pad(minutes)}:${pad(seconds)}`
+}
+
+export async function batchInsert<T extends TableConfig>(
+	db: DrizzleD1Database<typeof import("@/db/schema")>,
+	table: SQLiteTable<T>,
+	items: SQLiteInsertValue<SQLiteTable<T>>[],
+	chunkSize = 32,
+) {
+	for (let i = 0; i < items.length; i += chunkSize) {
+		await db
+			.insert(table)
+			.values(items.slice(i, i + chunkSize))
+			.returning()
+	}
 }

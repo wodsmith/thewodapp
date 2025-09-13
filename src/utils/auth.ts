@@ -226,7 +226,7 @@ async function validateSessionToken(
 ): Promise<SessionValidationResult | null> {
 	const sessionId = await generateSessionId(token)
 
-	const session = await getKVSession(sessionId, userId)
+	let session = await getKVSession(sessionId, userId)
 
 	if (!session) return null
 
@@ -238,42 +238,57 @@ async function validateSessionToken(
 
 	// Check if session version needs to be updated
 	if (!session.version || session.version !== CURRENT_SESSION_VERSION) {
-		const updatedSession = await updateKVSession(
+		session = await updateKVSession(
 			sessionId,
 			userId,
 			new Date(session.expiresAt),
 		)
 
-		if (!updatedSession) {
+		if (!session) {
 			return null
 		}
 
-		// Update the user initials
-		updatedSession.user.initials = getInitials(
-			`${updatedSession.user.firstName} ${updatedSession.user.lastName}`,
-		)
+		// Update the user initials without mutation
+		session = {
+			...session,
+			user: {
+				...session.user,
+				initials: getInitials(
+					`${session.user.firstName} ${session.user.lastName}`,
+				),
+			},
+		}
 
-		return updatedSession
+		return session
 	}
 
 	// Check and refresh credits if needed
 	const currentCredits = await addFreeMonthlyCreditsIfNeeded(session)
 
-	// If credits were refreshed, update the session
+	// Create a new session object if credits need updating
+	let finalSession = session
 	if (
 		session?.user?.currentCredits &&
 		currentCredits !== session.user.currentCredits
 	) {
-		session.user.currentCredits = currentCredits
+		finalSession = {
+			...session,
+			user: { ...session.user, currentCredits },
+		}
 	}
 
-	// Update the user initials
-	session.user.initials = getInitials(
-		`${session.user.firstName} ${session.user.lastName}`,
-	)
+	// Add initials without mutation
+	finalSession = {
+		...finalSession,
+		user: {
+			...finalSession.user,
+			initials: getInitials(
+				`${finalSession.user.firstName} ${finalSession.user.lastName}`,
+			),
+		},
+	}
 
-	// Return the user data directly from the session
-	return session
+	return finalSession
 }
 
 export async function invalidateSession(

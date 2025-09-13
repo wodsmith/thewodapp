@@ -128,6 +128,12 @@ export const scheduleTemplatesTable = sqliteTable("schedule_templates", {
 		.notNull()
 		.references(() => teamTable.id),
 	name: text("name").notNull(),
+	classCatalogId: text("class_catalog_id")
+		.notNull()
+		.references(() => classCatalogTable.id),
+	locationId: text("location_id")
+		.notNull()
+		.references(() => locationsTable.id),
 })
 
 export const scheduleTemplateClassesTable = sqliteTable(
@@ -138,12 +144,6 @@ export const scheduleTemplateClassesTable = sqliteTable(
 		templateId: text("template_id")
 			.notNull()
 			.references(() => scheduleTemplatesTable.id),
-		classCatalogId: text("class_catalog_id")
-			.notNull()
-			.references(() => classCatalogTable.id),
-		locationId: text("location_id")
-			.notNull()
-			.references(() => locationsTable.id),
 		dayOfWeek: integer("day_of_week").notNull(),
 		startTime: text("start_time").notNull(),
 		endTime: text("end_time").notNull(),
@@ -278,6 +278,14 @@ export const scheduleTemplatesRelations = relations(
 			references: [teamTable.id],
 		}),
 		templateClasses: many(scheduleTemplateClassesTable),
+		classCatalog: one(classCatalogTable, {
+			fields: [scheduleTemplatesTable.classCatalogId],
+			references: [classCatalogTable.id],
+		}),
+		location: one(locationsTable, {
+			fields: [scheduleTemplatesTable.locationId],
+			references: [locationsTable.id],
+		}),
 	}),
 )
 
@@ -287,14 +295,6 @@ export const scheduleTemplateClassesRelations = relations(
 		template: one(scheduleTemplatesTable, {
 			fields: [scheduleTemplateClassesTable.templateId],
 			references: [scheduleTemplatesTable.id],
-		}),
-		classCatalog: one(classCatalogTable, {
-			fields: [scheduleTemplateClassesTable.classCatalogId],
-			references: [classCatalogTable.id],
-		}),
-		location: one(locationsTable, {
-			fields: [scheduleTemplateClassesTable.locationId],
-			references: [locationsTable.id],
 		}),
 		requiredSkills: many(scheduleTemplateClassRequiredSkillsTable),
 	}),
