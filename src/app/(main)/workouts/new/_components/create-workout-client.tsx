@@ -83,7 +83,8 @@ export default function CreateWorkoutClient({
 
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
-			const id = crypto.randomUUID()
+			// Use a special prefix for new tags that need to be created
+			const id = `new_tag_${crypto.randomUUID()}`
 			const newTagObj = {
 				id,
 				name: newTag,
@@ -129,6 +130,15 @@ export default function CreateWorkoutClient({
 	const onSubmit = async (data: CreateWorkoutSchema) => {
 		const workoutId = `workout_${crypto.randomUUID()}`
 
+		// Separate existing tags from new tags
+		const existingTagIds = data.selectedTags.filter(
+			(id) => !id.startsWith("new_tag_"),
+		)
+		const newTagNames = data.selectedTags
+			.filter((id) => id.startsWith("new_tag_"))
+			.map((id) => tags.find((t) => t.id === id)?.name)
+			.filter((name): name is string => name !== undefined)
+
 		await executeCreateWorkout({
 			workout: {
 				id: workoutId,
@@ -142,7 +152,8 @@ export default function CreateWorkoutClient({
 				tiebreakScheme: null,
 				secondaryScheme: null,
 			},
-			tagIds: data.selectedTags,
+			tagIds: existingTagIds,
+			newTagNames,
 			movementIds: data.selectedMovements,
 			teamId,
 		})

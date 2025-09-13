@@ -12,6 +12,7 @@ import {
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
 import { eq, and } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
 
 // Subscribe to track schema
 const subscribeToTrackSchema = z.object({
@@ -119,6 +120,10 @@ export const subscribeToTrackAction = createServerAction()
 				})
 			}
 
+			// Revalidate the programming page to show updated subscription status
+			revalidatePath("/programming")
+			revalidatePath(`/programming/${input.trackId}`)
+
 			return { success: true }
 		} catch (error) {
 			console.error(
@@ -163,6 +168,10 @@ export const unsubscribeFromTrackAction = createServerAction()
 						eq(teamProgrammingTracksTable.trackId, input.trackId),
 					),
 				)
+
+			// Revalidate the programming page to show updated subscription status
+			revalidatePath("/programming")
+			revalidatePath(`/programming/${input.trackId}`)
 
 			return { success: true }
 		} catch (error) {
@@ -283,6 +292,10 @@ export const setDefaultTrackAction = createServerAction()
 			console.info(
 				`INFO: Default track updated for team ${input.teamId} to track ${input.trackId}`,
 			)
+
+			// Revalidate the programming page
+			revalidatePath("/programming")
+			revalidatePath(`/programming/${input.trackId}`)
 
 			return { success: true }
 		} catch (error) {

@@ -13,6 +13,7 @@ import { userTable } from "@/db/schema"
 import { isGoogleSSOEnabled } from "@/flags"
 import { getGoogleSSOClient } from "@/lib/sso/google-sso"
 import { googleSSOCallbackSchema } from "@/schemas/google-sso-callback.schema"
+import { createPersonalTeamForUser } from "@/server/user"
 import { canSignUp, createAndStoreSession } from "@/utils/auth"
 import { getIP } from "@/utils/get-IP"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
@@ -124,9 +125,7 @@ export const googleSSOCallbackAction = createServerAction()
 						.set({
 							googleAccountId,
 							avatar: existingUserWithEmail.avatar || avatarUrl,
-							emailVerified:
-								existingUserWithEmail.emailVerified ||
-								(claims?.email_verified ? new Date() : null),
+							emailVerified: existingUserWithEmail.emailVerified || new Date(), // Auto-verify email
 						})
 						.where(eq(userTable.id, existingUserWithEmail.id))
 						.returning()
@@ -144,12 +143,22 @@ export const googleSSOCallbackAction = createServerAction()
 						lastName: claims.family_name || null,
 						avatar: avatarUrl,
 						email,
-						emailVerified: claims?.email_verified ? new Date() : null,
+						emailVerified: new Date(), // Auto-verify email
 						signUpIpAddress: await getIP(),
 					})
 					.returning()
 
-				// TODO: If the user is not verified, send a verification email
+				// Create a personal team for the new Google SSO user
+				try {
+					await createPersonalTeamForUser(user)
+				} catch (error) {
+					console.error(
+						"Failed to create personal team for Google SSO user:",
+						user.id,
+						error,
+					)
+					// Continue with login even if team creation fails
+				}
 
 				await createAndStoreSession(user.id, "google-oauth")
 				return { success: true }

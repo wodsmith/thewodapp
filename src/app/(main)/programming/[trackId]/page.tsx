@@ -2,12 +2,12 @@ import "server-only"
 import { notFound } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { getSessionFromCookie } from "@/utils/auth"
-import {
-	getProgrammingTrackById,
-	isTeamSubscribedToProgrammingTrack,
-} from "@/server/programming"
+import { getProgrammingTrackById } from "@/server/programming"
+import { getTrackSubscribedTeams } from "@/server/programming-multi-team"
 import { PaginatedTrackWorkouts } from "@/components/programming/paginated-track-workouts"
-import { SubscribeButton } from "@/components/programming/subscribe-button"
+import { EnhancedSubscribeButton } from "@/components/programming/enhanced-subscribe-button"
+import { Building2, Users } from "lucide-react"
+import { TrackDetailTeamSelector } from "@/components/programming/track-detail-team-selector"
 
 interface ProgrammingTrackPageProps {
 	params: Promise<{
@@ -31,31 +31,86 @@ export default async function ProgrammingTrackPage({
 		notFound()
 	}
 
-	const teamId = session.teams[0].id
+	const userTeamIds = session.teams.map((t) => t.id)
+	const userTeams = session.teams
 
-	// Check if any of the user's teams are subscribed to this track
-	const isSubscribed = await isTeamSubscribedToProgrammingTrack(teamId, trackId)
+	// Get which of the user's teams are subscribed to this track
+	const subscribedTeams = await getTrackSubscribedTeams(trackId, userTeamIds)
+	const subscribedTeamIds = new Set(subscribedTeams.map((t) => t.teamId))
+
+	// Check if user owns this track
+	const isOwned = userTeamIds.includes(track.ownerTeamId || "")
+
+	// Default to first team for workouts display (will be replaced by team selector)
+	const defaultTeamId = session.teams[0].id
 
 	return (
 		<div className="container mx-auto py-8">
 			<div className="mb-8">
 				<div className="flex items-start justify-between mb-4">
-					<div className="flex items-center gap-4">
-						<h1 className="text-3xl font-bold tracking-tight">{track.name}</h1>
-						<Badge variant="secondary">{track.type.replace(/_/g, " ")}</Badge>
+					<div className="flex-1">
+						<div className="flex items-center gap-4 mb-2">
+							<h1 className="text-3xl font-bold tracking-tight">
+								{track.name}
+							</h1>
+							<Badge variant="secondary">{track.type.replace(/_/g, " ")}</Badge>
+						</div>
+						{track.description && (
+							<p className="text-muted-foreground text-lg mb-4">
+								{track.description}
+							</p>
+						)}
+						<div className="flex items-center gap-4 text-sm text-muted-foreground">
+							{track.ownerTeam && (
+								<div className="flex items-center gap-1">
+									<Building2 className="h-3 w-3" />
+									<span>
+										Created by <strong>{track.ownerTeam.name}</strong>
+									</span>
+								</div>
+							)}
+							{subscribedTeams.length > 0 && (
+								<div className="flex items-center gap-1">
+									<Users className="h-3 w-3" />
+									<span>
+										{subscribedTeams.length}{" "}
+										{subscribedTeams.length === 1
+											? "of your teams subscribed"
+											: "of your teams subscribed"}
+									</span>
+								</div>
+							)}
+						</div>
 					</div>
-					<SubscribeButton trackId={trackId} isSubscribed={isSubscribed} />
+					<div className="flex flex-col gap-2 items-end">
+						{isOwned ? (
+							<Badge variant="outline" className="pointer-events-none">
+								Your Team's Track
+							</Badge>
+						) : (
+							<EnhancedSubscribeButton
+								trackId={trackId}
+								userTeams={userTeams}
+								subscribedTeamIds={subscribedTeamIds}
+							/>
+						)}
+						{userTeams.length > 1 && (
+							<TrackDetailTeamSelector teams={userTeams} />
+						)}
+					</div>
 				</div>
 
-				{track.description && (
-					<p className="text-muted-foreground text-lg">{track.description}</p>
-				)}
-
-				{track.ownerTeam && (
-					<div className="mt-4">
+				{/* Show which teams are subscribed */}
+				{subscribedTeams.length > 0 && (
+					<div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t">
 						<span className="text-sm text-muted-foreground">
-							Created by <strong>{track.ownerTeam.name}</strong>
+							Your subscribed teams:
 						</span>
+						{subscribedTeams.map((team) => (
+							<Badge key={team.teamId} variant="secondary" className="text-xs">
+								{team.teamName}
+							</Badge>
+						))}
 					</div>
 				)}
 			</div>
@@ -70,7 +125,7 @@ export default async function ProgrammingTrackPage({
 				</div>
 				<PaginatedTrackWorkouts
 					trackId={trackId}
-					teamId={teamId}
+					teamId={defaultTeamId}
 					pageSize={12}
 				/>
 			</div>

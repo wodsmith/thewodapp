@@ -53,7 +53,12 @@ const getWorkoutDetails = cache(async (workoutId: string) => {
 export const canUserEditWorkout = async (
 	workoutId: string,
 ): Promise<boolean> => {
-	const session = await requireVerifiedEmail({ doNotThrowError: true })
+	let session: Awaited<ReturnType<typeof requireVerifiedEmail>> | null = null
+	try {
+		session = await requireVerifiedEmail()
+	} catch {
+		return false
+	}
 
 	if (!session) {
 		return false
@@ -103,7 +108,12 @@ export const canUserEditWorkout = async (
 export const shouldCreateRemix = async (
 	workoutId: string,
 ): Promise<boolean> => {
-	const session = await requireVerifiedEmail({ doNotThrowError: true })
+	let session: Awaited<ReturnType<typeof requireVerifiedEmail>> | null = null
+	try {
+		session = await requireVerifiedEmail()
+	} catch {
+		return true // No session means they can't edit, so they should remix
+	}
 
 	if (!session) {
 		return true // No session means they can't edit, so they should remix

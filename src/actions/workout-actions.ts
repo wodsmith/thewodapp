@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
 import {
@@ -87,6 +88,7 @@ const createWorkoutSchema = z.object({
 			.nullable(),
 	}),
 	tagIds: z.array(z.string()).default([]),
+	newTagNames: z.array(z.string()).optional(),
 	movementIds: z.array(z.string()).default([]),
 	teamId: z.string().min(1, "Team ID is required"),
 })
@@ -210,8 +212,21 @@ export const createWorkoutAction = createServerAction()
 	.input(createWorkoutSchema)
 	.handler(async ({ input }) => {
 		try {
+			// Import the findOrCreateTag function
+			const { findOrCreateTag } = await import("@/server/tags")
+
+			// Process new tags if any
+			let finalTagIds = [...input.tagIds]
+			if (input.newTagNames && input.newTagNames.length > 0) {
+				const newTags = await Promise.all(
+					input.newTagNames.map((tagName) => findOrCreateTag(tagName)),
+				)
+				finalTagIds = [...finalTagIds, ...newTags.map((tag) => tag.id)]
+			}
+
 			const result = await createWorkout({
 				...input,
+				tagIds: finalTagIds,
 				workout: {
 					...input.workout,
 					createdAt: new Date(),
@@ -219,6 +234,10 @@ export const createWorkoutAction = createServerAction()
 					sourceWorkoutId: null,
 				},
 			})
+
+			// Revalidate the workouts page to show the new workout
+			revalidatePath("/workouts")
+
 			return result
 		} catch (error) {
 			console.error("Failed to create workout:", error)
@@ -238,6 +257,11 @@ export const getUserWorkoutsAction = createServerAction()
 	.input(
 		z.object({
 			teamId: z.string().min(1, "Team ID is required"),
+			trackId: z.string().optional(),
+			search: z.string().optional(),
+			tag: z.string().optional(),
+			movement: z.string().optional(),
+			type: z.enum(["all", "original", "remix"]).optional(),
 			page: z.number().int().min(1).optional().default(1),
 			pageSize: z.number().int().min(1).max(100).optional().default(50),
 		}),
@@ -246,13 +270,22 @@ export const getUserWorkoutsAction = createServerAction()
 		try {
 			const offset = (input.page - 1) * input.pageSize
 
+			const filters = {
+				search: input.search,
+				tag: input.tag,
+				movement: input.movement,
+				type: input.type,
+				trackId: input.trackId,
+			}
+
 			const [workouts, totalCount] = await Promise.all([
 				getUserWorkouts({
 					teamId: input.teamId,
+					...filters,
 					limit: input.pageSize,
 					offset,
 				}),
-				getUserWorkoutsCount({ teamId: input.teamId }),
+				getUserWorkoutsCount({ teamId: input.teamId, ...filters }),
 			])
 
 			return {

@@ -122,7 +122,9 @@ describe("workout-permissions", () => {
     })
 
     it("should return false if user is not authenticated", async () => {
-      vi.mocked(requireVerifiedEmail).mockResolvedValue(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValue(
+        new Error("Not authenticated")
+      )
 
       const result = await canUserEditWorkout("workout-123")
 
@@ -181,7 +183,9 @@ describe("workout-permissions", () => {
 
   describe("shouldCreateRemix", () => {
     it("should return true if user is not authenticated", async () => {
-      vi.mocked(requireVerifiedEmail).mockResolvedValue(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValue(
+        new Error("Not authenticated")
+      )
 
       const result = await shouldCreateRemix("workout-123")
 

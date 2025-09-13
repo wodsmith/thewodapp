@@ -1,5 +1,5 @@
-import Index from "./_components/Index";
+import Index from "./_components/Index"
 
 export default function SchedulePage() {
-  return <Index />;
+	return <Index />
 }

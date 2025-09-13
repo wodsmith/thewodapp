@@ -346,25 +346,24 @@ export const getSessionFromCookie = cache(
 	},
 )
 
-export const requireVerifiedEmail = cache(
-	async ({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) => {
-		const session = await getSessionFromCookie()
+export const requireVerifiedEmail = cache(async () => {
+	const session = await getSessionFromCookie()
 
-		if (!session) {
-			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
-		}
+	if (!session) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
 
-		if (!session?.user?.emailVerified) {
-			if (doNotThrowError) {
-				return null
-			}
+	// Email verification check removed - emails are auto-verified on signup
+	// if (!session?.user?.emailVerified) {
+	// 	if (doNotThrowError) {
+	// 		return null
+	// 	}
+	//
+	// 	throw new ZSAError("FORBIDDEN", "Please verify your email first")
+	// }
 
-			throw new ZSAError("FORBIDDEN", "Please verify your email first")
-		}
-
-		return session
-	},
-)
+	return session
+})
 
 export const requireAdmin = cache(
 	async ({ doNotThrowError = false }: { doNotThrowError?: boolean } = {}) => {

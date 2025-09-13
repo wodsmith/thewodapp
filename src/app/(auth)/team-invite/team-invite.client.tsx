@@ -112,9 +112,9 @@ export default function TeamInviteClientComponent() {
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => router.push("/dashboard")}
+							onClick={() => router.push("/settings/teams")}
 						>
-							Go to Dashboard
+							Go to Teams
 						</Button>
 					</CardContent>
 				</Card>
@@ -136,7 +136,7 @@ export default function TeamInviteClientComponent() {
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => router.push("/dashboard")}
+							onClick={() => router.push("/settings/teams")}
 						>
 							Go to Dashboard
 						</Button>

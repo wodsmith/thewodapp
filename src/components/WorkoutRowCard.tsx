@@ -97,8 +97,8 @@ export default function WorkoutRowCard({
 	const displayResult = result ?? null
 
 	return (
-		<ListItem>
-			<ListItem.Content>
+		<ListItem className="flex items-center justify-between">
+			<ListItem.Content className="flex-1 min-w-0">
 				<Link href={`/workouts/${workout.id}`}>
 					<div className="space-y-2">
 						<div className="flex items-center gap-2">
@@ -155,24 +155,82 @@ export default function WorkoutRowCard({
 				</Link>
 			</ListItem.Content>
 
-			<div className="flex items-center gap-4">
-				<ListItem.Meta>
-					{displayMovements
-						.filter((movement) => movement !== undefined)
-						.map((movement) => (
-							<Link href={`/movements/${movement.id}`} key={movement.id}>
-								<Badge variant="secondary" clickable>
-									{movement.name}
-								</Badge>
-							</Link>
-						))}
+			<div className="flex items-center gap-4 flex-shrink-0">
+				<div className="hidden md:flex items-center gap-2 flex-nowrap flex-shrink-0">
+					{(() => {
+						const allTags = [
+							...displayMovements
+								.filter((movement) => movement !== undefined)
+								.map((movement) => ({
+									id: movement.id,
+									name: movement.name,
+									type: "movement" as const,
+								})),
+							...displayTags.map((tag) => ({
+								id: tag.id,
+								name: tag.name,
+								type: "tag" as const,
+							})),
+						]
+						const visibleTags = allTags.slice(0, 3)
+						const remainingCount = allTags.length - 3
 
-					{displayTags.map((tag) => (
-						<Badge key={tag.id} variant="outline">
-							{tag.name}
-						</Badge>
-					))}
-				</ListItem.Meta>
+						return (
+							<>
+								{visibleTags.map((tag) =>
+									tag.type === "movement" ? (
+										<Link
+											href={`/movements/${tag.id}`}
+											key={tag.id}
+											className="flex-shrink-0"
+										>
+											<Badge variant="secondary" clickable>
+												{tag.name}
+											</Badge>
+										</Link>
+									) : (
+										<Badge
+											key={tag.id}
+											variant="outline"
+											className="flex-shrink-0"
+										>
+											{tag.name}
+										</Badge>
+									),
+								)}
+								{remainingCount > 0 && (
+									<HoverCard>
+										<HoverCardTrigger asChild>
+											<Badge
+												variant="outline"
+												className="cursor-default text-muted-foreground flex-shrink-0"
+											>
+												+{remainingCount}
+											</Badge>
+										</HoverCardTrigger>
+										<HoverCardContent className="w-auto p-2">
+											<div className="flex flex-wrap gap-1 max-w-xs">
+												{allTags.slice(3).map((tag) =>
+													tag.type === "movement" ? (
+														<Link href={`/movements/${tag.id}`} key={tag.id}>
+															<Badge variant="secondary" clickable>
+																{tag.name}
+															</Badge>
+														</Link>
+													) : (
+														<Badge key={tag.id} variant="outline">
+															{tag.name}
+														</Badge>
+													),
+												)}
+											</div>
+										</HoverCardContent>
+									</HoverCard>
+								)}
+							</>
+						)
+					})()}
+				</div>
 
 				<ListItem.Actions>
 					{displayResult && (

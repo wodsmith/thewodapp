@@ -17,7 +17,6 @@ import type { getConfig } from "@/flags"
 import { useConfigStore } from "@/state/config"
 import { useSessionStore } from "@/state/session"
 import type { SessionValidationResult } from "@/types"
-import { EmailVerificationDialog } from "./email-verification-dialog"
 
 function RouterChecker() {
 	const { start, done } = useTopLoader()
@@ -135,10 +134,7 @@ export function ThemeProvider({
 				<RouterChecker />
 			</Suspense>
 			<NextThemesProvider {...props} attribute="class">
-				<NuqsAdapter>
-					{children}
-					<EmailVerificationDialog />
-				</NuqsAdapter>
+				<NuqsAdapter>{children}</NuqsAdapter>
 			</NextThemesProvider>
 		</HeroUIProvider>
 	)

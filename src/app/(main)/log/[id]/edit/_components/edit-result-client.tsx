@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import type { ResultSet, Workout } from "@/types"
 import { formatSecondsToTime } from "@/lib/utils"
+import { getLocalDateKey } from "@/utils/date-utils"
 import type { Route } from "next"
 
 interface EditResultClientProps {
@@ -131,8 +132,8 @@ export default function EditResultClient({
 		defaultValues: {
 			selectedWorkoutId: workout.id,
 			date: result.date
-				? new Date(result.date).toISOString().split("T")[0]
-				: new Date().toISOString().split("T")[0],
+				? getLocalDateKey(result.date)
+				: getLocalDateKey(new Date()),
 			scale: result.scale || "rx",
 			scores: parseExistingScores(),
 			notes: result.notes || "",

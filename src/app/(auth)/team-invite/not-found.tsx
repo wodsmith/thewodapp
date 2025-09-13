@@ -31,7 +31,7 @@ export default function NotFound() {
 						</ul>
 						<div className="pt-4">
 							<Button asChild className="w-full">
-								<Link href="/dashboard">Go to Dashboard</Link>
+								<Link href="/workouts">Go to Home</Link>
 							</Button>
 						</div>
 					</div>
