@@ -66,6 +66,8 @@ function setup() {
 			tags={mockTags}
 			movements={mockMovements}
 			teamId="test-team"
+			ownedTracks={[]}
+			teamsWithProgrammingPermission={[]}
 			createWorkoutAction={mockCreateWorkoutAction}
 		/>,
 	)

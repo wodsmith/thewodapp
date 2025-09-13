@@ -9,6 +9,8 @@ import {
 	PencilIcon,
 	Shuffle,
 	Tag as TagIcon,
+	Calendar,
+	FolderPlus,
 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
@@ -29,6 +31,7 @@ import type {
 	WorkoutWithTagsAndMovements,
 } from "@/types"
 import { SetDetails } from "./set-details"
+import { WorkoutLastScheduled } from "./workout-last-scheduled"
 
 // Define a new type for results with their sets
 export type WorkoutResultWithSets = WorkoutResult & {
@@ -42,6 +45,7 @@ export default function WorkoutDetailClient({
 	workoutId,
 	resultsWithSets, // Changed from results and resultSetDetails
 	remixedWorkouts = [],
+	lastScheduled,
 }: {
 	canEdit: boolean
 	sourceWorkout?: {
@@ -62,6 +66,10 @@ export default function WorkoutDetailClient({
 		teamId: string | null
 		teamName: string
 	}>
+	lastScheduled?: {
+		scheduledDate: Date
+		teamName: string
+	} | null
 }) {
 	const searchParams = useSearchParams()
 	const redirectUrl = searchParams.get("redirectUrl")
@@ -131,17 +139,17 @@ export default function WorkoutDetailClient({
 				</div>
 			)}
 
-			<div className="mb-6 flex items-center justify-between">
+			<div className="mb-6 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div className="flex items-center gap-2">
 					<Link
 						href={(breadcrumbData?.redirectUrl as Route) || "/workouts"}
-						className="btn-outline p-2 dark:border-dark-border dark:text-dark-foreground dark:hover:bg-dark-accent dark:hover:text-dark-accent-foreground"
+						className="btn-outline sm:p-2 dark:border-dark-border dark:text-dark-foreground dark:hover:bg-dark-accent dark:hover:text-dark-accent-foreground"
 					>
 						<ArrowLeft className="h-5 w-5" />
 					</Link>
 					<h1>{workout.name}</h1>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex flex-col sm:flex-row gap-2">
 					{canEdit && (
 						<Link
 							href={`/workouts/${workoutId}/edit`}
@@ -151,6 +159,20 @@ export default function WorkoutDetailClient({
 							Edit Workout
 						</Link>
 					)}
+					<Link
+						href={`/workouts/${workoutId}/schedule`}
+						className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
+					>
+						<Calendar className="h-5 w-5" />
+						Schedule
+					</Link>
+					<Link
+						href={`/workouts/${workoutId}/add-to-track`}
+						className="btn flex items-center gap-2 dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
+					>
+						<FolderPlus className="h-5 w-5" />
+						Add to Track
+					</Link>
 					{/* Always show remix button so users can create remixes of their own workouts */}
 					<Link
 						href={`/workouts/${workoutId}/edit?remix=true`}
@@ -185,6 +207,9 @@ export default function WorkoutDetailClient({
 					</p>
 				</div>
 			)}
+
+			{/* Last Scheduled Information */}
+			<WorkoutLastScheduled lastScheduled={lastScheduled || null} />
 
 			<div className="mb-6 border-2 border-black dark:border-dark-border">
 				{/* Workout Details Section */}

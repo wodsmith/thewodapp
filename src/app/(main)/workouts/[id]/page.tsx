@@ -6,6 +6,7 @@ import {
 	getWorkoutResultsByWorkoutAndUserAction,
 	getRemixedWorkoutsAction,
 } from "@/actions/workout-actions"
+import { getWorkoutLastScheduled } from "@/server/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canUserEditWorkout } from "@/utils/workout-permissions"
 import type { WorkoutWithTagsAndMovements } from "@/types"
@@ -127,6 +128,9 @@ export default async function WorkoutDetailPage({
 		? remixedWorkoutsResult.data
 		: []
 
+	// Get last scheduled information
+	const lastScheduled = await getWorkoutLastScheduled(myParams.id)
+
 	return (
 		<WorkoutDetailClient
 			canEdit={canEdit}
@@ -135,6 +139,7 @@ export default async function WorkoutDetailPage({
 			workoutId={myParams.id}
 			resultsWithSets={resultsWithSets}
 			remixedWorkouts={remixedWorkouts}
+			lastScheduled={lastScheduled}
 		/>
 	)
 }
