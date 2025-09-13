@@ -1269,3 +1269,29 @@ export async function getRemixedWorkouts(sourceWorkoutId: string) {
 
 	return remixedWorkouts
 }
+
+/**
+ * Get the last time a workout was scheduled
+ */
+export async function getWorkoutLastScheduled(workoutId: string): Promise<{
+	scheduledDate: Date
+	teamName: string
+} | null> {
+	const db = getDd()
+
+	const lastScheduled = await db
+		.select({
+			scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+			teamName: teamTable.name,
+		})
+		.from(scheduledWorkoutInstancesTable)
+		.innerJoin(
+			teamTable,
+			eq(scheduledWorkoutInstancesTable.teamId, teamTable.id),
+		)
+		.where(eq(scheduledWorkoutInstancesTable.workoutId, workoutId))
+		.orderBy(desc(scheduledWorkoutInstancesTable.scheduledDate))
+		.limit(1)
+
+	return lastScheduled[0] || null
+}

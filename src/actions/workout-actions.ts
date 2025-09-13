@@ -51,7 +51,6 @@ const getTeamSpecificWorkoutSchema = z.object({
 
 const createWorkoutSchema = z.object({
 	workout: z.object({
-		id: z.string().optional(),
 		name: z.string().min(1, "Name is required").max(255, "Name is too long"),
 		description: z.string().min(1, "Description is required"),
 		scope: z.enum(["private", "public"]).default("private"),
@@ -91,6 +90,8 @@ const createWorkoutSchema = z.object({
 	newTagNames: z.array(z.string()).optional(),
 	movementIds: z.array(z.string()).default([]),
 	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().optional(),
+	scheduledDate: z.date().optional(),
 })
 
 /**
@@ -212,8 +213,12 @@ export const createWorkoutAction = createServerAction()
 	.input(createWorkoutSchema)
 	.handler(async ({ input }) => {
 		try {
-			// Import the findOrCreateTag function
+			// Import necessary functions
 			const { findOrCreateTag } = await import("@/server/tags")
+			const { addWorkoutToTrack } = await import("@/server/programming-tracks")
+			const { scheduleWorkoutForTeam } = await import(
+				"@/server/scheduling-service"
+			)
 
 			// Process new tags if any
 			let finalTagIds = [...input.tagIds]
@@ -224,7 +229,8 @@ export const createWorkoutAction = createServerAction()
 				finalTagIds = [...finalTagIds, ...newTags.map((tag) => tag.id)]
 			}
 
-			const result = await createWorkout({
+			// Create the workout
+			const workout = await createWorkout({
 				...input,
 				tagIds: finalTagIds,
 				workout: {
@@ -235,10 +241,50 @@ export const createWorkoutAction = createServerAction()
 				},
 			})
 
+			// If trackId is provided, add workout to the track
+			let trackWorkoutId: string | undefined
+			if (input.trackId) {
+				const trackWorkout = await addWorkoutToTrack({
+					trackId: input.trackId,
+					workoutId: workout.id,
+				})
+				trackWorkoutId = trackWorkout.id
+			}
+
+			// If scheduledDate is provided, schedule the workout
+			if (input.scheduledDate) {
+				const { scheduleStandaloneWorkoutForTeam } = await import(
+					"@/server/scheduling-service"
+				)
+
+				if (trackWorkoutId) {
+					// Schedule as part of a track
+					await scheduleWorkoutForTeam({
+						teamId: input.teamId,
+						trackWorkoutId,
+						workoutId: workout.id,
+						scheduledDate: input.scheduledDate,
+					})
+				} else {
+					// Schedule as standalone workout
+					await scheduleStandaloneWorkoutForTeam({
+						teamId: input.teamId,
+						workoutId: workout.id,
+						scheduledDate: input.scheduledDate,
+					})
+				}
+			}
+
 			// Revalidate the workouts page to show the new workout
 			revalidatePath("/workouts")
+			if (input.trackId) {
+				revalidatePath("/programming")
+			}
 
-			return result
+			console.log("[DEBUG] Created workout:", workout)
+			console.log("[DEBUG] Workout ID:", workout.id)
+
+			return { success: true, data: workout }
 		} catch (error) {
 			console.error("Failed to create workout:", error)
 
@@ -247,6 +293,83 @@ export const createWorkoutAction = createServerAction()
 			}
 
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create workout")
+		}
+	})
+
+/**
+ * Add workout to a programming track
+ */
+export const addWorkoutToTrackAction = createServerAction()
+	.input(
+		z.object({
+			trackId: z.string().min(1, "Track ID is required"),
+			workoutId: z.string().min(1, "Workout ID is required"),
+			dayNumber: z.number().min(1).optional(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { addWorkoutToTrack } = await import("@/server/programming-tracks")
+
+			await addWorkoutToTrack({
+				trackId: input.trackId,
+				workoutId: input.workoutId,
+				dayNumber: input.dayNumber,
+			})
+
+			revalidatePath(`/workouts/${input.workoutId}`)
+			revalidatePath("/programming")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to add workout to track:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to add workout to track",
+			)
+		}
+	})
+
+/**
+ * Schedule a standalone workout
+ */
+export const scheduleStandaloneWorkoutAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			workoutId: z.string().min(1, "Workout ID is required"),
+			scheduledDate: z.date(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { scheduleStandaloneWorkoutForTeam } = await import(
+				"@/server/scheduling-service"
+			)
+
+			await scheduleStandaloneWorkoutForTeam({
+				teamId: input.teamId,
+				workoutId: input.workoutId,
+				scheduledDate: input.scheduledDate,
+			})
+
+			revalidatePath(`/workouts/${input.workoutId}`)
+			revalidatePath("/dashboard")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to schedule workout:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to schedule workout")
 		}
 	})
 
