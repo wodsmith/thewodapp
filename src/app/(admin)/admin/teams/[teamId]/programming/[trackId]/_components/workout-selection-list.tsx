@@ -62,13 +62,19 @@ export function WorkoutSelectionList({
 			.filter((workout) => !existingWorkoutIds.includes(workout.id))
 			.sort((a, b) => {
 				// Sort by creation date (newest first)
-				return b.createdAt.getTime() - a.createdAt.getTime()
+				// Handle null/undefined createdAt values
+				const aTime = a.createdAt?.getTime() ?? 0
+				const bTime = b.createdAt?.getTime() ?? 0
+				return bTime - aTime
 			}),
 		existing: userWorkouts
 			.filter((workout) => existingWorkoutIds.includes(workout.id))
 			.sort((a, b) => {
 				// Sort by creation date (newest first)
-				return b.createdAt.getTime() - a.createdAt.getTime()
+				// Handle null/undefined createdAt values
+				const aTime = a.createdAt?.getTime() ?? 0
+				const bTime = b.createdAt?.getTime() ?? 0
+				return bTime - aTime
 			}),
 	}
 

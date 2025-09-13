@@ -13,6 +13,7 @@ import {
 	type LogFormSchema,
 	logFormSchema,
 } from "@/app/(main)/log/new/_components/log.schema"
+import { getLocalDateKey } from "@/utils/date-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -55,7 +56,7 @@ export default function LogFormClient({
 		resolver: zodResolver(logFormSchema),
 		defaultValues: {
 			selectedWorkoutId: selectedWorkoutId || "",
-			date: new Date().toISOString().split("T")[0],
+			date: getLocalDateKey(new Date()),
 			scale: "rx",
 			scores: [],
 			notes: "",
