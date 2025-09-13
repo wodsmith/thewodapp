@@ -89,7 +89,7 @@ export function ProgrammingTracksClient({
 	return (
 		<div>
 			<div className="mb-8">
-				<div className="flex items-start justify-between mb-4">
+				<div className="flex flex-col sm:flex-row items-start justify-between mb-4">
 					<div>
 						<h1 className="text-3xl font-bold tracking-tight">
 							Programming Tracks
@@ -111,10 +111,14 @@ export function ProgrammingTracksClient({
 							? `${currentTeam.name}'s Subscribed Tracks`
 							: "Subscribed Tracks"}
 					</h2>
-					<p className="text-sm text-muted-foreground mb-4">
+					<p className="text-sm text-muted-foreground">
 						{currentTeam
 							? `Tracks that ${currentTeam.name} is subscribed to`
 							: "Tracks your teams are subscribed to. Badges show which teams have subscribed."}
+					</p>
+					<p className="text-sm text-muted-foreground mb-4">
+						By subscribing to a track, you will be able to access these workouts
+						to schedule for your team.
 					</p>
 					<EnhancedTrackList
 						tracks={filteredTracks.subscribedTracks}

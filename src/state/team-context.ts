@@ -22,7 +22,13 @@ export const useTeamContext = create<TeamContextState>()(
 			name: "team-context",
 			version: 1,
 			storage: createJSONStorage(() =>
-				typeof window !== "undefined" ? localStorage : undefined,
+				typeof window !== "undefined"
+					? localStorage
+					: {
+							getItem: () => null,
+							setItem: () => {},
+							removeItem: () => {},
+						},
 			),
 			partialize: (state) => ({
 				currentTeamId: state.currentTeamId,

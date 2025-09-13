@@ -1,6 +1,5 @@
 import { format } from "date-fns"
 import Link from "next/link"
-import { PencilIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ListItem } from "@/components/ui/list-item"
