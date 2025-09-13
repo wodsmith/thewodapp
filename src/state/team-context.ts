@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { createJSONStorage, persist } from "zustand/middleware"
 
 interface TeamContextState {
 	currentTeamId: string | null
@@ -20,6 +20,13 @@ export const useTeamContext = create<TeamContextState>()(
 		}),
 		{
 			name: "team-context",
+			version: 1,
+			storage: createJSONStorage(() =>
+				typeof window !== "undefined" ? localStorage : undefined,
+			),
+			partialize: (state) => ({
+				currentTeamId: state.currentTeamId,
+			}),
 		},
 	),
 )

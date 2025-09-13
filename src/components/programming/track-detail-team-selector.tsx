@@ -3,7 +3,7 @@
 import { Building2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useTeamContext } from "@/state/team-context"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 interface Team {
 	id: string
@@ -18,13 +18,20 @@ export function TrackDetailTeamSelector({
 	teams,
 }: TrackDetailTeamSelectorProps) {
 	const { currentTeamId, setCurrentTeam } = useTeamContext()
+	const [hydrated, setHydrated] = useState(false)
 
-	// Auto-select first team if none selected
+	// Set hydrated flag after mount
 	useEffect(() => {
+		setHydrated(true)
+	}, [])
+
+	// Auto-select first team if none selected (only after hydration)
+	useEffect(() => {
+		if (!hydrated) return
 		if (!currentTeamId && teams.length > 0) {
 			setCurrentTeam(teams[0].id)
 		}
-	}, [currentTeamId, teams, setCurrentTeam])
+	}, [hydrated, currentTeamId, teams, setCurrentTeam])
 
 	const currentTeam = teams.find((t) => t.id === currentTeamId)
 

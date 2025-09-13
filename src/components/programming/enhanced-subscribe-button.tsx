@@ -59,12 +59,18 @@ export function EnhancedSubscribeButton({
 	}, [currentTeamId, eligibleTeams])
 
 	// Local state to track subscriptions (optimistic updates)
-	const [localSubscriptions, setLocalSubscriptions] =
-		useState<Set<string>>(subscribedTeamIds)
+	const [localSubscriptions, setLocalSubscriptions] = useState<Set<string>>(
+		new Set([...subscribedTeamIds]),
+	)
+
+	// Track per-team in-flight operations for safe concurrent handling
+	const [processingTeamIds, setProcessingTeamIds] = useState<Set<string>>(
+		new Set(),
+	)
 
 	// Update local subscriptions when props change
 	useEffect(() => {
-		setLocalSubscriptions(subscribedTeamIds)
+		setLocalSubscriptions(new Set([...subscribedTeamIds]))
 	}, [subscribedTeamIds])
 
 	const { execute: subscribe, isPending: isSubscribing } = useServerAction(
@@ -94,22 +100,45 @@ export function EnhancedSubscribeButton({
 	)
 
 	const handleSubscribe = async (teamId: string) => {
-		if (localSubscriptions.has(teamId)) {
-			// Optimistic update
-			setLocalSubscriptions((prev) => {
-				const next = new Set(prev)
+		// Prevent concurrent operations on the same team
+		if (processingTeamIds.has(teamId)) {
+			return
+		}
+
+		// Mark team as processing
+		setProcessingTeamIds((prev) => new Set([...prev, teamId]))
+
+		try {
+			if (localSubscriptions.has(teamId)) {
+				// Optimistic update for unsubscribe
+				setLocalSubscriptions((prev) => {
+					const next = new Set([...prev])
+					next.delete(teamId)
+					return next
+				})
+				await unsubscribe({ teamId, trackId })
+			} else {
+				// Optimistic update for subscribe
+				setLocalSubscriptions((prev) => new Set([...prev, teamId]))
+				await subscribe({ teamId, trackId })
+			}
+		} catch (error) {
+			// Revert optimistic update on error
+			setLocalSubscriptions(new Set([...subscribedTeamIds]))
+		} finally {
+			// Remove team from processing
+			setProcessingTeamIds((prev) => {
+				const next = new Set([...prev])
 				next.delete(teamId)
 				return next
 			})
-			await unsubscribe({ teamId, trackId })
-		} else {
-			// Optimistic update
-			setLocalSubscriptions((prev) => new Set([...prev, teamId]))
-			await subscribe({ teamId, trackId })
 		}
 	}
 
 	const isLoading = isSubscribing || isUnsubscribing
+
+	// Helper function to check if a specific team is processing
+	const isTeamProcessing = (teamId: string) => processingTeamIds.has(teamId)
 
 	// When filtered to a specific team, check if that team is already subscribed
 	if (currentTeamId) {
@@ -118,17 +147,20 @@ export function EnhancedSubscribeButton({
 
 		// If already subscribed, show subscribed state regardless of permission
 		if (isSubscribed) {
+			const isCurrentTeamProcessing = isTeamProcessing(currentTeamId)
 			return (
 				<Button
 					size="sm"
 					onClick={() =>
-						hasPermission ? handleSubscribe(currentTeamId) : undefined
+						hasPermission && !isCurrentTeamProcessing
+							? handleSubscribe(currentTeamId)
+							: undefined
 					}
-					disabled={!hasPermission || isLoading}
+					disabled={!hasPermission || isLoading || isCurrentTeamProcessing}
 					variant="secondary"
 				>
 					<Check className="h-3 w-3 mr-1" />
-					Subscribed
+					{isCurrentTeamProcessing ? "Processing..." : "Subscribed"}
 				</Button>
 			)
 		}
@@ -143,14 +175,21 @@ export function EnhancedSubscribeButton({
 		}
 
 		// Has permission and not subscribed
+		const isCurrentTeamProcessing = isTeamProcessing(currentTeamId)
 		return (
 			<Button
 				size="sm"
-				onClick={() => handleSubscribe(currentTeamId)}
-				disabled={isLoading}
+				onClick={() =>
+					!isCurrentTeamProcessing ? handleSubscribe(currentTeamId) : undefined
+				}
+				disabled={isLoading || isCurrentTeamProcessing}
 				variant="default"
 			>
-				{isLoading ? "Loading..." : "Subscribe"}
+				{isCurrentTeamProcessing
+					? "Processing..."
+					: isLoading
+						? "Loading..."
+						: "Subscribe"}
 			</Button>
 		)
 	}
@@ -195,15 +234,20 @@ export function EnhancedSubscribeButton({
 	if (teamsToWorkWith.length === 1) {
 		const team = teamsToWorkWith[0]
 		const isSubscribed = localSubscriptions.has(team.id)
+		const isCurrentTeamProcessing = isTeamProcessing(team.id)
 
 		return (
 			<Button
 				size="sm"
-				onClick={() => handleSubscribe(team.id)}
-				disabled={isLoading}
+				onClick={() =>
+					!isCurrentTeamProcessing ? handleSubscribe(team.id) : undefined
+				}
+				disabled={isLoading || isCurrentTeamProcessing}
 				variant={isSubscribed ? "secondary" : "default"}
 			>
-				{isLoading ? (
+				{isCurrentTeamProcessing ? (
+					"Processing..."
+				) : isLoading ? (
 					"Loading..."
 				) : isSubscribed ? (
 					<>
@@ -224,6 +268,7 @@ export function EnhancedSubscribeButton({
 	const someSubscribed = teamsToWorkWith.some((t) =>
 		localSubscriptions.has(t.id),
 	)
+	const anyTeamProcessing = teamsToWorkWith.some((t) => isTeamProcessing(t.id))
 
 	return (
 		<DropdownMenu>
@@ -233,9 +278,11 @@ export function EnhancedSubscribeButton({
 					variant={
 						allSubscribed ? "secondary" : someSubscribed ? "outline" : "default"
 					}
-					disabled={isLoading}
+					disabled={isLoading || anyTeamProcessing}
 				>
-					{allSubscribed ? (
+					{anyTeamProcessing ? (
+						<>Processing...</>
+					) : allSubscribed ? (
 						<>
 							<Check className="h-3 w-3 mr-1" />
 							All Subscribed
@@ -253,17 +300,25 @@ export function EnhancedSubscribeButton({
 				<DropdownMenuSeparator />
 				{teamsToWorkWith.map((team) => {
 					const isSubscribed = localSubscriptions.has(team.id)
+					const isCurrentTeamProcessing = isTeamProcessing(team.id)
 					return (
 						<DropdownMenuItem
 							key={team.id}
-							onSelect={() => handleSubscribe(team.id)}
+							onSelect={() =>
+								!isCurrentTeamProcessing ? handleSubscribe(team.id) : undefined
+							}
 							className="flex items-center justify-between cursor-pointer"
+							disabled={isCurrentTeamProcessing}
 						>
 							<div className="flex items-center gap-2">
 								<Building2 className="h-3 w-3" />
 								<span className="text-sm">{team.name}</span>
 							</div>
-							{isSubscribed ? (
+							{isCurrentTeamProcessing ? (
+								<Badge variant="outline" className="text-xs">
+									Processing...
+								</Badge>
+							) : isSubscribed ? (
 								<Badge variant="secondary" className="text-xs">
 									<Check className="h-3 w-3 mr-1" />
 									Subscribed
