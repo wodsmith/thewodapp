@@ -9,6 +9,7 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import FullCalendar from "@fullcalendar/react"
 import timeGridPlugin from "@fullcalendar/timegrid"
+import { useEffect, useState } from "react"
 import "./team-scheduling-calendar.css"
 
 interface TeamSchedulingCalendarProps {
@@ -34,6 +35,18 @@ export function TeamSchedulingCalendar({
 	onEventClick,
 	onEventDrop,
 }: TeamSchedulingCalendarProps) {
+	const [isMobile, setIsMobile] = useState(false)
+
+	useEffect(() => {
+		const checkIsMobile = () => {
+			setIsMobile(window.innerWidth < 640)
+		}
+
+		checkIsMobile()
+		window.addEventListener("resize", checkIsMobile)
+		return () => window.removeEventListener("resize", checkIsMobile)
+	}, [])
+
 	// Debug log for CSS styling verification
 	console.log(
 		"DEBUG: [Calendar] Applied brutalist CSS overrides for FullCalendar components",
@@ -59,6 +72,7 @@ export function TeamSchedulingCalendar({
 				eventClick={onEventClick}
 				eventDrop={onEventDrop}
 				height="auto"
+				aspectRatio={isMobile ? 1 : 1.35}
 			/>
 		</div>
 	)

@@ -58,8 +58,8 @@ export function ProgrammingTrackDashboard({
 
 	return (
 		<div className="space-y-8">
-			<div className="flex justify-between items-center">
-				<div>
+			<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+				<div className="flex-1 min-w-0">
 					<h2 className="text-2xl font-bold font-mono tracking-tight">
 						Programming Tracks
 					</h2>
@@ -67,18 +67,20 @@ export function ProgrammingTrackDashboard({
 						Manage and organize your team's training programs
 					</p>
 				</div>
-				<ProgrammingTrackCreateDialog
-					teamId={teamId}
-					trigger={
-						<Button className="border-4 border-primary transition-all font-mono">
-							<Plus className="h-4 w-4 mr-2" />
-							Create Track
-						</Button>
-					}
-					onTrackCreated={handleTrackCreated}
-					open={isCreateDialogOpen}
-					onOpenChange={setIsCreateDialogOpen}
-				/>
+				<div className="shrink-0">
+					<ProgrammingTrackCreateDialog
+						teamId={teamId}
+						trigger={
+							<Button className="border-4 border-primary transition-all font-mono w-full sm:w-auto">
+								<Plus className="h-4 w-4 mr-2" />
+								Create Track
+							</Button>
+						}
+						onTrackCreated={handleTrackCreated}
+						open={isCreateDialogOpen}
+						onOpenChange={setIsCreateDialogOpen}
+					/>
+				</div>
 			</div>
 
 			{optimisticTracks.length === 0 ? (
