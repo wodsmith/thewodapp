@@ -44,7 +44,7 @@ describe('Schedule Template Actions', () => {
 
   // Schedule Templates
   it('should create a schedule template', async () => {
-    const result = await createScheduleTemplate({ teamId: 'team1', name: 'Template 1' })
+    const result = await createScheduleTemplate({ teamId: 'team1', name: 'Template 1', classCatalogId: 'class1', locationId: 'loc1' })
     expect(result).toBeDefined()
     expect(db?.insert).toHaveBeenCalledWith(scheduleTemplatesTable)
   })
@@ -75,7 +75,7 @@ describe('Schedule Template Actions', () => {
 
   // Schedule Template Classes
   it('should create a schedule template class', async () => {
-    const result = await createScheduleTemplateClass({ templateId: 'template1', classCatalogId: 'class1', locationId: 'loc1', dayOfWeek: 1, startTime: '09:00', endTime: '10:00', requiredCoaches: 1, requiredSkillIds: ['skill1'] })
+    const result = await createScheduleTemplateClass({ templateId: 'template1', dayOfWeek: 1, startTime: '09:00', endTime: '10:00', requiredCoaches: 1, requiredSkillIds: ['skill1'] })
     expect(result).toBeDefined()
     expect(db?.insert).toHaveBeenCalledWith(scheduleTemplateClassesTable)
     expect(db?.insert).toHaveBeenCalledWith(scheduleTemplateClassRequiredSkillsTable)

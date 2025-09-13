@@ -7,6 +7,7 @@ import {
 	skillsTable,
 	scheduledClassesTable,
 	scheduleTemplateClassesTable,
+	scheduleTemplatesTable,
 	coachToSkillsTable,
 	scheduleTemplateClassRequiredSkillsTable,
 } from "@/db/schemas/scheduling"
@@ -172,8 +173,8 @@ export const deleteLocation = createServerAction()
 			const templateCount = (
 				await db
 					.select({ count: count() })
-					.from(scheduleTemplateClassesTable)
-					.where(eq(scheduleTemplateClassesTable.locationId, id))
+					.from(scheduleTemplatesTable)
+					.where(eq(scheduleTemplatesTable.locationId, id))
 			)[0].count
 			const scheduledCount = (
 				await db
@@ -370,8 +371,8 @@ export const deleteClassCatalog = createServerAction()
 			const templateCount = (
 				await db
 					.select({ count: count() })
-					.from(scheduleTemplateClassesTable)
-					.where(eq(scheduleTemplateClassesTable.classCatalogId, id))
+					.from(scheduleTemplatesTable)
+					.where(eq(scheduleTemplatesTable.classCatalogId, id))
 			)[0].count
 
 			if (scheduledCount > 0 || templateCount > 0) {
