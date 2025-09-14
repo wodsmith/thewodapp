@@ -509,53 +509,62 @@ export async function createWorkout({
 	movementIds: string[]
 	teamId: string
 }) {
-	const db = getDd()
+	try {
+		const db = getDd()
 
-	// Create the workout first
-	const newWorkout = await db
-		.insert(workouts)
-		.values({
-			id: `workout_${createId()}`,
-			name: workout.name,
-			description: workout.description,
-			scheme: workout.scheme,
-			scope: workout.scope,
-			repsPerRound: workout.repsPerRound,
-			roundsToScore: workout.roundsToScore,
-			sugarId: workout.sugarId,
-			tiebreakScheme: workout.tiebreakScheme,
-			secondaryScheme: workout.secondaryScheme,
-			teamId,
-			createdAt: workout.createdAt,
-			updatedAt: new Date(),
-			updateCounter: 0,
-		})
-		.returning()
-		.get()
+		// Create the workout first
+		const newWorkout = await db
+			.insert(workouts)
+			.values({
+				id: `workout_${createId()}`,
+				name: workout.name,
+				description: workout.description,
+				scheme: workout.scheme,
+				scope: workout.scope,
+				repsPerRound: workout.repsPerRound,
+				roundsToScore: workout.roundsToScore,
+				sugarId: workout.sugarId,
+				tiebreakScheme: workout.tiebreakScheme,
+				secondaryScheme: workout.secondaryScheme,
+				teamId,
+				createdAt: workout.createdAt,
+				updatedAt: new Date(),
+				updateCounter: 0,
+			})
+			.returning()
+			.get()
 
-	// Insert workout-tag relationships
-	if (tagIds.length > 0) {
-		await db.insert(workoutTags).values(
-			tagIds.map((tagId) => ({
-				id: `workout_tag_${createId()}`,
-				workoutId: newWorkout.id,
-				tagId,
-			})),
-		)
+		// Insert workout-tag relationships
+		if (tagIds.length > 0) {
+			await db.insert(workoutTags).values(
+				tagIds.map((tagId) => ({
+					id: `workout_tag_${createId()}`,
+					workoutId: newWorkout.id,
+					tagId,
+				})),
+			)
+		}
+
+		// Insert workout-movement relationships
+		if (movementIds.length > 0) {
+			await db.insert(workoutMovements).values(
+				movementIds.map((movementId) => ({
+					id: `workout_movement_${createId()}`,
+					workoutId: newWorkout.id,
+					movementId,
+				})),
+			)
+		}
+
+		return newWorkout
+	} catch (error) {
+		console.error("Failed to create workout:", error)
+		// Re-throw with a more specific error message
+		if (error instanceof Error && error.message.includes("ECONNRESET")) {
+			throw new Error("Database connection error. Please try again.")
+		}
+		throw error
 	}
-
-	// Insert workout-movement relationships
-	if (movementIds.length > 0) {
-		await db.insert(workoutMovements).values(
-			movementIds.map((movementId) => ({
-				id: `workout_movement_${createId()}`,
-				workoutId: newWorkout.id,
-				movementId,
-			})),
-		)
-	}
-
-	return newWorkout
 }
 
 /**

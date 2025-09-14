@@ -20,19 +20,19 @@ import { KVSession } from "@/utils/kv-session"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
-	title: "Spicy Wod | Explore Workouts",
+	title: "WODsmith | Explore Workouts",
 	description: "Track your spicy workouts and progress.",
 	openGraph: {
-		title: "Spicy Wod | Explore Workouts", // Default title for layout
+		title: "WODsmith | Explore Workouts", // Default title for layout
 		description: "Track your spicy workouts and progress.", // Default description
 		images: [
 			{
 				url: `/api/og?title=${encodeURIComponent(
-					"Spicy Wod | Explore Workouts",
+					"WODsmith | Explore Workouts",
 				)}`,
 				width: 1200,
 				height: 630,
-				alt: "Spicy Wod | Explore Workouts",
+				alt: "WODsmith | Explore Workouts",
 			},
 		],
 	},
@@ -75,10 +75,37 @@ export default async function WorkoutsPage({
 	const userTeamIds = userTeams.map((team) => team.id)
 	const userProgrammingTracks = await getUserProgrammingTracks(userTeamIds)
 
-	// Fetch initial scheduled workouts for today for all teams
+	// Fetch initial scheduled workouts for a wider range to handle timezone differences
+	// This ensures we capture "today" for all possible user timezones
+	const now = new Date()
+	// Get yesterday at start in UTC (covers users ahead of UTC)
+	const startDate = new Date(
+		Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() - 1,
+			0,
+			0,
+			0,
+			0,
+		),
+	)
+	// Get tomorrow at end in UTC (covers users behind UTC)
+	const endDate = new Date(
+		Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() + 1,
+			23,
+			59,
+			59,
+			999,
+		),
+	)
+
 	const dateRange = {
-		start: startOfLocalDay(),
-		end: endOfLocalDay(),
+		start: startDate,
+		end: endDate,
 	}
 
 	const initialScheduledWorkouts: Record<

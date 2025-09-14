@@ -89,21 +89,42 @@ export async function addLog({
 	type: "wod" | "strength" | "monostructural"
 	scheduledWorkoutInstanceId?: string | null
 	programmingTrackId?: string | null
-}): Promise<void> {
+}): Promise<{ success: boolean; resultId?: string; error?: string }> {
+	console.log("[addLog] START - Input parameters:", {
+		userId,
+		workoutId,
+		date,
+		scale,
+		wodScore,
+		notes,
+		setsDataLength: setsData.length,
+		setsData,
+		type,
+		scheduledWorkoutInstanceId,
+		programmingTrackId,
+	})
+
 	const session = await requireVerifiedEmail()
 	if (!session) {
+		console.error("[addLog] No session found - not authenticated")
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
-	const db = getDd()
-	const resultId = `result_${createId()}`
+	console.log("[addLog] Session verified for user:", session.user.id)
 
-	console.log(
-		`[addLog] Adding log for userId: ${userId}, workoutId: ${workoutId}`,
-	)
+	let db: ReturnType<typeof getDd>
+	try {
+		db = getDd()
+		console.log("[addLog] Database connection obtained successfully")
+	} catch (error) {
+		console.error("[addLog] Failed to get database connection:", error)
+		return { success: false, error: "Database connection failed" }
+	}
+
+	const resultId = `result_${createId()}`
+	console.log("[addLog] Generated resultId:", resultId)
 
 	try {
-		// Insert the main result - using timestamp mode for date field
-		await db.insert(results).values({
+		const insertData = {
 			id: resultId,
 			userId,
 			workoutId,
@@ -115,7 +136,12 @@ export async function addLog({
 			setCount: setsData.length || null,
 			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
 			programmingTrackId: programmingTrackId || null,
-		})
+		}
+		console.log("[addLog] Attempting to insert result with data:", insertData)
+
+		// Insert the main result - using timestamp mode for date field
+		const insertResult = await db.insert(results).values(insertData).returning()
+		console.log("[addLog] Result insert successful, returned:", insertResult)
 
 		// Insert sets if any
 		if (setsData.length > 0) {
@@ -130,17 +156,31 @@ export async function addLog({
 				score: set.score || null,
 				status: set.status || null,
 			}))
+			console.log("[addLog] Attempting to insert sets:", setsToInsert)
 
-			await db.insert(sets).values(setsToInsert)
+			const setsInsertResult = await db
+				.insert(sets)
+				.values(setsToInsert)
+				.returning()
 			console.log(
 				`[addLog] Added ${setsToInsert.length} sets for resultId: ${resultId}`,
+				setsInsertResult,
 			)
 		}
 
-		console.log(`[addLog] Successfully added log with resultId: ${resultId}`)
+		console.log(`[addLog] SUCCESS - Added log with resultId: ${resultId}`)
+		return { success: true, resultId }
 	} catch (error) {
-		console.error(`[addLog] Error adding log for userId ${userId}:`, error)
-		throw error
+		console.error(`[addLog] ERROR adding log for userId ${userId}:`, error)
+		console.error("[addLog] Error details:", {
+			name: error instanceof Error ? error.name : "Unknown",
+			message: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : "No stack trace",
+		})
+		if (error instanceof Error) {
+			return { success: false, error: error.message }
+		}
+		return { success: false, error: "Failed to add log" }
 	}
 }
 
@@ -686,7 +726,7 @@ async function submitLogToDatabase(
 			`[Action] Original date string: ${dateStr}, Target Timezone: ${timezone}, Timestamp: ${timestamp}`,
 		)
 
-		return await addLog({
+		const result = await addLog({
 			userId,
 			workoutId: selectedWorkoutId,
 			date: timestamp,
@@ -698,6 +738,17 @@ async function submitLogToDatabase(
 			scheduledWorkoutInstanceId: scheduledInstanceId,
 			programmingTrackId: programmingTrackId,
 		})
+
+		if (!result.success) {
+			console.error("[Action] Failed to add log:", result.error)
+			return { error: result.error || "Failed to save log" }
+		}
+
+		console.log(
+			"[Action] Successfully added log with resultId:",
+			result.resultId,
+		)
+		return { success: true, resultId: result.resultId }
 	} catch (error) {
 		console.error("[Action] Failed to add log with sets:", error)
 		return {
@@ -713,6 +764,12 @@ export async function submitLogForm(
 	workouts: Workout[],
 	formData: FormData,
 ) {
+	console.log("[submitLogForm] START with params:", {
+		userId,
+		workoutsCount: workouts.length,
+		workoutIds: workouts.map((w) => w.id),
+	})
+
 	const headerList = await headers()
 	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
 	const {
@@ -724,17 +781,32 @@ export async function submitLogForm(
 		programmingTrackId,
 	} = parseBasicFormData(formData)
 
-	console.log("[Action] Date:", dateStr)
+	console.log("[submitLogForm] Parsed form data:", {
+		selectedWorkoutId,
+		dateStr,
+		scaleValue,
+		notesValue,
+		scheduledInstanceId,
+		programmingTrackId,
+	})
 
 	if (!selectedWorkoutId) {
-		console.error("[Action] No workout selected")
+		console.error("[submitLogForm] No workout selected")
 		return { error: "No workout selected. Please select a workout." }
 	}
 
 	const workout = workouts.find((w) => w.id === selectedWorkoutId)
+	console.log("[submitLogForm] Found workout:", workout)
 
 	if (!workout) {
-		console.error("[Action] Workout not found for ID:", selectedWorkoutId)
+		console.error(
+			"[submitLogForm] Workout not found for ID:",
+			selectedWorkoutId,
+		)
+		console.error(
+			"[submitLogForm] Available workout IDs:",
+			workouts.map((w) => w.id),
+		)
 		return { error: "Selected workout not found. Please try again." }
 	}
 

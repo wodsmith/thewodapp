@@ -29,21 +29,21 @@ export function TeamWorkoutCard({
 			key={instance.id || index}
 			className={`${
 				viewMode === "daily"
-					? "border-2 border-black dark:border-dark-border p-6  bg-background/10 dark:bg-white/10 flex flex-col"
+					? "border-2 border-black dark:border-dark-border p-6 bg-background/10 dark:bg-white/10 flex flex-col items-start"
 					: "border-l-4 border-primary pl-4 ml-2"
 			}`}
 		>
 			<div
-				className={`${
+				className={`flex flex-col w-full ${
 					viewMode === "daily"
-						? "flex flex-col h-full"
-						: "flex flex-col sm:flex-row sm:items-start sm:justify-between"
+						? "h-full items-start"
+						: "sm:flex-row sm:items-start sm:justify-between items-start"
 				}`}
 			>
-				<div className="flex-1">
+				<div className="flex-1 text-left">
 					<Link href={`/workouts/${workout.id}`}>
 						<h4
-							className={`font-bold hover:underline ${
+							className={`font-bold hover:underline text-left ${
 								viewMode === "daily"
 									? "text-2xl mb-3 leading-tight"
 									: "text-lg mb-2"
@@ -69,8 +69,8 @@ export function TeamWorkoutCard({
 
 					{/* Scheme Display - Only for Today view */}
 					{viewMode === "daily" && workout.scheme && (
-						<div className="mb-4">
-							<div className="inline-block bg-primary text-primary-foreground px-3 py-2 ">
+						<div className="mb-4 flex justify-start">
+							<div className="inline-block bg-primary text-primary-foreground px-3 py-2">
 								<p className="font-bold text-sm uppercase tracking-wide">
 									{workout.scheme}
 								</p>
@@ -80,7 +80,7 @@ export function TeamWorkoutCard({
 
 					{workout.description && (
 						<p
-							className={`text-muted-foreground mb-3 ${
+							className={`text-muted-foreground mb-3 text-left ${
 								viewMode === "daily"
 									? "text-base whitespace-pre-wrap line-clamp-[12]"
 									: "text-sm line-clamp-2"
@@ -95,10 +95,10 @@ export function TeamWorkoutCard({
 						(workout as any).movements &&
 						(workout as any).movements.length > 0 && (
 							<div className="mb-4">
-								<p className="text-sm font-semibold mb-3 uppercase tracking-wide text-muted-foreground">
+								<p className="text-sm font-semibold mb-3 uppercase tracking-wide text-muted-foreground text-left">
 									Movements
 								</p>
-								<div className="flex flex-wrap gap-2">
+								<div className="flex flex-wrap gap-2 justify-start">
 									{(workout as any).movements.map((movement: any) => (
 										<span
 											key={movement.id}
@@ -121,10 +121,12 @@ export function TeamWorkoutCard({
 						>
 							{viewMode === "daily" ? (
 								<>
-									<p className="text-sm font-semibold text-orange-700 dark:text-orange-300 mb-1">
+									<p className="text-sm font-semibold text-orange-700 dark:text-orange-300 mb-1 text-left">
 										Team Notes
 									</p>
-									<p className="text-base">{instance.teamSpecificNotes}</p>
+									<p className="text-base text-left">
+										{instance.teamSpecificNotes}
+									</p>
 								</>
 							) : (
 								<p className="text-sm">
@@ -144,10 +146,12 @@ export function TeamWorkoutCard({
 						>
 							{viewMode === "daily" ? (
 								<>
-									<p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">
+									<p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1 text-left">
 										Scaling Options
 									</p>
-									<p className="text-base">{instance.scalingGuidanceForDay}</p>
+									<p className="text-base text-left">
+										{instance.scalingGuidanceForDay}
+									</p>
 								</>
 							) : (
 								<p className="text-sm">
@@ -159,19 +163,19 @@ export function TeamWorkoutCard({
 				</div>
 
 				<div
-					className={
+					className={`w-full ${
 						viewMode === "daily"
-							? "mt-6 pt-4 border-t border-black/10 dark:border-white/10"
+							? "mt-6 pt-4 border-t border-black/10 dark:border-white/10 flex flex-col items-start"
 							: "mt-2"
-					}
+					}`}
 				>
 					{result ? (
 						viewMode === "daily" ? (
 							// Daily view - full result display
-							<div className="space-y-3">
-								<div className="bg-green-50 dark:bg-green-950/20 border-2 border-green-500  p-4">
-									<div className="flex items-center justify-between">
-										<div>
+							<div className="space-y-3 w-full">
+								<div className="bg-green-50 dark:bg-green-950/20 border-2 border-green-500 p-4 w-full">
+									<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+										<div className="text-left">
 											<p className="text-sm font-semibold text-green-700 dark:text-green-300 mb-1">
 												Result Logged
 											</p>
@@ -179,7 +183,7 @@ export function TeamWorkoutCard({
 												{result.wodScore || "Completed"}
 											</p>
 											{result.scale && (
-												<span className="inline-block mt-1 px-2 py-1 text-xs font-medium bg-green-600 text-white ">
+												<span className="inline-block mt-1 px-2 py-1 text-xs font-medium bg-green-600 text-white">
 													{result.scale.toUpperCase()}
 												</span>
 											)}
@@ -188,7 +192,7 @@ export function TeamWorkoutCard({
 											asChild
 											variant="outline"
 											size="sm"
-											className="flex items-center gap-2"
+											className="flex items-center gap-2 self-start sm:self-auto"
 										>
 											<Link
 												href={{
@@ -204,45 +208,89 @@ export function TeamWorkoutCard({
 										</Button>
 									</div>
 									{result.notes && (
-										<p className="mt-2 text-sm text-muted-foreground">
+										<p className="mt-2 text-sm text-muted-foreground text-left">
 											{result.notes}
 										</p>
 									)}
 								</div>
-							</div>
-						) : (
-							// Weekly view - compact result display
-							<div className="flex items-center gap-2">
-								<div className="flex-1 bg-green-50 dark:bg-green-950/20 border border-green-500  px-3 py-2">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-2">
-											<span className="text-sm font-semibold text-green-700 dark:text-green-300">
-												✓ {result.wodScore || "Completed"}
-											</span>
-											{result.scale && (
-												<span className="px-1.5 py-0.5 text-xs font-medium bg-green-600 text-white ">
-													{result.scale.toUpperCase()}
-												</span>
-											)}
-										</div>
-									</div>
-								</div>
+								{/* Add Log Result button below the result */}
 								<Button
 									asChild
-									variant="ghost"
-									size="sm"
-									className="h-8 w-8 p-0"
-									title="Edit Result"
+									variant="default"
+									size="default"
+									className="w-full sm:w-auto sm:self-start"
 								>
 									<Link
 										href={{
-											pathname: `/log/${result.id}/edit`,
+											pathname: "/log/new",
 											query: {
+												workoutId: workout.id,
+												scheduledInstanceId: instance.id,
+												programmingTrackId: trackWorkout?.trackId,
 												redirectUrl: "/workouts",
 											},
 										}}
 									>
-										<PencilIcon className="h-4 w-4" />
+										Log Another Result
+									</Link>
+								</Button>
+							</div>
+						) : (
+							// Weekly view - compact result display
+							<div className="space-y-2">
+								<div className="flex items-center gap-2">
+									<div className="flex-1 bg-green-50 dark:bg-green-950/20 border border-green-500  px-3 py-2">
+										<div className="flex items-center justify-between">
+											<div className="flex items-center gap-2">
+												<span className="text-sm font-semibold text-green-700 dark:text-green-300">
+													✓ {result.wodScore || "Completed"}
+												</span>
+												{result.scale && (
+													<span className="px-1.5 py-0.5 text-xs font-medium bg-green-600 text-white ">
+														{result.scale.toUpperCase()}
+													</span>
+												)}
+											</div>
+										</div>
+									</div>
+									<Button
+										asChild
+										variant="ghost"
+										size="sm"
+										className="h-8 w-8 p-0"
+										title="Edit Result"
+									>
+										<Link
+											href={{
+												pathname: `/log/${result.id}/edit`,
+												query: {
+													redirectUrl: "/workouts",
+												},
+											}}
+										>
+											<PencilIcon className="h-4 w-4" />
+										</Link>
+									</Button>
+								</div>
+								{/* Add Log Result button below the result */}
+								<Button
+									asChild
+									variant="secondary"
+									size="sm"
+									className="w-full sm:w-auto"
+								>
+									<Link
+										href={{
+											pathname: "/log/new",
+											query: {
+												workoutId: workout.id,
+												scheduledInstanceId: instance.id,
+												programmingTrackId: trackWorkout?.trackId,
+												redirectUrl: "/workouts",
+											},
+										}}
+									>
+										Log Another Result
 									</Link>
 								</Button>
 							</div>
@@ -252,7 +300,7 @@ export function TeamWorkoutCard({
 							asChild
 							variant={viewMode === "daily" ? "default" : "secondary"}
 							size={viewMode === "daily" ? "default" : "sm"}
-							className={viewMode === "daily" ? "w-full" : ""}
+							className={viewMode === "daily" ? "w-full sm:w-auto" : ""}
 						>
 							<Link
 								href={{

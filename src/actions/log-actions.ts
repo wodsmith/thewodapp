@@ -63,12 +63,29 @@ export const submitLogFormAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		console.log("[submitLogFormAction] START with input:", {
+			userId: input.userId,
+			workoutsCount: input.workouts.length,
+			formDataKeys: Array.from(input.formData.keys()),
+		})
+
 		try {
 			const result = await submitLogForm(
 				input.userId,
 				input.workouts,
 				input.formData,
 			)
+
+			console.log("[submitLogFormAction] submitLogForm returned:", result)
+
+			// Check if there was an error
+			if (result && "error" in result) {
+				console.error(
+					"[submitLogFormAction] Error from submitLogForm:",
+					result.error,
+				)
+				throw new ZSAError("ERROR", result.error)
+			}
 
 			// Revalidate all pages that display workout results
 			revalidatePath("/log")
@@ -82,9 +99,15 @@ export const submitLogFormAction = createServerAction()
 				revalidatePath(`/workouts/${workoutId}`)
 			}
 
+			console.log("[submitLogFormAction] SUCCESS - returning result:", result)
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to submit log form:", error)
+			console.error("[submitLogFormAction] CAUGHT ERROR:", error)
+			console.error("[submitLogFormAction] Error details:", {
+				name: error instanceof Error ? error.name : "Unknown",
+				message: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : "No stack trace",
+			})
 
 			if (error instanceof ZSAError) {
 				throw error

@@ -64,9 +64,45 @@ export default async function LogNewResultPage({
 		redirect("/sign-in")
 	}
 
+	// If a specific workout ID is provided, fetch it separately
+	// This ensures we can log results for workouts from other teams
+	let specificWorkout = null
+	if (mySearchParams?.workoutId) {
+		console.log(
+			"[log/new] Fetching specific workout:",
+			mySearchParams.workoutId,
+		)
+		const { getWorkoutByIdAction } = await import("@/actions/workout-actions")
+		const [workoutResult, workoutError] = await getWorkoutByIdAction({
+			id: mySearchParams.workoutId,
+		})
+
+		if (!workoutError && workoutResult?.success) {
+			specificWorkout = workoutResult.data
+			console.log("[log/new] Found specific workout:", specificWorkout?.name)
+		} else {
+			console.error("[log/new] Failed to fetch specific workout:", workoutError)
+		}
+	}
+
+	// Merge the specific workout with the user's workouts if it's not already there
+	let allWorkouts = result.data
+	if (
+		specificWorkout &&
+		!result.data.some((w) => w.id === specificWorkout.id)
+	) {
+		console.log("[log/new] Adding specific workout to list")
+		// Add resultsToday field to match the type expected by LogFormClient
+		const workoutWithResults = {
+			...specificWorkout,
+			resultsToday: [],
+		}
+		allWorkouts = [workoutWithResults, ...result.data]
+	}
+
 	return (
 		<LogFormClient
-			workouts={result.data}
+			workouts={allWorkouts}
 			userId={session.user.id}
 			selectedWorkoutId={mySearchParams?.workoutId}
 			redirectUrl={mySearchParams?.redirectUrl}

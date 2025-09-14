@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createLocation, updateLocation, deleteLocation, getLocationsByTeam, createClassCatalog, updateClassCatalog, deleteClassCatalog, getClassCatalogByTeam, createSkill, updateSkill, deleteSkill, getSkillsByTeam } from '@/actions/gym-setup-actions'
-import { db } from '@/db'
+import { getDd } from '@/db'
 
 // Mock the db and auth modules
-vi.mock('@/db', () => ({
-  db: {
+const mockDb = {
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
         returning: vi.fn(() => [{}])
@@ -34,6 +33,9 @@ vi.mock('@/db', () => ({
       }
     }
   }
+
+vi.mock('@/db', () => ({
+  getDd: vi.fn(() => mockDb)
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -50,28 +52,28 @@ describe('Gym Setup Actions', () => {
     const result = await createLocation({ teamId: 'test-team-id', name: 'Test Location', capacity: 20 })
     expect(result).toBeDefined()
 
-    expect(db?.insert).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.insert).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should update a location', async () => {
     const result = await updateLocation({ id: 'loc1', teamId: 'test-team-id', name: 'Updated Location', capacity: 25 })
     expect(result).toBeDefined()
 
-    expect(db?.update).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.update).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should delete a location', async () => {
     const result = await deleteLocation({ id: 'loc1', teamId: 'test-team-id' })
     expect(result).toBeDefined()
 
-    expect(db?.delete).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.delete).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should get locations by team', async () => {
     const result = await getLocationsByTeam({ teamId: 'test-team-id' })
     expect(result).toBeDefined()
 
-    expect(db?.query.locationsTable.findMany).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.query.locationsTable.findMany).toHaveBeenCalledWith(expect.any(Object))
   })
 
   // Class Catalog
@@ -85,7 +87,7 @@ describe('Gym Setup Actions', () => {
     })
     expect(result).toBeDefined()
 
-    expect(db?.insert).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.insert).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should update a class catalog entry', async () => {
@@ -99,21 +101,21 @@ describe('Gym Setup Actions', () => {
     })
     expect(result).toBeDefined()
 
-    expect(db?.update).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.update).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should delete a class catalog entry', async () => {
     const result = await deleteClassCatalog({ id: 'cls1', teamId: 'test-team-id' })
     expect(result).toBeDefined()
 
-    expect(db?.delete).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.delete).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should get class catalog by team', async () => {
     const result = await getClassCatalogByTeam({ teamId: 'test-team-id' })
     expect(result).toBeDefined()
 
-    expect(db?.query.classCatalogTable.findMany).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.query.classCatalogTable.findMany).toHaveBeenCalledWith(expect.any(Object))
   })
 
   // Skills
@@ -121,27 +123,27 @@ describe('Gym Setup Actions', () => {
     const result = await createSkill({ teamId: 'test-team-id', name: 'Test Skill' })
     expect(result).toBeDefined()
 
-    expect(db?.insert).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.insert).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should update a skill', async () => {
     const result = await updateSkill({ id: 'skill1', teamId: 'test-team-id', name: 'Updated Skill' })
     expect(result).toBeDefined()
 
-    expect(db?.update).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.update).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should delete a skill', async () => {
     const result = await deleteSkill({ id: 'skill1', teamId: 'test-team-id' })
     expect(result).toBeDefined()
 
-    expect(db?.delete).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.delete).toHaveBeenCalledWith(expect.any(Object))
   })
 
   it('should get skills by team', async () => {
     const result = await getSkillsByTeam({ teamId: 'test-team-id' })
     expect(result).toBeDefined()
 
-    expect(db?.query.skillsTable.findMany).toHaveBeenCalledWith(expect.any(Object))
+    expect(mockDb?.query.skillsTable.findMany).toHaveBeenCalledWith(expect.any(Object))
   })
 })

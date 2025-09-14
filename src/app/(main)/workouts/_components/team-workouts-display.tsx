@@ -71,12 +71,13 @@ export function TeamWorkoutsDisplay({
 		Record<string, ScheduledWorkoutInstanceWithResult[]>
 	>(() => {
 		// Filter initial data to only show today's workouts for daily view
+		// This filtering happens on the client side with the user's local timezone
 		const filtered: Record<string, ScheduledWorkoutInstanceWithResult[]> = {}
 		const todayKey = getLocalDateKey(new Date())
 
 		for (const teamId in initialScheduledWorkouts) {
 			const teamWorkouts = initialScheduledWorkouts[teamId]
-			// Filter to only include today's workouts initially
+			// Filter to only include today's workouts initially (in user's local timezone)
 			filtered[teamId] = teamWorkouts.filter((workout) => {
 				const workoutDateKey = getLocalDateKey(workout.scheduledDate)
 				return workoutDateKey === todayKey
@@ -283,10 +284,10 @@ export function TeamWorkoutsDisplay({
 
 	// Initialize cache with initial data on mount
 	useEffect(() => {
-		if (typeof window !== "undefined") {
+		if (typeof window !== "undefined" && !IS_DEVELOPMENT) {
 			for (const team of teams) {
 				const teamWorkouts = initialScheduledWorkouts[team.id]
-				if (teamWorkouts && teamWorkouts.length > 0) {
+				if (teamWorkouts) {
 					// Filter initial data to only include today's workouts for daily view
 					const todayKey = getLocalDateKey(new Date())
 					const todaysWorkouts = teamWorkouts.filter((workout) => {
@@ -294,6 +295,7 @@ export function TeamWorkoutsDisplay({
 						return workoutDateKey === todayKey
 					})
 					// Cache filtered data for daily view (default)
+					// Even if empty, we cache it to show that we've loaded the data
 					setCachedData(team.id, "daily", todaysWorkouts)
 				}
 			}

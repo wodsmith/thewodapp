@@ -97,15 +97,15 @@ export default function WorkoutRowCard({
 	const displayResult = result ?? null
 
 	return (
-		<ListItem className="flex items-center justify-between">
-			<ListItem.Content className="flex-1 min-w-0">
+		<ListItem className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start">
+			<ListItem.Content className="flex-1 min-w-0 w-full">
 				<Link href={`/workouts/${workout.id}`}>
 					<div className="space-y-2">
 						<div className="flex items-center gap-2">
 							<SchemeIcon scheme={workout.scheme} />
 							<HoverCard>
 								<HoverCardTrigger asChild>
-									<p className="font-semibold underline-offset-4 hover:underline">
+									<p className="font-semibold underline-offset-4 hover:underline text-left">
 										{workout.name}
 									</p>
 								</HoverCardTrigger>
@@ -147,7 +147,7 @@ export default function WorkoutRowCard({
 							</HoverCard>
 						</div>
 						{workout.description && (
-							<div className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+							<div className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap text-left">
 								{removeEmptyLines(workout.description)}
 							</div>
 						)}
@@ -155,7 +155,7 @@ export default function WorkoutRowCard({
 				</Link>
 			</ListItem.Content>
 
-			<div className="flex items-center gap-4 flex-shrink-0">
+			<div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-shrink-0 w-full sm:w-auto">
 				<div className="hidden md:flex items-center gap-2 flex-nowrap flex-shrink-0">
 					{(() => {
 						const allTags = [
@@ -232,47 +232,56 @@ export default function WorkoutRowCard({
 					})()}
 				</div>
 
-				<ListItem.Actions>
-					{displayResult && (
-						<div className="flex items-center gap-2 text-sm">
-							<span className="font-semibold">{displayResult.wodScore}</span>
-							{displayResult.scale &&
-								(() => {
-									const badgeVariant: "rx" | "rx+" | "scaled" | "secondary" =
-										displayResult.scale === "rx" ||
-										displayResult.scale === "rx+" ||
-										displayResult.scale === "scaled"
-											? (displayResult.scale as "rx" | "rx+" | "scaled")
-											: "secondary"
-									return (
-										<Badge variant={badgeVariant}>
-											{displayResult.scale.toUpperCase()}
-										</Badge>
-									)
-								})()}
+				<ListItem.Actions className="w-full sm:w-auto">
+					<div className="flex flex-col gap-2 items-start sm:items-end w-full">
+						{displayResult && (
+							<div className="flex items-center gap-2 text-sm self-start">
+								<span className="font-semibold">{displayResult.wodScore}</span>
+								{displayResult.scale &&
+									(() => {
+										const badgeVariant: "rx" | "rx+" | "scaled" | "secondary" =
+											displayResult.scale === "rx" ||
+											displayResult.scale === "rx+" ||
+											displayResult.scale === "scaled"
+												? (displayResult.scale as "rx" | "rx+" | "scaled")
+												: "secondary"
+										return (
+											<Badge variant={badgeVariant}>
+												{displayResult.scale.toUpperCase()}
+											</Badge>
+										)
+									})()}
+							</div>
+						)}
+						<div className="flex items-center gap-2 w-full sm:w-auto">
+							{workout.sourceWorkout && (
+								<Badge
+									variant="secondary"
+									className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700"
+								>
+									Remix
+								</Badge>
+							)}
+							<Button
+								asChild
+								size="sm"
+								variant="secondary"
+								className="flex-1 sm:flex-initial"
+							>
+								<Link
+									href={{
+										pathname: "/log/new",
+										query: {
+											workoutId: workout.id,
+											redirectUrl: "/workouts",
+										},
+									}}
+								>
+									{displayResult ? "Log Another" : "Log Result"}
+								</Link>
+							</Button>
 						</div>
-					)}
-					{workout.sourceWorkout && (
-						<Badge
-							variant="secondary"
-							className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700"
-						>
-							Remix
-						</Badge>
-					)}
-					<Button asChild size="sm" variant="secondary">
-						<Link
-							href={{
-								pathname: "/log/new",
-								query: {
-									workoutId: workout.id,
-									redirectUrl: "/workouts",
-								},
-							}}
-						>
-							Log Result
-						</Link>
-					</Button>
+					</div>
 				</ListItem.Actions>
 			</div>
 		</ListItem>

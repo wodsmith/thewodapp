@@ -4,13 +4,9 @@ import { drizzle } from "drizzle-orm/d1"
 
 import * as schema from "./schema"
 
-export let db: DrizzleD1Database<typeof schema> | null = null
-
-export const getDd = () => {
-	if (db) {
-		return db
-	}
-
+// Don't cache the database connection globally in serverless environments
+// This can cause connection issues and ECONNRESET errors
+export const getDd = (): DrizzleD1Database<typeof schema> => {
 	try {
 		const { env } = getCloudflareContext()
 
@@ -18,9 +14,9 @@ export const getDd = () => {
 			throw new Error("D1 database not found")
 		}
 
-		db = drizzle(env.NEXT_TAG_CACHE_D1, { schema, logger: true })
-
-		return db
+		// Create a fresh database connection for each request
+		// This prevents connection reuse issues in serverless environments
+		return drizzle(env.NEXT_TAG_CACHE_D1, { schema, logger: true })
 	} catch (error) {
 		console.error("Error getting Cloudflare context:", error)
 		throw new Error(

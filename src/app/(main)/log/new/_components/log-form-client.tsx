@@ -70,10 +70,16 @@ export default function LogFormClient({
 
 	const { execute: submitLogForm } = useServerAction(submitLogFormAction, {
 		onError: (error) => {
-			console.error("Server action error:", error)
+			console.error("[LogFormClient] Server action error:", error)
+			console.error("[LogFormClient] Error details:", {
+				err: error.err,
+				message: error.err?.message,
+				code: error.err?.code,
+			})
 			toast.error(error.err?.message || "An error occurred")
 		},
-		onSuccess: () => {
+		onSuccess: (result) => {
+			console.log("[LogFormClient] Server action success:", result)
 			toast.success("Result logged successfully")
 			router.push((redirectUrl || "/log") as Parameters<typeof router.push>[0])
 		},
@@ -199,6 +205,13 @@ export default function LogFormClient({
 		if (programmingTrackId) {
 			formData.set("programmingTrackId", programmingTrackId)
 		}
+
+		console.log("[LogFormClient] Submitting form with data:", {
+			userId,
+			workoutsCount: workouts.length,
+			formDataEntries: Array.from(formData.entries()),
+			selectedWorkout: workouts.find((w) => w.id === data.selectedWorkoutId),
+		})
 
 		await submitLogForm({
 			userId,
