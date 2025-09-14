@@ -396,7 +396,7 @@ export async function getUserWorkouts({
 
 	const allWorkouts = await baseQuery
 		.where(and(...conditions))
-		.orderBy(desc(workouts.createdAt))
+		.orderBy(desc(workouts.updatedAt))
 		.limit(limit)
 		.offset(offset)
 
@@ -1274,7 +1274,7 @@ export async function getRemixedWorkouts(sourceWorkoutId: string) {
 				),
 			),
 		)
-		.orderBy(desc(workouts.createdAt))
+		.orderBy(desc(workouts.updatedAt))
 
 	return remixedWorkouts
 }
