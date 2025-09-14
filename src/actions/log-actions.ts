@@ -67,7 +67,33 @@ export const submitLogFormAction = createServerAction()
 			userId: input.userId,
 			workoutsCount: input.workouts.length,
 			formDataKeys: Array.from(input.formData.keys()),
+			workoutIds: input.workouts.map((w: any) => w.id),
 		})
+
+		// Log the specific workout being submitted
+		const selectedWorkoutId = input.formData.get("selectedWorkoutId") as string
+		const selectedWorkout = input.workouts.find(
+			(w: any) => w.id === selectedWorkoutId,
+		)
+
+		console.log("[submitLogFormAction] Selected workout details:", {
+			id: selectedWorkoutId,
+			workout: selectedWorkout
+				? {
+						name: selectedWorkout.name,
+						scheme: selectedWorkout.scheme,
+						repsPerRound: selectedWorkout.repsPerRound,
+						roundsToScore: selectedWorkout.roundsToScore,
+					}
+				: "NOT FOUND",
+		})
+
+		// Log all form data for debugging
+		const formDataEntries: Record<string, string> = {}
+		input.formData.forEach((value, key) => {
+			formDataEntries[key] = String(value)
+		})
+		console.log("[submitLogFormAction] Form data entries:", formDataEntries)
 
 		try {
 			const result = await submitLogForm(
@@ -84,6 +110,17 @@ export const submitLogFormAction = createServerAction()
 					"[submitLogFormAction] Error from submitLogForm:",
 					result.error,
 				)
+				// Log specific details for the problematic workout
+				if (selectedWorkoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
+					console.error(
+						"[submitLogFormAction] SAWTOOTH WORKOUT ERROR - Details:",
+						{
+							error: result.error,
+							formData: formDataEntries,
+							workout: selectedWorkout,
+						},
+					)
+				}
 				throw new ZSAError("ERROR", result.error)
 			}
 

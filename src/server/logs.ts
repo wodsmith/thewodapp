@@ -139,6 +139,16 @@ export async function addLog({
 		}
 		console.log("[addLog] Attempting to insert result with data:", insertData)
 
+		// Special logging for the problematic workout
+		if (workoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
+			console.log("[addLog] SAWTOOTH WORKOUT INSERT - Full details:", {
+				insertData,
+				setsData,
+				dateObject: new Date(date),
+				dateTimestamp: date,
+			})
+		}
+
 		// Insert the main result - using timestamp mode for date field
 		const insertResult = await db.insert(results).values(insertData).returning()
 		console.log("[addLog] Result insert successful, returned:", insertResult)
@@ -796,7 +806,13 @@ export async function submitLogForm(
 	}
 
 	const workout = workouts.find((w) => w.id === selectedWorkoutId)
-	console.log("[submitLogForm] Found workout:", workout)
+	console.log("[submitLogForm] Found workout:", {
+		id: workout?.id,
+		name: workout?.name,
+		scheme: workout?.scheme,
+		repsPerRound: workout?.repsPerRound,
+		roundsToScore: workout?.roundsToScore,
+	})
 
 	if (!workout) {
 		console.error(
@@ -808,6 +824,14 @@ export async function submitLogForm(
 			workouts.map((w) => w.id),
 		)
 		return { error: "Selected workout not found. Please try again." }
+	}
+
+	// Special logging for the problematic workout
+	if (selectedWorkoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
+		console.log("[submitLogForm] SAWTOOTH WORKOUT - Full details:", {
+			workout,
+			formDataEntries: Array.from(formData.entries()),
+		})
 	}
 
 	const parsedScoreEntries = parseScoreEntries(formData)
