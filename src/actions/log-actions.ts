@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
 import {
@@ -68,6 +69,19 @@ export const submitLogFormAction = createServerAction()
 				input.workouts,
 				input.formData,
 			)
+
+			// Revalidate all pages that display workout results
+			revalidatePath("/log")
+			revalidatePath("/workouts")
+			revalidatePath("/dashboard")
+			revalidatePath("/movements")
+
+			// Also revalidate specific workout pages if workoutId is present
+			const workoutId = input.formData.get("selectedWorkoutId") as string | null
+			if (workoutId) {
+				revalidatePath(`/workouts/${workoutId}`)
+			}
+
 			return { success: true, data: result }
 		} catch (error) {
 			console.error("Failed to submit log form:", error)
@@ -338,6 +352,17 @@ async function updateResultForm(
 		scheduledWorkoutInstanceId: scheduledInstanceId,
 		programmingTrackId: programmingTrackId,
 	})
+
+	// Revalidate all pages that display workout results
+	revalidatePath("/log")
+	revalidatePath("/workouts")
+	revalidatePath("/dashboard")
+	revalidatePath("/movements")
+
+	// Also revalidate specific workout page
+	if (selectedWorkoutId) {
+		revalidatePath(`/workouts/${selectedWorkoutId}`)
+	}
 
 	return { success: true }
 }
