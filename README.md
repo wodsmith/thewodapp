@@ -1,6 +1,6 @@
 # Cloudflare Workers SaaS Template
 
-[![.github/workflows/deploy.yml](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml)
+[![.github/workflows/deploy.yml](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/wodsmith/thewodapp)
 
 # [Live Demo](https://nextjs-saas-template.agenticdev.agency/sign-up)
 # [Github Repo](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
