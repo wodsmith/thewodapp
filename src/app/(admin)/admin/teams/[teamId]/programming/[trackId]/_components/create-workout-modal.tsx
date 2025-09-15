@@ -148,7 +148,7 @@ export function CreateWorkoutModal({
 			}
 
 			toast.success("Workout created successfully!")
-			onWorkoutCreatedAction(result)
+			onWorkoutCreatedAction(result.data)
 			handleClose()
 		} catch (error) {
 			console.error("Failed to create workout:", error)

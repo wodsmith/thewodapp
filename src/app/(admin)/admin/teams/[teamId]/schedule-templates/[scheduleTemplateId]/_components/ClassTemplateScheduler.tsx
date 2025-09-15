@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,7 +41,6 @@ export default function ClassTemplateScheduler({
 }: {
 	template: inferServerActionReturnData<typeof getScheduleTemplateById>
 }) {
-	console.log(template)
 	const [classTemplate, setClassTemplate] = useState<ClassTemplate>({
 		templateId: template.id,
 		timeSlots: template.templateClasses.map((c) => ({
@@ -220,7 +219,7 @@ export default function ClassTemplateScheduler({
 		}
 
 		// Clear existing
-		const [_delRes, delErr] = await deleteAll({ templateId: template.id })
+		const [delRes, delErr] = await deleteAll({ templateId: template.id })
 		if (delErr) {
 			toast.error("Failed to clear existing schedule")
 			return

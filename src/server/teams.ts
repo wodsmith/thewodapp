@@ -268,6 +268,22 @@ export async function getTeam(teamId: string) {
 }
 
 /**
+ * Get all team memberships for a specific user
+ */
+export async function getUserTeamMemberships(userId: string) {
+	const db = getDd()
+
+	const memberships = await db.query.teamMembershipTable.findMany({
+		where: eq(teamMembershipTable.userId, userId),
+		with: {
+			team: true,
+		},
+	})
+
+	return memberships
+}
+
+/**
  * Get all teams for current user
  */
 export async function getUserTeams() {

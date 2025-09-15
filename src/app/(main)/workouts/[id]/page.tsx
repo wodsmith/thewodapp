@@ -4,17 +4,20 @@ import {
 	getResultSetsByIdAction,
 	getWorkoutByIdAction,
 	getWorkoutResultsByWorkoutAndUserAction,
+	getRemixedWorkoutsAction,
 } from "@/actions/workout-actions"
+import { getWorkoutLastScheduled } from "@/server/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
+import { canUserEditWorkout } from "@/utils/workout-permissions"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 import WorkoutDetailClient from "./_components/workout-detail-client"
 
 type Props = {
 	params: Promise<{ id: string }>
-	searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(
-	{ params, searchParams }: Props,
+	{ params }: Props,
 	_parent: ResolvingMetadata,
 ): Promise<Metadata> {
 	const id = (await params).id
@@ -72,7 +75,8 @@ export default async function WorkoutDetailPage({
 		return notFound()
 	}
 
-	const workout = workoutResult.data
+	// Extract workout data, filtering out remix information for component compatibility
+	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
 	const [resultsResult, resultsError] =
 		await getWorkoutResultsByWorkoutAndUserAction({
@@ -109,17 +113,33 @@ export default async function WorkoutDetailPage({
 		return Promise.all(allSetsPromises)
 	})()
 
-	// Check if user can edit this workout (based on team ownership)
-	const { getUserPersonalTeamId } = await import("@/server/user")
-	const userPersonalTeamId = await getUserPersonalTeamId(session.userId)
-	const canEdit = workout.teamId === userPersonalTeamId
+	// Determine ownership and appropriate action
+	const canEdit = await canUserEditWorkout(myParams.id)
+
+	// Get source workout info if this is a remix
+	const sourceWorkout = workout.sourceWorkout
+
+	// Get remixed workouts (workouts that are based on this one)
+	const [remixedWorkoutsResult] = await getRemixedWorkoutsAction({
+		sourceWorkoutId: myParams.id,
+	})
+
+	const remixedWorkouts = remixedWorkoutsResult?.success
+		? remixedWorkoutsResult.data
+		: []
+
+	// Get last scheduled information
+	const lastScheduled = await getWorkoutLastScheduled(myParams.id)
 
 	return (
 		<WorkoutDetailClient
 			canEdit={canEdit}
+			sourceWorkout={sourceWorkout}
 			workout={workout}
 			workoutId={myParams.id}
 			resultsWithSets={resultsWithSets}
+			remixedWorkouts={remixedWorkouts}
+			lastScheduled={lastScheduled}
 		/>
 	)
 }

@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom"
 import { render, screen } from "@testing-library/react"
-import { vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { SetDetails } from "./set-details"
 
 vi.mock("@/lib/utils", () => ({
@@ -8,6 +8,10 @@ vi.mock("@/lib/utils", () => ({
 }))
 
 describe("SetDetails", () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+	})
+
 	it("renders all set info with full data", () => {
 		const sets = [
 			{
@@ -20,7 +24,10 @@ describe("SetDetails", () => {
 				score: 5,
 				notes: "Good set",
 				resultId: "result1",
-				status: "pass",
+				status: "pass" as const,
+				createdAt: new Date("2024-01-01"),
+				updatedAt: new Date("2024-01-01"),
+				updateCounter: 0,
 			},
 		]
 		render(<SetDetails sets={sets} />)
@@ -46,6 +53,9 @@ describe("SetDetails", () => {
 				notes: null,
 				resultId: "result2",
 				status: null,
+				createdAt: new Date("2024-01-01"),
+				updatedAt: new Date("2024-01-01"),
+				updateCounter: 0,
 			},
 		]
 		render(<SetDetails sets={sets} />)

@@ -5,11 +5,11 @@ import {
 import { getTeamAction } from "@/actions/team-actions"
 import GymSetup from "./_components/GymSetup"
 
-interface GymSetupPageProps {
+interface PageProps {
 	params: Promise<{ teamId: string }>
 }
 
-async function Page({ params }: GymSetupPageProps) {
+async function Page({ params }: PageProps) {
 	const { teamId } = await params
 
 	const [[locationsRes], [skillsRes], [teamRes]] = await Promise.all([

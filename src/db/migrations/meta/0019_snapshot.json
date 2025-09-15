@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "309702df-10a7-41c7-8a74-a6444f549f82",
-  "prevId": "8009dfa1-5235-4570-b2a1-007bc28a2f9e",
+  "id": "dbcfd1cc-e6eb-445e-9c49-1a5f2030ed9a",
+  "prevId": "9c172e01-7579-4519-bde4-0145f1939163",
   "tables": {
     "credit_transaction": {
       "name": "credit_transaction",
@@ -402,7 +402,14 @@
           "name": "trackWorkoutId",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "workoutId": {
+          "name": "workoutId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "scheduledDate": {
@@ -448,6 +455,13 @@
             "scheduledDate"
           ],
           "isUnique": false
+        },
+        "scheduled_workout_instance_workout_idx": {
+          "name": "scheduled_workout_instance_workout_idx",
+          "columns": [
+            "workoutId"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -470,6 +484,19 @@
           "tableTo": "track_workout",
           "columnsFrom": [
             "trackWorkoutId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "scheduled_workout_instance_workoutId_workouts_id_fk": {
+          "name": "scheduled_workout_instance_workoutId_workouts_id_fk",
+          "tableFrom": "scheduled_workout_instance",
+          "tableTo": "workouts",
+          "columnsFrom": [
+            "workoutId"
           ],
           "columnsTo": [
             "id"
@@ -1570,6 +1597,13 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -1593,6 +1627,19 @@
           "tableTo": "class_catalog",
           "columnsFrom": [
             "class_catalog_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "schedule_templates_location_id_locations_id_fk": {
+          "name": "schedule_templates_location_id_locations_id_fk",
+          "tableFrom": "schedule_templates",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
           ],
           "columnsTo": [
             "id"
@@ -2878,7 +2925,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "results_workout_id_workouts_id_fk": {
@@ -2891,7 +2938,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -3007,7 +3054,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3128,7 +3175,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "workout_movements_movement_id_movements_id_fk": {
@@ -3141,7 +3188,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3208,7 +3255,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "workout_tags_tag_id_spicy_tags_id_fk": {
@@ -3221,7 +3268,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3339,6 +3386,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "source_workout_id": {
+          "name": "source_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -3353,7 +3407,33 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "workouts_source_track_id_programming_track_id_fk": {
+          "name": "workouts_source_track_id_programming_track_id_fk",
+          "tableFrom": "workouts",
+          "tableTo": "programming_track",
+          "columnsFrom": [
+            "source_track_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "workouts_source_workout_id_fkey": {
+          "name": "workouts_source_workout_id_fkey",
+          "tableFrom": "workouts",
+          "tableTo": "workouts",
+          "columnsFrom": [
+            "source_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

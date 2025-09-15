@@ -52,12 +52,6 @@ export function CalendarSkeleton() {
 			{/* Header toolbar skeleton - matching the brutalist styling */}
 			<div className="border-4 border-border bg-background p-2 rounded-none mb-4">
 				<div className="flex items-center justify-between">
-					<div className="flex items-center space-x-2">
-						{/* Previous, Next, Today buttons */}
-						<Skeleton className="h-10 w-16 rounded-none" />
-						<Skeleton className="h-10 w-16 rounded-none" />
-						<Skeleton className="h-10 w-16 rounded-none" />
-					</div>
 					{/* Month/Year title */}
 					<Skeleton className="h-8 w-48 rounded-none" />
 					<div className="flex items-center space-x-2">

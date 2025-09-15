@@ -9,6 +9,7 @@ import {
 } from "next/navigation"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { useTopLoader } from "nextjs-toploader"
+import { NuqsAdapter } from "nuqs/adapters/next/app"
 import type * as React from "react"
 import { type RefObject, Suspense, useCallback, useEffect, useRef } from "react"
 import { useDebounceCallback, useEventListener } from "usehooks-ts"
@@ -16,7 +17,6 @@ import type { getConfig } from "@/flags"
 import { useConfigStore } from "@/state/config"
 import { useSessionStore } from "@/state/session"
 import type { SessionValidationResult } from "@/types"
-import { EmailVerificationDialog } from "./email-verification-dialog"
 
 function RouterChecker() {
 	const { start, done } = useTopLoader()
@@ -134,8 +134,7 @@ export function ThemeProvider({
 				<RouterChecker />
 			</Suspense>
 			<NextThemesProvider {...props} attribute="class">
-				{children}
-				<EmailVerificationDialog />
+				<NuqsAdapter>{children}</NuqsAdapter>
 			</NextThemesProvider>
 		</HeroUIProvider>
 	)

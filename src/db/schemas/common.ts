@@ -32,3 +32,7 @@ export const createProgrammingTrackId = () => `ptrk_${createId()}`
 export const createTrackWorkoutId = () => `trwk_${createId()}`
 export const createScheduledWorkoutInstanceId = () => `swi_${createId()}`
 export const createProgrammingTrackPaymentId = () => `ptpay_${createId()}`
+export const createLocationId = () => `loc_${createId()}`
+export const createSkillId = () => `skl_${createId()}`
+export const createClassCatalogId = () => `clsc_${createId()}`
+export const createTagId = () => `tag_${createId()}`

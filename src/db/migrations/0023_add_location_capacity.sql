@@ -1,0 +1,1 @@
+ALTER TABLE `locations` ADD `capacity` integer DEFAULT 20 NOT NULL;

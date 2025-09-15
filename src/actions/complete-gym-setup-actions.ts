@@ -144,6 +144,7 @@ export const createCompleteGymSetup = createServerAction()
 				teamId,
 				name: templateName,
 				classCatalogId: classCatalog.id,
+				locationId: location.id,
 			})
 			.returning()
 

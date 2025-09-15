@@ -1,4 +1,5 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+settings.local.json
 
 # dependencies
 node_modules
@@ -8,6 +9,7 @@ node_modules
 
 # testing
 /coverage
+.playwright-mcp
 
 # next.js
 .next

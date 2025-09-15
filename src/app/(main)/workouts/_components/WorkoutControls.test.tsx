@@ -1,11 +1,23 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import WorkoutControls from "./WorkoutControls"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+const mockReplace = vi.fn()
+const mockSearchParams = new URLSearchParams()
+
+vi.mock("next/navigation", () => ({
+	useRouter: () => ({
+		replace: mockReplace,
+	}),
+	usePathname: () => "/workouts",
+	useSearchParams: () => mockSearchParams,
+}))
 
 describe("WorkoutControls", () => {
 	beforeEach(() => {
 		vi.useRealTimers()
-		globalThis.__mockReplace.mockClear()
-		globalThis.__searchParams = new URLSearchParams()
+		mockReplace.mockClear()
+		mockSearchParams.forEach((_, key) => mockSearchParams.delete(key))
 	})
 
 	it("renders search input and dropdowns", async () => {
@@ -49,8 +61,8 @@ describe("WorkoutControls", () => {
 		vi.advanceTimersByTime(500)
 
 		await waitFor(() => {
-			expect(globalThis.__mockReplace).toHaveBeenCalledTimes(3)
-			expect(globalThis.__mockReplace).toHaveBeenLastCalledWith(
+			expect(mockReplace).toHaveBeenCalledTimes(3)
+			expect(mockReplace).toHaveBeenLastCalledWith(
 				"/workouts?search=Fran&tag=tag1&movement=move1",
 				{ scroll: false },
 			)

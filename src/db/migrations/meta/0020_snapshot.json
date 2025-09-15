@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "18af3dcc-5301-4511-a8d7-b514d196367c",
-  "prevId": "309702df-10a7-41c7-8a74-a6444f549f82",
+  "id": "f51588b3-0858-4cc8-b992-a3618e72aeaf",
+  "prevId": "df3ca524-50a9-4a88-8d94-07ae755c97fa",
   "tables": {
     "credit_transaction": {
       "name": "credit_transaction",
@@ -402,7 +402,14 @@
           "name": "trackWorkoutId",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "workoutId": {
+          "name": "workoutId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "scheduledDate": {
@@ -448,6 +455,13 @@
             "scheduledDate"
           ],
           "isUnique": false
+        },
+        "scheduled_workout_instance_workout_idx": {
+          "name": "scheduled_workout_instance_workout_idx",
+          "columns": [
+            "workoutId"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -470,6 +484,19 @@
           "tableTo": "track_workout",
           "columnsFrom": [
             "trackWorkoutId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "scheduled_workout_instance_workoutId_workouts_id_fk": {
+          "name": "scheduled_workout_instance_workoutId_workouts_id_fk",
+          "tableFrom": "scheduled_workout_instance",
+          "tableTo": "workouts",
+          "columnsFrom": [
+            "workoutId"
           ],
           "columnsTo": [
             "id"
@@ -785,22 +812,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "duration_minutes": {
-          "name": "duration_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 60
-        },
-        "max_participants": {
-          "name": "max_participants",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 20
         }
       },
       "indexes": {},
@@ -820,65 +831,6 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "class_catalog_to_skills": {
-      "name": "class_catalog_to_skills",
-      "columns": {
-        "class_catalog_id": {
-          "name": "class_catalog_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "skill_id": {
-          "name": "skill_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "class_catalog_to_skills_class_catalog_id_class_catalog_id_fk": {
-          "name": "class_catalog_to_skills_class_catalog_id_class_catalog_id_fk",
-          "tableFrom": "class_catalog_to_skills",
-          "tableTo": "class_catalog",
-          "columnsFrom": [
-            "class_catalog_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "class_catalog_to_skills_skill_id_skills_id_fk": {
-          "name": "class_catalog_to_skills_skill_id_skills_id_fk",
-          "tableFrom": "class_catalog_to_skills",
-          "tableTo": "skills",
-          "columnsFrom": [
-            "skill_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "class_catalog_to_skills_class_catalog_id_skill_id_pk": {
-          "columns": [
-            "class_catalog_id",
-            "skill_id"
-          ],
-          "name": "class_catalog_to_skills_class_catalog_id_skill_id_pk"
-        }
-      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -1267,13 +1219,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "location_id": {
-          "name": "location_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "week_start_date": {
           "name": "week_start_date",
           "type": "integer",
@@ -1290,19 +1235,6 @@
           "tableTo": "team",
           "columnsFrom": [
             "team_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "generated_schedules_location_id_locations_id_fk": {
-          "name": "generated_schedules_location_id_locations_id_fk",
-          "tableFrom": "generated_schedules",
-          "tableTo": "locations",
-          "columnsFrom": [
-            "location_id"
           ],
           "columnsTo": [
             "id"
@@ -1360,14 +1292,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "capacity": {
-          "name": "capacity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 20
         }
       },
       "indexes": {},
@@ -1488,6 +1412,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "class_catalog_id": {
+          "name": "class_catalog_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "day_of_week": {
           "name": "day_of_week",
           "type": "integer",
@@ -1526,6 +1464,32 @@
           "tableTo": "schedule_templates",
           "columnsFrom": [
             "template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "schedule_template_classes_class_catalog_id_class_catalog_id_fk": {
+          "name": "schedule_template_classes_class_catalog_id_class_catalog_id_fk",
+          "tableFrom": "schedule_template_classes",
+          "tableTo": "class_catalog",
+          "columnsFrom": [
+            "class_catalog_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "schedule_template_classes_location_id_locations_id_fk": {
+          "name": "schedule_template_classes_location_id_locations_id_fk",
+          "tableFrom": "schedule_template_classes",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
           ],
           "columnsTo": [
             "id"
@@ -1583,13 +1547,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "class_catalog_id": {
-          "name": "class_catalog_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
         }
       },
       "indexes": {},
@@ -1600,19 +1557,6 @@
           "tableTo": "team",
           "columnsFrom": [
             "team_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "schedule_templates_class_catalog_id_class_catalog_id_fk": {
-          "name": "schedule_templates_class_catalog_id_class_catalog_id_fk",
-          "tableFrom": "schedule_templates",
-          "tableTo": "class_catalog",
-          "columnsFrom": [
-            "class_catalog_id"
           ],
           "columnsTo": [
             "id"
@@ -2898,7 +2842,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "results_workout_id_workouts_id_fk": {
@@ -2911,7 +2855,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -3027,7 +2971,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3148,7 +3092,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "workout_movements_movement_id_movements_id_fk": {
@@ -3161,7 +3105,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3228,7 +3172,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "workout_tags_tag_id_spicy_tags_id_fk": {
@@ -3241,7 +3185,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3359,6 +3303,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "source_workout_id": {
+          "name": "source_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -3373,7 +3324,33 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "workouts_source_track_id_programming_track_id_fk": {
+          "name": "workouts_source_track_id_programming_track_id_fk",
+          "tableFrom": "workouts",
+          "tableTo": "programming_track",
+          "columnsFrom": [
+            "source_track_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "workouts_source_workout_id_workouts_id_fk": {
+          "name": "workouts_source_workout_id_workouts_id_fk",
+          "tableFrom": "workouts",
+          "tableTo": "workouts",
+          "columnsFrom": [
+            "source_workout_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

@@ -65,7 +65,9 @@ function setup() {
 		<CreateWorkoutClient
 			tags={mockTags}
 			movements={mockMovements}
-			userId="test-user"
+			teamId="test-team"
+			ownedTracks={[]}
+			teamsWithProgrammingPermission={[]}
 			createWorkoutAction={mockCreateWorkoutAction}
 		/>,
 	)
