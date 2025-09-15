@@ -1,173 +1,357 @@
-# Cloudflare Workers SaaS Template
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/wodsmith/thewodapp)
 
-[![.github/workflows/deploy.yml](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template/actions/workflows/deploy.yml) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/wodsmith/thewodapp)
+# WODsmith
 
-# [Live Demo](https://nextjs-saas-template.agenticdev.agency/sign-up)
-# [Github Repo](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
+A comprehensive CrossFit gym management platform built with Next.js, Cloudflare Workers, and modern web technologies. WODsmith enables gyms to manage workouts, programming tracks, athlete performance tracking, and team collaboration.
 
-This is a SaaS template for Cloudflare Workers. It uses the [OpenNext](https://opennext.js.org/cloudflare) framework to build a SaaS application.
+## 🚀 Live Demo
 
-Have a look at the [project plan](./cursor-docs/project-plan.md) to get an overview of the project.
+[Visit WODsmith](https://nextjs-saas-template.agenticdev.agency/sign-up)
 
-> [!TIP]
-> This template is brought to you by 👉 [AgenticDev](https://agenticdev.agency/?ref=github-readme-nextjs-template) 👈 - where we help businesses automate operations and boost productivity through custom AI implementations. Just like this open-source project demonstrates technical excellence, we deliver:
->
-> - Process automation with LLM-powered workflows
-> - AI strategy consulting for sustainable scaling
-> - Custom SaaS development using cutting-edge stacks
->
-> Hundrets of developers already trust our codebase - Just Imagine what we could build for your business.
+## 📋 Table of Contents
 
-# Supported Features:
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+- [Development](#-development)
+- [Project Structure](#-project-structure)
+- [Database Schema](#-database-schema)
+- [Deployment](#-deployment)
+- [Testing](#-testing)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-- 🔐 Authentication with Lucia Auth
-  - 📧 Email/Password Sign In
-  - 📝 Email/Password Sign Up
-  - 🔑 WebAuthn/Passkey Authentication
-  - 🌐 Google OAuth/SSO Integration
-  - 🔄 Forgot Password Flow
-  - 🔒 Change Password
-  - ✉️ Email Verification
-  - 🗝️ Session Management with Cloudflare KV
-  - 🤖 Turnstile Captcha Integration
-  - ⚡ Rate Limiting for Auth Endpoints
-  - 🛡️ Protected Routes and Layouts
-  - 📋 Session Listing and Management
-  - 🔒 Anti-Disposable Email Protection
-- 💾 Database with Drizzle and Cloudflare D1
-  - 🏗️ Type-safe Database Operations
-  - 🔄 Automatic Migration Generation
-  - 💻 SQLite for Local Development
-  - ⚡ Efficient Data Fetching
-  - 🔍 Type-safe Queries
-- 📨 Email Service with React Email and Resend or Brevo
-  - 🎨 Beautiful Email Templates
-  - 👀 Email Preview Mode
-  - 🔧 Local Email Development Server
-  - 📬 Transactional Emails
-  - ✉️ Email Verification Flow
-  - 📱 Responsive Email Templates
-- 🚀 Deployment with Github Actions
-  - ⚙️ Automatic Deployments
-  - 🔐 Environment Variables Management
-  - 📦 Database Migrations
-  - 🔄 Comprehensive CI/CD Pipeline
-  - 🧹 Cache Purging
-  - ✅ Type Checking
-- 🎨 Modern UI
-  - 🎨 Tailwind CSS
-  - 🧩 Shadcn UI Components
-  - 🌓 Dark/Light Mode
-  - 📱 Responsive Design
-  - ⚡ Loading States and Animations
-  - 🔔 Toast Notifications
-  - ⚙️ Settings Dashboard
-  - 🏠 Landing Page
-  - ✨ Beautiful Email Templates
-  - 👤 Profile Settings Page
-  - 🎯 Form Validation States
-- 💳 Credit Billing System
-  - 💰 Credit-based Pricing Model
-  - 🔄 Monthly Credit Refresh
-  - 📊 Credit Usage Tracking
-  - 💳 Stripe Payment Integration
-  - 📜 Transaction History
-  - 📦 Credit Package Management
-  - 💸 Pay-as-you-go Model
-  - 📈 Usage Analytics
-- 👑 Admin Dashboard
-  - 👥 User Management
-- ✨ Validations with Zod and React Hook Form
-  - 🛡️ Type-safe Form Validations
-  - 🔒 Server-side Validations
-  - 🔍 Client-side Validations
-  - 🧹 Input Sanitization
-  - ⚡ Real-time Validation
-  - 🔄 Form State Management
-- 👨‍💻 Developer Experience
-  - 🧪 Local Development Setup
-  - 📘 TypeScript Support
-  - 🔍 ESLint Configuration
-  - ✨ Prettier Configuration
-  - 🔐 Type-safe Environment Variables
-  - 🏗️ Cloudflare Types Generation
-  - 🤖 AI-powered Development with Cursor
-  - 📚 Comprehensive Documentation
-  - 📐 Project Structure Best Practices
-- ⚡ Edge Computing
-  - 🌍 Global Deployment with Cloudflare Workers
-  - 🚀 Zero Cold Starts
-  - 💨 Edge Caching
-  - ⚛️ React Server Components
-  - 🖥️ Server-side Rendering
-  - 💾 Edge Database with D1
-  - 🗄️ Session Storage with KV
-  - ⚡ API Rate Limiting
-- 🏢 Multi-tenancy Support
-  - 👥 Organization Management
-  - 👤 User Roles and Permissions
-  - 🔍 Tenant Isolation
-  - 🔄 Resource Sharing Controls
-  - 📊 Per-tenant Analytics
-  - 🔐 Tenant-specific Configurations
-  - 💼 Team Collaboration Features
+## ✨ Features
 
-## Planned features (TODO):
+### Core Functionality
 
-- [ ] Update Meta SEO tags 🔍
-- [ ] Dynamic OpenGraph images 📸
-- [ ] sitemap.xml 📄
-- [ ] robots.txt 📄
-- [ ] Multi-language support (i18n) 🌐
-- [ ] Notifications 🔔
-- [ ] Webhooks 🔗
-- [ ] Track bundle size with https://www.npmjs.com/package/webpack-bundle-analyzer 📊
+#### 🏋️ Workout Management
+- Create, edit, and organize workouts with detailed components
+- Support for various workout schemes (AMRAP, For Time, EMOM, etc.)
+- Movement tracking with weightlifting, gymnastic, and monostructural categories
+- Tag system for workout categorization
+- Workout templates and cloning functionality
+- Rich text descriptions with formatting support
 
-# Running it locally
+#### 📅 Programming & Scheduling
+- Multiple programming tracks for different athlete levels
+- Drag-and-drop workout scheduling interface
+- Weekly and monthly programming views
+- Schedule templates for recurring programming patterns
+- Auto-generation of training schedules
+- Track subscriptions for athletes
 
-1. `pnpm install`
-2.  Copy `.dev.vars.example` to `.dev.vars` and fill in the values.
-3.  Copy `.env.example` to `.env` and fill in the values.
-4. `pnpm db:migrate:dev` - Creates a local SQLite database and applies migrations
-5. `pnpm dev`
-6.  Open http://localhost:3000
+#### 📊 Performance Tracking
+- Athlete workout result logging
+- Performance analytics and progress tracking
+- Personal records (PR) tracking
+- Benchmark workout comparisons
+- Historical data visualization
+- Export capabilities for athlete data
 
-## Changes to wrangler.jsonc
+#### 👥 Team Management
+- Multi-tenant architecture with team isolation
+- Role-based access control (Owner, Admin, Member, Guest)
+- Custom role creation with granular permissions
+- Team invitations and member management
+- Personal teams for individual athletes
+- Team switching and collaboration features
 
-After making a change to wrangler.jsonc, you need to run `pnpm cf-typegen` to generate the new types.
+#### 🏪 Gym Operations
+- Class scheduling and management
+- Coach assignments and scheduling
+- Equipment tracking and management
+- Gym setup and configuration
+- Member check-ins and attendance
 
-## Things to change and customize before deploying to production
-1. Go to `src/constants.ts` and update it with your project details
-2. Update the documentation in `./cursor-docs` with your project details so that Cursor AI can give you better suggestions
-3. Update the footer in `src/components/footer.tsx` with your project details and links
-4. Optional: Update the color palette in `src/app/globals.css`
-5. Update the metadata in `src/app/layout.tsx` with your project details
+#### 🧮 Utilities
+- Barbell calculator for weight loading
+- Percentage-based workout calculators
+- Spreadsheet-style workout planning
+- Movement substitution suggestions
+- Workout scaling options
 
-## Deploying to Cloudflare with Github Actions
+### Platform Features
 
-1. Create D1 and KV namespaces
-2. Set either `RESEND_API_KEY` or `BREVO_API_KEY` as a secret in your Cloudflare Worker depending on which email service you want to use.
-3. Create a Turnstile catcha in your Cloudflare account, and set the `NEXT_PUBLIC_TURNSTILE_SITE_KEY` as a Github Actions variable.
-4. Set `TURNSTILE_SECRET_KEY` as a secret in your Cloudflare Worker.
-5. Update the `wrangler.jsonc` file with the new database and KV namespaces, env variables and account id. Search for "cloudflare-workers-nextjs-saas-template" recursively in the whole repository and change that to the name of your project. Don't forget that the name you choose at the top of the wrangler.jsonc should be the same as `services->[0]->service` in the same file.
-6. Go to https://dash.cloudflare.com/profile/api-tokens and click on "Use template" next to "Edit Cloudflare Workers". On the next, page add the following permissions in addition to the ones from the template:
-    - Account:AI Gateway:Edit
-    - Account:Workers AI:Edit
-    - Account:Workers AI:Read
-    - Account:Queues:Edit
-    - Account:Vectorize:Edit
-    - Account:D1:Edit
-    - Account:Cloudflare Images:Edit
-    - Account:Workers KV Storage:Edit
-    - Zone:Cache Purge:Purge
-7. Add the API token to the Github repository secrets as `CLOUDFLARE_API_TOKEN`
-8. Add the Cloudflare account id to the Github repository variables as `CLOUDFLARE_ACCOUNT_ID`
-9. Optional: If you want clear the CDN cache on deploy, add `CLOUDFLARE_ZONE_ID` to the Github repository variables for the zone id of your domain. This is the zone id of your domain, not the account id.
-10. Push to the main branch
+#### 🔐 Authentication & Security
+- Email/Password authentication
+- Google OAuth integration
+- WebAuthn/Passkey support
+- Two-factor authentication
+- Session management with Cloudflare KV
+- Rate limiting and CAPTCHA protection
+- Secure password reset flow
+- Email verification
 
-## Email templates
-If you want to preview and edit the email templates you can:
-1. `pnpm email:dev`
-2. Open http://localhost:3001
-3. Edit the email templates in the `src/react-email` folder
-4. For inspiration you can checkout https://react.email/templates
+#### 💳 Billing & Subscriptions
+- Credit-based billing system
+- Stripe payment integration
+- Monthly credit refresh
+- Usage tracking and analytics
+- Transaction history
+- Multiple pricing tiers
+
+#### 🎨 User Interface
+- Modern, responsive design with Tailwind CSS
+- Dark/Light mode support
+- Mobile-first approach
+- Real-time updates and notifications
+- Drag-and-drop interfaces
+- Loading states and animations
+- Toast notifications
+
+#### 📧 Communication
+- Transactional email system
+- Beautiful email templates with React Email
+- Team invitations
+- Workout notifications
+- Performance summaries
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Framework:** Next.js 15.3.2 with App Router
+- **UI Library:** React 19
+- **Styling:** Tailwind CSS, Shadcn UI
+- **State Management:** Zustand, NUQS (URL state)
+- **Forms:** React Hook Form + Zod validation
+- **Calendar:** FullCalendar
+- **Drag & Drop:** Atlaskit Pragmatic Drag and Drop
+
+### Backend
+- **Runtime:** Cloudflare Workers (Edge Computing)
+- **Database:** Cloudflare D1 (SQLite)
+- **ORM:** Drizzle ORM
+- **Session Store:** Cloudflare KV
+- **Authentication:** Lucia Auth
+- **API:** Server Actions with ZSA
+
+### DevOps
+- **Deployment:** OpenNext for Cloudflare
+- **CI/CD:** GitHub Actions
+- **Type Safety:** TypeScript
+- **Code Quality:** Biome (linting & formatting)
+- **Testing:** Vitest + Testing Library
+- **Email Development:** React Email
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 22+ and pnpm
+- Cloudflare account (for production deployment)
+- Stripe account (for billing features)
+- Email service account (Resend or Brevo)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/wodsmith.git
+   cd wodsmith
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .dev.vars.example .dev.vars
+   cp .env.example .env
+   ```
+   Fill in the required values in both files.
+
+4. **Initialize the database**
+   ```bash
+   pnpm db:migrate:dev
+   pnpm db:seed  # Optional: seed with sample data
+   ```
+
+5. **Start the development server**
+   ```bash
+   pnpm dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000)
+
+## 💻 Development
+
+### Available Scripts
+
+#### Development
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm preview` - Preview production build locally
+
+#### Database
+- `pnpm db:generate [name]` - Generate new migration
+- `pnpm db:migrate:dev` - Apply migrations locally
+- `pnpm db:studio` - Open Drizzle Studio for database management
+- `pnpm db:seed` - Seed database with sample data
+
+#### Code Quality
+- `pnpm lint` - Run Biome linter
+- `pnpm format` - Format code with Biome
+- `pnpm type-check` - Run TypeScript type checking
+- `pnpm test` - Run tests with Vitest
+
+#### Email Development
+- `pnpm email:dev` - Start email template development server (port 3001)
+
+### Development Guidelines
+
+1. **Never write SQL migrations manually** - Always use `pnpm db:generate`
+2. **Use Server Components by default** - Add `use client` only when necessary
+3. **Follow the established patterns** - Check existing code for conventions
+4. **Type safety is mandatory** - No `any` types allowed
+5. **Test your changes** - Write tests for new features
+
+## 📁 Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # Authentication pages
+│   ├── (main)/            # Main application
+│   │   ├── workouts/      # Workout management
+│   │   ├── programming/   # Programming tracks
+│   │   ├── log/          # Workout logging
+│   │   ├── movements/    # Movement library
+│   │   └── calculator/   # Workout calculators
+│   ├── (admin)/          # Admin dashboard
+│   ├── (settings)/       # User settings
+│   └── api/              # API routes
+├── components/           # Reusable React components
+├── db/                   # Database configuration
+│   ├── schemas/         # Database schema definitions
+│   └── migrations/      # Auto-generated migrations
+├── server/              # Server-side business logic
+├── actions/             # Server actions (ZSA)
+├── utils/               # Utility functions
+├── state/               # Client state management (Zustand)
+├── schemas/             # Zod validation schemas
+└── react-email/         # Email templates
+```
+
+## 🗄 Database Schema
+
+The application uses a modular database schema with the following main entities:
+
+### Core Tables
+- **Users** - User accounts and authentication
+- **Teams** - Multi-tenant team management
+- **Workouts** - Workout definitions and components
+- **Movements** - Exercise movement library
+- **Programming Tracks** - Training programs
+- **Workout Results** - Athlete performance data
+- **Schedule Templates** - Recurring programming patterns
+
+### Supporting Tables
+- **Team Memberships** - User-team relationships
+- **Team Roles** - Custom roles and permissions
+- **Billing** - Credit transactions and usage
+- **Sessions** - User authentication sessions
+
+## 🚢 Deployment
+
+### Cloudflare Workers Deployment
+
+1. **Create Cloudflare resources**
+   - Create D1 database
+   - Create KV namespace for sessions
+   - Set up Turnstile for CAPTCHA
+
+2. **Configure environment variables**
+   - Set `RESEND_API_KEY` or `BREVO_API_KEY`
+   - Set `TURNSTILE_SECRET_KEY`
+   - Configure Stripe keys
+
+3. **Update wrangler.jsonc**
+   - Add your Cloudflare account ID
+   - Update database and KV namespace IDs
+   - Configure environment variables
+
+4. **Set up GitHub Actions**
+   ```bash
+   # Add to GitHub secrets
+   CLOUDFLARE_API_TOKEN=your_token
+
+   # Add to GitHub variables
+   CLOUDFLARE_ACCOUNT_ID=your_account_id
+   CLOUDFLARE_ZONE_ID=your_zone_id  # Optional
+   ```
+
+5. **Deploy**
+   ```bash
+   pnpm deploy:prod
+   ```
+
+### Environment Variables
+
+#### Required Variables
+- `DATABASE_URL` - D1 database connection
+- `KV_SESSIONS` - KV namespace for sessions
+- `TURNSTILE_SECRET_KEY` - Cloudflare Turnstile secret
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` - Turnstile site key
+- `RESEND_API_KEY` or `BREVO_API_KEY` - Email service API key
+
+#### Optional Variables
+- `STRIPE_SECRET_KEY` - Stripe API key
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook secret
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run tests with coverage
+pnpm test:coverage
+```
+
+Tests are located in the `test/` directory and use Vitest with Testing Library.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Commit Convention
+
+We use semantic commit messages:
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `chore:` - Maintenance tasks
+- `docs:` - Documentation changes
+- `test:` - Test additions or changes
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with the [Cloudflare Workers Next.js SaaS Template](https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template)
+- UI components from [Shadcn UI](https://ui.shadcn.com)
+- Drag and drop powered by [Atlaskit Pragmatic Drag and Drop](https://atlassian.design/components/pragmatic-drag-and-drop)
+
+## 📞 Support
+
+For support, please open an issue in the GitHub repository or contact the development team.
+
+---
+
+Built with ❤️ for the CrossFit community
