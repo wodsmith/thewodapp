@@ -112,21 +112,11 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 					</div>
 				</>
 			) : (
-<<<<<<< HEAD
-				<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary">
-					<BuildingOfficeIcon className="h-6 w-6" />
-					<span className="text-lg font-mono font-bold">Select Team</span>
-||||||| b7b34ab
-				<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary">
-					<Building2 className="h-6 w-6" />
-					<span className="text-lg font-mono font-bold">Select Team</span>
-=======
 				<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary w-full min-w-0">
 					<BuildingOfficeIcon className="h-6 w-6 flex-shrink-0" />
 					<span className="text-lg font-mono font-bold truncate flex-1 min-w-0">
 						Select Team
 					</span>
->>>>>>> ae9dfb438c567352f9acbec6c84df784882a8b1f
 				</div>
 			)}
 		</div>

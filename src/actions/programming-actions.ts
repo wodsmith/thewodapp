@@ -159,7 +159,7 @@ export const unsubscribeFromTrackAction = createServerAction()
 			const db = getDd()
 
 			// Deactivate subscription instead of deleting
-			const result = await db
+			const _result = await db
 				.update(teamProgrammingTracksTable)
 				.set({ isActive: 0 })
 				.where(

@@ -44,7 +44,7 @@ function parseCronExpression(cronExpression: string) {
 		)
 	}
 
-	const [minute, hour, dayOfMonth, month, dayOfWeek] = parts
+	const [minute, hour, _dayOfMonth, _month, dayOfWeek] = parts
 
 	// Parse minute
 	const minuteNum = parseInt(minute, 10)

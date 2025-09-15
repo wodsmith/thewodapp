@@ -10,7 +10,7 @@ import {
 	submitLogForm,
 	updateResult,
 } from "@/server/logs"
-import type { Workout, Set as DBSet } from "@/db/schema"
+import type { Workout } from "@/db/schema"
 import type { ResultSetInput } from "@/types"
 
 /**
