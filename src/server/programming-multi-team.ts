@@ -94,7 +94,7 @@ export async function getPublicTracksWithTeamSubscriptions(
 		if (!subscriptionsByTrack.has(sub.trackId)) {
 			subscriptionsByTrack.set(sub.trackId, [])
 		}
-		subscriptionsByTrack.get(sub.trackId)!.push({
+		subscriptionsByTrack.get(sub.trackId)?.push({
 			teamId: sub.teamId,
 			teamName: sub.teamName,
 			subscribedAt: sub.subscribedAt,
@@ -277,7 +277,7 @@ export async function getSubscriptionsByTeam(userTeamIds: string[]): Promise<
 				tracks: [],
 			})
 		}
-		result.get(sub.teamId)!.tracks.push({
+		result.get(sub.teamId)?.tracks.push({
 			trackId: sub.trackId,
 			trackName: sub.trackName,
 			trackDescription: sub.trackDescription,

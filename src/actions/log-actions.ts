@@ -67,13 +67,13 @@ export const submitLogFormAction = createServerAction()
 			userId: input.userId,
 			workoutsCount: input.workouts.length,
 			formDataKeys: Array.from(input.formData.keys()),
-			workoutIds: input.workouts.map((w: any) => w.id),
+			workoutIds: input.workouts.map((w: Workout) => w.id),
 		})
 
 		// Log the specific workout being submitted
 		const selectedWorkoutId = input.formData.get("selectedWorkoutId") as string
 		const selectedWorkout = input.workouts.find(
-			(w: any) => w.id === selectedWorkoutId,
+			(w: Workout) => w.id === selectedWorkoutId,
 		)
 
 		console.log("[submitLogFormAction] Selected workout details:", {

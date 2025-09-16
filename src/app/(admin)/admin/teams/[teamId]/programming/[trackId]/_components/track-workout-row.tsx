@@ -21,8 +21,8 @@ import { Badge } from "@/components/ui/badge"
 import type { TrackWorkout, Workout } from "@/db/schema"
 
 interface TrackWorkoutRowProps {
-	teamId: string
-	trackId: string
+	_teamId: string
+	_trackId: string
 	trackWorkout: TrackWorkout & {
 		isScheduled?: boolean
 		lastScheduledAt?: Date | null
@@ -36,8 +36,8 @@ interface TrackWorkoutRowProps {
 }
 
 export function TrackWorkoutRow({
-	teamId,
-	trackId,
+	_teamId,
+	_trackId,
 	trackWorkout,
 	workoutDetails,
 	index,

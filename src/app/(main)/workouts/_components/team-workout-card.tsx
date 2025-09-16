@@ -3,13 +3,30 @@
 import { ClockIcon, PencilIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import type { TrackWorkout, Workout } from "@/db/schema"
+import type {
+	TrackWorkout,
+	Workout,
+	Movement,
+	WorkoutMovement,
+} from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
 
+// Define types for workout with movements populated
+type WorkoutWithMovements = Workout & {
+	movements?: Array<WorkoutMovement & { movement: Movement }>
+}
+
+// Define interface for the instance object
+interface WorkoutInstance {
+	id: string
+	result?: any // Result type if needed
+	classTimes?: string
+}
+
 interface TeamWorkoutCardProps {
-	instance: any
-	workout: Workout
+	instance: WorkoutInstance
+	workout: WorkoutWithMovements
 	trackWorkout?: TrackWorkout | null
 	viewMode: ViewMode
 	index: number
@@ -92,19 +109,19 @@ export function TeamWorkoutCard({
 
 					{/* Movements Display - Enhanced for Today view */}
 					{viewMode === "daily" &&
-						(workout as any).movements &&
-						(workout as any).movements.length > 0 && (
+						workout.movements &&
+						workout.movements.length > 0 && (
 							<div className="mb-4">
 								<p className="text-sm font-semibold mb-3 uppercase tracking-wide text-muted-foreground text-left">
 									Movements
 								</p>
 								<div className="flex flex-wrap gap-2 justify-start">
-									{(workout as any).movements.map((movement: any) => (
+									{workout.movements.map((workoutMovement) => (
 										<span
-											key={movement.id}
+											key={workoutMovement.movement.id}
 											className="inline-block bg-secondary text-secondary-foreground px-3 py-1 text-sm font-medium "
 										>
-											{movement.name}
+											{workoutMovement.movement.name}
 										</span>
 									))}
 								</div>

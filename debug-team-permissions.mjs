@@ -1,5 +1,4 @@
 import { createClient } from "@libsql/client"
-import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/libsql"
 
 // This is a quick debug script to check team permissions
@@ -9,9 +8,9 @@ const client = createClient({
 	url: process.env.DATABASE_URL || "file:local.db",
 })
 
-const db = drizzle(client)
+const _db = drizzle(client)
 
-async function debugTeamPermissions(teamId, userId) {
+async function _debugTeamPermissions(teamId, userId) {
 	console.log(
 		`Debugging team permissions for teamId: ${teamId}, userId: ${userId}`,
 	)

@@ -1,7 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
-import { DrizzleD1Database } from "drizzle-orm/d1"
-import {
-	SQLiteInsertBuilder,
+import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type {
 	SQLiteInsertValue,
 	SQLiteTable,
 	TableConfig,

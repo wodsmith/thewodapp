@@ -9,48 +9,30 @@ import {
 import { Calendar, MapPin, AlertTriangle, User } from "lucide-react"
 import SlotAssignmentDialog from "./SlotAssignmentDialog"
 import { Button } from "@/components/ui/button"
-import type { ScheduleTemplate, Location, Coach } from "@/db/schemas/scheduling"
+import type {
+	ScheduleTemplate,
+	Location,
+	CoachToSkill,
+} from "@/db/schemas/scheduling"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
 
-// Type for ScheduledClass with relationships populated
-type ScheduledClassWithRelations = {
-	id: string
-	scheduleId: string
-	coachId: string | null
-	classCatalogId: string
-	locationId: string
-	startTime: Date
-	endTime: Date
-	createdAt: Date
-	updatedAt: Date
-	updateCounter: number | null
-	coach?: {
-		id: string
-		user: {
-			id: string
-			email: string
-			name?: string
-			firstName?: string
-			lastName?: string
-		}
-	} | null
-	classCatalog?: {
-		id: string
-		name: string
-		description?: string | null
-	} | null
-	location?: {
-		id: string
-		name: string
-		capacity?: number | null
-	} | null
-}
+// Type for coaches with relations - extract from ZSA response success case
+type CoachWithRelations = NonNullable<
+	NonNullable<Awaited<ReturnType<typeof getCoachesByTeam>>[0]>["data"]
+>[number]
+
+// Type for ScheduledClass with relationships populated - use actual return type from server function
+type ScheduledClassWithRelations = Awaited<
+	ReturnType<typeof getScheduledClassesForDisplay>
+>[number]
 import { format } from "date-fns"
 
 interface ScheduleGridProps {
 	scheduledClasses: ScheduledClassWithRelations[]
 	templates: ScheduleTemplate[]
 	locations: Location[]
-	coaches: Coach[]
+	coaches: CoachWithRelations[]
 	currentWeek: string
 	scheduleId: string
 	teamId: string
@@ -125,6 +107,28 @@ const ScheduleGrid = ({
 		setSelectedClass(scheduledClass)
 	}
 
+	// Transform coaches data to match CoachData interface expected by SlotAssignmentDialog
+	const transformedCoaches = useMemo(() => {
+		return coaches.map((coach) => {
+			const firstName = coach.user?.firstName
+			const lastName = coach.user?.lastName
+			const name =
+				firstName && lastName
+					? `${firstName} ${lastName}`
+					: firstName || lastName
+			return {
+				id: coach.id,
+				userId: coach.userId,
+				name: name || coach.user?.email || "Unknown Coach",
+				email: coach.user?.email || null,
+				schedulingPreference: coach.schedulingPreference,
+				schedulingNotes: coach.schedulingNotes,
+				skills:
+					coach.skills?.map((skillRel: CoachToSkill) => skillRel.skill) || [],
+			}
+		})
+	}, [coaches])
+
 	const renderScheduleSlot = (
 		location: Location,
 		day: string,
@@ -159,7 +163,15 @@ const ScheduleGrid = ({
 						{coachUser ? (
 							<div className="text-muted-foreground truncate flex items-center gap-1">
 								<User className="h-3 w-3" />
-								{coachUser.name || coachUser.email}
+								{(() => {
+									const firstName = coachUser.firstName
+									const lastName = coachUser.lastName
+									const name =
+										firstName && lastName
+											? `${firstName} ${lastName}`
+											: firstName || lastName
+									return name || coachUser.email
+								})()}
 							</div>
 						) : (
 							<div className="text-orange-600 dark:text-orange-400 font-medium">
@@ -242,7 +254,7 @@ const ScheduleGrid = ({
 					isOpen={true}
 					onClose={() => setSelectedClass(null)}
 					scheduledClass={selectedClass}
-					coaches={coaches}
+					coaches={transformedCoaches}
 					teamId={teamId}
 					onScheduleUpdate={() => {
 						setSelectedClass(null)

@@ -49,7 +49,7 @@ const GymSetup = ({
 	team,
 	teamId,
 }: Props) => {
-	const router = useRouter()
+	const _router = useRouter()
 	const [locations, setLocations] = useState(initialLocations)
 	const [skills, setSkills] = useState(initialSkills)
 	let currentSettings: { country?: string } = {}
@@ -68,7 +68,7 @@ const GymSetup = ({
 		setCountry(value)
 		try {
 			const newSettings = JSON.stringify({ ...currentSettings, country: value })
-			const [result, err] = await updateTeamExecute({
+			const [_result, err] = await updateTeamExecute({
 				teamId,
 				data: { settings: newSettings },
 			})
@@ -114,7 +114,7 @@ const GymSetup = ({
 	const { execute: deleteLocationExecute } = useServerAction(deleteLocation)
 	const handleDeleteLocation = async (id: string) => {
 		try {
-			const [result, err] = await deleteLocationExecute({ id, teamId })
+			const [_result, err] = await deleteLocationExecute({ id, teamId })
 			if (err) {
 				console.error("Error deleting location:", err)
 				return
@@ -155,7 +155,7 @@ const GymSetup = ({
 	const { execute: deleteSkillExecute } = useServerAction(deleteSkill)
 	const handleDeleteSkill = async (id: string) => {
 		try {
-			const [result, err] = await deleteSkillExecute({ id, teamId })
+			const [_result, err] = await deleteSkillExecute({ id, teamId })
 			if (err) {
 				console.error("Error deleting skill:", err)
 				return

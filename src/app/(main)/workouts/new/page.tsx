@@ -48,9 +48,7 @@ export default async function CreateWorkoutPage() {
 
 	// Get programming tracks owned by all user's teams where they have permission
 	const { getTracksOwnedByTeam } = await import("@/server/programming-tracks")
-	const { SYSTEM_ROLES_ENUM, TEAM_PERMISSIONS } = await import(
-		"@/db/schemas/teams"
-	)
+	const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
 	const { hasTeamPermission } = await import("@/utils/team-auth")
 
 	// For programming tracks, users can add to tracks if:

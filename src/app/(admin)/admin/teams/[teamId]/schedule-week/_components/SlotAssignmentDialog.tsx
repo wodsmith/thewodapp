@@ -31,46 +31,12 @@ import {
 } from "@/actions/generate-schedule-actions"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import type { inferServerActionReturnData } from "zsa"
+import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
 
-// Type for ScheduledClass with relationships populated
-type ScheduledClassWithRelations = {
-	id: string
-	scheduleId: string
-	coachId: string | null
-	classCatalogId: string
-	locationId: string
-	startTime: Date
-	endTime: Date
-	createdAt: Date
-	updatedAt: Date
-	updateCounter: number | null
-	coach?: {
-		id: string
-		user: {
-			id: string
-			email: string
-			name?: string
-			firstName?: string
-			lastName?: string
-		}
-	} | null
-	classCatalog?: {
-		id: string
-		name: string
-		description?: string | null
-	} | null
-	location?: {
-		id: string
-		name: string
-		capacity?: number | null
-	} | null
-}
-
-// Type for coaches returned from getAvailableCoachesForClassAction
-type AvailableCoachesResult = inferServerActionReturnData<
-	typeof getAvailableCoachesForClassAction
->
+// Type for ScheduledClass with relationships populated - use actual server function return type
+type ScheduledClassWithRelations = Awaited<
+	ReturnType<typeof getScheduledClassesForDisplay>
+>[number]
 
 type CoachData = {
 	id: string

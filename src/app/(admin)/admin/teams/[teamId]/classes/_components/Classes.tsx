@@ -376,7 +376,7 @@ const Classes = ({
 											size="sm"
 											className="text-red-600 hover:text-red-700 ml-4"
 											onClick={async () => {
-												const [result, err] = await deleteExecute({
+												const [_result, err] = await deleteExecute({
 													id: classItem.id,
 													teamId,
 												})

@@ -37,7 +37,7 @@ import { TrackWorkoutRow } from "./track-workout-row"
 interface TrackWorkoutManagementProps {
 	teamId: string
 	trackId: string
-	track: ProgrammingTrack
+	_track: ProgrammingTrack
 	initialTrackWorkouts: (TrackWorkout & {
 		isScheduled?: boolean
 		lastScheduledAt?: Date | null
@@ -55,7 +55,7 @@ interface TrackWorkoutManagementProps {
 export function TrackWorkoutManagement({
 	teamId,
 	trackId,
-	track,
+	_track,
 	initialTrackWorkouts,
 	userWorkouts,
 	movements,

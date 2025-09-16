@@ -33,7 +33,7 @@ interface WorkoutSelectionListProps {
 	})[]
 	movements: Movement[]
 	tags: Tag[]
-	userId: string
+	_userId: string
 	multiSelect?: boolean
 }
 
@@ -47,7 +47,7 @@ export function WorkoutSelectionList({
 	userWorkouts,
 	movements,
 	tags,
-	userId,
+	_userId,
 	multiSelect = false,
 }: WorkoutSelectionListProps) {
 	const router = useRouter()
