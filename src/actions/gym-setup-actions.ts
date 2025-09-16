@@ -6,7 +6,6 @@ import {
 	locationsTable,
 	skillsTable,
 	scheduledClassesTable,
-	scheduleTemplateClassesTable,
 	scheduleTemplatesTable,
 	coachToSkillsTable,
 	scheduleTemplateClassRequiredSkillsTable,
