@@ -76,6 +76,8 @@ export const teamTable = sqliteTable(
 		planExpiresAt: integer({ mode: "timestamp" }),
 		creditBalance: integer().default(0).notNull(),
 		defaultTrackId: text(),
+		// Default scaling group for the team
+		defaultScalingGroupId: text(),
 		// Flag to indicate if this is a personal team (created automatically for each user)
 		isPersonalTeam: integer().default(0).notNull(),
 		// For personal teams, store the owner user ID

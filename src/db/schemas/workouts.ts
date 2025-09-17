@@ -86,6 +86,7 @@ export const workouts = sqliteTable(
 			},
 		),
 		sourceWorkoutId: text("source_workout_id"),
+		scalingGroupId: text("scaling_group_id"), // Optional scaling group for this workout
 	},
 	(workouts) => ({
 		sourceWorkoutSelfRef: foreignKey({

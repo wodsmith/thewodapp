@@ -36,3 +36,6 @@ export const createLocationId = () => `loc_${createId()}`
 export const createSkillId = () => `skl_${createId()}`
 export const createClassCatalogId = () => `clsc_${createId()}`
 export const createTagId = () => `tag_${createId()}`
+export const createScalingGroupId = () => `sgrp_${createId()}`
+export const createScalingLevelId = () => `slvl_${createId()}`
+export const createWorkoutScalingDescriptionId = () => `wsd_${createId()}`
