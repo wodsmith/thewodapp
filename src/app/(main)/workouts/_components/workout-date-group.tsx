@@ -12,7 +12,9 @@ type ViewMode = "daily" | "weekly"
 interface WorkoutInstance {
 	id: string
 	result?: any
-	classTimes?: string
+	classTimes?: string | null
+	teamSpecificNotes?: string | null
+	scalingGuidanceForDay?: string | null
 }
 
 interface WorkoutDateGroupProps {

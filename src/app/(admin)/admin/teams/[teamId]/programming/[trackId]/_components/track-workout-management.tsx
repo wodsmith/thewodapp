@@ -546,8 +546,8 @@ export function TrackWorkoutManagement({
 							return (
 								<TrackWorkoutRow
 									key={trackWorkout.id}
-									teamId={teamId}
-									trackId={trackId}
+									_teamId={teamId}
+									_trackId={trackId}
 									trackWorkout={trackWorkout}
 									workoutDetails={workoutDetails}
 									index={index}

@@ -107,7 +107,10 @@ const CreateScheduleDialog = ({
 						error,
 					)
 					failureCount++
-					if (!error.message?.includes("already exists")) {
+					if (
+						!(error instanceof Error) ||
+						!error.message?.includes("already exists")
+					) {
 						toast.error(
 							`Failed to create schedule for ${locations.find((l) => l.id === locationId)?.name || "location"}`,
 						)

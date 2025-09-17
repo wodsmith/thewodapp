@@ -22,6 +22,20 @@ type CoachWithRelations = NonNullable<
 	NonNullable<Awaited<ReturnType<typeof getCoachesByTeam>>[0]>["data"]
 >[number]
 
+// Type for coach skills with populated skill relation
+type CoachSkillWithRelation = {
+	coachId: string
+	skillId: string
+	skill: {
+		id: string
+		name: string
+		teamId: string
+		createdAt: Date
+		updatedAt: Date
+		updateCounter: number | null
+	}
+}
+
 // Type for ScheduledClass with relationships populated - use actual return type from server function
 type ScheduledClassWithRelations = Awaited<
 	ReturnType<typeof getScheduledClassesForDisplay>
@@ -124,7 +138,9 @@ const ScheduleGrid = ({
 				schedulingPreference: coach.schedulingPreference,
 				schedulingNotes: coach.schedulingNotes,
 				skills:
-					coach.skills?.map((skillRel: CoachToSkill) => skillRel.skill) || [],
+					coach.skills?.map(
+						(skillRel: CoachSkillWithRelation) => skillRel.skill,
+					) || [],
 			}
 		})
 	}, [coaches])

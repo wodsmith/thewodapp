@@ -21,7 +21,9 @@ type WorkoutWithMovements = Workout & {
 interface WorkoutInstance {
 	id: string
 	result?: any // Result type if needed
-	classTimes?: string
+	classTimes?: string | null
+	teamSpecificNotes?: string | null
+	scalingGuidanceForDay?: string | null
 }
 
 interface TeamWorkoutCardProps {

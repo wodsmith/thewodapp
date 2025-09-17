@@ -146,7 +146,7 @@ export default async function TrackWorkoutPage({
 						<TrackWorkoutManagement
 							teamId={team.id}
 							trackId={trackId}
-							track={track}
+							_track={track}
 							initialTrackWorkouts={trackWorkouts}
 							userWorkouts={userWorkouts}
 							movements={movements}
