@@ -118,14 +118,17 @@ export function TeamWorkoutCard({
 									Movements
 								</p>
 								<div className="flex flex-wrap gap-2 justify-start">
-									{workout.movements.map((workoutMovement) => (
-										<span
-											key={workoutMovement.movement.id}
-											className="inline-block bg-secondary text-secondary-foreground px-3 py-1 text-sm font-medium "
-										>
-											{workoutMovement.movement.name}
-										</span>
-									))}
+									{workout?.movements?.map(
+										(workoutMovement) =>
+											workoutMovement?.movement?.name && (
+												<span
+													key={workoutMovement.movement.id}
+													className="inline-block bg-secondary text-secondary-foreground px-3 py-1 text-sm font-medium "
+												>
+													{workoutMovement.movement.name}
+												</span>
+											),
+									)}
 								</div>
 							</div>
 						)}
