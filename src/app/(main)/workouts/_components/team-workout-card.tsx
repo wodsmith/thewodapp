@@ -51,7 +51,7 @@ export function TeamWorkoutCard({
 				className={`flex flex-col w-full ${
 					viewMode === "daily"
 						? "h-full items-start"
-						: "sm:flex-row sm:items-start sm:justify-between items-start"
+						: "sm:items-start sm:justify-between items-start"
 				}`}
 			>
 				<div className="flex-1 text-left">
@@ -60,7 +60,7 @@ export function TeamWorkoutCard({
 							className={`font-bold hover:underline text-left ${
 								viewMode === "daily"
 									? "text-2xl mb-3 leading-tight"
-									: "text-lg mb-2"
+									: "text-lg mb-2 min-w-[45ch] max-w-[75ch]"
 							}`}
 						>
 							{workout.name}
@@ -94,10 +94,10 @@ export function TeamWorkoutCard({
 
 					{workout.description && (
 						<p
-							className={`text-muted-foreground mb-3 text-left ${
+							className={`text-muted-foreground mb-3 text-left whitespace-pre-wrap ${
 								viewMode === "daily"
 									? "text-base whitespace-pre-wrap line-clamp-[12]"
-									: "text-sm line-clamp-2"
+									: "text-sm line-clamp-3"
 							}`}
 						>
 							{workout.description}
@@ -255,15 +255,15 @@ export function TeamWorkoutCard({
 						) : (
 							// Weekly view - compact result display
 							<div className="space-y-2">
-								<div className="flex items-center gap-2">
-									<div className="flex-1 bg-green-50 dark:bg-green-950/20 border border-green-500  px-3 py-2">
-										<div className="flex items-center justify-between">
+								<div className="flex items-center gap-2 w-fit">
+									<div className="flex-1 bg-green-50 dark:bg-green-950/20 border border-green-500  px-3 py-2 ">
+										<div className="flex items-center">
 											<div className="flex items-center gap-2">
 												<span className="text-sm font-semibold text-green-700 dark:text-green-300">
 													✓ {result.wodScore || "Completed"}
 												</span>
 												{result.scale && (
-													<span className="px-1.5 py-0.5 text-xs font-medium bg-green-600 text-white ">
+													<span className="px-1.5 py-0.5 text-xs font-medium bg-green-600 text-white w-fit">
 														{result.scale.toUpperCase()}
 													</span>
 												)}
