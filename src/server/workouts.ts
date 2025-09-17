@@ -502,9 +502,10 @@ export async function createWorkout({
 	movementIds,
 	teamId,
 }: {
-	workout: Omit<Workout, "id" | "updatedAt" | "updateCounter" | "teamId"> & {
-		createdAt: Date
-	}
+	workout: Omit<
+		Workout,
+		"id" | "createdAt" | "updatedAt" | "updateCounter" | "teamId"
+	>
 	tagIds: string[]
 	movementIds: string[]
 	teamId: string
@@ -527,8 +528,7 @@ export async function createWorkout({
 				tiebreakScheme: workout.tiebreakScheme,
 				secondaryScheme: workout.secondaryScheme,
 				teamId,
-				createdAt: workout.createdAt,
-				updatedAt: new Date(),
+				// Let database defaults handle timestamps
 				updateCounter: 0,
 			})
 			.returning()
@@ -959,8 +959,7 @@ export async function createWorkoutRemix({
 			secondaryScheme: sourceWorkout.secondaryScheme,
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 			updateCounter: 0,
 		})
 		.returning()
@@ -1125,8 +1124,7 @@ export async function createProgrammingTrackWorkoutRemix({
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
 			sourceTrackId, // Reference to the original programming track
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 			updateCounter: 0,
 		})
 		.returning()

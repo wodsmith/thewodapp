@@ -235,7 +235,6 @@ export const createWorkoutAction = createServerAction()
 				tagIds: finalTagIds,
 				workout: {
 					...input.workout,
-					createdAt: new Date(),
 					sourceTrackId: null,
 					sourceWorkoutId: null,
 				},
@@ -257,20 +256,25 @@ export const createWorkoutAction = createServerAction()
 					"@/server/scheduling-service"
 				)
 
+				// Normalize the date to noon UTC to avoid timezone boundary issues
+				// This ensures the date remains stable across all timezones
+				const normalizedDate = new Date(input.scheduledDate)
+				normalizedDate.setUTCHours(12, 0, 0, 0)
+
 				if (trackWorkoutId) {
 					// Schedule as part of a track
 					await scheduleWorkoutForTeam({
 						teamId: input.teamId,
 						trackWorkoutId,
 						workoutId: workout.id,
-						scheduledDate: input.scheduledDate,
+						scheduledDate: normalizedDate,
 					})
 				} else {
 					// Schedule as standalone workout
 					await scheduleStandaloneWorkoutForTeam({
 						teamId: input.teamId,
 						workoutId: workout.id,
-						scheduledDate: input.scheduledDate,
+						scheduledDate: normalizedDate,
 					})
 				}
 			}
@@ -352,10 +356,15 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 				"@/server/scheduling-service"
 			)
 
+			// Normalize the date to noon UTC to avoid timezone boundary issues
+			// This ensures the date remains stable across all timezones
+			const normalizedDate = new Date(input.scheduledDate)
+			normalizedDate.setUTCHours(12, 0, 0, 0)
+
 			await scheduleStandaloneWorkoutForTeam({
 				teamId: input.teamId,
 				workoutId: input.workoutId,
-				scheduledDate: input.scheduledDate,
+				scheduledDate: normalizedDate,
 			})
 
 			revalidatePath(`/workouts/${input.workoutId}`)

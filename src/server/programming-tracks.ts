@@ -55,8 +55,7 @@ export async function createProgrammingTrack(
 			type: data.type,
 			ownerTeamId: data.ownerTeamId,
 			isPublic: data.isPublic ? 1 : 0,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 		})
 		.returning()
 
@@ -171,8 +170,7 @@ export async function addWorkoutToTrack(
 			dayNumber: dayNumber,
 			weekNumber: data.weekNumber,
 			notes: data.notes,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 		})
 		.returning()
 
@@ -283,8 +281,7 @@ export async function assignTrackToTeam(
 			teamId,
 			trackId,
 			isActive: isActive ? 1 : 0,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 		})
 		.returning()
 	return created

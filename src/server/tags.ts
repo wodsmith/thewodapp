@@ -46,8 +46,7 @@ export async function findOrCreateTag(tagName: string) {
 		.values({
 			id: createTagId(),
 			name: tagName,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 			updateCounter: 0,
 		})
 		.returning()

@@ -412,8 +412,8 @@ export function TrackWorkoutManagement({
 						weekNumber: null,
 						notes: null,
 						updateCounter: null,
-						createdAt: new Date(),
-						updatedAt: new Date(),
+						createdAt: null as any, // Temporary UI object
+						updatedAt: null as any, // Temporary UI object
 					}
 					setOptimisticTrackWorkouts({
 						type: "add",
