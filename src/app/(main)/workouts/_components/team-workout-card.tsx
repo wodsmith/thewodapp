@@ -3,18 +3,13 @@
 import { ClockIcon, PencilIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import type {
-	TrackWorkout,
-	Workout,
-	Movement,
-	WorkoutMovement,
-} from "@/db/schema"
+import type { TrackWorkout, Workout } from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
 
 // Define types for workout with movements populated
 type WorkoutWithMovements = Workout & {
-	movements?: Array<WorkoutMovement & { movement: Movement }>
+	movements?: Array<{ id: string; name: string; type: string }>
 }
 
 // Define interface for the instance object
@@ -119,13 +114,13 @@ export function TeamWorkoutCard({
 								</p>
 								<div className="flex flex-wrap gap-2 justify-start">
 									{workout?.movements?.map(
-										(workoutMovement) =>
-											workoutMovement?.movement?.name && (
+										(movement) =>
+											movement?.name && (
 												<span
-													key={workoutMovement.movement.id}
+													key={movement.id}
 													className="inline-block bg-secondary text-secondary-foreground px-3 py-1 text-sm font-medium "
 												>
-													{workoutMovement.movement.name}
+													{movement.name}
 												</span>
 											),
 									)}
