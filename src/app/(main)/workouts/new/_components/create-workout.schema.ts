@@ -27,6 +27,7 @@ export const createWorkoutSchema = z.object({
 	trackId: z.string().optional(),
 	scheduledDate: z.date().optional(),
 	selectedTeamId: z.string().optional(),
+	scalingGroupId: z.string().optional(),
 })
 
 export type CreateWorkoutSchema = z.infer<typeof createWorkoutSchema>

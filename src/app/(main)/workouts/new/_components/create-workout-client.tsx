@@ -4,15 +4,17 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft, Plus, CalendarIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
 import { createWorkoutAction } from "@/actions/workout-actions"
+import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import {
 	type CreateWorkoutSchema,
 	createWorkoutSchema,
 } from "@/app/(main)/workouts/new/_components/create-workout.schema"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -47,6 +49,16 @@ import type {
 	TeamMembership,
 } from "@/db/schema"
 
+interface ScalingGroupWithTeam {
+	id: string
+	title: string
+	description: string | null
+	teamId: string | null
+	teamName: string
+	isSystem: number
+	isDefault: number
+}
+
 interface Props {
 	movements: Movement[]
 	tags: Tag[]
@@ -55,6 +67,7 @@ interface Props {
 	teamsWithProgrammingPermission: (TeamMembership & {
 		team: { id: string; name: string; isPersonalTeam: number } | null
 	})[]
+	scalingGroups?: ScalingGroupWithTeam[]
 	createWorkoutAction?: typeof createWorkoutAction
 }
 
@@ -64,10 +77,19 @@ export default function CreateWorkoutClient({
 	teamId,
 	ownedTracks,
 	teamsWithProgrammingPermission,
+	scalingGroups = [],
 	createWorkoutAction: createWorkoutActionProp,
 }: Props) {
 	const [tags, setTags] = useState<Tag[]>(initialTags)
 	const [newTag, setNewTag] = useState("")
+	const [selectedGroupLevels, setSelectedGroupLevels] = useState<
+		Array<{
+			id: string
+			label: string
+			position: number
+			description: string | null
+		}>
+	>([])
 	const router = useRouter()
 
 	const form = useForm<CreateWorkoutSchema>({
@@ -87,6 +109,7 @@ export default function CreateWorkoutClient({
 				teamsWithProgrammingPermission.length > 0
 					? teamsWithProgrammingPermission[0]?.teamId
 					: undefined,
+			scalingGroupId: undefined,
 		},
 	})
 
@@ -111,6 +134,39 @@ export default function CreateWorkoutClient({
 			},
 		},
 	)
+
+	const { execute: fetchScalingLevels } = useServerAction(
+		getScalingGroupWithLevelsAction,
+		{
+			onError: (error) => {
+				console.error("Error fetching scaling levels:", error)
+			},
+		},
+	)
+
+	// Watch for scaling group selection changes
+	const selectedScalingGroupId = form.watch("scalingGroupId")
+
+	useEffect(() => {
+		if (selectedScalingGroupId && selectedScalingGroupId !== "") {
+			// Find the selected group's team ID
+			const selectedGroup = scalingGroups.find(
+				(g) => g.id === selectedScalingGroupId,
+			)
+			if (selectedGroup) {
+				fetchScalingLevels({
+					groupId: selectedScalingGroupId,
+					teamId: selectedGroup.teamId || teamId,
+				}).then((result) => {
+					if (result?.[0]?.success && result[0].data?.levels) {
+						setSelectedGroupLevels(result[0].data.levels)
+					}
+				})
+			}
+		} else {
+			setSelectedGroupLevels([])
+		}
+	}, [selectedScalingGroupId, fetchScalingLevels, scalingGroups, teamId])
 
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
@@ -178,6 +234,7 @@ export default function CreateWorkoutClient({
 				repsPerRound: data.repsPerRound ?? null,
 				sugarId: null,
 				tiebreakScheme: null,
+				scalingGroupId: data.scalingGroupId || null,
 				secondaryScheme: null,
 			},
 			tagIds: existingTagIds,
@@ -300,6 +357,78 @@ export default function CreateWorkoutClient({
 												<SelectItem value="public">Public</SelectItem>
 											</SelectContent>
 										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="scalingGroupId"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="font-bold uppercase">
+											Scaling Group (Optional)
+										</FormLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select a scaling group" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value="">None (Use default)</SelectItem>
+												{scalingGroups.length === 0 ? (
+													<SelectItem value="no-groups" disabled>
+														No scaling groups available
+													</SelectItem>
+												) : (
+													scalingGroups.map((group) => (
+														<SelectItem key={group.id} value={group.id}>
+															{group.title}
+															{teamsWithProgrammingPermission.length > 1 &&
+																group.teamName && (
+																	<span className="text-muted-foreground ml-2">
+																		({group.teamName})
+																	</span>
+																)}
+															{group.isDefault === 1 && (
+																<span className="text-muted-foreground ml-2">
+																	(Team Default)
+																</span>
+															)}
+														</SelectItem>
+													))
+												)}
+											</SelectContent>
+										</Select>
+										{field.value && (
+											<div className="mt-2 space-y-2">
+												<p className="text-sm text-muted-foreground">
+													This scaling group will be used for this workout
+													instead of the track or team default.
+												</p>
+												{selectedGroupLevels.length > 0 && (
+													<div className="space-y-1">
+														<p className="text-sm font-medium">
+															Scaling Levels:
+														</p>
+														<div className="flex flex-wrap gap-2">
+															{selectedGroupLevels.map((level) => (
+																<Badge key={level.id} variant="secondary">
+																	{level.label}
+																	{level.description && (
+																		<span className="ml-1 text-xs text-muted-foreground">
+																			({level.description})
+																		</span>
+																	)}
+																</Badge>
+															))}
+														</div>
+													</div>
+												)}
+											</div>
+										)}
 										<FormMessage />
 									</FormItem>
 								)}
