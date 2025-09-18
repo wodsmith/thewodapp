@@ -87,7 +87,6 @@ export default function CreateWorkoutClient({
 			id: string
 			label: string
 			position: number
-			description: string | null
 		}>
 	>([])
 	const router = useRouter()
@@ -164,7 +163,6 @@ export default function CreateWorkoutClient({
 								id: level.id,
 								label: level.label,
 								position: level.position,
-								description: level.description || null,
 							})),
 						)
 					}
@@ -424,11 +422,6 @@ export default function CreateWorkoutClient({
 															{selectedGroupLevels.map((level) => (
 																<Badge key={level.id} variant="secondary">
 																	{level.label}
-																	{level.description && (
-																		<span className="ml-1 text-xs text-muted-foreground">
-																			({level.description})
-																		</span>
-																	)}
 																</Badge>
 															))}
 														</div>
