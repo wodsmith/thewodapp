@@ -3,6 +3,7 @@ export interface ProgrammingTrack {
 	name: string
 	description: string | null
 	type: string
+	scalingGroupId?: string | null
 }
 
 export interface TrackWorkout {
@@ -16,6 +17,7 @@ export interface TrackWorkout {
 		name: string
 		description: string
 		scheme: string
+		scalingGroupId?: string | null
 	}
 }
 
@@ -56,6 +58,7 @@ export interface ScheduledWorkoutWithDetails {
 		name: string
 		description: string
 		scheme: string
+		scalingGroupId?: string | null
 	}
 }
 

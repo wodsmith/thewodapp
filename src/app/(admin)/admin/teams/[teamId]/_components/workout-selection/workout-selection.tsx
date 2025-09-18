@@ -4,6 +4,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { ScalingMismatchIndicator } from "@/components/scaling/scaling-mismatch-indicator"
 import {
 	type ProgrammingTrack,
 	STANDALONE_TRACK_ID,
@@ -118,24 +119,45 @@ export function WorkoutSelection({
 							onClick={() => handleWorkoutSelect(trackWorkout)}
 						>
 							<CardHeader className="pb-2">
-								<CardTitle className="text-sm">
-									{trackWorkout.workout?.name}
-								</CardTitle>
-								{trackWorkout.workout && (
-									<CardDescription className="text-xs">
-										{trackWorkout.workout.name} ({trackWorkout.workout.scheme})
-									</CardDescription>
-								)}
-								{trackWorkout.workout?.description && (
-									<CardDescription className="text-xs line-clamp-3">
-										{trackWorkout.workout.description}
-									</CardDescription>
-								)}
-								{trackWorkout.notes && (
-									<CardDescription className="text-xs line-clamp-3">
-										{trackWorkout.notes}
-									</CardDescription>
-								)}
+								<div className="flex items-start justify-between gap-2">
+									<div className="flex-1 min-w-0">
+										<CardTitle className="text-sm">
+											{trackWorkout.workout?.name}
+										</CardTitle>
+										{trackWorkout.workout && (
+											<CardDescription className="text-xs">
+												{trackWorkout.workout.name} (
+												{trackWorkout.workout.scheme})
+											</CardDescription>
+										)}
+										{trackWorkout.workout?.description && (
+											<CardDescription className="text-xs line-clamp-3">
+												{trackWorkout.workout.description}
+											</CardDescription>
+										)}
+										{trackWorkout.notes && (
+											<CardDescription className="text-xs line-clamp-3">
+												{trackWorkout.notes}
+											</CardDescription>
+										)}
+									</div>
+									{trackWorkout.workout && selectedTrack && (
+										<ScalingMismatchIndicator
+											workout={{
+												id: trackWorkout.workout.id,
+												name: trackWorkout.workout.name,
+												scalingGroupId:
+													trackWorkout.workout.scalingGroupId ?? null,
+											}}
+											track={{
+												id: selectedTrack.id,
+												name: selectedTrack.name,
+												scalingGroupId: selectedTrack.scalingGroupId ?? null,
+											}}
+											variant="badge"
+										/>
+									)}
+								</div>
 							</CardHeader>
 						</Card>
 					))}

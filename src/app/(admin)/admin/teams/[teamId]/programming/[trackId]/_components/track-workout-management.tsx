@@ -31,6 +31,7 @@ import {
 	reorderTrackWorkoutsAction,
 	updateTrackWorkoutAction,
 } from "../../../_actions/programming-track-actions"
+import { alignWorkoutScalingWithTrackAction } from "@/actions/workout-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
 import { TrackWorkoutRow } from "./track-workout-row"
 
@@ -555,10 +556,36 @@ export function TrackWorkoutManagement({
 									instanceId={instanceId}
 									canEdit={true}
 									onAlignScaling={async (workoutId) => {
-										console.log(
-											`Align scaling for workout ${workoutId} with track ${trackId}`,
-										)
-										// TODO: Implement the actual alignment action
+										try {
+											const [result, error] =
+												await alignWorkoutScalingWithTrackAction({
+													workoutId,
+													trackId,
+													teamId,
+												})
+
+											if (error) {
+												toast.error(
+													error.message || "Failed to align workout scaling",
+												)
+												return
+											}
+
+											if (result?.success) {
+												toast.success(
+													result.message ||
+														"Workout scaling aligned with track",
+												)
+
+												// Trigger a refresh of the track workouts to show updated scaling
+												// The optimistic update isn't ideal here since we're creating remixes
+												// so we'll just reload the page data
+												window.location.reload()
+											}
+										} catch (error) {
+											console.error("Failed to align workout scaling:", error)
+											toast.error("Failed to align workout scaling with track")
+										}
 									}}
 								/>
 							)

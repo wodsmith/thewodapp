@@ -661,6 +661,135 @@ export const getUserTeamsAction = createServerAction()
 	})
 
 /**
+ * Align workout scaling group with track scaling group
+ */
+export const alignWorkoutScalingWithTrackAction = createServerAction()
+	.input(
+		z.object({
+			workoutId: z.string().min(1, "Workout ID is required"),
+			trackId: z.string().min(1, "Track ID is required"),
+			teamId: z.string().min(1, "Team ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "Authentication required")
+			}
+
+			// Check team membership
+			const isMember = await isTeamMember(input.teamId)
+			if (!isMember) {
+				throw new ZSAError("FORBIDDEN", "User must be a member of this team")
+			}
+
+			// Get the track's scaling group
+			const { getProgrammingTrackById } = await import(
+				"@/server/programming-tracks"
+			)
+			const track = await getProgrammingTrackById(input.trackId)
+			if (!track) {
+				throw new ZSAError("NOT_FOUND", "Programming track not found")
+			}
+
+			// Check if the user can edit the workout
+			const workout = await getWorkoutById(input.workoutId)
+			if (!workout) {
+				throw new ZSAError("NOT_FOUND", "Workout not found")
+			}
+
+			const canEdit = await canUserEditWorkout(input.workoutId)
+
+			if (canEdit) {
+				// User can edit the workout directly - but we need to handle scalingGroupId properly
+				// For now, we'll create a remix since updateWorkout doesn't support scalingGroupId yet
+				const remixResult = await createProgrammingTrackWorkoutRemix({
+					sourceWorkoutId: input.workoutId,
+					sourceTrackId: input.trackId,
+					teamId: input.teamId,
+				})
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Now we need to directly update the database since the updateWorkout function
+				// doesn't support scalingGroupId yet
+				const db = (await import("@/db")).getDd()
+				const { workouts } = await import("@/db/schema")
+				const { eq } = await import("drizzle-orm")
+
+				await db
+					.update(workouts)
+					.set({ scalingGroupId: track.scalingGroupId })
+					.where(eq(workouts.id, remixResult.id))
+
+				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+
+				return {
+					success: true,
+					action: "remixed",
+					data: remixResult,
+					message: "Workout scaling aligned with track",
+				}
+			} else if (await shouldCreateRemix(input.workoutId)) {
+				// Create a remix for this team
+				const remixResult = await createProgrammingTrackWorkoutRemix({
+					sourceWorkoutId: input.workoutId,
+					sourceTrackId: input.trackId,
+					teamId: input.teamId,
+				})
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Update the remix with the track's scaling group
+				const db = (await import("@/db")).getDd()
+				const { workouts } = await import("@/db/schema")
+				const { eq } = await import("drizzle-orm")
+
+				await db
+					.update(workouts)
+					.set({ scalingGroupId: track.scalingGroupId })
+					.where(eq(workouts.id, remixResult.id))
+
+				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+
+				return {
+					success: true,
+					action: "remixed",
+					data: remixResult,
+					message: "Workout remix created with aligned scaling",
+				}
+			} else {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to modify this workout",
+				)
+			}
+		} catch (error) {
+			console.error("Failed to align workout scaling with track:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to align workout scaling with track",
+			)
+		}
+	})
+
+/**
  * Get scheduled workouts for a team within a date range
  */
 export const getScheduledTeamWorkoutsAction = createServerAction()
