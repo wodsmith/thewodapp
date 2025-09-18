@@ -550,8 +550,16 @@ export function TrackWorkoutManagement({
 									_trackId={trackId}
 									trackWorkout={trackWorkout}
 									workoutDetails={workoutDetails}
+									track={_track}
 									index={index}
 									instanceId={instanceId}
+									canEdit={true}
+									onAlignScaling={async (workoutId) => {
+										console.log(
+											`Align scaling for workout ${workoutId} with track ${trackId}`,
+										)
+										// TODO: Implement the actual alignment action
+									}}
 								/>
 							)
 						})}
