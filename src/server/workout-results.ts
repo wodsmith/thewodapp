@@ -1,8 +1,12 @@
 import "server-only"
 import { and, eq, gte, lte } from "drizzle-orm"
 import { getDd } from "@/db"
-import { results, sets } from "@/db/schema"
-import type { ResultSet, WorkoutResult } from "@/types"
+import { results, sets, scalingLevelsTable } from "@/db/schema"
+import type {
+	ResultSet,
+	WorkoutResult,
+	WorkoutResultWithWorkoutName,
+} from "@/types"
 
 /**
  * Get workout results by workout ID and user ID
@@ -107,6 +111,76 @@ export async function getWorkoutResultForScheduledInstance(
 			error,
 		)
 		return null
+	}
+}
+
+/**
+ * Get workout results with scaling label information by workout ID and user ID
+ */
+export async function getWorkoutResultsWithScaling(
+	workoutId: string,
+	userId: string,
+): Promise<
+	Array<
+		WorkoutResult & {
+			scalingLevelLabel?: string
+			scalingLevelPosition?: number
+		}
+	>
+> {
+	const db = getDd()
+	console.log(
+		`Fetching workout results with scaling for workoutId: ${workoutId}, userId: ${userId}`,
+	)
+	try {
+		const workoutResultsData = await db
+			.select({
+				id: results.id,
+				userId: results.userId,
+				date: results.date,
+				workoutId: results.workoutId,
+				type: results.type,
+				notes: results.notes,
+				scale: results.scale,
+				scalingLevelId: results.scalingLevelId,
+				asRx: results.asRx,
+				scalingLevelLabel: scalingLevelsTable.label,
+				scalingLevelPosition: scalingLevelsTable.position,
+				wodScore: results.wodScore,
+				setCount: results.setCount,
+				distance: results.distance,
+				time: results.time,
+				createdAt: results.createdAt,
+				updatedAt: results.updatedAt,
+				updateCounter: results.updateCounter,
+				programmingTrackId: results.programmingTrackId,
+				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
+			})
+			.from(results)
+			.leftJoin(
+				scalingLevelsTable,
+				eq(results.scalingLevelId, scalingLevelsTable.id),
+			)
+			.where(
+				and(
+					eq(results.workoutId, workoutId),
+					eq(results.userId, userId),
+					eq(results.type, "wod"),
+				),
+			)
+			.orderBy(results.date)
+
+		console.log(
+			`Found ${workoutResultsData.length} results with scaling information.`,
+		)
+		return workoutResultsData.map((result) => ({
+			...result,
+			scalingLevelLabel: result.scalingLevelLabel || undefined,
+			scalingLevelPosition: result.scalingLevelPosition ?? undefined,
+		}))
+	} catch (error) {
+		console.error("Error fetching workout results with scaling:", error)
+		return []
 	}
 }
 

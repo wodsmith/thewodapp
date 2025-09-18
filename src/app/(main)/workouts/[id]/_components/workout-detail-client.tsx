@@ -33,9 +33,11 @@ import type {
 import { SetDetails } from "./set-details"
 import { WorkoutLastScheduled } from "./workout-last-scheduled"
 
-// Define a new type for results with their sets
+// Define a new type for results with their sets and scaling labels
 export type WorkoutResultWithSets = WorkoutResult & {
 	sets: ResultSet[] | null
+	scalingLevelLabel?: string
+	scalingLevelPosition?: number
 }
 
 export default function WorkoutDetailClient({
@@ -316,11 +318,17 @@ export default function WorkoutDetailClient({
 												)}
 											</div>
 											<div className="flex items-center gap-2">
-												{result.scale && (
+												{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
+												{result.scalingLevelLabel ? (
+													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
+														{result.scalingLevelLabel}
+														{result.asRx && " (Rx)"}
+													</span>
+												) : result.scale ? (
 													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
 														{result.scale}
 													</span>
-												)}
+												) : null}
 												<Button
 													asChild
 													variant="outline"

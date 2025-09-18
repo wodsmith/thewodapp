@@ -35,11 +35,20 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
 					{logEntry.setCount && logEntry.setCount > 1 && (
 						<Badge variant="outline">Sets: {logEntry.setCount}</Badge>
 					)}
-					{logEntry.scale && (
+					{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
+					{logEntry.scalingLevelLabel ? (
+						<Badge
+							variant={logEntry.asRx ? "default" : "secondary"}
+							className="gap-1"
+						>
+							{logEntry.scalingLevelLabel}
+							{logEntry.asRx && " (Rx)"}
+						</Badge>
+					) : logEntry.scale ? (
 						<Badge variant={logEntry.scale}>
 							{logEntry.scale.toUpperCase()}
 						</Badge>
-					)}
+					) : null}
 				</ListItem.Meta>
 
 				<ListItem.Actions>

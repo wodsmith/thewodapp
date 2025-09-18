@@ -70,6 +70,9 @@ type ResultSummary = {
 	date: Date
 	wodScore: string | null
 	scale: string | null
+	scalingLevelLabel?: string
+	scalingLevelPosition?: number
+	asRx?: boolean
 }
 
 interface WorkoutRowCardProps {
@@ -237,7 +240,13 @@ export default function WorkoutRowCard({
 						{displayResult && (
 							<div className="flex items-center gap-2 text-sm">
 								<span className="font-semibold">{displayResult.wodScore}</span>
-								{displayResult.scale &&
+								{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
+								{displayResult.scalingLevelLabel ? (
+									<Badge variant={displayResult.asRx ? "default" : "secondary"}>
+										{displayResult.scalingLevelLabel}
+										{displayResult.asRx && " (Rx)"}
+									</Badge>
+								) : displayResult.scale ? (
 									(() => {
 										const badgeVariant: "rx" | "rx+" | "scaled" | "secondary" =
 											displayResult.scale === "rx" ||
@@ -250,7 +259,8 @@ export default function WorkoutRowCard({
 												{displayResult.scale.toUpperCase()}
 											</Badge>
 										)
-									})()}
+									})()
+								) : null}
 							</div>
 						)}
 						<div className="flex items-center gap-2 w-full sm:w-auto">
