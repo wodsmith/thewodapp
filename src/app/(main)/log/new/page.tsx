@@ -100,14 +100,32 @@ export default async function LogNewResultPage({
 		allWorkouts = [workoutWithResults, ...result.data]
 	}
 
+	// Get track scaling group if we have a programming track ID
+	let trackScalingGroupId = null
+	if (mySearchParams?.programmingTrackId) {
+		const { getDd } = await import("@/db")
+		const { programmingTracksTable } = await import("@/db/schema")
+		const { eq } = await import("drizzle-orm")
+
+		const db = getDd()
+		const [track] = await db
+			.select({ scalingGroupId: programmingTracksTable.scalingGroupId })
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, mySearchParams.programmingTrackId))
+
+		trackScalingGroupId = track?.scalingGroupId || null
+	}
+
 	return (
 		<LogFormClient
 			workouts={allWorkouts}
 			userId={session.user.id}
+			teamId={teamId}
 			selectedWorkoutId={mySearchParams?.workoutId}
 			redirectUrl={mySearchParams?.redirectUrl}
 			scheduledInstanceId={mySearchParams?.scheduledInstanceId}
 			programmingTrackId={mySearchParams?.programmingTrackId}
+			trackScalingGroupId={trackScalingGroupId}
 		/>
 	)
 }

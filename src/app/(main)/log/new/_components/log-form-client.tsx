@@ -17,7 +17,6 @@ import { getLocalDateKey } from "@/utils/date-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -30,22 +29,27 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
+import { ScalingSelector } from "@/components/scaling-selector"
 import type { Workout } from "@/types"
 
 export default function LogFormClient({
 	workouts,
 	userId,
+	teamId,
 	selectedWorkoutId,
 	redirectUrl,
 	scheduledInstanceId,
 	programmingTrackId,
+	trackScalingGroupId,
 }: {
 	workouts: Workout[]
 	userId: string
+	teamId: string
 	selectedWorkoutId?: string
 	redirectUrl?: string
 	scheduledInstanceId?: string
 	programmingTrackId?: string
+	trackScalingGroupId?: string | null
 }) {
 	const router = useRouter()
 	const pathname = usePathname()
@@ -57,7 +61,9 @@ export default function LogFormClient({
 		defaultValues: {
 			selectedWorkoutId: selectedWorkoutId || "",
 			date: getLocalDateKey(new Date()),
-			scale: "rx",
+			scale: "rx", // Legacy, kept for backward compatibility
+			scalingLevelId: undefined,
+			asRx: false,
 			scores: [],
 			notes: "",
 		},
@@ -183,7 +189,15 @@ export default function LogFormClient({
 		const formData = new FormData()
 		formData.set("selectedWorkoutId", data.selectedWorkoutId)
 		formData.set("date", data.date)
-		formData.set("scale", data.scale)
+		// Include both legacy and new scaling fields
+		if (data.scalingLevelId) {
+			formData.set("scalingLevelId", data.scalingLevelId)
+			formData.set("asRx", String(data.asRx || false))
+			// Set legacy scale based on asRx for backward compatibility
+			formData.set("scale", data.asRx ? "rx" : "scaled")
+		} else if (data.scale) {
+			formData.set("scale", data.scale)
+		}
 		formData.set("notes", data.notes || "")
 
 		// Add scores to formData
@@ -334,47 +348,21 @@ export default function LogFormClient({
 													)}
 												/>
 
-												{/* Scale */}
-												<FormField
-													control={form.control}
-													name="scale"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel>Scale</FormLabel>
-															<FormControl>
-																<div className="flex gap-4">
-																	<Label className="flex items-center gap-2 cursor-pointer">
-																		<Checkbox
-																			checked={field.value === "rx"}
-																			onCheckedChange={() =>
-																				field.onChange("rx")
-																			}
-																		/>
-																		<span className="text-sm">RX</span>
-																	</Label>
-																	<Label className="flex items-center gap-2 cursor-pointer">
-																		<Checkbox
-																			checked={field.value === "rx+"}
-																			onCheckedChange={() =>
-																				field.onChange("rx+")
-																			}
-																		/>
-																		<span className="text-sm">RX+</span>
-																	</Label>
-																	<Label className="flex items-center gap-2 cursor-pointer">
-																		<Checkbox
-																			checked={field.value === "scaled"}
-																			onCheckedChange={() =>
-																				field.onChange("scaled")
-																			}
-																		/>
-																		<span className="text-sm">Scaled</span>
-																	</Label>
-																</div>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
+												{/* Scaling Level */}
+												<ScalingSelector
+													workoutId={selectedWorkout}
+													workoutScalingGroupId={
+														getSelectedWorkout()?.scalingGroupId
+													}
+													programmingTrackId={programmingTrackId}
+													trackScalingGroupId={trackScalingGroupId}
+													teamId={teamId}
+													value={form.watch("scalingLevelId")}
+													onChange={(scalingLevelId, asRx) => {
+														form.setValue("scalingLevelId", scalingLevelId)
+														form.setValue("asRx", asRx)
+													}}
+													required
 												/>
 
 												{/* Score */}
