@@ -9,6 +9,8 @@ export type ResultSet = DBSet
 
 export type WorkoutResultWithWorkoutName = Result & {
 	workoutName?: string
+	scalingLevelLabel?: string
+	scalingLevelPosition?: number
 }
 
 export type ResultSetInput = {

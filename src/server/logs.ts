@@ -1,7 +1,7 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { fromZonedTime } from "date-fns-tz"
-import { and, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -61,7 +61,7 @@ export async function mapLegacyScaleToScalingLevel({
 	}
 
 	if (!resolvedGroupId) {
-		throw new ZSAError("BAD_REQUEST", "No scaling group available for workout")
+		throw new ZSAError("ERROR", "No scaling group available for workout")
 	}
 
 	const levels = await db
@@ -74,7 +74,7 @@ export async function mapLegacyScaleToScalingLevel({
 		.orderBy(asc(scalingLevelsTable.position))
 
 	if (levels.length === 0) {
-		throw new ZSAError("BAD_REQUEST", "No scaling levels found for group")
+		throw new ZSAError("ERROR", "No scaling levels found for group")
 	}
 
 	// Legacy mapping by position preference
@@ -106,7 +106,7 @@ export async function mapLegacyScaleToScalingLevel({
 }
 
 /**
- * Get all logs by user ID with workout names
+ * Get all logs by user ID with workout names and scaling level details
  */
 export async function getLogsByUser(
 	userId: string,
@@ -124,6 +124,10 @@ export async function getLogsByUser(
 				type: results.type,
 				notes: results.notes,
 				scale: results.scale,
+				scalingLevelId: results.scalingLevelId,
+				asRx: results.asRx,
+				scalingLevelLabel: scalingLevelsTable.label,
+				scalingLevelPosition: scalingLevelsTable.position,
 				wodScore: results.wodScore,
 				setCount: results.setCount,
 				distance: results.distance,
@@ -135,6 +139,10 @@ export async function getLogsByUser(
 			})
 			.from(results)
 			.leftJoin(workouts, eq(results.workoutId, workouts.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(results.scalingLevelId, scalingLevelsTable.id),
+			)
 			.where(eq(results.userId, userId))
 			.orderBy(desc(results.date))
 
@@ -144,6 +152,8 @@ export async function getLogsByUser(
 		return logs.map((log) => ({
 			...log,
 			workoutName: log.workoutName || undefined,
+			scalingLevelLabel: log.scalingLevelLabel || undefined,
+			scalingLevelPosition: log.scalingLevelPosition ?? undefined,
 		})) as WorkoutResultWithWorkoutName[]
 	} catch (error) {
 		console.error(
@@ -225,7 +235,7 @@ export async function addLog({
 			type,
 			scale: null, // legacy field deprecated
 			scalingLevelId,
-			asRx: asRx ? 1 : 0,
+			asRx,
 			wodScore,
 			notes: notes || null,
 			setCount: setsData.length || null,
@@ -319,7 +329,7 @@ export async function getResultSetsById(
 }
 
 /**
- * Get a single result by ID with workout details
+ * Get a single result by ID with workout details and scaling level
  */
 export async function getResultById(resultId: string) {
 	const db = getDd()
@@ -335,6 +345,10 @@ export async function getResultById(resultId: string) {
 				type: results.type,
 				notes: results.notes,
 				scale: results.scale,
+				scalingLevelId: results.scalingLevelId,
+				asRx: results.asRx,
+				scalingLevelLabel: scalingLevelsTable.label,
+				scalingLevelPosition: scalingLevelsTable.position,
 				wodScore: results.wodScore,
 				setCount: results.setCount,
 				distance: results.distance,
@@ -351,6 +365,10 @@ export async function getResultById(resultId: string) {
 			})
 			.from(results)
 			.leftJoin(workouts, eq(results.workoutId, workouts.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(results.scalingLevelId, scalingLevelsTable.id),
+			)
 			.where(eq(results.id, resultId))
 			.limit(1)
 
@@ -421,7 +439,7 @@ export async function updateResult({
 				type,
 				scale: null,
 				scalingLevelId,
-				asRx: asRx ? 1 : 0,
+				asRx,
 				wodScore,
 				notes: notes || null,
 				setCount: setsData.length || null,

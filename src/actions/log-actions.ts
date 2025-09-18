@@ -398,13 +398,24 @@ async function updateResultForm(
 	const dateInTargetTz = fromZonedTime(`${dateStr}T00:00:00`, timezone)
 	const timestamp = dateInTargetTz.getTime()
 
+	// Import the mapping function
+	const { mapLegacyScaleToScalingLevel } = await import("@/server/logs")
+
+	// Map legacy scale to new scaling fields
+	const { scalingLevelId, asRx } = await mapLegacyScaleToScalingLevel({
+		workoutId: selectedWorkoutId,
+		programmingTrackId,
+		scale: scaleValue,
+	})
+
 	// Update the result
 	await updateResult({
 		resultId,
 		userId,
 		workoutId: selectedWorkoutId,
 		date: timestamp,
-		scale: scaleValue,
+		scalingLevelId,
+		asRx,
 		wodScore: finalWodScoreSummary,
 		notes: notesValue,
 		setsData: setsForDb,
