@@ -159,7 +159,14 @@ export default function CreateWorkoutClient({
 					teamId: selectedGroup.teamId || teamId,
 				}).then((result) => {
 					if (result?.[0]?.success && result[0].data?.levels) {
-						setSelectedGroupLevels(result[0].data.levels)
+						setSelectedGroupLevels(
+							result[0].data.levels.map((level) => ({
+								id: level.id,
+								label: level.label,
+								position: level.position,
+								description: level.description || null,
+							})),
+						)
 					}
 				})
 			}
