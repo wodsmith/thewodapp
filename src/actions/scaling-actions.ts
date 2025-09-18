@@ -12,8 +12,6 @@ import {
 } from "@/server/scaling-groups"
 import {
 	createScalingLevel as createScalingLevelServer,
-	updateScalingLevel as updateScalingLevelServer,
-	deleteScalingLevel as deleteScalingLevelServer,
 	reorderScalingLevels as reorderScalingLevelsServer,
 } from "@/server/scaling-levels"
 import { getSessionFromCookie } from "@/utils/auth"
