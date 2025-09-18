@@ -71,6 +71,7 @@ const createWorkoutSchema = z.object({
 		roundsToScore: z.number().nullable(),
 		sugarId: z.string().nullable(),
 		tiebreakScheme: z.enum(["time", "reps"]).nullable(),
+		scalingGroupId: z.string().nullable().optional(), // Add scaling group support
 		secondaryScheme: z
 			.enum([
 				"time",
@@ -237,6 +238,7 @@ export const createWorkoutAction = createServerAction()
 					...input.workout,
 					sourceTrackId: null,
 					sourceWorkoutId: null,
+					scalingGroupId: input.workout.scalingGroupId ?? null,
 				},
 			})
 
@@ -547,6 +549,7 @@ export const updateWorkoutAction = createServerAction()
 				scope: z.enum(["private", "public"]).optional(),
 				repsPerRound: z.number().nullable().optional(),
 				roundsToScore: z.number().nullable().optional(),
+				scalingGroupId: z.string().nullable().optional(), // Add scaling group support
 			}),
 			tagIds: z.array(z.string()).default([]),
 			movementIds: z.array(z.string()).default([]),
