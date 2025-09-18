@@ -5,7 +5,7 @@ import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
 import {
 	getResultSetsById,
-	getWorkoutResultsWithScaling,
+	getWorkoutResultsWithScalingForUser,
 	getWorkoutResultForScheduledInstance,
 } from "@/server/workout-results"
 import {
@@ -478,7 +478,7 @@ export const getWorkoutResultsByWorkoutAndUserAction = createServerAction()
 				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
 			}
 
-			const results = await getWorkoutResultsWithScaling(
+			const results = await getWorkoutResultsWithScalingForUser(
 				input.workoutId,
 				session.user.id,
 			)
