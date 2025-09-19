@@ -287,8 +287,7 @@ export async function consumeCredits({
 		remainingAmount: 0, // Usage transactions don't have remaining amount
 		type: CREDIT_TRANSACTION_TYPE.USAGE,
 		description,
-		createdAt: new Date(),
-		updatedAt: new Date(),
+		// Let database defaults handle timestamps
 	})
 
 	// Get updated credit balance

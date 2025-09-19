@@ -233,9 +233,9 @@ export default function WorkoutRowCard({
 				</div>
 
 				<ListItem.Actions className="w-full sm:w-auto">
-					<div className="flex flex-col gap-2 items-start sm:items-end w-full">
+					<div className="flex flex-col gap-2 items-end w-full">
 						{displayResult && (
-							<div className="flex items-center gap-2 text-sm self-start">
+							<div className="flex items-center gap-2 text-sm">
 								<span className="font-semibold">{displayResult.wodScore}</span>
 								{displayResult.scale &&
 									(() => {

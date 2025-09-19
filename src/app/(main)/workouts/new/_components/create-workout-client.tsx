@@ -119,8 +119,8 @@ export default function CreateWorkoutClient({
 			const newTagObj = {
 				id,
 				name: newTag,
-				createdAt: new Date(),
-				updatedAt: new Date(),
+				createdAt: null as any, // Temporary UI object
+				updatedAt: null as any, // Temporary UI object
 				updateCounter: null,
 			}
 			setTags([...tags, newTagObj])
