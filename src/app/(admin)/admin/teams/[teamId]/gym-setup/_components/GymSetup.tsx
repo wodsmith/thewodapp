@@ -167,16 +167,14 @@ const GymSetup = ({
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-			<header className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
+		<div className="min-h-screen">
+			<header className="border-b">
 				<div className="container mx-auto px-6 py-4">
 					<div className="flex items-center space-x-3">
-						<div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2 rounded-xl">
-							<Settings className="h-6 w-6 text-white" />
-						</div>
+						<Settings className="h-6 w-6" />
 						<div>
-							<h1 className="text-2xl font-bold text-slate-800">Gym Setup</h1>
-							<p className="text-sm text-slate-600">
+							<h1 className="text-2xl font-bold">Gym Setup</h1>
+							<p className="text-sm text-muted-foreground">
 								Configure your gym's locations and settings
 							</p>
 						</div>
@@ -187,7 +185,7 @@ const GymSetup = ({
 			<main className="container mx-auto px-6 py-8">
 				<div className="grid lg:grid-cols-2 gap-8">
 					{/* General Settings */}
-					<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+					<Card>
 						<CardHeader>
 							<CardTitle>General Settings</CardTitle>
 							<CardDescription>Configure basic gym information</CardDescription>
@@ -213,7 +211,7 @@ const GymSetup = ({
 					</Card>
 
 					{/* Manage Skills */}
-					<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+					<Card>
 						<CardHeader>
 							<CardTitle>Coach Skills</CardTitle>
 							<CardDescription>
@@ -256,7 +254,7 @@ const GymSetup = ({
 				</div>
 
 				{/* Manage Locations */}
-				<Card className="bg-white/60 backdrop-blur-sm border-white/20 mt-8">
+				<Card className="mt-8">
 					<CardHeader>
 						<CardTitle className="flex items-center space-x-2">
 							<MapPin className="h-5 w-5" />
@@ -268,13 +266,13 @@ const GymSetup = ({
 						{/* Add New Location */}
 						<form
 							onSubmit={locationForm.handleSubmit(handleAddLocation)}
-							className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-lg"
+							className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg"
 						>
 							<div>
 								<Label htmlFor="locationName">Location Name</Label>
 								<Input id="locationName" {...locationForm.register("name")} />
 								{locationForm.formState.errors.name && (
-									<p className="text-red-500 text-sm">
+									<p className="text-destructive text-sm">
 										{locationForm.formState.errors.name.message}
 									</p>
 								)}
@@ -289,7 +287,7 @@ const GymSetup = ({
 									})}
 								/>
 								{locationForm.formState.errors.capacity && (
-									<p className="text-red-500 text-sm">
+									<p className="text-destructive text-sm">
 										{locationForm.formState.errors.capacity.message}
 									</p>
 								)}
@@ -311,26 +309,21 @@ const GymSetup = ({
 							{locations.map((location) => (
 								<div
 									key={location.id}
-									className="flex items-center justify-between p-4 bg-white rounded-lg border"
+									className="flex items-center justify-between p-4 rounded-lg border"
 								>
 									<div className="flex items-center space-x-4">
-										<div className="bg-gradient-to-br from-teal-500 to-blue-600 p-2 rounded-lg">
-											<MapPin className="h-4 w-4 text-white" />
-										</div>
+										<MapPin className="h-4 w-4" />
 										<div>
-											<h3 className="font-medium text-slate-800">
-												{location.name}
-											</h3>
-											<p className="text-sm text-slate-600">
+											<h3 className="font-medium">{location.name}</h3>
+											<p className="text-sm text-muted-foreground">
 												Capacity: {location.capacity} people
 											</p>
 										</div>
 									</div>
 									<Button
-										variant="outline"
+										variant="ghost"
 										size="sm"
 										onClick={() => handleDeleteLocation(location.id)}
-										className="text-red-600 hover:text-red-700"
 									>
 										<Trash2 className="h-4 w-4" />
 									</Button>

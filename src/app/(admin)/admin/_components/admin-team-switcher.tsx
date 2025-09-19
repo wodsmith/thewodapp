@@ -50,11 +50,9 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 
 	if (!currentTeam) {
 		return (
-			<div className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary w-full min-w-0">
+			<div className="flex items-center gap-3 px-4 py-2 border rounded-md w-full min-w-0">
 				<Building2 className="h-6 w-6 flex-shrink-0" />
-				<span className="text-lg font-mono font-bold truncate flex-1 min-w-0">
-					Team Not Found
-				</span>
+				<span className="truncate flex-1 min-w-0">Team Not Found</span>
 			</div>
 		)
 	}
@@ -64,26 +62,21 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 			<DropdownMenuTrigger asChild>
 				<Button
 					variant="outline"
-					className="flex items-center gap-3 px-4 py-2 border-2 border-primary bg-card shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] hover:shadow-primary transition-all font-mono font-bold text-sm h-auto w-full min-w-0"
+					className="flex items-center gap-3 w-full min-w-0"
 				>
 					<Building2 className="h-6 w-6 flex-shrink-0" />
 					<span className="truncate flex-1 min-w-0">{currentTeam.name}</span>
 					<ChevronDown className="h-4 w-4 flex-shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent
-				align="start"
-				className="w-80 border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary"
-			>
+			<DropdownMenuContent align="start" className="w-80">
 				{availableTeams.length > 0 ? (
 					availableTeams.map((team) => (
 						<DropdownMenuItem
 							key={team.id}
 							onClick={() => handleTeamSwitch(team.id)}
-							className={`flex items-center gap-3 p-3 font-mono cursor-pointer ${
-								team.id === currentTeamId
-									? "bg-orange text-white"
-									: "hover:bg-orange/10"
+							className={`flex items-center gap-3 cursor-pointer ${
+								team.id === currentTeamId ? "bg-accent" : ""
 							}`}
 						>
 							<Building2 className="h-4 w-4" />
@@ -99,9 +92,7 @@ export function AdminTeamSwitcher({ currentTeamId }: AdminTeamSwitcherProps) {
 						</DropdownMenuItem>
 					))
 				) : (
-					<DropdownMenuItem disabled className="p-3 font-mono">
-						No teams available
-					</DropdownMenuItem>
+					<DropdownMenuItem disabled>No teams available</DropdownMenuItem>
 				)}
 			</DropdownMenuContent>
 		</DropdownMenu>

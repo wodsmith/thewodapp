@@ -179,18 +179,14 @@ const Coaches = ({
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-			<header className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
+		<div className="min-h-screen">
+			<header className="border-b">
 				<div className="container mx-auto px-6 py-4">
 					<div className="flex items-center space-x-3">
-						<div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-xl">
-							<Users className="h-6 w-6 text-white" />
-						</div>
+						<Users className="h-6 w-6" />
 						<div>
-							<h1 className="text-2xl font-bold text-slate-800">
-								Coach Management
-							</h1>
-							<p className="text-sm text-slate-600">
+							<h1 className="text-2xl font-bold">Coach Management</h1>
+							<p className="text-sm text-muted-foreground">
 								Manage your coaching staff and their availability
 							</p>
 						</div>
@@ -200,7 +196,7 @@ const Coaches = ({
 
 			<main className="container mx-auto px-6 py-8">
 				{/* Add New Coach */}
-				<Card className="bg-white/60 backdrop-blur-sm border-white/20 mb-8">
+				<Card className="mb-8">
 					<CardHeader>
 						<CardTitle>Add New Coach</CardTitle>
 						<CardDescription>Add a new coach to your team</CardDescription>
@@ -236,11 +232,11 @@ const Coaches = ({
 											</Select>
 											<FormMessage />
 											{availableMembers.length === 0 && (
-												<p className="text-sm text-slate-600 mt-2">
+												<p className="text-sm text-muted-foreground mt-2">
 													No available team members to assign as coaches.{" "}
 													<Link
 														href={`/settings/teams/${teamSlug}`}
-														className="text-blue-600 hover:text-blue-800 underline"
+														className="text-primary hover:underline"
 													>
 														Invite new team members
 													</Link>{" "}
@@ -355,35 +351,28 @@ const Coaches = ({
 				{/* Existing Coaches */}
 				<div className="grid gap-6">
 					{coaches.length === 0 ? (
-						<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+						<Card>
 							<CardContent className="p-6 text-center">
-								<Users className="h-12 w-12 mx-auto text-slate-400 mb-4" />
-								<h3 className="text-lg font-medium text-slate-600 mb-2">
-									No coaches yet
-								</h3>
-								<p className="text-slate-500">
+								<Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+								<h3 className="text-lg font-medium mb-2">No coaches yet</h3>
+								<p className="text-muted-foreground">
 									Add your first coach to get started with scheduling.
 								</p>
 							</CardContent>
 						</Card>
 					) : (
 						coaches.map((coach) => (
-							<Card
-								key={coach.id}
-								className="bg-white/60 backdrop-blur-sm border-white/20 hover:bg-white/80 transition-all duration-300"
-							>
+							<Card key={coach.id}>
 								<CardContent className="p-6">
 									<div className="flex items-start justify-between">
 										<div className="flex-1">
 											<div className="flex items-center space-x-3 mb-4">
-												<div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-full">
-													<User className="h-6 w-6 text-white" />
-												</div>
+												<User className="h-6 w-6" />
 												<div>
-													<h3 className="text-xl font-semibold text-slate-800">
+													<h3 className="text-xl font-semibold">
 														{coach.user.firstName} {coach.user.lastName}
 													</h3>
-													<div className="flex items-center space-x-4 text-sm text-slate-600">
+													<div className="flex items-center space-x-4 text-sm text-muted-foreground">
 														<div className="flex items-center space-x-1">
 															<Mail className="h-3 w-3" />
 															<span>{coach.user.email}</span>
@@ -394,10 +383,10 @@ const Coaches = ({
 
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 												<div>
-													<Label className="text-sm font-medium text-slate-700 mb-2 block">
+													<Label className="text-sm font-medium mb-2 block">
 														Weekly Limit:
 													</Label>
-													<div className="flex items-center space-x-1 text-sm text-slate-600">
+													<div className="flex items-center space-x-1 text-sm text-muted-foreground">
 														<Clock className="h-4 w-4" />
 														<span>
 															{coach.weeklyClassLimit || "N/A"} classes per week
@@ -405,13 +394,10 @@ const Coaches = ({
 													</div>
 												</div>
 												<div>
-													<Label className="text-sm font-medium text-slate-700 mb-2 block">
+													<Label className="text-sm font-medium mb-2 block">
 														Time Preference:
 													</Label>
-													<Badge
-														variant="outline"
-														className="bg-gradient-to-r from-orange-100 to-pink-100"
-													>
+													<Badge variant="outline">
 														{coach.schedulingPreference
 															? coach.schedulingPreference
 																	.charAt(0)
@@ -423,7 +409,7 @@ const Coaches = ({
 											</div>
 
 											<div>
-												<Label className="text-sm font-medium text-slate-700 mb-2 block">
+												<Label className="text-sm font-medium mb-2 block">
 													Skills & Certifications:
 												</Label>
 												<div className="flex flex-wrap gap-2">
@@ -437,7 +423,7 @@ const Coaches = ({
 															</Badge>
 														))
 													) : (
-														<span className="text-sm text-slate-500">
+														<span className="text-sm text-muted-foreground">
 															No skills assigned
 														</span>
 													)}
@@ -453,9 +439,9 @@ const Coaches = ({
 										>
 											<DialogTrigger asChild>
 												<Button
-													variant="outline"
+													variant="ghost"
 													size="sm"
-													className="text-red-600 hover:text-red-700 ml-4"
+													className="ml-4"
 													onClick={() => setCoachToDelete(coach.id)}
 													disabled={deletingCoaches.has(coach.id)}
 												>
