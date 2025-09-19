@@ -36,7 +36,7 @@ interface TrackWorkoutRowProps {
 	index: number
 	instanceId: symbol
 	canEdit?: boolean
-	onAlignScaling?: (workoutId: string) => void | Promise<void>
+	onAlignScaling?: () => void | Promise<void>
 }
 
 export function TrackWorkoutRow({
@@ -246,11 +246,7 @@ export function TrackWorkoutRow({
 									workout={workoutDetails}
 									track={track}
 									canEdit={canEdit}
-									onAlignScaling={
-										onAlignScaling
-											? () => onAlignScaling(workoutDetails.id)
-											: undefined
-									}
+									onAlignScaling={onAlignScaling}
 								/>
 							)}
 							{trackWorkout.isScheduled && (

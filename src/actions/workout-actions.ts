@@ -699,6 +699,26 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 				throw new ZSAError("NOT_FOUND", "Workout not found")
 			}
 
+			// Get database handles for updating track workout
+			const db = (await import("@/db")).getDd()
+			const { workouts, trackWorkoutsTable } = await import("@/db/schema")
+			const { eq, and } = await import("drizzle-orm")
+
+			// Check if this workout has already been remixed for this track
+			// (i.e., if it already has the correct scaling group and sourceWorkoutId)
+			if (
+				workout.scalingGroupId === track.scalingGroupId &&
+				workout.sourceWorkoutId
+			) {
+				// Already aligned, no action needed
+				return {
+					success: true,
+					action: "already_aligned",
+					data: workout,
+					message: "Workout is already aligned with the track scaling",
+				}
+			}
+
 			const canEdit = await canUserEditWorkout(input.workoutId)
 
 			if (canEdit) {
@@ -717,16 +737,22 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 					)
 				}
 
-				// Now we need to directly update the database since the updateWorkout function
-				// doesn't support scalingGroupId yet
-				const db = (await import("@/db")).getDd()
-				const { workouts } = await import("@/db/schema")
-				const { eq } = await import("drizzle-orm")
-
+				// Update the remix with the track's scaling group
 				await db
 					.update(workouts)
 					.set({ scalingGroupId: track.scalingGroupId })
 					.where(eq(workouts.id, remixResult.id))
+
+				// Update the track to use the remixed workout instead of the original
+				await db
+					.update(trackWorkoutsTable)
+					.set({ workoutId: remixResult.id })
+					.where(
+						and(
+							eq(trackWorkoutsTable.trackId, input.trackId),
+							eq(trackWorkoutsTable.workoutId, input.workoutId),
+						),
+					)
 
 				revalidatePath(`/admin/teams/${input.teamId}/programming`)
 
@@ -752,14 +778,21 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 				}
 
 				// Update the remix with the track's scaling group
-				const db = (await import("@/db")).getDd()
-				const { workouts } = await import("@/db/schema")
-				const { eq } = await import("drizzle-orm")
-
 				await db
 					.update(workouts)
 					.set({ scalingGroupId: track.scalingGroupId })
 					.where(eq(workouts.id, remixResult.id))
+
+				// Update the track to use the remixed workout instead of the original
+				await db
+					.update(trackWorkoutsTable)
+					.set({ workoutId: remixResult.id })
+					.where(
+						and(
+							eq(trackWorkoutsTable.trackId, input.trackId),
+							eq(trackWorkoutsTable.workoutId, input.workoutId),
+						),
+					)
 
 				revalidatePath(`/admin/teams/${input.teamId}/programming`)
 

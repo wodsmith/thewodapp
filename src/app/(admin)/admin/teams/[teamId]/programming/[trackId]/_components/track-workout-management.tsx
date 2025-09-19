@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { AlignScalingDialog } from "@/components/scaling/align-scaling-dialog"
 import type {
 	Movement,
 	ProgrammingTrack,
@@ -64,6 +65,10 @@ export function TrackWorkoutManagement({
 	userId,
 }: TrackWorkoutManagementProps) {
 	const [showAddDialog, setShowAddDialog] = useState(false)
+	const [alignDialogState, setAlignDialogState] = useState<{
+		open: boolean
+		workout: Workout | null
+	}>({ open: false, workout: null })
 
 	// Optimistic updates for track workouts
 	const [optimisticTrackWorkouts, setOptimisticTrackWorkouts] = useOptimistic(
@@ -555,36 +560,13 @@ export function TrackWorkoutManagement({
 									index={index}
 									instanceId={instanceId}
 									canEdit={true}
-									onAlignScaling={async (workoutId) => {
-										try {
-											const [result, error] =
-												await alignWorkoutScalingWithTrackAction({
-													workoutId,
-													trackId,
-													teamId,
-												})
-
-											if (error) {
-												toast.error(
-													error.message || "Failed to align workout scaling",
-												)
-												return
-											}
-
-											if (result?.success) {
-												toast.success(
-													result.message ||
-														"Workout scaling aligned with track",
-												)
-
-												// Trigger a refresh of the track workouts to show updated scaling
-												// The optimistic update isn't ideal here since we're creating remixes
-												// so we'll just reload the page data
-												window.location.reload()
-											}
-										} catch (error) {
-											console.error("Failed to align workout scaling:", error)
-											toast.error("Failed to align workout scaling with track")
+									onAlignScaling={async () => {
+										// Show confirmation dialog
+										if (workoutDetails) {
+											setAlignDialogState({
+												open: true,
+												workout: workoutDetails,
+											})
 										}
 									}}
 								/>
@@ -592,6 +574,52 @@ export function TrackWorkoutManagement({
 						})}
 					</div>
 				</div>
+			)}
+
+			{/* Align Scaling Confirmation Dialog */}
+			{alignDialogState.workout && (
+				<AlignScalingDialog
+					open={alignDialogState.open}
+					onOpenChange={(open) =>
+						setAlignDialogState((prev) => ({ ...prev, open }))
+					}
+					workout={alignDialogState.workout}
+					track={_track}
+					onConfirm={async () => {
+						if (!alignDialogState.workout) return
+
+						try {
+							const [result, error] = await alignWorkoutScalingWithTrackAction({
+								workoutId: alignDialogState.workout.id,
+								trackId,
+								teamId,
+							})
+
+							if (error) {
+								toast.error(error.message || "Failed to align workout scaling")
+								return
+							}
+
+							if (result?.success) {
+								if (result.action === "already_aligned") {
+									toast.info(result.message || "Workout is already aligned")
+								} else {
+									toast.success(
+										result.message || "Workout scaling aligned with track",
+									)
+
+									// Trigger a refresh of the track workouts to show updated scaling
+									// The optimistic update isn't ideal here since we're creating remixes
+									// so we'll just reload the page data
+									window.location.reload()
+								}
+							}
+						} catch (error) {
+							console.error("Failed to align workout scaling:", error)
+							toast.error("Failed to align workout scaling with track")
+						}
+					}}
+				/>
 			)}
 
 			{/* Add Workout Dialog */}
