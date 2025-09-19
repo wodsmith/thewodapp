@@ -129,18 +129,14 @@ const Classes = ({
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-			<header className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
+		<div className="min-h-screen">
+			<header className="border-b">
 				<div className="container mx-auto px-6 py-4">
 					<div className="flex items-center space-x-3">
-						<div className="bg-gradient-to-br from-teal-500 to-blue-600 p-2 rounded-xl">
-							<BookOpen className="h-6 w-6 text-white" />
-						</div>
+						<BookOpen className="h-6 w-6" />
 						<div>
-							<h1 className="text-2xl font-bold text-slate-800">
-								Class Catalog
-							</h1>
-							<p className="text-sm text-slate-600">
+							<h1 className="text-2xl font-bold">Class Catalog</h1>
+							<p className="text-sm text-muted-foreground">
 								Manage your gym's class offerings
 							</p>
 						</div>
@@ -150,7 +146,7 @@ const Classes = ({
 
 			<main className="container mx-auto px-6 py-8">
 				{/* Add New Class */}
-				<Card className="bg-white/60 backdrop-blur-sm border-white/20 mb-8">
+				<Card className="mb-8">
 					<CardHeader>
 						<CardTitle>Add New Class</CardTitle>
 						<CardDescription>
@@ -301,46 +297,39 @@ const Classes = ({
 				{/* Existing Classes */}
 				<div className="grid gap-6">
 					{classes.length === 0 ? (
-						<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+						<Card>
 							<CardContent className="p-6 text-center">
-								<BookOpen className="h-12 w-12 mx-auto text-slate-400 mb-4" />
-								<h3 className="text-lg font-medium text-slate-600 mb-2">
-									No classes yet
-								</h3>
-								<p className="text-slate-500">
+								<BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+								<h3 className="text-lg font-medium mb-2">No classes yet</h3>
+								<p className="text-muted-foreground">
 									Add your first class to get started with scheduling.
 								</p>
 							</CardContent>
 						</Card>
 					) : (
 						classes.map((classItem) => (
-							<Card
-								key={classItem.id}
-								className="bg-white/60 backdrop-blur-sm border-white/20 hover:bg-white/80 transition-all duration-300"
-							>
+							<Card key={classItem.id}>
 								<CardContent className="p-6">
 									<div className="flex items-start justify-between">
 										<div className="flex-1">
 											<div className="flex items-center space-x-3 mb-3">
-												<div className="bg-gradient-to-br from-orange-500 to-pink-600 p-2 rounded-lg">
-													<BookOpen className="h-5 w-5 text-white" />
-												</div>
+												<BookOpen className="h-5 w-5" />
 												<div>
-													<h3 className="text-xl font-semibold text-slate-800">
+													<h3 className="text-xl font-semibold">
 														{classItem.name}
 													</h3>
-													<p className="text-sm text-slate-600">
+													<p className="text-sm text-muted-foreground">
 														{classItem.description}
 													</p>
 												</div>
 											</div>
 
 											<div className="flex flex-wrap items-center gap-4 mb-4">
-												<div className="flex items-center space-x-1 text-sm text-slate-600">
+												<div className="flex items-center space-x-1 text-sm text-muted-foreground">
 													<Clock className="h-4 w-4" />
 													<span>{classItem.durationMinutes} minutes</span>
 												</div>
-												<div className="flex items-center space-x-1 text-sm text-slate-600">
+												<div className="flex items-center space-x-1 text-sm text-muted-foreground">
 													<Users className="h-4 w-4" />
 													<span>
 														Max {classItem.maxParticipants} participants
@@ -349,7 +338,7 @@ const Classes = ({
 											</div>
 
 											<div>
-												<Label className="text-sm font-medium text-slate-700 mb-2 block">
+												<Label className="text-sm font-medium mb-2 block">
 													Required Skills:
 												</Label>
 												<div className="flex flex-wrap gap-2">
@@ -363,7 +352,7 @@ const Classes = ({
 															</Badge>
 														))
 													) : (
-														<span className="text-sm text-slate-500">
+														<span className="text-sm text-muted-foreground">
 															No skills assigned
 														</span>
 													)}
@@ -372,9 +361,9 @@ const Classes = ({
 										</div>
 
 										<Button
-											variant="outline"
+											variant="ghost"
 											size="sm"
-											className="text-red-600 hover:text-red-700 ml-4"
+											className="ml-4"
 											onClick={async () => {
 												const [_result, err] = await deleteExecute({
 													id: classItem.id,
