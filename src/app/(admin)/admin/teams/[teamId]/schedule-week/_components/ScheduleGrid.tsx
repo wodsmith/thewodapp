@@ -9,11 +9,7 @@ import {
 import { Calendar, MapPin, AlertTriangle, User } from "lucide-react"
 import SlotAssignmentDialog from "./SlotAssignmentDialog"
 import { Button } from "@/components/ui/button"
-import type {
-	ScheduleTemplate,
-	Location,
-	CoachToSkill,
-} from "@/db/schemas/scheduling"
+import type { ScheduleTemplate, Location } from "@/db/schemas/scheduling"
 import type { getCoachesByTeam } from "@/actions/coach-actions"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
 
