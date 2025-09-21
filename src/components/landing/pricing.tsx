@@ -44,7 +44,7 @@ const Pricing = () => {
 					<h2 className="font-mono text-4xl md:text-6xl text-primary mb-6">
 						SIMPLE
 						<br />
-						<span className="text-orange">PRICING</span>
+						<span className="text-primary">PRICING</span>
 					</h2>
 					<p className="font-sans text-xl text-primary max-w-2xl mx-auto">
 						No hidden fees, no yearly commitments, no BS. Start free and upgrade
@@ -64,7 +64,7 @@ const Pricing = () => {
 						>
 							{plan.popular && (
 								<div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-									<div className="bg-orange border-2 border-primary px-4 py-2 font-mono text-sm text-white">
+									<div className="bg-primary border-2 border-border px-4 py-2 font-mono text-sm text-primary-foreground">
 										MOST POPULAR
 									</div>
 								</div>
@@ -73,10 +73,14 @@ const Pricing = () => {
 							<div className="text-center mb-8">
 								<div
 									className={`w-16 h-16 mx-auto mb-4 ${
-										plan.popular ? "bg-orange" : "bg-primary-foreground"
+										plan.popular ? "bg-primary" : "bg-secondary"
 									} border-2 border-primary rounded-lg flex items-center justify-center`}
 								>
-									<plan.icon className="text-primary" />
+									<plan.icon
+										className={
+											plan.popular ? "text-primary-foreground" : "text-primary"
+										}
+									/>
 								</div>
 
 								<h3 className="font-mono text-3xl text-primary mb-2">
@@ -107,11 +111,8 @@ const Pricing = () => {
 							</ul>
 
 							<Button
-								className={`w-full font-mono text-lg py-6 ${
-									plan.popular
-										? "bg-orange border-4 border-primary text-white hover:bg-orange-600 shadow-[6px_6px_0px_0px] shadow-primary"
-										: "border-4 border-primary bg-background text-primary hover:bg-secondary"
-								}`}
+								variant={plan.popular ? "default" : "outline"}
+								className="w-full font-mono text-lg py-6"
 							>
 								{plan.buttonText}
 							</Button>
