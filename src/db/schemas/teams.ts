@@ -86,6 +86,7 @@ export const teamTable = sqliteTable(
 	(table) => [
 		index("team_slug_idx").on(table.slug),
 		index("team_personal_owner_idx").on(table.personalTeamOwnerId),
+		index("team_default_scaling_idx").on(table.defaultScalingGroupId),
 	],
 )
 

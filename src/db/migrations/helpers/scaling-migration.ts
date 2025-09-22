@@ -103,33 +103,33 @@ export async function migrateResultsScaling(db: BetterSQLite3Database) {
  */
 export async function verifyScalingMigration(db: BetterSQLite3Database) {
 	// Check if global default exists
-	const globalDefault = await db.get(sql`
+	const globalDefault = (await db.get(sql`
     SELECT COUNT(*) as count
     FROM scaling_groups
     WHERE id = ${globalDefaultScalingGroup.id}
-  `)
+  `)) as { count: number } | undefined
 
 	if (!globalDefault || globalDefault.count === 0) {
 		throw new Error("Global default scaling group not created")
 	}
 
 	// Check if all scaling levels exist
-	const levels = await db.get(sql`
+	const levels = (await db.get(sql`
     SELECT COUNT(*) as count
     FROM scaling_levels
     WHERE scalingGroupId = ${globalDefaultScalingGroup.id}
-  `)
+  `)) as { count: number } | undefined
 
 	if (!levels || levels.count !== 3) {
 		throw new Error("Global default scaling levels not created correctly")
 	}
 
 	// Check if any results still have scale but no scalingLevelId
-	const unmigrated = await db.get(sql`
+	const unmigrated = (await db.get(sql`
     SELECT COUNT(*) as count
     FROM results
     WHERE scale IS NOT NULL AND scalingLevelId IS NULL
-  `)
+  `)) as { count: number } | undefined
 
 	if (unmigrated && unmigrated.count > 0) {
 		throw new Error(

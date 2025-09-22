@@ -147,7 +147,11 @@ export default function CreateWorkoutClient({
 	const selectedScalingGroupId = form.watch("scalingGroupId")
 
 	useEffect(() => {
-		if (selectedScalingGroupId && selectedScalingGroupId !== "") {
+		if (
+			selectedScalingGroupId &&
+			selectedScalingGroupId !== "" &&
+			selectedScalingGroupId !== "none"
+		) {
 			// Find the selected group's team ID
 			const selectedGroup = scalingGroups.find(
 				(g) => g.id === selectedScalingGroupId,
@@ -239,7 +243,10 @@ export default function CreateWorkoutClient({
 				repsPerRound: data.repsPerRound ?? null,
 				sugarId: null,
 				tiebreakScheme: null,
-				scalingGroupId: data.scalingGroupId || null,
+				scalingGroupId:
+					data.scalingGroupId && data.scalingGroupId !== "none"
+						? data.scalingGroupId
+						: null,
 				secondaryScheme: null,
 			},
 			tagIds: existingTagIds,
@@ -382,7 +389,7 @@ export default function CreateWorkoutClient({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												<SelectItem value="">None (Use default)</SelectItem>
+												<SelectItem value="none">None (Use default)</SelectItem>
 												{scalingGroups.length === 0 ? (
 													<SelectItem value="no-groups" disabled>
 														No scaling groups available

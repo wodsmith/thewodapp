@@ -150,7 +150,7 @@ export default function EditResultClient({
 		const formData = new FormData()
 		formData.append("selectedWorkoutId", data.selectedWorkoutId)
 		formData.append("date", data.date)
-		formData.append("scale", data.scale)
+		formData.append("scale", data.scale || "")
 		formData.append("notes", data.notes || "")
 		formData.append("redirectUrl", redirectUrl)
 

@@ -13,8 +13,9 @@ import type {
 	WorkoutResult,
 	WorkoutResultWithWorkoutName,
 } from "@/types"
+import { ScalingQueryMonitor } from "@/utils/query-monitor"
 
-// Simple in-memory cache for scaling group data with TTL
+// Multi-tier cache system for scaling data
 const scalingGroupCache = new Map<
 	string,
 	{
@@ -22,34 +23,94 @@ const scalingGroupCache = new Map<
 		timestamp: number
 	}
 >()
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const workoutResolutionCache = new Map<
+	string,
+	{
+		data: any
+		timestamp: number
+	}
+>()
+
+// Cache TTL configuration
+const CACHE_TTL = {
+	IN_MEMORY: 5 * 60 * 1000, // 5 minutes
+	KV_EDGE: 60 * 60, // 1 hour in seconds for KV
+	WORKOUT_RESOLUTION: 15 * 60 * 1000, // 15 minutes
+	GLOBAL_DEFAULT: Infinity, // Never expires in memory
+} as const
+
+// Global default scaling group cache (permanent in memory)
+let globalDefaultScalingGroup: any = null
+let globalDefaultTimestamp = 0
 
 /**
- * Get cached scaling group data or fetch from database
+ * Get the Cloudflare KV binding for caching
+ */
+function getKVBinding() {
+	// In Cloudflare Workers, KV is available via env.YOUR_KV_NAMESPACE
+	// For development, we fall back to in-memory cache
+	if (
+		typeof process !== "undefined" &&
+		process.env.NODE_ENV === "development"
+	) {
+		return null
+	}
+
+	// In production, this would be available via context/env
+	// For now, return null to use in-memory fallback
+	return null
+}
+
+/**
+ * Get cached scaling group data with multi-tier caching (KV + memory)
  */
 async function getCachedScalingGroup(scalingGroupId: string) {
 	const cacheKey = `scaling-group:${scalingGroupId}`
-	const cached = scalingGroupCache.get(cacheKey)
+	const kvBinding = getKVBinding()
 
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data
+	// 1. Check in-memory cache first (fastest)
+	const memCached = scalingGroupCache.get(cacheKey)
+	if (memCached && Date.now() - memCached.timestamp < CACHE_TTL.IN_MEMORY) {
+		return memCached.data
 	}
 
+	// 2. Check KV cache (edge distributed)
+	if (kvBinding) {
+		try {
+			const kvCached = await kvBinding.get(cacheKey, "json")
+			if (kvCached) {
+				// Update in-memory cache
+				scalingGroupCache.set(cacheKey, {
+					data: kvCached,
+					timestamp: Date.now(),
+				})
+				return kvCached
+			}
+		} catch (error) {
+			console.warn("KV cache read failed:", error)
+		}
+	}
+
+	// 3. Fetch from database with monitoring
 	const db = getDd()
-	const groupData = await db
-		.select({
-			id: scalingGroupsTable.id,
-			title: scalingGroupsTable.title,
-			description: scalingGroupsTable.description,
-			levels: scalingLevelsTable,
-		})
-		.from(scalingGroupsTable)
-		.leftJoin(
-			scalingLevelsTable,
-			eq(scalingLevelsTable.scalingGroupId, scalingGroupsTable.id),
-		)
-		.where(eq(scalingGroupsTable.id, scalingGroupId))
-		.orderBy(asc(scalingLevelsTable.position))
+	const groupData = await ScalingQueryMonitor.monitorScalingGroupFetch(
+		scalingGroupId,
+		() =>
+			db
+				.select({
+					id: scalingGroupsTable.id,
+					title: scalingGroupsTable.title,
+					description: scalingGroupsTable.description,
+					levels: scalingLevelsTable,
+				})
+				.from(scalingGroupsTable)
+				.leftJoin(
+					scalingLevelsTable,
+					eq(scalingLevelsTable.scalingGroupId, scalingGroupsTable.id),
+				)
+				.where(eq(scalingGroupsTable.id, scalingGroupId))
+				.orderBy(asc(scalingLevelsTable.position)),
+	)
 
 	const processedData = {
 		id: groupData[0]?.id,
@@ -58,22 +119,136 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 		levels: groupData.filter((row) => row.levels).map((row) => row.levels),
 	}
 
+	// 4. Update all caches
 	scalingGroupCache.set(cacheKey, {
 		data: processedData,
 		timestamp: Date.now(),
 	})
 
+	if (kvBinding) {
+		try {
+			await kvBinding.put(cacheKey, JSON.stringify(processedData), {
+				expirationTtl: CACHE_TTL.KV_EDGE,
+			})
+		} catch (error) {
+			console.warn("KV cache write failed:", error)
+		}
+	}
+
 	return processedData
 }
 
 /**
- * Clear scaling group cache
+ * Get global default scaling group with permanent in-memory caching
+ */
+async function getGlobalDefaultScalingGroup() {
+	// Check if we have it cached and it's not too old (refresh every hour)
+	const ONE_HOUR = 60 * 60 * 1000
+	if (
+		globalDefaultScalingGroup &&
+		Date.now() - globalDefaultTimestamp < ONE_HOUR
+	) {
+		return globalDefaultScalingGroup
+	}
+
+	const db = getDd()
+	const [globalDefault] = await db
+		.select()
+		.from(scalingGroupsTable)
+		.where(eq(scalingGroupsTable.isSystem, 1))
+		.limit(1)
+
+	if (globalDefault) {
+		globalDefaultScalingGroup = globalDefault
+		globalDefaultTimestamp = Date.now()
+	}
+
+	return globalDefault
+}
+
+/**
+ * Get cached workout scaling resolution
+ */
+async function getCachedWorkoutResolution(
+	workoutId: string,
+	teamId: string,
+	trackId?: string,
+) {
+	const cacheKey = `workout-resolution:${workoutId}:${teamId}:${trackId || "none"}`
+	const cached = workoutResolutionCache.get(cacheKey)
+
+	if (cached && Date.now() - cached.timestamp < CACHE_TTL.WORKOUT_RESOLUTION) {
+		return cached.data
+	}
+
+	// Import here to avoid circular dependency
+	const { resolveScalingLevelsForWorkout } = await import(
+		"@/server/scaling-levels"
+	)
+
+	const resolution = await resolveScalingLevelsForWorkout({
+		workoutId,
+		teamId,
+		trackId,
+	})
+
+	workoutResolutionCache.set(cacheKey, {
+		data: resolution,
+		timestamp: Date.now(),
+	})
+
+	return resolution
+}
+
+/**
+ * Clear scaling group cache with KV support
  */
 export function clearScalingGroupCache(scalingGroupId?: string) {
 	if (scalingGroupId) {
 		scalingGroupCache.delete(`scaling-group:${scalingGroupId}`)
+		// Also clear from KV if available
+		const kvBinding = getKVBinding()
+		if (kvBinding) {
+			kvBinding.delete(`scaling-group:${scalingGroupId}`).catch((error) => {
+				console.warn("KV cache delete failed:", error)
+			})
+		}
 	} else {
 		scalingGroupCache.clear()
+		workoutResolutionCache.clear()
+		globalDefaultScalingGroup = null
+		globalDefaultTimestamp = 0
+	}
+}
+
+/**
+ * Clear workout resolution cache for specific workout or team
+ */
+export function clearWorkoutResolutionCache(
+	workoutId?: string,
+	teamId?: string,
+) {
+	if (workoutId && teamId) {
+		// Clear specific workout-team combinations
+		for (const [key] of workoutResolutionCache) {
+			if (key.includes(`${workoutId}:${teamId}`)) {
+				workoutResolutionCache.delete(key)
+			}
+		}
+	} else if (workoutId) {
+		// Clear all resolutions for a workout
+		for (const [key] of workoutResolutionCache) {
+			if (key.startsWith(`workout-resolution:${workoutId}:`)) {
+				workoutResolutionCache.delete(key)
+			}
+		}
+	} else if (teamId) {
+		// Clear all resolutions for a team
+		for (const [key] of workoutResolutionCache) {
+			if (key.includes(`:${teamId}:`)) {
+				workoutResolutionCache.delete(key)
+			}
+		}
 	}
 }
 

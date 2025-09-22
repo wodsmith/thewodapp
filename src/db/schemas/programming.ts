@@ -46,6 +46,7 @@ export const programmingTracksTable = sqliteTable(
 	(table) => [
 		index("programming_track_type_idx").on(table.type),
 		index("programming_track_owner_idx").on(table.ownerTeamId),
+		index("programming_track_scaling_idx").on(table.scalingGroupId),
 	],
 )
 

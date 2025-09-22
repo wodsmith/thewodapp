@@ -66,6 +66,7 @@ const mockWorkout = {
 	secondaryScheme: null,
 	sourceTrackId: null,
 	sourceWorkoutId: null,
+	scalingGroupId: null,
 }
 const mockUpdateWorkoutAction = vi.fn()
 

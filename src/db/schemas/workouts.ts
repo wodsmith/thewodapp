@@ -94,13 +94,18 @@ export const workouts = sqliteTable(
 		sourceWorkoutId: text("source_workout_id"),
 		scalingGroupId: text("scaling_group_id"), // Optional scaling group for this workout
 	},
-	(workouts) => ({
-		sourceWorkoutSelfRef: foreignKey({
-			columns: [workouts.sourceWorkoutId],
-			foreignColumns: [workouts.id],
-			name: "workouts_source_workout_id_fkey",
-		}).onDelete("set null"),
-	}),
+	(workouts) => [
+		index("workouts_scaling_group_idx").on(workouts.scalingGroupId),
+		index("workouts_team_idx").on(workouts.teamId),
+		index("workouts_source_track_idx").on(workouts.sourceTrackId),
+		{
+			sourceWorkoutSelfRef: foreignKey({
+				columns: [workouts.sourceWorkoutId],
+				foreignColumns: [workouts.id],
+				name: "workouts_source_workout_id_fkey",
+			}).onDelete("set null"),
+		},
+	],
 )
 
 // Workout Tags junction table
