@@ -3,7 +3,8 @@
 import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +16,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -23,6 +26,16 @@ import type {
 	WorkoutUpdate,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
+
+interface ScalingGroupWithTeam {
+	id: string
+	title: string
+	description: string | null
+	teamId: string | null
+	teamName: string
+	isSystem: number
+	isDefault: number
+}
 
 type Props = Prettify<{
 	workout: WorkoutWithTagsAndMovements
@@ -38,6 +51,7 @@ type Props = Prettify<{
 		remixTeamId?: string
 	}) => Promise<void>
 	userTeams?: Array<{ id: string; name: string }>
+	scalingGroups?: ScalingGroupWithTeam[]
 }>
 type TagWithoutSaved = Omit<Tag, "createdAt" | "updatedAt" | "updateCounter">
 export default function EditWorkoutClient({
@@ -48,6 +62,7 @@ export default function EditWorkoutClient({
 	isRemixMode = false,
 	updateWorkoutAction,
 	userTeams = [],
+	scalingGroups = [],
 }: Props) {
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
@@ -70,6 +85,57 @@ export default function EditWorkoutClient({
 	const [selectedTeamId, setSelectedTeamId] = useState<string>(
 		userTeams.length > 0 ? userTeams[0].id : "",
 	)
+	const [selectedScalingGroupId, setSelectedScalingGroupId] = useState<string>(
+		workout?.scalingGroupId || "",
+	)
+	const [selectedGroupLevels, setSelectedGroupLevels] = useState<
+		Array<{
+			id: string
+			label: string
+			position: number
+		}>
+	>([])
+
+	const { execute: fetchScalingLevels } = useServerAction(
+		getScalingGroupWithLevelsAction,
+		{
+			onError: (error) => {
+				console.error("Error fetching scaling levels:", error)
+			},
+		},
+	)
+
+	// Watch for scaling group selection changes and fetch levels
+	useEffect(() => {
+		if (
+			selectedScalingGroupId &&
+			selectedScalingGroupId !== "" &&
+			selectedScalingGroupId !== "none"
+		) {
+			// Find the selected group's team ID
+			const selectedGroup = scalingGroups.find(
+				(g) => g.id === selectedScalingGroupId,
+			)
+			if (selectedGroup) {
+				fetchScalingLevels({
+					groupId: selectedScalingGroupId,
+					teamId: selectedGroup.teamId || userTeams[0]?.id || "",
+				}).then((result) => {
+					if (result?.[0]?.success && result[0].data?.levels) {
+						setSelectedGroupLevels(
+							result[0].data.levels.map((level) => ({
+								id: level.id,
+								label: level.label,
+								position: level.position,
+							})),
+						)
+					}
+				})
+			}
+		} else {
+			setSelectedGroupLevels([])
+		}
+	}, [selectedScalingGroupId, fetchScalingLevels, scalingGroups, userTeams])
 
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
@@ -112,6 +178,10 @@ export default function EditWorkoutClient({
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
 				roundsToScore: roundsToScore,
+				scalingGroupId:
+					selectedScalingGroupId && selectedScalingGroupId !== "none"
+						? selectedScalingGroupId
+						: null,
 			},
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
@@ -262,6 +332,64 @@ export default function EditWorkoutClient({
 									<SelectItem value="public">Public</SelectItem>
 								</SelectContent>
 							</Select>
+						</div>
+
+						<div>
+							<Label htmlFor="workout-scaling-group">
+								Scaling Group (Optional)
+							</Label>
+							<Select
+								value={selectedScalingGroupId}
+								onValueChange={setSelectedScalingGroupId}
+							>
+								<SelectTrigger id="workout-scaling-group">
+									<SelectValue placeholder="Select a scaling group" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None (Use default)</SelectItem>
+									{scalingGroups.length === 0 ? (
+										<SelectItem value="no-groups" disabled>
+											No scaling groups available
+										</SelectItem>
+									) : (
+										scalingGroups.map((group) => (
+											<SelectItem key={group.id} value={group.id}>
+												{group.title}
+												{userTeams.length > 1 && group.teamName && (
+													<span className="text-muted-foreground ml-2">
+														({group.teamName})
+													</span>
+												)}
+												{group.isDefault === 1 && (
+													<span className="text-muted-foreground ml-2">
+														(Team Default)
+													</span>
+												)}
+											</SelectItem>
+										))
+									)}
+								</SelectContent>
+							</Select>
+							{selectedScalingGroupId && selectedScalingGroupId !== "none" && (
+								<div className="mt-2 space-y-2">
+									<p className="text-sm text-muted-foreground">
+										This scaling group will be used for this workout instead of
+										the track or team default.
+									</p>
+									{selectedGroupLevels.length > 0 && (
+										<div className="space-y-1">
+											<p className="text-sm font-medium">Scaling Levels:</p>
+											<div className="flex flex-wrap gap-2">
+												{selectedGroupLevels.map((level) => (
+													<Badge key={level.id} variant="secondary">
+														{level.label}
+													</Badge>
+												))}
+											</div>
+										</div>
+									)}
+								</div>
+							)}
 						</div>
 
 						<div>

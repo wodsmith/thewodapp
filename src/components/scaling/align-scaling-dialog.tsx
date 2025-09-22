@@ -80,7 +80,7 @@ export function AlignScalingDialog({
 					<AlertDialogAction
 						onClick={handleConfirm}
 						disabled={isProcessing || isLoading}
-						className="bg-primary hover:bg-primary/90"
+						className="bg-primary hover:bg-primary/90 text-black"
 					>
 						{isProcessing || isLoading ? "Aligning..." : "Align Scaling"}
 					</AlertDialogAction>
