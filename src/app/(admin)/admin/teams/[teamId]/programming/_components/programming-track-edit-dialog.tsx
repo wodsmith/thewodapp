@@ -35,7 +35,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { ProgrammingTrack } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
-import { createProgrammingTrackAction } from "../../_actions/programming-track-actions"
+import { updateProgrammingTrackAction } from "../../_actions/programming-track-actions"
 
 const formSchema = z.object({
 	name: z
@@ -63,21 +63,23 @@ interface ScalingGroup {
 	isDefault: number
 }
 
-interface ProgrammingTrackCreateDialogProps {
+interface ProgrammingTrackEditDialogProps {
 	teamId: string
+	track: ProgrammingTrack
 	trigger: React.ReactNode
-	onTrackCreated?: (track: ProgrammingTrack) => void
+	onTrackUpdated?: (track: ProgrammingTrack) => void
 	open?: boolean
 	onOpenChange?: (open: boolean) => void
 }
 
-export function ProgrammingTrackCreateDialog({
+export function ProgrammingTrackEditDialog({
 	teamId,
+	track,
 	trigger,
-	onTrackCreated,
+	onTrackUpdated,
 	open,
 	onOpenChange,
-}: ProgrammingTrackCreateDialogProps) {
+}: ProgrammingTrackEditDialogProps) {
 	const dialogCloseRef = useRef<HTMLButtonElement>(null)
 	const [scalingGroups, setScalingGroups] = useState<ScalingGroup[]>([])
 	const [isLoadingGroups, setIsLoadingGroups] = useState(false)
@@ -85,11 +87,11 @@ export function ProgrammingTrackCreateDialog({
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
-			name: "",
-			description: "",
-			type: PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
-			isPublic: false,
-			scalingGroupId: undefined,
+			name: track.name,
+			description: track.description || "",
+			type: track.type as typeof PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+			isPublic: track.isPublic === 1,
+			scalingGroupId: track.scalingGroupId || "none",
 		},
 	})
 
@@ -102,22 +104,21 @@ export function ProgrammingTrackCreateDialog({
 		},
 	)
 
-	const { execute: createTrack, isPending } = useServerAction(
-		createProgrammingTrackAction,
+	const { execute: updateTrack, isPending } = useServerAction(
+		updateProgrammingTrackAction,
 		{
 			onError: (error) => {
-				toast.error(error.err?.message || "Failed to create programming track")
+				toast.error(error.err?.message || "Failed to update programming track")
 			},
 			onSuccess: (result) => {
-				toast.success("Programming track created successfully")
+				toast.success("Programming track updated successfully")
 				console.log(
-					"DEBUG: [UI] Programming track creation form submitted with data:",
+					"DEBUG: [UI] Programming track edit form submitted with data:",
 					result.data,
 				)
 				if (result.data?.success && result.data?.data) {
-					onTrackCreated?.(result.data.data)
+					onTrackUpdated?.(result.data.data)
 				}
-				form.reset()
 				dialogCloseRef.current?.click()
 			},
 		},
@@ -139,17 +140,44 @@ export function ProgrammingTrackCreateDialog({
 		}
 	}, [open, teamId, fetchScalingGroups])
 
+	// Reset form when track changes
+	useEffect(() => {
+		form.reset({
+			name: track.name,
+			description: track.description || "",
+			type: track.type as typeof PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+			isPublic: track.isPublic === 1,
+			scalingGroupId: track.scalingGroupId || "none",
+		})
+	}, [track, form])
+
 	const onSubmit = (data: FormValues) => {
 		console.log(
-			"DEBUG: [UI] Programming track creation form submitted with data:",
+			"DEBUG: [UI] Programming track edit form submitted with data:",
 			data,
 		)
-		createTrack({
+
+		// Only include fields that have changed
+		const changedFields: Parameters<typeof updateTrack>[0] = {
 			teamId,
-			...data,
-			scalingGroupId:
-				data.scalingGroupId === "none" ? undefined : data.scalingGroupId,
-		})
+			trackId: track.id,
+		}
+
+		if (data.name !== track.name) changedFields.name = data.name
+		if (data.description !== (track.description || "")) {
+			changedFields.description = data.description || null
+		}
+		if (data.type !== track.type) changedFields.type = data.type
+		if (data.isPublic !== (track.isPublic === 1))
+			changedFields.isPublic = data.isPublic
+
+		const newScalingGroupId =
+			data.scalingGroupId === "none" ? null : data.scalingGroupId
+		if (newScalingGroupId !== track.scalingGroupId) {
+			changedFields.scalingGroupId = newScalingGroupId
+		}
+
+		updateTrack(changedFields)
 	}
 
 	return (
@@ -158,7 +186,7 @@ export function ProgrammingTrackCreateDialog({
 			<DialogContent className="sm:max-w-md border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary rounded-none">
 				<DialogHeader>
 					<DialogTitle className="font-mono text-xl tracking-tight">
-						Create Programming Track
+						Edit Programming Track
 					</DialogTitle>
 				</DialogHeader>
 
@@ -256,7 +284,7 @@ export function ProgrammingTrackCreateDialog({
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel className="font-mono font-semibold">
-										Scaling Group (Optional)
+										Scaling Group
 									</FormLabel>
 									<Select
 										onValueChange={field.onChange}
@@ -265,7 +293,7 @@ export function ProgrammingTrackCreateDialog({
 									>
 										<FormControl>
 											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
-												<SelectValue placeholder="Select scaling group (optional)" />
+												<SelectValue placeholder="Select scaling group" />
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent className="border-2 border-primary rounded-none font-mono">
@@ -305,7 +333,7 @@ export function ProgrammingTrackCreateDialog({
 								disabled={isPending}
 								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
 							>
-								{isPending ? "Creating..." : "Create Track"}
+								{isPending ? "Updating..." : "Update Track"}
 							</Button>
 						</div>
 					</form>

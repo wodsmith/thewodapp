@@ -153,7 +153,23 @@ export async function listScalingGroups({
 		)
 		.orderBy(desc(scalingGroupsTable.isSystem), asc(scalingGroupsTable.title))
 
-	return rows
+	// Fetch levels for each group
+	const groupsWithLevels = await Promise.all(
+		rows.map(async (group) => {
+			const levels = await db
+				.select()
+				.from(scalingLevelsTable)
+				.where(eq(scalingLevelsTable.scalingGroupId, group.id))
+				.orderBy(asc(scalingLevelsTable.position))
+
+			return {
+				...group,
+				levels,
+			}
+		}),
+	)
+
+	return groupsWithLevels
 }
 
 export async function getScalingGroupWithLevels({

@@ -1,19 +1,21 @@
 "use client"
 
-import { Users } from "lucide-react"
+import { Users, Dumbbell } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import type { ProgrammingTrack, Team } from "@/db/schema"
+import type { ProgrammingTrack, Team, ScalingGroup } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 
 interface ProgrammingTrackRowProps {
 	track: ProgrammingTrack
 	teamId: Team["id"]
+	scalingGroup?: ScalingGroup | null
 }
 
 export function ProgrammingTrackRow({
 	track,
 	teamId,
+	scalingGroup,
 }: ProgrammingTrackRowProps) {
 	const getTypeColor = (type: string) => {
 		switch (type) {
@@ -71,6 +73,12 @@ export function ProgrammingTrackRow({
 					) : (
 						<Badge className="bg-gray-500 text-white border-2 border-gray-700 font-mono text-xs whitespace-nowrap">
 							Private
+						</Badge>
+					)}
+					{scalingGroup && (
+						<Badge className="bg-purple-500 text-white border-2 border-purple-700 font-mono text-xs whitespace-nowrap">
+							<Dumbbell className="h-3 w-3 mr-1" />
+							{scalingGroup.title}
 						</Badge>
 					)}
 				</div>

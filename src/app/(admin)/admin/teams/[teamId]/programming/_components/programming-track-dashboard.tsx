@@ -3,18 +3,20 @@
 import { Plus } from "lucide-react"
 import { startTransition, useOptimistic, useState } from "react"
 import { Button } from "@/components/ui/button"
-import type { ProgrammingTrack } from "@/db/schema"
+import type { ProgrammingTrack, ScalingGroup } from "@/db/schema"
 import { ProgrammingTrackCreateDialog } from "./programming-track-create-dialog"
 import { ProgrammingTrackRow } from "./programming-track-row"
 
 interface ProgrammingTrackDashboardProps {
 	teamId: string
 	initialTracks: ProgrammingTrack[]
+	scalingGroups?: Map<string, ScalingGroup>
 }
 
 export function ProgrammingTrackDashboard({
 	teamId,
 	initialTracks,
+	scalingGroups,
 }: ProgrammingTrackDashboardProps) {
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 	const [optimisticTracks, setOptimisticTracks] = useOptimistic(
@@ -99,7 +101,16 @@ export function ProgrammingTrackDashboard({
 			) : (
 				<div className="space-y-4">
 					{optimisticTracks.map((track) => (
-						<ProgrammingTrackRow key={track.id} track={track} teamId={teamId} />
+						<ProgrammingTrackRow
+							key={track.id}
+							track={track}
+							teamId={teamId}
+							scalingGroup={
+								track.scalingGroupId
+									? scalingGroups?.get(track.scalingGroupId)
+									: undefined
+							}
+						/>
 					))}
 				</div>
 			)}

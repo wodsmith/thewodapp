@@ -34,7 +34,7 @@ import { requireTeamPermission } from "@/utils/team-auth"
 export const createProgrammingTrackAction = createServerAction()
 	.input(createProgrammingTrackSchema)
 	.handler(async ({ input }) => {
-		const { teamId, name, description, type, isPublic } = input
+		const { teamId, name, description, type, isPublic, scalingGroupId } = input
 
 		try {
 			// Check permissions
@@ -46,6 +46,7 @@ export const createProgrammingTrackAction = createServerAction()
 				type,
 				ownerTeamId: teamId,
 				isPublic,
+				scalingGroupId,
 			})
 
 			console.log(
@@ -102,7 +103,15 @@ export const deleteProgrammingTrackAction = createServerAction()
 export const updateProgrammingTrackAction = createServerAction()
 	.input(updateProgrammingTrackSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, isPublic } = input
+		const {
+			teamId,
+			trackId,
+			name,
+			description,
+			type,
+			isPublic,
+			scalingGroupId,
+		} = input
 
 		try {
 			// Check permissions
@@ -114,10 +123,21 @@ export const updateProgrammingTrackAction = createServerAction()
 				throw new Error("Team does not have access to this track")
 			}
 
-			const track = await updateProgrammingTrack(trackId, { isPublic })
+			const updateData: Parameters<typeof updateProgrammingTrack>[1] = {}
+
+			if (name !== undefined) updateData.name = name
+			if (description !== undefined) updateData.description = description
+			if (type !== undefined) updateData.type = type
+			if (isPublic !== undefined) updateData.isPublic = isPublic
+			if (scalingGroupId !== undefined) {
+				updateData.scalingGroupId =
+					scalingGroupId === "none" ? null : scalingGroupId
+			}
+
+			const track = await updateProgrammingTrack(trackId, updateData)
 
 			console.log(
-				`INFO: [ProgrammingTrack] Updated track: ${trackId} for team: ${teamId} - isPublic: ${isPublic}`,
+				`INFO: [ProgrammingTrack] Updated track: ${trackId} for team: ${teamId} - fields updated: ${Object.keys(updateData).join(", ")}`,
 			)
 
 			// Revalidate the programming page and track page

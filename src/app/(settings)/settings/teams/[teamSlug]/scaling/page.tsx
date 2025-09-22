@@ -96,7 +96,7 @@ export default async function ScalingPage({ params }: ScalingPageProps) {
 				<p className="text-muted-foreground mt-2">
 					Manage custom scaling levels for your workouts. Create groups with
 					different difficulty levels that can be applied to workouts and
-					programming tracks.
+					programming tracks. e.g. "Compete", "Rx", "Scaled"
 				</p>
 			</div>
 

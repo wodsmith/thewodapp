@@ -14,6 +14,7 @@ export const createProgrammingTrackSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
 	isPublic: z.boolean().optional().default(false),
+	scalingGroupId: z.string().optional(),
 })
 
 export const deleteProgrammingTrackSchema = z.object({
@@ -24,7 +25,25 @@ export const deleteProgrammingTrackSchema = z.object({
 export const updateProgrammingTrackSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().min(1, "Track ID is required"),
-	isPublic: z.boolean(),
+	name: z
+		.string()
+		.min(1, "Track name is required")
+		.max(255, "Name is too long")
+		.optional(),
+	description: z
+		.string()
+		.max(1000, "Description is too long")
+		.nullable()
+		.optional(),
+	type: z
+		.enum([
+			PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+			PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+			PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
+		])
+		.optional(),
+	isPublic: z.boolean().optional(),
+	scalingGroupId: z.string().nullable().optional(),
 })
 
 export const getTeamTracksSchema = z.object({

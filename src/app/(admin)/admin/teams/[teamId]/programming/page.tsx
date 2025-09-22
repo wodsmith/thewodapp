@@ -1,10 +1,15 @@
-import { eq } from "drizzle-orm"
+import { eq, or } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { getDd } from "@/db"
-import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import {
+	TEAM_PERMISSIONS,
+	teamTable,
+	scalingGroupsTable,
+	type ScalingGroup,
+} from "@/db/schema"
 import { getTeamTracks } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { ProgrammingTrackDashboard } from "./_components/programming-track-dashboard"
@@ -85,8 +90,26 @@ export default async function ProgrammingTrackPage({
 			name: t.name,
 			type: t.type,
 			ownerTeamId: t.ownerTeamId,
+			scalingGroupId: t.scalingGroupId,
 		})),
 	)
+
+	// Get all unique scaling groups used by tracks
+	const scalingGroupIds = [
+		...new Set(
+			tracks
+				.map((t) => t.scalingGroupId)
+				.filter((id): id is string => id !== null),
+		),
+	]
+	let scalingGroupsMap: Map<string, ScalingGroup> = new Map()
+
+	if (scalingGroupIds.length > 0) {
+		const scalingGroups = await db.query.scalingGroupsTable.findMany({
+			where: or(...scalingGroupIds.map((id) => eq(scalingGroupsTable.id, id))),
+		})
+		scalingGroupsMap = new Map(scalingGroups.map((sg) => [sg.id, sg]))
+	}
 
 	return (
 		<>
@@ -122,6 +145,7 @@ export default async function ProgrammingTrackPage({
 						<ProgrammingTrackDashboard
 							teamId={team.id}
 							initialTracks={tracks}
+							scalingGroups={scalingGroupsMap}
 						/>
 					</Suspense>
 				</div>

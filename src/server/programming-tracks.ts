@@ -27,6 +27,7 @@ export interface CreateTrackInput {
 	type: ProgrammingTrack["type"]
 	ownerTeamId?: string | null
 	isPublic?: boolean
+	scalingGroupId?: string | null
 }
 
 export interface AddWorkoutToTrackInput {
@@ -55,6 +56,7 @@ export async function createProgrammingTrack(
 			type: data.type,
 			ownerTeamId: data.ownerTeamId,
 			isPublic: data.isPublic ? 1 : 0,
+			scalingGroupId: data.scalingGroupId,
 			// Let database defaults handle timestamps
 		})
 		.returning()
@@ -65,16 +67,30 @@ export async function createProgrammingTrack(
 
 export async function updateProgrammingTrack(
 	trackId: string,
-	data: { isPublic?: boolean },
+	data: {
+		name?: string
+		description?: string | null
+		type?: ProgrammingTrack["type"]
+		isPublic?: boolean
+		scalingGroupId?: string | null
+	},
 ): Promise<ProgrammingTrack> {
 	const db = getDd()
 
+	const updateData: Partial<typeof programmingTracksTable.$inferInsert> = {
+		updatedAt: new Date(),
+	}
+
+	if (data.name !== undefined) updateData.name = data.name
+	if (data.description !== undefined) updateData.description = data.description
+	if (data.type !== undefined) updateData.type = data.type
+	if (data.isPublic !== undefined) updateData.isPublic = data.isPublic ? 1 : 0
+	if (data.scalingGroupId !== undefined)
+		updateData.scalingGroupId = data.scalingGroupId
+
 	const result = await db
 		.update(programmingTracksTable)
-		.set({
-			isPublic: data.isPublic ? 1 : 0,
-			updatedAt: new Date(),
-		})
+		.set(updateData)
 		.where(eq(programmingTracksTable.id, trackId))
 		.returning()
 
