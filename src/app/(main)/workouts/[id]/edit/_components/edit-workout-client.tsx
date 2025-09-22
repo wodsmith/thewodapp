@@ -18,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -501,6 +502,17 @@ export default function EditWorkoutClient({
 						</div>
 					</div>
 				</div>
+
+				{/* Scaling Descriptions Editor */}
+				{selectedScalingGroupId && selectedScalingGroupId !== "none" && (
+					<div className="mt-6 border-t-2 border-primary pt-6">
+						<WorkoutScalingDescriptionsEditor
+							workoutId={workoutId}
+							scalingGroupId={selectedScalingGroupId}
+							teamId={userTeams.length > 0 ? userTeams[0].id : undefined}
+						/>
+					</div>
+				)}
 
 				<div className="mt-6 flex justify-end gap-4">
 					<Button asChild variant="outline">

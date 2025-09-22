@@ -398,3 +398,39 @@ export async function getWorkoutScalingDescriptionsWithLevels({
 
 	return descriptions
 }
+
+// Create or update workout scaling descriptions
+export async function upsertWorkoutScalingDescriptions({
+	workoutId,
+	descriptions,
+}: {
+	workoutId: string
+	descriptions: Array<{
+		scalingLevelId: string
+		description: string | null
+	}>
+}) {
+	const db = getDd()
+
+	// Delete existing descriptions for this workout
+	await db
+		.delete(workoutScalingDescriptionsTable)
+		.where(eq(workoutScalingDescriptionsTable.workoutId, workoutId))
+
+	// Insert new descriptions (only non-empty ones)
+	const descriptionsToInsert = descriptions
+		.filter((desc) => desc.description && desc.description.trim() !== "")
+		.map((desc) => ({
+			workoutId,
+			scalingLevelId: desc.scalingLevelId,
+			description: desc.description!.trim(),
+		}))
+
+	if (descriptionsToInsert.length > 0) {
+		await db
+			.insert(workoutScalingDescriptionsTable)
+			.values(descriptionsToInsert)
+	}
+
+	return { success: true, count: descriptionsToInsert.length }
+}

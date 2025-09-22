@@ -13,6 +13,8 @@ import {
 import {
 	createScalingLevel as createScalingLevelServer,
 	reorderScalingLevels as reorderScalingLevelsServer,
+	getWorkoutScalingDescriptionsWithLevels,
+	upsertWorkoutScalingDescriptions,
 } from "@/server/scaling-levels"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
@@ -409,6 +411,87 @@ export const setDefaultScalingGroupAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to set default scaling group",
+			)
+		}
+	})
+
+/**
+ * Get workout scaling descriptions with level details
+ */
+export const getWorkoutScalingDescriptionsAction = createServerAction()
+	.input(
+		z.object({
+			workoutId: z.string().min(1, "Workout ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			}
+
+			const descriptions = await getWorkoutScalingDescriptionsWithLevels({
+				workoutId: input.workoutId,
+			})
+
+			return { success: true, data: descriptions }
+		} catch (error) {
+			console.error("Failed to get workout scaling descriptions:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to get workout scaling descriptions",
+			)
+		}
+	})
+
+/**
+ * Update workout scaling descriptions
+ */
+export const updateWorkoutScalingDescriptionsAction = createServerAction()
+	.input(
+		z.object({
+			workoutId: z.string().min(1, "Workout ID is required"),
+			descriptions: z.array(
+				z.object({
+					scalingLevelId: z.string().min(1, "Scaling level ID is required"),
+					description: z.string().nullable(),
+				}),
+			),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			}
+
+			const result = await upsertWorkoutScalingDescriptions({
+				workoutId: input.workoutId,
+				descriptions: input.descriptions,
+			})
+
+			// Revalidate workout pages
+			revalidatePath(`/workouts/${input.workoutId}`)
+			revalidatePath(`/workouts/${input.workoutId}/edit`)
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to update workout scaling descriptions:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update workout scaling descriptions",
 			)
 		}
 	})
