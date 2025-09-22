@@ -219,9 +219,16 @@ export default function WorkoutDetailClient({
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 						<div>
 							<h2 className="mb-4">DESCRIPTION</h2>
-							<p className="mb-6 whitespace-pre-wrap text-foreground text-lg dark:text-dark-foreground">
-								{workout.description}
-							</p>
+							<WorkoutScalingDisplay
+								workoutDescription={workout.description || ""}
+								scalingLevels={workout.scalingLevels}
+								scalingDescriptions={workout.scalingDescriptions}
+								defaultLevelPosition={0} // Default to hardest
+								showToggle={
+									!!workout.scalingLevels && workout.scalingLevels.length > 0
+								}
+								className="mb-6"
+							/>
 						</div>
 
 						<div>

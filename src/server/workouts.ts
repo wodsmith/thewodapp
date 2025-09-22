@@ -595,6 +595,16 @@ export async function getWorkoutById(id: string): Promise<
 				teamName?: string
 			} | null
 			remixCount?: number
+			// Scaling information
+			scalingLevels?: Array<{
+				id: string
+				label: string
+				position: number
+			}>
+			scalingDescriptions?: Array<{
+				scalingLevelId: string
+				description: string | null
+			}>
 	  })
 	| null
 > {

@@ -44,6 +44,16 @@ export type WorkoutWithTagsAndMovements = Workout & {
 		teamName?: string
 	} | null
 	remixCount?: number
+	// Scaling information
+	scalingLevels?: Array<{
+		id: string
+		label: string
+		position: number
+	}>
+	scalingDescriptions?: Array<{
+		scalingLevelId: string
+		description: string | null
+	}>
 }
 
 export type WorkoutUpdate = Partial<
