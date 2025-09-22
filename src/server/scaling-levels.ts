@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	TEAM_PERMISSIONS,
@@ -325,4 +325,76 @@ export async function createWorkoutRemixAlignedToScalingGroup({
 		.returning()
 
 	return updated
+}
+
+// Migrate scaling descriptions from source workout to remixed workout
+export async function migrateScalingDescriptions({
+	remixedWorkoutId,
+	mappings,
+}: {
+	originalWorkoutId: string
+	remixedWorkoutId: string
+	mappings: Array<{
+		originalScalingLevelId: string
+		newScalingLevelId: string
+		description: string
+	}>
+}) {
+	const db = getDd()
+
+	// Delete any existing descriptions for the remixed workout
+	await db
+		.delete(workoutScalingDescriptionsTable)
+		.where(eq(workoutScalingDescriptionsTable.workoutId, remixedWorkoutId))
+
+	// Insert new descriptions based on mappings
+	if (mappings.length > 0) {
+		const descriptionsToInsert = mappings
+			.filter((mapping) => mapping.description.trim() !== "")
+			.map((mapping) => ({
+				workoutId: remixedWorkoutId,
+				scalingLevelId: mapping.newScalingLevelId,
+				description: mapping.description,
+			}))
+
+		if (descriptionsToInsert.length > 0) {
+			await db
+				.insert(workoutScalingDescriptionsTable)
+				.values(descriptionsToInsert)
+		}
+	}
+
+	return { success: true, migratedCount: mappings.length }
+}
+
+// Get scaling descriptions for a workout with scaling level details
+export async function getWorkoutScalingDescriptionsWithLevels({
+	workoutId,
+}: {
+	workoutId: string
+}) {
+	const db = getDd()
+
+	const descriptions = await db
+		.select({
+			id: workoutScalingDescriptionsTable.id,
+			workoutId: workoutScalingDescriptionsTable.workoutId,
+			scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+			description: workoutScalingDescriptionsTable.description,
+			scalingLevel: {
+				id: scalingLevelsTable.id,
+				label: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+				scalingGroupId: scalingLevelsTable.scalingGroupId,
+			},
+		})
+		.from(workoutScalingDescriptionsTable)
+		.innerJoin(
+			scalingLevelsTable,
+			eq(workoutScalingDescriptionsTable.scalingLevelId, scalingLevelsTable.id),
+		)
+		.where(eq(workoutScalingDescriptionsTable.workoutId, workoutId))
+		.orderBy(asc(scalingLevelsTable.position))
+
+	return descriptions
 }
