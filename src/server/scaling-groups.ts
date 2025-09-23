@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, asc, count, desc, eq, inArray, like, sql } from "drizzle-orm"
+import { asc, desc, eq, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	TEAM_PERMISSIONS,
@@ -8,7 +8,6 @@ import {
 	scalingGroupsTable,
 	scalingLevelsTable,
 	teamTable,
-	workouts,
 } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"
 
@@ -173,7 +172,7 @@ export async function listScalingGroups({
 }
 
 export async function getScalingGroupWithLevels({
-	teamId,
+	teamId: _teamId, // Kept for API compatibility but not used for read operations
 	scalingGroupId,
 }: {
 	teamId: string | null
@@ -188,7 +187,9 @@ export async function getScalingGroupWithLevels({
 
 	if (!group) return null
 
-	if (group.teamId && teamId && group.teamId !== teamId) return null
+	// Allow fetching scaling groups from other teams when reading (not modifying)
+	// This is needed for logging results on workouts from other teams that have scaling groups
+	// The team check should be done at the action level if needed for modification operations
 
 	const levels = await db
 		.select()

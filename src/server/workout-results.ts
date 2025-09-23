@@ -439,11 +439,23 @@ export async function getWorkoutResultsWithScalingForUser(
 		teamId: "", // Not needed for user-specific query
 		userId,
 	})
-	return result.map((r) => ({
+	const mappedResults = result.map((r) => ({
 		...r,
 		scalingLevelLabel: r.scalingLabel,
 		scalingLevelPosition: r.scalingPosition,
 	}))
+
+	console.log(
+		"[getWorkoutResultsWithScalingForUser] Mapped results:",
+		mappedResults.map((r) => ({
+			id: r.id,
+			scalingLevelId: r.scalingLevelId,
+			scalingLevelLabel: r.scalingLevelLabel,
+			scale: r.scale,
+		})),
+	)
+
+	return mappedResults
 }
 
 /**
@@ -532,6 +544,17 @@ export async function getWorkoutResultsWithScaling({
 
 		console.log(
 			`Found ${workoutResultsData.length} results with scaling information.`,
+		)
+		console.log(
+			"[getWorkoutResultsWithScaling] Sample result:",
+			workoutResultsData[0]
+				? {
+						id: workoutResultsData[0].id,
+						scalingLevelId: workoutResultsData[0].scalingLevelId,
+						scalingLabel: workoutResultsData[0].scalingLabel,
+						scale: workoutResultsData[0].scale,
+					}
+				: "No results",
 		)
 		return workoutResultsData.map((result) => ({
 			...result,
