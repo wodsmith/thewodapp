@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
+import { WorkoutScalingDisplay } from "@/components/scaling/workout-scaling-display"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import {
@@ -223,7 +224,6 @@ export default function WorkoutDetailClient({
 								workoutDescription={workout.description || ""}
 								scalingLevels={workout.scalingLevels}
 								scalingDescriptions={workout.scalingDescriptions}
-								defaultLevelPosition={0} // Default to hardest
 								showToggle={
 									!!workout.scalingLevels && workout.scalingLevels.length > 0
 								}
