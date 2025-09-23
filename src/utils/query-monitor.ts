@@ -9,7 +9,7 @@ interface QueryMetrics {
 	duration: number
 	timestamp: number
 	context?: string
-	params?: Record<string, any>
+	params?: Record<string, unknown>
 }
 
 // In-memory storage for query metrics (could be replaced with external monitoring)
@@ -24,7 +24,7 @@ export async function monitorQuery<T>(
 	queryName: string,
 	queryFn: () => Promise<T>,
 	context?: string,
-	params?: Record<string, any>,
+	params?: Record<string, unknown>,
 ): Promise<T> {
 	if (!MONITORING_ENABLED) {
 		return await queryFn()
@@ -152,17 +152,20 @@ export function clearQueryMetrics() {
  * Scaling-specific query monitoring helpers
  */
 export const ScalingQueryMonitor = {
-	async monitorScalingGroupFetch(scalingGroupId: string, queryFn: () => any) {
+	async monitorScalingGroupFetch<T>(
+		scalingGroupId: string,
+		queryFn: () => Promise<T>,
+	) {
 		return monitorQuery("scaling-group-fetch", queryFn, "scaling-groups", {
 			scalingGroupId,
 		})
 	},
 
-	async monitorScalingResolution(
+	async monitorScalingResolution<T>(
 		workoutId: string,
 		teamId: string,
 		trackId: string | undefined,
-		queryFn: () => any,
+		queryFn: () => Promise<T>,
 	) {
 		return monitorQuery("scaling-resolution", queryFn, "scaling-resolution", {
 			workoutId,
@@ -171,10 +174,10 @@ export const ScalingQueryMonitor = {
 		})
 	},
 
-	async monitorLeaderboardQuery(
+	async monitorLeaderboardQuery<T>(
 		workoutId: string,
 		scalingLevelId: string,
-		queryFn: () => any,
+		queryFn: () => Promise<T>,
 	) {
 		return monitorQuery("leaderboard-query", queryFn, "leaderboards", {
 			workoutId,
@@ -182,10 +185,10 @@ export const ScalingQueryMonitor = {
 		})
 	},
 
-	async monitorResultsQuery(
+	async monitorResultsQuery<T>(
 		workoutId: string,
 		resultCount: number,
-		queryFn: () => any,
+		queryFn: () => Promise<T>,
 	) {
 		return monitorQuery("results-query", queryFn, "results", {
 			workoutId,
