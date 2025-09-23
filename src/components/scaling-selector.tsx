@@ -137,9 +137,9 @@ export function ScalingSelector({
 		setSelectedLevelId(levelId)
 
 		// Determine if this counts as "Rx" based on position
-		// Position 0-1 are typically considered Rx variations
+		// Only position 0 (typically the top/compete level) is considered Rx
 		const level = scalingGroup?.levels.find((l) => l.id === levelId)
-		const asRx = level ? level.position <= 1 : false
+		const asRx = level ? level.position === 0 : false
 
 		onChange(levelId, asRx)
 	}
