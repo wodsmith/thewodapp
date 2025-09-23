@@ -1,4 +1,5 @@
 import "server-only"
+/// <reference types="@cloudflare/workers-types" />
 import { and, eq, gte, lte, desc, asc } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
@@ -8,25 +9,29 @@ import {
 	scalingGroupsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schema"
-import type {
-	ResultSet,
-	WorkoutResult,
-	WorkoutResultWithWorkoutName,
-} from "@/types"
+import type { ResultSet, WorkoutResult } from "@/types"
+import type { ScalingLevel } from "@/db/schemas/scaling"
 import { ScalingQueryMonitor } from "@/utils/query-monitor"
 
 // Multi-tier cache system for scaling data
+type CachedScalingGroup = {
+	id: string
+	title: string
+	description: string | null
+	levels: ScalingLevel[]
+}
+
 const scalingGroupCache = new Map<
 	string,
 	{
-		data: any
+		data: CachedScalingGroup
 		timestamp: number
 	}
 >()
 const workoutResolutionCache = new Map<
 	string,
 	{
-		data: any
+		data: CachedScalingGroup
 		timestamp: number
 	}
 >()
@@ -40,13 +45,13 @@ const CACHE_TTL = {
 } as const
 
 // Global default scaling group cache (permanent in memory)
-let globalDefaultScalingGroup: any = null
+let globalDefaultScalingGroup: CachedScalingGroup | null = null
 let globalDefaultTimestamp = 0
 
 /**
  * Get the Cloudflare KV binding for caching
  */
-function getKVBinding() {
+function getKVBinding(): KVNamespace | null {
 	// In Cloudflare Workers, KV is available via env.YOUR_KV_NAMESPACE
 	// For development, we fall back to in-memory cache
 	if (
@@ -93,7 +98,7 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 
 	// 3. Fetch from database with monitoring
 	const db = getDd()
-	const groupData = await ScalingQueryMonitor.monitorScalingGroupFetch(
+	const groupData = (await ScalingQueryMonitor.monitorScalingGroupFetch(
 		scalingGroupId,
 		() =>
 			db
@@ -110,13 +115,28 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 				)
 				.where(eq(scalingGroupsTable.id, scalingGroupId))
 				.orderBy(asc(scalingLevelsTable.position)),
-	)
+	)) as Array<{
+		id: string
+		title: string
+		description: string | null
+		levels: {
+			id: string
+			label: string
+			position: number
+			scalingGroupId: string
+		} | null
+	}>
 
 	const processedData = {
 		id: groupData[0]?.id,
 		title: groupData[0]?.title,
 		description: groupData[0]?.description,
-		levels: groupData.filter((row) => row.levels).map((row) => row.levels),
+		levels: groupData
+			.filter(
+				(row): row is typeof row & { levels: NonNullable<typeof row.levels> } =>
+					row.levels !== null,
+			)
+			.map((row) => row.levels),
 	}
 
 	// 4. Update all caches
@@ -141,7 +161,7 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 /**
  * Get global default scaling group with permanent in-memory caching
  */
-async function getGlobalDefaultScalingGroup() {
+async function _getGlobalDefaultScalingGroup() {
 	// Check if we have it cached and it's not too old (refresh every hour)
 	const ONE_HOUR = 60 * 60 * 1000
 	if (
@@ -169,7 +189,7 @@ async function getGlobalDefaultScalingGroup() {
 /**
  * Get cached workout scaling resolution
  */
-async function getCachedWorkoutResolution(
+async function _getCachedWorkoutResolution(
 	workoutId: string,
 	teamId: string,
 	trackId?: string,
@@ -209,9 +229,11 @@ export function clearScalingGroupCache(scalingGroupId?: string) {
 		// Also clear from KV if available
 		const kvBinding = getKVBinding()
 		if (kvBinding) {
-			kvBinding.delete(`scaling-group:${scalingGroupId}`).catch((error) => {
-				console.warn("KV cache delete failed:", error)
-			})
+			kvBinding
+				.delete(`scaling-group:${scalingGroupId}`)
+				.catch((error: unknown) => {
+					console.warn("KV cache delete failed:", error)
+				})
 		}
 	} else {
 		scalingGroupCache.clear()
@@ -262,7 +284,7 @@ export async function getWorkoutScalingInfo({
 	workoutId: string
 	scalingGroupId?: string
 }): Promise<{
-	scalingGroup: any
+	scalingGroup: CachedScalingGroup
 	scalingDescriptions: Record<string, string>
 }> {
 	const db = getDd()
@@ -688,7 +710,7 @@ export async function getWorkoutLeaderboard({
 				scalingLabel: string
 				scalingPosition: number
 				scalingGroupTitle?: string
-				results: Array<any>
+				results: Array<WorkoutResult>
 			}
 		>()
 

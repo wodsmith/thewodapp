@@ -436,8 +436,8 @@ export function TrackWorkoutManagement({
 						weekNumber: null,
 						notes: null,
 						updateCounter: null,
-						createdAt: null as any, // Temporary UI object
-						updatedAt: null as any, // Temporary UI object
+						createdAt: new Date(), // Temporary UI object
+						updatedAt: new Date(), // Temporary UI object
 					}
 					setOptimisticTrackWorkouts({
 						type: "add",
@@ -620,7 +620,12 @@ export function TrackWorkoutManagement({
 								return
 							}
 
-							if (result?.success) {
+							if (
+								result &&
+								!Array.isArray(result) &&
+								result.success &&
+								"action" in result
+							) {
 								if (result.action === "already_aligned") {
 									toast.info(result.message || "Workout is already aligned")
 									setAlignDialogState({ open: false, workout: null })
@@ -628,13 +633,20 @@ export function TrackWorkoutManagement({
 									// Show migration dialog
 									setMigrationDialogState({
 										open: true,
-										data: result.data,
+										data: result.data as unknown as {
+											workout: Workout
+											track: ProgrammingTrack
+											existingDescriptions: Array<
+												WorkoutScalingDescription & {
+													scalingLevel: ScalingLevel
+												}
+											>
+											newScalingLevels: Array<ScalingLevel>
+										},
 									})
 									setAlignDialogState({ open: false, workout: null })
 								} else {
-									toast.success(
-										result.message || "Workout scaling aligned with track",
-									)
+									toast.success("Workout scaling aligned with track")
 
 									// Trigger a refresh of the track workouts to show updated scaling
 									window.location.reload()
