@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bac29fa8-fcca-4c35-a24f-08ab3834624b",
-  "prevId": "13e42208-810b-48b5-ab5a-d5dd57dffa7e",
+  "id": "53ed88f7-bf7c-4666-b814-b9f2f92c02dc",
+  "prevId": "bac29fa8-fcca-4c35-a24f-08ab3834624b",
   "tables": {
     "credit_transaction": {
       "name": "credit_transaction",
@@ -343,6 +343,13 @@
           "name": "programming_track_owner_idx",
           "columns": [
             "ownerTeamId"
+          ],
+          "isUnique": false
+        },
+        "programming_track_scaling_idx": {
+          "name": "programming_track_scaling_idx",
+          "columns": [
+            "scalingGroupId"
           ],
           "isUnique": false
         }
@@ -2783,6 +2790,13 @@
             "personalTeamOwnerId"
           ],
           "isUnique": false
+        },
+        "team_default_scaling_idx": {
+          "name": "team_default_scaling_idx",
+          "columns": [
+            "defaultScalingGroupId"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -3802,7 +3816,29 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "workouts_scaling_group_idx": {
+          "name": "workouts_scaling_group_idx",
+          "columns": [
+            "scaling_group_id"
+          ],
+          "isUnique": false
+        },
+        "workouts_team_idx": {
+          "name": "workouts_team_idx",
+          "columns": [
+            "team_id"
+          ],
+          "isUnique": false
+        },
+        "workouts_source_track_idx": {
+          "name": "workouts_source_track_idx",
+          "columns": [
+            "source_track_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "workouts_team_id_team_id_fk": {
           "name": "workouts_team_id_team_id_fk",
