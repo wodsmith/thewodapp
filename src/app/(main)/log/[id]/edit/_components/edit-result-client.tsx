@@ -28,6 +28,7 @@ import type { ResultSet, Workout } from "@/types"
 import { formatSecondsToTime } from "@/lib/utils"
 import { getLocalDateKey } from "@/utils/date-utils"
 import type { Route } from "next"
+import { ScalingSelector } from "@/components/scaling-selector"
 
 interface EditResultClientProps {
 	result: {
@@ -38,6 +39,8 @@ interface EditResultClientProps {
 		type: "wod" | "strength" | "monostructural" | null
 		notes: string | null
 		scale: "rx" | "scaled" | "rx+" | null
+		scalingLevelId?: string | null
+		asRx?: boolean | null
 		wodScore: string | null
 		scheduledWorkoutInstanceId: string | null
 		programmingTrackId: string | null
@@ -48,6 +51,7 @@ interface EditResultClientProps {
 	workout: Workout
 	sets: ResultSet[]
 	userId: string
+	teamId: string
 	redirectUrl: string
 	updateResultAction: (data: {
 		resultId: string
@@ -62,6 +66,7 @@ export default function EditResultClient({
 	workout,
 	sets,
 	userId,
+	teamId,
 	redirectUrl,
 	updateResultAction,
 }: EditResultClientProps) {
@@ -135,6 +140,8 @@ export default function EditResultClient({
 				? getLocalDateKey(result.date)
 				: getLocalDateKey(new Date()),
 			scale: result.scale || "rx",
+			scalingLevelId: result.scalingLevelId || undefined,
+			asRx: result.asRx || false,
 			scores: parseExistingScores(),
 			notes: result.notes || "",
 		},
@@ -150,7 +157,15 @@ export default function EditResultClient({
 		const formData = new FormData()
 		formData.append("selectedWorkoutId", data.selectedWorkoutId)
 		formData.append("date", data.date)
-		formData.append("scale", data.scale || "")
+		// Include both legacy and new scaling fields
+		if (data.scalingLevelId) {
+			formData.append("scalingLevelId", data.scalingLevelId)
+			formData.append("asRx", String(data.asRx || false))
+			// Set legacy scale based on asRx for backward compatibility
+			formData.append("scale", data.asRx ? "rx" : "scaled")
+		} else if (data.scale) {
+			formData.append("scale", data.scale || "")
+		}
 		formData.append("notes", data.notes || "")
 		formData.append("redirectUrl", redirectUrl)
 
@@ -391,7 +406,7 @@ export default function EditResultClient({
 									<h3 className="text-lg font-semibold mb-2">Workout</h3>
 									<p className="text-lg">{workout.name}</p>
 									{workout.description && (
-										<p className="text-sm text-muted-foreground mt-1">
+										<p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
 											{workout.description}
 										</p>
 									)}
@@ -420,31 +435,19 @@ export default function EditResultClient({
 									)}
 								/>
 
-								<FormField
-									control={form.control}
-									name="scale"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Scale</FormLabel>
-											<div className="flex gap-2">
-												{(["rx", "scaled", "rx+"] as const).map((scale) => (
-													<Button
-														key={scale}
-														type="button"
-														variant={
-															field.value === scale ? "default" : "outline"
-														}
-														size="sm"
-														onClick={() => field.onChange(scale)}
-														className="flex-1"
-													>
-														{scale.toUpperCase()}
-													</Button>
-												))}
-											</div>
-											<FormMessage />
-										</FormItem>
-									)}
+								{/* Scaling Level */}
+								<ScalingSelector
+									workoutId={workout.id}
+									workoutScalingGroupId={workout.scalingGroupId}
+									programmingTrackId={result.programmingTrackId}
+									trackScalingGroupId={null}
+									teamId={teamId}
+									value={form.watch("scalingLevelId")}
+									onChange={(scalingLevelId, asRx) => {
+										form.setValue("scalingLevelId", scalingLevelId)
+										form.setValue("asRx", asRx)
+									}}
+									required
 								/>
 
 								<div className="space-y-4">

@@ -57,6 +57,10 @@ export default async function EditResultPage({
 
 	const workout = workoutData.data as Workout
 
+	// Get user's team ID for scaling selector
+	const { getUserPersonalTeamId } = await import("@/server/user")
+	const teamId = await getUserPersonalTeamId(session.userId)
+
 	// Get the result sets
 	const [setsData] = await getResultSetsByIdAction({
 		resultId: myParams.id,
@@ -91,6 +95,7 @@ export default async function EditResultPage({
 			workout={workout}
 			sets={sets}
 			userId={session.userId}
+			teamId={teamId}
 			redirectUrl={mySearchParams.redirectUrl || "/log"}
 			updateResultAction={updateResultServerAction}
 		/>
