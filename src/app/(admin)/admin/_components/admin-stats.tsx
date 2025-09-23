@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useServerAction } from "zsa-react"
 import { getAdminStatsAction } from "@/actions/admin-actions"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function AdminStats() {
 	const { execute, data, isPending } = useServerAction(getAdminStatsAction)
@@ -17,32 +18,44 @@ export function AdminStats() {
 
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-			<div className="border-2 border-primary bg-card p-6 shadow-[4px_4px_0px_0px] shadow-primary">
-				<h3 className="text-sm font-mono font-medium text-muted-foreground mb-2">
-					Total Users
-				</h3>
-				<p className="text-3xl font-mono font-bold">
-					{isPending ? "..." : totalUsers.toLocaleString()}
-				</p>
-			</div>
+			<Card>
+				<CardHeader className="pb-2">
+					<CardTitle className="text-sm font-medium text-muted-foreground">
+						Total Users
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-3xl font-bold">
+						{isPending ? "..." : totalUsers.toLocaleString()}
+					</p>
+				</CardContent>
+			</Card>
 
-			<div className="border-2 border-primary bg-card p-6 shadow-[4px_4px_0px_0px] shadow-primary">
-				<h3 className="text-sm font-mono font-medium text-muted-foreground mb-2">
-					Active Teams
-				</h3>
-				<p className="text-3xl font-mono font-bold">
-					{isPending ? "..." : activeTeams.toLocaleString()}
-				</p>
-			</div>
+			<Card>
+				<CardHeader className="pb-2">
+					<CardTitle className="text-sm font-medium text-muted-foreground">
+						Active Teams
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-3xl font-bold">
+						{isPending ? "..." : activeTeams.toLocaleString()}
+					</p>
+				</CardContent>
+			</Card>
 
-			<div className="border-2 border-primary bg-card p-6 shadow-[4px_4px_0px_0px] shadow-primary">
-				<h3 className="text-sm font-mono font-medium text-muted-foreground mb-2">
-					Total Workouts
-				</h3>
-				<p className="text-3xl font-mono font-bold">
-					{isPending ? "..." : totalWorkouts.toLocaleString()}
-				</p>
-			</div>
+			<Card>
+				<CardHeader className="pb-2">
+					<CardTitle className="text-sm font-medium text-muted-foreground">
+						Total Workouts
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-3xl font-bold">
+						{isPending ? "..." : totalWorkouts.toLocaleString()}
+					</p>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

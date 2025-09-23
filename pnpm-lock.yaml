@@ -101,6 +101,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.3
         version: 1.2.3(@types/react@19.0.12)(react@19.0.0)
+      '@radix-ui/react-toggle':
+        specifier: ^1.1.10
+        version: 1.1.10(@types/react-dom@19.0.4(@types/react@19.0.12))(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@radix-ui/react-tooltip':
         specifier: ^1.2.7
         version: 1.2.7(@types/react-dom@19.0.4(@types/react@19.0.12))(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -182,6 +185,9 @@ importers:
       react:
         specifier: ^19.0.0
         version: 19.0.0
+      react-day-picker:
+        specifier: ^9.10.0
+        version: 9.10.0(react@19.0.0)
       react-dom:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
@@ -267,6 +273,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.4
         version: 19.0.4(@types/react@19.0.12)
+      '@typescript/native-preview':
+        specifier: 7.0.0-dev.20250922.1
+        version: 7.0.0-dev.20250922.1
       better-sqlite3:
         specifier: ^11.10.0
         version: 11.10.0
@@ -973,6 +982,9 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@date-fns/tz@1.4.1':
+    resolution: {integrity: sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA==}
 
   '@discoveryjs/json-ext@0.5.7':
     resolution: {integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==}
@@ -3165,6 +3177,19 @@ packages:
       '@types/react':
         optional: true
 
+  '@radix-ui/react-toggle@1.1.10':
+    resolution: {integrity: sha512-lS1odchhFTeZv3xwHH31YPObmJn8gOg7Lq12inrr0+BH/l3Tsq32VfjqH1oh80ARM3mlkfMic15n0kg4sD1poQ==}
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+
   '@radix-ui/react-tooltip@1.2.7':
     resolution: {integrity: sha512-Ap+fNYwKTYJ9pzqW+Xe2HtMRbQ/EeWkj2qykZ6SuEV4iS/o1bZI5ssJbk4D2r8XuDuOBVz/tIx2JObtuqU+5Zw==}
     peerDependencies:
@@ -4455,6 +4480,45 @@ packages:
   '@types/uuid@9.0.8':
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
 
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-R4sKE/cQYMGrmaz8OBnnseABdB6W0ZCQ9muHQnoxuyukf7m0wLLqvGNorQZSWVl9xQ7qNniXcZJlCKp4JmRr6w==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-Hhh+9e/75ZQxdatdA8TFKOKjPwqjXWNI2a8vswvMU6zOmiVYZoYaUGEGFhk0W1WPGnt/kZSM1Mb4a9nVaEwhZQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-Rw74z0tf0NEujnl0W58fQ5pbh8P1fr2ujQTMkQYz9WpH+hYuysQgcOiDEoht62CxtLHflexu3dUWJI8/LUPyHA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-4JbSk4B0SUo2c+S9YKGLAaMQXA16Pd9Cd7GLhMiABRtOLEHFDAaFmFbVoGYX5Dyicix711oziX/WAhD6nuC73A==}
+    cpu: [arm]
+    os: [linux]
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-lY6JAZgzeJxLwciC8Wc9l7OlDYwVbuo3JK+qHfLlyxu8h1Q3cGF5VMpgSlAj9CKLDQ0h4kDAecLLiEEOod78aw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-pGzWqNx7x6Sqs20Ea5Xn/JC9eZ9Do6bu6K+dmfpewYYhwUv8jiOhh+fr9TJFZ8MlaZDTp9FclQIGpW+2MZ8UOw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-RoNm3P69p5F/ZJ7O7nIoUJB0OVG5nGIEVzP/VF2lm8jBbDN8aCRNT+DkZrQvdXJEBg2fM0WrTzcik9KVXAyEag==}
+    cpu: [x64]
+    os: [win32]
+
+  '@typescript/native-preview@7.0.0-dev.20250922.1':
+    resolution: {integrity: sha512-B7svR7Fm4cLLL8ARBVc9Xx2KFcZuCkNsdR7LBZjSqaDM6am11XizhPORrI7x8rlVQ71CBoQVgOp/2/Bn3x+OgA==}
+    hasBin: true
+
   '@vitest/expect@3.2.3':
     resolution: {integrity: sha512-W2RH2TPWVHA1o7UmaFKISPvdicFJH+mjykctJFoAkUw+SPTJTGjUNdKscFBrqM7IPnCVu6zihtKYa7TkZS1dkQ==}
 
@@ -4875,6 +4939,9 @@ packages:
   data-urls@5.0.0:
     resolution: {integrity: sha512-ZYP5VBHshaDAiVZxjbRVcFJpc+4xGgT0bK3vzy1HLN8jTO975HEbuYzZJcHoQEY5K1a0z8YayJkyVETa08eNTg==}
     engines: {node: '>=18'}
+
+  date-fns-jalali@4.1.0-0:
+    resolution: {integrity: sha512-hTIP/z+t+qKwBDcmmsnmjWTduxCg+5KfdqWQvb2X/8C9+knYY6epN/pfxdDuyVlSVeFz0sM5eEfwIUQ70U4ckg==}
 
   date-fns-tz@3.2.0:
     resolution: {integrity: sha512-sg8HqoTEulcbbbVXeg84u5UnlsQa8GS5QXMqjjYIhS4abEVVKIUwe0/l/UhrZdKaL/W5eWZNlbTeEIiOXTcsBQ==}
@@ -6437,6 +6504,12 @@ packages:
   rc@1.2.8:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
+
+  react-day-picker@9.10.0:
+    resolution: {integrity: sha512-tedecLSd+fpSN+J08601MaMsf122nxtqZXxB6lwX37qFoLtuPNuRJN8ylxFjLhyJS1kaLfAqL1GUkSLd2BMrpQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: '>=16.8.0'
 
   react-dom@19.0.0:
     resolution: {integrity: sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==}
@@ -8790,6 +8863,8 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@date-fns/tz@1.4.1': {}
 
   '@discoveryjs/json-ext@0.5.7': {}
 
@@ -11267,6 +11342,17 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.0.12
 
+  '@radix-ui/react-toggle@1.1.10(@types/react-dom@19.0.4(@types/react@19.0.12))(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      '@radix-ui/primitive': 1.1.3
+      '@radix-ui/react-primitive': 2.1.3(@types/react-dom@19.0.4(@types/react@19.0.12))(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@radix-ui/react-use-controllable-state': 1.2.2(@types/react@19.0.12)(react@19.0.0)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    optionalDependencies:
+      '@types/react': 19.0.12
+      '@types/react-dom': 19.0.4(@types/react@19.0.12)
+
   '@radix-ui/react-tooltip@1.2.7(@types/react-dom@19.0.4(@types/react@19.0.12))(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@radix-ui/primitive': 1.1.2
@@ -13031,6 +13117,37 @@ snapshots:
 
   '@types/uuid@9.0.8': {}
 
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20250922.1':
+    optional: true
+
+  '@typescript/native-preview@7.0.0-dev.20250922.1':
+    optionalDependencies:
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20250922.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20250922.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20250922.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20250922.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20250922.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20250922.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20250922.1
+
   '@vitest/expect@3.2.3':
     dependencies:
       '@types/chai': 5.2.2
@@ -13438,6 +13555,8 @@ snapshots:
     dependencies:
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.2.0
+
+  date-fns-jalali@4.1.0-0: {}
 
   date-fns-tz@3.2.0(date-fns@4.1.0):
     dependencies:
@@ -14934,6 +15053,13 @@ snapshots:
       ini: 1.3.8
       minimist: 1.2.8
       strip-json-comments: 2.0.1
+
+  react-day-picker@9.10.0(react@19.0.0):
+    dependencies:
+      '@date-fns/tz': 1.4.1
+      date-fns: 4.1.0
+      date-fns-jalali: 4.1.0-0
+      react: 19.0.0
 
   react-dom@19.0.0(react@19.0.0):
     dependencies:

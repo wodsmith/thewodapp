@@ -21,6 +21,7 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface TeamPageProps {
 	params: Promise<{
@@ -141,33 +142,40 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 				{/* Quick stats */}
 				<div className="col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div className="p-6 border-2 border-primary bg-card flex flex-col shadow-[4px_4px_0px_0px] shadow-primary">
-						<span className="text-sm font-mono font-medium text-muted-foreground">
-							Team Credits
-						</span>
-						<span className="text-2xl font-mono font-bold">
-							{team.creditBalance || 0}
-						</span>
-					</div>
+					<Card>
+						<CardHeader>
+							<CardTitle>Team Credits</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<span className="text-sm font-mono font-medium text-muted-foreground">
+								Team Credits
+							</span>
+							<span className="text-2xl font-mono font-bold">
+								{team.creditBalance || 0}
+							</span>
+						</CardContent>
+					</Card>
 
-					<div className="p-6 border-2 border-primary bg-card flex flex-col shadow-[4px_4px_0px_0px] shadow-primary">
-						<span className="text-sm font-mono font-medium text-muted-foreground">
-							Your Role
-						</span>
-						<span className="text-2xl font-mono font-bold capitalize">
-							{teamSession?.teams?.find((t) => t.id === team.id)?.role.name ||
-								"Member"}
-						</span>
-					</div>
+					<Card>
+						<CardHeader>
+							<CardTitle>Your Role</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<span className="text-2xl font-mono font-bold capitalize">
+								{teamSession?.teams?.find((t) => t.id === team.id)?.role.name ||
+									"Member"}
+							</span>
+						</CardContent>
+					</Card>
 
-					<div className="p-6 border-2 border-primary bg-card flex flex-col shadow-[4px_4px_0px_0px] shadow-primary">
-						<span className="text-sm font-mono font-medium text-muted-foreground">
-							Created
-						</span>
-						<span className="text-2xl font-mono font-bold">
+					<Card>
+						<CardHeader>
+							<CardTitle>Created</CardTitle>
+						</CardHeader>
+						<CardContent>
 							{new Date(team.createdAt).toLocaleDateString()}
-						</span>
-					</div>
+						</CardContent>
+					</Card>
 				</div>
 
 				{/* Team Members and Invitations */}
@@ -190,11 +198,11 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 				</div>
 
 				{/* Team Members Table */}
-				<div className="col-span-3 border-2 border-primary p-6 bg-card shadow-[4px_4px_0px_0px] shadow-primary">
-					<h2 className="text-xl font-mono font-semibold mb-4">Team Members</h2>
-
-					{/* Table view for desktop */}
-					<div className="hidden md:block">
+				<Card className="col-span-3">
+					<CardHeader>
+						<CardTitle>Team Members</CardTitle>
+					</CardHeader>
+					<CardContent className="hidden md:block">
 						<Table>
 							<TableHeader>
 								<TableRow>
@@ -282,25 +290,25 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 								)}
 							</TableBody>
 						</Table>
-					</div>
+					</CardContent>
+				</Card>
 
-					{/* Card view for mobile */}
-					<div className="md:hidden">
-						{teamMembers.length === 0 ? (
-							<div className="text-center py-6 text-muted-foreground">
-								No members found
-							</div>
-						) : (
-							teamMembers.map((member) => (
-								<TeamMemberCard
-									key={member.id}
-									{...member}
-									canRemoveMembers={canRemoveMembers}
-									teamId={team.id}
-								/>
-							))
-						)}
-					</div>
+				{/* Card view for mobile */}
+				<div className="md:hidden">
+					{teamMembers.length === 0 ? (
+						<div className="text-center py-6 text-muted-foreground">
+							No members found
+						</div>
+					) : (
+						teamMembers.map((member) => (
+							<TeamMemberCard
+								key={member.id}
+								{...member}
+								canRemoveMembers={canRemoveMembers}
+								teamId={team.id}
+							/>
+						))
+					)}
 				</div>
 			</div>
 		</div>
