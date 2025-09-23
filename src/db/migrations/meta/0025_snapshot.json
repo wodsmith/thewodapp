@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "dbcfd1cc-e6eb-445e-9c49-1a5f2030ed9a",
-  "prevId": "8009dfa1-5235-4570-b2a1-007bc28a2f9e",
+  "id": "bac29fa8-fcca-4c35-a24f-08ab3834624b",
+  "prevId": "9c172e01-7579-4519-bde4-0145f1939163",
   "tables": {
     "credit_transaction": {
       "name": "credit_transaction",
@@ -310,6 +310,13 @@
         },
         "ownerTeamId": {
           "name": "ownerTeamId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "scalingGroupId": {
+          "name": "scalingGroupId",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -753,6 +760,311 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "scaling_groups": {
+      "name": "scaling_groups",
+      "columns": {
+        "createdAt": {
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updateCounter": {
+          "name": "updateCounter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text(1000)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "teamId": {
+          "name": "teamId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "isDefault": {
+          "name": "isDefault",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "isSystem": {
+          "name": "isSystem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "scaling_groups_team_idx": {
+          "name": "scaling_groups_team_idx",
+          "columns": [
+            "teamId"
+          ],
+          "isUnique": false
+        },
+        "scaling_groups_default_idx": {
+          "name": "scaling_groups_default_idx",
+          "columns": [
+            "isDefault"
+          ],
+          "isUnique": false
+        },
+        "scaling_groups_system_idx": {
+          "name": "scaling_groups_system_idx",
+          "columns": [
+            "isSystem"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "scaling_groups_teamId_team_id_fk": {
+          "name": "scaling_groups_teamId_team_id_fk",
+          "tableFrom": "scaling_groups",
+          "tableTo": "team",
+          "columnsFrom": [
+            "teamId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "scaling_levels": {
+      "name": "scaling_levels",
+      "columns": {
+        "createdAt": {
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updateCounter": {
+          "name": "updateCounter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scalingGroupId": {
+          "name": "scalingGroupId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "scaling_levels_group_idx": {
+          "name": "scaling_levels_group_idx",
+          "columns": [
+            "scalingGroupId"
+          ],
+          "isUnique": false
+        },
+        "scaling_levels_position_idx": {
+          "name": "scaling_levels_position_idx",
+          "columns": [
+            "scalingGroupId",
+            "position"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "scaling_levels_scalingGroupId_scaling_groups_id_fk": {
+          "name": "scaling_levels_scalingGroupId_scaling_groups_id_fk",
+          "tableFrom": "scaling_levels",
+          "tableTo": "scaling_groups",
+          "columnsFrom": [
+            "scalingGroupId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "workout_scaling_descriptions": {
+      "name": "workout_scaling_descriptions",
+      "columns": {
+        "createdAt": {
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updateCounter": {
+          "name": "updateCounter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "workoutId": {
+          "name": "workoutId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scalingLevelId": {
+          "name": "scalingLevelId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text(2000)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "workout_scaling_desc_workout_idx": {
+          "name": "workout_scaling_desc_workout_idx",
+          "columns": [
+            "workoutId"
+          ],
+          "isUnique": false
+        },
+        "workout_scaling_desc_lookup_idx": {
+          "name": "workout_scaling_desc_lookup_idx",
+          "columns": [
+            "workoutId",
+            "scalingLevelId"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "workout_scaling_descriptions_workoutId_workouts_id_fk": {
+          "name": "workout_scaling_descriptions_workoutId_workouts_id_fk",
+          "tableFrom": "workout_scaling_descriptions",
+          "tableTo": "workouts",
+          "columnsFrom": [
+            "workoutId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "workout_scaling_descriptions_scalingLevelId_scaling_levels_id_fk": {
+          "name": "workout_scaling_descriptions_scalingLevelId_scaling_levels_id_fk",
+          "tableFrom": "workout_scaling_descriptions",
+          "tableTo": "scaling_levels",
+          "columnsFrom": [
+            "scalingLevelId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1294,6 +1606,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "location_id": {
+          "name": "location_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "week_start_date": {
           "name": "week_start_date",
           "type": "integer",
@@ -1310,6 +1629,19 @@
           "tableTo": "team",
           "columnsFrom": [
             "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "generated_schedules_location_id_locations_id_fk": {
+          "name": "generated_schedules_location_id_locations_id_fk",
+          "tableFrom": "generated_schedules",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
           ],
           "columnsTo": [
             "id"
@@ -2407,6 +2739,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "defaultScalingGroupId": {
+          "name": "defaultScalingGroupId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "isPersonalTeam": {
           "name": "isPersonalTeam",
           "type": "integer",
@@ -2884,6 +3223,21 @@
           "notNull": false,
           "autoincrement": false
         },
+        "scaling_level_id": {
+          "name": "scaling_level_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "as_rx": {
+          "name": "as_rx",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "wod_score": {
           "name": "wod_score",
           "type": "text",
@@ -2913,7 +3267,53 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "results_scaling_level_idx": {
+          "name": "results_scaling_level_idx",
+          "columns": [
+            "scaling_level_id"
+          ],
+          "isUnique": false
+        },
+        "results_workout_scaling_idx": {
+          "name": "results_workout_scaling_idx",
+          "columns": [
+            "workout_id",
+            "scaling_level_id"
+          ],
+          "isUnique": false
+        },
+        "results_leaderboard_idx": {
+          "name": "results_leaderboard_idx",
+          "columns": [
+            "workout_id",
+            "scaling_level_id",
+            "wod_score"
+          ],
+          "isUnique": false
+        },
+        "results_user_idx": {
+          "name": "results_user_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        },
+        "results_date_idx": {
+          "name": "results_date_idx",
+          "columns": [
+            "date"
+          ],
+          "isUnique": false
+        },
+        "results_workout_idx": {
+          "name": "results_workout_idx",
+          "columns": [
+            "workout_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "results_user_id_user_id_fk": {
           "name": "results_user_id_user_id_fk",
@@ -3389,6 +3789,13 @@
         },
         "source_workout_id": {
           "name": "source_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "scaling_group_id": {
+          "name": "scaling_group_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
