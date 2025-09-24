@@ -87,8 +87,7 @@ export async function scheduleWorkoutForTeam(
 			teamSpecificNotes: data.teamSpecificNotes,
 			scalingGuidanceForDay: data.scalingGuidanceForDay,
 			classTimes: data.classTimes,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 		})
 		.returning()
 
@@ -111,8 +110,7 @@ export async function scheduleStandaloneWorkoutForTeam(
 			teamSpecificNotes: data.teamSpecificNotes,
 			scalingGuidanceForDay: data.scalingGuidanceForDay,
 			classTimes: data.classTimes,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 		})
 		.returning()
 

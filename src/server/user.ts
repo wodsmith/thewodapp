@@ -66,7 +66,7 @@ export async function createPersonalTeamForUser(
 
 		// Verify that the tracks exist before subscribing
 		const existingTracks = await db.query.programmingTracksTable.findMany({
-			where: (tracks, { inArray }) =>
+			where: (_tracks, { inArray }) =>
 				inArray(programmingTracksTable.id, trackIds),
 			columns: { id: true },
 		})

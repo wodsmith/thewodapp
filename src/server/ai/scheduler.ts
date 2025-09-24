@@ -6,12 +6,8 @@ import {
 	scheduleTemplatesTable,
 	generatedSchedulesTable,
 	scheduledClassesTable,
-	skillsTable,
-	classCatalogTable,
-	locationsTable,
 } from "@/db/schemas/scheduling"
 import { and, eq } from "drizzle-orm"
-import type { Coach } from "@/db/schemas/scheduling"
 
 // This is a simplified mock for the LLM interaction. In a real scenario,
 // this would involve calling an actual LLM API.
@@ -25,12 +21,14 @@ async function callLLMForSchedulingOptimization(
 
 interface ScheduleInput {
 	templateId: string
+	locationId: string
 	weekStartDate: Date
 	teamId: string
 }
 
 export async function generateSchedule({
 	templateId,
+	locationId,
 	weekStartDate,
 	teamId,
 }: ScheduleInput) {
@@ -190,6 +188,7 @@ export async function generateSchedule({
 		.values({
 			id: `gs_${createId()}`,
 			teamId,
+			locationId,
 			weekStartDate,
 		})
 		.returning()

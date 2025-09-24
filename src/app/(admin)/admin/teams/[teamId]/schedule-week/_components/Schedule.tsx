@@ -21,18 +21,28 @@ import type {
 	GeneratedSchedule,
 	ScheduleTemplate,
 	Location,
-	Coach,
-	ScheduledClass,
 } from "@/db/schemas/scheduling"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
 import { getScheduledClassesAction } from "@/actions/generate-schedule-actions"
 import { format, startOfWeek, addWeeks, isSameWeek } from "date-fns"
 import { toast } from "sonner"
+
+// Type for coaches with relations - extract from ZSA response success case
+type CoachWithRelations = NonNullable<
+	NonNullable<Awaited<ReturnType<typeof getCoachesByTeam>>[0]>["data"]
+>[number]
+
+// Type for scheduled classes with relations
+type ScheduledClassWithRelations = Awaited<
+	ReturnType<typeof getScheduledClassesForDisplay>
+>[number]
 
 interface ScheduleProps {
 	schedules: GeneratedSchedule[]
 	templates: ScheduleTemplate[]
 	locations: Location[]
-	coaches: Coach[]
+	coaches: CoachWithRelations[]
 	teamId: string
 }
 
@@ -48,9 +58,13 @@ const Schedule = ({
 	)
 	const [showTimeSlotManager, setShowTimeSlotManager] = useState(false)
 	const [viewMode, setViewMode] = useState<"grid" | "master">("grid")
-	const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([])
+	const [scheduledClasses, setScheduledClasses] = useState<
+		ScheduledClassWithRelations[]
+	>([])
 	const [showCreateDialog, setShowCreateDialog] = useState(false)
-	const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+	const [selectedLocationId, setSelectedLocationId] = useState<string | null>(
+		null,
+	)
 
 	// Find all schedules for the current week (one per location)
 	const currentSchedules = useMemo(() => {
@@ -61,24 +75,30 @@ const Schedule = ({
 		)
 	}, [schedules, currentWeekDate])
 
-	const loadAllScheduledClasses = useCallback(async (schedules: GeneratedSchedule[]) => {
-		try {
-			const allClasses: ScheduledClass[] = []
-			
-			// Load classes for each schedule (one per location)
-			for (const schedule of schedules) {
-				const [result] = await getScheduledClassesAction({ scheduleId: schedule.id, teamId })
-				if (result?.success && result.data) {
-					allClasses.push(...result.data)
+	const loadAllScheduledClasses = useCallback(
+		async (schedules: GeneratedSchedule[]) => {
+			try {
+				const allClasses: ScheduledClassWithRelations[] = []
+
+				// Load classes for each schedule (one per location)
+				for (const schedule of schedules) {
+					const [result] = await getScheduledClassesAction({
+						scheduleId: schedule.id,
+						teamId,
+					})
+					if (result?.success && result.data) {
+						allClasses.push(...result.data)
+					}
 				}
+
+				setScheduledClasses(allClasses)
+			} catch (error) {
+				console.error("Failed to load scheduled classes:", error)
+				toast.error("Failed to load scheduled classes")
 			}
-			
-			setScheduledClasses(allClasses)
-		} catch (error) {
-			console.error("Failed to load scheduled classes:", error)
-			toast.error("Failed to load scheduled classes")
-		}
-	}, [teamId])
+		},
+		[teamId],
+	)
 
 	// Load scheduled classes when current schedules change
 	useEffect(() => {
@@ -90,13 +110,15 @@ const Schedule = ({
 		}
 	}, [currentSchedules, loadAllScheduledClasses])
 
-
 	// Count locations without schedules as needing attention
-	const locationsWithoutSchedules = locations.filter(location => 
-		!currentSchedules.some(schedule => schedule.locationId === location.id)
+	const locationsWithoutSchedules = locations.filter(
+		(location) =>
+			!currentSchedules.some((schedule) => schedule.locationId === location.id),
 	).length
 
-	const unscheduledCount = scheduledClasses.filter((cls) => !cls.coachId).length + locationsWithoutSchedules
+	const unscheduledCount =
+		scheduledClasses.filter((cls) => !cls.coachId).length +
+		locationsWithoutSchedules
 	const totalScheduled = scheduledClasses.filter((cls) => cls.coachId).length
 
 	const formatWeekRange = (date: Date) => {
@@ -118,9 +140,7 @@ const Schedule = ({
 						<Calendar className="h-6 w-6 text-white" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold">
-							Weekly Schedule
-						</h1>
+						<h1 className="text-2xl font-bold">Weekly Schedule</h1>
 						<p className="text-sm text-muted-foreground">
 							Assign coaches to scheduled classes
 						</p>
@@ -202,78 +222,80 @@ const Schedule = ({
 				</Card>
 			)}
 
-				{viewMode === "grid" ? (
-					<div className="space-y-6">
-						{locations.map((location) => {
-							// Find schedule for this location
-							const locationSchedule = currentSchedules.find(
-								s => s.locationId === location.id
+			{viewMode === "grid" ? (
+				<div className="space-y-6">
+					{locations.map((location) => {
+						// Find schedule for this location
+						const locationSchedule = currentSchedules.find(
+							(s) => s.locationId === location.id,
+						)
+
+						// Filter scheduled classes for this location
+						const locationClasses = scheduledClasses.filter(
+							(cls) => cls.locationId === location.id,
+						)
+
+						if (locationSchedule) {
+							// Location has a schedule - show the grid
+							return (
+								<ScheduleGrid
+									key={location.id}
+									scheduledClasses={locationClasses}
+									templates={templates}
+									locations={[location]} // Pass only this location
+									coaches={coaches}
+									currentWeek={formatWeekRange(currentWeekDate)}
+									scheduleId={locationSchedule.id}
+									teamId={teamId}
+									onScheduleUpdate={() =>
+										loadAllScheduledClasses(currentSchedules)
+									}
+								/>
 							)
-							
-							// Filter scheduled classes for this location
-							const locationClasses = scheduledClasses.filter(
-								cls => cls.locationId === location.id
-							)
-							
-							if (locationSchedule) {
-								// Location has a schedule - show the grid
-								return (
-									<ScheduleGrid
-										key={location.id}
-										scheduledClasses={locationClasses}
-										templates={templates}
-										locations={[location]} // Pass only this location
-										coaches={coaches}
-										currentWeek={formatWeekRange(currentWeekDate)}
-										scheduleId={locationSchedule.id}
-										teamId={teamId}
-										onScheduleUpdate={() => loadAllScheduledClasses(currentSchedules)}
-									/>
-								)
-							} else {
-								// Location doesn't have a schedule - show create button
-								return (
-									<Card key={location.id}>
-										<CardContent className="p-8">
-											<div className="flex items-center justify-between">
-												<div className="flex items-center space-x-4">
-													<div className="bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-800 dark:to-slate-700 p-3 rounded-xl">
-														<MapPin className="h-6 w-6 text-slate-600 dark:text-slate-400" />
-													</div>
-													<div>
-														<h3 className="text-lg font-semibold">
-															{location.name}
-														</h3>
-														<p className="text-sm text-muted-foreground">
-															No schedule exists for this week
-														</p>
-													</div>
+						} else {
+							// Location doesn't have a schedule - show create button
+							return (
+								<Card key={location.id}>
+									<CardContent className="p-8">
+										<div className="flex items-center justify-between">
+											<div className="flex items-center space-x-4">
+												<div className="bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-800 dark:to-slate-700 p-3 rounded-xl">
+													<MapPin className="h-6 w-6 text-slate-600 dark:text-slate-400" />
 												</div>
-												<Button
-													onClick={() => {
-														setSelectedLocationId(location.id)
-														setShowCreateDialog(true)
-													}}
-													className="bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:from-orange-600 hover:to-pink-700"
-												>
-													<Zap className="h-4 w-4 mr-2" />
-													Create Schedule
-												</Button>
+												<div>
+													<h3 className="text-lg font-semibold">
+														{location.name}
+													</h3>
+													<p className="text-sm text-muted-foreground">
+														No schedule exists for this week
+													</p>
+												</div>
 											</div>
-										</CardContent>
-									</Card>
-								)
-							}
-						})}
-					</div>
-				) : (
-					<MasterSchedule
-						scheduledClasses={scheduledClasses}
-						currentWeek={formatWeekRange(currentWeekDate)}
-						coaches={coaches}
-						locations={locations}
-					/>
-				)}
+											<Button
+												onClick={() => {
+													setSelectedLocationId(location.id)
+													setShowCreateDialog(true)
+												}}
+												className="bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:from-orange-600 hover:to-pink-700"
+											>
+												<Zap className="h-4 w-4 mr-2" />
+												Create Schedule
+											</Button>
+										</div>
+									</CardContent>
+								</Card>
+							)
+						}
+					})}
+				</div>
+			) : (
+				<MasterSchedule
+					scheduledClasses={scheduledClasses}
+					currentWeek={formatWeekRange(currentWeekDate)}
+					coaches={coaches}
+					locations={locations}
+				/>
+			)}
 
 			{/* Create Schedule Dialog */}
 			<CreateScheduleDialog
@@ -284,7 +306,11 @@ const Schedule = ({
 				}}
 				teamId={teamId}
 				weekStartDate={currentWeekDate}
-				locations={selectedLocationId ? locations.filter(l => l.id === selectedLocationId) : locations}
+				locations={
+					selectedLocationId
+						? locations.filter((l) => l.id === selectedLocationId)
+						: locations
+				}
 				onScheduleCreated={() => {
 					// Reload the page to fetch the new schedule
 					window.location.reload()

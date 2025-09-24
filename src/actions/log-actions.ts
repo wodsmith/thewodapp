@@ -67,13 +67,13 @@ export const submitLogFormAction = createServerAction()
 			userId: input.userId,
 			workoutsCount: input.workouts.length,
 			formDataKeys: Array.from(input.formData.keys()),
-			workoutIds: input.workouts.map((w: any) => w.id),
+			workoutIds: input.workouts.map((w: Workout) => w.id),
 		})
 
 		// Log the specific workout being submitted
 		const selectedWorkoutId = input.formData.get("selectedWorkoutId") as string
 		const selectedWorkout = input.workouts.find(
-			(w: any) => w.id === selectedWorkoutId,
+			(w: Workout) => w.id === selectedWorkoutId,
 		)
 
 		console.log("[submitLogFormAction] Selected workout details:", {
@@ -233,6 +233,8 @@ async function updateResultForm(
 		const programmingTrackId = formData.get("programmingTrackId") as
 			| string
 			| null
+		const scalingLevelId = formData.get("scalingLevelId") as string | null
+		const asRx = formData.get("asRx") === "true"
 		return {
 			selectedWorkoutId,
 			dateStr,
@@ -240,6 +242,8 @@ async function updateResultForm(
 			notesValue,
 			scheduledInstanceId,
 			programmingTrackId,
+			scalingLevelId,
+			asRx,
 		}
 	}
 
@@ -272,6 +276,8 @@ async function updateResultForm(
 		notesValue,
 		scheduledInstanceId,
 		programmingTrackId,
+		scalingLevelId: explicitScalingLevelId,
+		asRx: explicitAsRx,
 	} = parseBasicFormData(formData)
 
 	if (!selectedWorkoutId) {
@@ -398,13 +404,38 @@ async function updateResultForm(
 	const dateInTargetTz = fromZonedTime(`${dateStr}T00:00:00`, timezone)
 	const timestamp = dateInTargetTz.getTime()
 
+	// Use explicit scaling values if present, otherwise map from legacy scale
+	let scalingLevelId = explicitScalingLevelId
+	let asRx = explicitAsRx
+
+	if (!scalingLevelId || asRx === undefined) {
+		// Import the mapping function
+		const { mapLegacyScaleToScalingLevel } = await import("@/server/logs")
+
+		// Map legacy scale to new scaling fields
+		const mapped = await mapLegacyScaleToScalingLevel({
+			workoutId: selectedWorkoutId,
+			programmingTrackId,
+			scale: scaleValue,
+		})
+
+		// Use mapped values only if the explicit ones are missing
+		if (!scalingLevelId) {
+			scalingLevelId = mapped.scalingLevelId
+		}
+		if (asRx === undefined) {
+			asRx = mapped.asRx
+		}
+	}
+
 	// Update the result
 	await updateResult({
 		resultId,
 		userId,
 		workoutId: selectedWorkoutId,
 		date: timestamp,
-		scale: scaleValue,
+		scalingLevelId,
+		asRx,
 		wodScore: finalWodScoreSummary,
 		notes: notesValue,
 		setsData: setsForDb,

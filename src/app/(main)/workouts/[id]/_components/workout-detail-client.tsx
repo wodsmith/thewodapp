@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
+import { WorkoutScalingDisplay } from "@/components/scaling/workout-scaling-display"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import {
@@ -25,6 +26,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import type {
 	ResultSet,
 	WorkoutResult,
@@ -33,9 +35,11 @@ import type {
 import { SetDetails } from "./set-details"
 import { WorkoutLastScheduled } from "./workout-last-scheduled"
 
-// Define a new type for results with their sets
+// Define a new type for results with their sets and scaling labels
 export type WorkoutResultWithSets = WorkoutResult & {
 	sets: ResultSet[] | null
+	scalingLevelLabel?: string
+	scalingLevelPosition?: number
 }
 
 export default function WorkoutDetailClient({
@@ -211,73 +215,73 @@ export default function WorkoutDetailClient({
 			{/* Last Scheduled Information */}
 			<WorkoutLastScheduled lastScheduled={lastScheduled || null} />
 
-			<div className="mb-6 border-2 border-black dark:border-dark-border">
+			<div className="mt-4 mb-6 border-2 border-black dark:border-dark-border rounded">
 				{/* Workout Details Section */}
 				<div className="border-black border-b-2 p-6 dark:border-dark-border">
 					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 						<div>
 							<h2 className="mb-4">DESCRIPTION</h2>
-							<p className="mb-6 whitespace-pre-wrap text-foreground text-lg dark:text-dark-foreground">
-								{workout.description}
-							</p>
+							<WorkoutScalingDisplay
+								workoutDescription={workout.description || ""}
+								scalingLevels={workout.scalingLevels}
+								scalingDescriptions={workout.scalingDescriptions}
+								showToggle={
+									!!workout.scalingLevels && workout.scalingLevels.length > 0
+								}
+								className="mb-6"
+							/>
 						</div>
 
-						<div>
+						<div className="">
 							<div className="my-4 flex items-center gap-2">
 								<Clock className="h-5 w-5" />
 								<h3>SCHEME</h3>
 							</div>
-							<div className="mb-6 w-fit border-2 border-black p-4 dark:border-dark-border">
-								<p className="w-fit font-bold text-foreground text-lg uppercase dark:text-dark-foreground">
+							<div>
+								<Badge variant="outline" className="text-lg">
 									{workout.scheme}
-								</p>
+								</Badge>
+								{workout.tags && workout.tags.length > 0 && (
+									<>
+										<div className="my-4 flex items-center gap-2">
+											<TagIcon className="h-5 w-5" />
+											<h3>TAGS</h3>
+										</div>
+										<div className="mb-6 flex flex-wrap gap-2">
+											{(workout.tags || []).map((tag) => (
+												<Badge
+													key={tag.id}
+													variant="outline"
+													className="text-lg"
+												>
+													{tag.name}
+												</Badge>
+											))}
+										</div>
+									</>
+								)}
 							</div>
 							<div className="mb-4 flex items-center gap-2">
 								<Dumbbell className="h-5 w-5" />
 								<h3>MOVEMENTS</h3>
 							</div>
-							<div className="space-y-4">
+							<div className="flex flex-wrap gap-2">
 								{(workout.movements || []).map(
 									(movement: {
 										id: string
 										name: string
 										type: "weightlifting" | "gymnastic" | "monostructural"
 									}) => (
-										<div
+										<Badge
 											key={movement.id}
-											className="border-2 border-black p-4 dark:border-dark-border"
+											variant="outline"
+											className="text-lg"
 										>
-											<div className="flex items-center justify-between">
-												<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
-													{movement.name}
-												</p>
-												<span className="bg-black px-2 py-1 font-bold text-white text-xs uppercase dark:bg-dark-foreground dark:text-dark-background">
-													{movement.type}
-												</span>
-											</div>
-										</div>
+											{movement.name}
+										</Badge>
 									),
 								)}
 							</div>
-
-							{workout.tags && workout.tags.length > 0 && (
-								<>
-									<div className="my-4 flex items-center gap-2">
-										<TagIcon className="h-5 w-5" />
-										<h3>TAGS</h3>
-									</div>
-									<div className="mb-6 flex flex-wrap gap-2">
-										{(workout.tags || []).map((tag) => (
-											<span
-												key={tag.id}
-												className="inline-block border-2 border-black px-3 py-1 text-foreground dark:border-dark-border dark:text-dark-foreground"
-											>
-												{tag.name}
-											</span>
-										))}
-									</div>
-								</>
-							)}
 						</div>
 					</div>
 				</div>
@@ -316,11 +320,17 @@ export default function WorkoutDetailClient({
 												)}
 											</div>
 											<div className="flex items-center gap-2">
-												{result.scale && (
+												{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
+												{result.scalingLevelLabel ? (
+													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
+														{result.scalingLevelLabel}
+														{result.asRx ? " (Rx)" : " (Scaled)"}
+													</span>
+												) : result.scale ? (
 													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
 														{result.scale}
 													</span>
-												)}
+												) : null}
 												<Button
 													asChild
 													variant="outline"

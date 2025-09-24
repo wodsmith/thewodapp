@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { getDd } from "@/db"
-import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { TEAM_PERMISSIONS, teamTable, scalingGroupsTable } from "@/db/schema"
 import { getAllMovements } from "@/server/movements"
 import {
 	getProgrammingTrackById,
@@ -15,7 +15,7 @@ import { getAllTags } from "@/server/tags"
 import { getUserWorkoutsWithTrackScheduling } from "@/server/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { TrackVisibilitySelector } from "./_components/track-visibility-selector"
+import { TrackHeader } from "./_components/track-header"
 import { TrackWorkoutManagement } from "./_components/track-workout-management"
 
 interface TrackWorkoutPageProps {
@@ -100,6 +100,15 @@ export default async function TrackWorkoutPage({
 	const movements = await getAllMovements()
 	const tags = await getAllTags()
 
+	// Get scaling group name if the track has one
+	let scalingGroupName: string | null = null
+	if (track.scalingGroupId) {
+		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
+			where: eq(scalingGroupsTable.id, track.scalingGroupId),
+		})
+		scalingGroupName = scalingGroup?.title ?? null
+	}
+
 	return (
 		<>
 			<PageHeader
@@ -118,24 +127,12 @@ export default async function TrackWorkoutPage({
 				]}
 			/>
 			<div className="container mx-auto px-5 pb-12">
-				<div className="flex justify-between items-start mb-8">
-					<div>
-						<h1 className="text-3xl font-bold mb-2 font-mono tracking-tight">
-							{track.name} - Workout Management
-						</h1>
-						<p className="text-muted-foreground font-mono">
-							Manage workouts in the {track.name} track for {team.name}
-						</p>
-						{track.description && (
-							<p className="text-sm text-muted-foreground mt-2 font-mono">
-								{track.description}
-							</p>
-						)}
-					</div>
-					<div className="flex flex-col items-end space-y-2">
-						<TrackVisibilitySelector teamId={team.id} track={track} />
-					</div>
-				</div>
+				<TrackHeader
+					teamId={team.id}
+					teamName={team.name}
+					track={track}
+					scalingGroupName={scalingGroupName}
+				/>
 
 				<div className="bg-card border-4 border-primary rounded-none p-6">
 					<Suspense
@@ -146,7 +143,7 @@ export default async function TrackWorkoutPage({
 						<TrackWorkoutManagement
 							teamId={team.id}
 							trackId={trackId}
-							track={track}
+							_track={track}
 							initialTrackWorkouts={trackWorkouts}
 							userWorkouts={userWorkouts}
 							movements={movements}

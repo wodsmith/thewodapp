@@ -17,7 +17,6 @@ import { getLocalDateKey } from "@/utils/date-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -30,23 +29,54 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import type { Workout } from "@/types"
+import { ScalingSelector } from "@/components/scaling-selector"
+import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 
 export default function LogFormClient({
 	workouts,
 	userId,
+	teamId,
 	selectedWorkoutId,
 	redirectUrl,
 	scheduledInstanceId,
 	programmingTrackId,
+	trackScalingGroupId,
 }: {
-	workouts: Workout[]
+	workouts: (WorkoutWithTagsAndMovements & { resultsToday?: any[] })[]
 	userId: string
+	teamId: string
 	selectedWorkoutId?: string
 	redirectUrl?: string
 	scheduledInstanceId?: string
 	programmingTrackId?: string
+	trackScalingGroupId?: string | null
 }) {
+	// Log the incoming workouts data on client side
+	console.log("[LogFormClient] Component mounted with:", {
+		totalWorkouts: workouts.length,
+		selectedWorkoutId,
+		firstWorkout: workouts[0]
+			? {
+					id: workouts[0].id,
+					name: workouts[0].name,
+					hasScalingLevels: !!workouts[0].scalingLevels,
+					scalingLevelsCount: workouts[0].scalingLevels?.length || 0,
+				}
+			: null,
+	})
+
+	if (selectedWorkoutId) {
+		const targetWorkout = workouts.find((w) => w.id === selectedWorkoutId)
+		console.log("[LogFormClient] Target workout on mount:", {
+			found: !!targetWorkout,
+			id: targetWorkout?.id,
+			name: targetWorkout?.name,
+			scalingGroupId: targetWorkout?.scalingGroupId,
+			scalingLevels: targetWorkout?.scalingLevels,
+			scalingDescriptions: targetWorkout?.scalingDescriptions,
+		})
+	}
 	const router = useRouter()
 	const pathname = usePathname()
 	const [searchQuery, setSearchQuery] = useState("")
@@ -57,7 +87,9 @@ export default function LogFormClient({
 		defaultValues: {
 			selectedWorkoutId: selectedWorkoutId || "",
 			date: getLocalDateKey(new Date()),
-			scale: "rx",
+			scale: "rx", // Legacy, kept for backward compatibility
+			scalingLevelId: undefined,
+			asRx: true,
 			scores: [],
 			notes: "",
 		},
@@ -86,14 +118,16 @@ export default function LogFormClient({
 	})
 
 	const filteredWorkouts = workouts
-		.filter((workout: Workout) =>
+		.filter((workout) =>
 			workout.name.toLowerCase().includes(searchQuery.toLowerCase()),
 		)
 		.sort((a, b) => {
 			if (a.id === selectedWorkout) return -1
 			if (b.id === selectedWorkout) return 1
 			if (a.createdAt && b.createdAt) {
-				return b.createdAt.getTime() - a.createdAt.getTime()
+				const dateA = new Date(a.createdAt)
+				const dateB = new Date(b.createdAt)
+				return dateB.getTime() - dateA.getTime()
 			}
 			if (a.createdAt) return -1
 			if (b.createdAt) return 1
@@ -101,7 +135,17 @@ export default function LogFormClient({
 		})
 
 	const getSelectedWorkout = () => {
-		return workouts.find((w: Workout) => w.id === selectedWorkout)
+		const workout = workouts.find((w) => w.id === selectedWorkout)
+		if (workout && selectedWorkout) {
+			console.log("[LogFormClient] Selected workout scaling:", {
+				id: workout.id,
+				name: workout.name,
+				scalingGroupId: workout.scalingGroupId,
+				scalingLevels: workout.scalingLevels,
+				scalingDescriptions: workout.scalingDescriptions,
+			})
+		}
+		return workout
 	}
 
 	// Effect to synchronize selectedWorkout with URL param
@@ -183,7 +227,15 @@ export default function LogFormClient({
 		const formData = new FormData()
 		formData.set("selectedWorkoutId", data.selectedWorkoutId)
 		formData.set("date", data.date)
-		formData.set("scale", data.scale)
+		// Include both legacy and new scaling fields
+		if (data.scalingLevelId) {
+			formData.set("scalingLevelId", data.scalingLevelId)
+			formData.set("asRx", String(data.asRx || false))
+			// Set legacy scale based on asRx for backward compatibility
+			formData.set("scale", data.asRx ? "rx" : "scaled")
+		} else if (data.scale) {
+			formData.set("scale", data.scale)
+		}
 		formData.set("notes", data.notes || "")
 
 		// Add scores to formData
@@ -244,70 +296,121 @@ export default function LogFormClient({
 							<div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 								{/* Workout Selection */}
 								<div className="space-y-4">
-									<div>
-										<h2 className="text-lg font-semibold mb-4">
-											SELECT WORKOUT
-										</h2>
-										<div className="relative">
-											<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-											<Input
-												type="text"
-												placeholder="Search workouts..."
-												className="pl-10"
-												value={searchQuery}
-												onChange={(e) => setSearchQuery(e.target.value)}
-											/>
+									{selectedWorkout && getSelectedWorkout() ? (
+										// When a specific workout is selected, show its details
+										<div className="space-y-4">
+											<h2 className="text-lg font-semibold">
+												SELECTED WORKOUT
+											</h2>
+											<Card>
+												<CardContent className="p-6">
+													<div className="space-y-4">
+														<div>
+															<h3 className="text-xl font-bold mb-2">
+																{getSelectedWorkout()?.name}
+															</h3>
+															<WorkoutScalingTabs
+																workoutDescription={
+																	getSelectedWorkout()?.description || ""
+																}
+																scalingLevels={
+																	getSelectedWorkout()?.scalingLevels
+																}
+																scalingDescriptions={
+																	getSelectedWorkout()?.scalingDescriptions
+																}
+															/>
+														</div>
+														<Button
+															variant="outline"
+															size="sm"
+															type="button"
+															onClick={() => {
+																// Clear selection to show list
+																form.setValue("selectedWorkoutId", "")
+																const params = new URLSearchParams()
+																router.push(
+																	`${pathname}` as Parameters<
+																		typeof router.push
+																	>[0],
+																)
+															}}
+														>
+															Choose Different Workout
+														</Button>
+													</div>
+												</CardContent>
+											</Card>
 										</div>
-									</div>
+									) : (
+										// Show workout list when no specific workout is selected
+										<>
+											<div>
+												<h2 className="text-lg font-semibold mb-4">
+													SELECT WORKOUT
+												</h2>
+												<div className="relative">
+													<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+													<Input
+														type="text"
+														placeholder="Search workouts..."
+														className="pl-10"
+														value={searchQuery}
+														onChange={(e) => setSearchQuery(e.target.value)}
+													/>
+												</div>
+											</div>
 
-									<FormField
-										control={form.control}
-										name="selectedWorkoutId"
-										render={({ field }) => (
-											<FormItem>
-												<FormControl>
-													<Card className="h-[400px]">
-														<CardContent className="p-0 h-full overflow-y-auto">
-															{filteredWorkouts.length > 0 ? (
-																<div className="divide-y">
-																	{filteredWorkouts.map((workout: Workout) => (
-																		<Button
-																			key={workout.id}
-																			type="button"
-																			onClick={() => {
-																				handleWorkoutSelection(workout.id)
-																				field.onChange(workout.id)
-																			}}
-																			variant={
-																				selectedWorkout === workout.id
-																					? "default"
-																					: "ghost"
-																			}
-																			className="w-full justify-between p-4 h-auto"
-																		>
-																			<h3 className="font-semibold">
-																				{workout.name}
-																			</h3>
-																			{selectedWorkout === workout.id && (
-																				<Badge variant="secondary">✓</Badge>
-																			)}
-																		</Button>
-																	))}
-																</div>
-															) : (
-																<div className="flex h-full items-center justify-center">
-																	<p className="text-muted-foreground">
-																		No workouts found
-																	</p>
-																</div>
-															)}
-														</CardContent>
-													</Card>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
+											<FormField
+												control={form.control}
+												name="selectedWorkoutId"
+												render={({ field }) => (
+													<FormItem>
+														<FormControl>
+															<Card className="h-[400px]">
+																<CardContent className="p-0 h-full overflow-y-auto">
+																	{filteredWorkouts.length > 0 ? (
+																		<div className="divide-y">
+																			{filteredWorkouts.map((workout) => (
+																				<Button
+																					key={workout.id}
+																					type="button"
+																					onClick={() => {
+																						handleWorkoutSelection(workout.id)
+																						field.onChange(workout.id)
+																					}}
+																					variant={
+																						selectedWorkout === workout.id
+																							? "default"
+																							: "ghost"
+																					}
+																					className="w-full justify-between p-4 h-auto"
+																				>
+																					<h3 className="font-semibold">
+																						{workout.name}
+																					</h3>
+																					{selectedWorkout === workout.id && (
+																						<Badge variant="secondary">✓</Badge>
+																					)}
+																				</Button>
+																			))}
+																		</div>
+																	) : (
+																		<div className="flex h-full items-center justify-center">
+																			<p className="text-muted-foreground">
+																				No workouts found
+																			</p>
+																		</div>
+																	)}
+																</CardContent>
+															</Card>
+														</FormControl>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+										</>
+									)}
 								</div>
 
 								{/* Result Logging */}
@@ -334,47 +437,22 @@ export default function LogFormClient({
 													)}
 												/>
 
-												{/* Scale */}
-												<FormField
-													control={form.control}
-													name="scale"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel>Scale</FormLabel>
-															<FormControl>
-																<div className="flex gap-4">
-																	<Label className="flex items-center gap-2 cursor-pointer">
-																		<Checkbox
-																			checked={field.value === "rx"}
-																			onCheckedChange={() =>
-																				field.onChange("rx")
-																			}
-																		/>
-																		<span className="text-sm">RX</span>
-																	</Label>
-																	<Label className="flex items-center gap-2 cursor-pointer">
-																		<Checkbox
-																			checked={field.value === "rx+"}
-																			onCheckedChange={() =>
-																				field.onChange("rx+")
-																			}
-																		/>
-																		<span className="text-sm">RX+</span>
-																	</Label>
-																	<Label className="flex items-center gap-2 cursor-pointer">
-																		<Checkbox
-																			checked={field.value === "scaled"}
-																			onCheckedChange={() =>
-																				field.onChange("scaled")
-																			}
-																		/>
-																		<span className="text-sm">Scaled</span>
-																	</Label>
-																</div>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
+												{/* Scaling Level */}
+												<ScalingSelector
+													workoutId={selectedWorkout}
+													workoutScalingGroupId={
+														getSelectedWorkout()?.scalingGroupId
+													}
+													programmingTrackId={programmingTrackId}
+													trackScalingGroupId={trackScalingGroupId}
+													teamId={teamId}
+													value={form.watch("scalingLevelId")}
+													initialAsRx={form.watch("asRx")}
+													onChange={(scalingLevelId, asRx) => {
+														form.setValue("scalingLevelId", scalingLevelId)
+														form.setValue("asRx", asRx)
+													}}
+													required
 												/>
 
 												{/* Score */}

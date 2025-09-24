@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"

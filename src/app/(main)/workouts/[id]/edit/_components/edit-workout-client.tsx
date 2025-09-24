@@ -3,7 +3,8 @@
 import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +16,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -23,6 +27,16 @@ import type {
 	WorkoutUpdate,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
+
+interface ScalingGroupWithTeam {
+	id: string
+	title: string
+	description: string | null
+	teamId: string | null
+	teamName: string
+	isSystem: number
+	isDefault: number
+}
 
 type Props = Prettify<{
 	workout: WorkoutWithTagsAndMovements
@@ -38,6 +52,7 @@ type Props = Prettify<{
 		remixTeamId?: string
 	}) => Promise<void>
 	userTeams?: Array<{ id: string; name: string }>
+	scalingGroups?: ScalingGroupWithTeam[]
 }>
 type TagWithoutSaved = Omit<Tag, "createdAt" | "updatedAt" | "updateCounter">
 export default function EditWorkoutClient({
@@ -48,6 +63,7 @@ export default function EditWorkoutClient({
 	isRemixMode = false,
 	updateWorkoutAction,
 	userTeams = [],
+	scalingGroups = [],
 }: Props) {
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
@@ -70,6 +86,57 @@ export default function EditWorkoutClient({
 	const [selectedTeamId, setSelectedTeamId] = useState<string>(
 		userTeams.length > 0 ? userTeams[0].id : "",
 	)
+	const [selectedScalingGroupId, setSelectedScalingGroupId] = useState<string>(
+		workout?.scalingGroupId || "",
+	)
+	const [selectedGroupLevels, setSelectedGroupLevels] = useState<
+		Array<{
+			id: string
+			label: string
+			position: number
+		}>
+	>([])
+
+	const { execute: fetchScalingLevels } = useServerAction(
+		getScalingGroupWithLevelsAction,
+		{
+			onError: (error) => {
+				console.error("Error fetching scaling levels:", error)
+			},
+		},
+	)
+
+	// Watch for scaling group selection changes and fetch levels
+	useEffect(() => {
+		if (
+			selectedScalingGroupId &&
+			selectedScalingGroupId !== "" &&
+			selectedScalingGroupId !== "none"
+		) {
+			// Find the selected group's team ID
+			const selectedGroup = scalingGroups.find(
+				(g) => g.id === selectedScalingGroupId,
+			)
+			if (selectedGroup) {
+				fetchScalingLevels({
+					groupId: selectedScalingGroupId,
+					teamId: selectedGroup.teamId || userTeams[0]?.id || "",
+				}).then((result) => {
+					if (result?.[0]?.success && result[0].data?.levels) {
+						setSelectedGroupLevels(
+							result[0].data.levels.map((level) => ({
+								id: level.id,
+								label: level.label,
+								position: level.position,
+							})),
+						)
+					}
+				})
+			}
+		} else {
+			setSelectedGroupLevels([])
+		}
+	}, [selectedScalingGroupId, fetchScalingLevels, scalingGroups, userTeams])
 
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
@@ -112,6 +179,10 @@ export default function EditWorkoutClient({
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
 				roundsToScore: roundsToScore,
+				scalingGroupId:
+					selectedScalingGroupId && selectedScalingGroupId !== "none"
+						? selectedScalingGroupId
+						: null,
 			},
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
@@ -265,6 +336,64 @@ export default function EditWorkoutClient({
 						</div>
 
 						<div>
+							<Label htmlFor="workout-scaling-group">
+								Scaling Group (Optional)
+							</Label>
+							<Select
+								value={selectedScalingGroupId}
+								onValueChange={setSelectedScalingGroupId}
+							>
+								<SelectTrigger id="workout-scaling-group">
+									<SelectValue placeholder="Select a scaling group" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None (Use default)</SelectItem>
+									{scalingGroups.length === 0 ? (
+										<SelectItem value="no-groups" disabled>
+											No scaling groups available
+										</SelectItem>
+									) : (
+										scalingGroups.map((group) => (
+											<SelectItem key={group.id} value={group.id}>
+												{group.title}
+												{userTeams.length > 1 && group.teamName && (
+													<span className="text-muted-foreground ml-2">
+														({group.teamName})
+													</span>
+												)}
+												{group.isDefault === 1 && (
+													<span className="text-muted-foreground ml-2">
+														(Team Default)
+													</span>
+												)}
+											</SelectItem>
+										))
+									)}
+								</SelectContent>
+							</Select>
+							{selectedScalingGroupId && selectedScalingGroupId !== "none" && (
+								<div className="mt-2 space-y-2">
+									<p className="text-sm text-muted-foreground">
+										This scaling group will be used for this workout instead of
+										the track or team default.
+									</p>
+									{selectedGroupLevels.length > 0 && (
+										<div className="space-y-1">
+											<p className="text-sm font-medium">Scaling Levels:</p>
+											<div className="flex flex-wrap gap-2">
+												{selectedGroupLevels.map((level) => (
+													<Badge key={level.id} variant="secondary">
+														{level.label}
+													</Badge>
+												))}
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+						</div>
+
+						<div>
 							<Label htmlFor="reps-per-round">Reps Per Round</Label>
 							<Input
 								id="reps-per-round"
@@ -319,28 +448,28 @@ export default function EditWorkoutClient({
 
 							<div className="mt-2 flex flex-wrap gap-2">
 								{tags.map((tag) => (
-									<Button
-										type="button"
-										key={tag.id}
-										variant={
-											selectedTags.includes(tag.id) ? "default" : "outline"
-										}
-										onClick={() => handleTagToggle(tag.id)}
-									>
-										{tag.name}
+									<div key={tag.id} className="inline-flex items-center gap-1">
+										<Button
+											type="button"
+											variant={
+												selectedTags.includes(tag.id) ? "default" : "outline"
+											}
+											onClick={() => handleTagToggle(tag.id)}
+										>
+											{tag.name}
+										</Button>
 										{selectedTags.includes(tag.id) && (
-											<button
+											<Button
 												type="button"
-												className="ml-2 text-red-500"
-												onClick={(e) => {
-													e.stopPropagation()
-													handleRemoveTag(tag.id)
-												}}
+												variant="ghost"
+												size="sm"
+												className="h-8 w-8 p-0 text-red-500"
+												onClick={() => handleRemoveTag(tag.id)}
 											>
 												<X className="h-4 w-4" />
-											</button>
+											</Button>
 										)}
-									</Button>
+									</div>
 								))}
 							</div>
 						</div>
@@ -373,6 +502,17 @@ export default function EditWorkoutClient({
 						</div>
 					</div>
 				</div>
+
+				{/* Scaling Descriptions Editor */}
+				{selectedScalingGroupId && selectedScalingGroupId !== "none" && (
+					<div className="mt-6 border-t-2 border-primary pt-6">
+						<WorkoutScalingDescriptionsEditor
+							workoutId={workoutId}
+							scalingGroupId={selectedScalingGroupId}
+							teamId={userTeams.length > 0 ? userTeams[0].id : undefined}
+						/>
+					</div>
+				)}
 
 				<div className="mt-6 flex justify-end gap-4">
 					<Button asChild variant="outline">

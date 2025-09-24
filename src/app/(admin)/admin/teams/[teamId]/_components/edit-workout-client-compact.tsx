@@ -2,7 +2,8 @@
 
 import { Plus, X } from "lucide-react"
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +15,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import {
+	getScalingGroupWithLevelsAction,
+	getWorkoutScalingDescriptionsAction,
+} from "@/actions/scaling-actions"
+import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -22,6 +29,16 @@ import type {
 	WorkoutUpdate,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
+
+interface ScalingGroupWithTeam {
+	id: string
+	title: string
+	description: string | null
+	teamId: string | null
+	teamName: string
+	isSystem: number
+	isDefault: number
+}
 
 type Props = Prettify<{
 	workout: WorkoutWithTagsAndMovements
@@ -34,8 +51,13 @@ type Props = Prettify<{
 		workout: WorkoutUpdate
 		tagIds: string[]
 		movementIds: string[]
+		scalingDescriptions?: Array<{
+			scalingLevelId: string
+			description: string | null
+		}>
 	}) => Promise<void>
 	onCancel: () => void
+	scalingGroups?: ScalingGroupWithTeam[]
 }>
 type TagWithoutSaved = Omit<Tag, "createdAt" | "updatedAt" | "updateCounter">
 export default function EditWorkoutClientCompact({
@@ -46,6 +68,7 @@ export default function EditWorkoutClientCompact({
 	teamId,
 	updateWorkoutAction,
 	onCancel,
+	scalingGroups = [],
 }: Props) {
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
@@ -65,6 +88,88 @@ export default function EditWorkoutClientCompact({
 	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
 		workout?.roundsToScore === null ? 1 : workout?.roundsToScore || 1,
 	)
+	const [selectedScalingGroupId, setSelectedScalingGroupId] = useState<string>(
+		workout?.scalingGroupId || "",
+	)
+	const [selectedGroupLevels, setSelectedGroupLevels] = useState<
+		Array<{
+			id: string
+			label: string
+			position: number
+		}>
+	>([])
+	const [scalingDescriptions, setScalingDescriptions] = useState<
+		Map<string, string>
+	>(new Map())
+
+	const { execute: fetchScalingLevels } = useServerAction(
+		getScalingGroupWithLevelsAction,
+		{
+			onError: (error) => {
+				console.error("Error fetching scaling levels:", error)
+			},
+		},
+	)
+
+	const { execute: fetchDescriptions } = useServerAction(
+		getWorkoutScalingDescriptionsAction,
+		{
+			onError: (error) => {
+				console.error("Error fetching scaling descriptions:", error)
+			},
+		},
+	)
+
+	// Load existing descriptions when component mounts
+	useEffect(() => {
+		if (workoutId) {
+			fetchDescriptions({ workoutId }).then(([result]) => {
+				if (result?.success && result.data) {
+					const descMap = new Map<string, string>()
+					result.data.forEach(
+						(desc: { scalingLevelId: string; description: string | null }) => {
+							if (desc.description) {
+								descMap.set(desc.scalingLevelId, desc.description)
+							}
+						},
+					)
+					setScalingDescriptions(descMap)
+				}
+			})
+		}
+	}, [workoutId, fetchDescriptions])
+
+	// Watch for scaling group selection changes and fetch levels
+	useEffect(() => {
+		if (
+			selectedScalingGroupId &&
+			selectedScalingGroupId !== "" &&
+			selectedScalingGroupId !== "none"
+		) {
+			// Find the selected group's team ID
+			const selectedGroup = scalingGroups.find(
+				(g) => g.id === selectedScalingGroupId,
+			)
+			if (selectedGroup) {
+				fetchScalingLevels({
+					groupId: selectedScalingGroupId,
+					teamId: selectedGroup.teamId || teamId || "",
+				}).then((result) => {
+					if (result?.[0]?.success && result[0].data?.levels) {
+						setSelectedGroupLevels(
+							result[0].data.levels.map((level) => ({
+								id: level.id,
+								label: level.label,
+								position: level.position,
+							})),
+						)
+					}
+				})
+			}
+		} else {
+			setSelectedGroupLevels([])
+		}
+	}, [selectedScalingGroupId, fetchScalingLevels, scalingGroups, teamId])
 
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
@@ -106,9 +211,22 @@ export default function EditWorkoutClientCompact({
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
 				roundsToScore: roundsToScore === undefined ? null : roundsToScore,
+				scalingGroupId:
+					selectedScalingGroupId && selectedScalingGroupId !== "none"
+						? selectedScalingGroupId
+						: null,
 			},
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
+			scalingDescriptions:
+				selectedScalingGroupId && selectedScalingGroupId !== "none"
+					? Array.from(scalingDescriptions.entries()).map(
+							([scalingLevelId, description]) => ({
+								scalingLevelId,
+								description: description || null,
+							}),
+						)
+					: undefined,
 		})
 	}
 
@@ -187,6 +305,61 @@ export default function EditWorkoutClientCompact({
 									</SelectContent>
 								</Select>
 							</div>
+						</div>
+
+						<div>
+							<Label htmlFor="workout-scaling-group-compact">
+								Scaling Group (Optional)
+							</Label>
+							<Select
+								value={selectedScalingGroupId}
+								onValueChange={setSelectedScalingGroupId}
+							>
+								<SelectTrigger id="workout-scaling-group-compact">
+									<SelectValue placeholder="Select a scaling group" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None (Use default)</SelectItem>
+									{scalingGroups.length === 0 ? (
+										<SelectItem value="no-groups" disabled>
+											No scaling groups available
+										</SelectItem>
+									) : (
+										scalingGroups.map((group) => (
+											<SelectItem key={group.id} value={group.id}>
+												{group.title}
+												{group.teamName && (
+													<span className="text-muted-foreground ml-2">
+														({group.teamName})
+													</span>
+												)}
+												{group.isDefault === 1 && (
+													<span className="text-muted-foreground ml-2">
+														(Team Default)
+													</span>
+												)}
+											</SelectItem>
+										))
+									)}
+								</SelectContent>
+							</Select>
+							{selectedScalingGroupId &&
+								selectedScalingGroupId !== "none" &&
+								selectedGroupLevels.length > 0 && (
+									<div className="mt-2">
+										<div className="flex flex-wrap gap-1">
+											{selectedGroupLevels.map((level) => (
+												<Badge
+													key={level.id}
+													variant="secondary"
+													className="text-xs"
+												>
+													{level.label}
+												</Badge>
+											))}
+										</div>
+									</div>
+								)}
 						</div>
 
 						<div className="grid grid-cols-2 gap-4">
@@ -299,6 +472,18 @@ export default function EditWorkoutClientCompact({
 						</div>
 					</div>
 				</div>
+
+				{/* Scaling Descriptions */}
+				{selectedScalingGroupId && selectedScalingGroupId !== "none" && (
+					<div className="mt-4 border-t-2 border-primary pt-4">
+						<WorkoutScalingDescriptionsForm
+							scalingGroupId={selectedScalingGroupId}
+							teamId={teamId}
+							value={scalingDescriptions}
+							onChange={setScalingDescriptions}
+						/>
+					</div>
+				)}
 
 				<div className="mt-4 flex justify-end gap-4">
 					<Button type="button" variant="outline" onClick={onCancel}>

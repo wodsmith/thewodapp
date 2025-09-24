@@ -22,7 +22,6 @@
 		"paths": {
 			"@/*": ["./src/*"]
 		},
-		"baseUrl": ".",
 		"types": [
 			"./cloudflare-env.d.ts",
 			"./custom-env.d.ts",

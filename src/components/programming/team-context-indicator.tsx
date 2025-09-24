@@ -11,7 +11,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTeamContext } from "@/state/team-context"
-import { useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 
 interface Team {

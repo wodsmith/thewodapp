@@ -22,7 +22,9 @@ import {
 	TrackSelection,
 	WorkoutSelection,
 } from "./workout-selection"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useServerAction } from "zsa-react"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean
@@ -41,6 +43,29 @@ export function WorkoutSelectionModal({
 	onWorkoutScheduledAction,
 	preSelectedWorkoutId,
 }: WorkoutSelectionModalProps) {
+	// Scaling groups state
+	const [scalingGroups, setScalingGroups] = useState<
+		Array<{
+			id: string
+			title: string
+			description: string | null
+			teamId: string | null
+			teamName: string
+			isSystem: number
+			isDefault: number
+		}>
+	>([])
+
+	// Fetch scaling groups
+	const { execute: fetchScalingGroups } = useServerAction(
+		getScalingGroupsAction,
+		{
+			onError: (error) => {
+				console.error("Failed to fetch scaling groups:", error)
+			},
+		},
+	)
+
 	// Custom hooks for different concerns
 	const {
 		selectedTrack,
@@ -73,6 +98,22 @@ export function WorkoutSelectionModal({
 	useEffect(() => {
 		console.log({ trackWorkouts })
 	}, [trackWorkouts])
+
+	// Fetch scaling groups when modal opens
+	useEffect(() => {
+		if (isOpen && teamId) {
+			fetchScalingGroups({ teamId, includeSystem: true }).then(([result]) => {
+				if (result?.success && result.data) {
+					setScalingGroups(
+						result.data.map((group: any) => ({
+							...group,
+							teamName: group.teamName || "System",
+						})),
+					)
+				}
+			})
+		}
+	}, [isOpen, teamId, fetchScalingGroups])
 
 	const {
 		classTimes,
@@ -249,6 +290,7 @@ export function WorkoutSelectionModal({
 											teamId={teamId}
 											updateWorkoutAction={wrappedUpdateWorkout}
 											onCancel={wrappedCancelEdit}
+											scalingGroups={scalingGroups}
 										/>
 									)}
 								</div>

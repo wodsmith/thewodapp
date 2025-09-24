@@ -71,6 +71,7 @@ export function TestGenerateScheduleClient({
 		try {
 			const testData = {
 				templateId: selectedTemplateId,
+				locationId: "test-location-id", // TODO: Add location selection to test component
 				weekStartDate: new Date(weekStartDate),
 				teamId: selectedTeamId,
 			}

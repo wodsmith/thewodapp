@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
 	Dialog,
 	DialogContent,
@@ -20,9 +20,14 @@ import { Calendar, MapPin, Clock, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { generateScheduleAction } from "@/actions/generate-schedule-actions"
-import type { ScheduleTemplate, Location } from "@/db/schemas/scheduling"
+import type { Location } from "@/db/schemas/scheduling"
 import { format } from "date-fns"
 import { Checkbox } from "@/components/ui/checkbox"
+
+// Type for schedule template with relations from ZSA response - directly extract the success case
+type ScheduleTemplateWithClasses = NonNullable<
+	Awaited<ReturnType<typeof getScheduleTemplatesByTeam>>[0]
+>[number]
 
 interface CreateScheduleDialogProps {
 	isOpen: boolean
@@ -41,26 +46,20 @@ const CreateScheduleDialog = ({
 	locations,
 	onScheduleCreated,
 }: CreateScheduleDialogProps) => {
-	const [templates, setTemplates] = useState<ScheduleTemplate[]>([])
+	const [templates, setTemplates] = useState<ScheduleTemplateWithClasses[]>([])
 	const [selectedTemplateId, setSelectedTemplateId] = useState("")
 	const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(false)
 	const [isCreating, setIsCreating] = useState(false)
 
-	useEffect(() => {
-		if (isOpen) {
-			loadTemplates()
-		}
-	}, [isOpen])
-
-	const loadTemplates = async () => {
+	const loadTemplates = useCallback(async () => {
 		setIsLoading(true)
 		try {
 			const [result] = await getScheduleTemplatesByTeam({ teamId })
-			if (result) {
+			if (result && Array.isArray(result)) {
 				setTemplates(result)
 				// If there's only one template, select it by default
-				if (result.length === 1) {
+				if (result.length === 1 && result[0]) {
 					setSelectedTemplateId(result[0].id)
 				}
 			}
@@ -70,7 +69,13 @@ const CreateScheduleDialog = ({
 		} finally {
 			setIsLoading(false)
 		}
-	}
+	}, [teamId])
+
+	useEffect(() => {
+		if (isOpen) {
+			loadTemplates()
+		}
+	}, [isOpen, loadTemplates])
 
 	const handleCreate = async () => {
 		if (!selectedTemplateId || selectedLocationIds.length === 0) {
@@ -81,7 +86,7 @@ const CreateScheduleDialog = ({
 		setIsCreating(true)
 		let successCount = 0
 		let failureCount = 0
-		
+
 		try {
 			// Create schedules for each selected location
 			for (const locationId of selectedLocationIds) {
@@ -96,18 +101,26 @@ const CreateScheduleDialog = ({
 					if (result) {
 						successCount++
 					}
-				} catch (error: any) {
-					console.error(`Failed to create schedule for location ${locationId}:`, error)
+				} catch (error: unknown) {
+					console.error(
+						`Failed to create schedule for location ${locationId}:`,
+						error,
+					)
 					failureCount++
-					if (!error.message?.includes("already exists")) {
-						toast.error(`Failed to create schedule for ${locations.find(l => l.id === locationId)?.name || 'location'}`)
+					if (
+						!(error instanceof Error) ||
+						!error.message?.includes("already exists")
+					) {
+						toast.error(
+							`Failed to create schedule for ${locations.find((l) => l.id === locationId)?.name || "location"}`,
+						)
 					}
 				}
 			}
 
 			if (successCount > 0) {
 				toast.success(
-					`Successfully created ${successCount} schedule${successCount > 1 ? 's' : ''}!`
+					`Successfully created ${successCount} schedule${successCount > 1 ? "s" : ""}!`,
 				)
 				onScheduleCreated()
 				onClose()
@@ -120,14 +133,14 @@ const CreateScheduleDialog = ({
 	}
 
 	const toggleLocation = (locationId: string) => {
-		setSelectedLocationIds(prev => 
+		setSelectedLocationIds((prev) =>
 			prev.includes(locationId)
-				? prev.filter(id => id !== locationId)
-				: [...prev, locationId]
+				? prev.filter((id) => id !== locationId)
+				: [...prev, locationId],
 		)
 	}
 
-	const selectedTemplate = templates.find((t) => t.id === selectedTemplateId)
+	const selectedTemplate = templates.find((t) => t?.id === selectedTemplateId)
 	const templateClassCount = selectedTemplate?.templateClasses?.length || 0
 
 	return (
@@ -139,8 +152,8 @@ const CreateScheduleDialog = ({
 						<span>Create Weekly Schedule</span>
 					</DialogTitle>
 					<DialogDescription>
-						Select a template and location to generate a schedule for the week of{" "}
-						{format(weekStartDate, "MMM d, yyyy")}
+						Select a template and location to generate a schedule for the week
+						of {format(weekStartDate, "MMM d, yyyy")}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -158,7 +171,8 @@ const CreateScheduleDialog = ({
 										No templates found
 									</p>
 									<p className="text-xs text-orange-600 mt-1">
-										Please create a schedule template first before generating a schedule.
+										Please create a schedule template first before generating a
+										schedule.
 									</p>
 								</div>
 							</div>
@@ -177,16 +191,19 @@ const CreateScheduleDialog = ({
 										<SelectValue placeholder="Choose a template..." />
 									</SelectTrigger>
 									<SelectContent>
-										{templates.map((template) => (
-											<SelectItem key={template.id} value={template.id}>
-												<div className="flex items-center justify-between w-full">
-													<span>{template.name}</span>
-													<span className="text-xs text-slate-500 ml-2">
-														{template.templateClasses?.length || 0} classes
-													</span>
-												</div>
-											</SelectItem>
-										))}
+										{templates.map(
+											(template) =>
+												template && (
+													<SelectItem key={template.id} value={template.id}>
+														<div className="flex items-center justify-between w-full">
+															<span>{template.name}</span>
+															<span className="text-xs text-slate-500 ml-2">
+																{template.templateClasses?.length || 0} classes
+															</span>
+														</div>
+													</SelectItem>
+												),
+										)}
 									</SelectContent>
 								</Select>
 							</div>
@@ -238,8 +255,9 @@ const CreateScheduleDialog = ({
 												{selectedTemplate.name}
 											</p>
 											<p className="text-blue-600 text-xs mt-1">
-												This template contains {templateClassCount} classes that will
-												be scheduled for {selectedLocationIds.length} location{selectedLocationIds.length !== 1 ? 's' : ''}.
+												This template contains {templateClassCount} classes that
+												will be scheduled for {selectedLocationIds.length}{" "}
+												location{selectedLocationIds.length !== 1 ? "s" : ""}.
 											</p>
 										</div>
 									</div>
@@ -262,7 +280,9 @@ const CreateScheduleDialog = ({
 							templates.length === 0
 						}
 					>
-						{isCreating ? "Creating..." : `Create ${selectedLocationIds.length} Schedule${selectedLocationIds.length !== 1 ? 's' : ''}`}
+						{isCreating
+							? "Creating..."
+							: `Create ${selectedLocationIds.length} Schedule${selectedLocationIds.length !== 1 ? "s" : ""}`}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

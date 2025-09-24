@@ -2,6 +2,10 @@ import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { getAllTagsAction } from "@/actions/tag-actions"
+import {
+	getScalingGroupsAction,
+	getScalingGroupWithLevelsAction,
+} from "@/actions/scaling-actions"
 import { getSessionFromCookie } from "@/utils/auth"
 import CreateWorkoutClient from "./_components/create-workout-client"
 
@@ -48,9 +52,7 @@ export default async function CreateWorkoutPage() {
 
 	// Get programming tracks owned by all user's teams where they have permission
 	const { getTracksOwnedByTeam } = await import("@/server/programming-tracks")
-	const { SYSTEM_ROLES_ENUM, TEAM_PERMISSIONS } = await import(
-		"@/db/schemas/teams"
-	)
+	const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
 	const { hasTeamPermission } = await import("@/utils/team-auth")
 
 	// For programming tracks, users can add to tracks if:
@@ -136,6 +138,27 @@ export default async function CreateWorkoutPage() {
 		})),
 	)
 
+	// Fetch scaling groups for all teams where user has permission
+	const scalingGroupsPromises = teamsWithProgrammingPermission.map(
+		async (membership) => {
+			const [groupsResult] = await getScalingGroupsAction({
+				teamId: membership.teamId,
+				includeSystem: true,
+			})
+			if (groupsResult?.success) {
+				return groupsResult.data.map((group) => ({
+					...group,
+					teamName: membership.team?.name || "Unknown Team",
+				}))
+			}
+			return []
+		},
+	)
+	const allScalingGroupsArrays = await Promise.all(scalingGroupsPromises)
+	const scalingGroups = allScalingGroupsArrays.flat()
+
+	console.log("[DEBUG] Total scaling groups found:", scalingGroups.length)
+
 	return (
 		<CreateWorkoutClient
 			movements={movements.data}
@@ -143,6 +166,7 @@ export default async function CreateWorkoutPage() {
 			teamId={teamId}
 			ownedTracks={ownedTracks}
 			teamsWithProgrammingPermission={teamsWithProgrammingPermission}
+			scalingGroups={scalingGroups}
 		/>
 	)
 }

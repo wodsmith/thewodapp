@@ -1,5 +1,8 @@
 import "server-only"
-import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
+import {
+	getScheduledWorkoutsForTeam,
+	type ScheduledWorkoutInstanceWithDetails,
+} from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
@@ -15,9 +18,14 @@ interface Team {
 	isPersonalTeam?: number | boolean
 }
 
+// Type for scheduled workout with result attached
+type ScheduledWorkoutWithResult = ScheduledWorkoutInstanceWithDetails & {
+	result?: any // TODO: Define proper Result type when available
+}
+
 export interface TeamWorkoutsData {
 	teamId: string
-	workoutsPromise: Promise<any[]>
+	workoutsPromise: Promise<ScheduledWorkoutWithResult[]>
 }
 
 async function fetchTeamWorkoutsWithResults(

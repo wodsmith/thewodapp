@@ -40,7 +40,7 @@ const ScheduleTemplatesPage = async (props: ScheduleTemplatesPageProps) => {
 			locations={locationsRes.data ?? []}
 			availableSkills={skillsRes.data ?? []}
 			teamId={teamId}
-			teamSlug={teamRes.data?.slug ?? ""}
+			_teamSlug={teamRes.data?.slug ?? ""}
 		/>
 	)
 }

@@ -9,21 +9,33 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Clock, MapPin, User, AlertTriangle } from "lucide-react"
-import type { ScheduledClass, Coach, Location } from "@/db/schemas/scheduling"
+import type { Location } from "@/db/schemas/scheduling"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
 import { format } from "date-fns"
 
+// Type for coaches with relations - extract from ZSA response success case
+type CoachWithRelations = NonNullable<
+	NonNullable<Awaited<ReturnType<typeof getCoachesByTeam>>[0]>["data"]
+>[number]
+
+// Type for scheduled classes with relations
+type ScheduledClassWithRelations = Awaited<
+	ReturnType<typeof getScheduledClassesForDisplay>
+>[number]
+
 interface MasterScheduleProps {
-	scheduledClasses: ScheduledClass[]
+	scheduledClasses: ScheduledClassWithRelations[]
 	currentWeek: string
-	coaches: Coach[]
+	coaches: CoachWithRelations[]
 	locations: Location[]
 }
 
-const MasterSchedule = ({ 
-	scheduledClasses, 
+const MasterSchedule = ({
+	scheduledClasses,
 	currentWeek,
 	coaches,
-	locations 
+	locations,
 }: MasterScheduleProps) => {
 	// Sort schedule by day and time
 	const sortedSchedule = [...scheduledClasses].sort((a, b) => {
@@ -32,7 +44,7 @@ const MasterSchedule = ({
 		return dateA.getTime() - dateB.getTime()
 	})
 
-	const getStatusBadge = (scheduledClass: ScheduledClass) => {
+	const getStatusBadge = (scheduledClass: ScheduledClassWithRelations) => {
 		if (!scheduledClass.coachId) {
 			return (
 				<Badge variant="destructive" className="text-xs">
@@ -49,12 +61,16 @@ const MasterSchedule = ({
 
 	const getCoachName = (coachId: string | null) => {
 		if (!coachId) return null
-		const coach = coaches.find(c => c.id === coachId)
-		return coach?.user?.name || coach?.user?.email || "Unknown Coach"
+		const coach = coaches.find((c) => c.id === coachId)
+		const firstName = coach?.user?.firstName
+		const lastName = coach?.user?.lastName
+		const name =
+			firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName
+		return name || coach?.user?.email || "Unknown Coach"
 	}
 
 	const getLocationName = (locationId: string) => {
-		const location = locations.find(l => l.id === locationId)
+		const location = locations.find((l) => l.id === locationId)
 		return location?.name || "Unknown Location"
 	}
 
@@ -88,9 +104,12 @@ const MasterSchedule = ({
 								const dayName = format(classDate, "EEEE")
 								const timeStr = format(classDate, "h:mm a")
 								const coachName = getCoachName(scheduledClass.coachId)
-								
+
 								return (
-									<TableRow key={scheduledClass.id} className="hover:bg-slate-50/50">
+									<TableRow
+										key={scheduledClass.id}
+										className="hover:bg-slate-50/50"
+									>
 										<TableCell className="font-medium">{dayName}</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-1">
@@ -126,9 +145,7 @@ const MasterSchedule = ({
 												</div>
 											)}
 										</TableCell>
-										<TableCell>
-											{getStatusBadge(scheduledClass)}
-										</TableCell>
+										<TableCell>{getStatusBadge(scheduledClass)}</TableCell>
 									</TableRow>
 								)
 							})}

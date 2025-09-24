@@ -1,6 +1,5 @@
 "use server"
 
-import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -24,7 +23,6 @@ export const signUpAction = createServerAction()
 	.handler(async ({ input }) => {
 		return withRateLimit(async () => {
 			const db = getDd()
-			const { env } = getCloudflareContext()
 
 			if ((await isTurnstileEnabled()) && input.captchaToken) {
 				const success = await validateTurnstileToken(input.captchaToken)

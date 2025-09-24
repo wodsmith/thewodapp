@@ -3,6 +3,7 @@
 export * from "./schemas/billing"
 export * from "./schemas/common"
 export * from "./schemas/programming"
+export * from "./schemas/scaling"
 export * from "./schemas/scheduling"
 export * from "./schemas/teams"
 export * from "./schemas/users"
@@ -12,7 +13,6 @@ export * from "./schemas/workouts"
 import { relations } from "drizzle-orm"
 import { programmingTracksTable } from "./schemas/programming"
 import { teamTable } from "./schemas/teams"
-import { workouts } from "./schemas/workouts"
 
 // Team reverse relations for programming tracks
 export const teamReverseRelations = relations(teamTable, ({ many }) => ({

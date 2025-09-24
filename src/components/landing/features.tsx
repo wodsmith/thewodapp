@@ -59,7 +59,7 @@ export const Features = () => {
 					<h2 className="font-mono text-4xl md:text-6xl text-primary mb-6">
 						FEATURES THAT
 						<br />
-						<span className="text-orange">ACTUALLY MATTER</span>
+						<span className="text-primary">ACTUALLY MATTER</span>
 					</h2>
 					<p className="font-sans text-xl text-primary max-w-2xl mx-auto">
 						We cut the fluff and kept what works. Here&apos;s why 50,000+
@@ -75,10 +75,16 @@ export const Features = () => {
 						>
 							<div
 								className={`w-16 h-16 ${
-									feature.highlighted ? "bg-orange" : "bg-primary-foreground"
+									feature.highlighted ? "bg-primary" : "bg-secondary"
 								} border-2 border-primary rounded-lg flex items-center justify-center mb-6`}
 							>
-								<feature.icon className="text-primary" />
+								<feature.icon
+									className={
+										feature.highlighted
+											? "text-primary-foreground"
+											: "text-primary"
+									}
+								/>
 							</div>
 
 							<h3 className="font-mono text-2xl text-primary mb-4">
@@ -98,7 +104,7 @@ export const Features = () => {
 							&quot;TheWodApp helped me add 50lbs to my deadlift in 3 months.
 							The progress tracking is insane!&quot;
 						</p>
-						<div className="font-mono text-lg text-orange">
+						<div className="font-mono text-lg text-primary">
 							- SARAH K., CROSSFIT ATHLETE
 						</div>
 					</div>

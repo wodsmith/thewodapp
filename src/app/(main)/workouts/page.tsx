@@ -11,12 +11,11 @@ import {
 	type ScheduledWorkoutInstanceWithDetails,
 } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import { startOfLocalDay, endOfLocalDay } from "@/utils/date-utils"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import WorkoutControls from "./_components/WorkoutControls"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
 import { PaginationWithUrl } from "@/components/ui/pagination"
-import { KVSession } from "@/utils/kv-session"
+import type { KVSession } from "@/utils/kv-session"
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://spicywod.com"),
@@ -53,7 +52,7 @@ export default async function WorkoutsPage({
 	let session: KVSession | null = null
 	try {
 		session = await requireVerifiedEmail()
-	} catch (error) {
+	} catch (_error) {
 		console.log("[workouts/page] No user found")
 		redirect("/sign-in")
 	}

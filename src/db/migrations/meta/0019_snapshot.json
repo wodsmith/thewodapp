@@ -2,7 +2,7 @@
   "version": "6",
   "dialect": "sqlite",
   "id": "dbcfd1cc-e6eb-445e-9c49-1a5f2030ed9a",
-  "prevId": "9c172e01-7579-4519-bde4-0145f1939163",
+  "prevId": "8009dfa1-5235-4570-b2a1-007bc28a2f9e",
   "tables": {
     "credit_transaction": {
       "name": "credit_transaction",

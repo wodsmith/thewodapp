@@ -18,11 +18,12 @@ import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indi
 import { ChevronRight } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import type { TrackWorkout, Workout } from "@/db/schema"
+import { ScalingMismatchIndicator } from "@/components/scaling/scaling-mismatch-indicator"
+import type { TrackWorkout, Workout, ProgrammingTrack } from "@/db/schema"
 
 interface TrackWorkoutRowProps {
-	teamId: string
-	trackId: string
+	_teamId: string
+	_trackId: string
 	trackWorkout: TrackWorkout & {
 		isScheduled?: boolean
 		lastScheduledAt?: Date | null
@@ -31,17 +32,23 @@ interface TrackWorkoutRowProps {
 		tags: { id: string; name: string }[]
 		movements: { id: string; name: string }[]
 	}
+	track?: Pick<ProgrammingTrack, "id" | "name" | "scalingGroupId">
 	index: number
 	instanceId: symbol
+	canEdit?: boolean
+	onAlignScaling?: () => void | Promise<void>
 }
 
 export function TrackWorkoutRow({
-	teamId,
-	trackId,
+	_teamId,
+	_trackId,
 	trackWorkout,
 	workoutDetails,
+	track,
 	index,
 	instanceId,
+	canEdit = false,
+	onAlignScaling,
 }: TrackWorkoutRowProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -233,7 +240,15 @@ export function TrackWorkoutRow({
 						</div>
 
 						{/* Column 3: Status */}
-						<div className="md:col-span-1 flex items-center justify-start md:justify-end">
+						<div className="md:col-span-1 flex items-center justify-start md:justify-end gap-2">
+							{track && workoutDetails && (
+								<ScalingMismatchIndicator
+									workout={workoutDetails}
+									track={track}
+									canEdit={canEdit}
+									onAlignScaling={onAlignScaling}
+								/>
+							)}
 							{trackWorkout.isScheduled && (
 								<Badge className="bg-green-500 text-white border-2 border-green-700 font-mono">
 									Scheduled

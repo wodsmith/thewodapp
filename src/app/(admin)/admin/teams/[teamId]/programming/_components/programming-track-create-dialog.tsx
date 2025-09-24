@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -34,6 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { ProgrammingTrack } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { createProgrammingTrackAction } from "../../_actions/programming-track-actions"
 
 const formSchema = z.object({
@@ -48,9 +49,39 @@ const formSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
 	isPublic: z.boolean().optional().default(false),
+	scalingGroupId: z
+		.union([z.string(), z.null(), z.undefined()])
+		.transform((val) => {
+			// Coerce sentinel values to undefined
+			if (val === "" || val === "none" || val === null || val === undefined) {
+				return undefined
+			}
+			return val
+		})
+		.refine(
+			(val) => {
+				// If undefined, it's valid (optional field)
+				if (val === undefined) return true
+				// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+			},
+			{
+				message: "Invalid scaling group ID format",
+			},
+		)
+		.optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
+
+interface ScalingGroup {
+	id: string
+	title: string
+	description: string | null
+	teamId: string | null
+	isSystem: number
+	isDefault: number
+}
 
 interface ProgrammingTrackCreateDialogProps {
 	teamId: string
@@ -68,6 +99,8 @@ export function ProgrammingTrackCreateDialog({
 	onOpenChange,
 }: ProgrammingTrackCreateDialogProps) {
 	const dialogCloseRef = useRef<HTMLButtonElement>(null)
+	const [scalingGroups, setScalingGroups] = useState<ScalingGroup[]>([])
+	const [isLoadingGroups, setIsLoadingGroups] = useState(false)
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -76,8 +109,18 @@ export function ProgrammingTrackCreateDialog({
 			description: "",
 			type: PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
 			isPublic: false,
+			scalingGroupId: undefined,
 		},
 	})
+
+	const { execute: fetchScalingGroups } = useServerAction(
+		getScalingGroupsAction,
+		{
+			onError: (error) => {
+				console.error("Failed to fetch scaling groups:", error)
+			},
+		},
+	)
 
 	const { execute: createTrack, isPending } = useServerAction(
 		createProgrammingTrackAction,
@@ -100,6 +143,22 @@ export function ProgrammingTrackCreateDialog({
 		},
 	)
 
+	// Fetch scaling groups when dialog opens
+	useEffect(() => {
+		if (open && teamId) {
+			setIsLoadingGroups(true)
+			fetchScalingGroups({ teamId, includeSystem: true })
+				.then(([result]) => {
+					if (result?.success && result.data) {
+						setScalingGroups(result.data)
+					}
+				})
+				.finally(() => {
+					setIsLoadingGroups(false)
+				})
+		}
+	}, [open, teamId, fetchScalingGroups])
+
 	const onSubmit = (data: FormValues) => {
 		console.log(
 			"DEBUG: [UI] Programming track creation form submitted with data:",
@@ -108,6 +167,8 @@ export function ProgrammingTrackCreateDialog({
 		createTrack({
 			teamId,
 			...data,
+			scalingGroupId:
+				data.scalingGroupId === "none" ? undefined : data.scalingGroupId,
 		})
 	}
 
@@ -202,6 +263,46 @@ export function ProgrammingTrackCreateDialog({
 											>
 												Official 3rd Party
 											</SelectItem>
+										</SelectContent>
+									</Select>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name="scalingGroupId"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="font-mono font-semibold">
+										Scaling Group (Optional)
+									</FormLabel>
+									<Select
+										onValueChange={field.onChange}
+										value={field.value}
+										disabled={isLoadingGroups}
+									>
+										<FormControl>
+											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
+												<SelectValue placeholder="Select scaling group (optional)" />
+											</SelectTrigger>
+										</FormControl>
+										<SelectContent className="border-2 border-primary rounded-none font-mono">
+											<SelectItem value="none" className="font-mono">
+												None (Use team default)
+											</SelectItem>
+											{scalingGroups.map((group) => (
+												<SelectItem
+													key={group.id}
+													value={group.id}
+													className="font-mono"
+												>
+													{group.title}
+													{group.isDefault === 1 && " (Team Default)"}
+													{group.isSystem === 1 && " (System)"}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 									<FormMessage />

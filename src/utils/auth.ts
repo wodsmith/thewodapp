@@ -14,7 +14,6 @@ import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	teamMembershipTable,
-	teamRoleTable,
 	userTable,
 } from "@/db/schema"
 import type { SessionValidationResult } from "@/types"

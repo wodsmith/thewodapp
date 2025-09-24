@@ -8,10 +8,19 @@ import type { TrackWorkout, Workout } from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
 
+// Define interface for the instance object to match team-workout-card
+interface WorkoutInstance {
+	id: string
+	result?: any
+	classTimes?: string | null
+	teamSpecificNotes?: string | null
+	scalingGuidanceForDay?: string | null
+}
+
 interface WorkoutDateGroupProps {
 	dateKey: string
 	workouts: Array<{
-		instance: any
+		instance: WorkoutInstance
 		workout: Workout
 		trackWorkout?: TrackWorkout | null
 	}>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -122,7 +122,7 @@ export function EnhancedSubscribeButton({
 				setLocalSubscriptions((prev) => new Set([...prev, teamId]))
 				await subscribe({ teamId, trackId })
 			}
-		} catch (error) {
+		} catch (_error) {
 			// Revert optimistic update on error
 			setLocalSubscriptions(new Set([...subscribedTeamIds]))
 		} finally {
@@ -281,16 +281,16 @@ export function EnhancedSubscribeButton({
 					disabled={isLoading || anyTeamProcessing}
 				>
 					{anyTeamProcessing ? (
-						<>Processing...</>
+						"Processing..."
 					) : allSubscribed ? (
 						<>
 							<Check className="h-3 w-3 mr-1" />
 							All Subscribed
 						</>
 					) : someSubscribed ? (
-						<>Partial Subscription</>
+						"Partial Subscription"
 					) : (
-						<>Subscribe</>
+						"Subscribe"
 					)}
 					<ChevronDown className="h-3 w-3 ml-1" />
 				</Button>

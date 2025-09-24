@@ -7,30 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useServerAction } from "zsa-react"
 import { toast } from "sonner"
-import {
-	Calendar,
-	Clock,
-	MapPin,
-	Trash2,
-	Plus,
-	Edit,
-	Users,
-} from "lucide-react"
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
+import { Trash2, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Dialog,
 	DialogContent,
@@ -56,7 +35,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import type { inferServerActionReturnData } from "zsa"
 import type { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import type {
@@ -64,16 +42,13 @@ import type {
 	getLocationsByTeam,
 	getSkillsByTeam,
 } from "@/actions/gym-setup-actions"
-import type { getTeamAction } from "@/actions/team-actions"
 import {
 	createScheduleTemplate,
 	updateScheduleTemplate,
 	deleteScheduleTemplate,
 	createScheduleTemplateClass,
-	updateScheduleTemplateClass,
 	deleteScheduleTemplateClass,
 } from "@/actions/schedule-template-actions"
-import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 
 type Template = inferServerActionReturnData<
@@ -95,7 +70,7 @@ type Props = {
 	locations: Location[]
 	availableSkills: Skill[]
 	teamId: string
-	teamSlug: string
+	_teamSlug: string
 }
 
 const createTemplateSchema = z.object({
@@ -118,7 +93,7 @@ const createClassSchema = z.object({
 
 type CreateClassData = z.infer<typeof createClassSchema>
 
-const dayNames = [
+const _dayNames = [
 	"Sunday",
 	"Monday",
 	"Tuesday",
@@ -134,17 +109,17 @@ const ScheduleTemplates = ({
 	locations,
 	availableSkills,
 	teamId,
-	teamSlug,
+	_teamSlug,
 }: Props) => {
 	const router = useRouter()
 	const [templates, setTemplates] = useState(initialTemplates)
-	const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+	const [selectedTemplateId, _setSelectedTemplateId] = useState<string | null>(
 		null,
 	)
 	const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
 		null,
 	)
-	const [editingClassId, setEditingClassId] = useState<string | null>(null)
+	const [_editingClassId, _setEditingClassId] = useState<string | null>(null)
 	const [selectedSkills, setSelectedSkills] = useState<string[]>([])
 	const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
 	const [deletingTemplates, setDeletingTemplates] = useState<Set<string>>(
@@ -178,7 +153,7 @@ const ScheduleTemplates = ({
 		updateScheduleTemplate,
 	)
 
-	const onUpdateTemplate = async (data: CreateTemplateData) => {
+	const _onUpdateTemplate = async (data: CreateTemplateData) => {
 		if (!editingTemplateId) return
 		const [res, err] = await updateTemplateExec({
 			id: editingTemplateId,
@@ -238,7 +213,7 @@ const ScheduleTemplates = ({
 		createScheduleTemplateClass,
 	)
 
-	const onCreateClass = async (data: CreateClassData) => {
+	const _onCreateClass = async (data: CreateClassData) => {
 		if (!selectedTemplateId) return
 		const [res, err] = await createClassExec({
 			templateId: selectedTemplateId,
@@ -248,11 +223,17 @@ const ScheduleTemplates = ({
 		if (err) return toast.error("Error adding class")
 		const newClass = {
 			...res,
-			requiredSkills: selectedSkills.map((skillId) => ({
-				skillId,
-				templateClassId: res.id,
-				skill: availableSkills.find((s) => s.id === skillId)!,
-			})),
+			requiredSkills: selectedSkills.map((skillId) => {
+				const skill = availableSkills.find((s) => s.id === skillId)
+				if (!skill) {
+					throw new Error(`Skill with id ${skillId} not found`)
+				}
+				return {
+					skillId,
+					templateClassId: res.id,
+					skill,
+				}
+			}),
 		}
 		setTemplates(
 			templates.map((t) =>
@@ -276,8 +257,8 @@ const ScheduleTemplates = ({
 	const { execute: deleteClassExec } = useServerAction(
 		deleteScheduleTemplateClass,
 	)
-	const onDeleteClass = async (id: string, templateId: string) => {
-		const [res, err] = await deleteClassExec({ id, templateId })
+	const _onDeleteClass = async (id: string, templateId: string) => {
+		const [_res, err] = await deleteClassExec({ id, templateId })
 		if (err) return toast.error("Error deleting class")
 		setTemplates(
 			templates.map((t) =>

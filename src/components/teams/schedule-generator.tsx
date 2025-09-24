@@ -6,19 +6,13 @@ import { Button } from "@/components/ui/button"
 import {
 	Calendar,
 	Zap,
-	Settings,
 	AlertTriangle,
 	List,
 	Grid,
-	Clock,
 	MapPin,
-	Plus,
-	Trash2,
 	User,
-	X,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
 	Select,
@@ -37,10 +31,9 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
-import { 
+import {
 	generateScheduleAction,
 	checkExistingScheduleAction,
-	getGeneratedScheduleAction,
 	updateScheduledClassAction,
 	getAvailableCoachesForClassAction,
 } from "@/actions/generate-schedule-actions"
@@ -49,6 +42,7 @@ import { format, startOfWeek, addDays } from "date-fns"
 interface ScheduleGeneratorProps {
 	teamId: string
 	templateId?: string
+	locationId?: string
 }
 
 interface TimeSlots {
@@ -68,7 +62,7 @@ interface Schedule {
 interface ScheduledClass {
 	id: string
 	scheduleId: string
-	classId: string
+	classCatalogId: string
 	locationId: string
 	coachId: string | null
 	startTime: Date
@@ -77,7 +71,9 @@ interface ScheduledClass {
 		id: string
 		name: string
 		description: string | null
-		color: string | null
+		teamId: string
+		durationMinutes: number
+		maxParticipants: number
 	}
 	location: {
 		id: string
@@ -87,17 +83,21 @@ interface ScheduledClass {
 		id: string
 		userId: string
 		user: {
-			firstName: string
-			lastName: string
-			email: string
+			firstName: string | null
+			lastName: string | null
+			email: string | null
 		}
 	} | null
 }
 
-export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps) {
+export function ScheduleGenerator({
+	teamId,
+	templateId,
+	locationId,
+}: ScheduleGeneratorProps) {
 	const [isGenerating, setIsGenerating] = useState(false)
-	const [currentWeek, setCurrentWeek] = useState(new Date())
-	const [showTimeSlotManager, setShowTimeSlotManager] = useState(false)
+	const [currentWeek, _setCurrentWeek] = useState(new Date())
+	const [_showTimeSlotManager, _setShowTimeSlotManager] = useState(false)
 	const [viewMode, setViewMode] = useState<"grid" | "master">("grid")
 	const [selectedSlot, setSelectedSlot] = useState<ScheduledClass | null>(null)
 	const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
@@ -112,70 +112,89 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 	} | null>(null)
 
 	// Server actions
-	const { execute: generateSchedule } = useServerAction(generateScheduleAction, {
-		onError: (error) => {
-			toast.error(error.err?.message || "Failed to generate schedule")
-			setIsGenerating(false)
+	const { execute: generateSchedule } = useServerAction(
+		generateScheduleAction,
+		{
+			onError: (error) => {
+				toast.error(error.err?.message || "Failed to generate schedule")
+				setIsGenerating(false)
+			},
+			onSuccess: (result) => {
+				toast.success("Schedule generated successfully!")
+				setSchedule(result.data)
+				setIsGenerating(false)
+			},
 		},
-		onSuccess: (result) => {
-			toast.success("Schedule generated successfully!")
-			setSchedule(result.data)
-			setIsGenerating(false)
-		},
-	})
+	)
 
-	const { execute: checkExistingSchedule } = useServerAction(checkExistingScheduleAction, {
-		onError: (error) => {
-			toast.error(error.err?.message || "Failed to check existing schedule")
-		},
-		onSuccess: (result) => {
-			if (result.data.exists && result.data.schedule) {
-				// Transform the schedule data to match our expected format
-				const transformedSchedule = {
-					schedule: result.data.schedule,
-					scheduledClasses: result.data.schedule.scheduledClasses || [],
-					unstaffedClassesCount: result.data.schedule.scheduledClasses?.filter((c: any) => !c.coachId).length || 0,
-					totalClassesCount: result.data.schedule.scheduledClasses?.length || 0,
-					staffedClassesCount: result.data.schedule.scheduledClasses?.filter((c: any) => c.coachId).length || 0,
+	const { execute: checkExistingSchedule } = useServerAction(
+		checkExistingScheduleAction,
+		{
+			onError: (error) => {
+				toast.error(error.err?.message || "Failed to check existing schedule")
+			},
+			onSuccess: (result) => {
+				if (result.data.exists && result.data.schedule) {
+					// Transform the schedule data to match our expected format
+					const transformedSchedule = {
+						schedule: result.data.schedule,
+						scheduledClasses: result.data.schedule.scheduledClasses || [],
+						unstaffedClassesCount:
+							result.data.schedule.scheduledClasses?.filter(
+								(c: any) => !c.coachId,
+							).length || 0,
+						totalClassesCount:
+							result.data.schedule.scheduledClasses?.length || 0,
+						staffedClassesCount:
+							result.data.schedule.scheduledClasses?.filter(
+								(c: any) => c.coachId,
+							).length || 0,
+					}
+					setSchedule(transformedSchedule)
 				}
-				setSchedule(transformedSchedule)
-			}
+			},
 		},
-	})
+	)
 
-	const { execute: updateScheduledClass } = useServerAction(updateScheduledClassAction, {
-		onError: (error) => {
-			toast.error(error.err?.message || "Failed to update class")
+	const { execute: updateScheduledClass } = useServerAction(
+		updateScheduledClassAction,
+		{
+			onError: (error) => {
+				toast.error(error.err?.message || "Failed to update class")
+			},
+			onSuccess: (result) => {
+				toast.success("Class updated successfully!")
+				// Update the local schedule state
+				if (schedule && result.data) {
+					const updatedClasses = schedule.scheduledClasses.map((c) =>
+						c.id === result.data.id ? result.data : c,
+					)
+					const unstaffedCount = updatedClasses.filter((c) => !c.coachId).length
+					setSchedule({
+						...schedule,
+						scheduledClasses: updatedClasses,
+						unstaffedClassesCount: unstaffedCount,
+						staffedClassesCount: updatedClasses.length - unstaffedCount,
+					})
+				}
+				setSelectedSlot(null)
+				setSelectedCoachId("")
+			},
 		},
-		onSuccess: (result) => {
-			toast.success("Class updated successfully!")
-			// Update the local schedule state
-			if (schedule && result.data) {
-				const updatedClasses = schedule.scheduledClasses.map(c => 
-					c.id === result.data.id ? result.data : c
-				)
-				const unstaffedCount = updatedClasses.filter(c => !c.coachId).length
-				setSchedule({
-					...schedule,
-					scheduledClasses: updatedClasses,
-					unstaffedClassesCount: unstaffedCount,
-					staffedClassesCount: updatedClasses.length - unstaffedCount,
-				})
-			}
-			setSelectedSlot(null)
-			setSelectedCoachId("")
-		},
-	})
+	)
 
-	const { execute: getAvailableCoaches } = useServerAction(getAvailableCoachesForClassAction, {
-		onError: (error) => {
-			toast.error(error.err?.message || "Failed to get available coaches")
+	const { execute: getAvailableCoaches } = useServerAction(
+		getAvailableCoachesForClassAction,
+		{
+			onError: (error) => {
+				toast.error(error.err?.message || "Failed to get available coaches")
+			},
+			onSuccess: (result) => {
+				setAvailableCoaches(result.data.availableCoaches)
+				setUnavailableCoaches(result.data.unavailableCoaches)
+			},
 		},
-		onSuccess: (result) => {
-			setAvailableCoaches(result.data.availableCoaches)
-			setUnavailableCoaches(result.data.unavailableCoaches)
-		},
-	})
+	)
 
 	// Check for existing schedule on mount and when week changes
 	useEffect(() => {
@@ -185,7 +204,7 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 				weekStartDate: startOfWeek(currentWeek, { weekStartsOn: 1 }),
 			})
 		}
-	}, [teamId, currentWeek])
+	}, [teamId, currentWeek, checkExistingSchedule])
 
 	const handleGenerateSchedule = async () => {
 		if (!templateId) {
@@ -193,9 +212,15 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 			return
 		}
 
+		if (!locationId) {
+			toast.error("Location ID is required for schedule generation")
+			return
+		}
+
 		setIsGenerating(true)
 		await generateSchedule({
 			templateId,
+			locationId,
 			weekStartDate: startOfWeek(currentWeek, { weekStartsOn: 1 }),
 			teamId,
 		})
@@ -227,7 +252,15 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 		return `${format(start, "MMM d")} - ${format(end, "d, yyyy")}`
 	}
 
-	const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+	const days = [
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday",
+		"Sunday",
+	]
 
 	// Group scheduled classes by location and time
 	const getScheduleGrid = () => {
@@ -242,8 +275,9 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 			const location = scheduledClass.location.name
 
 			if (!grid[location]) grid[location] = {}
-			if (!grid[location][`${day}-${time}`]) grid[location][`${day}-${time}`] = []
-			
+			if (!grid[location][`${day}-${time}`])
+				grid[location][`${day}-${time}`] = []
+
 			grid[location][`${day}-${time}`].push(scheduledClass)
 		})
 
@@ -302,7 +336,9 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 						</div>
 						<div className="flex space-x-2">
 							<Button
-								onClick={() => setViewMode(viewMode === "grid" ? "master" : "grid")}
+								onClick={() =>
+									setViewMode(viewMode === "grid" ? "master" : "grid")
+								}
 								variant="outline"
 								className="border-slate-300"
 							>
@@ -377,7 +413,8 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 								<AlertTriangle className="h-5 w-5 text-orange-600" />
 								<div>
 									<h3 className="font-medium text-orange-800">
-										{schedule.unstaffedClassesCount} classes need manual assignment
+										{schedule.unstaffedClassesCount} classes need manual
+										assignment
 									</h3>
 									<p className="text-sm text-orange-700">
 										These classes couldn't be automatically assigned due to
@@ -426,12 +463,18 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 												</tr>
 												{timeSlots.map((time) => (
 													<tr key={`${location}-${time}`}>
-														<td className="p-2 text-sm text-slate-600">{time}</td>
+														<td className="p-2 text-sm text-slate-600">
+															{time}
+														</td>
 														{days.map((day) => {
-															const classes = scheduleGrid[location]?.[`${day}-${time}`] || []
-															
+															const classes =
+																scheduleGrid[location]?.[`${day}-${time}`] || []
+
 															return (
-																<td key={`${location}-${day}-${time}`} className="p-2">
+																<td
+																	key={`${location}-${day}-${time}`}
+																	className="p-2"
+																>
 																	{classes.map((scheduledClass) => (
 																		<Button
 																			key={scheduledClass.id}
@@ -441,20 +484,20 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 																					? "border-orange-300 bg-orange-50 hover:bg-orange-100"
 																					: "border-slate-200 bg-white hover:bg-slate-50"
 																			}`}
-																			onClick={() => handleSlotClick(scheduledClass)}
+																			onClick={() =>
+																				handleSlotClick(scheduledClass)
+																			}
 																		>
 																			<div className="flex flex-col items-start w-full">
-																				<div
-																					className="font-medium text-slate-800 truncate w-full text-left"
-																					style={{
-																						color: scheduledClass.classCatalog.color || undefined,
-																					}}
-																				>
+																				<div className="font-medium text-slate-800 truncate w-full text-left">
 																					{scheduledClass.classCatalog.name}
 																				</div>
 																				{scheduledClass.coach ? (
 																					<div className="text-slate-600 truncate w-full text-left">
-																						{scheduledClass.coach.user.firstName}{" "}
+																						{
+																							scheduledClass.coach.user
+																								.firstName
+																						}{" "}
 																						{scheduledClass.coach.user.lastName}
 																					</div>
 																				) : (
@@ -486,10 +529,14 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 						<CardContent className="p-6">
 							<div className="space-y-4">
 								{days.map((day) => {
-									const dayClasses = schedule.scheduledClasses.filter((c) => {
-										const classDay = c.startTime.getDay()
-										return days[classDay === 0 ? 6 : classDay - 1] === day
-									}).sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+									const dayClasses = schedule.scheduledClasses
+										.filter((c) => {
+											const classDay = c.startTime.getDay()
+											return days[classDay === 0 ? 6 : classDay - 1] === day
+										})
+										.sort(
+											(a, b) => a.startTime.getTime() - b.startTime.getTime(),
+										)
 
 									if (dayClasses.length === 0) return null
 
@@ -513,12 +560,7 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 																{format(scheduledClass.startTime, "h:mm a")}
 															</div>
 															<div>
-																<div
-																	className="font-medium"
-																	style={{
-																		color: scheduledClass.classCatalog.color || undefined,
-																	}}
-																>
+																<div className="font-medium">
 																	{scheduledClass.classCatalog.name}
 																</div>
 																<div className="text-sm text-slate-600">
@@ -572,7 +614,10 @@ export function ScheduleGenerator({ teamId, templateId }: ScheduleGeneratorProps
 					<div className="space-y-4">
 						<div>
 							<Label htmlFor="coach">Available Coaches</Label>
-							<Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
+							<Select
+								value={selectedCoachId}
+								onValueChange={setSelectedCoachId}
+							>
 								<SelectTrigger>
 									<SelectValue placeholder="Select a coach" />
 								</SelectTrigger>

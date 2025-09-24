@@ -108,7 +108,7 @@ export function AddWorkoutToTrackDialog({
 					userWorkouts={userWorkouts}
 					movements={movements}
 					tags={tags}
-					userId={userId}
+					_userId={userId}
 					multiSelect={true}
 				/>
 

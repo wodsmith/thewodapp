@@ -12,6 +12,7 @@ import {
 	count,
 	desc,
 	sql,
+	asc,
 } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -28,6 +29,10 @@ import {
 	teamMembershipTable,
 } from "@/db/schema"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+	scalingLevelsTable,
+	workoutScalingDescriptionsTable,
+} from "@/db/schemas/scaling"
 import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
 import { isTeamMember } from "@/utils/team-auth"
 import {
@@ -361,6 +366,7 @@ export async function getUserWorkouts({
 			scheme: workouts.scheme,
 			scope: workouts.scope,
 			teamId: workouts.teamId,
+			scalingGroupId: workouts.scalingGroupId,
 			repsPerRound: workouts.repsPerRound,
 			roundsToScore: workouts.roundsToScore,
 			sugarId: workouts.sugarId,
@@ -502,9 +508,10 @@ export async function createWorkout({
 	movementIds,
 	teamId,
 }: {
-	workout: Omit<Workout, "id" | "updatedAt" | "updateCounter" | "teamId"> & {
-		createdAt: Date
-	}
+	workout: Omit<
+		Workout,
+		"id" | "createdAt" | "updatedAt" | "updateCounter" | "teamId"
+	>
 	tagIds: string[]
 	movementIds: string[]
 	teamId: string
@@ -526,9 +533,9 @@ export async function createWorkout({
 				sugarId: workout.sugarId,
 				tiebreakScheme: workout.tiebreakScheme,
 				secondaryScheme: workout.secondaryScheme,
+				scalingGroupId: workout.scalingGroupId,
 				teamId,
-				createdAt: workout.createdAt,
-				updatedAt: new Date(),
+				// Let database defaults handle timestamps
 				updateCounter: 0,
 			})
 			.returning()
@@ -594,6 +601,16 @@ export async function getWorkoutById(id: string): Promise<
 				teamName?: string
 			} | null
 			remixCount?: number
+			// Scaling information
+			scalingLevels?: Array<{
+				id: string
+				label: string
+				position: number
+			}>
+			scalingDescriptions?: Array<{
+				scalingLevelId: string
+				description: string | null
+			}>
 	  })
 	| null
 > {
@@ -670,12 +687,51 @@ export async function getWorkoutById(id: string): Promise<
 
 	const remixCount = remixCountResult?.count || 0
 
+	// Fetch scaling levels and descriptions if workout has a scaling group
+	let scalingLevels: Array<{ id: string; label: string; position: number }> = []
+	let scalingDescriptions: Array<{
+		scalingLevelId: string
+		description: string | null
+	}> = []
+
+	if (workout.scalingGroupId) {
+		// Get scaling levels for this group
+		scalingLevels = await db
+			.select({
+				id: scalingLevelsTable.id,
+				label: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+			})
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.scalingGroupId, workout.scalingGroupId))
+			.orderBy(asc(scalingLevelsTable.position))
+
+		// Get workout-specific scaling descriptions
+		if (scalingLevels.length > 0) {
+			const levelIds = scalingLevels.map((l) => l.id)
+			scalingDescriptions = await db
+				.select({
+					scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+					description: workoutScalingDescriptionsTable.description,
+				})
+				.from(workoutScalingDescriptionsTable)
+				.where(
+					and(
+						eq(workoutScalingDescriptionsTable.workoutId, id),
+						inArray(workoutScalingDescriptionsTable.scalingLevelId, levelIds),
+					),
+				)
+		}
+	}
+
 	return {
 		...workout,
 		tags: tagObjs,
 		movements: movementObjs,
 		sourceWorkout,
 		remixCount,
+		scalingLevels,
+		scalingDescriptions,
 	}
 }
 
@@ -959,8 +1015,7 @@ export async function createWorkoutRemix({
 			secondaryScheme: sourceWorkout.secondaryScheme,
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 			updateCounter: 0,
 		})
 		.returning()
@@ -1125,8 +1180,7 @@ export async function createProgrammingTrackWorkoutRemix({
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
 			sourceTrackId, // Reference to the original programming track
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			// Let database defaults handle timestamps
 			updateCounter: 0,
 		})
 		.returning()
@@ -1252,6 +1306,7 @@ export async function getRemixedWorkouts(sourceWorkoutId: string) {
 			description: workouts.description,
 			scheme: workouts.scheme,
 			scope: workouts.scope,
+			scalingGroupId: workouts.scalingGroupId,
 			createdAt: workouts.createdAt,
 			teamId: workouts.teamId,
 			teamName: teamTable.name,
