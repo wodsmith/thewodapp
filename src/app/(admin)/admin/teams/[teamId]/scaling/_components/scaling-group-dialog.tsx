@@ -32,6 +32,16 @@ import {
 	getScalingGroupWithLevelsAction,
 } from "@/actions/scaling-actions"
 import { toast } from "sonner"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
 import {
 	draggable,
@@ -251,6 +261,10 @@ export function ScalingGroupDialog({
 }: ScalingGroupDialogProps) {
 	const [isLoading, setIsLoading] = useState(false)
 	const [instanceId] = useState(() => Symbol("scaling-levels"))
+	const [showLevelChangeWarning, setShowLevelChangeWarning] = useState(false)
+	const [pendingFormData, setPendingFormData] = useState<FormValues | null>(
+		null,
+	)
 	const isEditing = !!group
 
 	const form = useForm<FormValues>({
@@ -367,6 +381,40 @@ export function ScalingGroupDialog({
 		form.setValue("levels", [...levels])
 	}
 
+	// Function to detect if levels have changed compared to original group
+	const haveLevelsChanged = (
+		formLevels: FormValues["levels"],
+		originalGroup?: typeof group,
+	) => {
+		if (!originalGroup?.levels) return false
+
+		// Check if lengths differ
+		if (formLevels.length !== originalGroup.levels.length) return true
+
+		// Sort both arrays by position for comparison
+		const sortedFormLevels = [...formLevels].sort(
+			(a, b) => a.position - b.position,
+		)
+		const sortedOriginalLevels = [...originalGroup.levels].sort(
+			(a, b) => a.position - b.position,
+		)
+
+		// Check if any level has different label or position
+		for (let i = 0; i < sortedFormLevels.length; i++) {
+			const formLevel = sortedFormLevels[i]
+			const originalLevel = sortedOriginalLevels[i]
+
+			if (
+				formLevel.label !== originalLevel.label ||
+				formLevel.position !== originalLevel.position
+			) {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	const onSubmit = async (values: FormValues) => {
 		// Remove the id field from levels for creation
 		const levelsForSubmission = values.levels.map(({ label, position }) => ({
@@ -375,6 +423,13 @@ export function ScalingGroupDialog({
 		}))
 
 		if (isEditing && group) {
+			// Check if levels have changed and warn user
+			if (haveLevelsChanged(values.levels, group)) {
+				setPendingFormData(values)
+				setShowLevelChangeWarning(true)
+				return
+			}
+
 			// For editing, we'll update the group and handle levels separately
 			const [result, error] = await updateGroup({
 				groupId: group.id,
@@ -405,6 +460,36 @@ export function ScalingGroupDialog({
 				onSuccess()
 			}
 		}
+	}
+
+	const handleConfirmWithoutLevels = async () => {
+		if (!pendingFormData || !group) return
+
+		setShowLevelChangeWarning(false)
+
+		// Proceed with update without level changes
+		const [result, error] = await updateGroup({
+			groupId: group.id,
+			teamId,
+			title: pendingFormData.title,
+			description: pendingFormData.description || undefined,
+		})
+
+		if (error) {
+			toast.error(error.message || "Failed to update scaling group")
+		} else {
+			toast.success(
+				"Scaling group updated successfully (level changes ignored)",
+			)
+			onSuccess()
+		}
+
+		setPendingFormData(null)
+	}
+
+	const handleCancelLevelWarning = () => {
+		setShowLevelChangeWarning(false)
+		setPendingFormData(null)
 	}
 
 	const levels = form.watch("levels")
@@ -513,6 +598,37 @@ export function ScalingGroupDialog({
 					</Form>
 				)}
 			</DialogContent>
+
+			<AlertDialog
+				open={showLevelChangeWarning}
+				onOpenChange={setShowLevelChangeWarning}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Level Changes Detected</AlertDialogTitle>
+						<AlertDialogDescription>
+							You have made changes to the scaling levels (reordering or label
+							edits), but these changes cannot be saved with the current update.
+							<br />
+							<br />
+							If you continue, only the title and description will be updated.
+							The level changes will be lost.
+							<br />
+							<br />
+							Do you want to continue without saving the level changes, or
+							cancel to keep editing?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel onClick={handleCancelLevelWarning}>
+							Cancel (Keep Editing)
+						</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmWithoutLevels}>
+							Continue Without Level Changes
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</Dialog>
 	)
 }

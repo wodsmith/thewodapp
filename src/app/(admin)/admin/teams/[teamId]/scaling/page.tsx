@@ -9,16 +9,16 @@ import { ScalingGroupsList } from "./_components/scaling-groups-list"
 
 interface ScalingPageProps {
 	params: Promise<{
-		teamSlug: string
+		teamId: string
 	}>
 }
 
 export async function generateMetadata({ params }: ScalingPageProps) {
-	const { teamSlug } = await params
+	const { teamId } = await params
 	const db = getDd()
 
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	if (!team) {
@@ -34,12 +34,12 @@ export async function generateMetadata({ params }: ScalingPageProps) {
 }
 
 export default async function ScalingPage({ params }: ScalingPageProps) {
-	const { teamSlug } = await params
+	const { teamId } = await params
 	const db = getDd()
 
-	// Find the team by slug
+	// Find the team by id
 	const team = await db.query.teamTable.findFirst({
-		where: eq(teamTable.slug, teamSlug),
+		where: eq(teamTable.id, teamId),
 	})
 
 	if (!team) {
@@ -51,7 +51,7 @@ export default async function ScalingPage({ params }: ScalingPageProps) {
 	if (!session) {
 		redirect(
 			`/auth/login?returnTo=${encodeURIComponent(
-				`/settings/teams/${teamSlug}/scaling`,
+				`/admin/teams/${teamId}/scaling`,
 			)}`,
 		)
 	}
@@ -60,7 +60,17 @@ export default async function ScalingPage({ params }: ScalingPageProps) {
 	const { hasAccess } = await hasTeamMembership(team.id)
 
 	if (!hasAccess) {
-		redirect(`/settings/teams/${teamSlug}`)
+		redirect(`/admin/teams/${teamId}`)
+	}
+
+	// Check if user has permission to manage scaling groups
+	const canManageScaling = await hasTeamPermission(
+		team.id,
+		TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+	)
+
+	if (!canManageScaling) {
+		redirect(`/admin/teams/${teamId}`)
 	}
 
 	// Check permissions
@@ -102,7 +112,7 @@ export default async function ScalingPage({ params }: ScalingPageProps) {
 
 			<ScalingGroupsList
 				teamId={team.id}
-				teamSlug={teamSlug}
+				teamSlug={team.slug}
 				scalingGroups={scalingGroups}
 				defaultScalingGroupId={team.defaultScalingGroupId}
 				canCreate={canCreate}

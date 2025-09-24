@@ -185,18 +185,6 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 					)}
 				</div>
 
-				{/* Team actions */}
-				<div className="col-span-3 flex flex-wrap gap-4">
-					<Button
-						asChild
-						className="border-2 border-primary shadow-[2px_2px_0px_0px] shadow-primary"
-					>
-						<Link href={`/settings/teams/${teamSlug}/scaling`}>
-							Manage Scaling Groups
-						</Link>
-					</Button>
-				</div>
-
 				{/* Team Members Table */}
 				<Card className="col-span-3">
 					<CardHeader>

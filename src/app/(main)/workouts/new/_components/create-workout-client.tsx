@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
 import { createWorkoutAction } from "@/actions/workout-actions"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
 import {
 	type CreateWorkoutSchema,
 	createWorkoutSchema,
@@ -89,6 +90,9 @@ export default function CreateWorkoutClient({
 			position: number
 		}>
 	>([])
+	const [scalingDescriptions, setScalingDescriptions] = useState<
+		Map<string, string>
+	>(new Map())
 	const router = useRouter()
 
 	const form = useForm<CreateWorkoutSchema>({
@@ -255,6 +259,15 @@ export default function CreateWorkoutClient({
 			teamId: data.selectedTeamId || teamId,
 			trackId: data.trackId,
 			scheduledDate: data.scheduledDate,
+			scalingDescriptions:
+				data.scalingGroupId && data.scalingGroupId !== "none"
+					? Array.from(scalingDescriptions.entries()).map(
+							([scalingLevelId, description]) => ({
+								scalingLevelId,
+								description: description || null,
+							}),
+						)
+					: undefined,
 		})
 	}
 
@@ -414,7 +427,7 @@ export default function CreateWorkoutClient({
 												)}
 											</SelectContent>
 										</Select>
-										{field.value && (
+										{field.value && field.value !== "none" && (
 											<div className="mt-2 space-y-2">
 												<p className="text-sm text-muted-foreground">
 													This scaling group will be used for this workout
@@ -708,6 +721,19 @@ export default function CreateWorkoutClient({
 							</div>
 						</div>
 					</div>
+
+					{/* Scaling Descriptions */}
+					{form.watch("scalingGroupId") &&
+						form.watch("scalingGroupId") !== "none" && (
+							<div className="col-span-full mt-6 border-t-2 border-primary pt-6">
+								<WorkoutScalingDescriptionsForm
+									scalingGroupId={form.watch("scalingGroupId") || null}
+									teamId={form.watch("selectedTeamId") || teamId}
+									value={scalingDescriptions}
+									onChange={setScalingDescriptions}
+								/>
+							</div>
+						)}
 
 					<div className="mt-6 flex justify-end gap-4">
 						<Button asChild variant="outline">

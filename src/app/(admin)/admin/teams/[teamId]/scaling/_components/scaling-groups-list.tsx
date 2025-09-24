@@ -36,6 +36,7 @@ interface ScalingGroup {
 	description: string | null
 	teamId: string | null
 	isDefault: number
+	isSystem: number
 	levels?: Array<{
 		id: string
 		label: string
@@ -147,7 +148,7 @@ export function ScalingGroupsList({
 					<div className="grid gap-4">
 						{scalingGroups.map((group) => {
 							const isTeamDefault = defaultScalingGroupId === group.id
-							const isGlobalDefault = group.isDefault === 1 && !group.teamId
+							const isGlobalDefault = group.isSystem === 1
 
 							return (
 								<Card

@@ -49,7 +49,27 @@ const formSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
 	isPublic: z.boolean().optional().default(false),
-	scalingGroupId: z.string().optional(),
+	scalingGroupId: z
+		.union([z.string(), z.null(), z.undefined()])
+		.transform((val) => {
+			// Coerce sentinel values to undefined
+			if (val === "" || val === "none" || val === null || val === undefined) {
+				return undefined
+			}
+			return val
+		})
+		.refine(
+			(val) => {
+				// If undefined, it's valid (optional field)
+				if (val === undefined) return true
+				// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+			},
+			{
+				message: "Invalid scaling group ID format",
+			},
+		)
+		.optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>

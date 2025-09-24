@@ -102,13 +102,15 @@ export default async function ProgrammingTrackPage({
 				.filter((id): id is string => id !== null),
 		),
 	]
-	let scalingGroupsMap: Map<string, ScalingGroup> = new Map()
+	let scalingGroupsRecord: Record<string, ScalingGroup> = {}
 
 	if (scalingGroupIds.length > 0) {
 		const scalingGroups = await db.query.scalingGroupsTable.findMany({
 			where: or(...scalingGroupIds.map((id) => eq(scalingGroupsTable.id, id))),
 		})
-		scalingGroupsMap = new Map(scalingGroups.map((sg) => [sg.id, sg]))
+		scalingGroupsRecord = Object.fromEntries(
+			scalingGroups.map((sg) => [sg.id, sg]),
+		)
 	}
 
 	return (
@@ -145,7 +147,7 @@ export default async function ProgrammingTrackPage({
 						<ProgrammingTrackDashboard
 							teamId={team.id}
 							initialTracks={tracks}
-							scalingGroups={scalingGroupsMap}
+							scalingGroups={scalingGroupsRecord}
 						/>
 					</Suspense>
 				</div>

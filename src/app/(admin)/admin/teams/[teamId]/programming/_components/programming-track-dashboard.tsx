@@ -10,7 +10,7 @@ import { ProgrammingTrackRow } from "./programming-track-row"
 interface ProgrammingTrackDashboardProps {
 	teamId: string
 	initialTracks: ProgrammingTrack[]
-	scalingGroups?: Map<string, ScalingGroup>
+	scalingGroups?: Record<string, ScalingGroup>
 }
 
 export function ProgrammingTrackDashboard({
@@ -107,7 +107,7 @@ export function ProgrammingTrackDashboard({
 							teamId={teamId}
 							scalingGroup={
 								track.scalingGroupId
-									? scalingGroups?.get(track.scalingGroupId)
+									? scalingGroups?.[track.scalingGroupId]
 									: undefined
 							}
 						/>

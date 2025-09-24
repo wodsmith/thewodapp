@@ -14,11 +14,18 @@ import type { ScalingLevel } from "@/db/schemas/scaling"
 import { ScalingQueryMonitor } from "@/utils/query-monitor"
 
 // Multi-tier cache system for scaling data
+type CachedScalingLevel = {
+	id: string
+	label: string
+	position: number
+	scalingGroupId: string
+}
+
 type CachedScalingGroup = {
 	id: string
 	title: string
 	description: string | null
-	levels: ScalingLevel[]
+	levels: CachedScalingLevel[]
 }
 
 const scalingGroupCache = new Map<
@@ -28,10 +35,15 @@ const scalingGroupCache = new Map<
 		timestamp: number
 	}
 >()
+type WorkoutResolution = {
+	scalingGroupId: string | null
+	levels: CachedScalingLevel[]
+}
+
 const workoutResolutionCache = new Map<
 	string,
 	{
-		data: CachedScalingGroup
+		data: WorkoutResolution
 		timestamp: number
 	}
 >()
@@ -83,13 +95,18 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 	if (kvBinding) {
 		try {
 			const kvCached = await kvBinding.get(cacheKey, "json")
-			if (kvCached) {
+			if (
+				kvCached &&
+				typeof kvCached === "object" &&
+				"id" in kvCached &&
+				"levels" in kvCached
+			) {
 				// Update in-memory cache
 				scalingGroupCache.set(cacheKey, {
-					data: kvCached,
+					data: kvCached as CachedScalingGroup,
 					timestamp: Date.now(),
 				})
-				return kvCached
+				return kvCached as CachedScalingGroup
 			}
 		} catch (error) {
 			console.warn("KV cache read failed:", error)
@@ -179,7 +196,24 @@ async function _getGlobalDefaultScalingGroup() {
 		.limit(1)
 
 	if (globalDefault) {
-		globalDefaultScalingGroup = globalDefault
+		// Fetch the levels for the global default group
+		const levels = await db
+			.select({
+				id: scalingLevelsTable.id,
+				label: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+				scalingGroupId: scalingLevelsTable.scalingGroupId,
+			})
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.scalingGroupId, globalDefault.id))
+			.orderBy(scalingLevelsTable.position)
+
+		globalDefaultScalingGroup = {
+			id: globalDefault.id,
+			title: globalDefault.title,
+			description: globalDefault.description,
+			levels: levels,
+		}
 		globalDefaultTimestamp = Date.now()
 	}
 
@@ -212,8 +246,19 @@ async function _getCachedWorkoutResolution(
 		trackId,
 	})
 
+	// Transform the resolution to match our cache format
+	const transformedResolution: WorkoutResolution = {
+		scalingGroupId: resolution.scalingGroupId,
+		levels: resolution.levels.map((level) => ({
+			id: level.id,
+			label: level.label,
+			position: level.position,
+			scalingGroupId: level.scalingGroupId,
+		})),
+	}
+
 	workoutResolutionCache.set(cacheKey, {
-		data: resolution,
+		data: transformedResolution,
 		timestamp: Date.now(),
 	})
 
@@ -284,7 +329,7 @@ export async function getWorkoutScalingInfo({
 	workoutId: string
 	scalingGroupId?: string
 }): Promise<{
-	scalingGroup: CachedScalingGroup
+	scalingGroup: CachedScalingGroup | null
 	scalingDescriptions: Record<string, string>
 }> {
 	const db = getDd()
@@ -730,15 +775,7 @@ export async function getWorkoutLeaderboard({
 
 			const group = groupedResults.get(scalingKey)
 			if (group) {
-				const userName = result.userFirstName
-					? `${result.userFirstName}${result.userLastName ? ` ${result.userLastName}` : ""}`
-					: undefined
-				group.results.push({
-					...result,
-					userName,
-					userAvatar: result.userAvatar || undefined,
-					scalingDescription: result.scalingDescription || undefined,
-				})
+				group.results.push(result)
 			}
 		}
 

@@ -44,6 +44,11 @@ function generateSmartMapping(
 ): Record<string, string> {
 	const mappings: Record<string, string> = {}
 
+	// Early guard: if no new scaling levels available, return empty mappings
+	if (newScalingLevels.length === 0) {
+		return mappings
+	}
+
 	// Sort both arrays by position for positional mapping
 	const sortedOriginal = [...originalDescriptions].sort(
 		(a, b) => a.scalingLevel.position - b.scalingLevel.position,
@@ -88,10 +93,11 @@ function generateSmartMapping(
 		// Strategy 3: Positional mapping (same relative position)
 		if (i < sortedNew.length) {
 			mappings[originalDesc.scalingLevelId] = sortedNew[i].id
-		} else {
+		} else if (sortedNew.length > 0) {
 			// Fallback to the last level if we run out of positions
 			mappings[originalDesc.scalingLevelId] = sortedNew[sortedNew.length - 1].id
 		}
+		// Note: If sortedNew.length === 0, the description remains unmapped (no mapping entry)
 	}
 
 	return mappings
@@ -168,129 +174,186 @@ export function ScalingMigrationMapper({
 		(desc) => mappings[desc.scalingLevelId],
 	)
 
+	// Check if migration is possible (we have new scaling levels available)
+	const migrationPossible = newScalingLevels.length > 0
+
 	return (
 		<div className="space-y-6">
 			<div className="space-y-2">
 				<h3 className="text-lg font-semibold">Migrate Scaling Descriptions</h3>
 				<p className="text-sm text-muted-foreground">
-					Map the existing scaling descriptions from{" "}
-					<span className="font-semibold">"{originalWorkout.name}"</span> to the
-					new scaling levels. You can also edit the descriptions during
-					migration.
+					{migrationPossible ? (
+						<>
+							Map the existing scaling descriptions from{" "}
+							<span className="font-semibold">"{originalWorkout.name}"</span> to
+							the new scaling levels. You can also edit the descriptions during
+							migration.
+						</>
+					) : (
+						<>
+							No scaling levels are available in the target scaling group. The
+							existing scaling descriptions from{" "}
+							<span className="font-semibold">"{originalWorkout.name}"</span>{" "}
+							cannot be migrated. You can skip migration and add scaling
+							descriptions later.
+						</>
+					)}
 				</p>
 			</div>
 
-			<div className="space-y-4">
-				{originalDescriptions.map((originalDesc) => {
-					const selectedNewLevelId = mappings[originalDesc.scalingLevelId]
-					const selectedNewLevel = newScalingLevels.find(
-						(level) => level.id === selectedNewLevelId,
-					)
+			{migrationPossible ? (
+				<div className="space-y-4">
+					{originalDescriptions.map((originalDesc) => {
+						const selectedNewLevelId = mappings[originalDesc.scalingLevelId]
+						const selectedNewLevel = newScalingLevels.find(
+							(level) => level.id === selectedNewLevelId,
+						)
 
-					return (
-						<Card key={originalDesc.id} className="p-4">
-							<div className="space-y-4">
-								{/* Mapping Header */}
-								<div className="flex items-center gap-4">
-									<div className="flex-1">
-										<Label className="text-sm font-medium">From</Label>
-										<div className="flex items-center gap-2 mt-1">
-											<Badge variant="outline" className="font-mono">
-												Position {originalDesc.scalingLevel.position}
-											</Badge>
-											<Badge variant="secondary">
-												{originalDesc.scalingLevel.label}
-											</Badge>
+						return (
+							<Card key={originalDesc.id} className="p-4">
+								<div className="space-y-4">
+									{/* Mapping Header */}
+									<div className="flex items-center gap-4">
+										<div className="flex-1">
+											<Label className="text-sm font-medium">From</Label>
+											<div className="flex items-center gap-2 mt-1">
+												<Badge variant="outline" className="font-mono">
+													Position {originalDesc.scalingLevel.position}
+												</Badge>
+												<Badge variant="secondary">
+													{originalDesc.scalingLevel.label}
+												</Badge>
+											</div>
+										</div>
+
+										<ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+
+										<div className="flex-1">
+											<Label className="text-sm font-medium">To</Label>
+											<Select
+												value={selectedNewLevelId}
+												onValueChange={(value) =>
+													handleMappingChange(
+														originalDesc.scalingLevelId,
+														value,
+													)
+												}
+											>
+												<SelectTrigger className="mt-1">
+													<SelectValue placeholder="Select scaling level" />
+												</SelectTrigger>
+												<SelectContent>
+													{newScalingLevels.map((level) => (
+														<SelectItem key={level.id} value={level.id}>
+															<div className="flex items-center gap-2">
+																<Badge variant="outline" className="font-mono">
+																	Position {level.position}
+																</Badge>
+																<span>{level.label}</span>
+															</div>
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
 										</div>
 									</div>
 
-									<ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-
-									<div className="flex-1">
-										<Label className="text-sm font-medium">To</Label>
-										<Select
-											value={selectedNewLevelId}
-											onValueChange={(value) =>
-												handleMappingChange(originalDesc.scalingLevelId, value)
+									{/* Description Editor */}
+									<div className="space-y-2">
+										<Label className="text-sm font-medium">
+											Description
+											{selectedNewLevel && (
+												<span className="text-muted-foreground font-normal">
+													{" "}
+													(for {selectedNewLevel.label})
+												</span>
+											)}
+										</Label>
+										<Textarea
+											value={descriptions[originalDesc.scalingLevelId] || ""}
+											onChange={(e) =>
+												handleDescriptionChange(
+													originalDesc.scalingLevelId,
+													e.target.value,
+												)
 											}
-										>
-											<SelectTrigger className="mt-1">
-												<SelectValue placeholder="Select scaling level" />
-											</SelectTrigger>
-											<SelectContent>
-												{newScalingLevels.map((level) => (
-													<SelectItem key={level.id} value={level.id}>
-														<div className="flex items-center gap-2">
-															<Badge variant="outline" className="font-mono">
-																Position {level.position}
-															</Badge>
-															<span>{level.label}</span>
-														</div>
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+											placeholder="Enter scaling description..."
+											className="min-h-[80px] resize-none"
+										/>
 									</div>
 								</div>
-
-								{/* Description Editor */}
-								<div className="space-y-2">
-									<Label className="text-sm font-medium">
-										Description
-										{selectedNewLevel && (
-											<span className="text-muted-foreground font-normal">
-												{" "}
-												(for {selectedNewLevel.label})
-											</span>
-										)}
-									</Label>
-									<Textarea
-										value={descriptions[originalDesc.scalingLevelId] || ""}
-										onChange={(e) =>
-											handleDescriptionChange(
-												originalDesc.scalingLevelId,
-												e.target.value,
-											)
-										}
-										placeholder="Enter scaling description..."
-										className="min-h-[80px] resize-none"
-									/>
+							</Card>
+						)
+					})}
+				</div>
+			) : (
+				<Card className="p-6">
+					<div className="text-center space-y-4">
+						<div className="text-muted-foreground">
+							<p className="font-medium">
+								No scaling levels available for migration
+							</p>
+							<p className="text-sm">
+								The target scaling group does not have any scaling levels
+								defined. You'll need to add scaling levels to the group before
+								migration is possible.
+							</p>
+						</div>
+						<div className="flex flex-col gap-2 text-sm">
+							<p className="font-medium">
+								Existing descriptions that will be lost:
+							</p>
+							{originalDescriptions.map((desc) => (
+								<div
+									key={desc.id}
+									className="flex items-center gap-2 justify-center"
+								>
+									<Badge variant="outline">{desc.scalingLevel.label}</Badge>
+									<span className="text-muted-foreground">
+										{desc.description
+											? `"${desc.description.slice(0, 50)}${desc.description.length > 50 ? "..." : ""}"`
+											: "No description"}
+									</span>
 								</div>
-							</div>
-						</Card>
-					)
-				})}
-			</div>
+							))}
+						</div>
+					</div>
+				</Card>
+			)}
 
 			{/* Actions */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleReset}
-						disabled={isLoading}
-					>
-						<RotateCcw className="h-4 w-4 mr-2" />
-						Reset to Smart Mapping
-					</Button>
+					{migrationPossible && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleReset}
+							disabled={isLoading}
+						>
+							<RotateCcw className="h-4 w-4 mr-2" />
+							Reset to Smart Mapping
+						</Button>
+					)}
 				</div>
 
 				<div className="flex items-center gap-2">
 					<Button variant="outline" onClick={onSkip} disabled={isLoading}>
 						Skip Migration
 					</Button>
-					<Button
-						onClick={handleSubmit}
-						disabled={!allMappingsComplete || isLoading}
-					>
-						{isLoading ? "Migrating..." : "Migrate Descriptions"}
-					</Button>
+					{migrationPossible && (
+						<Button
+							onClick={handleSubmit}
+							disabled={!allMappingsComplete || isLoading}
+						>
+							{isLoading ? "Migrating..." : "Migrate Descriptions"}
+						</Button>
+					)}
 				</div>
 			</div>
 
 			{/* Validation Message */}
-			{!allMappingsComplete && (
+			{migrationPossible && !allMappingsComplete && (
 				<div className="text-sm text-destructive">
 					Please select a scaling level for all descriptions before migrating.
 				</div>

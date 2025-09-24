@@ -29,6 +29,7 @@ import { formatSecondsToTime } from "@/lib/utils"
 import { getLocalDateKey } from "@/utils/date-utils"
 import type { Route } from "next"
 import { ScalingSelector } from "@/components/scaling-selector"
+import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 
 interface EditResultClientProps {
 	result: {
@@ -48,7 +49,17 @@ interface EditResultClientProps {
 		workoutRepsPerRound: number | null
 		workoutRoundsToScore: number | null
 	}
-	workout: Workout
+	workout: Workout & {
+		scalingLevels?: Array<{
+			id: string
+			label: string
+			position: number
+		}>
+		scalingDescriptions?: Array<{
+			scalingLevelId: string
+			description: string | null
+		}>
+	}
 	sets: ResultSet[]
 	userId: string
 	teamId: string
@@ -405,11 +416,23 @@ export default function EditResultClient({
 								<div>
 									<h3 className="text-lg font-semibold mb-2">Workout</h3>
 									<p className="text-lg">{workout.name}</p>
-									{workout.description && (
-										<p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
-											{workout.description}
-										</p>
+
+									{/* Show scaling tabs if available, otherwise show description */}
+									{workout.scalingLevels && workout.scalingLevels.length > 0 ? (
+										<WorkoutScalingTabs
+											workoutDescription={workout.description || ""}
+											scalingLevels={workout.scalingLevels}
+											scalingDescriptions={workout.scalingDescriptions}
+											className="mt-2"
+										/>
+									) : (
+										workout.description && (
+											<p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
+												{workout.description}
+											</p>
+										)
 									)}
+
 									{workout.scheme && (
 										<div className="mt-2">
 											<span className="inline-block bg-primary text-primary-foreground px-2 py-1 rounded text-sm font-medium">
@@ -443,6 +466,7 @@ export default function EditResultClient({
 									trackScalingGroupId={null}
 									teamId={teamId}
 									value={form.watch("scalingLevelId")}
+									initialAsRx={form.watch("asRx")}
 									onChange={(scalingLevelId, asRx) => {
 										form.setValue("scalingLevelId", scalingLevelId)
 										form.setValue("asRx", asRx)

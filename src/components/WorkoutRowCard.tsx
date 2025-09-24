@@ -244,7 +244,7 @@ export default function WorkoutRowCard({
 								{displayResult.scalingLevelLabel ? (
 									<Badge variant={displayResult.asRx ? "default" : "secondary"}>
 										{displayResult.scalingLevelLabel}
-										{displayResult.asRx && " (Rx)"}
+										{displayResult.asRx ? " (Rx)" : " (Scaled)"}
 									</Badge>
 								) : displayResult.scale ? (
 									(() => {

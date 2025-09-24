@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
-import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
+import {
+	getScalingGroupWithLevelsAction,
+	getWorkoutScalingDescriptionsAction,
+} from "@/actions/scaling-actions"
+import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -48,6 +51,10 @@ type Props = Prettify<{
 		workout: WorkoutUpdate
 		tagIds: string[]
 		movementIds: string[]
+		scalingDescriptions?: Array<{
+			scalingLevelId: string
+			description: string | null
+		}>
 	}) => Promise<void>
 	onCancel: () => void
 	scalingGroups?: ScalingGroupWithTeam[]
@@ -91,6 +98,9 @@ export default function EditWorkoutClientCompact({
 			position: number
 		}>
 	>([])
+	const [scalingDescriptions, setScalingDescriptions] = useState<
+		Map<string, string>
+	>(new Map())
 
 	const { execute: fetchScalingLevels } = useServerAction(
 		getScalingGroupWithLevelsAction,
@@ -100,6 +110,34 @@ export default function EditWorkoutClientCompact({
 			},
 		},
 	)
+
+	const { execute: fetchDescriptions } = useServerAction(
+		getWorkoutScalingDescriptionsAction,
+		{
+			onError: (error) => {
+				console.error("Error fetching scaling descriptions:", error)
+			},
+		},
+	)
+
+	// Load existing descriptions when component mounts
+	useEffect(() => {
+		if (workoutId) {
+			fetchDescriptions({ workoutId }).then(([result]) => {
+				if (result?.success && result.data) {
+					const descMap = new Map<string, string>()
+					result.data.forEach(
+						(desc: { scalingLevelId: string; description: string | null }) => {
+							if (desc.description) {
+								descMap.set(desc.scalingLevelId, desc.description)
+							}
+						},
+					)
+					setScalingDescriptions(descMap)
+				}
+			})
+		}
+	}, [workoutId, fetchDescriptions])
 
 	// Watch for scaling group selection changes and fetch levels
 	useEffect(() => {
@@ -180,6 +218,15 @@ export default function EditWorkoutClientCompact({
 			},
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
+			scalingDescriptions:
+				selectedScalingGroupId && selectedScalingGroupId !== "none"
+					? Array.from(scalingDescriptions.entries()).map(
+							([scalingLevelId, description]) => ({
+								scalingLevelId,
+								description: description || null,
+							}),
+						)
+					: undefined,
 		})
 	}
 
@@ -426,13 +473,14 @@ export default function EditWorkoutClientCompact({
 					</div>
 				</div>
 
-				{/* Scaling Descriptions Editor */}
+				{/* Scaling Descriptions */}
 				{selectedScalingGroupId && selectedScalingGroupId !== "none" && (
 					<div className="mt-4 border-t-2 border-primary pt-4">
-						<WorkoutScalingDescriptionsEditor
-							workoutId={workoutId}
+						<WorkoutScalingDescriptionsForm
 							scalingGroupId={selectedScalingGroupId}
 							teamId={teamId}
+							value={scalingDescriptions}
+							onChange={setScalingDescriptions}
 						/>
 					</div>
 				)}

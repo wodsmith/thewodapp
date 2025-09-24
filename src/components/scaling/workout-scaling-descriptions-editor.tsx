@@ -82,7 +82,7 @@ export function WorkoutScalingDescriptionsEditor({
 
 	// Load scaling levels when group changes
 	useEffect(() => {
-		if (!scalingGroupId || scalingGroupId === "none") {
+		if (!scalingGroupId || scalingGroupId === "none" || !teamId) {
 			setScalingLevels([])
 			setDescriptions(new Map())
 			return
@@ -91,19 +91,25 @@ export function WorkoutScalingDescriptionsEditor({
 		setIsLoading(true)
 		fetchScalingLevels({
 			groupId: scalingGroupId,
-			teamId: teamId || "",
-		}).then(([result]) => {
-			if (result?.success && result.data?.levels) {
-				setScalingLevels(
-					result.data.levels.map((level: any) => ({
-						id: level.id,
-						label: level.label,
-						position: level.position,
-					})),
-				)
-			}
-			setIsLoading(false)
+			teamId: teamId,
 		})
+			.then(([result]) => {
+				if (result?.success && result.data?.levels) {
+					setScalingLevels(
+						result.data.levels.map((level: any) => ({
+							id: level.id,
+							label: level.label,
+							position: level.position,
+						})),
+					)
+				}
+			})
+			.catch((error) => {
+				console.error("Failed to fetch scaling levels:", error)
+			})
+			.finally(() => {
+				setIsLoading(false)
+			})
 	}, [scalingGroupId, teamId, fetchScalingLevels])
 
 	// Load existing descriptions

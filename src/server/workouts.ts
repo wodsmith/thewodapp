@@ -533,6 +533,7 @@ export async function createWorkout({
 				sugarId: workout.sugarId,
 				tiebreakScheme: workout.tiebreakScheme,
 				secondaryScheme: workout.secondaryScheme,
+				scalingGroupId: workout.scalingGroupId,
 				teamId,
 				// Let database defaults handle timestamps
 				updateCounter: 0,

@@ -52,6 +52,9 @@ export const TEAM_PERMISSIONS = {
 	// Programming track permissions
 	MANAGE_PROGRAMMING: "manage_programming",
 
+	// Scaling group permissions
+	MANAGE_SCALING_GROUPS: "manage_scaling_groups",
+
 	// Add more as needed
 } as const
 

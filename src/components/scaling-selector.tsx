@@ -17,6 +17,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { useServerAction } from "zsa-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 
@@ -41,6 +42,7 @@ interface ScalingSelectorProps {
 	trackScalingGroupId?: string | null
 	teamId: string
 	value?: string
+	initialAsRx?: boolean
 	onChange: (scalingLevelId: string, asRx: boolean) => void
 	disabled?: boolean
 	required?: boolean
@@ -66,6 +68,7 @@ export function ScalingSelector({
 	trackScalingGroupId,
 	teamId,
 	value,
+	initialAsRx = true,
 	onChange,
 	disabled = false,
 	required = true,
@@ -73,6 +76,9 @@ export function ScalingSelector({
 }: ScalingSelectorProps) {
 	const [scalingGroup, setScalingGroup] = useState<ScalingGroup | null>(null)
 	const [selectedLevelId, setSelectedLevelId] = useState<string>(value || "")
+	const [asRxSelection, setAsRxSelection] = useState<"rx" | "scaled">(
+		initialAsRx ? "rx" : "scaled",
+	)
 	const [isLoading, setIsLoading] = useState(true)
 	const [scalingSource, setScalingSource] = useState<
 		"workout" | "track" | "default"
@@ -133,15 +139,19 @@ export function ScalingSelector({
 		fetchScalingGroup,
 	])
 
-	const handleChange = (levelId: string) => {
+	const handleLevelChange = (levelId: string) => {
 		setSelectedLevelId(levelId)
+		// Use the current asRxSelection state
+		onChange(levelId, asRxSelection === "rx")
+	}
 
-		// Determine if this counts as "Rx" based on position
-		// Only position 0 (typically the top/compete level) is considered Rx
-		const level = scalingGroup?.levels.find((l) => l.id === levelId)
-		const asRx = level ? level.position === 0 : false
-
-		onChange(levelId, asRx)
+	const handleRxChange = (value: string) => {
+		const isRx = value === "rx"
+		setAsRxSelection(value as "rx" | "scaled")
+		// Update with current selected level
+		if (selectedLevelId) {
+			onChange(selectedLevelId, isRx)
+		}
 	}
 
 	const getSourceLabel = () => {
@@ -183,57 +193,92 @@ export function ScalingSelector({
 	}
 
 	return (
-		<div className={`space-y-2 ${className}`}>
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<Label htmlFor="scaling-level">
-						Scaling Level{" "}
-						{required && <span className="text-destructive">*</span>}
-					</Label>
-					<Badge variant="outline" className="text-xs">
-						{getSourceLabel()}
-					</Badge>
+		<div className={`space-y-4 ${className}`}>
+			<div className="space-y-2">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<Label htmlFor="scaling-level">
+							Scaling Level{" "}
+							{required && <span className="text-destructive">*</span>}
+						</Label>
+						<Badge variant="outline" className="text-xs">
+							{getSourceLabel()}
+						</Badge>
+					</div>
+					{scalingGroup.description && (
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger>
+									<Info className="h-4 w-4 text-muted-foreground" />
+								</TooltipTrigger>
+								<TooltipContent>
+									<p className="max-w-xs">{scalingGroup.description}</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+					)}
 				</div>
-				{scalingGroup.description && (
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger>
-								<Info className="h-4 w-4 text-muted-foreground" />
-							</TooltipTrigger>
-							<TooltipContent>
-								<p className="max-w-xs">{scalingGroup.description}</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
-				)}
+
+				<Select
+					value={selectedLevelId}
+					onValueChange={handleLevelChange}
+					disabled={disabled}
+					required={required}
+				>
+					<SelectTrigger id="scaling-level" className="w-full">
+						<SelectValue placeholder="Select scaling level" />
+					</SelectTrigger>
+					<SelectContent>
+						{scalingGroup.levels
+							.sort((a, b) => a.position - b.position)
+							.map((level) => (
+								<SelectItem key={level.id} value={level.id}>
+									<div className="flex items-center justify-between w-full">
+										<span className="font-medium">{level.label}</span>
+										{level.description && (
+											<span className="text-xs text-muted-foreground ml-2">
+												{level.description}
+											</span>
+										)}
+									</div>
+								</SelectItem>
+							))}
+					</SelectContent>
+				</Select>
 			</div>
 
-			<Select
-				value={selectedLevelId}
-				onValueChange={handleChange}
-				disabled={disabled}
-				required={required}
-			>
-				<SelectTrigger id="scaling-level" className="w-full">
-					<SelectValue placeholder="Select scaling level" />
-				</SelectTrigger>
-				<SelectContent>
-					{scalingGroup.levels
-						.sort((a, b) => a.position - b.position)
-						.map((level) => (
-							<SelectItem key={level.id} value={level.id}>
-								<div className="flex items-center justify-between w-full">
-									<span className="font-medium">{level.label}</span>
-									{level.description && (
-										<span className="text-xs text-muted-foreground ml-2">
-											{level.description}
-										</span>
-									)}
-								</div>
-							</SelectItem>
-						))}
-				</SelectContent>
-			</Select>
+			{/* As Prescribed or Scaled Selection */}
+			{selectedLevelId && (
+				<div className="space-y-2">
+					<Label>Performance</Label>
+					<div className="flex gap-2">
+						<Button
+							type="button"
+							variant={asRxSelection === "rx" ? "default" : "outline"}
+							size="sm"
+							onClick={() => handleRxChange("rx")}
+							disabled={disabled}
+							className="flex-1"
+						>
+							As Prescribed (Rx)
+						</Button>
+						<Button
+							type="button"
+							variant={asRxSelection === "scaled" ? "default" : "outline"}
+							size="sm"
+							onClick={() => handleRxChange("scaled")}
+							disabled={disabled}
+							className="flex-1"
+						>
+							Scaled
+						</Button>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						Indicate if you performed this level as prescribed or made
+						additional modifications
+					</p>
+				</div>
+			)}
 
 			{/* Show scaling group info */}
 			{scalingSource !== "default" && scalingGroup.title && (

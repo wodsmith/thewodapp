@@ -448,28 +448,28 @@ export default function EditWorkoutClient({
 
 							<div className="mt-2 flex flex-wrap gap-2">
 								{tags.map((tag) => (
-									<Button
-										type="button"
-										key={tag.id}
-										variant={
-											selectedTags.includes(tag.id) ? "default" : "outline"
-										}
-										onClick={() => handleTagToggle(tag.id)}
-									>
-										{tag.name}
+									<div key={tag.id} className="inline-flex items-center gap-1">
+										<Button
+											type="button"
+											variant={
+												selectedTags.includes(tag.id) ? "default" : "outline"
+											}
+											onClick={() => handleTagToggle(tag.id)}
+										>
+											{tag.name}
+										</Button>
 										{selectedTags.includes(tag.id) && (
-											<button
+											<Button
 												type="button"
-												className="ml-2 text-red-500"
-												onClick={(e) => {
-													e.stopPropagation()
-													handleRemoveTag(tag.id)
-												}}
+												variant="ghost"
+												size="sm"
+												className="h-8 w-8 p-0 text-red-500"
+												onClick={() => handleRemoveTag(tag.id)}
 											>
 												<X className="h-4 w-4" />
-											</button>
+											</Button>
 										)}
-									</Button>
+									</div>
 								))}
 							</div>
 						</div>

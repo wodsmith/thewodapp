@@ -49,7 +49,27 @@ const formSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
 	isPublic: z.boolean().optional().default(false),
-	scalingGroupId: z.string().optional(),
+	scalingGroupId: z
+		.union([z.string(), z.null(), z.undefined()])
+		.transform((val) => {
+			// Coerce sentinel values to undefined
+			if (val === "" || val === "none" || val === null || val === undefined) {
+				return undefined
+			}
+			return val
+		})
+		.refine(
+			(val) => {
+				// If undefined, it's valid (optional field)
+				if (val === undefined) return true
+				// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+			},
+			{
+				message: "Invalid scaling group ID format",
+			},
+		)
+		.optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -114,9 +134,9 @@ export function ProgrammingTrackEditDialog({
 				toast.success("Programming track updated successfully")
 				console.log(
 					"DEBUG: [UI] Programming track edit form submitted with data:",
-					result.data,
+					result,
 				)
-				if (result.data?.success && result.data?.data) {
+				if (result && result.data) {
 					onTrackUpdated?.(result.data.data)
 				}
 				dialogCloseRef.current?.click()
@@ -243,10 +263,7 @@ export function ProgrammingTrackEditDialog({
 									<FormLabel className="font-mono font-semibold">
 										Track Type
 									</FormLabel>
-									<Select
-										onValueChange={field.onChange}
-										defaultValue={field.value}
-									>
+									<Select onValueChange={field.onChange} value={field.value}>
 										<FormControl>
 											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
 												<SelectValue placeholder="Select track type" />

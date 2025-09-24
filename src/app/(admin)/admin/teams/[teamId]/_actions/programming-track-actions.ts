@@ -1,8 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { and, eq, or } from "drizzle-orm"
 import { createServerAction } from "zsa"
-import { TEAM_PERMISSIONS } from "@/db/schema"
+import { getDd } from "@/db"
+import { TEAM_PERMISSIONS, scalingGroupsTable } from "@/db/schema"
 import {
 	addWorkoutToTrackSchema,
 	createProgrammingTrackSchema,
@@ -130,6 +132,23 @@ export const updateProgrammingTrackAction = createServerAction()
 			if (type !== undefined) updateData.type = type
 			if (isPublic !== undefined) updateData.isPublic = isPublic
 			if (scalingGroupId !== undefined) {
+				// Verify scaling group ownership
+				if (scalingGroupId !== "none" && scalingGroupId !== null) {
+					const db = getDd()
+					const scalingGroup = await db.query.scalingGroupsTable.findFirst({
+						where: and(
+							eq(scalingGroupsTable.id, scalingGroupId),
+							eq(scalingGroupsTable.teamId, teamId),
+						),
+					})
+
+					if (!scalingGroup) {
+						throw new Error(
+							"Scaling group does not exist or does not belong to this team",
+						)
+					}
+				}
+
 				updateData.scalingGroupId =
 					scalingGroupId === "none" ? null : scalingGroupId
 			}

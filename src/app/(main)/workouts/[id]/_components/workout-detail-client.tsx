@@ -324,7 +324,7 @@ export default function WorkoutDetailClient({
 												{result.scalingLevelLabel ? (
 													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
 														{result.scalingLevelLabel}
-														{result.asRx && " (Rx)"}
+														{result.asRx ? " (Rx)" : " (Scaled)"}
 													</span>
 												) : result.scale ? (
 													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">

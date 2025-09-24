@@ -72,16 +72,17 @@ export function WorkoutScalingDisplay({
 			})}
 
 			{/* If no custom descriptions exist for any level, show the base description */}
-			{scalingDescriptions.every((desc) => !desc.description) && (
-				<div className="pt-4 border-t border-black border-2">
-					<p className="text-sm text-muted-foreground mb-2 italic">
-						No scaling-specific descriptions available. Showing base workout:
-					</p>
-					<p className="whitespace-pre-wrap text-foreground text-lg dark:text-dark-foreground">
-						{workoutDescription}
-					</p>
-				</div>
-			)}
+			{scalingDescriptions.length > 0 &&
+				scalingDescriptions.every((desc) => !desc.description) && (
+					<div className="pt-4 border-t-2 border-black">
+						<p className="text-sm text-muted-foreground mb-2 italic">
+							No scaling-specific descriptions available. Showing base workout:
+						</p>
+						<p className="whitespace-pre-wrap text-foreground text-lg dark:text-dark-foreground">
+							{workoutDescription}
+						</p>
+					</div>
+				)}
 		</div>
 	)
 }
