@@ -102,10 +102,18 @@ export default async function LogNewResultPage({
 	}
 
 	// Merge the specific workout with the user's workouts if it's not already there
-	let allWorkouts: any[] = result.data.map((w) => ({
+	// Note: getUserWorkouts doesn't include scaling info yet, so we add empty arrays
+	let allWorkouts = result.data.map((w) => ({
 		...w,
-		scalingLevels: w.scalingLevels || [],
-		scalingDescriptions: w.scalingDescriptions || [],
+		scalingLevels: [] as Array<{
+			id: string
+			label: string
+			position: number
+		}>,
+		scalingDescriptions: [] as Array<{
+			scalingLevelId: string
+			description: string | null
+		}>,
 	}))
 
 	if (
