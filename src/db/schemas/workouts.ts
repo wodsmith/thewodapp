@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { integer, sqliteTable, text, foreignKey } from "drizzle-orm/sqlite-core"
+import {
+	integer,
+	sqliteTable,
+	text,
+	foreignKey,
+	index,
+} from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
@@ -86,8 +92,16 @@ export const workouts = sqliteTable(
 			},
 		),
 		sourceWorkoutId: text("source_workout_id"),
+		scalingGroupId: text("scaling_group_id"), // Optional scaling group for this workout
 	},
 	(workouts) => ({
+		scalingGroupIdx: index("workouts_scaling_group_idx").on(
+			workouts.scalingGroupId,
+		),
+		teamIdx: index("workouts_team_idx").on(workouts.teamId),
+		sourceTrackIdx: index("workouts_source_track_idx").on(
+			workouts.sourceTrackId,
+		),
 		sourceWorkoutSelfRef: foreignKey({
 			columns: [workouts.sourceWorkoutId],
 			foreignColumns: [workouts.id],
@@ -125,38 +139,58 @@ export const workoutMovements = sqliteTable("workout_movements", {
 })
 
 // Results base table (consolidated)
-export const results = sqliteTable("results", {
-	...commonColumns,
-	id: text("id").primaryKey(),
-	userId: text("user_id")
-		.references(() => userTable.id, {
-			onDelete: "cascade",
-		})
-		.notNull(),
-	date: integer("date", { mode: "timestamp" }).notNull(),
-	workoutId: text("workout_id").references(() => workouts.id, {
-		onDelete: "set null",
-	}), // Optional, for WOD results
-	type: text("type", {
-		enum: ["wod", "strength", "monostructural"],
-	}).notNull(),
-	notes: text("notes"),
-	// Will be set as foreign key reference in main schema file
-	programmingTrackId: text("programming_track_id"),
-	// References to scheduled workout instances (team-based)
-	scheduledWorkoutInstanceId: text("scheduled_workout_instance_id"),
+export const results = sqliteTable(
+	"results",
+	{
+		...commonColumns,
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.references(() => userTable.id, {
+				onDelete: "cascade",
+			})
+			.notNull(),
+		date: integer("date", { mode: "timestamp" }).notNull(),
+		workoutId: text("workout_id").references(() => workouts.id, {
+			onDelete: "set null",
+		}), // Optional, for WOD results
+		type: text("type", {
+			enum: ["wod", "strength", "monostructural"],
+		}).notNull(),
+		notes: text("notes"),
+		// Will be set as foreign key reference in main schema file
+		programmingTrackId: text("programming_track_id"),
+		// References to scheduled workout instances (team-based)
+		scheduledWorkoutInstanceId: text("scheduled_workout_instance_id"),
 
-	// WOD specific results
-	scale: text("scale", { enum: ["rx", "scaled", "rx+"] }),
-	wodScore: text("wod_score"), // e.g., "3:15", "10 rounds + 5 reps"
+		// WOD specific results
+		scale: text("scale", { enum: ["rx", "scaled", "rx+"] }), // Deprecated - will be removed after migration
+		scalingLevelId: text("scaling_level_id"), // New: References scaling_levels.id
+		asRx: integer("as_rx", { mode: "boolean" }).default(false).notNull(), // New: true if performed as prescribed at that level
+		wodScore: text("wod_score"), // e.g., "3:15", "10 rounds + 5 reps"
 
-	// Strength specific results
-	setCount: integer("set_count"),
+		// Strength specific results
+		setCount: integer("set_count"),
 
-	// Monostructural specific results
-	distance: integer("distance"),
-	time: integer("time"),
-})
+		// Monostructural specific results
+		distance: integer("distance"),
+		time: integer("time"),
+	},
+	(table) => [
+		index("results_scaling_level_idx").on(table.scalingLevelId),
+		index("results_workout_scaling_idx").on(
+			table.workoutId,
+			table.scalingLevelId,
+		),
+		index("results_leaderboard_idx").on(
+			table.workoutId,
+			table.scalingLevelId,
+			table.wodScore,
+		),
+		index("results_user_idx").on(table.userId),
+		index("results_date_idx").on(table.date),
+		index("results_workout_idx").on(table.workoutId),
+	],
+)
 
 // Sets table (unified for all result types)
 export const sets = sqliteTable("sets", {

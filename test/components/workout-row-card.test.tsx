@@ -63,6 +63,7 @@ describe("WorkoutRowCard", () => {
 		teamId: "team-123",
 		sourceWorkoutId: null,
 		sourceTrackId: null,
+		scalingGroupId: null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		updateCounter: 0,

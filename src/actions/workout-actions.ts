@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { createId } from "@paralleldrive/cuid2"
 import { createServerAction, ZSAError } from "zsa"
 import {
 	getResultSetsById,
-	getWorkoutResultsByWorkoutAndUser,
+	getWorkoutResultsWithScalingForUser,
 	getWorkoutResultForScheduledInstance,
 } from "@/server/workout-results"
 import {
@@ -27,11 +28,13 @@ import {
 	requireTeamMembership,
 	hasTeamPermission,
 	isTeamMember,
+	requireTeamPermission,
 } from "@/utils/team-auth"
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,
 } from "@/utils/workout-permissions"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 
 const createWorkoutRemixSchema = z.object({
 	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
@@ -71,6 +74,28 @@ const createWorkoutSchema = z.object({
 		roundsToScore: z.number().nullable(),
 		sugarId: z.string().nullable(),
 		tiebreakScheme: z.enum(["time", "reps"]).nullable(),
+		scalingGroupId: z
+			.union([z.string(), z.null(), z.undefined()])
+			.transform((val) => {
+				// Coerce sentinel values to null (DB stores null, not undefined)
+				if (val === "" || val === "none" || val === null || val === undefined) {
+					return null
+				}
+				return val
+			})
+			.refine(
+				(val) => {
+					// If null, it's valid (optional field)
+					if (val === null) return true
+					// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+					return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+				},
+				{
+					message: "Invalid scaling group ID format",
+				},
+			)
+			.nullable()
+			.optional(), // Add scaling group support
 		secondaryScheme: z
 			.enum([
 				"time",
@@ -92,6 +117,14 @@ const createWorkoutSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().optional(),
 	scheduledDate: z.date().optional(),
+	scalingDescriptions: z
+		.array(
+			z.object({
+				scalingLevelId: z.string().min(1, "Scaling level ID is required"),
+				description: z.string().nullable(),
+			}),
+		)
+		.optional(),
 })
 
 /**
@@ -219,6 +252,9 @@ export const createWorkoutAction = createServerAction()
 			const { scheduleWorkoutForTeam } = await import(
 				"@/server/scheduling-service"
 			)
+			const { upsertWorkoutScalingDescriptions } = await import(
+				"@/server/scaling-levels"
+			)
 
 			// Process new tags if any
 			let finalTagIds = [...input.tagIds]
@@ -237,8 +273,17 @@ export const createWorkoutAction = createServerAction()
 					...input.workout,
 					sourceTrackId: null,
 					sourceWorkoutId: null,
+					scalingGroupId: input.workout.scalingGroupId ?? null,
 				},
 			})
+
+			// Save scaling descriptions if provided
+			if (input.scalingDescriptions && input.scalingDescriptions.length > 0) {
+				await upsertWorkoutScalingDescriptions({
+					workoutId: workout.id,
+					descriptions: input.scalingDescriptions,
+				})
+			}
 
 			// If trackId is provided, add workout to the track
 			let trackWorkoutId: string | undefined
@@ -476,7 +521,7 @@ export const getWorkoutResultsByWorkoutAndUserAction = createServerAction()
 				throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
 			}
 
-			const results = await getWorkoutResultsByWorkoutAndUser(
+			const results = await getWorkoutResultsWithScalingForUser(
 				input.workoutId,
 				session.user.id,
 			)
@@ -547,14 +592,52 @@ export const updateWorkoutAction = createServerAction()
 				scope: z.enum(["private", "public"]).optional(),
 				repsPerRound: z.number().nullable().optional(),
 				roundsToScore: z.number().nullable().optional(),
+				scalingGroupId: z
+					.union([z.string(), z.null(), z.undefined()])
+					.transform(async (val) => {
+						// Coerce sentinel values to null (DB stores null, not undefined)
+						if (
+							val === "" ||
+							val === "none" ||
+							val === null ||
+							val === undefined
+						) {
+							return null
+						}
+						return val
+					})
+					.refine(
+						async (val) => {
+							// If null, it's valid (optional field)
+							if (val === null) return true
+							// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+							return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+						},
+						{
+							message: "Invalid scaling group ID format",
+						},
+					)
+					.nullable()
+					.optional(), // Add scaling group support
 			}),
 			tagIds: z.array(z.string()).default([]),
 			movementIds: z.array(z.string()).default([]),
 			remixTeamId: z.string().optional(), // Optional team ID for creating remixes
+			scalingDescriptions: z
+				.array(
+					z.object({
+						scalingLevelId: z.string().min(1, "Scaling level ID is required"),
+						description: z.string().nullable(),
+					}),
+				)
+				.optional(),
 		}),
 	)
 	.handler(async ({ input }) => {
 		try {
+			const { upsertWorkoutScalingDescriptions } = await import(
+				"@/server/scaling-levels"
+			)
 			const session = await requireVerifiedEmail()
 
 			if (!session?.user?.id) {
@@ -567,6 +650,15 @@ export const updateWorkoutAction = createServerAction()
 			if (canEdit) {
 				// User owns the workout, update it directly
 				await updateWorkout(input)
+
+				// Save scaling descriptions if provided
+				if (input.scalingDescriptions && input.scalingDescriptions.length > 0) {
+					await upsertWorkoutScalingDescriptions({
+						workoutId: input.id,
+						descriptions: input.scalingDescriptions,
+					})
+				}
+
 				return {
 					success: true,
 					action: "updated",
@@ -619,6 +711,14 @@ export const updateWorkoutAction = createServerAction()
 					movementIds: input.movementIds,
 				})
 
+				// Save scaling descriptions to the remixed workout if provided
+				if (input.scalingDescriptions && input.scalingDescriptions.length > 0) {
+					await upsertWorkoutScalingDescriptions({
+						workoutId: remixResult.id,
+						descriptions: input.scalingDescriptions,
+					})
+				}
+
 				return {
 					success: true,
 					action: "remixed",
@@ -654,6 +754,173 @@ export const getUserTeamsAction = createServerAction()
 			}
 
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get user teams")
+		}
+	})
+
+/**
+ * Align workout scaling group with track scaling group
+ */
+export const alignWorkoutScalingWithTrackAction = createServerAction()
+	.input(
+		z.object({
+			workoutId: z.string().min(1, "Workout ID is required"),
+			trackId: z.string().min(1, "Track ID is required"),
+			teamId: z.string().min(1, "Team ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "Authentication required")
+			}
+
+			// Check team permission for programming management
+			await requireTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			// Get the track's scaling group
+			const { getProgrammingTrackById } = await import(
+				"@/server/programming-tracks"
+			)
+			const track = await getProgrammingTrackById(input.trackId)
+			if (!track) {
+				throw new ZSAError("NOT_FOUND", "Programming track not found")
+			}
+
+			// Verify track belongs to the team
+			if (track.ownerTeamId !== input.teamId) {
+				throw new ZSAError("FORBIDDEN", "Track does not belong to this team")
+			}
+
+			// Check if the user can edit the workout
+			const workout = await getWorkoutById(input.workoutId)
+			if (!workout) {
+				throw new ZSAError("NOT_FOUND", "Workout not found")
+			}
+
+			// Get database handles for updating track workout
+			const db = (await import("@/db")).getDd()
+			const { workouts, trackWorkoutsTable } = await import("@/db/schema")
+			const { eq, and } = await import("drizzle-orm")
+
+			// Check if this workout has already been remixed for this track
+			// (i.e., if it already has the correct scaling group and sourceWorkoutId)
+			if (
+				workout.scalingGroupId === track.scalingGroupId &&
+				workout.sourceWorkoutId
+			) {
+				// Already aligned, no action needed
+				return {
+					success: true,
+					action: "already_aligned",
+					data: workout,
+					message: "Workout is already aligned with the track scaling",
+				}
+			}
+
+			const canEdit = await canUserEditWorkout(input.workoutId)
+
+			if (canEdit) {
+				// User can edit the workout directly - but we need to handle scalingGroupId properly
+				// For now, we'll create a remix since updateWorkout doesn't support scalingGroupId yet
+				const remixResult = await createProgrammingTrackWorkoutRemix({
+					sourceWorkoutId: input.workoutId,
+					sourceTrackId: input.trackId,
+					teamId: input.teamId,
+				})
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Update the remix with the track's scaling group
+				await db
+					.update(workouts)
+					.set({ scalingGroupId: track.scalingGroupId })
+					.where(eq(workouts.id, remixResult.id))
+
+				// Update the track to use the remixed workout instead of the original
+				await db
+					.update(trackWorkoutsTable)
+					.set({ workoutId: remixResult.id })
+					.where(
+						and(
+							eq(trackWorkoutsTable.trackId, input.trackId),
+							eq(trackWorkoutsTable.workoutId, input.workoutId),
+						),
+					)
+
+				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+
+				return {
+					success: true,
+					action: "remixed",
+					data: remixResult,
+					message: "Workout scaling aligned with track",
+				}
+			} else if (await shouldCreateRemix(input.workoutId)) {
+				// Create a remix for this team
+				const remixResult = await createProgrammingTrackWorkoutRemix({
+					sourceWorkoutId: input.workoutId,
+					sourceTrackId: input.trackId,
+					teamId: input.teamId,
+				})
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Update the remix with the track's scaling group
+				await db
+					.update(workouts)
+					.set({ scalingGroupId: track.scalingGroupId })
+					.where(eq(workouts.id, remixResult.id))
+
+				// Update the track to use the remixed workout instead of the original
+				await db
+					.update(trackWorkoutsTable)
+					.set({ workoutId: remixResult.id })
+					.where(
+						and(
+							eq(trackWorkoutsTable.trackId, input.trackId),
+							eq(trackWorkoutsTable.workoutId, input.workoutId),
+						),
+					)
+
+				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+
+				return {
+					success: true,
+					action: "remixed",
+					data: remixResult,
+					message: "Workout remix created with aligned scaling",
+				}
+			} else {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to modify this workout",
+				)
+			}
+		} catch (error) {
+			console.error("Failed to align workout scaling with track:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to align workout scaling with track",
+			)
 		}
 	})
 
@@ -867,3 +1134,423 @@ export const getTeamSpecificWorkoutAction = createServerAction()
 			)
 		}
 	})
+
+/**
+ * Migrate scaling descriptions from source workout to remixed workout
+ */
+export const migrateScalingDescriptionsAction = createServerAction()
+	.input(
+		z.object({
+			originalWorkoutId: z.string().min(1, "Original workout ID is required"),
+			remixedWorkoutId: z.string().min(1, "Remixed workout ID is required"),
+			teamId: z.string().min(1, "Team ID is required"),
+			mappings: z.array(
+				z.object({
+					originalScalingLevelId: z
+						.string()
+						.min(1, "Original scaling level ID is required"),
+					newScalingLevelId: z
+						.string()
+						.min(1, "New scaling level ID is required"),
+					description: z.string(),
+				}),
+			),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { originalWorkoutId, remixedWorkoutId, teamId, mappings } = input
+
+			// Ensure the user is a member of the target team
+			await requireTeamMembership(teamId)
+
+			// Check if user has permission to edit workouts in this team
+			const hasEditPermission = await hasTeamPermission(
+				teamId,
+				TEAM_PERMISSIONS.EDIT_COMPONENTS,
+			)
+			if (!hasEditPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to edit workouts in this team",
+				)
+			}
+
+			// Import the migration function
+			const { migrateScalingDescriptions } = await import(
+				"@/server/scaling-levels"
+			)
+
+			// Perform the migration
+			const result = await migrateScalingDescriptions({
+				originalWorkoutId,
+				remixedWorkoutId,
+				mappings,
+			})
+
+			return {
+				success: true,
+				data: result,
+				message: `Successfully migrated ${result.migratedCount} scaling descriptions`,
+			}
+		} catch (error) {
+			console.error("Failed to migrate scaling descriptions:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to migrate scaling descriptions",
+			)
+		}
+	})
+
+/**
+ * Enhanced align workout scaling with track action that detects scaling description migration needs
+ */
+export const enhancedAlignWorkoutScalingWithTrackAction = createServerAction()
+	.input(
+		z.object({
+			workoutId: z.string().min(1, "Workout ID is required"),
+			trackId: z.string().min(1, "Track ID is required"),
+			teamId: z.string().min(1, "Team ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "Authentication required")
+			}
+
+			// Check team membership
+			const isMember = await isTeamMember(input.teamId)
+			if (!isMember) {
+				throw new ZSAError("FORBIDDEN", "User must be a member of this team")
+			}
+
+			// Check team permission for programming management
+			const hasPermission = await hasTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+			if (!hasPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to manage programming in this team",
+				)
+			}
+
+			// Get the track's scaling group
+			const { getProgrammingTrackById } = await import(
+				"@/server/programming-tracks"
+			)
+			const track = await getProgrammingTrackById(input.trackId)
+			if (!track) {
+				throw new ZSAError("NOT_FOUND", "Programming track not found")
+			}
+
+			// Verify track belongs to the team
+			if (track.ownerTeamId !== input.teamId) {
+				throw new ZSAError("FORBIDDEN", "Cannot modify track from another team")
+			}
+
+			// Get the workout
+			const workout = await getWorkoutById(input.workoutId)
+			if (!workout) {
+				throw new ZSAError("NOT_FOUND", "Workout not found")
+			}
+
+			// Check if the workout already has the track's scaling group
+			if (workout.scalingGroupId === track.scalingGroupId) {
+				return {
+					success: true,
+					action: "already_aligned" as const,
+					data: workout,
+					message: "Workout is already aligned with the track scaling",
+				}
+			}
+
+			// Check if workout has existing scaling descriptions
+			const { getWorkoutScalingDescriptionsWithLevels } = await import(
+				"@/server/scaling-levels"
+			)
+
+			const existingDescriptions =
+				await getWorkoutScalingDescriptionsWithLevels({
+					workoutId: input.workoutId,
+				})
+
+			// If no descriptions exist, proceed with normal alignment
+			if (existingDescriptions.length === 0) {
+				// Use the original align action
+				const result = await alignWorkoutScalingWithTrackAction(input)
+				return result
+			}
+
+			// Get the new scaling levels from the track's scaling group
+			const { listScalingLevels } = await import("@/server/scaling-levels")
+			const newScalingLevels = await listScalingLevels({
+				scalingGroupId: track.scalingGroupId || "",
+			})
+
+			// Return information needed for migration UI
+			return {
+				success: true,
+				action: "requires_migration" as const,
+				data: {
+					workout,
+					track,
+					existingDescriptions,
+					newScalingLevels,
+				},
+				message: "Scaling descriptions migration required",
+			}
+		} catch (error) {
+			console.error("Failed to check workout scaling alignment:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to check workout scaling alignment",
+			)
+		}
+	})
+
+/**
+ * Complete workout remix with scaling migration
+ */
+export const completeWorkoutRemixWithScalingMigrationAction =
+	createServerAction()
+		.input(
+			z.object({
+				workoutId: z.string().min(1, "Workout ID is required"),
+				trackId: z.string().min(1, "Track ID is required"),
+				teamId: z.string().min(1, "Team ID is required"),
+				mappings: z
+					.array(
+						z.object({
+							originalScalingLevelId: z
+								.string()
+								.min(1, "Original scaling level ID is required"),
+							newScalingLevelId: z
+								.string()
+								.min(1, "New scaling level ID is required"),
+							description: z.string(),
+						}),
+					)
+					.optional(),
+			}),
+		)
+		.handler(async ({ input }) => {
+			try {
+				const session = await requireVerifiedEmail()
+				if (!session?.user?.id) {
+					throw new ZSAError("NOT_AUTHORIZED", "Authentication required")
+				}
+
+				// Check team membership
+				const isMember = await isTeamMember(input.teamId)
+				if (!isMember) {
+					throw new ZSAError("FORBIDDEN", "User must be a member of this team")
+				}
+
+				// Get the track's scaling group
+				const { getProgrammingTrackById } = await import(
+					"@/server/programming-tracks"
+				)
+				const track = await getProgrammingTrackById(input.trackId)
+				if (!track) {
+					throw new ZSAError("NOT_FOUND", "Programming track not found")
+				}
+
+				// Check track ownership and permissions
+				const trackOwnerTeamId = track.ownerTeamId // ownerTeamId is the correct property
+				const userOwnsTrack = trackOwnerTeamId === input.teamId
+
+				// For track editing permissions, user must either:
+				// 1. Own the track (same team as track owner) with MANAGE_PROGRAMMING permission
+				// 2. Have permission to remix/view public tracks
+				if (userOwnsTrack) {
+					// User's team owns the track - check for programming management permission
+					const hasPermission = await hasTeamPermission(
+						input.teamId,
+						TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+					)
+					if (!hasPermission) {
+						throw new ZSAError(
+							"FORBIDDEN",
+							"You don't have permission to manage programming in this team",
+						)
+					}
+				} else {
+					// User doesn't own the track - check if remixing is allowed
+					if (!track.isPublic) {
+						throw new ZSAError(
+							"FORBIDDEN",
+							"Cannot modify private track from another team",
+						)
+					}
+
+					// For public tracks, ensure user has edit permission in their own team
+					const hasEditPermission = await hasTeamPermission(
+						input.teamId,
+						TEAM_PERMISSIONS.EDIT_COMPONENTS,
+					)
+					if (!hasEditPermission) {
+						throw new ZSAError(
+							"FORBIDDEN",
+							"You don't have permission to create remixes in this team",
+						)
+					}
+				}
+
+				// Determine if we should create a remix or direct edit based on ownership
+				let remixResult: Awaited<
+					ReturnType<typeof createProgrammingTrackWorkoutRemix>
+				>
+
+				if (userOwnsTrack) {
+					// User owns the track - check if they can edit the workout directly
+					const canEdit = await canUserEditWorkout(input.workoutId)
+
+					if (canEdit) {
+						// Create a programming track remix (which handles editing owned workouts)
+						remixResult = await createProgrammingTrackWorkoutRemix({
+							sourceWorkoutId: input.workoutId,
+							sourceTrackId: input.trackId,
+							teamId: input.teamId,
+						})
+					} else if (await shouldCreateRemix(input.workoutId)) {
+						// Create a programming track remix
+						remixResult = await createProgrammingTrackWorkoutRemix({
+							sourceWorkoutId: input.workoutId,
+							sourceTrackId: input.trackId,
+							teamId: input.teamId,
+						})
+					} else {
+						throw new ZSAError(
+							"FORBIDDEN",
+							"You don't have permission to modify this workout",
+						)
+					}
+				} else {
+					// User doesn't own the track - always create a remix with new ownership
+					// This ensures proper cloning and sets the new team as owner
+					remixResult = await createProgrammingTrackWorkoutRemix({
+						sourceWorkoutId: input.workoutId,
+						sourceTrackId: input.trackId,
+						teamId: input.teamId, // This sets the new team as owner
+					})
+
+					// For cross-team remixes, we should create a new track owned by the user's team
+					// instead of modifying the original track
+					const { createProgrammingTrack } = await import(
+						"@/server/programming-tracks"
+					)
+
+					const newTrack = await createProgrammingTrack({
+						name: `${track.name} (Remix)`,
+						description: `Remix of ${track.name} from ${trackOwnerTeamId}`,
+						type: "team_owned" as const,
+						ownerTeamId: input.teamId,
+						scalingGroupId: track.scalingGroupId,
+						isPublic: false, // Remixes start as private
+					})
+
+					// TODO: Consider adding sourceTrackId field to programming tracks schema
+					// to track remix relationships between tracks. This would require:
+					// 1. Migration to add sourceTrackId field to programmingTracksTable
+					// 2. Update this code to set sourceTrackId: input.trackId
+					// For now, the remix relationship is tracked through workout references
+
+					// Add the remixed workout to the new track
+					const { trackWorkoutsTable } = await import("@/db/schema")
+					const db = (await import("@/db")).getDd()
+
+					await db.insert(trackWorkoutsTable).values({
+						id: `track_workout_${createId()}`,
+						trackId: newTrack.id,
+						workoutId: remixResult!.id,
+						dayNumber: 1, // Default to day 1 for remixed workouts
+						weekNumber: null,
+						notes: `Remixed from track: ${track.name}`,
+					})
+
+					// Update the track reference for subsequent operations
+					input.trackId = newTrack.id
+				}
+
+				if (!remixResult) {
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create workout remix",
+					)
+				}
+
+				// Get database handles for updating track workout
+				const db = (await import("@/db")).getDd()
+				const { workouts, trackWorkoutsTable } = await import("@/db/schema")
+				const { eq, and } = await import("drizzle-orm")
+
+				// Update the remix with the track's scaling group
+				await db
+					.update(workouts)
+					.set({ scalingGroupId: track.scalingGroupId })
+					.where(eq(workouts.id, remixResult.id))
+
+				// Migrate scaling descriptions if provided
+				if (input.mappings && input.mappings.length > 0) {
+					const { migrateScalingDescriptions } = await import(
+						"@/server/scaling-levels"
+					)
+
+					await migrateScalingDescriptions({
+						originalWorkoutId: input.workoutId,
+						remixedWorkoutId: remixResult.id,
+						mappings: input.mappings,
+					})
+				}
+
+				// Update the track to use the remixed workout instead of the original
+				await db
+					.update(trackWorkoutsTable)
+					.set({ workoutId: remixResult.id })
+					.where(
+						and(
+							eq(trackWorkoutsTable.trackId, input.trackId),
+							eq(trackWorkoutsTable.workoutId, input.workoutId),
+						),
+					)
+
+				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+
+				return {
+					success: true,
+					action: "remixed" as const,
+					data: remixResult,
+					message: input.mappings?.length
+						? `Workout scaling aligned with ${input.mappings.length} descriptions migrated`
+						: "Workout scaling aligned with track",
+				}
+			} catch (error) {
+				console.error(
+					"Failed to complete workout remix with scaling migration:",
+					error,
+				)
+
+				if (error instanceof ZSAError) {
+					throw error
+				}
+
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					"Failed to complete workout remix with scaling migration",
+				)
+			}
+		})

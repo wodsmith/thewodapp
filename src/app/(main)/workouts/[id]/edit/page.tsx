@@ -5,6 +5,7 @@ import {
 } from "@/actions/workout-actions"
 import { getAllMovements } from "@/server/movements"
 import { getAllTags } from "@/server/tags"
+import { listScalingGroups } from "@/server/scaling-groups"
 import type { WorkoutUpdate } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
@@ -37,6 +38,49 @@ export default async function EditWorkoutPage({
 	})
 	const movements = await getAllMovements()
 	const tags = await getAllTags()
+
+	// Get user teams for remix team selection and scaling groups
+	const userTeams = session.teams || []
+
+	// Get scaling groups for all user teams
+	let scalingGroups: Array<{
+		id: string
+		title: string
+		description: string | null
+		teamId: string | null
+		teamName: string
+		isSystem: number
+		isDefault: number
+	}> = []
+
+	if (userTeams.length > 0) {
+		try {
+			// Get scaling groups from all teams the user belongs to
+			const scalingGroupsPromises = userTeams.map(async (team) => {
+				try {
+					const groups = await listScalingGroups({
+						teamId: team.id,
+						includeSystem: true,
+					})
+					return groups.map((group) => ({
+						...group,
+						teamName: team.name,
+					}))
+				} catch (error) {
+					console.error(
+						`Failed to fetch scaling groups for team ${team.id}:`,
+						error,
+					)
+					return []
+				}
+			})
+
+			const allGroups = await Promise.all(scalingGroupsPromises)
+			scalingGroups = allGroups.flat()
+		} catch (error) {
+			console.error("Failed to fetch scaling groups:", error)
+		}
+	}
 
 	if (workoutError || !workoutResult?.success || !workoutResult.data) {
 		return notFound()
@@ -97,9 +141,6 @@ export default async function EditWorkoutPage({
 		}
 	}
 
-	// Get user teams for remix team selection
-	const userTeams = session.teams || []
-
 	return (
 		<EditWorkoutClient
 			workout={workout}
@@ -109,6 +150,7 @@ export default async function EditWorkoutPage({
 			isRemixMode={shouldRemix}
 			updateWorkoutAction={updateWorkoutServerAction}
 			userTeams={userTeams}
+			scalingGroups={scalingGroups}
 		/>
 	)
 }

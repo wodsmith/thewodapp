@@ -52,6 +52,9 @@ export const TEAM_PERMISSIONS = {
 	// Programming track permissions
 	MANAGE_PROGRAMMING: "manage_programming",
 
+	// Scaling group permissions
+	MANAGE_SCALING_GROUPS: "manage_scaling_groups",
+
 	// Add more as needed
 } as const
 
@@ -76,6 +79,8 @@ export const teamTable = sqliteTable(
 		planExpiresAt: integer({ mode: "timestamp" }),
 		creditBalance: integer().default(0).notNull(),
 		defaultTrackId: text(),
+		// Default scaling group for the team
+		defaultScalingGroupId: text(),
 		// Flag to indicate if this is a personal team (created automatically for each user)
 		isPersonalTeam: integer().default(0).notNull(),
 		// For personal teams, store the owner user ID
@@ -84,6 +89,7 @@ export const teamTable = sqliteTable(
 	(table) => [
 		index("team_slug_idx").on(table.slug),
 		index("team_personal_owner_idx").on(table.personalTeamOwnerId),
+		index("team_default_scaling_idx").on(table.defaultScalingGroupId),
 	],
 )
 

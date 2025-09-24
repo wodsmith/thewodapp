@@ -78,6 +78,15 @@ export default async function WorkoutDetailPage({
 	// Extract workout data, filtering out remix information for component compatibility
 	const workout = workoutResult.data as WorkoutWithTagsAndMovements
 
+	// Debug: Log the scaling data to verify it's present
+	console.log("[WorkoutDetailPage] Workout scaling data:", {
+		id: workout.id,
+		name: workout.name,
+		scalingGroupId: workout.scalingGroupId,
+		scalingLevels: workout.scalingLevels,
+		scalingDescriptions: workout.scalingDescriptions,
+	})
+
 	const [resultsResult, resultsError] =
 		await getWorkoutResultsByWorkoutAndUserAction({
 			workoutId: myParams.id,
@@ -89,6 +98,18 @@ export default async function WorkoutDetailPage({
 	}
 
 	const results = resultsResult.data
+
+	// Debug: Log the results to see if scaling data is present
+	console.log(
+		"[WorkoutDetailPage] Results from action:",
+		results.map((r) => ({
+			id: r.id,
+			scalingLevelId: r.scalingLevelId,
+			scalingLevelLabel: r.scalingLabel,
+			scale: r.scale,
+			asRx: r.asRx,
+		})),
+	)
 
 	const resultsWithSets = await (async () => {
 		if (

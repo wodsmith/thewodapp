@@ -19,6 +19,10 @@ import {
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { AlignScalingDialog } from "@/components/scaling/align-scaling-dialog"
+import { ScalingMigrationDialog } from "@/components/scaling/scaling-migration-dialog"
+import type { DescriptionMapping } from "@/components/scaling/scaling-migration-mapper"
+import type { ScalingLevel, WorkoutScalingDescription } from "@/db/schema"
 import type {
 	Movement,
 	ProgrammingTrack,
@@ -31,6 +35,10 @@ import {
 	reorderTrackWorkoutsAction,
 	updateTrackWorkoutAction,
 } from "../../../_actions/programming-track-actions"
+import {
+	enhancedAlignWorkoutScalingWithTrackAction,
+	completeWorkoutRemixWithScalingMigrationAction,
+} from "@/actions/workout-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
 import { TrackWorkoutRow } from "./track-workout-row"
 
@@ -63,6 +71,22 @@ export function TrackWorkoutManagement({
 	userId,
 }: TrackWorkoutManagementProps) {
 	const [showAddDialog, setShowAddDialog] = useState(false)
+	const [alignDialogState, setAlignDialogState] = useState<{
+		open: boolean
+		workout: Workout | null
+	}>({ open: false, workout: null })
+
+	const [migrationDialogState, setMigrationDialogState] = useState<{
+		open: boolean
+		data: {
+			workout: Workout
+			track: ProgrammingTrack
+			existingDescriptions: Array<
+				WorkoutScalingDescription & { scalingLevel: ScalingLevel }
+			>
+			newScalingLevels: Array<ScalingLevel>
+		} | null
+	}>({ open: false, data: null })
 
 	// Optimistic updates for track workouts
 	const [optimisticTrackWorkouts, setOptimisticTrackWorkouts] = useOptimistic(
@@ -412,8 +436,8 @@ export function TrackWorkoutManagement({
 						weekNumber: null,
 						notes: null,
 						updateCounter: null,
-						createdAt: null as any, // Temporary UI object
-						updatedAt: null as any, // Temporary UI object
+						createdAt: new Date(), // Temporary UI object
+						updatedAt: new Date(), // Temporary UI object
 					}
 					setOptimisticTrackWorkouts({
 						type: "add",
@@ -550,13 +574,166 @@ export function TrackWorkoutManagement({
 									_trackId={trackId}
 									trackWorkout={trackWorkout}
 									workoutDetails={workoutDetails}
+									track={_track}
 									index={index}
 									instanceId={instanceId}
+									canEdit={true}
+									onAlignScaling={async () => {
+										// Show confirmation dialog
+										if (workoutDetails) {
+											setAlignDialogState({
+												open: true,
+												workout: workoutDetails,
+											})
+										}
+									}}
 								/>
 							)
 						})}
 					</div>
 				</div>
+			)}
+
+			{/* Align Scaling Confirmation Dialog */}
+			{alignDialogState.workout && (
+				<AlignScalingDialog
+					open={alignDialogState.open}
+					onOpenChange={(open) =>
+						setAlignDialogState((prev) => ({ ...prev, open }))
+					}
+					workout={alignDialogState.workout}
+					track={_track}
+					onConfirm={async () => {
+						if (!alignDialogState.workout) return
+
+						try {
+							// Use enhanced action to check for migration needs
+							const [result, error] =
+								await enhancedAlignWorkoutScalingWithTrackAction({
+									workoutId: alignDialogState.workout.id,
+									trackId,
+									teamId,
+								})
+
+							if (error) {
+								toast.error(error.message || "Failed to align workout scaling")
+								return
+							}
+
+							if (
+								result &&
+								!Array.isArray(result) &&
+								result.success &&
+								"action" in result
+							) {
+								if (result.action === "already_aligned") {
+									toast.info(result.message || "Workout is already aligned")
+									setAlignDialogState({ open: false, workout: null })
+								} else if (result.action === "requires_migration") {
+									// Show migration dialog
+									setMigrationDialogState({
+										open: true,
+										data: result.data as unknown as {
+											workout: Workout
+											track: ProgrammingTrack
+											existingDescriptions: Array<
+												WorkoutScalingDescription & {
+													scalingLevel: ScalingLevel
+												}
+											>
+											newScalingLevels: Array<ScalingLevel>
+										},
+									})
+									setAlignDialogState({ open: false, workout: null })
+								} else {
+									toast.success("Workout scaling aligned with track")
+
+									// Trigger a refresh of the track workouts to show updated scaling
+									window.location.reload()
+								}
+							}
+						} catch (error) {
+							console.error("Failed to align workout scaling:", error)
+							toast.error("Failed to align workout scaling with track")
+						}
+					}}
+				/>
+			)}
+
+			{/* Scaling Migration Dialog */}
+			{migrationDialogState.data && (
+				<ScalingMigrationDialog
+					open={migrationDialogState.open}
+					onOpenChange={(open) =>
+						setMigrationDialogState((prev) => ({ ...prev, open }))
+					}
+					originalWorkout={migrationDialogState.data.workout}
+					originalDescriptions={migrationDialogState.data.existingDescriptions}
+					newScalingLevels={migrationDialogState.data.newScalingLevels}
+					onMigrate={async (mappings: DescriptionMapping[]) => {
+						if (!migrationDialogState.data) return
+
+						try {
+							const [result, error] =
+								await completeWorkoutRemixWithScalingMigrationAction({
+									workoutId: migrationDialogState.data.workout.id,
+									trackId,
+									teamId,
+									mappings,
+								})
+
+							if (error) {
+								toast.error(
+									error.message || "Failed to complete scaling migration",
+								)
+								return
+							}
+
+							if (result?.success) {
+								toast.success(
+									result.message ||
+										"Workout scaling aligned with descriptions migrated",
+								)
+
+								// Trigger a refresh of the track workouts
+								window.location.reload()
+							}
+						} catch (error) {
+							console.error("Failed to complete scaling migration:", error)
+							toast.error("Failed to complete scaling migration")
+						}
+					}}
+					onSkip={async () => {
+						if (!migrationDialogState.data) return
+
+						try {
+							// Complete remix without migration
+							const [result, error] =
+								await completeWorkoutRemixWithScalingMigrationAction({
+									workoutId: migrationDialogState.data.workout.id,
+									trackId,
+									teamId,
+								})
+
+							if (error) {
+								toast.error(error.message || "Failed to align workout scaling")
+								return
+							}
+
+							if (result?.success) {
+								toast.success(
+									result.message || "Workout scaling aligned with track",
+								)
+
+								// Trigger a refresh of the track workouts
+								window.location.reload()
+							}
+						} catch (error) {
+							console.error("Failed to align workout scaling:", error)
+							toast.error("Failed to align workout scaling with track")
+						}
+					}}
+				/>
 			)}
 
 			{/* Add Workout Dialog */}

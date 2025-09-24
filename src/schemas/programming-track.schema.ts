@@ -14,6 +14,27 @@ export const createProgrammingTrackSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
 	isPublic: z.boolean().optional().default(false),
+	scalingGroupId: z
+		.union([z.string(), z.null(), z.undefined()])
+		.transform((val) => {
+			// Coerce sentinel values to undefined
+			if (val === "" || val === "none" || val === null || val === undefined) {
+				return undefined
+			}
+			return val
+		})
+		.refine(
+			(val) => {
+				// If undefined, it's valid (optional field)
+				if (val === undefined) return true
+				// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+			},
+			{
+				message: "Invalid scaling group ID format",
+			},
+		)
+		.optional(),
 })
 
 export const deleteProgrammingTrackSchema = z.object({
@@ -24,7 +45,46 @@ export const deleteProgrammingTrackSchema = z.object({
 export const updateProgrammingTrackSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().min(1, "Track ID is required"),
-	isPublic: z.boolean(),
+	name: z
+		.string()
+		.min(1, "Track name is required")
+		.max(255, "Name is too long")
+		.optional(),
+	description: z
+		.string()
+		.max(1000, "Description is too long")
+		.nullable()
+		.optional(),
+	type: z
+		.enum([
+			PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED,
+			PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+			PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
+		])
+		.optional(),
+	isPublic: z.boolean().optional(),
+	scalingGroupId: z
+		.union([z.string(), z.null(), z.undefined()])
+		.transform((val) => {
+			// Coerce sentinel values to null (for updates, null means "remove scaling group")
+			if (val === "" || val === "none" || val === undefined) {
+				return null
+			}
+			return val
+		})
+		.refine(
+			(val) => {
+				// If null, it's valid (removes scaling group)
+				if (val === null) return true
+				// If present, must match the DB ID pattern: "sgrp_" prefix + allowed ID chars
+				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
+			},
+			{
+				message: "Invalid scaling group ID format",
+			},
+		)
+		.nullable()
+		.optional(),
 })
 
 export const getTeamTracksSchema = z.object({

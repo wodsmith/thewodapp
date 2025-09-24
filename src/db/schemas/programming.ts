@@ -40,11 +40,13 @@ export const programmingTracksTable = sqliteTable(
 		description: text({ length: 1000 }),
 		type: text({ enum: programmingTrackTypeTuple }).notNull(),
 		ownerTeamId: text().references(() => teamTable.id),
+		scalingGroupId: text(), // Optional scaling group for all workouts in this track
 		isPublic: integer().default(0).notNull(),
 	},
 	(table) => [
 		index("programming_track_type_idx").on(table.type),
 		index("programming_track_owner_idx").on(table.ownerTeamId),
+		index("programming_track_scaling_idx").on(table.scalingGroupId),
 	],
 )
 

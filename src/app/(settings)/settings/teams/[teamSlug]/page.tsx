@@ -185,9 +185,6 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 					)}
 				</div>
 
-				{/* Team actions */}
-				<div className="col-span-3 flex flex-wrap gap-4" />
-
 				{/* Team Members Table */}
 				<Card className="col-span-3">
 					<CardHeader>

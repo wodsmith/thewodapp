@@ -45,7 +45,7 @@ export default async function EditResultPage({
 		redirect("/log")
 	}
 
-	// Get the workout details
+	// Get the workout details including scaling data
 	const [workoutData, workoutError] = await getWorkoutByIdAction({
 		id: result.workoutId || "",
 	})
@@ -55,7 +55,29 @@ export default async function EditResultPage({
 		return notFound()
 	}
 
-	const workout = workoutData.data as Workout
+	const workout = workoutData.data
+	console.log("[EditResultPage] Workout scaling data:", {
+		id: workout.id,
+		name: workout.name,
+		scalingGroupId: workout.scalingGroupId,
+		scalingLevels: workout.scalingLevels,
+		scalingDescriptions: workout.scalingDescriptions,
+		scalingLevelsLength: workout.scalingLevels?.length || 0,
+		scalingDescriptionsLength: workout.scalingDescriptions?.length || 0,
+	})
+
+	// Get user's team ID for scaling selector
+	let teamId: string
+	try {
+		const { getUserPersonalTeamId } = await import("@/server/user")
+		teamId = await getUserPersonalTeamId(session.userId)
+	} catch (error) {
+		console.warn(
+			`[EditResultPage] Failed to get user personal team ID for user ${session.userId}, falling back to workout team ID:`,
+			error instanceof Error ? error.message : String(error),
+		)
+		teamId = workout.teamId || ""
+	}
 
 	// Get the result sets
 	const [setsData] = await getResultSetsByIdAction({
@@ -85,12 +107,16 @@ export default async function EditResultPage({
 		redirect(redirectUrl)
 	}
 
+	// Serialize the workout data to ensure it can cross the server/client boundary
+	const serializedWorkout = JSON.parse(JSON.stringify(workout))
+
 	return (
 		<EditResultClient
 			result={result}
-			workout={workout}
+			workout={serializedWorkout}
 			sets={sets}
 			userId={session.userId}
+			teamId={teamId}
 			redirectUrl={mySearchParams.redirectUrl || "/log"}
 			updateResultAction={updateResultServerAction}
 		/>
