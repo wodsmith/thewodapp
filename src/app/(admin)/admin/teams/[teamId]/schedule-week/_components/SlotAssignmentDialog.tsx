@@ -223,31 +223,29 @@ const SlotAssignmentDialog = ({
 
 				<div className="space-y-4">
 					{/* Class Details */}
-					<div className="p-4 bg-slate-50 rounded-lg space-y-2">
+					<div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4">
 						<div className="flex items-center space-x-2">
-							<Award className="h-4 w-4 text-slate-600" />
+							<Award className="h-4 w-4 text-primary" />
 							<span className="font-medium">
 								{scheduledClass.classCatalog?.name || "Class"}
 							</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<Clock className="h-4 w-4 text-slate-600" />
-							<span className="text-sm text-slate-600">
+						<div className="flex items-center space-x-2 text-muted-foreground">
+							<Clock className="h-4 w-4" />
+							<span className="text-sm">
 								{dayName} at {time}
 							</span>
 						</div>
-						<div className="flex items-center space-x-2">
-							<MapPin className="h-4 w-4 text-slate-600" />
-							<span className="text-sm text-slate-600">
-								{location?.name || "Location"}
-							</span>
+						<div className="flex items-center space-x-2 text-muted-foreground">
+							<MapPin className="h-4 w-4" />
+							<span className="text-sm">{location?.name || "Location"}</span>
 						</div>
 					</div>
 
 					{/* Current Assignment */}
 					{currentCoachName && (
-						<div className="p-3 bg-blue-50 rounded-lg">
-							<p className="text-sm text-blue-700">
+						<div className="rounded-lg border border-primary/20 bg-primary/10 p-3">
+							<p className="text-sm text-primary">
 								Currently assigned to: <strong>{currentCoachName}</strong>
 							</p>
 						</div>
@@ -255,7 +253,7 @@ const SlotAssignmentDialog = ({
 
 					{/* Coach Selection */}
 					{isLoading ? (
-						<div className="p-4 text-center text-slate-600">
+						<div className="p-4 text-center text-muted-foreground">
 							Loading available coaches...
 						</div>
 					) : (
@@ -326,14 +324,16 @@ const SlotAssignmentDialog = ({
 
 					{/* Warning when selecting unavailable coach */}
 					{showWarning && (
-						<div className="p-3 bg-orange-50 rounded-lg flex items-start space-x-2">
-							<AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
+						<div className="flex items-start space-x-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+							<AlertCircle className="mt-0.5 h-4 w-4 text-destructive" />
 							<div>
-								<p className="text-sm text-orange-700 font-medium">
+								<p className="text-sm font-medium text-destructive">
 									Admin Override Warning
 								</p>
-								<p className="text-xs text-orange-600 mt-1">{warningMessage}</p>
-								<p className="text-xs text-orange-600 mt-1">
+								<p className="mt-1 text-xs text-destructive">
+									{warningMessage}
+								</p>
+								<p className="mt-1 text-xs text-destructive">
 									As an admin, you can still assign this coach, but please be
 									aware of the constraints.
 								</p>
@@ -344,13 +344,13 @@ const SlotAssignmentDialog = ({
 					{qualifiedCoaches.length === 0 &&
 						unavailableCoaches.length === 0 &&
 						!isLoading && (
-							<div className="p-3 bg-red-50 rounded-lg flex items-start space-x-2">
-								<AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+							<div className="flex items-start space-x-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+								<AlertCircle className="mt-0.5 h-4 w-4 text-destructive" />
 								<div>
-									<p className="text-sm text-red-700 font-medium">
+									<p className="text-sm font-medium text-destructive">
 										No coaches found
 									</p>
-									<p className="text-xs text-red-600 mt-1">
+									<p className="mt-1 text-xs text-destructive">
 										There are no coaches available for this team.
 									</p>
 								</div>
