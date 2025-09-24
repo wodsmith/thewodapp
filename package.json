@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
+		"prepare": "husky install",
 		"dev": "next dev",
 		"build": "next build",
 		"build:prod": "pnpm run opennext:build && wrangler deploy --dry-run --outdir=dist",
@@ -32,19 +33,13 @@
 		"email:dev": "email dev -d src/react-email -p 3001",
 		"list:kv": "wrangler kv key list --namespace-id=$(node scripts/get-kv-id.mjs) --remote | jq '[.[].name]' > kv.log",
 		"delete:kv": "wrangler kv bulk delete kv.log --namespace-id=$(node scripts/get-kv-id.mjs) --remote",
-		"test": "vitest run",
-		"prepare": "husky"
+		"test": "vitest run"
 	},
 	"lint-staged": {
 		"*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [
 			"biome lint --no-errors-on-unmatched",
 			"biome format --write --no-errors-on-unmatched"
 		]
-	},
-	"husky": {
-		"hooks": {
-			"pre-push": "pnpm type-check"
-		}
 	},
 	"dependencies": {
 		"@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
