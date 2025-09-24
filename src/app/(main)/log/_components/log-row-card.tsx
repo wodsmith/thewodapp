@@ -4,12 +4,15 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ListItem } from "@/components/ui/list-item"
 import type { WorkoutResultWithWorkoutName } from "@/types"
+import { getScalingDisplayInfo } from "@/utils/scaling-display"
 
 interface LogRowCardProps {
 	logEntry: WorkoutResultWithWorkoutName
 }
 
 export function LogRowCard({ logEntry }: LogRowCardProps) {
+	const scalingInfo = getScalingDisplayInfo(logEntry)
+
 	return (
 		<ListItem>
 			<ListItem.Content>
@@ -35,20 +38,13 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
 					{logEntry.setCount && logEntry.setCount > 1 && (
 						<Badge variant="outline">Sets: {logEntry.setCount}</Badge>
 					)}
-					{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
-					{logEntry.scalingLevelLabel ? (
-						<Badge
-							variant={logEntry.asRx ? "default" : "secondary"}
-							className="gap-1"
-						>
-							{logEntry.scalingLevelLabel}
-							{logEntry.asRx && " (Rx)"}
+					{/* Display scaling information */}
+					{scalingInfo && (
+						<Badge variant={scalingInfo.variant} className="gap-1">
+							{scalingInfo.label}
+							{scalingInfo.showScaledSuffix && " (Scaled)"}
 						</Badge>
-					) : logEntry.scale ? (
-						<Badge variant={logEntry.scale}>
-							{logEntry.scale.toUpperCase()}
-						</Badge>
-					) : null}
+					)}
 				</ListItem.Meta>
 
 				<ListItem.Actions>
