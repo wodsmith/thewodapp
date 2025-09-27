@@ -52,7 +52,7 @@
 	"services": [
 		{
 			"binding": "WORKER_SELF_REFERENCE",
-			"service": "cloudflare-workers-nextjs-saas-template"
+			"service": "wodsmith"
 		}
 	],
 
