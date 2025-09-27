@@ -317,6 +317,7 @@
 - [ ] SDK/API clients
 - [ ] Webhooks
 - [x] Rate limiting
+- [x] Pre-push automation for linting and type safety checks
 
 ## Technical Considerations
 

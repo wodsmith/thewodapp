@@ -1,0 +1,44 @@
+#!/bin/sh
+
+set -e
+
+log() {
+  echo "INFO: [pre-push] $1"
+}
+
+ensure_pnpm() {
+  if command -v pnpm >/dev/null 2>&1; then
+    return
+  fi
+
+  if [ -f "$HOME/.nvm/nvm.sh" ]; then
+    . "$HOME/.nvm/nvm.sh"
+  elif [ -f "$HOME/.volta/bin/node" ]; then
+    export PATH="$HOME/.volta/bin:$PATH"
+  elif [ -f "/usr/local/bin/node" ]; then
+    export PATH="/usr/local/bin:$PATH"
+  elif [ -f "/opt/homebrew/bin/node" ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+  fi
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "ERROR: pnpm not found in PATH."
+    exit 1
+  fi
+}
+
+run_checks() {
+  log "Running pnpm lint"
+  pnpm lint
+
+  log "Running pnpm type-check"
+  pnpm type-check
+}
+
+log "Ensuring pnpm is available"
+ensure_pnpm
+
+run_checks
+
+log "Completed lint and type-check"
+
