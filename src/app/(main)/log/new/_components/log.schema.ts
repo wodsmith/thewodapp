@@ -13,6 +13,7 @@ export const logFormSchema = z.object({
 	scalingLevelId: z.string().optional(),
 	asRx: z.boolean().optional(),
 	scores: z.array(z.array(z.string())).optional(),
+	timeCapped: z.array(z.boolean()).optional(),
 	notes: z.string().optional(),
 	redirectUrl: z.string().optional(),
 })

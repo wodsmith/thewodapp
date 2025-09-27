@@ -44,7 +44,7 @@ export default async function LogPage() {
 
 	const logs = result.data
 	return (
-		<div>
+		<div className="px-4">
 			<div className="mb-6 flex items-center justify-between">
 				<h1 className="dark:text-white">WORKOUT LOG</h1>
 				<Button asChild>

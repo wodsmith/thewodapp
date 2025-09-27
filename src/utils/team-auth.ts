@@ -14,6 +14,17 @@ export const getUserTeams = cache(async () => {
 	return session.teams || []
 })
 
+// Get the current user's team IDs
+export const getUserTeamIds = cache(async (userId: string) => {
+	const session = await requireVerifiedEmail()
+
+	if (!session || session.userId !== userId) {
+		return []
+	}
+
+	return session.teams?.map((team) => team.id) || []
+})
+
 // Check if the user is a member of a specific team
 export const isTeamMember = cache(async (teamId: string) => {
 	const session = await requireVerifiedEmail()

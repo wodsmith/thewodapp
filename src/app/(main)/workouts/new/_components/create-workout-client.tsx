@@ -11,6 +11,7 @@ import { useServerAction } from "zsa-react"
 import { createWorkoutAction } from "@/actions/workout-actions"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
+import { MovementsList } from "@/components/movements-list"
 import {
 	type CreateWorkoutSchema,
 	createWorkoutSchema,
@@ -188,8 +189,8 @@ export default function CreateWorkoutClient({
 			const newTagObj = {
 				id,
 				name: newTag,
-				createdAt: null as any, // Temporary UI object
-				updatedAt: null as any, // Temporary UI object
+				createdAt: new Date(), // Temporary UI object
+				updatedAt: new Date(), // Temporary UI object
 				updateCounter: null,
 			}
 			setTags([...tags, newTagObj])
@@ -679,47 +680,13 @@ export default function CreateWorkoutClient({
 							</div>
 						</div>
 
-						<div>
-							<Label
-								htmlFor="movements-list"
-								className="mb-2 block font-bold uppercase"
-							>
-								Movements
-							</Label>
-							<div
-								id="movements-list"
-								className="h-[500px] overflow-y-auto border-2 border-black p-4"
-							>
-								<div className="space-y-2">
-									{movements.map((movement) => {
-										const selectedMovements = form.watch("selectedMovements")
-										const isSelected = selectedMovements.includes(movement.id)
-										return (
-											<button
-												type="button"
-												key={movement.id}
-												onClick={() => handleMovementToggle(movement.id)}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === " ") {
-														e.preventDefault()
-														handleMovementToggle(movement.id)
-													}
-												}}
-												aria-pressed={isSelected}
-												className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
-													isSelected ? "bg-black text-white" : ""
-												}`}
-											>
-												<div className="flex items-center justify-between">
-													<span className="font-bold">{movement.name}</span>
-													{isSelected && <span className="text-xs">✓</span>}
-												</div>
-											</button>
-										)
-									})}
-								</div>
-							</div>
-						</div>
+						<MovementsList
+							movements={movements}
+							selectedMovements={form.watch("selectedMovements")}
+							onMovementToggle={handleMovementToggle}
+							mode="selectable"
+							variant="default"
+						/>
 					</div>
 
 					{/* Scaling Descriptions */}

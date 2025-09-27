@@ -27,13 +27,14 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { MovementsList } from "@/components/movements-list"
 import type {
 	ResultSet,
 	WorkoutResult,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
 import { SetDetails } from "./set-details"
-import { WorkoutLastScheduled } from "./workout-last-scheduled"
+import { WorkoutScheduleHistory } from "./workout-schedule-history"
 
 // Define a new type for results with their sets and scaling labels
 export type WorkoutResultWithSets = WorkoutResult & {
@@ -49,7 +50,7 @@ export default function WorkoutDetailClient({
 	workoutId,
 	resultsWithSets, // Changed from results and resultSetDetails
 	remixedWorkouts = [],
-	lastScheduled,
+	scheduleHistory = [],
 }: {
 	canEdit: boolean
 	sourceWorkout?: {
@@ -70,10 +71,15 @@ export default function WorkoutDetailClient({
 		teamId: string | null
 		teamName: string
 	}>
-	lastScheduled?: {
+	scheduleHistory?: Array<{
+		id: string
 		scheduledDate: Date
+		teamId: string
 		teamName: string
-	} | null
+		workoutId: string
+		workoutName: string
+		isRemix: boolean
+	}>
 }) {
 	const searchParams = useSearchParams()
 	const redirectUrl = searchParams.get("redirectUrl")
@@ -212,9 +218,6 @@ export default function WorkoutDetailClient({
 				</div>
 			)}
 
-			{/* Last Scheduled Information */}
-			<WorkoutLastScheduled lastScheduled={lastScheduled || null} />
-
 			<div className="mt-4 mb-6 border-2 border-black dark:border-dark-border rounded">
 				{/* Workout Details Section */}
 				<div className="border-black border-b-2 p-6 dark:border-dark-border">
@@ -265,40 +268,35 @@ export default function WorkoutDetailClient({
 								<Dumbbell className="h-5 w-5" />
 								<h3>MOVEMENTS</h3>
 							</div>
-							<div className="flex flex-wrap gap-2">
-								{(workout.movements || []).map(
-									(movement: {
-										id: string
-										name: string
-										type: "weightlifting" | "gymnastic" | "monostructural"
-									}) => (
-										<Badge
-											key={movement.id}
-											variant="outline"
-											className="text-lg"
-										>
-											{movement.name}
-										</Badge>
-									),
-								)}
-							</div>
+							<MovementsList
+								movements={workout.movements || []}
+								mode="display"
+								variant="badge"
+								showLabel={false}
+							/>
 						</div>
 					</div>
 				</div>
 
 				{/* Results Section */}
 				<div className="p-6">
-					<div className="mb-4 flex items-center justify-between">
+					<div className="mb-4 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
 						<div className="flex items-center gap-2">
 							<ListChecks className="h-5 w-5" />
 							<h2>WORKOUT RESULTS</h2>
 						</div>
-						<Link
-							href={`/log/new?workoutId=${workoutId}&redirectUrl=/workouts/${workoutId}`}
-							className="btn dark:border-dark-border dark:bg-dark-primary dark:text-dark-primary-foreground dark:hover:bg-dark-primary/90"
+						<Button
+							asChild
+							variant="default"
+							size="default"
+							className="w-full sm:w-auto"
 						>
-							Log Result
-						</Link>
+							<Link
+								href={`/log/new?workoutId=${workoutId}&redirectUrl=/workouts/${workoutId}`}
+							>
+								Log Result
+							</Link>
+						</Button>
 					</div>
 					{resultsWithSets && resultsWithSets.length > 0 ? (
 						<div className="space-y-4">
@@ -428,7 +426,7 @@ export default function WorkoutDetailClient({
 										</div>
 									</div>
 									{remix.description && (
-										<p className="text-gray-600 dark:text-dark-muted-foreground text-sm">
+										<p className="text-gray-600 dark:text-dark-muted-foreground text-sm whitespace-pre-wrap line-clamp-3">
 											{remix.description}
 										</p>
 									)}
@@ -438,6 +436,9 @@ export default function WorkoutDetailClient({
 					</div>
 				</div>
 			)}
+
+			{/* Schedule History Section - moved to bottom */}
+			<WorkoutScheduleHistory scheduleHistory={scheduleHistory} />
 		</div>
 	)
 }

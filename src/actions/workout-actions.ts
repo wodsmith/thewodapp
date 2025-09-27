@@ -325,9 +325,10 @@ export const createWorkoutAction = createServerAction()
 			}
 
 			// Revalidate the workouts page to show the new workout
-			revalidatePath("/workouts")
+			revalidatePath("/workouts", "page")
+			revalidatePath("/dashboard", "page")
 			if (input.trackId) {
-				revalidatePath("/programming")
+				revalidatePath("/programming", "page")
 			}
 
 			console.log("[DEBUG] Created workout:", workout)
@@ -433,7 +434,10 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 export const getUserWorkoutsAction = createServerAction()
 	.input(
 		z.object({
-			teamId: z.string().min(1, "Team ID is required"),
+			teamId: z.union([
+				z.string().min(1, "Team ID is required"),
+				z.array(z.string().min(1, "Team ID is required")),
+			]),
 			trackId: z.string().optional(),
 			search: z.string().optional(),
 			tag: z.string().optional(),
@@ -455,6 +459,13 @@ export const getUserWorkoutsAction = createServerAction()
 				trackId: input.trackId,
 			}
 
+			console.log("[DEBUG] getUserWorkoutsAction called with:", {
+				teamId: input.teamId,
+				filters,
+				limit: input.pageSize,
+				offset,
+			})
+
 			const [workouts, totalCount] = await Promise.all([
 				getUserWorkouts({
 					teamId: input.teamId,
@@ -464,6 +475,13 @@ export const getUserWorkoutsAction = createServerAction()
 				}),
 				getUserWorkoutsCount({ teamId: input.teamId, ...filters }),
 			])
+
+			console.log("[DEBUG] getUserWorkouts result:", {
+				workoutCount: workouts.length,
+				totalCount,
+				firstWorkoutId: workouts[0]?.id,
+				firstWorkoutName: workouts[0]?.name,
+			})
 
 			return {
 				success: true,
@@ -647,8 +665,11 @@ export const updateWorkoutAction = createServerAction()
 			// Check if user can edit the workout directly
 			const canEdit = await canUserEditWorkout(input.id)
 
-			if (canEdit) {
-				// User owns the workout, update it directly
+			// If remixTeamId is provided, user explicitly wants to create a remix
+			const shouldCreateRemixWorkout = Boolean(input.remixTeamId)
+
+			if (canEdit && !shouldCreateRemixWorkout) {
+				// User owns the workout and doesn't want to remix, update it directly
 				await updateWorkout(input)
 
 				// Save scaling descriptions if provided
@@ -1448,6 +1469,13 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 						teamId: input.teamId, // This sets the new team as owner
 					})
 
+					if (!remixResult) {
+						throw new ZSAError(
+							"INTERNAL_SERVER_ERROR",
+							"Failed to create workout remix",
+						)
+					}
+
 					// For cross-team remixes, we should create a new track owned by the user's team
 					// instead of modifying the original track
 					const { createProgrammingTrack } = await import(
@@ -1476,7 +1504,7 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 					await db.insert(trackWorkoutsTable).values({
 						id: `track_workout_${createId()}`,
 						trackId: newTrack.id,
-						workoutId: remixResult!.id,
+						workoutId: remixResult.id,
 						dayNumber: 1, // Default to day 1 for remixed workouts
 						weekNumber: null,
 						notes: `Remixed from track: ${track.name}`,

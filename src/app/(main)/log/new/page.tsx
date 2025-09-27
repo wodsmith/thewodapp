@@ -33,6 +33,7 @@ export default async function LogNewResultPage({
 		redirectUrl?: string
 		scheduledInstanceId?: string
 		programmingTrackId?: string
+		date?: string // Optional date parameter for logging past workouts
 	}>
 }) {
 	console.log("[log/new] Fetching workouts for log form")
@@ -101,7 +102,127 @@ export default async function LogNewResultPage({
 		}
 	}
 
-	// Merge the specific workout with the user's workouts if it's not already there
+	// Auto-detect scheduled instance if we have a workoutId but no scheduledInstanceId
+	let detectedScheduledInstanceId = mySearchParams?.scheduledInstanceId
+	let detectedProgrammingTrackId = mySearchParams?.programmingTrackId
+
+	if (mySearchParams?.workoutId && !mySearchParams?.scheduledInstanceId) {
+		console.log(
+			"[log/new] Auto-detecting scheduled instance for workout:",
+			mySearchParams.workoutId,
+		)
+
+		// Determine the date to check (use provided date or default to today)
+		const targetDate = mySearchParams?.date
+			? new Date(mySearchParams.date)
+			: new Date()
+
+		// Get user's teams to check for scheduled instances
+		const { getUserTeams } = await import("@/server/teams")
+		const userTeams = await getUserTeams()
+
+		if (userTeams && userTeams.length > 0) {
+			const { getDd } = await import("@/db")
+			const { scheduledWorkoutInstancesTable, trackWorkoutsTable } =
+				await import("@/db/schema")
+			const { eq, and, gte, lte, inArray } = await import("drizzle-orm")
+
+			const db = getDd()
+
+			// Create date range for the target day
+			const startOfDay = new Date(targetDate)
+			startOfDay.setHours(0, 0, 0, 0)
+
+			const endOfDay = new Date(targetDate)
+			endOfDay.setHours(23, 59, 59, 999)
+
+			// Query for scheduled instances of this workout on the target date
+			const scheduledInstances = await db
+				.select({
+					id: scheduledWorkoutInstancesTable.id,
+					workoutId: scheduledWorkoutInstancesTable.workoutId,
+					trackWorkoutId: scheduledWorkoutInstancesTable.trackWorkoutId,
+					teamId: scheduledWorkoutInstancesTable.teamId,
+					scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+				})
+				.from(scheduledWorkoutInstancesTable)
+				.where(
+					and(
+						eq(
+							scheduledWorkoutInstancesTable.workoutId,
+							mySearchParams.workoutId,
+						),
+						gte(scheduledWorkoutInstancesTable.scheduledDate, startOfDay),
+						lte(scheduledWorkoutInstancesTable.scheduledDate, endOfDay),
+						inArray(
+							scheduledWorkoutInstancesTable.teamId,
+							userTeams.map((t) => t.id),
+						),
+					),
+				)
+
+			console.log(
+				`[log/new] Found ${scheduledInstances.length} scheduled instances for workout on ${targetDate.toDateString()}`,
+			)
+
+			if (scheduledInstances.length === 1) {
+				// Exactly one scheduled instance found - auto-select it
+				detectedScheduledInstanceId = scheduledInstances[0].id
+				console.log(
+					"[log/new] Auto-selected scheduled instance:",
+					detectedScheduledInstanceId,
+				)
+
+				// If this scheduled instance has a track workout, get the track ID
+				if (scheduledInstances[0].trackWorkoutId) {
+					const trackWorkout = await db
+						.select({ trackId: trackWorkoutsTable.trackId })
+						.from(trackWorkoutsTable)
+						.where(
+							eq(trackWorkoutsTable.id, scheduledInstances[0].trackWorkoutId),
+						)
+						.get()
+
+					if (trackWorkout) {
+						detectedProgrammingTrackId = trackWorkout.trackId
+						console.log(
+							"[log/new] Auto-detected programming track:",
+							detectedProgrammingTrackId,
+						)
+					}
+				}
+			} else if (scheduledInstances.length > 1) {
+				// Multiple instances found - for now, we'll use the first one
+				// In the future, we could show a selection UI
+				console.log(
+					"[log/new] Multiple scheduled instances found, using first one",
+				)
+				detectedScheduledInstanceId = scheduledInstances[0].id
+
+				// Get track ID if applicable
+				if (scheduledInstances[0].trackWorkoutId) {
+					const trackWorkout = await db
+						.select({ trackId: trackWorkoutsTable.trackId })
+						.from(trackWorkoutsTable)
+						.where(
+							eq(trackWorkoutsTable.id, scheduledInstances[0].trackWorkoutId),
+						)
+						.get()
+
+					if (trackWorkout) {
+						detectedProgrammingTrackId = trackWorkout.trackId
+					}
+				}
+			} else {
+				console.log(
+					"[log/new] No scheduled instances found for this workout on",
+					targetDate.toDateString(),
+				)
+			}
+		}
+	}
+
+	// Merge the specific workout with the user's workouts
 	// Note: getUserWorkouts doesn't include scaling info yet, so we add empty arrays
 	let allWorkouts = result.data.map((w) => ({
 		...w,
@@ -116,12 +237,8 @@ export default async function LogNewResultPage({
 		}>,
 	}))
 
-	if (
-		specificWorkout &&
-		!result.data.some((w) => w.id === specificWorkout.id)
-	) {
-		console.log("[log/new] Adding specific workout to list")
-		// Create a fully structured workout object with all necessary fields
+	// If we have a specific workout with scaling data, make sure to use it
+	if (specificWorkout) {
 		const workoutWithResults = {
 			...specificWorkout,
 			resultsToday: [],
@@ -133,6 +250,7 @@ export default async function LogNewResultPage({
 				? [...specificWorkout.scalingDescriptions]
 				: [],
 		}
+
 		console.log("[log/new] Workout with results:", {
 			id: workoutWithResults.id,
 			scalingGroupId: workoutWithResults.scalingGroupId,
@@ -149,12 +267,27 @@ export default async function LogNewResultPage({
 			"[log/new] Raw merged scaling descriptions:",
 			JSON.stringify(workoutWithResults.scalingDescriptions),
 		)
-		allWorkouts = [workoutWithResults, ...allWorkouts]
+
+		// Replace the workout in the list if it already exists, or add it if it doesn't
+		const existingIndex = allWorkouts.findIndex(
+			(w) => w.id === specificWorkout.id,
+		)
+		if (existingIndex >= 0) {
+			console.log(
+				"[log/new] Replacing existing workout in list with full scaling data",
+			)
+			allWorkouts[existingIndex] = workoutWithResults
+		} else {
+			console.log("[log/new] Adding specific workout to list")
+			allWorkouts = [workoutWithResults, ...allWorkouts]
+		}
 	}
 
-	// Get track scaling group if we have a programming track ID
+	// Get track scaling group if we have a programming track ID (either provided or detected)
 	let trackScalingGroupId = null
-	if (mySearchParams?.programmingTrackId) {
+	const finalProgrammingTrackId =
+		detectedProgrammingTrackId || mySearchParams?.programmingTrackId
+	if (finalProgrammingTrackId) {
 		const { getDd } = await import("@/db")
 		const { programmingTracksTable } = await import("@/db/schema")
 		const { eq } = await import("drizzle-orm")
@@ -163,9 +296,10 @@ export default async function LogNewResultPage({
 		const [track] = await db
 			.select({ scalingGroupId: programmingTracksTable.scalingGroupId })
 			.from(programmingTracksTable)
-			.where(eq(programmingTracksTable.id, mySearchParams.programmingTrackId))
+			.where(eq(programmingTracksTable.id, finalProgrammingTrackId))
 
 		trackScalingGroupId = track?.scalingGroupId || null
+		console.log("[log/new] Track scaling group:", trackScalingGroupId)
 	}
 
 	// Log the final workout data being passed
@@ -196,6 +330,17 @@ export default async function LogNewResultPage({
 	// Serialize the workouts data to ensure it can cross the server/client boundary
 	const serializedWorkouts = JSON.parse(JSON.stringify(allWorkouts))
 
+	// Log what we're passing to the client
+	if (
+		detectedScheduledInstanceId &&
+		detectedScheduledInstanceId !== mySearchParams?.scheduledInstanceId
+	) {
+		console.log(
+			"[log/new] Auto-detected scheduled instance will be used:",
+			detectedScheduledInstanceId,
+		)
+	}
+
 	return (
 		<LogFormClient
 			workouts={serializedWorkouts}
@@ -203,8 +348,12 @@ export default async function LogNewResultPage({
 			teamId={teamId}
 			selectedWorkoutId={mySearchParams?.workoutId}
 			redirectUrl={mySearchParams?.redirectUrl}
-			scheduledInstanceId={mySearchParams?.scheduledInstanceId}
-			programmingTrackId={mySearchParams?.programmingTrackId}
+			scheduledInstanceId={
+				detectedScheduledInstanceId || mySearchParams?.scheduledInstanceId
+			}
+			programmingTrackId={
+				detectedProgrammingTrackId || mySearchParams?.programmingTrackId
+			}
 			trackScalingGroupId={trackScalingGroupId}
 		/>
 	)

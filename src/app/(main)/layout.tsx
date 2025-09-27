@@ -27,7 +27,7 @@ export default function MainLayout({
 		<div className="flex min-h-screen flex-col">
 			<MainNav />
 
-			<main className="container mx-auto flex-1 p-4">{children}</main>
+			<main className="container mx-auto flex-1 pt-4 sm:p-4">{children}</main>
 
 			<footer className="border-black border-t-2 p-4">
 				<div className="container mx-auto">

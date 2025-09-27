@@ -55,7 +55,7 @@ export function DailyWorkoutCard({
 
 					{workout.scheme && (
 						<div className="mb-4 flex justify-start rounded">
-							<div className="inline-block bg-primary text-primary-foreground px-3 py-2">
+							<div className="inline-block bg-black dark:bg-primary text-primary-foreground px-3 py-2">
 								<p className="font-bold text-sm uppercase tracking-wide">
 									{workout.scheme}
 								</p>

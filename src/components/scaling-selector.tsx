@@ -19,7 +19,11 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useServerAction } from "zsa-react"
-import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import {
+	getScalingGroupWithLevelsAction,
+	getWorkoutScalingDescriptionsAction,
+} from "@/actions/scaling-actions"
+import { getDefinedScalingLevels } from "@/utils/scaling-utils"
 
 interface ScalingLevel {
 	id: string
@@ -33,6 +37,11 @@ interface ScalingGroup {
 	title: string
 	description?: string | null
 	levels: ScalingLevel[]
+}
+
+interface ScalingDescription {
+	scalingLevelId: string
+	description: string | null
 }
 
 interface ScalingSelectorProps {
@@ -62,7 +71,7 @@ const getDefaultScalingGroup = (): ScalingGroup => ({
 })
 
 export function ScalingSelector({
-	workoutId: _workoutId,
+	workoutId,
 	workoutScalingGroupId,
 	programmingTrackId,
 	trackScalingGroupId,
@@ -75,6 +84,10 @@ export function ScalingSelector({
 	className = "",
 }: ScalingSelectorProps) {
 	const [scalingGroup, setScalingGroup] = useState<ScalingGroup | null>(null)
+	const [workoutScalingDescriptions, setWorkoutScalingDescriptions] = useState<
+		ScalingDescription[]
+	>([])
+	const [filteredLevels, setFilteredLevels] = useState<ScalingLevel[]>([])
 	const [selectedLevelId, setSelectedLevelId] = useState<string>(value || "")
 	const [asRxSelection, setAsRxSelection] = useState<"rx" | "scaled">(
 		initialAsRx ? "rx" : "scaled",
@@ -88,13 +101,18 @@ export function ScalingSelector({
 		getScalingGroupWithLevelsAction,
 	)
 
-	// Fetch scaling levels based on priority
+	const { execute: fetchWorkoutScalingDescriptions } = useServerAction(
+		getWorkoutScalingDescriptionsAction,
+	)
+
+	// Fetch scaling levels and workout descriptions based on priority
 	useEffect(() => {
 		const loadScalingLevels = async () => {
 			setIsLoading(true)
 
 			let groupId: string | null = null
 			let source: "workout" | "track" | "default" = "default"
+			let fetchedGroup: ScalingGroup | null = null
 
 			// Priority 1: Workout-specific scaling group
 			if (workoutScalingGroupId) {
@@ -115,28 +133,64 @@ export function ScalingSelector({
 				})
 
 				if (result?.data) {
-					setScalingGroup(result.data)
+					fetchedGroup = result.data
 					setScalingSource(source)
 				} else {
 					// Fall back to default if fetch fails
 					console.error("Failed to fetch scaling group:", error)
-					setScalingGroup(getDefaultScalingGroup())
+					fetchedGroup = getDefaultScalingGroup()
 				}
 			} else {
 				// Use default scaling group (legacy Rx/Scaled)
-				setScalingGroup(getDefaultScalingGroup())
+				fetchedGroup = getDefaultScalingGroup()
 			}
 
+			setScalingGroup(fetchedGroup)
+
+			// If we have a workoutId and it's not the default group, fetch workout-specific descriptions
+			let descriptions: ScalingDescription[] = []
+			if (workoutId && fetchedGroup && fetchedGroup.id !== "default") {
+				try {
+					const [descriptionsResult] = await fetchWorkoutScalingDescriptions({
+						workoutId,
+					})
+					if (descriptionsResult?.data) {
+						descriptions = descriptionsResult.data
+							.map((d) => ({
+								scalingLevelId: d.scalingLevel?.id || "",
+								description: d.description,
+							}))
+							.filter((d) => d.scalingLevelId) // Remove entries without level ID
+					}
+				} catch (error) {
+					console.error("Failed to fetch workout scaling descriptions:", error)
+				}
+			}
+
+			setWorkoutScalingDescriptions(descriptions)
+
+			// Filter levels to only show those with descriptions (if any descriptions exist)
+			let levelsToShow = fetchedGroup?.levels || []
+			if (workoutId && descriptions.length > 0) {
+				levelsToShow = getDefinedScalingLevels(
+					fetchedGroup?.levels || [],
+					descriptions,
+				)
+			}
+
+			setFilteredLevels(levelsToShow)
 			setIsLoading(false)
 		}
 
 		loadScalingLevels()
 	}, [
+		workoutId,
 		workoutScalingGroupId,
 		trackScalingGroupId,
 		programmingTrackId,
 		teamId,
 		fetchScalingGroup,
+		fetchWorkoutScalingDescriptions,
 	])
 
 	const handleLevelChange = (levelId: string) => {
@@ -179,13 +233,19 @@ export function ScalingSelector({
 		)
 	}
 
-	if (!scalingGroup || scalingGroup.levels.length === 0) {
+	if (!scalingGroup || filteredLevels.length === 0) {
 		return (
 			<div className={`space-y-2 ${className}`}>
 				<Label>Scaling Level</Label>
 				<div className="p-4 border border-yellow-500/50 rounded-lg bg-yellow-500/10">
 					<p className="text-sm text-yellow-600 dark:text-yellow-400">
-						No scaling levels available for this workout.
+						{!scalingGroup
+							? "No scaling levels available for this workout."
+							: workoutId &&
+									workoutScalingDescriptions.length === 0 &&
+									scalingGroup.id !== "default"
+								? "No scaling descriptions defined for this workout. Please add descriptions to make scaling levels available."
+								: "No defined scaling levels available for this workout."}
 					</p>
 				</div>
 			</div>
@@ -229,7 +289,7 @@ export function ScalingSelector({
 						<SelectValue placeholder="Select scaling level" />
 					</SelectTrigger>
 					<SelectContent>
-						{scalingGroup.levels
+						{filteredLevels
 							.sort((a, b) => a.position - b.position)
 							.map((level) => (
 								<SelectItem key={level.id} value={level.id}>

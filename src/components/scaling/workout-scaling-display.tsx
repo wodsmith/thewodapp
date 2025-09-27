@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { getDefinedScalingLevels } from "@/utils/scaling-utils"
 
 interface ScalingLevel {
 	id: string
@@ -30,19 +31,36 @@ export function WorkoutScalingDisplay({
 	className,
 	showToggle = true,
 }: WorkoutScalingDisplayProps) {
-	// Sort levels by position (0 = hardest) - memoize to prevent recreating on every render
-	const sortedLevels = useMemo(
-		() => [...scalingLevels].sort((a, b) => a.position - b.position),
-		[scalingLevels],
+	// Filter to only show levels that have descriptions defined
+	const definedLevels = useMemo(
+		() => getDefinedScalingLevels(scalingLevels, scalingDescriptions),
+		[scalingLevels, scalingDescriptions],
 	)
 
-	// If no scaling levels, just show the workout description
+	// Sort levels by position (0 = hardest) - memoize to prevent recreating on every render
+	const sortedLevels = useMemo(
+		() => [...definedLevels].sort((a, b) => a.position - b.position),
+		[definedLevels],
+	)
+
+	// If no defined scaling levels or not showing toggle, just show the workout description
 	if (sortedLevels.length === 0 || !showToggle) {
 		return (
 			<div className={className}>
 				<p className="whitespace-pre-wrap text-foreground text-lg dark:text-dark-foreground">
 					{workoutDescription}
 				</p>
+				{/* Show a note if there are scaling levels but no descriptions */}
+				{scalingLevels.length > 0 &&
+					sortedLevels.length === 0 &&
+					showToggle && (
+						<div className="mt-4 rounded-lg bg-muted/50 p-3">
+							<p className="text-sm text-muted-foreground">
+								This workout has scaling options, but no descriptions have been
+								defined yet.
+							</p>
+						</div>
+					)}
 			</div>
 		)
 	}
@@ -50,7 +68,7 @@ export function WorkoutScalingDisplay({
 	// Show all scaling descriptions stacked vertically
 	return (
 		<div className={cn("space-y-6", className)}>
-			{sortedLevels.map((level, index) => {
+			{sortedLevels.map((level, _index) => {
 				const description = scalingDescriptions.find(
 					(desc) => desc.scalingLevelId === level.id,
 				)

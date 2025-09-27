@@ -47,7 +47,7 @@ export default function MobileNav({ session }: MobileNavProps) {
 				</VisuallyHidden>
 				<nav className="grid gap-6 font-medium text-lg">
 					<Link
-						href="/"
+						href={session?.user ? "/workouts" : "/"}
 						className="mb-4 flex items-center gap-2 font-semibold text-lg"
 						onClick={handleLinkClick}
 					>

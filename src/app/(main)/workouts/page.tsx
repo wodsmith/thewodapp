@@ -62,16 +62,14 @@ export default async function WorkoutsPage({
 		redirect("/sign-in")
 	}
 
-	// Get user's personal team ID
-	const { getUserPersonalTeamId } = await import("@/server/user")
-	const teamId = await getUserPersonalTeamId(session.user.id)
-
 	// Get user's teams for team workouts display
 	const userTeams = await getUserTeams()
 
+	// Use all team IDs that the user is a member of
+	const userTeamIds = userTeams.map((team) => team.id)
+
 	// Get all programming tracks the user has access to through their teams
 	const { getUserProgrammingTracks } = await import("@/server/programming")
-	const userTeamIds = userTeams.map((team) => team.id)
 	const userProgrammingTracks = await getUserProgrammingTracks(userTeamIds)
 
 	// Fetch initial scheduled workouts for a wider range to handle timezone differences
@@ -163,7 +161,7 @@ export default async function WorkoutsPage({
 
 	// Pass all filters to the server action
 	const [result, error] = await getUserWorkoutsAction({
-		teamId,
+		teamId: userTeamIds,
 		page: currentPage,
 		pageSize: 50,
 		search: mySearchParams?.search,
@@ -187,8 +185,8 @@ export default async function WorkoutsPage({
 	const { getAvailableWorkoutTags, getAvailableWorkoutMovements } =
 		await import("@/server/workouts")
 	const [allTags, allMovements] = await Promise.all([
-		getAvailableWorkoutTags(teamId),
-		getAvailableWorkoutMovements(teamId),
+		getAvailableWorkoutTags(userTeamIds[0] || ""), // Use first team ID for filter options
+		getAvailableWorkoutMovements(userTeamIds[0] || ""), // Use first team ID for filter options
 	])
 	return (
 		<div>

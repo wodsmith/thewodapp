@@ -141,16 +141,16 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 
 	return (
 		<div className="min-h-[90vh] flex flex-col items-center px-4 justify-center bg-background my-6 md:my-10">
-			<div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary">
+			<div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-black dark:border-primary shadow-[8px_8px_0px_0px] dark:shadow-primary">
 				<div className="text-center">
-					<h2 className="mt-2 text-3xl md:text-4xl font-mono font-bold tracking-tight text-primary uppercase">
+					<h2 className="mt-2 text-3xl md:text-4xl font-mono font-bold tracking-tight dark:text-primary uppercase">
 						SIGN IN
 					</h2>
-					<p className="mt-4 text-primary font-mono">
+					<p className="mt-4 text-black dark:text-primary font-mono">
 						OR{" "}
 						<Link
 							href={`/sign-up?redirect=${encodeURIComponent(redirectPath)}`}
-							className="font-bold text-orange underline hover:no-underline"
+							className="font-bold dark:text-primary underline hover:no-underline"
 						>
 							CREATE ACCOUNT
 						</Link>
@@ -170,7 +170,7 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 				</div>
 
 				<SeparatorWithText>
-					<span className="uppercase text-primary font-mono font-bold text-sm">
+					<span className="uppercase dark:text-primary font-mono font-bold text-sm">
 						OR
 					</span>
 				</SeparatorWithText>
@@ -218,10 +218,10 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 			</div>
 
 			<div className="mt-8">
-				<p className="text-center text-sm text-primary font-mono">
+				<p className="text-center text-sm dark:text-primary font-mono">
 					<Link
 						href="/forgot-password"
-						className="font-bold text-orange underline hover:no-underline uppercase"
+						className="font-bold dark:text-primary underline hover:no-underline uppercase"
 					>
 						FORGOT PASSWORD?
 					</Link>

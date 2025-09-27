@@ -13,6 +13,7 @@ import {
 	desc,
 	sql,
 	asc,
+	type SQL,
 } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -168,7 +169,7 @@ export async function getUserWorkoutsCount({
 	movement,
 	type,
 }: {
-	teamId: string
+	teamId: string | string[]
 	trackId?: string
 	search?: string
 	tag?: string
@@ -188,10 +189,14 @@ export async function getUserWorkoutsCount({
 	const needsMovementJoin = !!movement
 
 	// Build conditions
-	const conditions: any[] = []
+	const conditions: SQL[] = []
 
 	// Base condition: team-owned or public workouts
-	conditions.push(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
+	// Support multiple team IDs by converting single teamId to array
+	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
+	conditions.push(
+		or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))!,
+	)
 
 	// Type filter
 	if (type === "original") {
@@ -222,7 +227,7 @@ export async function getUserWorkoutsCount({
 			or(
 				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
 				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-			),
+			)!,
 		)
 	}
 
@@ -270,7 +275,7 @@ export async function getUserWorkouts({
 	limit = 50,
 	offset = 0,
 }: {
-	teamId: string
+	teamId: string | string[]
 	trackId?: string
 	search?: string
 	tag?: string
@@ -319,10 +324,14 @@ export async function getUserWorkouts({
 	const needsMovementJoin = !!movement
 
 	// Build conditions
-	const conditions: any[] = []
+	const conditions: SQL[] = []
 
 	// Base condition: team-owned or public workouts
-	conditions.push(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
+	// Support multiple team IDs by converting single teamId to array
+	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
+	conditions.push(
+		or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))!,
+	)
 
 	// Type filter
 	if (type === "original") {
@@ -353,7 +362,7 @@ export async function getUserWorkouts({
 			or(
 				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
 				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-			),
+			)!,
 		)
 	}
 
@@ -440,16 +449,16 @@ export async function getUserWorkouts({
 	}
 
 	// Fetch team names for source workouts
-	const teamIds = Array.from(sourceWorkoutsMap.values())
+	const sourceTeamIds = Array.from(sourceWorkoutsMap.values())
 		.map((w) => w.teamId)
 		.filter((id): id is string => id !== null)
 
 	let teamsMap = new Map<string, { name: string }>()
-	if (teamIds.length > 0) {
+	if (sourceTeamIds.length > 0) {
 		const teams = await db
 			.select({ id: teamTable.id, name: teamTable.name })
 			.from(teamTable)
-			.where(inArray(teamTable.id, teamIds))
+			.where(inArray(teamTable.id, sourceTeamIds))
 
 		teamsMap = new Map(teams.map((t) => [t.id, { name: t.name }]))
 	}
@@ -1358,4 +1367,102 @@ export async function getWorkoutLastScheduled(workoutId: string): Promise<{
 		.limit(1)
 
 	return lastScheduled[0] || null
+}
+
+/**
+ * Get the scheduled history for a workout, filtered by user's teams
+ * Includes schedule history for original workout and its remixes
+ */
+export async function getWorkoutScheduleHistory(
+	workoutId: string,
+	userTeamIds: string[],
+): Promise<
+	Array<{
+		id: string
+		scheduledDate: Date
+		teamId: string
+		teamName: string
+		workoutId: string
+		workoutName: string
+		isRemix: boolean
+	}>
+> {
+	if (userTeamIds.length === 0) return []
+
+	const db = getDd()
+
+	// Get the workout to check if it's a remix or has remixes
+	const workout = await db
+		.select({
+			id: workouts.id,
+			name: workouts.name,
+			sourceWorkoutId: workouts.sourceWorkoutId,
+		})
+		.from(workouts)
+		.where(eq(workouts.id, workoutId))
+		.limit(1)
+
+	if (!workout[0]) return []
+
+	// Get all related workout IDs (original + remixes)
+	const relatedWorkoutIds = [workoutId]
+
+	// If this is a remix, include the original
+	if (workout[0].sourceWorkoutId) {
+		relatedWorkoutIds.push(workout[0].sourceWorkoutId)
+	}
+
+	// Find all remixes of this workout (or remixes of the original if this is a remix)
+	const baseWorkoutId = workout[0].sourceWorkoutId || workoutId
+	const remixes = await db
+		.select({ id: workouts.id })
+		.from(workouts)
+		.where(
+			and(
+				eq(workouts.sourceWorkoutId, baseWorkoutId),
+				inArray(workouts.teamId, userTeamIds),
+			),
+		)
+
+	for (const remix of remixes) {
+		if (!relatedWorkoutIds.includes(remix.id)) {
+			relatedWorkoutIds.push(remix.id)
+		}
+	}
+
+	// Get all scheduled instances for these workouts, filtered by user's teams
+	const scheduleHistory = await db
+		.select({
+			id: scheduledWorkoutInstancesTable.id,
+			scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+			teamId: scheduledWorkoutInstancesTable.teamId,
+			teamName: teamTable.name,
+			workoutId: scheduledWorkoutInstancesTable.workoutId,
+			workoutName: workouts.name,
+		})
+		.from(scheduledWorkoutInstancesTable)
+		.innerJoin(
+			teamTable,
+			eq(scheduledWorkoutInstancesTable.teamId, teamTable.id),
+		)
+		.innerJoin(
+			workouts,
+			eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
+		)
+		.where(
+			and(
+				isNotNull(scheduledWorkoutInstancesTable.workoutId),
+				inArray(scheduledWorkoutInstancesTable.workoutId, relatedWorkoutIds),
+				inArray(scheduledWorkoutInstancesTable.teamId, userTeamIds),
+			),
+		)
+		.orderBy(desc(scheduledWorkoutInstancesTable.scheduledDate))
+
+	return scheduleHistory
+		.filter((row) => row.workoutId !== null)
+		.map((row) => ({
+			...row,
+			workoutId: row.workoutId as string,
+			isRemix: row.workoutId !== workoutId,
+		}))
 }

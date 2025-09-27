@@ -269,6 +269,17 @@ async function updateResultForm(
 		return parsedScoreEntries
 	}
 
+	const parseTimeCappedEntries = (formData: FormData): boolean[] => {
+		const timeCappedEntries: boolean[] = []
+		let roundIdx = 0
+		while (formData.has(`timeCapped[${roundIdx}]`)) {
+			const isTimeCapped = formData.get(`timeCapped[${roundIdx}]`) === "true"
+			timeCappedEntries.push(isTimeCapped)
+			roundIdx++
+		}
+		return timeCappedEntries
+	}
+
 	const {
 		selectedWorkoutId,
 		dateStr,
@@ -291,6 +302,7 @@ async function updateResultForm(
 
 	// Parse and process scores (similar to submitLogForm)
 	const parsedScoreEntries = parseScoreEntries(formData)
+	const timeCappedEntries = parseTimeCappedEntries(formData)
 
 	// Import necessary utilities
 	const { parseTimeScoreToSeconds, formatSecondsToTime } = await import(
@@ -331,23 +343,45 @@ async function updateResultForm(
 					time: null,
 				})
 			}
-		} else if (workout.scheme === "time") {
-			const timeStr = scoreParts[0]
-			if (timeStr && timeStr.trim() !== "") {
-				const timeInSeconds = parseTimeScoreToSeconds(timeStr)
-				if (timeInSeconds !== null) {
-					if (isTimeBasedWodScore) {
-						totalSecondsForWodScore += timeInSeconds
+		} else if (
+			workout.scheme === "time" ||
+			workout.scheme === "time-with-cap"
+		) {
+			const isTimeCapped = timeCappedEntries[k] || false
+			const scoreStr = scoreParts[0]
+
+			if (scoreStr && scoreStr.trim() !== "") {
+				if (workout.scheme === "time-with-cap" && isTimeCapped) {
+					// Time capped - expecting reps
+					const repsCompleted = Number.parseInt(scoreStr, 10)
+					if (!Number.isNaN(repsCompleted) && repsCompleted >= 0) {
+						setsForDb.push({
+							setNumber,
+							reps: repsCompleted,
+							time: null,
+							weight: null,
+							status: null,
+							distance: null,
+							score: null,
+						})
 					}
-					setsForDb.push({
-						setNumber,
-						time: timeInSeconds,
-						reps: null,
-						weight: null,
-						status: null,
-						distance: null,
-						score: null,
-					})
+				} else {
+					// Not time capped or regular time workout - expecting time
+					const timeInSeconds = parseTimeScoreToSeconds(scoreStr)
+					if (timeInSeconds !== null) {
+						if (isTimeBasedWodScore) {
+							totalSecondsForWodScore += timeInSeconds
+						}
+						setsForDb.push({
+							setNumber,
+							time: timeInSeconds,
+							reps: null,
+							weight: null,
+							status: null,
+							distance: null,
+							score: null,
+						})
+					}
 				}
 			}
 		} else {
@@ -385,10 +419,18 @@ async function updateResultForm(
 				if (roundsStr !== "0" || repsStr !== "0") {
 					scoreSummaries.push(`${roundsStr} + ${repsStr}`)
 				}
-			} else if (workout.scheme === "time") {
-				const timeStr = scoreParts[0]
-				if (timeStr && timeStr.trim() !== "") {
-					scoreSummaries.push(timeStr)
+			} else if (
+				workout.scheme === "time" ||
+				workout.scheme === "time-with-cap"
+			) {
+				const isTimeCapped = timeCappedEntries[k] || false
+				const scoreStr = scoreParts[0]
+				if (scoreStr && scoreStr.trim() !== "") {
+					if (workout.scheme === "time-with-cap" && isTimeCapped) {
+						scoreSummaries.push(`${scoreStr} reps (time capped)`)
+					} else {
+						scoreSummaries.push(scoreStr)
+					}
 				}
 			} else {
 				const scoreStr = scoreParts[0]

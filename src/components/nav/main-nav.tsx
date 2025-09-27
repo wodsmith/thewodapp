@@ -14,7 +14,10 @@ export default async function MainNav() {
 	return (
 		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
 			<div className="container mx-auto flex items-center justify-between">
-				<Link href="/" className="flex items-center gap-2">
+				<Link
+					href={session?.user ? "/workouts" : "/"}
+					className="flex items-center gap-2"
+				>
 					<Image
 						src="/wodsmith-logo-no-text.png"
 						alt="wodsmith"

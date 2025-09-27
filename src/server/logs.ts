@@ -1,7 +1,7 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { fromZonedTime } from "date-fns-tz"
-import { and, asc, desc, eq } from "drizzle-orm"
+import { asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -21,7 +21,6 @@ import type {
 	WorkoutResultWithWorkoutName,
 } from "@/types"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { resolveScalingLevelsForWorkout } from "@/server/scaling-levels"
 // Map legacy scale enum to { scalingLevelId, asRx } using available scaling group context
 export async function mapLegacyScaleToScalingLevel({
 	workoutId,
@@ -538,6 +537,18 @@ function parseScoreEntries(formData: FormData): Array<{ parts: string[] }> {
 	return parsedScoreEntries
 }
 
+function parseTimeCappedEntries(formData: FormData): boolean[] {
+	const timeCappedEntries: boolean[] = []
+	let roundIdx = 0
+	// Check for timeCapped like timeCapped[0], timeCapped[1], etc.
+	while (formData.has(`timeCapped[${roundIdx}]`)) {
+		const isTimeCapped = formData.get(`timeCapped[${roundIdx}]`) === "true"
+		timeCappedEntries.push(isTimeCapped)
+		roundIdx++
+	}
+	return timeCappedEntries
+}
+
 function validateParsedScores(
 	parsedScoreEntries: Array<{ parts: string[] }>,
 	workoutScheme: Workout["scheme"],
@@ -572,6 +583,7 @@ function processScoreEntries(
 	isTimeBasedWodScore: boolean,
 	isRoundsAndRepsWorkout: boolean,
 	atLeastOneScorePartFilled: boolean, // Added to resolve linter issues and use in logic
+	timeCappedEntries: boolean[] = [],
 ): ProcessedScoresOutput {
 	const setsForDb: ResultSetInput[] = []
 	let totalSecondsForWodScore = 0
@@ -633,9 +645,14 @@ function processScoreEntries(
 				distance: null,
 				time: null,
 			})
-		} else if (workout.scheme === "time") {
-			const timeStr = scoreParts[0]
-			if (timeStr === undefined || timeStr.trim() === "") {
+		} else if (
+			workout.scheme === "time" ||
+			workout.scheme === "time-with-cap"
+		) {
+			const isTimeCapped = timeCappedEntries[k] || false
+			const scoreStr = scoreParts[0]
+
+			if (scoreStr === undefined || scoreStr.trim() === "") {
 				if (parsedScoreEntries.length === 1 && !atLeastOneScorePartFilled) {
 					// This case is handled by validateParsedScores
 				} else if (scoreParts.every((p) => p.trim() === "")) {
@@ -644,31 +661,58 @@ function processScoreEntries(
 				return {
 					setsForDb: [],
 					totalSecondsForWodScore: 0,
-					error: { error: `Time input for set ${setNumber} is missing.` },
-				}
-			}
-			const timeInSeconds = parseTimeScoreToSeconds(timeStr)
-			if (timeInSeconds === null) {
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
 					error: {
-						error: `Invalid time format for set ${setNumber}: '${timeStr}'. Please use MM:SS or total seconds.`,
+						error: `${isTimeCapped ? "Reps" : "Time"} input for set ${setNumber} is missing.`,
 					},
 				}
 			}
-			if (isTimeBasedWodScore) {
-				totalSecondsForWodScore += timeInSeconds
+
+			if (workout.scheme === "time-with-cap" && isTimeCapped) {
+				// Time capped - expecting reps
+				const repsCompleted = Number.parseInt(scoreStr, 10)
+				if (Number.isNaN(repsCompleted) || repsCompleted < 0) {
+					return {
+						setsForDb: [],
+						totalSecondsForWodScore: 0,
+						error: {
+							error: `Invalid reps value for set ${setNumber}: '${scoreStr}'. Please enter a valid number of reps.`,
+						},
+					}
+				}
+				setsForDb.push({
+					setNumber,
+					reps: repsCompleted,
+					time: null,
+					weight: null,
+					status: null,
+					distance: null,
+					score: null,
+				})
+			} else {
+				// Not time capped or regular time workout - expecting time
+				const timeInSeconds = parseTimeScoreToSeconds(scoreStr)
+				if (timeInSeconds === null) {
+					return {
+						setsForDb: [],
+						totalSecondsForWodScore: 0,
+						error: {
+							error: `Invalid time format for set ${setNumber}: '${scoreStr}'. Please use MM:SS or total seconds.`,
+						},
+					}
+				}
+				if (isTimeBasedWodScore) {
+					totalSecondsForWodScore += timeInSeconds
+				}
+				setsForDb.push({
+					setNumber,
+					time: timeInSeconds,
+					reps: null,
+					weight: null,
+					status: null,
+					distance: null,
+					score: null,
+				})
 			}
-			setsForDb.push({
-				setNumber,
-				time: timeInSeconds,
-				reps: null,
-				weight: null,
-				status: null,
-				distance: null,
-				score: null,
-			})
 		} else {
 			// For schemes like 'reps', 'load', 'points'
 			const scoreStr = scoreParts[0]
@@ -760,6 +804,7 @@ function generateWodScoreSummary(
 	workoutScheme: Workout["scheme"],
 	setsForDb: ResultSetInput[], // Added to check conditions for time-based summary
 	atLeastOneScorePartFilled: boolean, // Added for conditional logic
+	timeCappedEntries: boolean[] = [],
 ): string {
 	let finalWodScoreSummary = ""
 	if (isTimeBasedWodScore) {
@@ -804,10 +849,18 @@ function generateWodScoreSummary(
 				} else {
 					scoreSummaries.push(`${roundsStr} + ${repsStr}`)
 				}
-			} else if (workoutScheme === "time") {
-				const timeStr = scoreParts[0]
-				if (timeStr && timeStr.trim() !== "") {
-					scoreSummaries.push(timeStr)
+			} else if (
+				workoutScheme === "time" ||
+				workoutScheme === "time-with-cap"
+			) {
+				const isTimeCapped = timeCappedEntries[k] || false
+				const scoreStr = scoreParts[0]
+				if (scoreStr && scoreStr.trim() !== "") {
+					if (workoutScheme === "time-with-cap" && isTimeCapped) {
+						scoreSummaries.push(`${scoreStr} reps (time capped)`)
+					} else {
+						scoreSummaries.push(scoreStr)
+					}
 				}
 			} else {
 				const scoreStr = scoreParts[0]
@@ -960,9 +1013,14 @@ export async function submitLogForm(
 	}
 
 	const parsedScoreEntries = parseScoreEntries(formData)
+	const timeCappedEntries = parseTimeCappedEntries(formData)
 	console.log(
 		"[Action] Parsed Score Entries:",
 		JSON.stringify(parsedScoreEntries),
+	)
+	console.log(
+		"[Action] Parsed Time Capped Entries:",
+		JSON.stringify(timeCappedEntries),
 	)
 
 	const validationError = validateParsedScores(
@@ -989,6 +1047,7 @@ export async function submitLogForm(
 		isTimeBasedWodScore,
 		isRoundsAndRepsWorkout,
 		atLeastOneScorePartFilled,
+		timeCappedEntries,
 	)
 
 	if (processResult.error) {
@@ -1014,6 +1073,7 @@ export async function submitLogForm(
 		workout.scheme,
 		setsForDb,
 		atLeastOneScorePartFilled,
+		timeCappedEntries,
 	)
 
 	return submitLogToDatabase(

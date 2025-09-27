@@ -94,7 +94,8 @@ export default async function EditWorkoutPage({
 
 	// Determine if user can edit or should create a remix
 	const canEdit = await canUserEditWorkout(myParams.id)
-	const shouldRemix = forceRemix || (await shouldCreateRemix(myParams.id))
+	// If forceRemix is true, always create a remix regardless of permissions
+	const shouldRemix = forceRemix ? true : await shouldCreateRemix(myParams.id)
 
 	// If user cannot edit and should not remix, redirect to workout detail
 	if (!canEdit && !shouldRemix) {

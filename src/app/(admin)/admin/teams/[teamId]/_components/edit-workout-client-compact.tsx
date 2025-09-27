@@ -21,6 +21,7 @@ import {
 	getWorkoutScalingDescriptionsAction,
 } from "@/actions/scaling-actions"
 import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
+import { MovementsList } from "@/components/movements-list"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -445,32 +446,15 @@ export default function EditWorkoutClientCompact({
 						</div>
 					</div>
 
-					<div>
-						<Label htmlFor="movements-list-compact">Movements</Label>
-						<div
-							id="movements-list-compact"
-							className="h-[200px] overflow-y-auto border-2 border-black p-2 dark:border-white"
-						>
-							<div className="space-y-2">
-								{movements.map((movement) => (
-									<Button
-										type="button"
-										key={movement.id}
-										variant={
-											selectedMovements.includes(movement.id)
-												? "default"
-												: "outline"
-										}
-										className="w-full justify-between"
-										onClick={() => handleMovementToggle(movement.id)}
-									>
-										<span className="font-bold">{movement.name}</span>
-										<span className="text-xs uppercase">{movement.type}</span>
-									</Button>
-								))}
-							</div>
-						</div>
-					</div>
+					<MovementsList
+						movements={movements}
+						selectedMovements={selectedMovements}
+						onMovementToggle={handleMovementToggle}
+						mode="selectable"
+						variant="compact"
+						containerHeight="h-[200px]"
+						enableCreateMovement={true}
+					/>
 				</div>
 
 				{/* Scaling Descriptions */}

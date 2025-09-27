@@ -29,8 +29,8 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
 				</div>
 			</ListItem.Content>
 
-			<div className="flex items-center gap-4">
-				<ListItem.Meta>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+				<ListItem.Meta showOnMobile={true}>
 					{logEntry.wodScore && (
 						<Badge variant="secondary">{logEntry.wodScore}</Badge>
 					)}
