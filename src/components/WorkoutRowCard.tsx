@@ -108,7 +108,7 @@ export default function WorkoutRowCard({
 							<SchemeIcon scheme={workout.scheme} />
 							<HoverCard>
 								<HoverCardTrigger asChild>
-									<p className="font-semibold underline-offset-4 hover:underline text-left">
+									<p className="font-semibold underline-offset-4 hover:underline text-left text-balance max-w-[300px]">
 										{workout.name}
 									</p>
 								</HoverCardTrigger>
