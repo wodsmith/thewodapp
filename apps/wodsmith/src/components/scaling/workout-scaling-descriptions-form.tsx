@@ -5,7 +5,6 @@ import { useServerAction } from "zsa-react"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle } from "lucide-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 
 interface WorkoutScalingDescriptionsFormProps {

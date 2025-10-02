@@ -2,7 +2,7 @@ import "server-only"
 import { wrapAISDK, initLogger } from "braintrust"
 import * as ai from "ai"
 import { openai } from "@ai-sdk/openai"
-import { NextRequest } from "next/server"
+import type { NextRequest } from "next/server"
 import { getSessionFromCookie } from "@/utils/auth"
 import { tryCatch } from "@/lib/try-catch"
 

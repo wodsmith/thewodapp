@@ -423,7 +423,7 @@ export async function upsertWorkoutScalingDescriptions({
 		.map((desc) => ({
 			workoutId,
 			scalingLevelId: desc.scalingLevelId,
-			description: desc.description!.trim(),
+			description: desc.description?.trim(),
 		}))
 
 	if (descriptionsToInsert.length > 0) {

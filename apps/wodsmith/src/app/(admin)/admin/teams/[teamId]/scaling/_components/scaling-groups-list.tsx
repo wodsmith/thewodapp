@@ -84,7 +84,7 @@ export function ScalingGroupsList({
 	const handleDelete = async () => {
 		if (!deleteGroupId) return
 
-		const [result, error] = await deleteGroup({
+		const [_result, error] = await deleteGroup({
 			groupId: deleteGroupId,
 			teamId,
 		})
@@ -100,7 +100,7 @@ export function ScalingGroupsList({
 	}
 
 	const handleSetDefault = async (groupId: string) => {
-		const [result, error] = await setDefaultGroup({
+		const [_result, error] = await setDefaultGroup({
 			teamId,
 			groupId,
 		})
