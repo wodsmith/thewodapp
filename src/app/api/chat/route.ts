@@ -20,8 +20,6 @@ interface ChatRequestBody {
 }
 
 export async function POST(req: NextRequest) {
-	console.log(process.env.OPENAI_API_KEY)
-	console.log(process.env.BRAINTRUST_API_KEY)
 	// Verify user is authenticated
 	const { data: session, error } = await tryCatch(getSessionFromCookie())
 
