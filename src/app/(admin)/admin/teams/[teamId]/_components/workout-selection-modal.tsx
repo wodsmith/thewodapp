@@ -25,6 +25,7 @@ import {
 import { useEffect, useState } from "react"
 import { useServerAction } from "zsa-react"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
+import type { ScalingGroup } from "@/db/schemas/scaling"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean
@@ -105,7 +106,7 @@ export function WorkoutSelectionModal({
 			fetchScalingGroups({ teamId, includeSystem: true }).then(([result]) => {
 				if (result?.success && result.data) {
 					setScalingGroups(
-						result.data.map((group: any) => ({
+						result.data.map((group: ScalingGroup) => ({
 							...group,
 							teamName: group.teamName || "System",
 						})),

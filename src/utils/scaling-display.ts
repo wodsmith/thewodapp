@@ -1,7 +1,7 @@
 import type { WorkoutResultWithWorkoutName } from "@/types"
 
 // Legacy scale values that might be stored in scalingLevelId
-const LEGACY_SCALE_VALUES = {
+const _LEGACY_SCALE_VALUES = {
 	rx: "Rx",
 	"rx+": "Rx+",
 	scaled: "Scaled",
@@ -80,7 +80,11 @@ function getLegacyScaleLabel(
  */
 function getVariantForLabel(label: string, asRx: boolean): BadgeVariant {
 	// Check if this is a default scaling group label
-	if (DEFAULT_SCALING_LABELS.includes(label as any)) {
+	if (
+		DEFAULT_SCALING_LABELS.includes(
+			label as (typeof DEFAULT_SCALING_LABELS)[number],
+		)
+	) {
 		switch (label) {
 			case "Rx+":
 				return "default"
@@ -119,7 +123,11 @@ function getVariantForLegacyScale(
  */
 function shouldShowScaledSuffix(label: string, asRx: boolean): boolean {
 	// Never show suffix for default scaling group labels
-	if (DEFAULT_SCALING_LABELS.includes(label as any)) {
+	if (
+		DEFAULT_SCALING_LABELS.includes(
+			label as (typeof DEFAULT_SCALING_LABELS)[number],
+		)
+	) {
 		return false
 	}
 

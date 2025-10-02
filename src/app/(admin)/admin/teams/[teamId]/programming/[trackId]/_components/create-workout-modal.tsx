@@ -37,7 +37,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Movement, Tag, Workout } from "@/db/schema"
+import type { Movement, Workout } from "@/db/schema"
 
 const createWorkoutSchema = z.object({
 	name: z.string().min(1, "Workout name is required"),
@@ -108,12 +108,12 @@ export function CreateWorkoutModal({
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
 			const id = crypto.randomUUID()
-			const newTagObj = {
+			const newTagObj: Tag = {
 				id,
 				name: newTag,
-				createdAt: null as any, // Temporary UI object
-				updatedAt: null as any, // Temporary UI object
-				updateCounter: null,
+				createdAt: null, // Temporary UI object
+				updatedAt: null, // Temporary UI object
+				updateCounter: 0,
 			}
 			setTags([...tags, newTagObj])
 

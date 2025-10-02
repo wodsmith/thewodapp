@@ -38,6 +38,9 @@
 			"recommended": true,
 			"nursery": {
 				"useUniqueElementIds": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "error"
 			}
 		}
 	},

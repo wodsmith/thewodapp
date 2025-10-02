@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import CreateWorkoutClient from "./create-workout-client"
+import type { Tag, Movement } from "@/db/schemas/workouts"
 
 // Mock the createWorkoutAction
 vi.mock("@/actions/workout-actions", () => ({
@@ -22,37 +23,37 @@ vi.mock("zsa-react", () => ({
 	}),
 }))
 
-const mockTags = [
+const mockTags: Tag[] = [
 	{
 		id: "tag1",
 		name: "Tag 1",
-		createdAt: null as any,
-		updatedAt: null as any,
+		createdAt: null,
+		updatedAt: null,
 		updateCounter: 0,
 	},
 	{
 		id: "tag2",
 		name: "Tag 2",
-		createdAt: null as any,
-		updatedAt: null as any,
+		createdAt: null,
+		updatedAt: null,
 		updateCounter: 0,
 	},
 ]
-const mockMovements = [
+const mockMovements: Movement[] = [
 	{
 		id: "move1",
 		name: "Movement 1",
 		type: "weightlifting" as const,
-		createdAt: null as any,
-		updatedAt: null as any,
+		createdAt: null,
+		updatedAt: null,
 		updateCounter: 0,
 	},
 	{
 		id: "move2",
 		name: "Movement 2",
 		type: "gymnastic" as const,
-		createdAt: null as any,
-		updatedAt: null as any,
+		createdAt: null,
+		updatedAt: null,
 		updateCounter: 0,
 	},
 ]

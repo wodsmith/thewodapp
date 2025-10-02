@@ -37,6 +37,7 @@ import {
 	updateScheduledClassAction,
 	getAvailableCoachesForClassAction,
 } from "@/actions/generate-schedule-actions"
+import type { Coach, GeneratedSchedule } from "@/db/schemas/scheduling"
 import { format, startOfWeek, addDays } from "date-fns"
 
 interface ScheduleGeneratorProps {
@@ -59,35 +60,6 @@ interface Schedule {
 	[key: string]: ScheduleSlot
 }
 
-interface ScheduledClass {
-	id: string
-	scheduleId: string
-	classCatalogId: string
-	locationId: string
-	coachId: string | null
-	startTime: Date
-	endTime: Date
-	classCatalog: {
-		id: string
-		name: string
-		description: string | null
-		teamId: string
-		durationMinutes: number
-		maxParticipants: number
-	}
-	location: {
-		id: string
-		name: string
-	}
-	coach: {
-		id: string
-		userId: string
-		user: {
-			firstName: string | null
-			lastName: string | null
-			email: string | null
-		}
-	} | null
 }
 
 export function ScheduleGenerator({
@@ -100,11 +72,11 @@ export function ScheduleGenerator({
 	const [_showTimeSlotManager, _setShowTimeSlotManager] = useState(false)
 	const [viewMode, setViewMode] = useState<"grid" | "master">("grid")
 	const [selectedSlot, setSelectedSlot] = useState<ScheduledClass | null>(null)
-	const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
-	const [unavailableCoaches, setUnavailableCoaches] = useState<any[]>([])
+	const [availableCoaches, setAvailableCoaches] = useState<Coach[]>([])
+	const [unavailableCoaches, setUnavailableCoaches] = useState<Coach[]>([])
 	const [selectedCoachId, setSelectedCoachId] = useState<string>("")
 	const [schedule, setSchedule] = useState<{
-		schedule?: any
+		schedule?: GeneratedSchedule
 		scheduledClasses: ScheduledClass[]
 		unstaffedClassesCount: number
 		totalClassesCount: number
@@ -141,13 +113,13 @@ export function ScheduleGenerator({
 						scheduledClasses: result.data.schedule.scheduledClasses || [],
 						unstaffedClassesCount:
 							result.data.schedule.scheduledClasses?.filter(
-								(c: any) => !c.coachId,
+								(c: ScheduledClass) => !c.coachId,
 							).length || 0,
 						totalClassesCount:
 							result.data.schedule.scheduledClasses?.length || 0,
 						staffedClassesCount:
 							result.data.schedule.scheduledClasses?.filter(
-								(c: any) => c.coachId,
+								(c: ScheduledClass) => c.coachId,
 							).length || 0,
 					}
 					setSchedule(transformedSchedule)

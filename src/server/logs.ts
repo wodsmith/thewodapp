@@ -1,7 +1,7 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { fromZonedTime } from "date-fns-tz"
-import { and, asc, desc, eq } from "drizzle-orm"
+import { asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -21,7 +21,6 @@ import type {
 	WorkoutResultWithWorkoutName,
 } from "@/types"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { resolveScalingLevelsForWorkout } from "@/server/scaling-levels"
 // Map legacy scale enum to { scalingLevelId, asRx } using available scaling group context
 export async function mapLegacyScaleToScalingLevel({
 	workoutId,

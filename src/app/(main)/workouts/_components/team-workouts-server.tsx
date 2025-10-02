@@ -5,6 +5,7 @@ import {
 } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getSessionFromCookie } from "@/utils/auth"
+import type { Result } from "@/db/schemas/workouts"
 import {
 	startOfLocalDay,
 	endOfLocalDay,
@@ -20,7 +21,7 @@ interface Team {
 
 // Type for scheduled workout with result attached
 type ScheduledWorkoutWithResult = ScheduledWorkoutInstanceWithDetails & {
-	result?: any // TODO: Define proper Result type when available
+	result?: Result // TODO: Define proper Result type when available
 }
 
 export interface TeamWorkoutsData {

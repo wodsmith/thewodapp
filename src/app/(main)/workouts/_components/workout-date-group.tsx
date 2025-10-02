@@ -4,14 +4,14 @@ import { CalendarIcon } from "@heroicons/react/24/outline"
 import { format } from "date-fns"
 import { TeamWorkoutCard } from "./team-workout-card"
 import { toLocalDate } from "@/utils/date-utils"
-import type { TrackWorkout, Workout } from "@/db/schema"
+import type { TrackWorkout, Workout, Result } from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
 
 // Define interface for the instance object to match team-workout-card
 interface WorkoutInstance {
 	id: string
-	result?: any
+	result?: Result
 	classTimes?: string | null
 	teamSpecificNotes?: string | null
 	scalingGuidanceForDay?: string | null

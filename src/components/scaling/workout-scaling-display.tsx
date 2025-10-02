@@ -50,7 +50,7 @@ export function WorkoutScalingDisplay({
 	// Show all scaling descriptions stacked vertically
 	return (
 		<div className={cn("space-y-6", className)}>
-			{sortedLevels.map((level, index) => {
+			{sortedLevels.map((level, _index) => {
 				const description = scalingDescriptions.find(
 					(desc) => desc.scalingLevelId === level.id,
 				)

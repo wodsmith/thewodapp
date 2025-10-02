@@ -10,7 +10,6 @@ import {
 	workoutScalingDescriptionsTable,
 } from "@/db/schema"
 import type { ResultSet, WorkoutResult } from "@/types"
-import type { ScalingLevel } from "@/db/schemas/scaling"
 import { ScalingQueryMonitor } from "@/utils/query-monitor"
 
 // Multi-tier cache system for scaling data

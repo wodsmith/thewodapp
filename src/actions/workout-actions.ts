@@ -1476,7 +1476,7 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 					await db.insert(trackWorkoutsTable).values({
 						id: `track_workout_${createId()}`,
 						trackId: newTrack.id,
-						workoutId: remixResult!.id,
+						workoutId: remixResult?.id,
 						dayNumber: 1, // Default to day 1 for remixed workouts
 						weekNumber: null,
 						notes: `Remixed from track: ${track.name}`,

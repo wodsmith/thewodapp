@@ -9,6 +9,7 @@ import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
 import { submitLogFormAction } from "@/actions/log-actions"
+import type { Result } from "@/db/schemas/workouts"
 import {
 	type LogFormSchema,
 	logFormSchema,
@@ -43,7 +44,7 @@ export default function LogFormClient({
 	programmingTrackId,
 	trackScalingGroupId,
 }: {
-	workouts: (WorkoutWithTagsAndMovements & { resultsToday?: any[] })[]
+	workouts: (WorkoutWithTagsAndMovements & { resultsToday?: Result[] })[]
 	userId: string
 	teamId: string
 	selectedWorkoutId?: string
@@ -328,7 +329,7 @@ export default function LogFormClient({
 															onClick={() => {
 																// Clear selection to show list
 																form.setValue("selectedWorkoutId", "")
-																const params = new URLSearchParams()
+																const _params = new URLSearchParams()
 																router.push(
 																	`${pathname}` as Parameters<
 																		typeof router.push

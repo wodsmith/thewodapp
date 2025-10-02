@@ -5,7 +5,6 @@ import { useServerAction } from "zsa-react"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle } from "lucide-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 
 interface WorkoutScalingDescriptionsFormProps {
@@ -15,7 +14,7 @@ interface WorkoutScalingDescriptionsFormProps {
 	onChange: (descriptions: Map<string, string>) => void
 }
 
-interface ScalingLevel {
+interface ScalingLevelDisplay {
 	id: string
 	label: string
 	position: number
@@ -54,7 +53,7 @@ export function WorkoutScalingDescriptionsForm({
 		}).then(([result]) => {
 			if (result?.success && result.data?.levels) {
 				setScalingLevels(
-					result.data.levels.map((level: any) => ({
+					result.data.levels.map((level: ScalingLevelDisplay) => ({
 						id: level.id,
 						label: level.label,
 						position: level.position,

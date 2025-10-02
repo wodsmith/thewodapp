@@ -136,7 +136,7 @@ export function ProgrammingTrackEditDialog({
 					"DEBUG: [UI] Programming track edit form submitted with data:",
 					result,
 				)
-				if (result && result.data) {
+				if (result?.data) {
 					onTrackUpdated?.(result.data.data)
 				}
 				dialogCloseRef.current?.click()

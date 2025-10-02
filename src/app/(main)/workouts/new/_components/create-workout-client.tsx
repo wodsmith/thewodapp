@@ -43,12 +43,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import type {
-	Movement,
-	Tag,
-	ProgrammingTrack,
-	TeamMembership,
-} from "@/db/schema"
+import type { Movement, ProgrammingTrack, TeamMembership } from "@/db/schema"
 
 interface ScalingGroupWithTeam {
 	id: string
@@ -185,12 +180,12 @@ export default function CreateWorkoutClient({
 		if (newTag && !tags.some((t) => t.name === newTag)) {
 			// Use a special prefix for new tags that need to be created
 			const id = `new_tag_${crypto.randomUUID()}`
-			const newTagObj = {
+			const newTagObj: Partial<Tag> = {
 				id,
 				name: newTag,
-				createdAt: null as any, // Temporary UI object
-				updatedAt: null as any, // Temporary UI object
-				updateCounter: null,
+				createdAt: null, // Temporary UI object
+				updatedAt: null, // Temporary UI object
+				updateCounter: 0,
 			}
 			setTags([...tags, newTagObj])
 

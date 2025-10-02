@@ -80,8 +80,8 @@ export async function migrateResultsScaling(db: BetterSQLite3Database) {
 	// Migrate Rx results
 	await db.run(sql`
     UPDATE results
-    SET scalingLevelId = ${legacyScaleMapping["rx"].scalingLevelId},
-        asRx = ${legacyScaleMapping["rx"].asRx ? 1 : 0},
+    SET scalingLevelId = ${legacyScaleMapping.rx.scalingLevelId},
+        asRx = ${legacyScaleMapping.rx.asRx ? 1 : 0},
         updatedAt = datetime('now'),
         updateCounter = updateCounter + 1
     WHERE scale = 'rx'
@@ -90,8 +90,8 @@ export async function migrateResultsScaling(db: BetterSQLite3Database) {
 	// Migrate Scaled results
 	await db.run(sql`
     UPDATE results
-    SET scalingLevelId = ${legacyScaleMapping["scaled"].scalingLevelId},
-        asRx = ${legacyScaleMapping["scaled"].asRx ? 1 : 0},
+    SET scalingLevelId = ${legacyScaleMapping.scaled.scalingLevelId},
+        asRx = ${legacyScaleMapping.scaled.asRx ? 1 : 0},
         updatedAt = datetime('now'),
         updateCounter = updateCounter + 1
     WHERE scale = 'scaled'

@@ -8,6 +8,7 @@ import {
 } from "@/actions/workout-actions"
 import { useSessionStore } from "@/state/session"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
+import type { Result } from "@/db/schemas/workouts"
 import {
 	startOfLocalDay,
 	endOfLocalDay,
@@ -28,14 +29,14 @@ interface Team {
 // Uses server type: ScheduledWorkoutInstanceWithDetails (includes WorkoutWithMovements)
 type ScheduledWorkoutInstanceWithResult =
 	ScheduledWorkoutInstanceWithDetails & {
-		result?: any | null
+		result?: Result | null
 	}
 
 interface TeamWorkoutDisplayProps {
 	className?: string
 	teams: Team[]
 	initialScheduledWorkouts: Record<string, ScheduledWorkoutInstanceWithResult[]>
-	workoutResults?: Record<string, any>
+	workoutResults?: Record<string, Result>
 	userId?: string
 }
 
@@ -218,7 +219,13 @@ export function TeamWorkoutsDisplay({
 							endDate: end.toISOString(),
 						}
 
-				const result = await fetchScheduledWorkouts(params as any)
+				const result = await fetchScheduledWorkouts(
+					params as {
+						teamId: string
+						startDate: string
+						endDate: string
+					},
+				)
 
 				const [serverResult, serverError] = result
 

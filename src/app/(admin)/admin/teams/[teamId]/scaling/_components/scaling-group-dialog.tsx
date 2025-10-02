@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, Fragment } from "react"
+import { useState, useEffect, useRef, } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -431,7 +431,7 @@ export function ScalingGroupDialog({
 			}
 
 			// For editing, we'll update the group and handle levels separately
-			const [result, error] = await updateGroup({
+			const [_result, error] = await updateGroup({
 				groupId: group.id,
 				teamId,
 				title: values.title,
@@ -446,7 +446,7 @@ export function ScalingGroupDialog({
 			}
 		} else {
 			// For creating, send everything together
-			const [result, error] = await createGroup({
+			const [_result, error] = await createGroup({
 				teamId,
 				title: values.title,
 				description: values.description || undefined,
@@ -468,7 +468,7 @@ export function ScalingGroupDialog({
 		setShowLevelChangeWarning(false)
 
 		// Proceed with update without level changes
-		const [result, error] = await updateGroup({
+		const [_result, error] = await updateGroup({
 			groupId: group.id,
 			teamId,
 			title: pendingFormData.title,

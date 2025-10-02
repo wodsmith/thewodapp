@@ -13,6 +13,10 @@ import {
 	getWorkoutScalingDescriptionsAction,
 	updateWorkoutScalingDescriptionsAction,
 } from "@/actions/scaling-actions"
+import type {
+	ScalingLevelDisplay,
+	WorkoutScalingDescription,
+} from "@/db/schemas/scaling"
 
 interface WorkoutScalingDescriptionsEditorProps {
 	workoutId: string
@@ -96,7 +100,7 @@ export function WorkoutScalingDescriptionsEditor({
 			.then(([result]) => {
 				if (result?.success && result.data?.levels) {
 					setScalingLevels(
-						result.data.levels.map((level: any) => ({
+						result.data.levels.map((level: ScalingLevelDisplay) => ({
 							id: level.id,
 							label: level.label,
 							position: level.position,
@@ -119,7 +123,7 @@ export function WorkoutScalingDescriptionsEditor({
 		fetchDescriptions({ workoutId }).then(([result]) => {
 			if (result?.success && result.data) {
 				const descMap = new Map<string, string>()
-				result.data.forEach((desc: any) => {
+				result.data.forEach((desc: WorkoutScalingDescription) => {
 					if (desc.description) {
 						descMap.set(desc.scalingLevelId, desc.description)
 					}
