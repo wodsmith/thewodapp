@@ -61,7 +61,6 @@ interface ScalingGroupsListProps {
 
 export function ScalingGroupsList({
 	teamId,
-	teamSlug,
 	scalingGroups,
 	defaultScalingGroupId,
 	canCreate,
