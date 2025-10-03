@@ -28,7 +28,7 @@ import Link from "next/link"
 import { SYSTEM_ROLES_ENUM } from "@/db/schemas/teams"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import type { LeaderboardEntry } from "@/server/leaderboard"
-import type { WorkoutResult } from "@/db/schema"
+import type { Result } from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
 
@@ -60,7 +60,7 @@ export function TeamPageClient({
 	const [viewMode, setViewMode] = useState<ViewMode>("daily")
 	const [selectedDate, setSelectedDate] = useState(new Date())
 	const [workoutsWithResults, setWorkoutsWithResults] = useState<
-		Array<ScheduledWorkoutInstanceWithDetails & { result?: WorkoutResult | null }>
+		Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>
 	>([])
 	const [leaderboards, setLeaderboards] = useState<Record<string, LeaderboardEntry[]>>({})
 	const [isLoading, setIsLoading] = useState(true)

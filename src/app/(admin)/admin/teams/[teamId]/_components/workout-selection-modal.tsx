@@ -105,12 +105,7 @@ export function WorkoutSelectionModal({
 		if (isOpen && teamId) {
 			fetchScalingGroups({ teamId, includeSystem: true }).then(([result]) => {
 				if (result?.success && result.data) {
-					setScalingGroups(
-						result.data.map((group: ScalingGroup & { levels: ScalingLevel[] }) => ({
-							...group,
-							teamName: group.teamName || "System",
-						})),
-					)
+					setScalingGroups(result.data)
 				}
 			})
 		}
