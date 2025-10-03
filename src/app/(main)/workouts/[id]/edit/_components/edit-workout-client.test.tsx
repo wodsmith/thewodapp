@@ -54,6 +54,7 @@ const mockWorkout = {
 	tags: [mockTags[0]],
 	movements: [mockMovements[0]],
 	scheme: "time" as const,
+	scoreType: null,
 	scope: "private" as const,
 	repsPerRound: 10,
 	roundsToScore: 1,
