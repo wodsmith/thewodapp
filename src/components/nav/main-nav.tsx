@@ -53,12 +53,11 @@ export default async function MainNav() {
 								Log
 							</Link>
 							<Link
-								href="/programming"
+								href="/teams"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
-								Programming
+								Team
 							</Link>
-							<ScheduleDropdown session={session} />
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
 							<Link
 								href="/settings/profile"
