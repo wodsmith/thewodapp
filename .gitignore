@@ -1,6 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 settings.local.json
 
+# turborepo
+.turbo
+.open-next
+
 # dependencies
 node_modules
 .pnp
