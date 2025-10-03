@@ -54,6 +54,7 @@ describe("WorkoutRowCard", () => {
 		name: "Test Workout",
 		description: "A test workout description",
 		scheme: "reps",
+		scoreType: null,
 		scope: "public",
 		repsPerRound: 10,
 		roundsToScore: 5,

@@ -178,8 +178,8 @@ export default function LogFormClient({
 
 		const currentWorkoutData = workouts.find((w) => w.id === selectedWorkout)
 		const numRoundsForInputs = currentWorkoutData?.roundsToScore || 1
-		const hasRepsPerRound = !!currentWorkoutData?.repsPerRound
-		const expectedPartsPerScore = hasRepsPerRound ? 2 : 1
+		const isRoundsRepsScheme = currentWorkoutData?.scheme === "rounds-reps"
+		const expectedPartsPerScore = isRoundsRepsScheme ? 2 : 1
 
 		const workoutIdContextChanged =
 			prevSelectedWorkoutIdRef.current !== selectedWorkout
@@ -539,8 +539,8 @@ export default function LogFormClient({
 																{form
 																	.watch("scores")
 																	?.map((scoreParts, roundIndex) => {
-																		const hasRepsPerRound =
-																			!!currentWorkoutDetails?.repsPerRound
+																		const isRoundsRepsScheme =
+																			currentWorkoutDetails?.scheme === "rounds-reps"
 																		const repsPerRoundValue =
 																			currentWorkoutDetails?.repsPerRound
 																		const isTimeWithCap =
@@ -586,7 +586,7 @@ export default function LogFormClient({
 																					</div>
 																				)}
 
-																				{hasRepsPerRound ? (
+																				{isRoundsRepsScheme ? (
 																					<div className="flex items-center gap-2">
 																						<Input
 																							type="number"
@@ -606,11 +606,11 @@ export default function LogFormClient({
 																						</span>
 																						<Input
 																							type="number"
-																							placeholder={`Reps (max ${
+																							placeholder={
 																								repsPerRoundValue
-																									? repsPerRoundValue - 1
-																									: "N/A"
-																							})`}
+																									? `Reps (max ${repsPerRoundValue - 1})`
+																									: "Reps"
+																							}
 																							value={scoreParts[1] || ""}
 																							onChange={(e) =>
 																								handleScoreChange(
