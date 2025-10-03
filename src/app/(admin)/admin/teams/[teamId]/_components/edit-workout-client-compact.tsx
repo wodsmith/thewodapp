@@ -36,9 +36,20 @@ interface ScalingGroupWithTeam {
 	title: string
 	description: string | null
 	teamId: string | null
-	teamName: string
 	isSystem: number
 	isDefault: number
+	createdAt: Date
+	updatedAt: Date
+	updateCounter: number | null
+	levels: Array<{
+		id: string
+		scalingGroupId: string
+		label: string
+		position: number
+		createdAt: Date
+		updatedAt: Date
+		updateCounter: number | null
+	}>
 }
 
 type Props = Prettify<{
