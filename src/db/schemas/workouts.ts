@@ -64,6 +64,9 @@ export const workouts = sqliteTable(
 				"points",
 			],
 		}).notNull(),
+		scoreType: text("score_type", {
+			enum: ["min", "max", "sum", "average", "first", "last"],
+		}),
 		repsPerRound: integer("reps_per_round"),
 		roundsToScore: integer("rounds_to_score").default(1),
 		teamId: text("team_id").references(() => teamTable.id, {
