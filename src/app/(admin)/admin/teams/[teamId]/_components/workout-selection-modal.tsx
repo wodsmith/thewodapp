@@ -15,7 +15,6 @@ import {
 	useWorkoutScheduling,
 	useWorkoutSelection,
 } from "../_utils"
-import type { ScalingGroup, ScalingLevel } from "@/db/schema"
 import EditWorkoutClientCompact from "./edit-workout-client-compact"
 import {
 	ScheduledWorkouts,
@@ -51,9 +50,20 @@ export function WorkoutSelectionModal({
 			title: string
 			description: string | null
 			teamId: string | null
-			teamName: string
 			isSystem: number
 			isDefault: number
+			createdAt: Date
+			updatedAt: Date
+			updateCounter: number | null
+			levels: Array<{
+				id: string
+				scalingGroupId: string
+				label: string
+				position: number
+				createdAt: Date
+				updatedAt: Date
+				updateCounter: number | null
+			}>
 		}>
 	>([])
 

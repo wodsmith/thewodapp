@@ -140,7 +140,7 @@ export function TeamPageClient({
 			acc[dateKey].push(workout)
 			return acc
 		},
-		{} as Record<string, Array<ScheduledWorkoutInstanceWithDetails & { result?: WorkoutResult | null }>>,
+		{} as Record<string, Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>>,
 	)
 
 	const sortedDates = Object.keys(workoutsByDate).sort()
