@@ -110,6 +110,20 @@ export async function getProgrammingTrackById(
 }
 
 /**
+ * Check if a team owns a programming track
+ */
+export async function isTrackOwner(
+	teamId: string,
+	trackId: string,
+): Promise<boolean> {
+	const track = await getProgrammingTrackById(trackId)
+	if (!track) {
+		return false
+	}
+	return track.ownerTeamId === teamId
+}
+
+/**
  * Check if a team has access to a programming track
  * A team has access if:
  * 1. The track is owned by the team (ownerTeamId matches)
