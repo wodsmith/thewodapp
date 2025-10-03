@@ -1,0 +1,50 @@
+{
+  "name": "@repo/zsa-react",
+  "version": "0.2.3",
+  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist/**"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs"
+  },
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/index.d.mts"
+      ]
+    }
+  },
+  "sideEffects": false,
+  "license": "MIT",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format:write": "prettier --write \"**/*.{ts,tsx,mdx}\" --cache",
+    "format:check": "prettier --check \"**/*.{ts,tsx,mdx}\" --cache",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "npm run build -- --watch",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf .next"
+  },
+  "dependencies": {
+    "@repo/zsa": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "zod": "^3.23.5"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "react": "^18.3.1",
+    "tsup": "^8.0.2",
+    "typescript": "latest",
+    "zod": "^3.23.5"
+  }
+}
