@@ -26,6 +26,9 @@ import {
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { SYSTEM_ROLES_ENUM } from "@/db/schemas/teams"
+import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
+import type { LeaderboardEntry } from "@/server/leaderboard"
+import type { WorkoutResult } from "@/db/schema"
 
 type ViewMode = "daily" | "weekly"
 
@@ -56,8 +59,10 @@ export function TeamPageClient({
 	const [selectedTeam, setSelectedTeam] = useState<Team>(initialTeam)
 	const [viewMode, setViewMode] = useState<ViewMode>("daily")
 	const [selectedDate, setSelectedDate] = useState(new Date())
-	const [workoutsWithResults, setWorkoutsWithResults] = useState<any[]>([])
-	const [leaderboards, setLeaderboards] = useState<Record<string, any[]>>({})
+	const [workoutsWithResults, setWorkoutsWithResults] = useState<
+		Array<ScheduledWorkoutInstanceWithDetails & { result?: WorkoutResult | null }>
+	>([])
+	const [leaderboards, setLeaderboards] = useState<Record<string, LeaderboardEntry[]>>({})
 	const [isLoading, setIsLoading] = useState(true)
 
 	const { execute: fetchWorkouts } = useServerAction(
@@ -96,7 +101,7 @@ export function TeamPageClient({
 					setWorkoutsWithResults(workoutsResult.data || [])
 
 					// Fetch leaderboards for each workout
-					const instanceIds = workoutsResult.data.map((w: any) => w.id)
+					const instanceIds = workoutsResult.data.map((w) => w.id)
 					if (instanceIds.length > 0) {
 						const [leaderboardsResult, leaderboardsError] =
 							await fetchLeaderboards({
@@ -135,7 +140,7 @@ export function TeamPageClient({
 			acc[dateKey].push(workout)
 			return acc
 		},
-		{} as Record<string, any[]>,
+		{} as Record<string, Array<ScheduledWorkoutInstanceWithDetails & { result?: WorkoutResult | null }>>,
 	)
 
 	const sortedDates = Object.keys(workoutsByDate).sort()
@@ -269,7 +274,7 @@ export function TeamPageClient({
 												})}
 											</h3>
 											<div className="space-y-4">
-												{dayWorkouts.map((workout: any) => {
+												{dayWorkouts.map((workout) => {
 													const workoutData =
 														workout.trackWorkout?.workout || workout.workout
 													if (!workoutData) return null

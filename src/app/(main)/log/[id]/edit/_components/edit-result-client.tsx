@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 import {
@@ -321,20 +321,15 @@ export default function EditResultClient({
 		const hasRepsPerRound = !!workout.repsPerRound
 		const timeCappedArray = form.getValues("timeCapped") || []
 
-		// Generate stable unique keys for each score entry
-		const scoreKeys = useMemo(
-			() => currentScores.map(() => crypto.randomUUID()),
-			[currentScores.length]
-		)
-
 		if (workout.scheme === "time" || workout.scheme === "time-with-cap") {
 			return currentScores.map((parts, index) => {
 				const isTimeWithCap = workout.scheme === "time-with-cap"
 				const isTimeCapped = timeCappedArray[index] || false
+				const keyId = parts.join("-") || `empty-${index}`
 
 				return (
 					<div
-						key={scoreKeys[index]}
+						key={`score-time-${keyId}`}
 						className="space-y-2"
 					>
 						{currentScores.length > 1 && (
@@ -404,8 +399,10 @@ export default function EditResultClient({
 		}
 
 		if (hasRepsPerRound) {
-			return currentScores.map((parts, index) => (
-				<div key={scoreKeys[index]} className="space-y-2">
+			return currentScores.map((parts, index) => {
+				const keyId = parts.join("-") || `empty-${index}`
+				return (
+					<div key={`score-reps-${keyId}`} className="space-y-2">
 					<h4 className="text-sm font-semibold">
 						{currentScores.length > 1 ? `Round ${index + 1}` : "Score"}
 					</h4>
@@ -457,13 +454,16 @@ export default function EditResultClient({
 							)}
 						/>
 					</div>
-				</div>
-			))
+					</div>
+				)
+			})
 		}
 
 		// Default score input
-		return currentScores.map((parts, index) => (
-			<div key={scoreKeys[index]} className="flex items-end gap-2">
+		return currentScores.map((parts, index) => {
+			const keyId = parts.join("-") || `empty-${index}`
+			return (
+				<div key={`score-default-${keyId}`} className="flex items-end gap-2">
 				<FormField
 					control={form.control}
 					name={`scores.${index}.0`}
@@ -488,8 +488,9 @@ export default function EditResultClient({
 						</FormItem>
 					)}
 				/>
-			</div>
-		))
+				</div>
+			)
+		})
 	}
 
 	return (

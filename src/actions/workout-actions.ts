@@ -23,6 +23,7 @@ import {
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getUserTeams } from "@/server/teams"
+import type { LeaderboardEntry } from "@/server/leaderboard"
 import { requireVerifiedEmail } from "@/utils/auth"
 import {
 	requireTeamMembership,
@@ -1599,7 +1600,7 @@ export const getTeamLeaderboardsAction = createServerAction()
 				"@/server/leaderboard"
 			)
 
-			const leaderboards: Record<string, any[]> = {}
+			const leaderboards: Record<string, LeaderboardEntry[]> = {}
 
 			await Promise.all(
 				input.scheduledWorkoutInstanceIds.map(async (instanceId) => {

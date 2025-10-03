@@ -15,6 +15,7 @@ import {
 	useWorkoutScheduling,
 	useWorkoutSelection,
 } from "../_utils"
+import type { ScalingGroup, ScalingLevel } from "@/db/schema"
 import EditWorkoutClientCompact from "./edit-workout-client-compact"
 import {
 	ScheduledWorkouts,
@@ -105,7 +106,7 @@ export function WorkoutSelectionModal({
 			fetchScalingGroups({ teamId, includeSystem: true }).then(([result]) => {
 				if (result?.success && result.data) {
 					setScalingGroups(
-						result.data.map((group: any) => ({
+						result.data.map((group: ScalingGroup & { levels: ScalingLevel[] }) => ({
 							...group,
 							teamName: group.teamName || "System",
 						})),

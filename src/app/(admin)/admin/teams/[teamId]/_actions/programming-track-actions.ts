@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { and, eq, or } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { createServerAction } from "zsa"
 import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, scalingGroupsTable } from "@/db/schema"

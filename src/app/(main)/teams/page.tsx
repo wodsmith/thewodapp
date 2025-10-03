@@ -1,14 +1,6 @@
 import type { Metadata } from "next"
 import { getSessionFromCookie } from "@/utils/auth"
 import { redirect } from "next/navigation"
-import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
-import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import {
-	startOfLocalDay,
-	endOfLocalDay,
-	startOfLocalWeek,
-	endOfLocalWeek,
-} from "@/utils/date-utils"
 import { TeamPageClient } from "./_components/team-page-client"
 
 export const metadata: Metadata = {
