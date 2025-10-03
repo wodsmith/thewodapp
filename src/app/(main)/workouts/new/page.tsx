@@ -2,10 +2,7 @@ import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { getAllTagsAction } from "@/actions/tag-actions"
-import {
-	getScalingGroupsAction,
-	getScalingGroupWithLevelsAction,
-} from "@/actions/scaling-actions"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { getSessionFromCookie } from "@/utils/auth"
 import CreateWorkoutClient from "./_components/create-workout-client"
 

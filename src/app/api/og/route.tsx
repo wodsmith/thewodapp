@@ -29,10 +29,10 @@ export async function GET(request: Request) {
 			const breakPoint = Math.max(...naturalBreaks)
 			if (breakPoint > 100) {
 				// Only use natural break if it's not too early
-				description = description.slice(0, breakPoint + 1).trim() + "..."
+				description = `${description.slice(0, breakPoint + 1).trim()}...`
 			} else {
 				// Otherwise just hard cut at 200 chars
-				description = description.slice(0, 200).trim() + "..."
+				description = `${description.slice(0, 200).trim()}...`
 			}
 		}
 
