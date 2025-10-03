@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { getSessionFromCookie } from "@/utils/auth"
 import { redirect } from "next/navigation"
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
@@ -9,6 +10,30 @@ import {
 	endOfLocalWeek,
 } from "@/utils/date-utils"
 import { TeamPageClient } from "./_components/team-page-client"
+
+export const metadata: Metadata = {
+	title: "Team",
+	description: "View your team's programming and schedule.",
+	openGraph: {
+		type: "website",
+		title: "Team",
+		description: "View your team's programming and schedule.",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Team")}`,
+				width: 1200,
+				height: 630,
+				alt: "Team",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Team",
+		description: "View your team's programming and schedule.",
+		images: [`/api/og?title=${encodeURIComponent("Team")}`],
+	},
+}
 
 export default async function TeamsPage() {
 	// Require authentication

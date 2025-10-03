@@ -2,20 +2,26 @@ import type { Metadata } from "next"
 import BarbellCalculator from "./_components/barbell-calculator"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith - Calculator",
-	description: "Track your spicy workouts and progress.",
+	title: "Barbell Calculator",
+	description: "Calculate barbell loading for your workouts.",
 	openGraph: {
-		title: "WODsmith - Calculator", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Barbell Calculator",
+		description: "Calculate barbell loading for your workouts.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("WODsmith - Calculator")}`,
+				url: `/api/og?title=${encodeURIComponent("Barbell Calculator")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith - Calculator",
+				alt: "Barbell Calculator",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Barbell Calculator",
+		description: "Calculate barbell loading for your workouts.",
+		images: [`/api/og?title=${encodeURIComponent("Barbell Calculator")}`],
 	},
 }
 

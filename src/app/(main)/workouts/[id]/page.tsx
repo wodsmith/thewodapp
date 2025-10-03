@@ -35,22 +35,36 @@ export async function generateMetadata(
 
 	const workout = workoutResult.data
 
+	// Build OG image URL with description if available
+	const ogImageParams = new URLSearchParams({
+		title: workout.name,
+	})
+	if (workout.description) {
+		ogImageParams.append("description", workout.description)
+	}
+	const ogImageUrl = `/api/og?${ogImageParams.toString()}`
+
 	return {
-		title: `WODsmith | ${workout.name}`,
-		description: `WODsmith | ${workout.name}`,
+		title: workout.name,
+		description: workout.description || `View and track results for ${workout.name}`,
 		openGraph: {
-			title: `WODsmith | ${workout.name}`,
-			description: `WODsmith | ${workout.name}`,
+			type: "website",
+			title: workout.name,
+			description: workout.description || `View and track results for ${workout.name}`,
 			images: [
 				{
-					url: `/api/og?title=${encodeURIComponent(
-						`WODsmith | ${workout.name}`,
-					)}`,
+					url: ogImageUrl,
 					width: 1200,
 					height: 630,
-					alt: `WODsmith | ${workout.name}`,
+					alt: workout.name,
 				},
 			],
+		},
+		twitter: {
+			card: "summary_large_image",
+			title: workout.name,
+			description: workout.description || `View and track results for ${workout.name}`,
+			images: [ogImageUrl],
 		},
 	}
 }

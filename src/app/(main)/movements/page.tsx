@@ -6,20 +6,26 @@ import { getAllMovementsAction } from "@/actions/movement-actions"
 import MovementList from "./_components/movement-list"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Movements",
-	description: "Track your spicy workouts and progress.",
+	title: "Movements",
+	description: "Browse and manage CrossFit movements.",
 	openGraph: {
-		title: "WODsmith | Movements", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Movements",
+		description: "Browse and manage CrossFit movements.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("WODsmith | Movements")}`,
+				url: `/api/og?title=${encodeURIComponent("Movements")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Movements",
+				alt: "Movements",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Movements",
+		description: "Browse and manage CrossFit movements.",
+		images: [`/api/og?title=${encodeURIComponent("Movements")}`],
 	},
 }
 

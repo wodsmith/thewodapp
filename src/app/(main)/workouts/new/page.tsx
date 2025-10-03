@@ -10,20 +10,26 @@ import { getSessionFromCookie } from "@/utils/auth"
 import CreateWorkoutClient from "./_components/create-workout-client"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Create Workout",
-	description: "Track your workouts and progress.",
+	title: "Create Workout",
+	description: "Create a new CrossFit workout.",
 	openGraph: {
-		title: "WODsmith | Create Workout", // Default title for layout
-		description: "Track your workouts and progress.", // Default description
+		type: "website",
+		title: "Create Workout",
+		description: "Create a new CrossFit workout.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("WODsmith | Create Workout")}`,
+				url: `/api/og?title=${encodeURIComponent("Create Workout")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Create Workout",
+				alt: "Create Workout",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Create Workout",
+		description: "Create a new CrossFit workout.",
+		images: [`/api/og?title=${encodeURIComponent("Create Workout")}`],
 	},
 }
 
