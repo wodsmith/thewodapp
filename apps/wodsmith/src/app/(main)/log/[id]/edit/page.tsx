@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import {
 	getResultByIdAction,
@@ -10,6 +11,30 @@ import { getSessionFromCookie } from "@/utils/auth"
 import EditResultClient from "./_components/edit-result-client"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+	title: "Edit Workout Result",
+	description: "Edit your workout result and track your progress.",
+	openGraph: {
+		type: "website",
+		title: "Edit Workout Result",
+		description: "Edit your workout result and track your progress.",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Edit Workout Result")}`,
+				width: 1200,
+				height: 630,
+				alt: "Edit Workout Result",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Edit Workout Result",
+		description: "Edit your workout result and track your progress.",
+		images: [`/api/og?title=${encodeURIComponent("Edit Workout Result")}`],
+	},
+}
 
 export default async function EditResultPage({
 	params,

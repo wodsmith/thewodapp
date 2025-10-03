@@ -5,9 +5,9 @@ export const SITE_DESCRIPTION = "Track your workouts and progress."
 export const SITE_URL =
 	process.env.NODE_ENV === "development"
 		? "http://localhost:3000"
-		: "https://nextjs-saas-template.agenticdev.agency"
+		: (process.env.NEXT_PUBLIC_SITE_URL || "https://thewodapp.com")
 export const GITHUB_REPO_URL =
-	"https://github.com/LubomirGeorgiev/cloudflare-workers-nextjs-saas-template"
+	"https://github.com/zacjones93/spicy-wod-3"
 
 export const SITE_DOMAIN = new URL(SITE_URL).hostname
 export const PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours

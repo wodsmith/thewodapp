@@ -58,6 +58,7 @@ interface TrackWorkoutManagementProps {
 	movements: Movement[]
 	tags: Tag[]
 	userId: string
+	isOwner: boolean
 }
 
 export function TrackWorkoutManagement({
@@ -69,6 +70,7 @@ export function TrackWorkoutManagement({
 	movements,
 	tags,
 	userId,
+	isOwner,
 }: TrackWorkoutManagementProps) {
 	const [showAddDialog, setShowAddDialog] = useState(false)
 	const [alignDialogState, setAlignDialogState] = useState<{
@@ -533,13 +535,15 @@ export function TrackWorkoutManagement({
 						{optimisticTrackWorkouts.length !== 1 ? "s" : ""} in this track
 					</p>
 				</div>
-				<Button
-					onClick={() => setShowAddDialog(true)}
-					className="border-4 border-transparent hover:border-primary transition-all font-mono rounded-none"
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					Add Workout
-				</Button>
+				{isOwner && (
+					<Button
+						onClick={() => setShowAddDialog(true)}
+						className="border-4 border-transparent hover:border-primary transition-all font-mono rounded-none"
+					>
+						<Plus className="h-4 w-4 mr-2" />
+						Add Workout
+					</Button>
+				)}
 			</div>
 
 			{/* Track Workouts */}
@@ -550,13 +554,15 @@ export function TrackWorkoutManagement({
 							<p className="text-muted-foreground mb-4 font-mono">
 								No workouts added to this track yet.
 							</p>
-							<Button
-								onClick={() => setShowAddDialog(true)}
-								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
-							>
-								<Plus className="h-4 w-4 mr-2" />
-								Add First Workout
-							</Button>
+							{isOwner && (
+								<Button
+									onClick={() => setShowAddDialog(true)}
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
+								>
+									<Plus className="h-4 w-4 mr-2" />
+									Add First Workout
+								</Button>
+							)}
 						</div>
 					</CardContent>
 				</Card>
@@ -577,10 +583,10 @@ export function TrackWorkoutManagement({
 									track={_track}
 									index={index}
 									instanceId={instanceId}
-									canEdit={true}
+									canEdit={isOwner}
 									onAlignScaling={async () => {
 										// Show confirmation dialog
-										if (workoutDetails) {
+										if (workoutDetails && isOwner) {
 											setAlignDialogState({
 												open: true,
 												workout: workoutDetails,
@@ -595,7 +601,7 @@ export function TrackWorkoutManagement({
 			)}
 
 			{/* Align Scaling Confirmation Dialog */}
-			{alignDialogState.workout && (
+			{isOwner && alignDialogState.workout && (
 				<AlignScalingDialog
 					open={alignDialogState.open}
 					onOpenChange={(open) =>
@@ -661,7 +667,7 @@ export function TrackWorkoutManagement({
 			)}
 
 			{/* Scaling Migration Dialog */}
-			{migrationDialogState.data && (
+			{isOwner && migrationDialogState.data && (
 				<ScalingMigrationDialog
 					open={migrationDialogState.open}
 					onOpenChange={(open) =>
@@ -737,19 +743,21 @@ export function TrackWorkoutManagement({
 			)}
 
 			{/* Add Workout Dialog */}
-			<AddWorkoutToTrackDialog
-				open={showAddDialog}
-				onCloseAction={() => setShowAddDialog(false)}
-				onAddWorkoutsAction={handleAddWorkouts}
-				teamId={teamId}
-				trackId={trackId}
-				existingDays={optimisticTrackWorkouts.map((tw) => tw.dayNumber)}
-				existingWorkoutIds={optimisticTrackWorkouts.map((tw) => tw.workoutId)}
-				userWorkouts={userWorkouts}
-				movements={movements}
-				tags={tags}
-				userId={userId}
-			/>
+			{isOwner && (
+				<AddWorkoutToTrackDialog
+					open={showAddDialog}
+					onCloseAction={() => setShowAddDialog(false)}
+					onAddWorkoutsAction={handleAddWorkouts}
+					teamId={teamId}
+					trackId={trackId}
+					existingDays={optimisticTrackWorkouts.map((tw) => tw.dayNumber)}
+					existingWorkoutIds={optimisticTrackWorkouts.map((tw) => tw.workoutId)}
+					userWorkouts={userWorkouts}
+					movements={movements}
+					tags={tags}
+					userId={userId}
+				/>
+			)}
 		</div>
 	)
 }

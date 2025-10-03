@@ -108,11 +108,11 @@ export function CreateWorkoutModal({
 	const handleAddTag = () => {
 		if (newTag && !tags.some((t) => t.name === newTag)) {
 			const id = crypto.randomUUID()
-			const newTagObj = {
+			const newTagObj: Tag = {
 				id,
 				name: newTag,
-				createdAt: null as any, // Temporary UI object
-				updatedAt: null as any, // Temporary UI object
+				createdAt: null as unknown as Date, // Temporary UI object
+				updatedAt: null as unknown as Date, // Temporary UI object
 				updateCounter: null,
 			}
 			setTags([...tags, newTagObj])

@@ -15,7 +15,7 @@ export default async function TeamAdminLayout({
 
 	return (
 		<div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0 bg-background dark:bg-dark-background">
-			<aside className="">
+			<aside className="lg:w-64 lg:flex-shrink-0 overflow-visible">
 				<AdminSidebar currentTeamId={teamId} />
 			</aside>
 			<div className="flex-1">{children}</div>

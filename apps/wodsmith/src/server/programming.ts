@@ -344,6 +344,7 @@ export async function detectExternalProgrammingTrackWorkouts(
 									name: (row.workoutName ?? "") as string,
 									description: (row.workoutDescription ?? "") as string,
 									scheme: (row.workoutScheme ?? "reps") as any,
+									scoreType: null,
 									scope: (row.workoutScope ?? "public") as any,
 									teamId: row.workoutTeamId,
 									scalingGroupId: row.workoutScalingGroupId,

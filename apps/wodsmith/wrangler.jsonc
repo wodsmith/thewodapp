@@ -39,8 +39,6 @@
 		"EMAIL_FROM": "zacjones93@gmail.com",
 		"EMAIL_FROM_NAME": "Zac from WODsmith",
 		"EMAIL_REPLY_TO": "zacjones93@gmail.com",
-		"OPENAI_API_KEY": "",
-		"BRAINTRUST_API_KEY": ""
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.

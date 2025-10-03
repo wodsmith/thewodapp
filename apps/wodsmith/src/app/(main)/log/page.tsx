@@ -8,20 +8,26 @@ import LogCalendarClient from "./_components/log-calendar-client" // Import new 
 import { LogRowCard } from "./_components/log-row-card"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Your Scores",
-	description: "Track your spicy workouts and progress.",
+	title: "Your Scores",
+	description: "View and track your workout results and personal records.",
 	openGraph: {
-		title: "WODsmith | Your Scores", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Your Scores",
+		description: "View and track your workout results and personal records.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("WODsmith | Your Scores")}`,
+				url: `/api/og?title=${encodeURIComponent("Your Scores")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Your Scores",
+				alt: "Your Scores",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Your Scores",
+		description: "View and track your workout results and personal records.",
+		images: [`/api/og?title=${encodeURIComponent("Your Scores")}`],
 	},
 }
 

@@ -48,6 +48,7 @@ const mockSession: SessionWithMeta = {
       id: "team-123",
       name: "Test Team",
       slug: "test-team",
+      isPersonalTeam: false,
       role: {
         id: "member",
         name: "Member",

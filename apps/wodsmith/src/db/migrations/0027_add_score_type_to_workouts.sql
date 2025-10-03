@@ -1,0 +1,1 @@
+ALTER TABLE `workouts` ADD `score_type` text;

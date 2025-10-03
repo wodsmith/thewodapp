@@ -373,6 +373,7 @@ export async function getUserWorkouts({
 			name: workouts.name,
 			description: workouts.description,
 			scheme: workouts.scheme,
+			scoreType: workouts.scoreType,
 			scope: workouts.scope,
 			teamId: workouts.teamId,
 			scalingGroupId: workouts.scalingGroupId,
@@ -536,6 +537,7 @@ export async function createWorkout({
 				name: workout.name,
 				description: workout.description,
 				scheme: workout.scheme,
+				scoreType: workout.scoreType,
 				scope: workout.scope,
 				repsPerRound: workout.repsPerRound,
 				roundsToScore: workout.roundsToScore,
@@ -760,6 +762,7 @@ export async function updateWorkout({
 			| "name"
 			| "description"
 			| "scheme"
+			| "scoreType"
 			| "scope"
 			| "repsPerRound"
 			| "roundsToScore"
@@ -1016,6 +1019,7 @@ export async function createWorkoutRemix({
 			name: sourceWorkout.name,
 			description: sourceWorkout.description,
 			scheme: sourceWorkout.scheme,
+			scoreType: sourceWorkout.scoreType,
 			scope: "private", // Remixes start as private
 			repsPerRound: sourceWorkout.repsPerRound,
 			roundsToScore: sourceWorkout.roundsToScore,
@@ -1180,6 +1184,7 @@ export async function createProgrammingTrackWorkoutRemix({
 			name: sourceWorkout.name,
 			description: sourceWorkout.description,
 			scheme: sourceWorkout.scheme,
+			scoreType: sourceWorkout.scoreType,
 			scope: "private", // Remixes start as private
 			repsPerRound: sourceWorkout.repsPerRound,
 			roundsToScore: sourceWorkout.roundsToScore,

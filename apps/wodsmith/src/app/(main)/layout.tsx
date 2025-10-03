@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import type React from "react"
 import MainNav from "@/components/nav/main-nav"
+import { SITE_URL } from "@/constants"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
+	metadataBase: new URL(SITE_URL),
 	openGraph: {
 		title: "WODsmith", // Default title for layout
 		description: "Track your workouts and progress.", // Default description

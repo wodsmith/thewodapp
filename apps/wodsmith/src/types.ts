@@ -62,6 +62,7 @@ export type WorkoutUpdate = Partial<
 		| "name"
 		| "description"
 		| "scheme"
+		| "scoreType"
 		| "scope"
 		| "repsPerRound"
 		| "roundsToScore"

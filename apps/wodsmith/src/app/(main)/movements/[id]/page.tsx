@@ -32,21 +32,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	const movement = movementResult.data
 
 	return {
-		title: `WODsmith | ${movement.name}`,
-		description: `WODsmith | ${movement.name}`,
+		title: movement.name,
+		description: `View workouts that include ${movement.name}`,
 		openGraph: {
-			title: `WODsmith | ${movement.name}`,
-			description: `WODsmith | ${movement.name}`,
+			type: "website",
+			title: movement.name,
+			description: `View workouts that include ${movement.name}`,
 			images: [
 				{
-					url: `/api/og?title=${encodeURIComponent(
-						`WODsmith | ${movement.name}`,
-					)}`,
+					url: `/api/og?title=${encodeURIComponent(movement.name)}`,
 					width: 1200,
 					height: 630,
-					alt: `WODsmith | ${movement.name}`,
+					alt: movement.name,
 				},
 			],
+		},
+		twitter: {
+			card: "summary_large_image",
+			title: movement.name,
+			description: `View workouts that include ${movement.name}`,
+			images: [`/api/og?title=${encodeURIComponent(movement.name)}`],
 		},
 	}
 }
