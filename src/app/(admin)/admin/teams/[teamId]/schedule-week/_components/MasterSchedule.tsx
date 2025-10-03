@@ -75,13 +75,13 @@ const MasterSchedule = ({
 	}
 
 	return (
-		<Card className="bg-white/60 backdrop-blur-sm border-white/20">
+		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center space-x-2">
-					<Clock className="h-5 w-5" />
+					<Clock className="h-5 w-5 text-primary" />
 					<span>Master Schedule</span>
 				</CardTitle>
-				<p className="text-sm text-slate-600">
+				<p className="text-sm text-muted-foreground">
 					Complete overview for {currentWeek}
 				</p>
 			</CardHeader>

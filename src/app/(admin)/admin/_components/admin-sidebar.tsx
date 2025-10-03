@@ -2,12 +2,13 @@
 
 import {
 	AcademicCapIcon,
-	BookOpenIcon,
-	CalendarDaysIcon,
-	UserGroupIcon,
-	BuildingOfficeIcon,
-	DocumentTextIcon,
 	AdjustmentsHorizontalIcon,
+	BookOpenIcon,
+	BuildingOfficeIcon,
+	CalendarDaysIcon,
+	ClockIcon,
+	DocumentTextIcon,
+	UserGroupIcon,
 } from "@heroicons/react/24/outline"
 import { ScrollShadow } from "@heroui/react"
 import type { Route } from "next"
@@ -30,6 +31,11 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		title: "Team Scheduling",
 		href: `/admin/teams/${currentTeamId}` as Route,
 		icon: CalendarDaysIcon,
+	},
+	{
+		title: "Schedule Coaches",
+		href: `/admin/teams/${currentTeamId}/schedule-week` as Route,
+		icon: ClockIcon,
 	},
 	{
 		title: "Programming",
