@@ -74,6 +74,9 @@ export default function EditWorkoutClientCompact({
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
 	const [scheme, setScheme] = useState<WorkoutUpdate["scheme"]>(workout?.scheme)
+	const [scoreType, setScoreType] = useState<WorkoutUpdate["scoreType"]>(
+		workout?.scoreType,
+	)
 	const [scope, setScope] = useState(workout?.scope || "private")
 	const [tags, setTags] = useState<TagWithoutSaved[]>(initialTags)
 	const [selectedMovements, setSelectedMovements] = useState<string[]>(
@@ -139,6 +142,37 @@ export default function EditWorkoutClientCompact({
 			})
 		}
 	}, [workoutId, fetchDescriptions])
+
+	// Watch for scheme changes and set default score type
+	useEffect(() => {
+		if (scheme) {
+			// Get default score type based on scheme
+			const getDefaultScoreType = (
+				schemeValue: string,
+			): "min" | "max" | "sum" | "average" | "first" | "last" | undefined => {
+				switch (schemeValue) {
+					case "time":
+					case "time-with-cap":
+						return "min" // Lower time is better
+					case "rounds-reps":
+					case "reps":
+					case "calories":
+					case "meters":
+					case "load":
+					case "emom":
+						return "max" // Higher is better
+					case "pass-fail":
+						return "first" // First attempt matters
+					default:
+						return undefined
+				}
+			}
+
+			const defaultScoreType = getDefaultScoreType(scheme)
+			// Always set to scheme default when scheme changes
+			setScoreType(defaultScoreType)
+		}
+	}, [scheme])
 
 	// Watch for scaling group selection changes and fetch levels
 	useEffect(() => {
@@ -209,6 +243,7 @@ export default function EditWorkoutClientCompact({
 				name,
 				description,
 				scheme,
+				scoreType: scoreType ?? null,
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
 				roundsToScore: roundsToScore === undefined ? null : roundsToScore,
@@ -307,6 +342,38 @@ export default function EditWorkoutClientCompact({
 								</Select>
 							</div>
 						</div>
+
+						{scheme && (
+							<div>
+								<Label htmlFor="workout-score-type-compact">Score Type</Label>
+								<Select
+									value={scoreType ?? ""}
+									onValueChange={(value) =>
+										setScoreType(value as WorkoutUpdate["scoreType"])
+									}
+								>
+									<SelectTrigger id="workout-score-type-compact">
+										<SelectValue placeholder="Select score type" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="min">
+											Minimize (lower is better)
+										</SelectItem>
+										<SelectItem value="max">
+											Maximize (higher is better)
+										</SelectItem>
+										<SelectItem value="sum">Sum (total across rounds)</SelectItem>
+										<SelectItem value="average">
+											Average (mean across rounds)
+										</SelectItem>
+										<SelectItem value="first">
+											First (only first attempt)
+										</SelectItem>
+										<SelectItem value="last">Last (only last attempt)</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						)}
 
 						<div>
 							<Label htmlFor="workout-scaling-group-compact">

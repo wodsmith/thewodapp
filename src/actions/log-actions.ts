@@ -405,8 +405,36 @@ async function updateResultForm(
 
 	// Generate WOD score summary
 	let finalWodScoreSummary = ""
-	if (isTimeBasedWodScore) {
-		finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
+	// Check if any rounds are time capped - if so, use descriptive format instead of time-only format
+	const hasTimeCappedRounds = timeCappedEntries.some((capped) => capped)
+
+	// Import helper functions for score aggregation
+	const { getDefaultScoreType, aggregateScores } = await import("@/server/logs")
+
+	// Always use scoreType (with fallback to default) for multiple rounds
+	const effectiveScoreType = workout.scoreType || getDefaultScoreType(workout.scheme)
+	const shouldAggregate = (workout.roundsToScore || 1) > 1 && !hasTimeCappedRounds
+
+	if (isTimeBasedWodScore && !hasTimeCappedRounds) {
+		if (shouldAggregate) {
+			// Aggregate time values based on scoreType
+			const timeValues = setsForDb
+				.map((set) => set.time)
+				.filter((t): t is number => t !== null && t !== undefined && t > 0)
+
+			const aggregated = aggregateScores(timeValues, effectiveScoreType)
+			finalWodScoreSummary = aggregated !== null ? formatSecondsToTime(aggregated) : ""
+		} else {
+			finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
+		}
+	} else if (shouldAggregate && !isRoundsAndRepsWorkout) {
+		// Aggregate non-time scores based on scoreType
+		const scoreValues = setsForDb
+			.map((set) => set.reps || set.score || 0)
+			.filter((s): s is number => s !== null && s > 0)
+
+		const aggregated = aggregateScores(scoreValues, effectiveScoreType)
+		finalWodScoreSummary = aggregated !== null ? aggregated.toString() : ""
 	} else {
 		const scoreSummaries: string[] = []
 		for (let k = 0; k < parsedScoreEntries.length; k++) {
