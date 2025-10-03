@@ -159,18 +159,18 @@ const CreateScheduleDialog = ({
 
 				<div className="space-y-4">
 					{isLoading ? (
-						<div className="p-4 text-center text-slate-600">
+						<div className="p-4 text-center text-muted-foreground">
 							Loading templates...
 						</div>
 					) : templates.length === 0 ? (
-						<div className="p-4 bg-orange-50 rounded-lg">
+						<div className="rounded-lg border border-primary/20 bg-primary/10 p-4">
 							<div className="flex items-start space-x-2">
-								<AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+								<AlertCircle className="mt-0.5 h-5 w-5 text-primary" />
 								<div>
-									<p className="text-sm text-orange-700 font-medium">
+									<p className="text-sm font-medium text-primary">
 										No templates found
 									</p>
-									<p className="text-xs text-orange-600 mt-1">
+									<p className="mt-1 text-xs text-primary/80">
 										Please create a schedule template first before generating a
 										schedule.
 									</p>
@@ -211,11 +211,11 @@ const CreateScheduleDialog = ({
 							{/* Location Selection */}
 							<div className="space-y-2">
 								<Label>Locations</Label>
-								<div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+								<div className="space-y-2 max-h-48 overflow-y-auto rounded-lg border p-3">
 									{locations.map((location) => (
 										<div
 											key={location.id}
-											className="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded"
+											className="flex items-center space-x-3 rounded p-2 hover:bg-muted"
 										>
 											<Checkbox
 												id={`location-${location.id}`}
@@ -225,12 +225,12 @@ const CreateScheduleDialog = ({
 											/>
 											<label
 												htmlFor={`location-${location.id}`}
-												className="flex items-center space-x-2 cursor-pointer flex-1"
+												className="flex flex-1 cursor-pointer items-center space-x-2"
 											>
-												<MapPin className="h-3 w-3" />
+												<MapPin className="h-3 w-3 text-muted-foreground" />
 												<span>{location.name}</span>
 												{location.capacity && (
-													<span className="text-xs text-slate-500">
+													<span className="text-xs text-muted-foreground">
 														(Capacity: {location.capacity})
 													</span>
 												)}
@@ -239,7 +239,7 @@ const CreateScheduleDialog = ({
 									))}
 								</div>
 								{selectedLocationIds.length === 0 && (
-									<p className="text-xs text-slate-500">
+									<p className="text-xs text-muted-foreground">
 										Select one or more locations to create schedules for
 									</p>
 								)}
@@ -247,14 +247,14 @@ const CreateScheduleDialog = ({
 
 							{/* Template Info */}
 							{selectedTemplate && (
-								<div className="p-3 bg-blue-50 rounded-lg">
+								<div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
 									<div className="flex items-start space-x-2">
-										<Clock className="h-4 w-4 text-blue-600 mt-0.5" />
+										<Clock className="mt-0.5 h-4 w-4 text-primary" />
 										<div className="text-sm">
-											<p className="text-blue-700 font-medium">
+											<p className="font-medium text-primary">
 												{selectedTemplate.name}
 											</p>
-											<p className="text-blue-600 text-xs mt-1">
+											<p className="mt-1 text-xs text-primary/80">
 												This template contains {templateClassCount} classes that
 												will be scheduled for {selectedLocationIds.length}{" "}
 												location{selectedLocationIds.length !== 1 ? "s" : ""}.
