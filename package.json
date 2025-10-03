@@ -1,25 +1,26 @@
 {
-  "name": "wodsmith-monorepo",
-  "private": true,
-  "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "format": "turbo format",
-    "check": "turbo check",
-    "type-check": "turbo type-check",
-    "test": "turbo test",
-    "db:generate": "turbo db:generate",
-    "db:studio": "turbo db:studio",
-    "db:migrate:dev": "turbo db:migrate:dev",
-    "db:migrate:prod": "turbo db:migrate:prod",
-    "email:dev": "turbo email:dev"
-  },
-  "devDependencies": {
-    "turbo": "^2.5.8"
-  },
-  "packageManager": "pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4",
-  "engines": {
-    "node": ">=18"
-  }
+	"name": "wodsmith-monorepo",
+	"private": true,
+	"scripts": {
+		"build": "turbo build",
+		"dev": "turbo dev",
+		"lint": "turbo lint",
+		"format": "turbo format",
+		"check": "turbo check",
+		"type-check": "turbo type-check",
+		"test": "turbo test",
+		"db:generate": "turbo db:generate",
+		"db:studio": "turbo db:studio",
+		"db:migrate:dev": "turbo db:migrate:dev",
+		"db:migrate:prod": "turbo db:migrate:prod",
+		"email:dev": "turbo email:dev",
+		"ts:clean": "find . -name '.tsbuildinfo' -type f -delete"
+	},
+	"devDependencies": {
+		"turbo": "^2.5.8"
+	},
+	"packageManager": "pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4",
+	"engines": {
+		"node": ">=18"
+	}
 }

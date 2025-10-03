@@ -236,7 +236,7 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 
 						<div className="flex flex-col justify-center items-center">
 							<Captcha
-								onSuccess={(token) => form.setValue("captchaToken", token)}
+								onSuccess={(token: string) => form.setValue("captchaToken", token)}
 								validationError={form.formState.errors.captchaToken?.message}
 							/>
 
@@ -333,7 +333,7 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 							/>
 							<div className="flex flex-col justify-center items-center">
 								<Captcha
-									onSuccess={(token) =>
+									onSuccess={(token: string) =>
 										passkeyForm.setValue("captchaToken", token)
 									}
 									validationError={

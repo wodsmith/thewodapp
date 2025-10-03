@@ -63,10 +63,7 @@ function RouterChecker() {
 	return null
 }
 
-export function ThemeProvider({
-	children,
-	...props
-}: React.ComponentProps<typeof NextThemesProvider>) {
+export function ThemeProvider({children, ...props}: React.ComponentProps<typeof NextThemesProvider>) {
 	const setSession = useSessionStore((store) => store.setSession)
 	const setConfig = useConfigStore((store) => store.setConfig)
 	const refetchSession = useSessionStore((store) => store.refetchSession)
@@ -133,7 +130,7 @@ export function ThemeProvider({
 			<Suspense>
 				<RouterChecker />
 			</Suspense>
-			<NextThemesProvider {...props} attribute="class">
+			<NextThemesProvider {...props}>
 				<NuqsAdapter>{children}</NuqsAdapter>
 			</NextThemesProvider>
 		</HeroUIProvider>

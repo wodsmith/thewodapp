@@ -124,7 +124,7 @@ export default function ForgotPasswordClientComponent() {
 							/>
 							<div className="flex flex-col justify-center items-center">
 								<Captcha
-									onSuccess={(token) => form.setValue("captchaToken", token)}
+									onSuccess={(token: string) => form.setValue("captchaToken", token)}
 									validationError={form.formState.errors.captchaToken?.message}
 								/>
 

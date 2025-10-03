@@ -131,7 +131,7 @@ export default function WorkoutRowCard({
 												<Link
 													href={`/workouts/${workout.sourceWorkout.id}`}
 													className="font-semibold underline hover:no-underline"
-													onClick={(e) => e.stopPropagation()}
+													onClick={(e: React.MouseEvent) => e.stopPropagation()}
 												>
 													"{workout.sourceWorkout.name}"
 												</Link>

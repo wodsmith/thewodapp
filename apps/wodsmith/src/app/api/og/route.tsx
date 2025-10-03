@@ -1,14 +1,14 @@
-import { ImageResponse } from "next/og"
+import { ImageResponse } from "next/og";
 
 export async function GET(request: Request) {
 	try {
-		const { searchParams } = new URL(request.url)
+		const { searchParams } = new URL(request.url);
 
 		// ?title=<title>
-		const hasTitle = searchParams.has("title")
+		const hasTitle = searchParams.has("title");
 		const title = hasTitle
 			? searchParams.get("title")?.slice(0, 100)
-			: "My default title"
+			: "My default title";
 
 		return new ImageResponse(
 			<div
@@ -26,6 +26,7 @@ export async function GET(request: Request) {
 				}}
 			>
 				<h2 tw="flex flex-row text-xl font-bold tracking-tight text-gray-900 text-left items-center absolute bottom-0 left-0">
+					{/* @ts-ignore - Satori tw prop not recognized by TypeScript */}
 					<img
 						alt="spicy-wod"
 						height={40}
@@ -45,15 +46,15 @@ export async function GET(request: Request) {
 				width: 1200,
 				height: 630,
 			},
-		)
+		);
 	} catch (e: unknown) {
 		if (typeof e === "object" && e !== null && "message" in e) {
-			console.log(`${(e as { message: string }).message}`)
+			console.log(`${(e as { message: string }).message}`);
 		} else {
-			console.log("Unknown error", e)
+			console.log("Unknown error", e);
 		}
 		return new Response("Failed to generate the image", {
 			status: 500,
-		})
+		});
 	}
 }
