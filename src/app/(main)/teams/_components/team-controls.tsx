@@ -3,6 +3,13 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup } from "@/components/ui/toggle-group"
+import { Calendar } from "@/components/ui/calendar"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react"
 
 type ViewMode = "daily" | "weekly"
 
@@ -99,9 +106,29 @@ export function TeamControls({
 					Today
 				</Button>
 
-				<div className="min-w-[200px] text-center font-medium">
-					{formatDateDisplay()}
-				</div>
+				<Popover>
+					<PopoverTrigger asChild>
+						<Button
+							variant="outline"
+							className="min-w-[200px] justify-center font-medium"
+						>
+							<CalendarIcon className="mr-2 h-4 w-4" />
+							{formatDateDisplay()}
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent className="w-auto p-0" align="center">
+						<Calendar
+							mode="single"
+							selected={selectedDate}
+							onSelect={(date) => {
+								if (date) {
+									onDateChange(date)
+								}
+							}}
+							initialFocus
+						/>
+					</PopoverContent>
+				</Popover>
 
 				<Button
 					variant="outline"
