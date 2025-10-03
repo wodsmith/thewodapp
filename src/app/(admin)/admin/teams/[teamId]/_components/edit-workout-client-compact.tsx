@@ -407,9 +407,9 @@ export default function EditWorkoutClientCompact({
 										scalingGroups.map((group) => (
 											<SelectItem key={group.id} value={group.id}>
 												{group.title}
-												{group.teamName && (
+												{group.isSystem === 1 && (
 													<span className="text-muted-foreground ml-2">
-														({group.teamName})
+														(System)
 													</span>
 												)}
 												{group.isDefault === 1 && (
