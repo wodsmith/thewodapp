@@ -24,6 +24,17 @@ DELETE FROM team_role;
 DELETE FROM team;
 DELETE FROM user;
 
+-- Seed global default scaling group (system-wide default)
+-- This must be seeded first as it's used as the ultimate fallback for all workouts
+INSERT OR IGNORE INTO scaling_groups (id, title, description, teamId, isDefault, isSystem, createdAt, updatedAt, updateCounter) VALUES
+('sgrp_global_default', 'Standard Scaling', 'Default Rx+, Rx, and Scaled levels for backward compatibility', NULL, 1, 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Seed global default scaling levels
+INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, createdAt, updatedAt, updateCounter) VALUES
+('slvl_global_rxplus', 'sgrp_global_default', 'Rx+', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_global_rx', 'sgrp_global_default', 'Rx', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_global_scaled', 'sgrp_global_default', 'Scaled', 2, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
 -- Seed users table
 -- Password for all users: password123
 INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passwordHash, role, currentCredits, createdAt, updatedAt, updateCounter) VALUES
