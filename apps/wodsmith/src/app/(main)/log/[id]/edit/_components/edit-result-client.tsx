@@ -327,7 +327,7 @@ export default function EditResultClient({
 				const isTimeCapped = timeCappedArray[index] || false
 
 				return (
-					<div key={`score-time-${index}`} className="space-y-2">
+					<div key={`score-time-round-${index}-${workout.id}`} className="space-y-2">
 						{currentScores.length > 1 && (
 							<Label className="text-sm text-muted-foreground">
 								Round {index + 1} Score
@@ -395,7 +395,7 @@ export default function EditResultClient({
 		if (hasRepsPerRound) {
 			return currentScores.map((parts, index) => {
 				return (
-					<div key={`score-reps-${index}`} className="space-y-2">
+					<div key={`score-reps-round-${index}-${workout.id}`} className="space-y-2">
 						<h4 className="text-sm font-semibold">
 							{currentScores.length > 1 ? `Round ${index + 1}` : "Score"}
 						</h4>
@@ -455,7 +455,7 @@ export default function EditResultClient({
 		// Default score input
 		return currentScores.map((parts, index) => {
 			return (
-				<div key={`score-default-${index}`} className="flex items-end gap-2">
+				<div key={`score-default-round-${index}-${workout.id}`} className="flex items-end gap-2">
 					<FormField
 						control={form.control}
 						name={`scores.${index}.0`}
