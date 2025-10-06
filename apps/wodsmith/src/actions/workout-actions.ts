@@ -1592,6 +1592,7 @@ export const getTeamLeaderboardsAction = createServerAction()
 	.input(
 		z.object({
 			scheduledWorkoutInstanceIds: z.array(z.string()).min(1),
+			teamId: z.string(),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -1606,6 +1607,7 @@ export const getTeamLeaderboardsAction = createServerAction()
 				input.scheduledWorkoutInstanceIds.map(async (instanceId) => {
 					const leaderboard = await getLeaderboardForScheduledWorkout({
 						scheduledWorkoutInstanceId: instanceId,
+						teamId: input.teamId,
 					})
 					leaderboards[instanceId] = leaderboard
 				}),

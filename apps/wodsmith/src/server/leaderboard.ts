@@ -194,8 +194,10 @@ function getDefaultScoreType(scheme: string): string {
  */
 export async function getLeaderboardForScheduledWorkout({
 	scheduledWorkoutInstanceId,
+	teamId,
 }: {
 	scheduledWorkoutInstanceId: string
+	teamId: string
 }): Promise<LeaderboardEntry[]> {
 	const db = getDd()
 
@@ -209,6 +211,10 @@ export async function getLeaderboardForScheduledWorkout({
 		})
 		.from(results)
 		.innerJoin(userTable, eq(results.userId, userTable.id))
+		.innerJoin(
+			scheduledWorkoutInstancesTable,
+			eq(results.scheduledWorkoutInstanceId, scheduledWorkoutInstancesTable.id),
+		)
 		.leftJoin(
 			scalingLevelsTable,
 			eq(results.scalingLevelId, scalingLevelsTable.id),
@@ -217,13 +223,13 @@ export async function getLeaderboardForScheduledWorkout({
 		.where(
 			and(
 				eq(results.scheduledWorkoutInstanceId, scheduledWorkoutInstanceId),
+				eq(scheduledWorkoutInstancesTable.teamId, teamId),
 				eq(results.type, "wod"),
 			),
 		)
 
 	// Get all sets for these results in one query
 	const resultIds = workoutResults.map(r => r.result.id)
-	console.log("🔍 Leaderboard Debug - resultIds:", resultIds)
 
 	const allSets = resultIds.length > 0
 		? await db
@@ -232,17 +238,12 @@ export async function getLeaderboardForScheduledWorkout({
 				.where(inArray(sets.resultId, resultIds))
 		: []
 
-	console.log("🔍 Leaderboard Debug - allSets count:", allSets.length)
-	console.log("🔍 Leaderboard Debug - first set:", allSets[0])
-
 	// Group sets by resultId for efficient lookup
 	const setsByResultId = new Map<string, typeof allSets>()
 	for (const set of allSets) {
 		const existing = setsByResultId.get(set.resultId) || []
 		setsByResultId.set(set.resultId, [...existing, set])
 	}
-
-	console.log("🔍 Leaderboard Debug - setsByResultId entries:", Array.from(setsByResultId.entries()).map(([id, sets]) => ({ id, count: sets.length })))
 
 	// Transform and calculate aggregated scores
 	const leaderboard: LeaderboardEntry[] = workoutResults.map((row) => {
@@ -269,22 +270,12 @@ export async function getLeaderboardForScheduledWorkout({
 
 		// Get sets for this result and calculate aggregated score
 		const resultSets = setsByResultId.get(row.result.id) || []
-		console.log("🔍 Leaderboard Debug - Processing result:", {
-			resultId: row.result.id,
-			userId: row.user.id,
-			setsCount: resultSets.length,
-			workoutScheme: row.workout?.scheme,
-			workoutScoreType: row.workout?.scoreType,
-			sets: resultSets.map(s => ({ reps: s.reps, time: s.time, weight: s.weight }))
-		})
 
 		const [aggregatedScore, isTimeCapped] = row.workout
 			? calculateAggregatedScore(resultSets, row.workout.scheme, row.workout.scoreType)
 			: [null, false]
-		console.log("🔍 Leaderboard Debug - Aggregated score:", aggregatedScore, "isTimeCapped:", isTimeCapped)
 
 		const formattedScore = formatScore(aggregatedScore, row.workout?.scheme, isTimeCapped)
-		console.log("🔍 Leaderboard Debug - Formatted score:", formattedScore)
 
 		return {
 			userId: row.user.id,

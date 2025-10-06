@@ -2,7 +2,7 @@
 
 import { Plus, X } from "lucide-react"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -154,13 +154,18 @@ export default function EditWorkoutClientCompact({
 		}
 	}, [workoutId, fetchDescriptions])
 
+	// Track the previous default scoreType to detect user changes
+	const prevDefaultScoreType = useRef<
+		"min" | "max" | "sum" | "average" | undefined
+	>(undefined)
+
 	// Watch for scheme changes and set default score type
 	useEffect(() => {
 		if (scheme) {
 			// Get default score type based on scheme
 			const getDefaultScoreType = (
 				schemeValue: string,
-			): "min" | "max" | "sum" | "average" | "first" | "last" | undefined => {
+			): "min" | "max" | "sum" | "average" | undefined => {
 				switch (schemeValue) {
 					case "time":
 					case "time-with-cap":
@@ -171,19 +176,29 @@ export default function EditWorkoutClientCompact({
 					case "meters":
 					case "load":
 					case "emom":
-						return "max" // Higher is better
 					case "pass-fail":
-						return "first" // First attempt matters
+						return "max" // Higher is better
 					default:
 						return undefined
 				}
 			}
 
 			const defaultScoreType = getDefaultScoreType(scheme)
-			// Always set to scheme default when scheme changes
-			setScoreType(defaultScoreType)
+
+			// Only set the default if:
+			// 1. scoreType is not set (null/undefined/empty), OR
+			// 2. scoreType equals the previous default (user hasn't made an explicit choice)
+			if (
+				!scoreType ||
+				scoreType === prevDefaultScoreType.current
+			) {
+				setScoreType(defaultScoreType)
+			}
+
+			// Update the ref to track this new default for future comparisons
+			prevDefaultScoreType.current = defaultScoreType
 		}
-	}, [scheme])
+	}, [scheme, scoreType])
 
 	// Watch for scaling group selection changes and fetch levels
 	useEffect(() => {
@@ -377,10 +392,6 @@ export default function EditWorkoutClientCompact({
 										<SelectItem value="average">
 											Average (mean across rounds)
 										</SelectItem>
-										<SelectItem value="first">
-											First (only first attempt)
-										</SelectItem>
-										<SelectItem value="last">Last (only last attempt)</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>

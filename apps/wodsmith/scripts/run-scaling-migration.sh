@@ -139,6 +139,7 @@ if echo "$columns" | grep -q '"name":"scale"'; then
         updatedAt = '${NOW}',
         updateCounter = updateCounter + 1
     WHERE (scale = 'rx+' OR scaling_level_id = 'rx+')
+      AND (scaling_level_id IS NULL OR scaling_level_id IN ('rx+', 'rx', 'scaled'))
       AND scaling_level_id != 'slvl_global_rxplus'" "Migrated Rx+ results"
 
     # Migrate Rx results (from scale column OR legacy scalingLevelId)
@@ -148,6 +149,7 @@ if echo "$columns" | grep -q '"name":"scale"'; then
         updatedAt = '${NOW}',
         updateCounter = updateCounter + 1
     WHERE (scale = 'rx' OR scaling_level_id = 'rx')
+      AND (scaling_level_id IS NULL OR scaling_level_id IN ('rx+', 'rx', 'scaled'))
       AND scaling_level_id != 'slvl_global_rx'" "Migrated Rx results"
 
     # Migrate Scaled results (from scale column OR legacy scalingLevelId)
@@ -157,6 +159,7 @@ if echo "$columns" | grep -q '"name":"scale"'; then
         updatedAt = '${NOW}',
         updateCounter = updateCounter + 1
     WHERE (scale = 'scaled' OR scaling_level_id = 'scaled')
+      AND (scaling_level_id IS NULL OR scaling_level_id IN ('rx+', 'rx', 'scaled'))
       AND scaling_level_id != 'slvl_global_scaled'" "Migrated Scaled results"
 else
     echo "⚠️  No legacy 'scale' column found, skipping result migration"

@@ -157,7 +157,7 @@ export default function CreateWorkoutClient({
 			// Get default score type based on scheme
 			const getDefaultScoreType = (
 				scheme: string,
-			): "min" | "max" | "sum" | "average" | "first" | "last" | undefined => {
+			): "min" | "max" | "sum" | "average" | undefined => {
 				switch (scheme) {
 					case "time":
 					case "time-with-cap":
@@ -168,9 +168,8 @@ export default function CreateWorkoutClient({
 					case "meters":
 					case "load":
 					case "emom":
-						return "max" // Higher is better
 					case "pass-fail":
-						return "first" // First attempt matters
+						return "max" // Higher is better
 					default:
 						return undefined
 				}
@@ -426,12 +425,6 @@ export default function CreateWorkoutClient({
 													<SelectItem value="sum">Sum (total across rounds)</SelectItem>
 													<SelectItem value="average">
 														Average (mean across rounds)
-													</SelectItem>
-													<SelectItem value="first">
-														First (only first attempt)
-													</SelectItem>
-													<SelectItem value="last">
-														Last (only last attempt)
 													</SelectItem>
 												</SelectContent>
 											</Select>
