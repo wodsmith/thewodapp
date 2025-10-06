@@ -132,29 +132,35 @@ fi
 if echo "$columns" | grep -q '"name":"scale"'; then
     echo "Found legacy 'scale' column, migrating results..."
 
-    # Migrate Rx+ results
+    # Migrate Rx+ results (from scale column OR legacy scalingLevelId)
     execute_sql "UPDATE results
     SET scaling_level_id = 'slvl_global_rxplus',
         as_rx = 1,
         updatedAt = '${NOW}',
         updateCounter = updateCounter + 1
-    WHERE scale = 'rx+' AND scaling_level_id IS NULL" "Migrated Rx+ results"
+    WHERE (scale = 'rx+' OR scaling_level_id = 'rx+')
+      AND (scaling_level_id IS NULL OR scaling_level_id IN ('rx+', 'rx', 'scaled'))
+      AND scaling_level_id != 'slvl_global_rxplus'" "Migrated Rx+ results"
 
-    # Migrate Rx results
+    # Migrate Rx results (from scale column OR legacy scalingLevelId)
     execute_sql "UPDATE results
     SET scaling_level_id = 'slvl_global_rx',
         as_rx = 1,
         updatedAt = '${NOW}',
         updateCounter = updateCounter + 1
-    WHERE scale = 'rx' AND scaling_level_id IS NULL" "Migrated Rx results"
+    WHERE (scale = 'rx' OR scaling_level_id = 'rx')
+      AND (scaling_level_id IS NULL OR scaling_level_id IN ('rx+', 'rx', 'scaled'))
+      AND scaling_level_id != 'slvl_global_rx'" "Migrated Rx results"
 
-    # Migrate Scaled results
+    # Migrate Scaled results (from scale column OR legacy scalingLevelId)
     execute_sql "UPDATE results
     SET scaling_level_id = 'slvl_global_scaled',
         as_rx = 0,
         updatedAt = '${NOW}',
         updateCounter = updateCounter + 1
-    WHERE scale = 'scaled' AND scaling_level_id IS NULL" "Migrated Scaled results"
+    WHERE (scale = 'scaled' OR scaling_level_id = 'scaled')
+      AND (scaling_level_id IS NULL OR scaling_level_id IN ('rx+', 'rx', 'scaled'))
+      AND scaling_level_id != 'slvl_global_scaled'" "Migrated Scaled results"
 else
     echo "⚠️  No legacy 'scale' column found, skipping result migration"
 fi

@@ -94,7 +94,20 @@ interface CreateSessionParams
 	token: string
 }
 
-export async function getUserTeamsWithPermissions(userId: string) {
+export async function getUserTeamsWithPermissions(userId: string): Promise<
+	{
+		id: string
+		name: string
+		slug: string
+		isPersonalTeam: boolean
+		role: {
+			id: string
+			name: string
+			isSystemRole: boolean
+		}
+		permissions: string[]
+	}[]
+> {
 	const db = getDd()
 
 	// Get user's team memberships
@@ -160,8 +173,9 @@ export async function getUserTeamsWithPermissions(userId: string) {
 
 		return {
 			id: membership.teamId,
-			name: Array.isArray(membership.team) ? "" : (membership.team.name ?? ""),
-			slug: Array.isArray(membership.team) ? "" : (membership.team.slug ?? ""),
+			name: membership.team.name ?? "",
+			slug: membership.team.slug ?? "",
+			isPersonalTeam: !!membership.team.isPersonalTeam,
 			role: {
 				id: membership.roleId,
 				name: roleName,

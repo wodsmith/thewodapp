@@ -5,8 +5,27 @@ import { getSessionFromCookie } from "@/utils/auth"
 import ScheduleWorkoutClient from "./_components/schedule-workout-client"
 
 export const metadata: Metadata = {
-	title: "WODsmith | Schedule Workout",
+	title: "Schedule Workout",
 	description: "Schedule a workout for a specific date",
+	openGraph: {
+		type: "website",
+		title: "Schedule Workout",
+		description: "Schedule a workout for a specific date",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Schedule Workout")}`,
+				width: 1200,
+				height: 630,
+				alt: "Schedule Workout",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Schedule Workout",
+		description: "Schedule a workout for a specific date",
+		images: [`/api/og?title=${encodeURIComponent("Schedule Workout")}`],
+	},
 }
 
 export default async function ScheduleWorkoutPage({

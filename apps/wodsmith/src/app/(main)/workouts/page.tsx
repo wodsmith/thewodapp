@@ -18,22 +18,26 @@ import { PaginationWithUrl } from "@/components/ui/pagination"
 import type { KVSession } from "@/utils/kv-session"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Explore Workouts",
-	description: "Track your spicy workouts and progress.",
+	title: "Explore Workouts",
+	description: "Browse and track your CrossFit workouts.",
 	openGraph: {
-		title: "WODsmith | Explore Workouts", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Explore Workouts",
+		description: "Browse and track your CrossFit workouts.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent(
-					"WODsmith | Explore Workouts",
-				)}`,
+				url: `/api/og?title=${encodeURIComponent("Explore Workouts")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Explore Workouts",
+				alt: "Explore Workouts",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Explore Workouts",
+		description: "Browse and track your CrossFit workouts.",
+		images: [`/api/og?title=${encodeURIComponent("Explore Workouts")}`],
 	},
 }
 

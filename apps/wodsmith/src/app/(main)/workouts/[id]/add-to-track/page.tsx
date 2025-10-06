@@ -5,8 +5,27 @@ import { getSessionFromCookie } from "@/utils/auth"
 import AddToTrackClient from "./_components/add-to-track-client"
 
 export const metadata: Metadata = {
-	title: "WODsmith | Add to Track",
+	title: "Add to Track",
 	description: "Add workout to a programming track",
+	openGraph: {
+		type: "website",
+		title: "Add to Track",
+		description: "Add workout to a programming track",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Add to Track")}`,
+				width: 1200,
+				height: 630,
+				alt: "Add to Track",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Add to Track",
+		description: "Add workout to a programming track",
+		images: [`/api/og?title=${encodeURIComponent("Add to Track")}`],
+	},
 }
 
 export default async function AddToTrackPage({

@@ -2,7 +2,7 @@
 
 import { Plus, X } from "lucide-react"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useServerAction } from "zsa-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,9 +36,20 @@ interface ScalingGroupWithTeam {
 	title: string
 	description: string | null
 	teamId: string | null
-	teamName: string
 	isSystem: number
 	isDefault: number
+	createdAt: Date
+	updatedAt: Date
+	updateCounter: number | null
+	levels: Array<{
+		id: string
+		scalingGroupId: string
+		label: string
+		position: number
+		createdAt: Date
+		updatedAt: Date
+		updateCounter: number | null
+	}>
 }
 
 type Props = Prettify<{
@@ -74,6 +85,9 @@ export default function EditWorkoutClientCompact({
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
 	const [scheme, setScheme] = useState<WorkoutUpdate["scheme"]>(workout?.scheme)
+	const [scoreType, setScoreType] = useState<WorkoutUpdate["scoreType"]>(
+		workout?.scoreType,
+	)
 	const [scope, setScope] = useState(workout?.scope || "private")
 	const [tags, setTags] = useState<TagWithoutSaved[]>(initialTags)
 	const [selectedMovements, setSelectedMovements] = useState<string[]>(
@@ -139,6 +153,52 @@ export default function EditWorkoutClientCompact({
 			})
 		}
 	}, [workoutId, fetchDescriptions])
+
+	// Track the previous default scoreType to detect user changes
+	const prevDefaultScoreType = useRef<
+		"min" | "max" | "sum" | "average" | undefined
+	>(undefined)
+
+	// Watch for scheme changes and set default score type
+	useEffect(() => {
+		if (scheme) {
+			// Get default score type based on scheme
+			const getDefaultScoreType = (
+				schemeValue: string,
+			): "min" | "max" | "sum" | "average" | undefined => {
+				switch (schemeValue) {
+					case "time":
+					case "time-with-cap":
+						return "min" // Lower time is better
+					case "rounds-reps":
+					case "reps":
+					case "calories":
+					case "meters":
+					case "load":
+					case "emom":
+					case "pass-fail":
+						return "max" // Higher is better
+					default:
+						return undefined
+				}
+			}
+
+			const defaultScoreType = getDefaultScoreType(scheme)
+
+			// Only set the default if:
+			// 1. scoreType is not set (null/undefined/empty), OR
+			// 2. scoreType equals the previous default (user hasn't made an explicit choice)
+			if (
+				!scoreType ||
+				scoreType === prevDefaultScoreType.current
+			) {
+				setScoreType(defaultScoreType)
+			}
+
+			// Update the ref to track this new default for future comparisons
+			prevDefaultScoreType.current = defaultScoreType
+		}
+	}, [scheme, scoreType])
 
 	// Watch for scaling group selection changes and fetch levels
 	useEffect(() => {
@@ -209,6 +269,7 @@ export default function EditWorkoutClientCompact({
 				name,
 				description,
 				scheme,
+				scoreType: scoreType ?? null,
 				scope,
 				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
 				roundsToScore: roundsToScore === undefined ? null : roundsToScore,
@@ -308,6 +369,34 @@ export default function EditWorkoutClientCompact({
 							</div>
 						</div>
 
+						{scheme && (
+							<div>
+								<Label htmlFor="workout-score-type-compact">Score Type</Label>
+								<Select
+									value={scoreType ?? ""}
+									onValueChange={(value) =>
+										setScoreType(value as WorkoutUpdate["scoreType"])
+									}
+								>
+									<SelectTrigger id="workout-score-type-compact">
+										<SelectValue placeholder="Select score type" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="min">
+											Minimize (lower is better)
+										</SelectItem>
+										<SelectItem value="max">
+											Maximize (higher is better)
+										</SelectItem>
+										<SelectItem value="sum">Sum (total across rounds)</SelectItem>
+										<SelectItem value="average">
+											Average (mean across rounds)
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						)}
+
 						<div>
 							<Label htmlFor="workout-scaling-group-compact">
 								Scaling Group (Optional)
@@ -329,9 +418,9 @@ export default function EditWorkoutClientCompact({
 										scalingGroups.map((group) => (
 											<SelectItem key={group.id} value={group.id}>
 												{group.title}
-												{group.teamName && (
+												{group.isSystem === 1 && (
 													<span className="text-muted-foreground ml-2">
-														({group.teamName})
+														(System)
 													</span>
 												)}
 												{group.isDefault === 1 && (

@@ -63,7 +63,7 @@ export function ProgrammingTrackDashboard({
 			<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
 				<div className="flex-1 min-w-0">
 					<h2 className="text-2xl font-bold font-mono tracking-tight">
-						Programming Tracks
+						Your Programming
 					</h2>
 					<p className="text-muted-foreground mt-1 font-mono">
 						Manage and organize your team's training programs

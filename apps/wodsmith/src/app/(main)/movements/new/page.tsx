@@ -6,22 +6,26 @@ import { getSessionFromCookie } from "@/utils/auth"
 import CreateMovementForm from "./_components/create-movement-form"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Create Movement",
-	description: "Track your spicy workouts and progress.",
+	title: "Create Movement",
+	description: "Create a new CrossFit movement.",
 	openGraph: {
-		title: "WODsmith | Create Movement", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Create Movement",
+		description: "Create a new CrossFit movement.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent(
-					"WODsmith | Create Movement",
-				)}`,
+				url: `/api/og?title=${encodeURIComponent("Create Movement")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Create Movement",
+				alt: "Create Movement",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Create Movement",
+		description: "Create a new CrossFit movement.",
+		images: [`/api/og?title=${encodeURIComponent("Create Movement")}`],
 	},
 }
 

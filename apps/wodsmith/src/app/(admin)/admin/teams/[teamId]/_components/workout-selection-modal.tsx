@@ -50,9 +50,20 @@ export function WorkoutSelectionModal({
 			title: string
 			description: string | null
 			teamId: string | null
-			teamName: string
 			isSystem: number
 			isDefault: number
+			createdAt: Date
+			updatedAt: Date
+			updateCounter: number | null
+			levels: Array<{
+				id: string
+				scalingGroupId: string
+				label: string
+				position: number
+				createdAt: Date
+				updatedAt: Date
+				updateCounter: number | null
+			}>
 		}>
 	>([])
 
@@ -104,12 +115,7 @@ export function WorkoutSelectionModal({
 		if (isOpen && teamId) {
 			fetchScalingGroups({ teamId, includeSystem: true }).then(([result]) => {
 				if (result?.success && result.data) {
-					setScalingGroups(
-						result.data.map((group: any) => ({
-							...group,
-							teamName: group.teamName || "System",
-						})),
-					)
+					setScalingGroups(result.data)
 				}
 			})
 		}

@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { and, eq, } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { createServerAction } from "zsa"
 import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, scalingGroupsTable } from "@/db/schema"
@@ -23,6 +23,7 @@ import {
 	getTeamTracks,
 	getWorkoutsForTrack,
 	hasTrackAccess,
+	isTrackOwner,
 	removeWorkoutFromTrack,
 	reorderTrackWorkouts,
 	updateProgrammingTrack,
@@ -80,6 +81,12 @@ export const deleteProgrammingTrackAction = createServerAction()
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
+			// Check if team owns the track (only owners can delete)
+			const isOwner = await isTrackOwner(teamId, trackId)
+			if (!isOwner) {
+				throw new Error("Only track owners can delete tracks")
+			}
+
 			await deleteProgrammingTrack(trackId)
 
 			console.log(
@@ -119,10 +126,10 @@ export const updateProgrammingTrackAction = createServerAction()
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
-			// Check track access
-			const trackAccess = await hasTrackAccess(teamId, trackId)
-			if (!trackAccess) {
-				throw new Error("Team does not have access to this track")
+			// Check if team owns the track (only owners can edit)
+			const isOwner = await isTrackOwner(teamId, trackId)
+			if (!isOwner) {
+				throw new Error("Only track owners can modify track settings")
 			}
 
 			const updateData: Parameters<typeof updateProgrammingTrack>[1] = {}
@@ -213,10 +220,10 @@ export const addWorkoutToTrackAction = createServerAction()
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
-			// Check track access
-			const trackAccess = await hasTrackAccess(teamId, trackId)
-			if (!trackAccess) {
-				throw new Error("Team does not have access to this track")
+			// Check if team owns the track (only owners can add workouts)
+			const isOwner = await isTrackOwner(teamId, trackId)
+			if (!isOwner) {
+				throw new Error("Only track owners can add workouts to the track")
 			}
 
 			const trackWorkout = await addWorkoutToTrack({
@@ -256,10 +263,10 @@ export const removeWorkoutFromTrackAction = createServerAction()
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
-			// Check track access
-			const trackAccess = await hasTrackAccess(teamId, trackId)
-			if (!trackAccess) {
-				throw new Error("Team does not have access to this track")
+			// Check if team owns the track (only owners can remove workouts)
+			const isOwner = await isTrackOwner(teamId, trackId)
+			if (!isOwner) {
+				throw new Error("Only track owners can remove workouts from the track")
 			}
 
 			await removeWorkoutFromTrack(trackWorkoutId)
@@ -294,10 +301,10 @@ export const updateTrackWorkoutAction = createServerAction()
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
-			// Check track access
-			const trackAccess = await hasTrackAccess(teamId, trackId)
-			if (!trackAccess) {
-				throw new Error("Team does not have access to this track")
+			// Check if team owns the track (only owners can update workouts)
+			const isOwner = await isTrackOwner(teamId, trackId)
+			if (!isOwner) {
+				throw new Error("Only track owners can update track workouts")
 			}
 
 			const trackWorkout = await updateTrackWorkout({
@@ -375,6 +382,12 @@ export const reorderTrackWorkoutsAction = createServerAction()
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 			console.log("DEBUG: [ReorderAction] Permission check passed")
+
+			// Check if team owns the track (only owners can reorder)
+			const isOwner = await isTrackOwner(teamId, trackId)
+			if (!isOwner) {
+				throw new Error("Only track owners can reorder track workouts")
+			}
 
 			console.log("DEBUG: [ReorderAction] Calling reorderTrackWorkouts with:", {
 				trackId,

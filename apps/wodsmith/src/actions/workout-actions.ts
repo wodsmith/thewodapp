@@ -23,6 +23,7 @@ import {
 import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getUserTeams } from "@/server/teams"
+import type { LeaderboardEntry } from "@/server/leaderboard"
 import { requireVerifiedEmail } from "@/utils/auth"
 import {
 	requireTeamMembership,
@@ -70,6 +71,7 @@ const createWorkoutSchema = z.object({
 			"feet",
 			"points",
 		]),
+		scoreType: z.enum(["min", "max", "sum", "average", "first", "last"]).nullable().optional().transform(val => val ?? null),
 		repsPerRound: z.number().nullable(),
 		roundsToScore: z.number().nullable(),
 		sugarId: z.string().nullable(),
@@ -1582,3 +1584,49 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 				)
 			}
 		})
+
+/**
+ * Get leaderboards for multiple scheduled workout instances
+ */
+export const getTeamLeaderboardsAction = createServerAction()
+	.input(
+		z.object({
+			scheduledWorkoutInstanceIds: z.array(z.string()).min(1),
+			teamId: z.string(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const { getLeaderboardForScheduledWorkout } = await import(
+				"@/server/leaderboard"
+			)
+
+			const leaderboards: Record<string, LeaderboardEntry[]> = {}
+
+			await Promise.all(
+				input.scheduledWorkoutInstanceIds.map(async (instanceId) => {
+					const leaderboard = await getLeaderboardForScheduledWorkout({
+						scheduledWorkoutInstanceId: instanceId,
+						teamId: input.teamId,
+					})
+					leaderboards[instanceId] = leaderboard
+				}),
+			)
+
+			return {
+				success: true,
+				data: leaderboards,
+			}
+		} catch (error) {
+			console.error("Failed to fetch team leaderboards:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to fetch team leaderboards",
+			)
+		}
+	})

@@ -102,6 +102,7 @@ export default function CreateWorkoutClient({
 			name: "",
 			description: "",
 			scheme: undefined,
+			scoreType: undefined,
 			scope: "private",
 			roundsToScore: undefined,
 			repsPerRound: undefined,
@@ -147,6 +148,38 @@ export default function CreateWorkoutClient({
 			},
 		},
 	)
+
+	// Watch for scheme changes and set default score type
+	const selectedScheme = form.watch("scheme")
+
+	useEffect(() => {
+		if (selectedScheme) {
+			// Get default score type based on scheme
+			const getDefaultScoreType = (
+				scheme: string,
+			): "min" | "max" | "sum" | "average" | undefined => {
+				switch (scheme) {
+					case "time":
+					case "time-with-cap":
+						return "min" // Lower time is better
+					case "rounds-reps":
+					case "reps":
+					case "calories":
+					case "meters":
+					case "load":
+					case "emom":
+					case "pass-fail":
+						return "max" // Higher is better
+					default:
+						return undefined
+				}
+			}
+
+			const defaultScoreType = getDefaultScoreType(selectedScheme)
+			// Always set to scheme default when scheme changes
+			form.setValue("scoreType", defaultScoreType)
+		}
+	}, [selectedScheme, form])
 
 	// Watch for scaling group selection changes
 	const selectedScalingGroupId = form.watch("scalingGroupId")
@@ -243,6 +276,7 @@ export default function CreateWorkoutClient({
 				name: data.name,
 				description: data.description,
 				scheme: data.scheme,
+				scoreType: data.scoreType ?? null,
 				scope: data.scope,
 				roundsToScore: data.roundsToScore ?? null,
 				repsPerRound: data.repsPerRound ?? null,
@@ -365,6 +399,40 @@ export default function CreateWorkoutClient({
 									</FormItem>
 								)}
 							/>
+
+							{form.watch("scheme") && (
+								<FormField
+									control={form.control}
+									name="scoreType"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel className="font-bold uppercase">
+												Score Type
+											</FormLabel>
+											<Select onValueChange={field.onChange} value={field.value}>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder="Select score type" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="min">
+														Minimize (lower is better)
+													</SelectItem>
+													<SelectItem value="max">
+														Maximize (higher is better)
+													</SelectItem>
+													<SelectItem value="sum">Sum (total across rounds)</SelectItem>
+													<SelectItem value="average">
+														Average (mean across rounds)
+													</SelectItem>
+												</SelectContent>
+											</Select>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							)}
 
 							<FormField
 								control={form.control}
