@@ -106,6 +106,7 @@ export function TeamPageClient({
 						const [leaderboardsResult, leaderboardsError] =
 							await fetchLeaderboards({
 								scheduledWorkoutInstanceIds: instanceIds,
+								teamId: selectedTeam.id,
 							})
 
 						if (leaderboardsResult?.success && !leaderboardsError) {
@@ -345,9 +346,7 @@ export function TeamPageClient({
 												{workoutData.name}
 											</h3>
 											<WorkoutWithLeaderboard
-												workout={workout}
 												leaderboard={leaderboard}
-												team={selectedTeam}
 											/>
 										</div>
 									)
