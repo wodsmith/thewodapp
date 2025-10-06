@@ -297,11 +297,11 @@ export default function CreateWorkoutClient({
 			scalingDescriptions:
 				data.scalingGroupId && data.scalingGroupId !== "none"
 					? Array.from(scalingDescriptions.entries()).map(
-							([scalingLevelId, description]) => ({
-								scalingLevelId,
-								description: description || null,
-							}),
-						)
+						([scalingLevelId, description]) => ({
+							scalingLevelId,
+							description: description || null,
+						}),
+					)
 					: undefined,
 		})
 	}
@@ -417,10 +417,10 @@ export default function CreateWorkoutClient({
 												</FormControl>
 												<SelectContent>
 													<SelectItem value="min">
-														Minimize (lower is better)
+														Min (lowest single set wins)
 													</SelectItem>
 													<SelectItem value="max">
-														Maximize (higher is better)
+														Max (highest single set wins)
 													</SelectItem>
 													<SelectItem value="sum">Sum (total across rounds)</SelectItem>
 													<SelectItem value="average">
@@ -735,9 +735,8 @@ export default function CreateWorkoutClient({
 													}
 												}}
 												aria-pressed={isSelected}
-												className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
-													isSelected ? "bg-black text-white" : ""
-												}`}
+												className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${isSelected ? "bg-black text-white" : ""
+													}`}
 											>
 												<span className="mr-2">{tag.name}</span>
 												{isSelected && <span className="text-xs">✓</span>}

@@ -370,10 +370,10 @@ export default function EditWorkoutClient({
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="min">
-											Minimize (lower is better)
+											Min (lowest single set wins)
 										</SelectItem>
 										<SelectItem value="max">
-											Maximize (higher is better)
+											Max (highest single set wins)
 										</SelectItem>
 										<SelectItem value="sum">
 											Sum (total across rounds)
