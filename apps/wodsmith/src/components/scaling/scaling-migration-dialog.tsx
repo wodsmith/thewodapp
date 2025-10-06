@@ -8,11 +8,11 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-	ScalingMigrationMapper,
-	type DescriptionMapping,
-} from "./scaling-migration-mapper"
 import type { ScalingLevel, WorkoutScalingDescription } from "@/db/schema"
+import {
+	type DescriptionMapping,
+	ScalingMigrationMapper,
+} from "./scaling-migration-mapper"
 
 interface ScalingMigrationDialogProps {
 	open: boolean

@@ -45,7 +45,8 @@ export async function GET(request: Request) {
 					flexDirection: "column",
 					alignItems: "flex-start",
 					justifyContent: "space-between",
-					background: "linear-gradient(to top, #000000 0%, #0a0a0a 50%, #000000 100%)",
+					background:
+						"linear-gradient(to top, #000000 0%, #0a0a0a 50%, #000000 100%)",
 					padding: "80px",
 					fontFamily: "system-ui, -apple-system, sans-serif",
 				}}

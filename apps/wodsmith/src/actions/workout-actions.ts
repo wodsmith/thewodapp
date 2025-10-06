@@ -1,41 +1,41 @@
 "use server"
 
+import { createId } from "@paralleldrive/cuid2"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createId } from "@paralleldrive/cuid2"
 import { createServerAction, ZSAError } from "zsa"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import type { LeaderboardEntry } from "@/server/leaderboard"
+import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
+import { getUserTeams } from "@/server/teams"
 import {
 	getResultSetsById,
-	getWorkoutResultsWithScalingForUser,
 	getWorkoutResultForScheduledInstance,
+	getWorkoutResultsForScheduledInstances,
+	getWorkoutResultsWithScalingForUser,
 } from "@/server/workout-results"
 import {
+	createProgrammingTrackWorkoutRemix,
 	createWorkout,
 	createWorkoutRemix,
-	createProgrammingTrackWorkoutRemix,
+	getRemixedWorkouts,
+	getTeamSpecificWorkout,
 	getUserWorkouts,
 	getUserWorkoutsCount,
 	getWorkoutById,
-	getRemixedWorkouts,
 	updateWorkout,
-	getTeamSpecificWorkout,
 } from "@/server/workouts"
-import { getScheduledWorkoutsForTeam } from "@/server/scheduling-service"
-import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import { getUserTeams } from "@/server/teams"
-import type { LeaderboardEntry } from "@/server/leaderboard"
 import { requireVerifiedEmail } from "@/utils/auth"
 import {
-	requireTeamMembership,
 	hasTeamPermission,
 	isTeamMember,
+	requireTeamMembership,
 	requireTeamPermission,
 } from "@/utils/team-auth"
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,
 } from "@/utils/workout-permissions"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 
 const createWorkoutRemixSchema = z.object({
 	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
@@ -71,7 +71,11 @@ const createWorkoutSchema = z.object({
 			"feet",
 			"points",
 		]),
-		scoreType: z.enum(["min", "max", "sum", "average", "first", "last"]).nullable().optional().transform(val => val ?? null),
+		scoreType: z
+			.enum(["min", "max", "sum", "average", "first", "last"])
+			.nullable()
+			.optional()
+			.transform((val) => val ?? null),
 		repsPerRound: z.number().nullable(),
 		roundsToScore: z.number().nullable(),
 		sugarId: z.string().nullable(),
@@ -609,7 +613,10 @@ export const updateWorkoutAction = createServerAction()
 						"points",
 					])
 					.optional(),
-				scoreType: z.enum(["min", "max", "sum", "average", "first", "last"]).nullable().optional(),
+				scoreType: z
+					.enum(["min", "max", "sum", "average", "first", "last"])
+					.nullable()
+					.optional(),
 				scope: z.enum(["private", "public"]).optional(),
 				repsPerRound: z.number().nullable().optional(),
 				roundsToScore: z.number().nullable().optional(),

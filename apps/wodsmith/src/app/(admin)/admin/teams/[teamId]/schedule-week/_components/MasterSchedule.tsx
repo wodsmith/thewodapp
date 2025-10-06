@@ -1,3 +1,7 @@
+import { format } from "date-fns"
+import { AlertTriangle, Clock, MapPin, User } from "lucide-react"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Table,
@@ -7,12 +11,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Clock, MapPin, User, AlertTriangle } from "lucide-react"
 import type { Location } from "@/db/schemas/scheduling"
-import type { getCoachesByTeam } from "@/actions/coach-actions"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
-import { format } from "date-fns"
 
 // Type for coaches with relations - extract from ZSA response success case
 type CoachWithRelations = NonNullable<

@@ -1,21 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useEffect, useState } from "react"
 import { useServerAction } from "zsa-react"
 import {
 	getScheduledTeamWorkoutsWithResultsAction,
 	getTeamLeaderboardsAction,
 } from "@/actions/workout-actions"
-import {
-	startOfLocalDay,
-	endOfLocalDay,
-	startOfLocalWeek,
-	endOfLocalWeek,
-	getLocalDateKey,
-} from "@/utils/date-utils"
-import { TeamControls } from "./team-controls"
-import { WorkoutWithLeaderboard } from "./workout-with-leaderboard"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import {
 	Select,
 	SelectContent,
@@ -23,12 +15,20 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { SYSTEM_ROLES_ENUM } from "@/db/schemas/teams"
-import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
-import type { LeaderboardEntry } from "@/server/leaderboard"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { Result } from "@/db/schema"
+import { SYSTEM_ROLES_ENUM } from "@/db/schemas/teams"
+import type { LeaderboardEntry } from "@/server/leaderboard"
+import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
+import {
+	endOfLocalDay,
+	endOfLocalWeek,
+	getLocalDateKey,
+	startOfLocalDay,
+	startOfLocalWeek,
+} from "@/utils/date-utils"
+import { TeamControls } from "./team-controls"
+import { WorkoutWithLeaderboard } from "./workout-with-leaderboard"
 
 type ViewMode = "daily" | "weekly"
 
@@ -62,7 +62,9 @@ export function TeamPageClient({
 	const [workoutsWithResults, setWorkoutsWithResults] = useState<
 		Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>
 	>([])
-	const [leaderboards, setLeaderboards] = useState<Record<string, LeaderboardEntry[]>>({})
+	const [leaderboards, setLeaderboards] = useState<
+		Record<string, LeaderboardEntry[]>
+	>({})
 	const [isLoading, setIsLoading] = useState(true)
 
 	const { execute: fetchWorkouts } = useServerAction(
@@ -141,7 +143,10 @@ export function TeamPageClient({
 			acc[dateKey].push(workout)
 			return acc
 		},
-		{} as Record<string, Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>>,
+		{} as Record<
+			string,
+			Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>
+		>,
 	)
 
 	const sortedDates = Object.keys(workoutsByDate).sort()
@@ -161,9 +166,7 @@ export function TeamPageClient({
 				<div className="flex items-center gap-3">
 					{canManageTeam && (
 						<Button asChild variant="outline">
-							<Link href={`/admin/teams/${selectedTeam.id}`}>
-								Manage Team
-							</Link>
+							<Link href={`/admin/teams/${selectedTeam.id}`}>Manage Team</Link>
 						</Button>
 					)}
 					{allTeams.length > 1 && (
@@ -345,9 +348,7 @@ export function TeamPageClient({
 											<h3 className="text-lg font-semibold mb-3">
 												{workoutData.name}
 											</h3>
-											<WorkoutWithLeaderboard
-												leaderboard={leaderboard}
-											/>
+											<WorkoutWithLeaderboard leaderboard={leaderboard} />
 										</div>
 									)
 								})}
@@ -361,7 +362,8 @@ export function TeamPageClient({
 						{viewMode === "daily" ? "Today's" : "This Week's"} Workouts
 					</h2>
 					<p className="text-muted-foreground">
-						No workouts scheduled for this {viewMode === "daily" ? "day" : "week"}.
+						No workouts scheduled for this{" "}
+						{viewMode === "daily" ? "day" : "week"}.
 					</p>
 				</section>
 			)}

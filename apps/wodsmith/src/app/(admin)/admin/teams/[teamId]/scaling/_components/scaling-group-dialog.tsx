@@ -1,10 +1,42 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useForm } from "react-hook-form"
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
+import {
+	draggable,
+	dropTargetForElements,
+	type ElementDropTargetEventBasePayload,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
+import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
+import {
+	attachClosestEdge,
+	type Edge,
+	extractClosestEdge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
+import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { GripVertical, Plus, Trash2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
 import { z } from "zod"
-import { Plus, Trash2, GripVertical } from "lucide-react"
+import { useServerAction } from "zsa-react"
+import {
+	createScalingGroupAction,
+	getScalingGroupWithLevelsAction,
+	updateScalingGroupAction,
+} from "@/actions/scaling-actions"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 import {
 	Dialog,
 	DialogContent,
@@ -24,38 +56,6 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
-import { useServerAction } from "zsa-react"
-import {
-	createScalingGroupAction,
-	updateScalingGroupAction,
-	getScalingGroupWithLevelsAction,
-} from "@/actions/scaling-actions"
-import { toast } from "sonner"
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
-import {
-	draggable,
-	dropTargetForElements,
-	type ElementDropTargetEventBasePayload,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
-import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
-import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
-import {
-	attachClosestEdge,
-	type Edge,
-	extractClosestEdge,
-} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
-import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 
 const formSchema = z.object({
 	title: z.string().min(1, "Title is required").max(100),

@@ -1,16 +1,16 @@
 "use server"
-import { getDd } from "@/db"
-import {
-	coachesTable,
-	coachToSkillsTable,
-	coachBlackoutDatesTable,
-	coachRecurringUnavailabilityTable,
-	scheduledClassesTable,
-} from "@/db/schemas/scheduling"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import { getDd } from "@/db"
+import {
+	coachBlackoutDatesTable,
+	coachesTable,
+	coachRecurringUnavailabilityTable,
+	coachToSkillsTable,
+	scheduledClassesTable,
+} from "@/db/schemas/scheduling"
 
 // Schemas for input validation
 const createCoachSchema = z.object({

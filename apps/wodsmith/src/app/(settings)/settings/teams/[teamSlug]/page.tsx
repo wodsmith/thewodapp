@@ -6,6 +6,7 @@ import { InviteMemberModal } from "@/components/teams/invite-member-modal"
 import { RemoveMemberButton } from "@/components/teams/remove-member-button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Table,
 	TableBody,
@@ -21,7 +22,6 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface TeamPageProps {
 	params: Promise<{

@@ -1,10 +1,10 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { and, eq } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
 import { createServerAction } from "zsa"
 import { getDd } from "@/db"
-import { TEAM_PERMISSIONS, scalingGroupsTable } from "@/db/schema"
+import { scalingGroupsTable, TEAM_PERMISSIONS } from "@/db/schema"
 import {
 	addWorkoutToTrackSchema,
 	createProgrammingTrackSchema,

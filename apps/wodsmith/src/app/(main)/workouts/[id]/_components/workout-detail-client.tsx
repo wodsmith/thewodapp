@@ -2,21 +2,23 @@
 
 import {
 	ArrowLeft,
+	Calendar,
 	Clock,
 	Dumbbell,
 	Edit,
+	FolderPlus,
 	ListChecks,
 	PencilIcon,
 	Shuffle,
 	Tag as TagIcon,
-	Calendar,
-	FolderPlus,
 } from "lucide-react"
 import type { Route } from "next"
 import Link from "next/link"
-import { WorkoutScalingDisplay } from "@/components/scaling/workout-scaling-display"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
+import { MovementsList } from "@/components/movements-list"
+import { WorkoutScalingDisplay } from "@/components/scaling/workout-scaling-display"
+import { Badge } from "@/components/ui/badge"
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -26,8 +28,6 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { MovementsList } from "@/components/movements-list"
 import type {
 	ResultSet,
 	WorkoutResult,
@@ -287,11 +287,7 @@ export default function WorkoutDetailClient({
 									</div>
 									<div className="mb-6 flex flex-wrap gap-2">
 										{(workout.tags || []).map((tag) => (
-											<Badge
-												key={tag.id}
-												variant="outline"
-												className="text-lg"
-											>
+											<Badge key={tag.id} variant="outline" className="text-lg">
 												{tag.name}
 											</Badge>
 										))}
@@ -304,7 +300,6 @@ export default function WorkoutDetailClient({
 							</div>
 							<MovementsList
 								movements={workout.movements || []}
-                
 								mode="display"
 								variant="badge"
 								showLabel={false}

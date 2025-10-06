@@ -1,25 +1,25 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
-	listScalingGroups,
 	createScalingGroup as createScalingGroupServer,
-	updateScalingGroup as updateScalingGroupServer,
 	deleteScalingGroup as deleteScalingGroupServer,
 	getScalingGroupWithLevels,
+	listScalingGroups,
 	setTeamDefaultScalingGroup,
+	updateScalingGroup as updateScalingGroupServer,
 } from "@/server/scaling-groups"
 import {
 	createScalingLevel as createScalingLevelServer,
-	reorderScalingLevels as reorderScalingLevelsServer,
 	getWorkoutScalingDescriptionsWithLevels,
+	reorderScalingLevels as reorderScalingLevelsServer,
 	upsertWorkoutScalingDescriptions,
 } from "@/server/scaling-levels"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { revalidatePath } from "next/cache"
 
 /**
  * Get all scaling groups for a team

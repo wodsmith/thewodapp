@@ -1,23 +1,25 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, Plus, CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { ArrowLeft, CalendarIcon, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { useServerAction } from "zsa-react"
-import { createWorkoutAction } from "@/actions/workout-actions"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
-import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
-import { MovementsList } from "@/components/movements-list"
+import { createWorkoutAction } from "@/actions/workout-actions"
 import {
 	type CreateWorkoutSchema,
 	createWorkoutSchema,
 } from "@/app/(main)/workouts/new/_components/create-workout.schema"
+import { MovementsList } from "@/components/movements-list"
+import { WorkoutScalingDescriptionsForm } from "@/components/scaling/workout-scaling-descriptions-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import {
 	Form,
 	FormControl,
@@ -29,6 +31,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -36,20 +43,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Calendar } from "@/components/ui/calendar"
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
 import type {
 	Movement,
-	Tag,
 	ProgrammingTrack,
+	Tag,
 	TeamMembership,
 } from "@/db/schema"
+import { cn } from "@/lib/utils"
 
 interface ScalingGroupWithTeam {
 	id: string
@@ -297,11 +297,11 @@ export default function CreateWorkoutClient({
 			scalingDescriptions:
 				data.scalingGroupId && data.scalingGroupId !== "none"
 					? Array.from(scalingDescriptions.entries()).map(
-						([scalingLevelId, description]) => ({
-							scalingLevelId,
-							description: description || null,
-						}),
-					)
+							([scalingLevelId, description]) => ({
+								scalingLevelId,
+								description: description || null,
+							}),
+						)
 					: undefined,
 		})
 	}
@@ -409,7 +409,10 @@ export default function CreateWorkoutClient({
 											<FormLabel className="font-bold uppercase">
 												Score Type
 											</FormLabel>
-											<Select onValueChange={field.onChange} value={field.value}>
+											<Select
+												onValueChange={field.onChange}
+												value={field.value}
+											>
 												<FormControl>
 													<SelectTrigger>
 														<SelectValue placeholder="Select score type" />
@@ -422,7 +425,9 @@ export default function CreateWorkoutClient({
 													<SelectItem value="max">
 														Max (highest single set wins)
 													</SelectItem>
-													<SelectItem value="sum">Sum (total across rounds)</SelectItem>
+													<SelectItem value="sum">
+														Sum (total across rounds)
+													</SelectItem>
 													<SelectItem value="average">
 														Average (mean across rounds)
 													</SelectItem>
@@ -735,8 +740,9 @@ export default function CreateWorkoutClient({
 													}
 												}}
 												aria-pressed={isSelected}
-												className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${isSelected ? "bg-black text-white" : ""
-													}`}
+												className={`flex cursor-pointer items-center border-2 border-black px-2 py-1 ${
+													isSelected ? "bg-black text-white" : ""
+												}`}
 											>
 												<span className="mr-2">{tag.name}</span>
 												{isSelected && <span className="text-xs">✓</span>}

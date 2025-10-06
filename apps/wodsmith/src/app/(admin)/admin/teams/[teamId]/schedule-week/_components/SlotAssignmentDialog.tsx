@@ -1,4 +1,21 @@
-import { useState, useEffect, useCallback } from "react"
+import { format } from "date-fns"
+import {
+	AlertCircle,
+	Award,
+	CheckCircle,
+	Clock,
+	MapPin,
+	User,
+	XCircle,
+} from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
+import {
+	getAvailableCoachesForClassAction,
+	updateScheduledClassAction,
+} from "@/actions/generate-schedule-actions"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Dialog,
 	DialogContent,
@@ -7,7 +24,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import {
 	Select,
 	SelectContent,
@@ -15,22 +31,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import {
-	User,
-	Clock,
-	MapPin,
-	Award,
-	AlertCircle,
-	CheckCircle,
-	XCircle,
-} from "lucide-react"
-import {
-	getAvailableCoachesForClassAction,
-	updateScheduledClassAction,
-} from "@/actions/generate-schedule-actions"
-import { toast } from "sonner"
-import { format } from "date-fns"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
 
 // Type for ScheduledClass with relationships populated - use actual server function return type

@@ -1,16 +1,16 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { useServerAction } from "zsa-react"
 import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import {
 	setDefaultTrackAction,
 	unsubscribeFromTrackAction,
 } from "@/actions/programming-actions"
-import { useSessionStore } from "@/state/session"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { useSessionStore } from "@/state/session"
 
 interface Subscription {
 	id: string
@@ -93,7 +93,9 @@ export function SubscriptionsList({
 					No active programming track subscriptions.
 				</p>
 				<Button asChild>
-					<a href={`/admin/teams/${teamId}/programming`}>Browse Programming Tracks</a>
+					<a href={`/admin/teams/${teamId}/programming`}>
+						Browse Programming Tracks
+					</a>
 				</Button>
 			</div>
 		)

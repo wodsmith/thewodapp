@@ -1,15 +1,15 @@
 "use client"
 
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline"
+import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ToggleGroup } from "@/components/ui/toggle-group"
 import { Calendar } from "@/components/ui/calendar"
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
+import { ToggleGroup } from "@/components/ui/toggle-group"
 
 type ViewMode = "daily" | "weekly"
 

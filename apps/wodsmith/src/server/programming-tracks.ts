@@ -1,7 +1,7 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, notExists, or, max } from "drizzle-orm"
+import { and, eq, max, notExists, or } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	type ProgrammingTrack,

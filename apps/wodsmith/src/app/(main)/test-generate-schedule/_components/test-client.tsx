@@ -1,10 +1,10 @@
 "use client"
 
+import { useState } from "react"
+import { useServerAction } from "zsa-react"
 import { generateScheduleAction } from "@/actions/generate-schedule-actions"
 import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { useServerAction } from "zsa-react"
 
 interface Team {
 	id: string

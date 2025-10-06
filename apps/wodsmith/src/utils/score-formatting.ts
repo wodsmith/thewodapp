@@ -61,7 +61,9 @@ export function formatScore(
  * Returns tuple: [aggregatedScore, isTimeCapped]
  */
 export function calculateAggregatedScore(
-	resultSets: Array<Pick<DBSet, "reps" | "weight" | "time" | "score" | "distance">>,
+	resultSets: Array<
+		Pick<DBSet, "reps" | "weight" | "time" | "score" | "distance">
+	>,
 	scheme: string,
 	scoreType: string | null,
 ): [number | null, boolean] {
@@ -74,20 +76,26 @@ export function calculateAggregatedScore(
 	switch (scheme) {
 		case "time":
 		case "emom":
-			values = resultSets.map(s => s.time).filter((v): v is number => v !== null)
+			values = resultSets
+				.map((s) => s.time)
+				.filter((v): v is number => v !== null)
 			break
 		case "time-with-cap": {
 			// For time-with-cap, check if result is time-capped (has reps) or finished (has time)
-			const hasReps = resultSets.some(s => s.reps !== null)
-			const hasTime = resultSets.some(s => s.time !== null)
+			const hasReps = resultSets.some((s) => s.reps !== null)
+			const hasTime = resultSets.some((s) => s.time !== null)
 
 			if (hasReps && !hasTime) {
 				// Time-capped result - use reps (higher is better)
-				values = resultSets.map(s => s.reps).filter((v): v is number => v !== null)
+				values = resultSets
+					.map((s) => s.reps)
+					.filter((v): v is number => v !== null)
 				isTimeCapped = true
 			} else {
 				// Finished result - use time
-				values = resultSets.map(s => s.time).filter((v): v is number => v !== null)
+				values = resultSets
+					.map((s) => s.time)
+					.filter((v): v is number => v !== null)
 				isTimeCapped = false
 			}
 			break
@@ -95,20 +103,28 @@ export function calculateAggregatedScore(
 		case "reps":
 		case "rounds-reps":
 			// Try reps field first, then score field (reps are sometimes stored in score)
-			values = resultSets.map(s => s.reps ?? s.score).filter((v): v is number => v !== null)
+			values = resultSets
+				.map((s) => s.reps ?? s.score)
+				.filter((v): v is number => v !== null)
 			break
 		case "load":
-			values = resultSets.map(s => s.weight).filter((v): v is number => v !== null)
+			values = resultSets
+				.map((s) => s.weight)
+				.filter((v): v is number => v !== null)
 			break
 		case "calories":
 		case "meters":
 		case "feet":
 		case "points":
-			values = resultSets.map(s => s.score ?? s.reps ?? s.distance).filter((v): v is number => v !== null)
+			values = resultSets
+				.map((s) => s.score ?? s.reps ?? s.distance)
+				.filter((v): v is number => v !== null)
 			break
 		case "pass-fail":
 			// Count passes (status === "pass" would be in score field as 1/0)
-			values = resultSets.map(s => s.score).filter((v): v is number => v !== null)
+			values = resultSets
+				.map((s) => s.score)
+				.filter((v): v is number => v !== null)
 			break
 		default:
 			return [null, false]
@@ -118,7 +134,9 @@ export function calculateAggregatedScore(
 
 	// Apply aggregation based on scoreType
 	// For time-capped results, use max (higher reps is better), otherwise use the default
-	const defaultScoreType = isTimeCapped ? "max" : (scoreType || getDefaultScoreType(scheme))
+	const defaultScoreType = isTimeCapped
+		? "max"
+		: scoreType || getDefaultScoreType(scheme)
 
 	let aggregatedScore: number | null = null
 	switch (defaultScoreType) {
@@ -172,10 +190,16 @@ export function getDefaultScoreType(scheme: string): string {
  * This is a convenience function that combines calculation and formatting
  */
 export function formatScoreFromSets(
-	resultSets: Array<Pick<DBSet, "reps" | "weight" | "time" | "score" | "distance">>,
+	resultSets: Array<
+		Pick<DBSet, "reps" | "weight" | "time" | "score" | "distance">
+	>,
 	scheme: string,
 	scoreType: string | null,
 ): string {
-	const [aggregatedScore, isTimeCapped] = calculateAggregatedScore(resultSets, scheme, scoreType)
+	const [aggregatedScore, isTimeCapped] = calculateAggregatedScore(
+		resultSets,
+		scheme,
+		scoreType,
+	)
 	return formatScore(aggregatedScore, scheme, isTimeCapped)
 }

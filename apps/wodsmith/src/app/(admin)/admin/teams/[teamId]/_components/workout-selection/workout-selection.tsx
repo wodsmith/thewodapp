@@ -1,10 +1,10 @@
+import { ScalingMismatchIndicator } from "@/components/scaling/scaling-mismatch-indicator"
 import {
 	Card,
 	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { ScalingMismatchIndicator } from "@/components/scaling/scaling-mismatch-indicator"
 import {
 	type ProgrammingTrack,
 	STANDALONE_TRACK_ID,

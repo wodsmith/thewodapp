@@ -1,6 +1,7 @@
 "use client"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
 	Table,
 	TableBody,
@@ -9,7 +10,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import type { LeaderboardEntry } from "@/server/leaderboard"
 
 interface DailyLeaderboardProps {
@@ -46,9 +46,7 @@ export function DailyLeaderboard({ entries }: DailyLeaderboardProps) {
 
 						return (
 							<TableRow key={entry.userId}>
-								<TableCell className="font-semibold">
-									{index + 1}
-								</TableCell>
+								<TableCell className="font-semibold">{index + 1}</TableCell>
 								<TableCell>
 									<div className="flex items-center gap-3">
 										<Avatar className="h-8 w-8">

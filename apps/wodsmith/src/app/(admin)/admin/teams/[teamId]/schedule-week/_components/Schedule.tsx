@@ -1,32 +1,32 @@
 "use client"
-import { useState, useMemo, useEffect, useCallback } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { addWeeks, format, isSameWeek, startOfWeek } from "date-fns"
 import {
-	Calendar,
-	Zap,
-	Settings,
 	AlertTriangle,
-	List,
-	Grid,
+	Calendar,
 	ChevronLeft,
 	ChevronRight,
+	Grid,
+	List,
 	MapPin,
+	Settings,
+	Zap,
 } from "lucide-react"
-import ScheduleStats from "./ScheduleStats"
-import ScheduleGrid from "./ScheduleGrid"
-import MasterSchedule from "./MasterSchedule"
-import CreateScheduleDialog from "./CreateScheduleDialog"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import { getScheduledClassesAction } from "@/actions/generate-schedule-actions"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import type {
 	GeneratedSchedule,
-	ScheduleTemplate,
 	Location,
+	ScheduleTemplate,
 } from "@/db/schemas/scheduling"
-import type { getCoachesByTeam } from "@/actions/coach-actions"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
-import { getScheduledClassesAction } from "@/actions/generate-schedule-actions"
-import { format, startOfWeek, addWeeks, isSameWeek } from "date-fns"
-import { toast } from "sonner"
+import CreateScheduleDialog from "./CreateScheduleDialog"
+import MasterSchedule from "./MasterSchedule"
+import ScheduleGrid from "./ScheduleGrid"
+import ScheduleStats from "./ScheduleStats"
 
 // Type for coaches with relations - extract from ZSA response success case
 type CoachWithRelations = NonNullable<

@@ -1,8 +1,8 @@
 "use client"
 
 import { useMemo } from "react"
-import { EnhancedTrackList } from "./enhanced-track-list"
 import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
+import { EnhancedTrackList } from "./enhanced-track-list"
 
 interface ProgrammingTracksClientProps {
 	allTracks: ProgrammingTrackWithTeamSubscriptions[]
@@ -23,7 +23,9 @@ export function ProgrammingTracksClient({
 			track.subscribedTeams.some((team) => team.teamId === teamId),
 		)
 
-		const ownedTracks = allTracks.filter((track) => track.ownerTeamId === teamId)
+		const ownedTracks = allTracks.filter(
+			(track) => track.ownerTeamId === teamId,
+		)
 
 		const availableTracks = allTracks.filter(
 			(track) =>

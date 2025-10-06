@@ -1,26 +1,27 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { addDays, format, startOfWeek } from "date-fns"
 import {
-	Calendar,
-	Zap,
 	AlertTriangle,
-	List,
+	Calendar,
 	Grid,
+	List,
 	MapPin,
 	User,
+	Zap,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { useServerAction } from "zsa-react"
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
+	checkExistingScheduleAction,
+	generateScheduleAction,
+	getAvailableCoachesForClassAction,
+	updateScheduledClassAction,
+} from "@/actions/generate-schedule-actions"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import {
 	Dialog,
 	DialogContent,
@@ -29,15 +30,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog"
-import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { Label } from "@/components/ui/label"
 import {
-	generateScheduleAction,
-	checkExistingScheduleAction,
-	updateScheduledClassAction,
-	getAvailableCoachesForClassAction,
-} from "@/actions/generate-schedule-actions"
-import { format, startOfWeek, addDays } from "date-fns"
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 
 interface ScheduleGeneratorProps {
 	teamId: string

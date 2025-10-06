@@ -1,27 +1,27 @@
 "use client"
 
-import { useCallback, useState } from "react"
 import {
 	CalendarIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
 } from "@heroicons/react/24/outline"
+import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ToggleGroup } from "@/components/ui/toggle-group"
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { WorkoutDateGroup } from "./workout-date-group"
-import { EmptyWorkouts } from "./empty-workouts"
-import { getLocalDateKey } from "@/utils/date-utils"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ToggleGroup } from "@/components/ui/toggle-group"
 import type {
+	ScheduledWorkoutInstance,
 	TrackWorkout,
 	Workout,
-	ScheduledWorkoutInstance,
 } from "@/db/schema"
+import { getLocalDateKey } from "@/utils/date-utils"
+import { EmptyWorkouts } from "./empty-workouts"
+import { WorkoutDateGroup } from "./workout-date-group"
 
 type ViewMode = "daily" | "weekly"
 type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {

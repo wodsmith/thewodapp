@@ -17,9 +17,9 @@ import { DragHandleButton } from "@atlaskit/pragmatic-drag-and-drop-react-access
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 import { ChevronRight } from "lucide-react"
 import { Fragment, useEffect, useRef, useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { ScalingMismatchIndicator } from "@/components/scaling/scaling-mismatch-indicator"
-import type { TrackWorkout, Workout, ProgrammingTrack } from "@/db/schema"
+import { Badge } from "@/components/ui/badge"
+import type { ProgrammingTrack, TrackWorkout, Workout } from "@/db/schema"
 
 interface TrackWorkoutRowProps {
 	_teamId: string

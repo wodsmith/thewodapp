@@ -1,7 +1,7 @@
 "use client"
 
-import { EnhancedTrackRow } from "./enhanced-track-row"
 import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
+import { EnhancedTrackRow } from "./enhanced-track-row"
 
 interface EnhancedTrackListProps {
 	tracks: ProgrammingTrackWithTeamSubscriptions[]

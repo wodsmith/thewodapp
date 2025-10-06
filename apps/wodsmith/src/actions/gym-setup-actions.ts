@@ -1,23 +1,23 @@
 "use server"
+import { and, count, eq } from "drizzle-orm"
+import { z } from "zod"
+import { createServerAction, ZSAError } from "zsa"
 import { getDd } from "@/db"
+import {
+	createClassCatalogId,
+	createLocationId,
+	createSkillId,
+} from "@/db/schemas/common"
 import {
 	classCatalogTable,
 	classCatalogToSkillsTable,
-	locationsTable,
-	skillsTable,
-	scheduledClassesTable,
-	scheduleTemplatesTable,
 	coachToSkillsTable,
+	locationsTable,
+	scheduledClassesTable,
 	scheduleTemplateClassRequiredSkillsTable,
+	scheduleTemplatesTable,
+	skillsTable,
 } from "@/db/schemas/scheduling"
-import {
-	createLocationId,
-	createClassCatalogId,
-	createSkillId,
-} from "@/db/schemas/common"
-import { and, eq, count } from "drizzle-orm"
-import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
 import { requireTeamMembership } from "@/utils/team-auth"
 
 // Schemas for input validation

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { getDd } from "@/db"
-import { TEAM_PERMISSIONS, teamTable, scalingGroupsTable } from "@/db/schema"
+import { scalingGroupsTable, TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getAllMovements } from "@/server/movements"
 import {
 	getProgrammingTrackById,

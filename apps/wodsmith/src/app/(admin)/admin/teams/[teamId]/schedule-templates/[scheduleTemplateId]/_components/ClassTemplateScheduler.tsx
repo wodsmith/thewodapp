@@ -1,19 +1,19 @@
 "use client"
+import { Copy, Plus, Trash2 } from "lucide-react"
 import type React from "react"
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Plus, Copy, Trash2 } from "lucide-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import type { inferServerActionReturnData } from "zsa"
 import { useServerAction } from "zsa-react"
 import {
-	deleteAllScheduleTemplateClassesForTemplate,
 	bulkCreateScheduleTemplateClassesSimple,
+	deleteAllScheduleTemplateClassesForTemplate,
 	type getScheduleTemplateById,
 } from "@/actions/schedule-template-actions"
-import type { inferServerActionReturnData } from "zsa"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface TimeSlot {
 	id: string

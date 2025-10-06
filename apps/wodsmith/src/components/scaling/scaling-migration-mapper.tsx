@@ -1,10 +1,11 @@
 "use client"
 
+import { ArrowRight, RotateCcw } from "lucide-react"
 import { useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
 	Select,
 	SelectContent,
@@ -12,8 +13,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { ArrowRight, RotateCcw } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import type { ScalingLevel, WorkoutScalingDescription } from "@/db/schema"
 
 export interface DescriptionMapping {

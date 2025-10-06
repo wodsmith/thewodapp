@@ -1,9 +1,9 @@
 "use client"
 
-import { Users, Dumbbell } from "lucide-react"
+import { Dumbbell, Users } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import type { ProgrammingTrack, Team, ScalingGroup } from "@/db/schema"
+import type { ProgrammingTrack, ScalingGroup, Team } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 
 interface ProgrammingTrackRowProps {

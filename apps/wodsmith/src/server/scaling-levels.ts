@@ -3,16 +3,16 @@ import "server-only"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
-	TEAM_PERMISSIONS,
+	programmingTracksTable,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	TEAM_PERMISSIONS,
+	teamTable,
 	workoutScalingDescriptionsTable,
 	workouts,
-	programmingTracksTable,
-	teamTable,
 } from "@/db/schema"
-import { requireTeamPermission } from "@/utils/team-auth"
 import { createWorkoutRemix } from "@/server/workouts"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 export interface CreateScalingLevelInput {
 	teamId: string | null

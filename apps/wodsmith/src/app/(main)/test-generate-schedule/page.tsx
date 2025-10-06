@@ -1,7 +1,7 @@
 import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { getOwnedTeamsAction } from "@/actions/team-actions"
-import { TestGenerateScheduleClient } from "./_components/test-client"
 import { CreateTemplateForm } from "./_components/create-template-form"
+import { TestGenerateScheduleClient } from "./_components/test-client"
 
 export default async function TestGenerateSchedulePage() {
 	const [result] = await getOwnedTeamsAction()

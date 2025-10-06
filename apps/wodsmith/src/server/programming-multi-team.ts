@@ -1,10 +1,10 @@
 import "server-only"
-import { eq, and, inArray } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
+	type ProgrammingTrack,
 	programmingTracksTable,
 	teamProgrammingTracksTable,
-	type ProgrammingTrack,
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
 

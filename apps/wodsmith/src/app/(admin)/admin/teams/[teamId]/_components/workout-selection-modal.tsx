@@ -1,5 +1,8 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useServerAction } from "zsa-react"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import {
 	Drawer,
 	DrawerContent,
@@ -22,9 +25,6 @@ import {
 	TrackSelection,
 	WorkoutSelection,
 } from "./workout-selection"
-import { useEffect, useState } from "react"
-import { useServerAction } from "zsa-react"
-import { getScalingGroupsAction } from "@/actions/scaling-actions"
 
 interface WorkoutSelectionModalProps {
 	isOpen: boolean

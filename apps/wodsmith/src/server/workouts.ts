@@ -2,6 +2,9 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import {
 	and,
+	asc,
+	count,
+	desc,
 	eq,
 	gte,
 	inArray,
@@ -9,11 +12,8 @@ import {
 	isNull,
 	lt,
 	or,
-	count,
-	desc,
-	sql,
-	asc,
 	type SQL,
+	sql,
 } from "drizzle-orm"
 import { ZSAError } from "zsa"
 import { getDd } from "@/db"
@@ -23,23 +23,23 @@ import {
 	results,
 	scheduledWorkoutInstancesTable,
 	tags,
+	teamMembershipTable,
+	teamTable,
 	workoutMovements,
 	workouts,
 	workoutTags,
-	teamTable,
-	teamMembershipTable,
 } from "@/db/schema"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
-import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
-import { isTeamMember } from "@/utils/team-auth"
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
 } from "@/server/programming"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
+import { isTeamMember } from "@/utils/team-auth"
 
 /**
  * Helper function to fetch tags by workout IDs

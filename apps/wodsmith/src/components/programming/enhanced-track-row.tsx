@@ -1,10 +1,10 @@
 "use client"
 
+import { Building2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { EnhancedSubscribeButton } from "./enhanced-subscribe-button"
 import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
-import { Building2 } from "lucide-react"
+import { EnhancedSubscribeButton } from "./enhanced-subscribe-button"
 
 interface EnhancedTrackRowProps {
 	track: ProgrammingTrackWithTeamSubscriptions

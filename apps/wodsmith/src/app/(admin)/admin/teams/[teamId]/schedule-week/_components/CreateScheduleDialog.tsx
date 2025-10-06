@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback } from "react"
+import { format } from "date-fns"
+import { AlertCircle, Calendar, Clock, MapPin } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
+import { generateScheduleAction } from "@/actions/generate-schedule-actions"
+import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Dialog,
 	DialogContent,
@@ -7,7 +14,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
 import {
 	Select,
 	SelectContent,
@@ -15,14 +22,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Calendar, MapPin, Clock, AlertCircle } from "lucide-react"
-import { toast } from "sonner"
-import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
-import { generateScheduleAction } from "@/actions/generate-schedule-actions"
 import type { Location } from "@/db/schemas/scheduling"
-import { format } from "date-fns"
-import { Checkbox } from "@/components/ui/checkbox"
 
 // Type for schedule template with relations from ZSA response - directly extract the success case
 type ScheduleTemplateWithClasses = NonNullable<

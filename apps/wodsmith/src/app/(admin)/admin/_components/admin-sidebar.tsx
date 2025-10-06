@@ -71,19 +71,18 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 				href: `/admin/teams/${currentTeamId}/schedule-templates` as Route,
 				icon: DocumentTextIcon,
 			},
-      {
-        title: "Coaches",
-        href: `/admin/teams/${currentTeamId}/coaches` as Route,
-        icon: UserGroupIcon,
-      },
-      {
-        title: "Gym Setup",
-        href: `/admin/teams/${currentTeamId}/gym-setup` as Route,
-        icon: BuildingOfficeIcon,
-      },
+			{
+				title: "Coaches",
+				href: `/admin/teams/${currentTeamId}/coaches` as Route,
+				icon: UserGroupIcon,
+			},
+			{
+				title: "Gym Setup",
+				href: `/admin/teams/${currentTeamId}/gym-setup` as Route,
+				icon: BuildingOfficeIcon,
+			},
 		],
 	},
-
 ]
 
 interface AdminSidebarProps {
@@ -134,10 +133,7 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 										// On desktop (lg+), show as collapsible section
 										if (!isLgAndSmaller) {
 											return (
-												<div
-													key={`section-${item.title}`}
-													className="w-full"
-												>
+												<div key={`section-${item.title}`} className="w-full">
 													<button
 														type="button"
 														onClick={() => toggleSection(item.title)}
@@ -149,7 +145,9 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 														)}
 													>
 														<item.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-														<span className="flex-1 text-left">{item.title}</span>
+														<span className="flex-1 text-left">
+															{item.title}
+														</span>
 														<ChevronDownIcon
 															className={cn(
 																"h-4 w-4 flex-shrink-0 transition-transform",
@@ -167,7 +165,9 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 																		href={subItem.href}
 																		className={cn(
 																			buttonVariants({
-																				variant: isSubActive ? "default" : "ghost",
+																				variant: isSubActive
+																					? "default"
+																					: "ghost",
 																			}),
 																			"justify-start hover:no-underline whitespace-nowrap w-full",
 																		)}

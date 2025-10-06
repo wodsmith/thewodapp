@@ -1,7 +1,7 @@
-import { getGeneratedSchedulesByTeamAction } from "@/actions/generate-schedule-actions"
-import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
-import { getLocationsByTeam } from "@/actions/gym-setup-actions"
 import { getCoachesByTeam } from "@/actions/coach-actions"
+import { getGeneratedSchedulesByTeamAction } from "@/actions/generate-schedule-actions"
+import { getLocationsByTeam } from "@/actions/gym-setup-actions"
+import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { getTeamAction } from "@/actions/team-actions"
 import Schedule from "./_components/Schedule"
 

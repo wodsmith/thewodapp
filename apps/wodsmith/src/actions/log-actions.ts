@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
+import type { Workout } from "@/db/schema"
 import {
 	getLogsByUser,
 	getResultById,
@@ -10,7 +11,6 @@ import {
 	submitLogForm,
 	updateResult,
 } from "@/server/logs"
-import type { Workout } from "@/db/schema"
 import type { ResultSetInput } from "@/types"
 
 /**
@@ -412,8 +412,10 @@ async function updateResultForm(
 	const { getDefaultScoreType, aggregateScores } = await import("@/server/logs")
 
 	// Always use scoreType (with fallback to default) for multiple rounds
-	const effectiveScoreType = workout.scoreType || getDefaultScoreType(workout.scheme)
-	const shouldAggregate = (workout.roundsToScore || 1) > 1 && !hasTimeCappedRounds
+	const effectiveScoreType =
+		workout.scoreType || getDefaultScoreType(workout.scheme)
+	const shouldAggregate =
+		(workout.roundsToScore || 1) > 1 && !hasTimeCappedRounds
 
 	if (isTimeBasedWodScore && !hasTimeCappedRounds) {
 		if (shouldAggregate) {
@@ -423,7 +425,8 @@ async function updateResultForm(
 				.filter((t): t is number => t !== null && t !== undefined && t > 0)
 
 			const aggregated = aggregateScores(timeValues, effectiveScoreType)
-			finalWodScoreSummary = aggregated !== null ? formatSecondsToTime(aggregated) : ""
+			finalWodScoreSummary =
+				aggregated !== null ? formatSecondsToTime(aggregated) : ""
 		} else {
 			finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
 		}

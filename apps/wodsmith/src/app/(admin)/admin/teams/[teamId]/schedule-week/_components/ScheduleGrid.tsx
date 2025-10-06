@@ -1,4 +1,7 @@
-import { Fragment, useState, useMemo } from "react"
+import { AlertTriangle, Calendar, MapPin, User } from "lucide-react"
+import { Fragment, useMemo, useState } from "react"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -6,12 +9,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Calendar, MapPin, AlertTriangle, User } from "lucide-react"
-import SlotAssignmentDialog from "./SlotAssignmentDialog"
-import { Button } from "@/components/ui/button"
-import type { ScheduleTemplate, Location } from "@/db/schemas/scheduling"
-import type { getCoachesByTeam } from "@/actions/coach-actions"
+import type { Location, ScheduleTemplate } from "@/db/schemas/scheduling"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
+import SlotAssignmentDialog from "./SlotAssignmentDialog"
 
 // Type for coaches with relations - extract from ZSA response success case
 type CoachWithRelations = NonNullable<
@@ -36,6 +36,7 @@ type CoachSkillWithRelation = {
 type ScheduledClassWithRelations = Awaited<
 	ReturnType<typeof getScheduledClassesForDisplay>
 >[number]
+
 import { format } from "date-fns"
 
 interface ScheduleGridProps {

@@ -6,10 +6,10 @@ import {
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
-	startOfLocalDay,
 	endOfLocalDay,
-	startOfLocalWeek,
 	endOfLocalWeek,
+	startOfLocalDay,
+	startOfLocalWeek,
 } from "@/utils/date-utils"
 
 interface Team {

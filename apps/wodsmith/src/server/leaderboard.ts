@@ -1,18 +1,18 @@
 import "server-only"
 
-import { and, eq, gte, lte, asc, inArray } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	results,
-	scheduledWorkoutInstancesTable,
 	scalingLevelsTable,
+	scheduledWorkoutInstancesTable,
+	sets,
 	userTable,
 	workouts,
-	sets,
 } from "@/db/schema"
 import {
-	formatScore,
 	calculateAggregatedScore,
+	formatScore,
 	getDefaultScoreType,
 } from "@/utils/score-formatting"
 
@@ -75,14 +75,12 @@ export async function getLeaderboardForScheduledWorkout({
 		)
 
 	// Get all sets for these results in one query
-	const resultIds = workoutResults.map(r => r.result.id)
+	const resultIds = workoutResults.map((r) => r.result.id)
 
-	const allSets = resultIds.length > 0
-		? await db
-				.select()
-				.from(sets)
-				.where(inArray(sets.resultId, resultIds))
-		: []
+	const allSets =
+		resultIds.length > 0
+			? await db.select().from(sets).where(inArray(sets.resultId, resultIds))
+			: []
 
 	// Group sets by resultId for efficient lookup
 	const setsByResultId = new Map<string, typeof allSets>()
@@ -93,7 +91,8 @@ export async function getLeaderboardForScheduledWorkout({
 
 	// Transform and calculate aggregated scores
 	const leaderboard: LeaderboardEntry[] = workoutResults.map((row) => {
-		const fullName = `${row.user.firstName || ""} ${row.user.lastName || ""}`.trim()
+		const fullName =
+			`${row.user.firstName || ""} ${row.user.lastName || ""}`.trim()
 
 		// Handle legacy scalingLevelId values ('rx+', 'rx', 'scaled')
 		let scalingLabel = row.scalingLevel?.label || null
@@ -102,14 +101,14 @@ export async function getLeaderboardForScheduledWorkout({
 		// Fallback for legacy values when join returns null
 		if (!scalingLabel && row.result.scalingLevelId) {
 			const legacyId = row.result.scalingLevelId.toLowerCase()
-			if (legacyId === 'rx+') {
-				scalingLabel = 'Rx+'
+			if (legacyId === "rx+") {
+				scalingLabel = "Rx+"
 				scalingPosition = 0
-			} else if (legacyId === 'rx') {
-				scalingLabel = 'Rx'
+			} else if (legacyId === "rx") {
+				scalingLabel = "Rx"
 				scalingPosition = 1
-			} else if (legacyId === 'scaled') {
-				scalingLabel = 'Scaled'
+			} else if (legacyId === "scaled") {
+				scalingLabel = "Scaled"
 				scalingPosition = 2
 			}
 		}
@@ -118,12 +117,20 @@ export async function getLeaderboardForScheduledWorkout({
 		const resultSets = setsByResultId.get(row.result.id) || []
 
 		const [aggregatedScore, isTimeCapped] = row.workout
-			? calculateAggregatedScore(resultSets, row.workout.scheme, row.workout.scoreType)
+			? calculateAggregatedScore(
+					resultSets,
+					row.workout.scheme,
+					row.workout.scoreType,
+				)
 			: [null, false]
 
 		// Format score from calculated aggregatedScore, or fall back to raw wodScore
 		// This handles legacy data before sets were implemented and edge cases
-		let formattedScore = formatScore(aggregatedScore, row.workout?.scheme, isTimeCapped)
+		let formattedScore = formatScore(
+			aggregatedScore,
+			row.workout?.scheme,
+			isTimeCapped,
+		)
 		if (formattedScore === "N/A" && row.result.wodScore) {
 			// Fall back to the raw wodScore field if sets calculation failed
 			formattedScore = row.result.wodScore
@@ -148,7 +155,8 @@ export async function getLeaderboardForScheduledWorkout({
 	// Get workout scheme and scoreType for sorting
 	const workout = workoutResults[0]?.workout
 	const scheme = workout?.scheme
-	const scoreType = workout?.scoreType || (scheme ? getDefaultScoreType(scheme) : "max")
+	const scoreType =
+		workout?.scoreType || (scheme ? getDefaultScoreType(scheme) : "max")
 
 	// Sort the leaderboard:
 	// 1. By scaling level position (lower = harder, so ascending)

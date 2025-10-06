@@ -7,13 +7,13 @@ import {
 	getWorkoutByIdAction,
 	updateWorkoutAction,
 } from "@/actions/workout-actions"
-import { updateScheduledWorkoutInstanceAction } from "../_actions/scheduling-actions"
 import type {
 	Movement,
 	Tag,
 	WorkoutUpdate,
 	WorkoutWithTagsAndMovements,
 } from "@/types"
+import { updateScheduledWorkoutInstanceAction } from "../_actions/scheduling-actions"
 import type { ScheduledWorkoutWithDetails } from "../_components/workout-selection"
 
 interface UseWorkoutEditingProps {

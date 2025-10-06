@@ -1,16 +1,16 @@
 import type { Metadata, ResolvingMetadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import {
+	getRemixedWorkoutsAction,
 	getResultSetsByIdAction,
 	getWorkoutByIdAction,
 	getWorkoutResultsByWorkoutAndUserAction,
-	getRemixedWorkoutsAction,
 } from "@/actions/workout-actions"
 import { getWorkoutScheduleHistory } from "@/server/workouts"
+import type { WorkoutWithTagsAndMovements } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getUserTeamIds } from "@/utils/team-auth"
 import { canUserEditWorkout } from "@/utils/workout-permissions"
-import type { WorkoutWithTagsAndMovements } from "@/types"
 import WorkoutDetailClient from "./_components/workout-detail-client"
 
 type Props = {
@@ -46,11 +46,13 @@ export async function generateMetadata(
 
 	return {
 		title: workout.name,
-		description: workout.description || `View and track results for ${workout.name}`,
+		description:
+			workout.description || `View and track results for ${workout.name}`,
 		openGraph: {
 			type: "website",
 			title: workout.name,
-			description: workout.description || `View and track results for ${workout.name}`,
+			description:
+				workout.description || `View and track results for ${workout.name}`,
 			images: [
 				{
 					url: ogImageUrl,
@@ -63,7 +65,8 @@ export async function generateMetadata(
 		twitter: {
 			card: "summary_large_image",
 			title: workout.name,
-			description: workout.description || `View and track results for ${workout.name}`,
+			description:
+				workout.description || `View and track results for ${workout.name}`,
 			images: [ogImageUrl],
 		},
 	}

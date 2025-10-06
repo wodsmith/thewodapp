@@ -3,8 +3,12 @@
 import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useServerAction } from "zsa-react"
+import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { MovementsList } from "@/components/movements-list"
+import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,10 +20,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
-import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
-import { MovementsList } from "@/components/movements-list"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -360,9 +360,7 @@ export default function EditWorkoutClient({
 								<Select
 									value={scoreType ?? ""}
 									onValueChange={(value) =>
-										setScoreType(
-											value as WorkoutUpdate["scoreType"],
-										)
+										setScoreType(value as WorkoutUpdate["scoreType"])
 									}
 								>
 									<SelectTrigger id="workout-score-type">

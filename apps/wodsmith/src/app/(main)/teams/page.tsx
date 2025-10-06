@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
-import { getSessionFromCookie } from "@/utils/auth"
 import { redirect } from "next/navigation"
+import { getSessionFromCookie } from "@/utils/auth"
 import { TeamPageClient } from "./_components/team-page-client"
 
 export const metadata: Metadata = {
@@ -49,7 +49,8 @@ export default async function TeamsPage() {
 
 	// Prefer non-personal teams as initial team, fall back to first team if all are personal
 	const nonPersonalTeams = teams.filter((t) => !t.isPersonalTeam)
-	const initialTeam = nonPersonalTeams.length > 0 ? nonPersonalTeams[0] : teams[0]
+	const initialTeam =
+		nonPersonalTeams.length > 0 ? nonPersonalTeams[0] : teams[0]
 
 	return (
 		<TeamPageClient

@@ -1,18 +1,17 @@
 "use server"
 
+import { and, eq } from "drizzle-orm"
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "zsa"
-import { getSessionFromCookie } from "@/utils/auth"
-import { requireTeamPermission } from "@/utils/team-auth"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getDd } from "@/db"
 import {
-	teamProgrammingTracksTable,
 	programmingTracksTable,
+	teamProgrammingTracksTable,
 } from "@/db/schemas/programming"
-import { teamTable } from "@/db/schemas/teams"
-import { eq, and } from "drizzle-orm"
-import { revalidatePath } from "next/cache"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
+import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // Subscribe to track schema
 const subscribeToTrackSchema = z.object({

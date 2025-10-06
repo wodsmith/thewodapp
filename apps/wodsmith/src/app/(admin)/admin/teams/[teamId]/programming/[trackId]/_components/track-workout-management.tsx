@@ -17,28 +17,29 @@ import {
 	useState,
 } from "react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+	completeWorkoutRemixWithScalingMigrationAction,
+	enhancedAlignWorkoutScalingWithTrackAction,
+} from "@/actions/workout-actions"
 import { AlignScalingDialog } from "@/components/scaling/align-scaling-dialog"
 import { ScalingMigrationDialog } from "@/components/scaling/scaling-migration-dialog"
 import type { DescriptionMapping } from "@/components/scaling/scaling-migration-mapper"
-import type { ScalingLevel, WorkoutScalingDescription } from "@/db/schema"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import type {
 	Movement,
 	ProgrammingTrack,
+	ScalingLevel,
 	Tag,
 	TrackWorkout,
 	Workout,
+	WorkoutScalingDescription,
 } from "@/db/schema"
 import {
 	addWorkoutToTrackAction,
 	reorderTrackWorkoutsAction,
 	updateTrackWorkoutAction,
 } from "../../../_actions/programming-track-actions"
-import {
-	enhancedAlignWorkoutScalingWithTrackAction,
-	completeWorkoutRemixWithScalingMigrationAction,
-} from "@/actions/workout-actions"
 import { AddWorkoutToTrackDialog } from "./add-workout-to-track-dialog"
 import { TrackWorkoutRow } from "./track-workout-row"
 

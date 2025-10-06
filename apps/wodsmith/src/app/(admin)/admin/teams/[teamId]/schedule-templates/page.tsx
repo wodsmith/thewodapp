@@ -1,9 +1,9 @@
-import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import {
 	getClassCatalogByTeam,
 	getLocationsByTeam,
 	getSkillsByTeam,
 } from "@/actions/gym-setup-actions"
+import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { getTeamAction } from "@/actions/team-actions"
 import ScheduleTemplates from "./_components/ScheduleTemplates"
 

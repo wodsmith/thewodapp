@@ -1,13 +1,13 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
+import { and, eq } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	coachesTable,
-	scheduleTemplatesTable,
 	generatedSchedulesTable,
 	scheduledClassesTable,
+	scheduleTemplatesTable,
 } from "@/db/schemas/scheduling"
-import { and, eq } from "drizzle-orm"
 
 // This is a simplified mock for the LLM interaction. In a real scenario,
 // this would involve calling an actual LLM API.

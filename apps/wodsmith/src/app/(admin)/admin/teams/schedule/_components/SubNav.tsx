@@ -1,10 +1,10 @@
 "use client"
 
+import { BookOpen, Home, Settings, Users, Zap } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { Zap, Users, BookOpen, Settings, Home } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export const quickActions = [
 	{

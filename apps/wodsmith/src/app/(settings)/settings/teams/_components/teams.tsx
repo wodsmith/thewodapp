@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { buttonVariants } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -7,7 +8,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import type { Team } from "@/db/schema"
-import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface TeamPermission {
@@ -43,7 +43,8 @@ export function TeamsClient({
 								const permissions = teamPermissions.find(
 									(p) => p.teamId === team.id,
 								)
-								const canManageProgramming = permissions?.canManageProgramming ?? false
+								const canManageProgramming =
+									permissions?.canManageProgramming ?? false
 
 								return (
 									<div

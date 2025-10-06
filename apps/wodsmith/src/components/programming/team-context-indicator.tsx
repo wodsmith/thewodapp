@@ -1,6 +1,7 @@
 "use client"
 
 import { Building2, ChevronsUpDown, Filter } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	DropdownMenu,
@@ -11,7 +12,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTeamContext } from "@/state/team-context"
-import { Badge } from "@/components/ui/badge"
 
 interface Team {
 	id: string

@@ -1,13 +1,28 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { useServerAction } from "zsa-react"
+import { Edit, Trash2 } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { Trash2, Edit } from "lucide-react"
+import * as z from "zod"
+import type { inferServerActionReturnData } from "zsa"
+import { useServerAction } from "zsa-react"
+import type {
+	getClassCatalogByTeam,
+	getLocationsByTeam,
+	getSkillsByTeam,
+} from "@/actions/gym-setup-actions"
+import type { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
+import {
+	createScheduleTemplate,
+	createScheduleTemplateClass,
+	deleteScheduleTemplate,
+	deleteScheduleTemplateClass,
+	updateScheduleTemplate,
+} from "@/actions/schedule-template-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -35,21 +50,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { inferServerActionReturnData } from "zsa"
-import type { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
-import type {
-	getClassCatalogByTeam,
-	getLocationsByTeam,
-	getSkillsByTeam,
-} from "@/actions/gym-setup-actions"
-import {
-	createScheduleTemplate,
-	updateScheduleTemplate,
-	deleteScheduleTemplate,
-	createScheduleTemplateClass,
-	deleteScheduleTemplateClass,
-} from "@/actions/schedule-template-actions"
-import Link from "next/link"
 
 type Template = inferServerActionReturnData<
 	typeof getScheduleTemplatesByTeam

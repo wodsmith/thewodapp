@@ -5,15 +5,14 @@ import {
 	updateWorkoutAction,
 } from "@/actions/workout-actions"
 import { getAllMovements } from "@/server/movements"
-import { getAllTags } from "@/server/tags"
 import { listScalingGroups } from "@/server/scaling-groups"
-import type { WorkoutUpdate } from "@/types"
+import { getAllTags } from "@/server/tags"
+import type { WorkoutUpdate, WorkoutWithTagsAndMovements } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,
 } from "@/utils/workout-permissions"
-import type { WorkoutWithTagsAndMovements } from "@/types"
 import EditWorkoutClient from "./_components/edit-workout-client"
 
 export const dynamic = "force-dynamic"

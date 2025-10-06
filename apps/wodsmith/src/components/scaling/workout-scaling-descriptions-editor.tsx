@@ -1,18 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useServerAction } from "zsa-react"
+import { AlertCircle, Save } from "lucide-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Save, AlertCircle } from "lucide-react"
+import { useServerAction } from "zsa-react"
 import {
 	getScalingGroupWithLevelsAction,
 	getWorkoutScalingDescriptionsAction,
 	updateWorkoutScalingDescriptionsAction,
 } from "@/actions/scaling-actions"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 interface WorkoutScalingDescriptionsEditorProps {
 	workoutId: string

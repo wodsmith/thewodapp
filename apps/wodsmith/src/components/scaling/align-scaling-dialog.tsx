@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
+import { useState } from "react"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -12,7 +12,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { Workout, ProgrammingTrack } from "@/db/schema"
+import type { ProgrammingTrack, Workout } from "@/db/schema"
 
 interface AlignScalingDialogProps {
 	open: boolean

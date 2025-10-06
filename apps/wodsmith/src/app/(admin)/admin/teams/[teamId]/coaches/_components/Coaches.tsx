@@ -1,10 +1,20 @@
 "use client"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Clock, Mail, Plus, Trash2, User, Users } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 import { z } from "zod"
+import type { inferServerActionReturnData } from "zsa"
 import { useServerAction } from "zsa-react"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
 import { createCoach, deleteCoach } from "@/actions/coach-actions"
+import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
+import type { getTeamMembersAction } from "@/actions/team-membership-actions"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -12,25 +22,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form"
 import {
 	Dialog,
 	DialogContent,
@@ -40,15 +31,24 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog"
-import { toast } from "sonner"
-import { Users, Plus, Trash2, Clock, User, Mail } from "lucide-react"
-import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
-import type { getCoachesByTeam } from "@/actions/coach-actions"
-import type { inferServerActionReturnData } from "zsa"
-import type { getTeamMembersAction } from "@/actions/team-membership-actions"
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import type { Coach } from "@/db/schema"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
 
 interface CoachesProps {
 	coaches: inferServerActionReturnData<typeof getCoachesByTeam>["data"]

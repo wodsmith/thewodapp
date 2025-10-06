@@ -1,16 +1,16 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+	foreignKey,
+	index,
 	integer,
 	sqliteTable,
 	text,
-	foreignKey,
-	index,
 } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
+import { programmingTracksTable } from "./programming"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
-import { programmingTracksTable } from "./programming"
 
 // Movement types
 export const MOVEMENT_TYPE_VALUES = [

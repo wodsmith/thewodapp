@@ -1,8 +1,8 @@
 import { getCoachesByTeam } from "@/actions/coach-actions"
-import Coaches from "./_components/Coaches"
-import { getTeamMembersAction } from "@/actions/team-membership-actions"
-import { getTeamAction } from "@/actions/team-actions"
 import { getSkillsByTeam } from "@/actions/gym-setup-actions"
+import { getTeamAction } from "@/actions/team-actions"
+import { getTeamMembersAction } from "@/actions/team-membership-actions"
+import Coaches from "./_components/Coaches"
 
 interface CoachesPageProps {
 	params: Promise<{ teamId: string }>

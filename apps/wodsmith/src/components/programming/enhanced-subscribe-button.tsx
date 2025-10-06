@@ -1,16 +1,16 @@
 "use client"
 
+import { Check } from "lucide-react"
 import { useState } from "react"
-import { useServerAction } from "zsa-react"
-import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { useSessionStore } from "@/state/session"
+import { useServerAction } from "zsa-react"
 import {
 	subscribeToTrackAction,
 	unsubscribeFromTrackAction,
 } from "@/actions/programming-actions"
+import { Button } from "@/components/ui/button"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { Check } from "lucide-react"
+import { useSessionStore } from "@/state/session"
 
 interface EnhancedSubscribeButtonProps {
 	trackId: string
@@ -27,7 +27,8 @@ export function EnhancedSubscribeButton({
 }: EnhancedSubscribeButtonProps) {
 	const hasTeamPermission = useSessionStore((state) => state.hasTeamPermission)
 	const hasPermission =
-		hasManagePermission ?? hasTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+		hasManagePermission ??
+		hasTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
 	// Local state for optimistic updates
 	const [isSubscribed, setIsSubscribed] = useState(initialIsSubscribed)
@@ -62,7 +63,9 @@ export function EnhancedSubscribeButton({
 
 	const handleToggle = async () => {
 		if (!hasPermission) {
-			toast.error("You don't have permission to manage programming for this team")
+			toast.error(
+				"You don't have permission to manage programming for this team",
+			)
 			return
 		}
 

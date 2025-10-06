@@ -8,8 +8,8 @@ import { getDd } from "@/db"
 import {
 	programmingTracksTable,
 	results,
-	scalingLevelsTable,
 	scalingGroupsTable,
+	scalingLevelsTable,
 	sets,
 	workouts,
 } from "@/db/schema"
@@ -871,7 +871,8 @@ function generateWodScoreSummary(
 				.filter((t): t is number => t !== null && t !== undefined && t > 0)
 
 			const aggregated = aggregateScores(timeValues, effectiveScoreType)
-			finalWodScoreSummary = aggregated !== null ? formatSecondsToTime(aggregated) : ""
+			finalWodScoreSummary =
+				aggregated !== null ? formatSecondsToTime(aggregated) : ""
 		} else {
 			finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
 		}

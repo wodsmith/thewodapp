@@ -4,7 +4,6 @@ import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
 import MobileNav from "@/components/nav/mobile-nav"
-import ScheduleDropdown from "@/components/nav/schedule-dropdown"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getSessionFromCookie } from "@/utils/auth"
 

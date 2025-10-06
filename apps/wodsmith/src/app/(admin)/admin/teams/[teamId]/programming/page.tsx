@@ -4,18 +4,18 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
+import { ProgrammingTracksClient } from "@/components/programming/programming-tracks-client"
 import { getDd } from "@/db"
 import {
+	type ScalingGroup,
+	scalingGroupsTable,
 	TEAM_PERMISSIONS,
 	teamTable,
-	scalingGroupsTable,
-	type ScalingGroup,
 } from "@/db/schema"
+import { getPublicTracksWithTeamSubscriptions } from "@/server/programming-multi-team"
 import { getTeamTracks } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { getPublicTracksWithTeamSubscriptions } from "@/server/programming-multi-team"
 import { ProgrammingTrackDashboard } from "./_components/programming-track-dashboard"
-import { ProgrammingTracksClient } from "@/components/programming/programming-tracks-client"
 
 interface ProgrammingTrackPageProps {
 	params: Promise<{

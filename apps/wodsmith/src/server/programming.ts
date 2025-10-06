@@ -1,16 +1,16 @@
 import "server-only"
-import { eq, and, desc, sql, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
+	type ProgrammingTrack,
 	programmingTracksTable,
+	scheduledWorkoutInstancesTable,
+	type TrackWorkout,
 	teamProgrammingTracksTable,
 	trackWorkoutsTable,
-	scheduledWorkoutInstancesTable,
-	type ProgrammingTrack,
-	type TrackWorkout,
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
-import { workouts, type Workout } from "@/db/schemas/workouts"
+import { type Workout, workouts } from "@/db/schemas/workouts"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 
 interface PublicProgrammingTrack extends ProgrammingTrack {

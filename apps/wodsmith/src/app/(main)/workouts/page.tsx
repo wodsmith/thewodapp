@@ -4,18 +4,18 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
-import { requireVerifiedEmail } from "@/utils/auth"
-import { getUserTeams } from "@/server/teams"
+import { PaginationWithUrl } from "@/components/ui/pagination"
 import {
 	getScheduledWorkoutsForTeam,
 	type ScheduledWorkoutInstanceWithDetails,
 } from "@/server/scheduling-service"
+import { getUserTeams } from "@/server/teams"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import WorkoutRowCard from "../../../components/WorkoutRowCard"
-import WorkoutControls from "./_components/WorkoutControls"
-import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
-import { PaginationWithUrl } from "@/components/ui/pagination"
+import { requireVerifiedEmail } from "@/utils/auth"
 import type { KVSession } from "@/utils/kv-session"
+import WorkoutRowCard from "../../../components/WorkoutRowCard"
+import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
+import WorkoutControls from "./_components/WorkoutControls"
 
 export const metadata: Metadata = {
 	title: "Explore Workouts",

@@ -1,7 +1,14 @@
 "use client"
 
+import { Info, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Loader2, Info } from "lucide-react"
+import { useServerAction } from "zsa-react"
+import {
+	getScalingGroupWithLevelsAction,
+	getWorkoutScalingDescriptionsAction,
+} from "@/actions/scaling-actions"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
 	Select,
@@ -16,13 +23,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useServerAction } from "zsa-react"
-import {
-	getScalingGroupWithLevelsAction,
-	getWorkoutScalingDescriptionsAction,
-} from "@/actions/scaling-actions"
 import { getDefinedScalingLevels } from "@/utils/scaling-utils"
 
 interface ScalingLevel {

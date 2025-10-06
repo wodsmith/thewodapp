@@ -1,9 +1,16 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Search, X, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Plus, Search, X } from "lucide-react"
+import { useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -13,13 +20,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog"
 import type { Movement } from "@/db/schema"
 import { MOVEMENT_TYPE_VALUES } from "@/db/schemas/workouts"
 

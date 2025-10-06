@@ -2,9 +2,9 @@
 
 import { CalendarIcon } from "@heroicons/react/24/outline"
 import { format } from "date-fns"
-import { TeamWorkoutCard } from "./team-workout-card"
-import { toLocalDate } from "@/utils/date-utils"
 import type { TrackWorkout, Workout } from "@/db/schema"
+import { toLocalDate } from "@/utils/date-utils"
+import { TeamWorkoutCard } from "./team-workout-card"
 
 type ViewMode = "daily" | "weekly"
 

@@ -10,7 +10,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { Workout, ProgrammingTrack, ScalingGroup } from "@/db/schema"
+import type { ProgrammingTrack, ScalingGroup, Workout } from "@/db/schema"
 
 interface ScalingMismatchIndicatorProps {
 	workout: Pick<Workout, "id" | "name" | "scalingGroupId">
