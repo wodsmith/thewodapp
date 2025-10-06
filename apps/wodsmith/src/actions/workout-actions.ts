@@ -609,6 +609,7 @@ export const updateWorkoutAction = createServerAction()
 						"points",
 					])
 					.optional(),
+				scoreType: z.enum(["min", "max", "sum", "average", "first", "last"]).nullable().optional(),
 				scope: z.enum(["private", "public"]).optional(),
 				repsPerRound: z.number().nullable().optional(),
 				roundsToScore: z.number().nullable().optional(),

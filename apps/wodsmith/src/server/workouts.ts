@@ -766,6 +766,7 @@ export async function updateWorkout({
 			| "scope"
 			| "repsPerRound"
 			| "roundsToScore"
+			| "scalingGroupId"
 		>
 	>
 	tagIds: string[]

@@ -92,6 +92,27 @@ export default function WorkoutDetailClient({
 		return new Date(timestamp).toLocaleDateString()
 	}
 
+	// Helper to format score type
+	const formatScoreType = (scoreType: string | null | undefined) => {
+		if (!scoreType) return null
+		switch (scoreType) {
+			case "min":
+				return "Min"
+			case "max":
+				return "Max"
+			case "sum":
+				return "Sum"
+			case "average":
+				return "Average"
+			case "first":
+				return "First"
+			case "last":
+				return "Last"
+			default:
+				return scoreType
+		}
+	}
+
 	// Helper to parse breadcrumb items from redirect URL
 	const getBreadcrumbItems = () => {
 		if (!redirectUrl) return null
@@ -236,40 +257,54 @@ export default function WorkoutDetailClient({
 						</div>
 
 						<div className="">
-							<div className="my-4 flex items-center gap-2">
-								<Clock className="h-5 w-5" />
-								<h3>SCHEME</h3>
-							</div>
-							<div>
-								<Badge variant="outline" className="text-lg">
-									{workout.scheme}
-								</Badge>
-								{workout.tags && workout.tags.length > 0 && (
-									<>
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<div className="my-4 flex items-center gap-2">
+										<Clock className="h-5 w-5" />
+										<h3>SCHEME</h3>
+									</div>
+									<Badge variant="outline" className="text-lg">
+										{workout.scheme}
+									</Badge>
+								</div>
+								{canEdit && workout.scoreType && (
+									<div>
 										<div className="my-4 flex items-center gap-2">
-											<TagIcon className="h-5 w-5" />
-											<h3>TAGS</h3>
+											<ListChecks className="h-5 w-5" />
+											<h3>SCORE TYPE</h3>
 										</div>
-										<div className="mb-6 flex flex-wrap gap-2">
-											{(workout.tags || []).map((tag) => (
-												<Badge
-													key={tag.id}
-													variant="outline"
-													className="text-lg"
-												>
-													{tag.name}
-												</Badge>
-											))}
-										</div>
-									</>
+										<Badge variant="outline" className="text-lg">
+											{formatScoreType(workout.scoreType)}
+										</Badge>
+									</div>
 								)}
 							</div>
-							<div className="mb-4 flex items-center gap-2">
+							{workout.tags && workout.tags.length > 0 && (
+								<>
+									<div className="my-4 flex items-center gap-2">
+										<TagIcon className="h-5 w-5" />
+										<h3>TAGS</h3>
+									</div>
+									<div className="mb-6 flex flex-wrap gap-2">
+										{(workout.tags || []).map((tag) => (
+											<Badge
+												key={tag.id}
+												variant="outline"
+												className="text-lg"
+											>
+												{tag.name}
+											</Badge>
+										))}
+									</div>
+								</>
+							)}
+							<div className="my-4 flex items-center gap-2">
 								<Dumbbell className="h-5 w-5" />
 								<h3>MOVEMENTS</h3>
 							</div>
 							<MovementsList
 								movements={workout.movements || []}
+                
 								mode="display"
 								variant="badge"
 								showLabel={false}
