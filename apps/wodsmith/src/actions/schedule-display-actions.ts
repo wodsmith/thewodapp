@@ -1,7 +1,7 @@
 "use server"
 
 import { z } from "zod"
-import { createServerAction } from "zsa"
+import { createServerAction } from "@repo/zsa"
 import { getGeneratedSchedulesForTeam } from "@/server/ai/scheduler"
 
 const getScheduledClassesForDisplaySchema = z.object({

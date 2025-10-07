@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { Button } from "@/components/ui/button"
 import {

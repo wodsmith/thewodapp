@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	getScheduledTeamWorkoutsWithResultsAction,
 	getTeamLeaderboardsAction,
@@ -103,7 +103,7 @@ export function TeamPageClient({
 					setWorkoutsWithResults(workoutsResult.data || [])
 
 					// Fetch leaderboards for each workout
-					const instanceIds = workoutsResult.data.map((w) => w.id)
+					const instanceIds = workoutsResult.data.map((w: ScheduledWorkoutInstanceWithDetails) => w.id)
 					if (instanceIds.length > 0) {
 						const [leaderboardsResult, leaderboardsError] =
 							await fetchLeaderboards({
@@ -278,7 +278,7 @@ export function TeamPageClient({
 												})}
 											</h3>
 											<div className="space-y-4">
-												{dayWorkouts.map((workout) => {
+												{dayWorkouts?.map((workout) => {
 													const workoutData =
 														workout.trackWorkout?.workout || workout.workout
 													if (!workoutData) return null

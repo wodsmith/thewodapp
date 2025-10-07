@@ -171,28 +171,29 @@ export default async function LogNewResultPage({
 
 			if (scheduledInstances.length === 1) {
 				// Exactly one scheduled instance found - auto-select it
-				detectedScheduledInstanceId = scheduledInstances[0].id
-				console.log(
-					"[log/new] Auto-selected scheduled instance:",
-					detectedScheduledInstanceId,
-				)
+				const firstInstance = scheduledInstances[0]
+				if (firstInstance) {
+					detectedScheduledInstanceId = firstInstance.id
+					console.log(
+						"[log/new] Auto-selected scheduled instance:",
+						detectedScheduledInstanceId,
+					)
 
-				// If this scheduled instance has a track workout, get the track ID
-				if (scheduledInstances[0].trackWorkoutId) {
-					const trackWorkout = await db
-						.select({ trackId: trackWorkoutsTable.trackId })
-						.from(trackWorkoutsTable)
-						.where(
-							eq(trackWorkoutsTable.id, scheduledInstances[0].trackWorkoutId),
-						)
-						.get()
+					// If this scheduled instance has a track workout, get the track ID
+					if (firstInstance.trackWorkoutId) {
+						const trackWorkout = await db
+							.select({ trackId: trackWorkoutsTable.trackId })
+							.from(trackWorkoutsTable)
+							.where(eq(trackWorkoutsTable.id, firstInstance.trackWorkoutId))
+							.get()
 
-					if (trackWorkout) {
-						detectedProgrammingTrackId = trackWorkout.trackId
-						console.log(
-							"[log/new] Auto-detected programming track:",
-							detectedProgrammingTrackId,
-						)
+						if (trackWorkout) {
+							detectedProgrammingTrackId = trackWorkout.trackId
+							console.log(
+								"[log/new] Auto-detected programming track:",
+								detectedProgrammingTrackId,
+							)
+						}
 					}
 				}
 			} else if (scheduledInstances.length > 1) {
@@ -201,20 +202,21 @@ export default async function LogNewResultPage({
 				console.log(
 					"[log/new] Multiple scheduled instances found, using first one",
 				)
-				detectedScheduledInstanceId = scheduledInstances[0].id
+				const firstInstance = scheduledInstances[0]
+				if (firstInstance) {
+					detectedScheduledInstanceId = firstInstance.id
 
-				// Get track ID if applicable
-				if (scheduledInstances[0].trackWorkoutId) {
-					const trackWorkout = await db
-						.select({ trackId: trackWorkoutsTable.trackId })
-						.from(trackWorkoutsTable)
-						.where(
-							eq(trackWorkoutsTable.id, scheduledInstances[0].trackWorkoutId),
-						)
-						.get()
+					// Get track ID if applicable
+					if (firstInstance.trackWorkoutId) {
+						const trackWorkout = await db
+							.select({ trackId: trackWorkoutsTable.trackId })
+							.from(trackWorkoutsTable)
+							.where(eq(trackWorkoutsTable.id, firstInstance.trackWorkoutId))
+							.get()
 
-					if (trackWorkout) {
-						detectedProgrammingTrackId = trackWorkout.trackId
+						if (trackWorkout) {
+							detectedProgrammingTrackId = trackWorkout.trackId
+						}
 					}
 				}
 			} else {

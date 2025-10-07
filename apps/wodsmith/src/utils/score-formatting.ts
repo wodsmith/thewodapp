@@ -153,10 +153,10 @@ export function calculateAggregatedScore(
 			aggregatedScore = values.reduce((sum, v) => sum + v, 0) / values.length
 			break
 		case "first":
-			aggregatedScore = values[0]
+			aggregatedScore = values[0] ?? null
 			break
 		case "last":
-			aggregatedScore = values[values.length - 1]
+			aggregatedScore = values[values.length - 1] ?? null
 			break
 		default:
 			aggregatedScore = null

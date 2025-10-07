@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	checkExistingScheduleAction,
 	generateScheduleAction,
@@ -275,10 +275,12 @@ export function ScheduleGenerator({
 			const location = scheduledClass.location.name
 
 			if (!grid[location]) grid[location] = {}
-			if (!grid[location][`${day}-${time}`])
-				grid[location][`${day}-${time}`] = []
+			const locationGrid = grid[location]
+			if (locationGrid) {
+				if (!locationGrid[`${day}-${time}`]) locationGrid[`${day}-${time}`] = []
 
-			grid[location][`${day}-${time}`].push(scheduledClass)
+				locationGrid[`${day}-${time}`]?.push(scheduledClass)
+			}
 		})
 
 		return grid

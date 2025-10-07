@@ -1,7 +1,7 @@
 "use server"
 import { and, count, eq } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import {
 	createClassCatalogId,
@@ -169,18 +169,21 @@ export const deleteLocation = createServerAction()
 			await requireTeamMembership(teamId)
 
 			const db = getDd()
-			const templateCount = (
+			const templateCountResult = (
 				await db
 					.select({ count: count() })
 					.from(scheduleTemplatesTable)
 					.where(eq(scheduleTemplatesTable.locationId, id))
-			)[0].count
-			const scheduledCount = (
+			)[0]
+			const scheduledCountResult = (
 				await db
 					.select({ count: count() })
 					.from(scheduledClassesTable)
 					.where(eq(scheduledClassesTable.locationId, id))
-			)[0].count
+			)[0]
+
+			const templateCount = templateCountResult?.count ?? 0
+			const scheduledCount = scheduledCountResult?.count ?? 0
 			if (templateCount > 0 || scheduledCount > 0) {
 				throw new ZSAError(
 					"CONFLICT",
@@ -262,6 +265,10 @@ export const createClassCatalog = createServerAction()
 					maxParticipants,
 				})
 				.returning()
+
+			if (!newClass) {
+				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create class catalog")
+			}
 
 			// Link skills if provided
 			if (skillIds?.length) {
@@ -360,19 +367,22 @@ export const deleteClassCatalog = createServerAction()
 			const db = getDd()
 
 			// Check if class is referenced in schedules or templates
-			const scheduledCount = (
+			const scheduledCountResult = (
 				await db
 					.select({ count: count() })
 					.from(scheduledClassesTable)
 					.where(eq(scheduledClassesTable.classCatalogId, id))
-			)[0].count
+			)[0]
 
-			const templateCount = (
+			const templateCountResult = (
 				await db
 					.select({ count: count() })
 					.from(scheduleTemplatesTable)
 					.where(eq(scheduleTemplatesTable.classCatalogId, id))
-			)[0].count
+			)[0]
+
+			const scheduledCount = scheduledCountResult?.count ?? 0
+			const templateCount = templateCountResult?.count ?? 0
 
 			if (scheduledCount > 0 || templateCount > 0) {
 				throw new ZSAError(
@@ -511,24 +521,28 @@ export const deleteSkill = createServerAction()
 			await requireTeamMembership(teamId)
 
 			const db = getDd()
-			const classCatalogCount = (
+			const classCatalogCountResult = (
 				await db
 					.select({ count: count() })
 					.from(classCatalogToSkillsTable)
 					.where(eq(classCatalogToSkillsTable.skillId, id))
-			)[0].count
-			const coachCount = (
+			)[0]
+			const coachCountResult = (
 				await db
 					.select({ count: count() })
 					.from(coachToSkillsTable)
 					.where(eq(coachToSkillsTable.skillId, id))
-			)[0].count
-			const templateSkillsCount = (
+			)[0]
+			const templateSkillsCountResult = (
 				await db
 					.select({ count: count() })
 					.from(scheduleTemplateClassRequiredSkillsTable)
 					.where(eq(scheduleTemplateClassRequiredSkillsTable.skillId, id))
-			)[0].count
+			)[0]
+
+			const classCatalogCount = classCatalogCountResult?.count ?? 0
+			const coachCount = coachCountResult?.count ?? 0
+			const templateSkillsCount = templateSkillsCountResult?.count ?? 0
 			if (classCatalogCount > 0 || coachCount > 0 || templateSkillsCount > 0) {
 				throw new ZSAError(
 					"CONFLICT",

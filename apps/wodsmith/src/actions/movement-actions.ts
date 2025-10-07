@@ -1,7 +1,7 @@
 "use server"
 
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import { MOVEMENT_TYPE_VALUES } from "@/db/schema"
 import {

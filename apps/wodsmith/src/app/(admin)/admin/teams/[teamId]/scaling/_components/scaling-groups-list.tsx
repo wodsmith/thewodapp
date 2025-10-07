@@ -4,7 +4,7 @@ import { GripVertical, Plus, Settings, Star, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	deleteScalingGroupAction,
 	setDefaultScalingGroupAction,

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction } from "zsa"
+import { createServerAction } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import {
 	deleteScheduledWorkoutInstance,

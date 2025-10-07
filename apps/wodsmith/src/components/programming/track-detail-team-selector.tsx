@@ -29,7 +29,10 @@ export function TrackDetailTeamSelector({
 	useEffect(() => {
 		if (!hydrated) return
 		if (!currentTeamId && teams.length > 0) {
-			setCurrentTeam(teams[0].id)
+			const firstTeam = teams[0]
+			if (firstTeam) {
+				setCurrentTeam(firstTeam.id)
+			}
 		}
 	}, [hydrated, currentTeamId, teams, setCurrentTeam])
 

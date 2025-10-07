@@ -3,7 +3,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { createId } from "@paralleldrive/cuid2"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getVerificationTokenKey } from "@/utils/auth-utils"

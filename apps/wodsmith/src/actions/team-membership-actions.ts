@@ -1,7 +1,7 @@
 "use server"
 
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import {
 	acceptTeamInvitation,
 	cancelTeamInvitation,

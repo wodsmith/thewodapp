@@ -2,7 +2,7 @@ import "server-only"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import {
 	MOVEMENT_TYPE_VALUES,

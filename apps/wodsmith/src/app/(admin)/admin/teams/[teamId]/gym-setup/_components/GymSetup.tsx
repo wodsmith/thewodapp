@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import type { inferServerActionReturnData } from "zsa"
-import { useServerAction } from "zsa-react"
+import type { inferServerActionReturnData } from "@repo/zsa"
+import { useServerAction } from "@repo/zsa-react"
 import type {
 	getLocationsByTeam,
 	getSkillsByTeam,

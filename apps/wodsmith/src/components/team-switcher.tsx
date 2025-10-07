@@ -39,7 +39,10 @@ export function TeamSwitcher({
 			teams.length > 0 &&
 			(!activeTeam || !teams.find((t) => t.name === activeTeam.name))
 		) {
-			setActiveTeam(teams[0])
+			const firstTeam = teams[0]
+			if (firstTeam) {
+				setActiveTeam(firstTeam)
+			}
 		}
 	}, [teams, activeTeam])
 

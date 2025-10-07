@@ -18,7 +18,7 @@ async function hashPassword({ password, providedSalt }: HashPasswordParams) {
 	const key = await crypto.subtle.deriveKey(
 		{
 			name: "PBKDF2",
-			salt: salt,
+			salt: salt as BufferSource,
 			iterations: 100000,
 			hash: "SHA-256",
 		},
@@ -50,7 +50,14 @@ async function verifyPassword({
 	storedHash,
 	passwordAttempt,
 }: VerifyPasswordParams) {
-	const [saltHex, originalHash] = storedHash.split(":")
+	const parts = storedHash.split(":")
+	const saltHex = parts[0]
+	const originalHash = parts[1]
+
+	if (!saltHex || !originalHash) {
+		return false
+	}
+
 	const saltBytes =
 		saltHex
 			.match(/.{1,2}/g)

@@ -1,6 +1,6 @@
 import "server-only"
 import { eq } from "drizzle-orm"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import { tags } from "@/db/schema"
 import { createTagId } from "@/db/schemas/common"

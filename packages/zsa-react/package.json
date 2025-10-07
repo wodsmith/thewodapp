@@ -1,0 +1,42 @@
+{
+  "name": "@repo/zsa-react",
+  "version": "0.2.3",
+  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/**"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false,
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsgo --noEmit",
+    "format:write": "prettier --write \"**/*.{ts,tsx,mdx}\" --cache",
+    "format:check": "prettier --check \"**/*.{ts,tsx,mdx}\" --cache",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "npm run build -- --watch",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf .next"
+  },
+  "dependencies": {
+    "@repo/zsa": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@typescript/native-preview": "catalog:",
+    "@types/react": "^19.0.12",
+    "react": "catalog:",
+    "tsup": "^8.0.2",
+    "typescript": "latest",
+    "zod": "catalog:"
+  }
+}

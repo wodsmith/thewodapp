@@ -102,7 +102,9 @@ const ScheduleGrid = ({
 		// Get time slots from scheduled classes
 		Object.keys(scheduleByLocation[locationId] || {}).forEach((key) => {
 			const [_, time] = key.split("-")
-			timeSlots.add(time)
+			if (time) {
+				timeSlots.add(time)
+			}
 		})
 
 		// Templates are now location-agnostic, so we use scheduled classes as the source of truth

@@ -1,6 +1,6 @@
 import "server-only"
 import { and, eq, not } from "drizzle-orm"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamRoleTable } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"

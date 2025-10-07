@@ -3,7 +3,7 @@
 import { decodeIdToken, type OAuth2Tokens } from "arctic"
 import { eq } from "drizzle-orm"
 import { cookies } from "next/headers"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import {
 	GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME,
 	GOOGLE_OAUTH_STATE_COOKIE_NAME,
@@ -130,6 +130,10 @@ export const googleSSOCallbackAction = createServerAction()
 						.where(eq(userTable.id, existingUserWithEmail.id))
 						.returning()
 
+					if (!updatedUser) {
+						throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update user")
+					}
+
 					await createAndStoreSession(updatedUser.id, "google-oauth")
 					return { success: true }
 				}
@@ -147,6 +151,10 @@ export const googleSSOCallbackAction = createServerAction()
 						signUpIpAddress: await getIP(),
 					})
 					.returning()
+
+				if (!user) {
+					throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create user")
+				}
 
 				// Create a personal team for the new Google SSO user
 				try {

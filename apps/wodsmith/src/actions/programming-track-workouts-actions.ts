@@ -1,7 +1,7 @@
 "use server"
 
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
 	getPaginatedTrackWorkouts,

@@ -14,8 +14,8 @@ vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: vi.fn() }),
 }))
 
-// Mock zsa-react useServerAction
-vi.mock("zsa-react", () => ({
+// Mock @repo/zsa-react useServerAction
+vi.mock("@repo/zsa-react", () => ({
 	useServerAction: (action: unknown) => ({
 		execute: (...args: unknown[]) =>
 			(action as (...args: unknown[]) => unknown)(...args),

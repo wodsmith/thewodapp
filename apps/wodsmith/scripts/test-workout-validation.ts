@@ -128,7 +128,7 @@ console.log("Is rounds and reps workout:", isRoundsAndRepsWorkout)
 
 if (!isRoundsAndRepsWorkout && problemWorkout.scheme === "reps") {
   console.log("Processing as simple reps scheme...")
-  const scoreStr = parsedScores[0]?.parts[0]
+  const scoreStr = parsedScores[0]?.parts[0] ?? ""
   const result = processScoreForRepsScheme(scoreStr, 1)
 
   if ("error" in result) {

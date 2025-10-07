@@ -51,8 +51,10 @@ const mockWorkout = {
 	id: "1",
 	name: "Workout 1",
 	description: "desc",
-	tags: [mockTags[0]],
-	movements: [mockMovements[0]],
+	tags: mockTags.filter((t): t is NonNullable<typeof t> => t !== undefined),
+	movements: mockMovements.filter(
+		(m): m is NonNullable<typeof m> => m !== undefined,
+	),
 	scheme: "time" as const,
 	scoreType: null,
 	scope: "private" as const,

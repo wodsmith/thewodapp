@@ -1,7 +1,7 @@
 import "server-only"
 
 import { and, eq } from "drizzle-orm"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { getDefaultProgrammingTracks } from "@/config/programming-tracks"
 import { getDd } from "@/db"
 import type { User } from "@/db/schema"

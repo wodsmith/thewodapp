@@ -3,7 +3,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { fromZonedTime } from "date-fns-tz"
 import { asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import {
 	programmingTracksTable,
@@ -590,13 +590,14 @@ function processScoreEntries(
 
 	for (let k = 0; k < parsedScoreEntries.length; k++) {
 		const entry = parsedScoreEntries[k]
+		if (!entry) continue
 		const setNumber = k + 1 // Set numbers are 1-indexed
 		const scoreParts = entry.parts
 
 		if (isRoundsAndRepsWorkout) {
 			// Expects two parts: scoreParts[0] = rounds, scoreParts[1] = reps
-			if (scoreParts.length < 2 && scoreParts[0].trim() === "") {
-				if (scoreParts.every((p) => p.trim() === "")) continue // Skip fully empty entries
+			if (scoreParts.length < 2 && (scoreParts[0]?.trim() ?? "") === "") {
+				if (scoreParts.every((p) => (p?.trim() ?? "") === "")) continue // Skip fully empty entries
 				return {
 					setsForDb: [],
 					totalSecondsForWodScore: 0,
@@ -835,9 +836,9 @@ export function aggregateScores(
 		case "average":
 			return values.reduce((sum, v) => sum + v, 0) / values.length
 		case "first":
-			return values[0]
+			return values[0] ?? null
 		case "last":
-			return values[values.length - 1]
+			return values[values.length - 1] ?? null
 		default:
 			return null
 	}
@@ -910,6 +911,7 @@ function generateWodScoreSummary(
 		const scoreSummaries: string[] = []
 		for (let k = 0; k < parsedScoreEntries.length; k++) {
 			const entry = parsedScoreEntries[k]
+			if (!entry) continue
 			const scoreParts = entry.parts
 
 			if (isRoundsAndRepsWorkout) {

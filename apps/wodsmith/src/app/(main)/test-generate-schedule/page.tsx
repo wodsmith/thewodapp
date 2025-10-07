@@ -12,6 +12,9 @@ export default async function TestGenerateSchedulePage() {
 	}
 
 	const firstTeam = result.data[0]
+	if (!firstTeam) {
+		return <div>No teams found</div>
+	}
 	const [templatesResult, templatesError] = await getScheduleTemplatesByTeam({
 		teamId: firstTeam.id,
 	})

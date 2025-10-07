@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import type { inferServerActionReturnData } from "zsa"
-import { useServerAction } from "zsa-react"
+import type { inferServerActionReturnData } from "@repo/zsa"
+import { useServerAction } from "@repo/zsa-react"
 import type {
 	getClassCatalogByTeam,
 	getSkillsByTeam,

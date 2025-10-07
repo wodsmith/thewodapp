@@ -15,7 +15,7 @@ import {
 	type SQL,
 	sql,
 } from "drizzle-orm"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import type { Workout } from "@/db/schema"
 import {

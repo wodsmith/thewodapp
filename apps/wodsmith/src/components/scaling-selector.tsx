@@ -2,7 +2,7 @@
 
 import { Info, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	getScalingGroupWithLevelsAction,
 	getWorkoutScalingDescriptionsAction,

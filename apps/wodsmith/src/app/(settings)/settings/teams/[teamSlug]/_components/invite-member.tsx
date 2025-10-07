@@ -1,6 +1,6 @@
 import type React from "react"
 import { useState } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { inviteUserAction } from "@/actions/team-membership-actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

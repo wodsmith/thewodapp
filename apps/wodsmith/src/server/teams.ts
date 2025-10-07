@@ -1,7 +1,7 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, count, eq, not } from "drizzle-orm"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import {
 	MAX_TEAMS_CREATED_PER_USER,
 	MAX_TEAMS_JOINED_PER_USER,

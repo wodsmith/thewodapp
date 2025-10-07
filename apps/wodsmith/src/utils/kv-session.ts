@@ -132,7 +132,9 @@ export async function createKVSession({
 		const oldestSessionKey = sortedSessions?.[0]?.key
 		const oldestSessionId = oldestSessionKey?.split(":")?.[2] // Extract sessionId from key
 
-		await deleteKVSession(oldestSessionId, userId)
+		if (oldestSessionId) {
+			await deleteKVSession(oldestSessionId, userId)
+		}
 	}
 
 	await kv.put(getSessionKey(userId, sessionId), JSON.stringify(session), {

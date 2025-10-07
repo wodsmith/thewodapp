@@ -138,6 +138,7 @@ export async function confirmPayment({
 			if (
 				paymentIntent.metadata.userId !== session.user.id ||
 				paymentIntent.metadata.packageId !== packageId ||
+				!paymentIntent.metadata.credits ||
 				Number.parseInt(paymentIntent.metadata.credits) !==
 					creditPackage.credits
 			) {

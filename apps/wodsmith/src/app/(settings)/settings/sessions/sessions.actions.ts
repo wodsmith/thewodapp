@@ -2,7 +2,7 @@
 
 import { UAParser } from "ua-parser-js"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import type { SessionWithMeta } from "@/types"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
@@ -32,6 +32,9 @@ export const getSessionsAction = createServerAction()
 			const sessions = await Promise.all(
 				sessionIds.map(async ({ key, absoluteExpiration }) => {
 					const sessionId = key.split(":")[2] // Format is "session:userId:sessionId"
+					if (!sessionId) {
+						return null
+					}
 					const sessionData = await getKVSession(sessionId, session.user.id)
 					if (!sessionData) return null
 

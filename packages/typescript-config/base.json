@@ -1,0 +1,18 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "Default",
+	"compilerOptions": {
+		"esModuleInterop": true,
+		"incremental": false,
+		"lib": ["es2024", "DOM", "DOM.Iterable"],
+		"module": "ESnext",
+		"moduleDetection": "force",
+		"moduleResolution": "bundler",
+		"noUncheckedIndexedAccess": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"isolatedModules": true,
+		"target": "ES2024"
+	}
+}

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import { createWorkoutAction } from "@/actions/workout-actions"
 import {

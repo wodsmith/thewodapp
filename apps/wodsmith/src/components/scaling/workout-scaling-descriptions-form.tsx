@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"

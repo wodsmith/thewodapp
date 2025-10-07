@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	subscribeToTrackAction,
 	unsubscribeFromTrackAction,
@@ -46,7 +46,10 @@ export function SubscribeButton({
 			!selectedTeamId ||
 			!eligibleTeams.some((team) => team.id === selectedTeamId)
 		) {
-			setSelectedTeamId(eligibleTeams[0].id)
+			const firstTeam = eligibleTeams[0]
+			if (firstTeam) {
+				setSelectedTeamId(firstTeam.id)
+			}
 		}
 		// Otherwise do nothing - selectedTeamId is valid
 	}, [eligibleTeams, selectedTeamId])

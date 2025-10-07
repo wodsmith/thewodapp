@@ -101,10 +101,11 @@ export default function EditResultClient({
 				// Parse rounds + reps format like "3 + 15"
 				const parts = result.wodScore.split(",").map((s) => s.trim())
 				for (let i = 0; i < Math.min(parts.length, numRounds); i++) {
-					const match = parts[i].match(/(\d+)\s*\+\s*(\d+)/)
-					if (match) {
-						scores[i][0] = match[1]
-						scores[i][1] = match[2]
+					const match = parts[i]?.match(/(\d+)\s*\+\s*(\d+)/)
+					const score = scores[i]
+					if (score && match?.[1] && match?.[2]) {
+						score[0] = match[1]
+						score[1] = match[2]
 					}
 				}
 			} else if (
@@ -114,20 +115,28 @@ export default function EditResultClient({
 				// Parse time format
 				const times = result.wodScore.split(",").map((s) => s.trim())
 				for (let i = 0; i < Math.min(times.length, numRounds); i++) {
-					scores[i][0] = times[i]
+					const time = times[i]
+					const score = scores[i]
+					if (time && score) {
+						score[0] = time
+					}
 				}
 			} else {
 				// Parse regular scores
 				const values = result.wodScore.split(",").map((s) => s.trim())
 				for (let i = 0; i < Math.min(values.length, numRounds); i++) {
-					scores[i][0] = values[i]
+					const value = values[i]
+					const score = scores[i]
+					if (value && score) {
+						score[0] = value
+					}
 				}
 			}
 		}
 
 		// Also check sets data for more accurate values
 		sets.forEach((set, index) => {
-			if (index < numRounds) {
+			if (index < numRounds && scores[index]) {
 				if (hasRepsPerRound && set.reps !== null && workout.repsPerRound) {
 					const rounds = Math.floor(set.reps / workout.repsPerRound)
 					const reps = set.reps % workout.repsPerRound

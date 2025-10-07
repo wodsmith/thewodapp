@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import type { Workout } from "@/db/schema"
 import {
 	getLogsByUser,
@@ -110,17 +110,6 @@ export const submitLogFormAction = createServerAction()
 					"[submitLogFormAction] Error from submitLogForm:",
 					result.error,
 				)
-				// Log specific details for the problematic workout
-				if (selectedWorkoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
-					console.error(
-						"[submitLogFormAction] SAWTOOTH WORKOUT ERROR - Details:",
-						{
-							error: result.error,
-							formData: formDataEntries,
-							workout: selectedWorkout,
-						},
-					)
-				}
 				throw new ZSAError("ERROR", result.error)
 			}
 
@@ -321,6 +310,9 @@ async function updateResultForm(
 	// Process each score entry
 	for (let k = 0; k < parsedScoreEntries.length; k++) {
 		const entry = parsedScoreEntries[k]
+		if (!entry) {
+			continue
+		}
 		const setNumber = k + 1
 		const scoreParts = entry.parts
 
@@ -442,6 +434,9 @@ async function updateResultForm(
 		const scoreSummaries: string[] = []
 		for (let k = 0; k < parsedScoreEntries.length; k++) {
 			const entry = parsedScoreEntries[k]
+			if (!entry) {
+				continue
+			}
 			const scoreParts = entry.parts
 
 			if (isRoundsAndRepsWorkout) {

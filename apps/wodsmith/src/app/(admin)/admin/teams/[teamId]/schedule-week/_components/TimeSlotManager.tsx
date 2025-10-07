@@ -146,6 +146,7 @@ const TimeSlotManager = ({
 				<div className="space-y-4">
 					{Object.entries(timeSlots).map(([key, slots]) => {
 						const [location, classType] = key.split("-")
+						if (!location || !classType) return null
 						return (
 							<div key={key} className="rounded-lg border p-4">
 								<div className="mb-3 flex items-center space-x-2">

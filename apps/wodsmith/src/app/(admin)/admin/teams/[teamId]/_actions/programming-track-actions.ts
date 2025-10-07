@@ -2,7 +2,7 @@
 
 import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { createServerAction } from "zsa"
+import { createServerAction } from "@repo/zsa"
 import { getDd } from "@/db"
 import { scalingGroupsTable, TEAM_PERMISSIONS } from "@/db/schema"
 import {

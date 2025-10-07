@@ -54,7 +54,7 @@ export default async function TeamsPage() {
 
 	return (
 		<TeamPageClient
-			initialTeam={initialTeam}
+			initialTeam={initialTeam!}
 			allTeams={teams}
 			userId={session.userId}
 		/>
