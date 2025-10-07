@@ -5,6 +5,7 @@ import type { Route } from "next"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import {
 	Select,
 	SelectContent,
@@ -12,7 +13,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { SearchableSelect } from "@/components/ui/searchable-select"
 import type { Movement, Tag } from "@/types"
 
 interface WorkoutControlsProps {

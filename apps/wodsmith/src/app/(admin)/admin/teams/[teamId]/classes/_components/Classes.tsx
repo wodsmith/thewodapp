@@ -1,12 +1,22 @@
 "use client"
-import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { BookOpen, Clock, Plus, Trash2, Users } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
 import { z } from "zod"
+import type { inferServerActionReturnData } from "@repo/zsa"
 import { useServerAction } from "@repo/zsa-react"
+import type {
+	getClassCatalogByTeam,
+	getSkillsByTeam,
+} from "@/actions/gym-setup-actions"
 import {
 	createClassCatalog,
 	deleteClassCatalog,
 } from "@/actions/gym-setup-actions"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -14,17 +24,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import {
 	Form,
 	FormControl,
@@ -33,12 +32,15 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
-import { toast } from "sonner"
-import { BookOpen, Plus, Trash2, Clock, Users } from "lucide-react"
-import type { getClassCatalogByTeam } from "@/actions/gym-setup-actions"
-import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
-import type { inferServerActionReturnData } from "@repo/zsa"
-import { useRouter } from "next/navigation"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 
 interface ClassesProps {
 	classes: inferServerActionReturnData<typeof getClassCatalogByTeam>["data"]

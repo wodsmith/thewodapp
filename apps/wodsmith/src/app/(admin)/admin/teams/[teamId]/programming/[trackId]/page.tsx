@@ -4,12 +4,13 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { getDd } from "@/db"
-import { TEAM_PERMISSIONS, teamTable, scalingGroupsTable } from "@/db/schema"
+import { scalingGroupsTable, TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getAllMovements } from "@/server/movements"
 import {
 	getProgrammingTrackById,
 	getWorkoutsForTrack,
 	hasTrackAccess,
+	isTrackOwner,
 } from "@/server/programming-tracks"
 import { getAllTags } from "@/server/tags"
 import { getUserWorkoutsWithTrackScheduling } from "@/server/workouts"
@@ -83,6 +84,9 @@ export default async function TrackWorkoutPage({
 		notFound()
 	}
 
+	// Check if team owns this track (for edit permissions)
+	const isOwner = await isTrackOwner(team.id, trackId)
+
 	// Get track workouts
 	const trackWorkouts = await getWorkoutsForTrack(trackId, team.id)
 
@@ -132,6 +136,7 @@ export default async function TrackWorkoutPage({
 					teamName={team.name}
 					track={track}
 					scalingGroupName={scalingGroupName}
+					isOwner={isOwner}
 				/>
 
 				<div className="bg-card border-4 border-primary rounded-none p-6">
@@ -149,6 +154,7 @@ export default async function TrackWorkoutPage({
 							movements={movements}
 							tags={tags}
 							userId={session.userId}
+							isOwner={isOwner}
 						/>
 					</Suspense>
 				</div>

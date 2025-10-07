@@ -1,11 +1,12 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRef, useState, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { useServerAction } from "@repo/zsa-react"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -34,7 +35,6 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { ProgrammingTrack } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
-import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { createProgrammingTrackAction } from "../../_actions/programming-track-actions"
 
 const formSchema = z.object({

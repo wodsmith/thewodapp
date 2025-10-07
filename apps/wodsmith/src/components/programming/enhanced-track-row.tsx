@@ -1,30 +1,26 @@
 "use client"
 
+import { Building2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { EnhancedSubscribeButton } from "./enhanced-subscribe-button"
 import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
-import { Building2, Users } from "lucide-react"
-
-interface Team {
-	id: string
-	name: string
-}
+import { EnhancedSubscribeButton } from "./enhanced-subscribe-button"
 
 interface EnhancedTrackRowProps {
 	track: ProgrammingTrackWithTeamSubscriptions
-	userTeams: Team[]
-	showTeamBadges?: boolean
+	teamId: string
 	isOwned?: boolean
+	hasManagePermission?: boolean
 }
 
 export function EnhancedTrackRow({
 	track,
-	userTeams,
-	showTeamBadges = false,
+	teamId,
 	isOwned = false,
+	hasManagePermission = false,
 }: EnhancedTrackRowProps) {
-	const subscribedTeamIds = new Set(track.subscribedTeams.map((t) => t.teamId))
+	const isSubscribed = track.subscribedTeams.some((t) => t.teamId === teamId)
+	const trackUrl = `/admin/teams/${teamId}/programming/${track.id}`
 
 	return (
 		<article
@@ -33,7 +29,7 @@ export function EnhancedTrackRow({
 		>
 			{/* Main clickable area */}
 			<Link
-				href={`/programming/${track.id}`}
+				href={trackUrl}
 				className="absolute inset-0 z-10 block"
 				aria-label={`View details for ${track.name} programming track`}
 			>
@@ -78,31 +74,13 @@ export function EnhancedTrackRow({
 						) : (
 							<EnhancedSubscribeButton
 								trackId={track.id}
-								userTeams={userTeams}
-								subscribedTeamIds={subscribedTeamIds}
+								teamId={teamId}
+								isSubscribed={isSubscribed}
+								hasManagePermission={hasManagePermission}
 							/>
 						)}
 					</div>
 				</div>
-
-				{/* Team subscription badges */}
-				{showTeamBadges && track.subscribedTeams.length > 0 && (
-					<div className="flex flex-wrap items-center gap-2 pt-2 border-t">
-						<div className="flex items-center gap-1 text-xs text-muted-foreground">
-							<Users className="h-3 w-3" />
-							<span>Subscribed by:</span>
-						</div>
-						{track.subscribedTeams.map((team) => (
-							<Badge
-								key={team.teamId}
-								variant="secondary"
-								className="text-xs relative z-20"
-							>
-								{team.teamName}
-							</Badge>
-						))}
-					</div>
-				)}
 			</div>
 		</article>
 	)

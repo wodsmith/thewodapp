@@ -1,4 +1,7 @@
-import { Fragment, useState, useMemo } from "react"
+import { AlertTriangle, Calendar, MapPin, User } from "lucide-react"
+import { Fragment, useMemo, useState } from "react"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -6,12 +9,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Calendar, MapPin, AlertTriangle, User } from "lucide-react"
-import SlotAssignmentDialog from "./SlotAssignmentDialog"
-import { Button } from "@/components/ui/button"
-import type { ScheduleTemplate, Location } from "@/db/schemas/scheduling"
-import type { getCoachesByTeam } from "@/actions/coach-actions"
+import type { Location, ScheduleTemplate } from "@/db/schemas/scheduling"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
+import SlotAssignmentDialog from "./SlotAssignmentDialog"
 
 // Type for coaches with relations - extract from ZSA response success case
 type CoachWithRelations = NonNullable<
@@ -36,6 +36,7 @@ type CoachSkillWithRelation = {
 type ScheduledClassWithRelations = Awaited<
 	ReturnType<typeof getScheduledClassesForDisplay>
 >[number]
+
 import { format } from "date-fns"
 
 interface ScheduleGridProps {
@@ -152,7 +153,9 @@ const ScheduleGrid = ({
 		const scheduledClass = scheduleByLocation[location.id]?.[key]
 
 		if (!scheduledClass) {
-			return <div className="h-16 border rounded bg-muted/30"></div>
+			return (
+				<div className="h-16 rounded border border-dashed border-border/60" />
+			)
 		}
 
 		// Find the coach info
@@ -162,20 +165,20 @@ const ScheduleGrid = ({
 		return (
 			<Button
 				variant="ghost"
-				className={`h-16 border rounded p-2 text-xs cursor-pointer hover:shadow-md transition-shadow ${
+				className={`h-16 w-full rounded border p-2 text-left text-xs transition-shadow hover:shadow-sm ${
 					!scheduledClass.coachId
-						? "border-orange-300 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950 dark:border-orange-800 dark:hover:bg-orange-900"
+						? "border-primary/30 bg-primary/5 hover:bg-primary/10"
 						: "border-border bg-background hover:bg-muted"
 				}`}
 				onClick={() => handleSlotClick(scheduledClass)}
 			>
-				<div className="flex items-center justify-between h-full w-full">
-					<div className="flex-1 min-w-0">
-						<div className="font-medium truncate">
+				<div className="flex h-full w-full items-center justify-between">
+					<div className="min-w-0 flex-1">
+						<div className="truncate font-medium">
 							{scheduledClass.classCatalog?.name || "Class"}
 						</div>
 						{coachUser ? (
-							<div className="text-muted-foreground truncate flex items-center gap-1">
+							<div className="flex items-center gap-1 text-muted-foreground">
 								<User className="h-3 w-3" />
 								{(() => {
 									const firstName = coachUser.firstName
@@ -200,14 +203,13 @@ const ScheduleGrid = ({
 			</Button>
 		)
 	}
-	console.log(locations)
 
 	return (
 		<>
 			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center space-x-2">
-						<Calendar className="h-5 w-5" />
+						<Calendar className="h-5 w-5 text-primary" />
 						<span>Weekly Schedule</span>
 					</CardTitle>
 					<CardDescription>
@@ -218,25 +220,24 @@ const ScheduleGrid = ({
 					<div className="overflow-x-auto">
 						{locations.map((location) => {
 							const locationTimeSlots = getTimeSlotsForLocation(location.id)
-							console.log(locationTimeSlots)
 							if (locationTimeSlots.length === 0) return null
 
 							return (
 								<div key={location.id} className="mb-8">
-									<div className="flex items-center space-x-2 mb-4 p-3 bg-muted rounded-lg">
-										<MapPin className="h-4 w-4" />
+									<div className="mb-4 flex items-center space-x-2 rounded-lg bg-muted p-3">
+										<MapPin className="h-4 w-4 text-muted-foreground" />
 										<h3 className="font-semibold">{location.name}</h3>
 									</div>
 
-									<div className="grid grid-cols-8 gap-2 min-w-[800px]">
+									<div className="grid min-w-[800px] grid-cols-8 gap-2">
 										{/* Header row */}
-										<div className="font-medium text-muted-foreground text-sm p-2">
+										<div className="p-2 text-sm font-medium text-muted-foreground">
 											Time
 										</div>
 										{days.map((day) => (
 											<div
 												key={day}
-												className="font-medium text-muted-foreground text-sm p-2 text-center"
+												className="p-2 text-center text-sm font-medium text-muted-foreground"
 											>
 												{day}
 											</div>
@@ -245,7 +246,7 @@ const ScheduleGrid = ({
 										{/* Schedule rows */}
 										{locationTimeSlots.map((time) => (
 											<Fragment key={`${location.id}-${time}`}>
-												<div className="text-xs text-muted-foreground p-2 flex items-center">
+												<div className="flex items-center p-2 text-xs text-muted-foreground">
 													{time}
 												</div>
 												{days.map((day) => (

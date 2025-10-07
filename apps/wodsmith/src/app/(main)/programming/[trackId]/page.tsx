@@ -90,8 +90,8 @@ export default async function ProgrammingTrackPage({
 						) : (
 							<EnhancedSubscribeButton
 								trackId={trackId}
-								userTeams={userTeams}
-								subscribedTeamIds={subscribedTeamIds}
+								teamId={defaultTeamId}
+								isSubscribed={subscribedTeamIds.has(defaultTeamId)}
 							/>
 						)}
 						{userTeams.length > 1 && (

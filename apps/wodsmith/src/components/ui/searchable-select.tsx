@@ -1,10 +1,10 @@
 "use client"
 
-import * as React from "react"
-import { Check, ChevronDown, Search } from "lucide-react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { cn } from "@/lib/utils"
+import { Check, ChevronDown, Search } from "lucide-react"
+import * as React from "react"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 
 interface SearchableSelectProps {
 	value?: string

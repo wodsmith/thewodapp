@@ -1,9 +1,9 @@
 "use client"
 
 import { Building2 } from "lucide-react"
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { useTeamContext } from "@/state/team-context"
-import { useEffect, useState } from "react"
 
 interface Team {
 	id: string

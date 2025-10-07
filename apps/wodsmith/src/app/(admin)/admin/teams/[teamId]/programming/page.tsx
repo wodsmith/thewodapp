@@ -1,15 +1,18 @@
+import "server-only"
 import { eq, or } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
+import { ProgrammingTracksClient } from "@/components/programming/programming-tracks-client"
 import { getDd } from "@/db"
 import {
+	type ScalingGroup,
+	scalingGroupsTable,
 	TEAM_PERMISSIONS,
 	teamTable,
-	scalingGroupsTable,
-	type ScalingGroup,
 } from "@/db/schema"
+import { getPublicTracksWithTeamSubscriptions } from "@/server/programming-multi-team"
 import { getTeamTracks } from "@/server/programming-tracks"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { ProgrammingTrackDashboard } from "./_components/programming-track-dashboard"
@@ -113,6 +116,9 @@ export default async function ProgrammingTrackPage({
 		)
 	}
 
+	// Get all public tracks with subscription info for the current team only
+	const allTracks = await getPublicTracksWithTeamSubscriptions([team.id])
+
 	return (
 		<>
 			<PageHeader
@@ -138,7 +144,7 @@ export default async function ProgrammingTrackPage({
 					</div>
 				</div>
 
-				<div className="bg-card border-4 border-primary rounded-none p-4 sm:p-6">
+				<div className="bg-card border-4 border-primary rounded-none p-4 sm:p-6 mb-12">
 					<Suspense
 						fallback={
 							<div className="font-mono">Loading programming tracks...</div>
@@ -148,6 +154,28 @@ export default async function ProgrammingTrackPage({
 							teamId={team.id}
 							initialTracks={tracks}
 							scalingGroups={scalingGroupsRecord}
+						/>
+					</Suspense>
+				</div>
+
+				{/* Explore Programming Section */}
+				<div className="bg-card border-4 border-primary rounded-none p-4 sm:p-6">
+					<h2 className="text-2xl font-bold mb-2 font-mono tracking-tight">
+						Explore Programming
+					</h2>
+					<p className="text-muted-foreground font-mono text-sm sm:text-base mb-6">
+						Subscribe to public programming tracks created by other teams
+					</p>
+					<Suspense
+						fallback={
+							<div className="font-mono">Loading available tracks...</div>
+						}
+					>
+						<ProgrammingTracksClient
+							allTracks={allTracks}
+							teamId={team.id}
+							teamName={team.name}
+							hasManagePermission={true}
 						/>
 					</Suspense>
 				</div>

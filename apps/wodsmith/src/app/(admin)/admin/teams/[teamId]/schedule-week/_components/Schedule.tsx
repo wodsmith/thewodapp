@@ -1,32 +1,32 @@
 "use client"
-import { useState, useMemo, useEffect, useCallback } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { addWeeks, format, isSameWeek, startOfWeek } from "date-fns"
 import {
-	Calendar,
-	Zap,
-	Settings,
 	AlertTriangle,
-	List,
-	Grid,
+	Calendar,
 	ChevronLeft,
 	ChevronRight,
+	Grid,
+	List,
 	MapPin,
+	Settings,
+	Zap,
 } from "lucide-react"
-import ScheduleStats from "./ScheduleStats"
-import ScheduleGrid from "./ScheduleGrid"
-import MasterSchedule from "./MasterSchedule"
-import CreateScheduleDialog from "./CreateScheduleDialog"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
+import type { getCoachesByTeam } from "@/actions/coach-actions"
+import { getScheduledClassesAction } from "@/actions/generate-schedule-actions"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import type {
 	GeneratedSchedule,
-	ScheduleTemplate,
 	Location,
+	ScheduleTemplate,
 } from "@/db/schemas/scheduling"
-import type { getCoachesByTeam } from "@/actions/coach-actions"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
-import { getScheduledClassesAction } from "@/actions/generate-schedule-actions"
-import { format, startOfWeek, addWeeks, isSameWeek } from "date-fns"
-import { toast } from "sonner"
+import CreateScheduleDialog from "./CreateScheduleDialog"
+import MasterSchedule from "./MasterSchedule"
+import ScheduleGrid from "./ScheduleGrid"
+import ScheduleStats from "./ScheduleStats"
 
 // Type for coaches with relations - extract from ZSA response success case
 type CoachWithRelations = NonNullable<
@@ -136,8 +136,8 @@ const Schedule = ({
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center space-x-3">
-					<div className="bg-gradient-to-br from-orange-500 to-pink-600 p-2 rounded-xl">
-						<Calendar className="h-6 w-6 text-white" />
+					<div className="rounded-xl bg-primary/10 p-2 text-primary">
+						<Calendar className="h-6 w-6" />
 					</div>
 					<div>
 						<h1 className="text-2xl font-bold">Weekly Schedule</h1>
@@ -205,15 +205,15 @@ const Schedule = ({
 
 			{/* Alert for unscheduled classes */}
 			{currentSchedules.length > 0 && unscheduledCount > 0 && (
-				<Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+				<Card className="border border-primary/20 bg-primary/10">
 					<CardContent className="p-4">
 						<div className="flex items-center space-x-2">
-							<AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+							<AlertTriangle className="h-5 w-5 text-primary" />
 							<div>
-								<h3 className="font-medium text-orange-800 dark:text-orange-200">
+								<h3 className="font-medium text-primary">
 									{unscheduledCount} classes need manual assignment
 								</h3>
-								<p className="text-sm text-orange-700 dark:text-orange-300">
+								<p className="text-sm text-primary/80">
 									Click on any class to assign a coach.
 								</p>
 							</div>
@@ -259,8 +259,8 @@ const Schedule = ({
 									<CardContent className="p-8">
 										<div className="flex items-center justify-between">
 											<div className="flex items-center space-x-4">
-												<div className="bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-800 dark:to-slate-700 p-3 rounded-xl">
-													<MapPin className="h-6 w-6 text-slate-600 dark:text-slate-400" />
+												<div className="rounded-xl bg-muted p-3 text-muted-foreground">
+													<MapPin className="h-6 w-6" />
 												</div>
 												<div>
 													<h3 className="text-lg font-semibold">
@@ -276,9 +276,8 @@ const Schedule = ({
 													setSelectedLocationId(location.id)
 													setShowCreateDialog(true)
 												}}
-												className="bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:from-orange-600 hover:to-pink-700"
 											>
-												<Zap className="h-4 w-4 mr-2" />
+												<Zap className="mr-2 h-4 w-4" />
 												Create Schedule
 											</Button>
 										</div>

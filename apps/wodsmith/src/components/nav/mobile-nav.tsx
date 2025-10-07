@@ -79,11 +79,11 @@ export default function MobileNav({ session }: MobileNavProps) {
 								Workouts
 							</Link>
 							<Link
-								href="/programming"
+								href="/teams"
 								className="hover:text-primary"
 								onClick={handleLinkClick}
 							>
-								Programming
+								Team
 							</Link>
 							<Link
 								href="/log"

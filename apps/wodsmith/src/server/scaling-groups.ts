@@ -3,10 +3,10 @@ import "server-only"
 import { asc, desc, eq, inArray } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
-	TEAM_PERMISSIONS,
 	programmingTracksTable,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	TEAM_PERMISSIONS,
 	teamTable,
 } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"

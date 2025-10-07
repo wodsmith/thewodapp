@@ -6,7 +6,7 @@ import { ProgrammingTracksClient } from "@/components/programming/programming-tr
 export default async function ProgrammingPage() {
 	const session = await getSessionFromCookie()
 	const userTeamIds = session?.teams?.map((team) => team.id) || []
-	const userTeams = session?.teams || []
+	const defaultTeam = session?.teams?.[0]
 
 	// Get all public tracks with subscription info for all user's teams
 	const allTracks = await getPublicTracksWithTeamSubscriptions(userTeamIds)
@@ -15,8 +15,8 @@ export default async function ProgrammingPage() {
 		<div className="container mx-auto py-8">
 			<ProgrammingTracksClient
 				allTracks={allTracks}
-				userTeams={userTeams}
-				userTeamIds={userTeamIds}
+				teamId={defaultTeam?.id || ""}
+				teamName={defaultTeam?.name || ""}
 			/>
 		</div>
 	)

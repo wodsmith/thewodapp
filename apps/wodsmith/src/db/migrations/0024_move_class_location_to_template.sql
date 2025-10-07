@@ -16,5 +16,3 @@ INSERT INTO `__new_schedule_template_classes`("createdAt", "updatedAt", "updateC
 DROP TABLE `schedule_template_classes`;--> statement-breakpoint
 ALTER TABLE `__new_schedule_template_classes` RENAME TO `schedule_template_classes`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
-ALTER TABLE `schedule_templates` ADD `class_catalog_id` text NOT NULL REFERENCES class_catalog(id);--> statement-breakpoint
-ALTER TABLE `schedule_templates` ADD `location_id` text NOT NULL REFERENCES locations(id);

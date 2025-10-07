@@ -1,8 +1,8 @@
 import "server-only"
-import { cache } from "react"
 import { eq } from "drizzle-orm"
-import { TEAM_PERMISSIONS, workouts } from "@/db/schema"
+import { cache } from "react"
 import { getDd } from "@/db"
+import { TEAM_PERMISSIONS, workouts } from "@/db/schema"
 import { requireVerifiedEmail } from "./auth"
 import { hasTeamPermission } from "./team-auth"
 

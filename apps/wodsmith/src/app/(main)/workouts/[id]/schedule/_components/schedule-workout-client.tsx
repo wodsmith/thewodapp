@@ -1,5 +1,6 @@
 "use client"
 
+import { format } from "date-fns"
 import { ArrowLeft, CalendarIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -14,8 +15,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
 import {
 	Select,
 	SelectContent,
@@ -24,6 +23,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import type { TeamMembership } from "@/db/schema"
+import { cn } from "@/lib/utils"
 
 interface ScheduleWorkoutClientProps {
 	workout: {

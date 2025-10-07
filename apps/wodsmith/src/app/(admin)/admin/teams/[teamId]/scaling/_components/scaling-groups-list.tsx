@@ -1,16 +1,14 @@
 "use client"
 
+import { GripVertical, Plus, Settings, Star, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Plus, Settings, Trash2, Star, GripVertical } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { useServerAction } from "@repo/zsa-react"
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+	deleteScalingGroupAction,
+	setDefaultScalingGroupAction,
+} from "@/actions/scaling-actions"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -21,13 +19,15 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useServerAction } from "@repo/zsa-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
-	deleteScalingGroupAction,
-	setDefaultScalingGroupAction,
-} from "@/actions/scaling-actions"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import { ScalingGroupDialog } from "./scaling-group-dialog"
 
 interface ScalingGroup {

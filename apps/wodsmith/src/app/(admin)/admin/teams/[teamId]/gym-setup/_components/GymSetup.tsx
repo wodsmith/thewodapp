@@ -1,18 +1,33 @@
 "use client"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { MapPin, Plus, Settings, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
 import * as z from "zod"
+import type { inferServerActionReturnData } from "@repo/zsa"
 import { useServerAction } from "@repo/zsa-react"
+import type {
+	getLocationsByTeam,
+	getSkillsByTeam,
+} from "@/actions/gym-setup-actions"
 import {
 	createLocation,
-	deleteLocation,
 	createSkill,
+	deleteLocation,
 	deleteSkill,
 } from "@/actions/gym-setup-actions"
+import type { getTeamAction } from "@/actions/team-actions"
 import { updateTeamAction } from "@/actions/team-actions"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -22,19 +37,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
-import { MapPin, Plus, Trash2, Settings } from "lucide-react"
-import type { inferServerActionReturnData } from "@repo/zsa"
-import type { getLocationsByTeam } from "@/actions/gym-setup-actions"
-import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
-import type { getTeamAction } from "@/actions/team-actions"
 
 type Props = {
 	locations: inferServerActionReturnData<typeof getLocationsByTeam>["data"]

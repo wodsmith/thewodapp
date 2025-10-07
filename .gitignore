@@ -3,6 +3,7 @@ settings.local.json
 
 # turborepo
 .turbo
+.open-next
 
 # dependencies
 node_modules

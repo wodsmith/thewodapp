@@ -2,6 +2,9 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import {
 	and,
+	asc,
+	count,
+	desc,
 	eq,
 	gte,
 	inArray,
@@ -9,11 +12,8 @@ import {
 	isNull,
 	lt,
 	or,
-	count,
-	desc,
-	sql,
-	asc,
 	type SQL,
+	sql,
 } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
@@ -23,23 +23,23 @@ import {
 	results,
 	scheduledWorkoutInstancesTable,
 	tags,
+	teamMembershipTable,
+	teamTable,
 	workoutMovements,
 	workouts,
 	workoutTags,
-	teamTable,
-	teamMembershipTable,
 } from "@/db/schema"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
-import { requireVerifiedEmail, getSessionFromCookie } from "@/utils/auth"
-import { isTeamMember } from "@/utils/team-auth"
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
 } from "@/server/programming"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
+import { isTeamMember } from "@/utils/team-auth"
 
 /**
  * Helper function to fetch tags by workout IDs
@@ -373,6 +373,7 @@ export async function getUserWorkouts({
 			name: workouts.name,
 			description: workouts.description,
 			scheme: workouts.scheme,
+			scoreType: workouts.scoreType,
 			scope: workouts.scope,
 			teamId: workouts.teamId,
 			scalingGroupId: workouts.scalingGroupId,
@@ -536,6 +537,7 @@ export async function createWorkout({
 				name: workout.name,
 				description: workout.description,
 				scheme: workout.scheme,
+				scoreType: workout.scoreType,
 				scope: workout.scope,
 				repsPerRound: workout.repsPerRound,
 				roundsToScore: workout.roundsToScore,
@@ -760,9 +762,11 @@ export async function updateWorkout({
 			| "name"
 			| "description"
 			| "scheme"
+			| "scoreType"
 			| "scope"
 			| "repsPerRound"
 			| "roundsToScore"
+			| "scalingGroupId"
 		>
 	>
 	tagIds: string[]
@@ -1016,6 +1020,7 @@ export async function createWorkoutRemix({
 			name: sourceWorkout.name,
 			description: sourceWorkout.description,
 			scheme: sourceWorkout.scheme,
+			scoreType: sourceWorkout.scoreType,
 			scope: "private", // Remixes start as private
 			repsPerRound: sourceWorkout.repsPerRound,
 			roundsToScore: sourceWorkout.roundsToScore,
@@ -1180,6 +1185,7 @@ export async function createProgrammingTrackWorkoutRemix({
 			name: sourceWorkout.name,
 			description: sourceWorkout.description,
 			scheme: sourceWorkout.scheme,
+			scoreType: sourceWorkout.scoreType,
 			scope: "private", // Remixes start as private
 			repsPerRound: sourceWorkout.repsPerRound,
 			roundsToScore: sourceWorkout.roundsToScore,

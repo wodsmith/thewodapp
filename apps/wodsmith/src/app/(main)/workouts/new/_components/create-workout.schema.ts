@@ -19,6 +19,9 @@ export const createWorkoutSchema = z.object({
 			required_error: "Scheme is required",
 		},
 	),
+	scoreType: z
+		.enum(["min", "max", "sum", "average", "first", "last"])
+		.optional(),
 	scope: z.enum(["private", "public"]).default("private"),
 	roundsToScore: z.number().optional(),
 	repsPerRound: z.number().optional(),

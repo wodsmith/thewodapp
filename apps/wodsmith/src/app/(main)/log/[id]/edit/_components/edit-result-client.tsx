@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft } from "lucide-react"
+import type { Route } from "next"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef } from "react"
 import { useForm, useWatch } from "react-hook-form"
@@ -10,8 +11,11 @@ import {
 	type LogFormSchema,
 	logFormSchema,
 } from "@/app/(main)/log/new/_components/log.schema"
+import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
+import { ScalingSelector } from "@/components/scaling-selector"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -24,12 +28,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import type { ResultSet, Workout } from "@/types"
 import { formatSecondsToTime } from "@/lib/utils"
+import type { ResultSet, Workout } from "@/types"
 import { getLocalDateKey } from "@/utils/date-utils"
-import type { Route } from "next"
-import { ScalingSelector } from "@/components/scaling-selector"
-import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 
 interface EditResultClientProps {
 	result: {
@@ -145,11 +146,35 @@ export default function EditResultClient({
 					scores[index][0] = formatSecondsToTime(set.time)
 				} else if (set.score !== null) {
 					scores[index][0] = set.score.toString()
+				} else if (
+					workout.scheme === "time-with-cap" &&
+					set.reps !== null &&
+					set.time === null
+				) {
+					// Time capped - show reps
+					scores[index][0] = set.reps.toString()
 				}
 			}
 		})
 
 		return scores
+	}
+
+	// Parse existing time capped status from sets
+	const parseExistingTimeCapped = (): boolean[] => {
+		const numRounds = workout.roundsToScore || 1
+		const timeCapped: boolean[] = Array(numRounds).fill(false)
+
+		if (workout.scheme === "time-with-cap") {
+			sets.forEach((set, index) => {
+				if (index < numRounds) {
+					// If set has reps but no time, it was time capped
+					timeCapped[index] = set.reps !== null && set.time === null
+				}
+			})
+		}
+
+		return timeCapped
 	}
 
 	const form = useForm<LogFormSchema>({
@@ -163,6 +188,7 @@ export default function EditResultClient({
 			scalingLevelId: result.scalingLevelId || undefined,
 			asRx: result.asRx || false,
 			scores: parseExistingScores(),
+			timeCapped: parseExistingTimeCapped(),
 			notes: result.notes || "",
 		},
 	})
@@ -203,6 +229,13 @@ export default function EditResultClient({
 				formData.append(`scores[${roundIndex}][${partIndex}]`, part)
 			})
 		})
+
+		// Add timeCapped data to formData
+		if (data.timeCapped) {
+			data.timeCapped.forEach((isTimeCapped, roundIndex) => {
+				formData.append(`timeCapped[${roundIndex}]`, String(isTimeCapped))
+			})
+		}
 
 		// Call server action - it will handle redirect or return error
 		const response = await updateResultAction({
@@ -275,13 +308,163 @@ export default function EditResultClient({
 		form.setValue("scores", newScores)
 	}
 
+	const handleTimeCappedChange = (roundIndex: number, value: boolean) => {
+		const currentTimeCapped = form.getValues("timeCapped") || []
+		const newTimeCapped = [...currentTimeCapped]
+		newTimeCapped[roundIndex] = value
+		form.setValue("timeCapped", newTimeCapped)
+
+		// Clear the score when toggling time cap status
+		const currentScores = form.getValues("scores") || []
+		const newScores = currentScores.map((parts, rIndex) => {
+			if (rIndex === roundIndex) {
+				return [""] // Reset to empty string
+			}
+			return parts
+		})
+		form.setValue("scores", newScores)
+	}
+
 	const renderScoreInputs = () => {
 		const currentScores = form.getValues("scores") || []
 		const hasRepsPerRound = !!workout.repsPerRound
+		const timeCappedArray = form.getValues("timeCapped") || []
 
 		if (workout.scheme === "time" || workout.scheme === "time-with-cap") {
-			return currentScores.map((parts, index) => (
-				<div key={`scores.${parts[0]}`} className="flex items-end gap-2">
+			return currentScores.map((parts, index) => {
+				const isTimeWithCap = workout.scheme === "time-with-cap"
+				const isTimeCapped = timeCappedArray[index] || false
+
+				return (
+					<div key={`score-time-round-${index}-${workout.id}`} className="space-y-2">
+						{currentScores.length > 1 && (
+							<Label className="text-sm text-muted-foreground">
+								Round {index + 1} Score
+							</Label>
+						)}
+
+						{/* Time Cap Checkbox for time-with-cap workouts */}
+						{isTimeWithCap && (
+							<div className="flex items-center space-x-2">
+								<Checkbox
+									id={`timeCapped-${index}`}
+									checked={isTimeCapped}
+									onCheckedChange={(checked) =>
+										handleTimeCappedChange(index, !!checked)
+									}
+								/>
+								<Label
+									htmlFor={`timeCapped-${index}`}
+									className="text-sm font-normal"
+								>
+									Time capped
+								</Label>
+							</div>
+						)}
+
+						<FormField
+							control={form.control}
+							name={`scores.${index}.0`}
+							render={({ field }) => (
+								<FormItem className="flex-1">
+									<FormLabel>
+										{isTimeWithCap && isTimeCapped
+											? currentScores.length > 1
+												? ""
+												: "Reps"
+											: currentScores.length > 1
+												? ""
+												: "Time"}
+									</FormLabel>
+									<FormControl>
+										<Input
+											{...field}
+											type={isTimeWithCap && isTimeCapped ? "number" : "text"}
+											placeholder={
+												isTimeWithCap && isTimeCapped
+													? "Reps completed"
+													: "MM:SS or seconds"
+											}
+											value={parts[0] || ""}
+											onChange={(e) =>
+												handleScoreChange(index, 0, e.target.value)
+											}
+											min={isTimeWithCap && isTimeCapped ? "0" : undefined}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				)
+			})
+		}
+
+		if (hasRepsPerRound) {
+			return currentScores.map((parts, index) => {
+				return (
+					<div key={`score-reps-round-${index}-${workout.id}`} className="space-y-2">
+						<h4 className="text-sm font-semibold">
+							{currentScores.length > 1 ? `Round ${index + 1}` : "Score"}
+						</h4>
+						<div className="flex gap-2 items-end">
+							<FormField
+								control={form.control}
+								name={`scores.${index}.0`}
+								render={({ field }) => (
+									<FormItem className="flex-1">
+										<FormLabel>Rounds</FormLabel>
+										<FormControl>
+											<Input
+												{...field}
+												type="number"
+												min="0"
+												placeholder="0"
+												value={parts[0] || ""}
+												onChange={(e) =>
+													handleScoreChange(index, 0, e.target.value)
+												}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<span className="pb-2 text-lg font-bold">+</span>
+							<FormField
+								control={form.control}
+								name={`scores.${index}.1`}
+								render={({ field }) => (
+									<FormItem className="flex-1">
+										<FormLabel>Reps (out of {workout.repsPerRound})</FormLabel>
+										<FormControl>
+											<Input
+												{...field}
+												type="number"
+												min="0"
+												max={workout.repsPerRound?.toString()}
+												placeholder="0"
+												value={parts[1] || ""}
+												onChange={(e) =>
+													handleScoreChange(index, 1, e.target.value)
+												}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+					</div>
+				)
+			})
+		}
+
+		// Default score input
+		return currentScores.map((parts, index) => {
+			return (
+				<div key={`score-default-round-${index}-${workout.id}`} className="flex items-end gap-2">
 					<FormField
 						control={form.control}
 						name={`scores.${index}.0`}
@@ -289,13 +472,15 @@ export default function EditResultClient({
 							<FormItem className="flex-1">
 								<FormLabel>
 									{currentScores.length > 1
-										? `Round ${index + 1} Time`
-										: "Time"}
+										? `Round ${index + 1} Score`
+										: "Score"}
 								</FormLabel>
 								<FormControl>
 									<Input
 										{...field}
-										placeholder="MM:SS or seconds"
+										type="number"
+										min="0"
+										placeholder="0"
 										value={parts[0] || ""}
 										onChange={(e) =>
 											handleScoreChange(index, 0, e.target.value)
@@ -307,96 +492,8 @@ export default function EditResultClient({
 						)}
 					/>
 				</div>
-			))
-		}
-
-		if (hasRepsPerRound) {
-			return currentScores.map((parts, index) => (
-				<div key={`scores.${parts[0]}`} className="space-y-2">
-					<h4 className="text-sm font-semibold">
-						{currentScores.length > 1 ? `Round ${index + 1}` : "Score"}
-					</h4>
-					<div className="flex gap-2 items-end">
-						<FormField
-							control={form.control}
-							name={`scores.${index}.0`}
-							render={({ field }) => (
-								<FormItem className="flex-1">
-									<FormLabel>Rounds</FormLabel>
-									<FormControl>
-										<Input
-											{...field}
-											type="number"
-											min="0"
-											placeholder="0"
-											value={parts[0] || ""}
-											onChange={(e) =>
-												handleScoreChange(index, 0, e.target.value)
-											}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<span className="pb-2 text-lg font-bold">+</span>
-						<FormField
-							control={form.control}
-							name={`scores.${index}.1`}
-							render={({ field }) => (
-								<FormItem className="flex-1">
-									<FormLabel>Reps (out of {workout.repsPerRound})</FormLabel>
-									<FormControl>
-										<Input
-											{...field}
-											type="number"
-											min="0"
-											max={workout.repsPerRound?.toString()}
-											placeholder="0"
-											value={parts[1] || ""}
-											onChange={(e) =>
-												handleScoreChange(index, 1, e.target.value)
-											}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-					</div>
-				</div>
-			))
-		}
-
-		// Default score input
-		return currentScores.map((parts, index) => (
-			<div key={`scores.${parts[0]}.0`} className="flex items-end gap-2">
-				<FormField
-					control={form.control}
-					name={`scores.${index}.0`}
-					render={({ field }) => (
-						<FormItem className="flex-1">
-							<FormLabel>
-								{currentScores.length > 1
-									? `Round ${index + 1} Score`
-									: "Score"}
-							</FormLabel>
-							<FormControl>
-								<Input
-									{...field}
-									type="number"
-									min="0"
-									placeholder="0"
-									value={parts[0] || ""}
-									onChange={(e) => handleScoreChange(index, 0, e.target.value)}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-			</div>
-		))
+			)
+		})
 	}
 
 	return (

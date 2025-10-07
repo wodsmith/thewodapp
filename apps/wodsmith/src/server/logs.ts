@@ -8,8 +8,8 @@ import { getDd } from "@/db"
 import {
 	programmingTracksTable,
 	results,
-	scalingLevelsTable,
 	scalingGroupsTable,
+	scalingLevelsTable,
 	sets,
 	workouts,
 } from "@/db/schema"
@@ -797,6 +797,53 @@ function validateProcessedSets(
 	return undefined
 }
 
+/**
+ * Get default scoreType for a scheme
+ */
+export function getDefaultScoreType(scheme: Workout["scheme"]): string {
+	const defaults: Record<string, string> = {
+		time: "min", // Lower time is better
+		"time-with-cap": "min", // Lower time is better
+		"pass-fail": "first", // First attempt matters
+		"rounds-reps": "max", // Higher rounds+reps is better
+		reps: "max", // Higher reps is better
+		emom: "max", // Higher reps/score in EMOM is better
+		load: "max", // Higher load is better
+		calories: "max", // Higher calories is better
+		meters: "max", // Higher distance is better
+		feet: "max", // Higher distance is better
+		points: "max", // Higher points is better
+	}
+	return defaults[scheme] || "max"
+}
+
+/**
+ * Apply score aggregation based on scoreType
+ */
+export function aggregateScores(
+	values: number[],
+	scoreType: string,
+): number | null {
+	if (values.length === 0) return null
+
+	switch (scoreType) {
+		case "min":
+			return Math.min(...values)
+		case "max":
+			return Math.max(...values)
+		case "sum":
+			return values.reduce((sum, v) => sum + v, 0)
+		case "average":
+			return values.reduce((sum, v) => sum + v, 0) / values.length
+		case "first":
+			return values[0] ?? null
+		case "last":
+			return values[values.length - 1] ?? null
+		default:
+			return null
+	}
+}
+
 function generateWodScoreSummary(
 	isTimeBasedWodScore: boolean,
 	totalSecondsForWodScore: number,
@@ -806,10 +853,30 @@ function generateWodScoreSummary(
 	setsForDb: ResultSetInput[], // Added to check conditions for time-based summary
 	atLeastOneScorePartFilled: boolean, // Added for conditional logic
 	timeCappedEntries: boolean[] = [],
+	scoreType: string | null = null,
+	roundsToScore = 1,
 ): string {
 	let finalWodScoreSummary = ""
-	if (isTimeBasedWodScore) {
-		finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
+	// Check if any rounds are time capped - if so, use descriptive format instead of time-only format
+	const hasTimeCappedRounds = timeCappedEntries.some((capped) => capped)
+
+	// Always use scoreType (with fallback to default) for multiple rounds
+	const effectiveScoreType = scoreType || getDefaultScoreType(workoutScheme)
+	const shouldAggregate = roundsToScore > 1 && !hasTimeCappedRounds
+
+	if (isTimeBasedWodScore && !hasTimeCappedRounds) {
+		if (shouldAggregate) {
+			// Aggregate time values based on scoreType
+			const timeValues = setsForDb
+				.map((set) => set.time)
+				.filter((t): t is number => t !== null && t !== undefined && t > 0)
+
+			const aggregated = aggregateScores(timeValues, effectiveScoreType)
+			finalWodScoreSummary =
+				aggregated !== null ? formatSecondsToTime(aggregated) : ""
+		} else {
+			finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
+		}
 		if (
 			totalSecondsForWodScore === 0 &&
 			setsForDb.some((set) => set?.time && set.time > 0)
@@ -832,6 +899,14 @@ function generateWodScoreSummary(
 			// For safety, can return empty or specific string like "No Score"
 			finalWodScoreSummary = "" // Or "No Score"
 		}
+	} else if (shouldAggregate && !isRoundsAndRepsWorkout) {
+		// Aggregate non-time scores based on scoreType
+		const scoreValues = setsForDb
+			.map((set) => set.reps || set.score || 0)
+			.filter((s): s is number => s !== null && s > 0)
+
+		const aggregated = aggregateScores(scoreValues, effectiveScoreType)
+		finalWodScoreSummary = aggregated !== null ? aggregated.toString() : ""
 	} else {
 		const scoreSummaries: string[] = []
 		for (let k = 0; k < parsedScoreEntries.length; k++) {
@@ -1076,6 +1151,8 @@ export async function submitLogForm(
 		setsForDb,
 		atLeastOneScorePartFilled,
 		timeCappedEntries,
+		workout.scoreType,
+		workout.roundsToScore || 1,
 	)
 
 	return submitLogToDatabase(

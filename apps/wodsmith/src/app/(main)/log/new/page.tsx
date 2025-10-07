@@ -6,22 +6,26 @@ import { getSessionFromCookie } from "@/utils/auth"
 import LogFormClient from "./_components/log-form-client"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Log your Workout",
-	description: "Track your spicy workouts and progress.",
+	title: "Log Workout",
+	description: "Log your workout results and track your progress.",
 	openGraph: {
-		title: "WODsmith | Log your Workout", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Log Workout",
+		description: "Log your workout results and track your progress.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent(
-					"WODsmith | Log your Workout",
-				)}`,
+				url: `/api/og?title=${encodeURIComponent("Log Workout")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Log your Workout",
+				alt: "Log Workout",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Log Workout",
+		description: "Log your workout results and track your progress.",
+		images: [`/api/og?title=${encodeURIComponent("Log Workout")}`],
 	},
 }
 

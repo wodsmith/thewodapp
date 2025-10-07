@@ -1,8 +1,8 @@
 "use client"
 
 import { Edit } from "lucide-react"
-import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import type { ProgrammingTrack } from "@/db/schema"
 import { ProgrammingTrackEditDialog } from "../../_components/programming-track-edit-dialog"
@@ -13,6 +13,7 @@ interface TrackHeaderProps {
 	teamName: string
 	track: ProgrammingTrack
 	scalingGroupName?: string | null
+	isOwner: boolean
 }
 
 export function TrackHeader({
@@ -20,6 +21,7 @@ export function TrackHeader({
 	teamName,
 	track,
 	scalingGroupName,
+	isOwner,
 }: TrackHeaderProps) {
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 	const [currentTrack, setCurrentTrack] = useState(track)
@@ -52,27 +54,29 @@ export function TrackHeader({
 					</p>
 				)}
 			</div>
-			<div className="flex flex-col items-end space-y-2">
-				<div className="flex gap-2">
-					<ProgrammingTrackEditDialog
-						teamId={teamId}
-						track={currentTrack}
-						trigger={
-							<Button
-								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono"
-								size="sm"
-							>
-								<Edit className="h-4 w-4 mr-2" />
-								Edit Track
-							</Button>
-						}
-						onTrackUpdated={handleTrackUpdated}
-						open={isEditDialogOpen}
-						onOpenChange={setIsEditDialogOpen}
-					/>
-					<TrackVisibilitySelector teamId={teamId} track={currentTrack} />
+			{isOwner && (
+				<div className="flex flex-col items-end space-y-2">
+					<div className="flex gap-2">
+						<ProgrammingTrackEditDialog
+							teamId={teamId}
+							track={currentTrack}
+							trigger={
+								<Button
+									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono"
+									size="sm"
+								>
+									<Edit className="h-4 w-4 mr-2" />
+									Edit Track
+								</Button>
+							}
+							onTrackUpdated={handleTrackUpdated}
+							open={isEditDialogOpen}
+							onOpenChange={setIsEditDialogOpen}
+						/>
+						<TrackVisibilitySelector teamId={teamId} track={currentTrack} />
+					</div>
 				</div>
-			</div>
+			)}
 		</div>
 	)
 }

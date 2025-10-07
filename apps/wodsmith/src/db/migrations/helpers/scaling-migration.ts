@@ -1,5 +1,5 @@
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import { sql } from "drizzle-orm"
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import {
 	globalDefaultScalingGroup,
 	globalDefaultScalingLevels,

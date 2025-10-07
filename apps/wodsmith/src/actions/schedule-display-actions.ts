@@ -1,8 +1,8 @@
 "use server"
 
-import { getGeneratedSchedulesForTeam } from "@/server/ai/scheduler"
 import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
+import { getGeneratedSchedulesForTeam } from "@/server/ai/scheduler"
 
 const getScheduledClassesForDisplaySchema = z.object({
 	teamId: z.string(),

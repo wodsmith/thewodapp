@@ -3,20 +3,26 @@ import { Suspense } from "react"
 import SpreadsheetCalculator from "./_components/spreadsheet-calculator"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith - % Calculator",
-	description: "Track your spicy workouts and progress.",
+	title: "Percentage Calculator",
+	description: "Calculate percentages for your one-rep max training.",
 	openGraph: {
-		title: "WODsmith - % Calculator", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Percentage Calculator",
+		description: "Calculate percentages for your one-rep max training.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("WODsmith - % Calculator")}`,
+				url: `/api/og?title=${encodeURIComponent("Percentage Calculator")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith - % Calculator",
+				alt: "Percentage Calculator",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Percentage Calculator",
+		description: "Calculate percentages for your one-rep max training.",
+		images: [`/api/og?title=${encodeURIComponent("Percentage Calculator")}`],
 	},
 }
 

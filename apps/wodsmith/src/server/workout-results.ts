@@ -1,12 +1,12 @@
 import "server-only"
 /// <reference types="@cloudflare/workers-types" />
-import { and, eq, gte, lte, desc, asc } from "drizzle-orm"
+import { and, asc, desc, eq, gte, lte } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	results,
-	sets,
-	scalingLevelsTable,
 	scalingGroupsTable,
+	scalingLevelsTable,
+	sets,
 	workoutScalingDescriptionsTable,
 } from "@/db/schema"
 import type { ResultSet, WorkoutResult } from "@/types"

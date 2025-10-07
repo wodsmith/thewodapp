@@ -1,10 +1,10 @@
-import { notFound, redirect } from "next/navigation"
 import { eq } from "drizzle-orm"
+import { notFound, redirect } from "next/navigation"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { getDd } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
-import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { ScalingGroupsList } from "./_components/scaling-groups-list"
 
 interface ScalingPageProps {

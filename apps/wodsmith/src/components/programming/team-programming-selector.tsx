@@ -8,8 +8,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useSessionStore } from "@/state/session"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { useSessionStore } from "@/state/session"
 
 interface TeamOption {
 	id: string

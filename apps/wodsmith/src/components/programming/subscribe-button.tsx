@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { useServerAction } from "@repo/zsa-react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { useSessionStore } from "@/state/session"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	subscribeToTrackAction,
 	unsubscribeFromTrackAction,
 } from "@/actions/programming-actions"
+import { Button } from "@/components/ui/button"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { useSessionStore } from "@/state/session"
 import { TeamProgrammingSelector } from "./team-programming-selector"
 
 interface SubscribeButtonProps {

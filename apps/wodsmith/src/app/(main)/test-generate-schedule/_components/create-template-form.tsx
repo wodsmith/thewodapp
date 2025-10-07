@@ -1,5 +1,8 @@
 "use client"
 
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { useServerAction } from "@repo/zsa-react"
 import { createCompleteGymSetupWithCoaches } from "@/actions/complete-gym-setup-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,9 +14,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
 
 interface CreateTemplateFormProps {
 	teamId: string

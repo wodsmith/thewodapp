@@ -1,32 +1,27 @@
 "use client"
 
-import { EnhancedTrackRow } from "./enhanced-track-row"
 import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
-
-interface Team {
-	id: string
-	name: string
-}
+import { EnhancedTrackRow } from "./enhanced-track-row"
 
 interface EnhancedTrackListProps {
 	tracks: ProgrammingTrackWithTeamSubscriptions[]
-	userTeams: Team[]
-	showTeamBadges?: boolean
+	teamId: string
 	isOwned?: boolean
+	hasManagePermission?: boolean
 }
 
 export function EnhancedTrackList({
 	tracks,
-	userTeams,
-	showTeamBadges = false,
+	teamId,
 	isOwned = false,
+	hasManagePermission = false,
 }: EnhancedTrackListProps) {
 	if (tracks.length === 0) {
 		return (
 			<div className="text-center py-12 border rounded-lg bg-muted/20">
 				<p className="text-muted-foreground">
 					{isOwned
-						? "Your teams haven't created any public programming tracks yet."
+						? "Your team hasn't created any public programming tracks yet."
 						: "No programming tracks available."}
 				</p>
 			</div>
@@ -39,9 +34,9 @@ export function EnhancedTrackList({
 				<EnhancedTrackRow
 					key={track.id}
 					track={track}
-					userTeams={userTeams}
-					showTeamBadges={showTeamBadges}
+					teamId={teamId}
 					isOwned={isOwned}
+					hasManagePermission={hasManagePermission}
 				/>
 			))}
 		</div>

@@ -1,5 +1,6 @@
-import { Calendar, Users, Shuffle } from "lucide-react"
+import { Calendar, Shuffle, Users } from "lucide-react"
 import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
 import {
 	Table,
 	TableBody,
@@ -8,7 +9,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 
 interface WorkoutScheduleHistoryProps {
 	scheduleHistory: Array<{

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { getDefinedScalingLevels } from "@/utils/scaling-utils"
 

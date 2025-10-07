@@ -6,14 +6,14 @@ import {
 	getScheduledTeamWorkoutsAction,
 	getScheduledTeamWorkoutsWithResultsAction,
 } from "@/actions/workout-actions"
-import { useSessionStore } from "@/state/session"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
+import { useSessionStore } from "@/state/session"
 import {
-	startOfLocalDay,
 	endOfLocalDay,
-	getLocalDateKey,
-	startOfLocalWeek,
 	endOfLocalWeek,
+	getLocalDateKey,
+	startOfLocalDay,
+	startOfLocalWeek,
 } from "@/utils/date-utils"
 import { TeamWorkoutSection } from "./team-workout-section"
 

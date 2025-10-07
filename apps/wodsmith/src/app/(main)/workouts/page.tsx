@@ -4,36 +4,40 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
-import { requireVerifiedEmail } from "@/utils/auth"
-import { getUserTeams } from "@/server/teams"
+import { PaginationWithUrl } from "@/components/ui/pagination"
 import {
 	getScheduledWorkoutsForTeam,
 	type ScheduledWorkoutInstanceWithDetails,
 } from "@/server/scheduling-service"
+import { getUserTeams } from "@/server/teams"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import WorkoutRowCard from "../../../components/WorkoutRowCard"
-import WorkoutControls from "./_components/WorkoutControls"
-import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
-import { PaginationWithUrl } from "@/components/ui/pagination"
+import { requireVerifiedEmail } from "@/utils/auth"
 import type { KVSession } from "@/utils/kv-session"
+import WorkoutRowCard from "../../../components/WorkoutRowCard"
+import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
+import WorkoutControls from "./_components/WorkoutControls"
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://spicywod.com"),
-	title: "WODsmith | Explore Workouts",
-	description: "Track your spicy workouts and progress.",
+	title: "Explore Workouts",
+	description: "Browse and track your CrossFit workouts.",
 	openGraph: {
-		title: "WODsmith | Explore Workouts", // Default title for layout
-		description: "Track your spicy workouts and progress.", // Default description
+		type: "website",
+		title: "Explore Workouts",
+		description: "Browse and track your CrossFit workouts.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent(
-					"WODsmith | Explore Workouts",
-				)}`,
+				url: `/api/og?title=${encodeURIComponent("Explore Workouts")}`,
 				width: 1200,
 				height: 630,
-				alt: "WODsmith | Explore Workouts",
+				alt: "Explore Workouts",
 			},
 		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Explore Workouts",
+		description: "Browse and track your CrossFit workouts.",
+		images: [`/api/og?title=${encodeURIComponent("Explore Workouts")}`],
 	},
 }
 

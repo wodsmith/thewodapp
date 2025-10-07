@@ -1,7 +1,7 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, notExists, or, max } from "drizzle-orm"
+import { and, eq, max, notExists, or } from "drizzle-orm"
 import { getDd } from "@/db"
 import {
 	type ProgrammingTrack,
@@ -113,6 +113,20 @@ export async function getProgrammingTrackById(
 		.from(programmingTracksTable)
 		.where(eq(programmingTracksTable.id, trackId))
 	return track ?? null
+}
+
+/**
+ * Check if a team owns a programming track
+ */
+export async function isTrackOwner(
+	teamId: string,
+	trackId: string,
+): Promise<boolean> {
+	const track = await getProgrammingTrackById(trackId)
+	if (!track) {
+		return false
+	}
+	return track.ownerTeamId === teamId
 }
 
 /**

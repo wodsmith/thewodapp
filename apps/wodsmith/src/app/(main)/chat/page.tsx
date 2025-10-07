@@ -2,14 +2,15 @@
 
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
-import { useState } from "react"
 import { MessageCircle } from "lucide-react"
+import { useState } from "react"
 import {
 	Conversation,
 	ConversationContent,
 	ConversationEmptyState,
 	ConversationScrollButton,
 } from "@/components/ai-elements/conversation"
+import { Loader } from "@/components/ai-elements/loader"
 import {
 	Message,
 	MessageAvatar,
@@ -18,14 +19,13 @@ import {
 import {
 	PromptInput,
 	PromptInputBody,
+	type PromptInputMessage,
+	PromptInputSubmit,
 	PromptInputTextarea,
 	PromptInputToolbar,
 	PromptInputTools,
-	PromptInputSubmit,
-	type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input"
 import { Response } from "@/components/ai-elements/response"
-import { Loader } from "@/components/ai-elements/loader"
 
 export default function ChatPage() {
 	const [input, setInput] = useState("")

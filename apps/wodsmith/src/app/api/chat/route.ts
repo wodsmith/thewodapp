@@ -1,10 +1,10 @@
 import "server-only"
-import { wrapAISDK, initLogger } from "braintrust"
-import * as ai from "ai"
 import { openai } from "@ai-sdk/openai"
+import * as ai from "ai"
+import { initLogger, wrapAISDK } from "braintrust"
 import type { NextRequest } from "next/server"
-import { getSessionFromCookie } from "@/utils/auth"
 import { tryCatch } from "@/lib/try-catch"
+import { getSessionFromCookie } from "@/utils/auth"
 
 const _logger = initLogger({
 	projectName: "My Project",

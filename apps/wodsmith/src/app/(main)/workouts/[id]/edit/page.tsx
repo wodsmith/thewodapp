@@ -1,21 +1,45 @@
+import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import {
 	getWorkoutByIdAction,
 	updateWorkoutAction,
 } from "@/actions/workout-actions"
 import { getAllMovements } from "@/server/movements"
-import { getAllTags } from "@/server/tags"
 import { listScalingGroups } from "@/server/scaling-groups"
-import type { WorkoutUpdate } from "@/types"
+import { getAllTags } from "@/server/tags"
+import type { WorkoutUpdate, WorkoutWithTagsAndMovements } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,
 } from "@/utils/workout-permissions"
-import type { WorkoutWithTagsAndMovements } from "@/types"
 import EditWorkoutClient from "./_components/edit-workout-client"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+	title: "Edit Workout",
+	description: "Edit your workout details and movements.",
+	openGraph: {
+		type: "website",
+		title: "Edit Workout",
+		description: "Edit your workout details and movements.",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Edit Workout")}`,
+				width: 1200,
+				height: 630,
+				alt: "Edit Workout",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Edit Workout",
+		description: "Edit your workout details and movements.",
+		images: [`/api/og?title=${encodeURIComponent("Edit Workout")}`],
+	},
+}
 
 export default async function EditWorkoutPage({
 	params,

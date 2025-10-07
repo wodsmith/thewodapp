@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import WorkoutControls from "./WorkoutControls"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import WorkoutControls from "./WorkoutControls"
 
 const mockReplace = vi.fn()
 const mockSearchParams = new URLSearchParams()

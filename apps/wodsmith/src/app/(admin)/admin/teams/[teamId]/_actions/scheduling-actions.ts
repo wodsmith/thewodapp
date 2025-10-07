@@ -9,8 +9,8 @@ import {
 	getScheduledWorkoutInstanceById,
 	getScheduledWorkoutsForTeam,
 	type ScheduleWorkoutInput,
-	scheduleWorkoutForTeam,
 	scheduleStandaloneWorkoutForTeam,
+	scheduleWorkoutForTeam,
 	updateScheduledWorkoutInstance,
 } from "@/server/scheduling-service"
 import { requireTeamPermission } from "@/utils/team-auth"

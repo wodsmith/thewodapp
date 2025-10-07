@@ -1,4 +1,7 @@
+import { Clock, MapPin, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -6,10 +9,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import {
 	Select,
 	SelectContent,
@@ -17,7 +18,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Clock, MapPin, Plus, Trash2 } from "lucide-react"
 
 interface TimeSlots {
 	[key: string]: string[]
@@ -70,10 +70,10 @@ const TimeSlotManager = ({
 	}
 
 	return (
-		<Card className="bg-white/60 backdrop-blur-sm border-white/20 mb-6">
+		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center space-x-2">
-					<Clock className="h-5 w-5" />
+					<Clock className="h-5 w-5 text-primary" />
 					<span>Time Slot Manager</span>
 				</CardTitle>
 				<CardDescription>
@@ -82,7 +82,7 @@ const TimeSlotManager = ({
 			</CardHeader>
 			<CardContent className="space-y-6">
 				{/* Add New Time Slot */}
-				<div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg">
+				<div className="grid grid-cols-1 gap-4 rounded-lg border border-primary/20 bg-primary/5 p-4 md:grid-cols-4">
 					<div>
 						<Label htmlFor="location">Location</Label>
 						<Select
@@ -148,12 +148,12 @@ const TimeSlotManager = ({
 						const [location, classType] = key.split("-")
 						if (!location || !classType) return null
 						return (
-							<div key={key} className="p-4 bg-white rounded-lg border">
-								<div className="flex items-center space-x-2 mb-3">
-									<MapPin className="h-4 w-4 text-slate-600" />
+							<div key={key} className="rounded-lg border p-4">
+								<div className="mb-3 flex items-center space-x-2">
+									<MapPin className="h-4 w-4 text-muted-foreground" />
 									<span className="font-medium">{location}</span>
-									<span className="text-slate-500">•</span>
-									<span className="text-slate-600">{classType}</span>
+									<span className="text-muted-foreground">•</span>
+									<span className="text-muted-foreground">{classType}</span>
 								</div>
 								<div className="flex flex-wrap gap-2">
 									{slots.map((time) => (

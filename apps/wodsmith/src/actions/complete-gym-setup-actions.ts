@@ -1,20 +1,20 @@
 "use server"
-import { getDd } from "@/db"
-import {
-	classCatalogTable,
-	locationsTable,
-	scheduleTemplatesTable,
-	scheduleTemplateClassesTable,
-	coachesTable,
-	skillsTable,
-	coachToSkillsTable,
-	coachBlackoutDatesTable,
-	coachRecurringUnavailabilityTable,
-} from "@/db/schemas/scheduling"
-import { userTable } from "@/db/schemas/users"
 import { createId } from "@paralleldrive/cuid2"
 import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
+import { getDd } from "@/db"
+import {
+	classCatalogTable,
+	coachBlackoutDatesTable,
+	coachesTable,
+	coachRecurringUnavailabilityTable,
+	coachToSkillsTable,
+	locationsTable,
+	scheduleTemplateClassesTable,
+	scheduleTemplatesTable,
+	skillsTable,
+} from "@/db/schemas/scheduling"
+import { userTable } from "@/db/schemas/users"
 
 // Schema for comprehensive gym setup
 const createCompleteGymSetupSchema = z.object({

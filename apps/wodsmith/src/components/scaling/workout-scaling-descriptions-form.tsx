@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useServerAction } from "@repo/zsa-react"
+import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 
 interface WorkoutScalingDescriptionsFormProps {
 	scalingGroupId: string | null

@@ -1,7 +1,14 @@
 "use client"
 
+import { Info, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Loader2, Info } from "lucide-react"
+import { useServerAction } from "@repo/zsa-react"
+import {
+	getScalingGroupWithLevelsAction,
+	getWorkoutScalingDescriptionsAction,
+} from "@/actions/scaling-actions"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
 	Select,
@@ -16,13 +23,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { useServerAction } from "@repo/zsa-react"
-import {
-	getScalingGroupWithLevelsAction,
-	getWorkoutScalingDescriptionsAction,
-} from "@/actions/scaling-actions"
 import { getDefinedScalingLevels } from "@/utils/scaling-utils"
 
 interface ScalingLevel {
@@ -89,9 +89,7 @@ export function ScalingSelector({
 	>([])
 	const [filteredLevels, setFilteredLevels] = useState<ScalingLevel[]>([])
 	const [selectedLevelId, setSelectedLevelId] = useState<string>(value || "")
-	const [asRxSelection, setAsRxSelection] = useState<"rx" | "scaled">(
-		initialAsRx ? "rx" : "scaled",
-	)
+	const [wasModified, setWasModified] = useState<boolean>(!initialAsRx)
 	const [isLoading, setIsLoading] = useState(true)
 	const [scalingSource, setScalingSource] = useState<
 		"workout" | "track" | "default"
@@ -195,16 +193,15 @@ export function ScalingSelector({
 
 	const handleLevelChange = (levelId: string) => {
 		setSelectedLevelId(levelId)
-		// Use the current asRxSelection state
-		onChange(levelId, asRxSelection === "rx")
+		// Use the current wasModified state - if modified, asRx = false
+		onChange(levelId, !wasModified)
 	}
 
-	const handleRxChange = (value: string) => {
-		const isRx = value === "rx"
-		setAsRxSelection(value as "rx" | "scaled")
-		// Update with current selected level
+	const handleModifiedChange = (checked: boolean) => {
+		setWasModified(checked)
+		// Update with current selected level - if modified/checked, asRx = false
 		if (selectedLevelId) {
-			onChange(selectedLevelId, isRx)
+			onChange(selectedLevelId, !checked)
 		}
 	}
 
@@ -307,36 +304,36 @@ export function ScalingSelector({
 				</Select>
 			</div>
 
-			{/* As Prescribed or Scaled Selection */}
+			{/* Modified/Scaled Checkbox */}
 			{selectedLevelId && (
-				<div className="space-y-2">
-					<Label>Performance</Label>
-					<div className="flex gap-2">
-						<Button
-							type="button"
-							variant={asRxSelection === "rx" ? "default" : "outline"}
-							size="sm"
-							onClick={() => handleRxChange("rx")}
-							disabled={disabled}
-							className="flex-1"
+				<div className="flex items-center space-x-2">
+					<Checkbox
+						id="scaled-modified"
+						checked={wasModified}
+						onCheckedChange={handleModifiedChange}
+						disabled={disabled}
+					/>
+					<div className="flex items-center gap-1.5">
+						<Label
+							htmlFor="scaled-modified"
+							className="text-sm font-normal cursor-pointer"
 						>
-							As Prescribed (Rx)
-						</Button>
-						<Button
-							type="button"
-							variant={asRxSelection === "scaled" ? "default" : "outline"}
-							size="sm"
-							onClick={() => handleRxChange("scaled")}
-							disabled={disabled}
-							className="flex-1"
-						>
-							Scaled
-						</Button>
+							Scaled/Modified
+						</Label>
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+								</TooltipTrigger>
+								<TooltipContent>
+									<p className="max-w-xs">
+										Did you modify this level? Check this box if you made any
+										modifications to the prescribed movements, weights, or reps.
+									</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
 					</div>
-					<p className="text-xs text-muted-foreground">
-						Indicate if you performed this level as prescribed or made
-						additional modifications
-					</p>
 				</div>
 			)}
 

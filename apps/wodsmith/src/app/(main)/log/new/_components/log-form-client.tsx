@@ -13,10 +13,12 @@ import {
 	type LogFormSchema,
 	logFormSchema,
 } from "@/app/(main)/log/new/_components/log.schema"
-import { getLocalDateKey } from "@/utils/date-utils"
+import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
+import { ScalingSelector } from "@/components/scaling-selector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -29,10 +31,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ScalingSelector } from "@/components/scaling-selector"
-import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 import type { WorkoutWithTagsAndMovements } from "@/types"
+import { getLocalDateKey } from "@/utils/date-utils"
 
 export default function LogFormClient({
 	workouts,
@@ -606,11 +606,11 @@ export default function LogFormClient({
 																						</span>
 																						<Input
 																							type="number"
-																							placeholder={`Reps (max ${
+																							placeholder={
 																								repsPerRoundValue
-																									? repsPerRoundValue - 1
-																									: "N/A"
-																							})`}
+																									? `Reps (max ${repsPerRoundValue - 1})`
+																									: "Reps"
+																							}
 																							value={scoreParts[1] || ""}
 																							onChange={(e) =>
 																								handleScoreChange(

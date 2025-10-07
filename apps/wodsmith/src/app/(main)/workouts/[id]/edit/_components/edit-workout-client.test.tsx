@@ -56,6 +56,7 @@ const mockWorkout = {
 		(m): m is NonNullable<typeof m> => m !== undefined,
 	),
 	scheme: "time" as const,
+	scoreType: null,
 	scope: "private" as const,
 	repsPerRound: 10,
 	roundsToScore: 1,
