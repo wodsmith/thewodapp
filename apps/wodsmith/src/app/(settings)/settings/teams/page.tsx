@@ -13,5 +13,9 @@ export default async function TeamsPage() {
 	if (!teams.length) {
 		return <div className="p-8">You are not a member of any teams.</div>
 	}
-	redirect(`/settings/teams/${teams[0].slug}`)
+	const firstTeam = teams[0]
+	if (firstTeam) {
+		redirect(`/settings/teams/${firstTeam.slug}`)
+	}
+	return <div className="p-8">You are not a member of any teams.</div>
 }

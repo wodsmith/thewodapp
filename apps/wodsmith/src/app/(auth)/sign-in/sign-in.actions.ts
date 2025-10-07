@@ -1,7 +1,7 @@
 "use server"
 
 import { eq } from "drizzle-orm"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { signInSchema } from "@/schemas/signin.schema"

@@ -32,7 +32,7 @@ Implement server actions in `src/actions/programming-actions.ts` for managing tr
 
 ## Commit 3: feat: implement subscription UI components [docs/tasks/2025-09-03-17-03-programming-subscription.md]
 **Description:**
-Create React components for the programming tracks UI. Build `src/components/programming/track-card.tsx` to display individual track information with subscribe/unsubscribe buttons. Create `src/components/programming/track-list.tsx` to render a grid of track cards. Implement `src/components/programming/subscribe-button.tsx` using `useServerAction` hook from zsa-react to call the subscription actions with loading states, error handling, and optimistic updates. Add success/error toast notifications using the existing toast system.
+Create React components for the programming tracks UI. Build `src/components/programming/track-card.tsx` to display individual track information with subscribe/unsubscribe buttons. Create `src/components/programming/track-list.tsx` to render a grid of track cards. Implement `src/components/programming/subscribe-button.tsx` using `useServerAction` hook from @repo/zsa-react to call the subscription actions with loading states, error handling, and optimistic updates. Add success/error toast notifications using the existing toast system.
 
 **Verification:**
 1.  **Automated Test(s):**

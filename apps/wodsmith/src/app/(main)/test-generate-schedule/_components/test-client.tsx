@@ -4,7 +4,7 @@ import { generateScheduleAction } from "@/actions/generate-schedule-actions"
 import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 
 interface Team {
 	id: string

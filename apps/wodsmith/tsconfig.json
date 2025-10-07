@@ -2,7 +2,12 @@
 	"extends": "@repo/typescript-config/nextjs.json",
 	"compilerOptions": {
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": [
+				"./src/*"
+			],
+			"@repo/zsa-react": [
+				"../../packages/@repo/zsa-react/src/index.ts"
+			]
 		},
 		"types": [
 			"./cloudflare-env.d.ts",
@@ -10,8 +15,19 @@
 			"node",
 			"vitest",
 			"@testing-library/jest-dom"
-		]
+		],
+		"tsBuildInfoFile": "./.tsbuildinfo"
 	},
-	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "custom-env.d.ts"],
-	"exclude": ["node_modules", ".next"]
+	"include": [
+		"next-env.d.ts",
+		"**/*.ts",
+		"**/*.tsx",
+		".next/types/**/*.ts",
+		"custom-env.d.ts"
+	],
+	"exclude": [
+		"node_modules",
+		".next",
+		"test/**/*"
+	]
 }

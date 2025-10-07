@@ -81,7 +81,12 @@ describe("TrackSelection", () => {
 	})
 
 	it("highlights selected track correctly", () => {
-		render(<TrackSelection {...defaultProps} selectedTrack={mockTracks[0]} />)
+		render(
+			<TrackSelection
+				{...defaultProps}
+				selectedTrack={mockTracks[0] ?? null}
+			/>,
+		)
 
 		const selectedCard = screen
 			.getByText("Strength Track")

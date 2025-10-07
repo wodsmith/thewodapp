@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { userSettingsSchema } from "@/schemas/settings.schema"

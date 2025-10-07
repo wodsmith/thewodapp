@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm"
 import ms from "ms"
 import { cookies } from "next/headers"
 import { cache } from "react"
-import { ZSAError } from "zsa"
+import { ZSAError } from "@repo/zsa"
 import { SESSION_COOKIE_NAME } from "@/constants"
 import { getDd } from "@/db"
 import {
@@ -82,7 +82,7 @@ function decodeSessionCookie(
 	cookie: string,
 ): { userId: string; token: string } | null {
 	const parts = cookie.split(":")
-	if (parts.length !== 2) return null
+	if (parts.length !== 2 || !parts[0] || !parts[1]) return null
 	return { userId: parts[0], token: parts[1] }
 }
 

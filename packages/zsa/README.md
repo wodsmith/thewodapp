@@ -7,7 +7,7 @@
 Install `zsa` using your preferred package manager:
 
 ```bash
-npm i zsa zsa-react zsa-react-query zsa-openapi zod
+npm i zsa @repo/zsa-react @repo/zsa-react-query zsa-openapi zod
 ```
 
 ## Features

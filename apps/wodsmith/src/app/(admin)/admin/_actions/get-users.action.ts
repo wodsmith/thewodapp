@@ -2,7 +2,7 @@
 
 import { sql } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction } from "zsa"
+import { createServerAction } from "@repo/zsa"
 import { getDd } from "@/db"
 import { userTable } from "@/db/schema"
 import { requireAdmin } from "@/utils/auth"
@@ -35,10 +35,12 @@ export const getUsersAction = createServerAction()
 			: undefined
 
 		// Fetch total count
-		const [{ count }] = await db
+		const countResult = await db
 			.select({ count: sql<number>`count(*)` })
 			.from(userTable)
 			.where(whereClause)
+
+		const count = countResult[0]?.count ?? 0
 
 		// Fetch paginated users
 		const users = await db.query.userTable.findMany({

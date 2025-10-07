@@ -3,7 +3,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { init } from "@paralleldrive/cuid2"
 import { eq } from "drizzle-orm"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDd } from "@/db"
 import { userTable } from "@/db/schema"

@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { submitLogFormAction } from "@/actions/log-actions"
 import {
 	type LogFormSchema,

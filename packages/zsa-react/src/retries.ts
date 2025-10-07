@@ -1,4 +1,4 @@
-import { TAnyZodSafeFunctionHandler, inferServerActionError } from "zsa"
+import { TAnyZodSafeFunctionHandler, inferServerActionError } from "@repo/zsa"
 
 /**
  * A config object for retrying a server action on the client side

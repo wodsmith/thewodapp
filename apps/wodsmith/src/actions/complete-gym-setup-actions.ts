@@ -14,7 +14,7 @@ import {
 import { userTable } from "@/db/schemas/users"
 import { createId } from "@paralleldrive/cuid2"
 import { z } from "zod"
-import { createServerAction } from "zsa"
+import { createServerAction } from "@repo/zsa"
 
 // Schema for comprehensive gym setup
 const createCompleteGymSetupSchema = z.object({
@@ -45,6 +45,10 @@ function parseCronExpression(cronExpression: string) {
 	}
 
 	const [minute, hour, _dayOfMonth, _month, dayOfWeek] = parts
+
+	if (!minute || !hour || !dayOfWeek) {
+		throw new Error(`Missing required parts in cron expression: ${cronExpression}`)
+	}
 
 	// Parse minute
 	const minuteNum = parseInt(minute, 10)
@@ -119,6 +123,10 @@ export const createCompleteGymSetup = createServerAction()
 			})
 			.returning()
 
+		if (!classCatalog) {
+			throw new Error("Failed to create class catalog")
+		}
+
 		console.log(
 			"INFO: [createCompleteGymSetup] Class catalog created:",
 			classCatalog.id,
@@ -134,6 +142,10 @@ export const createCompleteGymSetup = createServerAction()
 			})
 			.returning()
 
+		if (!location) {
+			throw new Error("Failed to create location")
+		}
+
 		console.log("INFO: [createCompleteGymSetup] Location created:", location.id)
 
 		// Create schedule template
@@ -147,6 +159,10 @@ export const createCompleteGymSetup = createServerAction()
 				locationId: location.id,
 			})
 			.returning()
+
+		if (!scheduleTemplate) {
+			throw new Error("Failed to create schedule template")
+		}
 
 		console.log(
 			"INFO: [createCompleteGymSetup] Schedule template created:",
@@ -186,6 +202,10 @@ export const createCompleteGymSetup = createServerAction()
 
 		for (let i = 0; i < parsedSchedules.length; i++) {
 			const schedule = parsedSchedules[i]
+
+			if (!schedule) {
+				throw new Error(`Failed to parse schedule at index ${i}`)
+			}
 
 			console.log(
 				`INFO: [createCompleteGymSetup] Inserting schedule ${i + 1}/${parsedSchedules.length}: ${schedule.dayOfWeek} ${schedule.startTime}-${schedule.endTime}`,
@@ -278,6 +298,9 @@ export const createDiverseCoaches = createServerAction()
 		const createdUsers = []
 		for (const user of demoUsers) {
 			const [createdUser] = await db.insert(userTable).values(user).returning()
+			if (!createdUser) {
+				throw new Error(`Failed to create user: ${user.firstName} ${user.lastName}`)
+			}
 			createdUsers.push(createdUser)
 			console.log(
 				`INFO: [createDiverseCoaches] Created user: ${createdUser.firstName} ${createdUser.lastName}`,
@@ -307,6 +330,9 @@ export const createDiverseCoaches = createServerAction()
 					name: skill.name,
 				})
 				.returning()
+			if (!createdSkill) {
+				throw new Error(`Failed to create skill: ${skill.name}`)
+			}
 			createdSkills.push(createdSkill)
 			console.log(
 				`INFO: [createDiverseCoaches] Created skill: ${createdSkill.name}`,
@@ -452,6 +478,10 @@ export const createDiverseCoaches = createServerAction()
 		// Create coaches and their attributes
 		const createdCoaches = []
 		for (const coachData of coachesData) {
+			if (!coachData.user) {
+				throw new Error("Coach data missing user information")
+			}
+
 			// Create coach
 			const [coach] = await db
 				.insert(coachesTable)
@@ -466,12 +496,19 @@ export const createDiverseCoaches = createServerAction()
 				})
 				.returning()
 
+			if (!coach) {
+				throw new Error(`Failed to create coach for user: ${coachData.user.firstName} ${coachData.user.lastName}`)
+			}
+
 			console.log(
 				`INFO: [createDiverseCoaches] Created coach: ${coachData.user.firstName} ${coachData.user.lastName}`,
 			)
 
 			// Add skills to coach
 			for (const skill of coachData.skills) {
+				if (!skill) {
+					continue
+				}
 				await db.insert(coachToSkillsTable).values({
 					coachId: coach.id,
 					skillId: skill.id,

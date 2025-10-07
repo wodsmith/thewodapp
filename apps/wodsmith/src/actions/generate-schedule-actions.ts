@@ -12,7 +12,7 @@ import {
 } from "@/server/ai/scheduler"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 
 const generateScheduleSchema = z.object({
 	templateId: z.string().min(1, "Template ID is required"),

@@ -1,5 +1,7 @@
 # /fix-lint
 
+!`pnpm lint --write`
+
 Automatically fix all lint errors in the codebase by first running the linter with auto-fix, then manually addressing any remaining issues.
 
 ## Steps

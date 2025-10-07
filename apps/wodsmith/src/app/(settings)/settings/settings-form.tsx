@@ -6,7 +6,7 @@ import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import type * as z from "zod"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,

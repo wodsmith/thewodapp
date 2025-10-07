@@ -18,9 +18,14 @@ export function toLocalDate(date: Date | string | number): Date {
 	// If it's a string in YYYY-MM-DD format, parse it as local date
 	// to avoid timezone conversion issues
 	if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-		const [year, month, day] = date.split("-").map(Number)
+		const parts = date.split("-").map(Number)
+		const year = parts[0]
+		const month = parts[1]
+		const day = parts[2]
 		// Create date in local timezone (month is 0-indexed)
-		return new Date(year, month - 1, day)
+		if (year !== undefined && month !== undefined && day !== undefined) {
+			return new Date(year, month - 1, day)
+		}
 	}
 	// For other string formats, parse normally
 	return new Date(date)

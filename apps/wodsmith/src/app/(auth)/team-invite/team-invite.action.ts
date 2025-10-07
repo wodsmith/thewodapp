@@ -1,7 +1,7 @@
 "use server"
 
 import "server-only"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { teamInviteSchema } from "@/schemas/team-invite.schema"
 import { acceptTeamInvitation } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"

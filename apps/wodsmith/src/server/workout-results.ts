@@ -143,10 +143,15 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 		} | null
 	}>
 
-	const processedData = {
-		id: groupData[0]?.id,
-		title: groupData[0]?.title,
-		description: groupData[0]?.description,
+	const firstRow = groupData[0]
+	if (!firstRow) {
+		throw new Error("Scaling group not found")
+	}
+
+	const processedData: CachedScalingGroup = {
+		id: firstRow.id,
+		title: firstRow.title,
+		description: firstRow.description,
 		levels: groupData
 			.filter(
 				(row): row is typeof row & { levels: NonNullable<typeof row.levels> } =>
@@ -471,8 +476,10 @@ export async function getWorkoutResultForScheduledInstance(
 			.limit(1)
 
 		if (workoutResults.length > 0) {
+			const result = workoutResults[0]
+			if (!result) return null
 			console.log(`Found result for scheduled instance ${scheduledInstanceId}`)
-			return workoutResults[0]
+			return result
 		}
 
 		console.log(`No result found for scheduled instance ${scheduledInstanceId}`)

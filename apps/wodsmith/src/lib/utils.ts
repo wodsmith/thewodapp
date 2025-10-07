@@ -40,6 +40,8 @@ export function parseTimeScoreToSeconds(timeStr: string): number | null {
 		if (
 			!(
 				timeParts.length === 2 &&
+				timeParts[0] !== undefined &&
+				timeParts[1] !== undefined &&
 				/^\d+$/.test(timeParts[0]) &&
 				/^\d{1,2}$/.test(timeParts[1]) &&
 				Number.parseInt(timeParts[1], 10) < 60
@@ -48,6 +50,9 @@ export function parseTimeScoreToSeconds(timeStr: string): number | null {
 			if (
 				!(
 					timeParts.length === 3 &&
+					timeParts[0] !== undefined &&
+					timeParts[1] !== undefined &&
+					timeParts[2] !== undefined &&
 					/^\d+$/.test(timeParts[0]) &&
 					/^\d{1,2}$/.test(timeParts[1]) &&
 					Number.parseInt(timeParts[1], 10) < 60 &&
@@ -64,11 +69,11 @@ export function parseTimeScoreToSeconds(timeStr: string): number | null {
 	}
 
 	let seconds = 0
-	if (timeParts.length === 2) {
+	if (timeParts.length === 2 && timeParts[0] && timeParts[1]) {
 		// MM:SS
 		seconds =
 			Number.parseInt(timeParts[0], 10) * 60 + Number.parseInt(timeParts[1], 10)
-	} else if (timeParts.length === 3) {
+	} else if (timeParts.length === 3 && timeParts[0] && timeParts[1] && timeParts[2]) {
 		// HH:MM:SS
 		seconds =
 			Number.parseInt(timeParts[0], 10) * 3600 +

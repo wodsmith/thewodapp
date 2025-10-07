@@ -21,7 +21,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	deleteScalingGroupAction,
 	setDefaultScalingGroupAction,

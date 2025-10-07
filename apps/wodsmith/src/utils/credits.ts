@@ -330,7 +330,7 @@ export async function getCreditTransactions({
 		.select({ count: sql<number>`count(*)` })
 		.from(creditTransactionTable)
 		.where(eq(creditTransactionTable.userId, userId))
-		.then((result) => result[0].count)
+		.then((result) => result[0]?.count ?? 0)
 
 	return {
 		transactions,

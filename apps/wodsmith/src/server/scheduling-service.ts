@@ -91,6 +91,9 @@ export async function scheduleWorkoutForTeam(
 		})
 		.returning()
 
+	if (!instance) {
+		throw new Error("Failed to schedule workout for team")
+	}
 	return instance
 }
 
@@ -114,6 +117,9 @@ export async function scheduleStandaloneWorkoutForTeam(
 		})
 		.returning()
 
+	if (!instance) {
+		throw new Error("Failed to schedule standalone workout for team")
+	}
 	return instance
 }
 
@@ -264,6 +270,7 @@ export async function getScheduledWorkoutInstanceById(
 
 	if (rows.length === 0) return null
 	const row = rows[0]
+	if (!row) return null
 
 	// Use explicit workout if available, otherwise fall back to track workout's original
 	let resolvedWorkout: Workout | undefined
@@ -324,6 +331,9 @@ export async function updateScheduledWorkoutInstance(
 		.set({ ...data, updatedAt: new Date() })
 		.where(eq(scheduledWorkoutInstancesTable.id, instanceId))
 		.returning()
+	if (!updated) {
+		throw new Error("Failed to update scheduled workout instance")
+	}
 	return updated
 }
 

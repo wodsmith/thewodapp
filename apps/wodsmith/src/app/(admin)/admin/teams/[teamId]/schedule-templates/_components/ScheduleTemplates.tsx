@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { toast } from "sonner"
 import { Trash2, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -35,7 +35,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { inferServerActionReturnData } from "zsa"
+import type { inferServerActionReturnData } from "@repo/zsa"
 import type { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import type {
 	getClassCatalogByTeam,
@@ -137,7 +137,7 @@ const ScheduleTemplates = ({
 
 	const onCreateTemplate = async (data: CreateTemplateData) => {
 		const [res, err] = await createTemplateExec({ teamId, ...data })
-		if (err) return toast.error("Error creating template")
+		if (err || !res) return toast.error("Error creating template")
 		setTemplates([...templates, { ...res, templateClasses: [] }])
 		createTemplateForm.reset()
 		toast.success("Template created")
@@ -220,7 +220,7 @@ const ScheduleTemplates = ({
 			...data,
 			requiredSkillIds: selectedSkills,
 		})
-		if (err) return toast.error("Error adding class")
+		if (err || !res) return toast.error("Error adding class")
 		const newClass = {
 			...res,
 			requiredSkills: selectedSkills.map((skillId) => {

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	createLocation,
 	deleteLocation,
@@ -31,7 +31,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { MapPin, Plus, Trash2, Settings } from "lucide-react"
-import type { inferServerActionReturnData } from "zsa"
+import type { inferServerActionReturnData } from "@repo/zsa"
 import type { getLocationsByTeam } from "@/actions/gym-setup-actions"
 import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
 import type { getTeamAction } from "@/actions/team-actions"

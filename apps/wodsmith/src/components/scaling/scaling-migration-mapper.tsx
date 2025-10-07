@@ -59,6 +59,7 @@ function generateSmartMapping(
 
 	for (let i = 0; i < sortedOriginal.length; i++) {
 		const originalDesc = sortedOriginal[i]
+		if (!originalDesc) continue
 
 		// Strategy 1: Exact label match (case insensitive)
 		const exactMatch = newScalingLevels.find(
@@ -91,11 +92,15 @@ function generateSmartMapping(
 		}
 
 		// Strategy 3: Positional mapping (same relative position)
-		if (i < sortedNew.length) {
-			mappings[originalDesc.scalingLevelId] = sortedNew[i].id
+		const newLevel = sortedNew[i]
+		if (newLevel) {
+			mappings[originalDesc.scalingLevelId] = newLevel.id
 		} else if (sortedNew.length > 0) {
 			// Fallback to the last level if we run out of positions
-			mappings[originalDesc.scalingLevelId] = sortedNew[sortedNew.length - 1].id
+			const lastLevel = sortedNew[sortedNew.length - 1]
+			if (lastLevel) {
+				mappings[originalDesc.scalingLevelId] = lastLevel.id
+			}
 		}
 		// Note: If sortedNew.length === 0, the description remains unmapped (no mapping entry)
 	}
@@ -158,13 +163,17 @@ export function ScalingMigrationMapper({
 	}
 
 	const handleSubmit = () => {
-		const migrationMappings: DescriptionMapping[] = originalDescriptions.map(
-			(desc) => ({
-				originalScalingLevelId: desc.scalingLevelId,
-				newScalingLevelId: mappings[desc.scalingLevelId],
-				description: descriptions[desc.scalingLevelId] || "",
-			}),
-		)
+		const migrationMappings: DescriptionMapping[] = originalDescriptions
+			.map((desc) => {
+				const newScalingLevelId = mappings[desc.scalingLevelId]
+				if (!newScalingLevelId) return null
+				return {
+					originalScalingLevelId: desc.scalingLevelId,
+					newScalingLevelId,
+					description: descriptions[desc.scalingLevelId] || "",
+				}
+			})
+			.filter((mapping): mapping is DescriptionMapping => mapping !== null)
 
 		onMigrate(migrationMappings)
 	}

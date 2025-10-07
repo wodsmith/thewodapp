@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	createScalingGroupAction,
 	updateScalingGroupAction,
@@ -341,15 +341,17 @@ export function ScalingGroupDialog({
 		const levels = form.getValues("levels")
 		const newLevels = [...levels]
 		const [movedItem] = newLevels.splice(sourceIndex, 1)
-		newLevels.splice(targetIndex, 0, movedItem)
+		if (movedItem) {
+			newLevels.splice(targetIndex, 0, movedItem)
 
-		// Update positions
-		const updatedLevels = newLevels.map((level, index) => ({
-			...level,
-			position: index,
-		}))
+			// Update positions
+			const updatedLevels = newLevels.map((level, index) => ({
+				...level,
+				position: index,
+			}))
 
-		form.setValue("levels", updatedLevels)
+			form.setValue("levels", updatedLevels)
+		}
 	}
 
 	const addLevel = () => {
@@ -377,8 +379,11 @@ export function ScalingGroupDialog({
 
 	const updateLevelLabel = (index: number, label: string) => {
 		const levels = form.getValues("levels")
-		levels[index].label = label
-		form.setValue("levels", [...levels])
+		const level = levels[index]
+		if (level) {
+			level.label = label
+			form.setValue("levels", [...levels])
+		}
 	}
 
 	// Function to detect if levels have changed compared to original group
@@ -405,8 +410,10 @@ export function ScalingGroupDialog({
 			const originalLevel = sortedOriginalLevels[i]
 
 			if (
-				formLevel.label !== originalLevel.label ||
-				formLevel.position !== originalLevel.position
+				formLevel &&
+				originalLevel &&
+				(formLevel.label !== originalLevel.label ||
+					formLevel.position !== originalLevel.position)
 			) {
 				return true
 			}

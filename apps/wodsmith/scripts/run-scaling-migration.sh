@@ -6,6 +6,9 @@
 
 set -e  # Exit on error
 
+# Get script directory for relative paths
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 # Default to local
 ENV="local"
 DB_NAME=""
@@ -13,7 +16,7 @@ DB_NAME=""
 # Parse arguments
 if [ "$1" == "--remote" ]; then
     ENV="remote"
-    DB_NAME=$(node scripts/get-db-name.mjs)
+    DB_NAME=$(node "$SCRIPT_DIR/get-db-name.mjs")
     echo "🌍 Running migration on PRODUCTION database"
 elif [ "$1" == "--staging" ]; then
     ENV="staging"
@@ -21,11 +24,11 @@ elif [ "$1" == "--staging" ]; then
     echo "🧪 Running migration on STAGING database"
 elif [ "$1" == "--local" ]; then
     ENV="local"
-    DB_NAME=$(node scripts/get-db-name.mjs)
+    DB_NAME=$(node "$SCRIPT_DIR/get-db-name.mjs")
     echo "🏠 Running migration on LOCAL database"
 else
     echo "🏠 Running migration on LOCAL database (default)"
-    DB_NAME=$(node scripts/get-db-name.mjs)
+    DB_NAME=$(node "$SCRIPT_DIR/get-db-name.mjs")
 fi
 
 echo "📊 Using database: $DB_NAME"
@@ -37,9 +40,9 @@ execute_sql() {
     local description="$2"
 
     if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-        npx wrangler d1 execute "$DB_NAME" --remote --command="$sql"
+        pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="$sql"
     else
-        npx wrangler d1 execute "$DB_NAME" --local --command="$sql"
+        pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="$sql"
     fi
 
     if [ $? -eq 0 ]; then
@@ -56,9 +59,9 @@ check_exists() {
     local result
 
     if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-        result=$(npx wrangler d1 execute "$DB_NAME" --remote --command="$sql" 2>&1)
+        result=$(pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="$sql" 2>&1)
     else
-        result=$(npx wrangler d1 execute "$DB_NAME" --local --command="$sql" 2>&1)
+        result=$(pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="$sql" 2>&1)
     fi
 
     # Check if the query returned any rows
@@ -124,9 +127,9 @@ echo "Step 3: Migrating existing results..."
 
 # Check if scale column exists in results table
 if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-    columns=$(npx wrangler d1 execute "$DB_NAME" --remote --command="PRAGMA table_info(results)" --json 2>/dev/null)
+    columns=$(pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="PRAGMA table_info(results)" --json 2>/dev/null)
 else
-    columns=$(npx wrangler d1 execute "$DB_NAME" --local --command="PRAGMA table_info(results)" --json 2>/dev/null)
+    columns=$(pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="PRAGMA table_info(results)" --json 2>/dev/null)
 fi
 
 if echo "$columns" | grep -q '"name":"scale"'; then
@@ -165,25 +168,25 @@ echo "Step 4: Verifying migration..."
 # Verification queries
 echo "Checking scaling groups..."
 if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-    npx wrangler d1 execute "$DB_NAME" --remote --command="SELECT id, title, isSystem FROM scaling_groups WHERE id = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
+    pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="SELECT id, title, isSystem FROM scaling_groups WHERE id = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
 else
-    npx wrangler d1 execute "$DB_NAME" --local --command="SELECT id, title, isSystem FROM scaling_groups WHERE id = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
+    pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="SELECT id, title, isSystem FROM scaling_groups WHERE id = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
 fi
 
 echo ""
 echo "Checking scaling levels..."
 if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-    npx wrangler d1 execute "$DB_NAME" --remote --command="SELECT id, label, position FROM scaling_levels WHERE scalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}' ORDER BY position"
+    pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="SELECT id, label, position FROM scaling_levels WHERE scalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}' ORDER BY position"
 else
-    npx wrangler d1 execute "$DB_NAME" --local --command="SELECT id, label, position FROM scaling_levels WHERE scalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}' ORDER BY position"
+    pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="SELECT id, label, position FROM scaling_levels WHERE scalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}' ORDER BY position"
 fi
 
 echo ""
 echo "Checking teams with default scaling..."
 if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-    npx wrangler d1 execute "$DB_NAME" --remote --command="SELECT COUNT(*) as count FROM team WHERE defaultScalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
+    pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="SELECT COUNT(*) as count FROM team WHERE defaultScalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
 else
-    npx wrangler d1 execute "$DB_NAME" --local --command="SELECT COUNT(*) as count FROM team WHERE defaultScalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
+    pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="SELECT COUNT(*) as count FROM team WHERE defaultScalingGroupId = '${GLOBAL_DEFAULT_SCALING_GROUP_ID}'"
 fi
 
 # Check for unmigrated results if scale column exists
@@ -191,9 +194,9 @@ if echo "$columns" | grep -q '"name":"scale"'; then
     echo ""
     echo "Checking for unmigrated results..."
     if [ "$ENV" == "remote" ] || [ "$ENV" == "staging" ]; then
-        npx wrangler d1 execute "$DB_NAME" --remote --command="SELECT COUNT(*) as count FROM results WHERE scale IS NOT NULL AND scaling_level_id IS NULL"
+        pnpm dlx wrangler d1 execute "$DB_NAME" --remote --command="SELECT COUNT(*) as count FROM results WHERE scale IS NOT NULL AND scaling_level_id IS NULL"
     else
-        npx wrangler d1 execute "$DB_NAME" --local --command="SELECT COUNT(*) as count FROM results WHERE scale IS NOT NULL AND scaling_level_id IS NULL"
+        pnpm dlx wrangler d1 execute "$DB_NAME" --local --command="SELECT COUNT(*) as count FROM results WHERE scale IS NOT NULL AND scaling_level_id IS NULL"
     fi
 fi
 

@@ -81,9 +81,9 @@ export async function generateSchedule({
 			.map(Number)
 		const [endHour, endMinute] = templateClass.endTime.split(":").map(Number)
 
-		classStartTime.setHours(startHour, startMinute, 0, 0)
+		classStartTime.setHours(startHour ?? 0, startMinute ?? 0, 0, 0)
 		const classEndTime = new Date(classStartTime)
-		classEndTime.setHours(endHour, endMinute, 0, 0)
+		classEndTime.setHours(endHour ?? 0, endMinute ?? 0, 0, 0)
 
 		let assignedCoach: (typeof coaches)[number] | null = null
 		const eligibleCoaches: (typeof coaches)[number][] = []
@@ -157,17 +157,19 @@ export async function generateSchedule({
 			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
 
 			// For now, just pick the first eligible coach as a mock decision
-			assignedCoach = eligibleCoaches[0]
+			assignedCoach = eligibleCoaches[0] ?? null
 
-			generatedClasses.push({
-				id: `sc_${createId()}`,
-				scheduleId: "", // Will be filled after generated_schedules is inserted
-				coachId: assignedCoach.id,
-				classCatalogId: template.classCatalogId,
-				locationId: template.locationId,
-				startTime: classStartTime,
-				endTime: classEndTime,
-			})
+			if (assignedCoach) {
+					generatedClasses.push({
+					id: `sc_${createId()}`,
+					scheduleId: "", // Will be filled after generated_schedules is inserted
+					coachId: assignedCoach.id,
+					classCatalogId: template.classCatalogId,
+					locationId: template.locationId,
+					startTime: classStartTime,
+					endTime: classEndTime,
+				})
+			}
 		} else {
 			// No eligible coaches, class is unstaffed
 			unstaffedClasses.push({
@@ -215,9 +217,10 @@ export async function generateSchedule({
 
 		for (let i = 0; i < finalScheduledClasses.length; i++) {
 			const scheduledClass = finalScheduledClasses[i]
+			if (!scheduledClass) continue
 
 			try {
-				await db?.insert(scheduledClassesTable).values(scheduledClass)
+				await db.insert(scheduledClassesTable).values(scheduledClass)
 
 				if ((i + 1) % 10 === 0) {
 					console.log(
@@ -242,9 +245,10 @@ export async function generateSchedule({
 
 		for (let i = 0; i < finalUnstaffedClasses.length; i++) {
 			const unstaffedClass = finalUnstaffedClasses[i]
+			if (!unstaffedClass) continue
 
 			try {
-				await db?.insert(scheduledClassesTable).values(unstaffedClass)
+				await db.insert(scheduledClassesTable).values(unstaffedClass)
 
 				if ((i + 1) % 10 === 0) {
 					console.log(

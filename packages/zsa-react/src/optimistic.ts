@@ -1,4 +1,4 @@
-import { TAnyZodSafeFunctionHandler, inferServerActionReturnData } from "zsa"
+import { TAnyZodSafeFunctionHandler, inferServerActionReturnData } from "@repo/zsa"
 import { TInnerResult, TOldResult } from "./results"
 
 export type TSetOptimisticInput<

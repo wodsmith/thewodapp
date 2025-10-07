@@ -62,6 +62,9 @@ export async function createProgrammingTrack(
 		.returning()
 
 	const [track] = Array.isArray(result) ? result : []
+	if (!track) {
+		throw new Error("Failed to create programming track")
+	}
 	return track
 }
 
@@ -95,6 +98,9 @@ export async function updateProgrammingTrack(
 		.returning()
 
 	const [track] = Array.isArray(result) ? result : []
+	if (!track) {
+		throw new Error("Failed to update programming track")
+	}
 	return track
 }
 
@@ -190,6 +196,9 @@ export async function addWorkoutToTrack(
 		})
 		.returning()
 
+	if (!trackWorkout) {
+		throw new Error("Failed to add workout to track")
+	}
 	return trackWorkout
 }
 
@@ -288,6 +297,9 @@ export async function assignTrackToTeam(
 				),
 			)
 			.returning()
+		if (!updated) {
+			throw new Error("Failed to update team programming track")
+		}
 		return updated
 	}
 
@@ -300,6 +312,9 @@ export async function assignTrackToTeam(
 			// Let database defaults handle timestamps
 		})
 		.returning()
+	if (!created) {
+		throw new Error("Failed to assign track to team")
+	}
 	return created
 }
 
@@ -465,6 +480,9 @@ export async function updateTeamDefaultTrack(
 		.where(eq(teamTable.id, teamId))
 		.returning()
 	const [team] = Array.isArray(result) ? result : []
+	if (!team) {
+		throw new Error("Failed to update team default track")
+	}
 	return team
 }
 
@@ -573,6 +591,9 @@ export async function updateTrackWorkout({
 		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
 		.returning()
 
+	if (!trackWorkout) {
+		throw new Error("Failed to update track workout")
+	}
 	console.log(`INFO: [TrackWorkout] Updated track workout: ${trackWorkoutId}`)
 	return trackWorkout
 }

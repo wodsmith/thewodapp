@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { SubscribeButton } from "@/components/programming/subscribe-button";
 
 // Mock the required dependencies
-vi.mock("zsa-react", () => ({
+vi.mock("@repo/zsa-react", () => ({
   useServerAction: vi.fn(() => ({
     execute: vi.fn(),
     isPending: false,

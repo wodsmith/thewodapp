@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	getScheduledTeamWorkoutsAction,
 	getScheduledTeamWorkoutsWithResultsAction,
@@ -77,11 +77,13 @@ export function TeamWorkoutsDisplay({
 
 		for (const teamId in initialScheduledWorkouts) {
 			const teamWorkouts = initialScheduledWorkouts[teamId]
-			// Filter to only include today's workouts initially (in user's local timezone)
-			filtered[teamId] = teamWorkouts.filter((workout) => {
-				const workoutDateKey = getLocalDateKey(workout.scheduledDate)
-				return workoutDateKey === todayKey
-			})
+			if (teamWorkouts) {
+				// Filter to only include today's workouts initially (in user's local timezone)
+				filtered[teamId] = teamWorkouts.filter((workout) => {
+					const workoutDateKey = getLocalDateKey(workout.scheduledDate)
+					return workoutDateKey === todayKey
+				})
+			}
 		}
 
 		return filtered

@@ -37,6 +37,11 @@ async function testWorkoutLogging() {
       .where(eq(workouts.id, testWorkoutId))
       .limit(1)
 
+    if (!workout) {
+      console.error("Failed to retrieve test workout")
+      return
+    }
+
     console.log("Retrieved workout:", {
       id: workout.id,
       name: workout.name,
@@ -53,8 +58,13 @@ async function testWorkoutLogging() {
 
     // Create test form data
     const formData = new FormData()
+    const dateStr = new Date().toISOString().split("T")[0]
+    if (!dateStr) {
+      console.error("Failed to format date")
+      return
+    }
     formData.set("selectedWorkoutId", testWorkoutId)
-    formData.set("date", new Date().toISOString().split("T")[0])
+    formData.set("date", dateStr)
     formData.set("scale", "rx")
     formData.set("notes", "Test log for reps scheme workout")
     formData.set("scores[0][0]", "100") // Single score value for reps

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { getAdminStatsAction } from "@/actions/admin-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 

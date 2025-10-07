@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useRef } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,

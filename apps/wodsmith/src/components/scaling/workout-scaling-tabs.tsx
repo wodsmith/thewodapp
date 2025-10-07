@@ -54,7 +54,10 @@ export function WorkoutScalingTabs({
 				activeTab === "base" ||
 				!sortedLevels.find((level) => level.id === activeTab))
 		) {
-			setActiveTab(sortedLevels[0].id)
+			const firstLevel = sortedLevels[0]
+			if (firstLevel) {
+				setActiveTab(firstLevel.id)
+			}
 		}
 	}, [sortedLevels, activeTab])
 

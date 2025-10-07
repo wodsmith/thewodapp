@@ -2,7 +2,7 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	createClassCatalog,
 	deleteClassCatalog,
@@ -37,7 +37,7 @@ import { toast } from "sonner"
 import { BookOpen, Plus, Trash2, Clock, Users } from "lucide-react"
 import type { getClassCatalogByTeam } from "@/actions/gym-setup-actions"
 import type { getSkillsByTeam } from "@/actions/gym-setup-actions"
-import type { inferServerActionReturnData } from "zsa"
+import type { inferServerActionReturnData } from "@repo/zsa"
 import { useRouter } from "next/navigation"
 
 interface ClassesProps {

@@ -73,10 +73,13 @@ export function ScheduleDisplay({
 	// Sort classes within each day by start time
 	Object.keys(classesByDay).forEach((dayKey) => {
 		const day = parseInt(dayKey)
-		classesByDay[day].sort(
-			(a, b) =>
-				new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
-		)
+		const dayClasses = classesByDay[day]
+		if (dayClasses) {
+			dayClasses.sort(
+				(a, b) =>
+					new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+			)
+		}
 	})
 
 	const formatTime = (date: Date) => {
@@ -103,8 +106,8 @@ export function ScheduleDisplay({
 		<div className="mx-auto space-y-4 sm:space-y-6">
 			<h2 className="text-xl sm:text-2xl font-bold">Class Schedule</h2>
 			<p className="text-sm sm:text-base text-muted-foreground">
-				{scheduledClasses[0].location.name} -{" "}
-				{scheduledClasses[0].classCatalog.name}
+				{scheduledClasses[0]?.location.name} -{" "}
+				{scheduledClasses[0]?.classCatalog.name}
 			</p>
 			<p className="text-sm sm:text-base text-muted-foreground">
 				Week of {format(weekStartDate, "MMMM d, yyyy")}

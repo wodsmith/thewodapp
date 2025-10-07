@@ -191,7 +191,7 @@ describe("WorkoutSelection", () => {
 			<WorkoutSelection
 				{...defaultProps}
 				selectedTrack={mockRegularTrack}
-				selectedWorkout={mockTrackWorkouts[0]}
+				selectedWorkout={mockTrackWorkouts[0] ?? null}
 			/>,
 		)
 
@@ -206,7 +206,7 @@ describe("WorkoutSelection", () => {
 			<WorkoutSelection
 				{...defaultProps}
 				selectedTrack={mockStandaloneTrack}
-				selectedStandaloneWorkout={mockStandaloneWorkouts[0]}
+				selectedStandaloneWorkout={mockStandaloneWorkouts[0] ?? null}
 			/>,
 		)
 

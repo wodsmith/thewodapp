@@ -1,7 +1,7 @@
 "use server"
 
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import {
 	listScalingGroups,
 	createScalingGroup as createScalingGroupServer,
@@ -166,6 +166,9 @@ export const createScalingGroupAction = createServerAction()
 
 			// Create the scaling levels
 			for (const level of input.levels) {
+				if (!group) {
+					throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create scaling group")
+				}
 				await createScalingLevelServer({
 					teamId: input.teamId,
 					scalingGroupId: group.id,
@@ -177,6 +180,10 @@ export const createScalingGroupAction = createServerAction()
 			// Revalidate relevant paths
 			revalidatePath("/settings/scaling")
 			revalidatePath("/workouts")
+
+			if (!group) {
+				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create scaling group")
+			}
 
 			return { success: true, data: { id: group.id } }
 		} catch (error) {

@@ -7,7 +7,7 @@ import Link from "next/link"
 import { type ReactNode, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	generateAuthenticationOptionsAction,
 	verifyAuthenticationAction,

@@ -8,7 +8,7 @@ import {
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { requireTeamMembership } from "@/utils/team-auth"
 
 // Schemas for input validation

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
@@ -233,6 +233,7 @@ export function EnhancedSubscribeButton({
 	// Single eligible team (no filter active)
 	if (teamsToWorkWith.length === 1) {
 		const team = teamsToWorkWith[0]
+		if (!team) return null
 		const isSubscribed = localSubscriptions.has(team.id)
 		const isCurrentTeamProcessing = isTeamProcessing(team.id)
 

@@ -119,7 +119,7 @@ Database is modularly structured in `src/db/schemas/`:
 - Forms: React Hook Form with Zod validation
 
 ### API Patterns
-- Server actions with ZSA: `import { useServerAction } from "zsa-react"`
+- Server actions with ZSA: `import { useServerAction } from "@repo/zsa-react"`
 - Named object parameters for functions with >1 parameter
 - Consistent error handling with proper HTTP status codes
 - Rate limiting on auth endpoints

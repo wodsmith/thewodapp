@@ -1,6 +1,6 @@
 "use server"
 
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { getAllTags } from "@/server/tags"
 
 /**

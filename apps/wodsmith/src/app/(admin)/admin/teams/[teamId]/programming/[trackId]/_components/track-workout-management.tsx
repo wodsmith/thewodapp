@@ -424,6 +424,7 @@ export function TrackWorkoutManagement({
 			// Add workouts sequentially with auto-incrementing day numbers
 			for (let i = 0; i < workoutIds.length; i++) {
 				const workoutId = workoutIds[i]
+				if (!workoutId) continue
 				const dayNumber = startingDayNumber + i
 
 				// Optimistic update wrapped in startTransition

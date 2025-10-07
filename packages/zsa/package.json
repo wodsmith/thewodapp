@@ -6,25 +6,17 @@
     "access": "public"
   },
   "files": [
-    "dist/**"
+    "src/**"
   ],
   "exports": {
-    ".": "./dist/index.mjs"
-  },
-  "typesVersions": {
-    "*": {
-      ".": [
-        "./dist/index.d.mts"
-      ]
-    }
+    ".": "./src/index.ts"
   },
   "sideEffects": false,
   "license": "MIT",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "type-check": "tsgo --noEmit",
     "format:write": "prettier --write \"**/*.{ts,tsx,mdx}\" --cache",
     "format:check": "prettier --check \"**/*.{ts,tsx,mdx}\" --cache",
     "build": "tsup src/index.ts --format cjs,esm --dts",
@@ -32,12 +24,13 @@
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf .next"
   },
   "peerDependencies": {
-    "zod": "^3.23.5"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@typescript/native-preview": "catalog:",
     "tsup": "^8.0.2",
     "typescript": "latest",
-    "zod": "^3.23.5"
+    "zod": "catalog:"
   }
 }

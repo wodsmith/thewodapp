@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, Copy, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	deleteAllScheduleTemplateClassesForTemplate,
 	bulkCreateScheduleTemplateClassesSimple,
 	type getScheduleTemplateById,
 } from "@/actions/schedule-template-actions"
-import type { inferServerActionReturnData } from "zsa"
+import type { inferServerActionReturnData } from "@repo/zsa"
 
 interface TimeSlot {
 	id: string
@@ -90,8 +90,10 @@ export default function ClassTemplateScheduler({
 			startTime = latestEndTime
 			// Add 1 hour to the start time for the end time
 			const [hours, minutes] = latestEndTime.split(":").map(Number)
-			const endHours = hours + 1
-			endTime = `${endHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
+			if (hours !== undefined && minutes !== undefined) {
+				const endHours = hours + 1
+				endTime = `${endHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
+			}
 		}
 
 		const newSlot: TimeSlot = {
@@ -145,9 +147,11 @@ export default function ClassTemplateScheduler({
 			timeSlots: [...slotsToKeep, ...copiedSlots],
 		}))
 
-		toast.success(
-			`${DAYS[fromDay].label} schedule copied to ${DAYS[toDay].label}`,
-		)
+		const fromDayLabel = DAYS[fromDay]?.label
+		const toDayLabel = DAYS[toDay]?.label
+		if (fromDayLabel && toDayLabel) {
+			toast.success(`${fromDayLabel} schedule copied to ${toDayLabel}`)
+		}
 	}
 
 	const copyMondayToWeekdays = () => {

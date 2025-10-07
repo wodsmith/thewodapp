@@ -27,7 +27,7 @@
   - Moved several dependencies to peerDependencies:
     - `zod`
     - `react` (for React-based packages)
-    - `@tanstack/react-query` (for zsa-react-query)
+    - `@tanstack/react-query` (for @repo/zsa-react-query)
     - `openapi-types` (for zsa-openapi)
   - Moved `typescript` from dependencies to devDependencies
   - Retained `zsa` as a direct dependency where applicable
@@ -37,7 +37,7 @@
 
     - zod: ^3.23.5
     - react: ^18.0.0 || ^19.0.0 (for React-based packages)
-    - @tanstack/react-query: ^5.0.0 (for zsa-react-query)
+    - @tanstack/react-query: ^5.0.0 (for @repo/zsa-react-query)
     - openapi-types: ^12.1.3 (for zsa-openapi)
 
   - This change allows for more flexibility in version management and reduces potential conflicts with other packages in your project

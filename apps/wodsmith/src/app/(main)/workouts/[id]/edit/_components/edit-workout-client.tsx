@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
 import { useState, useEffect } from "react"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -85,7 +85,7 @@ export default function EditWorkoutClient({
 		workout?.roundsToScore ?? null,
 	)
 	const [selectedTeamId, setSelectedTeamId] = useState<string>(
-		userTeams.length > 0 ? userTeams[0].id : "",
+		userTeams.length > 0 ? userTeams[0]?.id || "" : "",
 	)
 	const [selectedScalingGroupId, setSelectedScalingGroupId] = useState<string>(
 		workout?.scalingGroupId || "",
@@ -492,7 +492,7 @@ export default function EditWorkoutClient({
 						<WorkoutScalingDescriptionsEditor
 							workoutId={workoutId}
 							scalingGroupId={selectedScalingGroupId}
-							teamId={userTeams.length > 0 ? userTeams[0].id : undefined}
+							teamId={userTeams.length > 0 ? userTeams[0]?.id : undefined}
 						/>
 					</div>
 				)}

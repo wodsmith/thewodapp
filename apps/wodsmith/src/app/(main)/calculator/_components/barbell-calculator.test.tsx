@@ -85,8 +85,11 @@ describe("BarbellCalculator", () => {
 		})
 
 		// Change the first warmup set percentage
-		fireEvent.change(percentageInputs[0], { target: { value: "50" } })
-		fireEvent.blur(percentageInputs[0])
+		const firstInput = percentageInputs[0]
+		if (firstInput) {
+			fireEvent.change(firstInput, { target: { value: "50" } })
+			fireEvent.blur(firstInput)
+		}
 		await waitFor(() => {
 			expect(percentageInputs[0]).toHaveValue(50)
 		})

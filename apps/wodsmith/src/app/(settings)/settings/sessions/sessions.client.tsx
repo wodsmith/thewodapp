@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import React from "react"
 import { capitalize } from "remeda"
 import { toast } from "sonner"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {

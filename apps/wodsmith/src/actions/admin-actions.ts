@@ -1,6 +1,6 @@
 "use server"
 
-import { createServerAction } from "zsa"
+import { createServerAction } from "@repo/zsa"
 import { getAdminStats } from "@/server/admin-stats"
 
 /**

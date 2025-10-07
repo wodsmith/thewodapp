@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useServerAction } from "zsa-react"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	getScalingGroupWithLevelsAction,
 	getWorkoutScalingDescriptionsAction,

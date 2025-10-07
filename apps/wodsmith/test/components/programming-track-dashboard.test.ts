@@ -16,8 +16,8 @@ vi.mock("react-hook-form", () => ({
 	})),
 }))
 
-// Mock zsa-react
-vi.mock("zsa-react", () => ({
+// Mock @repo/zsa-react
+vi.mock("@repo/zsa-react", () => ({
 	useServerAction: vi.fn(() => ({
 		execute: vi.fn(),
 		isPending: false,

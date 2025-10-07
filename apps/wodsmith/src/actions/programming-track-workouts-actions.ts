@@ -1,7 +1,7 @@
 "use server"
 
 import { z } from "zod"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"

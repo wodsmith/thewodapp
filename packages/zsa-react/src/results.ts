@@ -2,7 +2,7 @@ import {
   TAnyZodSafeFunctionHandler,
   inferServerActionError,
   inferServerActionReturnData,
-} from "zsa"
+} from "@repo/zsa"
 
 /**
  * A result object for the hook

@@ -6,7 +6,7 @@ import {
   inferServerActionError,
   inferServerActionReturnData,
   inferServerActionReturnType,
-} from "zsa"
+} from "@repo/zsa"
 import { TSetOptimisticInput, evaluateOptimisticInput } from "./optimistic"
 import {
   TInnerResult,
@@ -64,7 +64,7 @@ export const useServerAction = <
   const retryCount = useRef(0)
 
   // store the resolve function for execute
-  const executeRef = useRef<any>()
+  const executeRef = useRef<any>(undefined)
 
   // keep track of pending states
   const [isTransitioning, startTransition] = useTransition()

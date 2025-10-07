@@ -25,7 +25,7 @@ vi.mock("../_actions/programming-actions", () => ({
 		.mockResolvedValue([{ success: true, data: [] }]),
 }))
 
-vi.mock("zsa-react", () => ({
+vi.mock("@repo/zsa-react", () => ({
 	useServerAction: vi.fn(() => ({
 		execute: vi.fn(),
 		isPending: false,

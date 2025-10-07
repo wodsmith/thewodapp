@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createId } from "@paralleldrive/cuid2"
-import { createServerAction, ZSAError } from "zsa"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import {
 	getResultSetsById,
 	getWorkoutResultsWithScalingForUser,
@@ -262,7 +262,7 @@ export const createWorkoutAction = createServerAction()
 				const newTags = await Promise.all(
 					input.newTagNames.map((tagName) => findOrCreateTag(tagName)),
 				)
-				finalTagIds = [...finalTagIds, ...newTags.map((tag) => tag.id)]
+				finalTagIds = [...finalTagIds, ...newTags.filter((tag) => tag !== null && tag !== undefined).map((tag) => tag.id)]
 			}
 
 			// Create the workout
@@ -698,7 +698,14 @@ export const updateWorkoutAction = createServerAction()
 				}
 
 				// Use provided remixTeamId or fallback to first team
-				const targetTeamId = input.remixTeamId || userTeams[0].id
+				const firstTeam = userTeams[0]
+				if (!firstTeam) {
+					throw new ZSAError(
+						"FORBIDDEN",
+						"User must be a member of at least one team",
+					)
+				}
+				const targetTeamId = input.remixTeamId || firstTeam.id
 
 				// Verify user has access to the specified team
 				if (

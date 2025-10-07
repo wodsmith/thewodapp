@@ -16,7 +16,8 @@ export function getInitials(name: string, maxLength = 2): string {
 	// Take the first letter of each part up to maxLength
 	const initials = parts
 		.slice(0, maxLength)
-		.map((part) => part[0].toUpperCase())
+		.map((part) => part[0]?.toUpperCase() ?? "")
+		.filter(Boolean)
 		.join("")
 
 	return initials

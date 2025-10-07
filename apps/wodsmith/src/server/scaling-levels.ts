@@ -65,12 +65,13 @@ export async function createScalingLevel({
 	// Determine position (0 = hardest). If not provided, append to end.
 	let newPosition = position
 	if (newPosition === undefined || newPosition === null) {
-		const [{ maxPos }] = (await db
+		const result = (await db
 			.select({ maxPos: sql<number>`max(${scalingLevelsTable.position})` })
 			.from(scalingLevelsTable)
 			.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))) as Array<{
 			maxPos: number | null
 		}>
+		const maxPos = result[0]?.maxPos ?? null
 		newPosition = (maxPos ?? -1) + 1
 	}
 
@@ -83,6 +84,9 @@ export async function createScalingLevel({
 		})
 		.returning()
 
+	if (!created) {
+		throw new Error("Failed to create scaling level")
+	}
 	return created
 }
 
@@ -155,6 +159,7 @@ export async function reorderScalingLevels({
 	// Update positions according to provided order (index is new position)
 	for (let i = 0; i < orderedLevelIds.length; i++) {
 		const id = orderedLevelIds[i]
+		if (!id) continue
 		await db
 			.update(scalingLevelsTable)
 			.set({ position: i, updatedAt: new Date() })
