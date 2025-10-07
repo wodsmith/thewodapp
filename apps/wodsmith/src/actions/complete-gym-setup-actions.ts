@@ -23,15 +23,15 @@ const createCompleteGymSetupSchema = z.object({
 	className: z
 		.string()
 		.min(1, "Class name cannot be empty")
-		.default("CrossFit"),
+		.prefault("CrossFit"),
 	classDescription: z.string().optional(),
 	locationName: z
 		.string()
 		.min(1, "Location name cannot be empty")
-		.default("Main Gym"),
+		.prefault("Main Gym"),
 	cronExpressions: z.array(z.string()),
-	duration: z.number().int().min(1).optional().default(60), // duration in minutes
-	requiredCoaches: z.number().int().min(1).optional().default(1),
+	duration: z.int().min(1).optional().prefault(60), // duration in minutes
+	requiredCoaches: z.int().min(1).optional().prefault(1),
 })
 
 // Helper function to parse cron expression

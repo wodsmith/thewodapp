@@ -16,17 +16,17 @@ export const createWorkoutSchema = z.object({
 			"pass-fail",
 		],
 		{
-			required_error: "Scheme is required",
-		},
+            error: (issue) => issue.input === undefined ? "Scheme is required" : undefined
+        },
 	),
 	scoreType: z
 		.enum(["min", "max", "sum", "average", "first", "last"])
 		.optional(),
-	scope: z.enum(["private", "public"]).default("private"),
+	scope: z.enum(["private", "public"]).prefault("private"),
 	roundsToScore: z.number().optional(),
 	repsPerRound: z.number().optional(),
-	selectedMovements: z.array(z.string()).default([]),
-	selectedTags: z.array(z.string()).default([]),
+	selectedMovements: z.array(z.string()).prefault([]),
+	selectedTags: z.array(z.string()).prefault([]),
 	trackId: z.string().optional(),
 	scheduledDate: z.date().optional(),
 	selectedTeamId: z.string().optional(),

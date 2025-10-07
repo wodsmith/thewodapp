@@ -17,7 +17,7 @@ const createRoleSchema = z.object({
 	permissions: z
 		.array(z.string())
 		.min(1, "At least one permission is required"),
-	metadata: z.record(z.unknown()).optional(),
+	metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 // Update role schema
@@ -35,7 +35,7 @@ const updateRoleSchema = z.object({
 			.array(z.string())
 			.min(1, "At least one permission is required")
 			.optional(),
-		metadata: z.record(z.unknown()).optional(),
+		metadata: z.record(z.string(), z.unknown()).optional(),
 	}),
 })
 

@@ -17,9 +17,9 @@ import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 // Invite user schema
 const inviteUserSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
-	email: z.string().email("Invalid email").max(255, "Email is too long"),
+	email: z.email("Invalid email").max(255, "Email is too long"),
 	roleId: z.string().min(1, "Role is required"),
-	isSystemRole: z.boolean().optional().default(true),
+	isSystemRole: z.boolean().optional().prefault(true),
 })
 
 // Update member role schema
@@ -27,7 +27,7 @@ const updateMemberRoleSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	userId: z.string().min(1, "User ID is required"),
 	roleId: z.string().min(1, "Role is required"),
-	isSystemRole: z.boolean().optional().default(true),
+	isSystemRole: z.boolean().optional().prefault(true),
 })
 
 const teamIdSchema = z.object({

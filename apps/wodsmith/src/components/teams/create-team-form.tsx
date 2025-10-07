@@ -27,9 +27,7 @@ const formSchema = z.object({
 		.min(1, "Team name is required")
 		.max(100, "Team name is too long"),
 	description: z.string().max(1000, "Description is too long").optional(),
-	avatarUrl: z
-		.string()
-		.url("Invalid URL")
+	avatarUrl: z.url("Invalid URL")
 		.max(600, "URL is too long")
 		.optional()
 		.or(z.literal("")),

@@ -14,8 +14,8 @@ import { requireTeamPermission } from "@/utils/team-auth"
 const getPaginatedTrackWorkoutsSchema = z.object({
 	trackId: z.string().min(1, "Track ID is required"),
 	teamId: z.string().min(1, "Team ID is required"),
-	page: z.number().int().min(1).default(1),
-	pageSize: z.number().int().min(1).max(100).default(50),
+	page: z.int().min(1).prefault(1),
+	pageSize: z.int().min(1).max(100).prefault(50),
 })
 
 export const getPaginatedTrackWorkoutsAction = createServerAction()

@@ -501,7 +501,7 @@ export class ZodSafeFunction<
     const safe = await schema.safeParseAsync(data)
     if (!safe.success) {
       if (this.$internals.onOutputParseError) {
-        await this.$internals.onOutputParseError(safe.error)
+        await this.$internals.onOutputParseError(safe.error as any)
       }
 
       const flattenedErrors = safe.error.flatten()
@@ -515,7 +515,7 @@ export class ZodSafeFunction<
         },
       })
     }
-    return safe.data
+    return safe.data as TSchemaOutputOrUnknown<TOutputSchema>
   }
 
   /** helper function to handle start with timeout checkpoints */
@@ -657,7 +657,7 @@ export class ZodSafeFunction<
     ctx: TProcedureChainOutput
     opts?: THandlerOpts<TProcedureChainOutput>
     noFunctionsAllowed?: boolean
-  }): Promise<TSchemaOutput<TInputSchema>> {
+  }): Promise<z.ZodType> {
     const { ctx, opts, noFunctionsAllowed } = args
 
     // evaluate the input schema
@@ -712,7 +712,7 @@ export class ZodSafeFunction<
     timeoutStatus: TimeoutStatus,
     ctx: TProcedureChainOutput,
     opts?: THandlerOpts<TProcedureChainOutput>
-  ): Promise<TSchemaOutput<TInputSchema>> {
+  ): Promise<any> {
     this.checkTimeoutStatus(timeoutStatus) // checkpoint
 
     const inputSchema = await this.evaluateInputSchema({
@@ -772,7 +772,7 @@ export class ZodSafeFunction<
     if (!safe.success) {
       // call the input parse error callbacks
       if (this.$internals.onInputParseError) {
-        await this.$internals.onInputParseError(safe.error)
+        await this.$internals.onInputParseError(safe.error as any)
       }
 
       // retrieve the zod errors

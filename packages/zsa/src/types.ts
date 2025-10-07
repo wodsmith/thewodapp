@@ -1,4 +1,6 @@
-import { AnyZodObject, objectUtil, z, ZodObject } from "zod"
+import {  z, ZodObject } from "zod"
+import * as core from "zod/v4/core";
+
 import { NextRequest } from "./api"
 import {
   TOnCompleteFn,
@@ -161,7 +163,7 @@ export interface TNoInputHandlerFunc<
   ): TDataOrError<
     TInputSchema,
     TOutputSchema,
-    TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet,
+    Promise<TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet>,
     TError,
     TIsProcedure
   >
@@ -187,7 +189,7 @@ export interface THandlerFunc<
   ): TDataOrError<
     TInputSchema,
     TOutputSchema,
-    TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet,
+    Promise<TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet>,
     TError,
     TIsProcedure
   >
@@ -208,7 +210,7 @@ export interface TStateHandlerFunc<
   ): TDataOrErrorOrNull<
     TInputSchema,
     TOutputSchema,
-    TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet,
+    Promise<TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet>,
     TError
   >
 }
@@ -408,17 +410,14 @@ export type TFinalInputSchema<T extends z.ZodType | TInputSchemaFn<any, any>> =
 export type TFinalOutputSchema<T extends z.ZodType | TOutputSchemaFn<any>> =
   T extends TOutputSchemaFn<any> ? Awaited<ReturnType<T>> : T
 
-export type TZodMerge<
-  T1 extends z.ZodType | undefined,
-  T2 extends z.ZodType | undefined,
-> = T1 extends AnyZodObject
-  ? T2 extends AnyZodObject
-    ? ZodObject<
-        objectUtil.extendShape<T1["shape"], T2["shape"]>,
-        T2["_def"]["unknownKeys"],
-        T2["_def"]["catchall"]
-      >
-    : T2 extends undefined
-      ? T1 // only return T1 if T2 is undefined
-      : T2
-  : T2
+
+  export type TZodMerge<
+    T1 extends z.ZodType | undefined,
+    T2 extends z.ZodType | undefined
+  > = T1 extends core.$ZodObject<infer S1, infer C1>
+    ? T2 extends core.$ZodObject<infer S2, infer C2>
+      ? core.$ZodObject<core.util.Extend<S1, S2>, C2>
+      : T2 extends undefined
+        ? T1
+        : T2
+    : T2;

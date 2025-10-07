@@ -16,8 +16,8 @@ catalogs:
       specifier: ^19.0.0
       version: 19.0.0
     zod:
-      specifier: ^3.25.28
-      version: 3.25.28
+      specifier: ^4.0.0
+      version: 4.1.12
 
 importers:
 
@@ -31,10 +31,10 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^2.0.42
-        version: 2.0.42(zod@3.25.28)
+        version: 2.0.42(zod@4.1.12)
       '@ai-sdk/react':
         specifier: ^2.0.59
-        version: 2.0.59(react@19.0.0)(zod@3.25.28)
+        version: 2.0.59(react@19.0.0)(zod@4.1.12)
       '@atlaskit/pragmatic-drag-and-drop':
         specifier: ^1.7.4
         version: 1.7.4
@@ -175,13 +175,13 @@ importers:
         version: 8.21.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       ai:
         specifier: ^5.0.59
-        version: 5.0.59(zod@3.25.28)
+        version: 5.0.59(zod@4.1.12)
       arctic:
         specifier: ^3.7.0
         version: 3.7.0
       braintrust:
         specifier: ^0.3.8
-        version: 0.3.8(@aws-sdk/credential-provider-web-identity@3.808.0)(zod@3.25.28)
+        version: 0.3.8(@aws-sdk/credential-provider-web-identity@3.808.0)(zod@4.1.12)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -292,7 +292,7 @@ importers:
         version: 1.1.2(@types/react-dom@19.0.4(@types/react@19.0.12))(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       zod:
         specifier: 'catalog:'
-        version: 3.25.28
+        version: 4.1.12
       zustand:
         specifier: ^5.0.5
         version: 5.0.5(@types/react@19.0.12)(react@19.0.0)(use-sync-external-store@1.5.0(react@19.0.0))
@@ -409,7 +409,7 @@ importers:
         version: 5.9.3
       zod:
         specifier: 'catalog:'
-        version: 3.25.28
+        version: 4.1.12
 
   packages/zsa-react:
     dependencies:
@@ -437,7 +437,7 @@ importers:
         version: 5.9.3
       zod:
         specifier: 'catalog:'
-        version: 3.25.28
+        version: 4.1.12
 
 packages:
 
@@ -8959,8 +8959,8 @@ packages:
   zod@3.22.3:
     resolution: {integrity: sha512-EjIevzuJRiRPbVH4mGc8nApb/lVLKVpmUhAaR5R5doKGfAnGJ6Gr3CViAVjP+4FWSxCsybeWQdcgCtbX+7oZug==}
 
-  zod@3.25.28:
-    resolution: {integrity: sha512-/nt/67WYKnr5by3YS7LroZJbtcCBurDKKPBPWWzaxvVCGuG/NOsiKkrjoOhI8mJ+SQUXEbUzeB3S+6XDUEEj7Q==}
+  zod@4.1.12:
+    resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
 
   zustand@5.0.5:
     resolution: {integrity: sha512-mILtRfKW9xM47hqxGIxCv12gXusoY/xTSHBYApXozR0HmQv299whhBeeAcRy+KrPPybzosvJBCOmVjq6x12fCg==}
@@ -8987,24 +8987,24 @@ snapshots:
 
   '@adobe/css-tools@4.4.3': {}
 
-  '@ai-sdk/gateway@1.0.32(zod@3.25.28)':
+  '@ai-sdk/gateway@1.0.32(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.10(zod@3.25.28)
-      zod: 3.25.28
+      '@ai-sdk/provider-utils': 3.0.10(zod@4.1.12)
+      zod: 4.1.12
 
-  '@ai-sdk/openai@2.0.42(zod@3.25.28)':
+  '@ai-sdk/openai@2.0.42(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.10(zod@3.25.28)
-      zod: 3.25.28
+      '@ai-sdk/provider-utils': 3.0.10(zod@4.1.12)
+      zod: 4.1.12
 
-  '@ai-sdk/provider-utils@3.0.10(zod@3.25.28)':
+  '@ai-sdk/provider-utils@3.0.10(zod@4.1.12)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@standard-schema/spec': 1.0.0
       eventsource-parser: 3.0.6
-      zod: 3.25.28
+      zod: 4.1.12
 
   '@ai-sdk/provider@1.1.3':
     dependencies:
@@ -9014,15 +9014,15 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@2.0.59(react@19.0.0)(zod@3.25.28)':
+  '@ai-sdk/react@2.0.59(react@19.0.0)(zod@4.1.12)':
     dependencies:
-      '@ai-sdk/provider-utils': 3.0.10(zod@3.25.28)
-      ai: 5.0.59(zod@3.25.28)
+      '@ai-sdk/provider-utils': 3.0.10(zod@4.1.12)
+      ai: 5.0.59(zod@4.1.12)
       react: 19.0.0
       swr: 2.3.6(react@19.0.0)
       throttleit: 2.1.0
     optionalDependencies:
-      zod: 3.25.28
+      zod: 4.1.12
 
   '@alloc/quick-lru@5.2.0': {}
 
@@ -15132,13 +15132,13 @@ snapshots:
 
   agent-base@7.1.3: {}
 
-  ai@5.0.59(zod@3.25.28):
+  ai@5.0.59(zod@4.1.12):
     dependencies:
-      '@ai-sdk/gateway': 1.0.32(zod@3.25.28)
+      '@ai-sdk/gateway': 1.0.32(zod@4.1.12)
       '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.10(zod@3.25.28)
+      '@ai-sdk/provider-utils': 3.0.10(zod@4.1.12)
       '@opentelemetry/api': 1.9.0
-      zod: 3.25.28
+      zod: 4.1.12
 
   ajv@6.12.6:
     dependencies:
@@ -15291,7 +15291,7 @@ snapshots:
     dependencies:
       fill-range: 7.1.1
 
-  braintrust@0.3.8(@aws-sdk/credential-provider-web-identity@3.808.0)(zod@3.25.28):
+  braintrust@0.3.8(@aws-sdk/credential-provider-web-identity@3.808.0)(zod@4.1.12):
     dependencies:
       '@ai-sdk/provider': 1.1.3
       '@next/env': 14.2.33
@@ -15313,8 +15313,8 @@ snapshots:
       slugify: 1.6.6
       source-map: 0.7.6
       uuid: 9.0.1
-      zod: 3.25.28
-      zod-to-json-schema: 3.24.6(zod@3.25.28)
+      zod: 4.1.12
+      zod-to-json-schema: 3.24.6(zod@4.1.12)
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-web-identity'
       - supports-color
@@ -19517,13 +19517,13 @@ snapshots:
       mustache: 4.2.0
       stacktracey: 2.1.8
 
-  zod-to-json-schema@3.24.6(zod@3.25.28):
+  zod-to-json-schema@3.24.6(zod@4.1.12):
     dependencies:
-      zod: 3.25.28
+      zod: 4.1.12
 
   zod@3.22.3: {}
 
-  zod@3.25.28: {}
+  zod@4.1.12: {}
 
   zustand@5.0.5(@types/react@19.0.12)(react@19.0.0)(use-sync-external-store@1.5.0(react@19.0.0)):
     optionalDependencies:

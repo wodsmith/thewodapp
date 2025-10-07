@@ -22,7 +22,7 @@ import {
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 
 const generateRegistrationOptionsSchema = z.object({
-	email: z.string().email(),
+	email: z.email(),
 })
 
 export const generateRegistrationOptionsAction = createServerAction()
@@ -71,7 +71,7 @@ export const generateRegistrationOptionsAction = createServerAction()
 	})
 
 const verifyRegistrationSchema = z.object({
-	email: z.string().email(),
+	email: z.email(),
 	response: z.custom<RegistrationResponseJSON>(),
 	challenge: z.string(),
 })

@@ -28,7 +28,7 @@ export const getScalingGroupsAction = createServerAction()
 	.input(
 		z.object({
 			teamId: z.string().min(1, "Team ID is required"),
-			includeSystem: z.boolean().optional().default(true),
+			includeSystem: z.boolean().optional().prefault(true),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -131,7 +131,7 @@ export const createScalingGroupAction = createServerAction()
 				.array(
 					z.object({
 						label: z.string().min(1, "Label is required").max(100),
-						position: z.number().int().min(0),
+						position: z.int().min(0),
 					}),
 				)
 				.min(1, "At least one scaling level is required"),

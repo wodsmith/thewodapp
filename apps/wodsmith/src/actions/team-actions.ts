@@ -21,14 +21,10 @@ const updateTeamSchema = z.object({
 			.max(100, "Name is too long")
 			.optional(),
 		description: z.string().max(1000, "Description is too long").optional(),
-		avatarUrl: z
-			.string()
-			.url("Invalid avatar URL")
+		avatarUrl: z.url("Invalid avatar URL")
 			.max(600, "URL is too long")
 			.optional(),
-		billingEmail: z
-			.string()
-			.email("Invalid email")
+		billingEmail: z.email("Invalid email")
 			.max(255, "Email is too long")
 			.optional(),
 		settings: z.string().max(10000, "Settings are too large").optional(),

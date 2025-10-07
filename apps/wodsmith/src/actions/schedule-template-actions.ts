@@ -43,21 +43,21 @@ const getScheduleTemplateByIdSchema = z.object({
 
 const createScheduleTemplateClassSchema = z.object({
 	templateId: z.string(),
-	dayOfWeek: z.number().int().min(0).max(6),
+	dayOfWeek: z.int().min(0).max(6),
 	startTime: z
 		.string()
 		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
 	endTime: z
 		.string()
 		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
-	requiredCoaches: z.number().int().min(1).optional(),
+	requiredCoaches: z.int().min(1).optional(),
 	requiredSkillIds: z.array(z.string()).optional(),
 })
 
 const updateScheduleTemplateClassSchema = z.object({
 	id: z.string(),
 	templateId: z.string(),
-	dayOfWeek: z.number().int().min(0).max(6).optional(),
+	dayOfWeek: z.int().min(0).max(6).optional(),
 	startTime: z
 		.string()
 		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)")
@@ -66,7 +66,7 @@ const updateScheduleTemplateClassSchema = z.object({
 		.string()
 		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)")
 		.optional(),
-	requiredCoaches: z.number().int().min(1).optional(),
+	requiredCoaches: z.int().min(1).optional(),
 	requiredSkillIds: z.array(z.string()).optional(),
 })
 
@@ -449,7 +449,7 @@ const bulkCreateScheduleTemplateClassesSimpleSchema = z.object({
 	templateId: z.string(),
 	timeSlots: z.array(
 		z.object({
-			dayOfWeek: z.number().int().min(0).max(6),
+			dayOfWeek: z.int().min(0).max(6),
 			startTime: z
 				.string()
 				.regex(
@@ -464,7 +464,7 @@ const bulkCreateScheduleTemplateClassesSimpleSchema = z.object({
 				),
 		}),
 	),
-	requiredCoaches: z.number().int().min(1).optional(),
+	requiredCoaches: z.int().min(1).optional(),
 	requiredSkillIds: z.array(z.string()).optional(),
 })
 

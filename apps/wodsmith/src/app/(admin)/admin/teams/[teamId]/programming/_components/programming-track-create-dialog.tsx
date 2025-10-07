@@ -48,7 +48,7 @@ const formSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
-	isPublic: z.boolean().optional().default(false),
+	isPublic: z.boolean().optional().prefault(false),
 	scalingGroupId: z
 		.union([z.string(), z.null(), z.undefined()])
 		.transform((val) => {
@@ -66,8 +66,8 @@ const formSchema = z.object({
 				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
 			},
 			{
-				message: "Invalid scaling group ID format",
-			},
+                error: "Invalid scaling group ID format"
+            },
 		)
 		.optional(),
 })

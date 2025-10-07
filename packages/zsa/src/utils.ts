@@ -1,35 +1,30 @@
 import { z } from "zod"
 
-export const instanceofZodTypeKind = <Z extends z.ZodFirstPartyTypeKind>(
+export const instanceofZodTypeKind = (
   type: z.ZodTypeAny,
-  zodTypeKind: Z
-): type is InstanceType<(typeof z)[Z]> => {
-  return type?._def?.typeName === zodTypeKind
+  zodTypeKind: string
+): boolean => {
+  return type?.type === zodTypeKind
 }
 
 export const unwrapZodType = (
   type: z.ZodTypeAny,
   unwrapPreprocess: boolean
 ): z.ZodTypeAny => {
-  if (instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodOptional)) {
-    return unwrapZodType(type.unwrap(), unwrapPreprocess)
+  if (instanceofZodTypeKind(type, "optional")) {
+    return unwrapZodType((type as any).unwrap(), unwrapPreprocess)
   }
-  if (instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodDefault)) {
-    return unwrapZodType(type.removeDefault(), unwrapPreprocess)
+  if (instanceofZodTypeKind(type, "default")) {
+    return unwrapZodType((type as any).removeDefault(), unwrapPreprocess)
   }
-  if (instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodLazy)) {
-    return unwrapZodType(type._def.getter(), unwrapPreprocess)
+  if (instanceofZodTypeKind(type, "lazy")) {
+    return unwrapZodType((type as any)._zod.def.getter(), unwrapPreprocess)
   }
-  if (instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodEffects)) {
-    if (type._def.effect.type === "refinement") {
-      return unwrapZodType(type._def.schema, unwrapPreprocess)
-    }
-    if (type._def.effect.type === "transform") {
-      return unwrapZodType(type._def.schema, unwrapPreprocess)
-    }
-    if (unwrapPreprocess && type._def.effect.type === "preprocess") {
-      return unwrapZodType(type._def.schema, unwrapPreprocess)
-    }
+  // In v4, refinements are stored as checks in the schema, not as separate wrapper
+  // ZodTransform represents standalone transforms
+  // ZodPipe is used for preprocessing
+  if (instanceofZodTypeKind(type, "pipe") && unwrapPreprocess) {
+    return unwrapZodType((type as any)._zod.def.out, unwrapPreprocess)
   }
   return type
 }
@@ -37,19 +32,19 @@ export const unwrapZodType = (
 export const instanceofZodTypeObject = (
   type: z.ZodTypeAny
 ): type is z.ZodObject<z.ZodRawShape> => {
-  return instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodObject)
+  return instanceofZodTypeKind(type, "object")
 }
 
 export const instanceofZodTypeArray = (
   type: z.ZodTypeAny
 ): type is z.ZodArray<z.ZodTypeAny> => {
-  return instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodArray)
+  return instanceofZodTypeKind(type, "array")
 }
 
 export const instanceofZodTypeBoolean = (
   type: z.ZodTypeAny
 ): type is z.ZodBoolean => {
-  return instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodBoolean)
+  return instanceofZodTypeKind(type, "boolean")
 }
 
 const unwrapKeyInZodSchema = (key: string, schema: z.ZodTypeAny) => {
@@ -66,7 +61,7 @@ const unwrapKeyInZodSchema = (key: string, schema: z.ZodTypeAny) => {
 
   if (!value) return null
 
-  return unwrapZodType(value, true)
+  return unwrapZodType(value as any, true)
 }
 
 export const isKeyAnArrayInZodSchema = (key: string, schema: z.ZodTypeAny) => {
@@ -144,9 +139,9 @@ export const instanceofZodTypeLikeVoid = (
   type: z.ZodTypeAny
 ): type is ZodTypeLikeVoid => {
   return (
-    instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodVoid) ||
-    instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodUndefined) ||
-    instanceofZodTypeKind(type, z.ZodFirstPartyTypeKind.ZodNever)
+    instanceofZodTypeKind(type, "void") ||
+    instanceofZodTypeKind(type, "undefined") ||
+    instanceofZodTypeKind(type, "never")
   )
 }
 
@@ -157,27 +152,21 @@ export const canDataBeUndefinedForSchema = (
 
   if (instanceofZodTypeLikeVoid(schema)) return true
 
-  if (instanceofZodTypeKind(schema, z.ZodFirstPartyTypeKind.ZodOptional)) {
+  if (instanceofZodTypeKind(schema, "optional")) {
     return true
   }
-  if (instanceofZodTypeKind(schema, z.ZodFirstPartyTypeKind.ZodDefault)) {
+  if (instanceofZodTypeKind(schema, "default")) {
     return true
   }
 
-  if (instanceofZodTypeKind(schema, z.ZodFirstPartyTypeKind.ZodLazy)) {
-    return canDataBeUndefinedForSchema(schema._def.getter())
+  if (instanceofZodTypeKind(schema, "lazy")) {
+    return canDataBeUndefinedForSchema((schema as any)._zod.def.getter())
   }
 
-  if (instanceofZodTypeKind(schema, z.ZodFirstPartyTypeKind.ZodEffects)) {
-    if (schema._def.effect.type === "refinement") {
-      return canDataBeUndefinedForSchema(schema._def.schema)
-    }
-    if (schema._def.effect.type === "transform") {
-      return canDataBeUndefinedForSchema(schema._def.schema)
-    }
-    if (schema._def.effect.type === "preprocess") {
-      return canDataBeUndefinedForSchema(schema._def.schema)
-    }
+  // In v4, refinements are stored as checks, not wrapper schemas
+  // For pipes (preprocess), check the output schema
+  if (instanceofZodTypeKind(schema, "pipe")) {
+    return canDataBeUndefinedForSchema((schema as any)._zod.def.out)
   }
 
   return false

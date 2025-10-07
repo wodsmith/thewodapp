@@ -16,7 +16,7 @@ import {
 const createCoachSchema = z.object({
 	userId: z.string(),
 	teamId: z.string(),
-	weeklyClassLimit: z.number().int().min(0).optional(),
+	weeklyClassLimit: z.int().min(0).optional(),
 	schedulingPreference: z
 		.enum(["morning", "afternoon", "night", "any"])
 		.optional(),
@@ -28,7 +28,7 @@ const createCoachSchema = z.object({
 const updateCoachSchema = z.object({
 	id: z.string(),
 	teamId: z.string(),
-	weeklyClassLimit: z.number().int().min(0).optional(),
+	weeklyClassLimit: z.int().min(0).optional(),
 	schedulingPreference: z
 		.enum(["morning", "afternoon", "night", "any"])
 		.optional(),
@@ -65,7 +65,7 @@ const deleteCoachBlackoutDateSchema = z.object({
 
 const createCoachRecurringUnavailabilitySchema = z.object({
 	coachId: z.string(),
-	dayOfWeek: z.number().int().min(0).max(6),
+	dayOfWeek: z.int().min(0).max(6),
 	startTime: z
 		.string()
 		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),

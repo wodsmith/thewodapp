@@ -13,7 +13,7 @@ export const createProgrammingTrackSchema = z.object({
 		PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
 		PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY,
 	]),
-	isPublic: z.boolean().optional().default(false),
+	isPublic: z.boolean().optional().prefault(false),
 	scalingGroupId: z
 		.union([z.string(), z.null(), z.undefined()])
 		.transform((val) => {
@@ -31,8 +31,8 @@ export const createProgrammingTrackSchema = z.object({
 				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
 			},
 			{
-				message: "Invalid scaling group ID format",
-			},
+                error: "Invalid scaling group ID format"
+            },
 		)
 		.optional(),
 })
@@ -80,8 +80,8 @@ export const updateProgrammingTrackSchema = z.object({
 				return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
 			},
 			{
-				message: "Invalid scaling group ID format",
-			},
+                error: "Invalid scaling group ID format"
+            },
 		)
 		.nullable()
 		.optional(),
@@ -96,8 +96,8 @@ export const addWorkoutToTrackSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().min(1, "Track ID is required"),
 	workoutId: z.string().min(1, "Workout ID is required"),
-	dayNumber: z.number().int().min(1, "Day number must be at least 1"),
-	weekNumber: z.number().int().min(1).optional(),
+	dayNumber: z.int().min(1, "Day number must be at least 1"),
+	weekNumber: z.int().min(1).optional(),
 	notes: z.string().max(1000, "Notes are too long").optional(),
 })
 
@@ -111,12 +111,10 @@ export const updateTrackWorkoutSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().min(1, "Track ID is required"),
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
-	dayNumber: z
-		.number()
-		.int()
+	dayNumber: z.int()
 		.min(1, "Day number must be at least 1")
 		.optional(),
-	weekNumber: z.number().int().min(1).optional(),
+	weekNumber: z.int().min(1).optional(),
 	notes: z.string().max(1000, "Notes are too long").optional(),
 })
 
@@ -132,7 +130,7 @@ export const reorderTrackWorkoutsSchema = z.object({
 		.array(
 			z.object({
 				trackWorkoutId: z.string().min(1, "Track Workout ID is required"),
-				dayNumber: z.number().int().min(1, "Day number must be at least 1"),
+				dayNumber: z.int().min(1, "Day number must be at least 1"),
 			}),
 		)
 		.min(1, "At least one update is required"),

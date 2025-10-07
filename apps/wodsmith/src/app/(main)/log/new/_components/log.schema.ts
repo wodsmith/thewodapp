@@ -6,8 +6,8 @@ export const logFormSchema = z.object({
 	// Legacy scale field for backward compatibility
 	scale: z
 		.enum(["rx", "scaled", "rx+"], {
-			required_error: "Please select a scale",
-		})
+            error: (issue) => issue.input === undefined ? "Please select a scale" : undefined
+        })
 		.optional(),
 	// New scaling fields
 	scalingLevelId: z.string().optional(),

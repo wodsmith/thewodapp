@@ -57,7 +57,7 @@ const createWorkoutSchema = z.object({
 	workout: z.object({
 		name: z.string().min(1, "Name is required").max(255, "Name is too long"),
 		description: z.string().min(1, "Description is required"),
-		scope: z.enum(["private", "public"]).default("private"),
+		scope: z.enum(["private", "public"]).prefault("private"),
 		scheme: z.enum([
 			"time",
 			"time-with-cap",
@@ -97,8 +97,8 @@ const createWorkoutSchema = z.object({
 					return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
 				},
 				{
-					message: "Invalid scaling group ID format",
-				},
+                    error: "Invalid scaling group ID format"
+                },
 			)
 			.nullable()
 			.optional(), // Add scaling group support
@@ -117,9 +117,9 @@ const createWorkoutSchema = z.object({
 			])
 			.nullable(),
 	}),
-	tagIds: z.array(z.string()).default([]),
+	tagIds: z.array(z.string()).prefault([]),
 	newTagNames: z.array(z.string()).optional(),
-	movementIds: z.array(z.string()).default([]),
+	movementIds: z.array(z.string()).prefault([]),
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().optional(),
 	scheduledDate: z.date().optional(),
@@ -449,8 +449,8 @@ export const getUserWorkoutsAction = createServerAction()
 			tag: z.string().optional(),
 			movement: z.string().optional(),
 			type: z.enum(["all", "original", "remix"]).optional(),
-			page: z.number().int().min(1).optional().default(1),
-			pageSize: z.number().int().min(1).max(100).optional().default(50),
+			page: z.int().min(1).optional().prefault(1),
+			pageSize: z.int().min(1).max(100).optional().prefault(50),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -642,14 +642,14 @@ export const updateWorkoutAction = createServerAction()
 							return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
 						},
 						{
-							message: "Invalid scaling group ID format",
-						},
+                            error: "Invalid scaling group ID format"
+                        },
 					)
 					.nullable()
 					.optional(), // Add scaling group support
 			}),
-			tagIds: z.array(z.string()).default([]),
-			movementIds: z.array(z.string()).default([]),
+			tagIds: z.array(z.string()).prefault([]),
+			movementIds: z.array(z.string()).prefault([]),
 			remixTeamId: z.string().optional(), // Optional team ID for creating remixes
 			scalingDescriptions: z
 				.array(
@@ -969,8 +969,8 @@ export const getScheduledTeamWorkoutsAction = createServerAction()
 	.input(
 		z.object({
 			teamId: z.string().min(1, "Team ID is required"),
-			startDate: z.string().datetime(),
-			endDate: z.string().datetime(),
+			startDate: z.iso.datetime(),
+			endDate: z.iso.datetime(),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -1004,8 +1004,8 @@ export const getScheduledTeamWorkoutsWithResultsAction = createServerAction()
 	.input(
 		z.object({
 			teamId: z.string().min(1, "Team ID is required"),
-			startDate: z.string().datetime(),
-			endDate: z.string().datetime(),
+			startDate: z.iso.datetime(),
+			endDate: z.iso.datetime(),
 			userId: z.string().min(1, "User ID is required"),
 		}),
 	)
@@ -1066,7 +1066,7 @@ export const getScheduledWorkoutResultAction = createServerAction()
 			scheduledInstanceId: z
 				.string()
 				.min(1, "Scheduled instance ID is required"),
-			date: z.string().datetime(),
+			date: z.iso.datetime(),
 		}),
 	)
 	.handler(async ({ input }) => {
