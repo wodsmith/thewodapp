@@ -113,8 +113,7 @@ export default function ChatPage() {
 				)}
 
 				{/* AI Usage Info */}
-				{aiLimit &&
-					aiLimit.canCreate &&
+				{aiLimit?.canCreate &&
 					!aiLimit.isUnlimited &&
 					aiLimit.message && (
 						<Alert className="mb-4">

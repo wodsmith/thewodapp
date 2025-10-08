@@ -144,8 +144,7 @@ export function InviteMemberModal({
 				)}
 
 				{/* Show usage info */}
-				{limitCheck &&
-					limitCheck.canCreate &&
+				{limitCheck?.canCreate &&
 					!limitCheck.isUnlimited &&
 					limitCheck.message && (
 						<Alert>

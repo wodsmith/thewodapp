@@ -194,9 +194,10 @@ export async function getUserWorkoutsCount({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	conditions.push(
-		or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))!,
-	)
+	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	if (teamOrPublicCondition) {
+		conditions.push(teamOrPublicCondition)
+	}
 
 	// Type filter
 	if (type === "original") {
@@ -223,12 +224,13 @@ export async function getUserWorkoutsCount({
 	// Search filter
 	if (search) {
 		const searchLower = search.toLowerCase()
-		conditions.push(
-			or(
-				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
-				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-			)!,
+		const searchCondition = or(
+			sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
+			sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
 		)
+		if (searchCondition) {
+			conditions.push(searchCondition)
+		}
 	}
 
 	// Build the complete query based on needed joins
@@ -329,9 +331,10 @@ export async function getUserWorkouts({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	conditions.push(
-		or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))!,
-	)
+	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	if (teamOrPublicCondition) {
+		conditions.push(teamOrPublicCondition)
+	}
 
 	// Type filter
 	if (type === "original") {
@@ -358,12 +361,13 @@ export async function getUserWorkouts({
 	// Search filter
 	if (search) {
 		const searchLower = search.toLowerCase()
-		conditions.push(
-			or(
-				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
-				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-			)!,
+		const searchCondition = or(
+			sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
+			sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
 		)
+		if (searchCondition) {
+			conditions.push(searchCondition)
+		}
 	}
 
 	// Build the complete query based on needed joins

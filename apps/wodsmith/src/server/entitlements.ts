@@ -4,17 +4,14 @@
  */
 import "server-only"
 
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm"
+import { and, eq, gt, isNull, or, } from "drizzle-orm"
 import type { Entitlement, PlanEntitlements } from "../db/schema"
 import {
 	entitlementTable,
-	entitlementTypeTable,
 	planTable,
 	SYSTEM_ROLES_ENUM,
-	teamAddonTable,
 	teamEntitlementOverrideTable,
 	teamMembershipTable,
-	teamSubscriptionTable,
 	teamTable,
 	teamUsageTable,
 } from "../db/schema"
@@ -469,7 +466,7 @@ export async function hasProgrammingTrackAccess(
  * Checks feature access and remaining message limit
  */
 export async function canUseAI(
-	userId: string,
+	_userId: string,
 	teamId: string,
 ): Promise<{ allowed: boolean; remaining?: number; reason?: string }> {
 	// 1. Check if team has AI generation feature
@@ -494,7 +491,7 @@ export async function canUseAI(
 
 	return {
 		allowed: true,
-		remaining: limit.currentLimit! - limit.usedAmount!,
+		remaining: (limit.currentLimit ?? 0) - (limit.usedAmount ?? 0),
 	}
 }
 
@@ -605,10 +602,10 @@ async function getLimitOverride(
  * Check if a team has an add-on that enables a feature
  */
 async function checkAddonForFeature(
-	teamId: string,
-	featureId: string,
+	_teamId: string,
+	_featureId: string,
 ): Promise<boolean> {
-	const db = getDb()
+	const _db = getDb()
 
 	// TODO: Implement add-on feature checking
 	// This would query team_addon table and check if any active add-ons
@@ -621,10 +618,10 @@ async function checkAddonForFeature(
  * Get limit modifier from add-ons
  */
 async function getAddonLimitModifier(
-	teamId: string,
-	limitKey: string,
+	_teamId: string,
+	_limitKey: string,
 ): Promise<number> {
-	const db = getDb()
+	const _db = getDb()
 
 	// TODO: Implement add-on limit modifiers
 	// This would query team_addon table and sum up all modifications
