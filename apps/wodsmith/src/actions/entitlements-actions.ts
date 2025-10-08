@@ -3,6 +3,7 @@
 import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
 import {
+  checkCanUseAI,
 	checkCanCreateTeam,
 	checkCanInviteMember,
 	checkCanCreateProgrammingTrack,
