@@ -2,8 +2,10 @@
  * Admin actions for managing entitlements system
  * Includes: team entitlements, features, limits, and plans
  * These actions are restricted to site admins only
+ *
+ * Note: Server actions are inherently server-only and don't need "server-only" import.
+ * All actions are protected by requireAdmin() checks.
  */
-import "server-only"
 
 import { eq } from "drizzle-orm"
 import { z } from "zod"
