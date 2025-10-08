@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { z } from "zod"
 import { useServerAction } from "@repo/zsa-react"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
+import { checkCanCreateProgrammingTrackAction } from "@/actions/entitlements-actions"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -33,9 +34,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Crown, Info } from "lucide-react"
+import Link from "next/link"
 import type { ProgrammingTrack } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
 import { createProgrammingTrackAction } from "../../_actions/programming-track-actions"
+import type { LimitCheckResult } from "@/server/entitlements-checks"
 
 const formSchema = z.object({
 	name: z
@@ -101,6 +106,9 @@ export function ProgrammingTrackCreateDialog({
 	const dialogCloseRef = useRef<HTMLButtonElement>(null)
 	const [scalingGroups, setScalingGroups] = useState<ScalingGroup[]>([])
 	const [isLoadingGroups, setIsLoadingGroups] = useState(false)
+	const [limitCheck, setLimitCheck] = useState<
+		(LimitCheckResult & { hasFeature: boolean }) | null
+	>(null)
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -112,6 +120,17 @@ export function ProgrammingTrackCreateDialog({
 			scalingGroupId: undefined,
 		},
 	})
+
+	const { execute: checkLimit } = useServerAction(
+		checkCanCreateProgrammingTrackAction,
+		{
+			onSuccess: (result) => {
+				if (result.data) {
+					setLimitCheck(result.data.data)
+				}
+			},
+		},
+	)
 
 	const { execute: fetchScalingGroups } = useServerAction(
 		getScalingGroupsAction,
@@ -143,9 +162,13 @@ export function ProgrammingTrackCreateDialog({
 		},
 	)
 
-	// Fetch scaling groups when dialog opens
+	// Fetch limit check and scaling groups when dialog opens
 	useEffect(() => {
 		if (open && teamId) {
+			// Check limits
+			checkLimit({ teamId })
+
+			// Fetch scaling groups
 			setIsLoadingGroups(true)
 			fetchScalingGroups({ teamId, includeSystem: true })
 				.then(([result]) => {
@@ -157,9 +180,17 @@ export function ProgrammingTrackCreateDialog({
 					setIsLoadingGroups(false)
 				})
 		}
-	}, [open, teamId, fetchScalingGroups])
+	}, [open, teamId, checkLimit, fetchScalingGroups])
 
 	const onSubmit = (data: FormValues) => {
+		// Block if at limit or missing feature
+		if (limitCheck && !limitCheck.canCreate) {
+			toast.error(
+				"You've reached your programming track limit. Please upgrade your plan.",
+			)
+			return
+		}
+
 		console.log(
 			"DEBUG: [UI] Programming track creation form submitted with data:",
 			data,
@@ -181,6 +212,39 @@ export function ProgrammingTrackCreateDialog({
 						Create Programming Track
 					</DialogTitle>
 				</DialogHeader>
+
+				{/* Show limit warning */}
+				{limitCheck && !limitCheck.canCreate && (
+					<Alert variant="destructive">
+						<AlertCircle className="h-4 w-4" />
+						<AlertTitle>
+							{!limitCheck.hasFeature
+								? "Feature Not Available"
+								: "Track Limit Reached"}
+						</AlertTitle>
+						<AlertDescription className="mt-2 space-y-2">
+							<p>{limitCheck.message}</p>
+							<Button size="sm" variant="outline" asChild className="mt-2">
+								<Link href="/settings/billing">
+									<Crown className="h-4 w-4 mr-2" />
+									Upgrade Plan
+								</Link>
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{/* Show usage info */}
+				{limitCheck &&
+					limitCheck.canCreate &&
+					!limitCheck.isUnlimited &&
+					limitCheck.message && (
+						<Alert>
+							<Info className="h-4 w-4" />
+							<AlertTitle>Plan Usage</AlertTitle>
+							<AlertDescription>{limitCheck.message}</AlertDescription>
+						</Alert>
+					)}
 
 				<Form {...form}>
 					<form
@@ -322,10 +386,16 @@ export function ProgrammingTrackCreateDialog({
 
 							<Button
 								type="submit"
-								disabled={isPending}
+								disabled={
+									isPending || (limitCheck ? !limitCheck.canCreate : false)
+								}
 								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
 							>
-								{isPending ? "Creating..." : "Create Track"}
+								{isPending
+									? "Creating..."
+									: limitCheck && !limitCheck.canCreate
+										? "Upgrade to Create"
+										: "Create Track"}
 							</Button>
 						</div>
 					</form>
