@@ -30,4 +30,8 @@ wrangler d1 execute "$DB_NAME" --local --file ./scripts/seed-crossfit-heroes.sql
 # echo "Running CrossFit Heroes seed (Generated)..."
 # wrangler d1 execute "$DB_NAME" --local --file ./scripts/seed-crossfit-heroes-generated.sql
 
+# Run entitlements seed (features, limits, plans)
+echo "Running entitlements seed..."
+pnpm tsx scripts/seed-entitlements.ts
+
 echo "Database seeding completed successfully!"

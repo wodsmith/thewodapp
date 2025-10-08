@@ -18,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import type { Plan } from "@/db/schema"
-import { updateTeamPlanAction } from "../../_actions/entitlement-admin-actions"
+import { updateTeamPlanAction } from "../../_actions"
 
 interface ChangePlanDialogProps {
 	open: boolean

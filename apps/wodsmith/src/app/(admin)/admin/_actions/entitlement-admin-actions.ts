@@ -110,7 +110,7 @@ export const addEntitlementOverrideAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
@@ -171,7 +171,7 @@ export const getTeamOverridesAction = createServerAction()
 export const removeEntitlementOverrideAction = createServerAction()
 	.input(z.object({ overrideId: z.string() }))
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
@@ -259,7 +259,7 @@ export const createFeatureAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
@@ -298,7 +298,7 @@ export const updateFeatureAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
@@ -351,7 +351,7 @@ export const createLimitAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
@@ -383,7 +383,7 @@ export const updateLimitAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
