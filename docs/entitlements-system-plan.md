@@ -1513,10 +1513,10 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 - [x] Create seed data for default plans (Free, Pro, Enterprise)
 - [x] Update `team` table schema (add currentPlanId)
 
-### Phase 2: Core Entitlements Service (Week 3)
+### Phase 2: Core Entitlements Service (Week 3) ✅
 **Goal**: Build the centralized entitlements checking service
 
-- [ ] Create `src/server/entitlements.ts` with team-level functions:
+- [x] Create `src/server/entitlements.ts` with team-level functions:
   - `hasFeature()` - Check if team's plan includes feature
   - `checkLimit()` - Check if action would exceed limit
   - `requireFeature()` - Throw if feature not available
@@ -1525,7 +1525,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
   - `getTeamLimit()` - Get team's limit for a resource
   - `getCurrentUsage()` - Get current usage for a resource
   - `requireLimitExcludingPersonalTeams()` - Special check for MAX_TEAMS that excludes personal teams
-- [ ] Add user-level entitlement functions (course-builder pattern):
+- [x] Add user-level entitlement functions (course-builder pattern):
   - `getUserEntitlements()` - Get user's active entitlements
   - `hasEntitlement()` - Check if user has specific entitlement
   - `createEntitlement()` - Create new entitlement record
@@ -1533,12 +1533,13 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
   - `revokeEntitlementsBySource()` - Soft delete by source
   - `hasProgrammingTrackAccess()` - Hybrid check (plan + entitlement)
   - `canUseAI()` - Check AI feature + message limits
-- [ ] Create helper functions:
+- [x] Create helper functions:
   - `getTeamPlan()`
-  - `getTeamEntitlements()`
   - `getFeatureOverride()`
   - `getLimitOverride()`
-- [ ] Add usage tracking utilities
+  - `checkAddonForFeature()` (stub)
+  - `getAddonLimitModifier()` (stub)
+- [x] Add usage tracking utilities (incrementUsage, getCurrentUsage)
 - [ ] Write tests for both plan-based and entitlement-based logic
 - [ ] **Session Caching & Cache Invalidation**:
   - [ ] Extend `KVSession` interface to include:
