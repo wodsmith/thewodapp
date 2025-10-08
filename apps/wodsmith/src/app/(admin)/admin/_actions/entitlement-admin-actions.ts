@@ -118,7 +118,7 @@ export const updateTeamPlanAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 
@@ -175,7 +175,7 @@ export const addEntitlementOverrideAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 
@@ -237,7 +237,7 @@ export const removeEntitlementOverrideAction = createServerAction()
 	.input(z.object({ overrideId: z.string() }))
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 
@@ -326,7 +326,7 @@ export const createFeatureAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 
@@ -366,7 +366,7 @@ export const updateFeatureAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 
@@ -420,7 +420,7 @@ export const createLimitAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 
@@ -453,7 +453,7 @@ export const updateLimitAction = createServerAction()
 	)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) throw new ZSAError("UNAUTHORIZED", "Admin access required")
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
 
 		const db = getDb()
 

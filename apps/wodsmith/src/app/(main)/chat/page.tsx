@@ -5,7 +5,7 @@ import { DefaultChatTransport } from "ai"
 import { AlertCircle, Crown, Info, MessageCircle } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useServerAction } from "@repo/zsa-react"
-import { useSessionStore } from "@/state/session"
+import { useTeamContext } from "@/state/team-context"
 import { checkCanUseAIAction } from "@/actions/entitlements-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,7 @@ import type { LimitCheckResult } from "@/server/entitlements-checks"
 
 export default function ChatPage() {
 	const [input, setInput] = useState("")
-	const currentTeam = useSessionStore((state) => state.currentTeam)
+	const currentTeamId = useTeamContext((state) => state.currentTeamId)
 	const [aiLimit, setAiLimit] = useState<
 		(LimitCheckResult & { hasFeature: boolean; remaining?: number }) | null
 	>(null)
@@ -51,22 +51,22 @@ export default function ChatPage() {
 
 	// Check AI limits when page loads or team changes
 	useEffect(() => {
-		if (currentTeam?.teamId) {
-			checkAI({ teamId: currentTeam.teamId })
+		if (currentTeamId) {
+			checkAI({ teamId: currentTeamId })
 		}
-	}, [currentTeam?.teamId, checkAI])
+	}, [currentTeamId, checkAI])
 
 	const { messages, sendMessage, status, error } = useChat({
 		transport: new DefaultChatTransport({
 			api: "/api/chat",
 			body: {
-				teamId: currentTeam?.teamId || "",
+				teamId: currentTeamId || "",
 			},
 		}),
 		onFinish: () => {
 			// Refresh AI limit after sending a message
-			if (currentTeam?.teamId) {
-				checkAI({ teamId: currentTeam.teamId })
+			if (currentTeamId) {
+				checkAI({ teamId: currentTeamId })
 			}
 		},
 	})

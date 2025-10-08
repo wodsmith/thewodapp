@@ -6,13 +6,13 @@
  */
 
 import { eq } from "drizzle-orm";
-import { getDd } from "../src/utils/get-db";
+import { getDb } from "../src/db";
 import { teamSubscriptionTable, teamTable } from "../src/db/schema";
 
 async function migrateTeamsToEntitlements() {
   console.log("Starting migration of teams to entitlements system...\n");
 
-  const db = getDd();
+  const db = getDb();
 
   // 1. Get all teams
   const teams = await db.query.teamTable.findMany();

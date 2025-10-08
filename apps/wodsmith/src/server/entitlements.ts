@@ -46,12 +46,17 @@ export async function getTeamPlan(teamId: string): Promise<{
 		where: eq(teamTable.id, teamId),
 	})
 
+	const freePlan = PLANS.FREE
+	if (!freePlan) {
+		throw new Error("FREE plan configuration is missing")
+	}
+
 	if (!team || !team.currentPlanId) {
 		// Default to free plan if no plan assigned
 		return {
 			id: "free",
 			name: "Free",
-			entitlements: PLANS.FREE.entitlements,
+			entitlements: freePlan.entitlements,
 		}
 	}
 
@@ -65,7 +70,7 @@ export async function getTeamPlan(teamId: string): Promise<{
 		return {
 			id: "free",
 			name: "Free",
-			entitlements: PLANS.FREE.entitlements,
+			entitlements: freePlan.entitlements,
 		}
 	}
 
@@ -207,11 +212,21 @@ export async function requireLimitExcludingPersonalTeams(
 
 	// Get user's plan from their first team (personal or otherwise)
 	const firstTeam = ownedTeamMemberships[0]?.team
-	let maxTeams = PLANS.FREE.entitlements.limits[limitKey]
+	const freePlan = PLANS.FREE
+	if (!freePlan) {
+		throw new Error("FREE plan configuration is missing")
+	}
+
+	let maxTeams = freePlan.entitlements.limits[limitKey]
 
 	if (firstTeam) {
 		const userPlan = await getTeamPlan(firstTeam.id)
 		maxTeams = userPlan.entitlements.limits[limitKey]
+	}
+
+	// Ensure maxTeams is defined
+	if (maxTeams === undefined) {
+		throw new Error(`Limit ${limitKey} not found in plan configuration`)
 	}
 
 	// -1 means unlimited

@@ -76,13 +76,23 @@ export async function checkCanCreateTeam(): Promise<TeamLimitCheckResult> {
 
 	// Get user's plan from their first team (personal or otherwise)
 	const firstTeam = ownedTeamMemberships[0]?.team
-	let maxTeams = PLANS.FREE.entitlements.limits[LIMITS.MAX_TEAMS]
+	const freePlan = PLANS.FREE
+	if (!freePlan) {
+		throw new Error("FREE plan configuration is missing")
+	}
+
+	let maxTeams = freePlan.entitlements.limits[LIMITS.MAX_TEAMS]
 	let planName = "Free"
 
 	if (firstTeam) {
 		const userPlan = await getTeamPlan(firstTeam.id)
 		maxTeams = userPlan.entitlements.limits[LIMITS.MAX_TEAMS]
 		planName = userPlan.name
+	}
+
+	// Ensure maxTeams is defined
+	if (maxTeams === undefined) {
+		throw new Error("MAX_TEAMS limit not found in plan configuration")
 	}
 
 	const currentCount = nonPersonalTeams.length
@@ -124,6 +134,11 @@ export async function checkCanInviteMember(
 	const teamPlan = await getTeamPlan(teamId)
 	const maxMembers = teamPlan.entitlements.limits[LIMITS.MAX_MEMBERS_PER_TEAM]
 	const planName = teamPlan.name
+
+	// Ensure maxMembers is defined
+	if (maxMembers === undefined) {
+		throw new Error("MAX_MEMBERS_PER_TEAM limit not found in plan configuration")
+	}
 
 	// Count current members
 	const memberCount = await db
@@ -174,6 +189,11 @@ export async function checkCanCreateProgrammingTrack(
 		FEATURES.PROGRAMMING_TRACKS,
 	)
 	const planName = teamPlan.name
+
+	// Ensure maxTracks is defined
+	if (maxTracks === undefined) {
+		throw new Error("MAX_PROGRAMMING_TRACKS limit not found in plan configuration")
+	}
 
 	// Count current tracks owned by this team
 	const trackCount = await db
@@ -229,6 +249,11 @@ export async function checkCanUseAI(
 		FEATURES.AI_WORKOUT_GENERATION,
 	)
 	const planName = teamPlan.name
+
+	// Ensure maxMessages is defined
+	if (maxMessages === undefined) {
+		throw new Error("AI_MESSAGES_PER_MONTH limit not found in plan configuration")
+	}
 
 	// Get current usage for this month
 	const now = new Date()
