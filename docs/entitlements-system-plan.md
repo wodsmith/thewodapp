@@ -1488,10 +1488,10 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Week 1-2)
+### Phase 1: Foundation (Week 1-2) ✅
 **Goal**: Set up entitlements infrastructure without breaking existing functionality
 
-- [ ] Create new database tables:
+- [x] Create new database tables:
   - `entitlement_type` (course-builder pattern)
   - `entitlement` (course-builder pattern)
   - `plan`
@@ -1500,18 +1500,18 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
   - `team_entitlement_override`
   - `team_usage`
 - [ ] Run migrations
-- [ ] Seed `entitlement_type` table with predefined types:
+- [x] Seed `entitlement_type` table with predefined types:
   - `programming_track_access` - Individual programming track purchases
   - `ai_message_credits` - AI message credits/grants
   - `feature_trial` - Time-limited feature trials
   - `manual_feature_grant` - Admin grants
   - `subscription_seat` - Subscription seat tracking
   - `addon_access` - Add-on purchases
-- [ ] Define plan configurations in code (`src/config/plans.ts`)
-- [ ] Define feature flags in code (`src/config/features.ts`)
-- [ ] Define limits in code (`src/config/limits.ts`)
-- [ ] Create seed data for default plans (Free, Pro, Enterprise)
-- [ ] Update `team` table schema (remove planId, add currentPlanId)
+- [x] Define plan configurations in code (`src/config/plans.ts`)
+- [x] Define feature flags in code (`src/config/features.ts`)
+- [x] Define limits in code (`src/config/limits.ts`)
+- [x] Create seed data for default plans (Free, Pro, Enterprise)
+- [x] Update `team` table schema (add currentPlanId)
 
 ### Phase 2: Core Entitlements Service (Week 3)
 **Goal**: Build the centralized entitlements checking service
