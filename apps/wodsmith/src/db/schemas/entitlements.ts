@@ -5,6 +5,8 @@ import {
 	commonColumns,
 	createEntitlementId,
 	createEntitlementTypeId,
+	createFeatureId,
+	createLimitId,
 	createPlanId,
 	createTeamAddonId,
 	createTeamEntitlementOverrideId,
@@ -82,7 +84,54 @@ export const entitlementTable = sqliteTable(
 	],
 )
 
-// 3. Plan Table - Store available subscription plans
+// 3. Feature Table - Define available features
+export const featureTable = sqliteTable("feature", {
+	...commonColumns,
+	id: text()
+		.primaryKey()
+		.$defaultFn(() => createFeatureId())
+		.notNull(),
+	key: text({ length: 100 }).notNull().unique(), // e.g., "programming_tracks"
+	name: text({ length: 100 }).notNull(),
+	description: text({ length: 500 }),
+	category: text({
+		enum: [
+			"workouts",
+			"programming",
+			"scaling",
+			"ai",
+			"team",
+			"integration",
+			"analytics",
+		],
+	}).notNull(),
+	priority: text({ enum: ["high", "medium", "low"] })
+		.default("medium")
+		.notNull(),
+	isActive: integer().default(1).notNull(),
+})
+
+// 4. Limit Table - Define available limits
+export const limitTable = sqliteTable("limit", {
+	...commonColumns,
+	id: text()
+		.primaryKey()
+		.$defaultFn(() => createLimitId())
+		.notNull(),
+	key: text({ length: 100 }).notNull().unique(), // e.g., "max_teams"
+	name: text({ length: 100 }).notNull(),
+	description: text({ length: 500 }),
+	unit: text({ length: 50 }).notNull(), // e.g., "teams", "MB", "messages"
+	resetPeriod: text({ enum: ["monthly", "yearly", "never"] })
+		.default("never")
+		.notNull(),
+	priority: text({ enum: ["high", "medium", "low"] })
+		.default("medium")
+		.notNull(),
+	isActive: integer().default(1).notNull(),
+})
+
+// 5. Plan Table - Store available subscription plans
 export interface PlanEntitlements {
 	features: string[] // array of feature IDs
 	limits: Record<string, number> // limit_id -> value (-1 for unlimited)
@@ -292,6 +341,8 @@ export const teamUsageRelations = relations(teamUsageTable, ({ one }) => ({
 // Type exports
 export type EntitlementType = InferSelectModel<typeof entitlementTypeTable>
 export type Entitlement = InferSelectModel<typeof entitlementTable>
+export type Feature = InferSelectModel<typeof featureTable>
+export type Limit = InferSelectModel<typeof limitTable>
 export type Plan = InferSelectModel<typeof planTable>
 export type TeamSubscription = InferSelectModel<typeof teamSubscriptionTable>
 export type TeamAddon = InferSelectModel<typeof teamAddonTable>

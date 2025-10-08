@@ -28,7 +28,7 @@ import {
 	addEntitlementOverrideAction,
 	getTeamOverridesAction,
 	removeEntitlementOverrideAction,
-} from "../_actions/entitlement-admin-actions"
+} from "../../_actions/entitlement-admin-actions"
 import { Badge } from "@/components/ui/badge"
 
 interface EntitlementOverridesDialogProps {

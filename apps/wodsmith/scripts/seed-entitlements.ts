@@ -1,15 +1,19 @@
 /**
- * Seed script for entitlement types and plans
+ * Seed script for entitlement system (types, features, limits, and plans)
  * Run with: pnpm tsx scripts/seed-entitlements.ts
  */
 
 import { drizzle } from "drizzle-orm/d1";
 import {
   ENTITLEMENT_TYPES,
-  PLANS,
   entitlementTypeTable,
+  featureTable,
+  limitTable,
   planTable,
 } from "../src/db/schema";
+import { FEATURE_METADATA } from "../src/config/features";
+import { LIMIT_METADATA } from "../src/config/limits";
+import { PLANS } from "../src/config/plans";
 
 // Helper to get D1 database (you'll need to adjust this based on your setup)
 async function getD1Database() {
@@ -73,6 +77,51 @@ async function seedEntitlementTypes(db: ReturnType<typeof drizzle>) {
   }
 }
 
+async function seedFeatures(db: ReturnType<typeof drizzle>) {
+  console.log("\nSeeding features...");
+
+  const featuresToSeed = Object.values(FEATURE_METADATA).map((feature) => ({
+    key: feature.id,
+    name: feature.name,
+    description: feature.description,
+    category: feature.category,
+    priority: feature.priority,
+    isActive: 1,
+  }));
+
+  for (const feature of featuresToSeed) {
+    try {
+      await db.insert(featureTable).values(feature);
+      console.log(`✓ Created feature: ${feature.name} (${feature.key})`);
+    } catch (error) {
+      console.log(`✗ Feature ${feature.name} already exists or error:`, error);
+    }
+  }
+}
+
+async function seedLimits(db: ReturnType<typeof drizzle>) {
+  console.log("\nSeeding limits...");
+
+  const limitsToSeed = Object.values(LIMIT_METADATA).map((limit) => ({
+    key: limit.id,
+    name: limit.name,
+    description: limit.description,
+    unit: limit.unit,
+    resetPeriod: limit.resetPeriod,
+    priority: limit.priority,
+    isActive: 1,
+  }));
+
+  for (const limit of limitsToSeed) {
+    try {
+      await db.insert(limitTable).values(limit);
+      console.log(`✓ Created limit: ${limit.name} (${limit.key})`);
+    } catch (error) {
+      console.log(`✗ Limit ${limit.name} already exists or error:`, error);
+    }
+  }
+}
+
 async function seedPlans(db: ReturnType<typeof drizzle>) {
   console.log("\nSeeding plans...");
 
@@ -85,7 +134,7 @@ async function seedPlans(db: ReturnType<typeof drizzle>) {
     isActive: plan.isActive ? 1 : 0,
     isPublic: plan.isPublic ? 1 : 0,
     sortOrder: plan.sortOrder,
-    entitlements: JSON.stringify(plan.entitlements),
+    entitlements: plan.entitlements,
     stripePriceId: plan.stripePriceId,
     stripeProductId: plan.stripeProductId,
   }));
@@ -106,7 +155,10 @@ async function main() {
   try {
     const db = await getD1Database();
 
+    // Seed in order: entitlement types, features, limits, then plans
     await seedEntitlementTypes(db);
+    await seedFeatures(db);
+    await seedLimits(db);
     await seedPlans(db);
 
     console.log("\n✓ Seeding completed successfully!");

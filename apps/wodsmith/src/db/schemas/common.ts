@@ -43,6 +43,8 @@ export const createWorkoutScalingDescriptionId = () => `wsd_${createId()}`
 // Entitlement system ID generators
 export const createEntitlementTypeId = () => `etype_${createId()}`
 export const createEntitlementId = () => `ent_${createId()}`
+export const createFeatureId = () => `feat_${createId()}`
+export const createLimitId = () => `lim_${createId()}`
 export const createPlanId = () => `plan_${createId()}`
 export const createTeamSubscriptionId = () => `tsub_${createId()}`
 export const createTeamAddonId = () => `tadd_${createId()}`

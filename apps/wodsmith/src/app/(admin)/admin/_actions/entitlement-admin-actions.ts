@@ -1,5 +1,6 @@
 /**
- * Admin actions for managing team entitlements
+ * Admin actions for managing entitlements system
+ * Includes: team entitlements, features, limits, and plans
  * These actions are restricted to site admins only
  */
 import "server-only"
@@ -9,6 +10,8 @@ import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
+	featureTable,
+	limitTable,
 	planTable,
 	teamEntitlementOverrideTable,
 	teamTable,
@@ -51,7 +54,7 @@ export const updateTeamPlanAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const admin = await requireAdmin()
+		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
@@ -214,3 +217,187 @@ export const getAllPlansAction = createServerAction().handler(async () => {
 
 	return plans
 })
+
+// ============================================================================
+// Feature Management Actions
+// ============================================================================
+
+/**
+ * Get all features
+ */
+export const getAllFeaturesAction = createServerAction().handler(async () => {
+	await requireAdmin()
+
+	const db = getDb()
+
+	const features = await db.query.featureTable.findMany({
+		orderBy: (features, { asc }) => [asc(features.category), asc(features.name)],
+	})
+
+	return features
+})
+
+/**
+ * Create a new feature
+ */
+export const createFeatureAction = createServerAction()
+	.input(
+		z.object({
+			key: z.string().min(1),
+			name: z.string().min(1),
+			description: z.string().optional(),
+			category: z.enum([
+				"workouts",
+				"programming",
+				"scaling",
+				"ai",
+				"team",
+				"integration",
+				"analytics",
+			]),
+			priority: z.enum(["high", "medium", "low"]).default("medium"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+
+		const db = getDb()
+
+		await db.insert(featureTable).values({
+			...input,
+			isActive: 1,
+		})
+
+		console.log(
+			`[Admin] ${admin.user.email} created feature: ${input.name} (${input.key})`,
+		)
+
+		return { success: true, message: "Feature created successfully" }
+	})
+
+/**
+ * Update a feature
+ */
+export const updateFeatureAction = createServerAction()
+	.input(
+		z.object({
+			id: z.string(),
+			name: z.string().min(1),
+			description: z.string().optional(),
+			category: z.enum([
+				"workouts",
+				"programming",
+				"scaling",
+				"ai",
+				"team",
+				"integration",
+				"analytics",
+			]),
+			priority: z.enum(["high", "medium", "low"]),
+			isActive: z.boolean(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+
+		const db = getDb()
+
+		const { id, ...updateData } = input
+
+		await db
+			.update(featureTable)
+			.set({
+				...updateData,
+				isActive: updateData.isActive ? 1 : 0,
+			})
+			.where(eq(featureTable.id, id))
+
+		console.log(`[Admin] ${admin.user.email} updated feature: ${id}`)
+
+		return { success: true, message: "Feature updated successfully" }
+	})
+
+// ============================================================================
+// Limit Management Actions
+// ============================================================================
+
+/**
+ * Get all limits
+ */
+export const getAllLimitsAction = createServerAction().handler(async () => {
+	await requireAdmin()
+
+	const db = getDb()
+
+	const limits = await db.query.limitTable.findMany({
+		orderBy: (limits, { asc }) => [asc(limits.name)],
+	})
+
+	return limits
+})
+
+/**
+ * Create a new limit
+ */
+export const createLimitAction = createServerAction()
+	.input(
+		z.object({
+			key: z.string().min(1),
+			name: z.string().min(1),
+			description: z.string().optional(),
+			unit: z.string().min(1),
+			resetPeriod: z.enum(["monthly", "yearly", "never"]).default("never"),
+			priority: z.enum(["high", "medium", "low"]).default("medium"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+
+		const db = getDb()
+
+		await db.insert(limitTable).values({
+			...input,
+			isActive: 1,
+		})
+
+		console.log(
+			`[Admin] ${admin.user.email} created limit: ${input.name} (${input.key})`,
+		)
+
+		return { success: true, message: "Limit created successfully" }
+	})
+
+/**
+ * Update a limit
+ */
+export const updateLimitAction = createServerAction()
+	.input(
+		z.object({
+			id: z.string(),
+			name: z.string().min(1),
+			description: z.string().optional(),
+			unit: z.string().min(1),
+			resetPeriod: z.enum(["monthly", "yearly", "never"]),
+			priority: z.enum(["high", "medium", "low"]),
+			isActive: z.boolean(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+
+		const db = getDb()
+
+		const { id, ...updateData } = input
+
+		await db
+			.update(limitTable)
+			.set({
+				...updateData,
+				isActive: updateData.isActive ? 1 : 0,
+			})
+			.where(eq(limitTable.id, id))
+
+		console.log(`[Admin] ${admin.user.email} updated limit: ${id}`)
+
+		return { success: true, message: "Limit updated successfully" }
+	})

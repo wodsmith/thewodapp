@@ -23,7 +23,7 @@ import {
 import {
 	getAllPlansAction,
 	getAllTeamsWithPlansAction,
-} from "../_actions/entitlement-admin-actions"
+} from "../../_actions/entitlement-admin-actions"
 import { ChangePlanDialog } from "./change-plan-dialog"
 import { EntitlementOverridesDialog } from "./entitlement-overrides-dialog"
 
