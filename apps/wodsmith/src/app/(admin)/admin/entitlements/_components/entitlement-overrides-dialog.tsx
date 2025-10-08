@@ -123,7 +123,7 @@ export function EntitlementOverridesDialog({
 		})
 	}
 
-	const overrides = overridesData?.[0]?.data ?? []
+	const overrides = overridesData?.data ?? []
 
 	const featureOptions = Object.entries(FEATURES).map(([key, value]) => ({
 		key,

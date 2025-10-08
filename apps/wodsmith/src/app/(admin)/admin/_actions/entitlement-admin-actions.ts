@@ -1,13 +1,14 @@
+"use server"
+
 /**
  * Admin actions for managing entitlements system
  * Includes: team entitlements, features, limits, and plans
  * These actions are restricted to site admins only
  *
- * Note: Server actions are inherently server-only and don't need "server-only" import.
  * All actions are protected by requireAdmin() checks.
  */
 
-import { eq } from "drizzle-orm"
+import { and, eq, like, or, sql } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
@@ -18,23 +19,72 @@ import {
 	teamEntitlementOverrideTable,
 	teamTable,
 } from "@/db/schema"
-// Note: requireAdmin is imported dynamically in each handler to avoid server-only import issues
+import { requireAdmin } from "@/utils/auth"
+import { invalidateTeamMembersSessions } from "@/utils/kv-session"
+import { PAGE_SIZE_OPTIONS } from "../admin-constants"
 
 /**
  * Get all teams with their current plans
  */
 export const getAllTeamsWithPlansAction = createServerAction()
-	.handler(async () => {
-		const { requireAdmin } = await import("@/utils/auth")
+	.input(
+		z.object({
+			page: z.number().min(1).default(1),
+			pageSize: z
+				.number()
+				.min(1)
+				.max(Math.max(...PAGE_SIZE_OPTIONS))
+				.default(50),
+			search: z.string().optional(),
+			showPersonalTeams: z.boolean().default(false),
+		}),
+	)
+	.handler(async ({ input }) => {
 		await requireAdmin()
 
 		const db = getDb()
+		const { page, pageSize, search, showPersonalTeams } = input
 
+		// Calculate offset
+		const offset = (page - 1) * pageSize
+
+		// Build where clause
+		const conditions = []
+
+		// Filter personal teams if needed
+		if (!showPersonalTeams) {
+			conditions.push(eq(teamTable.isPersonalTeam, 0))
+		}
+
+		// Search filter
+		if (search && search.trim()) {
+			conditions.push(
+				or(
+					like(teamTable.name, `%${search}%`),
+					like(teamTable.slug, `%${search}%`),
+				),
+			)
+		}
+
+		const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+		// Fetch total count
+		const countResult = await db
+			.select({ count: sql<number>`count(*)` })
+			.from(teamTable)
+			.where(whereClause)
+
+		const totalCount = countResult[0]?.count ?? 0
+
+		// Fetch paginated teams
 		const teams = await db.query.teamTable.findMany({
+			where: whereClause,
 			orderBy: (teams, { desc }) => [desc(teams.createdAt)],
+			limit: pageSize,
+			offset,
 		})
 
-		return teams.map((team) => ({
+		const data = teams.map((team) => ({
 			id: team.id,
 			name: team.name,
 			slug: team.slug,
@@ -42,6 +92,17 @@ export const getAllTeamsWithPlansAction = createServerAction()
 			currentPlanId: team.currentPlanId,
 			createdAt: team.createdAt,
 		}))
+
+		return {
+			success: true,
+			data: {
+				teams: data,
+				totalCount,
+				page,
+				pageSize,
+				totalPages: Math.ceil(totalCount / pageSize),
+			},
+		}
 	})
 
 /**
@@ -56,9 +117,6 @@ export const updateTeamPlanAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
-
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -115,9 +173,6 @@ export const addEntitlementOverrideAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
-
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -161,7 +216,6 @@ export const addEntitlementOverrideAction = createServerAction()
 export const getTeamOverridesAction = createServerAction()
 	.input(z.object({ teamId: z.string() }))
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
 		await requireAdmin()
 
 		const db = getDb()
@@ -171,7 +225,7 @@ export const getTeamOverridesAction = createServerAction()
 			orderBy: (overrides, { desc }) => [desc(overrides.createdAt)],
 		})
 
-		return overrides
+		return { success: true, data: overrides }
 	})
 
 /**
@@ -180,9 +234,6 @@ export const getTeamOverridesAction = createServerAction()
 export const removeEntitlementOverrideAction = createServerAction()
 	.input(z.object({ overrideId: z.string() }))
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
-
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -218,7 +269,6 @@ export const removeEntitlementOverrideAction = createServerAction()
  * Get all available plans
  */
 export const getAllPlansAction = createServerAction().handler(async () => {
-	const { requireAdmin } = await import("@/utils/auth")
 	await requireAdmin()
 
 	const db = getDb()
@@ -228,7 +278,7 @@ export const getAllPlansAction = createServerAction().handler(async () => {
 		orderBy: (plans, { asc }) => [asc(plans.sortOrder)],
 	})
 
-	return plans
+	return { success: true, data: plans }
 })
 
 // ============================================================================
@@ -239,7 +289,6 @@ export const getAllPlansAction = createServerAction().handler(async () => {
  * Get all features
  */
 export const getAllFeaturesAction = createServerAction().handler(async () => {
-	const { requireAdmin } = await import("@/utils/auth")
 	await requireAdmin()
 
 	const db = getDb()
@@ -248,7 +297,7 @@ export const getAllFeaturesAction = createServerAction().handler(async () => {
 		orderBy: (features, { asc }) => [asc(features.category), asc(features.name)],
 	})
 
-	return features
+	return { success: true, data: features }
 })
 
 /**
@@ -273,7 +322,6 @@ export const createFeatureAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -313,7 +361,6 @@ export const updateFeatureAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -341,7 +388,6 @@ export const updateFeatureAction = createServerAction()
  * Get all limits
  */
 export const getAllLimitsAction = createServerAction().handler(async () => {
-	const { requireAdmin } = await import("@/utils/auth")
 	await requireAdmin()
 
 	const db = getDb()
@@ -350,7 +396,7 @@ export const getAllLimitsAction = createServerAction().handler(async () => {
 		orderBy: (limits, { asc }) => [asc(limits.name)],
 	})
 
-	return limits
+	return { success: true, data: limits }
 })
 
 /**
@@ -368,7 +414,6 @@ export const createLimitAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -401,7 +446,6 @@ export const updateLimitAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
-		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()

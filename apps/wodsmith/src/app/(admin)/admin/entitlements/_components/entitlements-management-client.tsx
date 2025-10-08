@@ -1,7 +1,7 @@
 "use client"
 
 import { useServerAction } from "@repo/zsa-react"
-import { Building2, Crown, Shield, User } from "lucide-react"
+import { Building2, Crown, Search, Shield, User } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import {
 	getAllPlansAction,
 	getAllTeamsWithPlansAction,
@@ -31,6 +34,11 @@ export function EntitlementsManagementClient() {
 	const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
 	const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
 	const [isOverridesDialogOpen, setIsOverridesDialogOpen] = useState(false)
+	const [showPersonalTeams, setShowPersonalTeams] = useState(false)
+	const [page, setPage] = useState(1)
+	const [pageSize] = useState(50)
+	const [search, setSearch] = useState("")
+	const [searchInput, setSearchInput] = useState("")
 
 	const { execute: fetchTeams, data: teamsData, isPending: isLoadingTeams } =
 		useServerAction(getAllTeamsWithPlansAction)
@@ -39,12 +47,25 @@ export function EntitlementsManagementClient() {
 		useServerAction(getAllPlansAction)
 
 	useEffect(() => {
-		fetchTeams({})
-		fetchPlans({})
-	}, [fetchTeams, fetchPlans])
+		fetchTeams({ page, pageSize, search, showPersonalTeams })
+		fetchPlans()
+	}, [fetchTeams, fetchPlans, page, pageSize, search, showPersonalTeams])
 
-	const teams = teamsData?.[0]?.data ?? []
-	const plans = plansData?.[0]?.data ?? []
+	const teams = teamsData?.data?.teams ?? []
+	const totalCount = teamsData?.data?.totalCount ?? 0
+	const totalPages = teamsData?.data?.totalPages ?? 0
+	const plans = plansData?.data ?? []
+
+	const handleSearch = () => {
+		setSearch(searchInput)
+		setPage(1) // Reset to first page on search
+	}
+
+	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === "Enter") {
+			handleSearch()
+		}
+	}
 
 	const handleChangePlan = (teamId: string) => {
 		setSelectedTeamId(teamId)
@@ -57,7 +78,7 @@ export function EntitlementsManagementClient() {
 	}
 
 	const handlePlanChanged = () => {
-		fetchTeams({})
+		fetchTeams({ page, pageSize, search, showPersonalTeams })
 		setIsPlanDialogOpen(false)
 	}
 
@@ -81,10 +102,44 @@ export function EntitlementsManagementClient() {
 		<>
 			<Card>
 				<CardHeader>
-					<CardTitle>All Teams</CardTitle>
-					<CardDescription>
-						View and manage plans for all teams in the system
-					</CardDescription>
+					<div className="flex items-start justify-between">
+						<div>
+							<CardTitle>All Teams</CardTitle>
+							<CardDescription>
+								View and manage plans for all teams in the system
+							</CardDescription>
+						</div>
+						<div className="flex items-center gap-2">
+							<Checkbox
+								id="show-personal"
+								checked={showPersonalTeams}
+								onCheckedChange={(checked) => {
+									setShowPersonalTeams(!!checked)
+									setPage(1)
+								}}
+							/>
+							<Label htmlFor="show-personal" className="cursor-pointer">
+								Show personal teams
+							</Label>
+						</div>
+					</div>
+
+					{/* Search */}
+					<div className="flex gap-2 mt-4">
+						<div className="relative flex-1">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+							<Input
+								placeholder="Search by team name or slug..."
+								value={searchInput}
+								onChange={(e) => setSearchInput(e.target.value)}
+								onKeyDown={handleSearchKeyDown}
+								className="pl-9"
+							/>
+						</div>
+						<Button onClick={handleSearch} variant="secondary">
+							Search
+						</Button>
+					</div>
 				</CardHeader>
 				<CardContent>
 					{isLoadingTeams ? (
@@ -157,6 +212,60 @@ export function EntitlementsManagementClient() {
 								))}
 							</TableBody>
 						</Table>
+					)}
+
+					{/* Pagination */}
+					{!isLoadingTeams && teams.length > 0 && (
+						<div className="flex items-center justify-between mt-4 pt-4 border-t">
+							<div className="text-sm text-muted-foreground">
+								Showing {(page - 1) * pageSize + 1} to{" "}
+								{Math.min(page * pageSize, totalCount)} of {totalCount} teams
+							</div>
+							<div className="flex gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setPage(page - 1)}
+									disabled={page === 1}
+								>
+									Previous
+								</Button>
+								<div className="flex items-center gap-1">
+									{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+										// Show first, last, current, and adjacent pages
+										let pageNum: number
+										if (totalPages <= 5) {
+											pageNum = i + 1
+										} else if (page <= 3) {
+											pageNum = i + 1
+										} else if (page >= totalPages - 2) {
+											pageNum = totalPages - 4 + i
+										} else {
+											pageNum = page - 2 + i
+										}
+
+										return (
+											<Button
+												key={pageNum}
+												variant={page === pageNum ? "default" : "outline"}
+												size="sm"
+												onClick={() => setPage(pageNum)}
+											>
+												{pageNum}
+											</Button>
+										)
+									})}
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setPage(page + 1)}
+									disabled={page === totalPages}
+								>
+									Next
+								</Button>
+							</div>
+						</div>
 					)}
 				</CardContent>
 			</Card>

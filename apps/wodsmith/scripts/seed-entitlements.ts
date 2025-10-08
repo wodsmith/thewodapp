@@ -5,7 +5,6 @@
 
 import { drizzle } from "drizzle-orm/d1";
 import {
-  ENTITLEMENT_TYPES,
   entitlementTypeTable,
   featureTable,
   limitTable,
@@ -14,6 +13,16 @@ import {
 import { FEATURE_METADATA } from "../src/config/features";
 import { LIMIT_METADATA } from "../src/config/limits";
 import { PLANS } from "../src/config/plans";
+
+// Entitlement type constants (matching what's in the schema)
+const ENTITLEMENT_TYPES = {
+  PROGRAMMING_TRACK_ACCESS: "programming_track_access",
+  AI_MESSAGE_CREDITS: "ai_message_credits",
+  FEATURE_TRIAL: "feature_trial",
+  MANUAL_FEATURE_GRANT: "manual_feature_grant",
+  SUBSCRIPTION_SEAT: "subscription_seat",
+  ADDON_ACCESS: "addon_access",
+} as const;
 
 // Helper to get D1 database (you'll need to adjust this based on your setup)
 async function getD1Database() {
