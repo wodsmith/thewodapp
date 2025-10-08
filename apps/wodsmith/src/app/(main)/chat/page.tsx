@@ -2,8 +2,14 @@
 
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
-import { MessageCircle } from "lucide-react"
-import { useState } from "react"
+import { AlertCircle, Crown, Info, MessageCircle } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useServerAction } from "@repo/zsa-react"
+import { useSessionStore } from "@/state/session"
+import { checkCanUseAIAction } from "@/actions/entitlements-actions"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import {
 	Conversation,
 	ConversationContent,
@@ -26,11 +32,43 @@ import {
 	PromptInputTools,
 } from "@/components/ai-elements/prompt-input"
 import { Response } from "@/components/ai-elements/response"
+import type { LimitCheckResult } from "@/server/entitlements-checks"
 
 export default function ChatPage() {
 	const [input, setInput] = useState("")
-	const { messages, sendMessage, status } = useChat({
-		transport: new DefaultChatTransport({ api: "/api/chat" }),
+	const currentTeam = useSessionStore((state) => state.currentTeam)
+	const [aiLimit, setAiLimit] = useState<
+		(LimitCheckResult & { hasFeature: boolean; remaining?: number }) | null
+	>(null)
+
+	const { execute: checkAI } = useServerAction(checkCanUseAIAction, {
+		onSuccess: (result) => {
+			if (result.data) {
+				setAiLimit(result.data.data)
+			}
+		},
+	})
+
+	// Check AI limits when page loads or team changes
+	useEffect(() => {
+		if (currentTeam?.teamId) {
+			checkAI({ teamId: currentTeam.teamId })
+		}
+	}, [currentTeam?.teamId, checkAI])
+
+	const { messages, sendMessage, status, error } = useChat({
+		transport: new DefaultChatTransport({
+			api: "/api/chat",
+			body: {
+				teamId: currentTeam?.teamId || "",
+			},
+		}),
+		onFinish: () => {
+			// Refresh AI limit after sending a message
+			if (currentTeam?.teamId) {
+				checkAI({ teamId: currentTeam.teamId })
+			}
+		},
 	})
 
 	const handleSubmit = (message: PromptInputMessage) => {
@@ -52,6 +90,48 @@ export default function ChatPage() {
 						Ask questions about your workouts and programming
 					</p>
 				</div>
+
+				{/* AI Limit Warning */}
+				{aiLimit && !aiLimit.canCreate && (
+					<Alert variant="destructive" className="mb-4">
+						<AlertCircle className="h-4 w-4" />
+						<AlertTitle>
+							{!aiLimit.hasFeature
+								? "AI Features Not Available"
+								: "AI Message Limit Reached"}
+						</AlertTitle>
+						<AlertDescription className="mt-2 space-y-2">
+							<p>{aiLimit.message}</p>
+							<Button size="sm" variant="outline" asChild className="mt-2">
+								<Link href="/settings/billing">
+									<Crown className="h-4 w-4 mr-2" />
+									Upgrade Plan
+								</Link>
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{/* AI Usage Info */}
+				{aiLimit &&
+					aiLimit.canCreate &&
+					!aiLimit.isUnlimited &&
+					aiLimit.message && (
+						<Alert className="mb-4">
+							<Info className="h-4 w-4" />
+							<AlertTitle>AI Usage</AlertTitle>
+							<AlertDescription>{aiLimit.message}</AlertDescription>
+						</Alert>
+					)}
+
+				{/* Error Alert */}
+				{error && (
+					<Alert variant="destructive" className="mb-4">
+						<AlertCircle className="h-4 w-4" />
+						<AlertTitle>Error</AlertTitle>
+						<AlertDescription>{error.message}</AlertDescription>
+					</Alert>
+				)}
 
 				{/* Messages Container */}
 				<Conversation>
@@ -107,13 +187,20 @@ export default function ChatPage() {
 						<PromptInputTextarea
 							value={input}
 							onChange={(e) => setInput(e.target.value)}
-							placeholder="Ask me anything about your training..."
-							disabled={isLoading}
+							placeholder={
+								aiLimit && !aiLimit.canCreate
+									? "Upgrade your plan to continue using AI..."
+									: "Ask me anything about your training..."
+							}
+							disabled={isLoading || (aiLimit ? !aiLimit.canCreate : false)}
 						/>
 					</PromptInputBody>
 					<PromptInputToolbar>
 						<PromptInputTools />
-						<PromptInputSubmit status={status} disabled={isLoading} />
+						<PromptInputSubmit
+							status={status}
+							disabled={isLoading || (aiLimit ? !aiLimit.canCreate : false)}
+						/>
 					</PromptInputToolbar>
 				</PromptInput>
 			</div>
