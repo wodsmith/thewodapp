@@ -1515,6 +1515,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 
 ### Phase 2: Core Entitlements Service (Week 3) ✅ COMPLETED
 **Goal**: Build the centralized entitlements checking service
+**Commit**: 0008bfd
 
 - [x] Create `src/server/entitlements.ts` with team-level functions:
   - `hasFeature()` - Check if team's plan includes feature
