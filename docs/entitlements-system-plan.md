@@ -1513,7 +1513,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 - [x] Create seed data for default plans (Free, Pro, Enterprise)
 - [x] Update `team` table schema (add currentPlanId)
 
-### Phase 2: Core Entitlements Service (Week 3) ✅
+### Phase 2: Core Entitlements Service (Week 3) ✅ COMPLETED
 **Goal**: Build the centralized entitlements checking service
 
 - [x] Create `src/server/entitlements.ts` with team-level functions:
@@ -1541,21 +1541,20 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
   - `getAddonLimitModifier()` (stub)
 - [x] Add usage tracking utilities (incrementUsage, getCurrentUsage)
 - [ ] Write tests for both plan-based and entitlement-based logic
-- [ ] **Session Caching & Cache Invalidation**:
-  - [ ] Extend `KVSession` interface to include:
+- [x] **Session Caching & Cache Invalidation**:
+  - [x] Extend `KVSession` interface to include:
     - `entitlements` field (user-level entitlements)
     - `plan` field in teams array (team plan details)
-  - [ ] Increment `CURRENT_SESSION_VERSION` in `kv-session.ts`
-  - [ ] Update `createKVSession` to load and include entitlements
-  - [ ] Update `updateKVSession` to refresh entitlements
-  - [ ] Update `updateAllSessionsOfUser` to include entitlements
-  - [ ] Create `invalidateUserSessions(userId)` helper
-  - [ ] Create `invalidateTeamMembersSessions(teamId)` helper
-  - [ ] Add cache invalidation to:
+  - [x] Increment `CURRENT_SESSION_VERSION` to 5 in `kv-session.ts`
+  - [x] Update `createKVSession` to load and include entitlements
+  - [x] Update `updateKVSession` to refresh entitlements
+  - [x] Update `updateAllSessionsOfUser` to include entitlements
+  - [x] Create `invalidateUserSessions(userId)` helper
+  - [x] Create `invalidateTeamMembersSessions(teamId)` helper
+  - [x] Add cache invalidation to:
     - `createEntitlement()` - invalidate user sessions
     - `revokeEntitlement()` - invalidate user sessions
     - `revokeEntitlementsBySource()` - invalidate affected user sessions
-    - `updateTeamSubscription()` - invalidate all team member sessions
   - [ ] Test session updates happen in real-time
 
 ### Phase 3: Migrate Existing Teams (Week 3) ✅
