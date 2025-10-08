@@ -44,13 +44,13 @@ INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passw
 ('usr_demo4member', 'Jane', 'Smith', 'jane@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed teams table
-INSERT OR IGNORE INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId) VALUES 
-('team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Box One', 'crossfit-box-one', 'Premier CrossFit gym in downtown', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL),
-('team_homeymgym', 'Home Gym Heroes', 'home-gym-heroes', 'For athletes training at home', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL),
-('team_personaladmin', 'Admin Personal', 'admin-personal', 'Personal team for admin user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo1admin'),
-('team_personalcoach', 'Coach Personal', 'coach-personal', 'Personal team for coach user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo2coach'),
-('team_personaljohn', 'John Personal', 'john-personal', 'Personal team for John Doe', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo3member'),
-('team_personaljane', 'Jane Personal', 'jane-personal', 'Personal team for Jane Smith', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo4member');
+INSERT OR IGNORE INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, currentPlanId) VALUES
+('team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Box One', 'crossfit-box-one', 'Premier CrossFit gym in downtown', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'free'),
+('team_homeymgym', 'Home Gym Heroes', 'home-gym-heroes', 'For athletes training at home', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'free'),
+('team_personaladmin', 'Admin Personal', 'admin-personal', 'Personal team for admin user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo1admin', 'free'),
+('team_personalcoach', 'Coach Personal', 'coach-personal', 'Personal team for coach user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo2coach', 'free'),
+('team_personaljohn', 'John Personal', 'john-personal', 'Personal team for John Doe', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo3member', 'free'),
+('team_personaljane', 'Jane Personal', 'jane-personal', 'Personal team for Jane Smith', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo4member', 'free');
 
 -- Seed team memberships
 INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES 
@@ -70,12 +70,22 @@ INSERT INTO user (id, firstName, lastName, email, emailVerified, passwordHash, r
 ('usr_crossfit001', 'CrossFit', 'Admin', 'crossfit@gmail.com', 1750194531, 'eb1405f82c02e3e74723c82b24e16948:2c25e5090d2496f0a06fcd77f4a41e733abec33e0b0913637060e6619f3963f6', 'admin', 1000, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Create CrossFit team
-INSERT INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, creditBalance) VALUES 
-('team_cokkpu1klwo0ulfhl1iwzpvn', 'CrossFit', 'crossfit', 'Official CrossFit benchmark workouts and programming', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 500);
+INSERT INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, creditBalance, currentPlanId) VALUES
+('team_cokkpu1klwo0ulfhl1iwzpvn', 'CrossFit', 'crossfit', 'Official CrossFit benchmark workouts and programming', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 500, 'free');
 
 -- Create team membership for CrossFit user
-INSERT INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES 
+INSERT INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES
 ('tmem_crossfit_owner', 'team_cokkpu1klwo0ulfhl1iwzpvn', 'usr_crossfit001', 'owner', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
+
+-- Create team subscriptions (all teams start on free plan)
+INSERT OR IGNORE INTO team_subscription (id, teamId, planId, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, createdAt, updatedAt, updateCounter) VALUES
+('tsub_box1', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_homegym', 'team_homeymgym', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_personaladmin', 'team_personaladmin', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_personalcoach', 'team_personalcoach', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_personaljohn', 'team_personaljohn', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_personaljane', 'team_personaljane', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_crossfit', 'team_cokkpu1klwo0ulfhl1iwzpvn', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 
@@ -745,3 +755,68 @@ INSERT OR IGNORE INTO credit_transaction (id, userId, amount, remainingAmount, t
 ('ctxn_admin_monthly', 'usr_demo1admin', 100, 90, 'MONTHLY_REFRESH', 'Monthly admin credit refresh', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_coach_purchase', 'usr_demo2coach', 50, 35, 'PURCHASE', 'Credit purchase - starter pack', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_john_usage', 'usr_demo3member', -5, 0, 'USAGE', 'Used credits for premium workout', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Seed script for entitlement types and plans
+-- Run with: pnpm wrangler d1 execute DB_NAME --file=scripts/seed-entitlements.sql --local
+
+-- Insert entitlement types
+INSERT OR IGNORE INTO entitlement_type (id, name, description, createdAt, updatedAt, updateCounter)
+VALUES
+  ('etype_programming_track', 'programming_track_access', 'Access to individual programming tracks via purchase', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('etype_ai_messages', 'ai_message_credits', 'AI message credits for workout generation and suggestions', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('etype_feature_trial', 'feature_trial', 'Time-limited trial access to premium features', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('etype_manual_grant', 'manual_feature_grant', 'Manual feature grants by administrators', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('etype_subscription_seat', 'subscription_seat', 'Subscription seat tracking for team plans', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('etype_addon_access', 'addon_access', 'Access via purchased add-ons', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Insert plans
+-- Free Plan
+INSERT OR IGNORE INTO plan (id, name, description, price, interval, isActive, isPublic, sortOrder, entitlements, createdAt, updatedAt, updateCounter)
+VALUES (
+  'free',
+  'Free',
+  'Perfect for getting started with basic workout management',
+  0,
+  NULL,
+  1,
+  1,
+  0,
+  '{"features":["basic_workouts","basic_scaling","team_collaboration","basic_analytics"],"limits":{"max_teams":1,"max_members_per_team":5,"max_programming_tracks":5,"ai_messages_per_month":10,"max_admins":2,"max_file_storage_mb":100,"max_video_storage_mb":0}}',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP,
+  0
+);
+
+-- Pro Plan
+INSERT OR IGNORE INTO plan (id, name, description, price, interval, isActive, isPublic, sortOrder, entitlements, createdAt, updatedAt, updateCounter)
+VALUES (
+  'pro',
+  'Pro',
+  'Advanced features for growing gyms and coaches',
+  2900,
+  'month',
+  1,
+  1,
+  1,
+  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","basic_scaling","advanced_scaling","ai_workout_generation","ai_workout_suggestions","multi_team_management","team_collaboration","basic_analytics"],"limits":{"max_teams":-1,"max_members_per_team":25,"max_programming_tracks":-1,"ai_messages_per_month":200,"max_admins":5,"max_file_storage_mb":1000,"max_video_storage_mb":500}}',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP,
+  0
+);
+
+-- Enterprise Plan
+INSERT OR IGNORE INTO plan (id, name, description, price, interval, isActive, isPublic, sortOrder, entitlements, createdAt, updatedAt, updateCounter)
+VALUES (
+  'enterprise',
+  'Enterprise',
+  'Everything you need for large organizations',
+  9900,
+  'month',
+  1,
+  1,
+  2,
+  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","program_analytics","basic_scaling","advanced_scaling","custom_scaling_groups","ai_workout_generation","ai_workout_suggestions","ai_programming_assistant","multi_team_management","team_collaboration","custom_branding","api_access","basic_analytics","advanced_analytics","custom_reports"],"limits":{"max_teams":-1,"max_members_per_team":-1,"max_programming_tracks":-1,"ai_messages_per_month":-1,"max_admins":-1,"max_file_storage_mb":10000,"max_video_storage_mb":5000}}',
+  CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP,
+  0
+);
