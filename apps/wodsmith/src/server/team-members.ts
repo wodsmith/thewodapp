@@ -17,6 +17,8 @@ import { canSignUp, getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { requireLimit } from "./entitlements"
+import { LIMITS } from "@/config/limits"
 
 /**
  * Get all members of a team
@@ -240,6 +242,10 @@ export async function inviteUserToTeam({
 	if (!session) {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
+
+	// Check if team has reached member limit based on their plan
+	// This will throw if the limit would be exceeded
+	await requireLimit(teamId, LIMITS.MAX_MEMBERS_PER_TEAM)
 
 	// Validate email
 	try {

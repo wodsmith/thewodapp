@@ -12,12 +12,15 @@ import {
 	TEAM_PERMISSIONS,
 	teamMembershipTable,
 	teamRoleTable,
+	teamSubscriptionTable,
 	teamTable,
 } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { requireLimitExcludingPersonalTeams } from "./entitlements"
+import { LIMITS } from "@/config/limits"
 
 /**
  * Create a new team with the current user as owner
@@ -41,25 +44,8 @@ export async function createTeam({
 	const db = getDd()
 
 	// Check if user has reached their team creation limit
-	const ownedTeamsCount = await db
-		.select({ value: count() })
-		.from(teamMembershipTable)
-		.where(
-			and(
-				eq(teamMembershipTable.userId, userId),
-				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
-				eq(teamMembershipTable.isSystemRole, 1),
-			),
-		)
-
-	const teamsOwned = ownedTeamsCount[0]?.value || 0
-
-	if (teamsOwned >= MAX_TEAMS_CREATED_PER_USER) {
-		throw new ZSAError(
-			"FORBIDDEN",
-			`You have reached the limit of ${MAX_TEAMS_CREATED_PER_USER} teams you can create.`,
-		)
-	}
+	// NOTE: Personal teams (isPersonalTeam = true) do NOT count toward this limit
+	await requireLimitExcludingPersonalTeams(userId, LIMITS.MAX_TEAMS)
 
 	// Generate unique slug for the team
 	let slug = generateSlug(name)
@@ -85,7 +71,7 @@ export async function createTeam({
 		throw new ZSAError("ERROR", "Could not generate a unique slug for the team")
 	}
 
-	// Insert the team
+	// Insert the team with default free plan
 	const newTeam = (await db
 		.insert(teamTable)
 		.values({
@@ -94,6 +80,7 @@ export async function createTeam({
 			description,
 			avatarUrl,
 			creditBalance: 0,
+			currentPlanId: "free", // All new teams start on free plan
 		})
 		.returning()) as unknown as Array<typeof teamTable.$inferInsert>
 
@@ -127,6 +114,20 @@ export async function createTeam({
 			TEAM_PERMISSIONS.EDIT_COMPONENTS,
 		],
 		isEditable: 1,
+	})
+
+	// Create team subscription for free plan
+	const now = new Date()
+	const oneMonthFromNow = new Date(now)
+	oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
+
+	await db.insert(teamSubscriptionTable).values({
+		teamId,
+		planId: "free",
+		status: "active",
+		currentPeriodStart: now,
+		currentPeriodEnd: oneMonthFromNow,
+		cancelAtPeriodEnd: 0,
 	})
 
 	// Update the user's session to include the new team

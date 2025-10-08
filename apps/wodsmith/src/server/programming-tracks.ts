@@ -16,6 +16,9 @@ import {
 	type Workout,
 	workouts,
 } from "@/db/schema"
+import { requireFeature, requireLimit } from "./entitlements"
+import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 
 /* -------------------------------------------------------------------------- */
 /*                                Data Types                                  */
@@ -46,6 +49,15 @@ export async function createProgrammingTrack(
 	data: CreateTrackInput,
 ): Promise<ProgrammingTrack> {
 	const db = getDd()
+
+	// If the track is owned by a team, check entitlements
+	if (data.ownerTeamId) {
+		// Check if team has programming tracks feature
+		await requireFeature(data.ownerTeamId, FEATURES.PROGRAMMING_TRACKS)
+
+		// Check if team has reached programming track limit
+		await requireLimit(data.ownerTeamId, LIMITS.MAX_PROGRAMMING_TRACKS)
+	}
 
 	const result = await db
 		.insert(programmingTracksTable)
