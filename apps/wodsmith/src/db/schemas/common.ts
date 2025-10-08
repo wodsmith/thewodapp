@@ -39,3 +39,12 @@ export const createTagId = () => `tag_${createId()}`
 export const createScalingGroupId = () => `sgrp_${createId()}`
 export const createScalingLevelId = () => `slvl_${createId()}`
 export const createWorkoutScalingDescriptionId = () => `wsd_${createId()}`
+
+// Entitlement system ID generators
+export const createEntitlementTypeId = () => `etype_${createId()}`
+export const createEntitlementId = () => `ent_${createId()}`
+export const createPlanId = () => `plan_${createId()}`
+export const createTeamSubscriptionId = () => `tsub_${createId()}`
+export const createTeamAddonId = () => `tadd_${createId()}`
+export const createTeamEntitlementOverrideId = () => `tover_${createId()}`
+export const createTeamUsageId = () => `tusage_${createId()}`

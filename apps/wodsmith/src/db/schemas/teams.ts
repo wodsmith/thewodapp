@@ -75,9 +75,13 @@ export const teamTable = sqliteTable(
 		settings: text({ length: 10000 }),
 		// Optional billing-related fields
 		billingEmail: text({ length: 255 }),
+		// DEPRECATED: Legacy fields - will be removed after migration to entitlements system
 		planId: text({ length: 100 }),
 		planExpiresAt: integer({ mode: "timestamp" }),
+		// Keep creditBalance for backward compatibility and one-off purchases
 		creditBalance: integer().default(0).notNull(),
+		// NEW: Current subscription plan (entitlements system)
+		currentPlanId: text({ length: 100 }),
 		defaultTrackId: text(),
 		// Default scaling group for the team
 		defaultScalingGroupId: text(),
