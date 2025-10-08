@@ -22,11 +22,15 @@
 		"titleBar.inactiveForeground": "#e7e7e799"
 	},
 	"peacock.color": "#42b883",
+	"workbench.colorTheme": "Tokyo Night Storm",
 	"editor.defaultFormatter": "biomejs.biome",
 	"peacock.remoteColor": "#e83acb",
 	"editor.formatOnPaste": false,
 	"[typescriptreact]": {
 		"editor.defaultFormatter": "TypeScriptTeam.native-preview"
 	},
-	"typescript.experimental.useTsgo": true
+	"typescript.experimental.useTsgo": true,
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	}
 }

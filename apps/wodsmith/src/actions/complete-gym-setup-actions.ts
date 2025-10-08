@@ -2,7 +2,7 @@
 import { createId } from "@paralleldrive/cuid2"
 import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	classCatalogTable,
 	coachBlackoutDatesTable,
@@ -47,7 +47,9 @@ function parseCronExpression(cronExpression: string) {
 	const [minute, hour, _dayOfMonth, _month, dayOfWeek] = parts
 
 	if (!minute || !hour || !dayOfWeek) {
-		throw new Error(`Missing required parts in cron expression: ${cronExpression}`)
+		throw new Error(
+			`Missing required parts in cron expression: ${cronExpression}`,
+		)
 	}
 
 	// Parse minute
@@ -77,7 +79,9 @@ function parseCronExpression(cronExpression: string) {
 
 // Helper function to format time
 function formatTime(hour: number, minute: number): string {
-	return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
+	return `${hour.toString().padStart(2, "0")}:${minute
+		.toString()
+		.padStart(2, "0")}`
 }
 
 // Helper function to calculate end time
@@ -106,7 +110,7 @@ export const createCompleteGymSetup = createServerAction()
 			duration,
 			requiredCoaches,
 		} = input
-		const db = getDd()
+		const db = getDb()
 
 		console.log(
 			"INFO: [createCompleteGymSetup] Starting comprehensive gym setup",
@@ -188,7 +192,9 @@ export const createCompleteGymSetup = createServerAction()
 				}
 			} catch (error) {
 				throw new Error(
-					`Failed to parse cron expression "${cronExpression}": ${error instanceof Error ? error.message : "Unknown error"}`,
+					`Failed to parse cron expression "${cronExpression}": ${
+						error instanceof Error ? error.message : "Unknown error"
+					}`,
 				)
 			}
 		})
@@ -208,7 +214,9 @@ export const createCompleteGymSetup = createServerAction()
 			}
 
 			console.log(
-				`INFO: [createCompleteGymSetup] Inserting schedule ${i + 1}/${parsedSchedules.length}: ${schedule.dayOfWeek} ${schedule.startTime}-${schedule.endTime}`,
+				`INFO: [createCompleteGymSetup] Inserting schedule ${i + 1}/${
+					parsedSchedules.length
+				}: ${schedule.dayOfWeek} ${schedule.startTime}-${schedule.endTime}`,
 			)
 
 			try {
@@ -221,7 +229,9 @@ export const createCompleteGymSetup = createServerAction()
 
 				if ((i + 1) % 10 === 0) {
 					console.log(
-						`INFO: [createCompleteGymSetup] Progress: ${i + 1}/${parsedSchedules.length} schedules inserted`,
+						`INFO: [createCompleteGymSetup] Progress: ${i + 1}/${
+							parsedSchedules.length
+						} schedules inserted`,
 					)
 				}
 			} catch (error) {
@@ -258,7 +268,7 @@ export const createDiverseCoaches = createServerAction()
 	.input(createDiverseCoachesSchema)
 	.handler(async ({ input }) => {
 		const { teamId } = input
-		const db = getDd()
+		const db = getDb()
 
 		console.log("INFO: [createDiverseCoaches] Starting diverse coaches setup")
 
@@ -299,7 +309,9 @@ export const createDiverseCoaches = createServerAction()
 		for (const user of demoUsers) {
 			const [createdUser] = await db.insert(userTable).values(user).returning()
 			if (!createdUser) {
-				throw new Error(`Failed to create user: ${user.firstName} ${user.lastName}`)
+				throw new Error(
+					`Failed to create user: ${user.firstName} ${user.lastName}`,
+				)
 			}
 			createdUsers.push(createdUser)
 			console.log(
@@ -497,7 +509,9 @@ export const createDiverseCoaches = createServerAction()
 				.returning()
 
 			if (!coach) {
-				throw new Error(`Failed to create coach for user: ${coachData.user.firstName} ${coachData.user.lastName}`)
+				throw new Error(
+					`Failed to create coach for user: ${coachData.user.firstName} ${coachData.user.lastName}`,
+				)
 			}
 
 			console.log(

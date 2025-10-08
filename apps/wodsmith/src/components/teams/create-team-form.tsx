@@ -114,13 +114,15 @@ export function CreateTeamForm({ limitCheck }: CreateTeamFormProps) {
 			)}
 
 			{/* Show remaining teams info */}
-			{limitCheck.canCreate && !limitCheck.isUnlimited && limitCheck.message && (
-				<Alert className="mb-6">
-					<Sparkles className="h-4 w-4" />
-					<AlertTitle>Plan Usage</AlertTitle>
-					<AlertDescription>{limitCheck.message}</AlertDescription>
-				</Alert>
-			)}
+			{limitCheck.canCreate &&
+				!limitCheck.isUnlimited &&
+				limitCheck.message && (
+					<Alert className="mb-6">
+						<Sparkles className="h-4 w-4" />
+						<AlertTitle>Plan Usage</AlertTitle>
+						<AlertDescription>{limitCheck.message}</AlertDescription>
+					</Alert>
+				)}
 
 			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 				<FormField

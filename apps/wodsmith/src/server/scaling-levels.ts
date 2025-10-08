@@ -1,7 +1,7 @@
 import "server-only"
 
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	programmingTracksTable,
 	scalingGroupsTable,
@@ -31,7 +31,7 @@ export async function listScalingLevels({
 }: {
 	scalingGroupId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 	const rows = await db
 		.select()
 		.from(scalingLevelsTable)
@@ -46,7 +46,7 @@ export async function createScalingLevel({
 	label,
 	position,
 }: CreateScalingLevelInput) {
-	const db = getDd()
+	const db = getDb()
 
 	// Verify access to group
 	const [group] = await db
@@ -99,7 +99,7 @@ export async function updateScalingLevel({
 	scalingLevelId: string
 	data: UpdateScalingLevelInput
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// Load level and group
 	const [level] = await db
@@ -142,7 +142,7 @@ export async function reorderScalingLevels({
 	scalingGroupId: string
 	orderedLevelIds: string[]
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	const [group] = await db
 		.select()
@@ -181,7 +181,7 @@ export async function deleteScalingLevel({
 	teamId: string | null
 	scalingLevelId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// Verify ownership
 	const [level] = await db
@@ -219,7 +219,7 @@ export async function resolveScalingLevelsForWorkout({
 	teamId: string
 	trackId?: string | null
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// 1) Workout-specific
 	const [workout] = await db
@@ -276,7 +276,7 @@ export async function getWorkoutScalingDescriptions({
 	workoutId: string
 	scalingLevelIds: string[]
 }) {
-	const db = getDd()
+	const db = getDb()
 	if (scalingLevelIds.length === 0) return []
 	const rows = await db
 		.select()
@@ -304,7 +304,7 @@ export async function createWorkoutRemixAlignedToScalingGroup({
 	teamId: string
 	targetScalingGroupId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// Validate access to target group
 	const [group] = await db
@@ -345,7 +345,7 @@ export async function migrateScalingDescriptions({
 		description: string
 	}>
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// Delete any existing descriptions for the remixed workout
 	await db
@@ -378,7 +378,7 @@ export async function getWorkoutScalingDescriptionsWithLevels({
 }: {
 	workoutId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	const descriptions = await db
 		.select({
@@ -415,7 +415,7 @@ export async function upsertWorkoutScalingDescriptions({
 		description: string | null
 	}>
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// Delete existing descriptions for this workout
 	await db

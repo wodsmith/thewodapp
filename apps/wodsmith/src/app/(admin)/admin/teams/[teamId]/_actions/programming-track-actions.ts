@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { createServerAction } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { scalingGroupsTable, TEAM_PERMISSIONS } from "@/db/schema"
 import {
 	addWorkoutToTrackSchema,
@@ -141,7 +141,7 @@ export const updateProgrammingTrackAction = createServerAction()
 			if (scalingGroupId !== undefined) {
 				// Verify scaling group ownership
 				if (scalingGroupId !== "none" && scalingGroupId !== null) {
-					const db = getDd()
+					const db = getDb()
 					const scalingGroup = await db.query.scalingGroupsTable.findFirst({
 						where: and(
 							eq(scalingGroupsTable.id, scalingGroupId),
@@ -163,7 +163,9 @@ export const updateProgrammingTrackAction = createServerAction()
 			const track = await updateProgrammingTrack(trackId, updateData)
 
 			console.log(
-				`INFO: [ProgrammingTrack] Updated track: ${trackId} for team: ${teamId} - fields updated: ${Object.keys(updateData).join(", ")}`,
+				`INFO: [ProgrammingTrack] Updated track: ${trackId} for team: ${teamId} - fields updated: ${Object.keys(
+					updateData,
+				).join(", ")}`,
 			)
 
 			// Revalidate the programming page and track page

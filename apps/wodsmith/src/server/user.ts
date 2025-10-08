@@ -3,7 +3,7 @@ import "server-only"
 import { and, eq } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
 import { getDefaultProgrammingTracks } from "@/config/programming-tracks"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import type { User } from "@/db/schema"
 import {
 	programmingTracksTable,
@@ -20,11 +20,13 @@ import {
 export async function createPersonalTeamForUser(
 	user: User,
 ): Promise<{ teamId: string }> {
-	const db = getDd()
+	const db = getDb()
 
 	// Create a personal team for the user
 	const personalTeamName = `${user.firstName || "Personal"}'s Team (personal)`
-	const personalTeamSlug = `${user.firstName?.toLowerCase() || "personal"}-${user.id.slice(-6)}`
+	const personalTeamSlug = `${
+		user.firstName?.toLowerCase() || "personal"
+	}-${user.id.slice(-6)}`
 
 	const [personalTeam] = await db
 		.insert(teamTable)
@@ -104,7 +106,7 @@ export async function createPersonalTeamForUser(
  * @returns Promise<string> - The personal team's ID
  */
 export async function getUserPersonalTeamId(userId: string): Promise<string> {
-	const db = getDd()
+	const db = getDb()
 
 	const personalTeam = await db.query.teamTable.findFirst({
 		where: and(

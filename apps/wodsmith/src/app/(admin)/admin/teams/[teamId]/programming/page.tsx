@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
 import { ProgrammingTracksClient } from "@/components/programming/programming-tracks-client"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	type ScalingGroup,
 	scalingGroupsTable,
@@ -27,7 +27,7 @@ export async function generateMetadata({
 	params,
 }: ProgrammingTrackPageProps): Promise<Metadata> {
 	const { teamId } = await params
-	const db = getDd()
+	const db = getDb()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -49,7 +49,7 @@ export default async function ProgrammingTrackPage({
 	params,
 }: ProgrammingTrackPageProps) {
 	const { teamId } = await params
-	const db = getDd()
+	const db = getDb()
 
 	console.log(
 		`DEBUG: [Programming] Loading programming tracks for team: ${teamId}`,

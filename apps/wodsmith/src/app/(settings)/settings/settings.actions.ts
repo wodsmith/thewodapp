@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { userSettingsSchema } from "@/schemas/settings.schema"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -15,7 +15,7 @@ export const updateUserProfileAction = createServerAction()
 	.handler(async ({ input }) => {
 		return withRateLimit(async () => {
 			const session = await requireVerifiedEmail()
-			const db = getDd()
+			const db = getDb()
 
 			if (!session?.user?.id) {
 				throw new ZSAError("NOT_AUTHORIZED", "Unauthorized")

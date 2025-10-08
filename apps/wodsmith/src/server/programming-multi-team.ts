@@ -1,6 +1,6 @@
 import "server-only"
 import { and, eq, inArray } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -35,7 +35,7 @@ export async function getPublicTracksWithTeamSubscriptions(
 		teamCount: userTeamIds.length,
 	})
 
-	const db = getDd()
+	const db = getDb()
 
 	// Get all public tracks
 	const publicTracks = await db
@@ -128,7 +128,7 @@ export async function getTeamSpecificProgrammingTracks(teamId: string): Promise<
 		subscribedAt: Date | null
 	}[]
 > {
-	const db = getDd()
+	const db = getDb()
 
 	// Get all public tracks
 	const publicTracks = await db
@@ -190,7 +190,7 @@ export async function getTrackSubscribedTeams(
 		return []
 	}
 
-	const db = getDd()
+	const db = getDb()
 	const subscriptions = await db
 		.select({
 			teamId: teamProgrammingTracksTable.teamId,
@@ -232,7 +232,7 @@ export async function getSubscriptionsByTeam(userTeamIds: string[]): Promise<
 		return new Map()
 	}
 
-	const db = getDd()
+	const db = getDb()
 	const subscriptions = await db
 		.select({
 			teamId: teamProgrammingTracksTable.teamId,

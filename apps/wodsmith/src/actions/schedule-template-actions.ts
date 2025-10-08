@@ -3,7 +3,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	scheduleTemplateClassesTable,
 	scheduleTemplateClassRequiredSkillsTable,
@@ -86,7 +86,7 @@ export const createScheduleTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const { teamId, name, classCatalogId, locationId } = input
 		await requireTeamMembership(teamId)
-		const db = getDd()
+		const db = getDb()
 		try {
 			const [newTemplate] = await db
 				.insert(scheduleTemplatesTable)
@@ -116,7 +116,7 @@ export const updateScheduleTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, teamId, name, classCatalogId, locationId } = input
 		await requireTeamMembership(teamId)
-		const db = getDd()
+		const db = getDb()
 		try {
 			const updates = Object.fromEntries(
 				Object.entries({ name, classCatalogId, locationId }).filter(
@@ -152,7 +152,7 @@ export const deleteScheduleTemplate = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, teamId } = input
 		await requireTeamMembership(teamId)
-		const db = getDd()
+		const db = getDb()
 		try {
 			// First, get all template classes for this template
 			const templateClasses = await db
@@ -203,7 +203,7 @@ export const getScheduleTemplatesByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		const { teamId } = input
 		await requireTeamMembership(teamId)
-		const db = getDd()
+		const db = getDb()
 		try {
 			const templates = await db.query.scheduleTemplatesTable.findMany({
 				where: eq(scheduleTemplatesTable.teamId, teamId),
@@ -231,7 +231,7 @@ export const getScheduleTemplateById = createServerAction()
 	.handler(async ({ input }) => {
 		const { id, teamId } = input
 		await requireTeamMembership(teamId)
-		const db = getDd()
+		const db = getDb()
 		try {
 			const template = await db.query.scheduleTemplatesTable.findFirst({
 				where: and(
@@ -263,7 +263,7 @@ export const getScheduleTemplateById = createServerAction()
 export const createScheduleTemplateClass = createServerAction()
 	.input(createScheduleTemplateClassSchema)
 	.handler(async ({ input }) => {
-		const db = getDd()
+		const db = getDb()
 		try {
 			// Verify team membership by checking template ownership
 			const template = await db.query.scheduleTemplatesTable.findFirst({
@@ -303,7 +303,7 @@ export const createScheduleTemplateClass = createServerAction()
 export const updateScheduleTemplateClass = createServerAction()
 	.input(updateScheduleTemplateClassSchema)
 	.handler(async ({ input }) => {
-		const db = getDd()
+		const db = getDb()
 		try {
 			// Verify team membership by checking template ownership
 			const template = await db.query.scheduleTemplatesTable.findFirst({
@@ -365,7 +365,7 @@ export const deleteScheduleTemplateClass = createServerAction()
 	.input(deleteScheduleTemplateClassSchema)
 	.handler(async ({ input }) => {
 		const { id, templateId } = input
-		const db = getDd()
+		const db = getDb()
 		try {
 			// Verify team membership by checking template ownership
 			const template = await db.query.scheduleTemplatesTable.findFirst({
@@ -402,7 +402,7 @@ export const deleteScheduleTemplateClass = createServerAction()
 export const deleteAllScheduleTemplateClassesForTemplate = createServerAction()
 	.input(deleteAllScheduleTemplateClassesSchema)
 	.handler(async ({ input }) => {
-		const db = getDd()
+		const db = getDb()
 		try {
 			// Verify team membership by checking template ownership
 			const template = await db.query.scheduleTemplatesTable.findFirst({
@@ -473,7 +473,7 @@ export const bulkCreateScheduleTemplateClassesSimple = createServerAction()
 	.input(bulkCreateScheduleTemplateClassesSimpleSchema)
 	.handler(async ({ input }) => {
 		const { templateId, timeSlots, requiredCoaches, requiredSkillIds } = input
-		const db = getDd()
+		const db = getDb()
 		try {
 			// Verify team membership by checking template ownership
 			const template = await db.query.scheduleTemplatesTable.findFirst({

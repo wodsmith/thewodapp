@@ -4,7 +4,7 @@ import { fromZonedTime } from "date-fns-tz"
 import { asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	programmingTracksTable,
 	results,
@@ -31,7 +31,7 @@ export async function mapLegacyScaleToScalingLevel({
 	programmingTrackId?: string | null
 	scale: "rx" | "scaled" | "rx+"
 }): Promise<{ scalingLevelId: string; asRx: boolean }> {
-	const db = getDd()
+	const db = getDb()
 
 	// Resolution: workout -> track -> global system
 	let resolvedGroupId: string | null = null
@@ -110,7 +110,7 @@ export async function mapLegacyScaleToScalingLevel({
 export async function getLogsByUser(
 	userId: string,
 ): Promise<WorkoutResultWithWorkoutName[]> {
-	const db = getDd()
+	const db = getDb()
 	console.log(`[getLogsByUser] Fetching logs for userId: ${userId}`)
 
 	try {
@@ -213,9 +213,9 @@ export async function addLog({
 	}
 	console.log("[addLog] Session verified for user:", session.user.id)
 
-	let db: ReturnType<typeof getDd>
+	let db: ReturnType<typeof getDb>
 	try {
-		db = getDd()
+		db = getDb()
 		console.log("[addLog] Database connection obtained successfully")
 	} catch (error) {
 		console.error("[addLog] Failed to get database connection:", error)
@@ -304,7 +304,7 @@ export async function addLog({
 export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
-	const db = getDd()
+	const db = getDb()
 	console.log(`[getResultSetsById] Fetching sets for resultId: ${resultId}`)
 
 	try {
@@ -331,7 +331,7 @@ export async function getResultSetsById(
  * Get a single result by ID with workout details and scaling level
  */
 export async function getResultById(resultId: string) {
-	const db = getDd()
+	const db = getDb()
 	console.log(`[getResultById] Fetching result with id: ${resultId}`)
 
 	try {
@@ -422,7 +422,7 @@ export async function updateResult({
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	console.log(
 		`[updateResult] Updating result with id: ${resultId}, userId: ${userId}, workoutId: ${workoutId}`,
@@ -663,7 +663,9 @@ function processScoreEntries(
 					setsForDb: [],
 					totalSecondsForWodScore: 0,
 					error: {
-						error: `${isTimeCapped ? "Reps" : "Time"} input for set ${setNumber} is missing.`,
+						error: `${
+							isTimeCapped ? "Reps" : "Time"
+						} input for set ${setNumber} is missing.`,
 					},
 				}
 			}

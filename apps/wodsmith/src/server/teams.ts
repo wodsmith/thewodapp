@@ -6,7 +6,7 @@ import {
 	MAX_TEAMS_CREATED_PER_USER,
 	MAX_TEAMS_JOINED_PER_USER,
 } from "@/constants"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
@@ -41,7 +41,7 @@ export async function createTeam({
 	}
 
 	const userId = session.userId
-	const db = getDd()
+	const db = getDb()
 
 	// Check if user has reached their team creation limit
 	// NOTE: Personal teams (isPersonalTeam = true) do NOT count toward this limit
@@ -159,7 +159,7 @@ export async function updateTeam({
 	// Check if user has permission to update team settings
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
 
-	const db = getDd()
+	const db = getDb()
 
 	// If name is being updated, check if we need to update the slug
 	if (data.name) {
@@ -224,7 +224,7 @@ export async function deleteTeam(teamId: string) {
 	// Check if user has permission to delete team
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.DELETE_TEAM)
 
-	const db = getDd()
+	const db = getDb()
 
 	// Get all user IDs from the team memberships to update their sessions later
 	const memberships = await db.query.teamMembershipTable.findMany({
@@ -255,7 +255,7 @@ export async function getTeam(teamId: string) {
 	// Check if user is a member of this team
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-	const db = getDd()
+	const db = getDb()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -272,7 +272,7 @@ export async function getTeam(teamId: string) {
  * Get all team memberships for a specific user
  */
 export async function getUserTeamMemberships(userId: string) {
-	const db = getDd()
+	const db = getDb()
 
 	const memberships = await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, userId),
@@ -294,7 +294,7 @@ export async function getUserTeams() {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	const userTeams = await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, session.userId),
@@ -325,7 +325,7 @@ export async function getOwnedTeams() {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	const ownedTeams = await db.query.teamMembershipTable.findMany({
 		where: and(

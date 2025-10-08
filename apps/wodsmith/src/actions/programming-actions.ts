@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	programmingTracksTable,
 	teamProgrammingTracksTable,
@@ -55,7 +55,7 @@ export const subscribeToTrackAction = createServerAction()
 				`INFO: Track subscription UI action initiated for track: ${input.trackId} by team: ${input.teamId}`,
 			)
 
-			const db = getDd()
+			const db = getDb()
 
 			// Check if track exists and is public
 			const track = await db
@@ -155,7 +155,7 @@ export const unsubscribeFromTrackAction = createServerAction()
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			const db = getDd()
+			const db = getDb()
 
 			// Deactivate subscription instead of deleting
 			const _result = await db
@@ -202,7 +202,7 @@ export const getTeamSubscriptionsAction = createServerAction()
 				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
 			)
 
-			const db = getDd()
+			const db = getDb()
 
 			const subscriptions = await db
 				.select({
@@ -263,7 +263,7 @@ export const setDefaultTrackAction = createServerAction()
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			const db = getDd()
+			const db = getDb()
 
 			// Verify the team is subscribed to this track
 			const subscription = await db

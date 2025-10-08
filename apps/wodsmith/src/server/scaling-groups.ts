@@ -1,7 +1,7 @@
 import "server-only"
 
 import { asc, desc, eq, inArray } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	programmingTracksTable,
 	scalingGroupsTable,
@@ -30,7 +30,7 @@ export async function createScalingGroup({
 	description,
 	isDefault,
 }: CreateScalingGroupInput) {
-	const db = getDd()
+	const db = getDb()
 
 	if (teamId) {
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
@@ -60,7 +60,7 @@ export async function updateScalingGroup({
 	scalingGroupId: string
 	data: UpdateScalingGroupInput
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	if (teamId) {
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
@@ -105,7 +105,7 @@ export async function deleteScalingGroup({
 	teamId: string | null
 	scalingGroupId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	if (teamId) {
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
@@ -139,7 +139,7 @@ export async function listScalingGroups({
 	teamId: string
 	includeSystem?: boolean
 }) {
-	const db = getDd()
+	const db = getDb()
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
 	const rows = await db
@@ -178,7 +178,7 @@ export async function getScalingGroupWithLevels({
 	teamId: string | null
 	scalingGroupId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	const [group] = await db
 		.select()
@@ -209,7 +209,7 @@ export async function assignScalingGroupToTrack({
 	trackId: string
 	scalingGroupId: string | null
 }) {
-	const db = getDd()
+	const db = getDb()
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
 	// Verify track belongs to team (ownerTeamId) or team has permission to edit
@@ -257,7 +257,7 @@ export async function setTeamDefaultScalingGroup({
 	teamId: string
 	scalingGroupId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
 
 	// Validate group ownership or system

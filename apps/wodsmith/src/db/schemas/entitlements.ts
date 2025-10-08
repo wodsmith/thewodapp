@@ -61,7 +61,9 @@ export const entitlementTable = sqliteTable(
 		// Team context (for org-scoped access)
 		teamId: text().references(() => teamTable.id),
 		// Where did this entitlement come from?
-		sourceType: text({ enum: ["PURCHASE", "SUBSCRIPTION", "MANUAL"] }).notNull(),
+		sourceType: text({
+			enum: ["PURCHASE", "SUBSCRIPTION", "MANUAL"],
+		}).notNull(),
 		// What is the source? (purchaseId, subscriptionId, adminUserId, etc.)
 		sourceId: text().notNull(),
 		// Type-specific metadata (contentIds, featureIds, etc.)

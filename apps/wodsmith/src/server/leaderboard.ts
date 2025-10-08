@@ -1,7 +1,7 @@
 import "server-only"
 
 import { and, eq, inArray } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	results,
 	scalingLevelsTable,
@@ -45,7 +45,7 @@ export async function getLeaderboardForScheduledWorkout({
 	scheduledWorkoutInstanceId: string
 	teamId: string
 }): Promise<LeaderboardEntry[]> {
-	const db = getDd()
+	const db = getDb()
 
 	// Get all results for this scheduled workout instance with workout and sets data
 	const workoutResults = await db
@@ -91,8 +91,9 @@ export async function getLeaderboardForScheduledWorkout({
 
 	// Transform and calculate aggregated scores
 	const leaderboard: LeaderboardEntry[] = workoutResults.map((row) => {
-		const fullName =
-			`${row.user.firstName || ""} ${row.user.lastName || ""}`.trim()
+		const fullName = `${row.user.firstName || ""} ${
+			row.user.lastName || ""
+		}`.trim()
 
 		// Handle legacy scalingLevelId values ('rx+', 'rx', 'scaled')
 		let scalingLabel = row.scalingLevel?.label || null

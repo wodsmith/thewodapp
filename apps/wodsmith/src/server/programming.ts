@@ -1,6 +1,6 @@
 import "server-only"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -25,7 +25,7 @@ export async function getPublicProgrammingTracks(): Promise<
 > {
 	console.info("INFO: Fetching public programming tracks")
 
-	const db = getDd()
+	const db = getDb()
 	const tracks = await db
 		.select({
 			id: programmingTracksTable.id,
@@ -53,7 +53,7 @@ export async function getPublicProgrammingTracks(): Promise<
 export async function getTeamProgrammingTracks(
 	teamId: string,
 ): Promise<(PublicProgrammingTrack & { subscribedAt: Date })[]> {
-	const db = getDd()
+	const db = getDb()
 	const tracks = await db
 		.select({
 			id: programmingTracksTable.id,
@@ -93,7 +93,7 @@ export async function getProgrammingTrackById(
 ): Promise<PublicProgrammingTrack | null> {
 	console.info("INFO: Fetching programming track by ID", { trackId })
 
-	const db = getDd()
+	const db = getDb()
 	const result = await db
 		.select({
 			id: programmingTracksTable.id,
@@ -148,7 +148,7 @@ export async function getPaginatedTrackWorkouts(
 		pageSize,
 	})
 
-	const db = getDd()
+	const db = getDb()
 
 	// Validate pagination parameters
 	const validPage = Math.max(1, page)
@@ -241,7 +241,7 @@ export async function detectExternalProgrammingTrackWorkouts(
 		return []
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	// Get scheduled workout instances with track workouts and programming tracks
 	const rows = await db
@@ -394,7 +394,7 @@ export async function isTeamSubscribedToProgrammingTrack(
 ): Promise<boolean> {
 	console.log("🔍 Checking team subscription:", { teamId, trackId })
 
-	const db = getDd()
+	const db = getDb()
 	const result = await db
 		.select({ trackId: teamProgrammingTracksTable.trackId })
 		.from(teamProgrammingTracksTable)
@@ -423,7 +423,7 @@ export async function isWorkoutInTeamSubscribedTrack(
 		workoutId,
 	})
 
-	const db = getDd()
+	const db = getDb()
 
 	// Find track workouts that contain this workout and check if team is subscribed to those tracks
 	const result = await db
@@ -466,7 +466,7 @@ export async function getUserProgrammingTracks(userTeamIds: string[]): Promise<
 		return []
 	}
 
-	const db = getDd()
+	const db = getDb()
 	const tracks = await db
 		.select({
 			trackId: programmingTracksTable.id,

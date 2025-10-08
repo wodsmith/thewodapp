@@ -3,7 +3,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { resetPasswordSchema } from "@/schemas/reset-password.schema"
 import { getResetTokenKey } from "@/utils/auth-utils"
@@ -14,7 +14,7 @@ export const resetPasswordAction = createServerAction()
 	.input(resetPasswordSchema)
 	.handler(async ({ input }) => {
 		return withRateLimit(async () => {
-			const db = getDd()
+			const db = getDb()
 			const { env } = getCloudflareContext()
 
 			if (!env?.NEXT_INC_CACHE_KV) {

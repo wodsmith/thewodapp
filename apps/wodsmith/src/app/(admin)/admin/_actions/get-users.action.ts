@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { requireAdmin } from "@/utils/auth"
 import { PAGE_SIZE_OPTIONS } from "../admin-constants"
@@ -23,7 +23,7 @@ export const getUsersAction = createServerAction()
 	.handler(async ({ input }) => {
 		await requireAdmin()
 
-		const db = getDd()
+		const db = getDb()
 		const { page, pageSize, emailFilter } = input
 
 		// Calculate offset

@@ -47,7 +47,14 @@ export interface FeatureMetadata {
 	id: FeatureId
 	name: string
 	description: string
-	category: "workouts" | "programming" | "scaling" | "ai" | "team" | "integration" | "analytics"
+	category:
+		| "workouts"
+		| "programming"
+		| "scaling"
+		| "ai"
+		| "team"
+		| "integration"
+		| "analytics"
 	priority: "high" | "medium" | "low"
 }
 

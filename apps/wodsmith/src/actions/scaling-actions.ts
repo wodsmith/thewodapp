@@ -167,7 +167,10 @@ export const createScalingGroupAction = createServerAction()
 			// Create the scaling levels
 			for (const level of input.levels) {
 				if (!group) {
-					throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create scaling group")
+					throw new ZSAError(
+						"INTERNAL_SERVER_ERROR",
+						"Failed to create scaling group",
+					)
 				}
 				await createScalingLevelServer({
 					teamId: input.teamId,
@@ -182,7 +185,10 @@ export const createScalingGroupAction = createServerAction()
 			revalidatePath("/workouts")
 
 			if (!group) {
-				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create scaling group")
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					"Failed to create scaling group",
+				)
 			}
 
 			return { success: true, data: { id: group.id } }

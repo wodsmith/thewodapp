@@ -1,7 +1,7 @@
 import "server-only"
 import { count, countDistinct, eq, or } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { teamMembershipTable, workouts } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 
@@ -23,7 +23,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 	const userId = session.userId
 
 	// Get all teams that the current user is a member of
