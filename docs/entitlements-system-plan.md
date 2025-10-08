@@ -1558,15 +1558,16 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
     - `revokeEntitlementsBySource()` - invalidate affected user sessions
   - [ ] Test session updates happen in real-time
 
-### Phase 3: Migrate Existing Teams (Week 3) ✅
-**Goal**: Assign all existing teams to the Free plan
+### Phase 3: Admin UI & Team Migration (Week 3) ✅ COMPLETED
+**Goal**: Assign all existing teams to the Free plan and build admin interface
+**Commit**: d03e320
 
 - [x] Create migration script to:
   - Assign all teams to "free" plan
   - Create `team_subscription` records
   - Set trial periods if desired
-- [ ] Create admin UI to view/change team plans
-- [ ] Create admin UI to add entitlement overrides
+- [x] Create admin UI to view/change team plans
+- [x] Create admin UI to add entitlement overrides
 
 ### Phase 4: Gate Features (Week 4-5) ✅ COMPLETED
 **Goal**: Start enforcing entitlements across the application
