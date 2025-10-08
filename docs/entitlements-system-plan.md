@@ -1568,7 +1568,7 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 - [ ] Create admin UI to view/change team plans
 - [ ] Create admin UI to add entitlement overrides
 
-### Phase 4: Gate Features (Week 4-5) 🚧 In Progress
+### Phase 4: Gate Features (Week 4-5) ✅ COMPLETED
 **Goal**: Start enforcing entitlements across the application
 
 **Priority 1 - Core Monetization (MUST HAVE)**:
@@ -1576,8 +1576,8 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 - [x] Team member limit (`LIMITS.MAX_MEMBERS_PER_TEAM`) - Free: 5, Pro: 25, Enterprise: unlimited
 - [x] Programming track limit (`LIMITS.MAX_PROGRAMMING_TRACKS`) - Free: 5, Paid: unlimited
 - [x] Programming tracks feature (`FEATURES.PROGRAMMING_TRACKS`) - Pro+ only for unlimited
-- [ ] AI message limit (`LIMITS.AI_MESSAGES_PER_MONTH`) - Free: 10, Pro: 200, Enterprise: unlimited
-- [ ] AI workout generation feature (`FEATURES.AI_WORKOUT_GENERATION`) - Pro+ only
+- [x] AI message limit (`LIMITS.AI_MESSAGES_PER_MONTH`) - Free: 10, Pro: 200, Enterprise: unlimited
+- [x] AI workout generation feature (`FEATURES.AI_WORKOUT_GENERATION`) - Pro+ only
 
 **Priority 2 - Nice to Have**:
 - [ ] Custom branding (`FEATURES.CUSTOM_BRANDING`) - Enterprise feature
