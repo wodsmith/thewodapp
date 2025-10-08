@@ -1558,24 +1558,24 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
     - `updateTeamSubscription()` - invalidate all team member sessions
   - [ ] Test session updates happen in real-time
 
-### Phase 3: Migrate Existing Teams (Week 3)
+### Phase 3: Migrate Existing Teams (Week 3) ✅
 **Goal**: Assign all existing teams to the Free plan
 
-- [ ] Create migration script to:
+- [x] Create migration script to:
   - Assign all teams to "free" plan
   - Create `team_subscription` records
   - Set trial periods if desired
 - [ ] Create admin UI to view/change team plans
 - [ ] Create admin UI to add entitlement overrides
 
-### Phase 4: Gate Features (Week 4-5)
+### Phase 4: Gate Features (Week 4-5) 🚧 In Progress
 **Goal**: Start enforcing entitlements across the application
 
 **Priority 1 - Core Monetization (MUST HAVE)**:
-- [ ] Team creation limit (`LIMITS.MAX_TEAMS`) - Free: 1 (+ personal team), Paid: unlimited
-- [ ] Team member limit (`LIMITS.MAX_MEMBERS_PER_TEAM`) - Free: 5, Pro: 25, Enterprise: unlimited
-- [ ] Programming track limit (`LIMITS.MAX_PROGRAMMING_TRACKS`) - Free: 5, Paid: unlimited
-- [ ] Programming tracks feature (`FEATURES.PROGRAMMING_TRACKS`) - Pro+ only for unlimited
+- [x] Team creation limit (`LIMITS.MAX_TEAMS`) - Free: 1 (+ personal team), Paid: unlimited
+- [x] Team member limit (`LIMITS.MAX_MEMBERS_PER_TEAM`) - Free: 5, Pro: 25, Enterprise: unlimited
+- [x] Programming track limit (`LIMITS.MAX_PROGRAMMING_TRACKS`) - Free: 5, Paid: unlimited
+- [x] Programming tracks feature (`FEATURES.PROGRAMMING_TRACKS`) - Pro+ only for unlimited
 - [ ] AI message limit (`LIMITS.AI_MESSAGES_PER_MONTH`) - Free: 10, Pro: 200, Enterprise: unlimited
 - [ ] AI workout generation feature (`FEATURES.AI_WORKOUT_GENERATION`) - Pro+ only
 
