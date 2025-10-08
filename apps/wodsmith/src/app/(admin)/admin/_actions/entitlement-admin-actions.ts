@@ -18,14 +18,14 @@ import {
 	teamEntitlementOverrideTable,
 	teamTable,
 } from "@/db/schema"
-import { requireAdmin } from "@/utils/auth"
-import { invalidateTeamMembersSessions } from "@/utils/kv-session"
+// Note: requireAdmin is imported dynamically in each handler to avoid server-only import issues
 
 /**
  * Get all teams with their current plans
  */
 export const getAllTeamsWithPlansAction = createServerAction()
 	.handler(async () => {
+		const { requireAdmin } = await import("@/utils/auth")
 		await requireAdmin()
 
 		const db = getDb()
@@ -56,6 +56,9 @@ export const updateTeamPlanAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
+		const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
+
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -112,6 +115,9 @@ export const addEntitlementOverrideAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
+		const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
+
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -155,6 +161,7 @@ export const addEntitlementOverrideAction = createServerAction()
 export const getTeamOverridesAction = createServerAction()
 	.input(z.object({ teamId: z.string() }))
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
 		await requireAdmin()
 
 		const db = getDb()
@@ -173,6 +180,9 @@ export const getTeamOverridesAction = createServerAction()
 export const removeEntitlementOverrideAction = createServerAction()
 	.input(z.object({ overrideId: z.string() }))
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
+		const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
+
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -208,6 +218,7 @@ export const removeEntitlementOverrideAction = createServerAction()
  * Get all available plans
  */
 export const getAllPlansAction = createServerAction().handler(async () => {
+	const { requireAdmin } = await import("@/utils/auth")
 	await requireAdmin()
 
 	const db = getDb()
@@ -228,6 +239,7 @@ export const getAllPlansAction = createServerAction().handler(async () => {
  * Get all features
  */
 export const getAllFeaturesAction = createServerAction().handler(async () => {
+	const { requireAdmin } = await import("@/utils/auth")
 	await requireAdmin()
 
 	const db = getDb()
@@ -261,6 +273,7 @@ export const createFeatureAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -300,6 +313,7 @@ export const updateFeatureAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -327,6 +341,7 @@ export const updateFeatureAction = createServerAction()
  * Get all limits
  */
 export const getAllLimitsAction = createServerAction().handler(async () => {
+	const { requireAdmin } = await import("@/utils/auth")
 	await requireAdmin()
 
 	const db = getDb()
@@ -353,6 +368,7 @@ export const createLimitAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
@@ -385,11 +401,12 @@ export const updateLimitAction = createServerAction()
 		}),
 	)
 	.handler(async ({ input }) => {
+		const { requireAdmin } = await import("@/utils/auth")
 		const admin = (await requireAdmin())!
 
 		const db = getDb()
 
-		const { id, ...updateData } = input
+		const { id, ...updateData} = input
 
 		await db
 			.update(limitTable)

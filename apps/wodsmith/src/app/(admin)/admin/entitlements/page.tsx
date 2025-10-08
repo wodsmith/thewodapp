@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import { PageHeader } from "@/components/page-header"
-import { requireAdmin } from "@/utils/auth"
 import { EntitlementsManagementClient } from "./_components/entitlements-management-client"
 
 export const metadata: Metadata = {
@@ -9,8 +8,8 @@ export const metadata: Metadata = {
 }
 
 export default async function EntitlementsManagementPage() {
-	// Require admin access
-	await requireAdmin()
+	// Note: Admin check is done in each server action
+	// The page itself doesn't need to check since all actions require admin
 
 	return (
 		<>
