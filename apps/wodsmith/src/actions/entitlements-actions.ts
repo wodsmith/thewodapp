@@ -3,21 +3,10 @@
 import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
 import {
-  checkCanUseAI,
-	checkCanCreateTeam,
+	checkCanUseAI,
 	checkCanInviteMember,
 	checkCanCreateProgrammingTrack,
 } from "@/server/entitlements-checks"
-
-/**
- * Check if user can create more teams
- */
-export const checkCanCreateTeamAction = createServerAction().handler(
-	async () => {
-		const result = await checkCanCreateTeam()
-		return { success: true, data: result }
-	},
-)
 
 /**
  * Check if team can invite more members

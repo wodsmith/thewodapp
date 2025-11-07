@@ -4,13 +4,20 @@
  */
 import "server-only"
 
-import { and, eq, gt, isNull, or, } from "drizzle-orm"
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm"
 import type { Entitlement, PlanEntitlements } from "../db/schema"
 import {
 	entitlementTable,
+	featureTable,
+	limitTable,
+	planFeatureTable,
+	planLimitTable,
 	planTable,
+	programmingTracksTable,
 	SYSTEM_ROLES_ENUM,
 	teamEntitlementOverrideTable,
+	teamFeatureEntitlementTable,
+	teamLimitEntitlementTable,
 	teamMembershipTable,
 	teamTable,
 	teamUsageTable,
@@ -18,10 +25,9 @@ import {
 import { getDb } from "@/db"
 import { FEATURES } from "../config/features"
 import { LIMITS } from "../config/limits"
-import { PLANS } from "../config/plans"
 
 // ============================================================================
-// TEAM-LEVEL ENTITLEMENT CHECKING (Plan-Based)
+// TEAM-LEVEL ENTITLEMENT CHECKING (Snapshot-Based)
 // ============================================================================
 
 export interface EntitlementCheckResult {
@@ -33,7 +39,171 @@ export interface EntitlementCheckResult {
 }
 
 /**
- * Get team's current plan configuration
+ * Check if a team has snapshotted entitlements
+ * Returns false if team needs migration
+ */
+export async function teamHasSnapshot(teamId: string): Promise<boolean> {
+	const db = getDb()
+
+	const featureCount = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(teamFeatureEntitlementTable)
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+			),
+		)
+
+	const limitCount = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(teamLimitEntitlementTable)
+		.where(
+			and(
+				eq(teamLimitEntitlementTable.teamId, teamId),
+				eq(teamLimitEntitlementTable.isActive, 1),
+			),
+		)
+
+	return (featureCount[0]?.count ?? 0) > 0 || (limitCount[0]?.count ?? 0) > 0
+}
+
+/**
+ * Snapshot all teams' entitlements
+ * Useful for migrating existing teams to the snapshot system
+ */
+export async function snapshotAllTeams(): Promise<{
+	success: number
+	failed: number
+	errors: Array<{ teamId: string; error: string }>
+}> {
+	const db = getDb()
+
+	const teams = await db.select().from(teamTable)
+
+	let success = 0
+	let failed = 0
+	const errors: Array<{ teamId: string; error: string }> = []
+
+	for (const team of teams) {
+		try {
+			const hasSnapshot = await teamHasSnapshot(team.id)
+			if (hasSnapshot) {
+				console.log(`[Snapshot] Team ${team.id} already has snapshot, skipping`)
+				success++
+				continue
+			}
+
+			const planId = team.currentPlanId || "free"
+			await snapshotPlanEntitlements(team.id, planId)
+			success++
+		} catch (error) {
+			failed++
+			errors.push({
+				teamId: team.id,
+				error: error instanceof Error ? error.message : String(error),
+			})
+		}
+	}
+
+	return { success, failed, errors }
+}
+
+/**
+ * Snapshot a plan's entitlements to a team
+ * This is the key function that separates billing from entitlements
+ *
+ * When a team subscribes to a plan or changes plans, we snapshot the plan's
+ * current features and limits to team-specific tables. This ensures that
+ * future changes to plan definitions don't affect existing customers.
+ *
+ * @param teamId - Team to snapshot entitlements for
+ * @param planId - Plan to snapshot from
+ */
+export async function snapshotPlanEntitlements(
+	teamId: string,
+	planId: string,
+): Promise<void> {
+	const db = getDb()
+
+	// 1. Get the plan with all its features and limits
+	const plan = await db.query.planTable.findFirst({
+		where: eq(planTable.id, planId),
+		with: {
+			planFeatures: {
+				with: {
+					feature: true,
+				},
+			},
+			planLimits: {
+				with: {
+					limit: true,
+				},
+			},
+		},
+	})
+
+	if (!plan) {
+		throw new Error(`Plan ${planId} not found`)
+	}
+
+	// 2. Soft-delete existing team entitlements (preserve history)
+	await db
+		.update(teamFeatureEntitlementTable)
+		.set({ isActive: 0 })
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+			),
+		)
+
+	await db
+		.update(teamLimitEntitlementTable)
+		.set({ isActive: 0 })
+		.where(
+			and(
+				eq(teamLimitEntitlementTable.teamId, teamId),
+				eq(teamLimitEntitlementTable.isActive, 1),
+			),
+		)
+
+	// 3. Snapshot features
+	if (plan.planFeatures.length > 0) {
+		await db.insert(teamFeatureEntitlementTable).values(
+			plan.planFeatures.map((pf) => ({
+				teamId,
+				featureId: pf.featureId,
+				source: "plan" as const,
+				sourcePlanId: planId,
+			})),
+		)
+	}
+
+	// 4. Snapshot limits
+	if (plan.planLimits.length > 0) {
+		await db.insert(teamLimitEntitlementTable).values(
+			plan.planLimits.map((pl) => ({
+				teamId,
+				limitId: pl.limitId,
+				value: pl.value,
+				source: "plan" as const,
+				sourcePlanId: planId,
+			})),
+		)
+	}
+
+	console.log(
+		`[Entitlements] Snapshotted plan "${plan.name}" entitlements to team ${teamId}: ${plan.planFeatures.length} features, ${plan.planLimits.length} limits`,
+	)
+}
+
+/**
+ * Get team's current entitlements from their snapshot
+ * This queries team-specific entitlement tables, NOT the live plan definition
+ *
+ * IMPORTANT: This function returns what the team CURRENTLY HAS, which is
+ * separate from what their billing plan currently offers to new subscribers.
  */
 export async function getTeamPlan(teamId: string): Promise<{
 	id: string
@@ -46,38 +216,104 @@ export async function getTeamPlan(teamId: string): Promise<{
 		where: eq(teamTable.id, teamId),
 	})
 
-	const freePlan = PLANS.FREE
-	if (!freePlan) {
-		throw new Error("FREE plan configuration is missing")
-	}
+	// Default plan ID if none assigned (for display purposes only)
+	const planId = team?.currentPlanId || "free"
 
-	if (!team || !team.currentPlanId) {
-		// Default to free plan if no plan assigned
-		return {
-			id: "free",
-			name: "Free",
-			entitlements: freePlan.entitlements,
-		}
-	}
-
-	// Get plan from database
+	// Get plan metadata (name, etc.) - but NOT entitlements
 	const plan = await db.query.planTable.findFirst({
-		where: eq(planTable.id, team.currentPlanId),
+		where: eq(planTable.id, planId),
 	})
 
 	if (!plan) {
-		// Fallback to free plan
-		return {
-			id: "free",
-			name: "Free",
-			entitlements: freePlan.entitlements,
+		throw new Error(`Plan ${planId} not found in database. Run seed script first.`)
+	}
+
+	// Query team's SNAPSHOTTED features (not the plan's current features)
+	const teamFeatures = await db
+		.select({
+			featureKey: featureTable.key,
+		})
+		.from(teamFeatureEntitlementTable)
+		.innerJoin(
+			featureTable,
+			eq(teamFeatureEntitlementTable.featureId, featureTable.id),
+		)
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+				or(
+					isNull(teamFeatureEntitlementTable.expiresAt),
+					gt(teamFeatureEntitlementTable.expiresAt, new Date()),
+				),
+			),
+		)
+
+	// Query team's SNAPSHOTTED limits (not the plan's current limits)
+	const teamLimitsRaw = await db
+		.select({
+			limitKey: limitTable.key,
+			value: teamLimitEntitlementTable.value,
+		})
+		.from(teamLimitEntitlementTable)
+		.innerJoin(
+			limitTable,
+			eq(teamLimitEntitlementTable.limitId, limitTable.id),
+		)
+		.where(
+			and(
+				eq(teamLimitEntitlementTable.teamId, teamId),
+				eq(teamLimitEntitlementTable.isActive, 1),
+				or(
+					isNull(teamLimitEntitlementTable.expiresAt),
+					gt(teamLimitEntitlementTable.expiresAt, new Date()),
+				),
+			),
+		)
+
+	// FALLBACK: If no snapshot exists, use plan definition
+	// This handles teams created before the snapshot system was implemented
+	let entitlements: PlanEntitlements
+
+	if (teamFeatures.length === 0 && teamLimitsRaw.length === 0) {
+		console.warn(
+			`[Entitlements] Team ${teamId} has no snapshotted entitlements, falling back to plan definition. Consider running snapshotPlanEntitlements().`,
+		)
+
+		// Query plan's current features and limits as fallback
+		const planFeatures = await db
+			.select({
+				featureKey: featureTable.key,
+			})
+			.from(planFeatureTable)
+			.innerJoin(featureTable, eq(planFeatureTable.featureId, featureTable.id))
+			.where(eq(planFeatureTable.planId, plan.id))
+
+		const planLimitsRaw = await db
+			.select({
+				limitKey: limitTable.key,
+				value: planLimitTable.value,
+			})
+			.from(planLimitTable)
+			.innerJoin(limitTable, eq(planLimitTable.limitId, limitTable.id))
+			.where(eq(planLimitTable.planId, plan.id))
+
+		entitlements = {
+			features: planFeatures.map((f) => f.featureKey),
+			limits: Object.fromEntries(planLimitsRaw.map((l) => [l.limitKey, l.value])),
+		}
+	} else {
+		// Build entitlements object from snapshots
+		entitlements = {
+			features: teamFeatures.map((f) => f.featureKey),
+			limits: Object.fromEntries(teamLimitsRaw.map((l) => [l.limitKey, l.value])),
 		}
 	}
 
 	return {
 		id: plan.id,
 		name: plan.name,
-		entitlements: plan.entitlements as PlanEntitlements,
+		entitlements,
 	}
 }
 
@@ -177,70 +413,6 @@ export async function requireLimit(
 
 	// Increment usage after check passes
 	await incrementUsage(teamId, limitKey, incrementBy)
-}
-
-/**
- * Special limit check for MAX_TEAMS that excludes personal teams
- * Personal teams (isPersonalTeam = true) do NOT count toward the limit
- */
-export async function requireLimitExcludingPersonalTeams(
-	userId: string,
-	limitKey: string,
-): Promise<void> {
-	if (limitKey !== LIMITS.MAX_TEAMS) {
-		throw new Error("This function only applies to MAX_TEAMS limit")
-	}
-
-	const db = getDb()
-
-	// Get all teams where the user is owner via team_membership
-	const ownedTeamMemberships = await db.query.teamMembershipTable.findMany({
-		where: and(
-			eq(teamMembershipTable.userId, userId),
-			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
-			eq(teamMembershipTable.isSystemRole, 1),
-		),
-		with: {
-			team: true,
-		},
-	})
-
-	// Filter out personal teams to count only non-personal teams
-	const nonPersonalTeams = ownedTeamMemberships.filter(
-		(membership) => !membership.team?.isPersonalTeam,
-	)
-
-	// Get user's plan from their first team (personal or otherwise)
-	const firstTeam = ownedTeamMemberships[0]?.team
-	const freePlan = PLANS.FREE
-	if (!freePlan) {
-		throw new Error("FREE plan configuration is missing")
-	}
-
-	let maxTeams = freePlan.entitlements.limits[limitKey]
-
-	if (firstTeam) {
-		const userPlan = await getTeamPlan(firstTeam.id)
-		maxTeams = userPlan.entitlements.limits[limitKey]
-	}
-
-	// Ensure maxTeams is defined
-	if (maxTeams === undefined) {
-		throw new Error(`Limit ${limitKey} not found in plan configuration`)
-	}
-
-	// -1 means unlimited
-	if (maxTeams === -1) {
-		return
-	}
-
-	const currentTeamCount = nonPersonalTeams.length
-
-	if (currentTeamCount >= maxTeams) {
-		throw new Error(
-			`You've reached your limit of ${maxTeams} team(s). Upgrade to create more teams. (Personal teams don't count toward this limit)`,
-		)
-	}
 }
 
 /**
@@ -511,31 +683,290 @@ export async function canUseAI(
 }
 
 // ============================================================================
+// TEAM ENTITLEMENT SNAPSHOT QUERIES
+// ============================================================================
+
+/**
+ * Get team's complete entitlement snapshot with full details
+ * This shows exactly what the team has access to (their snapshot)
+ */
+export async function getTeamEntitlementSnapshot(teamId: string) {
+	const db = getDb()
+
+	// Get team info
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, teamId),
+	})
+
+	if (!team) {
+		throw new Error(`Team ${teamId} not found`)
+	}
+
+	// Get plan info (for display only - not used for entitlement checks)
+	const plan = team.currentPlanId
+		? await db.query.planTable.findFirst({
+				where: eq(planTable.id, team.currentPlanId),
+			})
+		: null
+
+	// Get team's snapshotted features with full details
+	const features = await db
+		.select({
+			id: teamFeatureEntitlementTable.id,
+			featureKey: featureTable.key,
+			featureName: featureTable.name,
+			featureDescription: featureTable.description,
+			featureCategory: featureTable.category,
+			source: teamFeatureEntitlementTable.source,
+			sourcePlanId: teamFeatureEntitlementTable.sourcePlanId,
+			expiresAt: teamFeatureEntitlementTable.expiresAt,
+			createdAt: teamFeatureEntitlementTable.createdAt,
+		})
+		.from(teamFeatureEntitlementTable)
+		.innerJoin(
+			featureTable,
+			eq(teamFeatureEntitlementTable.featureId, featureTable.id),
+		)
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+				or(
+					isNull(teamFeatureEntitlementTable.expiresAt),
+					gt(teamFeatureEntitlementTable.expiresAt, new Date()),
+				),
+			),
+		)
+		.orderBy(featureTable.category, featureTable.name)
+
+	// Get team's snapshotted limits with full details
+	const limits = await db
+		.select({
+			id: teamLimitEntitlementTable.id,
+			limitKey: limitTable.key,
+			limitName: limitTable.name,
+			limitDescription: limitTable.description,
+			limitUnit: limitTable.unit,
+			limitResetPeriod: limitTable.resetPeriod,
+			value: teamLimitEntitlementTable.value,
+			source: teamLimitEntitlementTable.source,
+			sourcePlanId: teamLimitEntitlementTable.sourcePlanId,
+			expiresAt: teamLimitEntitlementTable.expiresAt,
+			createdAt: teamLimitEntitlementTable.createdAt,
+		})
+		.from(teamLimitEntitlementTable)
+		.innerJoin(
+			limitTable,
+			eq(teamLimitEntitlementTable.limitId, limitTable.id),
+		)
+		.where(
+			and(
+				eq(teamLimitEntitlementTable.teamId, teamId),
+				eq(teamLimitEntitlementTable.isActive, 1),
+				or(
+					isNull(teamLimitEntitlementTable.expiresAt),
+					gt(teamLimitEntitlementTable.expiresAt, new Date()),
+				),
+			),
+		)
+		.orderBy(limitTable.name)
+
+	// Get current usage for limits (filter by current period)
+	const now = new Date()
+	const periodStart = getStartOfMonth(now)
+
+	const usageData = await db
+		.select({
+			limitKey: teamUsageTable.limitKey,
+			currentValue: teamUsageTable.currentValue,
+		})
+		.from(teamUsageTable)
+		.where(
+			and(
+				eq(teamUsageTable.teamId, teamId),
+				eq(teamUsageTable.periodStart, periodStart),
+			),
+		)
+
+	const usageMap = new Map(usageData.map((u) => [u.limitKey, u.currentValue]))
+
+	// Calculate countable limits directly from database
+	// These limits don't use team_usage table - they count actual records
+	const memberCount = await db
+		.select({ value: sql<number>`count(*)` })
+		.from(teamMembershipTable)
+		.where(eq(teamMembershipTable.teamId, teamId))
+
+	const adminCount = await db
+		.select({ value: sql<number>`count(*)` })
+		.from(teamMembershipTable)
+		.where(
+			and(
+				eq(teamMembershipTable.teamId, teamId),
+				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.ADMIN),
+			),
+		)
+
+	const trackCount = await db
+		.select({ value: sql<number>`count(*)` })
+		.from(programmingTracksTable)
+		.where(eq(programmingTracksTable.ownerTeamId, teamId))
+
+	// Map countable limits
+	const countableUsage: Record<string, number> = {
+		[LIMITS.MAX_MEMBERS_PER_TEAM]: memberCount[0]?.value ?? 0,
+		[LIMITS.MAX_ADMINS]: adminCount[0]?.value ?? 0,
+		[LIMITS.MAX_PROGRAMMING_TRACKS]: trackCount[0]?.value ?? 0,
+	}
+
+	// Enrich limits with usage data (prioritize countable over team_usage)
+	const limitsWithUsage = limits.map((limit) => ({
+		...limit,
+		currentUsage:
+			countableUsage[limit.limitKey] ?? usageMap.get(limit.limitKey) ?? 0,
+	}))
+
+	return {
+		team: {
+			id: team.id,
+			name: team.name,
+			currentPlanId: team.currentPlanId,
+			currentPlanName: plan?.name ?? "No Plan",
+		},
+		features,
+		limits: limitsWithUsage,
+	}
+}
+
+// ============================================================================
+// DATABASE QUERIES FOR FEATURES AND LIMITS METADATA
+// ============================================================================
+
+/**
+ * Get all features from database
+ */
+export async function getAllFeatures() {
+	const db = getDb()
+	return await db.query.featureTable.findMany({
+		where: eq(featureTable.isActive, 1),
+	})
+}
+
+/**
+ * Get a specific feature by key
+ */
+export async function getFeatureByKey(key: string) {
+	const db = getDb()
+	return await db.query.featureTable.findFirst({
+		where: and(eq(featureTable.key, key), eq(featureTable.isActive, 1)),
+	})
+}
+
+/**
+ * Get all limits from database
+ */
+export async function getAllLimits() {
+	const db = getDb()
+	return await db.query.limitTable.findMany({
+		where: eq(limitTable.isActive, 1),
+	})
+}
+
+/**
+ * Get a specific limit by key
+ */
+export async function getLimitByKey(key: string) {
+	const db = getDb()
+	return await db.query.limitTable.findFirst({
+		where: and(eq(limitTable.key, key), eq(limitTable.isActive, 1)),
+	})
+}
+
+/**
+ * Get all plans from database
+ */
+export async function getAllPlans() {
+	const db = getDb()
+	return await db.query.planTable.findMany({
+		where: eq(planTable.isActive, 1),
+		with: {
+			planFeatures: {
+				with: {
+					feature: true,
+				},
+			},
+			planLimits: {
+				with: {
+					limit: true,
+				},
+			},
+		},
+	})
+}
+
+/**
+ * Get all public plans (available for signup)
+ */
+export async function getPublicPlans() {
+	const db = getDb()
+	return await db
+		.select()
+		.from(planTable)
+		.where(and(eq(planTable.isActive, 1), eq(planTable.isPublic, 1)))
+		.orderBy(planTable.sortOrder)
+}
+
+/**
+ * Get a specific plan by ID with all entitlements
+ */
+export async function getPlanById(planId: string) {
+	const db = getDb()
+	return await db.query.planTable.findFirst({
+		where: eq(planTable.id, planId),
+		with: {
+			planFeatures: {
+				with: {
+					feature: true,
+				},
+			},
+			planLimits: {
+				with: {
+					limit: true,
+				},
+			},
+		},
+	})
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 /**
  * Get team's limit for a specific resource
+ * Checks overrides first, then snapshotted entitlements, then add-ons
  */
-async function getTeamLimit(teamId: string, limitKey: string): Promise<number> {
+export async function getTeamLimit(teamId: string, limitKey: string): Promise<number> {
 	// 1. Check for manual override first
 	const override = await getLimitOverride(teamId, limitKey)
 	if (override !== null) {
 		return override
 	}
 
-	// 2. Get plan limit
+	// 2. Get plan limit from snapshotted entitlements
 	const plan = await getTeamPlan(teamId)
 	const planLimit = plan.entitlements.limits[limitKey]
-	if (planLimit !== undefined) {
-		return planLimit
-	}
 
 	// 3. Check add-ons that modify this limit
 	const addonModifier = await getAddonLimitModifier(teamId, limitKey)
 
-	// 4. Return plan limit + addon modifier
-	return (planLimit ?? 0) + addonModifier
+	// 4. Return plan limit + addon modifier, or just addon if no plan limit
+	if (planLimit !== undefined && planLimit !== null) {
+		return planLimit + addonModifier
+	}
+
+	// If no plan limit found, return only addon modifier (or 0 if no addons)
+	return addonModifier
 }
 
 /**
