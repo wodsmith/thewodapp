@@ -46,7 +46,11 @@ export const createEntitlementId = () => `ent_${createId()}`
 export const createFeatureId = () => `feat_${createId()}`
 export const createLimitId = () => `lim_${createId()}`
 export const createPlanId = () => `plan_${createId()}`
+export const createPlanFeatureId = () => `pfeat_${createId()}`
+export const createPlanLimitId = () => `plim_${createId()}`
 export const createTeamSubscriptionId = () => `tsub_${createId()}`
 export const createTeamAddonId = () => `tadd_${createId()}`
 export const createTeamEntitlementOverrideId = () => `tover_${createId()}`
 export const createTeamUsageId = () => `tusage_${createId()}`
+export const createTeamFeatureEntitlementId = () => `tfent_${createId()}`
+export const createTeamLimitEntitlementId = () => `tlent_${createId()}`

@@ -8,10 +8,14 @@ import {
 	createFeatureId,
 	createLimitId,
 	createPlanId,
+	createPlanFeatureId,
+	createPlanLimitId,
 	createTeamAddonId,
 	createTeamEntitlementOverrideId,
 	createTeamSubscriptionId,
 	createTeamUsageId,
+	createTeamFeatureEntitlementId,
+	createTeamLimitEntitlementId,
 } from "./common"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
@@ -105,9 +109,6 @@ export const featureTable = sqliteTable("feature", {
 			"analytics",
 		],
 	}).notNull(),
-	priority: text({ enum: ["high", "medium", "low"] })
-		.default("medium")
-		.notNull(),
 	isActive: integer().default(1).notNull(),
 })
 
@@ -124,9 +125,6 @@ export const limitTable = sqliteTable("limit", {
 	unit: text({ length: 50 }).notNull(), // e.g., "teams", "MB", "messages"
 	resetPeriod: text({ enum: ["monthly", "yearly", "never"] })
 		.default("never")
-		.notNull(),
-	priority: text({ enum: ["high", "medium", "low"] })
-		.default("medium")
 		.notNull(),
 	isActive: integer().default(1).notNull(),
 })
@@ -150,12 +148,61 @@ export const planTable = sqliteTable("plan", {
 	isActive: integer().default(1).notNull(),
 	isPublic: integer().default(1).notNull(), // can users sign up for this?
 	sortOrder: integer().default(0).notNull(),
-	// JSON field storing the plan's entitlements
-	entitlements: text({ mode: "json" }).notNull().$type<PlanEntitlements>(),
+	// DEPRECATED: JSON field storing the plan's entitlements (use junction tables instead)
+	entitlements: text({ mode: "json" }).$type<PlanEntitlements>(),
 	// Stripe-related fields
 	stripePriceId: text({ length: 255 }),
 	stripeProductId: text({ length: 255 }),
 })
+
+// 5a. Plan Feature Junction Table - Links plans to features
+export const planFeatureTable = sqliteTable(
+	"plan_feature",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createPlanFeatureId())
+			.notNull(),
+		planId: text()
+			.notNull()
+			.references(() => planTable.id, { onDelete: "cascade" }),
+		featureId: text()
+			.notNull()
+			.references(() => featureTable.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		index("plan_feature_plan_id_idx").on(table.planId),
+		index("plan_feature_feature_id_idx").on(table.featureId),
+		// Unique constraint to prevent duplicate feature assignments
+		index("plan_feature_unique_idx").on(table.planId, table.featureId),
+	],
+)
+
+// 5b. Plan Limit Junction Table - Links plans to limits with values
+export const planLimitTable = sqliteTable(
+	"plan_limit",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createPlanLimitId())
+			.notNull(),
+		planId: text()
+			.notNull()
+			.references(() => planTable.id, { onDelete: "cascade" }),
+		limitId: text()
+			.notNull()
+			.references(() => limitTable.id, { onDelete: "cascade" }),
+		value: integer().notNull(), // -1 for unlimited
+	},
+	(table) => [
+		index("plan_limit_plan_id_idx").on(table.planId),
+		index("plan_limit_limit_id_idx").on(table.limitId),
+		// Unique constraint to prevent duplicate limit assignments
+		index("plan_limit_unique_idx").on(table.planId, table.limitId),
+	],
+)
 
 // 4. Team Subscription Table - Track team subscriptions
 export const teamSubscriptionTable = sqliteTable(
@@ -269,6 +316,89 @@ export const teamUsageTable = sqliteTable(
 	],
 )
 
+// 8. Team Feature Entitlement Table - Snapshot of features a team has access to
+// This is the SOURCE OF TRUTH for what features a team currently has
+// Created when a team subscribes to a plan or when plan is changed
+export const teamFeatureEntitlementTable = sqliteTable(
+	"team_feature_entitlement",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createTeamFeatureEntitlementId())
+			.notNull(),
+		teamId: text()
+			.notNull()
+			.references(() => teamTable.id, { onDelete: "cascade" }),
+		featureId: text()
+			.notNull()
+			.references(() => featureTable.id, { onDelete: "cascade" }),
+		// Track where this entitlement came from
+		source: text({
+			enum: ["plan", "addon", "override"],
+		})
+			.default("plan")
+			.notNull(),
+		// Optional reference to the plan this came from (for audit trail)
+		sourcePlanId: text().references(() => planTable.id),
+		// Optional expiration (for trials, temporary grants)
+		expiresAt: integer({ mode: "timestamp" }),
+		// Track if this snapshot is currently active (for history preservation)
+		isActive: integer().default(1).notNull(),
+	},
+	(table) => [
+		index("team_feature_entitlement_team_id_idx").on(table.teamId),
+		index("team_feature_entitlement_feature_id_idx").on(table.featureId),
+		// Only one active entitlement per team/feature combination
+		index("team_feature_entitlement_unique_active_idx").on(
+			table.teamId,
+			table.featureId,
+		),
+	],
+)
+
+// 9. Team Limit Entitlement Table - Snapshot of limits a team has
+// This is the SOURCE OF TRUTH for what limits a team currently has
+// Created when a team subscribes to a plan or when plan is changed
+export const teamLimitEntitlementTable = sqliteTable(
+	"team_limit_entitlement",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createTeamLimitEntitlementId())
+			.notNull(),
+		teamId: text()
+			.notNull()
+			.references(() => teamTable.id, { onDelete: "cascade" }),
+		limitId: text()
+			.notNull()
+			.references(() => limitTable.id, { onDelete: "cascade" }),
+		value: integer().notNull(), // -1 for unlimited
+		// Track where this entitlement came from
+		source: text({
+			enum: ["plan", "addon", "override"],
+		})
+			.default("plan")
+			.notNull(),
+		// Optional reference to the plan this came from (for audit trail)
+		sourcePlanId: text().references(() => planTable.id),
+		// Optional expiration (for trials, temporary grants)
+		expiresAt: integer({ mode: "timestamp" }),
+		// Track if this snapshot is currently active (for history preservation)
+		isActive: integer().default(1).notNull(),
+	},
+	(table) => [
+		index("team_limit_entitlement_team_id_idx").on(table.teamId),
+		index("team_limit_entitlement_limit_id_idx").on(table.limitId),
+		// Only one active entitlement per team/limit combination
+		index("team_limit_entitlement_unique_active_idx").on(
+			table.teamId,
+			table.limitId,
+		),
+	],
+)
+
 // Relations
 export const entitlementTypeRelations = relations(
 	entitlementTypeTable,
@@ -292,8 +422,40 @@ export const entitlementRelations = relations(entitlementTable, ({ one }) => ({
 	}),
 }))
 
+export const featureRelations = relations(featureTable, ({ many }) => ({
+	planFeatures: many(planFeatureTable),
+}))
+
+export const limitRelations = relations(limitTable, ({ many }) => ({
+	planLimits: many(planLimitTable),
+}))
+
 export const planRelations = relations(planTable, ({ many }) => ({
 	teamSubscriptions: many(teamSubscriptionTable),
+	planFeatures: many(planFeatureTable),
+	planLimits: many(planLimitTable),
+}))
+
+export const planFeatureRelations = relations(planFeatureTable, ({ one }) => ({
+	plan: one(planTable, {
+		fields: [planFeatureTable.planId],
+		references: [planTable.id],
+	}),
+	feature: one(featureTable, {
+		fields: [planFeatureTable.featureId],
+		references: [featureTable.id],
+	}),
+}))
+
+export const planLimitRelations = relations(planLimitTable, ({ one }) => ({
+	plan: one(planTable, {
+		fields: [planLimitTable.planId],
+		references: [planTable.id],
+	}),
+	limit: one(limitTable, {
+		fields: [planLimitTable.limitId],
+		references: [limitTable.id],
+	}),
 }))
 
 export const teamSubscriptionRelations = relations(
@@ -338,15 +500,59 @@ export const teamUsageRelations = relations(teamUsageTable, ({ one }) => ({
 	}),
 }))
 
+export const teamFeatureEntitlementRelations = relations(
+	teamFeatureEntitlementTable,
+	({ one }) => ({
+		team: one(teamTable, {
+			fields: [teamFeatureEntitlementTable.teamId],
+			references: [teamTable.id],
+		}),
+		feature: one(featureTable, {
+			fields: [teamFeatureEntitlementTable.featureId],
+			references: [featureTable.id],
+		}),
+		sourcePlan: one(planTable, {
+			fields: [teamFeatureEntitlementTable.sourcePlanId],
+			references: [planTable.id],
+		}),
+	}),
+)
+
+export const teamLimitEntitlementRelations = relations(
+	teamLimitEntitlementTable,
+	({ one }) => ({
+		team: one(teamTable, {
+			fields: [teamLimitEntitlementTable.teamId],
+			references: [teamTable.id],
+		}),
+		limit: one(limitTable, {
+			fields: [teamLimitEntitlementTable.limitId],
+			references: [limitTable.id],
+		}),
+		sourcePlan: one(planTable, {
+			fields: [teamLimitEntitlementTable.sourcePlanId],
+			references: [planTable.id],
+		}),
+	}),
+)
+
 // Type exports
 export type EntitlementType = InferSelectModel<typeof entitlementTypeTable>
 export type Entitlement = InferSelectModel<typeof entitlementTable>
 export type Feature = InferSelectModel<typeof featureTable>
 export type Limit = InferSelectModel<typeof limitTable>
 export type Plan = InferSelectModel<typeof planTable>
+export type PlanFeature = InferSelectModel<typeof planFeatureTable>
+export type PlanLimit = InferSelectModel<typeof planLimitTable>
 export type TeamSubscription = InferSelectModel<typeof teamSubscriptionTable>
 export type TeamAddon = InferSelectModel<typeof teamAddonTable>
 export type TeamEntitlementOverride = InferSelectModel<
 	typeof teamEntitlementOverrideTable
 >
 export type TeamUsage = InferSelectModel<typeof teamUsageTable>
+export type TeamFeatureEntitlement = InferSelectModel<
+	typeof teamFeatureEntitlementTable
+>
+export type TeamLimitEntitlement = InferSelectModel<
+	typeof teamLimitEntitlementTable
+>
