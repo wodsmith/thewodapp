@@ -12,7 +12,6 @@ export const SITE_DOMAIN = new URL(SITE_URL).hostname
 export const PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours
 export const EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours
 export const MAX_SESSIONS_PER_USER = 5
-export const MAX_TEAMS_CREATED_PER_USER = 3
 export const MAX_TEAMS_JOINED_PER_USER = 10
 export const SESSION_COOKIE_NAME = "session"
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "google-oauth-state"
