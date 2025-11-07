@@ -15,6 +15,8 @@ import { getDb } from "@/db"
 import {
 	featureTable,
 	limitTable,
+	planFeatureTable,
+	planLimitTable,
 	planTable,
 	teamEntitlementOverrideTable,
 	teamTable,
@@ -140,11 +142,16 @@ export const updateTeamPlanAction = createServerAction()
 			throw new ZSAError("NOT_FOUND", "Team not found")
 		}
 
-		// Update team's plan
+		// Update team's plan (billing reference)
 		await db
 			.update(teamTable)
 			.set({ currentPlanId: input.planId })
 			.where(eq(teamTable.id, input.teamId))
+
+		// CRITICAL: Snapshot the plan's entitlements to the team
+		// This separates billing (plan) from entitlements (what team actually gets)
+		const { snapshotPlanEntitlements } = await import("@/server/entitlements")
+		await snapshotPlanEntitlements(input.teamId, input.planId)
 
 		// Invalidate all team members' sessions to refresh plan data
 		await invalidateTeamMembersSessions(input.teamId)
@@ -284,6 +291,20 @@ export const getAllPlansAction = createServerAction().handler(async () => {
 	return { success: true, data: plans }
 })
 
+/**
+ * Get team's entitlement snapshot (features, limits, usage)
+ */
+export const getTeamEntitlementSnapshotAction = createServerAction()
+	.input(z.object({ teamId: z.string() }))
+	.handler(async ({ input }) => {
+		await requireAdmin()
+
+		const { getTeamEntitlementSnapshot } = await import("@/server/entitlements")
+		const snapshot = await getTeamEntitlementSnapshot(input.teamId)
+
+		return { success: true, data: snapshot }
+	})
+
 // ============================================================================
 // Feature Management Actions
 // ============================================================================
@@ -321,7 +342,6 @@ export const createFeatureAction = createServerAction()
 				"integration",
 				"analytics",
 			]),
-			priority: z.enum(["high", "medium", "low"]).default("medium"),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -360,7 +380,6 @@ export const updateFeatureAction = createServerAction()
 				"integration",
 				"analytics",
 			]),
-			priority: z.enum(["high", "medium", "low"]),
 			isActive: z.boolean(),
 		}),
 	)
@@ -415,7 +434,6 @@ export const createLimitAction = createServerAction()
 			description: z.string().optional(),
 			unit: z.string().min(1),
 			resetPeriod: z.enum(["monthly", "yearly", "never"]).default("never"),
-			priority: z.enum(["high", "medium", "low"]).default("medium"),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -447,7 +465,6 @@ export const updateLimitAction = createServerAction()
 			description: z.string().optional(),
 			unit: z.string().min(1),
 			resetPeriod: z.enum(["monthly", "yearly", "never"]),
-			priority: z.enum(["high", "medium", "low"]),
 			isActive: z.boolean(),
 		}),
 	)
@@ -470,4 +487,195 @@ export const updateLimitAction = createServerAction()
 		console.log(`[Admin] ${admin.user.email} updated limit: ${id}`)
 
 		return { success: true, message: "Limit updated successfully" }
+	})
+
+// ============================================================================
+// Plan Configuration Actions
+// ============================================================================
+
+/**
+ * Get plan with all its features and limits
+ */
+export const getPlanConfigAction = createServerAction()
+	.input(z.object({ planId: z.string() }))
+	.handler(async ({ input }) => {
+		await requireAdmin()
+
+		const db = getDb()
+
+		const plan = await db.query.planTable.findFirst({
+			where: eq(planTable.id, input.planId),
+			with: {
+				planFeatures: {
+					with: {
+						feature: true,
+					},
+				},
+				planLimits: {
+					with: {
+						limit: true,
+					},
+				},
+			},
+		})
+
+		if (!plan) {
+			throw new ZSAError("NOT_FOUND", "Plan not found")
+		}
+
+		return { success: true, data: plan }
+	})
+
+/**
+ * Assign feature to plan
+ */
+export const assignFeatureToPlanAction = createServerAction()
+	.input(
+		z.object({
+			planId: z.string(),
+			featureId: z.string(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
+
+		const db = getDb()
+
+		// Check if already exists
+		const existing = await db.query.planFeatureTable.findFirst({
+			where: and(
+				eq(planFeatureTable.planId, input.planId),
+				eq(planFeatureTable.featureId, input.featureId),
+			),
+		})
+
+		if (existing) {
+			throw new ZSAError("CONFLICT", "Feature already assigned to this plan")
+		}
+
+		await db.insert(planFeatureTable).values({
+			planId: input.planId,
+			featureId: input.featureId,
+		})
+
+		console.log(
+			`[Admin] ${admin.user.email} assigned feature ${input.featureId} to plan ${input.planId}`,
+		)
+
+		return { success: true, message: "Feature assigned to plan" }
+	})
+
+/**
+ * Remove feature from plan
+ */
+export const removeFeatureFromPlanAction = createServerAction()
+	.input(z.object({ planFeatureId: z.string() }))
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
+
+		const db = getDb()
+
+		await db
+			.delete(planFeatureTable)
+			.where(eq(planFeatureTable.id, input.planFeatureId))
+
+		console.log(
+			`[Admin] ${admin.user.email} removed plan feature ${input.planFeatureId}`,
+		)
+
+		return { success: true, message: "Feature removed from plan" }
+	})
+
+/**
+ * Assign limit to plan
+ */
+export const assignLimitToPlanAction = createServerAction()
+	.input(
+		z.object({
+			planId: z.string(),
+			limitId: z.string(),
+			value: z.number().int(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
+
+		const db = getDb()
+
+		// Check if already exists
+		const existing = await db.query.planLimitTable.findFirst({
+			where: and(
+				eq(planLimitTable.planId, input.planId),
+				eq(planLimitTable.limitId, input.limitId),
+			),
+		})
+
+		if (existing) {
+			throw new ZSAError("CONFLICT", "Limit already assigned to this plan")
+		}
+
+		await db.insert(planLimitTable).values({
+			planId: input.planId,
+			limitId: input.limitId,
+			value: input.value,
+		})
+
+		console.log(
+			`[Admin] ${admin.user.email} assigned limit ${input.limitId} to plan ${input.planId} with value ${input.value}`,
+		)
+
+		return { success: true, message: "Limit assigned to plan" }
+	})
+
+/**
+ * Update limit value for plan
+ */
+export const updatePlanLimitValueAction = createServerAction()
+	.input(
+		z.object({
+			planLimitId: z.string(),
+			value: z.number().int(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
+
+		const db = getDb()
+
+		await db
+			.update(planLimitTable)
+			.set({ value: input.value })
+			.where(eq(planLimitTable.id, input.planLimitId))
+
+		console.log(
+			`[Admin] ${admin.user.email} updated plan limit ${input.planLimitId} to ${input.value}`,
+		)
+
+		return { success: true, message: "Limit value updated" }
+	})
+
+/**
+ * Remove limit from plan
+ */
+export const removeLimitFromPlanAction = createServerAction()
+	.input(z.object({ planLimitId: z.string() }))
+	.handler(async ({ input }) => {
+		const admin = await requireAdmin()
+		if (!admin) throw new ZSAError("NOT_AUTHORIZED", "Admin access required")
+
+		const db = getDb()
+
+		await db
+			.delete(planLimitTable)
+			.where(eq(planLimitTable.id, input.planLimitId))
+
+		console.log(
+			`[Admin] ${admin.user.email} removed plan limit ${input.planLimitId}`,
+		)
+
+		return { success: true, message: "Limit removed from plan" }
 	})

@@ -10,6 +10,7 @@ export {
 	removeEntitlementOverrideAction,
 	getTeamOverridesAction,
 	getAllPlansAction,
+	getTeamEntitlementSnapshotAction,
 	getAllFeaturesAction,
 	createFeatureAction,
 	updateFeatureAction,

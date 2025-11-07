@@ -22,10 +22,10 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { FEATURES } from "@/config/features"
-import { LIMITS } from "@/config/limits"
 import {
 	addEntitlementOverrideAction,
+	getAllFeaturesAction,
+	getAllLimitsAction,
 	getTeamOverridesAction,
 	removeEntitlementOverrideAction,
 } from "../../_actions"
@@ -56,6 +56,13 @@ export function EntitlementOverridesDialog({
 		data: overridesData,
 		isPending: isLoadingOverrides,
 	} = useServerAction(getTeamOverridesAction)
+
+	const { execute: fetchFeatures, data: featuresData } = useServerAction(
+		getAllFeaturesAction,
+	)
+
+	const { execute: fetchLimits, data: limitsData } =
+		useServerAction(getAllLimitsAction)
 
 	const { execute: addOverride, isPending: isAdding } = useServerAction(
 		addEntitlementOverrideAction,
@@ -102,8 +109,10 @@ export function EntitlementOverridesDialog({
 	useEffect(() => {
 		if (open) {
 			fetchOverrides({ teamId })
+			fetchFeatures()
+			fetchLimits()
 		}
-	}, [open, teamId, fetchOverrides])
+	}, [open, teamId, fetchOverrides, fetchFeatures, fetchLimits])
 
 	const resetForm = () => {
 		setType("feature")
@@ -124,16 +133,8 @@ export function EntitlementOverridesDialog({
 	}
 
 	const overrides = overridesData?.data ?? []
-
-	const featureOptions = Object.entries(FEATURES).map(([key, value]) => ({
-		key,
-		value,
-	}))
-
-	const limitOptions = Object.entries(LIMITS).map(([key, value]) => ({
-		key,
-		value,
-	}))
+	const features = featuresData?.data ?? []
+	const limits = limitsData?.data ?? []
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -261,25 +262,51 @@ export function EntitlementOverridesDialog({
 								</div>
 
 								<div className="space-y-2">
-									<Label>Key</Label>
+									<Label>
+										{type === "feature" ? "Feature" : "Limit"}
+									</Label>
 									<Select value={key} onValueChange={setKey}>
 										<SelectTrigger>
-											<SelectValue placeholder="Select a key..." />
+											<SelectValue placeholder={`Select a ${type}...`} />
 										</SelectTrigger>
 										<SelectContent>
 											{type === "feature"
-												? featureOptions.map((option) => (
-														<SelectItem key={option.value} value={option.value}>
-															{option.value}
+												? features.map((feature) => (
+														<SelectItem key={feature.id} value={feature.key}>
+															<div className="flex flex-col">
+																<span className="font-medium">{feature.name}</span>
+																{feature.description && (
+																	<span className="text-xs text-muted-foreground">
+																		{feature.description}
+																	</span>
+																)}
+															</div>
 														</SelectItem>
 													))
-												: limitOptions.map((option) => (
-														<SelectItem key={option.value} value={option.value}>
-															{option.value}
+												: limits.map((limit) => (
+														<SelectItem key={limit.id} value={limit.key}>
+															<div className="flex flex-col">
+																<span className="font-medium">{limit.name}</span>
+																{limit.description && (
+																	<span className="text-xs text-muted-foreground">
+																		{limit.description} ({limit.unit})
+																	</span>
+																)}
+															</div>
 														</SelectItem>
 													))}
 										</SelectContent>
 									</Select>
+									{type === "feature" && key && (
+										<p className="text-xs text-muted-foreground">
+											Selected: {features.find((f) => f.key === key)?.name}
+										</p>
+									)}
+									{type === "limit" && key && (
+										<p className="text-xs text-muted-foreground">
+											Selected: {limits.find((l) => l.key === key)?.name}
+										</p>
+									)}
 								</div>
 
 								<div className="space-y-2">

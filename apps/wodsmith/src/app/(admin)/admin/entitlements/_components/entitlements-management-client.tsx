@@ -1,7 +1,7 @@
 "use client"
 
 import { useServerAction } from "@repo/zsa-react"
-import { Building2, Crown, Search, Shield, User } from "lucide-react"
+import { Building2, ChevronDown, ChevronRight, Crown, Search, Shield, User } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -29,6 +34,7 @@ import {
 } from "../../_actions"
 import { ChangePlanDialog } from "./change-plan-dialog"
 import { EntitlementOverridesDialog } from "./entitlement-overrides-dialog"
+import { TeamEntitlementsDetail } from "./team-entitlements-detail"
 
 export function EntitlementsManagementClient() {
 	const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
@@ -39,6 +45,7 @@ export function EntitlementsManagementClient() {
 	const [pageSize] = useState(50)
 	const [search, setSearch] = useState("")
 	const [searchInput, setSearchInput] = useState("")
+	const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
 
 	const { execute: fetchTeams, data: teamsData, isPending: isLoadingTeams } =
 		useServerAction(getAllTeamsWithPlansAction)
@@ -154,6 +161,7 @@ export function EntitlementsManagementClient() {
 						<Table>
 							<TableHeader>
 								<TableRow>
+									<TableHead className="w-[40px]"></TableHead>
 									<TableHead>Team</TableHead>
 									<TableHead>Slug</TableHead>
 									<TableHead>Type</TableHead>
@@ -163,53 +171,86 @@ export function EntitlementsManagementClient() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{teams.map((team) => (
-									<TableRow key={team.id}>
-										<TableCell className="font-medium">{team.name}</TableCell>
-										<TableCell className="font-mono text-sm">
-											{team.slug}
-										</TableCell>
-										<TableCell>
-											{team.isPersonalTeam ? (
-												<Badge variant="outline">Personal</Badge>
-											) : (
-												<Badge variant="secondary">Gym</Badge>
-											)}
-										</TableCell>
-										<TableCell>
-											<Badge
-												variant={getPlanBadgeVariant(team.currentPlanId)}
-												className="flex items-center gap-1 w-fit"
-											>
-												{getPlanIcon(team.currentPlanId)}
-												{team.currentPlanId || "No Plan"}
-											</Badge>
-										</TableCell>
-										<TableCell className="text-sm text-muted-foreground">
-											{team.createdAt
-												? new Date(team.createdAt).toLocaleDateString()
-												: "N/A"}
-										</TableCell>
-										<TableCell className="text-right">
-											<div className="flex justify-end gap-2">
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => handleChangePlan(team.id)}
-												>
-													Change Plan
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() => handleManageOverrides(team.id)}
-												>
-													Overrides
-												</Button>
-											</div>
-										</TableCell>
-									</TableRow>
-								))}
+								{teams.map((team) => {
+									const isExpanded = expandedTeamId === team.id
+									return (
+										<Collapsible
+											key={team.id}
+											open={isExpanded}
+											onOpenChange={(open) =>
+												setExpandedTeamId(open ? team.id : null)
+											}
+										>
+											<TableRow className="group">
+												<TableCell>
+													<CollapsibleTrigger asChild>
+														<Button
+															variant="ghost"
+															size="sm"
+															className="h-8 w-8 p-0"
+														>
+															{isExpanded ? (
+																<ChevronDown className="h-4 w-4" />
+															) : (
+																<ChevronRight className="h-4 w-4" />
+															)}
+														</Button>
+													</CollapsibleTrigger>
+												</TableCell>
+												<TableCell className="font-medium">{team.name}</TableCell>
+												<TableCell className="font-mono text-sm">
+													{team.slug}
+												</TableCell>
+												<TableCell>
+													{team.isPersonalTeam ? (
+														<Badge variant="outline">Personal</Badge>
+													) : (
+														<Badge variant="secondary">Gym</Badge>
+													)}
+												</TableCell>
+												<TableCell>
+													<Badge
+														variant={getPlanBadgeVariant(team.currentPlanId)}
+														className="flex items-center gap-1 w-fit"
+													>
+														{getPlanIcon(team.currentPlanId)}
+														{team.currentPlanId || "No Plan"}
+													</Badge>
+												</TableCell>
+												<TableCell className="text-sm text-muted-foreground">
+													{team.createdAt
+														? new Date(team.createdAt).toLocaleDateString()
+														: "N/A"}
+												</TableCell>
+												<TableCell className="text-right">
+													<div className="flex justify-end gap-2">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => handleChangePlan(team.id)}
+														>
+															Change Plan
+														</Button>
+														<Button
+															variant="ghost"
+															size="sm"
+															onClick={() => handleManageOverrides(team.id)}
+														>
+															Overrides
+														</Button>
+													</div>
+												</TableCell>
+											</TableRow>
+											<CollapsibleContent asChild>
+												<TableRow>
+													<TableCell colSpan={7} className="p-0">
+														<TeamEntitlementsDetail teamId={team.id} />
+													</TableCell>
+												</TableRow>
+											</CollapsibleContent>
+										</Collapsible>
+									)
+								})}
 							</TableBody>
 						</Table>
 					)}
