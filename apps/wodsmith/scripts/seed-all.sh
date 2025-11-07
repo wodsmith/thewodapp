@@ -49,6 +49,8 @@ echo ""
 # wrangler d1 execute "$DB_NAME" --local --file ./scripts/seed-crossfit-heroes-generated.sql
 
 # NOTE: Entitlements (features, limits, plans) are seeded in seed.sql now
+# NOTE: Team entitlements are snapshotted automatically when teams are created
+#       For existing teams, use the admin panel or run snapshotAllTeams() manually
 
 echo "=========================================="
 echo "✓ Database seeding completed successfully!"

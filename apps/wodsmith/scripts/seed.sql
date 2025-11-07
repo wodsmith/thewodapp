@@ -57,7 +57,31 @@ VALUES
   ('etype_subscription_seat', 'subscription_seat', 'Subscription seat tracking for team plans', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('etype_addon_access', 'addon_access', 'Access via purchased add-ons', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
+-- Insert features
+INSERT OR IGNORE INTO feature (id, "key", name, description, category, isActive, createdAt, updatedAt, updateCounter)
+VALUES
+  ('feat_basic_workouts', 'basic_workouts', 'Basic Workouts', 'Create and manage basic workout templates', 'workouts', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_programming_tracks', 'programming_tracks', 'Programming Tracks', 'Create and manage unlimited programming tracks', 'programming', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_program_calendar', 'program_calendar', 'Program Calendar', 'Visual calendar for programming schedules', 'programming', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_program_analytics', 'program_analytics', 'Program Analytics', 'Advanced analytics for programming effectiveness', 'programming', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_custom_scaling_groups', 'custom_scaling_groups', 'Custom Scaling Groups', 'Create custom scaling groups for your gym', 'scaling', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Insert limits
+INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
+VALUES
+  ('lmt_max_teams', 'max_teams', 'Teams', 'Number of teams you can create (excluding personal team)', 'teams', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_max_members_per_team', 'max_members_per_team', 'Team Members', 'Maximum members per team', 'members', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_max_admins', 'max_admins', 'Admins', 'Number of admin users per team', 'admins', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_max_programming_tracks', 'max_programming_tracks', 'Programming Tracks', 'Number of programming tracks per team', 'tracks', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_ai_messages_per_month', 'ai_messages_per_month', 'AI Messages', 'AI-powered messages per month', 'messages', 'monthly', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_max_file_storage_mb', 'max_file_storage_mb', 'File Storage', 'Total file storage space', 'MB', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_max_video_storage_mb', 'max_video_storage_mb', 'Video Storage', 'Total video storage space', 'MB', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
 -- Insert plans (Free, Pro, Enterprise)
+-- Note: entitlements field is deprecated, features/limits are now stored in junction tables
 INSERT OR IGNORE INTO plan (id, name, description, price, interval, isActive, isPublic, sortOrder, entitlements, createdAt, updatedAt, updateCounter)
 VALUES (
   'free',
@@ -68,7 +92,7 @@ VALUES (
   1,
   1,
   0,
-  '{"features":["basic_workouts","basic_scaling","team_collaboration","basic_analytics"],"limits":{"max_teams":1,"max_members_per_team":5,"max_programming_tracks":5,"ai_messages_per_month":10,"max_admins":2,"max_file_storage_mb":100,"max_video_storage_mb":0}}',
+  NULL,
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   0
@@ -84,7 +108,7 @@ VALUES (
   1,
   1,
   1,
-  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","basic_scaling","advanced_scaling","ai_workout_generation","ai_workout_suggestions","multi_team_management","team_collaboration","basic_analytics"],"limits":{"max_teams":-1,"max_members_per_team":25,"max_programming_tracks":-1,"ai_messages_per_month":200,"max_admins":5,"max_file_storage_mb":1000,"max_video_storage_mb":500}}',
+  NULL,
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   0
@@ -100,11 +124,73 @@ VALUES (
   1,
   1,
   2,
-  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","program_analytics","basic_scaling","advanced_scaling","custom_scaling_groups","ai_workout_generation","ai_workout_suggestions","ai_programming_assistant","multi_team_management","team_collaboration","custom_branding","api_access","basic_analytics","advanced_analytics","custom_reports"],"limits":{"max_teams":-1,"max_members_per_team":-1,"max_programming_tracks":-1,"ai_messages_per_month":-1,"max_admins":-1,"max_file_storage_mb":10000,"max_video_storage_mb":5000}}',
+  NULL,
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   0
 );
+
+-- Link features to plans (plan_feature junction table)
+-- Free plan features
+INSERT OR IGNORE INTO plan_feature (id, planId, featureId, createdAt, updatedAt, updateCounter)
+VALUES
+  ('pf_free_basic_workouts', 'free', 'feat_basic_workouts', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Pro plan features
+INSERT OR IGNORE INTO plan_feature (id, planId, featureId, createdAt, updatedAt, updateCounter)
+VALUES
+  ('pf_pro_basic_workouts', 'pro', 'feat_basic_workouts', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_pro_programming_tracks', 'pro', 'feat_programming_tracks', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_pro_program_calendar', 'pro', 'feat_program_calendar', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_pro_custom_scaling_groups', 'pro', 'feat_custom_scaling_groups', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_pro_ai_workout_generation', 'pro', 'feat_ai_workout_generation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_pro_multi_team_management', 'pro', 'feat_multi_team_management', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Enterprise plan features
+INSERT OR IGNORE INTO plan_feature (id, planId, featureId, createdAt, updatedAt, updateCounter)
+VALUES
+  ('pf_ent_basic_workouts', 'enterprise', 'feat_basic_workouts', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_programming_tracks', 'enterprise', 'feat_programming_tracks', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_program_calendar', 'enterprise', 'feat_program_calendar', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_program_analytics', 'enterprise', 'feat_program_analytics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_custom_scaling_groups', 'enterprise', 'feat_custom_scaling_groups', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_ai_workout_generation', 'enterprise', 'feat_ai_workout_generation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_ai_programming_assistant', 'enterprise', 'feat_ai_programming_assistant', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pf_ent_multi_team_management', 'enterprise', 'feat_multi_team_management', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Link limits to plans (plan_limit junction table)
+-- Free plan limits
+INSERT OR IGNORE INTO plan_limit (id, planId, limitId, value, createdAt, updatedAt, updateCounter)
+VALUES
+  ('pl_free_max_teams', 'free', 'lmt_max_teams', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_free_max_members', 'free', 'lmt_max_members_per_team', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_free_max_tracks', 'free', 'lmt_max_programming_tracks', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_free_ai_messages', 'free', 'lmt_ai_messages_per_month', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_free_max_admins', 'free', 'lmt_max_admins', 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_free_file_storage', 'free', 'lmt_max_file_storage_mb', 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_free_video_storage', 'free', 'lmt_max_video_storage_mb', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Pro plan limits
+INSERT OR IGNORE INTO plan_limit (id, planId, limitId, value, createdAt, updatedAt, updateCounter)
+VALUES
+  ('pl_pro_max_teams', 'pro', 'lmt_max_teams', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_pro_max_members', 'pro', 'lmt_max_members_per_team', 25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_pro_max_tracks', 'pro', 'lmt_max_programming_tracks', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_pro_ai_messages', 'pro', 'lmt_ai_messages_per_month', 200, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_pro_max_admins', 'pro', 'lmt_max_admins', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_pro_file_storage', 'pro', 'lmt_max_file_storage_mb', 1000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_pro_video_storage', 'pro', 'lmt_max_video_storage_mb', 500, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Enterprise plan limits
+INSERT OR IGNORE INTO plan_limit (id, planId, limitId, value, createdAt, updatedAt, updateCounter)
+VALUES
+  ('pl_ent_max_teams', 'enterprise', 'lmt_max_teams', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_ent_max_members', 'enterprise', 'lmt_max_members_per_team', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_ent_max_tracks', 'enterprise', 'lmt_max_programming_tracks', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_ent_ai_messages', 'enterprise', 'lmt_ai_messages_per_month', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_ent_max_admins', 'enterprise', 'lmt_max_admins', -1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_ent_file_storage', 'enterprise', 'lmt_max_file_storage_mb', 10000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('pl_ent_video_storage', 'enterprise', 'lmt_max_video_storage_mb', 5000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Seed users table
 -- Password for all users: password123
@@ -114,10 +200,10 @@ INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passw
 ('usr_demo3member', 'John', 'Doe', 'john@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_demo4member', 'Jane', 'Smith', 'jane@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
--- Seed teams table
+-- Seed teams table (with different plans for testing)
 INSERT OR IGNORE INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, currentPlanId) VALUES
-('team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Box One', 'crossfit-box-one', 'Premier CrossFit gym in downtown', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'free'),
-('team_homeymgym', 'Home Gym Heroes', 'home-gym-heroes', 'For athletes training at home', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'free'),
+('team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Box One', 'crossfit-box-one', 'Premier CrossFit gym in downtown', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'pro'),
+('team_homeymgym', 'Home Gym Heroes', 'home-gym-heroes', 'For athletes training at home', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'enterprise'),
 ('team_personaladmin', 'Admin Personal', 'admin-personal', 'Personal team for admin user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo1admin', 'free'),
 ('team_personalcoach', 'Coach Personal', 'coach-personal', 'Personal team for coach user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo2coach', 'free'),
 ('team_personaljohn', 'John Personal', 'john-personal', 'Personal team for John Doe', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo3member', 'free'),
@@ -148,15 +234,62 @@ INSERT INTO team (id, name, slug, description, createdAt, updatedAt, updateCount
 INSERT INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES
 ('tmem_crossfit_owner', 'team_cokkpu1klwo0ulfhl1iwzpvn', 'usr_crossfit001', 'owner', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
 
--- Create team subscriptions (all teams start on free plan)
+-- Create team subscriptions (different plans for testing)
 INSERT OR IGNORE INTO team_subscription (id, teamId, planId, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, createdAt, updatedAt, updateCounter) VALUES
-('tsub_box1', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('tsub_homegym', 'team_homeymgym', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_box1', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'pro', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tsub_homegym', 'team_homeymgym', 'enterprise', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('tsub_personaladmin', 'team_personaladmin', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('tsub_personalcoach', 'team_personalcoach', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('tsub_personaljohn', 'team_personaljohn', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('tsub_personaljane', 'team_personaljane', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('tsub_crossfit', 'team_cokkpu1klwo0ulfhl1iwzpvn', 'free', 'active', strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Seed team feature entitlements (snapshot of features each team has)
+-- CrossFit Box One (Pro plan)
+INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
+('tfe_box1_basic', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_basic_workouts', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_box1_tracks', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_programming_tracks', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_box1_calendar', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_program_calendar', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_box1_scaling', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_custom_scaling_groups', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_box1_ai_workout', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_ai_workout_generation', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_box1_multi_team', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_multi_team_management', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Home Gym Heroes (Enterprise plan)
+INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
+('tfe_hgh_basic', 'team_homeymgym', 'feat_basic_workouts', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_tracks', 'team_homeymgym', 'feat_programming_tracks', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_calendar', 'team_homeymgym', 'feat_program_calendar', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_analytics', 'team_homeymgym', 'feat_program_analytics', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_scaling', 'team_homeymgym', 'feat_custom_scaling_groups', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_ai_workout', 'team_homeymgym', 'feat_ai_workout_generation', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_ai_prog', 'team_homeymgym', 'feat_ai_programming_assistant', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_hgh_multi_team', 'team_homeymgym', 'feat_multi_team_management', 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Seed team limit entitlements (snapshot of limits each team has)
+-- CrossFit Box One (Pro plan)
+INSERT OR IGNORE INTO team_limit_entitlement (id, teamId, limitId, value, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
+('tle_box1_teams', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_max_teams', -1, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_box1_members', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_max_members_per_team', 25, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_box1_tracks', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_max_programming_tracks', -1, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_box1_ai', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_ai_messages_per_month', 200, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_box1_admins', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_max_admins', 5, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_box1_files', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_max_file_storage_mb', 1000, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_box1_video', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'lmt_max_video_storage_mb', 500, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Home Gym Heroes (Enterprise plan)
+INSERT OR IGNORE INTO team_limit_entitlement (id, teamId, limitId, value, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
+('tle_hgh_teams', 'team_homeymgym', 'lmt_max_teams', -1, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_hgh_members', 'team_homeymgym', 'lmt_max_members_per_team', -1, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_hgh_tracks', 'team_homeymgym', 'lmt_max_programming_tracks', -1, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_hgh_ai', 'team_homeymgym', 'lmt_ai_messages_per_month', -1, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_hgh_admins', 'team_homeymgym', 'lmt_max_admins', -1, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_hgh_files', 'team_homeymgym', 'lmt_max_file_storage_mb', 10000, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_hgh_video', 'team_homeymgym', 'lmt_max_video_storage_mb', 5000, 'plan', 'enterprise', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- Seed initial usage tracking for AI messages (monthly reset)
+INSERT OR IGNORE INTO team_usage (id, teamId, limitKey, currentValue, periodStart, periodEnd, createdAt, updatedAt, updateCounter) VALUES
+('tusage_box1_ai', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'ai_messages_per_month', 0, strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tusage_hgh_ai', 'team_homeymgym', 'ai_messages_per_month', 0, strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 

@@ -4,15 +4,20 @@
  */
 
 import { drizzle } from "drizzle-orm/d1";
+import { eq } from "drizzle-orm";
 import {
   entitlementTypeTable,
   featureTable,
   limitTable,
   planTable,
+  planFeatureTable,
+  planLimitTable,
 } from "../src/db/schema";
-import { FEATURE_METADATA } from "../src/config/features";
-import { LIMIT_METADATA } from "../src/config/limits";
-import { PLANS } from "../src/config/plans";
+import {
+  FEATURE_SEED_DATA,
+  LIMIT_SEED_DATA,
+  PLAN_SEED_DATA,
+} from "../src/config/seed-data";
 
 // Entitlement type constants (matching what's in the schema)
 const ENTITLEMENT_TYPES = {
@@ -89,18 +94,15 @@ async function seedEntitlementTypes(db: ReturnType<typeof drizzle>) {
 async function seedFeatures(db: ReturnType<typeof drizzle>) {
   console.log("\nSeeding features...");
 
-  const featuresToSeed = Object.values(FEATURE_METADATA).map((feature) => ({
-    key: feature.id,
-    name: feature.name,
-    description: feature.description,
-    category: feature.category,
-    priority: feature.priority,
-    isActive: 1,
-  }));
-
-  for (const feature of featuresToSeed) {
+  for (const feature of FEATURE_SEED_DATA) {
     try {
-      await db.insert(featureTable).values(feature);
+      await db.insert(featureTable).values({
+        key: feature.key,
+        name: feature.name,
+        description: feature.description,
+        category: feature.category,
+        isActive: 1,
+      });
       console.log(`✓ Created feature: ${feature.name} (${feature.key})`);
     } catch (error) {
       console.log(`✗ Feature ${feature.name} already exists or error:`, error);
@@ -111,19 +113,16 @@ async function seedFeatures(db: ReturnType<typeof drizzle>) {
 async function seedLimits(db: ReturnType<typeof drizzle>) {
   console.log("\nSeeding limits...");
 
-  const limitsToSeed = Object.values(LIMIT_METADATA).map((limit) => ({
-    key: limit.id,
-    name: limit.name,
-    description: limit.description,
-    unit: limit.unit,
-    resetPeriod: limit.resetPeriod,
-    priority: limit.priority,
-    isActive: 1,
-  }));
-
-  for (const limit of limitsToSeed) {
+  for (const limit of LIMIT_SEED_DATA) {
     try {
-      await db.insert(limitTable).values(limit);
+      await db.insert(limitTable).values({
+        key: limit.key,
+        name: limit.name,
+        description: limit.description,
+        unit: limit.unit,
+        resetPeriod: limit.resetPeriod,
+        isActive: 1,
+      });
       console.log(`✓ Created limit: ${limit.name} (${limit.key})`);
     } catch (error) {
       console.log(`✗ Limit ${limit.name} already exists or error:`, error);
@@ -134,26 +133,88 @@ async function seedLimits(db: ReturnType<typeof drizzle>) {
 async function seedPlans(db: ReturnType<typeof drizzle>) {
   console.log("\nSeeding plans...");
 
-  const plansToSeed = Object.values(PLANS).map((plan) => ({
-    id: plan.id,
-    name: plan.name,
-    description: plan.description,
-    price: plan.price,
-    interval: plan.interval,
-    isActive: plan.isActive ? 1 : 0,
-    isPublic: plan.isPublic ? 1 : 0,
-    sortOrder: plan.sortOrder,
-    entitlements: plan.entitlements,
-    stripePriceId: plan.stripePriceId,
-    stripeProductId: plan.stripeProductId,
-  }));
-
-  for (const plan of plansToSeed) {
+  for (const plan of PLAN_SEED_DATA) {
     try {
-      await db.insert(planTable).values(plan);
+      await db.insert(planTable).values({
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        price: plan.price,
+        interval: plan.interval,
+        isActive: plan.isActive ? 1 : 0,
+        isPublic: plan.isPublic ? 1 : 0,
+        sortOrder: plan.sortOrder,
+        stripePriceId: plan.stripePriceId,
+        stripeProductId: plan.stripeProductId,
+        // Don't set entitlements JSON - we use junction tables instead
+        entitlements: undefined,
+      });
       console.log(`✓ Created plan: ${plan.name} (${plan.id})`);
     } catch (error) {
       console.log(`✗ Plan ${plan.name} already exists or error:`, error);
+    }
+  }
+}
+
+async function seedPlanFeatures(db: ReturnType<typeof drizzle>) {
+  console.log("\nSeeding plan features...");
+
+  // Get all features from DB to map keys to IDs
+  const allFeatures = await db.select().from(featureTable);
+  const featureKeyToId = new Map(allFeatures.map((f) => [f.key, f.id]));
+
+  for (const plan of PLAN_SEED_DATA) {
+    console.log(`\nProcessing features for plan: ${plan.name}`);
+
+    for (const featureKey of plan.features) {
+      const featureId = featureKeyToId.get(featureKey);
+
+      if (!featureId) {
+        console.log(`✗ Feature key not found: ${featureKey}`);
+        continue;
+      }
+
+      try {
+        await db.insert(planFeatureTable).values({
+          planId: plan.id,
+          featureId: featureId,
+        });
+        console.log(`  ✓ Added feature: ${featureKey}`);
+      } catch (error) {
+        console.log(`  ✗ Feature ${featureKey} already linked or error:`, error);
+      }
+    }
+  }
+}
+
+async function seedPlanLimits(db: ReturnType<typeof drizzle>) {
+  console.log("\nSeeding plan limits...");
+
+  // Get all limits from DB to map keys to IDs
+  const allLimits = await db.select().from(limitTable);
+  const limitKeyToId = new Map(allLimits.map((l) => [l.key, l.id]));
+
+  for (const plan of PLAN_SEED_DATA) {
+    console.log(`\nProcessing limits for plan: ${plan.name}`);
+
+    for (const [limitKey, value] of Object.entries(plan.limits)) {
+      const limitId = limitKeyToId.get(limitKey);
+
+      if (!limitId) {
+        console.log(`✗ Limit key not found: ${limitKey}`);
+        continue;
+      }
+
+      try {
+        await db.insert(planLimitTable).values({
+          planId: plan.id,
+          limitId: limitId,
+          value: value,
+        });
+        console.log(`  ✓ Added limit: ${limitKey} = ${value}`);
+      } catch (error) {
+        console.log(`  ✗ Limit ${limitKey} already linked or error:`, error);
+      }
     }
   }
 }
@@ -164,11 +225,13 @@ async function main() {
   try {
     const db = await getD1Database();
 
-    // Seed in order: entitlement types, features, limits, then plans
+    // Seed in order: entitlement types, features, limits, plans, then junction tables
     await seedEntitlementTypes(db);
     await seedFeatures(db);
     await seedLimits(db);
     await seedPlans(db);
+    await seedPlanFeatures(db);
+    await seedPlanLimits(db);
 
     console.log("\n✓ Seeding completed successfully!");
   } catch (error) {
