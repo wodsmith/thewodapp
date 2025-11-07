@@ -41,14 +41,14 @@ interface PlanConfigDialogProps {
 	open: boolean
 	onOpenChange: (open: boolean) => void
 	plan: Plan
-	onSuccess: () => void
+	onSuccess?: () => void
 }
 
 export function PlanConfigDialog({
 	open,
 	onOpenChange,
 	plan,
-	onSuccess,
+	onSuccess: _onSuccess,
 }: PlanConfigDialogProps) {
 	const [isAddFeatureOpen, setIsAddFeatureOpen] = useState(false)
 	const [isAddLimitOpen, setIsAddLimitOpen] = useState(false)

@@ -8,11 +8,9 @@ import { and, count, eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	programmingTracksTable,
-	SYSTEM_ROLES_ENUM,
 	teamMembershipTable,
 	teamUsageTable,
 } from "@/db/schema"
-import { requireVerifiedEmail } from "@/utils/auth"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { getTeamLimit, getTeamPlan, hasFeature } from "./entitlements"

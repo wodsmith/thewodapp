@@ -45,7 +45,7 @@ const CATEGORIES = [
 	{ value: "analytics", label: "Analytics" },
 ] as const
 
-const PRIORITIES = [
+const _PRIORITIES = [
 	{ value: "high", label: "High" },
 	{ value: "medium", label: "Medium" },
 	{ value: "low", label: "Low" },
@@ -84,7 +84,7 @@ export function FeatureDialog({
 			setCategory("workouts")
 			setIsActive(true)
 		}
-	}, [feature, open])
+	}, [feature])
 
 	const handleSubmit = async () => {
 		try {

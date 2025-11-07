@@ -41,7 +41,7 @@ const RESET_PERIODS = [
 	{ value: "yearly", label: "Yearly" },
 ] as const
 
-const PRIORITIES = [
+const _PRIORITIES = [
 	{ value: "high", label: "High" },
 	{ value: "medium", label: "Medium" },
 	{ value: "low", label: "Low" },
@@ -83,7 +83,7 @@ export function LimitDialog({
 			setResetPeriod("never")
 			setIsActive(true)
 		}
-	}, [limit, open])
+	}, [limit])
 
 	const handleSubmit = async () => {
 		try {
