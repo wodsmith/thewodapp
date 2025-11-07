@@ -45,12 +45,6 @@ const CATEGORIES = [
 	{ value: "analytics", label: "Analytics" },
 ] as const
 
-const _PRIORITIES = [
-	{ value: "high", label: "High" },
-	{ value: "medium", label: "Medium" },
-	{ value: "low", label: "Low" },
-] as const
-
 export function FeatureDialog({
 	open,
 	onOpenChange,

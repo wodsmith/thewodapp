@@ -41,12 +41,6 @@ const RESET_PERIODS = [
 	{ value: "yearly", label: "Yearly" },
 ] as const
 
-const _PRIORITIES = [
-	{ value: "high", label: "High" },
-	{ value: "medium", label: "Medium" },
-	{ value: "low", label: "Low" },
-] as const
-
 export function LimitDialog({
 	open,
 	onOpenChange,
