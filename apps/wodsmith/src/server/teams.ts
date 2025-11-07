@@ -18,8 +18,6 @@ import { requireVerifiedEmail } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { requireLimitExcludingPersonalTeams } from "./entitlements"
-import { LIMITS } from "@/config/limits"
 
 /**
  * Create a new team with the current user as owner
@@ -41,10 +39,6 @@ export async function createTeam({
 
 	const userId = session.userId
 	const db = getDb()
-
-	// Check if user has reached their team creation limit
-	// NOTE: Personal teams (isPersonalTeam = true) do NOT count toward this limit
-	await requireLimitExcludingPersonalTeams(userId, LIMITS.MAX_TEAMS)
 
 	// Generate unique slug for the team
 	let slug = generateSlug(name)
@@ -128,6 +122,11 @@ export async function createTeam({
 		currentPeriodEnd: oneMonthFromNow,
 		cancelAtPeriodEnd: 0,
 	})
+
+	// CRITICAL: Snapshot the free plan's entitlements to the new team
+	// This separates billing (plan) from entitlements (what team actually gets)
+	const { snapshotPlanEntitlements } = await import("@/server/entitlements")
+	await snapshotPlanEntitlements(teamId, "free")
 
 	// Update the user's session to include the new team
 	await updateAllSessionsOfUser(userId)

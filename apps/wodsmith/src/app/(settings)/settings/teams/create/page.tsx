@@ -2,7 +2,6 @@ import { redirect } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { CreateTeamForm } from "@/components/teams/create-team-form"
 import { getSessionFromCookie } from "@/utils/auth"
-import { checkCanCreateTeam } from "@/server/entitlements-checks"
 
 export const metadata = {
 	title: "Create Team",
@@ -16,9 +15,6 @@ export default async function CreateTeamPage() {
 	if (!session) {
 		redirect("/sign-in?redirect=/settings/teams/create")
 	}
-
-	// Check if user can create more teams
-	const teamLimitCheck = await checkCanCreateTeam()
 
 	return (
 		<>
@@ -45,7 +41,7 @@ export default async function CreateTeamPage() {
 					</div>
 
 					<div className="border rounded-lg p-6 bg-card">
-						<CreateTeamForm limitCheck={teamLimitCheck} />
+						<CreateTeamForm />
 					</div>
 				</div>
 			</div>

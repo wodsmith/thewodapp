@@ -20,10 +20,6 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Crown, Sparkles } from "lucide-react"
-import type { TeamLimitCheckResult } from "@/server/entitlements-checks"
-import Link from "next/link"
 
 const formSchema = z.object({
 	name: z
@@ -41,11 +37,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-interface CreateTeamFormProps {
-	limitCheck: TeamLimitCheckResult
-}
-
-export function CreateTeamForm({ limitCheck }: CreateTeamFormProps) {
+export function CreateTeamForm() {
 	const router = useRouter()
 
 	const { execute: createTeam } = useServerAction(createTeamAction, {
@@ -74,12 +66,6 @@ export function CreateTeamForm({ limitCheck }: CreateTeamFormProps) {
 	})
 
 	function onSubmit(data: FormValues) {
-		// Don't submit if at limit
-		if (!limitCheck.canCreate) {
-			toast.error("You've reached your team limit. Please upgrade your plan.")
-			return
-		}
-
 		// Clean up empty string in avatarUrl if present
 		const formData = {
 			...data,
@@ -91,39 +77,6 @@ export function CreateTeamForm({ limitCheck }: CreateTeamFormProps) {
 
 	return (
 		<Form {...form}>
-			{/* Show limit warning */}
-			{!limitCheck.canCreate && (
-				<Alert variant="destructive" className="mb-6">
-					<AlertCircle className="h-4 w-4" />
-					<AlertTitle>Team Limit Reached</AlertTitle>
-					<AlertDescription className="mt-2 space-y-2">
-						<p>{limitCheck.message}</p>
-						<div className="flex gap-2 mt-3">
-							<Button size="sm" variant="outline" asChild>
-								<Link href="/settings/billing">
-									<Crown className="h-4 w-4 mr-2" />
-									Upgrade Plan
-								</Link>
-							</Button>
-							<Button size="sm" variant="ghost" asChild>
-								<Link href="/settings/teams">View Teams</Link>
-							</Button>
-						</div>
-					</AlertDescription>
-				</Alert>
-			)}
-
-			{/* Show remaining teams info */}
-			{limitCheck.canCreate &&
-				!limitCheck.isUnlimited &&
-				limitCheck.message && (
-					<Alert className="mb-6">
-						<Sparkles className="h-4 w-4" />
-						<AlertTitle>Plan Usage</AlertTitle>
-						<AlertDescription>{limitCheck.message}</AlertDescription>
-					</Alert>
-				)}
-
 			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 				<FormField
 					control={form.control}
@@ -164,9 +117,9 @@ export function CreateTeamForm({ limitCheck }: CreateTeamFormProps) {
 				<Button
 					type="submit"
 					className="w-full"
-					disabled={!limitCheck.canCreate || form.formState.isSubmitting}
+					disabled={form.formState.isSubmitting}
 				>
-					{!limitCheck.canCreate ? "Upgrade to Create Team" : "Create Team"}
+					Create Team
 				</Button>
 			</form>
 		</Form>

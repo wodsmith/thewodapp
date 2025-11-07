@@ -22,6 +22,7 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
+import { TeamEntitlements } from "./_components/team-entitlements"
 
 interface TeamPageProps {
 	params: Promise<{
@@ -297,6 +298,12 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 							/>
 						))
 					)}
+				</div>
+
+				{/* Team Entitlements */}
+				<div className="col-span-3">
+					<h2 className="text-2xl font-bold mb-4">Plan & Entitlements</h2>
+					<TeamEntitlements teamId={team.id} />
 				</div>
 			</div>
 		</div>
