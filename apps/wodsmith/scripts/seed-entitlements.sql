@@ -23,7 +23,7 @@ VALUES (
   1,
   1,
   0,
-  '{"features":["basic_workouts","basic_scaling","team_collaboration","basic_analytics"],"limits":{"max_teams":1,"max_members_per_team":5,"max_programming_tracks":5,"ai_messages_per_month":10,"max_admins":2,"max_file_storage_mb":100,"max_video_storage_mb":0}}',
+  '{"features":["basic_workouts","programming_tracks","basic_scaling","team_collaboration","basic_analytics"],"limits":{"max_members_per_team":5,"max_programming_tracks":2,"ai_messages_per_month":10,"max_admins":2}}',
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   0
@@ -40,7 +40,7 @@ VALUES (
   1,
   1,
   1,
-  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","basic_scaling","advanced_scaling","ai_workout_generation","ai_workout_suggestions","multi_team_management","team_collaboration","basic_analytics"],"limits":{"max_teams":-1,"max_members_per_team":25,"max_programming_tracks":-1,"ai_messages_per_month":200,"max_admins":5,"max_file_storage_mb":1000,"max_video_storage_mb":500}}',
+  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","basic_scaling","advanced_scaling","ai_workout_generation","ai_workout_suggestions","multi_team_management","team_collaboration","basic_analytics"],"limits":{"max_members_per_team":25,"max_programming_tracks":-1,"ai_messages_per_month":200,"max_admins":5}}',
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   0
@@ -57,7 +57,7 @@ VALUES (
   1,
   1,
   2,
-  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","program_analytics","basic_scaling","advanced_scaling","custom_scaling_groups","ai_workout_generation","ai_workout_suggestions","ai_programming_assistant","multi_team_management","team_collaboration","custom_branding","api_access","basic_analytics","advanced_analytics","custom_reports"],"limits":{"max_teams":-1,"max_members_per_team":-1,"max_programming_tracks":-1,"ai_messages_per_month":-1,"max_admins":-1,"max_file_storage_mb":10000,"max_video_storage_mb":5000}}',
+  '{"features":["basic_workouts","advanced_workouts","workout_library","programming_tracks","program_calendar","program_analytics","basic_scaling","advanced_scaling","custom_scaling_groups","ai_workout_generation","ai_workout_suggestions","ai_programming_assistant","multi_team_management","team_collaboration","custom_branding","api_access","basic_analytics","advanced_analytics","custom_reports"],"limits":{"max_members_per_team":-1,"max_programming_tracks":-1,"ai_messages_per_month":-1,"max_admins":-1}}',
   CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP,
   0

@@ -797,13 +797,17 @@ export async function getTeamEntitlementSnapshot(teamId: string) {
 		.from(teamMembershipTable)
 		.where(eq(teamMembershipTable.teamId, teamId))
 
+	// Count both owners and admins towards the admin limit
 	const adminCount = await db
 		.select({ value: sql<number>`count(*)` })
 		.from(teamMembershipTable)
 		.where(
 			and(
 				eq(teamMembershipTable.teamId, teamId),
-				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.ADMIN),
+				or(
+					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.ADMIN),
+					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
+				),
 			),
 		)
 
