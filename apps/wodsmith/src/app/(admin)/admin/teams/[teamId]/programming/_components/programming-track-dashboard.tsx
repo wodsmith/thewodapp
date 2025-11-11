@@ -1,7 +1,7 @@
 "use client"
 
 import { Plus } from "lucide-react"
-import { startTransition, useOptimistic, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import type { ProgrammingTrack, ScalingGroup } from "@/db/schema"
 import { ProgrammingTrackCreateDialog } from "./programming-track-create-dialog"
@@ -19,38 +19,16 @@ export function ProgrammingTrackDashboard({
 	scalingGroups,
 }: ProgrammingTrackDashboardProps) {
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-	const [optimisticTracks, setOptimisticTracks] = useOptimistic(
-		initialTracks,
-		(
-			state,
-			action: {
-				type: "add"
-				track?: ProgrammingTrack
-			},
-		) => {
-			switch (action.type) {
-				case "add":
-					return action.track ? [...state, action.track] : state
-				default:
-					return state
-			}
-		},
-	)
 
-	const handleTrackCreated = (track: ProgrammingTrack) => {
-		startTransition(() => {
-			setOptimisticTracks({ type: "add", track })
-		})
+	const handleTrackCreated = () => {
 		setIsCreateDialogOpen(false)
 	}
 
 	console.log(
 		"DEBUG: [UI] Programming track dashboard rendered with tracks:",
-		optimisticTracks.length,
-		"initialTracks:",
 		initialTracks.length,
 		"tracks data:",
-		optimisticTracks.map((t) => ({
+		initialTracks.map((t) => ({
 			id: t.id,
 			name: t.name,
 			type: t.type,
@@ -85,7 +63,7 @@ export function ProgrammingTrackDashboard({
 				</div>
 			</div>
 
-			{optimisticTracks.length === 0 ? (
+			{initialTracks.length === 0 ? (
 				<div className="text-center py-16 border-4 border-dashed border-primary bg-surface rounded-none">
 					<p className="text-muted-foreground mb-6 font-mono text-lg">
 						No programming tracks found.
@@ -100,7 +78,7 @@ export function ProgrammingTrackDashboard({
 				</div>
 			) : (
 				<div className="space-y-4">
-					{optimisticTracks.map((track) => (
+					{initialTracks.map((track) => (
 						<ProgrammingTrackRow
 							key={track.id}
 							track={track}
