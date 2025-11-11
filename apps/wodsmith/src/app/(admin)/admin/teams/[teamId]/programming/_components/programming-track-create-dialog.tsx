@@ -206,23 +206,21 @@ export function ProgrammingTrackCreateDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogTrigger asChild>{trigger}</DialogTrigger>
-			<DialogContent className="sm:max-w-md border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary rounded-none">
+			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<DialogTitle className="font-mono text-xl tracking-tight">
-						Create Programming Track
-					</DialogTitle>
+					<DialogTitle>Create Programming Track</DialogTitle>
 				</DialogHeader>
 
 				{/* Show limit warning */}
 				{limitCheck && !limitCheck.canCreate && (
-					<Alert variant="destructive">
-						<AlertCircle className="h-4 w-4" />
-						<AlertTitle>
+					<Alert className="mb-4 border-primary/50 bg-background dark:bg-card">
+						<AlertCircle className="h-4 w-4 text-primary" />
+						<AlertTitle className="text-foreground">
 							{!limitCheck.hasFeature
 								? "Feature Not Available"
 								: "Track Limit Reached"}
 						</AlertTitle>
-						<AlertDescription className="mt-2 space-y-2">
+						<AlertDescription className="mt-2 space-y-2 text-muted-foreground">
 							<p>{limitCheck.message}</p>
 							<Button size="sm" variant="outline" asChild className="mt-2">
 								<Link href="/settings/billing">
@@ -238,7 +236,7 @@ export function ProgrammingTrackCreateDialog({
 				{limitCheck?.canCreate &&
 					!limitCheck.isUnlimited &&
 					limitCheck.message && (
-						<Alert>
+						<Alert className="mb-4">
 							<Info className="h-4 w-4" />
 							<AlertTitle>Plan Usage</AlertTitle>
 							<AlertDescription>{limitCheck.message}</AlertDescription>
@@ -246,24 +244,15 @@ export function ProgrammingTrackCreateDialog({
 					)}
 
 				<Form {...form}>
-					<form
-						onSubmit={form.handleSubmit(onSubmit)}
-						className="space-y-4 pt-4"
-					>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 						<FormField
 							control={form.control}
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="font-mono font-semibold">
-										Track Name
-									</FormLabel>
+									<FormLabel>Track Name</FormLabel>
 									<FormControl>
-										<Input
-											placeholder="Enter track name"
-											{...field}
-											className="border-2 border-primary rounded-none font-mono"
-										/>
+										<Input placeholder="Enter track name" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -275,15 +264,9 @@ export function ProgrammingTrackCreateDialog({
 							name="description"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="font-mono font-semibold">
-										Description (Optional)
-									</FormLabel>
+									<FormLabel>Description (Optional)</FormLabel>
 									<FormControl>
-										<Textarea
-											placeholder="Enter track description"
-											{...field}
-											className="border-2 border-primary rounded-none font-mono"
-										/>
+										<Textarea placeholder="Enter track description" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -295,34 +278,25 @@ export function ProgrammingTrackCreateDialog({
 							name="type"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="font-mono font-semibold">
-										Track Type
-									</FormLabel>
+									<FormLabel>Track Type</FormLabel>
 									<Select
 										onValueChange={field.onChange}
 										defaultValue={field.value}
 									>
 										<FormControl>
-											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
+											<SelectTrigger>
 												<SelectValue placeholder="Select track type" />
 											</SelectTrigger>
 										</FormControl>
-										<SelectContent className="border-2 border-primary rounded-none font-mono">
-											<SelectItem
-												value={PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED}
-												className="font-mono"
-											>
+										<SelectContent>
+											<SelectItem value={PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED}>
 												Self-programmed
 											</SelectItem>
-											<SelectItem
-												value={PROGRAMMING_TRACK_TYPE.TEAM_OWNED}
-												className="font-mono"
-											>
+											<SelectItem value={PROGRAMMING_TRACK_TYPE.TEAM_OWNED}>
 												Team-owned
 											</SelectItem>
 											<SelectItem
 												value={PROGRAMMING_TRACK_TYPE.OFFICIAL_3RD_PARTY}
-												className="font-mono"
 											>
 												Official 3rd Party
 											</SelectItem>
@@ -338,29 +312,21 @@ export function ProgrammingTrackCreateDialog({
 							name="scalingGroupId"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="font-mono font-semibold">
-										Scaling Group (Optional)
-									</FormLabel>
+									<FormLabel>Scaling Group (Optional)</FormLabel>
 									<Select
 										onValueChange={field.onChange}
 										value={field.value}
 										disabled={isLoadingGroups}
 									>
 										<FormControl>
-											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
+											<SelectTrigger>
 												<SelectValue placeholder="Select scaling group (optional)" />
 											</SelectTrigger>
 										</FormControl>
-										<SelectContent className="border-2 border-primary rounded-none font-mono">
-											<SelectItem value="none" className="font-mono">
-												None (Use team default)
-											</SelectItem>
+										<SelectContent>
+											<SelectItem value="none">None (Use team default)</SelectItem>
 											{scalingGroups.map((group) => (
-												<SelectItem
-													key={group.id}
-													value={group.id}
-													className="font-mono"
-												>
+												<SelectItem key={group.id} value={group.id}>
 													{group.title}
 													{group.isDefault === 1 && " (Team Default)"}
 													{group.isSystem === 1 && " (System)"}
@@ -375,10 +341,7 @@ export function ProgrammingTrackCreateDialog({
 
 						<div className="flex justify-end gap-2 pt-2">
 							<DialogClose ref={dialogCloseRef} asChild>
-								<Button
-									type="button"
-									className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-black text-primary hover:bg-surface rounded-none"
-								>
+								<Button type="button" variant="outline">
 									Cancel
 								</Button>
 							</DialogClose>
@@ -388,7 +351,6 @@ export function ProgrammingTrackCreateDialog({
 								disabled={
 									isPending || (limitCheck ? !limitCheck.canCreate : false)
 								}
-								className="border-2 border-primary shadow-[4px_4px_0px_0px] shadow-primary hover:shadow-[2px_2px_0px_0px] transition-all font-mono rounded-none"
 							>
 								{isPending
 									? "Creating..."
