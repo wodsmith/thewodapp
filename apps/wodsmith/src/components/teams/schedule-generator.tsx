@@ -19,6 +19,7 @@ import {
 	getAvailableCoachesForClassAction,
 	updateScheduledClassAction,
 } from "@/actions/generate-schedule-actions"
+import type { ScheduledClassWithRelations } from "@/db/schemas/scheduling"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -59,37 +60,6 @@ interface Schedule {
 	[key: string]: ScheduleSlot
 }
 
-interface ScheduledClass {
-	id: string
-	scheduleId: string
-	classCatalogId: string
-	locationId: string
-	coachId: string | null
-	startTime: Date
-	endTime: Date
-	classCatalog: {
-		id: string
-		name: string
-		description: string | null
-		teamId: string
-		durationMinutes: number
-		maxParticipants: number
-	}
-	location: {
-		id: string
-		name: string
-	}
-	coach: {
-		id: string
-		userId: string
-		user: {
-			firstName: string | null
-			lastName: string | null
-			email: string | null
-		}
-	} | null
-}
-
 export function ScheduleGenerator({
 	teamId,
 	templateId,
@@ -99,13 +69,13 @@ export function ScheduleGenerator({
 	const [currentWeek, _setCurrentWeek] = useState(new Date())
 	const [_showTimeSlotManager, _setShowTimeSlotManager] = useState(false)
 	const [viewMode, setViewMode] = useState<"grid" | "master">("grid")
-	const [selectedSlot, setSelectedSlot] = useState<ScheduledClass | null>(null)
+	const [selectedSlot, setSelectedSlot] = useState<ScheduledClassWithRelations | null>(null)
 	const [availableCoaches, setAvailableCoaches] = useState<any[]>([])
 	const [unavailableCoaches, setUnavailableCoaches] = useState<any[]>([])
 	const [selectedCoachId, setSelectedCoachId] = useState<string>("")
 	const [schedule, setSchedule] = useState<{
 		schedule?: any
-		scheduledClasses: ScheduledClass[]
+		scheduledClasses: ScheduledClassWithRelations[]
 		unstaffedClassesCount: number
 		totalClassesCount: number
 		staffedClassesCount: number
@@ -138,16 +108,16 @@ export function ScheduleGenerator({
 					// Transform the schedule data to match our expected format
 					const transformedSchedule = {
 						schedule: result.data.schedule,
-						scheduledClasses: result.data.schedule.scheduledClasses || [],
+						scheduledClasses: (result.data.schedule.scheduledClasses || []) as ScheduledClassWithRelations[],
 						unstaffedClassesCount:
 							result.data.schedule.scheduledClasses?.filter(
-								(c: any) => !c.coachId,
+								(c: ScheduledClassWithRelations) => !c.coachId,
 							).length || 0,
 						totalClassesCount:
 							result.data.schedule.scheduledClasses?.length || 0,
 						staffedClassesCount:
 							result.data.schedule.scheduledClasses?.filter(
-								(c: any) => c.coachId,
+								(c: ScheduledClassWithRelations) => c.coachId,
 							).length || 0,
 					}
 					setSchedule(transformedSchedule)
@@ -167,7 +137,7 @@ export function ScheduleGenerator({
 				// Update the local schedule state
 				if (schedule && result.data) {
 					const updatedClasses = schedule.scheduledClasses.map((c) =>
-						c.id === result.data.id ? result.data : c,
+						c.id === result.data.id ? (result.data as ScheduledClassWithRelations) : c,
 					)
 					const unstaffedCount = updatedClasses.filter((c) => !c.coachId).length
 					setSchedule({
@@ -226,7 +196,7 @@ export function ScheduleGenerator({
 		})
 	}
 
-	const handleSlotClick = (slot: ScheduledClass) => {
+	const handleSlotClick = (slot: ScheduledClassWithRelations) => {
 		setSelectedSlot(slot)
 		setSelectedCoachId(slot.coachId || "")
 		// Get available coaches for this class
@@ -266,7 +236,7 @@ export function ScheduleGenerator({
 	const getScheduleGrid = () => {
 		if (!schedule?.scheduledClasses) return {}
 
-		const grid: { [key: string]: { [key: string]: ScheduledClass[] } } = {}
+		const grid: { [key: string]: { [key: string]: ScheduledClassWithRelations[] } } = {}
 
 		schedule.scheduledClasses.forEach((scheduledClass) => {
 			const dayIndex = scheduledClass.startTime.getDay()
