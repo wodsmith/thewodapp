@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table"
 import type { Location } from "@/db/schemas/scheduling"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
+import type { User as UserType } from "@/db/schemas/users"
 
 // Type for coaches with relations - extract from ZSA response success case
 type CoachWithRelations = NonNullable<
@@ -62,11 +63,12 @@ const MasterSchedule = ({
 	const getCoachName = (coachId: string | null) => {
 		if (!coachId) return null
 		const coach = coaches.find((c) => c.id === coachId)
-		const firstName = coach?.user?.firstName
-		const lastName = coach?.user?.lastName
+		const user = coach?.user as UserType | undefined
+		const firstName = user?.firstName
+		const lastName = user?.lastName
 		const name =
 			firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName
-		return name || coach?.user?.email || "Unknown Coach"
+		return name || user?.email || "Unknown Coach"
 	}
 
 	const getLocationName = (locationId: string) => {

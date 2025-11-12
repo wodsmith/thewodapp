@@ -49,6 +49,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import type { Coach } from "@/db/schema"
+import type { User as UserType } from "@/db/schemas/users"
 
 interface CoachesProps {
 	coaches: inferServerActionReturnData<typeof getCoachesByTeam>["data"]
@@ -370,12 +371,12 @@ const Coaches = ({
 												<User className="h-6 w-6" />
 												<div>
 													<h3 className="text-xl font-semibold">
-														{coach.user.firstName} {coach.user.lastName}
+														{(coach.user as UserType)?.firstName} {(coach.user as UserType)?.lastName}
 													</h3>
 													<div className="flex items-center space-x-4 text-sm text-muted-foreground">
 														<div className="flex items-center space-x-1">
 															<Mail className="h-3 w-3" />
-															<span>{coach.user.email}</span>
+															<span>{(coach.user as UserType)?.email}</span>
 														</div>
 													</div>
 												</div>
@@ -454,7 +455,7 @@ const Coaches = ({
 													<DialogDescription>
 														Are you sure you want to delete{" "}
 														<strong>
-															{coach.user.firstName} {coach.user.lastName}
+															{(coach.user as UserType)?.firstName} {(coach.user as UserType)?.lastName}
 														</strong>
 														? This action cannot be undone.
 													</DialogDescription>

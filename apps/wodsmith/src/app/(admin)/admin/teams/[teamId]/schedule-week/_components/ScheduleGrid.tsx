@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card"
 import type { Location, ScheduleTemplate } from "@/db/schemas/scheduling"
 import type { getScheduledClassesForDisplay } from "@/server/ai/scheduler"
+import type { User as UserType } from "@/db/schemas/users"
 import SlotAssignmentDialog from "./SlotAssignmentDialog"
 
 // Type for coaches with relations - extract from ZSA response success case
@@ -123,8 +124,9 @@ const ScheduleGrid = ({
 	// Transform coaches data to match CoachData interface expected by SlotAssignmentDialog
 	const transformedCoaches = useMemo(() => {
 		return coaches.map((coach) => {
-			const firstName = coach.user?.firstName
-			const lastName = coach.user?.lastName
+			const user = coach.user as UserType | undefined
+			const firstName = user?.firstName
+			const lastName = user?.lastName
 			const name =
 				firstName && lastName
 					? `${firstName} ${lastName}`
@@ -132,14 +134,13 @@ const ScheduleGrid = ({
 			return {
 				id: coach.id,
 				userId: coach.userId,
-				name: name || coach.user?.email || "Unknown Coach",
-				email: coach.user?.email || null,
+				name: name || user?.email || "Unknown Coach",
+				email: user?.email || null,
 				schedulingPreference: coach.schedulingPreference,
 				schedulingNotes: coach.schedulingNotes,
-				skills:
-					coach.skills?.map(
-						(skillRel: CoachSkillWithRelation) => skillRel.skill,
-					) || [],
+				skills: (coach.skills as unknown as CoachSkillWithRelation[] | undefined)?.map(
+					(skillRel: CoachSkillWithRelation) => skillRel.skill,
+				) || [],
 			}
 		})
 	}, [coaches])
@@ -160,7 +161,7 @@ const ScheduleGrid = ({
 
 		// Find the coach info
 		const coach = coaches.find((c) => c.id === scheduledClass.coachId)
-		const coachUser = coach?.user
+		const coachUser = coach?.user as UserType | undefined
 
 		return (
 			<Button
