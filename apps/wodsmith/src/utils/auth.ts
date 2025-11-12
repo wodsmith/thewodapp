@@ -117,12 +117,48 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 	const db = getDb()
 
 	// Get user's team memberships
-	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+	const userTeamMemberships = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, userId),
 		with: {
 			team: true,
 		},
-	})
+	})) as unknown as Array<{
+		id: string
+		teamId: string
+		userId: string
+		roleId: string
+		isSystemRole: number
+		invitedBy: string | null
+		invitedAt: Date | null
+		joinedAt: Date | null
+		expiresAt: Date | null
+		isActive: number
+		createdAt: Date
+		updatedAt: Date
+		team: {
+			id: string
+			name: string
+			slug: string
+			description: string | null
+			avatarUrl: string | null
+			settings: string | null
+			billingEmail: string | null
+			planId: string | null
+			planExpiresAt: Date | null
+			creditBalance: number
+			currentPlanId: string | null
+			defaultTrackId: string | null
+			defaultScalingGroupId: string | null
+			isPersonalTeam: number
+			personalTeamOwnerId: string | null
+			type: string
+			canHostCompetitions: number
+			parentOrganizationId: string | null
+			competitionMetadata: string | null
+			createdAt: Date
+			updatedAt: Date
+		}
+	}>
 
 	// Get all custom role IDs that need to be fetched
 	const customRoleIds = userTeamMemberships
