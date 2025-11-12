@@ -36,13 +36,10 @@ VALUES
 
 INSERT OR IGNORE INTO "limit" (id, key, name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
 VALUES
-  ('limit_' || lower(hex(randomblob(16))), 'max_teams', 'Teams', 'Number of teams you can create (excluding personal team)', 'teams', 'never', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
   ('limit_' || lower(hex(randomblob(16))), 'max_members_per_team', 'Team Members', 'Maximum members per team', 'members', 'never', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
   ('limit_' || lower(hex(randomblob(16))), 'max_admins', 'Admins', 'Number of admin users per team', 'admins', 'never', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
   ('limit_' || lower(hex(randomblob(16))), 'max_programming_tracks', 'Programming Tracks', 'Number of programming tracks per team', 'tracks', 'never', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-  ('limit_' || lower(hex(randomblob(16))), 'ai_messages_per_month', 'AI Messages', 'AI-powered messages per month', 'messages', 'monthly', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-  ('limit_' || lower(hex(randomblob(16))), 'max_file_storage_mb', 'File Storage', 'Total file storage space', 'MB', 'never', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-  ('limit_' || lower(hex(randomblob(16))), 'max_video_storage_mb', 'Video Storage', 'Total video storage space', 'MB', 'never', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+  ('limit_' || lower(hex(randomblob(16))), 'ai_messages_per_month', 'AI Messages', 'AI-powered messages per month', 'messages', 'monthly', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================================================
 -- 4. PLANS
@@ -105,19 +102,16 @@ SELECT
   'free',
   l.id,
   CASE l.key
-    WHEN 'max_teams' THEN 1
     WHEN 'max_members_per_team' THEN 5
     WHEN 'max_programming_tracks' THEN 5
     WHEN 'ai_messages_per_month' THEN 10
     WHEN 'max_admins' THEN 2
-    WHEN 'max_file_storage_mb' THEN 100
-    WHEN 'max_video_storage_mb' THEN 0
   END,
   strftime('%s', 'now'),
   strftime('%s', 'now'),
   0
 FROM "limit" l
-WHERE l.key IN ('max_teams', 'max_members_per_team', 'max_programming_tracks', 'ai_messages_per_month', 'max_admins', 'max_file_storage_mb', 'max_video_storage_mb');
+WHERE l.key IN ('max_members_per_team', 'max_programming_tracks', 'ai_messages_per_month', 'max_admins');
 
 -- Pro Plan Limits
 INSERT OR IGNORE INTO plan_limit (id, planId, limitId, value, createdAt, updatedAt, updateCounter)
@@ -126,19 +120,16 @@ SELECT
   'pro',
   l.id,
   CASE l.key
-    WHEN 'max_teams' THEN -1
     WHEN 'max_members_per_team' THEN 25
     WHEN 'max_programming_tracks' THEN -1
     WHEN 'ai_messages_per_month' THEN 200
     WHEN 'max_admins' THEN 5
-    WHEN 'max_file_storage_mb' THEN 1000
-    WHEN 'max_video_storage_mb' THEN 500
   END,
   strftime('%s', 'now'),
   strftime('%s', 'now'),
   0
 FROM "limit" l
-WHERE l.key IN ('max_teams', 'max_members_per_team', 'max_programming_tracks', 'ai_messages_per_month', 'max_admins', 'max_file_storage_mb', 'max_video_storage_mb');
+WHERE l.key IN ('max_members_per_team', 'max_programming_tracks', 'ai_messages_per_month', 'max_admins');
 
 -- Enterprise Plan Limits
 INSERT OR IGNORE INTO plan_limit (id, planId, limitId, value, createdAt, updatedAt, updateCounter)
@@ -147,19 +138,16 @@ SELECT
   'enterprise',
   l.id,
   CASE l.key
-    WHEN 'max_teams' THEN -1
     WHEN 'max_members_per_team' THEN -1
     WHEN 'max_programming_tracks' THEN -1
     WHEN 'ai_messages_per_month' THEN -1
     WHEN 'max_admins' THEN -1
-    WHEN 'max_file_storage_mb' THEN 10000
-    WHEN 'max_video_storage_mb' THEN 5000
   END,
   strftime('%s', 'now'),
   strftime('%s', 'now'),
   0
 FROM "limit" l
-WHERE l.key IN ('max_teams', 'max_members_per_team', 'max_programming_tracks', 'ai_messages_per_month', 'max_admins', 'max_file_storage_mb', 'max_video_storage_mb');
+WHERE l.key IN ('max_members_per_team', 'max_programming_tracks', 'ai_messages_per_month', 'max_admins');
 
 -- ============================================================================
 -- 7. UPDATE EXISTING TEAMS TO HAVE FREE PLAN
