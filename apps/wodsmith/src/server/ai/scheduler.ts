@@ -7,7 +7,11 @@ import {
 	generatedSchedulesTable,
 	scheduledClassesTable,
 	scheduleTemplatesTable,
+	type ScheduledClassWithRelations,
+	type GeneratedScheduleWithRelations,
+	type ScheduleTemplateWithRelations,
 } from "@/db/schemas/scheduling"
+import type { User } from "@/db/schemas/users"
 
 // This is a simplified mock for the LLM interaction. In a real scenario,
 // this would involve calling an actual LLM API.
@@ -38,7 +42,7 @@ export async function generateSchedule({
 	}
 
 	// 1. Fetch all necessary data
-	const template = await db?.query.scheduleTemplatesTable.findFirst({
+	const template = await db.query.scheduleTemplatesTable.findFirst({
 		where: and(
 			eq(scheduleTemplatesTable.id, templateId),
 			eq(scheduleTemplatesTable.teamId, teamId),
@@ -58,7 +62,7 @@ export async function generateSchedule({
 		throw new Error("Schedule template not found.")
 	}
 
-	const coaches = await db?.query.coachesTable.findMany({
+	const coaches = await db.query.coachesTable.findMany({
 		where: eq(coachesTable.teamId, teamId),
 		with: {
 			user: true,
@@ -128,11 +132,11 @@ export async function generateSchedule({
 
 			// Check skill constraint
 			const requiredSkillIds = templateClass.requiredSkills.map(
-				(rs) => rs.skillId,
+				(rs: typeof templateClass.requiredSkills[number]) => rs.skillId,
 			)
-			const coachSkillIds = coach.skills.map((cs) => cs.skillId)
+			const coachSkillIds = coach.skills.map((cs: typeof coach.skills[number]) => cs.skillId)
 
-			const hasAllRequiredSkills = requiredSkillIds.every((skillId) =>
+			const hasAllRequiredSkills = requiredSkillIds.every((skillId: string) =>
 				coachSkillIds.includes(skillId),
 			)
 			if (!hasAllRequiredSkills) {
@@ -153,17 +157,19 @@ export async function generateSchedule({
 		if (eligibleCoaches.length > 0) {
 			// In a real scenario, you'd construct a detailed prompt for the LLM
 			// including coach preferences, historical data, etc.
+			const classCatalogName = (template.classCatalog as any)?.name || "class"
+			const locationName = (template.location as any)?.name || "location"
 			const llmPrompt = `Select the best coach for ${
-				template.classCatalog?.name || "class"
+				classCatalogName
 			} at ${
-				template.location?.name || "location"
+				locationName
 			} on ${classStartTime.toDateString()} ${
 				templateClass.startTime
 			}. Eligible coaches: ${eligibleCoaches
-				.map(
-					(c) =>
-						`${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`,
-				)
+				.map((c) => {
+					const user = c.user as User
+					return `${user.firstName} ${user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`
+				})
 				.join(", ")}. Consider their preferences and notes.`
 			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
 
@@ -297,12 +303,13 @@ export async function getScheduledClassesForDisplay({
 }: {
 	scheduleId: string
 	teamId: string
-}) {
+}): Promise<ScheduledClassWithRelations[]> {
 	const db = getDb()
 
 	const scheduledClasses = await db.query.scheduledClassesTable.findMany({
 		where: eq(scheduledClassesTable.scheduleId, scheduleId),
 		with: {
+			schedule: true,
 			coach: {
 				with: {
 					user: true,
@@ -313,18 +320,23 @@ export async function getScheduledClassesForDisplay({
 		},
 	})
 
-	return scheduledClasses
+	return scheduledClasses as ScheduledClassWithRelations[]
 }
 
 // Function to get all generated schedules for a team
-export async function getGeneratedSchedulesForTeam(teamId: string) {
+export async function getGeneratedSchedulesForTeam(
+	teamId: string,
+): Promise<GeneratedScheduleWithRelations[]> {
 	const db = getDb()
 
 	const schedules = await db.query.generatedSchedulesTable.findMany({
 		where: eq(generatedSchedulesTable.teamId, teamId),
 		with: {
+			team: true,
+			location: true,
 			scheduledClasses: {
 				with: {
+					schedule: true,
 					coach: {
 						with: {
 							user: true,
@@ -338,5 +350,5 @@ export async function getGeneratedSchedulesForTeam(teamId: string) {
 		orderBy: (schedules, { desc }) => [desc(schedules.weekStartDate)],
 	})
 
-	return schedules
+	return schedules as GeneratedScheduleWithRelations[]
 }
