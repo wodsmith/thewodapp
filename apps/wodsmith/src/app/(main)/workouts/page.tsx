@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
 import { PaginationWithUrl } from "@/components/ui/pagination"
+import type { Team } from "@/db/schema"
 import {
 	getScheduledWorkoutsForTeam,
 	type ScheduledWorkoutInstanceWithDetails,
@@ -67,7 +68,7 @@ export default async function WorkoutsPage({
 	}
 
 	// Get user's teams for team workouts display
-	const userTeams = await getUserTeams()
+	const userTeams = (await getUserTeams()) as Team[]
 
 	// Use all team IDs that the user is a member of
 	const userTeamIds = userTeams.map((team) => team.id)

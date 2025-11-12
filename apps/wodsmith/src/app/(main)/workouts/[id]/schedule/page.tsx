@@ -58,7 +58,8 @@ export default async function ScheduleWorkoutPage({
 	const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
 	const { hasTeamPermission } = await import("@/utils/team-auth")
 
-	const teamsWithProgrammingPermission = []
+	type TeamMembershipWithTeam = typeof userMemberships[number]
+	const teamsWithProgrammingPermission: TeamMembershipWithTeam[] = []
 	for (const membership of userMemberships) {
 		let hasPermission = false
 

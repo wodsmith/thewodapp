@@ -1,5 +1,6 @@
 import { getScheduleTemplatesByTeam } from "@/actions/schedule-template-actions"
 import { getOwnedTeamsAction } from "@/actions/team-actions"
+import type { Team } from "@/db/schema"
 import { CreateTemplateForm } from "./_components/create-template-form"
 import { TestGenerateScheduleClient } from "./_components/test-client"
 
@@ -11,7 +12,8 @@ export default async function TestGenerateSchedulePage() {
 		return <div>Error</div>
 	}
 
-	const firstTeam = result.data[0]
+	const teams = result.data as Team[]
+	const firstTeam = teams[0]
 	if (!firstTeam) {
 		return <div>No teams found</div>
 	}
@@ -46,7 +48,7 @@ export default async function TestGenerateSchedulePage() {
 			<h1 className="text-2xl font-bold mb-6">Test Generate Schedule Action</h1>
 
 			<TestGenerateScheduleClient
-				teams={result.data}
+				teams={teams.map((t) => ({ id: t.id, name: t.name }))}
 				templates={templatesResult || []}
 				defaultTeamId={firstTeam?.id || ""}
 			/>
