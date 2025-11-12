@@ -8,7 +8,10 @@ import {
 	generatedSchedulesTable,
 	scheduledClassesTable,
 	scheduleTemplatesTable,
+	type ScheduledClassWithRelations,
+	type GeneratedScheduleWithRelations,
 } from "@/db/schemas/scheduling"
+import type { User } from "@/db/schemas/users"
 import {
 	generateSchedule,
 	getScheduledClassesForDisplay,
@@ -149,8 +152,11 @@ export const checkExistingScheduleAction = createServerAction()
 						eq(generatedSchedulesTable.weekStartDate, normalizedWeekStart),
 					),
 					with: {
+						team: true,
+						location: true,
 						scheduledClasses: {
 							with: {
+								schedule: true,
 								coach: {
 									with: {
 										user: true,
@@ -166,7 +172,7 @@ export const checkExistingScheduleAction = createServerAction()
 
 			return {
 				exists: !!existingSchedule,
-				schedule: existingSchedule,
+				schedule: existingSchedule as GeneratedScheduleWithRelations | undefined,
 			}
 		} catch (error) {
 			console.error("Failed to check existing schedule:", error)
@@ -382,7 +388,7 @@ export const updateScheduledClassAction = createServerAction()
 				},
 			})
 
-			if (!scheduledClass || scheduledClass.schedule.teamId !== teamId) {
+			if (!scheduledClass || (scheduledClass.schedule as any)?.teamId !== teamId) {
 				throw new ZSAError(
 					"NOT_FOUND",
 					"Scheduled class not found or does not belong to this team",
@@ -456,7 +462,7 @@ export const getAvailableCoachesForClassAction = createServerAction()
 
 		try {
 			// Get the scheduled class details
-			const scheduledClass = await db.query.scheduledClassesTable.findFirst({
+			const scheduledClass = (await db.query.scheduledClassesTable.findFirst({
 				where: eq(scheduledClassesTable.id, classId),
 				with: {
 					schedule: true,
@@ -469,10 +475,16 @@ export const getAvailableCoachesForClassAction = createServerAction()
 							},
 						},
 					},
+					location: true,
+					coach: {
+						with: {
+							user: true,
+						},
+					},
 				},
-			})
+			})) as ScheduledClassWithRelations | undefined
 
-			if (!scheduledClass || scheduledClass.schedule.teamId !== teamId) {
+			if (!scheduledClass || (scheduledClass.schedule as any)?.teamId !== teamId) {
 				throw new ZSAError(
 					"NOT_FOUND",
 					"Scheduled class not found or does not belong to this team",
@@ -510,13 +522,13 @@ export const getAvailableCoachesForClassAction = createServerAction()
 				let unavailabilityReason = ""
 
 				// Check if coach has required skills
-				const requiredSkillIds = scheduledClass.classCatalog.classToSkills.map(
+				const requiredSkillIds = (scheduledClass.classCatalog.classToSkills || []).map(
 					(cs) => cs.skillId,
 				)
 				const coachSkillIds = coach.skills.map((cs) => cs.skillId)
 
 				if (requiredSkillIds.length > 0) {
-					const hasAllRequiredSkills = requiredSkillIds.every((skillId) =>
+					const hasAllRequiredSkills = requiredSkillIds.every((skillId: string) =>
 						coachSkillIds.includes(skillId),
 					)
 					if (!hasAllRequiredSkills) {
@@ -589,11 +601,12 @@ export const getAvailableCoachesForClassAction = createServerAction()
 					}
 				}
 
+				const user = coach.user as User | undefined
 				const coachInfo = {
 					id: coach.id,
 					userId: coach.userId,
-					name: `${coach.user.firstName} ${coach.user.lastName}`,
-					email: coach.user.email,
+					name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
+					email: user?.email || "",
 					schedulingPreference: coach.schedulingPreference,
 					schedulingNotes: coach.schedulingNotes,
 					skills: coach.skills.map((s) => s.skill),

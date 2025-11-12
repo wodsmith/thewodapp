@@ -10,6 +10,7 @@ import {
 	getUserTeams,
 	updateTeam,
 } from "@/server/teams"
+import type { Team } from "@/db/schema"
 
 // Update team schema
 const updateTeamSchema = z.object({
@@ -111,7 +112,7 @@ export const deleteTeamAction = createServerAction()
 export const getUserTeamsAction = createServerAction().handler(async () => {
 	try {
 		const teams = await getUserTeams()
-		return { success: true, data: teams }
+		return { success: true, data: teams as Team[] }
 	} catch (error) {
 		console.error("Failed to get user teams:", error)
 
@@ -149,7 +150,7 @@ export const getTeamAction = createServerAction()
 export const getOwnedTeamsAction = createServerAction().handler(async () => {
 	try {
 		const teams = await getOwnedTeams()
-		return { success: true, data: teams }
+		return { success: true, data: teams as Team[] }
 	} catch (error) {
 		console.error("Failed to get owned teams:", error)
 
