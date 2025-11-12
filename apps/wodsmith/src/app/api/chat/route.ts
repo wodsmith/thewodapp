@@ -8,6 +8,7 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { requireFeature, requireLimit } from "@/server/entitlements"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
+import { tools } from "@/ai/tools"
 
 const _logger = initLogger({
 	projectName: "My Project",
@@ -58,7 +59,12 @@ export async function POST(req: NextRequest) {
 
 	const result = streamText({
 		model: openai("gpt-4o"),
+		tools: tools({ teamId: body.teamId }),
+		stopWhen: ai.stepCountIs(10),
 		messages: ai.convertToModelMessages(body.messages),
+		onFinish: (cb) => {
+			console.log(cb.response.messages)
+		},
 	})
 
 	return result.toUIMessageStreamResponse()
