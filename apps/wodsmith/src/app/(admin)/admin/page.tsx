@@ -46,6 +46,9 @@ export default function AdminPage() {
 							<Button asChild>
 								<Link href="/admin/teams">Manage Teams</Link>
 							</Button>
+							<Button asChild variant="outline">
+								<Link href="/admin/entitlements">Entitlements</Link>
+							</Button>
 							<Button variant="outline">View Reports</Button>
 							<Button variant="outline">System Settings</Button>
 						</div>

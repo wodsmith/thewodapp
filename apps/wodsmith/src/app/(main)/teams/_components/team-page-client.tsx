@@ -103,7 +103,9 @@ export function TeamPageClient({
 					setWorkoutsWithResults(workoutsResult.data || [])
 
 					// Fetch leaderboards for each workout
-					const instanceIds = workoutsResult.data.map((w: ScheduledWorkoutInstanceWithDetails) => w.id)
+					const instanceIds = workoutsResult.data.map(
+						(w: ScheduledWorkoutInstanceWithDetails) => w.id,
+					)
 					if (instanceIds.length > 0) {
 						const [leaderboardsResult, leaderboardsError] =
 							await fetchLeaderboards({

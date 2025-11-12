@@ -268,7 +268,12 @@ export const createWorkoutAction = createServerAction()
 				const newTags = await Promise.all(
 					input.newTagNames.map((tagName) => findOrCreateTag(tagName)),
 				)
-				finalTagIds = [...finalTagIds, ...newTags.filter((tag) => tag !== null && tag !== undefined).map((tag) => tag.id)]
+				finalTagIds = [
+					...finalTagIds,
+					...newTags
+						.filter((tag) => tag !== null && tag !== undefined)
+						.map((tag) => tag.id),
+				]
 			}
 
 			// Create the workout
@@ -840,7 +845,7 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 			}
 
 			// Get database handles for updating track workout
-			const db = (await import("@/db")).getDd()
+			const db = (await import("@/db")).getDb()
 			const { workouts, trackWorkoutsTable } = await import("@/db/schema")
 			const { eq, and } = await import("drizzle-orm")
 
@@ -1516,7 +1521,7 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 
 					// Add the remixed workout to the new track
 					const { trackWorkoutsTable } = await import("@/db/schema")
-					const db = (await import("@/db")).getDd()
+					const db = (await import("@/db")).getDb()
 
 					await db.insert(trackWorkoutsTable).values({
 						id: `track_workout_${createId()}`,
@@ -1539,7 +1544,7 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 				}
 
 				// Get database handles for updating track workout
-				const db = (await import("@/db")).getDd()
+				const db = (await import("@/db")).getDb()
 				const { workouts, trackWorkoutsTable } = await import("@/db/schema")
 				const { eq, and } = await import("drizzle-orm")
 

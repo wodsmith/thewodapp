@@ -3,7 +3,7 @@ import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	MOVEMENT_TYPE_VALUES,
 	movements,
@@ -22,7 +22,7 @@ const MOVEMENT_TYPE_SCHEMA = z.enum(MOVEMENT_TYPE_VALUES)
  * Get all movements available in the system
  */
 export async function getAllMovements() {
-	const db = getDd()
+	const db = getDb()
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
@@ -38,7 +38,7 @@ export async function getAllMovements() {
  * Get a single movement by ID
  */
 export async function getMovementById(id: string) {
-	const db = getDd()
+	const db = getDb()
 
 	const movement = await db
 		.select()
@@ -53,7 +53,7 @@ export async function getMovementById(id: string) {
  * Get all workouts that include a specific movement
  */
 export async function getWorkoutsByMovementId(movementId: string) {
-	const db = getDd()
+	const db = getDb()
 
 	// Get workout IDs that include this movement
 	const workoutMovementRows = await db
@@ -140,7 +140,7 @@ export async function getWorkoutsByMovementId(movementId: string) {
 
 // Create a new movement
 export async function createMovement(
-	db: ReturnType<typeof getDd>,
+	db: ReturnType<typeof getDb>,
 	data: {
 		name: string
 		type: string

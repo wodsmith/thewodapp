@@ -16,7 +16,7 @@ import {
 	sql,
 } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import type { Workout } from "@/db/schema"
 import {
 	movements,
@@ -45,7 +45,7 @@ import { isTeamMember } from "@/utils/team-auth"
  * Helper function to fetch tags by workout IDs
  */
 async function fetchTagsByWorkoutId(
-	db: ReturnType<typeof getDd>,
+	db: ReturnType<typeof getDb>,
 	workoutIds: string[],
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
@@ -79,7 +79,7 @@ async function fetchTagsByWorkoutId(
  * Helper function to fetch movements by workout IDs
  */
 async function fetchMovementsByWorkoutId(
-	db: ReturnType<typeof getDd>,
+	db: ReturnType<typeof getDb>,
 	workoutIds: string[],
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
 	if (workoutIds.length === 0) return new Map()
@@ -118,7 +118,7 @@ async function fetchMovementsByWorkoutId(
  * Helper function to fetch today's results by workout IDs
  */
 async function fetchTodaysResultsByWorkoutId(
-	db: ReturnType<typeof getDd>,
+	db: ReturnType<typeof getDb>,
 	userId: string,
 	workoutIds: string[],
 ): Promise<Map<string, Array<(typeof todaysResults)[0]>>> {
@@ -176,7 +176,7 @@ export async function getUserWorkoutsCount({
 	movement?: string
 	type?: "all" | "original" | "remix"
 }): Promise<number> {
-	const db = getDd()
+	const db = getDb()
 	const session = await requireVerifiedEmail()
 
 	if (!session?.user?.id) {
@@ -194,9 +194,10 @@ export async function getUserWorkoutsCount({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	conditions.push(
-		or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))!,
-	)
+	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	if (teamOrPublicCondition) {
+		conditions.push(teamOrPublicCondition)
+	}
 
 	// Type filter
 	if (type === "original") {
@@ -223,12 +224,13 @@ export async function getUserWorkoutsCount({
 	// Search filter
 	if (search) {
 		const searchLower = search.toLowerCase()
-		conditions.push(
-			or(
-				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
-				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-			)!,
+		const searchCondition = or(
+			sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
+			sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
 		)
+		if (searchCondition) {
+			conditions.push(searchCondition)
+		}
 	}
 
 	// Build the complete query based on needed joins
@@ -311,7 +313,7 @@ export async function getUserWorkouts({
 		}
 	>
 > {
-	const db = getDd()
+	const db = getDb()
 	const session = await requireVerifiedEmail()
 
 	if (!session?.user?.id) {
@@ -329,9 +331,10 @@ export async function getUserWorkouts({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	conditions.push(
-		or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))!,
-	)
+	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	if (teamOrPublicCondition) {
+		conditions.push(teamOrPublicCondition)
+	}
 
 	// Type filter
 	if (type === "original") {
@@ -358,12 +361,13 @@ export async function getUserWorkouts({
 	// Search filter
 	if (search) {
 		const searchLower = search.toLowerCase()
-		conditions.push(
-			or(
-				sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
-				sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-			)!,
+		const searchCondition = or(
+			sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
+			sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
 		)
+		if (searchCondition) {
+			conditions.push(searchCondition)
+		}
 	}
 
 	// Build the complete query based on needed joins
@@ -527,7 +531,7 @@ export async function createWorkout({
 	teamId: string
 }) {
 	try {
-		const db = getDd()
+		const db = getDb()
 
 		// Create the workout first
 		const newWorkout = await db
@@ -625,7 +629,7 @@ export async function getWorkoutById(id: string): Promise<
 	  })
 	| null
 > {
-	const db = getDd()
+	const db = getDb()
 
 	const workout = await db
 		.select()
@@ -772,7 +776,7 @@ export async function updateWorkout({
 	tagIds: string[]
 	movementIds: string[]
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	await db
 		.update(workouts)
@@ -815,7 +819,7 @@ export async function getUserWorkoutsWithTrackScheduling({
 	trackId: string
 	teamId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// Get all team workouts
 	const userWorkouts = await getUserWorkouts({ teamId, trackId: undefined })
@@ -865,7 +869,7 @@ export async function getUserWorkoutsWithTrackScheduling({
 export async function getAvailableWorkoutTags(
 	teamId: string,
 ): Promise<string[]> {
-	const db = getDd()
+	const db = getDb()
 
 	// Get tags from workouts that are either team-owned or public
 	const result = await db
@@ -885,7 +889,7 @@ export async function getAvailableWorkoutTags(
 export async function getAvailableWorkoutMovements(
 	teamId: string,
 ): Promise<string[]> {
-	const db = getDd()
+	const db = getDb()
 
 	// Get movements from workouts that are either team-owned or public
 	const result = await db
@@ -910,7 +914,7 @@ export async function createWorkoutRemix({
 	sourceWorkoutId: string
 	teamId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 	const session = await requireVerifiedEmail()
 
 	if (!session?.user?.id) {
@@ -1077,7 +1081,7 @@ export async function createProgrammingTrackWorkoutRemix({
 	sourceTrackId: string
 	teamId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 	const session = await requireVerifiedEmail()
 
 	if (!session?.user?.id) {
@@ -1248,7 +1252,7 @@ export async function getTeamSpecificWorkout({
 	teamId: string
 	preferOriginal?: boolean
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	// If preferOriginal is true, skip remix lookup and return the original workout directly
 	if (preferOriginal) {
@@ -1304,7 +1308,7 @@ export async function getTeamSpecificWorkout({
  * Get workouts that are remixes of a given workout
  */
 export async function getRemixedWorkouts(sourceWorkoutId: string) {
-	const db = getDd()
+	const db = getDb()
 	const session = await getSessionFromCookie()
 	if (!session) throw new ZSAError("NOT_AUTHORIZED", "No session found")
 
@@ -1356,7 +1360,7 @@ export async function getWorkoutLastScheduled(workoutId: string): Promise<{
 	scheduledDate: Date
 	teamName: string
 } | null> {
-	const db = getDd()
+	const db = getDb()
 
 	const lastScheduled = await db
 		.select({
@@ -1395,7 +1399,7 @@ export async function getWorkoutScheduleHistory(
 > {
 	if (userTeamIds.length === 0) return []
 
-	const db = getDd()
+	const db = getDb()
 
 	// Get the workout to check if it's a remix or has remixes
 	const workout = await db

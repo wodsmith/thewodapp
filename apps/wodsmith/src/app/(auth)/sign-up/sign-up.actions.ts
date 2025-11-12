@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { signUpSchema } from "@/schemas/signup.schema"
@@ -22,7 +22,7 @@ export const signUpAction = createServerAction()
 	.input(signUpSchema)
 	.handler(async ({ input }) => {
 		return withRateLimit(async () => {
-			const db = getDd()
+			const db = getDb()
 
 			if ((await isTurnstileEnabled()) && input.captchaToken) {
 				const success = await validateTurnstileToken(input.captchaToken)

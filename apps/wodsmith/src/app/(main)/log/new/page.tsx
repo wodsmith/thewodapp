@@ -126,7 +126,7 @@ export default async function LogNewResultPage({
 		const userTeams = await getUserTeams()
 
 		if (userTeams && userTeams.length > 0) {
-			const { getDd } = await import("@/db")
+			const { getDb: getDd } = await import("@/db")
 			const { scheduledWorkoutInstancesTable, trackWorkoutsTable } =
 				await import("@/db/schema")
 			const { eq, and, gte, lte, inArray } = await import("drizzle-orm")
@@ -294,7 +294,7 @@ export default async function LogNewResultPage({
 	const finalProgrammingTrackId =
 		detectedProgrammingTrackId || mySearchParams?.programmingTrackId
 	if (finalProgrammingTrackId) {
-		const { getDd } = await import("@/db")
+		const { getDb: getDd } = await import("@/db")
 		const { programmingTracksTable } = await import("@/db/schema")
 		const { eq } = await import("drizzle-orm")
 

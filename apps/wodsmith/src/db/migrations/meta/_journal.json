@@ -197,6 +197,55 @@
       "when": 1759440291712,
       "tag": "0027_add_score_type_to_workouts",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1759937889057,
+      "tag": "0028_right_obadiah_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1759956814154,
+      "tag": "0029_classy_morg",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1761777725779,
+      "tag": "0030_public_sentry",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1762188995109,
+      "tag": "0031_new_the_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1762191704196,
+      "tag": "0032_cultured_earthquake",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1762197669490,
+      "tag": "0033_soft_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1762541665769,
+      "tag": "0034_remove_deprecated_limits",
+      "breakpoints": true
     }
   ]
 }

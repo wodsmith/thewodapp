@@ -5,7 +5,7 @@ import { init } from "@paralleldrive/cuid2"
 import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS } from "@/constants"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { forgotPasswordSchema } from "@/schemas/forgot-password.schema"
@@ -30,7 +30,7 @@ export const forgotPasswordAction = createServerAction()
 				}
 			}
 
-			const db = getDd()
+			const db = getDb()
 			const { env } = getCloudflareContext()
 
 			try {

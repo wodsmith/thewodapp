@@ -1,12 +1,13 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { useServerAction } from "@repo/zsa-react"
 import { inviteUserAction } from "@/actions/team-membership-actions"
+import { checkCanInviteMemberAction } from "@/actions/entitlements-actions"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -25,6 +26,10 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Crown, Info } from "lucide-react"
+import Link from "next/link"
+import type { LimitCheckResult } from "@/server/entitlements-checks"
 
 // Define the form schema with validation
 const formSchema = z.object({
@@ -48,6 +53,7 @@ export function InviteMemberModal({
 	onInviteSuccess,
 }: InviteMemberModalProps) {
 	const [open, setOpen] = useState(false)
+	const [limitCheck, setLimitCheck] = useState<LimitCheckResult | null>(null)
 
 	// Initialize react-hook-form
 	const form = useForm<FormValues>({
@@ -56,6 +62,21 @@ export function InviteMemberModal({
 			email: "",
 		},
 	})
+
+	const { execute: checkLimit } = useServerAction(checkCanInviteMemberAction, {
+		onSuccess: (result) => {
+			if (result.data) {
+				setLimitCheck(result.data.data)
+			}
+		},
+	})
+
+	// Check limit when dialog opens
+	useEffect(() => {
+		if (open && teamId) {
+			checkLimit({ teamId })
+		}
+	}, [open, teamId, checkLimit])
 
 	const { execute } = useServerAction(inviteUserAction, {
 		onError: (error) => {
@@ -83,6 +104,12 @@ export function InviteMemberModal({
 	})
 
 	const onSubmit = async (data: FormValues) => {
+		// Block if at limit
+		if (limitCheck && !limitCheck.canCreate) {
+			toast.error("You've reached your member limit. Please upgrade your plan.")
+			return
+		}
+
 		execute({
 			teamId,
 			email: data.email,
@@ -98,6 +125,34 @@ export function InviteMemberModal({
 				<DialogHeader>
 					<DialogTitle>Invite Team Member</DialogTitle>
 				</DialogHeader>
+
+				{/* Show limit warning */}
+				{limitCheck && !limitCheck.canCreate && (
+					<Alert variant="destructive">
+						<AlertCircle className="h-4 w-4" />
+						<AlertTitle>Member Limit Reached</AlertTitle>
+						<AlertDescription className="mt-2 space-y-2">
+							<p>{limitCheck.message}</p>
+							<Button size="sm" variant="outline" asChild className="mt-2">
+								<Link href="/settings/billing">
+									<Crown className="h-4 w-4 mr-2" />
+									Upgrade Plan
+								</Link>
+							</Button>
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{/* Show usage info */}
+				{limitCheck?.canCreate &&
+					!limitCheck.isUnlimited &&
+					limitCheck.message && (
+						<Alert>
+							<Info className="h-4 w-4" />
+							<AlertTitle>Plan Usage</AlertTitle>
+							<AlertDescription>{limitCheck.message}</AlertDescription>
+						</Alert>
+					)}
 
 				<Form {...form}>
 					<form
@@ -129,7 +184,14 @@ export function InviteMemberModal({
 								</Button>
 							</DialogClose>
 
-							<Button type="submit">Send Invitation</Button>
+							<Button
+								type="submit"
+								disabled={limitCheck ? !limitCheck.canCreate : false}
+							>
+								{limitCheck && !limitCheck.canCreate
+									? "Upgrade to Invite"
+									: "Send Invitation"}
+							</Button>
 						</div>
 					</form>
 				</Form>

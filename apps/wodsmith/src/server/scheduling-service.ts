@@ -2,7 +2,7 @@ import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
 import { and, between, eq, inArray } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	movements,
 	type ScheduledWorkoutInstance,
@@ -60,7 +60,7 @@ export type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 export async function scheduleWorkoutForTeam(
 	data: ScheduleWorkoutInput,
 ): Promise<ScheduledWorkoutInstance> {
-	const db = getDd()
+	const db = getDb()
 
 	// If no explicit workoutId provided, use the original workout from the track
 	let workoutId = data.workoutId
@@ -100,7 +100,7 @@ export async function scheduleWorkoutForTeam(
 export async function scheduleStandaloneWorkoutForTeam(
 	data: ScheduleStandaloneWorkoutInput,
 ): Promise<ScheduledWorkoutInstance> {
-	const db = getDd()
+	const db = getDb()
 
 	const [instance] = await db
 		.insert(scheduledWorkoutInstancesTable)
@@ -127,7 +127,7 @@ export async function getScheduledWorkoutsForTeam(
 	teamId: string,
 	dateRange: { start: Date; end: Date },
 ): Promise<ScheduledWorkoutInstanceWithDetails[]> {
-	const db = getDd()
+	const db = getDb()
 
 	// First, get the basic scheduled workout data with track workouts and explicit workouts
 	const rows = await db
@@ -250,7 +250,7 @@ export async function getScheduledWorkoutsForTeam(
 export async function getScheduledWorkoutInstanceById(
 	instanceId: string,
 ): Promise<ScheduledWorkoutInstanceWithDetails | null> {
-	const db = getDd()
+	const db = getDb()
 	const rows = await db
 		.select({
 			instance: scheduledWorkoutInstancesTable,
@@ -325,7 +325,7 @@ export async function updateScheduledWorkoutInstance(
 	instanceId: string,
 	data: UpdateScheduleInput,
 ): Promise<ScheduledWorkoutInstance> {
-	const db = getDd()
+	const db = getDb()
 	const [updated] = await db
 		.update(scheduledWorkoutInstancesTable)
 		.set({ ...data, updatedAt: new Date() })
@@ -340,7 +340,7 @@ export async function updateScheduledWorkoutInstance(
 export async function deleteScheduledWorkoutInstance(
 	instanceId: string,
 ): Promise<void> {
-	const db = getDd()
+	const db = getDb()
 	await db
 		.delete(scheduledWorkoutInstancesTable)
 		.where(eq(scheduledWorkoutInstancesTable.id, instanceId))

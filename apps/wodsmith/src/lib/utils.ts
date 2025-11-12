@@ -73,7 +73,12 @@ export function parseTimeScoreToSeconds(timeStr: string): number | null {
 		// MM:SS
 		seconds =
 			Number.parseInt(timeParts[0], 10) * 60 + Number.parseInt(timeParts[1], 10)
-	} else if (timeParts.length === 3 && timeParts[0] && timeParts[1] && timeParts[2]) {
+	} else if (
+		timeParts.length === 3 &&
+		timeParts[0] &&
+		timeParts[1] &&
+		timeParts[2]
+	) {
 		// HH:MM:SS
 		seconds =
 			Number.parseInt(timeParts[0], 10) * 3600 +

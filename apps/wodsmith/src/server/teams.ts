@@ -1,17 +1,17 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, not } from "drizzle-orm"
+import { and, eq, not } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
 import {
-	MAX_TEAMS_CREATED_PER_USER,
 	MAX_TEAMS_JOINED_PER_USER,
 } from "@/constants"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	teamMembershipTable,
 	teamRoleTable,
+	teamSubscriptionTable,
 	teamTable,
 } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -38,28 +38,7 @@ export async function createTeam({
 	}
 
 	const userId = session.userId
-	const db = getDd()
-
-	// Check if user has reached their team creation limit
-	const ownedTeamsCount = await db
-		.select({ value: count() })
-		.from(teamMembershipTable)
-		.where(
-			and(
-				eq(teamMembershipTable.userId, userId),
-				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
-				eq(teamMembershipTable.isSystemRole, 1),
-			),
-		)
-
-	const teamsOwned = ownedTeamsCount[0]?.value || 0
-
-	if (teamsOwned >= MAX_TEAMS_CREATED_PER_USER) {
-		throw new ZSAError(
-			"FORBIDDEN",
-			`You have reached the limit of ${MAX_TEAMS_CREATED_PER_USER} teams you can create.`,
-		)
-	}
+	const db = getDb()
 
 	// Generate unique slug for the team
 	let slug = generateSlug(name)
@@ -85,7 +64,7 @@ export async function createTeam({
 		throw new ZSAError("ERROR", "Could not generate a unique slug for the team")
 	}
 
-	// Insert the team
+	// Insert the team with default free plan
 	const newTeam = (await db
 		.insert(teamTable)
 		.values({
@@ -94,6 +73,7 @@ export async function createTeam({
 			description,
 			avatarUrl,
 			creditBalance: 0,
+			currentPlanId: "free", // All new teams start on free plan
 		})
 		.returning()) as unknown as Array<typeof teamTable.$inferInsert>
 
@@ -129,6 +109,25 @@ export async function createTeam({
 		isEditable: 1,
 	})
 
+	// Create team subscription for free plan
+	const now = new Date()
+	const oneMonthFromNow = new Date(now)
+	oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
+
+	await db.insert(teamSubscriptionTable).values({
+		teamId,
+		planId: "free",
+		status: "active",
+		currentPeriodStart: now,
+		currentPeriodEnd: oneMonthFromNow,
+		cancelAtPeriodEnd: 0,
+	})
+
+	// CRITICAL: Snapshot the free plan's entitlements to the new team
+	// This separates billing (plan) from entitlements (what team actually gets)
+	const { snapshotPlanEntitlements } = await import("@/server/entitlements")
+	await snapshotPlanEntitlements(teamId, "free")
+
 	// Update the user's session to include the new team
 	await updateAllSessionsOfUser(userId)
 
@@ -158,7 +157,7 @@ export async function updateTeam({
 	// Check if user has permission to update team settings
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
 
-	const db = getDd()
+	const db = getDb()
 
 	// If name is being updated, check if we need to update the slug
 	if (data.name) {
@@ -223,7 +222,7 @@ export async function deleteTeam(teamId: string) {
 	// Check if user has permission to delete team
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.DELETE_TEAM)
 
-	const db = getDd()
+	const db = getDb()
 
 	// Get all user IDs from the team memberships to update their sessions later
 	const memberships = await db.query.teamMembershipTable.findMany({
@@ -254,7 +253,7 @@ export async function getTeam(teamId: string) {
 	// Check if user is a member of this team
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-	const db = getDd()
+	const db = getDb()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -271,7 +270,7 @@ export async function getTeam(teamId: string) {
  * Get all team memberships for a specific user
  */
 export async function getUserTeamMemberships(userId: string) {
-	const db = getDd()
+	const db = getDb()
 
 	const memberships = await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, userId),
@@ -293,7 +292,7 @@ export async function getUserTeams() {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	const userTeams = await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, session.userId),
@@ -324,7 +323,7 @@ export async function getOwnedTeams() {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	const ownedTeams = await db.query.teamMembershipTable.findMany({
 		where: and(

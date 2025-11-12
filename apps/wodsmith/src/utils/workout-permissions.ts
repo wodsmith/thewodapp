@@ -1,7 +1,7 @@
 import "server-only"
 import { eq } from "drizzle-orm"
 import { cache } from "react"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, workouts } from "@/db/schema"
 import { requireVerifiedEmail } from "./auth"
 import { hasTeamPermission } from "./team-auth"
@@ -28,7 +28,7 @@ export interface WorkoutPermissionResult {
  * Get workout details for permission checking
  */
 const getWorkoutDetails = cache(async (workoutId: string) => {
-	const db = getDd()
+	const db = getDb()
 	return await db.query.workouts.findFirst({
 		where: eq(workouts.id, workoutId),
 		columns: {

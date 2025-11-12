@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import type { User } from "@/db/schema"
 import { passKeyCredentialTable, userTable } from "@/db/schema"
 import { createAndStoreSession, requireVerifiedEmail } from "@/utils/auth"
@@ -32,7 +32,7 @@ export const generateRegistrationOptionsAction = createServerAction()
 			// Check if user is logged in and email is verified
 			const session = await requireVerifiedEmail()
 
-			const db = getDd()
+			const db = getDb()
 			const user = await db.query.userTable.findFirst({
 				where: eq(userTable.email, input.email),
 			})
@@ -83,7 +83,7 @@ export const verifyRegistrationAction = createServerAction()
 			// Check if user is logged in and email is verified
 			const session = await requireVerifiedEmail()
 
-			const db = getDd()
+			const db = getDb()
 			const user = await db.query.userTable.findFirst({
 				where: eq(userTable.email, input.email),
 			})
@@ -127,7 +127,7 @@ export const deletePasskeyAction = createServerAction()
 				throw new ZSAError("FORBIDDEN", "Cannot delete the current passkey")
 			}
 
-			const db = getDd()
+			const db = getDb()
 
 			// Get all user's passkeys
 			const passkeys = await db

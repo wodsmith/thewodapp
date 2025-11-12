@@ -15,13 +15,14 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
+import { TeamEntitlements } from "./_components/team-entitlements"
 
 interface TeamPageProps {
 	params: Promise<{
@@ -32,7 +33,7 @@ interface TeamPageProps {
 // TODO Test the removal process
 export async function generateMetadata({ params }: TeamPageProps) {
 	const { teamSlug } = await params
-	const db = getDd()
+	const db = getDb()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.slug, teamSlug),
@@ -52,7 +53,7 @@ export async function generateMetadata({ params }: TeamPageProps) {
 
 export default async function TeamDashboardPage({ params }: TeamPageProps) {
 	const { teamSlug } = await params
-	const db = getDd()
+	const db = getDb()
 
 	// Find the team by slug
 	const team = await db.query.teamTable.findFirst({
@@ -297,6 +298,12 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 							/>
 						))
 					)}
+				</div>
+
+				{/* Team Entitlements */}
+				<div className="col-span-3">
+					<h2 className="text-2xl font-bold mb-4">Plan & Entitlements</h2>
+					<TeamEntitlements teamId={team.id} />
 				</div>
 			</div>
 		</div>

@@ -1,7 +1,7 @@
 import "server-only"
 import { eq } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { tags } from "@/db/schema"
 import { createTagId } from "@/db/schemas/common"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -16,7 +16,7 @@ export async function getAllTags() {
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
-	const db = getDd()
+	const db = getDb()
 
 	const allTags = await db.select().from(tags)
 
@@ -27,7 +27,7 @@ export async function getAllTags() {
  * Create a new tag if it doesn't exist, or return the existing one
  */
 export async function findOrCreateTag(tagName: string) {
-	const db = getDd()
+	const db = getDb()
 
 	// First check if tag exists
 	const existingTags = await db

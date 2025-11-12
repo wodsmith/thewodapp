@@ -1,7 +1,7 @@
 import "server-only"
 /// <reference types="@cloudflare/workers-types" />
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	results,
 	scalingGroupsTable,
@@ -113,7 +113,7 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 	}
 
 	// 3. Fetch from database with monitoring
-	const db = getDd()
+	const db = getDb()
 	const groupData = (await ScalingQueryMonitor.monitorScalingGroupFetch(
 		scalingGroupId,
 		() =>
@@ -192,7 +192,7 @@ async function _getGlobalDefaultScalingGroup() {
 		return globalDefaultScalingGroup
 	}
 
-	const db = getDd()
+	const db = getDb()
 	const [globalDefault] = await db
 		.select()
 		.from(scalingGroupsTable)
@@ -232,7 +232,9 @@ async function _getCachedWorkoutResolution(
 	teamId: string,
 	trackId?: string,
 ) {
-	const cacheKey = `workout-resolution:${workoutId}:${teamId}:${trackId || "none"}`
+	const cacheKey = `workout-resolution:${workoutId}:${teamId}:${
+		trackId || "none"
+	}`
 	const cached = workoutResolutionCache.get(cacheKey)
 
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL.WORKOUT_RESOLUTION) {
@@ -336,7 +338,7 @@ export async function getWorkoutScalingInfo({
 	scalingGroup: CachedScalingGroup | null
 	scalingDescriptions: Record<string, string>
 }> {
-	const db = getDd()
+	const db = getDb()
 
 	// If no scaling group ID provided, try to get from workout
 	if (!scalingGroupId) {
@@ -392,7 +394,7 @@ export async function getWorkoutResultsByWorkoutAndUser(
 	workoutId: string,
 	userId: string,
 ): Promise<WorkoutResult[]> {
-	const db = getDd()
+	const db = getDb()
 	console.log(
 		`Fetching workout results for workoutId: ${workoutId}, userId: ${userId}`,
 	)
@@ -422,7 +424,7 @@ export async function getWorkoutResultsByWorkoutAndUser(
 export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
-	const db = getDd()
+	const db = getDb()
 	console.log(`Fetching sets for resultId: ${resultId}`)
 	try {
 		const setDetails = await db
@@ -446,7 +448,7 @@ export async function getWorkoutResultForScheduledInstance(
 	userId: string,
 	date: Date,
 ): Promise<WorkoutResult | null> {
-	const db = getDd()
+	const db = getDb()
 
 	// Create start and end of day timestamps
 	const startOfDay = new Date(date)
@@ -552,9 +554,11 @@ export async function getWorkoutResultsWithScaling({
 		}
 	>
 > {
-	const db = getDd()
+	const db = getDb()
 	console.log(
-		`Fetching workout results with scaling for workoutId: ${workoutId}, teamId: ${teamId}${userId ? `, userId: ${userId}` : ""}`,
+		`Fetching workout results with scaling for workoutId: ${workoutId}, teamId: ${teamId}${
+			userId ? `, userId: ${userId}` : ""
+		}`,
 	)
 	try {
 		const query = db
@@ -696,7 +700,7 @@ export async function getWorkoutLeaderboard({
 		>
 	}>
 > {
-	const db = getDd()
+	const db = getDb()
 	console.log(
 		`Fetching leaderboard for workoutId: ${workoutId}, teamId: ${teamId}`,
 	)
@@ -807,7 +811,7 @@ export async function getWorkoutResultsForScheduledInstances(
 	}>,
 	userId: string,
 ): Promise<Record<string, WorkoutResult>> {
-	const db = getDd()
+	const db = getDb()
 	const resultsMap: Record<string, WorkoutResult> = {}
 
 	if (scheduledInstances.length === 0) {
@@ -879,7 +883,9 @@ export async function getWorkoutResultsForScheduledInstances(
 		}
 
 		console.log(
-			`Found ${Object.keys(resultsMap).length} results out of ${scheduledInstances.length} instances`,
+			`Found ${Object.keys(resultsMap).length} results out of ${
+				scheduledInstances.length
+			} instances`,
 		)
 		return resultsMap
 	} catch (error) {

@@ -12,7 +12,7 @@ import { cookies, headers } from "next/headers"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS } from "@/constants"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { passkeyEmailSchema } from "@/schemas/passkey.schema"
@@ -48,7 +48,7 @@ export const startPasskeyRegistrationAction = createServerAction()
 				}
 			}
 
-			const db = getDd()
+			const db = getDb()
 
 			// Check if email is disposable
 			await canSignUp({ email: input.email })
@@ -159,7 +159,7 @@ export const completePasskeyRegistrationAction = createServerAction()
 			})
 
 			// Get user details for email verification
-			const db = getDd()
+			const db = getDb()
 			const user = await db.query.userTable.findFirst({
 				where: eq(userTable.id, userId),
 			})

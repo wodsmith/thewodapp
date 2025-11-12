@@ -48,6 +48,23 @@ export interface KVSession {
 			isSystemRole: boolean
 		}
 		permissions: string[]
+		/** Team's current plan with features and limits */
+		plan?: {
+			id: string
+			name: string
+			features: string[]
+			limits: Record<string, number>
+		}
+	}[]
+	/**
+	 * User-level entitlements (individual purchases, grants, trials)
+	 * Cached from database for fast access checks
+	 */
+	entitlements?: {
+		id: string
+		type: string
+		metadata: Record<string, any>
+		expiresAt: Date | null
 	}[]
 	/**
 	 *  !!!!!!!!!!!!!!!!!!!!!
@@ -68,7 +85,7 @@ export interface KVSession {
  * IF YOU MAKE ANY CHANGES TO THE KVSESSION TYPE ABOVE, YOU NEED TO INCREMENT THIS VERSION.
  * THIS IS HOW WE TRACK WHEN WE NEED TO UPDATE THE SESSIONS IN THE KV STORE.
  */
-export const CURRENT_SESSION_VERSION = 4
+export const CURRENT_SESSION_VERSION = 5
 
 export async function getKV() {
 	const { env } = getCloudflareContext()
@@ -98,6 +115,10 @@ export async function createKVSession({
 		throw new Error("Can't connect to KV store")
 	}
 
+	// Load user's active entitlements
+	const { getUserEntitlements } = await import("@/server/entitlements")
+	const entitlements = await getUserEntitlements(userId)
+
 	const session: KVSession = {
 		id: sessionId,
 		userId,
@@ -112,6 +133,12 @@ export async function createKVSession({
 		authenticationType,
 		passkeyCredentialId,
 		teams,
+		entitlements: entitlements.map((e) => ({
+			id: e.id,
+			type: e.entitlementTypeId,
+			metadata: e.metadata ?? {},
+			expiresAt: e.expiresAt,
+		})),
 		version: CURRENT_SESSION_VERSION,
 	}
 
@@ -197,12 +224,22 @@ export async function updateKVSession(
 	// Get updated teams data with permissions
 	const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
 
+	// Load user's active entitlements
+	const { getUserEntitlements } = await import("@/server/entitlements")
+	const entitlements = await getUserEntitlements(userId)
+
 	const updatedSession: KVSession = {
 		...session,
 		version: CURRENT_SESSION_VERSION,
 		expiresAt: expiresAt.getTime(),
 		user: updatedUser,
 		teams: teamsWithPermissions,
+		entitlements: entitlements.map((e) => ({
+			id: e.id,
+			type: e.entitlementTypeId,
+			metadata: e.metadata ?? {},
+			expiresAt: e.expiresAt,
+		})),
 	}
 
 	const kv = await getKV()
@@ -274,6 +311,10 @@ export async function updateAllSessionsOfUser(userId: string) {
 	// Get updated teams data with permissions
 	const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
 
+	// Load user's active entitlements
+	const { getUserEntitlements } = await import("@/server/entitlements")
+	const entitlements = await getUserEntitlements(userId)
+
 	for (const sessionObj of sessions) {
 		const session = await kv.get(sessionObj.key)
 		if (!session) continue
@@ -293,11 +334,50 @@ export async function updateAllSessionsOfUser(userId: string) {
 				sessionObj.key,
 				JSON.stringify({
 					...sessionData,
+					version: CURRENT_SESSION_VERSION,
 					user: newUserData,
 					teams: teamsWithPermissions,
+					entitlements: entitlements.map((e) => ({
+						id: e.id,
+						type: e.entitlementTypeId,
+						metadata: e.metadata ?? {},
+						expiresAt: e.expiresAt,
+					})),
 				}),
 				{ expirationTtl: ttlInSeconds },
 			)
 		}
 	}
+}
+
+/**
+ * Invalidate a user's sessions by refreshing entitlements and team data
+ * Used when entitlements change (purchases, grants, revocations)
+ * @param userId - User whose sessions should be invalidated
+ */
+export async function invalidateUserSessions(userId: string): Promise<void> {
+	await updateAllSessionsOfUser(userId)
+}
+
+/**
+ * Invalidate sessions for all members of a team
+ * Used when team plan changes
+ * @param teamId - Team whose members' sessions should be invalidated
+ */
+export async function invalidateTeamMembersSessions(
+	teamId: string,
+): Promise<void> {
+	const { getDb } = await import("@/db")
+	const { teamMembershipTable } = await import("@/db/schema")
+	const { eq } = await import("drizzle-orm")
+
+	const db = getDb()
+
+	// Get all team members
+	const members = await db.query.teamMembershipTable.findMany({
+		where: eq(teamMembershipTable.teamId, teamId),
+	})
+
+	// Update all their sessions in parallel
+	await Promise.all(members.map((member) => updateAllSessionsOfUser(member.userId)))
 }

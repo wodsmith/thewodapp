@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { MOVEMENT_TYPE_VALUES } from "@/db/schema"
 import {
 	createMovement,
@@ -42,7 +42,7 @@ export const createMovementAction = createServerAction()
 	.input(createMovementActionSchema)
 	.handler(async ({ input }) => {
 		try {
-			const db = getDd()
+			const db = getDb()
 			const result = await createMovement(db, input)
 			return { success: true, data: result }
 		} catch (error) {

@@ -2,7 +2,7 @@
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	coachesTable,
 	generatedSchedulesTable,
@@ -45,7 +45,7 @@ export const generateScheduleAction = createServerAction()
 	.input(generateScheduleSchema)
 	.handler(async ({ input }) => {
 		const { templateId, locationId, weekStartDate, teamId } = input
-		const db = getDd()
+		const db = getDb()
 
 		try {
 			// Normalize the week start date
@@ -137,7 +137,7 @@ export const checkExistingScheduleAction = createServerAction()
 	.input(checkExistingScheduleSchema)
 	.handler(async ({ input }) => {
 		const { teamId, weekStartDate } = input
-		const db = getDd()
+		const db = getDb()
 
 		try {
 			const normalizedWeekStart = getWeekStartDate(weekStartDate)
@@ -226,7 +226,7 @@ export const deleteGeneratedScheduleAction = createServerAction()
 	.input(deleteGeneratedScheduleSchema)
 	.handler(async ({ input }) => {
 		const { scheduleId, teamId } = input
-		const db = getDd()
+		const db = getDb()
 
 		try {
 			// Verify the schedule belongs to the team
@@ -280,7 +280,7 @@ export const getGeneratedSchedulesByTeamAction = createServerAction()
 	.input(getGeneratedSchedulesByTeamSchema)
 	.handler(async ({ input }) => {
 		const { teamId } = input
-		const db = getDd()
+		const db = getDb()
 
 		try {
 			const schedules = await db.query.generatedSchedulesTable.findMany({
@@ -371,7 +371,7 @@ export const updateScheduledClassAction = createServerAction()
 	.input(updateScheduledClassSchema)
 	.handler(async ({ input }) => {
 		const { classId, teamId, coachId } = input
-		const db = getDd()
+		const db = getDb()
 
 		try {
 			// Verify the class exists and get its schedule
@@ -452,7 +452,7 @@ export const getAvailableCoachesForClassAction = createServerAction()
 	.input(getAvailableCoachesSchema)
 	.handler(async ({ input }) => {
 		const { classId, teamId } = input
-		const db = getDd()
+		const db = getDb()
 
 		try {
 			// Get the scheduled class details
@@ -534,7 +534,9 @@ export const getAvailableCoachesForClassAction = createServerAction()
 							classDate <= blackout.endDate
 						) {
 							isAvailable = false
-							unavailabilityReason = `Blackout: ${blackout.reason || "Time off"}`
+							unavailabilityReason = `Blackout: ${
+								blackout.reason || "Time off"
+							}`
 							break
 						}
 					}
@@ -555,7 +557,9 @@ export const getAvailableCoachesForClassAction = createServerAction()
 							classEndTime > recurring.startTime
 						) {
 							isAvailable = false
-							unavailabilityReason = `Recurring unavailability: ${recurring.description || "Not available"}`
+							unavailabilityReason = `Recurring unavailability: ${
+								recurring.description || "Not available"
+							}`
 							break
 						}
 					}

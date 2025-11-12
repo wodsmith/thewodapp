@@ -6,7 +6,7 @@ import * as schema from "./schema"
 
 // Don't cache the database connection globally in serverless environments
 // This can cause connection issues and ECONNRESET errors
-export const getDd = (): DrizzleD1Database<typeof schema> => {
+export const getDb = (): DrizzleD1Database<typeof schema> => {
 	try {
 		const { env } = getCloudflareContext()
 

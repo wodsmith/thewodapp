@@ -2,7 +2,7 @@
 import { and, count, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	createClassCatalogId,
 	createLocationId,
@@ -113,7 +113,7 @@ export const createLocation = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const [newLocation] = await db
 				.insert(locationsTable)
 				.values({ id: createLocationId(), teamId, name, capacity })
@@ -139,7 +139,7 @@ export const updateLocation = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const [updatedLocation] = await db
 				.update(locationsTable)
 				.set({ name, capacity })
@@ -168,7 +168,7 @@ export const deleteLocation = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const templateCountResult = (
 				await db
 					.select({ count: count() })
@@ -217,7 +217,7 @@ export const getLocationsByTeam = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const locations = await db.query.locationsTable.findMany({
 				where: eq(locationsTable.teamId, teamId),
 			})
@@ -253,7 +253,7 @@ export const createClassCatalog = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const [newClass] = await db
 				.insert(classCatalogTable)
 				.values({
@@ -267,7 +267,10 @@ export const createClassCatalog = createServerAction()
 				.returning()
 
 			if (!newClass) {
-				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create class catalog")
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					"Failed to create class catalog",
+				)
 			}
 
 			// Link skills if provided
@@ -311,7 +314,7 @@ export const updateClassCatalog = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const [updatedClass] = await db
 				.update(classCatalogTable)
 				.set({ name, description, durationMinutes, maxParticipants })
@@ -364,7 +367,7 @@ export const deleteClassCatalog = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 
 			// Check if class is referenced in schedules or templates
 			const scheduledCountResult = (
@@ -431,7 +434,7 @@ export const getClassCatalogByTeam = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const classes = await db.query.classCatalogTable.findMany({
 				where: eq(classCatalogTable.teamId, teamId),
 				with: {
@@ -467,7 +470,7 @@ export const createSkill = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const [newSkill] = await db
 				.insert(skillsTable)
 				.values({ id: createSkillId(), teamId, name })
@@ -493,7 +496,7 @@ export const updateSkill = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const [updatedSkill] = await db
 				.update(skillsTable)
 				.set({ name })
@@ -520,7 +523,7 @@ export const deleteSkill = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const classCatalogCountResult = (
 				await db
 					.select({ count: count() })
@@ -574,7 +577,7 @@ export const getSkillsByTeam = createServerAction()
 			// Validate session and team membership
 			await requireTeamMembership(teamId)
 
-			const db = getDd()
+			const db = getDb()
 			const skills = await db.query.skillsTable.findMany({
 				where: eq(skillsTable.teamId, teamId),
 			})

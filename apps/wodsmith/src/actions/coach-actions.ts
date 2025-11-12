@@ -3,7 +3,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	coachBlackoutDatesTable,
 	coachesTable,
@@ -86,7 +86,7 @@ export const createCoach = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { userId, teamId, skillIds, ...rest } = input
-			const db = getDd()
+			const db = getDb()
 			const [newCoach] = await db
 				.insert(coachesTable)
 				.values({
@@ -122,7 +122,7 @@ export const updateCoach = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId, skillIds, ...rest } = input
-			const db = getDd()
+			const db = getDb()
 			const [updatedCoach] = await db
 				.update(coachesTable)
 				.set({ ...rest, isActive: rest.isActive ? 1 : 0 })
@@ -160,7 +160,7 @@ export const deleteCoach = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
-			const db = getDd()
+			const db = getDb()
 
 			// Delete related records
 			await db
@@ -200,7 +200,7 @@ export const getCoachesByTeam = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { teamId } = input
-			const db = getDd()
+			const db = getDb()
 			const coaches = await db.query.coachesTable.findMany({
 				where: eq(coachesTable.teamId, teamId),
 				with: {
@@ -230,7 +230,7 @@ export const getCoachById = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, teamId } = input
-			const db = getDd()
+			const db = getDb()
 			const coach = await db.query.coachesTable.findFirst({
 				where: and(eq(coachesTable.id, id), eq(coachesTable.teamId, teamId)),
 				with: {
@@ -257,7 +257,7 @@ export const createCoachBlackoutDate = createServerAction()
 	.input(createCoachBlackoutDateSchema)
 	.handler(async ({ input }) => {
 		try {
-			const db = getDd()
+			const db = getDb()
 			const [newBlackoutDate] = await db
 				.insert(coachBlackoutDatesTable)
 				.values({ id: `cbd_${createId()}`, ...input })
@@ -282,7 +282,7 @@ export const deleteCoachBlackoutDate = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const { id, coachId } = input
-			const db = getDd()
+			const db = getDb()
 			const [deletedBlackoutDate] = await db
 				.delete(coachBlackoutDatesTable)
 				.where(
@@ -312,7 +312,7 @@ export const createCoachRecurringUnavailability = createServerAction()
 	.input(createCoachRecurringUnavailabilitySchema)
 	.handler(async ({ input }) => {
 		try {
-			const db = getDd()
+			const db = getDb()
 			const [newRecurringUnavailability] = await db
 				.insert(coachRecurringUnavailabilityTable)
 				.values({ id: `cru_${createId()}`, ...input })
@@ -336,7 +336,7 @@ export const deleteCoachRecurringUnavailability = createServerAction()
 	.input(deleteCoachRecurringUnavailabilitySchema)
 	.handler(async ({ input }) => {
 		try {
-			const db = getDd()
+			const db = getDb()
 			const [deletedRecurringUnavailability] = await db
 				.delete(coachRecurringUnavailabilityTable)
 				.where(

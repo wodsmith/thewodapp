@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { notFound, redirect } from "next/navigation"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
@@ -15,7 +15,7 @@ interface ScalingPageProps {
 
 export async function generateMetadata({ params }: ScalingPageProps) {
 	const { teamId } = await params
-	const db = getDd()
+	const db = getDb()
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: ScalingPageProps) {
 
 export default async function ScalingPage({ params }: ScalingPageProps) {
 	const { teamId } = await params
-	const db = getDd()
+	const db = getDb()
 
 	// Find the team by id
 	const team = await db.query.teamTable.findFirst({

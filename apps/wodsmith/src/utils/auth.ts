@@ -8,7 +8,7 @@ import { cookies } from "next/headers"
 import { cache } from "react"
 import { ZSAError } from "@repo/zsa"
 import { SESSION_COOKIE_NAME } from "@/constants"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
@@ -39,7 +39,7 @@ const getSessionLength = () => {
  */
 
 export async function getUserFromDB(userId: string) {
-	const db = getDd()
+	const db = getDb()
 	return await db.query.userTable.findFirst({
 		where: eq(userTable.id, userId),
 		columns: {
@@ -106,9 +106,15 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 			isSystemRole: boolean
 		}
 		permissions: string[]
+		plan?: {
+			id: string
+			name: string
+			features: string[]
+			limits: Record<string, number>
+		}
 	}[]
 > {
-	const db = getDd()
+	const db = getDb()
 
 	// Get user's team memberships
 	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
@@ -133,6 +139,13 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 	// Create a map for quick role lookup
 	const roleMap = new Map(customRoles.map((role) => [role.id, role]))
+
+	// Fetch plans for all teams in parallel
+	const teamIds = userTeamMemberships.map((m) => m.teamId)
+	const { getTeamPlan } = await import("@/server/entitlements")
+	const teamPlansPromises = teamIds.map((teamId) => getTeamPlan(teamId))
+	const teamPlans = await Promise.all(teamPlansPromises)
+	const planMap = new Map(teamPlans.map((plan, i) => [teamIds[i], plan]))
 
 	// Process memberships without async operations
 	return userTeamMemberships.map((membership) => {
@@ -171,6 +184,8 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 			}
 		}
 
+		const plan = planMap.get(membership.teamId)
+
 		return {
 			id: membership.teamId,
 			name: membership.team.name ?? "",
@@ -182,6 +197,14 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 				isSystemRole: !!membership.isSystemRole,
 			},
 			permissions,
+			plan: plan
+				? {
+						id: plan.id,
+						name: plan.name,
+						features: plan.entitlements.features,
+						limits: plan.entitlements.limits,
+					}
+				: undefined,
 		}
 	})
 }

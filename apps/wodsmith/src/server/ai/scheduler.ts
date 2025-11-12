@@ -1,7 +1,7 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq } from "drizzle-orm"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	coachesTable,
 	generatedSchedulesTable,
@@ -32,7 +32,7 @@ export async function generateSchedule({
 	weekStartDate,
 	teamId,
 }: ScheduleInput) {
-	const db = getDd()
+	const db = getDb()
 	if (!db) {
 		throw new Error("Database not initialized.")
 	}
@@ -153,14 +153,25 @@ export async function generateSchedule({
 		if (eligibleCoaches.length > 0) {
 			// In a real scenario, you'd construct a detailed prompt for the LLM
 			// including coach preferences, historical data, etc.
-			const llmPrompt = `Select the best coach for ${template.classCatalog?.name || "class"} at ${template.location?.name || "location"} on ${classStartTime.toDateString()} ${templateClass.startTime}. Eligible coaches: ${eligibleCoaches.map((c) => `${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`).join(", ")}. Consider their preferences and notes.`
+			const llmPrompt = `Select the best coach for ${
+				template.classCatalog?.name || "class"
+			} at ${
+				template.location?.name || "location"
+			} on ${classStartTime.toDateString()} ${
+				templateClass.startTime
+			}. Eligible coaches: ${eligibleCoaches
+				.map(
+					(c) =>
+						`${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`,
+				)
+				.join(", ")}. Consider their preferences and notes.`
 			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
 
 			// For now, just pick the first eligible coach as a mock decision
 			assignedCoach = eligibleCoaches[0] ?? null
 
 			if (assignedCoach) {
-					generatedClasses.push({
+				generatedClasses.push({
 					id: `sc_${createId()}`,
 					scheduleId: "", // Will be filled after generated_schedules is inserted
 					coachId: assignedCoach.id,
@@ -224,12 +235,16 @@ export async function generateSchedule({
 
 				if ((i + 1) % 10 === 0) {
 					console.log(
-						`INFO: [generateSchedule] Progress: ${i + 1}/${finalScheduledClasses.length} scheduled classes inserted`,
+						`INFO: [generateSchedule] Progress: ${i + 1}/${
+							finalScheduledClasses.length
+						} scheduled classes inserted`,
 					)
 				}
 			} catch (error) {
 				console.error(
-					`ERROR: [generateSchedule] Failed to insert scheduled class ${i + 1}:`,
+					`ERROR: [generateSchedule] Failed to insert scheduled class ${
+						i + 1
+					}:`,
 					error,
 				)
 				throw error
@@ -252,12 +267,16 @@ export async function generateSchedule({
 
 				if ((i + 1) % 10 === 0) {
 					console.log(
-						`INFO: [generateSchedule] Progress: ${i + 1}/${finalUnstaffedClasses.length} unstaffed classes inserted`,
+						`INFO: [generateSchedule] Progress: ${i + 1}/${
+							finalUnstaffedClasses.length
+						} unstaffed classes inserted`,
 					)
 				}
 			} catch (error) {
 				console.error(
-					`ERROR: [generateSchedule] Failed to insert unstaffed class ${i + 1}:`,
+					`ERROR: [generateSchedule] Failed to insert unstaffed class ${
+						i + 1
+					}:`,
 					error,
 				)
 				throw error
@@ -279,7 +298,7 @@ export async function getScheduledClassesForDisplay({
 	scheduleId: string
 	teamId: string
 }) {
-	const db = getDd()
+	const db = getDb()
 
 	const scheduledClasses = await db.query.scheduledClassesTable.findMany({
 		where: eq(scheduledClassesTable.scheduleId, scheduleId),
@@ -299,7 +318,7 @@ export async function getScheduledClassesForDisplay({
 
 // Function to get all generated schedules for a team
 export async function getGeneratedSchedulesForTeam(teamId: string) {
-	const db = getDd()
+	const db = getDb()
 
 	const schedules = await db.query.generatedSchedulesTable.findMany({
 		where: eq(generatedSchedulesTable.teamId, teamId),
