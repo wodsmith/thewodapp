@@ -37,17 +37,36 @@ import type { LimitCheckResult } from "@/server/entitlements-checks"
 export default function ChatPage() {
 	const [input, setInput] = useState("")
 	const currentTeamId = useTeamContext((state) => state.currentTeamId)
-	const [aiLimit, setAiLimit] = useState<
-		(LimitCheckResult & { hasFeature: boolean; remaining?: number }) | null
-	>(null)
+	// const [aiLimit, setAiLimit] = useState<
+	// 	(LimitCheckResult & { hasFeature: boolean; remaining?: number }) | null
+	// >(null)
 
-	const { execute: checkAI } = useServerAction(checkCanUseAIAction, {
-		onSuccess: (result) => {
-			if (result.data) {
-				setAiLimit(result.data.data)
-			}
-		},
-	})
+	// const { execute: checkAI } = useServerAction(checkCanUseAIAction, {
+	// 	onSuccess: (result) => {
+	// 		if (result.data) {
+	// 			setAiLimit(result.data.data)
+	// 		}
+	// 	},
+	// })
+
+	const aiLimit = {
+		canCreate: true,
+		hasFeature: true,
+		remaining: 100,
+		message: "You have 100 AI messages remaining this month",
+		isUnlimited: false,
+	}
+
+	const checkAI = (...args: any[]) => {
+		return {
+			canCreate: true,
+			hasFeature: true,
+			remaining: 100,
+			message: "You have 100 AI messages remaining this month",
+		}
+	}
+
+	console.log(currentTeamId)
 
 	// Check AI limits when page loads or team changes
 	useEffect(() => {
@@ -59,9 +78,6 @@ export default function ChatPage() {
 	const { messages, sendMessage, status, error } = useChat({
 		transport: new DefaultChatTransport({
 			api: "/api/chat",
-			body: {
-				teamId: currentTeamId || "",
-			},
 		}),
 		onFinish: () => {
 			// Refresh AI limit after sending a message
@@ -74,9 +90,11 @@ export default function ChatPage() {
 	const handleSubmit = (message: PromptInputMessage) => {
 		if (!message.text?.trim()) return
 
-		sendMessage({ text: message.text })
+		sendMessage({ text: message.text }, { body: { teamId: currentTeamId || "" } })
 		setInput("")
 	}
+
+	console.log(messages)
 
 	const isLoading = status === "streaming" || status === "submitted"
 

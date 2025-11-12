@@ -589,6 +589,14 @@ export async function createWorkout({
 	}
 }
 
+export async function getWorkoutByName(name: string): Promise<Workout | null> {
+	const db = getDb()
+	const workout = await db.select({id: workouts.id}).from(workouts).where(eq(workouts.name, name)).get()
+
+	if (!workout) return null
+	return getWorkoutById(workout.id)
+}
+
 /**
  * Get a single workout by ID with its tags and movements, including remix information
  */
