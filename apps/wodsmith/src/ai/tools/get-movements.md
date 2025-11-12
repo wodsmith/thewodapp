@@ -1,110 +1,318 @@
-Use this tool to retrieve all available workout movements for the team. Movements are specific exercises that appear in workouts (e.g., "Pull-ups", "Deadlift", "Box Jump") and serve as important filters for workout discovery. This tool returns the exact movement names as they exist in the database, which is essential for accurate filtering when using the Get Workouts tool.
+Use this tool to retrieve all available workout movements for the team. Movements are specific exercises (e.g., "Pull-ups", "Deadlift", "Box Jump") that appear in workouts. Returns exact movement names as stored in the database—essential for accurate filtering with getWorkouts.
 
-The returned movement list includes movements from both team-owned workouts and public workouts accessible to the team.
+## Critical Rule
 
-## When to Use This Tool
+**ALWAYS call this tool before using movement filter in getWorkouts** unless you have the exact movement name from earlier in the conversation.
 
-Use Get Movements when:
+Movements are case-sensitive with spelling variations. Using "pullups" instead of "Pull-ups" will return zero results.
 
-1. The user asks what movements or exercises are available in their workouts
-2. You need to verify the exact spelling or existence of a movement before filtering workouts
-3. The user wants to find workouts containing a specific exercise but you need to confirm the movement name
-4. You're building a filter query for Get Workouts and need to confirm valid movement names
-5. The user asks questions like "What exercises do our workouts include?" or "What movements can I filter by?"
+## Decision Framework
+
+### ALWAYS Use When
+1. User asks about available exercises: "what movements?", "what exercises do we have?"
+2. User mentions a movement but you don't have exact spelling: "show workouts with pull-ups"
+3. Building a filter for getWorkouts with a movement parameter
+4. User's movement might not exist or has unclear spelling: "find workouts with pullups"
+
+### NEVER Use When
+1. You already have exact movement from previous call in THIS conversation (cache results)
+2. User asks about tags/categories (use getTags)
+3. User wants workouts without mentioning movements (use getWorkouts directly)
+4. User asks "can we filter by movements?" (answer yes, don't call tool)
+
+## Reasoning Pattern
+
+<thinking>
+**Step 1: Identify Need**
+- Does user mention a specific exercise/movement?
+- Do I already have the movement list from this conversation?
+- Will I need to filter by movement in next step?
+
+**Step 2: Verify Necessity**
+- IF have exact movement name from earlier → Skip, use cached value
+- IF user wants general browse → Skip, call getWorkouts without filters
+- ELSE → Call getMovements
+
+**Step 3: Use Results**
+- Find exact match for user's requested movement
+- Consider spelling variations: "pullups" vs "Pull-ups", "deadlift" vs "Deadlift"
+- IF no match → Show available movements, ask for clarification
+- IF match found → Use exact database name in getWorkouts call
+</thinking>
 
 ## Tool Behavior
 
-- Returns an array of movement name strings (e.g., `["Pull-ups", "Deadlift", "Box Jump", "Thruster"]`)
-- Includes movements from all workouts accessible to the team (team-owned + public)
-- Movement names are returned as they are stored in the database (case-sensitive)
-- No parameters required — automatically scoped to the team context
+**Input**: None required (automatically scoped to team)
 
-## Best Practices
-
-- **Always call this tool before filtering by movement** if the user's request doesn't specify an exact movement name
-- Use the returned movement names exactly as provided when calling Get Workouts with a movement filter
-- Cache movement results in your conversation context to avoid repeated calls
-- If a user mentions a movement name that doesn't appear in results, inform them it doesn't exist or suggest alternatives
-- Be aware of naming variations (e.g., "Pull-up" vs "Pull-ups", "Box Jump" vs "Box Jumps")
-
-## Examples of When to Use This Tool
-
-<example>
-User: What movements are in our workouts?
-Assistant: Let me check what movements are available in your workouts.
-*Calls Get Movements*
-→ Returns: ["Pull-ups", "Deadlift", "Box Jump", "Thruster", "Row", "Run"]
-Assistant: Your workouts include these movements: Pull-ups, Deadlift, Box Jump, Thruster, Row, and Run.
-</example>
-
-<example>
-User: Show me all workouts with pull-ups
-Assistant: Let me verify the exact movement name first.
-*Calls Get Movements*
-→ Confirms "Pull-ups" exists in the movement list (with hyphen and plural)
-*Calls Get Workouts with movement: "Pull-ups"*
-</example>
-
-<example>
-User: Find workouts that include deadlifts
-Assistant: Let me check the exact movement name.
-*Calls Get Movements*
-→ Returns movements including "Deadlift" (singular, capital D)
-*Calls Get Workouts with movement: "Deadlift"*
-</example>
-
-<example>
-User: What workouts have both thrusters and pull-ups?
-Assistant: Let me first verify these movement names.
-*Calls Get Movements*
-→ Confirms "Thruster" and "Pull-ups" exist
-Assistant: I can search for workouts with each movement, but note that I can only filter by one movement at a time. Let me find workouts with thrusters first.
-*Calls Get Workouts with movement: "Thruster"*
-*Then mentions user can also search for Pull-ups workouts separately*
-</example>
-
-## When NOT to Use This Tool
-
-Avoid using this tool when:
-
-1. You already have the exact movement name from a previous call in the same conversation
-2. The user is asking about workout tags/categories (use Get Tags instead)
-3. The user is directly searching for workouts by name and doesn't mention specific movements
-4. You're fetching detailed workout information (use Get Workouts instead)
-
-## Common Workflow Pattern
-
-The typical flow when a user asks for movement-based workouts:
-
-1. **User mentions an exercise**: "Show me workouts with deadlifts"
-2. **Verify movement exists**: Call Get Movements to confirm "Deadlift" is valid
-3. **Note the exact spelling**: Use "Deadlift" (singular, capitalized) not "deadlifts"
-4. **Filter workouts**: Call Get Workouts with `movement: "Deadlift"`
-5. **Present results**: Display the filtered workouts to the user
-
-If the movement doesn't exist:
-1. Show available movements to the user
-2. Suggest similar or related movements
-3. Ask for clarification
-
-## Integration with Get Workouts
-
-Movement names returned by this tool should be used directly in the Get Workouts `movement` parameter:
-
+**Output**: Array of movement name strings
 ```typescript
-// Example flow
-const movements = await getMovements(); // Returns ["Pull-ups", "Deadlift", "Thruster"]
-const pullUpWorkouts = await getWorkouts({ movement: "Pull-ups" }); // Use exact name
+["Pull-ups", "Deadlift", "Box Jump", "Thruster", "Row", "Run"]
 ```
 
-## Limitations
+**Important**:
+- Movement names are case-sensitive
+- Includes movements from team-owned + public workouts
+- May have spelling variations: "Pull-ups" (hyphen), "Back Squat" (two words)
+- Order is not guaranteed
+- Empty array if no workouts have movements tagged
 
-- The Get Workouts tool can only filter by **one movement at a time**
-- If a user wants workouts with multiple movements, you'll need to either:
-  - Make multiple separate queries
-  - Explain that you can search for one movement and they can manually check for the other
-  - Use the search parameter if both movement names might appear in workout descriptions
+## Usage Workflow
 
-## Summary
+### Standard Pattern (Movement-Based Query)
+```
+User: "Show me workouts with pull-ups"
 
-Use Get Movements to discover and verify workout movement names before filtering workouts. This ensures accurate filtering by providing the exact movement spellings as they exist in the database. Always use the returned movement names exactly when passing them to the Get Workouts tool, and be mindful of naming variations (singular vs plural, capitalization).
+<reasoning>
+1. User mentions "pull-ups" - an exercise/movement
+2. Don't know exact spelling: Pull-ups? Pullups? pull ups?
+3. Must verify before filtering
+</reasoning>
+
+Step 1: getMovements()
+  → Returns: ["Pull-ups", "Deadlift", "Box Jump", "Thruster"]
+
+Step 2: Match user request
+  → "pull-ups" → "Pull-ups" (hyphen, capital P) ✓
+
+Step 3: getWorkouts({ movement: "Pull-ups" })
+```
+
+### Discovery Pattern
+```
+User: "What movements are in our workouts?"
+
+<reasoning>
+1. User wants to see available exercises
+2. Direct request for movement list
+3. Just return the list
+</reasoning>
+
+Action: getMovements()
+  → Returns: ["Pull-ups", "Deadlift", "Thruster", "Row"]
+
+Response: "Your workouts include these movements: Pull-ups, Deadlift, Thruster, and Row."
+```
+
+### Fuzzy Matching Pattern
+```
+User: "Find workouts with deadlifts"
+
+<reasoning>
+1. User says "deadlifts" (plural, lowercase)
+2. Database might have "Deadlift" (singular, capitalized)
+3. Need exact spelling
+</reasoning>
+
+Step 1: getMovements()
+  → Returns: [..., "Deadlift", ...]
+
+Step 2: Match case-insensitively
+  → "deadlifts" → "Deadlift" ✓
+
+Step 3: getWorkouts({ movement: "Deadlift" })
+```
+
+## Error Handling
+
+### Movement Not Found
+```
+IF user's mentioned movement not in getMovements() results:
+  THEN:
+    1. Inform: "I don't see '{user_movement}' in our movement list."
+    2. Suggest similar: "Did you mean: {similar_movements}?"
+    3. Show all: "Available movements: {movement_list}"
+    4. Ask: "Which movement would you like to search for?"
+    5. DO NOT call getWorkouts with invalid movement
+```
+
+### Empty Movement List
+```
+IF getMovements() returns []:
+  THEN:
+    1. Inform: "No movements are tagged in workouts yet."
+    2. Suggest: "You can browse all workouts or search by name."
+    3. DO NOT proceed with movement filtering
+```
+
+### Spelling Variations
+```
+Common variations to check:
+- Hyphenation: "Pull-ups" vs "Pullups"
+- Capitalization: "Deadlift" vs "deadlift" vs "DEADLIFT"
+- Pluralization: "Squat" vs "Squats"
+- Spacing: "Box Jump" vs "BoxJump"
+
+Algorithm:
+1. Try exact match first
+2. Try case-insensitive match
+3. Try removing hyphens/spaces
+4. Suggest closest matches if no exact match
+```
+
+### Multiple Movements Requested
+```
+User: "Show me workouts with pull-ups and thrusters"
+
+<reasoning>
+- User wants workouts containing BOTH movements
+- getWorkouts can only filter by ONE movement at a time
+- Must clarify limitation
+</reasoning>
+
+Response Strategy:
+1. Explain: "I can search for one movement at a time."
+2. Options:
+   a) "Show pull-ups workouts first, then thrusters"
+   b) "Use search to find workouts mentioning both"
+3. Proceed with user's choice
+```
+
+## Integration with getWorkouts
+
+**Correct Flow**:
+```typescript
+1. movements = getMovements()  // Returns ["Pull-ups", "Deadlift"]
+2. userMovement = "pullups"
+3. exactMovement = movements.find(m =>
+     m.toLowerCase().replace(/[-\s]/g, '') ===
+     userMovement.toLowerCase().replace(/[-\s]/g, '')
+   )
+4. getWorkouts({ movement: exactMovement })  // Use "Pull-ups"
+```
+
+**Incorrect Flow** (will fail):
+```typescript
+1. userMovement = "pullups"
+2. getWorkouts({ movement: userMovement })  // ❌ Won't match "Pull-ups"
+```
+
+## Caching Strategy
+
+**Within Same Conversation**:
+```
+First user request: "show me workouts with pull-ups"
+  → Call getMovements() once
+  → Store results: ["Pull-ups", "Deadlift", "Thruster"]
+
+Second user request: "now show me deadlift workouts"
+  → DON'T call getMovements() again
+  → Use cached list: "Deadlift" exists
+  → Call getWorkouts({ movement: "Deadlift" })
+
+Third user request: "what other movements do we have?"
+  → Use cached list
+  → Present: "We also have Thruster workouts"
+```
+
+## Quality Checklist
+
+Before calling getMovements, verify:
+- ✓ User request involves specific exercises/movements
+- ✓ Don't already have movement list from earlier in conversation
+- ✓ Will use results immediately (not speculative call)
+- ✓ Not asking about tags/categories (different tool)
+
+After calling getMovements, verify:
+- ✓ Results non-empty OR handle empty case
+- ✓ Found exact match for user's request OR show alternatives
+- ✓ Handled spelling variations (case, hyphen, plural)
+- ✓ Using exact database spelling in subsequent getWorkouts call
+- ✓ Cached results for rest of conversation
+
+## Common Movement Naming Patterns
+
+Be aware of these common patterns in movement names:
+- **Hyphenated**: Pull-ups, Push-ups, Sit-ups
+- **Two Words**: Box Jump, Wall Ball, Double Under
+- **Capitalized**: Deadlift, Thruster, Row, Run
+- **Equipment-Specific**: Barbell Snatch, Dumbbell Press
+- **Variations**: Front Squat vs Back Squat, Power Clean vs Squat Clean
+
+## Examples with Full Reasoning
+
+<example>
+User: "What exercises are in our workouts?"
+
+<internal_reasoning>
+- Direct question about exercises/movements
+- "Exercises" is synonym for movements
+- Need full list to answer
+</internal_reasoning>
+
+Actions:
+1. getMovements() → ["Pull-ups", "Deadlift", "Box Jump", "Thruster", "Row"]
+2. Response: "Your workouts include these exercises: Pull-ups, Deadlift, Box Jump, Thruster, and Row."
+</example>
+
+<example>
+User: "Show me workouts with pullups"
+
+<internal_reasoning>
+- "pullups" is a movement (no hyphen, lowercase)
+- Database likely has "Pull-ups" (hyphen, capitalized)
+- Need exact spelling
+</internal_reasoning>
+
+Actions:
+1. getMovements() → [..., "Pull-ups", ...]
+2. Match "pullups" → "Pull-ups" (fuzzy match)
+3. getWorkouts({ movement: "Pull-ups" })
+4. Response: "Here are workouts with Pull-ups..."
+</example>
+
+<example>
+User: "Find workouts with pull-ups and thrusters"
+
+<internal_reasoning>
+- User wants workouts with BOTH movements
+- getWorkouts only supports ONE movement filter
+- Must explain limitation
+</internal_reasoning>
+
+Actions:
+1. getMovements() → verify both exist
+2. Explain: "I can search for one movement at a time. Would you like to see:"
+   - "Workouts with Pull-ups"
+   - "Workouts with Thrusters"
+   - "Or I can search for 'pull-ups thrusters' in workout descriptions?"
+3. Wait for user choice, then proceed
+</example>
+
+<example>
+User: "Show me pull-up workouts"
+[Later in conversation]
+User: "Now show me deadlift ones"
+
+<internal_reasoning>
+First request:
+- "pull-up" is a movement
+- Need exact spelling
+- Call getMovements() → cache results
+
+Second request:
+- Already have movements: ["Pull-ups", "Deadlift", "Thruster"]
+- "deadlift" → match to "Deadlift"
+- DON'T call getMovements again (use cache)
+</internal_reasoning>
+
+Actions:
+1st: getMovements() → cache ["Pull-ups", "Deadlift", "Thruster"]
+1st: getWorkouts({ movement: "Pull-ups" })
+2nd: Use cached "Deadlift" (no getMovements call)
+2nd: getWorkouts({ movement: "Deadlift" })
+</example>
+
+<example>
+User: "Do we have any olympic lifting workouts?"
+
+<internal_reasoning>
+- "Olympic lifting" is a movement category, not specific movement
+- Need to check if movements like "Snatch", "Clean", "Jerk" exist
+- Multiple movements involved
+</internal_reasoning>
+
+Actions:
+1. getMovements() → check for: "Snatch", "Clean", "Clean and Jerk", "Jerk"
+2. IF found → "Yes, we have workouts with {movements}. Which would you like to see?"
+3. ELSE → "I don't see Olympic lifting movements. Available: {list}"
+</example>
