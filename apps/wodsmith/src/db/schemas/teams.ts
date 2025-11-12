@@ -23,6 +23,15 @@ export const systemRoleTuple = Object.values(SYSTEM_ROLES_ENUM) as [
 	...string[],
 ]
 
+// Team types
+export const TEAM_TYPES = {
+	PERSONAL: "personal",
+	GYM: "gym",
+	COMPETITION_EVENT: "competition_event",
+} as const
+
+export const teamTypeTuple = Object.values(TEAM_TYPES) as [string, ...string[]]
+
 // Define available permissions
 export const TEAM_PERMISSIONS = {
 	// Resource access
@@ -86,14 +95,27 @@ export const teamTable = sqliteTable(
 		// Default scaling group for the team
 		defaultScalingGroupId: text(),
 		// Flag to indicate if this is a personal team (created automatically for each user)
+		// DEPRECATED: Use type='personal' instead. This field maintained for backwards compatibility during migration
 		isPersonalTeam: integer().default(0).notNull(),
 		// For personal teams, store the owner user ID
 		personalTeamOwnerId: text().references(() => userTable.id),
+		// Team type: 'personal', 'gym', or 'competition_event'
+		type: text({ enum: teamTypeTuple })
+			.default(TEAM_TYPES.GYM)
+			.notNull(),
+		// Whether this gym can host competitions (only applicable for type='gym')
+		canHostCompetitions: integer().default(0).notNull(),
+		// Parent organization for competition_event teams (references the organizing gym)
+		parentOrganizationId: text().references(() => teamTable.id),
+		// Competition-specific metadata as JSON
+		competitionMetadata: text({ length: 10000 }),
 	},
 	(table) => [
 		index("team_slug_idx").on(table.slug),
 		index("team_personal_owner_idx").on(table.personalTeamOwnerId),
 		index("team_default_scaling_idx").on(table.defaultScalingGroupId),
+		index("team_type_idx").on(table.type),
+		index("team_parent_org_idx").on(table.parentOrganizationId),
 	],
 )
 
@@ -200,6 +222,16 @@ export const teamRelations = relations(teamTable, ({ many, one }) => ({
 		fields: [teamTable.personalTeamOwnerId],
 		references: [userTable.id],
 		relationName: "personalTeamOwner",
+	}),
+	// Parent organization relation (for competition_event teams)
+	parentOrganization: one(teamTable, {
+		fields: [teamTable.parentOrganizationId],
+		references: [teamTable.id],
+		relationName: "parentOrganization",
+	}),
+	// Child teams relation (competition events under this gym)
+	childTeams: many(teamTable, {
+		relationName: "parentOrganization",
 	}),
 }))
 

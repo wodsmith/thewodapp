@@ -1,3 +1,6 @@
+-- Disable foreign key constraints temporarily
+PRAGMA foreign_keys = OFF;
+
 DELETE FROM purchased_item;
 DELETE FROM credit_transaction;
 DELETE FROM passkey_credential;
@@ -19,8 +22,18 @@ DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
 DELETE FROM team_invitation;
+-- Delete competition tables (must be before team_membership due to FK)
+DELETE FROM competition_leaderboards;
+DELETE FROM competition_registrations;
 DELETE FROM team_membership;
 DELETE FROM team_role;
+-- Delete competition events (must be before team due to FK)
+DELETE FROM competition_events;
+DELETE FROM competition_event_groups;
+-- Delete scaling tables (must be after competition tables due to FK)
+DELETE FROM workout_scaling_descriptions;
+DELETE FROM scaling_levels;
+DELETE FROM scaling_groups;
 -- Delete entitlements tables (must be before team due to FK)
 DELETE FROM team_entitlement_override;
 DELETE FROM team_usage;
@@ -972,3 +985,69 @@ INSERT OR IGNORE INTO credit_transaction (id, userId, amount, remainingAmount, t
 ('ctxn_admin_monthly', 'usr_demo1admin', 100, 90, 'MONTHLY_REFRESH', 'Monthly admin credit refresh', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_coach_purchase', 'usr_demo2coach', 50, 35, 'PURCHASE', 'Credit purchase - starter pack', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('ctxn_john_usage', 'usr_demo3member', -5, 0, 'USAGE', 'Used credits for premium workout', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- ============================================
+-- COMPETITION PLATFORM SEED DATA
+-- ============================================
+
+-- Enable CrossFit Box One for competition hosting
+UPDATE team SET canHostCompetitions = 1, type = 'gym' WHERE id = 'team_cokkpu1klwo0ulfhl1iwzpvnbox1';
+
+-- Create competition_event teams for sample competitions
+INSERT OR IGNORE INTO team (id, name, slug, description, type, parentOrganizationId, isPersonalTeam, creditBalance, createdAt, updatedAt, updateCounter) VALUES
+('team_cfr7_2026', 'CFR7 2026 Competition', 'cfr7-2026', 'CrossFit Round 7 2026 Competition Event', 'competition_event', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 0, 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('team_verdant_2026', 'Verdant 2026 Competition', 'verdant-2026', 'Verdant 2026 Competition Event', 'competition_event', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 0, 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Create competition event group (series)
+INSERT OR IGNORE INTO competition_event_groups (id, organizingTeamId, slug, name, description, metadata, createdAt, updatedAt, updateCounter) VALUES
+('ceg_throwdowns_2026', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'throwdowns-2026', '2026 Throwdown Series', 'Mountain West Fitness Championship 2026 throwdown series including CFR7, Verdant, and Championship events', '{"year": 2026, "season": "spring-summer"}', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Create competition scaling group (divisions)
+INSERT OR IGNORE INTO scaling_groups (id, title, description, teamId, isDefault, isSystem, createdAt, updatedAt, updateCounter) VALUES
+('sgrp_comp_divisions', 'Competition Divisions', 'Standard competition divisions for throwdown events', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 0, 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Create competition divisions using scaling levels
+INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, createdAt, updatedAt, updateCounter) VALUES
+('slvl_comp_male_rx', 'sgrp_comp_divisions', 'Male RX', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_comp_female_rx', 'sgrp_comp_divisions', 'Female RX', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_comp_male_int', 'sgrp_comp_divisions', 'Male Intermediate', 2, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_comp_female_int', 'sgrp_comp_divisions', 'Female Intermediate', 3, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_comp_male_rookie', 'sgrp_comp_divisions', 'Male Rookie', 4, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_comp_female_rookie', 'sgrp_comp_divisions', 'Female Rookie', 5, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Create competition events
+INSERT OR IGNORE INTO competition_events (id, organizingTeamId, competitionTeamId, eventGroupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, registrationFee, externalRegistrationUrl, settings, createdAt, updatedAt, updateCounter) VALUES
+('cev_cfr7_2026', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'team_cfr7_2026', 'ceg_throwdowns_2026', 'cfr7', 'CrossFit Round 7', 'The seventh round of our annual throwdown series. Test your fitness across multiple workouts and divisions.',
+  strftime('%s', '2026-03-15'), strftime('%s', '2026-03-15'),
+  strftime('%s', '2026-01-15'), strftime('%s', '2026-03-10'),
+  5000, 'https://example.com/cfr7-register',
+  '{"workoutCount": 3, "scoringSystem": "points", "allowTeams": false}',
+  strftime('%s', 'now'), strftime('%s', 'now'), 0),
+
+('cev_verdant_2026', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'team_verdant_2026', 'ceg_throwdowns_2026', 'verdant', 'Verdant Throwdown', 'Spring fitness competition celebrating growth and renewal. Perfect for athletes of all levels.',
+  strftime('%s', '2026-05-20'), strftime('%s', '2026-05-20'),
+  strftime('%s', '2026-03-20'), strftime('%s', '2026-05-15'),
+  4500, NULL,
+  '{"workoutCount": 2, "scoringSystem": "points", "allowTeams": false}',
+  strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Update athlete profile fields for sample users
+UPDATE user SET gender = 'male', dateOfBirth = strftime('%s', '1990-05-15') WHERE id = 'usr_demo3member';
+UPDATE user SET gender = 'female', dateOfBirth = strftime('%s', '1992-08-22') WHERE id = 'usr_demo4member';
+
+-- Create sample competition registrations
+INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, divisionId, registrationData, status, paymentStatus, registeredAt, createdAt, updatedAt, updateCounter) VALUES
+('crg_john_cfr7', 'cev_cfr7_2026', 'usr_demo3member', 'slvl_comp_male_rx', '{"emergencyContact": "Jane Doe", "phone": "555-0100"}', 'confirmed', 'paid', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('crg_jane_cfr7', 'cev_cfr7_2026', 'usr_demo4member', 'slvl_comp_female_rx', '{"emergencyContact": "John Doe", "phone": "555-0101"}', 'confirmed', 'paid', strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Create team memberships for registered athletes (they join the competition_event team)
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, isActive, createdAt, updatedAt, updateCounter) VALUES
+('tmem_john_cfr7', 'team_cfr7_2026', 'usr_demo3member', 'member', 1, strftime('%s', 'now'), 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tmem_jane_cfr7', 'team_cfr7_2026', 'usr_demo4member', 'member', 1, strftime('%s', 'now'), 1, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Link team_member records to competition registrations
+UPDATE competition_registrations SET teamMemberId = 'tmem_john_cfr7' WHERE id = 'crg_john_cfr7';
+UPDATE competition_registrations SET teamMemberId = 'tmem_jane_cfr7' WHERE id = 'crg_jane_cfr7';
+
+-- Re-enable foreign key constraints
+PRAGMA foreign_keys = ON;

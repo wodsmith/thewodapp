@@ -11,6 +11,16 @@ export const ROLES_ENUM = {
 
 const roleTuple = Object.values(ROLES_ENUM) as [string, ...string[]]
 
+// Gender options for athlete profiles
+export const GENDER_ENUM = {
+	MALE: "male",
+	FEMALE: "female",
+	NON_BINARY: "non-binary",
+	PREFER_NOT_TO_SAY: "prefer-not-to-say",
+} as const
+
+const genderTuple = Object.values(GENDER_ENUM) as [string, ...string[]]
+
 // User table
 export const userTable = sqliteTable(
 	"user",
@@ -55,6 +65,15 @@ export const userTable = sqliteTable(
 		lastCreditRefreshAt: integer({
 			mode: "timestamp",
 		}),
+		// Athlete profile fields for competition divisions
+		gender: text({
+			enum: genderTuple,
+		}),
+		dateOfBirth: integer({
+			mode: "timestamp",
+		}),
+		// Extended athlete profile data as JSON (e.g., box affiliation, years of experience, etc.)
+		athleteProfile: text({ length: 5000 }),
 	},
 	(table) => [
 		index("email_idx").on(table.email),
