@@ -43,12 +43,12 @@ export async function POST(req: NextRequest) {
 	}
 
 	try {
-		// // Check if team has AI feature access
-		// await requireFeature(body.teamId, FEATURES.AI_WORKOUT_GENERATION)
+		// Check if team has AI feature access
+		await requireFeature(body.teamId, FEATURES.AI_WORKOUT_GENERATION)
 
-		// // Check and increment AI message usage
-		// // This checks if team has messages remaining and increments by 1
-		// await requireLimit(body.teamId, LIMITS.AI_MESSAGES_PER_MONTH, 1)
+		// Check and increment AI message usage
+		// This checks if team has messages remaining and increments by 1
+		await requireLimit(body.teamId, LIMITS.AI_MESSAGES_PER_MONTH, 1)
 	} catch (error) {
 		// ZSAError thrown by requireFeature/requireLimit
 		if (error instanceof Error) {
