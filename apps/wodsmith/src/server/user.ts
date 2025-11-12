@@ -28,7 +28,7 @@ export async function createPersonalTeamForUser(
 		user.firstName?.toLowerCase() || "personal"
 	}-${user.id.slice(-6)}`
 
-	const [personalTeam] = await db
+	const personalTeamResult = await db
 		.insert(teamTable)
 		.values({
 			name: personalTeamName,
@@ -39,6 +39,8 @@ export async function createPersonalTeamForUser(
 			personalTeamOwnerId: user.id,
 		})
 		.returning()
+
+	const personalTeam = Array.isArray(personalTeamResult) ? personalTeamResult[0] : personalTeamResult.results[0]
 
 	if (!personalTeam) {
 		throw new ZSAError(

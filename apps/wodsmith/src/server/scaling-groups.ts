@@ -271,11 +271,13 @@ export async function setTeamDefaultScalingGroup({
 		return { success: false, error: "Forbidden" }
 	}
 
-	const [team] = await db
+	const teamResult = await db
 		.update(teamTable)
 		.set({ defaultScalingGroupId: scalingGroupId, updatedAt: new Date() })
 		.where(eq(teamTable.id, teamId))
 		.returning()
+
+	const team = Array.isArray(teamResult) ? teamResult[0] : teamResult.results[0]
 
 	// Mark this group as default for this team (non-authoritative but useful)
 	await db

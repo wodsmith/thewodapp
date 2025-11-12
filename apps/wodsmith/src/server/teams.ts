@@ -9,6 +9,8 @@ import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
+	Team,
+	TeamMembership,
 	teamMembershipTable,
 	teamRoleTable,
 	teamSubscriptionTable,
@@ -269,7 +271,9 @@ export async function getTeam(teamId: string) {
 /**
  * Get all team memberships for a specific user
  */
-export async function getUserTeamMemberships(userId: string) {
+export async function getUserTeamMemberships(userId: string): Promise<
+	Array<TeamMembership & { team: Team }>
+> {
 	const db = getDb()
 
 	const memberships = await db.query.teamMembershipTable.findMany({
@@ -279,13 +283,13 @@ export async function getUserTeamMemberships(userId: string) {
 		},
 	})
 
-	return memberships
+	return memberships as Array<TeamMembership & { team: Team }>
 }
 
 /**
  * Get all teams for current user
  */
-export async function getUserTeams() {
+export async function getUserTeams(): Promise<Team[]> {
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
@@ -310,13 +314,15 @@ export async function getUserTeams() {
 		)
 	}
 
-	return userTeams.map((membership) => membership.team)
+	return userTeams
+		.map((membership) => membership.team as Team | null)
+		.filter((team): team is Team => team !== null && team !== undefined)
 }
 
 /**
  * Get teams owned by the current user
  */
-export async function getOwnedTeams() {
+export async function getOwnedTeams(): Promise<Team[]> {
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
@@ -336,5 +342,5 @@ export async function getOwnedTeams() {
 		},
 	})
 
-	return ownedTeams.map((membership) => membership.team)
+	return ownedTeams.map((membership) => membership.team) as Team[]
 }
