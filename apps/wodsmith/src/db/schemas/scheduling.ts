@@ -387,3 +387,30 @@ export type ScheduleTemplateClassRequiredSkill = InferSelectModel<
 >
 export type GeneratedSchedule = InferSelectModel<typeof generatedSchedulesTable>
 export type ScheduledClass = InferSelectModel<typeof scheduledClassesTable>
+
+// Query result types with relations
+export type ScheduledClassWithRelations = ScheduledClass & {
+	schedule: GeneratedSchedule
+	coach: (Coach & {
+		user: { firstName: string | null; lastName: string | null; id: string; email: string; createdAt: Date; updatedAt: Date }
+	}) | null
+	classCatalog: ClassCatalog & {
+		classToSkills?: (CoachToSkill & {
+			skill: Skill
+		})[]
+	}
+	location: Location
+}
+
+export type ScheduleTemplateWithRelations = ScheduleTemplate & {
+	team: { id: string; name: string; createdAt: Date; updatedAt: Date; updateCounter: number | null }
+	templateClasses: ScheduleTemplateClass[]
+	classCatalog: ClassCatalog
+	location: Location
+}
+
+export type GeneratedScheduleWithRelations = GeneratedSchedule & {
+	team: { id: string; name: string; createdAt: Date; updatedAt: Date; updateCounter: number | null }
+	location: Location
+	scheduledClasses: ScheduledClassWithRelations[]
+}

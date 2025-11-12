@@ -109,7 +109,7 @@ export const teamTable = sqliteTable(
 		parentOrganizationId: text().references(() => teamTable.id),
 		// Competition-specific metadata as JSON
 		competitionMetadata: text({ length: 10000 }),
-	},
+	} as const,
 	(table) => [
 		index("team_slug_idx").on(table.slug),
 		index("team_personal_owner_idx").on(table.personalTeamOwnerId),
@@ -117,7 +117,7 @@ export const teamTable = sqliteTable(
 		index("team_type_idx").on(table.type),
 		index("team_parent_org_idx").on(table.parentOrganizationId),
 	],
-)
+) as any
 
 // Team membership table
 export const teamMembershipTable = sqliteTable(
