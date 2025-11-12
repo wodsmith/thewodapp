@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import type {
 	ScheduledWorkoutInstance,
+	Team,
 	TrackWorkout,
 	Workout,
 } from "@/db/schema"
@@ -33,12 +34,6 @@ type ScheduledWorkoutInstanceWithDetails = ScheduledWorkoutInstance & {
 		scale?: string
 		notes?: string
 	} | null
-}
-
-interface Team {
-	id: string
-	name: string
-	isPersonalTeam?: number | boolean
 }
 
 interface TeamWorkoutSectionProps {

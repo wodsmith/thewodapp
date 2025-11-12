@@ -6,6 +6,7 @@ import {
 	getScheduledTeamWorkoutsAction,
 	getScheduledTeamWorkoutsWithResultsAction,
 } from "@/actions/workout-actions"
+import type { Team } from "@/db/schema"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import { useSessionStore } from "@/state/session"
 import {
@@ -18,12 +19,6 @@ import {
 import { TeamWorkoutSection } from "./team-workout-section"
 
 type ViewMode = "daily" | "weekly"
-
-interface Team {
-	id: string
-	name: string
-	isPersonalTeam?: number | boolean
-}
 
 // Uses server type: ScheduledWorkoutInstanceWithDetails (includes WorkoutWithMovements)
 type ScheduledWorkoutInstanceWithResult =
@@ -306,8 +301,8 @@ export function TeamWorkoutsDisplay({
 
 	// Sort teams to put personal teams on top
 	const allTeams = useMemo(() => {
-		return teams
-			.filter((team) => team)
+		return (teams as Team[])
+			.filter((team): team is Team => team !== null && team !== undefined)
 			.sort((a, b) => {
 				// Personal teams first (isPersonalTeam is truthy)
 				const aIsPersonal = Boolean(a.isPersonalTeam)

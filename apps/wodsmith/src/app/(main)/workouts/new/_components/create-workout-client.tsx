@@ -47,6 +47,7 @@ import type {
 	Movement,
 	ProgrammingTrack,
 	Tag,
+	Team,
 	TeamMembership,
 } from "@/db/schema"
 import { cn } from "@/lib/utils"
@@ -67,7 +68,7 @@ interface Props {
 	teamId: string
 	ownedTracks: ProgrammingTrack[]
 	teamsWithProgrammingPermission: (TeamMembership & {
-		team: { id: string; name: string; isPersonalTeam: number } | null
+		team: Team
 	})[]
 	scalingGroups?: ScalingGroupWithTeam[]
 	createWorkoutAction?: typeof createWorkoutAction

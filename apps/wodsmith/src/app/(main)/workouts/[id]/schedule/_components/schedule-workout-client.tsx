@@ -22,7 +22,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { TeamMembership } from "@/db/schema"
+import type { Team, TeamMembership } from "@/db/schema"
 import { cn } from "@/lib/utils"
 
 interface ScheduleWorkoutClientProps {
@@ -34,7 +34,7 @@ interface ScheduleWorkoutClientProps {
 	workoutId: string
 	teamId: string
 	teamsWithProgrammingPermission: (TeamMembership & {
-		team: { id: string; name: string; isPersonalTeam: number } | null
+		team: Team
 	})[]
 }
 
