@@ -14,6 +14,7 @@ export const EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 ho
 export const MAX_SESSIONS_PER_USER = 5
 export const MAX_TEAMS_JOINED_PER_USER = 10
 export const SESSION_COOKIE_NAME = "session"
+export const ACTIVE_TEAM_COOKIE_NAME = "active-team"
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "google-oauth-state"
 export const GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME =
 	"google-oauth-code-verifier"

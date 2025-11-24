@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveOrPersonalTeamId, getSessionFromCookie } from "@/utils/auth"
 import { TeamPageClient } from "./_components/team-page-client"
 
 export const metadata: Metadata = {
@@ -34,41 +34,23 @@ export default async function TeamsPage() {
 		redirect("/sign-in")
 	}
 
-	// Get the user's current team (first team for now)
+	// Get user's active team ID (or fallback to personal team)
+	const activeTeamId = await getActiveOrPersonalTeamId(session.userId)
+
+	// Get active team info from session
 	const teams = session.teams || []
-	if (teams.length === 0) {
+	const activeTeam = teams.find((team) => team.id === activeTeamId)
+
+	if (!activeTeam) {
 		return (
 			<div className="container mx-auto py-8">
 				<h1 className="text-3xl font-bold mb-6">Team</h1>
 				<p className="text-muted-foreground">
-					You are not a member of any teams.
+					Active team not found. Please switch to a valid team.
 				</p>
 			</div>
 		)
 	}
 
-	// Prefer non-personal teams as initial team, fall back to first team if all are personal
-	const nonPersonalTeams = teams.filter((t) => !t.isPersonalTeam)
-	const initialTeam =
-		nonPersonalTeams.length > 0 ? nonPersonalTeams[0] : teams[0]
-
-	// This should never happen due to the length check above, but satisfies type safety
-	if (!initialTeam) {
-		return (
-			<div className="container mx-auto py-8">
-				<h1 className="text-3xl font-bold mb-6">Team</h1>
-				<p className="text-muted-foreground">
-					You are not a member of any teams.
-				</p>
-			</div>
-		)
-	}
-
-	return (
-		<TeamPageClient
-			initialTeam={initialTeam}
-			allTeams={teams}
-			userId={session.userId}
-		/>
-	)
+	return <TeamPageClient team={activeTeam} userId={session.userId} />
 }

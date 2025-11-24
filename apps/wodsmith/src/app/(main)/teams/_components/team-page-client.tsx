@@ -46,17 +46,11 @@ interface Team {
 }
 
 interface TeamPageClientProps {
-	initialTeam: Team
-	allTeams: Team[]
+	team: Team
 	userId: string
 }
 
-export function TeamPageClient({
-	initialTeam,
-	allTeams,
-	userId,
-}: TeamPageClientProps) {
-	const [selectedTeam, setSelectedTeam] = useState<Team>(initialTeam)
+export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>("daily")
 	const [selectedDate, setSelectedDate] = useState(new Date())
 	const [workoutsWithResults, setWorkoutsWithResults] = useState<
@@ -93,7 +87,7 @@ export function TeamPageClient({
 			try {
 				// Fetch workouts with results
 				const [workoutsResult, workoutsError] = await fetchWorkouts({
-					teamId: selectedTeam.id,
+					teamId: team.id,
 					startDate: startDate.toISOString(),
 					endDate: endDate.toISOString(),
 					userId,
@@ -110,7 +104,7 @@ export function TeamPageClient({
 						const [leaderboardsResult, leaderboardsError] =
 							await fetchLeaderboards({
 								scheduledWorkoutInstanceIds: instanceIds,
-								teamId: selectedTeam.id,
+								teamId: team.id,
 							})
 
 						if (leaderboardsResult?.success && !leaderboardsError) {
@@ -126,14 +120,7 @@ export function TeamPageClient({
 		}
 
 		fetchData()
-	}, [
-		viewMode,
-		selectedDate,
-		selectedTeam.id,
-		userId,
-		fetchWorkouts,
-		fetchLeaderboards,
-	])
+	}, [viewMode, selectedDate, team.id, userId, fetchWorkouts, fetchLeaderboards])
 
 	// Group workouts by date for weekly view
 	const workoutsByDate = workoutsWithResults.reduce(
@@ -154,42 +141,22 @@ export function TeamPageClient({
 	const sortedDates = Object.keys(workoutsByDate).sort()
 
 	const canManageTeam =
-		selectedTeam.role.isSystemRole &&
-		(selectedTeam.role.id === SYSTEM_ROLES_ENUM.OWNER ||
-			selectedTeam.role.id === SYSTEM_ROLES_ENUM.ADMIN)
+		team.role.isSystemRole &&
+		(team.role.id === SYSTEM_ROLES_ENUM.OWNER ||
+			team.role.id === SYSTEM_ROLES_ENUM.ADMIN)
 
 	return (
 		<div className="container mx-auto py-8 space-y-8">
 			<div className="flex items-center justify-between gap-4">
 				<div>
-					<h1 className="text-3xl font-bold mb-2">{selectedTeam.name}</h1>
+					<h1 className="text-3xl font-bold mb-2">{team.name}</h1>
 					<p className="text-muted-foreground">Team Dashboard</p>
 				</div>
 				<div className="flex items-center gap-3">
 					{canManageTeam && (
 						<Button asChild variant="outline">
-							<Link href={`/admin/teams/${selectedTeam.id}`}>Manage Team</Link>
+							<Link href={`/admin/teams/${team.id}`}>Manage Team</Link>
 						</Button>
-					)}
-					{allTeams.length > 1 && (
-						<Select
-							value={selectedTeam.id}
-							onValueChange={(teamId) => {
-								const team = allTeams.find((t) => t.id === teamId)
-								if (team) setSelectedTeam(team)
-							}}
-						>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{allTeams.map((team) => (
-									<SelectItem key={team.id} value={team.id}>
-										{team.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
 					)}
 				</div>
 			</div>

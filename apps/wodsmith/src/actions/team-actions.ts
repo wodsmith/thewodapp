@@ -10,6 +10,8 @@ import {
 	getUserTeams,
 	updateTeam,
 } from "@/server/teams"
+import { requireVerifiedEmail, setActiveTeamCookie } from "@/utils/auth"
+import { TEAM_PERMISSIONS } from "@/db/schema"
 
 // Update team schema
 const updateTeamSchema = z.object({
@@ -160,3 +162,59 @@ export const getOwnedTeamsAction = createServerAction().handler(async () => {
 		throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get owned teams")
 	}
 })
+
+const setActiveTeamSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
+/**
+ * Set the active team cookie for the current user
+ * Validates that the user is a member of the team before setting
+ */
+export const setActiveTeamAction = createServerAction()
+	.input(setActiveTeamSchema)
+	.handler(async ({ input }) => {
+		try {
+			const session = await requireVerifiedEmail()
+
+			if (!session?.teams) {
+				throw new ZSAError("NOT_AUTHORIZED", "No teams found in session")
+			}
+
+			// Validate that the team exists in user's session
+			const team = session.teams.find((t) => t.id === input.teamId)
+
+			if (!team) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You are not a member of this team",
+				)
+			}
+
+			// Verify user has at least ACCESS_DASHBOARD permission
+			if (
+				!team.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)
+			) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You do not have permission to access this team",
+				)
+			}
+
+			// Set the active team cookie
+			await setActiveTeamCookie(input.teamId)
+
+			return { success: true, teamId: input.teamId, teamName: team.name }
+		} catch (error) {
+			console.error("Failed to set active team:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to set active team",
+			)
+		}
+	})

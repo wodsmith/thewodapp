@@ -29,7 +29,6 @@ export const createWorkoutSchema = z.object({
 	selectedTags: z.array(z.string()).default([]),
 	trackId: z.string().optional(),
 	scheduledDate: z.date().optional(),
-	selectedTeamId: z.string().optional(),
 	scalingGroupId: z.string().optional(),
 })
 

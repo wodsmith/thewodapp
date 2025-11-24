@@ -26,7 +26,6 @@ import {
 import { useActiveNavItem } from "@/hooks/useActiveNavItem"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { cn } from "@/lib/utils"
-import { AdminTeamSwitcher } from "./admin-team-switcher"
 
 interface AdminNavItem {
 	title: string
@@ -113,10 +112,8 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 
 	return (
 		<div className="space-y-4">
-			{/* Team Switcher Header */}
 			{currentTeamId ? (
 				<>
-					<AdminTeamSwitcher currentTeamId={currentTeamId} />
 					{/* Navigation */}
 					<div className="overflow-x-auto overflow-y-visible lg:overflow-x-visible">
 						<ScrollShadow

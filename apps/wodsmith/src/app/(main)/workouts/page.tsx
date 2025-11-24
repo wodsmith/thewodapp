@@ -9,9 +9,12 @@ import {
 	getScheduledWorkoutsForTeam,
 	type ScheduledWorkoutInstanceWithDetails,
 } from "@/server/scheduling-service"
-import { getUserTeams } from "@/server/teams"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import { requireVerifiedEmail } from "@/utils/auth"
+import {
+	getActiveOrPersonalTeamId,
+	getSessionFromCookie,
+	requireVerifiedEmail,
+} from "@/utils/auth"
 import type { KVSession } from "@/utils/kv-session"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
@@ -66,15 +69,16 @@ export default async function WorkoutsPage({
 		redirect("/sign-in")
 	}
 
-	// Get user's teams for team workouts display
-	const userTeams = await getUserTeams()
+	// Get user's active team ID (or fallback to personal team)
+	const activeTeamId = await getActiveOrPersonalTeamId(session.user.id)
 
-	// Use all team IDs that the user is a member of
-	const userTeamIds = userTeams.map((team) => team.id)
+	// Get active team info from session
+	const activeTeam = session.teams?.find((team) => team.id === activeTeamId)
+	const activeTeams = activeTeam ? [activeTeam] : []
 
-	// Get all programming tracks the user has access to through their teams
+	// Get all programming tracks the user has access to through their active team
 	const { getUserProgrammingTracks } = await import("@/server/programming")
-	const userProgrammingTracks = await getUserProgrammingTracks(userTeamIds)
+	const userProgrammingTracks = await getUserProgrammingTracks([activeTeamId])
 
 	// Fetch initial scheduled workouts for a wider range to handle timezone differences
 	// This ensures we capture "today" for all possible user timezones
@@ -114,45 +118,41 @@ export default async function WorkoutsPage({
 		ScheduledWorkoutInstanceWithDetails[]
 	> = {}
 
-	// Fetch scheduled workouts for all teams with error handling
-	const scheduledWorkoutsPromises = userTeams.map(async (team) => {
-		try {
-			const scheduledWorkouts = await getScheduledWorkoutsForTeam(
-				team.id,
-				dateRange,
-			)
+	// Fetch scheduled workouts for the active team with error handling
+	try {
+		const scheduledWorkouts = await getScheduledWorkoutsForTeam(
+			activeTeamId,
+			dateRange,
+		)
 
-			// Prepare instances for result fetching
-			const instances = scheduledWorkouts.map((workout) => ({
-				id: workout.id,
-				scheduledDate: workout.scheduledDate,
-				workoutId:
-					workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
-			}))
+		// Prepare instances for result fetching
+		const instances = scheduledWorkouts.map((workout) => ({
+			id: workout.id,
+			scheduledDate: workout.scheduledDate,
+			workoutId:
+				workout.trackWorkout?.workoutId || workout.trackWorkout?.workout?.id,
+		}))
 
-			// Fetch results for all instances
-			const workoutResults = await getWorkoutResultsForScheduledInstances(
-				instances,
-				session.user.id,
-			)
+		// Fetch results for all instances
+		const workoutResults = await getWorkoutResultsForScheduledInstances(
+			instances,
+			session.user.id,
+		)
 
-			// Attach results to scheduled workouts
-			const workoutsWithResults = scheduledWorkouts.map((workout) => ({
-				...workout,
-				result: workout.id ? workoutResults[workout.id] || null : null,
-			}))
+		// Attach results to scheduled workouts
+		const workoutsWithResults = scheduledWorkouts.map((workout) => ({
+			...workout,
+			result: workout.id ? workoutResults[workout.id] || null : null,
+		}))
 
-			return { teamId: team.id, workouts: workoutsWithResults }
-		} catch (error) {
-			console.error(`Failed to fetch workouts for team ${team.id}:`, error)
-			return { teamId: team.id, workouts: [] }
-		}
-	})
-
-	const allScheduledWorkouts = await Promise.all(scheduledWorkoutsPromises)
-	allScheduledWorkouts.forEach(({ teamId, workouts }) => {
-		initialScheduledWorkouts[teamId] = workouts
-	})
+		initialScheduledWorkouts[activeTeamId] = workoutsWithResults
+	} catch (error) {
+		console.error(
+			`Failed to fetch workouts for team ${activeTeamId}:`,
+			error,
+		)
+		initialScheduledWorkouts[activeTeamId] = []
+	}
 
 	const mySearchParams = await searchParams
 	const parsedPage = Number.parseInt(mySearchParams?.page || "1", 10)
@@ -165,7 +165,7 @@ export default async function WorkoutsPage({
 
 	// Pass all filters to the server action
 	const [result, error] = await getUserWorkoutsAction({
-		teamId: userTeamIds,
+		teamId: [activeTeamId],
 		page: currentPage,
 		pageSize: 50,
 		search: mySearchParams?.search,
@@ -189,8 +189,8 @@ export default async function WorkoutsPage({
 	const { getAvailableWorkoutTags, getAvailableWorkoutMovements } =
 		await import("@/server/workouts")
 	const [allTags, allMovements] = await Promise.all([
-		getAvailableWorkoutTags(userTeamIds[0] || ""), // Use first team ID for filter options
-		getAvailableWorkoutMovements(userTeamIds[0] || ""), // Use first team ID for filter options
+		getAvailableWorkoutTags(activeTeamId), // Use active team ID for filter options
+		getAvailableWorkoutMovements(activeTeamId), // Use active team ID for filter options
 	])
 	return (
 		<div>
@@ -210,7 +210,7 @@ export default async function WorkoutsPage({
 			{/* Team Workouts Section */}
 			<TeamWorkoutsDisplay
 				className="mb-12"
-				teams={userTeams}
+				teams={activeTeams}
 				initialScheduledWorkouts={initialScheduledWorkouts}
 				userId={session.user.id}
 			/>

@@ -2,7 +2,10 @@
 
 import { Building2, ChevronsUpDown, Plus } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import * as React from "react"
+import { toast } from "sonner"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -18,33 +21,49 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar"
+import { setActiveTeamAction } from "@/actions/team-actions"
 
 export function TeamSwitcher({
 	teams,
+	activeTeamId,
 }: {
 	teams: {
+		id: string
 		name: string
 		logo: React.ElementType
 		plan: string
 	}[]
+	activeTeamId: string | null
 }) {
 	const { isMobile } = useSidebar()
-	const [activeTeam, setActiveTeam] = React.useState<(typeof teams)[0] | null>(
-		null,
-	)
+	const router = useRouter()
+	const [isLoading, setIsLoading] = React.useState(false)
 
-	// Update activeTeam when teams change or on initial render
-	React.useEffect(() => {
-		if (
-			teams.length > 0 &&
-			(!activeTeam || !teams.find((t) => t.name === activeTeam.name))
-		) {
-			const firstTeam = teams[0]
-			if (firstTeam) {
-				setActiveTeam(firstTeam)
+	const { execute: setActiveTeam } = useServerAction(setActiveTeamAction)
+
+	const activeTeam = teams.find((team) => team.id === activeTeamId)
+
+	const handleTeamSwitch = async (teamId: string) => {
+		if (teamId === activeTeamId) return
+
+		setIsLoading(true)
+		try {
+			const [result, error] = await setActiveTeam({ teamId })
+
+			if (error) {
+				console.error("Failed to switch team:", error)
+				toast.error("Failed to switch team", {
+					description: error.message || "Please try again",
+				})
+				return
 			}
+
+			// Refresh the page to update all server components
+			router.refresh()
+		} finally {
+			setIsLoading(false)
 		}
-	}, [teams, activeTeam])
+	}
 
 	const LogoComponent = activeTeam?.logo || Building2
 
@@ -83,9 +102,10 @@ export function TeamSwitcher({
 						{teams.length > 0 ? (
 							teams.map((team, index) => (
 								<DropdownMenuItem
-									key={team.name}
-									onClick={() => setActiveTeam(team)}
+									key={team.id}
+									onClick={() => handleTeamSwitch(team.id)}
 									className="gap-2 p-2"
+									disabled={isLoading}
 								>
 									<div className="flex size-6 items-center justify-center rounded-sm border">
 										<team.logo className="size-4 shrink-0" />

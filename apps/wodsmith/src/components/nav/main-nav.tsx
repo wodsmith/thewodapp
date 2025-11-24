@@ -4,11 +4,13 @@ import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
 import MobileNav from "@/components/nav/mobile-nav"
+import { ActiveTeamSwitcher } from "@/components/nav/active-team-switcher"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
 
 export default async function MainNav() {
 	const session = await getSessionFromCookie()
+	const activeTeamId = await getActiveTeamFromCookie()
 
 	return (
 		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
@@ -58,6 +60,12 @@ export default async function MainNav() {
 								Team
 							</Link>
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
+							{session.teams && session.teams.length > 0 && (
+								<ActiveTeamSwitcher
+									teams={session.teams}
+									activeTeamId={activeTeamId}
+								/>
+							)}
 							<Link
 								href="/settings/profile"
 								className="font-bold text-foreground dark:text-dark-foreground"

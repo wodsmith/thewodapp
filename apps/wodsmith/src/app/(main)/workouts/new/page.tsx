@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { getAllTagsAction } from "@/actions/tag-actions"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveOrPersonalTeamId, getSessionFromCookie } from "@/utils/auth"
 import CreateWorkoutClient from "./_components/create-workout-client"
 
 export const metadata: Metadata = {
@@ -45,9 +45,8 @@ export default async function CreateWorkoutPage() {
 		redirect("/sign-in")
 	}
 
-	// Get user's personal team ID
-	const { getUserPersonalTeamId } = await import("@/server/user")
-	const teamId = await getUserPersonalTeamId(session.user.id)
+	// Get user's active team ID (or fallback to personal team)
+	const teamId = await getActiveOrPersonalTeamId(session.user.id)
 
 	// Get all teams where user is a member
 	const { getUserTeamMemberships } = await import("@/server/teams")
