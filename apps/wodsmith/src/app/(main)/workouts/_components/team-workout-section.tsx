@@ -1,17 +1,8 @@
 "use client"
 
-import {
-	CalendarIcon,
-	ChevronDownIcon,
-	ChevronRightIcon,
-} from "@heroicons/react/24/outline"
-import { useCallback, useState } from "react"
+import { CalendarIcon } from "@heroicons/react/24/outline"
+import { useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import type {
@@ -64,10 +55,6 @@ export function TeamWorkoutSection({
 	onViewModeChange,
 	onRefresh,
 }: TeamWorkoutSectionProps) {
-	// Collapse teams with no workouts by default
-	const hasWorkouts = teamWorkouts.length > 0 || isLoading || !!error
-	const [isExpanded, setIsExpanded] = useState(hasWorkouts)
-
 	const handleRefresh = useCallback(() => {
 		onRefresh(team.id, viewMode, true)
 	}, [team.id, viewMode, onRefresh])
@@ -118,72 +105,44 @@ export function TeamWorkoutSection({
 	)
 
 	return (
-		<Collapsible
-			open={hasWorkouts || isExpanded}
-			onOpenChange={setIsExpanded}
-			className="card p-6"
-		>
-			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-				<div className="flex items-center gap-2 mb-2 sm:mb-0">
-					{!hasWorkouts && (
-						<CollapsibleTrigger asChild>
-							<Button
-								size="sm"
-								variant="ghost"
-								className="h-6 w-6 p-0 -ml-1"
-								title={isExpanded ? "Collapse" : "Expand"}
-							>
-								{isExpanded ? (
-									<ChevronDownIcon className="h-4 w-4" />
-								) : (
-									<ChevronRightIcon className="h-4 w-4" />
-								)}
-							</Button>
-						</CollapsibleTrigger>
-					)}
-					<h3 className="font-semibold text-lg">{team.name}</h3>
-				</div>
-
-				{(hasWorkouts || isExpanded) && (
-					<div className="flex items-center gap-2">
-						<ToggleGroup
-							value={viewMode}
-							onValueChange={handleViewChange}
-							options={[
-								{ value: "daily", label: "Today" },
-								{ value: "weekly", label: "This Week" },
-							]}
+		<div className="card p-6">
+			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-4 gap-2">
+				<ToggleGroup
+					value={viewMode}
+					onValueChange={handleViewChange}
+					options={[
+						{ value: "daily", label: "Today" },
+						{ value: "weekly", label: "This Week" },
+					]}
+				/>
+				<Button
+					size="sm"
+					variant="ghost"
+					onClick={handleRefresh}
+					className="h-8 w-8 p-0"
+					title="Refresh"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						strokeWidth={1.5}
+						stroke="currentColor"
+						className="h-4 w-4"
+						role="img"
+						aria-label="Refresh workouts"
+					>
+						<title>Refresh workouts</title>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
 						/>
-						<Button
-							size="sm"
-							variant="ghost"
-							onClick={handleRefresh}
-							className="h-8 w-8 p-0"
-							title="Refresh"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								strokeWidth={1.5}
-								stroke="currentColor"
-								className="h-4 w-4"
-								role="img"
-								aria-label="Refresh workouts"
-							>
-								<title>Refresh workouts</title>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-								/>
-							</svg>
-						</Button>
-					</div>
-				)}
+					</svg>
+				</Button>
 			</div>
 
-			<CollapsibleContent>
+			<div>
 				<div className="min-h-[200px]">
 					{isLoading ? (
 						viewMode === "daily" ? (
@@ -316,7 +275,7 @@ export function TeamWorkoutSection({
 						<EmptyWorkouts viewMode={viewMode} />
 					)}
 				</div>
-			</CollapsibleContent>
-		</Collapsible>
+			</div>
+		</div>
 	)
 }
