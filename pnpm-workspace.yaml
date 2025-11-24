@@ -3,7 +3,7 @@ packages:
   - "packages/*"
 
 catalog:
-  zod: "^3.25.28"
+  zod: "^3.25.76"
   react: "^19.0.0"
   react-dom: "^19.0.0"
   "@typescript/native-preview": "7.0.0-dev.20251007.1"

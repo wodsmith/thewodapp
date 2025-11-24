@@ -589,6 +589,7 @@ export async function createWorkout({
 	}
 }
 
+
 /**
  * Get a single workout by ID with its tags and movements, including remix information
  */

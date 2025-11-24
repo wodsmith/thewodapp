@@ -59,9 +59,6 @@ export default function ChatPage() {
 	const { messages, sendMessage, status, error } = useChat({
 		transport: new DefaultChatTransport({
 			api: "/api/chat",
-			body: {
-				teamId: currentTeamId || "",
-			},
 		}),
 		onFinish: () => {
 			// Refresh AI limit after sending a message
@@ -74,7 +71,7 @@ export default function ChatPage() {
 	const handleSubmit = (message: PromptInputMessage) => {
 		if (!message.text?.trim()) return
 
-		sendMessage({ text: message.text })
+		sendMessage({ text: message.text }, { body: { teamId: currentTeamId || "" } })
 		setInput("")
 	}
 
