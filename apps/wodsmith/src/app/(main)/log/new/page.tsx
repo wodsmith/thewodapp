@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
 import { getUserWorkoutsAction } from "@/actions/workout-actions"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveOrPersonalTeamId, getSessionFromCookie } from "@/utils/auth"
 import LogFormClient from "./_components/log-form-client"
 
 export const metadata: Metadata = {
@@ -49,14 +49,12 @@ export default async function LogNewResultPage({
 		redirect("/sign-in")
 	}
 
-	// Get user's personal team ID
-	const { getUserPersonalTeamId } = await import("@/server/user")
-
+	// Get user's active team ID (or fallback to personal team)
 	let teamId: string
 	try {
-		teamId = await getUserPersonalTeamId(session.user.id)
+		teamId = await getActiveOrPersonalTeamId(session.user.id)
 	} catch (error) {
-		console.error("[log/new] Failed to get user's personal team ID:", error)
+		console.error("[log/new] Failed to get user's team ID:", error)
 		redirect("/sign-in")
 	}
 

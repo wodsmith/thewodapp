@@ -110,10 +110,6 @@ export default function CreateWorkoutClient({
 			selectedTags: [],
 			trackId: undefined,
 			scheduledDate: undefined,
-			selectedTeamId:
-				teamsWithProgrammingPermission.length > 0
-					? teamsWithProgrammingPermission[0]?.teamId
-					: undefined,
 			scalingGroupId: undefined,
 		},
 	})
@@ -291,7 +287,7 @@ export default function CreateWorkoutClient({
 			tagIds: existingTagIds,
 			newTagNames,
 			movementIds: data.selectedMovements,
-			teamId: data.selectedTeamId || teamId,
+			teamId,
 			trackId: data.trackId,
 			scheduledDate: data.scheduledDate,
 			scalingDescriptions:
@@ -659,42 +655,6 @@ export default function CreateWorkoutClient({
 									)}
 								/>
 
-								{teamsWithProgrammingPermission.length > 1 && (
-									<FormField
-										control={form.control}
-										name="selectedTeamId"
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel className="font-bold uppercase">
-													Schedule for Team
-												</FormLabel>
-												<Select
-													onValueChange={field.onChange}
-													value={field.value}
-												>
-													<FormControl>
-														<SelectTrigger className="w-full justify-start text-left font-normal h-10">
-															<SelectValue placeholder="Select team" />
-														</SelectTrigger>
-													</FormControl>
-													<SelectContent>
-														{teamsWithProgrammingPermission.map(
-															(membership) => (
-																<SelectItem
-																	key={membership.teamId}
-																	value={membership.teamId}
-																>
-																	{membership.team?.name || membership.teamId}
-																</SelectItem>
-															),
-														)}
-													</SelectContent>
-												</Select>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-								)}
 							</div>
 
 							<div>
@@ -768,7 +728,7 @@ export default function CreateWorkoutClient({
 							<div className="col-span-full mt-6 border-t-2 border-primary pt-6">
 								<WorkoutScalingDescriptionsForm
 									scalingGroupId={form.watch("scalingGroupId") || null}
-									teamId={form.watch("selectedTeamId") || teamId}
+									teamId={teamId}
 									value={scalingDescriptions}
 									onChange={setScalingDescriptions}
 								/>

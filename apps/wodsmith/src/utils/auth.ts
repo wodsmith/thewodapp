@@ -7,7 +7,7 @@ import ms from "ms"
 import { cookies } from "next/headers"
 import { cache } from "react"
 import { ZSAError } from "@repo/zsa"
-import { SESSION_COOKIE_NAME } from "@/constants"
+import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
 import { getDb } from "@/db"
 import {
 	ROLES_ENUM,
@@ -358,6 +358,75 @@ export async function setSessionTokenCookie({
 export async function deleteSessionTokenCookie(): Promise<void> {
 	const cookieStore = await cookies()
 	cookieStore.delete(SESSION_COOKIE_NAME)
+}
+
+/**
+ * Get the active team ID from cookie
+ * @returns The team ID or null if not set
+ */
+export async function getActiveTeamFromCookie(): Promise<string | null> {
+	const cookieStore = await cookies()
+	const activeTeamCookie = cookieStore.get(ACTIVE_TEAM_COOKIE_NAME)?.value
+
+	if (!activeTeamCookie) {
+		return null
+	}
+
+	return activeTeamCookie
+}
+
+/**
+ * Set the active team cookie
+ * @param teamId - The team ID to set as active
+ */
+export async function setActiveTeamCookie(teamId: string): Promise<void> {
+	const cookieStore = await cookies()
+	cookieStore.set(ACTIVE_TEAM_COOKIE_NAME, teamId, {
+		httpOnly: true,
+		sameSite: isProd ? "strict" : "lax",
+		secure: isProd,
+		expires: new Date(Date.now() + getSessionLength()),
+		path: "/",
+	})
+}
+
+/**
+ * Delete the active team cookie
+ */
+export async function deleteActiveTeamCookie(): Promise<void> {
+	const cookieStore = await cookies()
+	cookieStore.delete(ACTIVE_TEAM_COOKIE_NAME)
+}
+
+/**
+ * Get the active team ID or fallback to user's personal team
+ * Validates that the active team exists in the user's session
+ * @param userId - The user's ID
+ * @returns The active team ID or personal team ID as fallback
+ */
+export async function getActiveOrPersonalTeamId(
+	userId: string,
+): Promise<string> {
+	const session = await getSessionFromCookie()
+	const activeTeamId = await getActiveTeamFromCookie()
+
+	// If no active team cookie, get personal team
+	if (!activeTeamId || !session?.teams) {
+		const { getUserPersonalTeamId } = await import("@/server/user")
+		return getUserPersonalTeamId(userId)
+	}
+
+	// Validate that active team exists in user's session
+	const isValidTeam = session.teams.some((team) => team.id === activeTeamId)
+
+	if (!isValidTeam) {
+		// Active team is invalid, clear cookie and fall back to personal team
+		await deleteActiveTeamCookie()
+		const { getUserPersonalTeamId } = await import("@/server/user")
+		return getUserPersonalTeamId(userId)
+	}
+
+	return activeTeamId
 }
 
 /**
