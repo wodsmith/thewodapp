@@ -59,7 +59,7 @@ CREATE INDEX `competitions_competition_team_idx` ON `competitions` (`competition
 CREATE INDEX `competitions_group_idx` ON `competitions` (`groupId`);--> statement-breakpoint
 CREATE INDEX `competitions_start_date_idx` ON `competitions` (`startDate`);--> statement-breakpoint
 ALTER TABLE `team` ADD `type` text(50) DEFAULT 'gym' NOT NULL;--> statement-breakpoint
-ALTER TABLE `team` ADD `parentOrganizationId` text REFERENCES team(id);--> statement-breakpoint
+ALTER TABLE `team` ADD `parentOrganizationId` text REFERENCES team(id) ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE `team` ADD `competitionMetadata` text(10000);--> statement-breakpoint
 CREATE INDEX `team_type_idx` ON `team` (`type`);--> statement-breakpoint
 CREATE INDEX `team_parent_org_idx` ON `team` (`parentOrganizationId`);--> statement-breakpoint

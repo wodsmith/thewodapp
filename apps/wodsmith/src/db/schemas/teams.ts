@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	foreignKey,
+	index,
+	integer,
+	sqliteTable,
+	text,
+} from "drizzle-orm/sqlite-core"
 import {
 	commonColumns,
 	createTeamId,
@@ -120,6 +126,12 @@ export const teamTable = sqliteTable(
 		index("team_default_scaling_idx").on(table.defaultScalingGroupId),
 		index("team_type_idx").on(table.type),
 		index("team_parent_org_idx").on(table.parentOrganizationId),
+		// Self-referencing foreign key for team hierarchy (competition_event -> organizing gym)
+		foreignKey({
+			columns: [table.parentOrganizationId],
+			foreignColumns: [table.id],
+			name: "team_parent_org_fk",
+		}).onDelete("cascade"),
 	],
 )
 
