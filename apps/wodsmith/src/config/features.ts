@@ -25,6 +25,9 @@ export const FEATURES = {
 
 	// Team features (PRIORITY - Core Monetization)
 	MULTI_TEAM_MANAGEMENT: "multi_team_management",
+
+	// Competition platform features
+	HOST_COMPETITIONS: "host_competitions",
 } as const
 
 export type FeatureId = (typeof FEATURES)[keyof typeof FEATURES]
