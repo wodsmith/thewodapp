@@ -81,7 +81,7 @@ export const competitionsTable = sqliteTable(
 		settings: text({ length: 10000 }),
 	},
 	(table) => [
-		uniqueIndex("competitions_slug_idx").on(table.slug),
+		// slug unique index is already created by .unique() on the column
 		index("competitions_organizing_team_idx").on(table.organizingTeamId),
 		index("competitions_competition_team_idx").on(table.competitionTeamId),
 		index("competitions_group_idx").on(table.groupId),

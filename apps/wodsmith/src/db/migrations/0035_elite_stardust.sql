@@ -53,7 +53,6 @@ CREATE TABLE `competitions` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `competitions_slug_unique` ON `competitions` (`slug`);--> statement-breakpoint
-CREATE UNIQUE INDEX `competitions_slug_idx` ON `competitions` (`slug`);--> statement-breakpoint
 CREATE INDEX `competitions_organizing_team_idx` ON `competitions` (`organizingTeamId`);--> statement-breakpoint
 CREATE INDEX `competitions_competition_team_idx` ON `competitions` (`competitionTeamId`);--> statement-breakpoint
 CREATE INDEX `competitions_group_idx` ON `competitions` (`groupId`);--> statement-breakpoint
