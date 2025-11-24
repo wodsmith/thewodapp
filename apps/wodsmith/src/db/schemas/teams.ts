@@ -8,7 +8,20 @@ import {
 	createTeamMembershipId,
 	createTeamRoleId,
 } from "./common"
+import {
+	competitionGroupsTable,
+	competitionsTable,
+} from "./competitions"
 import { userTable } from "./users"
+
+// Team types for competition platform
+export const TEAM_TYPE_ENUM = {
+	GYM: "gym",
+	COMPETITION_EVENT: "competition_event",
+	PERSONAL: "personal",
+} as const
+
+export type TeamType = (typeof TEAM_TYPE_ENUM)[keyof typeof TEAM_TYPE_ENUM]
 
 // System-defined roles - these are always available
 export const SYSTEM_ROLES_ENUM = {
@@ -89,11 +102,25 @@ export const teamTable = sqliteTable(
 		isPersonalTeam: integer().default(0).notNull(),
 		// For personal teams, store the owner user ID
 		personalTeamOwnerId: text().references(() => userTable.id),
+		// Competition platform fields
+		// Team type: gym (default), competition_event, or personal
+		type: text({ length: 50 })
+			.$type<TeamType>()
+			.default("gym")
+			.notNull(),
+		// For competition_event teams, the parent organizing gym/team
+		parentOrganizationId: text().references(() => teamTable.id, {
+			onDelete: "cascade",
+		}),
+		// JSON metadata for competition-specific settings
+		competitionMetadata: text({ length: 10000 }),
 	},
 	(table) => [
 		index("team_slug_idx").on(table.slug),
 		index("team_personal_owner_idx").on(table.personalTeamOwnerId),
 		index("team_default_scaling_idx").on(table.defaultScalingGroupId),
+		index("team_type_idx").on(table.type),
+		index("team_parent_org_idx").on(table.parentOrganizationId),
 	],
 )
 
@@ -200,6 +227,27 @@ export const teamRelations = relations(teamTable, ({ many, one }) => ({
 		fields: [teamTable.personalTeamOwnerId],
 		references: [userTable.id],
 		relationName: "personalTeamOwner",
+	}),
+	// Competition platform relations
+	// Parent organization (for competition_event teams)
+	parentOrganization: one(teamTable, {
+		fields: [teamTable.parentOrganizationId],
+		references: [teamTable.id],
+		relationName: "teamHierarchy",
+	}),
+	// Child teams (competition_event teams owned by this team)
+	childTeams: many(teamTable, {
+		relationName: "teamHierarchy",
+	}),
+	// Competition groups created by this organizing team
+	competitionGroups: many(competitionGroupsTable),
+	// Competitions organized by this team (as the organizing gym)
+	organizedCompetitions: many(competitionsTable, {
+		relationName: "organizingTeam",
+	}),
+	// Competitions managed by this team (as the competition_event team)
+	managedCompetitions: many(competitionsTable, {
+		relationName: "competitionTeam",
 	}),
 }))
 
