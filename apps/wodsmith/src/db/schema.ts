@@ -2,6 +2,7 @@
 
 export * from "./schemas/billing"
 export * from "./schemas/common"
+export * from "./schemas/competitions"
 export * from "./schemas/entitlements"
 export * from "./schemas/programming"
 export * from "./schemas/scaling"
