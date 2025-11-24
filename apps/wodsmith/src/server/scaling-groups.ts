@@ -261,21 +261,23 @@ export async function setTeamDefaultScalingGroup({
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
 
 	// Validate group ownership or system
-	const [group] = await db
+	const groupResult = await db
 		.select()
 		.from(scalingGroupsTable)
 		.where(eq(scalingGroupsTable.id, scalingGroupId))
+	const group = groupResult[0]
 
 	if (!group) return { success: false, error: "Scaling group not found" }
 	if (group.teamId && group.teamId !== teamId) {
 		return { success: false, error: "Forbidden" }
 	}
 
-	const [team] = await db
+	const teamResult = await db
 		.update(teamTable)
 		.set({ defaultScalingGroupId: scalingGroupId, updatedAt: new Date() })
 		.where(eq(teamTable.id, teamId))
 		.returning()
+	const team = teamResult[0]
 
 	// Mark this group as default for this team (non-authoritative but useful)
 	await db

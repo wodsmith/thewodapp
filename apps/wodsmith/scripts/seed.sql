@@ -18,6 +18,10 @@ DELETE FROM coaches;
 DELETE FROM class_catalog;
 DELETE FROM skills;
 DELETE FROM locations;
+-- Delete competition tables (must be before team due to FK)
+DELETE FROM competition_registrations;
+DELETE FROM competitions;
+DELETE FROM competition_groups;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
@@ -183,20 +187,28 @@ VALUES
 
 -- Seed users table
 -- Password for all users: password123
-INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passwordHash, role, currentCredits, createdAt, updatedAt, updateCounter) VALUES
-('usr_demo1admin', 'Admin', 'User', 'admin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'admin', 100, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_demo2coach', 'Coach', 'Smith', 'coach@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 50, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_demo3member', 'John', 'Doe', 'john@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_demo4member', 'Jane', 'Smith', 'jane@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passwordHash, role, currentCredits, gender, dateOfBirth, createdAt, updatedAt, updateCounter) VALUES
+('usr_demo1admin', 'Admin', 'User', 'admin@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'admin', 100, 'male', strftime('%s', '1985-03-15'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_demo2coach', 'Coach', 'Smith', 'coach@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 50, 'male', strftime('%s', '1990-07-22'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_demo3member', 'John', 'Doe', 'john@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, 'male', strftime('%s', '1992-11-08'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_demo4member', 'Jane', 'Smith', 'jane@example.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 25, 'female', strftime('%s', '1995-05-30'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Additional athletes for competition registration testing
+('usr_athlete_mike', 'Mike', 'Johnson', 'mike@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1988-09-12'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_sarah', 'Sarah', 'Williams', 'sarah@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1993-02-28'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_chris', 'Chris', 'Brown', 'chris@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1991-06-17'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_emma', 'Emma', 'Davis', 'emma@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-12-05'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed teams table (with different plans for testing)
-INSERT OR IGNORE INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, currentPlanId) VALUES
-('team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Box One', 'crossfit-box-one', 'Premier CrossFit gym in downtown', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'pro'),
-('team_homeymgym', 'Home Gym Heroes', 'home-gym-heroes', 'For athletes training at home', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'enterprise'),
-('team_personaladmin', 'Admin Personal', 'admin-personal', 'Personal team for admin user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo1admin', 'free'),
-('team_personalcoach', 'Coach Personal', 'coach-personal', 'Personal team for coach user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo2coach', 'free'),
-('team_personaljohn', 'John Personal', 'john-personal', 'Personal team for John Doe', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo3member', 'free'),
-('team_personaljane', 'Jane Personal', 'jane-personal', 'Personal team for Jane Smith', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo4member', 'free');
+-- type: 'gym' (default), 'competition_event', or 'personal'
+INSERT OR IGNORE INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, currentPlanId, type, parentOrganizationId) VALUES
+('team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'CrossFit Box One', 'crossfit-box-one', 'Premier CrossFit gym in downtown', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'pro', 'gym', NULL),
+('team_homeymgym', 'Home Gym Heroes', 'home-gym-heroes', 'For athletes training at home', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 'enterprise', 'gym', NULL),
+('team_personaladmin', 'Admin Personal', 'admin-personal', 'Personal team for admin user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo1admin', 'free', 'personal', NULL),
+('team_personalcoach', 'Coach Personal', 'coach-personal', 'Personal team for coach user', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo2coach', 'free', 'personal', NULL),
+('team_personaljohn', 'John Personal', 'john-personal', 'Personal team for John Doe', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo3member', 'free', 'personal', NULL),
+('team_personaljane', 'Jane Personal', 'jane-personal', 'Personal team for Jane Smith', strftime('%s', 'now'), strftime('%s', 'now'), 0, 1, 'usr_demo4member', 'free', 'personal', NULL),
+-- Competition event team (child of CrossFit Box One)
+('team_winter_throwdown_2025', 'Winter Throwdown 2025', 'winter-throwdown-2025', 'Competition event team for Winter Throwdown 2025', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, NULL, 'competition_event', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1');
 
 -- Seed team memberships
 INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES 
@@ -216,12 +228,70 @@ INSERT INTO user (id, firstName, lastName, email, emailVerified, passwordHash, r
 ('usr_crossfit001', 'CrossFit', 'Admin', 'crossfit@gmail.com', 1750194531, 'eb1405f82c02e3e74723c82b24e16948:2c25e5090d2496f0a06fcd77f4a41e733abec33e0b0913637060e6619f3963f6', 'admin', 1000, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Create CrossFit team
-INSERT INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, creditBalance, currentPlanId) VALUES
-('team_cokkpu1klwo0ulfhl1iwzpvn', 'CrossFit', 'crossfit', 'Official CrossFit benchmark workouts and programming', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 500, 'free');
+INSERT INTO team (id, name, slug, description, createdAt, updatedAt, updateCounter, isPersonalTeam, personalTeamOwnerId, creditBalance, currentPlanId, type, parentOrganizationId) VALUES
+('team_cokkpu1klwo0ulfhl1iwzpvn', 'CrossFit', 'crossfit', 'Official CrossFit benchmark workouts and programming', strftime('%s', 'now'), strftime('%s', 'now'), 0, 0, NULL, 500, 'free', 'gym', NULL);
 
 -- Create team membership for CrossFit user
 INSERT INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES
 ('tmem_crossfit_owner', 'team_cokkpu1klwo0ulfhl1iwzpvn', 'usr_crossfit001', 'owner', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
+
+-- ============================================
+-- COMPETITION PLATFORM SEED DATA
+-- CrossFit Box One hosts "Winter Throwdown 2025"
+-- ============================================
+
+-- Team memberships for the competition_event team
+-- Admin of the organizing gym is also admin of the competition event team
+INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole, joinedAt, createdAt, updatedAt, updateCounter, isActive) VALUES
+('tmem_admin_winter_throwdown', 'team_winter_throwdown_2025', 'usr_demo1admin', 'admin', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+-- Athletes registered for the competition (member role in competition team)
+('tmem_mike_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_mike', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_sarah_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_sarah', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_chris_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_chris', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_emma_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_emma', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_john_winter_throwdown', 'team_winter_throwdown_2025', 'usr_demo3member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
+
+-- Competition Groups (Series) - CrossFit Box One's annual throwdown series
+INSERT OR IGNORE INTO competition_groups (id, organizingTeamId, slug, name, description, createdAt, updatedAt, updateCounter) VALUES
+('cgrp_box1_throwdowns_2025', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', '2025-throwdown-series', '2025 Throwdown Series', 'CrossFit Box One''s annual community throwdown series featuring seasonal competitions throughout the year.', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competitions - Winter Throwdown 2025
+-- Registration opens 30 days before, closes 7 days before the event
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, settings, createdAt, updatedAt, updateCounter) VALUES
+('comp_winter_throwdown_2025',
+ 'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
+ 'team_winter_throwdown_2025',
+ 'cgrp_box1_throwdowns_2025',
+ 'winter-throwdown-2025',
+ 'Winter Throwdown 2025',
+ 'Kick off the new year with CrossFit Box One''s signature winter competition! Three challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with Rx, Scaled, and Masters divisions.',
+ strftime('%s', '2025-01-25 08:00:00'),
+ strftime('%s', '2025-01-25 18:00:00'),
+ strftime('%s', '2024-12-26 00:00:00'),
+ strftime('%s', '2025-01-18 23:59:59'),
+ '{"divisions": ["rx_male", "rx_female", "scaled_male", "scaled_female", "masters_40_male", "masters_40_female"], "maxAthletes": 100, "entryFee": 75, "rules": "Standard CrossFit competition rules apply. Athletes must check in 30 minutes before their heat.", "prizes": {"1st": "$500", "2nd": "$300", "3rd": "$150"}}',
+ strftime('%s', 'now'),
+ strftime('%s', 'now'),
+ 0);
+
+-- Competition Registrations
+-- Athletes registered for Winter Throwdown 2025
+-- divisionId references scaling_levels for Rx/Scaled divisions (using global defaults)
+INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMemberId, divisionId, registeredAt, createdAt, updatedAt, updateCounter) VALUES
+-- Mike Johnson - Rx division
+('creg_mike_winter', 'comp_winter_throwdown_2025', 'usr_athlete_mike', 'tmem_mike_winter_throwdown', 'slvl_global_rx', strftime('%s', '2024-12-27 10:30:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Sarah Williams - Rx division
+('creg_sarah_winter', 'comp_winter_throwdown_2025', 'usr_athlete_sarah', 'tmem_sarah_winter_throwdown', 'slvl_global_rx', strftime('%s', '2024-12-27 14:15:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Chris Brown - Rx+ division
+('creg_chris_winter', 'comp_winter_throwdown_2025', 'usr_athlete_chris', 'tmem_chris_winter_throwdown', 'slvl_global_rxplus', strftime('%s', '2024-12-28 09:00:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Emma Davis - Scaled division
+('creg_emma_winter', 'comp_winter_throwdown_2025', 'usr_athlete_emma', 'tmem_emma_winter_throwdown', 'slvl_global_scaled', strftime('%s', '2024-12-29 16:45:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- John Doe (existing gym member) - Scaled division
+('creg_john_winter', 'comp_winter_throwdown_2025', 'usr_demo3member', 'tmem_john_winter_throwdown', 'slvl_global_scaled', strftime('%s', '2024-12-30 11:20:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- ============================================
+-- END COMPETITION PLATFORM SEED DATA
+-- ============================================
 
 -- Create team subscriptions (different plans for testing)
 INSERT OR IGNORE INTO team_subscription (id, teamId, planId, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, createdAt, updatedAt, updateCounter) VALUES

@@ -127,9 +127,10 @@ export async function generateSchedule({
 			if (!isEligible) continue
 
 			// Check skill constraint
-			const requiredSkillIds = templateClass.requiredSkills.map(
-				(rs) => rs.skillId,
-			)
+			const requiredSkills = Array.isArray(templateClass.requiredSkills)
+				? templateClass.requiredSkills
+				: []
+			const requiredSkillIds = requiredSkills.map((rs) => rs.skillId)
 			const coachSkillIds = coach.skills.map((cs) => cs.skillId)
 
 			const hasAllRequiredSkills = requiredSkillIds.every((skillId) =>
@@ -153,17 +154,23 @@ export async function generateSchedule({
 		if (eligibleCoaches.length > 0) {
 			// In a real scenario, you'd construct a detailed prompt for the LLM
 			// including coach preferences, historical data, etc.
-			const llmPrompt = `Select the best coach for ${
-				template.classCatalog?.name || "class"
-			} at ${
-				template.location?.name || "location"
-			} on ${classStartTime.toDateString()} ${
+			const classCatalogName =
+				template.classCatalog && "name" in template.classCatalog
+					? template.classCatalog.name
+					: "class"
+			const locationName =
+				template.location && "name" in template.location
+					? template.location.name
+					: "location"
+			const llmPrompt = `Select the best coach for ${classCatalogName} at ${locationName} on ${classStartTime.toDateString()} ${
 				templateClass.startTime
 			}. Eligible coaches: ${eligibleCoaches
-				.map(
-					(c) =>
-						`${c.user.firstName} ${c.user.lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`,
-				)
+				.map((c) => {
+					const user = c.user && "firstName" in c.user ? c.user : null
+					const firstName = user?.firstName ?? "Unknown"
+					const lastName = user?.lastName ?? ""
+					return `${firstName} ${lastName} (Pref: ${c.schedulingPreference}, Notes: ${c.schedulingNotes})`
+				})
 				.join(", ")}. Consider their preferences and notes.`
 			const _llmDecision = await callLLMForSchedulingOptimization(llmPrompt)
 

@@ -54,3 +54,8 @@ export const createTeamEntitlementOverrideId = () => `tover_${createId()}`
 export const createTeamUsageId = () => `tusage_${createId()}`
 export const createTeamFeatureEntitlementId = () => `tfent_${createId()}`
 export const createTeamLimitEntitlementId = () => `tlent_${createId()}`
+
+// Competition platform ID generators
+export const createCompetitionGroupId = () => `cgrp_${createId()}`
+export const createCompetitionId = () => `comp_${createId()}`
+export const createCompetitionRegistrationId = () => `creg_${createId()}`

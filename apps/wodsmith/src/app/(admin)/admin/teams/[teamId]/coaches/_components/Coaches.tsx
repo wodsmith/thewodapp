@@ -370,12 +370,18 @@ const Coaches = ({
 												<User className="h-6 w-6" />
 												<div>
 													<h3 className="text-xl font-semibold">
-														{coach.user.firstName} {coach.user.lastName}
+														{coach.user && "firstName" in coach.user
+															? `${coach.user.firstName} ${coach.user.lastName}`
+															: "Unknown"}
 													</h3>
 													<div className="flex items-center space-x-4 text-sm text-muted-foreground">
 														<div className="flex items-center space-x-1">
 															<Mail className="h-3 w-3" />
-															<span>{coach.user.email}</span>
+															<span>
+																{coach.user && "email" in coach.user
+																	? coach.user.email
+																	: "unknown@example.com"}
+															</span>
 														</div>
 													</div>
 												</div>
@@ -454,7 +460,9 @@ const Coaches = ({
 													<DialogDescription>
 														Are you sure you want to delete{" "}
 														<strong>
-															{coach.user.firstName} {coach.user.lastName}
+															{coach.user && "firstName" in coach.user
+																? `${coach.user.firstName} ${coach.user.lastName}`
+																: "Unknown"}
 														</strong>
 														? This action cannot be undone.
 													</DialogDescription>
