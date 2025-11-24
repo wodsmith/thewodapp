@@ -382,7 +382,12 @@ export const updateScheduledClassAction = createServerAction()
 				},
 			})
 
-			if (!scheduledClass || scheduledClass.schedule.teamId !== teamId) {
+			if (
+				!scheduledClass ||
+				!scheduledClass.schedule ||
+				!("teamId" in scheduledClass.schedule) ||
+				scheduledClass.schedule.teamId !== teamId
+			) {
 				throw new ZSAError(
 					"NOT_FOUND",
 					"Scheduled class not found or does not belong to this team",
@@ -472,7 +477,12 @@ export const getAvailableCoachesForClassAction = createServerAction()
 				},
 			})
 
-			if (!scheduledClass || scheduledClass.schedule.teamId !== teamId) {
+			if (
+				!scheduledClass ||
+				!scheduledClass.schedule ||
+				!("teamId" in scheduledClass.schedule) ||
+				scheduledClass.schedule.teamId !== teamId
+			) {
 				throw new ZSAError(
 					"NOT_FOUND",
 					"Scheduled class not found or does not belong to this team",
@@ -510,9 +520,13 @@ export const getAvailableCoachesForClassAction = createServerAction()
 				let unavailabilityReason = ""
 
 				// Check if coach has required skills
-				const requiredSkillIds = scheduledClass.classCatalog.classToSkills.map(
-					(cs) => cs.skillId,
-				)
+				const classToSkills =
+					scheduledClass.classCatalog &&
+					"classToSkills" in scheduledClass.classCatalog &&
+					Array.isArray(scheduledClass.classCatalog.classToSkills)
+						? scheduledClass.classCatalog.classToSkills
+						: []
+				const requiredSkillIds = classToSkills.map((cs) => cs.skillId)
 				const coachSkillIds = coach.skills.map((cs) => cs.skillId)
 
 				if (requiredSkillIds.length > 0) {
@@ -589,11 +603,15 @@ export const getAvailableCoachesForClassAction = createServerAction()
 					}
 				}
 
+				const coachUser =
+					coach.user && "firstName" in coach.user ? coach.user : null
 				const coachInfo = {
 					id: coach.id,
 					userId: coach.userId,
-					name: `${coach.user.firstName} ${coach.user.lastName}`,
-					email: coach.user.email,
+					name: coachUser
+						? `${coachUser.firstName} ${coachUser.lastName}`
+						: "Unknown",
+					email: coachUser?.email ?? "unknown@example.com",
 					schedulingPreference: coach.schedulingPreference,
 					schedulingNotes: coach.schedulingNotes,
 					skills: coach.skills.map((s) => s.skill),

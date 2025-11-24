@@ -168,7 +168,7 @@ export function ScheduleGenerator({
 				if (schedule && result.data) {
 					const updatedClasses = schedule.scheduledClasses.map((c) =>
 						c.id === result.data.id ? result.data : c,
-					)
+					) as ScheduledClass[]
 					const unstaffedCount = updatedClasses.filter((c) => !c.coachId).length
 					setSchedule({
 						...schedule,
@@ -492,15 +492,23 @@ export function ScheduleGenerator({
 																		>
 																			<div className="flex flex-col items-start w-full">
 																				<div className="font-medium text-slate-800 truncate w-full text-left">
-																					{scheduledClass.classCatalog.name}
+																					{scheduledClass.classCatalog &&
+																					typeof scheduledClass.classCatalog ===
+																						"object" &&
+																					"name" in scheduledClass.classCatalog
+																						? scheduledClass.classCatalog.name
+																						: "Class"}
 																				</div>
-																				{scheduledClass.coach ? (
+																				{scheduledClass.coach &&
+																				typeof scheduledClass.coach === "object" &&
+																				"user" in scheduledClass.coach ? (
 																					<div className="text-slate-600 truncate w-full text-left">
-																						{
-																							scheduledClass.coach.user
-																								.firstName
-																						}{" "}
-																						{scheduledClass.coach.user.lastName}
+																						{scheduledClass.coach.user &&
+																						typeof scheduledClass.coach.user ===
+																							"object" &&
+																						"firstName" in scheduledClass.coach.user
+																							? `${scheduledClass.coach.user.firstName} ${scheduledClass.coach.user.lastName}`
+																							: "Unknown"}
 																					</div>
 																				) : (
 																					<div className="text-orange-600 flex items-center">

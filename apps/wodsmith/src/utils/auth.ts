@@ -186,11 +186,12 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 		const plan = planMap.get(membership.teamId)
 
+		const team = membership.team && "name" in membership.team ? membership.team : null
 		return {
 			id: membership.teamId,
-			name: membership.team.name ?? "",
-			slug: membership.team.slug ?? "",
-			isPersonalTeam: !!membership.team.isPersonalTeam,
+			name: team?.name ?? "",
+			slug: team?.slug ?? "",
+			isPersonalTeam: !!(team?.isPersonalTeam),
 			role: {
 				id: membership.roleId,
 				name: roleName,

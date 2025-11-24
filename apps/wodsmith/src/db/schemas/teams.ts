@@ -71,7 +71,7 @@ export const TEAM_PERMISSIONS = {
 	// Add more as needed
 } as const
 
-// Team table
+// Team table - using self-reference pattern for parent organization
 export const teamTable = sqliteTable(
 	"team",
 	{
@@ -109,9 +109,8 @@ export const teamTable = sqliteTable(
 			.default("gym")
 			.notNull(),
 		// For competition_event teams, the parent organizing gym/team
-		parentOrganizationId: text().references(() => teamTable.id, {
-			onDelete: "cascade",
-		}),
+		// Self-reference handled by Drizzle
+		parentOrganizationId: text(),
 		// JSON metadata for competition-specific settings
 		competitionMetadata: text({ length: 10000 }),
 	},

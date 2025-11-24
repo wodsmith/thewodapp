@@ -62,16 +62,24 @@ const MasterSchedule = ({
 	const getCoachName = (coachId: string | null) => {
 		if (!coachId) return null
 		const coach = coaches.find((c) => c.id === coachId)
-		const firstName = coach?.user?.firstName
-		const lastName = coach?.user?.lastName
+		const coachUser =
+			coach?.user && typeof coach.user === "object" && "firstName" in coach.user
+				? coach.user
+				: null
+		const firstName = coachUser?.firstName
+		const lastName = coachUser?.lastName
 		const name =
 			firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName
-		return name || coach?.user?.email || "Unknown Coach"
+		return name || coachUser?.email || "Unknown Coach"
 	}
 
 	const getLocationName = (locationId: string) => {
 		const location = locations.find((l) => l.id === locationId)
-		return location?.name || "Unknown Location"
+		const locationName =
+			location && typeof location === "object" && "name" in location
+				? location.name
+				: null
+		return locationName || "Unknown Location"
 	}
 
 	return (
@@ -127,7 +135,11 @@ const MasterSchedule = ({
 										</TableCell>
 										<TableCell>
 											<Badge variant="outline" className="text-xs">
-												{scheduledClass.classCatalog?.name || "Class"}
+												{scheduledClass.classCatalog &&
+												typeof scheduledClass.classCatalog === "object" &&
+												"name" in scheduledClass.classCatalog
+													? scheduledClass.classCatalog.name
+													: "Class"}
 											</Badge>
 										</TableCell>
 										<TableCell>
