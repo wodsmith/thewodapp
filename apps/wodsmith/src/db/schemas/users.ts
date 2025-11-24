@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { commonColumns, createPasskeyId, createUserId } from "./common"
+import { competitionRegistrationsTable } from "./competitions"
 
 // User roles
 export const ROLES_ENUM = {
@@ -10,6 +11,16 @@ export const ROLES_ENUM = {
 } as const
 
 const roleTuple = Object.values(ROLES_ENUM) as [string, ...string[]]
+
+// Gender enum for competition divisions
+export const GENDER_ENUM = {
+	MALE: "male",
+	FEMALE: "female",
+} as const
+
+export type Gender = (typeof GENDER_ENUM)[keyof typeof GENDER_ENUM]
+
+const genderTuple = Object.values(GENDER_ENUM) as [string, ...string[]]
 
 // User table
 export const userTable = sqliteTable(
@@ -55,11 +66,24 @@ export const userTable = sqliteTable(
 		lastCreditRefreshAt: integer({
 			mode: "timestamp",
 		}),
+		// Athlete profile fields for competition platform
+		gender: text({
+			enum: genderTuple,
+		}).$type<Gender>(),
+		dateOfBirth: integer({
+			mode: "timestamp",
+		}),
+		// JSON field for extended athlete profile (PRs, history, etc.)
+		athleteProfile: text({
+			length: 10000,
+		}),
 	},
 	(table) => [
 		index("email_idx").on(table.email),
 		index("google_account_id_idx").on(table.googleAccountId),
 		index("role_idx").on(table.role),
+		index("user_gender_idx").on(table.gender),
+		index("user_dob_idx").on(table.dateOfBirth),
 	],
 )
 
@@ -110,6 +134,8 @@ export const passKeyCredentialTable = sqliteTable(
 // User relations
 export const userRelations = relations(userTable, ({ many }) => ({
 	passkeys: many(passKeyCredentialTable),
+	// Competition platform relations
+	competitionRegistrations: many(competitionRegistrationsTable),
 }))
 
 export const passKeyCredentialRelations = relations(
