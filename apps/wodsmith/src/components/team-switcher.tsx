@@ -4,6 +4,7 @@ import { Building2, ChevronsUpDown, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import * as React from "react"
+import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import {
 	DropdownMenu,
@@ -51,6 +52,9 @@ export function TeamSwitcher({
 
 			if (error) {
 				console.error("Failed to switch team:", error)
+				toast.error("Failed to switch team", {
+					description: error.message || "Please try again",
+				})
 				return
 			}
 
