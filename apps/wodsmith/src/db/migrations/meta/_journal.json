@@ -253,6 +253,13 @@
       "when": 1762970796184,
       "tag": "0035_competition-foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1764090362485,
+      "tag": "0036_competition-foundation",
+      "breakpoints": true
     }
   ]
 }

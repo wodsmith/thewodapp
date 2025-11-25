@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core"
 import { createId } from "@paralleldrive/cuid2"
 import { commonColumns } from "./common"
 import { scalingLevelsTable } from "./scaling"
@@ -62,7 +68,7 @@ export const competitionEventGroupsTable = sqliteTable(
 		index("comp_event_group_org_team_idx").on(table.organizingTeamId),
 		index("comp_event_group_slug_idx").on(table.slug),
 		// Ensure unique slug per organizing team
-		index("comp_event_group_unique_idx").on(
+		uniqueIndex("comp_event_group_unique_idx").on(
 			table.organizingTeamId,
 			table.slug,
 		),
@@ -105,7 +111,6 @@ export const competitionEventsTable = sqliteTable(
 		settings: text({ length: 10000 }),
 	},
 	(table) => [
-		index("comp_event_slug_idx").on(table.slug),
 		index("comp_event_org_team_idx").on(table.organizingTeamId),
 		index("comp_event_comp_team_idx").on(table.competitionTeamId),
 		index("comp_event_group_idx").on(table.eventGroupId),
@@ -150,7 +155,7 @@ export const competitionRegistrationsTable = sqliteTable(
 		index("comp_reg_division_idx").on(table.divisionId),
 		index("comp_reg_status_idx").on(table.status),
 		// Ensure one registration per user per event
-		index("comp_reg_unique_idx").on(table.eventId, table.userId),
+		uniqueIndex("comp_reg_unique_idx").on(table.eventId, table.userId),
 	],
 )
 
