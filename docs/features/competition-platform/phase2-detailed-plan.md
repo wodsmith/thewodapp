@@ -73,7 +73,7 @@
 
 ### Part 2: Competition Creation & Management (Week 2)
 
-#### Milestone 3: Competition Creation Backend (Days 5-7) 🔄 NEXT
+#### Milestone 3: Competition Creation Backend (Days 5-7)  ✅ COMPLETE
 
 **Goal:** Implement server functions for competition CRUD
 
@@ -122,7 +122,7 @@
 
 ---
 
-#### Milestone 4: Competition Admin UI (Days 8-11)
+#### Milestone 4: Competition Admin UI (Days 8-11) ✅ COMPLETE
 
 **Goal:** Build complete admin UI for competition management
 
