@@ -63,14 +63,14 @@ const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
 		icon: TrophyIcon,
 		items: [
 			{
-				title: "Competition Series",
-				href: `/admin/teams/${currentTeamId}/competitions/series` as Route,
-				icon: FolderIcon,
-			},
-			{
 				title: "All Competitions",
 				href: `/admin/teams/${currentTeamId}/competitions` as Route,
 				icon: TrophyIcon,
+			},
+			{
+				title: "Competition Series",
+				href: `/admin/teams/${currentTeamId}/competitions/series` as Route,
+				icon: FolderIcon,
 			},
 		],
 	},
