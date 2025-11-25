@@ -175,6 +175,7 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 														<div className="ml-6 space-y-1 mt-1">
 															{item.items.map((subItem) => {
 																const isSubActive = isActiveNavItem(subItem)
+																
 																return (
 																	<Link
 																		key={subItem.href}

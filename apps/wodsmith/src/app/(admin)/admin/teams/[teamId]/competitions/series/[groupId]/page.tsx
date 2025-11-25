@@ -166,7 +166,7 @@ export default async function CompetitionGroupDetailPage({
 								Competitions in this series
 							</CardDescription>
 						</div>
-						<Link href={`/admin/teams/${team.id}/competitions/new`}>
+						<Link href={`/admin/teams/${team.id}/competitions/new?groupId=${groupId}`}>
 							<Button variant="outline" size="sm">
 								Add Competition
 							</Button>
@@ -179,7 +179,7 @@ export default async function CompetitionGroupDetailPage({
 							<p className="text-muted-foreground mb-4">
 								No competitions in this series yet.
 							</p>
-							<Link href={`/admin/teams/${team.id}/competitions/new`}>
+							<Link href={`/admin/teams/${team.id}/competitions/new?groupId=${groupId}`}>
 								<Button variant="outline" size="sm">
 									Create First Competition
 								</Button>
