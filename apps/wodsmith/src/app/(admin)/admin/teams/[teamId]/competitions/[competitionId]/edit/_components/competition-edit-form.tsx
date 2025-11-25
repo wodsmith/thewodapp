@@ -218,7 +218,6 @@ export function CompetitionEditForm({
 								<FormLabel>Series (Optional)</FormLabel>
 								<Select
 									onValueChange={(value) => {
-										console.log(value)
 										if (value === "none") {
 											field.onChange(null)
 										} else {
