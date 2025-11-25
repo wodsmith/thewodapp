@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users } from "lucide-react"
+import { Calendar, MapPin } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"

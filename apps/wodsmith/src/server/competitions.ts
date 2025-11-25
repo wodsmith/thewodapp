@@ -818,15 +818,15 @@ export async function cancelCompetitionRegistration(
 		throw new Error("You can only cancel your own registration")
 	}
 
-	// 3. Delete the team_membership from competition_event team
-	await db
-		.delete(teamMembershipTable)
-		.where(eq(teamMembershipTable.id, registration.teamMemberId))
-
-	// 4. Delete the competition_registration record
+	// 3. Delete the competition_registration record first
 	await db
 		.delete(competitionRegistrationsTable)
 		.where(eq(competitionRegistrationsTable.id, registrationId))
+
+	// 4. Delete the team_membership from competition_event team
+	await db
+		.delete(teamMembershipTable)
+		.where(eq(teamMembershipTable.id, registration.teamMemberId))
 
 	// 5. Update all user sessions to remove the competition team
 	await updateAllSessionsOfUser(userId)
