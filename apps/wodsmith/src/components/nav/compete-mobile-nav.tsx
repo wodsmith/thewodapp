@@ -1,10 +1,9 @@
 "use client"
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
-import { Calendar, Menu, User } from "lucide-react"
+import { Menu, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import LogoutButton from "@/components/nav/logout-button"
 import { Button } from "@/components/ui/button"
@@ -17,17 +16,12 @@ import {
 import type { SessionValidationResult } from "@/types"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
-interface MobileNavProps {
+interface CompeteMobileNavProps {
 	session: SessionValidationResult | null
 }
 
-export default function MobileNav({ session }: MobileNavProps) {
-	const router = useRouter()
+export default function CompeteMobileNav({ session }: CompeteMobileNavProps) {
 	const [open, setOpen] = useState(false)
-
-	// Filter teams where the user is an owner
-	const ownedTeams =
-		session?.teams?.filter((team) => team.role.name === "owner") || []
 
 	const handleLinkClick = () => {
 		setOpen(false)
@@ -47,79 +41,38 @@ export default function MobileNav({ session }: MobileNavProps) {
 				</VisuallyHidden>
 				<nav className="grid gap-6 font-medium text-lg">
 					<Link
-						href={session?.user ? "/workouts" : "/"}
+						href="/compete"
 						className="mb-4 flex items-center gap-2 font-semibold text-lg"
 						onClick={handleLinkClick}
 					>
 						<Image
 							src="/wodsmith-logo-no-text.png"
-							alt="wodsmith"
+							alt="wodsmith compete"
 							width={32}
 							height={32}
 							className="dark:hidden"
 						/>
 						<Image
 							src="/wodsmith-logo-no-text.png"
-							alt="wodsmith"
+							alt="wodsmith compete"
 							width={32}
 							height={32}
 							className="hidden dark:block"
 						/>
-						<span className="text-2xl text-foreground uppercase dark:text-dark-foreground">
-							<span className="font-black uppercase">WOD</span>smith
+						<span className="text-2xl text-foreground dark:text-dark-foreground">
+							<span className="font-black uppercase">WOD</span>smith{" "}
+							<span className="font-medium text-muted-foreground">Compete</span>
 						</span>
 					</Link>
 					{session?.user ? (
 						<>
 							<Link
-								href="/workouts"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Workouts
-							</Link>
-							<Link
-								href="/teams"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Team
-							</Link>
-							<Link
-								href="/log"
-								className="hover:text-primary"
-								onClick={handleLinkClick}
-							>
-								Log
-							</Link>
-							<Link
 								href="/compete"
 								className="hover:text-primary"
 								onClick={handleLinkClick}
 							>
-								Compete
+								Events
 							</Link>
-							{ownedTeams.length > 0 && (
-								<>
-									<div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-										<Calendar className="h-4 w-4" />
-										Schedule
-									</div>
-									{ownedTeams.map((team) => (
-										<button
-											type="button"
-											key={team.id}
-											onClick={() => {
-												router.push(`/admin/teams/${team.id}`)
-												handleLinkClick()
-											}}
-											className="ml-4 text-left hover:text-primary"
-										>
-											{team.name}
-										</button>
-									))}
-								</>
-							)}
 							<hr className="my-2" />
 							<Link
 								href="/settings/profile"
@@ -141,7 +94,7 @@ export default function MobileNav({ session }: MobileNavProps) {
 								className="hover:text-primary"
 								onClick={handleLinkClick}
 							>
-								Compete
+								Events
 							</Link>
 							<Link
 								href="/sign-in"
