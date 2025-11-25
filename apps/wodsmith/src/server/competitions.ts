@@ -407,13 +407,13 @@ export async function updateCompetition(
 	updates: Partial<{
 		name: string
 		slug: string
-		description: string
+		description: string | null
 		startDate: Date
 		endDate: Date
-		registrationOpensAt: Date
-		registrationClosesAt: Date
-		groupId: string
-		settings: string
+		registrationOpensAt: Date | null
+		registrationClosesAt: Date | null
+		groupId: string | null
+		settings: string | null
 	}>,
 ): Promise<Competition> {
 	const db = getDb()

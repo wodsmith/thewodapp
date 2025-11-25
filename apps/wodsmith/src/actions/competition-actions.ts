@@ -309,11 +309,11 @@ export const updateCompetitionAction = createServerAction()
 			// Convert null to undefined for fields that support it
 			const updateData = {
 				...rawUpdateData,
-				description: rawUpdateData.description === null ? undefined : rawUpdateData.description,
-				registrationOpensAt: rawUpdateData.registrationOpensAt === null ? undefined : rawUpdateData.registrationOpensAt,
-				registrationClosesAt: rawUpdateData.registrationClosesAt === null ? undefined : rawUpdateData.registrationClosesAt,
+				description: rawUpdateData.description === null ? null : rawUpdateData.description,
+				registrationOpensAt: rawUpdateData.registrationOpensAt === null ? null : rawUpdateData.registrationOpensAt,
+				registrationClosesAt: rawUpdateData.registrationClosesAt === null ? null : rawUpdateData.registrationClosesAt,
 				groupId: rawUpdateData.groupId === null || rawUpdateData.groupId === undefined ? null : rawUpdateData.groupId,
-				settings: rawUpdateData.settings === null ? undefined : rawUpdateData.settings,
+				settings: rawUpdateData.settings === null ? null : rawUpdateData.settings,
 			}
 			const result = await updateCompetition(competitionId, updateData)
 
