@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Important** Never add "Co Authored by Claude" to commits or pull requests
+
 ## Development Commands
 
 ### Build and Development

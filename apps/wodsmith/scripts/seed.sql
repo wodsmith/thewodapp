@@ -71,7 +71,8 @@ VALUES
   ('feat_custom_scaling_groups', 'custom_scaling_groups', 'Custom Scaling Groups', 'Create custom scaling groups for your gym', 'scaling', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert limits
 INSERT OR IGNORE INTO "limit" (id, "key", name, description, unit, resetPeriod, isActive, createdAt, updatedAt, updateCounter)
@@ -311,7 +312,8 @@ INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, s
 ('tfe_box1_calendar', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_program_calendar', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tfe_box1_scaling', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_custom_scaling_groups', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tfe_box1_ai_workout', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_ai_workout_generation', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tfe_box1_multi_team', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_multi_team_management', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('tfe_box1_multi_team', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_multi_team_management', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_box1_host_comp', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_host_competitions', 'override', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Home Gym Heroes (Enterprise plan)
 INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES

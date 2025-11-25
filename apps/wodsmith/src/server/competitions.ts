@@ -1,6 +1,209 @@
 import "server-only"
+import { createId } from "@paralleldrive/cuid2"
+import { and, count, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
-import type { Competition, CompetitionGroup } from "@/db/schema"
+import {
+	type Competition,
+	type CompetitionGroup,
+	competitionGroupsTable,
+	competitionsTable,
+} from "@/db/schema"
+import { requireFeature } from "./entitlements"
+import { FEATURES } from "@/config/features"
+
+/* -------------------------------------------------------------------------- */
+/*                          Competition Group Functions                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Create a new competition group (series)
+ */
+export async function createCompetitionGroup(params: {
+	organizingTeamId: string
+	name: string
+	slug: string
+	description?: string
+}): Promise<{ groupId: string }> {
+	const db = getDb()
+
+	// Validate organizing team has HOST_COMPETITIONS feature
+	await requireFeature(params.organizingTeamId, FEATURES.HOST_COMPETITIONS)
+
+	// Validate slug uniqueness per organizing team
+	const existing = await db.query.competitionGroupsTable.findFirst({
+		where: and(
+			eq(competitionGroupsTable.organizingTeamId, params.organizingTeamId),
+			eq(competitionGroupsTable.slug, params.slug),
+		),
+	})
+
+	if (existing) {
+		throw new Error(
+			"A series with this slug already exists. Please choose a different slug.",
+		)
+	}
+
+	// Insert competition group record
+	const result = await db
+		.insert(competitionGroupsTable)
+		.values({
+			id: `cgrp_${createId()}`,
+			organizingTeamId: params.organizingTeamId,
+			name: params.name,
+			slug: params.slug,
+			description: params.description,
+		})
+		.returning()
+
+	const [group] = Array.isArray(result) ? result : []
+	if (!group) {
+		throw new Error("Failed to create competition series")
+	}
+
+	return { groupId: group.id }
+}
+
+/**
+ * Get all competition groups for an organizing team
+ */
+export async function getCompetitionGroups(
+	organizingTeamId: string,
+): Promise<
+	Array<CompetitionGroup & { competitionCount: number }>
+> {
+	const db = getDb()
+
+	// Query groups with competition counts
+	const groups = await db
+		.select({
+			id: competitionGroupsTable.id,
+			organizingTeamId: competitionGroupsTable.organizingTeamId,
+			slug: competitionGroupsTable.slug,
+			name: competitionGroupsTable.name,
+			description: competitionGroupsTable.description,
+			createdAt: competitionGroupsTable.createdAt,
+			updatedAt: competitionGroupsTable.updatedAt,
+			updateCounter: competitionGroupsTable.updateCounter,
+			competitionCount: sql<number>`cast(count(${competitionsTable.id}) as integer)`,
+		})
+		.from(competitionGroupsTable)
+		.leftJoin(
+			competitionsTable,
+			eq(competitionsTable.groupId, competitionGroupsTable.id),
+		)
+		.where(eq(competitionGroupsTable.organizingTeamId, organizingTeamId))
+		.groupBy(competitionGroupsTable.id)
+		.orderBy(sql`${competitionGroupsTable.createdAt} DESC`)
+
+	return groups
+}
+
+/**
+ * Get a single competition group by ID
+ */
+export async function getCompetitionGroup(
+	groupId: string,
+): Promise<CompetitionGroup | null> {
+	const db = getDb()
+
+	const group = await db.query.competitionGroupsTable.findFirst({
+		where: eq(competitionGroupsTable.id, groupId),
+	})
+
+	return group ?? null
+}
+
+/**
+ * Update a competition group
+ */
+export async function updateCompetitionGroup(
+	groupId: string,
+	data: {
+		name?: string
+		slug?: string
+		description?: string | null
+	},
+): Promise<CompetitionGroup> {
+	const db = getDb()
+
+	// Get the group to verify it exists and get organizingTeamId
+	const existingGroup = await getCompetitionGroup(groupId)
+	if (!existingGroup) {
+		throw new Error("Competition series not found")
+	}
+
+	// If slug is being changed, validate uniqueness
+	if (data.slug && data.slug !== existingGroup.slug) {
+		const conflicting = await db.query.competitionGroupsTable.findFirst({
+			where: and(
+				eq(
+					competitionGroupsTable.organizingTeamId,
+					existingGroup.organizingTeamId,
+				),
+				eq(competitionGroupsTable.slug, data.slug),
+			),
+		})
+
+		if (conflicting) {
+			throw new Error(
+				"A series with this slug already exists. Please choose a different slug.",
+			)
+		}
+	}
+
+	const updateData: Partial<typeof competitionGroupsTable.$inferInsert> = {
+		updatedAt: new Date(),
+	}
+
+	if (data.name !== undefined) updateData.name = data.name
+	if (data.slug !== undefined) updateData.slug = data.slug
+	if (data.description !== undefined) updateData.description = data.description
+
+	const result = await db
+		.update(competitionGroupsTable)
+		.set(updateData)
+		.where(eq(competitionGroupsTable.id, groupId))
+		.returning()
+
+	const [group] = Array.isArray(result) ? result : []
+	if (!group) {
+		throw new Error("Failed to update competition series")
+	}
+
+	return group
+}
+
+/**
+ * Delete a competition group
+ */
+export async function deleteCompetitionGroup(
+	groupId: string,
+): Promise<{ success: boolean }> {
+	const db = getDb()
+
+	// Check if group has competitions
+	const competitionsInGroup = await db
+		.select({ count: count() })
+		.from(competitionsTable)
+		.where(eq(competitionsTable.groupId, groupId))
+
+	const competitionCount = competitionsInGroup[0]?.count ?? 0
+	if (competitionCount > 0) {
+		throw new Error(
+			`Cannot delete series that contains ${competitionCount} competition(s). Please remove or reassign competitions first.`,
+		)
+	}
+
+	await db
+		.delete(competitionGroupsTable)
+		.where(eq(competitionGroupsTable.id, groupId))
+
+	return { success: true }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Competition Functions                           */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Create a new competition
@@ -26,7 +229,7 @@ export async function createCompetition(params: {
 	registrationClosesAt?: Date
 	groupId?: string
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
-	throw new Error("Not implemented - Phase 2")
+	throw new Error("Not implemented - Phase 2 Milestone 3")
 }
 
 /**
@@ -101,38 +304,6 @@ export async function deleteCompetition(
 	throw new Error("Not implemented - Phase 2")
 }
 
-/**
- * Create a competition group (series)
- *
- * Phase 2 Implementation:
- * - Validate organizing team has HOST_COMPETITIONS feature
- * - Generate unique slug (per organizing team)
- * - Insert competition group record
- * - Return groupId
- */
-export async function createCompetitionGroup(params: {
-	organizingTeamId: string
-	name: string
-	slug: string
-	description?: string
-}): Promise<{ groupId: string }> {
-	throw new Error("Not implemented - Phase 2")
-}
-
-/**
- * Get all competition groups for an organizing team
- *
- * Phase 2 Implementation:
- * - Query groups by organizingTeamId
- * - Include count of competitions in each group
- * - Order by createdAt DESC
- * - Return groups with competition counts
- */
-export async function getCompetitionGroups(
-	organizingTeamId: string,
-): Promise<CompetitionGroup[]> {
-	throw new Error("Not implemented - Phase 2")
-}
 
 /**
  * Register an athlete for a competition
