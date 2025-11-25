@@ -1,6 +1,6 @@
 "use client"
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -84,51 +84,61 @@ export function CompetitionGroupsList({
 		<>
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{groups.map((group) => (
-					<Card key={group.id}>
-						<CardHeader>
-							<div className="flex items-start justify-between">
-								<div className="flex-1 min-w-0">
-									<CardTitle className="truncate">{group.name}</CardTitle>
-									<CardDescription className="mt-1">
-										{group.competitionCount}{" "}
-										{group.competitionCount === 1
-											? "competition"
-											: "competitions"}
-									</CardDescription>
-								</div>
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="ghost" size="sm">
-											<MoreHorizontal className="h-4 w-4" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuItem asChild>
-											<Link
-												href={`/admin/teams/${teamId}/competitions/series/${group.id}`}
+					<Card key={group.id} className="hover:bg-accent/50 transition-colors">
+						<Link href={`/admin/teams/${teamId}/competitions/series/${group.id}`}>
+							<CardHeader>
+								<div className="flex items-start justify-between">
+									<div className="flex-1 min-w-0">
+										<CardTitle className="truncate">{group.name}</CardTitle>
+										<CardDescription className="mt-1">
+											{group.competitionCount}{" "}
+											{group.competitionCount === 1
+												? "competition"
+												: "competitions"}
+										</CardDescription>
+									</div>
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+											<Button variant="ghost" size="sm">
+												<MoreHorizontal className="h-4 w-4" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											<DropdownMenuItem asChild>
+												<Link
+													href={`/admin/teams/${teamId}/competitions/series/${group.id}`}
+												>
+													<Eye className="h-4 w-4 mr-2" />
+													View
+												</Link>
+											</DropdownMenuItem>
+											<DropdownMenuItem asChild>
+												<Link
+													href={`/admin/teams/${teamId}/competitions/series/${group.id}/edit`}
+												>
+													<Pencil className="h-4 w-4 mr-2" />
+													Edit
+												</Link>
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => setDeleteGroupId(group.id)}
+												className="text-destructive"
 											>
-												<Pencil className="h-4 w-4 mr-2" />
-												Edit
-											</Link>
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => setDeleteGroupId(group.id)}
-											className="text-destructive"
-										>
-											<Trash2 className="h-4 w-4 mr-2" />
-											Delete
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-							</div>
-						</CardHeader>
-						{group.description && (
-							<CardContent>
-								<p className="text-sm text-muted-foreground line-clamp-2">
-									{group.description}
-								</p>
-							</CardContent>
-						)}
+												<Trash2 className="h-4 w-4 mr-2" />
+												Delete
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</div>
+							</CardHeader>
+							{group.description && (
+								<CardContent>
+									<p className="text-sm text-muted-foreground line-clamp-2">
+										{group.description}
+									</p>
+								</CardContent>
+							)}
+						</Link>
 					</Card>
 				))}
 			</div>

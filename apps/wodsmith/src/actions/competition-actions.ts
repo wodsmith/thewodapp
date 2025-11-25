@@ -12,11 +12,6 @@ import {
 	updateCompetitionGroup,
 } from "@/server/competitions"
 import {
-	type CreateCompetitionGroupInput,
-	type DeleteCompetitionGroupInput,
-	type GetCompetitionGroupInput,
-	type GetCompetitionGroupsInput,
-	type UpdateCompetitionGroupInput,
 	createCompetitionGroupSchema,
 	deleteCompetitionGroupSchema,
 	getCompetitionGroupSchema,
@@ -133,7 +128,7 @@ export const updateCompetitionGroupAction = createServerAction()
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			const { organizingTeamId, ...updateData } = input
+			const { organizingTeamId: _organizingTeamId, ...updateData } = input
 			const result = await updateCompetitionGroup(
 				input.groupId,
 				updateData,
