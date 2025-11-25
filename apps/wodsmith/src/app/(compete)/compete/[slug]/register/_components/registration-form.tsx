@@ -25,7 +25,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { Competition, ScalingGroup, ScalingLevel } from "@/db/schema"
+import type { Competition, ScalingGroup, ScalingLevel, Team } from "@/db/schema"
 
 const registrationSchema = z.object({
 	divisionId: z.string().min(1, "Please select a division"),
@@ -34,7 +34,7 @@ const registrationSchema = z.object({
 type FormValues = z.infer<typeof registrationSchema>
 
 type Props = {
-	competition: Competition & { organizingTeam: Team }
+	competition: Competition & { organizingTeam: Team | null }
 	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
 	userId: string
 	registrationOpen: boolean

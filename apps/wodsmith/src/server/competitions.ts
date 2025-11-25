@@ -5,6 +5,7 @@ import { getDb } from "@/db"
 import {
 	type Competition,
 	type CompetitionGroup,
+	type Team,
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schema"
@@ -347,7 +348,7 @@ export async function createCompetition(params: {
  */
 export async function getCompetitions(
 	organizingTeamId: string,
-): Promise<Competition[]> {
+): Promise<Array<Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }>> {
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
@@ -372,7 +373,7 @@ export async function getCompetitions(
  * - Order by startDate DESC (upcoming first)
  * - Return competitions with full details
  */
-export async function getAllPublicCompetitions(): Promise<Competition[]> {
+export async function getAllPublicCompetitions(): Promise<Array<Competition & { organizingTeam: Partial<Team> | null; group: CompetitionGroup | null }>> {
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
@@ -404,7 +405,7 @@ export async function getAllPublicCompetitions(): Promise<Competition[]> {
  */
 export async function getCompetition(
 	idOrSlug: string,
-): Promise<Competition | null> {
+): Promise<(Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }) | null> {
 	const db = getDb()
 
 	const competition = await db.query.competitionsTable.findFirst({
