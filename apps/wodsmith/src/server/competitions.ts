@@ -799,7 +799,7 @@ export async function getUserCompetitionRegistration(
 export async function cancelCompetitionRegistration(
 	registrationId: string,
 	userId: string,
-): Promise<{ success: boolean }> {
+): Promise<{ success: boolean; competitionId: string }> {
 	const db = getDb()
 	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
 	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
@@ -831,5 +831,5 @@ export async function cancelCompetitionRegistration(
 	// 5. Update all user sessions to remove the competition team
 	await updateAllSessionsOfUser(userId)
 
-	return { success: true }
+	return { success: true, competitionId: registration.competitionId }
 }

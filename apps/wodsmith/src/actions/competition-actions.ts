@@ -515,7 +515,8 @@ export const cancelCompetitionRegistrationAction = createServerAction()
 			)
 
 			// Revalidate competition pages
-			revalidatePath("/compete/my-events")
+			revalidatePath(`/compete/${result.competitionId}`)
+			revalidatePath("/compete")
 
 			return { success: true, data: result }
 		} catch (error) {
