@@ -330,7 +330,6 @@ export async function hasFeature(
 	// 2. Check plan entitlements
 	const hasFeatureInPlan = plan.entitlements.features.includes(featureId)
 
-	console.log(plan)
 	// 3. Check for add-ons that enable this feature
 	const hasFeatureFromAddon = await checkAddonForFeature(teamId, featureId)
 
