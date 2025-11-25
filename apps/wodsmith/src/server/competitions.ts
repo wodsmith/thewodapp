@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, sql } from "drizzle-orm"
+import { and, count, eq, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Competition,
@@ -376,7 +376,6 @@ export async function getCompetition(
 	idOrSlug: string,
 ): Promise<Competition | null> {
 	const db = getDb()
-	const { or } = await import("drizzle-orm")
 
 	const competition = await db.query.competitionsTable.findFirst({
 		where: or(
