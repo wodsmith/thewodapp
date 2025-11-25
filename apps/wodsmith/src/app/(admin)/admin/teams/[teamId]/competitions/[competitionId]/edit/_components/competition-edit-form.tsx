@@ -26,7 +26,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Competition, CompetitionGroup } from "@/db/schema"
+import type { Competition, CompetitionGroup, ScalingGroup } from "@/db/schema"
+import {
+	type CompetitionSettings,
+	parseCompetitionSettings,
+} from "@/types/competitions"
 
 const formSchema = z
 	.object({
@@ -48,6 +52,7 @@ const formSchema = z
 		registrationOpensAt: z.string().optional(),
 		registrationClosesAt: z.string().optional(),
 		groupId: z.string().nullable().optional(),
+		scalingGroupId: z.string().nullable().optional(),
 	})
 	.refine(
 		(data) => {
@@ -78,12 +83,14 @@ interface CompetitionEditFormProps {
 	teamId: string
 	competition: Competition
 	groups: Array<CompetitionGroup & { competitionCount: number }>
+	scalingGroups: ScalingGroup[]
 }
 
 export function CompetitionEditForm({
 	teamId,
 	competition,
 	groups,
+	scalingGroups,
 }: CompetitionEditFormProps) {
 	const router = useRouter()
 
@@ -111,6 +118,10 @@ export function CompetitionEditForm({
 		return `${year}-${month}-${day}`
 	}
 
+	// Parse existing settings to get scalingGroupId
+	const existingSettings = parseCompetitionSettings(competition.settings)
+	const existingScalingGroupId = existingSettings?.divisions?.scalingGroupId
+
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
@@ -124,6 +135,7 @@ export function CompetitionEditForm({
 				competition.registrationClosesAt,
 			),
 			groupId: competition.groupId ?? undefined,
+			scalingGroupId: existingScalingGroupId ?? undefined,
 		},
 	})
 
@@ -140,6 +152,14 @@ export function CompetitionEditForm({
 	}
 
 	function onSubmit(data: FormValues) {
+		// Build competition settings
+		const settings: CompetitionSettings = {}
+		if (data.scalingGroupId) {
+			settings.divisions = {
+				scalingGroupId: data.scalingGroupId,
+			}
+		}
+
 		updateCompetition({
 			competitionId: competition.id,
 			organizingTeamId: teamId,
@@ -155,6 +175,8 @@ export function CompetitionEditForm({
 				? new Date(data.registrationClosesAt)
 				: null,
 			groupId: data.groupId,
+			settings:
+				Object.keys(settings).length > 0 ? JSON.stringify(settings) : null,
 		})
 	}
 
@@ -242,6 +264,48 @@ export function CompetitionEditForm({
 								</Select>
 								<FormDescription>
 									Optionally assign this competition to a series
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
+
+				{scalingGroups.length > 0 && (
+					<FormField
+						control={form.control}
+						name="scalingGroupId"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Divisions (Optional)</FormLabel>
+								<Select
+									onValueChange={(value) => {
+										if (value === "none") {
+											field.onChange(null)
+										} else {
+											field.onChange(value)
+										}
+									}}
+									value={field.value ?? "none"}
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="No divisions" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										<SelectItem value="none">No divisions</SelectItem>
+										{scalingGroups.map((group) => (
+											<SelectItem key={group.id} value={group.id}>
+												{group.title}
+												{group.isSystem === 1 && " (System)"}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<FormDescription>
+									Select a scaling group to use as competition divisions. Athletes
+									will choose their division when registering.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>

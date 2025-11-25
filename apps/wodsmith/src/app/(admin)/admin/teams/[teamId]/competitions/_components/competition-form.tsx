@@ -26,7 +26,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { CompetitionGroup } from "@/db/schema"
+import type { CompetitionGroup, ScalingGroup } from "@/db/schema"
+import type { CompetitionSettings } from "@/types/competitions"
 
 const formSchema = z
 	.object({
@@ -48,6 +49,7 @@ const formSchema = z
 		registrationOpensAt: z.string().optional(),
 		registrationClosesAt: z.string().optional(),
 		groupId: z.string().optional(),
+		scalingGroupId: z.string().optional(),
 	})
 	.refine(
 		(data) => {
@@ -77,10 +79,16 @@ type FormValues = z.infer<typeof formSchema>
 interface CompetitionFormProps {
 	teamId: string
 	groups: Array<CompetitionGroup & { competitionCount: number }>
+	scalingGroups: ScalingGroup[]
 	defaultGroupId?: string
 }
 
-export function CompetitionForm({ teamId, groups, defaultGroupId }: CompetitionFormProps) {
+export function CompetitionForm({
+	teamId,
+	groups,
+	scalingGroups,
+	defaultGroupId,
+}: CompetitionFormProps) {
 	const router = useRouter()
 
 	const { execute: createCompetition, isPending } = useServerAction(
@@ -108,6 +116,7 @@ export function CompetitionForm({ teamId, groups, defaultGroupId }: CompetitionF
 			registrationOpensAt: "",
 			registrationClosesAt: "",
 			groupId: defaultGroupId,
+			scalingGroupId: "",
 		},
 	})
 
@@ -124,6 +133,14 @@ export function CompetitionForm({ teamId, groups, defaultGroupId }: CompetitionF
 	}
 
 	function onSubmit(data: FormValues) {
+		// Build competition settings
+		const settings: CompetitionSettings = {}
+		if (data.scalingGroupId) {
+			settings.divisions = {
+				scalingGroupId: data.scalingGroupId,
+			}
+		}
+
 		createCompetition({
 			organizingTeamId: teamId,
 			name: data.name,
@@ -138,6 +155,8 @@ export function CompetitionForm({ teamId, groups, defaultGroupId }: CompetitionF
 				? new Date(data.registrationClosesAt)
 				: undefined,
 			groupId: data.groupId || undefined,
+			settings:
+				Object.keys(settings).length > 0 ? JSON.stringify(settings) : undefined,
 		})
 	}
 
@@ -200,7 +219,9 @@ export function CompetitionForm({ teamId, groups, defaultGroupId }: CompetitionF
 							<FormItem>
 								<FormLabel>Series (Optional)</FormLabel>
 								<Select
-									onValueChange={(value) => field.onChange(value === "none" ? undefined : value)}
+									onValueChange={(value) =>
+										field.onChange(value === "none" ? undefined : value)
+									}
 									value={field.value || "none"}
 								>
 									<FormControl>
@@ -219,6 +240,44 @@ export function CompetitionForm({ teamId, groups, defaultGroupId }: CompetitionF
 								</Select>
 								<FormDescription>
 									Optionally assign this competition to a series
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
+
+				{scalingGroups.length > 0 && (
+					<FormField
+						control={form.control}
+						name="scalingGroupId"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Divisions (Optional)</FormLabel>
+								<Select
+									onValueChange={(value) =>
+										field.onChange(value === "none" ? undefined : value)
+									}
+									value={field.value || "none"}
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="No divisions" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										<SelectItem value="none">No divisions</SelectItem>
+										{scalingGroups.map((group) => (
+											<SelectItem key={group.id} value={group.id}>
+												{group.title}
+												{group.isSystem === 1 && " (System)"}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<FormDescription>
+									Select a scaling group to use as competition divisions. Athletes
+									will choose their division when registering.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>

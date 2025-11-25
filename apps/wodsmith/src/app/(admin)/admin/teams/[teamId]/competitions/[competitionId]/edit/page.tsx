@@ -6,6 +6,7 @@ import { notFound } from "next/navigation"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getCompetition, getCompetitionGroups } from "@/server/competitions"
+import { listScalingGroups } from "@/server/scaling-groups"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { CompetitionEditForm } from "./_components/competition-edit-form"
 
@@ -81,6 +82,12 @@ export default async function EditCompetitionPage({
 	// Get competition groups for series selection
 	const groups = await getCompetitionGroups(team.id)
 
+	// Get scaling groups for division selection
+	const scalingGroups = await listScalingGroups({
+		teamId: team.id,
+		includeSystem: true,
+	})
+
 	return (
 		<div className="flex flex-col gap-6">
 			<div>
@@ -112,6 +119,7 @@ export default async function EditCompetitionPage({
 					teamId={team.id}
 					competition={competition}
 					groups={groups}
+					scalingGroups={scalingGroups}
 				/>
 			</div>
 		</div>

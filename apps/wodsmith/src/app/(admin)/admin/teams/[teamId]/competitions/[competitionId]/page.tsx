@@ -149,6 +149,24 @@ export default async function CompetitionDetailPage({
 				/>
 			</div>
 
+			{/* Navigation Tabs */}
+			<div className="border-b">
+				<nav className="flex gap-4">
+					<span className="px-4 py-2 border-b-2 border-primary font-medium">
+						Overview
+					</span>
+					<Link
+						href={`/admin/teams/${team.id}/competitions/${competition.id}/divisions`}
+						className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
+					>
+						Divisions
+					</Link>
+					<span className="px-4 py-2 border-b-2 border-transparent text-muted-foreground opacity-50 cursor-not-allowed">
+						Athletes (Coming Soon)
+					</span>
+				</nav>
+			</div>
+
 			{/* Competition Details Card */}
 			<Card>
 				<CardHeader>
