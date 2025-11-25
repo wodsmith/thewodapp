@@ -1,0 +1,9 @@
+{
+	"name": "skill-creator-scripts",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"yaml": "^2.7.0",
+		"jszip": "^3.10.1"
+	}
+}
