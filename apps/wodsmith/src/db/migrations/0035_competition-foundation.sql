@@ -13,7 +13,7 @@ CREATE TABLE `competition_event_groups` (
 --> statement-breakpoint
 CREATE INDEX `comp_event_group_org_team_idx` ON `competition_event_groups` (`organizingTeamId`);--> statement-breakpoint
 CREATE INDEX `comp_event_group_slug_idx` ON `competition_event_groups` (`slug`);--> statement-breakpoint
-CREATE INDEX `comp_event_group_unique_idx` ON `competition_event_groups` (`organizingTeamId`,`slug`);--> statement-breakpoint
+CREATE UNIQUE INDEX `comp_event_group_unique_idx` ON `competition_event_groups` (`organizingTeamId`,`slug`);--> statement-breakpoint
 CREATE TABLE `competition_events` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -38,7 +38,6 @@ CREATE TABLE `competition_events` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `competition_events_slug_unique` ON `competition_events` (`slug`);--> statement-breakpoint
-CREATE INDEX `comp_event_slug_idx` ON `competition_events` (`slug`);--> statement-breakpoint
 CREATE INDEX `comp_event_org_team_idx` ON `competition_events` (`organizingTeamId`);--> statement-breakpoint
 CREATE INDEX `comp_event_comp_team_idx` ON `competition_events` (`competitionTeamId`);--> statement-breakpoint
 CREATE INDEX `comp_event_group_idx` ON `competition_events` (`eventGroupId`);--> statement-breakpoint
@@ -93,7 +92,7 @@ CREATE INDEX `comp_reg_event_idx` ON `competition_registrations` (`eventId`);-->
 CREATE INDEX `comp_reg_user_idx` ON `competition_registrations` (`userId`);--> statement-breakpoint
 CREATE INDEX `comp_reg_division_idx` ON `competition_registrations` (`divisionId`);--> statement-breakpoint
 CREATE INDEX `comp_reg_status_idx` ON `competition_registrations` (`status`);--> statement-breakpoint
-CREATE INDEX `comp_reg_unique_idx` ON `competition_registrations` (`eventId`,`userId`);--> statement-breakpoint
+CREATE UNIQUE INDEX `comp_reg_unique_idx` ON `competition_registrations` (`eventId`,`userId`);--> statement-breakpoint
 ALTER TABLE `team` ADD `type` text DEFAULT 'gym' NOT NULL;--> statement-breakpoint
 ALTER TABLE `team` ADD `canHostCompetitions` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `team` ADD `parentOrganizationId` text REFERENCES team(id);--> statement-breakpoint
