@@ -313,7 +313,17 @@ INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, s
 ('tfe_box1_scaling', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_custom_scaling_groups', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tfe_box1_ai_workout', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_ai_workout_generation', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tfe_box1_multi_team', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_multi_team_management', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tfe_box1_host_comp', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_host_competitions', 'override', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('tfe_box1_host_comp', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'feat_host_competitions', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+
+INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
+('tfe_winter_basic', 'team_winter_throwdown_2025', 'feat_basic_workouts', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_winter_tracks', 'team_winter_throwdown_2025', 'feat_programming_tracks', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_winter_calendar', 'team_winter_throwdown_2025', 'feat_program_calendar', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_winter_scaling', 'team_winter_throwdown_2025', 'feat_custom_scaling_groups', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_winter_ai_workout', 'team_winter_throwdown_2025', 'feat_ai_workout_generation', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_winter_multi_team', 'team_winter_throwdown_2025', 'feat_multi_team_management', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_winter_host_comp', 'team_winter_throwdown_2025', 'feat_host_competitions', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Home Gym Heroes (Enterprise plan)
 INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
