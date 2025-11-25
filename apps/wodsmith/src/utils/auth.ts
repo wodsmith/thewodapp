@@ -14,6 +14,8 @@ import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	teamMembershipTable,
+	type Team,
+	type TeamMembership,
 	userTable,
 } from "@/db/schema"
 import type { SessionValidationResult } from "@/types"
@@ -94,6 +96,8 @@ interface CreateSessionParams
 	token: string
 }
 
+type TeamMembershipWithTeam = TeamMembership & { team: Team }
+
 export async function getUserTeamsWithPermissions(userId: string): Promise<
 	{
 		id: string
@@ -122,43 +126,7 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 		with: {
 			team: true,
 		},
-	})) as unknown as Array<{
-		id: string
-		teamId: string
-		userId: string
-		roleId: string
-		isSystemRole: number
-		invitedBy: string | null
-		invitedAt: Date | null
-		joinedAt: Date | null
-		expiresAt: Date | null
-		isActive: number
-		createdAt: Date
-		updatedAt: Date
-		team: {
-			id: string
-			name: string
-			slug: string
-			description: string | null
-			avatarUrl: string | null
-			settings: string | null
-			billingEmail: string | null
-			planId: string | null
-			planExpiresAt: Date | null
-			creditBalance: number
-			currentPlanId: string | null
-			defaultTrackId: string | null
-			defaultScalingGroupId: string | null
-			isPersonalTeam: number
-			personalTeamOwnerId: string | null
-			type: string
-			canHostCompetitions: number
-			parentOrganizationId: string | null
-			competitionMetadata: string | null
-			createdAt: Date
-			updatedAt: Date
-		}
-	}>
+	})) as TeamMembershipWithTeam[]
 
 	// Get all custom role IDs that need to be fetched
 	const customRoleIds = userTeamMemberships
