@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { getSessionFromCookie } from "@/utils/auth"
 import {
+	cancelCompetitionRegistration,
 	createCompetition,
 	createCompetitionGroup,
 	deleteCompetition,
@@ -12,19 +14,26 @@ import {
 	getCompetition,
 	getCompetitionGroup,
 	getCompetitionGroups,
+	getCompetitionRegistrations,
 	getCompetitions,
+	getUserCompetitionRegistration,
+	registerForCompetition,
 	updateCompetition,
 	updateCompetitionGroup,
 } from "@/server/competitions"
 import {
+	cancelCompetitionRegistrationSchema,
 	createCompetitionGroupSchema,
 	createCompetitionSchema,
 	deleteCompetitionGroupSchema,
 	deleteCompetitionSchema,
 	getCompetitionGroupSchema,
 	getCompetitionGroupsSchema,
+	getCompetitionRegistrationsSchema,
 	getCompetitionSchema,
 	getCompetitionsSchema,
+	getUserCompetitionRegistrationSchema,
+	registerForCompetitionSchema,
 	updateCompetitionGroupSchema,
 	updateCompetitionSchema,
 } from "@/schemas/competitions"
@@ -365,5 +374,158 @@ export const deleteCompetitionAction = createServerAction()
 				throw new ZSAError("ERROR", error.message)
 			}
 			throw new ZSAError("ERROR", "Failed to delete competition")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                         Registration Actions                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Register for a competition
+ */
+export const registerForCompetitionAction = createServerAction()
+	.input(registerForCompetitionSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Get current user from session
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in to register")
+			}
+
+			// Validate user ID matches session
+			if (input.userId !== session.userId) {
+				throw new ZSAError("FORBIDDEN", "You can only register yourself")
+			}
+
+			const result = await registerForCompetition(input)
+
+			// Revalidate competition pages
+			revalidatePath(`/compete/${input.competitionId}`)
+			revalidatePath("/compete/my-events")
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to register for competition:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to register for competition")
+		}
+	})
+
+/**
+ * Get user's competition registration
+ */
+export const getUserCompetitionRegistrationAction = createServerAction()
+	.input(getUserCompetitionRegistrationSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Get current user from session
+			const session = await getSessionFromCookie()
+			if (!session) {
+				return { success: true, data: null }
+			}
+
+			// Validate user ID matches session
+			if (input.userId !== session.userId) {
+				throw new ZSAError("FORBIDDEN", "You can only view your own registration")
+			}
+
+			const registration = await getUserCompetitionRegistration(
+				input.competitionId,
+				input.userId,
+			)
+
+			return { success: true, data: registration }
+		} catch (error) {
+			console.error("Failed to get registration:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to get registration")
+		}
+	})
+
+/**
+ * Get all registrations for a competition (admin only)
+ */
+export const getCompetitionRegistrationsAction = createServerAction()
+	.input(getCompetitionRegistrationsSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Get competition first to verify permissions
+			const competition = await getCompetition(input.competitionId)
+			if (!competition) {
+				throw new ZSAError("NOT_FOUND", "Competition not found")
+			}
+
+			// Check if user has access to the organizing team
+			await requireTeamPermission(
+				competition.organizingTeamId,
+				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+			)
+
+			const registrations = await getCompetitionRegistrations(
+				input.competitionId,
+				input.divisionId,
+			)
+
+			return { success: true, data: registrations }
+		} catch (error) {
+			console.error("Failed to get competition registrations:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to get competition registrations")
+		}
+	})
+
+/**
+ * Cancel a competition registration
+ */
+export const cancelCompetitionRegistrationAction = createServerAction()
+	.input(cancelCompetitionRegistrationSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Get current user from session
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in to cancel registration")
+			}
+
+			// Validate user ID matches session
+			if (input.userId !== session.userId) {
+				throw new ZSAError("FORBIDDEN", "You can only cancel your own registration")
+			}
+
+			const result = await cancelCompetitionRegistration(
+				input.registrationId,
+				input.userId,
+			)
+
+			// Revalidate competition pages
+			revalidatePath("/compete/my-events")
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to cancel registration:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to cancel registration")
 		}
 	})

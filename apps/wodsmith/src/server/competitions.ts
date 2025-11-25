@@ -364,6 +364,36 @@ export async function getCompetitions(
 }
 
 /**
+ * Get all public competitions (for competition discovery page)
+ *
+ * Phase 2 Implementation:
+ * - Query all competitions
+ * - Include organizing team and group data
+ * - Order by startDate DESC (upcoming first)
+ * - Return competitions with full details
+ */
+export async function getAllPublicCompetitions(): Promise<Competition[]> {
+	const db = getDb()
+
+	const competitions = await db.query.competitionsTable.findMany({
+		with: {
+			organizingTeam: {
+				columns: {
+					id: true,
+					name: true,
+					slug: true,
+					avatarUrl: true,
+				},
+			},
+			group: true,
+		},
+		orderBy: (table, { desc }) => [desc(table.startDate)],
+	})
+
+	return competitions
+}
+
+/**
  * Get a single competition by ID or slug
  *
  * Phase 2 Implementation:
@@ -547,7 +577,122 @@ export async function registerForCompetition(params: {
 	userId: string
 	divisionId: string
 }): Promise<{ registrationId: string; teamMemberId: string }> {
-	throw new Error("Not implemented - Phase 2")
+	const db = getDb()
+	const {
+		competitionRegistrationsTable,
+		teamMembershipTable,
+		SYSTEM_ROLES_ENUM,
+		userTable,
+		scalingLevelsTable,
+	} = await import("@/db/schema")
+	const { parseCompetitionSettings } = await import("@/types/competitions")
+	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
+
+	// 1. Validate competition exists
+	const competition = await getCompetition(params.competitionId)
+	if (!competition) {
+		throw new Error("Competition not found")
+	}
+
+	// 2. Check registration window
+	const now = new Date()
+	if (competition.registrationOpensAt && new Date(competition.registrationOpensAt) > now) {
+		throw new Error("Registration has not opened yet")
+	}
+	if (competition.registrationClosesAt && new Date(competition.registrationClosesAt) < now) {
+		throw new Error("Registration has closed")
+	}
+
+	// 3. Get the user to validate profile completeness
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, params.userId),
+	})
+
+	if (!user) {
+		throw new Error("User not found")
+	}
+
+	// 4. Validate user profile is complete (gender and dateOfBirth required)
+	if (!user.gender) {
+		throw new Error("Please complete your profile by adding your gender before registering")
+	}
+	if (!user.dateOfBirth) {
+		throw new Error("Please complete your profile by adding your date of birth before registering")
+	}
+
+	// 5. Validate division belongs to competition's scaling group
+	const settings = parseCompetitionSettings(competition.settings)
+	if (!settings?.divisions?.scalingGroupId) {
+		throw new Error("This competition does not have divisions configured")
+	}
+
+	const division = await db.query.scalingLevelsTable.findFirst({
+		where: eq(scalingLevelsTable.id, params.divisionId),
+	})
+
+	if (!division) {
+		throw new Error("Division not found")
+	}
+
+	if (division.scalingGroupId !== settings.divisions.scalingGroupId) {
+		throw new Error("Selected division does not belong to this competition")
+	}
+
+	// 6. Check for duplicate registration (will be caught by unique constraint, but check anyway for better error message)
+	const existingRegistration = await db.query.competitionRegistrationsTable.findFirst({
+		where: and(
+			eq(competitionRegistrationsTable.eventId, params.competitionId),
+			eq(competitionRegistrationsTable.userId, params.userId),
+		),
+	})
+
+	if (existingRegistration) {
+		throw new Error("You are already registered for this competition")
+	}
+
+	// 7. Create team_membership in competition_event team
+	const teamMembershipResult = await db
+		.insert(teamMembershipTable)
+		.values({
+			teamId: competition.competitionTeamId,
+			userId: params.userId,
+			roleId: SYSTEM_ROLES_ENUM.MEMBER,
+			isSystemRole: 1,
+			joinedAt: new Date(),
+			isActive: 1,
+		})
+		.returning()
+
+	const teamMember = Array.isArray(teamMembershipResult) ? teamMembershipResult[0] : undefined
+	if (!teamMember) {
+		throw new Error("Failed to create team membership")
+	}
+
+	// 8. Create competition_registration record
+	const registrationResult = await db
+		.insert(competitionRegistrationsTable)
+		.values({
+			id: `creg_${createId()}`,
+			eventId: params.competitionId,
+			userId: params.userId,
+			teamMemberId: teamMember.id,
+			divisionId: params.divisionId,
+			registeredAt: new Date(),
+		})
+		.returning()
+
+	const registration = Array.isArray(registrationResult) ? registrationResult[0] : undefined
+	if (!registration) {
+		throw new Error("Failed to create registration")
+	}
+
+	// 9. Update all user sessions to include new team
+	await updateAllSessionsOfUser(params.userId)
+
+	return {
+		registrationId: registration.id,
+		teamMemberId: teamMember.id,
+	}
 }
 
 /**
@@ -563,8 +708,40 @@ export async function registerForCompetition(params: {
 export async function getCompetitionRegistrations(
 	competitionId: string,
 	divisionId?: string,
-): Promise<any[]> {
-	throw new Error("Not implemented - Phase 2")
+) {
+	const db = getDb()
+	const { competitionRegistrationsTable } = await import("@/db/schema")
+
+	// Build the where clause
+	const whereConditions = [
+		eq(competitionRegistrationsTable.eventId, competitionId),
+	]
+
+	if (divisionId) {
+		whereConditions.push(eq(competitionRegistrationsTable.divisionId, divisionId))
+	}
+
+	const registrations = await db.query.competitionRegistrationsTable.findMany({
+		where: and(...whereConditions),
+		with: {
+			user: {
+				columns: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					avatar: true,
+					gender: true,
+					dateOfBirth: true,
+				},
+			},
+			division: true,
+			teamMember: true,
+		},
+		orderBy: (table, { asc }) => [asc(table.registeredAt)],
+	})
+
+	return registrations
 }
 
 /**
@@ -578,8 +755,33 @@ export async function getCompetitionRegistrations(
 export async function getUserCompetitionRegistration(
 	competitionId: string,
 	userId: string,
-): Promise<any | null> {
-	throw new Error("Not implemented - Phase 2")
+) {
+	const db = getDb()
+	const { competitionRegistrationsTable } = await import("@/db/schema")
+
+	const registration = await db.query.competitionRegistrationsTable.findFirst({
+		where: and(
+			eq(competitionRegistrationsTable.eventId, competitionId),
+			eq(competitionRegistrationsTable.userId, userId),
+		),
+		with: {
+			division: true,
+			teamMember: true,
+			user: {
+				columns: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					avatar: true,
+					gender: true,
+					dateOfBirth: true,
+				},
+			},
+		},
+	})
+
+	return registration ?? null
 }
 
 /**
@@ -595,6 +797,38 @@ export async function getUserCompetitionRegistration(
  */
 export async function cancelCompetitionRegistration(
 	registrationId: string,
-): Promise<{ success: boolean; refundAmount?: number }> {
-	throw new Error("Not implemented - Phase 2")
+	userId: string,
+): Promise<{ success: boolean }> {
+	const db = getDb()
+	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
+
+	// 1. Get the registration to verify it exists
+	const registration = await db.query.competitionRegistrationsTable.findFirst({
+		where: eq(competitionRegistrationsTable.id, registrationId),
+	})
+
+	if (!registration) {
+		throw new Error("Registration not found")
+	}
+
+	// 2. Validate user owns the registration
+	if (registration.userId !== userId) {
+		throw new Error("You can only cancel your own registration")
+	}
+
+	// 3. Delete the team_membership from competition_event team
+	await db
+		.delete(teamMembershipTable)
+		.where(eq(teamMembershipTable.id, registration.teamMemberId))
+
+	// 4. Delete the competition_registration record
+	await db
+		.delete(competitionRegistrationsTable)
+		.where(eq(competitionRegistrationsTable.id, registrationId))
+
+	// 5. Update all user sessions to remove the competition team
+	await updateAllSessionsOfUser(userId)
+
+	return { success: true }
 }
