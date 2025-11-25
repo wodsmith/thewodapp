@@ -57,6 +57,12 @@ export const FEATURE_SEED_DATA = [
 		description: "Manage multiple teams from one account",
 		category: "team" as const,
 	},
+	{
+		key: FEATURES.HOST_COMPETITIONS,
+		name: "Host Competitions",
+		description: "Create and manage competitions and events",
+		category: "team" as const,
+	},
 ]
 
 // Limit metadata for seeding
