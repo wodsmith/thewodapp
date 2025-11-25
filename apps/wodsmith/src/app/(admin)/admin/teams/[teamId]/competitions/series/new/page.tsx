@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { CompetitionGroupForm } from '../_components/competition-group-form'
+import { CompetitionGroupForm } from './_components/competition-group-form'
 
 interface NewSeriesPageProps {
 	params: Promise<{
