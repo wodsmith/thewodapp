@@ -114,37 +114,9 @@ export function AthleteProfileForm({
 			(s) => s.workoutName.toLowerCase() === metconName.toLowerCase(),
 		)
 	}
-	// Helper to use a suggested lift
-	const useSuggestedLift = (
-		liftField: "backSquat" | "deadlift" | "benchPress" | "press" | "snatch" | "cleanAndJerk",
-		weight: number,
-		date: Date | number,
-	) => {
-		const dateStr = (
-			typeof date === "number"
-				? new Date(date).toISOString().split("T")[0]
-				: new Date(date).toISOString().split("T")[0]
-		) as string
-
-		const weightValue = weight
-		// Use lbs as default unit for suggestions
-		if (liftField === "backSquat") {
-			form.setValue("strength.backSquat", { weight: weightValue, unit: "lbs", date: dateStr })
-		} else if (liftField === "deadlift") {
-			form.setValue("strength.deadlift", { weight: weightValue, unit: "lbs", date: dateStr })
-		} else if (liftField === "benchPress") {
-			form.setValue("strength.benchPress", { weight: weightValue, unit: "lbs", date: dateStr })
-		} else if (liftField === "press") {
-			form.setValue("strength.press", { weight: weightValue, unit: "lbs", date: dateStr })
-		} else if (liftField === "snatch") {
-			form.setValue("strength.snatch", { weight: weightValue, unit: "lbs", date: dateStr })
-		} else if (liftField === "cleanAndJerk") {
-			form.setValue("strength.cleanAndJerk", { weight: weightValue, unit: "lbs", date: dateStr })
-		}
-	}
 
 	// Helper to use a suggested time
-	const useSuggestedTime = (
+	const handleSuggestedTime = (
 		metconName: "fran" | "grace" | "helen" | "diane" | "murph",
 		time: string | null,
 		date: Date | number,
@@ -188,7 +160,7 @@ export function AthleteProfileForm({
 				metconName.charAt(0).toUpperCase() + metconName.slice(1),
 			)
 			if (suggestion?.wodScore) {
-				useSuggestedTime(metconName, suggestion.wodScore, suggestion.date)
+				handleSuggestedTime(metconName, suggestion.wodScore, suggestion.date)
 				syncedCount++
 			}
 		}
@@ -475,7 +447,7 @@ export function AthleteProfileForm({
 														variant="secondary"
 														size="sm"
 														onClick={() =>
-															useSuggestedTime(
+															handleSuggestedTime(
 																"fran",
 																suggestion.wodScore,
 																suggestion.date,
@@ -529,7 +501,7 @@ export function AthleteProfileForm({
 														variant="secondary"
 														size="sm"
 														onClick={() =>
-															useSuggestedTime(
+															handleSuggestedTime(
 																"grace",
 																suggestion.wodScore,
 																suggestion.date,
@@ -583,7 +555,7 @@ export function AthleteProfileForm({
 														variant="secondary"
 														size="sm"
 														onClick={() =>
-															useSuggestedTime(
+															handleSuggestedTime(
 																"helen",
 																suggestion.wodScore,
 																suggestion.date,
@@ -637,7 +609,7 @@ export function AthleteProfileForm({
 														variant="secondary"
 														size="sm"
 														onClick={() =>
-															useSuggestedTime(
+															handleSuggestedTime(
 																"diane",
 																suggestion.wodScore,
 																suggestion.date,
@@ -691,7 +663,7 @@ export function AthleteProfileForm({
 														variant="secondary"
 														size="sm"
 														onClick={() =>
-															useSuggestedTime(
+															handleSuggestedTime(
 																"murph",
 																suggestion.wodScore,
 																suggestion.date,
