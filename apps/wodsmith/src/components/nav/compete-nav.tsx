@@ -3,75 +3,46 @@ import { User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
-import MobileNav from "@/components/nav/mobile-nav"
-import { ActiveTeamSwitcher } from "@/components/nav/active-team-switcher"
+import CompeteMobileNav from "@/components/nav/compete-mobile-nav"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
-import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
+import { getSessionFromCookie } from "@/utils/auth"
 
-export default async function MainNav() {
+export default async function CompeteNav() {
 	const session = await getSessionFromCookie()
-	const activeTeamId = await getActiveTeamFromCookie()
 
 	return (
 		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
 			<div className="container mx-auto flex items-center justify-between">
-				<Link
-					href={session?.user ? "/workouts" : "/"}
-					className="flex items-center gap-2"
-				>
+				<Link href="/compete" className="flex items-center gap-2">
 					<Image
 						src="/wodsmith-logo-no-text.png"
-						alt="wodsmith"
+						alt="wodsmith compete"
 						width={32}
 						height={32}
 						className="dark:hidden"
 					/>
 					<Image
 						src="/wodsmith-logo-no-text.png"
-						alt="wodsmith"
+						alt="wodsmith compete"
 						width={32}
 						height={32}
 						className="hidden dark:block"
 					/>
 					<h1 className="text-2xl text-foreground dark:text-dark-foreground">
-						<span className="font-black uppercase">wod</span>smith
+						<span className="font-black uppercase">wod</span>smith{" "}
+						<span className="font-medium text-muted-foreground">Compete</span>
 					</h1>
 				</Link>
 				<nav className="hidden items-center gap-4 md:flex">
 					{session?.user ? (
 						<>
 							<Link
-								href="/workouts"
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Workouts
-							</Link>
-
-							<Link
-								href="/log"
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Log
-							</Link>
-							<Link
-								href="/teams"
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Team
-							</Link>
-							<Link
 								href="/compete"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
-								Compete
+								Events
 							</Link>
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
-							{session.teams && session.teams.length > 0 && (
-								<ActiveTeamSwitcher
-									teams={session.teams}
-									activeTeamId={activeTeamId}
-								/>
-							)}
 							<Link
 								href="/settings/profile"
 								className="font-bold text-foreground dark:text-dark-foreground"
@@ -87,13 +58,7 @@ export default async function MainNav() {
 								href="/compete"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
-								Compete
-							</Link>
-							<Link
-								href="/calculator"
-								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-							>
-								Calculator
+								Events
 							</Link>
 							<Link href="/sign-in" className="btn-outline">
 								Login
@@ -105,7 +70,7 @@ export default async function MainNav() {
 						</div>
 					)}
 				</nav>
-				<MobileNav session={session} />
+				<CompeteMobileNav session={session} />
 			</div>
 		</header>
 	)

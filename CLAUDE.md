@@ -17,20 +17,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm lint` - Run Biome linter
 - `pnpm format` - Format code with Biome
 - `pnpm check` - Run Biome check (lint + format)
-- `pnpm type-check` - Run TypeScript type checking
+- `pnpm type-check` - Run TypeScript type checking (uses tsgo for speed)
 - `pnpm type-check:changed` - Type check only changed files
 
 ### Database Operations
 - `pnpm db:generate` - Generate Drizzle migrations (never write SQL manually)
 - `pnpm db:studio` - Open Drizzle Studio
 - `pnpm db:migrate:dev` - Apply migrations to local D1 database
+- `pnpm db:migrate:staging` - Apply migrations to staging D1 database
 - `pnpm db:migrate:prod` - Apply migrations to production D1 database
 - `pnpm db:seed` - Seed local database
+- `pnpm db:seed:staging` - Seed staging database
 
 ### Testing
 - `pnpm test` - Run all tests with Vitest (single run mode)
-- Test files are located in `test/` directory
-- Use `vitest.config.mjs` configuration
+- `pnpm test -- path/to/test.ts` - Run a specific test file
+- Test files in `apps/wodsmith/test/`
 
 ### Email Development
 - `pnpm email:dev` - Start React Email development server on port 3001
@@ -41,6 +43,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm deploy:prod` - Deploy to production
 
 ## Architecture Overview
+
+### Monorepo Structure
+Turborepo monorepo with:
+- `apps/wodsmith/` - Main Next.js application
+- `packages/zsa/` - Server action library
+- `packages/zsa-react/` - React hooks for ZSA
+- `packages/typescript-config/` - Shared TypeScript config
+
+Run commands from root (uses Turbo) or from `apps/wodsmith/` directly.
 
 ### Tech Stack
 - **Frontend**: Next.js 15.3.2 App Router, React 19, TypeScript
@@ -88,6 +99,9 @@ Database is modularly structured in `src/db/schemas/`:
 - `billing.ts` - Credit billing system
 - `scaling.ts` - Workout scaling options
 - `scheduling.ts` - Schedule templates and scheduling
+- `entitlements.ts` - Feature entitlements and limits
+- `competitions.ts` - Competition management
+- `common.ts` - Shared schema utilities
 - Main schema exports from `src/db/schema.ts`
 
 ## Development Guidelines

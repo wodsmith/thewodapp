@@ -1,19 +1,19 @@
 import type { Metadata } from "next"
 import type React from "react"
-import MainNav from "@/components/nav/main-nav"
+import CompeteNav from "@/components/nav/compete-nav"
 import { SITE_URL } from "@/constants"
 
 export const metadata: Metadata = {
 	metadataBase: new URL(SITE_URL),
 	openGraph: {
-		title: "Compete - WODsmith",
+		title: "WODsmith Compete",
 		description: "Find and register for CrossFit competitions.",
 		images: [
 			{
-				url: `/api/og?title=${encodeURIComponent("Compete")}`,
+				url: `/api/og?title=${encodeURIComponent("WODsmith Compete")}`,
 				width: 1200,
 				height: 630,
-				alt: "Compete - WODsmith",
+				alt: "WODsmith Compete",
 			},
 		],
 	},
@@ -26,7 +26,7 @@ export default function CompeteLayout({
 }) {
 	return (
 		<div className="flex min-h-screen flex-col">
-			<MainNav />
+			<CompeteNav />
 
 			<main className="container mx-auto flex-1 pt-4 sm:p-4">{children}</main>
 

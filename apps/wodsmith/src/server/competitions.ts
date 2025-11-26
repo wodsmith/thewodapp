@@ -9,6 +9,12 @@ import {
 	competitionGroupsTable,
 	competitionsTable,
 } from "@/db/schema"
+
+// Competition with organizing team relation for public display
+export type CompetitionWithOrganizingTeam = Competition & {
+	organizingTeam: Team | null
+	group: CompetitionGroup | null
+}
 import { requireFeature } from "./entitlements"
 import { FEATURES } from "@/config/features"
 
@@ -335,6 +341,26 @@ export async function createCompetition(params: {
 		competitionId: competition.id,
 		competitionTeamId,
 	}
+}
+
+/**
+ * Get all public competitions for browsing
+ * Returns competitions ordered by startDate for public /compete page
+ */
+export async function getPublicCompetitions(): Promise<
+	CompetitionWithOrganizingTeam[]
+> {
+	const db = getDb()
+
+	const competitions = await db.query.competitionsTable.findMany({
+		with: {
+			organizingTeam: true,
+			group: true,
+		},
+		orderBy: (table, { asc }) => [asc(table.startDate)],
+	})
+
+	return competitions as CompetitionWithOrganizingTeam[]
 }
 
 /**
@@ -831,5 +857,5 @@ export async function cancelCompetitionRegistration(
 	// 5. Update all user sessions to remove the competition team
 	await updateAllSessionsOfUser(userId)
 
-	return { success: true, competitionId: registration.competitionId }
+	return { success: true, competitionId: registration.eventId }
 }
