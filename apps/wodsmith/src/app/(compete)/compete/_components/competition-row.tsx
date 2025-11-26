@@ -14,7 +14,11 @@ import { ListItem } from "@/components/ui/list-item"
 import type { CompetitionWithOrganizingTeam } from "@/server/competitions"
 import { cn } from "@/lib/utils"
 
-type CompetitionStatus = "registration-open" | "active" | "coming-soon"
+type CompetitionStatus =
+	| "registration-open"
+	| "active"
+	| "coming-soon"
+	| "registration-closed"
 
 interface CompetitionRowProps {
 	competition: CompetitionWithOrganizingTeam
@@ -56,6 +60,12 @@ export function CompetitionRow({
 				return (
 					<Badge variant="default" className="shrink-0">
 						Open
+					</Badge>
+				)
+			case "registration-closed":
+				return (
+					<Badge variant="outline" className="shrink-0">
+						Registration Closed
 					</Badge>
 				)
 			case "coming-soon":
@@ -104,6 +114,9 @@ export function CompetitionRow({
 		}
 		if (status === "registration-open" && regOpens && regCloses) {
 			return `Register: ${formatDate(regOpens)} - ${formatDate(regCloses)}`
+		}
+		if (status === "registration-closed" && regCloses) {
+			return `Closed: ${formatDate(regCloses)}`
 		}
 		if (regCloses && regCloses > now) {
 			return `Register by ${formatDate(regCloses)}`
@@ -208,6 +221,15 @@ export function CompetitionRow({
 					{status === "registration-open" && competition.registrationClosesAt && (
 						<p className="text-sm">
 							<span className="text-muted-foreground">Registration closes: </span>
+							<span className="font-medium">
+								{formatFullDate(competition.registrationClosesAt)}
+							</span>
+						</p>
+					)}
+
+					{status === "registration-closed" && competition.registrationClosesAt && (
+						<p className="text-sm">
+							<span className="text-muted-foreground">Registration closed: </span>
 							<span className="font-medium">
 								{formatFullDate(competition.registrationClosesAt)}
 							</span>

@@ -64,6 +64,24 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 		return startDate <= now && endDate >= now
 	})
 
+	const registrationClosed = filteredCompetitions.filter((comp) => {
+		const startDate = new Date(comp.startDate)
+		const regOpens = comp.registrationOpensAt
+			? new Date(comp.registrationOpensAt)
+			: null
+		const regCloses = comp.registrationClosesAt
+			? new Date(comp.registrationClosesAt)
+			: null
+
+		// Registration closed: starts in future AND reg window closed
+		return (
+			startDate > now &&
+			regOpens &&
+			regCloses &&
+			regCloses <= now
+		)
+	})
+
 	const comingSoon = filteredCompetitions.filter((comp) => {
 		const startDate = new Date(comp.startDate)
 		const regOpens = comp.registrationOpensAt
@@ -77,6 +95,7 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 	const hasNoCompetitions =
 		registrationOpen.length === 0 &&
 		active.length === 0 &&
+		registrationClosed.length === 0 &&
 		comingSoon.length === 0
 
 	return (
@@ -127,6 +146,21 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 								key={comp.id}
 								competition={comp}
 								status="active"
+								isAuthenticated={isAuthenticated}
+							/>
+						))}
+					</CompetitionSection>
+
+					<CompetitionSection
+						title="Registration Closed"
+						count={registrationClosed.length}
+						emptyMessage="No competitions with closed registration."
+					>
+						{registrationClosed.map((comp) => (
+							<CompetitionRow
+								key={comp.id}
+								competition={comp}
+								status="registration-closed"
 								isAuthenticated={isAuthenticated}
 							/>
 						))}
