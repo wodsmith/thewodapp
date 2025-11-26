@@ -40,14 +40,14 @@ export function AthleteHeader({
 	const coverImage = athleteProfile?.coverImageUrl
 	const backgroundStyle = coverImage
 		? {
-				backgroundImage: `url(${coverImage})`,
-				backgroundSize: "cover",
-				backgroundPosition: "center",
-			}
+			backgroundImage: `url(${coverImage})`,
+			backgroundSize: "cover",
+			backgroundPosition: "center",
+		}
 		: {
-				background:
-					"linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.5) 100%)",
-			}
+			background:
+				"linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.5) 100%)",
+		}
 
 	return (
 		<div className="relative">
@@ -82,19 +82,12 @@ export function AthleteHeader({
 							)}
 						</div>
 
-						{/* Action Buttons */}
-						<div className="flex gap-2">
-							<Button asChild variant="outline" size="sm">
-								<Link href="/compete/athlete/edit">
-									<Edit className="mr-2 h-4 w-4" />
-									Edit Profile
-								</Link>
-							</Button>
-							<Button variant="outline" size="sm" onClick={handleShare}>
-								<Share2 className="mr-2 h-4 w-4" />
-								Share
-							</Button>
-						</div>
+						<Button asChild variant="outline" size="sm">
+							<Link href="/compete/athlete/edit">
+								<Edit className="mr-2 h-4 w-4" />
+								Edit Profile
+							</Link>
+						</Button>
 					</div>
 				</div>
 			</div>
