@@ -1,7 +1,7 @@
 import "server-only"
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import { getPublicCompetitions } from "@/server/competitions"
+import { getPublicCompetitions, getUserUpcomingRegisteredCompetitions } from "@/server/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { CompetitionRow } from "./_components/competition-row"
 import { CompetitionSearch } from "./_components/competition-search"
@@ -16,19 +16,66 @@ interface CompetePageProps {
 	searchParams: Promise<{ q?: string }>
 }
 
+// Helper to determine competition status
+function getCompetitionStatus(comp: any, now: Date) {
+	const startDate = new Date(comp.startDate)
+	const endDate = new Date(comp.endDate)
+	const regOpens = comp.registrationOpensAt ? new Date(comp.registrationOpensAt) : null
+	const regCloses = comp.registrationClosesAt ? new Date(comp.registrationClosesAt) : null
+
+	// Active if currently happening
+	if (startDate <= now && endDate >= now) {
+		return "active"
+	}
+
+	// Registration open if starts in future AND registration window is active
+	if (
+		startDate > now &&
+		regOpens &&
+		regCloses &&
+		regOpens <= now &&
+		regCloses > now
+	) {
+		return "registration-open"
+	}
+
+	// Registration closed if starts in future AND reg window closed
+	if (
+		startDate > now &&
+		regOpens &&
+		regCloses &&
+		regCloses <= now
+	) {
+		return "registration-closed"
+	}
+
+	// Coming soon if starts in future AND (no reg window OR reg not yet open)
+	if (startDate > now && (!regOpens || regOpens > now)) {
+		return "coming-soon"
+	}
+
+	// Default fallback
+	return "coming-soon"
+}
+
 export default async function CompetePage({ searchParams }: CompetePageProps) {
 	const { q: searchQuery } = await searchParams
-	const [competitions, session] = await Promise.all([
-		getPublicCompetitions(),
-		getSessionFromCookie(),
-	])
+	const session = await getSessionFromCookie()
 
 	const isAuthenticated = !!session?.user
+	const userId = session?.user?.id
+
+	// Fetch competitions and user registrations in parallel
+	const [allCompetitions, registeredCompetitions] = await Promise.all([
+		getPublicCompetitions(),
+		userId ? getUserUpcomingRegisteredCompetitions(userId) : Promise.resolve([]),
+	])
+
 	const now = new Date()
 
 	// Filter by search query if provided
 	const filteredCompetitions = searchQuery
-		? competitions.filter(
+		? allCompetitions.filter(
 			(comp) =>
 				comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				comp.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -36,67 +83,22 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 					.toLowerCase()
 					.includes(searchQuery.toLowerCase()),
 		)
-		: competitions
+		: allCompetitions
 
-	// Categorize competitions
-	const registrationOpen = filteredCompetitions.filter((comp) => {
-		const startDate = new Date(comp.startDate)
-		const regOpens = comp.registrationOpensAt
-			? new Date(comp.registrationOpensAt)
-			: null
-		const regCloses = comp.registrationClosesAt
-			? new Date(comp.registrationClosesAt)
-			: null
+	// Create a set of registered competition IDs for easy filtering
+	const registeredCompIds = new Set(registeredCompetitions.map(c => c.id))
 
-		// Registration is open if: starts in future AND registration window is active
-		return (
-			startDate > now &&
-			regOpens &&
-			regCloses &&
-			regOpens <= now &&
-			regCloses > now
-		)
-	})
+	// Filter out registered competitions from main list
+	const unregisteredCompetitions = filteredCompetitions.filter(
+		comp => !registeredCompIds.has(comp.id)
+	)
 
-	const active = filteredCompetitions.filter((comp) => {
-		const startDate = new Date(comp.startDate)
-		const endDate = new Date(comp.endDate)
-		return startDate <= now && endDate >= now
-	})
+	// Sort competitions by start date
+	const sortedCompetitions = [...unregisteredCompetitions].sort(
+		(a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+	)
 
-	const registrationClosed = filteredCompetitions.filter((comp) => {
-		const startDate = new Date(comp.startDate)
-		const regOpens = comp.registrationOpensAt
-			? new Date(comp.registrationOpensAt)
-			: null
-		const regCloses = comp.registrationClosesAt
-			? new Date(comp.registrationClosesAt)
-			: null
-
-		// Registration closed: starts in future AND reg window closed
-		return (
-			startDate > now &&
-			regOpens &&
-			regCloses &&
-			regCloses <= now
-		)
-	})
-
-	const comingSoon = filteredCompetitions.filter((comp) => {
-		const startDate = new Date(comp.startDate)
-		const regOpens = comp.registrationOpensAt
-			? new Date(comp.registrationOpensAt)
-			: null
-
-		// Coming soon: starts in future AND (no reg window OR reg not yet open)
-		return startDate > now && (!regOpens || regOpens > now)
-	})
-
-	const hasNoCompetitions =
-		registrationOpen.length === 0 &&
-		active.length === 0 &&
-		registrationClosed.length === 0 &&
-		comingSoon.length === 0
+	const hasNoCompetitions = sortedCompetitions.length === 0
 
 	return (
 		<div className="flex flex-col gap-8">
@@ -111,6 +113,24 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 				<CompetitionSearch />
 			</Suspense>
 
+			{/* Registered Competitions Section */}
+			{registeredCompetitions.length > 0 && (
+				<CompetitionSection
+					title="Your Registered Competitions"
+					count={registeredCompetitions.length}
+				>
+					{registeredCompetitions.map((comp) => (
+						<CompetitionRow
+							key={comp.id}
+							competition={comp}
+							status={getCompetitionStatus(comp, now) as any}
+							isAuthenticated={isAuthenticated}
+						/>
+					))}
+				</CompetitionSection>
+			)}
+
+			{/* All Competitions Section */}
 			{hasNoCompetitions ? (
 				<div className="text-center py-12">
 					<p className="text-muted-foreground">
@@ -120,67 +140,19 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 					</p>
 				</div>
 			) : (
-				<div className="space-y-8">
-					<CompetitionSection
-						title="Registration Open"
-						count={registrationOpen.length}
-						emptyMessage="No competitions accepting registrations right now."
-					>
-						{registrationOpen.map((comp) => (
-							<CompetitionRow
-								key={comp.id}
-								competition={comp}
-								status="registration-open"
-								isAuthenticated={isAuthenticated}
-							/>
-						))}
-					</CompetitionSection>
-
-					<CompetitionSection
-						title="Active Now"
-						count={active.length}
-						emptyMessage="No competitions in progress."
-					>
-						{active.map((comp) => (
-							<CompetitionRow
-								key={comp.id}
-								competition={comp}
-								status="active"
-								isAuthenticated={isAuthenticated}
-							/>
-						))}
-					</CompetitionSection>
-
-					<CompetitionSection
-						title="Registration Closed"
-						count={registrationClosed.length}
-						emptyMessage="No competitions with closed registration."
-					>
-						{registrationClosed.map((comp) => (
-							<CompetitionRow
-								key={comp.id}
-								competition={comp}
-								status="registration-closed"
-								isAuthenticated={isAuthenticated}
-							/>
-						))}
-					</CompetitionSection>
-
-					<CompetitionSection
-						title="Coming Soon"
-						count={comingSoon.length}
-						emptyMessage="No upcoming competitions scheduled."
-					>
-						{comingSoon.map((comp) => (
-							<CompetitionRow
-								key={comp.id}
-								competition={comp}
-								status="coming-soon"
-								isAuthenticated={isAuthenticated}
-							/>
-						))}
-					</CompetitionSection>
-				</div>
+				<CompetitionSection
+					title="All Competitions"
+					count={sortedCompetitions.length}
+				>
+					{sortedCompetitions.map((comp) => (
+						<CompetitionRow
+							key={comp.id}
+							competition={comp}
+							status={getCompetitionStatus(comp, now) as any}
+							isAuthenticated={isAuthenticated}
+						/>
+					))}
+				</CompetitionSection>
 			)}
 		</div>
 	)
