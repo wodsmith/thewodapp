@@ -45,7 +45,7 @@ export function ProgrammingTrackRow({
 
 	return (
 		<Link
-			href={`/admin/teams/${teamId}/programming/${track.id}`}
+			href={`/admin/teams/programming/${track.id}`}
 			className="block border-4 hover:border-primary border-transparent bg-surface rounded-none p-4 transition-all"
 		>
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3">

@@ -117,14 +117,11 @@ export default function WorkoutDetailClient({
 	const getBreadcrumbItems = () => {
 		if (!redirectUrl) return null
 
-		// Parse URL pattern: /admin/teams/{teamId}/programming/{trackId}
-		const urlMatch = redirectUrl.match(
-			/\/admin\/teams\/([^/]+)\/programming\/([^/]+)/,
-		)
+		// Parse URL pattern: /admin/teams/programming/{trackId}
+		const urlMatch = redirectUrl.match(/\/admin\/teams\/programming\/([^/]+)/)
 		if (urlMatch) {
-			const [, teamId, trackId] = urlMatch
+			const [, trackId] = urlMatch
 			return {
-				teamId,
 				trackId,
 				redirectUrl: redirectUrl as string,
 			}

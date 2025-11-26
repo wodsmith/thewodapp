@@ -1,9 +1,10 @@
 # Plan: Remove Dynamic [teamId] from Admin Routes
 
 ## Tracking
-- **Status**: Planned
+- **Status**: Implemented
 - **Created**: 2025-11-26
-- **Commit SHA**: `1777bef`
+- **Plan Commit**: `1777bef`
+- **Implementation Commit**: `3493475`
 - **Branch**: `zac/remove-dynamic-admin-team`
 
 ## Summary

@@ -102,7 +102,7 @@ export function CompetitionEditForm({
 			},
 			onSuccess: () => {
 				toast.success("Competition updated successfully")
-				router.push(`/admin/teams/${teamId}/competitions/${competition.id}`)
+				router.push(`/admin/teams/competitions/${competition.id}`)
 				router.refresh()
 			},
 		},
@@ -181,7 +181,7 @@ export function CompetitionEditForm({
 	}
 
 	const handleCancel = () => {
-		router.push(`/admin/teams/${teamId}/competitions/${competition.id}`)
+		router.push(`/admin/teams/competitions/${competition.id}`)
 	}
 
 	return (

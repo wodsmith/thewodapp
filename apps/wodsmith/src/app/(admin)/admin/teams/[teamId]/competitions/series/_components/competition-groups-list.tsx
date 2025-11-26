@@ -85,7 +85,7 @@ export function CompetitionGroupsList({
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{groups.map((group) => (
 					<Card key={group.id} className="hover:bg-accent/50 transition-colors">
-						<Link href={`/admin/teams/${teamId}/competitions/series/${group.id}`}>
+						<Link href={`/admin/teams/competitions/series/${group.id}`}>
 							<CardHeader>
 								<div className="flex items-start justify-between">
 									<div className="flex-1 min-w-0">
@@ -106,7 +106,7 @@ export function CompetitionGroupsList({
 										<DropdownMenuContent align="end">
 											<DropdownMenuItem asChild>
 												<Link
-													href={`/admin/teams/${teamId}/competitions/series/${group.id}`}
+													href={`/admin/teams/competitions/series/${group.id}`}
 												>
 													<Eye className="h-4 w-4 mr-2" />
 													View
@@ -114,7 +114,7 @@ export function CompetitionGroupsList({
 											</DropdownMenuItem>
 											<DropdownMenuItem asChild>
 												<Link
-													href={`/admin/teams/${teamId}/competitions/series/${group.id}/edit`}
+													href={`/admin/teams/competitions/series/${group.id}/edit`}
 												>
 													<Pencil className="h-4 w-4 mr-2" />
 													Edit

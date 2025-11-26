@@ -36,7 +36,7 @@ export function CompetitionActions({
 		{
 			onSuccess: () => {
 				toast.success("Competition deleted successfully")
-				router.push(`/admin/teams/${teamId}/competitions`)
+				router.push("/admin/teams/competitions")
 				router.refresh()
 			},
 			onError: ({ err }) => {
@@ -52,7 +52,7 @@ export function CompetitionActions({
 	return (
 		<>
 			<div className="flex gap-2">
-				<Link href={`/admin/teams/${teamId}/competitions/${competitionId}/edit`}>
+				<Link href={`/admin/teams/competitions/${competitionId}/edit`}>
 					<Button variant="outline" size="sm">
 						<Pencil className="h-4 w-4 mr-2" />
 						Edit
