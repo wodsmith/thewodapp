@@ -812,6 +812,38 @@ export async function getUserCompetitionRegistration(
 }
 
 /**
+ * Get user's upcoming registered competitions
+ * Returns competitions the user has registered for where the event hasn't started yet
+ */
+export async function getUserUpcomingRegisteredCompetitions(
+	userId: string,
+): Promise<CompetitionWithOrganizingTeam[]> {
+	const db = getDb()
+	const { competitionRegistrationsTable } = await import("@/db/schema")
+
+	const registrations = await db.query.competitionRegistrationsTable.findMany({
+		where: eq(competitionRegistrationsTable.userId, userId),
+		with: {
+			competition: {
+				with: {
+					organizingTeam: true,
+					group: true,
+				},
+			},
+		},
+	})
+
+	const now = new Date()
+
+	// Filter to only upcoming competitions (start date in future)
+	const upcomingCompetitions = registrations
+		.filter((reg) => new Date(reg.competition.startDate) > now)
+		.map((reg) => reg.competition as CompetitionWithOrganizingTeam)
+
+	return upcomingCompetitions
+}
+
+/**
  * Cancel a competition registration
  *
  * Phase 2 Implementation:
