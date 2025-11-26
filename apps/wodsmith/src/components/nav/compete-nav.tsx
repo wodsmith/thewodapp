@@ -44,7 +44,7 @@ export default async function CompeteNav() {
 							</Link>
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
 							<Link
-								href="/settings/profile"
+								href="/compete/athlete"
 								className="font-bold text-foreground dark:text-dark-foreground"
 							>
 								<User className="h-5 w-5" />

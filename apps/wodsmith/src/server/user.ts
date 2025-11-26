@@ -10,6 +10,8 @@ import {
 	teamMembershipTable,
 	teamProgrammingTracksTable,
 	teamTable,
+	workoutMovements,
+	movements,
 } from "@/db/schema"
 
 /**
@@ -123,3 +125,84 @@ export async function getUserPersonalTeamId(userId: string): Promise<string> {
 
 	return personalTeam.id
 }
+
+/**
+ * Get user's primary gym affiliation
+ * Returns the first active GYM type team (not competition_event or personal teams)
+ * @param userId - The user's ID
+ * @returns Promise<{ id: string; name: string; type: string } | null> - The gym team or null
+ */
+export async function getUserGymAffiliation(userId: string) {
+	const db = getDb()
+
+	const membership = await db
+		.select({
+			id: teamTable.id,
+			name: teamTable.name,
+			type: teamTable.type,
+		})
+		.from(teamMembershipTable)
+		.innerJoin(teamTable, eq(teamMembershipTable.teamId, teamTable.id))
+		.where(
+			and(
+				eq(teamMembershipTable.userId, userId),
+				eq(teamMembershipTable.isActive, 1),
+				eq(teamTable.type, "gym"),
+			),
+		)
+		.limit(1)
+
+	return membership[0] ?? null
+}
+
+/**
+ * Get user's notable metcon workout results (Fran, Grace, Helen, Diane, Murph)
+ * @param userId - The user's ID
+ * @returns Promise<Array> - Array of workout results with workout details
+ */
+export async function getUserNotableMetconResults(userId: string) {
+	const db = getDb()
+	const { results, workouts } = await import("@/db/schema")
+	const { inArray, sql } = await import("drizzle-orm")
+
+	const notableMetconNames = ["Fran", "Grace", "Helen", "Diane", "Murph"]
+
+	// Query results joined with workouts, filtering for notable metcons only
+	const workoutResults = await db
+		.select({
+			workoutId: workouts.id,
+			workoutName: workouts.name,
+			wodScore: results.wodScore,
+			asRx: results.asRx,
+			date: results.date,
+		})
+		.from(results)
+		.innerJoin(workouts, eq(results.workoutId, workouts.id))
+		.where(
+			and(
+				eq(results.userId, userId),
+				eq(results.type, "wod"),
+				inArray(workouts.name, notableMetconNames),
+			),
+		)
+		.orderBy(results.date)
+
+	// Get the best result for each metcon (fastest time)
+	const metconResults = new Map()
+
+	for (const result of workoutResults) {
+		const workoutName = result.workoutName
+
+		// Only keep the best (fastest) result for each metcon
+		if (
+			!metconResults.has(workoutName) ||
+			(result.wodScore &&
+				result.wodScore < metconResults.get(workoutName).wodScore)
+		) {
+			metconResults.set(workoutName, result)
+		}
+	}
+
+	return Array.from(metconResults.values())
+}
+

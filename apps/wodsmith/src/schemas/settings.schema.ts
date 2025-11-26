@@ -19,3 +19,95 @@ export const athleteProfileSchema = z.object({
 		invalid_type_error: "Invalid date",
 	}),
 })
+
+// Extended athlete profile JSON schema
+export const athleteProfileExtendedSchema = z.object({
+	preferredUnits: z.enum(["imperial", "metric"]).default("imperial"),
+	heightCm: z.number().positive().optional(),
+	weightKg: z.number().positive().optional(),
+	coverImageUrl: z.string().optional(),
+
+	conditioning: z
+		.object({
+			// Notable metcons (can be manually entered or suggested from database)
+			fran: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			grace: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			helen: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			diane: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			murph: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			// Other conditioning benchmarks
+			row2k: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			run1Mile: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			run5k: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			row500m: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			maxPullups: z.object({ reps: z.string().optional(), date: z.string().optional() }).optional(),
+			maxCindyRounds: z.object({ rounds: z.string().optional(), date: z.string().optional() }).optional(),
+		})
+		.optional(),
+
+	strength: z
+		.object({
+			backSquat: z
+				.object({
+					weight: z.number().optional(),
+					unit: z.enum(["kg", "lbs"]).optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+			deadlift: z
+				.object({
+					weight: z.number().optional(),
+					unit: z.enum(["kg", "lbs"]).optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+			benchPress: z
+				.object({
+					weight: z.number().optional(),
+					unit: z.enum(["kg", "lbs"]).optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+			press: z
+				.object({
+					weight: z.number().optional(),
+					unit: z.enum(["kg", "lbs"]).optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+			snatch: z
+				.object({
+					weight: z.number().optional(),
+					unit: z.enum(["kg", "lbs"]).optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+			cleanAndJerk: z
+				.object({
+					weight: z.number().optional(),
+					unit: z.enum(["kg", "lbs"]).optional(),
+					date: z.string().optional(),
+				})
+				.optional(),
+		})
+		.optional(),
+
+	social: z
+		.object({
+			facebook: z.string().url().optional().or(z.literal("")),
+			instagram: z.string().url().optional().or(z.literal("")),
+			twitter: z.string().url().optional().or(z.literal("")),
+			tiktok: z.string().url().optional().or(z.literal("")),
+		})
+		.optional(),
+
+	sponsors: z
+		.array(
+			z.object({
+				name: z.string().min(1),
+				logoUrl: z.string().optional(),
+				website: z.string().url().optional().or(z.literal("")),
+			}),
+		)
+		.optional(),
+})
