@@ -899,7 +899,7 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 						),
 					)
 
-				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+				revalidatePath("/admin/teams/programming")
 
 				return {
 					success: true,
@@ -939,7 +939,7 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 						),
 					)
 
-				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+				revalidatePath("/admin/teams/programming")
 
 				return {
 					success: true,
@@ -1578,7 +1578,7 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 						),
 					)
 
-				revalidatePath(`/admin/teams/${input.teamId}/programming`)
+				revalidatePath("/admin/teams/programming")
 
 				return {
 					success: true,

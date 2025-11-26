@@ -148,7 +148,7 @@ export default function WorkoutDetailClient({
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
 								<BreadcrumbLink asChild>
-									<Link href={`/admin/teams/${breadcrumbData.teamId}`}>
+									<Link href="/admin/teams">
 										Team
 									</Link>
 								</BreadcrumbLink>

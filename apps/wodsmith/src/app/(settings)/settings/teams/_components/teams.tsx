@@ -64,7 +64,7 @@ export function TeamsClient({
 										</Link>
 										{canManageProgramming && (
 											<Link
-												href={`/admin/teams/${team.id}`}
+												href="/admin/teams"
 												className={cn(
 													buttonVariants({ variant: "link", size: "sm" }),
 													isActive

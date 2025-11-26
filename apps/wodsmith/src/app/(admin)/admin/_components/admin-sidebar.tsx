@@ -36,67 +36,67 @@ interface AdminNavItem {
 	items?: AdminNavItem[]
 }
 
-const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
+const getAdminNavItems = (): AdminNavItem[] => [
 	{
 		title: "Team Scheduling",
-		href: `/admin/teams/${currentTeamId}` as Route,
+		href: "/admin/teams" as Route,
 		icon: CalendarDaysIcon,
 	},
 	{
 		title: "Schedule Coaches",
-		href: `/admin/teams/${currentTeamId}/schedule-week` as Route,
+		href: "/admin/teams/schedule-week" as Route,
 		icon: ClockIcon,
 	},
 	{
 		title: "Programming",
-		href: `/admin/teams/${currentTeamId}/programming/` as Route,
+		href: "/admin/teams/programming" as Route,
 		icon: BookOpenIcon,
 	},
 	{
 		title: "Edit Workout Scaling",
-		href: `/admin/teams/${currentTeamId}/scaling` as Route,
+		href: "/admin/teams/scaling" as Route,
 		icon: AdjustmentsHorizontalIcon,
 	},
 	{
 		title: "Competitions",
-		href: `/admin/teams/${currentTeamId}/competitions` as Route,
+		href: "/admin/teams/competitions" as Route,
 		icon: TrophyIcon,
 		items: [
 			{
 				title: "All Competitions",
-				href: `/admin/teams/${currentTeamId}/competitions` as Route,
+				href: "/admin/teams/competitions" as Route,
 				icon: TrophyIcon,
 			},
 			{
 				title: "Competition Series",
-				href: `/admin/teams/${currentTeamId}/competitions/series` as Route,
+				href: "/admin/teams/competitions/series" as Route,
 				icon: FolderIcon,
 			},
 		],
 	},
 	{
 		title: "Class Scheduling",
-		href: `/admin/teams/${currentTeamId}` as Route,
+		href: "/admin/teams" as Route,
 		icon: CalendarDaysIcon,
 		items: [
 			{
 				title: "Classes",
-				href: `/admin/teams/${currentTeamId}/classes` as Route,
+				href: "/admin/teams/classes" as Route,
 				icon: AcademicCapIcon,
 			},
 			{
 				title: "Schedule Templates",
-				href: `/admin/teams/${currentTeamId}/schedule-templates` as Route,
+				href: "/admin/teams/schedule-templates" as Route,
 				icon: DocumentTextIcon,
 			},
 			{
 				title: "Coaches",
-				href: `/admin/teams/${currentTeamId}/coaches` as Route,
+				href: "/admin/teams/coaches" as Route,
 				icon: UserGroupIcon,
 			},
 			{
 				title: "Gym Setup",
-				href: `/admin/teams/${currentTeamId}/gym-setup` as Route,
+				href: "/admin/teams/gym-setup" as Route,
 				icon: BuildingOfficeIcon,
 			},
 		],
@@ -114,7 +114,7 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 		new Set(["Competitions", "Class Scheduling"]),
 	)
 
-	const navItems = currentTeamId ? getAdminNavItems(currentTeamId) : []
+	const navItems = currentTeamId ? getAdminNavItems() : []
 	const isActiveNavItem = useActiveNavItem(pathname, navItems)
 
 	const toggleSection = (title: string) => {
