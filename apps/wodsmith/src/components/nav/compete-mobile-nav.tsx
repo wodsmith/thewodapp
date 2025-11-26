@@ -75,7 +75,7 @@ export default function CompeteMobileNav({ session }: CompeteMobileNavProps) {
 							</Link>
 							<hr className="my-2" />
 							<Link
-								href="/settings/profile"
+								href="/compete/athlete"
 								className="hover:text-primary"
 								onClick={handleLinkClick}
 							>

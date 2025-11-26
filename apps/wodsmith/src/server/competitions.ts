@@ -859,3 +859,28 @@ export async function cancelCompetitionRegistration(
 
 	return { success: true, competitionId: registration.eventId }
 }
+
+/**
+ * Get user's competition registration history
+ * Used for athlete profile dashboard
+ */
+export async function getUserCompetitionHistory(userId: string) {
+	const db = getDb()
+	const { competitionRegistrationsTable } = await import("@/db/schema")
+
+	const registrations =
+		await db.query.competitionRegistrationsTable.findMany({
+			where: eq(competitionRegistrationsTable.userId, userId),
+			with: {
+				competition: {
+					with: {
+						organizingTeam: true,
+					},
+				},
+				division: true,
+			},
+			orderBy: (table, { desc }) => [desc(table.registeredAt)],
+		})
+
+	return registrations
+}
