@@ -135,24 +135,24 @@ export async function getUserPersonalTeamId(userId: string): Promise<string> {
 export async function getUserGymAffiliation(userId: string) {
 	const db = getDb()
 
-	const membership = await db.query.teamMembershipTable.findFirst({
-		where: and(
-			eq(teamMembershipTable.userId, userId),
-			eq(teamMembershipTable.isActive, 1),
-		),
-		with: {
-			team: {
-				columns: { id: true, name: true, type: true },
-			},
-		},
-	})
+	const membership = await db
+		.select({
+			id: teamTable.id,
+			name: teamTable.name,
+			type: teamTable.type,
+		})
+		.from(teamMembershipTable)
+		.innerJoin(teamTable, eq(teamMembershipTable.teamId, teamTable.id))
+		.where(
+			and(
+				eq(teamMembershipTable.userId, userId),
+				eq(teamMembershipTable.isActive, 1),
+				eq(teamTable.type, "gym"),
+			),
+		)
+		.limit(1)
 
-	// Return first GYM type team (not competition_event or personal)
-	if (membership?.team?.type === "gym") {
-		return membership.team
-	}
-
-	return null
+	return membership[0] ?? null
 }
 
 /**
