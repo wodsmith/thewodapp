@@ -42,11 +42,11 @@ export default async function AthletePage() {
 	// Parse athlete profile JSON
 	const athleteProfile = parseAthleteProfile(user.athleteProfile)
 
-	// Get gym affiliation
-	const gym = await getUserGymAffiliation(session.userId)
-
-	// Get competition history
-	const competitionHistory = await getUserCompetitionHistory(session.userId)
+	// Get gym affiliation and competition history in parallel
+	const [gym, competitionHistory] = await Promise.all([
+		getUserGymAffiliation(session.userId),
+		getUserCompetitionHistory(session.userId),
+	])
 
 	// Calculate age
 	const age = calculateAge(user.dateOfBirth)
