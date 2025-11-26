@@ -857,5 +857,5 @@ export async function cancelCompetitionRegistration(
 	// 5. Update all user sessions to remove the competition team
 	await updateAllSessionsOfUser(userId)
 
-	return { success: true, competitionId: registration.competitionId }
+	return { success: true, competitionId: registration.eventId }
 }
