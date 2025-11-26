@@ -99,9 +99,9 @@ export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
 				<CardContent>
 					{hasSponsors ? (
 						<div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-							{sponsors.map((sponsor, index) => (
+							{sponsors.map((sponsor) => (
 								<div
-									key={index}
+									key={sponsor.name}
 									className="border-muted flex flex-col items-center gap-2 rounded-lg border p-4 text-center"
 								>
 									{sponsor.logoUrl ? (
