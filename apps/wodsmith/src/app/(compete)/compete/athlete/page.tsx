@@ -42,10 +42,6 @@ export default async function AthletePage() {
 	// Parse athlete profile JSON
 	const athleteProfile = parseAthleteProfile(user.athleteProfile)
 
-	console.log("Raw athleteProfile JSON:", user.athleteProfile)
-	console.log("Parsed athleteProfile:", athleteProfile)
-	console.log("Strength data:", athleteProfile?.strength)
-
 	// Get gym affiliation
 	const gym = await getUserGymAffiliation(session.userId)
 
