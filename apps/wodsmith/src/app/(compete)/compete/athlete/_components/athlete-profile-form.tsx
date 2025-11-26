@@ -732,24 +732,10 @@ export function AthleteProfileForm({
 
 				<Card>
 					<CardHeader>
-						<div className="flex items-start justify-between">
-							<div>
-								<CardTitle>Conditioning Metcons</CardTitle>
-								<CardDescription>
-									Record your personal bests for benchmark workouts
-								</CardDescription>
-							</div>
-							{notableMetconSuggestions.length > 0 && (
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={syncAllWithLoggedBest}
-								>
-									Sync All with Logged Best
-								</Button>
-							)}
-						</div>
+						<CardTitle>Conditioning Metcons</CardTitle>
+						<CardDescription>
+							Record your personal bests for benchmark workouts
+						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
 						{/* 2K Row */}
@@ -918,8 +904,8 @@ export function AthleteProfileForm({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						{["backSquat", "deadlift", "benchPress", "press", "snatch", "cleanAndJerk"].map((lift) => {
-							const liftKey = lift as "deadlift" | "benchPress" | "press" | "snatch" | "cleanAndJerk"
+						{(["backSquat", "deadlift", "benchPress", "press", "snatch", "cleanAndJerk"] as const).map((lift) => {
+							const liftKey = lift
 							return (
 								<div key={lift} className="grid gap-4 sm:grid-cols-3">
 									<FormField

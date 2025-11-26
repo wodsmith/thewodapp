@@ -109,8 +109,11 @@ export function formatLiftWeight(
 	unit: "kg" | "lbs",
 	preferredUnits: "imperial" | "metric" = "imperial",
 ): string {
+	// Map preferred units to unit codes
+	const preferredUnitCode = preferredUnits === "metric" ? "kg" : "lbs"
+
 	// If the stored unit matches preference, return as-is
-	if (unit === preferredUnits.slice(0, 2)) {
+	if (unit === preferredUnitCode) {
 		return `${weight} ${unit.toUpperCase()}`
 	}
 
