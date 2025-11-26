@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
-import { userSettingsSchema } from "@/schemas/settings.schema"
-import { requireVerifiedEmail } from "@/utils/auth"
+import { athleteProfileSchema, userSettingsSchema } from "@/schemas/settings.schema"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 
@@ -36,6 +36,37 @@ export const updateUserProfileAction = createServerAction()
 			} catch (error) {
 				console.error(error)
 				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update profile")
+			}
+		}, RATE_LIMITS.SETTINGS)
+	})
+
+export const updateAthleteProfileAction = createServerAction()
+	.input(athleteProfileSchema)
+	.handler(async ({ input }) => {
+		return withRateLimit(async () => {
+			const session = await getSessionFromCookie()
+			const db = getDb()
+
+			if (!session?.user?.id) {
+				throw new ZSAError("NOT_AUTHORIZED", "Unauthorized")
+			}
+
+			try {
+				await db
+					.update(userTable)
+					.set({
+						gender: input.gender,
+						dateOfBirth: input.dateOfBirth,
+					})
+					.where(eq(userTable.id, session.user.id))
+
+				await updateAllSessionsOfUser(session.user.id)
+
+				revalidatePath("/compete/profile")
+				return { success: true }
+			} catch (error) {
+				console.error(error)
+				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update athlete profile")
 			}
 		}, RATE_LIMITS.SETTINGS)
 	})

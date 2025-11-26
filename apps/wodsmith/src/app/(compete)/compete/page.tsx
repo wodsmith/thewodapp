@@ -29,13 +29,13 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 	// Filter by search query if provided
 	const filteredCompetitions = searchQuery
 		? competitions.filter(
-				(comp) =>
-					comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					comp.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					comp.organizingTeam?.name
-						.toLowerCase()
-						.includes(searchQuery.toLowerCase()),
-			)
+			(comp) =>
+				comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				comp.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				comp.organizingTeam?.name
+					.toLowerCase()
+					.includes(searchQuery.toLowerCase()),
+		)
 		: competitions
 
 	// Categorize competitions
