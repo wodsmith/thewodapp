@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, or, sql } from "drizzle-orm"
+import { and, count, eq, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Competition,
@@ -1089,6 +1089,103 @@ export async function getTeammateInvite(inviteToken: string) {
 				}
 			: null,
 		captain,
+	}
+}
+
+/**
+ * Get team roster for a registration
+ * Shows confirmed members from teamMembershipTable and pending invites from teamInvitationTable
+ */
+export async function getTeamRoster(registrationId: string) {
+	const db = getDb()
+	const {
+		competitionRegistrationsTable,
+		teamMembershipTable,
+		teamInvitationTable,
+	} = await import("@/db/schema")
+
+	// Get the registration with athlete team
+	const registration = await db.query.competitionRegistrationsTable.findFirst({
+		where: eq(competitionRegistrationsTable.id, registrationId),
+		with: {
+			athleteTeam: true,
+			division: true,
+			competition: true,
+			captain: true,
+		},
+	})
+
+	if (!registration) {
+		return null
+	}
+
+	if (!registration.athleteTeamId) {
+		// Individual registration - no team roster
+		return {
+			registration,
+			members: [],
+			pending: [],
+			isTeamRegistration: false,
+		}
+	}
+
+	// Get confirmed team members
+	const memberships = await db.query.teamMembershipTable.findMany({
+		where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
+		with: {
+			user: {
+				columns: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					avatar: true,
+				},
+			},
+		},
+	})
+
+	// Get pending invitations
+	const invitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.teamId, registration.athleteTeamId),
+			isNull(teamInvitationTable.acceptedAt),
+		),
+	})
+
+	const members = memberships.map((m) => {
+		const user = Array.isArray(m.user) ? m.user[0] : m.user
+		return {
+			id: m.id,
+			userId: m.userId,
+			roleId: m.roleId,
+			isCaptain: m.roleId === "captain",
+			joinedAt: m.joinedAt,
+			user: user
+				? {
+						id: user.id,
+						firstName: user.firstName,
+						lastName: user.lastName,
+						email: user.email,
+						avatar: user.avatar,
+					}
+				: null,
+		}
+	})
+
+	const pending = invitations.map((i) => ({
+		id: i.id,
+		email: i.email,
+		token: i.token,
+		invitedAt: i.createdAt,
+		expiresAt: i.expiresAt,
+	}))
+
+	return {
+		registration,
+		members,
+		pending,
+		isTeamRegistration: true,
 	}
 }
 
