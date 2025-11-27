@@ -417,6 +417,90 @@ export async function inviteUserToTeam({
 }
 
 /**
+ * Internal invite function for competition teams
+ * Bypasses permission checks since captain is inviting during registration
+ */
+export async function inviteUserToTeamInternal({
+	teamId,
+	email,
+	roleId,
+	isSystemRole = true,
+	invitedBy,
+	competitionContext,
+}: {
+	teamId: string
+	email: string
+	roleId: string
+	isSystemRole?: boolean
+	invitedBy: string
+	competitionContext?: {
+		competitionId: string
+		competitionSlug: string
+		teamName: string
+		divisionName: string
+	}
+}): Promise<{ userJoined: boolean; userId?: string; invitationSent: boolean; token?: string }> {
+	const db = getDb()
+
+	// Check if user already exists
+	const existingUser = await db.query.userTable.findFirst({
+		where: eq(userTable.email, email.toLowerCase()),
+	})
+
+	if (existingUser) {
+		// User exists - add directly to team
+		await db.insert(teamMembershipTable).values({
+			teamId,
+			userId: existingUser.id,
+			roleId,
+			isSystemRole: isSystemRole ? 1 : 0,
+			invitedBy,
+			invitedAt: new Date(),
+			joinedAt: new Date(),
+			isActive: 1,
+		})
+
+		// Also add to competition_event team if this is a competition team
+		if (competitionContext) {
+			const { addToCompetitionEventTeam } = await import("@/server/competitions")
+			await addToCompetitionEventTeam(existingUser.id, competitionContext.competitionId)
+		}
+
+		await updateAllSessionsOfUser(existingUser.id)
+		return { userJoined: true, userId: existingUser.id, invitationSent: false }
+	}
+
+	// User doesn't exist - create invitation
+	const token = createId()
+	const expiresAt = new Date()
+	expiresAt.setDate(expiresAt.getDate() + 30) // 30 days for competition invites
+
+	await db.insert(teamInvitationTable).values({
+		teamId,
+		email: email.toLowerCase(),
+		roleId,
+		isSystemRole: isSystemRole ? 1 : 0,
+		token,
+		invitedBy,
+		expiresAt,
+	})
+
+	// TODO: Send competition team invite email
+	if (competitionContext) {
+		console.log(
+			`\n📧 Competition Team Invite:\n` +
+				`  To: ${email}\n` +
+				`  Team: ${competitionContext.teamName}\n` +
+				`  Competition: ${competitionContext.competitionSlug}\n` +
+				`  Division: ${competitionContext.divisionName}\n` +
+				`  Accept URL: ${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/compete/invite/${token}\n`,
+		)
+	}
+
+	return { userJoined: false, invitationSent: true, token }
+}
+
+/**
  * Accept a team invitation
  */
 export async function acceptTeamInvitation(token: string) {
@@ -519,12 +603,32 @@ export async function acceptTeamInvitation(token: string) {
 	// Update the user's session to include this team
 	await updateAllSessionsOfUser(session.userId)
 
-	// get team from invitation to return team slug
+	// Get team from invitation to check type and return team slug
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, invitation.teamId),
 	})
 	if (!team) {
 		throw new ZSAError("NOT_FOUND", "Team not found")
+	}
+
+	// Handle competition_team type - also add user to competition_event team
+	const { TEAM_TYPE_ENUM } = await import("@/db/schema")
+	if (team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM && team.competitionMetadata) {
+		try {
+			const metadata = JSON.parse(team.competitionMetadata) as { competitionId?: string }
+			if (metadata.competitionId) {
+				const { addToCompetitionEventTeam, clearPendingTeammate } = await import(
+					"@/server/competitions"
+				)
+				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
+				// Clear from pendingTeammates on the registration
+				if (session.user.email) {
+					await clearPendingTeammate(metadata.competitionId, session.user.email)
+				}
+			}
+		} catch {
+			// Ignore JSON parse errors
+		}
 	}
 
 	return {

@@ -19,6 +19,96 @@ import { requireFeature } from "./entitlements"
 import { FEATURES } from "@/config/features"
 
 /* -------------------------------------------------------------------------- */
+/*                           Competition Helper Functions                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Add a user to the competition_event team (for competition access)
+ * This is called when a teammate accepts an invite to a competition_team
+ */
+export async function addToCompetitionEventTeam(
+	userId: string,
+	competitionId: string,
+): Promise<void> {
+	const db = getDb()
+	const { teamMembershipTable, SYSTEM_ROLES_ENUM } = await import("@/db/schema")
+
+	// Get the competition to find the competitionTeamId
+	const competition = await db.query.competitionsTable.findFirst({
+		where: eq(competitionsTable.id, competitionId),
+	})
+
+	if (!competition) {
+		throw new Error("Competition not found")
+	}
+
+	// Check if user is already a member
+	const existingMembership = await db.query.teamMembershipTable.findFirst({
+		where: and(
+			eq(teamMembershipTable.teamId, competition.competitionTeamId),
+			eq(teamMembershipTable.userId, userId),
+		),
+	})
+
+	if (existingMembership) {
+		// Already a member, nothing to do
+		return
+	}
+
+	// Add user to competition_event team
+	await db.insert(teamMembershipTable).values({
+		teamId: competition.competitionTeamId,
+		userId,
+		roleId: SYSTEM_ROLES_ENUM.MEMBER,
+		isSystemRole: 1,
+		joinedAt: new Date(),
+		isActive: 1,
+	})
+}
+
+/**
+ * Clear a teammate from pendingTeammates JSON on a registration
+ * Called when a teammate accepts their invite
+ */
+export async function clearPendingTeammate(
+	competitionId: string,
+	teammateEmail: string,
+): Promise<void> {
+	const db = getDb()
+	const { competitionRegistrationsTable } = await import("@/db/schema")
+
+	// Find registrations for this competition that have this email in pendingTeammates
+	const registrations = await db.query.competitionRegistrationsTable.findMany({
+		where: eq(competitionRegistrationsTable.eventId, competitionId),
+	})
+
+	for (const reg of registrations) {
+		if (!reg.pendingTeammates) continue
+
+		try {
+			const pending = JSON.parse(reg.pendingTeammates) as Array<{ email: string }>
+			const updatedPending = pending.filter(
+				(t) => t.email.toLowerCase() !== teammateEmail.toLowerCase(),
+			)
+
+			if (updatedPending.length !== pending.length) {
+				// Found and removed the teammate
+				await db
+					.update(competitionRegistrationsTable)
+					.set({
+						pendingTeammates: updatedPending.length > 0 ? JSON.stringify(updatedPending) : null,
+					})
+					.where(eq(competitionRegistrationsTable.id, reg.id))
+				break
+			}
+		} catch {
+			// Invalid JSON, skip
+			continue
+		}
+	}
+}
+
+/* -------------------------------------------------------------------------- */
 /*                          Competition Group Functions                       */
 /* -------------------------------------------------------------------------- */
 
@@ -613,7 +703,7 @@ export async function registerForCompetition(params: {
 		lastName?: string
 		affiliateName?: string
 	}>
-}): Promise<{ registrationId: string; teamMemberId: string }> {
+}): Promise<{ registrationId: string; teamMemberId: string; athleteTeamId: string | null }> {
 	const db = getDb()
 	const {
 		competitionRegistrationsTable,
@@ -726,7 +816,71 @@ export async function registerForCompetition(params: {
 		}
 	}
 
-	// 10. Create team_membership in competition_event team
+	let athleteTeamId: string | null = null
+
+	// 10. For team registrations, create the competition_team
+	if (isTeamDivision) {
+		const { teamTable, TEAM_TYPE_ENUM } = await import("@/db/schema")
+		const { generateSlug } = await import("@/utils/slugify")
+
+		// Generate unique slug for athlete team
+		let teamSlug = generateSlug(`${params.teamName}-${competition.slug}`)
+		let teamSlugIsUnique = false
+		let attempts = 0
+
+		while (!teamSlugIsUnique && attempts < 5) {
+			const existingTeam = await db.query.teamTable.findFirst({
+				where: eq(teamTable.slug, teamSlug),
+			})
+
+			if (!existingTeam) {
+				teamSlugIsUnique = true
+			} else {
+				teamSlug = `${generateSlug(`${params.teamName}-${competition.slug}`)}-${createId().substring(0, 4)}`
+				attempts++
+			}
+		}
+
+		if (!teamSlugIsUnique) {
+			throw new Error("Could not generate unique slug for athlete team")
+		}
+
+		// Create competition_team for athlete squad
+		const newAthleteTeam = await db
+			.insert(teamTable)
+			.values({
+				name: params.teamName!,
+				slug: teamSlug,
+				type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
+				parentOrganizationId: competition.competitionTeamId, // Parent is the event team
+				description: `Team ${params.teamName} competing in ${competition.name}`,
+				creditBalance: 0,
+				competitionMetadata: JSON.stringify({
+					competitionId: params.competitionId,
+					divisionId: params.divisionId,
+				}),
+			})
+			.returning()
+
+		const athleteTeam = Array.isArray(newAthleteTeam) ? newAthleteTeam[0] : undefined
+		if (!athleteTeam) {
+			throw new Error("Failed to create athlete team")
+		}
+
+		athleteTeamId = athleteTeam.id
+
+		// Add captain to athlete team with CAPTAIN role
+		await db.insert(teamMembershipTable).values({
+			teamId: athleteTeamId,
+			userId: params.userId,
+			roleId: SYSTEM_ROLES_ENUM.CAPTAIN,
+			isSystemRole: 1,
+			joinedAt: new Date(),
+			isActive: 1,
+		})
+	}
+
+	// 11. Create team_membership in competition_event team
 	const teamMembershipResult = await db
 		.insert(teamMembershipTable)
 		.values({
@@ -744,7 +898,7 @@ export async function registerForCompetition(params: {
 		throw new Error("Failed to create team membership")
 	}
 
-	// 11. Store pending teammates as JSON for team registrations
+	// 12. Store pending teammates as JSON for team registrations
 	const pendingTeammatesJson = isTeamDivision && params.teammates
 		? JSON.stringify(params.teammates.map(t => ({
 				email: t.email.toLowerCase(),
@@ -754,7 +908,7 @@ export async function registerForCompetition(params: {
 			})))
 		: null
 
-	// 12. Create competition_registration record
+	// 13. Create competition_registration record
 	const registrationResult = await db
 		.insert(competitionRegistrationsTable)
 		.values({
@@ -767,8 +921,8 @@ export async function registerForCompetition(params: {
 			// Team fields
 			teamName: isTeamDivision ? params.teamName : null,
 			captainUserId: params.userId,
+			athleteTeamId,
 			pendingTeammates: pendingTeammatesJson,
-			// athleteTeamId will be set when team infrastructure is implemented (Phase 2)
 		})
 		.returning()
 
@@ -777,59 +931,165 @@ export async function registerForCompetition(params: {
 		throw new Error("Failed to create registration")
 	}
 
-	// 13. For team registrations, log invite info (full team invite flow in Phase 2)
-	if (isTeamDivision && params.teammates) {
+	// 14. For team registrations, invite teammates via team infrastructure
+	if (isTeamDivision && params.teammates && athleteTeamId) {
+		const { inviteUserToTeamInternal } = await import("@/server/team-members")
+
 		for (const teammate of params.teammates) {
-			// TODO: Use team infrastructure for invites (Phase 2)
-			// This will create competition_team and use teamInvitationTable
-			console.log(
-				`\n📧 Team invite pending for ${teammate.email}:\n` +
-					`Competition: ${competition.name}\n` +
-					`Team: ${params.teamName}\n`,
-			)
+			await inviteUserToTeamInternal({
+				teamId: athleteTeamId,
+				email: teammate.email,
+				roleId: SYSTEM_ROLES_ENUM.MEMBER,
+				isSystemRole: true,
+				invitedBy: params.userId,
+				competitionContext: {
+					competitionId: params.competitionId,
+					competitionSlug: competition.slug,
+					teamName: params.teamName!,
+					divisionName: division.label,
+				},
+			})
 		}
 	}
 
-	// 14. Update all user sessions to include new team
+	// 15. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
 	return {
 		registrationId: registration.id,
 		teamMemberId: teamMember.id,
+		athleteTeamId,
 	}
 }
 
 /**
  * Accept a team invite for a competition
  *
- * NOTE: This will be reimplemented in Phase 2 to use the team infrastructure
- * (teamInvitationTable) instead of the deprecated competitionRegistrationTeammatesTable.
- *
- * Called when a teammate clicks their invite link and accepts.
- * - Validates invite token exists and is pending
- * - Validates user email matches invite email
- * - Checks user isn't already registered
- * - Adds user to athlete team and competition_event team
+ * This function delegates to the standard team invitation acceptance flow.
+ * The extended acceptTeamInvitation automatically detects competition_team type
+ * and handles adding the user to both the athlete team and competition_event team.
  */
 export async function acceptTeamInvite(params: {
 	inviteToken: string
 	userId: string
-}): Promise<{ success: boolean; registrationId: string }> {
-	// TODO: Implement using team infrastructure in Phase 2
-	// This will use teamInvitationTable instead of competitionRegistrationTeammatesTable
-	throw new Error("Team invite acceptance is being reimplemented. Please check back later.")
+}): Promise<{ success: boolean; teamId: string; teamSlug: string }> {
+	const { acceptTeamInvitation } = await import("@/server/team-members")
+	// The standard acceptTeamInvitation now handles competition_team types
+	// by checking team.type === COMPETITION_TEAM and adding user to competition_event team
+	return await acceptTeamInvitation(params.inviteToken)
 }
 
 /**
  * Get teammate invite by token (for invite page)
  *
- * NOTE: This will be reimplemented in Phase 2 to use the team infrastructure
- * (teamInvitationTable) instead of the deprecated competitionRegistrationTeammatesTable.
+ * Returns invite details including competition context from competition_team metadata.
  */
 export async function getTeammateInvite(inviteToken: string) {
-	// TODO: Implement using team infrastructure in Phase 2
-	// This will use teamInvitationTable instead of competitionRegistrationTeammatesTable
-	return null
+	const db = getDb()
+	const { teamInvitationTable, teamTable, TEAM_TYPE_ENUM } = await import("@/db/schema")
+
+	// Find the invitation by token
+	const invitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.token, inviteToken),
+		with: {
+			team: true,
+		},
+	})
+
+	if (!invitation) {
+		return null
+	}
+
+	const team = Array.isArray(invitation.team) ? invitation.team[0] : invitation.team
+
+	// Check if this is a competition team invite
+	if (team?.type !== TEAM_TYPE_ENUM.COMPETITION_TEAM) {
+		return null // Not a competition team invite
+	}
+
+	// Parse competition metadata
+	let competitionContext: {
+		competitionId?: string
+		divisionId?: string
+	} = {}
+
+	if (team.competitionMetadata) {
+		try {
+			competitionContext = JSON.parse(team.competitionMetadata)
+		} catch {
+			// Invalid JSON, ignore
+		}
+	}
+
+	// Get competition details
+	let competition = null
+	let division = null
+
+	if (competitionContext.competitionId) {
+		competition = await getCompetition(competitionContext.competitionId)
+
+		if (competitionContext.divisionId) {
+			const { scalingLevelsTable } = await import("@/db/schema")
+			division = await db.query.scalingLevelsTable.findFirst({
+				where: eq(scalingLevelsTable.id, competitionContext.divisionId),
+			})
+		}
+	}
+
+	// Get the captain info from the registration
+	let captain = null
+	if (competitionContext.competitionId) {
+		const { competitionRegistrationsTable, userTable } = await import("@/db/schema")
+		const registration = await db.query.competitionRegistrationsTable.findFirst({
+			where: and(
+				eq(competitionRegistrationsTable.eventId, competitionContext.competitionId),
+				eq(competitionRegistrationsTable.athleteTeamId, team.id),
+			),
+			with: {
+				captain: true,
+			},
+		})
+
+		if (registration) {
+			const captainUser = Array.isArray(registration.captain)
+				? registration.captain[0]
+				: registration.captain
+			if (captainUser) {
+				captain = {
+					id: captainUser.id,
+					firstName: captainUser.firstName,
+					lastName: captainUser.lastName,
+					email: captainUser.email,
+				}
+			}
+		}
+	}
+
+	return {
+		id: invitation.id,
+		email: invitation.email,
+		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
+		acceptedAt: invitation.acceptedAt ? new Date(invitation.acceptedAt) : null,
+		team: {
+			id: team.id,
+			name: team.name,
+			slug: team.slug,
+		},
+		competition: competition
+			? {
+					id: competition.id,
+					name: competition.name,
+					slug: competition.slug,
+				}
+			: null,
+		division: division
+			? {
+					id: division.id,
+					label: division.label,
+				}
+			: null,
+		captain,
+	}
 }
 
 /**
