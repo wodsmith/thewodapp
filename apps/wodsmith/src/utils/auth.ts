@@ -99,6 +99,7 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 		id: string
 		name: string
 		slug: string
+		type: string
 		isPersonalTeam: boolean
 		role: {
 			id: string
@@ -191,6 +192,7 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 			id: membership.teamId,
 			name: team?.name ?? "",
 			slug: team?.slug ?? "",
+			type: team?.type ?? "gym",
 			isPersonalTeam: !!(team?.isPersonalTeam),
 			role: {
 				id: membership.roleId,

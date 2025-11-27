@@ -68,7 +68,11 @@ export default async function MainNav() {
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
 							{session.teams && session.teams.length > 0 && (
 								<ActiveTeamSwitcher
-									teams={session.teams}
+									teams={session.teams.filter(
+										(team) =>
+											team.type !== "competition_event" &&
+											team.type !== "competition_team"
+									)}
 									activeTeamId={activeTeamId}
 								/>
 							)}
