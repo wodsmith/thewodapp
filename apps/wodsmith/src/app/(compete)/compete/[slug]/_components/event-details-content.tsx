@@ -51,9 +51,6 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 							<Card key={division.id}>
 								<CardHeader className="py-3 px-4">
 									<CardTitle className="text-base">{division.label}</CardTitle>
-									{division.description && (
-										<CardDescription>{division.description}</CardDescription>
-									)}
 								</CardHeader>
 							</Card>
 						))}
