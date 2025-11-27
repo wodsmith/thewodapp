@@ -161,15 +161,14 @@ export function DivisionItem({
 				},
 			}),
 		)
-	}, [id, label, index, instanceId, onDrop, closestEdge])
+	}, [id, label, index, instanceId, onDrop])
 
 	return (
 		<div ref={ref} className="relative">
 			{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
 			<div
-				className={`flex items-center gap-2 p-3 border rounded-lg bg-background ${
-					isDragging ? "opacity-50" : ""
-				}`}
+				className={`flex items-center gap-2 p-3 border rounded-lg bg-background ${isDragging ? "opacity-50" : ""
+					}`}
 			>
 				<button
 					ref={dragHandleRef}
