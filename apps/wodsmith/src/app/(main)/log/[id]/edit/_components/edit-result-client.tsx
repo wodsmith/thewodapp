@@ -224,15 +224,15 @@ export default function EditResultClient({
 		}
 
 		// Append scores
-		data.scores?.forEach((parts, roundIndex) => {
-			parts.forEach((part, partIndex) => {
+		data.scores?.forEach((parts: string[], roundIndex: number) => {
+			parts.forEach((part: string, partIndex: number) => {
 				formData.append(`scores[${roundIndex}][${partIndex}]`, part)
 			})
 		})
 
 		// Add timeCapped data to formData
 		if (data.timeCapped) {
-			data.timeCapped.forEach((isTimeCapped, roundIndex) => {
+			data.timeCapped.forEach((isTimeCapped: boolean, roundIndex: number) => {
 				formData.append(`timeCapped[${roundIndex}]`, String(isTimeCapped))
 			})
 		}
@@ -275,7 +275,7 @@ export default function EditResultClient({
 		const scoresNeedRestructure =
 			!scores ||
 			scores.length !== numRoundsForInputs ||
-			scores.some((parts) => parts.length !== expectedPartsPerScore)
+			scores.some((parts: string[]) => parts.length !== expectedPartsPerScore)
 
 		if (workoutIdContextChanged || scoresNeedRestructure) {
 			// Don't reset scores if we're just loading the form initially
@@ -297,7 +297,7 @@ export default function EditResultClient({
 		value: string,
 	) => {
 		const currentScores = form.getValues("scores") || []
-		const newScores = currentScores.map((parts, rIndex) => {
+		const newScores = currentScores.map((parts: string[], rIndex: number) => {
 			if (rIndex === roundIndex) {
 				const newParts = [...parts]
 				newParts[partIndex] = value
@@ -316,7 +316,7 @@ export default function EditResultClient({
 
 		// Clear the score when toggling time cap status
 		const currentScores = form.getValues("scores") || []
-		const newScores = currentScores.map((parts, rIndex) => {
+		const newScores = currentScores.map((parts: string[], rIndex: number) => {
 			if (rIndex === roundIndex) {
 				return [""] // Reset to empty string
 			}
@@ -331,7 +331,7 @@ export default function EditResultClient({
 		const timeCappedArray = form.getValues("timeCapped") || []
 
 		if (workout.scheme === "time" || workout.scheme === "time-with-cap") {
-			return currentScores.map((parts, index) => {
+			return currentScores.map((parts: string[], index: number) => {
 				const isTimeWithCap = workout.scheme === "time-with-cap"
 				const isTimeCapped = timeCappedArray[index] || false
 
@@ -405,7 +405,7 @@ export default function EditResultClient({
 		}
 
 		if (hasRepsPerRound) {
-			return currentScores.map((parts, index) => {
+			return currentScores.map((parts: string[], index: number) => {
 				return (
 					<div
 						key={`score-reps-round-${index}-${workout.id}`}
@@ -468,7 +468,7 @@ export default function EditResultClient({
 		}
 
 		// Default score input
-		return currentScores.map((parts, index) => {
+		return currentScores.map((parts: string[], index: number) => {
 			return (
 				<div
 					key={`score-default-round-${index}-${workout.id}`}

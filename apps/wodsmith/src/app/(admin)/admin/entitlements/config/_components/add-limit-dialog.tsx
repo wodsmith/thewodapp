@@ -26,6 +26,7 @@ import {
 	getAllLimitsAction,
 	assignLimitToPlanAction,
 } from "../../../_actions/entitlement-admin-actions"
+import type { Limit } from "@/db/schemas/entitlements"
 
 interface AddLimitDialogProps {
 	open: boolean
@@ -61,7 +62,7 @@ export function AddLimitDialog({
 		}
 	}, [fetchLimits, open])
 
-	const allLimits = limitsData?.data ?? []
+	const allLimits = (limitsData?.data ?? []) as Limit[]
 	const availableLimits = allLimits.filter(
 		(l) => l.isActive && !excludeLimitIds.includes(l.id),
 	)

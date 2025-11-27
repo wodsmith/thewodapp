@@ -26,7 +26,7 @@ export function PlansConfiguration() {
 		fetchPlans()
 	}, [fetchPlans])
 
-	const plans = plansData?.data ?? []
+	const plans = (plansData?.data ?? []) as Plan[]
 
 	const handleConfigurePlan = (plan: Plan) => {
 		setSelectedPlan(plan)
@@ -58,7 +58,7 @@ export function PlansConfiguration() {
 						</div>
 					) : (
 						<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-							{plans.map((plan) => (
+							{plans.map((plan: Plan) => (
 								<Card key={plan.id}>
 									<CardHeader>
 										<CardTitle className="text-lg">{plan.name}</CardTitle>

@@ -187,7 +187,7 @@ export default function LogFormClient({
 		const scoresNeedRestructure =
 			!currentScores ||
 			currentScores.length !== numRoundsForInputs ||
-			currentScores.some((parts) => parts.length !== expectedPartsPerScore)
+			currentScores.some((parts: string[]) => parts.length !== expectedPartsPerScore)
 
 		if (workoutIdContextChanged || scoresNeedRestructure) {
 			const newInitialScores = Array(numRoundsForInputs)
@@ -207,7 +207,7 @@ export default function LogFormClient({
 		value: string,
 	) => {
 		const currentScores = form.getValues("scores") || []
-		const newScores = currentScores.map((parts, rIndex) => {
+		const newScores = currentScores.map((parts: string[], rIndex: number) => {
 			if (rIndex === roundIndex) {
 				const newParts = [...parts]
 				newParts[partIndex] = value
@@ -226,7 +226,7 @@ export default function LogFormClient({
 
 		// Clear the score when toggling time cap status
 		const currentScores = form.getValues("scores") || []
-		const newScores = currentScores.map((parts, rIndex) => {
+		const newScores = currentScores.map((parts: string[], rIndex: number) => {
 			if (rIndex === roundIndex) {
 				return [""] // Reset to empty string
 			}
@@ -267,8 +267,8 @@ export default function LogFormClient({
 
 		// Add scores to formData
 		if (data.scores) {
-			data.scores.forEach((scoreParts, roundIndex) => {
-				scoreParts.forEach((partValue, partIndex) => {
+			data.scores.forEach((scoreParts: string[], roundIndex: number) => {
+				scoreParts.forEach((partValue: string, partIndex: number) => {
 					formData.append(
 						`scores[${roundIndex}][${partIndex}]`,
 						partValue || "",
@@ -279,7 +279,7 @@ export default function LogFormClient({
 
 		// Add timeCapped data to formData
 		if (data.timeCapped) {
-			data.timeCapped.forEach((isTimeCapped, roundIndex) => {
+			data.timeCapped.forEach((isTimeCapped: boolean, roundIndex: number) => {
 				formData.append(`timeCapped[${roundIndex}]`, String(isTimeCapped))
 			})
 		}
@@ -538,7 +538,7 @@ export default function LogFormClient({
 															<div className="space-y-3">
 																{form
 																	.watch("scores")
-																	?.map((scoreParts, roundIndex) => {
+																	?.map((scoreParts: string[], roundIndex: number) => {
 																		const hasRepsPerRound =
 																			!!currentWorkoutDetails?.repsPerRound
 																		const repsPerRoundValue =
