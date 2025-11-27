@@ -373,12 +373,12 @@ export async function getPublicCompetitions(): Promise<
  * - Return competitions with full details
  */
 export async function getCompetitions(
-	organizingTeamId: string,
+	teamId: string,
 ): Promise<Array<Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }>> {
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
-		where: eq(competitionsTable.organizingTeamId, organizingTeamId),
+		where: eq(competitionsTable.competitionTeamId, teamId),
 		with: {
 			competitionTeam: true,
 			group: true,

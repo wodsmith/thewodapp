@@ -45,7 +45,7 @@ export async function initializeCompetitionDivisions({
 		throw new Error("Competition not found")
 	}
 
-	if (competition.organizingTeamId !== teamId) {
+	if (competition.competitionTeamId !== teamId) {
 		throw new Error("Competition does not belong to this team")
 	}
 
@@ -258,7 +258,7 @@ export async function ensureCompetitionOwnedScalingGroup({
 		throw new Error("Competition not found")
 	}
 
-	if (competition.organizingTeamId !== teamId) {
+	if (competition.competitionTeamId !== teamId) {
 		throw new Error("Competition does not belong to this team")
 	}
 

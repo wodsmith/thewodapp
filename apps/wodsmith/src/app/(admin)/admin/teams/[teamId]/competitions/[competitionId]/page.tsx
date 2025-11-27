@@ -81,16 +81,17 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
+
 	// Verify the competition belongs to this team
-	if (competition.organizingTeamId !== team.id) {
+	if (competition.competitionTeamId !== team.id) {
 		notFound()
 	}
 
 	// Get competition group if exists
 	const group = competition.groupId
 		? await db.query.competitionGroupsTable.findFirst({
-				where: eq(competitionGroupsTable.id, competition.groupId),
-			})
+			where: eq(competitionGroupsTable.id, competition.groupId),
+		})
 		: null
 
 	const formatDate = (date: Date) => {
