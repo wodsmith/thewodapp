@@ -1,40 +1,67 @@
-# Team Registration Implementation Plan
+# Team Registration Implementation Plan (Revised)
 
 ## Overview
-Implement team-based competition registration where divisions determine if registration is individual (teamSize=1) or team (teamSize>1). All registration data lives within the existing `competition_registrations` table structure with additional tables for teammates and affiliates.
+Implement team-based competition registration leveraging the **existing team infrastructure** rather than creating a separate teammates table. When a captain registers a team, we create a new team of type `competition_team` and use the existing `teamInvitationTable` to invite teammates.
 
-## Core Design Principles
-1. **Dynamic registration**: Division's `teamSize` drives whether form shows individual vs team fields
-2. **Single registration entity**: One registration per team/individual, displayed once on leaderboard
-3. **One team per athlete**: Each athlete can only be on one team per competition
-4. **Normalized affiliates**: Prevent duplicate gym names, enable autocomplete
-5. **Unclaimed teammates**: Support inviting teammates who haven't signed up yet
+## Key Insight: Reuse Existing Infrastructure
+
+**Current (implemented but to be revised):**
+- `competitionRegistrationTeammatesTable` duplicates team invite logic
+- Separate invite tokens, status tracking, email handling
+
+**Revised approach:**
+- New team type: `COMPETITION_TEAM` for athlete squads
+- Use existing `teamInvitationTable` for invites
+- Use existing `teamMembershipTable` for roster
+- Registration links to the athlete team via `athleteTeamId`
+
+**Benefits:**
+1. Reuses battle-tested invite flow (`inviteUserToTeam`, `acceptTeamInvitation`)
+2. Competition teams become first-class entities
+3. Enables future features: team chat, multi-competition team history
+4. Less code to maintain
 
 ---
 
 ## Database Schema Changes
 
-### 1. Add Team Size to Scaling Levels
-**File**: `src/db/schemas/scaling.ts`
-
-Add `teamSize` field to `scalingLevelsTable`:
+### 1. Add Competition Team Type and Captain Role
+**File**: `src/db/schemas/teams.ts`
 
 ```typescript
-export const scalingLevelsTable = sqliteTable(
-  "scaling_levels",
-  {
-    // ... existing fields ...
-    teamSize: integer().default(1).notNull(), // 1 = individual, 2+ = team
-  }
-)
+export const TEAM_TYPE_ENUM = {
+  GYM: "gym",
+  COMPETITION_EVENT: "competition_event",
+  COMPETITION_TEAM: "competition_team", // NEW: Athlete squads
+  PERSONAL: "personal",
+} as const
+
+// Add CAPTAIN to system roles
+export const SYSTEM_ROLES_ENUM = {
+  OWNER: "owner",
+  ADMIN: "admin",
+  CAPTAIN: "captain", // NEW: Competition team captain
+  MEMBER: "member",
+  GUEST: "guest",
+} as const
 ```
 
-**Migration**: `pnpm db:generate add-team-size-to-scaling-levels`
+**Team Hierarchy:**
+```
+gym (organizing team)
+└── competition_event (manages competition)
+    └── competition_team (athlete squad for a registration)
+        ├── CAPTAIN (registered the team, can manage roster)
+        └── MEMBER (teammates who accepted invite)
+```
 
-### 2. Extend Competition Registrations Table
+**Captain Role Permissions:**
+For now, CAPTAIN has the same permissions as OWNER. This simplifies implementation and can be refined later if needed. In `src/utils/team-auth.ts`, add CAPTAIN to permission checks alongside OWNER.
+
+### 2. Update Competition Registrations Table
 **File**: `src/db/schemas/competitions.ts`
 
-Add team-related fields to `competitionRegistrationsTable`:
+Add `athleteTeamId` to link registration to the athlete team:
 
 ```typescript
 export const competitionRegistrationsTable = sqliteTable(
@@ -42,114 +69,71 @@ export const competitionRegistrationsTable = sqliteTable(
   {
     // ... existing fields ...
 
-    // Team info (NULL for individual registrations)
-    teamName: text({ length: 255 }),
-    captainUserId: text(), // References user.id - who created the registration
+    // NEW: For team registrations, the athlete team
+    // NULL for individual registrations (teamSize=1)
+    athleteTeamId: text().references(() => teamTable.id, { onDelete: "set null" }),
 
-    // Metadata as JSON (flexible for future expansion)
-    metadata: text({ length: 10000 }), // JSON: { teammates: [...], notes: "..." }
+    // Keep teamName for display (also stored on team.name)
+    teamName: text({ length: 255 }),
+
+    // Keep captainUserId for quick lookups
+    captainUserId: text().references(() => userTable.id, { onDelete: "set null" }),
+
+    // Pending teammates stored as JSON until they accept
+    // Format: [{ email, firstName?, lastName?, affiliateName? }, ...]
+    pendingTeammates: text({ length: 5000 }), // JSON array
   }
 )
 ```
 
-**Note**: For individual registrations (teamSize=1):
-- `captainUserId` = `userId` (same person)
-- `teamName` = NULL
-- `metadata` = NULL or minimal
+**Note**: `pendingTeammates` is a denormalized cache for UI display. Source of truth is `teamInvitationTable`.
 
-For team registrations (teamSize>1):
-- `captainUserId` = user who created the registration
-- `teamName` = required
-- `metadata` stores captain notes, etc.
+### 3. Deprecate competitionRegistrationTeammatesTable
+This table was already created via migration locally and needs **manual deprecation**.
 
-### 3. Create Registration Teammates Table
-**File**: `src/db/schemas/competitions.ts`
+**Action Required**:
+1. Remove the table definition from `src/db/schemas/competitions.ts`
+2. Remove from `src/db/schema.ts` exports
+3. Generate migration: `pnpm db:generate deprecate-competition-teammates`
+4. Run: `pnpm db:migrate:dev`
 
-New table to track team roster:
-
-```typescript
-export const competitionRegistrationTeammatesTable = sqliteTable(
-  "competition_registration_teammates",
-  {
-    ...commonColumns,
-    id: text()
-      .primaryKey()
-      .$defaultFn(() => `crmt_${createId()}`)
-      .notNull(),
-
-    registrationId: text()
-      .notNull()
-      .references(() => competitionRegistrationsTable.id, { onDelete: "cascade" }),
-
-    // User reference (NULL until teammate claims their spot)
-    userId: text().references(() => userTable.id, { onDelete: "set null" }),
-
-    // Teammate info (always stored, even before claim)
-    email: text({ length: 255 }).notNull(),
-    firstName: text({ length: 255 }),
-    lastName: text({ length: 255 }),
-
-    // Affiliate (per-teammate)
-    affiliateId: text().references(() => affiliatesTable.id, { onDelete: "set null" }),
-
-    // Invite tracking
-    inviteToken: text({ length: 255 }), // NULL once accepted
-    invitedAt: integer({ mode: "timestamp" }),
-    acceptedAt: integer({ mode: "timestamp" }),
-
-    // Team structure
-    position: integer().notNull(), // Display order (1, 2, 3...)
-    isCaptain: integer().notNull().default(0), // 1 for captain
-
-    // Status
-    status: text().notNull().default("pending"), // 'pending' | 'accepted' | 'declined'
-  },
-  (table) => [
-    // One email per registration
-    uniqueIndex("crm_teammates_reg_email_idx").on(table.registrationId, table.email),
-
-    // One user per registration (if claimed)
-    uniqueIndex("crm_teammates_reg_user_idx").on(table.registrationId, table.userId)
-      .where(sql`${table.userId} IS NOT NULL`),
-
-    // Unique invite tokens
-    uniqueIndex("crm_teammates_invite_token_idx").on(table.inviteToken)
-      .where(sql`${table.inviteToken} IS NOT NULL`),
-
-    index("crm_teammates_reg_idx").on(table.registrationId),
-    index("crm_teammates_user_idx").on(table.userId),
-    index("crm_teammates_email_idx").on(table.email),
-  ]
-)
-```
-
-**Key Features**:
-- Captain is BOTH in `competition_registrations.captainUserId` AND has a teammate record with `isCaptain=1`
-- `userId` nullable = supports "unclaimed" teammates
-- Email always required for invites
-- Invite token for URL-based claiming
+The migration will drop the table since it's no longer defined.
 
 ### 4. Create Affiliates Table
-**File**: `src/db/schemas/competitions.ts` (or new `src/db/schemas/affiliates.ts`)
+**File**: `src/db/schemas/competitions.ts`
 
 ```typescript
+// Verification status enum for affiliates
+export const affiliateVerificationStatus = [
+  "unverified",
+  "verified",
+  "claimed",
+] as const
+export type AffiliateVerificationStatus =
+  (typeof affiliateVerificationStatus)[number]
+
+// Affiliates Table - Normalized gym/affiliate data
 export const affiliatesTable = sqliteTable(
   "affiliates",
   {
     ...commonColumns,
     id: text()
       .primaryKey()
-      .$defaultFn(() => `aff_${createId()}`)
+      .$defaultFn(() => createAffiliateId())
       .notNull(),
-
     name: text({ length: 255 }).notNull().unique(), // "CrossFit Downtown"
-
     // Optional metadata
     location: text({ length: 255 }), // "Austin, TX"
-    verified: integer().default(0).notNull(), // 1 if officially verified
+    // Verification status: unverified (default), verified (admin verified), claimed (gym owner linked)
+    verificationStatus: text({ enum: affiliateVerificationStatus })
+      .default("unverified")
+      .notNull(),
+    // When claimed, links to the team that owns this affiliate
+    ownerTeamId: text().references(() => teamTable.id, { onDelete: "set null" }),
   },
   (table) => [
     index("affiliates_name_idx").on(table.name),
+    index("affiliates_owner_team_idx").on(table.ownerTeamId),
   ]
 )
 ```
@@ -157,7 +141,7 @@ export const affiliatesTable = sqliteTable(
 **Helper Function** (`src/server/affiliates.ts`):
 ```typescript
 // Find or create affiliate by name (case-insensitive, normalized)
-async function findOrCreateAffiliate(name: string): Promise<string> {
+export async function findOrCreateAffiliate(name: string): Promise<string> {
   const normalized = toTitleCase(name.trim()) // "crossfit hq" → "Crossfit HQ"
 
   const existing = await db.query.affiliatesTable.findFirst({
@@ -174,17 +158,9 @@ async function findOrCreateAffiliate(name: string): Promise<string> {
 }
 ```
 
-### 5. Update Common ID Generators
-**File**: `src/db/schemas/common.ts`
-
-```typescript
-export const createCompetitionRegistrationTeammateId = () => `crmt_${createId()}`
-export const createAffiliateId = () => `aff_${createId()}`
-```
-
 ---
 
-## Registration Flow
+## Registration Flow (Revised)
 
 ### Step 1: User Selects Division
 **UI Flow**:
@@ -192,58 +168,16 @@ export const createAffiliateId = () => `aff_${createId()}`
 2. Sees division selector (from competition's scaling group)
 3. On division selection, fetch division details including `teamSize`
 4. If `teamSize === 1`: Show individual registration form
-5. If `teamSize > 1`: Show team registration form
+5. If `teamSize > 1`: Show team registration form with teammate inputs
 
 ### Step 2: Team Registration Form
-**File**: `src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx`
-
-Form fields (conditional on `teamSize > 1`):
-```tsx
-{teamSize > 1 && (
-  <>
-    <FormField name="teamName" required />
-    <FormField name="affiliateName" optional />
-
-    {/* Teammate slots based on division.teamSize */}
-    {Array.from({ length: teamSize - 1 }).map((_, i) => (
-      <Card key={i}>
-        <CardHeader>Teammate {i + 1}</CardHeader>
-        <CardContent>
-          <FormField name={`teammates.${i}.email`} required />
-          <FormField name={`teammates.${i}.firstName`} optional />
-          <FormField name={`teammates.${i}.lastName`} optional />
-          <FormField name={`teammates.${i}.affiliateName`} optional />
-        </CardContent>
-      </Card>
-    ))}
-  </>
-)}
-```
-
-**Validation** (`src/schemas/competitions.ts`):
-```typescript
-const registerForCompetitionSchema = z.object({
-  competitionId: z.string().startsWith("comp_"),
-  divisionId: z.string().startsWith("slvl_"),
-
-  // Team fields (validated based on division.teamSize)
-  teamName: z.string().min(1).max(255).optional(),
-  affiliateName: z.string().max(255).optional(),
-  teammates: z.array(z.object({
-    email: z.string().email(),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    affiliateName: z.string().optional(),
-  })).optional(),
-}).superRefine((data, ctx) => {
-  // Server will validate teamSize requirements
-})
-```
+Form collects:
+- Team name (required for teamSize > 1)
+- Captain's affiliate (optional)
+- Teammate emails + optional names/affiliates
 
 ### Step 3: Create Registration (Server)
 **File**: `src/server/competitions.ts`
-
-Extend `registerForCompetition()`:
 
 ```typescript
 export async function registerForCompetition(params: {
@@ -267,7 +201,6 @@ export async function registerForCompetition(params: {
   })
 
   if (!division) throw new Error("Division not found")
-
   const isTeam = division.teamSize > 1
 
   // 2. Validate team data
@@ -278,568 +211,511 @@ export async function registerForCompetition(params: {
     }
   }
 
-  // 3. Check user not already registered (one team per athlete rule)
-  const existingReg = await db.query.competitionRegistrationsTable.findFirst({
-    where: and(
-      eq(competitionRegistrationsTable.eventId, params.competitionId),
-      eq(competitionRegistrationsTable.userId, params.userId)
-    )
+  // 3. Get competition
+  const competition = await db.query.competitionsTable.findFirst({
+    where: eq(competitionsTable.id, params.competitionId)
   })
 
-  if (existingReg) {
-    throw new Error("You are already registered for this competition")
-  }
+  if (!competition) throw new Error("Competition not found")
 
-  // 4. For team registrations, check teammates not already registered
+  // 4. Check user not already registered
+  const existingReg = await checkExistingRegistration(params.userId, params.competitionId)
+  if (existingReg) throw new Error("Already registered for this competition")
+
+  // 5. Check teammates not already registered
   if (isTeam && params.teammates) {
-    for (const teammate of params.teammates) {
-      const teammateUser = await db.query.userTable.findFirst({
-        where: eq(userTable.email, teammate.email.toLowerCase())
-      })
-
-      if (teammateUser) {
-        const teammateReg = await db.query.competitionRegistrationsTable.findFirst({
-          where: and(
-            eq(competitionRegistrationsTable.eventId, params.competitionId),
-            eq(competitionRegistrationsTable.userId, teammateUser.id)
-          )
-        })
-
-        if (teammateReg) {
-          throw new Error(`${teammate.email} is already registered for this competition`)
-        }
-      }
-    }
+    await validateTeammatesNotRegistered(params.teammates, params.competitionId)
   }
 
-  // 5. Create team membership in competition_event team (existing pattern)
-  const [teamMember] = await db.insert(teamMembershipTable)
-    .values({
-      teamId: competition.competitionTeamId,
+  let athleteTeamId: string | null = null
+
+  // 6. For team registrations, create the athlete team
+  if (isTeam) {
+    const teamSlug = generateTeamSlug(params.teamName!, params.competitionId)
+
+    // Create competition_team
+    const [athleteTeam] = await db.insert(teamTable).values({
+      name: params.teamName!,
+      slug: teamSlug,
+      type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
+      parentOrganizationId: competition.competitionTeamId, // Parent is the event team
+      competitionMetadata: JSON.stringify({
+        competitionId: params.competitionId,
+        divisionId: params.divisionId,
+      }),
+    }).returning()
+
+    athleteTeamId = athleteTeam.id
+
+    // Add captain with CAPTAIN role
+    await db.insert(teamMembershipTable).values({
+      teamId: athleteTeamId,
       userId: params.userId,
-      roleId: SYSTEM_ROLES_ENUM.MEMBER,
+      roleId: SYSTEM_ROLES_ENUM.CAPTAIN,
       isSystemRole: 1,
       joinedAt: new Date(),
       isActive: 1,
     })
-    .returning()
-
-  // 6. Create registration
-  const [registration] = await db.insert(competitionRegistrationsTable)
-    .values({
-      eventId: params.competitionId,
-      userId: params.userId,
-      teamMemberId: teamMember.id,
-      divisionId: params.divisionId,
-      teamName: params.teamName || null,
-      captainUserId: params.userId,
-      registeredAt: new Date(),
-    })
-    .returning()
-
-  // 7. For team registrations, create teammate records
-  if (isTeam && params.teammates) {
-    // Create captain's teammate record
-    const captainUser = await db.query.userTable.findFirst({
-      where: eq(userTable.id, params.userId)
-    })
-
-    let captainAffiliateId = null
-    if (params.affiliateName) {
-      captainAffiliateId = await findOrCreateAffiliate(params.affiliateName)
-    }
-
-    await db.insert(competitionRegistrationTeammatesTable).values({
-      registrationId: registration.id,
-      userId: params.userId,
-      email: captainUser!.email,
-      firstName: captainUser!.firstName,
-      lastName: captainUser!.lastName,
-      affiliateId: captainAffiliateId,
-      position: 1,
-      isCaptain: 1,
-      status: 'accepted',
-      acceptedAt: new Date(),
-    })
-
-    // Create teammate records (unclaimed initially)
-    for (let i = 0; i < params.teammates.length; i++) {
-      const teammate = params.teammates[i]
-      const inviteToken = createId()
-
-      let affiliateId = null
-      if (teammate.affiliateName) {
-        affiliateId = await findOrCreateAffiliate(teammate.affiliateName)
-      }
-
-      // Check if user exists
-      const existingUser = await db.query.userTable.findFirst({
-        where: eq(userTable.email, teammate.email.toLowerCase())
-      })
-
-      await db.insert(competitionRegistrationTeammatesTable).values({
-        registrationId: registration.id,
-        userId: existingUser?.id || null,
-        email: teammate.email.toLowerCase(),
-        firstName: teammate.firstName || null,
-        lastName: teammate.lastName || null,
-        affiliateId,
-        inviteToken,
-        invitedAt: new Date(),
-        position: i + 2, // Captain is position 1
-        isCaptain: 0,
-        status: existingUser ? 'pending' : 'pending',
-      })
-
-      // Send invite email (commented out for now)
-      // await sendCompetitionTeamInviteEmail({
-      //   email: teammate.email,
-      //   inviteToken,
-      //   teamName: params.teamName!,
-      //   competitionName: competition.name,
-      //   captainName: `${captainUser.firstName} ${captainUser.lastName}`,
-      //   divisionName: division.label,
-      // })
-    }
   }
 
-  return {
-    registrationId: registration.id,
-    teamMemberId: teamMember.id,
-  }
-}
-```
-
----
-
-## Invite & Claiming Flow
-
-### Accept Invite Page
-**Route**: `/compete/[slug]/join/[inviteToken]`
-
-**File**: `src/app/(compete)/compete/[slug]/join/[inviteToken]/page.tsx`
-
-```typescript
-export default async function JoinTeamPage({ params }) {
-  const { inviteToken } = params
-
-  // Get teammate record
-  const teammate = await db.query.competitionRegistrationTeammatesTable.findFirst({
-    where: eq(competitionRegistrationTeammatesTable.inviteToken, inviteToken),
-    with: {
-      registration: {
-        with: {
-          competition: true,
-          division: true,
-        }
-      }
-    }
-  })
-
-  if (!teammate) return <NotFound />
-  if (teammate.status === 'accepted') return <AlreadyAccepted />
-
-  const session = await getSessionFromCookie()
-
-  return (
-    <AcceptInviteForm
-      teammate={teammate}
-      isAuthenticated={!!session}
-    />
-  )
-}
-```
-
-### Accept Invite Action
-**File**: `src/server/competitions.ts`
-
-```typescript
-export async function acceptTeamInvite(params: {
-  inviteToken: string
-  userId: string
-}) {
-  const db = getDb()
-
-  // 1. Find teammate record
-  const teammate = await db.query.competitionRegistrationTeammatesTable.findFirst({
-    where: eq(competitionRegistrationTeammatesTable.inviteToken, inviteToken),
-    with: { registration: true }
-  })
-
-  if (!teammate) throw new Error("Invite not found")
-  if (teammate.status === 'accepted') throw new Error("Invite already accepted")
-
-  // 2. Verify email match
-  const user = await db.query.userTable.findFirst({
-    where: eq(userTable.id, params.userId)
-  })
-
-  if (user!.email.toLowerCase() !== teammate.email.toLowerCase()) {
-    throw new Error("This invite is for a different email address")
-  }
-
-  // 3. Check user not already registered (one team rule)
-  const existingReg = await db.query.competitionRegistrationsTable.findFirst({
-    where: and(
-      eq(competitionRegistrationsTable.eventId, teammate.registration.eventId),
-      eq(competitionRegistrationsTable.userId, params.userId)
-    )
-  })
-
-  if (existingReg) {
-    throw new Error("You are already registered for this competition")
-  }
-
-  // 4. Update teammate record
-  await db.update(competitionRegistrationTeammatesTable)
-    .set({
-      userId: params.userId,
-      status: 'accepted',
-      acceptedAt: new Date(),
-      inviteToken: null, // Clear token
-    })
-    .where(eq(competitionRegistrationTeammatesTable.id, teammate.id))
-
-  // 5. Add user to competition team
-  await db.insert(teamMembershipTable).values({
-    teamId: teammate.registration.competition.competitionTeamId,
+  // 7. Add captain to competition_event team (for competition access)
+  const [teamMember] = await db.insert(teamMembershipTable).values({
+    teamId: competition.competitionTeamId,
     userId: params.userId,
     roleId: SYSTEM_ROLES_ENUM.MEMBER,
     isSystemRole: 1,
     joinedAt: new Date(),
     isActive: 1,
-  })
+  }).returning()
 
-  // 6. Update sessions
+  // 8. Create registration
+  const [registration] = await db.insert(competitionRegistrationsTable).values({
+    eventId: params.competitionId,
+    userId: params.userId,
+    teamMemberId: teamMember.id,
+    divisionId: params.divisionId,
+    teamName: params.teamName || null,
+    captainUserId: params.userId,
+    athleteTeamId,
+    pendingTeammates: isTeam ? JSON.stringify(params.teammates) : null,
+    registeredAt: new Date(),
+  }).returning()
+
+  // 9. For team registrations, invite teammates using existing team infrastructure
+  if (isTeam && params.teammates && athleteTeamId) {
+    for (const teammate of params.teammates) {
+      await inviteUserToTeamInternal({
+        teamId: athleteTeamId,
+        email: teammate.email,
+        roleId: SYSTEM_ROLES_ENUM.MEMBER,
+        isSystemRole: true,
+        invitedBy: params.userId,
+        competitionContext: {
+          competitionId: params.competitionId,
+          competitionSlug: competition.slug,
+          teamName: params.teamName!,
+          divisionName: division.label,
+        },
+      })
+    }
+  }
+
+  // 10. Update captain's sessions
   await updateAllSessionsOfUser(params.userId)
 
   return {
-    success: true,
-    registrationId: teammate.registrationId,
+    registrationId: registration.id,
+    teamMemberId: teamMember.id,
+    athleteTeamId,
   }
 }
 ```
 
-### Copy Invite URL
-**Component**: Team management page shows invite links
+### Step 4: Invite Flow (Reusing Existing)
+**File**: `src/server/team-members.ts`
 
-```tsx
-<Card>
-  <CardHeader>Invite Teammates</CardHeader>
-  <CardContent>
-    {teammates.filter(t => t.status === 'pending').map(teammate => (
-      <div key={teammate.id}>
-        <p>{teammate.email} - {teammate.status}</p>
-        <Button onClick={() => {
-          const url = `${window.location.origin}/compete/${slug}/join/${teammate.inviteToken}`
-          navigator.clipboard.writeText(url)
-          toast.success("Link copied!")
-        }}>
-          Copy Invite Link
-        </Button>
-      </div>
-    ))}
-  </CardContent>
-</Card>
-```
-
----
-
-## Leaderboard Display
-
-### Query for Leaderboard
-**File**: `src/server/competitions.ts`
+Add a variant that handles competition team invites:
 
 ```typescript
-export async function getCompetitionLeaderboard(competitionId: string) {
+/**
+ * Internal invite function for competition teams
+ * Bypasses permission checks since captain is inviting during registration
+ */
+export async function inviteUserToTeamInternal({
+  teamId,
+  email,
+  roleId,
+  isSystemRole = true,
+  invitedBy,
+  competitionContext,
+}: {
+  teamId: string
+  email: string
+  roleId: string
+  isSystemRole?: boolean
+  invitedBy: string
+  competitionContext?: {
+    competitionId: string
+    competitionSlug: string
+    teamName: string
+    divisionName: string
+  }
+}) {
   const db = getDb()
 
-  const registrations = await db.query.competitionRegistrationsTable.findMany({
-    where: eq(competitionRegistrationsTable.eventId, competitionId),
-    with: {
-      division: true,
-      user: {
-        columns: {
-          firstName: true,
-          lastName: true,
-        }
-      },
-      teammates: {
-        where: eq(competitionRegistrationTeammatesTable.status, 'accepted'),
-        with: {
-          user: {
-            columns: { firstName: true, lastName: true }
-          },
-          affiliate: true,
-        },
-        orderBy: asc(competitionRegistrationTeammatesTable.position),
-      }
-    },
-    orderBy: [
-      asc(competitionRegistrationsTable.divisionId),
-      asc(competitionRegistrationsTable.teamName),
-    ]
+  // Check if user already exists
+  const existingUser = await db.query.userTable.findFirst({
+    where: eq(userTable.email, email.toLowerCase())
   })
 
-  return registrations.map(reg => ({
-    id: reg.id,
-    teamName: reg.teamName || `${reg.user.firstName} ${reg.user.lastName}`,
-    division: reg.division.label,
-    teammates: reg.teammates.map(t => ({
-      name: `${t.firstName || t.user?.firstName} ${t.lastName || t.user?.lastName}`,
-      affiliate: t.affiliate?.name,
-    })),
-  }))
+  if (existingUser) {
+    // User exists - add directly to team
+    await db.insert(teamMembershipTable).values({
+      teamId,
+      userId: existingUser.id,
+      roleId,
+      isSystemRole: isSystemRole ? 1 : 0,
+      invitedBy,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      isActive: 1,
+    })
+
+    // Also add to competition_event team
+    if (competitionContext) {
+      await addToCompetitionEventTeam(existingUser.id, competitionContext.competitionId)
+    }
+
+    await updateAllSessionsOfUser(existingUser.id)
+    return { userJoined: true, userId: existingUser.id }
+  }
+
+  // User doesn't exist - create invitation
+  const token = createId()
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 30) // 30 days for competition invites
+
+  await db.insert(teamInvitationTable).values({
+    teamId,
+    email: email.toLowerCase(),
+    roleId,
+    isSystemRole: isSystemRole ? 1 : 0,
+    token,
+    invitedBy,
+    expiresAt,
+  })
+
+  // Send competition team invite email
+  if (competitionContext) {
+    await sendCompetitionTeamInviteEmail({
+      email,
+      inviteToken: token,
+      ...competitionContext,
+    })
+  }
+
+  return { invitationSent: true, token }
 }
 ```
 
-**Display Logic**:
-- Individual registrations: Show athlete name (from `user`)
-- Team registrations: Show `teamName` with accepted teammates listed below
-- Only show **accepted** teammates (hide pending)
+### Step 5: Accept Invite (Minimal Changes)
+The existing `acceptTeamInvitation` mostly works. Add logic to:
+1. Detect if team is type `competition_team`
+2. If so, also add user to the parent `competition_event` team
+
+```typescript
+export async function acceptTeamInvitation(token: string) {
+  // ... existing logic ...
+
+  // After adding to team, check if it's a competition team
+  const team = await db.query.teamTable.findFirst({
+    where: eq(teamTable.id, invitation.teamId)
+  })
+
+  if (team?.type === TEAM_TYPE_ENUM.COMPETITION_TEAM) {
+    // Get competition from team metadata
+    const metadata = JSON.parse(team.competitionMetadata || '{}')
+    if (metadata.competitionId) {
+      await addToCompetitionEventTeam(session.userId, metadata.competitionId)
+
+      // Clear from pendingTeammates on registration
+      await clearPendingTeammate(metadata.competitionId, session.user.email)
+    }
+  }
+
+  // ... rest of existing logic ...
+}
+```
 
 ---
 
 ## UI Components
 
-### 1. Division Selector (Updated)
-**File**: `src/app/(compete)/compete/[slug]/register/_components/division-selector.tsx`
+### 1. Team Registration Form
+**File**: `src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx`
 
-```tsx
-<RadioGroup onValueChange={(divisionId) => {
-  const division = divisions.find(d => d.id === divisionId)
-  setSelectedDivision(division)
-  setTeamSize(division.teamSize)
-}}>
-  {divisions.map(division => (
-    <div key={division.id}>
-      <RadioGroupItem value={division.id} />
-      <Label>
-        {division.label}
-        {division.teamSize > 1 && (
-          <Badge>Team of {division.teamSize}</Badge>
-        )}
-      </Label>
-    </div>
-  ))}
-</RadioGroup>
-```
-
-### 2. Team Registration Form
-Dynamic form that shows/hides team fields based on `teamSize`:
+Dynamic form based on division's `teamSize`:
 
 ```tsx
 {teamSize > 1 ? (
-  <TeamRegistrationFields
-    teamSize={teamSize}
-    form={form}
-  />
+  <>
+    <FormField name="teamName" label="Team Name" required />
+    <FormField name="affiliateName" label="Your Affiliate" optional />
+
+    {/* Teammate slots based on division.teamSize */}
+    {Array.from({ length: teamSize - 1 }).map((_, i) => (
+      <Card key={i}>
+        <CardHeader>Teammate {i + 1}</CardHeader>
+        <CardContent>
+          <FormField name={`teammates.${i}.email`} required />
+          <FormField name={`teammates.${i}.firstName`} optional />
+          <FormField name={`teammates.${i}.lastName`} optional />
+          <FormField name={`teammates.${i}.affiliateName`} optional />
+        </CardContent>
+      </Card>
+    ))}
+  </>
 ) : (
   <IndividualRegistrationFields form={form} />
 )}
 ```
 
-### 3. Team Management Page
+### 2. Team Management Page
 **Route**: `/compete/[slug]/teams/[registrationId]`
 
-Shows:
-- Team name and division
-- Roster with status indicators:
-  - ✅ Accepted (green badge)
-  - ⏳ Pending (yellow badge)
-- Copy invite link for pending teammates
-- Ability to resend emails (future)
+Shows roster from `teamMembershipTable` + pending from `teamInvitationTable`:
 
----
+```typescript
+export async function getTeamRoster(registrationId: string) {
+  const registration = await db.query.competitionRegistrationsTable.findFirst({
+    where: eq(competitionRegistrationsTable.id, registrationId),
+  })
 
-## Email Infrastructure (Commented Out for Now)
+  if (!registration?.athleteTeamId) return { members: [], pending: [] }
 
-### Email Template
-**File**: `src/react-email/competition-team-invite.tsx`
+  // Get confirmed members
+  const members = await db.query.teamMembershipTable.findMany({
+    where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
+    with: { user: true }
+  })
 
-```tsx
-export function CompetitionTeamInviteEmail({
-  teamName,
-  competitionName,
-  captainName,
-  divisionName,
-  inviteUrl,
-}) {
-  return (
-    <Html>
-      <Head />
-      <Body>
-        <Container>
-          <Heading>Join {teamName}!</Heading>
-          <Text>
-            {captainName} has invited you to join <strong>{teamName}</strong> for the{" "}
-            <strong>{competitionName}</strong> ({divisionName} division).
-          </Text>
-          <Button href={inviteUrl}>Accept Invitation</Button>
-          <Text>Or copy this link: {inviteUrl}</Text>
-        </Container>
-      </Body>
-    </Html>
-  )
+  // Get pending invitations
+  const pending = await db.query.teamInvitationTable.findMany({
+    where: and(
+      eq(teamInvitationTable.teamId, registration.athleteTeamId),
+      isNull(teamInvitationTable.acceptedAt)
+    )
+  })
+
+  return { members, pending }
 }
 ```
 
-### Email Sending
-**File**: `src/utils/email.tsx`
+### 3. Copy Invite Link
+Uses team invitation tokens with compete-specific route:
 
-```typescript
-export async function sendCompetitionTeamInviteEmail(params: {
-  email: string
-  inviteToken: string
-  teamName: string
-  competitionName: string
-  captainName: string
-  divisionName: string
-}) {
-  const inviteUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/compete/${competitionSlug}/join/${params.inviteToken}`
-
-  // TODO: Uncomment when email service is configured
-  // const html = await render(CompetitionTeamInviteEmail({
-  //   teamName: params.teamName,
-  //   competitionName: params.competitionName,
-  //   captainName: params.captainName,
-  //   divisionName: params.divisionName,
-  //   inviteUrl,
-  // }))
-  //
-  // await sendEmail({
-  //   to: params.email,
-  //   subject: `Join ${params.teamName} for ${params.competitionName}`,
-  //   html,
-  // })
-
-  // For now, just log the invite URL
-  console.log(`\n📧 Team invite for ${params.email}:\n${inviteUrl}\n`)
-}
+```tsx
+<Button onClick={() => {
+  const url = `${window.location.origin}/compete/invite/${inviteToken}`
+  navigator.clipboard.writeText(url)
+  toast.success("Link copied!")
+}}>
+  Copy Invite Link
+</Button>
 ```
 
 ---
 
 ## Migration Strategy
 
-### Phase 1: Database Schema (Day 1)
-1. Add `teamSize` to `scalingLevelsTable` (default 1)
-2. Add `teamName`, `captainUserId`, `metadata` to `competitionRegistrationsTable`
-3. Create `competitionRegistrationTeammatesTable`
-4. Create `affiliatesTable`
-5. Run: `pnpm db:generate team-registration-schema`
-6. Run: `pnpm db:migrate:dev`
+### Phase 1: Database Schema ✅ `71c1ed6`
+1. **Deprecate `competitionRegistrationTeammatesTable`** (already exists locally)
+   - Remove table definition from `src/db/schemas/competitions.ts`
+   - Remove exports from `src/db/schema.ts`
+   - Remove relations
+2. **Update `src/db/schemas/teams.ts`**:
+   - Add `COMPETITION_TEAM` to `TEAM_TYPE_ENUM`
+   - Add `CAPTAIN` to `SYSTEM_ROLES_ENUM`
+3. **Create `affiliatesTable`** in `src/db/schemas/competitions.ts`
+4. **Update `competitionRegistrationsTable`**:
+   - Add `athleteTeamId` column
+   - Add `pendingTeammates` JSON column
+5. **Add ID generator** `createAffiliateId()` to `src/db/schemas/common.ts`
+6. Run: `pnpm db:generate team-registration-v2`
+7. Run: `pnpm db:migrate:dev`
 
-### Phase 2: Server Logic (Day 1-2)
-1. Create `src/server/affiliates.ts` - findOrCreateAffiliate()
-2. Extend `src/server/competitions.ts` - registerForCompetition()
-3. Add `src/server/competitions.ts` - acceptTeamInvite()
-4. Update schemas in `src/schemas/competitions.ts`
-5. Update types in `src/types/competitions.ts`
+### Phase 2: Server Logic ✅ `96453f4`
+1. Create `src/server/affiliates.ts` with `findOrCreateAffiliate()`
+2. Update `registerForCompetition()` in `src/server/competitions.ts`:
+   - Create `competition_team` for team registrations
+   - Add captain with CAPTAIN role
+   - Invite teammates via team infrastructure
+3. Add `inviteUserToTeamInternal()` to `src/server/team-members.ts`
+4. Extend `acceptTeamInvitation()` to handle `competition_team` type
+5. Add `getTeamRoster()` helper function
 
-### Phase 3: Registration UI (Day 2-3)
-1. Update division selector to show teamSize
-2. Create team registration form component
-3. Add teammate input fields (dynamic based on teamSize)
-4. Add affiliate autocomplete
-5. Update form validation
-6. Test registration flow
+### Phase 3: Registration UI ✅ `a6d2d2f`
+1. Update division selector to show team size badge
+2. Build dynamic team registration form (teammate inputs)
+3. Add affiliate autocomplete input
+4. Update form validation schema
+5. Wire up to updated server action
 
-### Phase 4: Invite Flow (Day 3-4)
-1. Create `/compete/[slug]/join/[token]` page
-2. Add accept invite action
-3. Create team management page
-4. Add copy invite link functionality
-5. Build email template (commented out)
-6. Test invite acceptance
+### Phase 4: Team Management ✅ `60574b0`
+1. Create `/compete/[slug]/teams/[registrationId]` page
+2. Show roster from `teamMembershipTable`
+3. Show pending invites from `teamInvitationTable`
+4. Add copy invite link button
+5. Add resend invite functionality
 
-### Phase 5: Leaderboard (Day 4)
-1. Update leaderboard query to join teammates
-2. Update leaderboard display component
-3. Show team names and accepted teammates
-4. Test display logic
+### Phase 5: Invite Accept Flow ✅ `38612f7`
+Create dedicated `/compete/invite/[token]` route to keep all competition flows under `/compete`.
 
-### Phase 6: Polish & Edge Cases (Day 5)
-1. Handle expired invites
-2. Prevent duplicate registrations
-3. Error messages and validation
-4. Mobile responsive design
-5. Loading states
+**Route**: `/compete/invite/[token]`
+**File**: `src/app/(compete)/compete/invite/[token]/page.tsx`
+
+**Authentication States to Handle:**
+
+1. **Already logged in, email matches invite**
+   - Show invite details (team name, competition, division, current roster)
+   - "Accept Invitation" button
+   - On accept → add to team → redirect to competition page
+
+2. **Already logged in, email doesn't match**
+   - Show error: "This invite was sent to {inviteEmail}. You're logged in as {userEmail}."
+   - Offer to sign out and try again
+
+3. **Not logged in, account exists for invite email**
+   - Show invite details
+   - "Sign in to accept" button → redirect to sign in with return URL
+   - After sign in → return to invite page → show accept button
+
+4. **Not logged in, no account exists**
+   - Show invite details
+   - "Create account to accept" button
+   - Redirect to sign up with:
+     - Pre-filled email (from invite)
+     - Return URL back to invite page
+   - After account creation → return to invite page → auto-accept or show accept button
+
+**Implementation:**
+
+```typescript
+// Page component logic
+export default async function CompeteInvitePage({ params }) {
+  const { token } = params
+  const session = await getSessionFromCookie()
+
+  // Get invite details
+  const invite = await getTeamInviteByToken(token)
+  if (!invite) return <InviteNotFound />
+  if (invite.acceptedAt) return <InviteAlreadyAccepted />
+  if (invite.expiresAt < new Date()) return <InviteExpired />
+
+  // Get competition context from team metadata
+  const team = await getTeamById(invite.teamId)
+  const metadata = JSON.parse(team.competitionMetadata || '{}')
+  const competition = await getCompetitionById(metadata.competitionId)
+
+  return (
+    <InviteAcceptForm
+      invite={invite}
+      team={team}
+      competition={competition}
+      session={session}
+    />
+  )
+}
+```
+
+**Sign Up/Sign In Return Flow:**
+- Store invite token in URL param: `/auth/signup?returnTo=/compete/invite/{token}&email={inviteEmail}`
+- After auth, redirect back to invite page
+- Invite page detects logged-in user and shows accept button
+
+### Phase 6: Filter Competition Teams from Main Site ✅ `81dfbc8`
+Filter `competition_event` and `competition_team` types from the team switcher dropdown in the main site nav. These teams are only relevant in `/compete` routes.
+
+**File**: Team switcher component (in `src/components/nav/active-team-switcher.tsx`)
+
+```typescript
+// Filter out competition-related teams from the dropdown
+const selectableTeams = teams.filter(team =>
+  team.type !== 'competition_event' &&
+  team.type !== 'competition_team'
+)
+```
+
+---
+
+## Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Teammate storage | `teamMembershipTable` | Reuses existing team infrastructure |
+| Invite tokens | `teamInvitationTable.token` | Existing 7-day expiry, email flow |
+| Team type | `competition_team` | First-class entity enables future features |
+| Affiliate per-teammate | Stored on user profile or registration | Simpler than junction table |
+
+---
+
+## Files to Modify
+
+### Database Schema
+- **src/db/schemas/teams.ts** - Add `COMPETITION_TEAM` to `TEAM_TYPE_ENUM`, add `CAPTAIN` to `SYSTEM_ROLES_ENUM`
+- **src/db/schemas/competitions.ts**:
+  - Remove `competitionRegistrationTeammatesTable` and relations
+  - Add `affiliatesTable` with relations
+  - Add `athleteTeamId`, `pendingTeammates` to `competitionRegistrationsTable`
+- **src/db/schemas/common.ts** - Add `createAffiliateId()` generator
+- **src/db/schema.ts** - Update exports (remove teammates, add affiliates)
+
+### Server Logic
+- **src/server/affiliates.ts** - NEW: `findOrCreateAffiliate()`, `getAffiliates()`
+- **src/server/competitions.ts** - Update `registerForCompetition()`, add `getTeamRoster()`
+- **src/server/team-members.ts** - Add `inviteUserToTeamInternal()`, extend `acceptTeamInvitation()`
+
+### Utils
+- **src/utils/team-auth.ts** - Add `CAPTAIN` to permission checks (same permissions as `OWNER`)
+
+### Validation Schemas
+- **src/schemas/competitions.ts** - Update registration schema with team fields
+
+### Actions
+- **src/actions/competition-actions.ts** - Update `registerForCompetitionAction`
+
+### UI Components
+- **src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx** - Team form fields
+- **src/app/(compete)/compete/[slug]/register/_components/division-selector.tsx** - Team size badge
+- **src/app/(compete)/compete/[slug]/teams/[registrationId]/page.tsx** - NEW: Team roster page
+- **src/app/(compete)/compete/invite/[token]/page.tsx** - NEW: Competition team invite accept page
+- **src/components/nav/active-team-switcher.tsx** - Filter out `competition_event` and `competition_team` types
+
+### Email
+- **src/utils/email.tsx** - Add `sendCompetitionTeamInviteEmail()`
+- **src/react-email/competition-team-invite.tsx** - NEW: Email template
 
 ---
 
 ## Testing Checklist
 
-### Individual Registration (teamSize=1)
-- [ ] Select individual division → shows individual form
-- [ ] Register → creates registration with teamName=NULL
-- [ ] Displays on leaderboard as individual
-
-### Team Registration (teamSize>1)
+### Team Registration
 - [ ] Select team division → shows team form
-- [ ] Fill team name + teammates → creates registration
-- [ ] Creates captain teammate record (status='accepted')
-- [ ] Creates other teammate records (status='pending')
-- [ ] Generates invite tokens
+- [ ] Submit creates `competition_team` in team table
+- [ ] Captain added with CAPTAIN role to athlete team
+- [ ] Captain added to competition_event team
+- [ ] Invitations created in `teamInvitationTable`
 
-### Invite Acceptance
-- [ ] Click invite link → redirects to sign in if not authenticated
-- [ ] Sign in with matching email → accepts invite
-- [ ] Sign in with wrong email → error
-- [ ] Accept already-accepted invite → error
-- [ ] User already registered → error (one team rule)
+### Teammate Auto-Join (Existing User)
+- [ ] Teammate email matches existing user → added directly
+- [ ] User appears in athlete team roster immediately
+- [ ] User added to competition_event team
 
-### Affiliates
-- [ ] Enter "crossfit hq" → normalized to "Crossfit HQ"
-- [ ] Re-enter "Crossfit HQ" → reuses existing affiliate
-- [ ] Autocomplete shows existing affiliates
+### Teammate Invite (New User)
+- [ ] Invitation created with token
+- [ ] Email sent (or logged)
 
-### Leaderboard
-- [ ] Individual registrations show athlete name
-- [ ] Team registrations show team name
-- [ ] Only accepted teammates shown
-- [ ] Pending teammates hidden from public
+### Invite Page Auth Flows
+- [ ] Logged in, email matches → shows accept button → accepts successfully
+- [ ] Logged in, email doesn't match → shows error with option to sign out
+- [ ] Not logged in, account exists → shows sign in button → redirects back after sign in
+- [ ] Not logged in, no account → shows create account button → pre-fills email → redirects back after signup
+- [ ] After accept, user in athlete team + competition_event team
+- [ ] After accept, redirects to competition page
 
----
-
-## Key Files to Modify
-
-### Database Schema
-- **src/db/schemas/scaling.ts** - Add `teamSize` field to scalingLevelsTable
-- **src/db/schemas/competitions.ts** - Add `teamName`, `captainUserId`, `metadata` to competitionRegistrationsTable; create competitionRegistrationTeammatesTable and affiliatesTable
-- **src/db/schemas/common.ts** - Add ID generators for teammates and affiliates
-- **src/db/schema.ts** - Export new tables
-
-### Server Logic
-- **src/server/affiliates.ts** - NEW: findOrCreateAffiliate(), getAffiliates()
-- **src/server/competitions.ts** - Extend registerForCompetition() to handle teams; add acceptTeamInvite(), getTeamRegistration()
-
-### Validation & Types
-- **src/schemas/competitions.ts** - Update registerForCompetitionSchema with team fields
-- **src/types/competitions.ts** - Add CompetitionRegistrationTeammate, Affiliate types
-
-### Actions
-- **src/actions/competition-actions.ts** - Update registerForCompetitionAction, add acceptTeamInviteAction
-
-### UI Components
-- **src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx** - Add team fields, dynamic form based on teamSize
-- **src/app/(compete)/compete/[slug]/join/[inviteToken]/page.tsx** - NEW: Accept invite page
-- **src/app/(compete)/compete/[slug]/teams/[registrationId]/page.tsx** - NEW: Team management page
-- **src/components/compete/leaderboard.tsx** - Update to show teams and teammates
-
-### Email (Commented Out)
-- **src/react-email/competition-team-invite.tsx** - NEW: Invite email template
-- **src/utils/email.tsx** - Add sendCompetitionTeamInviteEmail() (commented out send call)
+### Edge Cases
+- [ ] Teammate already registered → error
+- [ ] Captain already registered → error
+- [ ] Expired invite → error
+- [ ] Wrong email accepts → error
 
 ---
 
 ## Success Criteria
 
-1. ✅ Captain can register team by selecting team division
-2. ✅ Dynamic form shows correct fields based on division teamSize
-3. ✅ Teammates receive invite (logged, not emailed)
-4. ✅ Teammates can accept invite via URL
-5. ✅ One athlete per team per competition enforced
-6. ✅ Leaderboard displays teams correctly
-7. ✅ Affiliates normalized and autocomplete works
-8. ✅ Email infrastructure ready (commented out) for future activation
+1. Captain can register team using existing team infrastructure
+2. Teammates receive invites via existing `teamInvitationTable`
+3. Accepted teammates appear in `teamMembershipTable`
+4. One athlete per team per competition enforced
+5. Athlete teams are queryable as first-class entities
+6. Existing invite UI/email infrastructure reused
