@@ -19,16 +19,20 @@ function formatDateRange(startDate: Date | number, endDate: Date | number): stri
 	const startMonth = start.toLocaleDateString("en-US", { month: "long" })
 	const startDay = start.getDate()
 	const endDay = end.getDate()
-	const year = start.getFullYear()
+	const startYear = start.getFullYear()
+	const endYear = end.getFullYear()
 
 	// Same month
-	if (start.getMonth() === end.getMonth()) {
-		return `${startMonth} ${startDay}-${endDay}, ${year}`
+	if (start.getMonth() === end.getMonth() && startYear === endYear) {
+		return `${startMonth} ${startDay}-${endDay}, ${startYear}`
 	}
 
 	// Different months
 	const endMonth = end.toLocaleDateString("en-US", { month: "long" })
-	return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`
+	if (startYear === endYear) {
+		return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`
+	}
+	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
 }
 
 export function CompetitionHero({ competition, registrationCount }: CompetitionHeroProps) {
