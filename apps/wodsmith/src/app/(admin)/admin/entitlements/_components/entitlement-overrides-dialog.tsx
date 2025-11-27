@@ -29,6 +29,11 @@ import {
 	getTeamOverridesAction,
 	removeEntitlementOverrideAction,
 } from "../../_actions"
+import type {
+	Feature,
+	Limit,
+	TeamEntitlementOverride,
+} from "@/db/schemas/entitlements"
 import { Badge } from "@/components/ui/badge"
 
 interface EntitlementOverridesDialogProps {
@@ -132,9 +137,9 @@ export function EntitlementOverridesDialog({
 		})
 	}
 
-	const overrides = overridesData?.data ?? []
-	const features = featuresData?.data ?? []
-	const limits = limitsData?.data ?? []
+	const overrides = (overridesData?.data ?? []) as TeamEntitlementOverride[]
+	const features = (featuresData?.data ?? []) as Feature[]
+	const limits = (limitsData?.data ?? []) as Limit[]
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

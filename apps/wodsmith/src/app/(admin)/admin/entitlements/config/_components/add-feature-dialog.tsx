@@ -24,6 +24,7 @@ import {
 	getAllFeaturesAction,
 	assignFeatureToPlanAction,
 } from "../../../_actions/entitlement-admin-actions"
+import type { Feature } from "@/db/schemas/entitlements"
 
 interface AddFeatureDialogProps {
 	open: boolean
@@ -55,7 +56,7 @@ export function AddFeatureDialog({
 		}
 	}, [fetchFeatures, open])
 
-	const allFeatures = featuresData?.data ?? []
+	const allFeatures = (featuresData?.data ?? []) as Feature[]
 	const availableFeatures = allFeatures.filter(
 		(f) => f.isActive && !excludeFeatureIds.includes(f.id),
 	)

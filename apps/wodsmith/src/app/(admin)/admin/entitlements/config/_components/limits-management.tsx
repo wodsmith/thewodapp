@@ -35,7 +35,7 @@ export function LimitsManagement() {
 		fetchLimits()
 	}, [fetchLimits])
 
-	const limits = limitsData?.data ?? []
+	const limits = (limitsData?.data ?? []) as Limit[]
 
 	const handleCreateLimit = () => {
 		setSelectedLimit(null)
@@ -98,7 +98,7 @@ export function LimitsManagement() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{limits.map((limit) => (
+								{limits.map((limit: Limit) => (
 									<TableRow key={limit.id}>
 										<TableCell className="font-medium">
 											{limit.name}

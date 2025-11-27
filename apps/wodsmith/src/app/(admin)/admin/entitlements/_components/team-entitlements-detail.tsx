@@ -11,6 +11,25 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+
+interface SnapshotFeature {
+	id: string
+	featureName: string
+	featureDescription?: string | null
+	featureCategory?: string | null
+	source: string
+}
+
+interface SnapshotLimit {
+	id: string
+	limitName: string
+	limitDescription?: string | null
+	limitUnit?: string | null
+	limitResetPeriod: string
+	value: number
+	currentUsage: number
+	source: string
+}
 import { Progress } from "@/components/ui/progress"
 import {
 	Table,
@@ -56,8 +75,8 @@ export function TeamEntitlementsDetail({
 	const snapshot = data.data
 
 	// Group features by category
-	const featuresByCategory = snapshot.features.reduce(
-		(acc, feature) => {
+	const featuresByCategory = (snapshot.features as SnapshotFeature[]).reduce(
+		(acc: Record<string, SnapshotFeature[]>, feature: SnapshotFeature) => {
 			const category = feature.featureCategory || "other"
 			if (!acc[category]) {
 				acc[category] = []
@@ -65,7 +84,7 @@ export function TeamEntitlementsDetail({
 			acc[category].push(feature)
 			return acc
 		},
-		{} as Record<string, typeof snapshot.features>,
+		{} as Record<string, SnapshotFeature[]>,
 	)
 
 	return (
@@ -85,13 +104,13 @@ export function TeamEntitlementsDetail({
 						</p>
 					) : (
 						<div className="space-y-4">
-							{Object.entries(featuresByCategory).map(([category, features]) => (
+								{Object.entries(featuresByCategory).map(([category, features]: [string, SnapshotFeature[]]) => (
 								<div key={category}>
 									<h4 className="text-xs font-semibold mb-2 capitalize text-muted-foreground">
 										{category.replace(/_/g, " ")}
 									</h4>
 									<div className="space-y-2">
-										{features.map((feature) => (
+										{features.map((feature: SnapshotFeature) => (
 											<div
 												key={feature.id}
 												className="flex items-start gap-2 p-2 rounded border bg-card text-sm"
@@ -146,7 +165,7 @@ export function TeamEntitlementsDetail({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{snapshot.limits.map((limit) => {
+								{(snapshot.limits as SnapshotLimit[]).map((limit: SnapshotLimit) => {
 									const usage = limit.currentUsage
 									const max = limit.value
 									const percentage = max === -1 ? 0 : Math.min((usage / max) * 100, 100)

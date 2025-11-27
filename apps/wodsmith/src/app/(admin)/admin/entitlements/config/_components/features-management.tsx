@@ -35,7 +35,7 @@ export function FeaturesManagement() {
 		fetchFeatures()
 	}, [fetchFeatures])
 
-	const features = featuresData?.data ?? []
+	const features = (featuresData?.data ?? []) as Feature[]
 
 	const handleCreateFeature = () => {
 		setSelectedFeature(null)
@@ -101,7 +101,7 @@ export function FeaturesManagement() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{features.map((feature) => (
+								{features.map((feature: Feature) => (
 									<TableRow key={feature.id}>
 										<TableCell className="font-medium">
 											{feature.name}

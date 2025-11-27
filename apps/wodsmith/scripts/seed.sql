@@ -256,6 +256,17 @@ INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole,
 INSERT OR IGNORE INTO competition_groups (id, organizingTeamId, slug, name, description, createdAt, updatedAt, updateCounter) VALUES
 ('cgrp_box1_throwdowns_2025', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', '2025-throwdown-series', '2025 Throwdown Series', 'CrossFit Box One''s annual community throwdown series featuring seasonal competitions throughout the year.', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
+-- Competition-specific scaling group for Winter Throwdown 2025 divisions
+INSERT OR IGNORE INTO scaling_groups (id, title, description, teamId, isDefault, isSystem, createdAt, updatedAt, updateCounter) VALUES
+('sgrp_winter_throwdown_2025', 'Winter Throwdown 2025 Divisions', 'Divisions for Winter Throwdown 2025', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 0, 0, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Division levels for Winter Throwdown 2025
+INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, createdAt, updatedAt, updateCounter) VALUES
+('slvl_winter_rx', 'sgrp_winter_throwdown_2025', 'RX', 0, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_winter_scaled', 'sgrp_winter_throwdown_2025', 'Scaled', 1, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_winter_masters_40', 'sgrp_winter_throwdown_2025', 'Masters 40+', 2, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('slvl_winter_teens', 'sgrp_winter_throwdown_2025', 'Teens 14-17', 3, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
 -- Competitions - Winter Throwdown 2025
 -- Registration opens 30 days before, closes 7 days before the event
 INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, settings, createdAt, updatedAt, updateCounter) VALUES
@@ -265,30 +276,30 @@ INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, gro
  'cgrp_box1_throwdowns_2025',
  'winter-throwdown-2025',
  'Winter Throwdown 2025',
- 'Kick off the new year with CrossFit Box One''s signature winter competition! Three challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with Rx, Scaled, and Masters divisions.',
- strftime('%s', '2025-01-25 08:00:00'),
- strftime('%s', '2025-01-25 18:00:00'),
- strftime('%s', '2024-12-26 00:00:00'),
- strftime('%s', '2025-01-18 23:59:59'),
- '{"divisions": ["rx_male", "rx_female", "scaled_male", "scaled_female", "masters_40_male", "masters_40_female"], "maxAthletes": 100, "entryFee": 75, "rules": "Standard CrossFit competition rules apply. Athletes must check in 30 minutes before their heat.", "prizes": {"1st": "$500", "2nd": "$300", "3rd": "$150"}}',
+ 'Kick off the new year with CrossFit Box One''s signature winter competition! Three challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with RX, Scaled, Masters 40+, and Teen divisions.',
+ strftime('%s', datetime('now', '+14 days', 'start of day', '+8 hours')),
+ strftime('%s', datetime('now', '+14 days', 'start of day', '+18 hours')),
+ strftime('%s', 'now'),
+ strftime('%s', datetime('now', '+7 days', '+23 hours', '+59 minutes')),
+ '{"divisions": {"scalingGroupId": "sgrp_winter_throwdown_2025"}}',
  strftime('%s', 'now'),
  strftime('%s', 'now'),
  0);
 
 -- Competition Registrations
 -- Athletes registered for Winter Throwdown 2025
--- divisionId references scaling_levels for Rx/Scaled divisions (using global defaults)
+-- divisionId references scaling_levels for competition divisions
 INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMemberId, divisionId, registeredAt, createdAt, updatedAt, updateCounter) VALUES
--- Mike Johnson - Rx division
-('creg_mike_winter', 'comp_winter_throwdown_2025', 'usr_athlete_mike', 'tmem_mike_winter_throwdown', 'slvl_global_rx', strftime('%s', '2024-12-27 10:30:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Sarah Williams - Rx division
-('creg_sarah_winter', 'comp_winter_throwdown_2025', 'usr_athlete_sarah', 'tmem_sarah_winter_throwdown', 'slvl_global_rx', strftime('%s', '2024-12-27 14:15:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Chris Brown - Rx+ division
-('creg_chris_winter', 'comp_winter_throwdown_2025', 'usr_athlete_chris', 'tmem_chris_winter_throwdown', 'slvl_global_rxplus', strftime('%s', '2024-12-28 09:00:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Mike Johnson - RX division
+('creg_mike_winter', 'comp_winter_throwdown_2025', 'usr_athlete_mike', 'tmem_mike_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 10:30:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Sarah Williams - RX division
+('creg_sarah_winter', 'comp_winter_throwdown_2025', 'usr_athlete_sarah', 'tmem_sarah_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 14:15:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Chris Brown - Masters 40+ division
+('creg_chris_winter', 'comp_winter_throwdown_2025', 'usr_athlete_chris', 'tmem_chris_winter_throwdown', 'slvl_winter_masters_40', strftime('%s', '2024-12-28 09:00:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 -- Emma Davis - Scaled division
-('creg_emma_winter', 'comp_winter_throwdown_2025', 'usr_athlete_emma', 'tmem_emma_winter_throwdown', 'slvl_global_scaled', strftime('%s', '2024-12-29 16:45:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_emma_winter', 'comp_winter_throwdown_2025', 'usr_athlete_emma', 'tmem_emma_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-29 16:45:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 -- John Doe (existing gym member) - Scaled division
-('creg_john_winter', 'comp_winter_throwdown_2025', 'usr_demo3member', 'tmem_john_winter_throwdown', 'slvl_global_scaled', strftime('%s', '2024-12-30 11:20:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('creg_john_winter', 'comp_winter_throwdown_2025', 'usr_demo3member', 'tmem_john_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-30 11:20:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
 -- END COMPETITION PLATFORM SEED DATA

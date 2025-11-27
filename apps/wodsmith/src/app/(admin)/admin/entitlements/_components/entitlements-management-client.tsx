@@ -32,6 +32,16 @@ import {
 	getAllPlansAction,
 	getAllTeamsWithPlansAction,
 } from "../../_actions"
+import type { Plan } from "@/db/schemas/entitlements"
+
+interface TeamWithPlan {
+	id: string
+	name: string
+	slug: string
+	isPersonalTeam: number
+	currentPlanId: string | null
+	createdAt: Date
+}
 import { ChangePlanDialog } from "./change-plan-dialog"
 import { EntitlementOverridesDialog } from "./entitlement-overrides-dialog"
 import { TeamEntitlementsDetail } from "./team-entitlements-detail"
@@ -58,10 +68,10 @@ export function EntitlementsManagementClient() {
 		fetchPlans()
 	}, [fetchTeams, fetchPlans, page, pageSize, search, showPersonalTeams])
 
-	const teams = teamsData?.data?.teams ?? []
+	const teams = (teamsData?.data?.teams ?? []) as TeamWithPlan[]
 	const totalCount = teamsData?.data?.totalCount ?? 0
 	const totalPages = teamsData?.data?.totalPages ?? 0
-	const plans = plansData?.data ?? []
+	const plans = (plansData?.data ?? []) as Plan[]
 
 	const handleSearch = () => {
 		setSearch(searchInput)
