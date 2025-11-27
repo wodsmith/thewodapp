@@ -66,12 +66,8 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Get competition group if exists
-	const group = competition.groupId
-		? await db.query.competitionGroupsTable.findFirst({
-				where: eq(competitionGroupsTable.id, competition.groupId),
-			})
-		: null
+	// Group is already fetched via getCompetition relation
+	const group = competition.group
 
 	const formatDate = (date: Date) => {
 		return new Date(date).toLocaleDateString(undefined, {
