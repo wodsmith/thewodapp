@@ -20,7 +20,7 @@ export function EnhancedTrackRow({
 	hasManagePermission = false,
 }: EnhancedTrackRowProps) {
 	const isSubscribed = track.subscribedTeams.some((t) => t.teamId === teamId)
-	const trackUrl = `/admin/teams/${teamId}/programming/${track.id}`
+	const trackUrl = `/admin/teams/programming/${track.id}`
 
 	return (
 		<article

@@ -155,7 +155,7 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 				<div className="flex items-center gap-3">
 					{canManageTeam && (
 						<Button asChild variant="outline">
-							<Link href={`/admin/teams/${team.id}`}>Manage Team</Link>
+							<Link href="/admin/teams">Manage Team</Link>
 						</Button>
 					)}
 				</div>

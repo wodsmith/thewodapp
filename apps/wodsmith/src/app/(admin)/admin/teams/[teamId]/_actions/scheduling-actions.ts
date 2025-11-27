@@ -125,8 +125,7 @@ export const scheduleWorkoutAction = createServerAction()
 		)
 
 		// Revalidate the team scheduling page to refresh calendar
-		revalidatePath(`/admin/teams/${teamId}`)
-		revalidatePath(`/admin/teams/${teamId}/schedule`)
+		revalidatePath("/admin/teams")
 
 		return { success: true, data: scheduledWorkout }
 	})
@@ -159,8 +158,7 @@ export const scheduleStandaloneWorkoutAction = createServerAction()
 		)
 
 		// Revalidate the team scheduling page to refresh calendar
-		revalidatePath(`/admin/teams/${teamId}`)
-		revalidatePath(`/admin/teams/${teamId}/schedule`)
+		revalidatePath("/admin/teams")
 
 		return { success: true, data: scheduledWorkout }
 	})
@@ -199,8 +197,7 @@ export const updateScheduledWorkoutAction = createServerAction()
 		)
 
 		// Revalidate the team scheduling page to refresh calendar
-		revalidatePath(`/admin/teams/${teamId}`)
-		revalidatePath(`/admin/teams/${teamId}/schedule`)
+		revalidatePath("/admin/teams")
 
 		return { success: true, data: updatedInstance }
 	})
@@ -290,8 +287,7 @@ export const updateScheduledWorkoutInstanceAction = createServerAction()
 		)
 
 		// Revalidate the team scheduling page to refresh calendar
-		revalidatePath(`/admin/teams/${instance.teamId}`)
-		revalidatePath(`/admin/teams/${instance.teamId}/schedule`)
+		revalidatePath("/admin/teams")
 
 		return { success: true, data: updatedInstance }
 	})

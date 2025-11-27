@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation"
 import { getActiveOrPersonalTeamId, getSessionFromCookie } from "@/utils/auth"
-import { AdminSidebar } from "../../_components/admin-sidebar"
 
 interface TeamAdminLayoutProps {
 	children: React.ReactNode
@@ -9,6 +8,11 @@ interface TeamAdminLayoutProps {
 	}>
 }
 
+/**
+ * @deprecated This layout is being removed. The sidebar is now handled by
+ * teams/layout.tsx. This layout only redirects mismatched teamIds.
+ * Will be deleted after all pages are migrated out of [teamId]/.
+ */
 export default async function TeamAdminLayout({
 	children,
 	params,
@@ -23,19 +27,11 @@ export default async function TeamAdminLayout({
 
 	const activeTeamId = await getActiveOrPersonalTeamId(session.userId)
 
-	// If URL teamId doesn't match active team, redirect to active team URL
+	// If URL teamId doesn't match active team, redirect to new URL structure
 	if (teamId !== activeTeamId) {
-		// Get current path and replace teamId
-		const currentPath = `/admin/teams/${activeTeamId}`
-		redirect(currentPath)
+		redirect("/admin/teams")
 	}
 
-	return (
-		<div className="flex flex-col space-y-8 lg:flex-row lg:space-x-12 lg:space-y-0 bg-background dark:bg-dark-background">
-			<aside className="lg:w-64 lg:flex-shrink-0 overflow-visible">
-				<AdminSidebar currentTeamId={teamId} />
-			</aside>
-			<div className="flex-1">{children}</div>
-		</div>
-	)
+	// Just pass through children - sidebar is handled by parent teams/layout.tsx
+	return <>{children}</>
 }

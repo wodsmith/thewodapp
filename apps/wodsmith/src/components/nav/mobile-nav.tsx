@@ -100,25 +100,14 @@ export default function MobileNav({ session }: MobileNavProps) {
 								Compete
 							</Link>
 							{ownedTeams.length > 0 && (
-								<>
-									<div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-										<Calendar className="h-4 w-4" />
-										Schedule
-									</div>
-									{ownedTeams.map((team) => (
-										<button
-											type="button"
-											key={team.id}
-											onClick={() => {
-												router.push(`/admin/teams/${team.id}`)
-												handleLinkClick()
-											}}
-											className="ml-4 text-left hover:text-primary"
-										>
-											{team.name}
-										</button>
-									))}
-								</>
+								<Link
+									href="/admin/teams"
+									className="flex items-center gap-2 hover:text-primary"
+									onClick={handleLinkClick}
+								>
+									<Calendar className="h-4 w-4" />
+									Schedule
+								</Link>
 							)}
 							<hr className="my-2" />
 							<Link

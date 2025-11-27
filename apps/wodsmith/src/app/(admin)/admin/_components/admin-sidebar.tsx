@@ -36,85 +36,81 @@ interface AdminNavItem {
 	items?: AdminNavItem[]
 }
 
-const getAdminNavItems = (currentTeamId: string): AdminNavItem[] => [
+const getAdminNavItems = (): AdminNavItem[] => [
 	{
 		title: "Team Scheduling",
-		href: `/admin/teams/${currentTeamId}` as Route,
+		href: "/admin/teams" as Route,
 		icon: CalendarDaysIcon,
 	},
 	{
 		title: "Schedule Coaches",
-		href: `/admin/teams/${currentTeamId}/schedule-week` as Route,
+		href: "/admin/teams/schedule-week" as Route,
 		icon: ClockIcon,
 	},
 	{
 		title: "Programming",
-		href: `/admin/teams/${currentTeamId}/programming/` as Route,
+		href: "/admin/teams/programming" as Route,
 		icon: BookOpenIcon,
 	},
 	{
 		title: "Edit Workout Scaling",
-		href: `/admin/teams/${currentTeamId}/scaling` as Route,
+		href: "/admin/teams/scaling" as Route,
 		icon: AdjustmentsHorizontalIcon,
 	},
 	{
 		title: "Competitions",
-		href: `/admin/teams/${currentTeamId}/competitions` as Route,
+		href: "/admin/teams/competitions" as Route,
 		icon: TrophyIcon,
 		items: [
 			{
 				title: "All Competitions",
-				href: `/admin/teams/${currentTeamId}/competitions` as Route,
+				href: "/admin/teams/competitions" as Route,
 				icon: TrophyIcon,
 			},
 			{
 				title: "Competition Series",
-				href: `/admin/teams/${currentTeamId}/competitions/series` as Route,
+				href: "/admin/teams/competitions/series" as Route,
 				icon: FolderIcon,
 			},
 		],
 	},
 	{
 		title: "Class Scheduling",
-		href: `/admin/teams/${currentTeamId}` as Route,
+		href: "/admin/teams" as Route,
 		icon: CalendarDaysIcon,
 		items: [
 			{
 				title: "Classes",
-				href: `/admin/teams/${currentTeamId}/classes` as Route,
+				href: "/admin/teams/classes" as Route,
 				icon: AcademicCapIcon,
 			},
 			{
 				title: "Schedule Templates",
-				href: `/admin/teams/${currentTeamId}/schedule-templates` as Route,
+				href: "/admin/teams/schedule-templates" as Route,
 				icon: DocumentTextIcon,
 			},
 			{
 				title: "Coaches",
-				href: `/admin/teams/${currentTeamId}/coaches` as Route,
+				href: "/admin/teams/coaches" as Route,
 				icon: UserGroupIcon,
 			},
 			{
 				title: "Gym Setup",
-				href: `/admin/teams/${currentTeamId}/gym-setup` as Route,
+				href: "/admin/teams/gym-setup" as Route,
 				icon: BuildingOfficeIcon,
 			},
 		],
 	},
 ]
 
-interface AdminSidebarProps {
-	currentTeamId?: string
-}
-
-export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
+export function AdminSidebar() {
 	const pathname = usePathname()
 	const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER")
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(
 		new Set(["Competitions", "Class Scheduling"]),
 	)
 
-	const navItems = currentTeamId ? getAdminNavItems(currentTeamId) : []
+	const navItems = getAdminNavItems()
 	const isActiveNavItem = useActiveNavItem(pathname, navItems)
 
 	const toggleSection = (title: string) => {
@@ -131,142 +127,127 @@ export function AdminSidebar({ currentTeamId }: AdminSidebarProps) {
 
 	return (
 		<div className="space-y-4">
-			{currentTeamId ? (
-				<>
-					{/* Navigation */}
-					<div className="overflow-x-auto overflow-y-visible lg:overflow-x-visible">
-						<ScrollShadow
-							className="w-full pb-2"
-							orientation="horizontal"
-							isEnabled={isLgAndSmaller}
-						>
-							<nav className="flex items-center lg:items-stretch space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1 min-w-max lg:min-w-full lg:w-full">
-								{navItems.map((item) => {
-									const isActive = isActiveNavItem(item)
-									const isExpanded = expandedSections.has(item.title)
+			<div className="overflow-x-auto overflow-y-visible lg:overflow-x-visible">
+				<ScrollShadow
+					className="w-full pb-2"
+					orientation="horizontal"
+					isEnabled={isLgAndSmaller}
+				>
+					<nav className="flex items-center lg:items-stretch space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1 min-w-max lg:min-w-full lg:w-full">
+						{navItems.map((item) => {
+							const isActive = isActiveNavItem(item)
+							const isExpanded = expandedSections.has(item.title)
 
-									if (item.items) {
-										// On desktop (lg+), show as collapsible section
-										if (!isLgAndSmaller) {
-											return (
-												<div key={`section-${item.title}`} className="w-full">
-													<button
-														type="button"
-														onClick={() => toggleSection(item.title)}
-														className={cn(
-															buttonVariants({
-																variant: "ghost",
-															}),
-															"justify-start hover:no-underline whitespace-nowrap w-full",
-														)}
-													>
-														<item.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-														<span className="flex-1 text-left">
-															{item.title}
-														</span>
-														<ChevronDownIcon
-															className={cn(
-																"h-4 w-4 flex-shrink-0 transition-transform",
-																isExpanded && "rotate-180",
-															)}
-														/>
-													</button>
-													{isExpanded && (
-														<div className="ml-6 space-y-1 mt-1">
-															{item.items.map((subItem) => {
-																const isSubActive = isActiveNavItem(subItem)
-																
-																return (
-																	<Link
-																		key={subItem.href}
-																		href={subItem.href}
-																		className={cn(
-																			buttonVariants({
-																				variant: isSubActive
-																					? "default"
-																					: "ghost",
-																			}),
-																			"justify-start hover:no-underline whitespace-nowrap w-full",
-																		)}
-																	>
-																		<subItem.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-																		{subItem.title}
-																	</Link>
-																)
-															})}
-														</div>
+							if (item.items) {
+								// On desktop (lg+), show as collapsible section
+								if (!isLgAndSmaller) {
+									return (
+										<div key={`section-${item.title}`} className="w-full">
+											<button
+												type="button"
+												onClick={() => toggleSection(item.title)}
+												className={cn(
+													buttonVariants({
+														variant: "ghost",
+													}),
+													"justify-start hover:no-underline whitespace-nowrap w-full",
+												)}
+											>
+												<item.icon className="mr-2 h-4 w-4 flex-shrink-0" />
+												<span className="flex-1 text-left">{item.title}</span>
+												<ChevronDownIcon
+													className={cn(
+														"h-4 w-4 flex-shrink-0 transition-transform",
+														isExpanded && "rotate-180",
 													)}
-												</div>
-											)
-										}
-
-										// On mobile/tablet, show as dropdown menu
-										return (
-											<DropdownMenu key={`section-${item.title}`}>
-												<DropdownMenuTrigger asChild>
-													<button
-														type="button"
-														className={cn(
-															buttonVariants({
-																variant: "ghost",
-															}),
-															"justify-start hover:no-underline whitespace-nowrap flex-shrink-0",
-														)}
-													>
-														<item.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-														<span>{item.title}</span>
-														<ChevronDownIcon className="ml-2 h-4 w-4 flex-shrink-0" />
-													</button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="start" className="w-56">
+												/>
+											</button>
+											{isExpanded && (
+												<div className="ml-6 space-y-1 mt-1">
 													{item.items.map((subItem) => {
 														const isSubActive = isActiveNavItem(subItem)
 														return (
-															<DropdownMenuItem key={subItem.href} asChild>
-																<Link
-																	href={subItem.href}
-																	className={cn(
-																		"flex items-center w-full cursor-pointer",
-																		isSubActive && "bg-accent",
-																	)}
-																>
-																	<subItem.icon className="mr-2 h-4 w-4 flex-shrink-0" />
-																	{subItem.title}
-																</Link>
-															</DropdownMenuItem>
+															<Link
+																key={subItem.href}
+																href={subItem.href}
+																className={cn(
+																	buttonVariants({
+																		variant: isSubActive ? "default" : "ghost",
+																	}),
+																	"justify-start hover:no-underline whitespace-nowrap w-full",
+																)}
+															>
+																<subItem.icon className="mr-2 h-4 w-4 flex-shrink-0" />
+																{subItem.title}
+															</Link>
 														)
 													})}
-												</DropdownMenuContent>
-											</DropdownMenu>
-										)
-									}
-
-									return (
-										<Link
-											key={item.href}
-											href={item.href}
-											className={cn(
-												buttonVariants({
-													variant: isActive ? "default" : "ghost",
-												}),
-												"justify-start hover:no-underline whitespace-nowrap flex-shrink-0 lg:w-full",
+												</div>
 											)}
-										>
-											<item.icon className="mr-2 h-4 w-4" />
-											{item.title}
-										</Link>
+										</div>
 									)
-								})}
-							</nav>
-						</ScrollShadow>
-					</div>
-				</>
-			) : (
-				<div className="flex items-center gap-3 px-4 py-2 border rounded-md w-full min-w-0">
-					<BuildingOfficeIcon className="h-6 w-6 flex-shrink-0" />
-					<span className="truncate flex-1 min-w-0">Select Team</span>
-				</div>
-			)}
+								}
+
+								// On mobile/tablet, show as dropdown menu
+								return (
+									<DropdownMenu key={`section-${item.title}`}>
+										<DropdownMenuTrigger asChild>
+											<button
+												type="button"
+												className={cn(
+													buttonVariants({
+														variant: "ghost",
+													}),
+													"justify-start hover:no-underline whitespace-nowrap flex-shrink-0",
+												)}
+											>
+												<item.icon className="mr-2 h-4 w-4 flex-shrink-0" />
+												<span>{item.title}</span>
+												<ChevronDownIcon className="ml-2 h-4 w-4 flex-shrink-0" />
+											</button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="start" className="w-56">
+											{item.items.map((subItem) => {
+												const isSubActive = isActiveNavItem(subItem)
+												return (
+													<DropdownMenuItem key={subItem.href} asChild>
+														<Link
+															href={subItem.href}
+															className={cn(
+																"flex items-center w-full cursor-pointer",
+																isSubActive && "bg-accent",
+															)}
+														>
+															<subItem.icon className="mr-2 h-4 w-4 flex-shrink-0" />
+															{subItem.title}
+														</Link>
+													</DropdownMenuItem>
+												)
+											})}
+										</DropdownMenuContent>
+									</DropdownMenu>
+								)
+							}
+
+							return (
+								<Link
+									key={item.href}
+									href={item.href}
+									className={cn(
+										buttonVariants({
+											variant: isActive ? "default" : "ghost",
+										}),
+										"justify-start hover:no-underline whitespace-nowrap flex-shrink-0 lg:w-full",
+									)}
+								>
+									<item.icon className="mr-2 h-4 w-4" />
+									{item.title}
+								</Link>
+							)
+						})}
+					</nav>
+				</ScrollShadow>
+			</div>
 		</div>
 	)
 }

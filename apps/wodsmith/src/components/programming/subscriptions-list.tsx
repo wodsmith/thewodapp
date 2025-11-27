@@ -93,7 +93,7 @@ export function SubscriptionsList({
 					No active programming track subscriptions.
 				</p>
 				<Button asChild>
-					<a href={`/admin/teams/${teamId}/programming`}>
+					<a href="/admin/teams/programming">
 						Browse Programming Tracks
 					</a>
 				</Button>

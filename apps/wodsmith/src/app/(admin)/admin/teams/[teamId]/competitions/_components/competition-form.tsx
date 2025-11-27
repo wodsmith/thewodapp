@@ -99,7 +99,7 @@ export function CompetitionForm({
 			},
 			onSuccess: () => {
 				toast.success("Competition created successfully")
-				router.push(`/admin/teams/${teamId}/competitions`)
+				router.push("/admin/teams/competitions")
 				router.refresh()
 			},
 		},
@@ -161,7 +161,7 @@ export function CompetitionForm({
 	}
 
 	const handleCancel = () => {
-		router.push(`/admin/teams/${teamId}/competitions`)
+		router.push("/admin/teams/competitions")
 	}
 
 	return (

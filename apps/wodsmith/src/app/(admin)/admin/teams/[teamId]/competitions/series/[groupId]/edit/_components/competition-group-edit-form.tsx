@@ -58,7 +58,7 @@ export function CompetitionGroupEditForm({
 			},
 			onSuccess: () => {
 				toast.success("Competition series updated successfully")
-				router.push(`/admin/teams/${teamId}/competitions/series/${group.id}`)
+				router.push(`/admin/teams/competitions/series/${group.id}`)
 				router.refresh()
 			},
 		},
@@ -94,7 +94,7 @@ export function CompetitionGroupEditForm({
 	}
 
 	const handleCancel = () => {
-		router.push(`/admin/teams/${teamId}/competitions/series/${group.id}`)
+		router.push(`/admin/teams/competitions/series/${group.id}`)
 	}
 
 	return (

@@ -367,7 +367,7 @@ const ScheduleTemplates = ({
 				>
 					<Link
 						href={{
-							pathname: `/admin/teams/${teamId}/schedule-templates/${template.id}`,
+							pathname: `/admin/teams/schedule-templates/${template.id}`,
 						}}
 					>
 						<span className="font-medium">{template.name}</span>

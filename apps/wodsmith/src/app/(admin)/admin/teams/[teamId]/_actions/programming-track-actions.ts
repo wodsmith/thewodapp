@@ -57,7 +57,7 @@ export const createProgrammingTrackAction = createServerAction()
 			)
 
 			// Revalidate the programming page
-			revalidatePath("/admin/teams/*/programming")
+			revalidatePath("/admin/teams/programming")
 
 			return { success: true, data: track }
 		} catch (error) {
@@ -94,7 +94,7 @@ export const deleteProgrammingTrackAction = createServerAction()
 			)
 
 			// Revalidate the programming page
-			revalidatePath("/admin/teams/*/programming")
+			revalidatePath("/admin/teams/programming")
 
 			return { success: true }
 		} catch (error) {
@@ -169,8 +169,8 @@ export const updateProgrammingTrackAction = createServerAction()
 			)
 
 			// Revalidate the programming page and track page
-			revalidatePath("/admin/teams/*/programming")
-			revalidatePath(`/admin/teams/${teamId}/programming/${trackId}`)
+			revalidatePath("/admin/teams/programming")
+			revalidatePath(`/admin/teams/programming/${trackId}`)
 
 			return { success: true, data: track }
 		} catch (error) {
@@ -241,7 +241,7 @@ export const addWorkoutToTrackAction = createServerAction()
 			)
 
 			// Revalidate the track workout page
-			revalidatePath("/admin/teams/*/programming/*")
+			revalidatePath("/admin/teams/programming")
 
 			return { success: true, data: trackWorkout }
 		} catch (error) {
@@ -278,7 +278,7 @@ export const removeWorkoutFromTrackAction = createServerAction()
 			)
 
 			// Revalidate the track workout page
-			revalidatePath("/admin/teams/*/programming/*")
+			revalidatePath("/admin/teams/programming")
 
 			return { success: true }
 		} catch (error) {
@@ -321,7 +321,7 @@ export const updateTrackWorkoutAction = createServerAction()
 			)
 
 			// Revalidate the track workout page
-			revalidatePath("/admin/teams/*/programming/*")
+			revalidatePath("/admin/teams/programming")
 
 			return { success: true, data: trackWorkout }
 		} catch (error) {
@@ -407,7 +407,7 @@ export const reorderTrackWorkoutsAction = createServerAction()
 			)
 
 			// Revalidate the track page to reflect the new order
-			revalidatePath(`/admin/teams/${teamId}/programming/${trackId}`)
+			revalidatePath(`/admin/teams/programming/${trackId}`)
 
 			return { success: true, updateCount }
 		} catch (error) {

@@ -1,7 +1,7 @@
 "use client"
 
 import { Building2, Check, ChevronsUpDown } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
@@ -29,23 +29,38 @@ interface ActiveTeamSwitcherProps {
 	activeTeamId: string | null
 }
 
+// Patterns that indicate a team-specific resource page
+// These pages show resources owned by the current team, so switching teams
+// should redirect to /admin/teams instead of staying on the same page
+const TEAM_RESOURCE_PATTERNS = [
+	/^\/admin\/teams\/programming\/[^/]+/, // /admin/teams/programming/:trackId
+	/^\/admin\/teams\/competitions\/[^/]+/, // /admin/teams/competitions/:id
+	/^\/admin\/teams\/schedule-templates\/[^/]+/, // /admin/teams/schedule-templates/:id
+]
+
 export function ActiveTeamSwitcher({
 	teams,
 	activeTeamId,
 }: ActiveTeamSwitcherProps) {
 	const router = useRouter()
+	const pathname = usePathname()
 	const [isLoading, setIsLoading] = React.useState(false)
 
 	const { execute: setActiveTeam } = useServerAction(setActiveTeamAction)
 
 	const activeTeam = teams.find((team) => team.id === activeTeamId)
 
+	// Check if current page is a team-specific resource
+	const isTeamResourcePage = TEAM_RESOURCE_PATTERNS.some((pattern) =>
+		pattern.test(pathname),
+	)
+
 	const handleTeamSwitch = async (teamId: string) => {
 		if (teamId === activeTeamId) return
 
 		setIsLoading(true)
 		try {
-			const [result, error] = await setActiveTeam({ teamId })
+			const [, error] = await setActiveTeam({ teamId })
 
 			if (error) {
 				console.error("Failed to switch team:", error)
@@ -55,8 +70,14 @@ export function ActiveTeamSwitcher({
 				return
 			}
 
-			// Refresh the page to update all server components
-			router.refresh()
+			// If on a team-specific resource page, redirect to /admin/teams
+			// since the resource belongs to the previous team
+			if (isTeamResourcePage) {
+				router.push("/admin/teams")
+			} else {
+				// Refresh the page to update all server components
+				router.refresh()
+			}
 		} finally {
 			setIsLoading(false)
 		}
