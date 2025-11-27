@@ -253,6 +253,20 @@
       "when": 1764012429706,
       "tag": "0035_elite_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1764280543808,
+      "tag": "0036_team-registration-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1764283120986,
+      "tag": "0037_team-registration-schema",
+      "breakpoints": true
     }
   ]
 }

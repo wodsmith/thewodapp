@@ -590,19 +590,29 @@ export async function deleteCompetition(
 /**
  * Register an athlete for a competition
  *
- * Phase 2 Implementation:
- * - Validate competition exists and registration is open
- * - Validate division exists
- * - Check for duplicate registration
- * - Create team_membership in competition_event team
- * - Create competition_registration record
- * - Process payment if required
- * - Return registrationId and teamMemberId
+ * Supports both individual (teamSize=1) and team (teamSize>1) registrations.
+ * For team registrations:
+ * - Captain is the user creating the registration
+ * - Teammates are invited via email
+ * - Teammates can accept invites to join the team
+ *
+ * @param params.teamName - Required for team divisions (teamSize > 1)
+ * @param params.affiliateName - Optional affiliate/gym name for captain
+ * @param params.teammates - Required for team divisions, array of teammate info
  */
 export async function registerForCompetition(params: {
 	competitionId: string
 	userId: string
 	divisionId: string
+	// Team fields (required for team divisions)
+	teamName?: string
+	affiliateName?: string
+	teammates?: Array<{
+		email: string
+		firstName?: string
+		lastName?: string
+		affiliateName?: string
+	}>
 }): Promise<{ registrationId: string; teamMemberId: string }> {
 	const db = getDb()
 	const {
@@ -665,7 +675,20 @@ export async function registerForCompetition(params: {
 		throw new Error("Selected division does not belong to this competition")
 	}
 
-	// 6. Check for duplicate registration (will be caught by unique constraint, but check anyway for better error message)
+	// 6. Check if this is a team division
+	const isTeamDivision = division.teamSize > 1
+
+	// 7. Validate team data for team divisions
+	if (isTeamDivision) {
+		if (!params.teamName?.trim()) {
+			throw new Error("Team name is required for team divisions")
+		}
+		if (!params.teammates || params.teammates.length !== division.teamSize - 1) {
+			throw new Error(`Team requires ${division.teamSize - 1} teammate(s)`)
+		}
+	}
+
+	// 8. Check for duplicate registration (will be caught by unique constraint, but check anyway for better error message)
 	const existingRegistration = await db.query.competitionRegistrationsTable.findFirst({
 		where: and(
 			eq(competitionRegistrationsTable.eventId, params.competitionId),
@@ -677,7 +700,33 @@ export async function registerForCompetition(params: {
 		throw new Error("You are already registered for this competition")
 	}
 
-	// 7. Create team_membership in competition_event team
+	// 9. For team registrations, check teammates not already registered
+	if (isTeamDivision && params.teammates) {
+		for (const teammate of params.teammates) {
+			// Check if email is already in use by a registered user for this competition
+			const teammateUser = await db.query.userTable.findFirst({
+				where: eq(userTable.email, teammate.email.toLowerCase()),
+			})
+
+			if (teammateUser) {
+				const teammateReg = await db.query.competitionRegistrationsTable.findFirst({
+					where: and(
+						eq(competitionRegistrationsTable.eventId, params.competitionId),
+						eq(competitionRegistrationsTable.userId, teammateUser.id),
+					),
+				})
+
+				if (teammateReg) {
+					throw new Error(`${teammate.email} is already registered for this competition`)
+				}
+			}
+
+			// TODO: Check pendingTeammates in other registrations for this competition
+			// This will be implemented when we have the full team invite flow
+		}
+	}
+
+	// 10. Create team_membership in competition_event team
 	const teamMembershipResult = await db
 		.insert(teamMembershipTable)
 		.values({
@@ -695,7 +744,17 @@ export async function registerForCompetition(params: {
 		throw new Error("Failed to create team membership")
 	}
 
-	// 8. Create competition_registration record
+	// 11. Store pending teammates as JSON for team registrations
+	const pendingTeammatesJson = isTeamDivision && params.teammates
+		? JSON.stringify(params.teammates.map(t => ({
+				email: t.email.toLowerCase(),
+				firstName: t.firstName ?? null,
+				lastName: t.lastName ?? null,
+				affiliateName: t.affiliateName ?? null,
+			})))
+		: null
+
+	// 12. Create competition_registration record
 	const registrationResult = await db
 		.insert(competitionRegistrationsTable)
 		.values({
@@ -705,6 +764,11 @@ export async function registerForCompetition(params: {
 			teamMemberId: teamMember.id,
 			divisionId: params.divisionId,
 			registeredAt: new Date(),
+			// Team fields
+			teamName: isTeamDivision ? params.teamName : null,
+			captainUserId: params.userId,
+			pendingTeammates: pendingTeammatesJson,
+			// athleteTeamId will be set when team infrastructure is implemented (Phase 2)
 		})
 		.returning()
 
@@ -713,13 +777,59 @@ export async function registerForCompetition(params: {
 		throw new Error("Failed to create registration")
 	}
 
-	// 9. Update all user sessions to include new team
+	// 13. For team registrations, log invite info (full team invite flow in Phase 2)
+	if (isTeamDivision && params.teammates) {
+		for (const teammate of params.teammates) {
+			// TODO: Use team infrastructure for invites (Phase 2)
+			// This will create competition_team and use teamInvitationTable
+			console.log(
+				`\n📧 Team invite pending for ${teammate.email}:\n` +
+					`Competition: ${competition.name}\n` +
+					`Team: ${params.teamName}\n`,
+			)
+		}
+	}
+
+	// 14. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
 	return {
 		registrationId: registration.id,
 		teamMemberId: teamMember.id,
 	}
+}
+
+/**
+ * Accept a team invite for a competition
+ *
+ * NOTE: This will be reimplemented in Phase 2 to use the team infrastructure
+ * (teamInvitationTable) instead of the deprecated competitionRegistrationTeammatesTable.
+ *
+ * Called when a teammate clicks their invite link and accepts.
+ * - Validates invite token exists and is pending
+ * - Validates user email matches invite email
+ * - Checks user isn't already registered
+ * - Adds user to athlete team and competition_event team
+ */
+export async function acceptTeamInvite(params: {
+	inviteToken: string
+	userId: string
+}): Promise<{ success: boolean; registrationId: string }> {
+	// TODO: Implement using team infrastructure in Phase 2
+	// This will use teamInvitationTable instead of competitionRegistrationTeammatesTable
+	throw new Error("Team invite acceptance is being reimplemented. Please check back later.")
+}
+
+/**
+ * Get teammate invite by token (for invite page)
+ *
+ * NOTE: This will be reimplemented in Phase 2 to use the team infrastructure
+ * (teamInvitationTable) instead of the deprecated competitionRegistrationTeammatesTable.
+ */
+export async function getTeammateInvite(inviteToken: string) {
+	// TODO: Implement using team infrastructure in Phase 2
+	// This will use teamInvitationTable instead of competitionRegistrationTeammatesTable
+	return null
 }
 
 /**
