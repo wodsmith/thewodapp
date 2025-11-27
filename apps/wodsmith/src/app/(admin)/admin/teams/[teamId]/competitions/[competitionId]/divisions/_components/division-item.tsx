@@ -55,6 +55,7 @@ export function DivisionItem({
 	const dragHandleRef = useRef<HTMLButtonElement>(null)
 	const [isDragging, setIsDragging] = useState(false)
 	const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
+	const closestEdgeRef = useRef<Edge | null>(null)
 
 	const canDelete = registrationCount === 0 && !isOnly
 
@@ -116,6 +117,7 @@ export function DivisionItem({
 				onDrag({ source, self }: ElementDropTargetEventBasePayload) {
 					const isSource = source.data.index === index
 					if (isSource) {
+						closestEdgeRef.current = null
 						setClosestEdge(null)
 						return
 					}
@@ -133,24 +135,28 @@ export function DivisionItem({
 						(isItemAfterSource && edge === "top")
 
 					if (isDropIndicatorHidden) {
+						closestEdgeRef.current = null
 						setClosestEdge(null)
 						return
 					}
 
+					closestEdgeRef.current = edge
 					setClosestEdge(edge)
 				},
 				onDragLeave: () => {
+					closestEdgeRef.current = null
 					setClosestEdge(null)
 				},
 				onDrop({ source }) {
 					const sourceIndex = source.data.index
 					if (typeof sourceIndex === "number" && sourceIndex !== index) {
-						const edge = closestEdge
+						const edge = closestEdgeRef.current
 						const targetIndex = edge === "top" ? index : index + 1
 						const adjustedTargetIndex =
 							sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
 						onDrop(sourceIndex, adjustedTargetIndex)
 					}
+					closestEdgeRef.current = null
 					setClosestEdge(null)
 				},
 			}),

@@ -76,7 +76,7 @@ export default async function CompetitionDivisionsPage({
 	}
 
 	// Verify the competition belongs to this team
-	if (competition.organizingTeamId !== team.id) {
+	if (competition.competitionTeamId !== team.id) {
 		notFound()
 	}
 
