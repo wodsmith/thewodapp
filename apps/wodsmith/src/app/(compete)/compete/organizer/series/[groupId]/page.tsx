@@ -2,6 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { ZSAError } from "@repo/zsa"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -60,8 +61,14 @@ export default async function SeriesDetailPage({
 			group.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
-	} catch {
-		notFound()
+	} catch (error) {
+		if (
+			error instanceof ZSAError &&
+			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
+		) {
+			notFound()
+		}
+		throw error
 	}
 
 	// Get all competitions in this series

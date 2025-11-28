@@ -1,6 +1,7 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition, getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
@@ -50,8 +51,14 @@ export default async function EditCompetitionPage({
 			competition.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
-	} catch {
-		notFound()
+	} catch (error) {
+		if (
+			error instanceof ZSAError &&
+			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
+		) {
+			notFound()
+		}
+		throw error
 	}
 
 	// Fetch groups and scaling groups for the organizing team

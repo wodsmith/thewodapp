@@ -1,6 +1,7 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -49,8 +50,14 @@ export default async function EditSeriesPage({
 			group.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
-	} catch {
-		notFound()
+	} catch (error) {
+		if (
+			error instanceof ZSAError &&
+			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
+		) {
+			notFound()
+		}
+		throw error
 	}
 
 	return (

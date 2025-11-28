@@ -2,6 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
 import { getCompetition } from "@/server/competitions"
@@ -52,8 +53,14 @@ export default async function CompetitionDivisionsPage({
 			competition.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
-	} catch {
-		notFound()
+	} catch (error) {
+		if (
+			error instanceof ZSAError &&
+			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
+		) {
+			notFound()
+		}
+		throw error
 	}
 
 	// Parallel fetch: divisions with counts and available scaling groups
