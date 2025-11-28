@@ -97,5 +97,29 @@
 			"pattern": "wodsmith.com",
 			"custom_domain": true
 		}
-	]
+	],
+
+	/**
+	 * Staging Environment
+	 * Used for PR preview deployments
+	 */
+	"env": {
+		"staging": {
+			"name": "wodsmith-staging",
+			"d1_databases": [
+				{
+					"binding": "NEXT_TAG_CACHE_D1",
+					"database_name": "wodsmith-db-staging",
+					"database_id": "e1e200c5-1671-455f-b40d-855b155cac48",
+					"migrations_dir": "src/db/migrations"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "NEXT_INC_CACHE_KV",
+					"id": "e0f0b56f83ba4d199e1b346673bc41ae"
+				}
+			]
+		}
+	}
 }
