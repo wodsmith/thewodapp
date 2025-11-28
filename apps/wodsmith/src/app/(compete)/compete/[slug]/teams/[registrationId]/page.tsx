@@ -37,7 +37,7 @@ export default async function TeamManagementPage({
 	const session = await getSessionFromCookie()
 
 	if (!session) {
-		redirect(`/auth/sign-in?returnTo=/compete/${slug}/teams/${registrationId}`)
+		redirect(`/sign-in?returnTo=/compete/${slug}/teams/${registrationId}`)
 	}
 
 	const roster = await getTeamRoster(registrationId)
