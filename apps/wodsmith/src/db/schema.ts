@@ -1,5 +1,6 @@
 // Re-export all tables and types from schema modules
 
+export * from "./schemas/affiliates"
 export * from "./schemas/billing"
 export * from "./schemas/common"
 export * from "./schemas/competitions"
