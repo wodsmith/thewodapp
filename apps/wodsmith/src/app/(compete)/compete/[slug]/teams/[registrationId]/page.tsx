@@ -1,9 +1,9 @@
 "use server"
 
 import { notFound, redirect } from "next/navigation"
-import { Copy, Users, Clock, CheckCircle, Mail, Crown } from "lucide-react"
+import { Users, Clock, CheckCircle, Mail, Crown } from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
-import { getTeamRoster, getCompetition } from "@/server/competitions"
+import { getTeamRoster } from "@/server/competitions"
 import {
 	Card,
 	CardContent,
@@ -14,6 +14,19 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CopyInviteLinkButton } from "./_components/copy-invite-link-button"
+import { AffiliateEditor } from "./_components/affiliate-editor"
+
+type RegistrationMetadata = {
+	affiliateName?: string // Legacy: captain's affiliate
+	affiliates?: Record<string, string> // New: per-user affiliates
+}
+
+type PendingTeammate = {
+	email: string
+	firstName?: string | null
+	lastName?: string | null
+	affiliateName?: string | null
+}
 
 export default async function TeamManagementPage({
 	params,
@@ -54,19 +67,65 @@ export default async function TeamManagementPage({
 				: registration.athleteTeam)
 		: null
 
-	// Check if current user is the captain
-	const isCaptain = registration.captainUserId === session.userId
+	// Check if current user is a team member
+	const isTeamMember = members.some(m => m.userId === session.userId)
+	const isRegisteredUser = registration.userId === session.userId
+	const canEditOwnAffiliate = isTeamMember || isRegisteredUser
+
+	// Parse affiliates from registration metadata
+	let memberAffiliates: Record<string, string> = {}
+	let currentUserAffiliate: string | null = null
+
+	if (registration.metadata) {
+		try {
+			const metadata = JSON.parse(registration.metadata) as RegistrationMetadata
+			// Support new format (affiliates map) and legacy format (affiliateName)
+			if (metadata.affiliates) {
+				memberAffiliates = metadata.affiliates
+			}
+			// Legacy: captain's affiliate stored as affiliateName
+			if (metadata.affiliateName && registration.captainUserId) {
+				memberAffiliates[registration.captainUserId] = metadata.affiliateName
+			}
+			currentUserAffiliate = memberAffiliates[session.userId] || null
+		} catch {
+			// Invalid JSON, ignore
+		}
+	}
+
+	// Parse pending teammates for their affiliate info
+	let pendingTeammates: PendingTeammate[] = []
+	if (registration.pendingTeammates) {
+		try {
+			pendingTeammates = JSON.parse(registration.pendingTeammates) as PendingTeammate[]
+		} catch {
+			// Invalid JSON, ignore
+		}
+	}
+
+	// Helper to get affiliate for a pending invite by email
+	const getPendingAffiliate = (email: string): string | null => {
+		const teammate = pendingTeammates.find(t => t.email.toLowerCase() === email.toLowerCase())
+		return teammate?.affiliateName || null
+	}
 
 	if (!isTeamRegistration) {
+		// For individual registrations, show affiliate editor only
 		return (
-			<div className="container mx-auto max-w-4xl py-8">
-				<Card>
-					<CardContent className="py-8 text-center">
-						<p className="text-muted-foreground">
-							This is an individual registration. No team roster to display.
-						</p>
-					</CardContent>
-				</Card>
+			<div className="container mx-auto max-w-4xl py-8 space-y-6">
+				<div className="space-y-2">
+					<h1 className="text-3xl font-bold">My Registration</h1>
+					<p className="text-muted-foreground">
+						{competition?.name || "Competition"} - {division?.label || "Division"}
+					</p>
+				</div>
+
+				<AffiliateEditor
+					registrationId={registrationId}
+					userId={session.userId}
+					currentAffiliate={currentUserAffiliate}
+					canEdit={canEditOwnAffiliate}
+				/>
 			</div>
 		)
 	}
@@ -101,41 +160,47 @@ export default async function TeamManagementPage({
 							Confirmed Members
 						</h4>
 						<div className="space-y-2">
-							{members.map((member) => (
-								<div
-									key={member.id}
-									className="flex items-center justify-between p-3 rounded-lg border bg-card"
-								>
-									<div className="flex items-center gap-3">
-										<Avatar className="w-10 h-10">
-											<AvatarImage src={member.user?.avatar || undefined} />
-											<AvatarFallback>
-												{member.user?.firstName?.[0] || "?"}
-												{member.user?.lastName?.[0] || ""}
-											</AvatarFallback>
-										</Avatar>
-										<div>
-											<div className="flex items-center gap-2">
-												<span className="font-medium">
-													{member.user?.firstName} {member.user?.lastName}
-												</span>
-												{member.isCaptain && (
-													<Badge variant="secondary" className="text-xs">
-														<Crown className="w-3 h-3 mr-1" />
-														Captain
-													</Badge>
-												)}
+							{members.map((member) => {
+								const memberAffiliate = member.userId ? memberAffiliates[member.userId] : null
+								return (
+									<div
+										key={member.id}
+										className="flex items-center justify-between p-3 rounded-lg border bg-card"
+									>
+										<div className="flex items-center gap-3">
+											<Avatar className="w-10 h-10">
+												<AvatarImage src={member.user?.avatar || undefined} />
+												<AvatarFallback>
+													{member.user?.firstName?.[0] || "?"}
+													{member.user?.lastName?.[0] || ""}
+												</AvatarFallback>
+											</Avatar>
+											<div>
+												<div className="flex items-center gap-2">
+													<span className="font-medium">
+														{member.user?.firstName} {member.user?.lastName}
+													</span>
+													{member.isCaptain && (
+														<Badge variant="secondary" className="text-xs">
+															<Crown className="w-3 h-3 mr-1" />
+															Captain
+														</Badge>
+													)}
+												</div>
+												<p className="text-sm text-muted-foreground">
+													{member.user?.email}
+												</p>
+												<p className="text-xs text-muted-foreground mt-0.5">
+													🏠 {memberAffiliate || "Independent"}
+												</p>
 											</div>
-											<p className="text-sm text-muted-foreground">
-												{member.user?.email}
-											</p>
 										</div>
+										<Badge variant="outline" className="text-green-600">
+											Confirmed
+										</Badge>
 									</div>
-									<Badge variant="outline" className="text-green-600">
-										Confirmed
-									</Badge>
-								</div>
-							))}
+								)
+							})}
 						</div>
 					</div>
 
@@ -147,48 +212,64 @@ export default async function TeamManagementPage({
 								Pending Invitations
 							</h4>
 							<div className="space-y-2">
-								{pending.map((invite) => (
-									<div
-										key={invite.id}
-										className="flex items-center justify-between p-3 rounded-lg border bg-card"
-									>
-										<div className="flex items-center gap-3">
-											<Avatar className="w-10 h-10">
-												<AvatarFallback>
-													<Mail className="w-4 h-4" />
-												</AvatarFallback>
-											</Avatar>
-											<div>
-												<p className="font-medium">{invite.email}</p>
-												<p className="text-sm text-muted-foreground">
-													Invited{" "}
-													{invite.invitedAt
-														? new Date(invite.invitedAt).toLocaleDateString()
-														: ""}
-												</p>
+								{pending.map((invite) => {
+									const pendingAffiliate = getPendingAffiliate(invite.email)
+									return (
+										<div
+											key={invite.id}
+											className="flex items-center justify-between p-3 rounded-lg border bg-card"
+										>
+											<div className="flex items-center gap-3">
+												<Avatar className="w-10 h-10">
+													<AvatarFallback>
+														<Mail className="w-4 h-4" />
+													</AvatarFallback>
+												</Avatar>
+												<div>
+													<p className="font-medium">{invite.email}</p>
+													<p className="text-sm text-muted-foreground">
+														Invited{" "}
+														{invite.invitedAt
+															? new Date(invite.invitedAt).toLocaleDateString()
+															: ""}
+													</p>
+													<p className="text-xs text-muted-foreground mt-0.5">
+														🏠 {pendingAffiliate || "Independent"}
+													</p>
+												</div>
+											</div>
+											<div className="flex items-center gap-2">
+												{isRegisteredUser && invite.token && (
+													<CopyInviteLinkButton
+														token={invite.token}
+														competitionSlug={slug}
+													/>
+												)}
+												<Badge variant="outline" className="text-yellow-600">
+													Pending
+												</Badge>
 											</div>
 										</div>
-										<div className="flex items-center gap-2">
-											{isCaptain && invite.token && (
-												<CopyInviteLinkButton
-													token={invite.token}
-													competitionSlug={slug}
-												/>
-											)}
-											<Badge variant="outline" className="text-yellow-600">
-												Pending
-											</Badge>
-										</div>
-									</div>
-								))}
+									)
+								})}
 							</div>
 						</div>
 					)}
 				</CardContent>
 			</Card>
 
+			{/* My Affiliate */}
+			{canEditOwnAffiliate && (
+				<AffiliateEditor
+					registrationId={registrationId}
+					userId={session.userId}
+					currentAffiliate={currentUserAffiliate}
+					canEdit={canEditOwnAffiliate}
+				/>
+			)}
+
 			{/* Captain Actions */}
-			{isCaptain && pending.length > 0 && (
+			{isRegisteredUser && pending.length > 0 && (
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-lg">Captain Actions</CardTitle>

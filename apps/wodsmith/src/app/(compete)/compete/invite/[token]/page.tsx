@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { Users, Calendar, Trophy, AlertCircle, LogIn, UserPlus } from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getTeammateInvite } from "@/server/competitions"
+import { checkEmailExists } from "@/server/user"
 import {
 	Card,
 	CardContent,
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
+import { InviteSignUpForm } from "./_components/invite-signup-form"
 
 export default async function CompeteInvitePage({
 	params,
@@ -177,6 +179,8 @@ export default async function CompeteInvitePage({
 	}
 
 	// Auth States 3 & 4: Not logged in
+	// Check if email already has an account
+	const emailHasAccount = await checkEmailExists(invite.email)
 	const returnTo = `/compete/invite/${token}`
 	const encodedEmail = encodeURIComponent(invite.email)
 
@@ -220,26 +224,44 @@ export default async function CompeteInvitePage({
 						)}
 					</div>
 
-					<div className="space-y-2">
-						<p className="text-sm text-center text-muted-foreground">
-							Invitation for <strong>{invite.email}</strong>
-						</p>
-					</div>
-
-					<div className="space-y-3">
-						<Button asChild className="w-full" size="lg">
-							<a href={`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}&email=${encodedEmail}`}>
-								<LogIn className="w-4 h-4 mr-2" />
-								Sign In to Accept
-							</a>
-						</Button>
-						<Button asChild variant="outline" className="w-full" size="lg">
-							<a href={`/auth/sign-up?returnTo=${encodeURIComponent(returnTo)}&email=${encodedEmail}`}>
-								<UserPlus className="w-4 h-4 mr-2" />
-								Create Account
-							</a>
-						</Button>
-					</div>
+					{emailHasAccount ? (
+						// Email has account - show sign in button
+						<>
+							<div className="space-y-2">
+								<p className="text-sm text-center text-muted-foreground">
+									Invitation for <strong>{invite.email}</strong>
+								</p>
+							</div>
+							<Button asChild className="w-full" size="lg">
+								<a href={`/sign-in?returnTo=${encodeURIComponent(returnTo)}&email=${encodedEmail}`}>
+									<LogIn className="w-4 h-4 mr-2" />
+									Sign In to Accept
+								</a>
+							</Button>
+						</>
+					) : (
+						// No account - show inline sign up form
+						<>
+							<div className="space-y-2">
+								<p className="text-sm text-center text-muted-foreground">
+									Create an account to join the team
+								</p>
+							</div>
+							<InviteSignUpForm
+								inviteToken={token}
+								inviteEmail={invite.email}
+							/>
+							<p className="text-xs text-center text-muted-foreground">
+								Already have an account?{" "}
+								<a
+									href={`/sign-in?returnTo=${encodeURIComponent(returnTo)}&email=${encodedEmail}`}
+									className="text-primary underline"
+								>
+									Sign in
+								</a>
+							</p>
+						</>
+					)}
 				</CardContent>
 			</Card>
 		</div>

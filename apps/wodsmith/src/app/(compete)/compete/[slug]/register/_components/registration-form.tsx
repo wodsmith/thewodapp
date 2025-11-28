@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Users, User } from "lucide-react"
 import type { Competition, ScalingGroup, ScalingLevel, Team } from "@/db/schema"
+import { AffiliateCombobox } from "./affiliate-combobox"
 
 const teammateSchema = z.object({
 	email: z.string().email("Valid email required"),
@@ -315,9 +316,10 @@ export function RegistrationForm({
 										<FormItem>
 											<FormLabel>Your Affiliate (Optional)</FormLabel>
 											<FormControl>
-												<Input
-													placeholder="e.g., CrossFit Downtown"
-													{...field}
+												<AffiliateCombobox
+													value={field.value || ""}
+													onChange={field.onChange}
+													placeholder="Search or enter affiliate..."
 													disabled={isPending || !registrationOpen}
 												/>
 											</FormControl>
@@ -410,9 +412,10 @@ export function RegistrationForm({
 														<FormItem>
 															<FormLabel>Affiliate (Optional)</FormLabel>
 															<FormControl>
-																<Input
-																	placeholder="e.g., CrossFit Downtown"
-																	{...field}
+																<AffiliateCombobox
+																	value={field.value || ""}
+																	onChange={field.onChange}
+																	placeholder="Search or enter affiliate..."
 																	disabled={isPending || !registrationOpen}
 																/>
 															</FormControl>

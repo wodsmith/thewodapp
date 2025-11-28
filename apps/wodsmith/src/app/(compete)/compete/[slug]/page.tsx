@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { getCompetition, getCompetitionRegistrations, getUserCompetitionRegistration } from "@/server/competitions"
+import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { listScalingLevels } from "@/server/scaling-levels"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -65,13 +67,16 @@ export default async function CompetitionDetailPage({ params }: Props) {
       : Promise.resolve(null),
   ])
 
-  // Check if user is already registered (depends on session)
+  // Check if user is already registered and get pending invites (depends on session)
   let userRegistration = null
+  let pendingInvitations: Awaited<ReturnType<typeof getPendingInvitationsForCurrentUser>> = []
   if (session) {
-    userRegistration = await getUserCompetitionRegistration(
-      competition.id,
-      session.userId,
-    )
+    const [registration, invitations] = await Promise.all([
+      getUserCompetitionRegistration(competition.id, session.userId),
+      getPendingInvitationsForCurrentUser().catch(() => []),
+    ])
+    userRegistration = registration
+    pendingInvitations = invitations
   }
 
   const registrationCount = registrations.length
@@ -126,13 +131,20 @@ export default async function CompetitionDetailPage({ params }: Props) {
             />
 
             {/* Sidebar */}
-            <aside className="lg:sticky lg:top-20 lg:self-start">
+            <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+              <PendingTeamInvites
+                invitations={pendingInvitations}
+                competitionId={competition.id}
+              />
               <RegistrationSidebar
                 competition={competition}
                 isRegistered={!!userRegistration}
                 registrationOpen={registrationOpen}
                 registrationCount={registrationCount}
                 userDivision={userRegistration?.division?.label}
+                registrationId={userRegistration?.id}
+                isTeamRegistration={(userRegistration?.division?.teamSize ?? 1) > 1}
+                isCaptain={userRegistration?.userId === session?.userId}
               />
             </aside>
           </div>
