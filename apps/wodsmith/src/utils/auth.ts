@@ -257,6 +257,12 @@ export async function createAndStoreSession(
 		userId,
 		expiresAt: new Date(session.expiresAt),
 	})
+
+	// Set personal team as active by default
+	const personalTeam = session.teams?.find((t) => t.isPersonalTeam)
+	if (personalTeam) {
+		await setActiveTeamCookie(personalTeam.id)
+	}
 }
 
 async function validateSessionToken(

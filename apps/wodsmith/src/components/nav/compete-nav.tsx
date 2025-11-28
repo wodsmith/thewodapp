@@ -1,14 +1,26 @@
-"use server"
 import { User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
 import CompeteMobileNav from "@/components/nav/compete-mobile-nav"
+import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
+import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 
 export default async function CompeteNav() {
 	const session = await getSessionFromCookie()
+
+	let pendingInvitations: Awaited<
+		ReturnType<typeof getPendingInvitationsForCurrentUser>
+	> = []
+	if (session?.user) {
+		try {
+			pendingInvitations = await getPendingInvitationsForCurrentUser()
+		} catch {
+			// User not authenticated or error fetching invitations
+		}
+	}
 
 	return (
 		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
@@ -49,6 +61,7 @@ export default async function CompeteNav() {
 							>
 								<User className="h-5 w-5" />
 							</Link>
+							<NotificationBell invitations={pendingInvitations} />
 							<DarkModeToggle />
 							<LogoutButton />
 						</>
@@ -70,7 +83,7 @@ export default async function CompeteNav() {
 						</div>
 					)}
 				</nav>
-				<CompeteMobileNav session={session} />
+				<CompeteMobileNav session={session} invitations={pendingInvitations} />
 			</div>
 		</header>
 	)

@@ -1,7 +1,7 @@
 "use client"
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
-import { Menu, User } from "lucide-react"
+import { Bell, Menu, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
@@ -16,12 +16,27 @@ import {
 import type { SessionValidationResult } from "@/types"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
-interface CompeteMobileNavProps {
-	session: SessionValidationResult | null
+interface PendingInvitation {
+	id: string
+	token: string
+	team: {
+		id: string | undefined
+		name: string | undefined
+		slug: string | undefined
+	}
 }
 
-export default function CompeteMobileNav({ session }: CompeteMobileNavProps) {
+interface CompeteMobileNavProps {
+	session: SessionValidationResult | null
+	invitations?: PendingInvitation[]
+}
+
+export default function CompeteMobileNav({
+	session,
+	invitations = [],
+}: CompeteMobileNavProps) {
 	const [open, setOpen] = useState(false)
+	const hasNotifications = invitations.length > 0
 
 	const handleLinkClick = () => {
 		setOpen(false)
@@ -30,8 +45,15 @@ export default function CompeteMobileNav({ session }: CompeteMobileNavProps) {
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button variant="outline" size="icon" className="md:hidden">
+				<Button
+					variant="outline"
+					size="icon"
+					className="relative md:hidden"
+				>
 					<Menu className="h-6 w-6" />
+					{hasNotifications && (
+						<span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+					)}
 					<span className="sr-only">Toggle navigation menu</span>
 				</Button>
 			</SheetTrigger>
@@ -74,6 +96,31 @@ export default function CompeteMobileNav({ session }: CompeteMobileNavProps) {
 								Events
 							</Link>
 							<hr className="my-2" />
+							{hasNotifications && (
+								<>
+									<p className="font-bold text-muted-foreground text-sm uppercase">
+										Notifications
+									</p>
+									{invitations.map((invitation) => (
+										<Link
+											key={invitation.id}
+											href={`/compete/invite/${invitation.token}`}
+											className="flex items-center gap-2 hover:text-primary"
+											onClick={handleLinkClick}
+										>
+											<Bell className="h-4 w-4" />
+											<div className="flex flex-col">
+												<span>Team Invite</span>
+												<span className="text-muted-foreground text-sm">
+													{invitation.team.name}
+												</span>
+											</div>
+											<span className="ml-auto h-2 w-2 rounded-full bg-red-500" />
+										</Link>
+									))}
+									<hr className="my-2" />
+								</>
+							)}
 							<Link
 								href="/compete/athlete"
 								className="hover:text-primary"
