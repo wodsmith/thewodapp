@@ -63,13 +63,12 @@ export default async function CompeteNav() {
 							</Link>
 							{canOrganize && (
 								<>
-									<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
+									<div className="h-6 border-black border-l-2 dark:border-dark-border" />
 									<Link
 										href="/compete/organizer"
 										className="flex items-center gap-1 font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 									>
-										<Settings className="h-4 w-4" />
-										Organizer
+										Organize
 									</Link>
 								</>
 							)}

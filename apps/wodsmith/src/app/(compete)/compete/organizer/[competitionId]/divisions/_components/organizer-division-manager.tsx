@@ -70,6 +70,7 @@ export function OrganizerDivisionManager({
 	const [divisions, setDivisions] = useState(initialDivisions)
 	const [showAddDialog, setShowAddDialog] = useState(false)
 	const [newDivisionLabel, setNewDivisionLabel] = useState("")
+	const [newDivisionTeamSize, setNewDivisionTeamSize] = useState(1)
 	const [instanceId] = useState(() => Symbol("divisions"))
 
 	// Sync props to state when server data changes (e.g., after router.refresh())
@@ -105,21 +106,20 @@ export function OrganizerDivisionManager({
 		)
 	}
 
-	const handleLabelChange = (divisionId: string, newLabel: string) => {
+	const handleLabelSave = async (divisionId: string, newLabel: string) => {
+		const original = initialDivisions.find((d) => d.id === divisionId)
+		if (original && original.label === newLabel) return
+
+		// Optimistically update
 		setDivisions((prev) =>
 			prev.map((d) => (d.id === divisionId ? { ...d, label: newLabel } : d)),
 		)
-	}
-
-	const handleLabelBlur = async (divisionId: string, label: string) => {
-		const original = initialDivisions.find((d) => d.id === divisionId)
-		if (original && original.label === label) return
 
 		const [_result, error] = await updateDivision({
 			teamId,
 			competitionId,
 			divisionId,
-			label,
+			label: newLabel,
 		})
 
 		if (error) {
@@ -127,7 +127,7 @@ export function OrganizerDivisionManager({
 			// Revert to original
 			setDivisions((prev) =>
 				prev.map((d) =>
-					d.id === divisionId ? { ...d, label: original?.label ?? label } : d,
+					d.id === divisionId ? { ...d, label: original?.label ?? newLabel } : d,
 				),
 			)
 		}
@@ -184,6 +184,7 @@ export function OrganizerDivisionManager({
 			teamId,
 			competitionId,
 			label: newDivisionLabel.trim(),
+			teamSize: newDivisionTeamSize,
 		})
 
 		if (error) {
@@ -200,6 +201,7 @@ export function OrganizerDivisionManager({
 				},
 			])
 			setNewDivisionLabel("")
+			setNewDivisionTeamSize(1)
 			setShowAddDialog(false)
 		}
 	}
@@ -235,11 +237,8 @@ export function OrganizerDivisionManager({
 									registrationCount={division.registrationCount}
 									isOnly={divisions.length === 1}
 									instanceId={instanceId}
-									onLabelChange={(label) =>
-										handleLabelChange(division.id, label)
-									}
-									onLabelBlur={() =>
-										handleLabelBlur(division.id, division.label)
+									onLabelSave={(label) =>
+										handleLabelSave(division.id, label)
 									}
 									onRemove={() => handleRemove(division.id)}
 									onDrop={handleDrop}
@@ -278,21 +277,38 @@ export function OrganizerDivisionManager({
 							Create a new division for athletes to register in.
 						</DialogDescription>
 					</DialogHeader>
-					<div className="py-4">
-						<Label htmlFor="divisionName">Division Name</Label>
-						<Input
-							id="divisionName"
-							value={newDivisionLabel}
-							onChange={(e) => setNewDivisionLabel(e.target.value)}
-							placeholder="e.g., Masters 40+, Teen 14-17, RX"
-							className="mt-2"
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									e.preventDefault()
-									handleAddDivision()
-								}
-							}}
-						/>
+					<div className="space-y-4 py-4">
+						<div>
+							<Label htmlFor="divisionName">Division Name</Label>
+							<Input
+								id="divisionName"
+								value={newDivisionLabel}
+								onChange={(e) => setNewDivisionLabel(e.target.value)}
+								placeholder="e.g., Masters 40+, Teen 14-17, RX"
+								className="mt-2"
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault()
+										handleAddDivision()
+									}
+								}}
+							/>
+						</div>
+						<div>
+							<Label htmlFor="teamSize">Team Size</Label>
+							<Input
+								id="teamSize"
+								type="number"
+								min={1}
+								max={10}
+								value={newDivisionTeamSize}
+								onChange={(e) => setNewDivisionTeamSize(Number(e.target.value))}
+								className="mt-2"
+							/>
+							<p className="text-muted-foreground text-sm mt-1">
+								1 = Individual, 2+ = Team division
+							</p>
+						</div>
 					</div>
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setShowAddDialog(false)}>

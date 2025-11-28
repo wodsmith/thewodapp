@@ -1,3 +1,4 @@
+import { Fragment } from "react"
 import Link from "next/link"
 import {
 	Breadcrumb,
@@ -30,16 +31,18 @@ export function OrganizerBreadcrumb({ segments }: OrganizerBreadcrumbProps) {
 					const isLast = index === allSegments.length - 1
 
 					return (
-						<BreadcrumbItem key={segment.label}>
+						<Fragment key={segment.label}>
 							{index > 0 && <BreadcrumbSeparator />}
-							{isLast || !segment.href ? (
-								<BreadcrumbPage>{segment.label}</BreadcrumbPage>
-							) : (
-								<BreadcrumbLink asChild>
-									<Link href={segment.href}>{segment.label}</Link>
-								</BreadcrumbLink>
-							)}
-						</BreadcrumbItem>
+							<BreadcrumbItem>
+								{isLast || !segment.href ? (
+									<BreadcrumbPage>{segment.label}</BreadcrumbPage>
+								) : (
+									<BreadcrumbLink asChild>
+										<Link href={segment.href}>{segment.label}</Link>
+									</BreadcrumbLink>
+								)}
+							</BreadcrumbItem>
+						</Fragment>
 					)
 				})}
 			</BreadcrumbList>

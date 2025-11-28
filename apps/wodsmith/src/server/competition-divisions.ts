@@ -45,7 +45,7 @@ export async function initializeCompetitionDivisions({
 		throw new Error("Competition not found")
 	}
 
-	if (competition.competitionTeamId !== teamId) {
+	if (competition.organizingTeamId !== teamId) {
 		throw new Error("Competition does not belong to this team")
 	}
 
@@ -258,7 +258,7 @@ export async function ensureCompetitionOwnedScalingGroup({
 		throw new Error("Competition not found")
 	}
 
-	if (competition.competitionTeamId !== teamId) {
+	if (competition.organizingTeamId !== teamId) {
 		throw new Error("Competition does not belong to this team")
 	}
 
@@ -363,10 +363,12 @@ export async function addCompetitionDivision({
 	competitionId,
 	teamId,
 	label,
+	teamSize = 1,
 }: {
 	competitionId: string
 	teamId: string
 	label: string
+	teamSize?: number
 }): Promise<{ divisionId: string }> {
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
 
@@ -379,6 +381,7 @@ export async function addCompetitionDivision({
 		teamId,
 		scalingGroupId,
 		label,
+		teamSize,
 	})
 
 	return { divisionId: level.id }

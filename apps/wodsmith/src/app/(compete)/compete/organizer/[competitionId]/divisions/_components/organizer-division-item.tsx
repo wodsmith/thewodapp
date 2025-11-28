@@ -33,10 +33,9 @@ export interface OrganizerDivisionItemProps {
 	registrationCount: number
 	isOnly: boolean
 	instanceId: symbol
-	onLabelChange: (value: string) => void
+	onLabelSave: (value: string) => void
 	onRemove: () => void
 	onDrop: (sourceIndex: number, targetIndex: number) => void
-	onLabelBlur: () => void
 }
 
 export function OrganizerDivisionItem({
@@ -46,16 +45,23 @@ export function OrganizerDivisionItem({
 	registrationCount,
 	isOnly,
 	instanceId,
-	onLabelChange,
+	onLabelSave,
 	onRemove,
 	onDrop,
-	onLabelBlur,
 }: OrganizerDivisionItemProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const dragHandleRef = useRef<HTMLButtonElement>(null)
 	const [isDragging, setIsDragging] = useState(false)
 	const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
 	const closestEdgeRef = useRef<Edge | null>(null)
+	const [localLabel, setLocalLabel] = useState(label)
+	const labelRef = useRef(label)
+
+	// Sync local state when prop changes (e.g., after server update)
+	useEffect(() => {
+		setLocalLabel(label)
+		labelRef.current = label
+	}, [label])
 
 	const canDelete = registrationCount === 0 && !isOnly
 
@@ -94,7 +100,7 @@ export function OrganizerDivisionItem({
 								color: hsl(var(--foreground));
 								box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 							`
-							preview.textContent = label || "Division"
+							preview.textContent = labelRef.current || "Division"
 							container.appendChild(preview)
 						},
 					})
@@ -161,7 +167,7 @@ export function OrganizerDivisionItem({
 				},
 			}),
 		)
-	}, [id, label, index, instanceId, onDrop])
+	}, [id, index, instanceId, onDrop])
 
 	return (
 		<div ref={ref} className="relative">
@@ -182,9 +188,13 @@ export function OrganizerDivisionItem({
 					#{index + 1}
 				</span>
 				<Input
-					value={label}
-					onChange={(e) => onLabelChange(e.target.value)}
-					onBlur={onLabelBlur}
+					value={localLabel}
+					onChange={(e) => setLocalLabel(e.target.value)}
+					onBlur={() => {
+						if (localLabel !== label) {
+							onLabelSave(localLabel)
+						}
+					}}
 					placeholder="Enter division name"
 					className="flex-1"
 				/>
