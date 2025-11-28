@@ -4,7 +4,7 @@
 
 **Status:** Phase 1-3 Complete ✅
 
-**Commit:** `590df36` - feat: move competition admin to /compete/organizer
+**Commit:** `e18064c` - feat: move competition admin to /compete/organizer
 
 **Completed:**
 - ✅ Phase 1: Core Routes (organizer dashboard, CRUD pages, divisions)
