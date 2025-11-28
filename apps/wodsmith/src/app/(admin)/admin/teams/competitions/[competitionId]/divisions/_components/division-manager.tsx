@@ -16,7 +16,7 @@ import {
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 import { GripVertical, Plus, Trash2, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import {
@@ -90,10 +90,10 @@ function DivisionItem({
 	const [editingLabel, setEditingLabel] = useState(division.label)
 	const [isEditing, setIsEditing] = useState(false)
 
-	const updateClosestEdge = (edge: Edge | null) => {
+	const updateClosestEdge = useCallback((edge: Edge | null) => {
 		closestEdgeRef.current = edge
 		setClosestEdge(edge)
-	}
+	}, [])
 
 	useEffect(() => {
 		const element = ref.current
@@ -192,7 +192,7 @@ function DivisionItem({
 				},
 			}),
 		)
-	}, [division.id, division.label, index, instanceId, onDrop])
+	}, [division.id, division.label, index, instanceId, onDrop, updateClosestEdge])
 
 	const handleBlur = () => {
 		if (editingLabel !== division.label && editingLabel.trim()) {

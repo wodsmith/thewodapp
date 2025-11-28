@@ -37,18 +37,24 @@ useEffect(() => {
   // ...handlers using closestEdge
 }, [closestEdge]) // Re-runs on every drag movement!
 
-// GOOD - use ref for volatile state
+// GOOD - use ref + useCallback for volatile state
 const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
 const closestEdgeRef = useRef<Edge | null>(null)
 
-const updateClosestEdge = (edge: Edge | null) => {
+// Wrap in useCallback for lint compliance (exhaustive-deps)
+const updateClosestEdge = useCallback((edge: Edge | null) => {
   closestEdgeRef.current = edge
   setClosestEdge(edge) // Still update state for rendering
-}
+}, [])
 
 useEffect(() => {
   // ...handlers read closestEdgeRef.current instead
-}, [/* stable deps only */])
+}, [/* stable deps */, updateClosestEdge]) // Include updateClosestEdge
+```
+
+**Import `useCallback`:**
+```tsx
+import { useCallback, useEffect, useRef, useState } from "react"
 ```
 
 ## Basic Draggable Item Pattern
@@ -61,10 +67,10 @@ function DraggableItem({ item, index, instanceId, onDrop }) {
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
   const closestEdgeRef = useRef<Edge | null>(null)
 
-  const updateClosestEdge = (edge: Edge | null) => {
+  const updateClosestEdge = useCallback((edge: Edge | null) => {
     closestEdgeRef.current = edge
     setClosestEdge(edge)
-  }
+  }, [])
 
   useEffect(() => {
     const element = ref.current
@@ -144,7 +150,7 @@ function DraggableItem({ item, index, instanceId, onDrop }) {
         },
       }),
     )
-  }, [item.id, item.label, index, instanceId, onDrop]) // NO closestEdge!
+  }, [item.id, item.label, index, instanceId, onDrop, updateClosestEdge])
 
   return (
     <div ref={ref} className="relative">
@@ -189,7 +195,8 @@ const handleDrop = async (sourceIndex: number, targetIndex: number) => {
 ## Checklist
 
 - [ ] Refs for volatile state (closestEdge, etc.)
-- [ ] Stable useEffect dependencies
+- [ ] Wrap updateClosestEdge in useCallback (lint compliance)
+- [ ] Include updateClosestEdge in useEffect deps
 - [ ] Instance ID for list scoping
 - [ ] Drop indicator with edge detection
 - [ ] Custom drag preview
