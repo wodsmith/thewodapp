@@ -25,11 +25,5 @@ export const searchAffiliatesAction = createServerAction()
 export const getTopAffiliatesAction = createServerAction()
 	.input(z.object({}))
 	.handler(async () => {
-		const affiliates = await getTopAffiliates()
-		return affiliates.map((a) => ({
-			id: a.id,
-			name: a.name,
-			verificationStatus: a.verificationStatus,
-			location: a.location,
-		}))
+		return affiliates = await getTopAffiliates()
 	})
