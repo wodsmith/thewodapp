@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, competitionGroupsTable } from "@/db/schema"
-import { getCompetition } from "@/server/competitions"
+import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
 import { OrganizerCompetitionActions } from "./_components/organizer-competition-actions"
@@ -66,12 +66,15 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Get competition group if exists
-	const group = competition.groupId
-		? await db.query.competitionGroupsTable.findFirst({
-				where: eq(competitionGroupsTable.id, competition.groupId),
-			})
-		: null
+	// Fetch group and registrations in parallel
+	const [group, registrations] = await Promise.all([
+		competition.groupId
+			? db.query.competitionGroupsTable.findFirst({
+					where: eq(competitionGroupsTable.id, competition.groupId),
+				})
+			: Promise.resolve(null),
+		getCompetitionRegistrations(competitionId),
+	])
 
 	const formatDate = (date: Date) => {
 		return new Date(date).toLocaleDateString(undefined, {
@@ -142,9 +145,12 @@ export default async function CompetitionDetailPage({
 						>
 							Divisions
 						</Link>
-						<span className="px-4 py-2 border-b-2 border-transparent text-muted-foreground opacity-50 cursor-not-allowed">
-							Athletes (Coming Soon)
-						</span>
+						<Link
+							href={`/compete/organizer/${competition.id}/athletes`}
+							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
+						>
+							Athletes
+						</Link>
 					</nav>
 				</div>
 
@@ -253,18 +259,40 @@ export default async function CompetitionDetailPage({
 					</CardContent>
 				</Card>
 
-				{/* Registrations Card - Placeholder */}
+				{/* Registrations Card */}
 				<Card>
-					<CardHeader>
-						<CardTitle>Registrations</CardTitle>
-						<CardDescription>Athletes registered for this competition</CardDescription>
+					<CardHeader className="flex flex-row items-center justify-between">
+						<div>
+							<CardTitle>Registrations</CardTitle>
+							<CardDescription>Athletes registered for this competition</CardDescription>
+						</div>
+						<Link href={`/compete/organizer/${competition.id}/athletes`}>
+							<Button variant="outline" size="sm">
+								<Users className="h-4 w-4 mr-2" />
+								View All
+							</Button>
+						</Link>
 					</CardHeader>
 					<CardContent>
-						<div className="text-center py-8">
-							<p className="text-muted-foreground text-sm">
-								Registration management coming soon
-							</p>
-						</div>
+						{registrations.length === 0 ? (
+							<div className="text-center py-8">
+								<p className="text-muted-foreground text-sm">
+									No athletes have registered yet
+								</p>
+							</div>
+						) : (
+							<div className="flex items-center gap-4">
+								<div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+									<Users className="h-8 w-8 text-primary" />
+								</div>
+								<div>
+									<div className="text-3xl font-bold">{registrations.length}</div>
+									<div className="text-sm text-muted-foreground">
+										{registrations.length === 1 ? "registration" : "registrations"}
+									</div>
+								</div>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			</div>

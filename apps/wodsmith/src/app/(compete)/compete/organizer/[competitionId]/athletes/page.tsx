@@ -4,21 +4,23 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
-import { getCompetition } from "@/server/competitions"
-import { listScalingGroups } from "@/server/scaling-groups"
+import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
-import { OrganizerDivisionManager } from "./_components/organizer-division-manager"
+import { OrganizerRegistrationList } from "./_components/organizer-registration-list"
 
-interface CompetitionDivisionsPageProps {
+interface CompetitionAthletesPageProps {
 	params: Promise<{
 		competitionId: string
+	}>
+	searchParams: Promise<{
+		division?: string
 	}>
 }
 
 export async function generateMetadata({
 	params,
-}: CompetitionDivisionsPageProps): Promise<Metadata> {
+}: CompetitionAthletesPageProps): Promise<Metadata> {
 	const { competitionId } = await params
 	const competition = await getCompetition(competitionId)
 
@@ -29,15 +31,17 @@ export async function generateMetadata({
 	}
 
 	return {
-		title: `${competition.name} - Divisions`,
-		description: `Manage divisions for ${competition.name}`,
+		title: `${competition.name} - Athletes`,
+		description: `Manage athletes for ${competition.name}`,
 	}
 }
 
-export default async function CompetitionDivisionsPage({
+export default async function CompetitionAthletesPage({
 	params,
-}: CompetitionDivisionsPageProps) {
+	searchParams,
+}: CompetitionAthletesPageProps) {
 	const { competitionId } = await params
+	const { division: divisionFilter } = await searchParams
 
 	// Get competition
 	const competition = await getCompetition(competitionId)
@@ -56,10 +60,10 @@ export default async function CompetitionDivisionsPage({
 		notFound()
 	}
 
-	// Parallel fetch: divisions with counts and available scaling groups
-	const [{ scalingGroupId, divisions }, scalingGroups] = await Promise.all([
+	// Parallel fetch: registrations and divisions for filtering
+	const [registrations, { divisions }] = await Promise.all([
+		getCompetitionRegistrations(competitionId, divisionFilter),
 		getCompetitionDivisionsWithCounts({ competitionId }),
-		listScalingGroups({ teamId: competition.organizingTeamId, includeSystem: true }),
 	])
 
 	return (
@@ -70,12 +74,12 @@ export default async function CompetitionDivisionsPage({
 					<OrganizerBreadcrumb
 						segments={[
 							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
-							{ label: "Divisions" },
+							{ label: "Athletes" },
 						]}
 					/>
-					<h1 className="text-3xl font-bold">Competition Divisions</h1>
+					<h1 className="text-3xl font-bold">Registered Athletes</h1>
 					<p className="text-muted-foreground mt-1">
-						Manage the divisions for this competition
+						{registrations.length} registration{registrations.length !== 1 ? "s" : ""}
 					</p>
 				</div>
 
@@ -88,25 +92,23 @@ export default async function CompetitionDivisionsPage({
 						>
 							Overview
 						</Link>
-						<span className="px-4 py-2 border-b-2 border-primary font-medium">
-							Divisions
-						</span>
 						<Link
-							href={`/compete/organizer/${competition.id}/athletes`}
+							href={`/compete/organizer/${competition.id}/divisions`}
 							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
 						>
-							Athletes
+							Divisions
 						</Link>
+						<span className="px-4 py-2 border-b-2 border-primary font-medium">
+							Athletes
+						</span>
 					</nav>
 				</div>
 
-				<OrganizerDivisionManager
-					key={scalingGroupId ?? "no-divisions"}
-					teamId={competition.organizingTeamId}
+				<OrganizerRegistrationList
 					competitionId={competition.id}
+					registrations={registrations}
 					divisions={divisions}
-					scalingGroupId={scalingGroupId}
-					scalingGroups={scalingGroups}
+					currentDivisionFilter={divisionFilter}
 				/>
 			</div>
 		</div>

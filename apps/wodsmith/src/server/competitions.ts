@@ -1355,6 +1355,23 @@ export async function getCompetitionRegistrations(
 			},
 			division: true,
 			teamMember: true,
+			athleteTeam: {
+				with: {
+					memberships: {
+						with: {
+							user: {
+								columns: {
+									id: true,
+									firstName: true,
+									lastName: true,
+									email: true,
+									avatar: true,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		orderBy: (table, { asc }) => [asc(table.registeredAt)],
 	})
