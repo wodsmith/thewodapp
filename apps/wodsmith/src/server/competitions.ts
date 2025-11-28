@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, isNull, or, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Competition,
@@ -69,10 +69,12 @@ export async function addToCompetitionEventTeam(
 /**
  * Clear a teammate from pendingTeammates JSON on a registration
  * Called when a teammate accepts their invite
+ * Also migrates their affiliate info to metadata.affiliates
  */
 export async function clearPendingTeammate(
 	competitionId: string,
 	teammateEmail: string,
+	teammateUserId: string,
 ): Promise<void> {
 	const db = getDb()
 	const { competitionRegistrationsTable } = await import("@/db/schema")
@@ -86,18 +88,46 @@ export async function clearPendingTeammate(
 		if (!reg.pendingTeammates) continue
 
 		try {
-			const pending = JSON.parse(reg.pendingTeammates) as Array<{ email: string }>
+			const pending = JSON.parse(reg.pendingTeammates) as Array<{
+				email: string
+				affiliateName?: string | null
+			}>
+			const teammate = pending.find(
+				(t) => t.email.toLowerCase() === teammateEmail.toLowerCase(),
+			)
 			const updatedPending = pending.filter(
 				(t) => t.email.toLowerCase() !== teammateEmail.toLowerCase(),
 			)
 
 			if (updatedPending.length !== pending.length) {
-				// Found and removed the teammate
+				// Found and removed the teammate - also migrate their affiliate
+				const updateData: {
+					pendingTeammates: string | null
+					metadata?: string | null
+				} = {
+					pendingTeammates: updatedPending.length > 0 ? JSON.stringify(updatedPending) : null,
+				}
+
+				// Migrate teammate's affiliate to metadata.affiliates
+				if (teammate?.affiliateName) {
+					let metadata: Record<string, unknown> = {}
+					if (reg.metadata) {
+						try {
+							metadata = JSON.parse(reg.metadata) as Record<string, unknown>
+						} catch {
+							metadata = {}
+						}
+					}
+					if (!metadata.affiliates || typeof metadata.affiliates !== "object") {
+						metadata.affiliates = {}
+					}
+					(metadata.affiliates as Record<string, string>)[teammateUserId] = teammate.affiliateName
+					updateData.metadata = JSON.stringify(metadata)
+				}
+
 				await db
 					.update(competitionRegistrationsTable)
-					.set({
-						pendingTeammates: updatedPending.length > 0 ? JSON.stringify(updatedPending) : null,
-					})
+					.set(updateData)
 					.where(eq(competitionRegistrationsTable.id, reg.id))
 				break
 			}
@@ -161,16 +191,20 @@ export async function createCompetitionGroup(params: {
 }
 
 /**
- * Get all competition groups for an organizing team
+ * Get all competition groups for a team
+ * Returns groups where team is the organizing team OR has a competition in the group
  */
 export async function getCompetitionGroups(
-	organizingTeamId: string,
+	teamId: string,
 ): Promise<
 	Array<CompetitionGroup & { competitionCount: number }>
 > {
 	const db = getDb()
 
 	// Query groups with competition counts
+	// Include groups where:
+	// 1. Team is the organizing team, OR
+	// 2. Team has a competition (competitionTeamId) in the group
 	const groups = await db
 		.select({
 			id: competitionGroupsTable.id,
@@ -188,7 +222,12 @@ export async function getCompetitionGroups(
 			competitionsTable,
 			eq(competitionsTable.groupId, competitionGroupsTable.id),
 		)
-		.where(eq(competitionGroupsTable.organizingTeamId, organizingTeamId))
+		.where(
+			or(
+				eq(competitionGroupsTable.organizingTeamId, teamId),
+				eq(competitionsTable.competitionTeamId, teamId),
+			),
+		)
 		.groupBy(competitionGroupsTable.id)
 		.orderBy(sql`${competitionGroupsTable.createdAt} DESC`)
 
@@ -908,7 +947,12 @@ export async function registerForCompetition(params: {
 			})))
 		: null
 
-	// 13. Create competition_registration record
+	// 13. Create metadata JSON with captain's affiliate info (using new per-user format)
+	const metadataJson = params.affiliateName
+		? JSON.stringify({ affiliates: { [params.userId]: params.affiliateName } })
+		: null
+
+	// 14. Create competition_registration record
 	const registrationResult = await db
 		.insert(competitionRegistrationsTable)
 		.values({
@@ -923,6 +967,7 @@ export async function registerForCompetition(params: {
 			captainUserId: params.userId,
 			athleteTeamId,
 			pendingTeammates: pendingTeammatesJson,
+			metadata: metadataJson,
 		})
 		.returning()
 
@@ -931,7 +976,7 @@ export async function registerForCompetition(params: {
 		throw new Error("Failed to create registration")
 	}
 
-	// 14. For team registrations, invite teammates via team infrastructure
+	// 15. For team registrations, invite teammates via team infrastructure
 	if (isTeamDivision && params.teammates && athleteTeamId) {
 		const { inviteUserToTeamInternal } = await import("@/server/team-members")
 
@@ -952,7 +997,7 @@ export async function registerForCompetition(params: {
 		}
 	}
 
-	// 15. Update all user sessions to include new team
+	// 16. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
 	return {
@@ -1090,6 +1135,87 @@ export async function getTeammateInvite(inviteToken: string) {
 			: null,
 		captain,
 	}
+}
+
+/**
+ * Update the affiliate for a registration
+ * Each team member can update their own affiliate
+ * Affiliates are stored per-user in metadata.affiliates[userId]
+ */
+export async function updateRegistrationAffiliate(params: {
+	registrationId: string
+	userId: string
+	affiliateName: string | null
+}): Promise<{ success: boolean }> {
+	const db = getDb()
+	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+
+	// Get the registration
+	const registration = await db.query.competitionRegistrationsTable.findFirst({
+		where: eq(competitionRegistrationsTable.id, params.registrationId),
+	})
+
+	if (!registration) {
+		throw new Error("Registration not found")
+	}
+
+	// For individual registrations, user must be the registered user
+	// For team registrations, user must be a member of the athlete team
+	const isRegisteredUser = registration.userId === params.userId
+	let isTeamMember = false
+
+	if (registration.athleteTeamId) {
+		const membership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, registration.athleteTeamId),
+				eq(teamMembershipTable.userId, params.userId),
+			),
+		})
+		isTeamMember = !!membership
+	}
+
+	if (!isRegisteredUser && !isTeamMember) {
+		throw new Error("You must be a team member to update your affiliate")
+	}
+
+	// Parse existing metadata
+	let metadata: Record<string, unknown> = {}
+	if (registration.metadata) {
+		try {
+			metadata = JSON.parse(registration.metadata) as Record<string, unknown>
+		} catch {
+			metadata = {}
+		}
+	}
+
+	// Ensure affiliates object exists
+	if (!metadata.affiliates || typeof metadata.affiliates !== "object") {
+		metadata.affiliates = {}
+	}
+	const affiliates = metadata.affiliates as Record<string, string | null>
+
+	// Update this user's affiliate
+	if (params.affiliateName) {
+		affiliates[params.userId] = params.affiliateName
+	} else {
+		delete affiliates[params.userId]
+	}
+
+	// Clean up affiliates object if empty
+	if (Object.keys(affiliates).length === 0) {
+		delete metadata.affiliates
+	}
+
+	// Save updated metadata
+	await db
+		.update(competitionRegistrationsTable)
+		.set({
+			metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+			updatedAt: new Date(),
+		})
+		.where(eq(competitionRegistrationsTable.id, params.registrationId))
+
+	return { success: true }
 }
 
 /**
@@ -1242,7 +1368,8 @@ export async function getCompetitionRegistrations(
  * Get a user's competition registration
  *
  * Phase 2 Implementation:
- * - Query registration by competitionId and userId
+ * - Query registration by competitionId and userId (captain)
+ * - Also check if user is a teammate on a team registration
  * - Include division and team membership details
  * - Return registration or null
  */
@@ -1251,9 +1378,10 @@ export async function getUserCompetitionRegistration(
 	userId: string,
 ) {
 	const db = getDb()
-	const { competitionRegistrationsTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
 
-	const registration = await db.query.competitionRegistrationsTable.findFirst({
+	// First check if user is the captain/direct registrant
+	const directRegistration = await db.query.competitionRegistrationsTable.findFirst({
 		where: and(
 			eq(competitionRegistrationsTable.eventId, competitionId),
 			eq(competitionRegistrationsTable.userId, userId),
@@ -1272,23 +1400,69 @@ export async function getUserCompetitionRegistration(
 					dateOfBirth: true,
 				},
 			},
+			athleteTeam: true,
 		},
 	})
 
-	return registration ?? null
+	if (directRegistration) {
+		return directRegistration
+	}
+
+	// Check if user is a teammate on a team registration
+	// Find teams the user is a member of
+	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+		where: and(
+			eq(teamMembershipTable.userId, userId),
+			eq(teamMembershipTable.isActive, 1),
+		),
+		columns: { teamId: true },
+	})
+
+	if (userTeamMemberships.length === 0) {
+		return null
+	}
+
+	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+
+	// Find registration where athleteTeamId is one of user's teams
+	const teamRegistration = await db.query.competitionRegistrationsTable.findFirst({
+		where: and(
+			eq(competitionRegistrationsTable.eventId, competitionId),
+			inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+		),
+		with: {
+			division: true,
+			teamMember: true,
+			user: {
+				columns: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					avatar: true,
+					gender: true,
+					dateOfBirth: true,
+				},
+			},
+			athleteTeam: true,
+		},
+	})
+
+	return teamRegistration ?? null
 }
 
 /**
  * Get user's upcoming registered competitions
- * Returns competitions the user has registered for where the event hasn't started yet
+ * Returns competitions the user has registered for (as captain or teammate) where the event hasn't started yet
  */
 export async function getUserUpcomingRegisteredCompetitions(
 	userId: string,
 ): Promise<CompetitionWithOrganizingTeam[]> {
 	const db = getDb()
-	const { competitionRegistrationsTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
 
-	const registrations = await db.query.competitionRegistrationsTable.findMany({
+	// Get direct registrations (user is captain)
+	const directRegistrations = await db.query.competitionRegistrationsTable.findMany({
 		where: eq(competitionRegistrationsTable.userId, userId),
 		with: {
 			competition: {
@@ -1300,11 +1474,44 @@ export async function getUserUpcomingRegisteredCompetitions(
 		},
 	})
 
+	// Get team registrations (user is teammate)
+	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+		where: and(
+			eq(teamMembershipTable.userId, userId),
+			eq(teamMembershipTable.isActive, 1),
+		),
+		columns: { teamId: true },
+	})
+
+	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+	let teamRegistrations: typeof directRegistrations = []
+
+	if (userTeamIds.length > 0) {
+		teamRegistrations = await db.query.competitionRegistrationsTable.findMany({
+			where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+			with: {
+				competition: {
+					with: {
+						organizingTeam: true,
+						group: true,
+					},
+				},
+			},
+		})
+	}
+
+	// Combine and deduplicate by competition ID
+	const allRegistrations = [...directRegistrations, ...teamRegistrations]
+	const seenCompetitionIds = new Set<string>()
 	const now = new Date()
 
-	// Filter to only upcoming competitions (start date in future)
-	const upcomingCompetitions = registrations
-		.filter((reg) => new Date(reg.competition.startDate) > now)
+	const upcomingCompetitions = allRegistrations
+		.filter((reg) => {
+			if (seenCompetitionIds.has(reg.competition.id)) return false
+			if (new Date(reg.competition.startDate) <= now) return false
+			seenCompetitionIds.add(reg.competition.id)
+			return true
+		})
 		.map((reg) => reg.competition as CompetitionWithOrganizingTeam)
 
 	return upcomingCompetitions
@@ -1362,12 +1569,14 @@ export async function cancelCompetitionRegistration(
 /**
  * Get user's competition registration history
  * Used for athlete profile dashboard
+ * Includes both direct registrations (as captain) and team registrations (as teammate)
  */
 export async function getUserCompetitionHistory(userId: string) {
 	const db = getDb()
-	const { competitionRegistrationsTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
 
-	const registrations =
+	// Get direct registrations (user is captain)
+	const directRegistrations =
 		await db.query.competitionRegistrationsTable.findMany({
 			where: eq(competitionRegistrationsTable.userId, userId),
 			with: {
@@ -1377,9 +1586,54 @@ export async function getUserCompetitionHistory(userId: string) {
 					},
 				},
 				division: true,
+				athleteTeam: true,
 			},
 			orderBy: (table, { desc }) => [desc(table.registeredAt)],
 		})
 
-	return registrations
+	// Get team registrations (user is teammate)
+	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+		where: and(
+			eq(teamMembershipTable.userId, userId),
+			eq(teamMembershipTable.isActive, 1),
+		),
+		columns: { teamId: true },
+	})
+
+	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+	let teamRegistrations: typeof directRegistrations = []
+
+	if (userTeamIds.length > 0) {
+		teamRegistrations = await db.query.competitionRegistrationsTable.findMany({
+			where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+			with: {
+				competition: {
+					with: {
+						organizingTeam: true,
+					},
+				},
+				division: true,
+				athleteTeam: true,
+			},
+			orderBy: (table, { desc }) => [desc(table.registeredAt)],
+		})
+	}
+
+	// Combine and deduplicate by registration ID
+	const allRegistrations = [...directRegistrations, ...teamRegistrations]
+	const seenIds = new Set<string>()
+	const uniqueRegistrations = allRegistrations.filter((reg) => {
+		if (seenIds.has(reg.id)) return false
+		seenIds.add(reg.id)
+		return true
+	})
+
+	// Sort by registeredAt descending
+	uniqueRegistrations.sort((a, b) => {
+		const aDate = new Date(a.registeredAt).getTime()
+		const bDate = new Date(b.registeredAt).getTime()
+		return bDate - aDate
+	})
+
+	return uniqueRegistrations
 }

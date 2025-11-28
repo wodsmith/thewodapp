@@ -134,8 +134,13 @@ export const passKeyCredentialTable = sqliteTable(
 // User relations
 export const userRelations = relations(userTable, ({ many }) => ({
 	passkeys: many(passKeyCredentialTable),
-	// Competition platform relations
-	competitionRegistrations: many(competitionRegistrationsTable),
+	// Competition platform relations - two separate relations for user and captain
+	competitionRegistrations: many(competitionRegistrationsTable, {
+		relationName: "registeredUser",
+	}),
+	captainedRegistrations: many(competitionRegistrationsTable, {
+		relationName: "captainUser",
+	}),
 }))
 
 export const passKeyCredentialRelations = relations(

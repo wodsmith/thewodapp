@@ -10,6 +10,7 @@ import {
 	teamMembershipTable,
 	teamProgrammingTracksTable,
 	teamTable,
+	userTable,
 	workoutMovements,
 	movements,
 } from "@/db/schema"
@@ -204,5 +205,19 @@ export async function getUserNotableMetconResults(userId: string) {
 	}
 
 	return Array.from(metconResults.values())
+}
+
+/**
+ * Check if an email address already has an account
+ */
+export async function checkEmailExists(email: string): Promise<boolean> {
+	const db = getDb()
+
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.email, email.toLowerCase()),
+		columns: { id: true },
+	})
+
+	return !!user
 }
 

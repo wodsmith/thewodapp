@@ -19,11 +19,13 @@ export interface CreateScalingLevelInput {
 	scalingGroupId: string
 	label: string
 	position?: number
+	teamSize?: number
 }
 
 export interface UpdateScalingLevelInput {
 	label?: string
 	position?: number
+	teamSize?: number
 }
 
 export async function listScalingLevels({
@@ -45,6 +47,7 @@ export async function createScalingLevel({
 	scalingGroupId,
 	label,
 	position,
+	teamSize = 1,
 }: CreateScalingLevelInput) {
 	const db = getDb()
 
@@ -81,6 +84,7 @@ export async function createScalingLevel({
 			scalingGroupId,
 			label,
 			position: newPosition,
+			teamSize,
 		})
 		.returning()
 
@@ -125,6 +129,7 @@ export async function updateScalingLevel({
 		.set({
 			label: data.label ?? level.label,
 			position: data.position ?? level.position,
+			teamSize: data.teamSize ?? level.teamSize,
 			updatedAt: new Date(),
 		})
 		.where(eq(scalingLevelsTable.id, scalingLevelId))

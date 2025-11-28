@@ -531,8 +531,8 @@ export async function acceptTeamInvitation(token: string) {
 		throw new ZSAError("CONFLICT", "Invitation has already been accepted")
 	}
 
-	// Check if user's email matches the invitation email
-	if (session.user.email !== invitation.email) {
+	// Check if user's email matches the invitation email (case-insensitive)
+	if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
 		throw new ZSAError(
 			"FORBIDDEN",
 			"This invitation is for a different email address",
@@ -621,9 +621,9 @@ export async function acceptTeamInvitation(token: string) {
 					"@/server/competitions"
 				)
 				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
-				// Clear from pendingTeammates on the registration
+				// Clear from pendingTeammates on the registration and migrate affiliate
 				if (session.user.email) {
-					await clearPendingTeammate(metadata.competitionId, session.user.email)
+					await clearPendingTeammate(metadata.competitionId, session.user.email, session.userId)
 				}
 			}
 		} catch {
@@ -730,11 +730,11 @@ export async function getPendingInvitationsForCurrentUser() {
 	const db = getDb()
 
 	// Get invitations for the user's email that have not been accepted
+	// Note: invitations are stored with lowercase emails, so normalize for comparison
+	const userEmail = session.user.email?.toLowerCase()
 	const invitations = await db.query.teamInvitationTable.findMany({
 		where: and(
-			session.user.email
-				? eq(teamInvitationTable.email, session.user.email)
-				: undefined,
+			userEmail ? eq(teamInvitationTable.email, userEmail) : undefined,
 			isNull(teamInvitationTable.acceptedAt),
 		),
 		with: {
@@ -744,6 +744,7 @@ export async function getPendingInvitationsForCurrentUser() {
 					name: true,
 					slug: true,
 					avatarUrl: true,
+					competitionMetadata: true,
 				},
 			},
 			invitedByUser: {
@@ -758,36 +759,54 @@ export async function getPendingInvitationsForCurrentUser() {
 		},
 	})
 
-	return invitations.map((invitation) => ({
-		id: invitation.id,
-		token: invitation.token,
-		teamId: invitation.teamId,
-		team: (() => {
-			const team = Array.isArray(invitation.team)
-				? invitation.team[0]
-				: invitation.team
-			return {
+	return invitations.map((invitation) => {
+		const team = Array.isArray(invitation.team)
+			? invitation.team[0]
+			: invitation.team
+
+		// Parse competition metadata if available
+		let competitionId: string | null = null
+		let competitionSlug: string | null = null
+		if (team?.competitionMetadata) {
+			try {
+				const metadata = JSON.parse(team.competitionMetadata) as {
+					competitionId?: string
+					competitionSlug?: string
+				}
+				competitionId = metadata.competitionId ?? null
+				competitionSlug = metadata.competitionSlug ?? null
+			} catch {
+				// Ignore parse errors
+			}
+		}
+
+		const invitedByUser = Array.isArray(invitation.invitedByUser)
+			? invitation.invitedByUser[0]
+			: invitation.invitedByUser
+
+		return {
+			id: invitation.id,
+			token: invitation.token,
+			teamId: invitation.teamId,
+			team: {
 				id: team?.id,
 				name: team?.name,
 				slug: team?.slug,
 				avatarUrl: team?.avatarUrl,
-			}
-		})(),
-		roleId: invitation.roleId,
-		isSystemRole: Boolean(invitation.isSystemRole),
-		createdAt: new Date(invitation.createdAt),
-		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
-		invitedBy: (() => {
-			const user = Array.isArray(invitation.invitedByUser)
-				? invitation.invitedByUser[0]
-				: invitation.invitedByUser
-			return {
-				id: user?.id,
-				firstName: user?.firstName,
-				lastName: user?.lastName,
-				email: user?.email,
-				avatar: user?.avatar,
-			}
-		})(),
-	}))
+			},
+			competitionId,
+			competitionSlug,
+			roleId: invitation.roleId,
+			isSystemRole: Boolean(invitation.isSystemRole),
+			createdAt: new Date(invitation.createdAt),
+			expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
+			invitedBy: {
+				id: invitedByUser?.id,
+				firstName: invitedByUser?.firstName,
+				lastName: invitedByUser?.lastName,
+				email: invitedByUser?.email,
+				avatar: invitedByUser?.avatar,
+			},
+		}
+	})
 }

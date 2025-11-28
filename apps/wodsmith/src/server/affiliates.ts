@@ -58,18 +58,35 @@ export async function getAffiliate(id: string): Promise<Affiliate | null> {
 
 /**
  * Search affiliates by name (for autocomplete)
- * Returns up to 10 matching affiliates
+ * Returns up to 25 matching affiliates
  */
 export async function searchAffiliates(query: string): Promise<Affiliate[]> {
 	const db = getDb()
 
 	if (!query || query.trim().length < 2) {
-		return []
+		// Return top affiliates if no query
+		return getTopAffiliates()
 	}
 
 	const affiliates = await db.query.affiliatesTable.findMany({
 		where: like(affiliatesTable.name, `%${query.trim()}%`),
-		limit: 10,
+		limit: 25,
+		orderBy: (table, { asc }) => [asc(table.name)],
+	})
+
+	return affiliates
+}
+
+/**
+ * Get top affiliates for initial dropdown display
+ * Returns up to 25 affiliates ordered alphabetically
+ */
+export async function getTopAffiliates(): Promise<Affiliate[]> {
+	const db = getDb()
+
+	const affiliates = await db.query.affiliatesTable.findMany({
+		limit: 25,
+		orderBy: (table, { asc }) => [asc(table.name)],
 	})
 
 	return affiliates

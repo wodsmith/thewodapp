@@ -181,10 +181,31 @@ export const deleteCompetitionSchema = z.object({
 
 // Registration Schemas
 
+// Teammate input schema (for team registration)
+export const teammateInputSchema = z.object({
+	email: z.string().email("Invalid email address"),
+	firstName: z.string().max(255).optional(),
+	lastName: z.string().max(255).optional(),
+	affiliateName: z.string().max(255).optional(),
+})
+
 export const registerForCompetitionSchema = z.object({
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	userId: z.string().startsWith("usr_", "Invalid user ID"),
 	divisionId: z.string().startsWith("slvl_", "Invalid division ID"),
+	// Team fields (validated based on division.teamSize in server)
+	teamName: z.string().min(1).max(255).optional(),
+	affiliateName: z.string().max(255).optional(),
+	teammates: z.array(teammateInputSchema).optional(),
+})
+
+export const acceptTeamInviteSchema = z.object({
+	inviteToken: z.string().min(1, "Invite token is required"),
+	userId: z.string().startsWith("usr_", "Invalid user ID"),
+})
+
+export const getTeammateInviteSchema = z.object({
+	inviteToken: z.string().min(1, "Invite token is required"),
 })
 
 export const getUserCompetitionRegistrationSchema = z.object({
@@ -200,6 +221,12 @@ export const getCompetitionRegistrationsSchema = z.object({
 export const cancelCompetitionRegistrationSchema = z.object({
 	registrationId: z.string().startsWith("creg_", "Invalid registration ID"),
 	userId: z.string().startsWith("usr_", "Invalid user ID"),
+})
+
+export const updateRegistrationAffiliateSchema = z.object({
+	registrationId: z.string().startsWith("creg_", "Invalid registration ID"),
+	userId: z.string().startsWith("usr_", "Invalid user ID"),
+	affiliateName: z.string().max(255).nullable(),
 })
 
 // Type exports
@@ -224,9 +251,12 @@ export type GetCompetitionInput = z.infer<typeof getCompetitionSchema>
 export type UpdateCompetitionInput = z.infer<typeof updateCompetitionSchema>
 export type DeleteCompetitionInput = z.infer<typeof deleteCompetitionSchema>
 
+export type TeammateInput = z.infer<typeof teammateInputSchema>
 export type RegisterForCompetitionInput = z.infer<
 	typeof registerForCompetitionSchema
 >
+export type AcceptTeamInviteInput = z.infer<typeof acceptTeamInviteSchema>
+export type GetTeammateInviteInput = z.infer<typeof getTeammateInviteSchema>
 export type GetUserCompetitionRegistrationInput = z.infer<
 	typeof getUserCompetitionRegistrationSchema
 >
@@ -235,4 +265,7 @@ export type GetCompetitionRegistrationsInput = z.infer<
 >
 export type CancelCompetitionRegistrationInput = z.infer<
 	typeof cancelCompetitionRegistrationSchema
+>
+export type UpdateRegistrationAffiliateInput = z.infer<
+	typeof updateRegistrationAffiliateSchema
 >
