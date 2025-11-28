@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -16,6 +16,7 @@ import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, competitionGroupsTable } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
 import { OrganizerCompetitionActions } from "./_components/organizer-competition-actions"
 
 interface CompetitionDetailPageProps {
@@ -90,58 +91,42 @@ export default async function CompetitionDetailPage({
 		})
 	}
 
+	// Build breadcrumb segments
+	const breadcrumbSegments = group
+		? [
+				{ label: "Series", href: "/compete/organizer/series" },
+				{ label: group.name, href: `/compete/organizer/series/${group.id}` },
+				{ label: competition.name },
+			]
+		: [{ label: competition.name }]
+
 	return (
 		<div className="container mx-auto px-4 py-8">
 			<div className="flex flex-col gap-6">
 				{/* Breadcrumb and Header */}
-				<div className="flex items-start justify-between">
-					<div className="flex-1">
-						<Link
-							href="/compete/organizer"
-							className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-						>
-							<ArrowLeft className="h-4 w-4" />
-							Back to Competitions
-						</Link>
-						<div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-							<Link
-								href="/compete/organizer"
-								className="hover:text-foreground"
-							>
-								Competitions
-							</Link>
-							{group && (
-								<>
-									<span>/</span>
-									<Link
-										href={`/compete/organizer/series/${group.id}`}
-										className="hover:text-foreground"
-									>
-										{group.name}
-									</Link>
-								</>
+				<div>
+					<OrganizerBreadcrumb segments={breadcrumbSegments} />
+					<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+						<div className="flex-1 min-w-0">
+							<h1 className="text-3xl font-bold">{competition.name}</h1>
+							{competition.description && (
+								<p className="text-muted-foreground mt-2">
+									{competition.description}
+								</p>
 							)}
-							<span>/</span>
-							<span>{competition.name}</span>
 						</div>
-						<h1 className="text-3xl font-bold">{competition.name}</h1>
-						{competition.description && (
-							<p className="text-muted-foreground mt-2">
-								{competition.description}
-							</p>
-						)}
-					</div>
-					<div className="flex items-center gap-2">
-						<Link href={`/compete/${competition.slug}`}>
-							<Button variant="outline" size="sm">
-								<ExternalLink className="h-4 w-4 mr-2" />
-								View Public Page
-							</Button>
-						</Link>
-						<OrganizerCompetitionActions
-							competitionId={competition.id}
-							organizingTeamId={competition.organizingTeamId}
-						/>
+						<div className="flex items-center gap-2 shrink-0">
+							<Link href={`/compete/${competition.slug}`}>
+								<Button variant="outline" size="sm">
+									<ExternalLink className="h-4 w-4 mr-2" />
+									View Public Page
+								</Button>
+							</Link>
+							<OrganizerCompetitionActions
+								competitionId={competition.id}
+								organizingTeamId={competition.organizingTeamId}
+							/>
+						</div>
 					</div>
 				</div>
 

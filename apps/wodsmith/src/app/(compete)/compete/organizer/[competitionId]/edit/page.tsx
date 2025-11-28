@@ -1,12 +1,11 @@
 import "server-only"
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition, getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { OrganizerCompetitionEditForm } from "./_components/organizer-competition-edit-form"
 
 interface EditCompetitionPageProps {
@@ -66,13 +65,12 @@ export default async function EditCompetitionPage({
 			<div className="max-w-2xl mx-auto">
 				{/* Header */}
 				<div className="mb-8">
-					<Link
-						href={`/compete/organizer/${competition.id}`}
-						className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to {competition.name}
-					</Link>
+					<OrganizerBreadcrumb
+						segments={[
+							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
+							{ label: "Edit" },
+						]}
+					/>
 					<h1 className="text-3xl font-bold">Edit Competition</h1>
 					<p className="text-muted-foreground mt-1">
 						Update competition details

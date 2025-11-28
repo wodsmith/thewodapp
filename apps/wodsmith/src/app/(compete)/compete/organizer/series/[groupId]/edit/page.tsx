@@ -1,11 +1,10 @@
 import "server-only"
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { OrganizerBreadcrumb } from "../../../_components/organizer-breadcrumb"
 import { OrganizerSeriesEditForm } from "./_components/organizer-series-edit-form"
 
 interface EditSeriesPageProps {
@@ -59,13 +58,13 @@ export default async function EditSeriesPage({
 			<div className="max-w-2xl mx-auto">
 				{/* Header */}
 				<div className="mb-8">
-					<Link
-						href={`/compete/organizer/series/${groupId}`}
-						className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to {group.name}
-					</Link>
+					<OrganizerBreadcrumb
+						segments={[
+							{ label: "Series", href: "/compete/organizer/series" },
+							{ label: group.name, href: `/compete/organizer/series/${groupId}` },
+							{ label: "Edit" },
+						]}
+					/>
 					<h1 className="text-3xl font-bold">Edit Series</h1>
 					<p className="text-muted-foreground mt-1">
 						Update series details

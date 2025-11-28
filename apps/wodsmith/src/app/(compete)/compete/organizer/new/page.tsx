@@ -1,10 +1,9 @@
 import "server-only"
 import type { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
 import { getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
+import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
 import { OrganizerCompetitionForm } from "./_components/organizer-competition-form"
 
 export const metadata: Metadata = {
@@ -43,13 +42,7 @@ export default async function NewCompetitionPage({
 			<div className="max-w-2xl mx-auto">
 				{/* Header */}
 				<div className="mb-8">
-					<Link
-						href="/compete/organizer"
-						className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to Competitions
-					</Link>
+					<OrganizerBreadcrumb segments={[{ label: "New Competition" }]} />
 					<h1 className="text-3xl font-bold">Create Competition</h1>
 					<p className="text-muted-foreground mt-1">
 						Set up a new competition for your athletes

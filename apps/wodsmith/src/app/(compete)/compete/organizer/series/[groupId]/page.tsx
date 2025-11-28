@@ -2,7 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -14,6 +14,7 @@ import {
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup, getCompetitions } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { OrganizerSeriesActions } from "./_components/organizer-series-actions"
 import { OrganizerCompetitionsList } from "../../_components/organizer-competitions-list"
 
@@ -74,14 +75,13 @@ export default async function SeriesDetailPage({
 			<div className="flex flex-col gap-6">
 				{/* Header */}
 				<div>
-					<Link
-						href="/compete/organizer/series"
-						className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to Series
-					</Link>
-					<div className="flex items-start justify-between">
+					<OrganizerBreadcrumb
+						segments={[
+							{ label: "Series", href: "/compete/organizer/series" },
+							{ label: group.name },
+						]}
+					/>
+					<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div>
 							<h1 className="text-3xl font-bold">{group.name}</h1>
 							{group.description && (

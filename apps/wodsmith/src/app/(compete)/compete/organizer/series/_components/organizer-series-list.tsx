@@ -1,6 +1,6 @@
 "use client"
 
-import { FolderOpen, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { FolderOpen, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -71,10 +71,16 @@ export function OrganizerSeriesList({
 				<CardContent className="pt-6">
 					<div className="text-center py-12">
 						<FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-						<p className="text-muted-foreground mb-2">No series found.</p>
-						<p className="text-sm text-muted-foreground">
-							Create a series to organize related competitions together.
+						<h3 className="text-lg font-medium mb-2">No series yet</h3>
+						<p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+							Create a series to organize related competitions together, like annual events or recurring challenges.
 						</p>
+						<Link href="/compete/organizer/series/new">
+							<Button>
+								<Plus className="h-4 w-4 mr-2" />
+								Create Series
+							</Button>
+						</Link>
 					</div>
 				</CardContent>
 			</Card>

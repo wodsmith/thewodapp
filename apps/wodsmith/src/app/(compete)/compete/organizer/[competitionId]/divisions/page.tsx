@@ -2,12 +2,12 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
 import { getCompetition } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
 import { requireTeamPermission } from "@/utils/team-auth"
+import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { OrganizerDivisionManager } from "./_components/organizer-division-manager"
 
 interface CompetitionDivisionsPageProps {
@@ -67,30 +67,12 @@ export default async function CompetitionDivisionsPage({
 			<div className="flex flex-col gap-6">
 				{/* Header */}
 				<div>
-					<Link
-						href={`/compete/organizer/${competition.id}`}
-						className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to {competition.name}
-					</Link>
-					<div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-						<Link
-							href="/compete/organizer"
-							className="hover:text-foreground"
-						>
-							Competitions
-						</Link>
-						<span>/</span>
-						<Link
-							href={`/compete/organizer/${competition.id}`}
-							className="hover:text-foreground"
-						>
-							{competition.name}
-						</Link>
-						<span>/</span>
-						<span>Divisions</span>
-					</div>
+					<OrganizerBreadcrumb
+						segments={[
+							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
+							{ label: "Divisions" },
+						]}
+					/>
 					<h1 className="text-3xl font-bold">Competition Divisions</h1>
 					<p className="text-muted-foreground mt-1">
 						Manage the divisions for this competition

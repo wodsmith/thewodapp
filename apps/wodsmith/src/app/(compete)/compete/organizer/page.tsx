@@ -48,19 +48,19 @@ export default async function OrganizerDashboard({
 		<div className="container mx-auto px-4 py-8">
 			<div className="flex flex-col gap-6">
 				{/* Header */}
-				<div className="flex items-center justify-between">
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<div>
 						<h1 className="text-3xl font-bold">My Competitions</h1>
 						<p className="text-muted-foreground mt-1">
 							Create and manage your competitions
 						</p>
 					</div>
-					<div className="flex gap-2">
+					<div className="flex flex-col sm:flex-row gap-2">
 						<Link href="/compete/organizer/series">
-							<Button variant="outline">Manage Series</Button>
+							<Button variant="outline" className="w-full sm:w-auto">Manage Series</Button>
 						</Link>
 						<Link href="/compete/organizer/new">
-							<Button>
+							<Button className="w-full sm:w-auto">
 								<Plus className="h-4 w-4 mr-2" />
 								Create Competition
 							</Button>

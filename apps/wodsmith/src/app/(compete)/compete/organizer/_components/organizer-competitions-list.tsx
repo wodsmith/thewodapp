@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, ExternalLink, Filter, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Calendar, ExternalLink, Filter, MoreHorizontal, Pencil, Plus, Trash2, Trophy } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
@@ -126,12 +126,17 @@ export function OrganizerCompetitionsList({
 					<Card>
 						<CardContent className="pt-6">
 							<div className="text-center py-12">
-								<p className="text-muted-foreground mb-4">
-									No competitions found.
+								<Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+								<h3 className="text-lg font-medium mb-2">No competitions yet</h3>
+								<p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+									Create your first competition to start managing registrations, divisions, and more.
 								</p>
-								<p className="text-sm text-muted-foreground">
-									Create a competition to get started.
-								</p>
+								<Link href="/compete/organizer/new">
+									<Button>
+										<Plus className="h-4 w-4 mr-2" />
+										Create Competition
+									</Button>
+								</Link>
 							</div>
 						</CardContent>
 					</Card>

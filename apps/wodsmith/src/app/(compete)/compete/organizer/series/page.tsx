@@ -1,10 +1,11 @@
 import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups } from "@/server/competitions"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
+import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
 import { OrganizerSeriesList } from "./_components/organizer-series-list"
 import { TeamFilter } from "../_components/team-filter"
 
@@ -40,14 +41,8 @@ export default async function SeriesPage({
 			<div className="flex flex-col gap-6">
 				{/* Header */}
 				<div>
-					<Link
-						href="/compete/organizer"
-						className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to Competitions
-					</Link>
-					<div className="flex items-center justify-between">
+					<OrganizerBreadcrumb segments={[{ label: "Series" }]} />
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 						<div>
 							<h1 className="text-3xl font-bold">Competition Series</h1>
 							<p className="text-muted-foreground mt-1">
@@ -55,7 +50,7 @@ export default async function SeriesPage({
 							</p>
 						</div>
 						<Link href="/compete/organizer/series/new">
-							<Button>
+							<Button className="w-full sm:w-auto">
 								<Plus className="h-4 w-4 mr-2" />
 								Create Series
 							</Button>
