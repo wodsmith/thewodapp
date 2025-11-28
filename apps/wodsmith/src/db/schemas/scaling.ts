@@ -50,6 +50,7 @@ export const scalingLevelsTable = sqliteTable(
 			}),
 		label: text({ length: 100 }).notNull(),
 		position: integer().notNull(), // 0 = hardest, increasing numbers = easier
+		teamSize: integer().default(1).notNull(), // 1 = individual, 2+ = team
 	},
 	(table) => [
 		index("scaling_levels_group_idx").on(table.scalingGroupId),

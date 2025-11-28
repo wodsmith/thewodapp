@@ -41,6 +41,7 @@ export interface KVSession {
 		id: string
 		name: string
 		slug: string
+		type: string
 		isPersonalTeam: boolean
 		role: {
 			id: string

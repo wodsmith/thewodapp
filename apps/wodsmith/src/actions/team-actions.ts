@@ -10,6 +10,7 @@ import {
 	getUserTeams,
 	updateTeam,
 } from "@/server/teams"
+import { acceptTeamInvitation } from "@/server/team-members"
 import { requireVerifiedEmail, setActiveTeamCookie } from "@/utils/auth"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 
@@ -216,5 +217,29 @@ export const setActiveTeamAction = createServerAction()
 				"INTERNAL_SERVER_ERROR",
 				"Failed to set active team",
 			)
+		}
+	})
+
+const acceptTeamInvitationSchema = z.object({
+	token: z.string().min(1, "Invitation token is required"),
+})
+
+/**
+ * Accept a team invitation
+ */
+export const acceptTeamInvitationAction = createServerAction()
+	.input(acceptTeamInvitationSchema)
+	.handler(async ({ input }) => {
+		try {
+			const result = await acceptTeamInvitation(input.token)
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to accept team invitation:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("ERROR", "Failed to accept team invitation")
 		}
 	})

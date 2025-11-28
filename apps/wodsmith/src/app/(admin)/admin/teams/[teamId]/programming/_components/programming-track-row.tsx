@@ -14,7 +14,7 @@ interface ProgrammingTrackRowProps {
 
 export function ProgrammingTrackRow({
 	track,
-	teamId,
+	teamId: _teamId,
 	scalingGroup,
 }: ProgrammingTrackRowProps) {
 	const getTypeColor = (type: string) => {

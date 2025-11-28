@@ -21,6 +21,7 @@ interface Team {
 	id: string
 	name: string
 	slug: string
+	type: string
 	isPersonalTeam: boolean
 }
 

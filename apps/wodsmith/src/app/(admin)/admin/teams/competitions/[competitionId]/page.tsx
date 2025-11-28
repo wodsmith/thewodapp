@@ -61,8 +61,8 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Verify the competition belongs to this team
-	if (competition.organizingTeamId !== team.id) {
+	// Verify the competition belongs to this team (organizing or event team)
+	if (competition.organizingTeamId !== team.id && competition.competitionTeamId !== team.id) {
 		notFound()
 	}
 

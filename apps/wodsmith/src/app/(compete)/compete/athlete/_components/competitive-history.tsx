@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Trophy } from "lucide-react"
+import { Calendar, MapPin, Trophy, Users } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import {
 type CompetitionRegistration = {
 	id: string
 	registeredAt: Date | number
+	teamName: string | null
 	competition: {
 		id: string
 		name: string
@@ -25,6 +26,10 @@ type CompetitionRegistration = {
 	} | null
 	division: {
 		label: string
+		teamSize: number
+	} | null
+	athleteTeam?: {
+		name: string
 	} | null
 }
 
@@ -84,6 +89,7 @@ export function CompetitiveHistory({
 				<div className="space-y-4">
 					{registrations.map((registration) => {
 						if (!registration.competition) return null
+						const isTeamRegistration = (registration.division?.teamSize ?? 1) > 1
 
 						return (
 							<div
@@ -100,6 +106,13 @@ export function CompetitiveHistory({
 												{registration.competition.name}
 											</Link>
 										</h3>
+
+										{isTeamRegistration && (registration.teamName || registration.athleteTeam?.name) && (
+											<p className="text-sm text-muted-foreground mt-1">
+												<Users className="inline h-3 w-3 mr-1" />
+												{registration.teamName || registration.athleteTeam?.name}
+											</p>
+										)}
 
 										<div className="mt-2 flex flex-wrap gap-3 text-sm">
 											<div className="text-muted-foreground flex items-center gap-1">
@@ -124,11 +137,21 @@ export function CompetitiveHistory({
 										</div>
 									</div>
 
-									<Button asChild variant="outline" size="sm">
-										<Link href={`/compete/${registration.competition.slug}`}>
-											View Event
-										</Link>
-									</Button>
+									<div className="flex gap-2">
+										{isTeamRegistration && (
+											<Button asChild variant="outline" size="sm">
+												<Link href={`/compete/${registration.competition.slug}/teams/${registration.id}`}>
+													<Users className="h-3 w-3 mr-1" />
+													Team
+												</Link>
+											</Button>
+										)}
+										<Button asChild variant="outline" size="sm">
+											<Link href={`/compete/${registration.competition.slug}`}>
+												View Event
+											</Link>
+										</Button>
+									</div>
 								</div>
 							</div>
 						)

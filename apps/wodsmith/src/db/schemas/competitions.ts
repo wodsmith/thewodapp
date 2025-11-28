@@ -103,7 +103,7 @@ export const competitionRegistrationsTable = sqliteTable(
 		eventId: text()
 			.notNull()
 			.references(() => competitionsTable.id, { onDelete: "cascade" }),
-		// The user who registered
+		// The user who registered (captain for team registrations)
 		userId: text()
 			.notNull()
 			.references(() => userTable.id, { onDelete: "cascade" }),
@@ -115,6 +115,22 @@ export const competitionRegistrationsTable = sqliteTable(
 		divisionId: text().references(() => scalingLevelsTable.id),
 		// When the athlete registered
 		registeredAt: integer({ mode: "timestamp" }).notNull(),
+		// Team info (NULL for individual registrations)
+		teamName: text({ length: 255 }),
+		// Who created the registration (same as userId for individuals)
+		captainUserId: text().references(() => userTable.id, {
+			onDelete: "set null",
+		}),
+		// For team registrations, the athlete team (competition_team type)
+		// NULL for individual registrations (teamSize=1)
+		athleteTeamId: text().references(() => teamTable.id, {
+			onDelete: "set null",
+		}),
+		// Pending teammates stored as JSON until they accept
+		// Format: [{ email, firstName?, lastName?, affiliateName? }, ...]
+		pendingTeammates: text({ length: 5000 }), // JSON array
+		// Metadata as JSON (flexible for future expansion)
+		metadata: text({ length: 10000 }), // JSON: { notes: "..." }
 	},
 	(table) => [
 		// One user can only register once per competition
@@ -125,6 +141,8 @@ export const competitionRegistrationsTable = sqliteTable(
 		index("competition_registrations_user_idx").on(table.userId),
 		index("competition_registrations_event_idx").on(table.eventId),
 		index("competition_registrations_division_idx").on(table.divisionId),
+		index("competition_registrations_captain_idx").on(table.captainUserId),
+		index("competition_registrations_athlete_team_idx").on(table.athleteTeamId),
 	],
 )
 
@@ -186,6 +204,13 @@ export const competitionRegistrationsRelations = relations(
 		user: one(userTable, {
 			fields: [competitionRegistrationsTable.userId],
 			references: [userTable.id],
+			relationName: "registeredUser",
+		}),
+		// The captain who created the registration (for team registrations)
+		captain: one(userTable, {
+			fields: [competitionRegistrationsTable.captainUserId],
+			references: [userTable.id],
+			relationName: "captainUser",
 		}),
 		// The team membership in the competition_event team
 		teamMember: one(teamMembershipTable, {
@@ -196,6 +221,12 @@ export const competitionRegistrationsRelations = relations(
 		division: one(scalingLevelsTable, {
 			fields: [competitionRegistrationsTable.divisionId],
 			references: [scalingLevelsTable.id],
+		}),
+		// The athlete team (competition_team type) for team registrations
+		athleteTeam: one(teamTable, {
+			fields: [competitionRegistrationsTable.athleteTeamId],
+			references: [teamTable.id],
+			relationName: "athleteTeamRegistration",
 		}),
 	}),
 )

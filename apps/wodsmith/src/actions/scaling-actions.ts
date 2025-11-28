@@ -464,6 +464,163 @@ export const getWorkoutScalingDescriptionsAction = createServerAction()
 	})
 
 /**
+ * Create a new scaling level in a group
+ */
+export const createScalingLevelAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			scalingGroupId: z.string().min(1, "Group ID is required"),
+			label: z.string().min(1, "Label is required").max(100),
+			position: z.number().int().min(0).optional(),
+			teamSize: z.number().int().min(1).default(1),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			}
+
+			const canEdit = await hasTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.EDIT_COMPONENTS,
+			)
+
+			if (!canEdit) {
+				throw new ZSAError("FORBIDDEN", "Cannot edit scaling groups in this team")
+			}
+
+			const level = await createScalingLevelServer({
+				teamId: input.teamId,
+				scalingGroupId: input.scalingGroupId,
+				label: input.label,
+				position: input.position,
+				teamSize: input.teamSize,
+			})
+
+			revalidatePath("/admin/teams/competitions")
+
+			return { success: true, data: level }
+		} catch (error) {
+			console.error("Failed to create scaling level:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create scaling level")
+		}
+	})
+
+/**
+ * Update a scaling level
+ */
+export const updateScalingLevelAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			scalingLevelId: z.string().min(1, "Level ID is required"),
+			label: z.string().min(1, "Label is required").max(100).optional(),
+			teamSize: z.number().int().min(1).optional(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			}
+
+			const canEdit = await hasTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.EDIT_COMPONENTS,
+			)
+
+			if (!canEdit) {
+				throw new ZSAError("FORBIDDEN", "Cannot edit scaling groups in this team")
+			}
+
+			const { updateScalingLevel } = await import("@/server/scaling-levels")
+			const level = await updateScalingLevel({
+				teamId: input.teamId,
+				scalingLevelId: input.scalingLevelId,
+				data: {
+					label: input.label,
+					teamSize: input.teamSize,
+				},
+			})
+
+			if (!level) {
+				throw new ZSAError("NOT_FOUND", "Scaling level not found")
+			}
+
+			revalidatePath("/admin/teams/competitions")
+
+			return { success: true, data: level }
+		} catch (error) {
+			console.error("Failed to update scaling level:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update scaling level")
+		}
+	})
+
+/**
+ * Delete a scaling level
+ */
+export const deleteScalingLevelAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			scalingLevelId: z.string().min(1, "Level ID is required"),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			}
+
+			const canEdit = await hasTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.EDIT_COMPONENTS,
+			)
+
+			if (!canEdit) {
+				throw new ZSAError("FORBIDDEN", "Cannot edit scaling groups in this team")
+			}
+
+			const { deleteScalingLevel } = await import("@/server/scaling-levels")
+			const result = await deleteScalingLevel({
+				teamId: input.teamId,
+				scalingLevelId: input.scalingLevelId,
+			})
+
+			if (!result.success) {
+				throw new ZSAError("INTERNAL_SERVER_ERROR", result.error || "Failed to delete")
+			}
+
+			revalidatePath("/admin/teams/competitions")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to delete scaling level:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to delete scaling level")
+		}
+	})
+
+/**
  * Update workout scaling descriptions
  */
 export const updateWorkoutScalingDescriptionsAction = createServerAction()

@@ -20,6 +20,7 @@ import {
 	registerForCompetition,
 	updateCompetition,
 	updateCompetitionGroup,
+	updateRegistrationAffiliate,
 } from "@/server/competitions"
 import {
 	cancelCompetitionRegistrationSchema,
@@ -36,6 +37,7 @@ import {
 	registerForCompetitionSchema,
 	updateCompetitionGroupSchema,
 	updateCompetitionSchema,
+	updateRegistrationAffiliateSchema,
 } from "@/schemas/competitions"
 
 /* -------------------------------------------------------------------------- */
@@ -528,5 +530,41 @@ export const cancelCompetitionRegistrationAction = createServerAction()
 				throw new ZSAError("ERROR", error.message)
 			}
 			throw new ZSAError("ERROR", "Failed to cancel registration")
+		}
+	})
+
+/**
+ * Update registration affiliate
+ */
+export const updateRegistrationAffiliateAction = createServerAction()
+	.input(updateRegistrationAffiliateSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Get current user from session
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
+			}
+
+			// Validate user ID matches session
+			if (input.userId !== session.userId) {
+				throw new ZSAError("FORBIDDEN", "You can only update your own registration")
+			}
+
+			const result = await updateRegistrationAffiliate(input)
+
+			// Revalidate pages
+			revalidatePath("/compete")
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to update affiliate:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to update affiliate")
 		}
 	})

@@ -16,6 +16,7 @@ import {
 } from "./common"
 import {
 	competitionGroupsTable,
+	competitionRegistrationsTable,
 	competitionsTable,
 } from "./competitions"
 import { userTable } from "./users"
@@ -24,6 +25,7 @@ import { userTable } from "./users"
 export const TEAM_TYPE_ENUM = {
 	GYM: "gym",
 	COMPETITION_EVENT: "competition_event",
+	COMPETITION_TEAM: "competition_team", // Athlete squads for team competitions
 	PERSONAL: "personal",
 } as const
 
@@ -33,6 +35,7 @@ export type TeamType = (typeof TEAM_TYPE_ENUM)[keyof typeof TEAM_TYPE_ENUM]
 export const SYSTEM_ROLES_ENUM = {
 	OWNER: "owner",
 	ADMIN: "admin",
+	CAPTAIN: "captain", // Competition team captain
 	MEMBER: "member",
 	GUEST: "guest",
 } as const
@@ -259,6 +262,10 @@ export const teamRelations = relations(teamTable, ({ many, one }) => ({
 	// Competitions managed by this team (as the competition_event team)
 	managedCompetitions: many(competitionsTable, {
 		relationName: "competitionTeam",
+	}),
+	// Registrations where this team is the athlete team (competition_team type)
+	athleteTeamRegistrations: many(competitionRegistrationsTable, {
+		relationName: "athleteTeamRegistration",
 	}),
 }))
 

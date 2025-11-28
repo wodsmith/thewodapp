@@ -99,6 +99,7 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 		id: string
 		name: string
 		slug: string
+		type: string
 		isPersonalTeam: boolean
 		role: {
 			id: string
@@ -191,6 +192,7 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 			id: membership.teamId,
 			name: team?.name ?? "",
 			slug: team?.slug ?? "",
+			type: team?.type ?? "gym",
 			isPersonalTeam: !!(team?.isPersonalTeam),
 			role: {
 				id: membership.roleId,
@@ -255,6 +257,12 @@ export async function createAndStoreSession(
 		userId,
 		expiresAt: new Date(session.expiresAt),
 	})
+
+	// Set personal team as active by default
+	const personalTeam = session.teams?.find((t) => t.isPersonalTeam)
+	if (personalTeam) {
+		await setActiveTeamCookie(personalTeam.id)
+	}
 }
 
 async function validateSessionToken(

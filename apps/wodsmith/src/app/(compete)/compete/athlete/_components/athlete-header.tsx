@@ -1,6 +1,6 @@
 "use client"
 
-import { Edit, Share2 } from "lucide-react"
+import { Edit } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -24,11 +24,11 @@ export function AthleteHeader({
 	gymName,
 	age,
 }: AthleteHeaderProps) {
-	const handleShare = async () => {
+	const _handleShare = async () => {
 		try {
 			await navigator.clipboard.writeText(window.location.href)
 			toast.success("Profile link copied to clipboard")
-		} catch (error) {
+		} catch {
 			toast.error("Failed to copy link")
 		}
 	}

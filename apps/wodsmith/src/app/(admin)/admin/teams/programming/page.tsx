@@ -26,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ProgrammingTrackPage() {
-	const { teamId, team } = await getAdminTeamContext()
+	const { teamId: _teamId, team } = await getAdminTeamContext()
 	const db = getDb()
 
 	// Check if user has permission to manage programming tracks

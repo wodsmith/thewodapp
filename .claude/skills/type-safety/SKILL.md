@@ -1,6 +1,6 @@
 ---
 name: type-safety
-description: Fix type assertions and improve TypeScript type safety. Use when encountering 'as unknown as' casts, manual type definitions that duplicate schema types, or unclear type errors in database queries, especially with Drizzle ORM relations.
+description: Fix type assertions and improve TypeScript type safety. Use when encountering 'as unknown as' casts, manual type definitions that duplicate schema types, or unclear type errors in database queries, especially with Drizzle ORM relations. Also use when verifying types
 ---
 
 # Type Safety

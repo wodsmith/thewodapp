@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
+import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionHistory } from "@/server/competitions"
+import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getUserGymAffiliation } from "@/server/user"
 import { getSessionFromCookie } from "@/utils/auth"
 import { calculateAge, parseAthleteProfile } from "@/utils/athlete-profile"
@@ -42,10 +44,11 @@ export default async function AthletePage() {
 	// Parse athlete profile JSON
 	const athleteProfile = parseAthleteProfile(user.athleteProfile)
 
-	// Get gym affiliation and competition history in parallel
-	const [gym, competitionHistory] = await Promise.all([
+	// Get gym affiliation, competition history, and pending invitations in parallel
+	const [gym, competitionHistory, pendingInvitations] = await Promise.all([
 		getUserGymAffiliation(session.userId),
 		getUserCompetitionHistory(session.userId),
+		getPendingInvitationsForCurrentUser().catch(() => []),
 	])
 
 	// Calculate age
@@ -66,6 +69,17 @@ export default async function AthletePage() {
 				dateOfBirth={user.dateOfBirth}
 				athleteProfile={athleteProfile}
 			/>
+
+			{/* Pending Team Invites */}
+			{pendingInvitations.length > 0 && (
+				<>
+					<Separator />
+					<section className="space-y-4">
+						<h2 className="font-semibold text-lg">Pending Team Invites</h2>
+						<PendingTeamInvites invitations={pendingInvitations} variant="inline" />
+					</section>
+				</>
+			)}
 
 			<Separator />
 

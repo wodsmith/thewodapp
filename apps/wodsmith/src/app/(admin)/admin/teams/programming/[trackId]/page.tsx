@@ -48,7 +48,7 @@ export async function generateMetadata({
 export default async function TrackWorkoutPage({
 	params,
 }: TrackWorkoutPageProps) {
-	const { teamId, team, session } = await getAdminTeamContext()
+	const { teamId: _teamId, team, session } = await getAdminTeamContext()
 	const { trackId } = await params
 	const db = getDb()
 

@@ -1,8 +1,10 @@
 import "server-only"
+import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { TEAM_PERMISSIONS } from "@/db/schema"
+import { getDb } from "@/db"
+import { TEAM_PERMISSIONS, competitionsTable } from "@/db/schema"
 import { getCompetitionGroup } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { getAdminTeamContext } from "../../../../_utils/get-team-context"
@@ -37,6 +39,7 @@ export async function generateMetadata({
 export default async function EditSeriesPage({ params }: EditSeriesPageProps) {
 	const { team } = await getAdminTeamContext()
 	const { groupId } = await params
+	const db = getDb()
 
 	// Check if user has permission to manage competitions
 	await requireTeamPermission(team.id, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
@@ -48,8 +51,17 @@ export default async function EditSeriesPage({ params }: EditSeriesPageProps) {
 		notFound()
 	}
 
-	// Verify the group belongs to this team
-	if (group.organizingTeamId !== team.id) {
+	// Check if current team has any competition in this group
+	const competitions = await db.query.competitionsTable.findMany({
+		where: eq(competitionsTable.groupId, groupId),
+		columns: { competitionTeamId: true },
+	})
+
+	// Verify the group belongs to this team (organizing team or has a competition with this team)
+	const hasCompetitionInGroup = competitions.some(
+		(c) => c.competitionTeamId === team.id
+	)
+	if (group.organizingTeamId !== team.id && !hasCompetitionInGroup) {
 		notFound()
 	}
 

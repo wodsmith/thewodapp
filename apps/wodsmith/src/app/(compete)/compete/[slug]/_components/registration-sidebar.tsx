@@ -1,4 +1,5 @@
-import { Calendar, CheckCircle2, Clock, Mail, MapPin } from "lucide-react"
+import { Calendar, CheckCircle2, Clock, Mail, MapPin, Users } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
@@ -13,6 +14,9 @@ interface RegistrationSidebarProps {
 	registrationCount: number
 	maxSpots?: number
 	userDivision?: string | null
+	registrationId?: string | null
+	isTeamRegistration?: boolean
+	isCaptain?: boolean
 }
 
 function formatDateShort(date: Date | number): string {
@@ -36,6 +40,9 @@ export function RegistrationSidebar({
 	registrationCount,
 	maxSpots,
 	userDivision,
+	registrationId,
+	isTeamRegistration,
+	isCaptain,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 
@@ -46,7 +53,7 @@ export function RegistrationSidebar({
 				<Card className="border-2 border-teal-500/20 bg-gradient-to-br from-teal-500/5 to-transparent">
 					<CardContent className="p-4">
 						{isRegistered ? (
-							<div className="space-y-2">
+							<div className="space-y-3">
 								<div className="flex items-center gap-2 text-green-600">
 									<CheckCircle2 className="h-5 w-5" />
 									<span className="font-semibold">You're Registered!</span>
@@ -55,6 +62,18 @@ export function RegistrationSidebar({
 									<p className="text-sm text-muted-foreground">
 										Division: <span className="font-medium">{userDivision}</span>
 									</p>
+								)}
+								{registrationId && (
+									<Button asChild variant="outline" size="sm" className="w-full">
+										<Link href={`/compete/${competition.slug}/teams/${registrationId}`}>
+											<Users className="mr-2 h-4 w-4" />
+											{isTeamRegistration
+												? isCaptain
+													? "Manage Team"
+													: "View Team"
+												: "View Registration"}
+										</Link>
+									</Button>
 								)}
 							</div>
 						) : (
