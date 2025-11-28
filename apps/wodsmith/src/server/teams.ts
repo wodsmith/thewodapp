@@ -9,6 +9,7 @@ import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
+	TEAM_TYPE_ENUM,
 	teamMembershipTable,
 	teamRoleTable,
 	teamSubscriptionTable,
@@ -310,7 +311,14 @@ export async function getUserTeams() {
 		)
 	}
 
-	return userTeams.map((membership) => membership.team)
+	// Filter out competition-related teams (competition_event and competition_team)
+	return userTeams
+		.map((membership) => membership.team)
+		.filter(
+			(team) =>
+				team.type !== TEAM_TYPE_ENUM.COMPETITION_EVENT &&
+				team.type !== TEAM_TYPE_ENUM.COMPETITION_TEAM,
+		)
 }
 
 /**
