@@ -64,16 +64,19 @@ export default async function CompetitionGroupDetailPage({
 		notFound()
 	}
 
-	// Verify the group belongs to this team
-	if (group.organizingTeamId !== team.id) {
-		notFound()
-	}
-
 	// Get all competitions in this group
 	const competitions = await db.query.competitionsTable.findMany({
 		where: eq(competitionsTable.groupId, groupId),
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
+
+	// Verify the group belongs to this team (organizing team or has a competition with this team)
+	const hasCompetitionInGroup = competitions.some(
+		(c) => c.competitionTeamId === team.id
+	)
+	if (group.organizingTeamId !== team.id && !hasCompetitionInGroup) {
+		notFound()
+	}
 
 	return (
 		<div className="flex flex-col gap-6">

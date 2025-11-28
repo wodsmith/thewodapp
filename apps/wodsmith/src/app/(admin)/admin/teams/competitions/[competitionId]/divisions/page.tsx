@@ -2,7 +2,6 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -17,6 +16,7 @@ import { getScalingGroupWithLevels } from "@/server/scaling-groups"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { getAdminTeamContext } from "../../../_utils/get-team-context"
+import { DivisionManager } from "./_components/division-manager"
 
 interface CompetitionDivisionsPageProps {
 	params: Promise<{
@@ -60,8 +60,8 @@ export default async function CompetitionDivisionsPage({
 		notFound()
 	}
 
-	// Verify the competition belongs to this team
-	if (competition.organizingTeamId !== team.id) {
+	// Verify the competition belongs to this team (organizing or event team)
+	if (competition.organizingTeamId !== team.id && competition.competitionTeamId !== team.id) {
 		notFound()
 	}
 
@@ -147,69 +147,19 @@ export default async function CompetitionDivisionsPage({
 				</Card>
 			) : (
 				<>
-					<Card>
-						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div>
-									<CardTitle>{scalingGroup.title}</CardTitle>
-									<CardDescription>
-										{scalingGroup.description || "Scaling group for divisions"}
-									</CardDescription>
-								</div>
-								<div className="flex gap-2">
-									<Link
-										href={`/admin/teams/competitions/${competition.id}/edit`}
-									>
-										<Button variant="outline" size="sm">
-											Change Divisions
-										</Button>
-									</Link>
-									<Link href="/admin/teams/scaling">
-										<Button variant="outline" size="sm">
-											Manage Scaling Groups
-										</Button>
-									</Link>
-								</div>
-							</div>
-						</CardHeader>
-						<CardContent>
-							<div className="space-y-4">
-								<div>
-									<h3 className="text-lg font-semibold mb-3">
-										Division Levels
-									</h3>
-									<div className="space-y-2">
-										{scalingGroup.levels.map((level) => (
-											<div
-												key={level.id}
-												className="flex items-center justify-between p-3 border rounded-lg"
-											>
-												<div className="flex items-center gap-3">
-													<Badge variant="outline">
-														Position {level.position}
-													</Badge>
-													<span className="font-medium">{level.label}</span>
-												</div>
-												<div className="text-sm text-muted-foreground">
-													{/* TODO: Add registration count per division in Phase 4 */}
-													0 registrations
-												</div>
-											</div>
-										))}
-									</div>
-								</div>
-
-								{scalingGroup.levels.length === 0 && (
-									<div className="text-center py-8 text-muted-foreground">
-										<p>No levels defined in this scaling group.</p>
-										<p className="text-sm mt-1">
-											Add levels to this scaling group to create divisions.
-										</p>
-									</div>
-								)}
-							</div>
-						</CardContent>
-					</Card>
+					<DivisionManager
+						teamId={team.id}
+						competitionId={competition.id}
+						scalingGroupId={scalingGroupId}
+						scalingGroupTitle={scalingGroup.title}
+						scalingGroupDescription={scalingGroup.description}
+						levels={scalingGroup.levels.map((level) => ({
+							id: level.id,
+							label: level.label,
+							position: level.position,
+							teamSize: level.teamSize,
+						}))}
+					/>
 
 					<Card>
 						<CardHeader>
@@ -220,16 +170,16 @@ export default async function CompetitionDivisionsPage({
 						</CardHeader>
 						<CardContent className="space-y-2 text-sm">
 							<p>
-								Athletes will select their division (scaling level) when
-								registering for this competition.
+								Athletes will select their division when registering for this
+								competition.
 							</p>
 							<p>
-								The position number indicates difficulty: 0 is the hardest, and
-								higher numbers are progressively easier.
+								<strong>Position:</strong> #1 is the most difficult (e.g., RX),
+								and higher numbers are progressively easier (e.g., Scaled).
 							</p>
 							<p>
-								You can manage the scaling levels by clicking "Manage Scaling
-								Groups" above.
+								<strong>Team Size:</strong> Individual divisions have size 1.
+								Team divisions (pairs, teams of 3, etc.) have size 2+.
 							</p>
 						</CardContent>
 					</Card>
