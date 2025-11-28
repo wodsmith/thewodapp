@@ -61,7 +61,7 @@ export async function createScalingLevel({
 
 	if (group.teamId) {
 		if (!teamId) throw new Error("Forbidden")
-		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_COMPONENTS)
 		if (group.teamId !== teamId) throw new Error("Forbidden")
 	}
 
@@ -120,7 +120,7 @@ export async function updateScalingLevel({
 
 	if (group.teamId) {
 		if (!teamId) return null
-		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_COMPONENTS)
 		if (group.teamId !== teamId) return null
 	}
 
@@ -157,7 +157,7 @@ export async function reorderScalingLevels({
 
 	if (group.teamId) {
 		if (!teamId) return { success: false, error: "Forbidden" }
-		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_COMPONENTS)
 		if (group.teamId !== teamId) return { success: false, error: "Forbidden" }
 	}
 
@@ -203,7 +203,7 @@ export async function deleteScalingLevel({
 
 	if (group.teamId) {
 		if (!teamId) return { success: false, error: "Forbidden" }
-		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_COMPONENTS)
 		if (group.teamId !== teamId) return { success: false, error: "Forbidden" }
 	}
 
@@ -319,7 +319,7 @@ export async function createWorkoutRemixAlignedToScalingGroup({
 	if (!group) throw new Error("Scaling group not found")
 
 	if (group.teamId) {
-		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.EDIT_COMPONENTS)
 		if (group.teamId !== teamId) throw new Error("Forbidden")
 	}
 
