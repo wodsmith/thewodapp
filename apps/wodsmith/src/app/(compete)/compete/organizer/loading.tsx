@@ -20,6 +20,7 @@ export default function OrganizerLoading() {
 				{/* Grid skeleton */}
 				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 					{Array.from({ length: 6 }).map((_, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton content
 						<Card key={i}>
 							<CardHeader>
 								<Skeleton className="h-6 w-3/4 mb-2" />
