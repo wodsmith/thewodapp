@@ -66,7 +66,7 @@ export function TrackWorkoutRow({
 			trackWorkoutId: trackWorkout.id,
 			index,
 			instanceId,
-			dayNumber: trackWorkout.dayNumber,
+			trackOrder: trackWorkout.trackOrder,
 		}
 
 		function onChange({ source, self }: ElementDropTargetEventBasePayload) {
@@ -150,7 +150,7 @@ export function TrackWorkoutRow({
 								}
 							}
 
-							preview.textContent = `Day ${trackWorkout.dayNumber}: ${
+							preview.textContent = `Event ${trackWorkout.trackOrder}: ${
 								workoutDetails?.name || "Workout"
 							}`
 							container.appendChild(preview)
@@ -218,7 +218,7 @@ export function TrackWorkoutRow({
 							<div className="flex flex-row gap-2 items-center">
 								<div className="flex items-center gap-3 mb-1 opacity-70">
 									<div className="text-primary px-2 py-1 text-xs font-mono font-bold">
-										{trackWorkout.dayNumber}
+										{trackWorkout.trackOrder}
 									</div>
 								</div>
 								<h3 className="text-lg font-mono tracking-tight font-bold">

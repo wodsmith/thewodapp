@@ -96,9 +96,9 @@ export const addWorkoutToTrackSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().min(1, "Track ID is required"),
 	workoutId: z.string().min(1, "Workout ID is required"),
-	dayNumber: z.number().int().min(1, "Day number must be at least 1"),
-	weekNumber: z.number().int().min(1).optional(),
+	trackOrder: z.number().int().min(1, "Track order must be at least 1"),
 	notes: z.string().max(1000, "Notes are too long").optional(),
+	pointsMultiplier: z.number().int().min(1).optional(),
 })
 
 export const removeWorkoutFromTrackSchema = z.object({
@@ -111,13 +111,13 @@ export const updateTrackWorkoutSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().min(1, "Track ID is required"),
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
-	dayNumber: z
+	trackOrder: z
 		.number()
 		.int()
-		.min(1, "Day number must be at least 1")
+		.min(1, "Track order must be at least 1")
 		.optional(),
-	weekNumber: z.number().int().min(1).optional(),
 	notes: z.string().max(1000, "Notes are too long").optional(),
+	pointsMultiplier: z.number().int().min(1).optional(),
 })
 
 export const getTrackWorkoutsSchema = z.object({
@@ -132,7 +132,7 @@ export const reorderTrackWorkoutsSchema = z.object({
 		.array(
 			z.object({
 				trackWorkoutId: z.string().min(1, "Track Workout ID is required"),
-				dayNumber: z.number().int().min(1, "Day number must be at least 1"),
+				trackOrder: z.number().int().min(1, "Track order must be at least 1"),
 			}),
 		)
 		.min(1, "At least one update is required"),

@@ -14,6 +14,7 @@ import { type Workout, workouts } from "@/db/schemas/workouts"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 
 interface PublicProgrammingTrack extends ProgrammingTrack {
+	competitionId: string | null
 	ownerTeam: {
 		id: string
 		name: string
@@ -35,6 +36,7 @@ export async function getPublicProgrammingTracks(): Promise<
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -63,6 +65,7 @@ export async function getTeamProgrammingTracks(
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -103,6 +106,7 @@ export async function getProgrammingTrackById(
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -173,7 +177,7 @@ export async function getPaginatedTrackWorkouts(
 		.from(trackWorkoutsTable)
 		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
-		.orderBy(desc(trackWorkoutsTable.dayNumber))
+		.orderBy(desc(trackWorkoutsTable.trackOrder))
 		.limit(validPageSize)
 		.offset(offset)
 
@@ -264,8 +268,8 @@ export async function detectExternalProgrammingTrackWorkouts(
 			trackWorkoutId: trackWorkoutsTable.id,
 			trackWorkoutTrackId: trackWorkoutsTable.trackId,
 			trackWorkoutWorkoutId: trackWorkoutsTable.workoutId,
-			trackWorkoutDayNumber: trackWorkoutsTable.dayNumber,
-			trackWorkoutWeekNumber: trackWorkoutsTable.weekNumber,
+			trackWorkoutTrackOrder: trackWorkoutsTable.trackOrder,
+			trackWorkoutPointsMultiplier: trackWorkoutsTable.pointsMultiplier,
 			trackWorkoutNotes: trackWorkoutsTable.notes,
 			trackWorkoutCreatedAt: trackWorkoutsTable.createdAt,
 			trackWorkoutUpdatedAt: trackWorkoutsTable.updatedAt,
@@ -332,8 +336,8 @@ export async function detectExternalProgrammingTrackWorkouts(
 						id: row.trackWorkoutId,
 						trackId: row.trackWorkoutTrackId as string,
 						workoutId: row.trackWorkoutWorkoutId as string,
-						dayNumber: (row.trackWorkoutDayNumber ?? 0) as number,
-						weekNumber: row.trackWorkoutWeekNumber,
+						trackOrder: (row.trackWorkoutTrackOrder ?? 0) as number,
+						pointsMultiplier: row.trackWorkoutPointsMultiplier,
 						notes: row.trackWorkoutNotes,
 						createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
 						updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,

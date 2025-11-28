@@ -464,6 +464,20 @@ export async function createCompetition(params: {
 		throw new Error("Failed to create competition")
 	}
 
+	// Step 3: Auto-create programming track for competition events
+	const { programmingTracksTable, PROGRAMMING_TRACK_TYPE } = await import(
+		"@/db/schema"
+	)
+
+	await db.insert(programmingTracksTable).values({
+		name: `${params.name} - Events`,
+		description: `Competition events for ${params.name}`,
+		type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+		ownerTeamId: competitionTeamId,
+		competitionId: competition.id,
+		isPublic: 0, // Competition events are not public by default
+	})
+
 	return {
 		competitionId: competition.id,
 		competitionTeamId,
