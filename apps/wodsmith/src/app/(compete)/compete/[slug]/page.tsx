@@ -6,6 +6,7 @@ import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { listScalingLevels } from "@/server/scaling-levels"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
+import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
 import { CompetitionHero } from "./_components/competition-hero"
 import { CompetitionTabs } from "./_components/competition-tabs"
 import { EventDetailsContent } from "./_components/event-details-content"
@@ -67,16 +68,19 @@ export default async function CompetitionDetailPage({ params }: Props) {
       : Promise.resolve(null),
   ])
 
-  // Check if user is already registered and get pending invites (depends on session)
+  // Check if user is already registered, get pending invites, and check manage permission (depends on session)
   let userRegistration = null
   let pendingInvitations: Awaited<ReturnType<typeof getPendingInvitationsForCurrentUser>> = []
+  let canManage = false
   if (session) {
-    const [registration, invitations] = await Promise.all([
+    const [registration, invitations, canOrganize] = await Promise.all([
       getUserCompetitionRegistration(competition.id, session.userId),
       getPendingInvitationsForCurrentUser().catch(() => []),
+      canOrganizeForTeam(competition.organizingTeamId),
     ])
     userRegistration = registration
     pendingInvitations = invitations
+    canManage = canOrganize
   }
 
   const registrationCount = registrations.length
@@ -104,6 +108,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
       <CompetitionHero
         competition={competition}
         registrationCount={registrationCount}
+        canManage={canManage}
       />
 
       {/* Tabbed Content */}

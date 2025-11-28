@@ -9,8 +9,6 @@ import {
 	ChevronDownIcon,
 	ClockIcon,
 	DocumentTextIcon,
-	FolderIcon,
-	TrophyIcon,
 	UserGroupIcon,
 } from "@heroicons/react/24/outline"
 import { ScrollShadow } from "@heroui/react"
@@ -58,23 +56,6 @@ const getAdminNavItems = (): AdminNavItem[] => [
 		icon: AdjustmentsHorizontalIcon,
 	},
 	{
-		title: "Competitions",
-		href: "/admin/teams/competitions" as Route,
-		icon: TrophyIcon,
-		items: [
-			{
-				title: "All Competitions",
-				href: "/admin/teams/competitions" as Route,
-				icon: TrophyIcon,
-			},
-			{
-				title: "Competition Series",
-				href: "/admin/teams/competitions/series" as Route,
-				icon: FolderIcon,
-			},
-		],
-	},
-	{
 		title: "Class Scheduling",
 		href: "/admin/teams" as Route,
 		icon: CalendarDaysIcon,
@@ -107,7 +88,7 @@ export function AdminSidebar() {
 	const pathname = usePathname()
 	const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER")
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(
-		new Set(["Competitions", "Class Scheduling"]),
+		new Set(["Class Scheduling"]),
 	)
 
 	const navItems = getAdminNavItems()

@@ -1,4 +1,4 @@
-import { User } from "lucide-react"
+import { Plus, Settings, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
+import { canOrganizeCompetitions } from "@/utils/get-user-organizing-teams"
 
 export default async function CompeteNav() {
 	const session = await getSessionFromCookie()
@@ -14,9 +15,15 @@ export default async function CompeteNav() {
 	let pendingInvitations: Awaited<
 		ReturnType<typeof getPendingInvitationsForCurrentUser>
 	> = []
+	let canOrganize = false
 	if (session?.user) {
 		try {
-			pendingInvitations = await getPendingInvitationsForCurrentUser()
+			const [invitations, organize] = await Promise.all([
+				getPendingInvitationsForCurrentUser(),
+				canOrganizeCompetitions(),
+			])
+			pendingInvitations = invitations
+			canOrganize = organize
 		} catch {
 			// User not authenticated or error fetching invitations
 		}
@@ -54,6 +61,18 @@ export default async function CompeteNav() {
 							>
 								Events
 							</Link>
+							{canOrganize && (
+								<>
+									<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
+									<Link
+										href="/compete/organizer"
+										className="flex items-center gap-1 font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+									>
+										<Settings className="h-4 w-4" />
+										Organizer
+									</Link>
+								</>
+							)}
 							<div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
 							<Link
 								href="/compete/athlete"
@@ -83,7 +102,7 @@ export default async function CompeteNav() {
 						</div>
 					)}
 				</nav>
-				<CompeteMobileNav session={session} invitations={pendingInvitations} />
+				<CompeteMobileNav session={session} invitations={pendingInvitations} canOrganize={canOrganize} />
 			</div>
 		</header>
 	)
