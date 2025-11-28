@@ -1,7 +1,7 @@
 "use client"
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
-import { Bell, Menu, User } from "lucide-react"
+import { Bell, Menu, Settings, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
@@ -29,11 +29,13 @@ interface PendingInvitation {
 interface CompeteMobileNavProps {
 	session: SessionValidationResult | null
 	invitations?: PendingInvitation[]
+	canOrganize?: boolean
 }
 
 export default function CompeteMobileNav({
 	session,
 	invitations = [],
+	canOrganize = false,
 }: CompeteMobileNavProps) {
 	const [open, setOpen] = useState(false)
 	const hasNotifications = invitations.length > 0
@@ -95,6 +97,16 @@ export default function CompeteMobileNav({
 							>
 								Events
 							</Link>
+							{canOrganize && (
+								<Link
+									href="/compete/organizer"
+									className="flex items-center gap-2 hover:text-primary"
+									onClick={handleLinkClick}
+								>
+									<Settings className="h-5 w-5" />
+									<span>Organizer</span>
+								</Link>
+							)}
 							<hr className="my-2" />
 							{hasNotifications && (
 								<>
