@@ -283,7 +283,7 @@ function DivisionItem({
 
 export function DivisionManager({
 	teamId,
-	competitionId,
+	competitionId: _competitionId,
 	scalingGroupId,
 	scalingGroupTitle,
 	scalingGroupDescription,
@@ -295,7 +295,7 @@ export function DivisionManager({
 	const [newDivisionLabel, setNewDivisionLabel] = useState("")
 	const [newDivisionTeamSize, setNewDivisionTeamSize] = useState(1)
 
-	const { execute: reorderLevels, isPending: isReordering } = useServerAction(
+	const { execute: reorderLevels, isPending: _isReordering } = useServerAction(
 		reorderScalingLevelsAction,
 		{
 			onError: (error) => {
@@ -321,7 +321,7 @@ export function DivisionManager({
 		},
 	)
 
-	const { execute: updateLevel, isPending: isUpdating } = useServerAction(
+	const { execute: updateLevel, isPending: _isUpdating } = useServerAction(
 		updateScalingLevelAction,
 		{
 			onError: (error) => {

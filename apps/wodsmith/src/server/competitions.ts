@@ -132,8 +132,6 @@ export async function clearPendingTeammate(
 				break
 			}
 		} catch {
-			// Invalid JSON, skip
-			continue
 		}
 	}
 }

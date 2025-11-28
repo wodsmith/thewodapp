@@ -10,7 +10,7 @@ type Props = {
 	competitionSlug: string
 }
 
-export function CopyInviteLinkButton({ token, competitionSlug }: Props) {
+export function CopyInviteLinkButton({ token, competitionSlug: _competitionSlug }: Props) {
 	const [copied, setCopied] = useState(false)
 
 	const handleCopy = async () => {
@@ -21,7 +21,7 @@ export function CopyInviteLinkButton({ token, competitionSlug }: Props) {
 			setCopied(true)
 			toast.success("Invite link copied!")
 			setTimeout(() => setCopied(false), 2000)
-		} catch (err) {
+		} catch {
 			toast.error("Failed to copy link")
 		}
 	}

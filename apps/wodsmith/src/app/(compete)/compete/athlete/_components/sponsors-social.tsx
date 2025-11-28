@@ -1,4 +1,5 @@
 import { ExternalLink, Facebook, Instagram, Twitter } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
@@ -105,9 +106,11 @@ export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
 									className="border-muted flex flex-col items-center gap-2 rounded-lg border p-4 text-center"
 								>
 									{sponsor.logoUrl ? (
-										<img
+										<Image
 											src={sponsor.logoUrl}
 											alt={sponsor.name}
+											width={128}
+											height={64}
 											className="h-16 w-auto object-contain"
 										/>
 									) : (
@@ -116,7 +119,12 @@ export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
 										</div>
 									)}
 									{sponsor.website && (
-										<Button asChild variant="link" size="sm" className="h-auto p-0">
+										<Button
+											asChild
+											variant="link"
+											size="sm"
+											className="h-auto p-0"
+										>
 											<Link
 												href={sponsor.website}
 												target="_blank"
@@ -131,7 +139,9 @@ export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
 							))}
 						</div>
 					) : (
-						<p className="text-muted-foreground text-sm">No sponsors added yet</p>
+						<p className="text-muted-foreground text-sm">
+							No sponsors added yet
+						</p>
 					)}
 				</CardContent>
 			</Card>

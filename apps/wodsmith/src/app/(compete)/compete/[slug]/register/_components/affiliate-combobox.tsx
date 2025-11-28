@@ -82,7 +82,7 @@ export function AffiliateCombobox({
 			setIsLoading(true)
 			searchAffiliates({ query: "" })
 		}
-	}, [open])
+	}, [open, affiliates.length, searchAffiliates])
 
 	// Debounced search
 	const handleSearch = useCallback(
@@ -124,6 +124,7 @@ export function AffiliateCombobox({
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
+				{/* biome-ignore lint/a11y/useSemanticElements: Shadcn combobox pattern requires role="combobox" */}
 				<Button
 					variant="outline"
 					role="combobox"

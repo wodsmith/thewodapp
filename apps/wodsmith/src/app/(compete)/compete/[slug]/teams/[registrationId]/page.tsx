@@ -61,7 +61,7 @@ export default async function TeamManagementPage({
 				: registration.division)
 		: null
 
-	const athleteTeam = registration.athleteTeam
+	const _athleteTeam = registration.athleteTeam
 		? (Array.isArray(registration.athleteTeam)
 				? registration.athleteTeam[0]
 				: registration.athleteTeam)
