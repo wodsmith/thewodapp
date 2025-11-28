@@ -153,12 +153,7 @@ export default async function CompetitionDivisionsPage({
 						scalingGroupId={scalingGroupId}
 						scalingGroupTitle={scalingGroup.title}
 						scalingGroupDescription={scalingGroup.description}
-						levels={scalingGroup.levels.map((level) => ({
-							id: level.id,
-							label: level.label,
-							position: level.position,
-							teamSize: level.teamSize,
-						}))}
+						levels={scalingGroup.levels}
 					/>
 
 					<Card>
