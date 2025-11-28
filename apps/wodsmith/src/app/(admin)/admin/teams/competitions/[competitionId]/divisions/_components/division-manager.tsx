@@ -86,8 +86,14 @@ function DivisionItem({
 	const dragHandleRef = useRef<HTMLButtonElement>(null)
 	const [isDragging, setIsDragging] = useState(false)
 	const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
+	const closestEdgeRef = useRef<Edge | null>(null)
 	const [editingLabel, setEditingLabel] = useState(division.label)
 	const [isEditing, setIsEditing] = useState(false)
+
+	const updateClosestEdge = (edge: Edge | null) => {
+		closestEdgeRef.current = edge
+		setClosestEdge(edge)
+	}
 
 	useEffect(() => {
 		const element = ref.current
@@ -147,7 +153,7 @@ function DivisionItem({
 				onDrag({ source, self }: ElementDropTargetEventBasePayload) {
 					const isSource = source.data.index === index
 					if (isSource) {
-						setClosestEdge(null)
+						updateClosestEdge(null)
 						return
 					}
 
@@ -164,29 +170,29 @@ function DivisionItem({
 						(isItemAfterSource && edge === "top")
 
 					if (isDropIndicatorHidden) {
-						setClosestEdge(null)
+						updateClosestEdge(null)
 						return
 					}
 
-					setClosestEdge(edge)
+					updateClosestEdge(edge)
 				},
 				onDragLeave: () => {
-					setClosestEdge(null)
+					updateClosestEdge(null)
 				},
 				onDrop({ source }) {
 					const sourceIndex = source.data.index
 					if (typeof sourceIndex === "number" && sourceIndex !== index) {
-						const edge = closestEdge
+						const edge = closestEdgeRef.current
 						const targetIndex = edge === "top" ? index : index + 1
 						const adjustedTargetIndex =
 							sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
 						onDrop(sourceIndex, adjustedTargetIndex)
 					}
-					setClosestEdge(null)
+					updateClosestEdge(null)
 				},
 			}),
 		)
-	}, [division.id, division.label, index, instanceId, onDrop, closestEdge])
+	}, [division.id, division.label, index, instanceId, onDrop])
 
 	const handleBlur = () => {
 		if (editingLabel !== division.label && editingLabel.trim()) {
@@ -377,29 +383,39 @@ export function DivisionManager({
 	}
 
 	const handleLabelChange = async (id: string, label: string) => {
+		const prevDivisions = divisions
 		// Optimistically update
 		setDivisions((prev) =>
 			prev.map((d) => (d.id === id ? { ...d, label } : d)),
 		)
 
-		await updateLevel({
+		const [, err] = await updateLevel({
 			teamId,
 			scalingLevelId: id,
 			label,
 		})
+
+		if (err) {
+			setDivisions(prevDivisions)
+		}
 	}
 
 	const handleTeamSizeChange = async (id: string, teamSize: number) => {
+		const prevDivisions = divisions
 		// Optimistically update
 		setDivisions((prev) =>
 			prev.map((d) => (d.id === id ? { ...d, teamSize } : d)),
 		)
 
-		await updateLevel({
+		const [, err] = await updateLevel({
 			teamId,
 			scalingLevelId: id,
 			teamSize,
 		})
+
+		if (err) {
+			setDivisions(prevDivisions)
+		}
 	}
 
 	const handleDelete = async (id: string) => {
@@ -408,13 +424,18 @@ export function DivisionManager({
 			return
 		}
 
+		const prevDivisions = divisions
 		// Optimistically remove
 		setDivisions((prev) => prev.filter((d) => d.id !== id))
 
-		await deleteLevel({
+		const [, err] = await deleteLevel({
 			teamId,
 			scalingLevelId: id,
 		})
+
+		if (err) {
+			setDivisions(prevDivisions)
+		}
 	}
 
 	const handleAddDivision = async () => {
