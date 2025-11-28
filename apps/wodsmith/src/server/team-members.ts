@@ -448,7 +448,20 @@ export async function inviteUserToTeamInternal({
 	})
 
 	if (existingUser) {
-		// User exists - add directly to team
+		// Check if user is already a member
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, teamId),
+				eq(teamMembershipTable.userId, existingUser.id),
+			),
+		})
+
+		if (existingMembership) {
+			// User is already a member - return success without inserting
+			return { userJoined: true, userId: existingUser.id, invitationSent: false }
+		}
+
+		// User exists but not a member - add directly to team
 		await db.insert(teamMembershipTable).values({
 			teamId,
 			userId: existingUser.id,
