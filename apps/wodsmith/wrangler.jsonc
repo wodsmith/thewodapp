@@ -39,6 +39,8 @@
 		"EMAIL_FROM": "zacjones93@gmail.com",
 		"EMAIL_FROM_NAME": "Zac from WODsmith",
 		"EMAIL_REPLY_TO": "zacjones93@gmail.com",
+		// Commerce: App URL for Stripe redirects (set to production URL in production)
+		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
