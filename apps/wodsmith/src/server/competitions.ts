@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Competition,
@@ -8,6 +8,10 @@ import {
 	type Team,
 	competitionGroupsTable,
 	competitionsTable,
+	programmingTracksTable,
+	PROGRAMMING_TRACK_TYPE,
+	teamTable,
+	scalingLevelsTable,
 } from "@/db/schema"
 
 // Competition with organizing team relation for public display
@@ -465,10 +469,6 @@ export async function createCompetition(params: {
 	}
 
 	// Step 3: Auto-create programming track for competition events
-	const { programmingTracksTable, PROGRAMMING_TRACK_TYPE } = await import(
-		"@/db/schema"
-	)
-
 	await db.insert(programmingTracksTable).values({
 		name: `${params.name} - Events`,
 		description: `Competition events for ${params.name}`,
@@ -501,7 +501,7 @@ export async function getPublicCompetitions(): Promise<
 		orderBy: (table, { asc }) => [asc(table.startDate)],
 	})
 
-	return competitions as CompetitionWithOrganizingTeam[]
+	return competitions as Array<CompetitionWithOrganizingTeam>
 }
 
 /**
@@ -528,7 +528,7 @@ export async function getCompetitions(
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
 
-	return competitions
+	return competitions as Array<Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }>
 }
 
 /**
@@ -558,7 +558,7 @@ export async function getAllPublicCompetitions(): Promise<Array<Competition & { 
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
 
-	return competitions
+	return competitions as Array<Competition & { organizingTeam: Partial<Team> | null; group: CompetitionGroup | null }>
 }
 
 /**
@@ -587,7 +587,7 @@ export async function getCompetition(
 		},
 	})
 
-	return competition ?? null
+	return (competition ?? null) as (Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }) | null
 }
 
 /**
@@ -1647,5 +1647,5 @@ export async function getUserCompetitionHistory(userId: string) {
 		return bDate - aDate
 	})
 
-	return uniqueRegistrations
+	return uniqueRegistrations as Array<typeof directRegistrations[0] & { competition: CompetitionWithOrganizingTeam }>
 }

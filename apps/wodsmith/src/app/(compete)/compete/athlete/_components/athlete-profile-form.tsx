@@ -66,7 +66,7 @@ type AthleteProfileFormProps = {
 export function AthleteProfileForm({
 	initialData,
 	notableMetconSuggestions = [],
-	strengthLiftSuggestions = [],
+	strengthLiftSuggestions: _strengthLiftSuggestions = [],
 }: AthleteProfileFormProps) {
 	const router = useRouter()
 	const [localFeet, setLocalFeet] = useState<string>("")

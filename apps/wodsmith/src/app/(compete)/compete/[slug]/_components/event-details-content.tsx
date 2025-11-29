@@ -1,5 +1,5 @@
 import { HelpCircle, Calendar, DollarSign, Dumbbell, Trophy, Users } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import type { Competition, CompetitionGroup, Team, ScalingLevel } from "@/db/schema"
 

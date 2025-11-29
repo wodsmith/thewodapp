@@ -108,10 +108,8 @@ export function ScheduledWorkouts({
 											</h5>
 											<p className="text-xs text-muted-foreground">
 												{scheduled.trackWorkout ? (
-													<>
-														{scheduled.trackWorkout.trackOrder &&
-															`Event #${scheduled.trackWorkout.trackOrder}`}
-													</>
+													scheduled.trackWorkout.trackOrder &&
+													`Event #${scheduled.trackWorkout.trackOrder}`
 												) : (
 													"Standalone Workout"
 												)}
