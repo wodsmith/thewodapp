@@ -568,3 +568,291 @@ export const updateRegistrationAffiliateAction = createServerAction()
 			throw new ZSAError("ERROR", "Failed to update affiliate")
 		}
 	})
+
+/* -------------------------------------------------------------------------- */
+/*                     Competition Workout Actions                             */
+/* -------------------------------------------------------------------------- */
+
+import { z } from "zod"
+import {
+	addWorkoutToCompetition,
+	getCompetitionWorkouts,
+	getNextCompetitionEventOrder,
+	removeWorkoutFromCompetition,
+	reorderCompetitionEvents,
+	updateCompetitionWorkout,
+} from "@/server/competition-workouts"
+import {
+	getCompetitionLeaderboard,
+	getEventLeaderboard,
+} from "@/server/competition-leaderboard"
+
+// Competition Workout Schemas
+const addWorkoutToCompetitionSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	workoutId: z.string().min(1, "Workout ID is required"),
+	trackOrder: z.number().int().min(1).optional(),
+	pointsMultiplier: z.number().int().min(1).default(100),
+	notes: z.string().max(1000).optional(),
+})
+
+const updateCompetitionWorkoutSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	trackOrder: z.number().int().min(1).optional(),
+	pointsMultiplier: z.number().int().min(1).optional(),
+	notes: z.string().max(1000).nullable().optional(),
+})
+
+const removeWorkoutFromCompetitionSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+})
+
+const reorderCompetitionEventsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	updates: z
+		.array(
+			z.object({
+				trackWorkoutId: z.string().min(1),
+				trackOrder: z.number().int().min(1),
+			}),
+		)
+		.min(1, "At least one update required"),
+})
+
+const getCompetitionWorkoutsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+})
+
+const getCompetitionLeaderboardSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	divisionId: z.string().optional(),
+})
+
+const getEventLeaderboardSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	divisionId: z.string().optional(),
+})
+
+/**
+ * Add a workout to a competition
+ */
+export const addWorkoutToCompetitionAction = createServerAction()
+	.input(addWorkoutToCompetitionSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			// Get next order if not provided
+			const trackOrder =
+				input.trackOrder ??
+				(await getNextCompetitionEventOrder(input.competitionId))
+
+			const result = await addWorkoutToCompetition({
+				competitionId: input.competitionId,
+				workoutId: input.workoutId,
+				trackOrder,
+				pointsMultiplier: input.pointsMultiplier,
+				notes: input.notes,
+			})
+
+			// Revalidate
+			revalidatePath(`/compete/organizer/${input.competitionId}`)
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to add workout to competition:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to add workout to competition")
+		}
+	})
+
+/**
+ * Get all workouts for a competition (public)
+ */
+export const getCompetitionWorkoutsAction = createServerAction()
+	.input(getCompetitionWorkoutsSchema)
+	.handler(async ({ input }) => {
+		try {
+			const workouts = await getCompetitionWorkouts(input.competitionId)
+			return { success: true, data: workouts }
+		} catch (error) {
+			console.error("Failed to get competition workouts:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to get competition workouts")
+		}
+	})
+
+/**
+ * Update a competition workout
+ */
+export const updateCompetitionWorkoutAction = createServerAction()
+	.input(updateCompetitionWorkoutSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			await updateCompetitionWorkout({
+				trackWorkoutId: input.trackWorkoutId,
+				trackOrder: input.trackOrder,
+				pointsMultiplier: input.pointsMultiplier,
+				notes: input.notes,
+			})
+
+			// Revalidate
+			revalidatePath("/compete/organizer")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update competition workout:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to update competition workout")
+		}
+	})
+
+/**
+ * Remove a workout from a competition
+ */
+export const removeWorkoutFromCompetitionAction = createServerAction()
+	.input(removeWorkoutFromCompetitionSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			await removeWorkoutFromCompetition(input.trackWorkoutId)
+
+			// Revalidate
+			revalidatePath("/compete/organizer")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to remove workout from competition:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to remove workout from competition")
+		}
+	})
+
+/**
+ * Reorder competition events
+ */
+export const reorderCompetitionEventsAction = createServerAction()
+	.input(reorderCompetitionEventsSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			const updateCount = await reorderCompetitionEvents(
+				input.competitionId,
+				input.updates,
+			)
+
+			// Revalidate
+			revalidatePath(`/compete/organizer/${input.competitionId}`)
+
+			return { success: true, updateCount }
+		} catch (error) {
+			console.error("Failed to reorder competition events:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to reorder competition events")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                      Competition Leaderboard Actions                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get competition leaderboard (public)
+ */
+export const getCompetitionLeaderboardAction = createServerAction()
+	.input(getCompetitionLeaderboardSchema)
+	.handler(async ({ input }) => {
+		try {
+			const leaderboard = await getCompetitionLeaderboard({
+				competitionId: input.competitionId,
+				divisionId: input.divisionId,
+			})
+
+			return { success: true, data: leaderboard }
+		} catch (error) {
+			console.error("Failed to get competition leaderboard:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to get competition leaderboard")
+		}
+	})
+
+/**
+ * Get event leaderboard (public)
+ */
+export const getEventLeaderboardAction = createServerAction()
+	.input(getEventLeaderboardSchema)
+	.handler(async ({ input }) => {
+		try {
+			const leaderboard = await getEventLeaderboard({
+				competitionId: input.competitionId,
+				trackWorkoutId: input.trackWorkoutId,
+				divisionId: input.divisionId,
+			})
+
+			return { success: true, data: leaderboard }
+		} catch (error) {
+			console.error("Failed to get event leaderboard:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to get event leaderboard")
+		}
+	})

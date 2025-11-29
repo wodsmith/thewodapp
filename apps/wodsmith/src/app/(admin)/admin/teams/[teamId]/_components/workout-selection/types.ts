@@ -8,10 +8,10 @@ export interface ProgrammingTrack {
 
 export interface TrackWorkout {
 	id: string
-	dayNumber: number
-	weekNumber: number | null
+	trackOrder: number
 	notes: string | null
 	workoutId: string
+	pointsMultiplier?: number | null
 	workout?: {
 		id: string
 		name: string
@@ -42,10 +42,10 @@ export interface ScheduledWorkoutWithDetails {
 	trackWorkout?: {
 		id: string
 		trackId?: string | null
-		dayNumber: number
-		weekNumber: number | null
+		trackOrder: number
 		notes: string | null
 		workoutId: string
+		pointsMultiplier?: number | null
 		workout?: {
 			id: string
 			name: string

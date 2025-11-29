@@ -12,7 +12,6 @@ import {
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
 import {
 	getActiveOrPersonalTeamId,
-	getSessionFromCookie,
 	requireVerifiedEmail,
 } from "@/utils/auth"
 import type { KVSession } from "@/utils/kv-session"

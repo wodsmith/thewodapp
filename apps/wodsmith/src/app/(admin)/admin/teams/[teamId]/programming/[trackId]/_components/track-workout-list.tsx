@@ -23,9 +23,9 @@ interface TrackWorkoutListProps {
 	onUpdateWorkoutAction: (
 		trackWorkoutId: string,
 		updates: {
-			dayNumber?: number
-			weekNumber?: number
+			trackOrder?: number
 			notes?: string
+			pointsMultiplier?: number
 		},
 	) => Promise<void>
 }
@@ -37,25 +37,22 @@ export function TrackWorkoutList({
 }: TrackWorkoutListProps) {
 	const [editingWorkout, setEditingWorkout] = useState<string | null>(null)
 	const [editForm, setEditForm] = useState<{
-		dayNumber: number
-		weekNumber?: number
+		trackOrder: number
 		notes?: string
 	}>({
-		dayNumber: 1,
-		weekNumber: undefined,
+		trackOrder: 1,
 		notes: "",
 	})
 
-	// Sort workouts by day number
+	// Sort workouts by track order
 	const sortedWorkouts = [...trackWorkouts].sort(
-		(a, b) => a.dayNumber - b.dayNumber,
+		(a, b) => a.trackOrder - b.trackOrder,
 	)
 
 	const handleStartEdit = (workout: TrackWorkout) => {
 		setEditingWorkout(workout.id)
 		setEditForm({
-			dayNumber: workout.dayNumber,
-			weekNumber: workout.weekNumber || undefined,
+			trackOrder: workout.trackOrder,
 			notes: workout.notes || "",
 		})
 	}
@@ -63,8 +60,7 @@ export function TrackWorkoutList({
 	const handleCancelEdit = () => {
 		setEditingWorkout(null)
 		setEditForm({
-			dayNumber: 1,
-			weekNumber: undefined,
+			trackOrder: 1,
 			notes: "",
 		})
 	}
@@ -110,50 +106,26 @@ export function TrackWorkoutList({
 							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 								<div>
 									<Label
-										htmlFor={`day-${workout.id}`}
+										htmlFor={`order-${workout.id}`}
 										className="font-mono font-semibold"
 									>
-										Day Number
+										Order
 									</Label>
 									<Input
-										id={`day-${workout.id}`}
+										id={`order-${workout.id}`}
 										type="number"
 										min="1"
-										value={editForm.dayNumber}
+										value={editForm.trackOrder}
 										onChange={(e) =>
 											setEditForm((prev) => ({
 												...prev,
-												dayNumber: Number.parseInt(e.target.value),
+												trackOrder: Number.parseInt(e.target.value),
 											}))
 										}
 										className="border-2 border-primary rounded-none font-mono"
 									/>
 								</div>
-								<div>
-									<Label
-										htmlFor={`week-${workout.id}`}
-										className="font-mono font-semibold"
-									>
-										Week Number
-									</Label>
-									<Input
-										id={`week-${workout.id}`}
-										type="number"
-										min="1"
-										value={editForm.weekNumber || ""}
-										onChange={(e) =>
-											setEditForm((prev) => ({
-												...prev,
-												weekNumber: e.target.value
-													? Number.parseInt(e.target.value)
-													: undefined,
-											}))
-										}
-										placeholder="Optional"
-										className="border-2 border-primary rounded-none font-mono"
-									/>
-								</div>
-								<div className="md:col-span-3">
+								<div className="md:col-span-2">
 									<Label
 										htmlFor={`notes-${workout.id}`}
 										className="font-mono font-semibold"
@@ -200,8 +172,7 @@ export function TrackWorkoutList({
 										<GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
 										<div>
 											<CardTitle className="text-base font-mono tracking-tight">
-												Day {workout.dayNumber}
-												{workout.weekNumber && ` (Week ${workout.weekNumber})`}
+												#{workout.trackOrder}
 											</CardTitle>
 											<div className="flex gap-4 text-xs text-muted-foreground mt-1 font-mono">
 												<span>Workout ID: {workout.workoutId}</span>

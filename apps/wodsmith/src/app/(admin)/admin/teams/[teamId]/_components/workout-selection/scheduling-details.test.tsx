@@ -17,8 +17,7 @@ describe("SchedulingDetails", () => {
 
 	const mockTrackWorkout: TrackWorkout = {
 		id: "tw1",
-		dayNumber: 1,
-		weekNumber: 1,
+		trackOrder: 1,
 		notes: "Focus on form",
 		workoutId: "w1",
 		workout: {
@@ -300,7 +299,7 @@ describe("SchedulingDetails", () => {
 	it("renders correct workout info without day number", () => {
 		const workoutWithoutDay = {
 			...mockTrackWorkout,
-			dayNumber: 0,
+			trackOrder: 0,
 		}
 
 		render(

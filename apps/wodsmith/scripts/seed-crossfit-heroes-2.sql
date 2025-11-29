@@ -217,12 +217,12 @@ INSERT INTO workout_movements (id, workout_id, movement_id, createdAt, updatedAt
 ('wm_servais_burpee', 'wod_servais', 'mov_burpee', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Add workouts to the Heroes programming track
-INSERT INTO track_workout (id, trackId, workoutId, dayNumber, weekNumber, notes, createdAt, updatedAt, updateCounter) VALUES 
-('trwk_heroes_shawn', 'ptrk_heroes', 'wod_shawn', 89, 13, 'Long running with interval squats and push-ups', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_foo', 'ptrk_heroes', 'wod_foo', 90, 13, 'Bench press with AMRAP combination work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_bowen', 'ptrk_heroes', 'wod_bowen', 91, 13, 'Heavy deadlifts with mixed modal work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_gaza', 'ptrk_heroes', 'wod_gaza', 92, 14, 'High volume endurance with kettlebell work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_crain', 'ptrk_heroes', 'wod_crain', 93, 14, 'Sprint chipper with varied movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_capoot', 'ptrk_heroes', 'wod_capoot', 94, 14, 'Descending push-ups with progressive running', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_hall', 'ptrk_heroes', 'wod_hall', 95, 14, 'Heavy cleans with kettlebell work and sprints', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_heroes_servais', 'ptrk_heroes', 'wod_servais', 96, 14, 'Long endurance test with carries', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+INSERT INTO track_workout (id, trackId, workoutId, trackOrder, notes, createdAt, updatedAt, updateCounter) VALUES 
+('trwk_heroes_shawn', 'ptrk_heroes', 'wod_shawn', 89, 'Long running with interval squats and push-ups', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_foo', 'ptrk_heroes', 'wod_foo', 90, 'Bench press with AMRAP combination work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_bowen', 'ptrk_heroes', 'wod_bowen', 91, 'Heavy deadlifts with mixed modal work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_gaza', 'ptrk_heroes', 'wod_gaza', 92, 'High volume endurance with kettlebell work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_crain', 'ptrk_heroes', 'wod_crain', 93, 'Sprint chipper with varied movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_capoot', 'ptrk_heroes', 'wod_capoot', 94, 'Descending push-ups with progressive running', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_hall', 'ptrk_heroes', 'wod_hall', 95, 'Heavy cleans with kettlebell work and sprints', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_heroes_servais', 'ptrk_heroes', 'wod_servais', 96, 'Long endurance test with carries', strftime('%s', 'now'), strftime('%s', 'now'), 0);

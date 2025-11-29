@@ -36,9 +36,9 @@ export interface CreateTrackInput {
 export interface AddWorkoutToTrackInput {
 	trackId: string
 	workoutId: string
-	dayNumber?: number
-	weekNumber?: number | null
+	trackOrder?: number
 	notes?: string | null
+	pointsMultiplier?: number
 }
 
 /* -------------------------------------------------------------------------- */
@@ -186,18 +186,18 @@ export async function hasTrackAccess(
 	return teamTrackAssignment.length > 0
 }
 
-export async function getNextDayNumberForTrack(
+export async function getNextTrackOrderForTrack(
 	trackId: string,
 ): Promise<number> {
 	const db = getDb()
 
 	const result = await db
-		.select({ maxDay: max(trackWorkoutsTable.dayNumber) })
+		.select({ maxOrder: max(trackWorkoutsTable.trackOrder) })
 		.from(trackWorkoutsTable)
 		.where(eq(trackWorkoutsTable.trackId, trackId))
 
-	const maxDay = result[0]?.maxDay ?? 0
-	return maxDay + 1
+	const maxOrder = result[0]?.maxOrder ?? 0
+	return maxOrder + 1
 }
 
 export async function addWorkoutToTrack(
@@ -205,9 +205,9 @@ export async function addWorkoutToTrack(
 ): Promise<TrackWorkout> {
 	const db = getDb()
 
-	// If no day number provided, get the next available one
-	const dayNumber =
-		data.dayNumber ?? (await getNextDayNumberForTrack(data.trackId))
+	// If no track order provided, get the next available one
+	const trackOrder =
+		data.trackOrder ?? (await getNextTrackOrderForTrack(data.trackId))
 
 	const [trackWorkout] = await db
 		.insert(trackWorkoutsTable)
@@ -215,9 +215,9 @@ export async function addWorkoutToTrack(
 			id: `trwk_${createId()}`,
 			trackId: data.trackId,
 			workoutId: data.workoutId,
-			dayNumber: dayNumber,
-			weekNumber: data.weekNumber,
+			trackOrder: trackOrder,
 			notes: data.notes,
+			pointsMultiplier: data.pointsMultiplier,
 			// Let database defaults handle timestamps
 		})
 		.returning()
@@ -543,11 +543,11 @@ export async function scheduleStandaloneWorkout({
 		isPublic: false,
 	})
 
-	// 2. Add the workout to the track as day 1
+	// 2. Add the workout to the track as order 1
 	const trackWorkout = await addWorkoutToTrack({
 		trackId: track.id,
 		workoutId,
-		dayNumber: 1,
+		trackOrder: 1,
 		notes: teamSpecificNotes || null,
 	})
 
@@ -594,14 +594,14 @@ export async function removeWorkoutFromTrack(
 
 export async function updateTrackWorkout({
 	trackWorkoutId,
-	dayNumber,
-	weekNumber,
+	trackOrder,
 	notes,
+	pointsMultiplier,
 }: {
 	trackWorkoutId: string
-	dayNumber?: number
-	weekNumber?: number | null
+	trackOrder?: number
 	notes?: string | null
+	pointsMultiplier?: number | null
 }): Promise<TrackWorkout> {
 	const db = getDb()
 
@@ -609,9 +609,9 @@ export async function updateTrackWorkout({
 		updatedAt: new Date(),
 	}
 
-	if (dayNumber !== undefined) updateData.dayNumber = dayNumber
-	if (weekNumber !== undefined) updateData.weekNumber = weekNumber
+	if (trackOrder !== undefined) updateData.trackOrder = trackOrder
 	if (notes !== undefined) updateData.notes = notes
+	if (pointsMultiplier !== undefined) updateData.pointsMultiplier = pointsMultiplier
 
 	const [trackWorkout] = await db
 		.update(trackWorkoutsTable)
@@ -627,15 +627,15 @@ export async function updateTrackWorkout({
 }
 
 /**
- * Reorder track workouts by updating their day numbers in bulk.
+ * Reorder track workouts by updating their track order in bulk.
  *
  * @param trackId - The ID of the track containing the workouts.
- * @param updates - An array of objects containing track workout IDs and their new day numbers.
+ * @param updates - An array of objects containing track workout IDs and their new track orders.
  * @returns The number of updated records.
  */
 export async function reorderTrackWorkouts(
 	trackId: string,
-	updates: { trackWorkoutId: string; dayNumber: number }[],
+	updates: { trackWorkoutId: string; trackOrder: number }[],
 ): Promise<number> {
 	const db = getDb()
 
@@ -651,7 +651,7 @@ export async function reorderTrackWorkouts(
 		const existingWorkouts = await db
 			.select({
 				id: trackWorkoutsTable.id,
-				dayNumber: trackWorkoutsTable.dayNumber,
+				trackOrder: trackWorkoutsTable.trackOrder,
 			})
 			.from(trackWorkoutsTable)
 			.where(eq(trackWorkoutsTable.trackId, trackId))
@@ -679,20 +679,20 @@ export async function reorderTrackWorkouts(
 
 		// Perform the updates without using a transaction for Cloudflare D1 compatibility
 		let updateCount = 0
-		for (const { trackWorkoutId, dayNumber } of updates) {
+		for (const { trackWorkoutId, trackOrder } of updates) {
 			console.log("DEBUG: [ReorderFunction] Updating track workout:", {
 				trackWorkoutId,
-				dayNumber,
+				trackOrder,
 			})
 
 			try {
 				const updateResult = await db
 					.update(trackWorkoutsTable)
-					.set({ dayNumber, updatedAt: new Date() })
+					.set({ trackOrder, updatedAt: new Date() })
 					.where(eq(trackWorkoutsTable.id, trackWorkoutId))
 					.returning({
 						id: trackWorkoutsTable.id,
-						dayNumber: trackWorkoutsTable.dayNumber,
+						trackOrder: trackWorkoutsTable.trackOrder,
 					})
 
 				console.log("DEBUG: [ReorderFunction] Update successful:", updateResult)
@@ -702,7 +702,7 @@ export async function reorderTrackWorkouts(
 					"ERROR: [ReorderFunction] Failed to update individual track workout:",
 					{
 						trackWorkoutId,
-						dayNumber,
+						trackOrder,
 						error: updateError,
 					},
 				)
@@ -725,7 +725,7 @@ export async function reorderTrackWorkouts(
 			updatesCount: updates.length,
 			updates: updates.map((u) => ({
 				trackWorkoutId: u.trackWorkoutId,
-				dayNumber: u.dayNumber,
+				trackOrder: u.trackOrder,
 			})),
 		})
 		throw error

@@ -12,8 +12,7 @@ describe("WorkoutSelection", () => {
 	const mockTrackWorkouts: TrackWorkout[] = [
 		{
 			id: "tw1",
-			dayNumber: 1,
-			weekNumber: 1,
+			trackOrder: 1,
 			notes: "Focus on form",
 			workoutId: "w1",
 			workout: {
@@ -25,8 +24,7 @@ describe("WorkoutSelection", () => {
 		},
 		{
 			id: "tw2",
-			dayNumber: 2,
-			weekNumber: 1,
+			trackOrder: 2,
 			notes: null,
 			workoutId: "w2",
 			workout: {

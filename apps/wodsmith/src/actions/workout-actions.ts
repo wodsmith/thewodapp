@@ -365,7 +365,7 @@ export const addWorkoutToTrackAction = createServerAction()
 		z.object({
 			trackId: z.string().min(1, "Track ID is required"),
 			workoutId: z.string().min(1, "Workout ID is required"),
-			dayNumber: z.number().min(1).optional(),
+			trackOrder: z.number().min(1).optional(),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -375,7 +375,7 @@ export const addWorkoutToTrackAction = createServerAction()
 			await addWorkoutToTrack({
 				trackId: input.trackId,
 				workoutId: input.workoutId,
-				dayNumber: input.dayNumber,
+				trackOrder: input.trackOrder,
 			})
 
 			revalidatePath(`/workouts/${input.workoutId}`)
@@ -1527,8 +1527,7 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 						id: `track_workout_${createId()}`,
 						trackId: newTrack.id,
 						workoutId: remixResult.id,
-						dayNumber: 1, // Default to day 1 for remixed workouts
-						weekNumber: null,
+						trackOrder: 1, // Default to order 1 for remixed workouts
 						notes: `Remixed from track: ${track.name}`,
 					})
 

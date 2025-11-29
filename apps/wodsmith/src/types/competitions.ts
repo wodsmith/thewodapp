@@ -1,4 +1,23 @@
 /**
+ * Scoring configuration - three types available
+ * 1st place always = 100 points (normalized)
+ */
+export type ScoringSettings =
+	| {
+			type: "winner_takes_more"
+			// Points: 100, 85, 75, 67, 60, 54... (decreasing increments favor top finishers)
+	  }
+	| {
+			type: "even_spread"
+			// Points distributed linearly: for 5 athletes → 100, 75, 50, 25, 0
+	  }
+	| {
+			type: "fixed_step"
+			step: number // Default: 5
+			// Points: 100, 95, 90, 85... (fixed decrement per place)
+	  }
+
+/**
  * Competition Settings Type
  *
  * Stored as JSON in the competitions.settings column.
@@ -18,12 +37,10 @@ export interface CompetitionSettings {
 	}
 
 	/**
-	 * Additional settings can be added here in the future
-	 * Examples:
-	 * - scoring?: { type: 'points' | 'time' | 'reps', ...  }
-	 * - rules?: { ... }
-	 * - payment?: { ... }
+	 * Scoring configuration for the competition
+	 * Determines how points are awarded based on placement
 	 */
+	scoring?: ScoringSettings
 }
 
 /**

@@ -7,7 +7,6 @@
 		"noEmit": true,
 		"allowSyntheticDefaultImports": true,
 		"jsx": "preserve",
-		"incremental": true,
 		"plugins": [
 			{
 				"name": "next"

@@ -65,8 +65,8 @@ export function SchedulingDetails({
 				{selectedWorkout ? (
 					<p className="text-sm text-muted-foreground">
 						{selectedWorkout.workout?.name} from {selectedTrack?.name}
-						{selectedWorkout.dayNumber > 0 &&
-							` (Day ${selectedWorkout.dayNumber})`}
+						{selectedWorkout.trackOrder > 0 &&
+							` (Event #${selectedWorkout.trackOrder})`}
 					</p>
 				) : selectedStandaloneWorkout ? (
 					<p className="text-sm text-muted-foreground">
