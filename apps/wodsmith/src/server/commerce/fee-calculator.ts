@@ -73,7 +73,13 @@ export async function getRegistrationFee(
 		where: eq(competitionsTable.id, competitionId),
 	})
 
-	return competition?.defaultRegistrationFeeCents ?? 0
+	if (!competition) {
+		throw new Error(
+			`Competition not found: ${competitionId}. Cannot retrieve registration fee.`,
+		)
+	}
+
+	return competition.defaultRegistrationFeeCents
 }
 
 
