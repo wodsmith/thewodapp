@@ -1,6 +1,8 @@
-import { AlertCircle, Dumbbell } from "lucide-react"
+import { Dumbbell, Target } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
+import { getCompetitionWorkouts } from "@/server/competition-workouts"
 
 interface WorkoutsContentProps {
 	competition: Competition & {
@@ -9,41 +11,89 @@ interface WorkoutsContentProps {
 	}
 }
 
-export function WorkoutsContent(_props: WorkoutsContentProps) {
-	// TODO: Fetch actual workouts when data model is implemented
+export async function WorkoutsContent({ competition }: WorkoutsContentProps) {
+	const events = await getCompetitionWorkouts(competition.id)
+
+	if (events.length === 0) {
+		return (
+			<div className="container mx-auto px-4 py-8">
+				<div className="max-w-4xl">
+					<h2 className="text-2xl font-bold mb-6">Workouts</h2>
+
+					<Alert variant="default" className="border-dashed">
+						<Dumbbell className="h-4 w-4" />
+						<AlertTitle>Workouts not yet released</AlertTitle>
+						<AlertDescription>
+							Competition workouts will be announced closer to the event.
+							Check back soon or follow the event organizer for updates.
+						</AlertDescription>
+					</Alert>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div className="container mx-auto px-4 py-8">
 			<div className="max-w-4xl">
-				<h2 className="text-2xl font-bold mb-6">Workouts</h2>
+				<h2 className="text-2xl font-bold mb-6">
+					Workouts
+					<span className="text-muted-foreground font-normal text-lg ml-2">
+						({events.length} event{events.length !== 1 ? "s" : ""})
+					</span>
+				</h2>
 
-				<Alert variant="default" className="border-dashed">
-					<Dumbbell className="h-4 w-4" />
-					<AlertTitle>Workouts not yet released</AlertTitle>
-					<AlertDescription>
-						Competition workouts will be announced closer to the event.
-						Check back soon or follow the event organizer for updates.
-					</AlertDescription>
-				</Alert>
-
-				{/* Implementation Note for Developers */}
-				<div className="mt-8 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-					<div className="flex items-start gap-2">
-						<AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-						<div>
-							<p className="font-medium text-amber-800 dark:text-amber-200">Implementation TODO</p>
-							<ul className="mt-2 text-sm text-amber-700 dark:text-amber-300 space-y-1">
-								<li>• Create workout data model (name, description, time cap, scoring)</li>
-								<li>• Support workout variations per division</li>
-								<li>• Workout poster/banner image upload</li>
-								<li>• Movement standards section (expandable)</li>
-								<li>• Floor layout diagram/image</li>
-								<li>• Sponsor attribution per workout</li>
-								<li>• Link workouts to schedule/heats</li>
-								<li>• Support for scoring types (time, reps, weight, etc.)</li>
-							</ul>
-						</div>
-					</div>
+				<div className="space-y-4">
+					{events.map((event) => (
+						<Card key={event.id}>
+							<CardHeader className="pb-3">
+								<div className="flex items-start justify-between">
+									<div className="flex items-center gap-3">
+										<div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-bold">
+											{event.trackOrder}
+										</div>
+										<div>
+											<CardTitle className="text-xl">{event.workout.name}</CardTitle>
+											{event.workout.scheme && (
+												<CardDescription className="mt-1">
+													{event.workout.scheme}
+												</CardDescription>
+											)}
+										</div>
+									</div>
+									{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+										<span className="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
+											{event.pointsMultiplier / 100}x points
+										</span>
+									)}
+								</div>
+							</CardHeader>
+							<CardContent>
+								{event.workout.description ? (
+									<p className="text-muted-foreground whitespace-pre-wrap">
+										{event.workout.description}
+									</p>
+								) : (
+									<p className="text-muted-foreground italic">
+										Workout details will be released soon.
+									</p>
+								)}
+								{event.notes && (
+									<div className="mt-4 pt-4 border-t">
+										<p className="text-sm text-muted-foreground">
+											<strong>Notes:</strong> {event.notes}
+										</p>
+									</div>
+								)}
+								<div className="flex items-center gap-4 mt-4 pt-4 border-t text-sm text-muted-foreground">
+									<div className="flex items-center gap-1">
+										<Target className="h-4 w-4" />
+										<span className="capitalize">{event.workout.scoreType || "Time"}</span>
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					))}
 				</div>
 			</div>
 		</div>

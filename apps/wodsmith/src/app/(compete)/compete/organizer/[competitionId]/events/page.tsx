@@ -4,14 +4,14 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
-import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
+import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
-import { listScalingGroups } from "@/server/scaling-groups"
+import { getUserWorkouts } from "@/server/workouts"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
-import { OrganizerDivisionManager } from "./_components/organizer-division-manager"
+import { OrganizerEventManager } from "./_components/organizer-event-manager"
 
-interface CompetitionDivisionsPageProps {
+interface CompetitionEventsPageProps {
 	params: Promise<{
 		competitionId: string
 	}>
@@ -19,7 +19,7 @@ interface CompetitionDivisionsPageProps {
 
 export async function generateMetadata({
 	params,
-}: CompetitionDivisionsPageProps): Promise<Metadata> {
+}: CompetitionEventsPageProps): Promise<Metadata> {
 	const { competitionId } = await params
 	const competition = await getCompetition(competitionId)
 
@@ -30,14 +30,14 @@ export async function generateMetadata({
 	}
 
 	return {
-		title: `${competition.name} - Divisions`,
-		description: `Manage divisions for ${competition.name}`,
+		title: `${competition.name} - Events`,
+		description: `Manage events for ${competition.name}`,
 	}
 }
 
-export default async function CompetitionDivisionsPage({
+export default async function CompetitionEventsPage({
 	params,
-}: CompetitionDivisionsPageProps) {
+}: CompetitionEventsPageProps) {
 	const { competitionId } = await params
 
 	// Get competition
@@ -63,10 +63,13 @@ export default async function CompetitionDivisionsPage({
 		throw error
 	}
 
-	// Parallel fetch: divisions with counts and available scaling groups
-	const [{ scalingGroupId, divisions }, scalingGroups] = await Promise.all([
-		getCompetitionDivisionsWithCounts({ competitionId }),
-		listScalingGroups({ teamId: competition.organizingTeamId, includeSystem: true }),
+	// Parallel fetch: competition events and available workouts
+	const [competitionEvents, availableWorkouts] = await Promise.all([
+		getCompetitionWorkouts(competitionId),
+		getUserWorkouts({
+			teamId: competition.organizingTeamId,
+			limit: 100,
+		}),
 	])
 
 	return (
@@ -77,12 +80,12 @@ export default async function CompetitionDivisionsPage({
 					<OrganizerBreadcrumb
 						segments={[
 							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
-							{ label: "Divisions" },
+							{ label: "Events" },
 						]}
 					/>
-					<h1 className="text-3xl font-bold">Competition Divisions</h1>
+					<h1 className="text-3xl font-bold">Competition Events</h1>
 					<p className="text-muted-foreground mt-1">
-						Manage the divisions for this competition
+						Manage the workouts/events for this competition
 					</p>
 				</div>
 
@@ -95,15 +98,15 @@ export default async function CompetitionDivisionsPage({
 						>
 							Overview
 						</Link>
-						<span className="px-4 py-2 border-b-2 border-primary font-medium">
-							Divisions
-						</span>
 						<Link
-							href={`/compete/organizer/${competition.id}/events`}
+							href={`/compete/organizer/${competition.id}/divisions`}
 							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
 						>
-							Events
+							Divisions
 						</Link>
+						<span className="px-4 py-2 border-b-2 border-primary font-medium">
+							Events
+						</span>
 						<Link
 							href={`/compete/organizer/${competition.id}/athletes`}
 							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
@@ -113,13 +116,11 @@ export default async function CompetitionDivisionsPage({
 					</nav>
 				</div>
 
-				<OrganizerDivisionManager
-					key={scalingGroupId ?? "no-divisions"}
-					teamId={competition.organizingTeamId}
+				<OrganizerEventManager
 					competitionId={competition.id}
-					divisions={divisions}
-					scalingGroupId={scalingGroupId}
-					scalingGroups={scalingGroups}
+					organizingTeamId={competition.organizingTeamId}
+					events={competitionEvents}
+					availableWorkouts={availableWorkouts}
 				/>
 			</div>
 		</div>

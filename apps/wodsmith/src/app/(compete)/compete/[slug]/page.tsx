@@ -114,7 +114,12 @@ export default async function CompetitionDetailPage({ params }: Props) {
       {/* Tabbed Content */}
       <CompetitionTabs
         workoutsContent={<WorkoutsContent competition={competition} />}
-        leaderboardContent={<LeaderboardContent />}
+        leaderboardContent={
+          <LeaderboardContent
+            competitionId={competition.id}
+            divisions={divisions}
+          />
+        }
         registerButton={
           <RegisterButton
             slug={slug}
