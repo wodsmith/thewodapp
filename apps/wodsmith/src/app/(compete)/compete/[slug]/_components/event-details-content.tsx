@@ -1,15 +1,18 @@
-import { HelpCircle, Calendar, DollarSign, Dumbbell, Trophy, Users } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import type { Competition, CompetitionGroup, Team, ScalingLevel } from "@/db/schema"
+"use client"
 
-interface DivisionFees {
-	defaultFeeCents: number
-	divisionFees: Array<{
-		divisionId: string
-		divisionLabel: string | undefined
-		feeCents: number
-	}>
+import { ChevronDown, HelpCircle, Calendar, DollarSign, Dumbbell, Trophy, Users } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Separator } from "@/components/ui/separator"
+import type { Competition, CompetitionGroup, Team } from "@/db/schema"
+
+interface DivisionWithDetails {
+	id: string
+	label: string
+	description: string | null
+	registrationCount: number
+	feeCents: number
+	teamSize: number
 }
 
 interface EventDetailsContentProps {
@@ -17,8 +20,7 @@ interface EventDetailsContentProps {
 		organizingTeam: Team | null
 		group: CompetitionGroup | null
 	}
-	divisions?: ScalingLevel[]
-	divisionFees?: DivisionFees
+	divisions?: DivisionWithDetails[]
 }
 
 function formatDateShort(date: Date | number): string {
@@ -31,15 +33,8 @@ function formatPrice(cents: number): string {
 	return `$${(cents / 100).toFixed(0)}`
 }
 
-export function EventDetailsContent({ competition, divisions, divisionFees }: EventDetailsContentProps) {
+export function EventDetailsContent({ competition, divisions }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
-
-	// Helper to get fee for a specific division
-	const getDivisionFee = (divisionId: string): number => {
-		const override = divisionFees?.divisionFees.find(f => f.divisionId === divisionId)
-		if (override) return override.feeCents
-		return divisionFees?.defaultFeeCents ?? 0
-	}
 
 	return (
 		<div className="space-y-8">
@@ -70,19 +65,47 @@ export function EventDetailsContent({ competition, divisions, divisionFees }: Ev
 				{hasDivisions ? (
 					<div className="space-y-3">
 						{divisions.map((division) => {
-							const feeCents = getDivisionFee(division.id)
-							const priceLabel = formatPrice(feeCents)
+							const priceLabel = formatPrice(division.feeCents)
+							const hasDescription = !!division.description
+							const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
+
 							return (
-								<Card key={division.id}>
-									<CardHeader className="py-3 px-4">
-										<div className="flex items-center justify-between">
-											<CardTitle className="text-base">{division.label}</CardTitle>
-											<span className={`text-sm font-medium ${feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
-												{priceLabel}
-											</span>
-										</div>
-									</CardHeader>
-								</Card>
+								<Collapsible key={division.id}>
+									<Card>
+										<CollapsibleTrigger asChild>
+											<CardHeader className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}>
+												<div className="flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<CardTitle className="text-base">
+															{division.label}{" "}
+															<span className="font-normal text-muted-foreground">
+																{division.teamSize === 1 ? "(Indy)" : `(Teams of ${division.teamSize})`}
+															</span>
+														</CardTitle>
+														<span className="text-xs text-muted-foreground">
+															({division.registrationCount} {athleteLabel})
+														</span>
+														{hasDescription && (
+															<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+														)}
+													</div>
+													<span className={`text-sm font-medium ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+														{priceLabel}
+													</span>
+												</div>
+											</CardHeader>
+										</CollapsibleTrigger>
+										{hasDescription && (
+											<CollapsibleContent>
+												<CardContent className="pt-0 pb-4 px-4">
+													<p className="text-sm text-muted-foreground whitespace-pre-wrap">
+														{division.description}
+													</p>
+												</CardContent>
+											</CollapsibleContent>
+										)}
+									</Card>
+								</Collapsible>
 							)
 						})}
 					</div>
