@@ -158,6 +158,12 @@ export default async function CompetitionDetailPage({
 						>
 							Athletes
 						</Link>
+						<Link
+							href={`/compete/organizer/${competition.id}/settings/pricing`}
+							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
+						>
+							Pricing
+						</Link>
 					</nav>
 				</div>
 
