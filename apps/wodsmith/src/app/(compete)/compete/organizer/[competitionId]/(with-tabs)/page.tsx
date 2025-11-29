@@ -1,10 +1,8 @@
 import "server-only"
-import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ZSAError } from "@repo/zsa"
-import { ExternalLink, Users } from "lucide-react"
+import { Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -13,12 +11,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { getDb } from "@/db"
-import { TEAM_PERMISSIONS, competitionGroupsTable } from "@/db/schema"
 import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
-import { requireTeamPermission } from "@/utils/team-auth"
-import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
-import { OrganizerCompetitionActions } from "./_components/organizer-competition-actions"
 
 interface CompetitionDetailPageProps {
 	params: Promise<{
@@ -48,40 +41,16 @@ export default async function CompetitionDetailPage({
 	params,
 }: CompetitionDetailPageProps) {
 	const { competitionId } = await params
-	const db = getDb()
 
-	// Get competition
+	// Get competition (layout already validated access)
 	const competition = await getCompetition(competitionId)
 
 	if (!competition) {
 		notFound()
 	}
 
-	// Check if user has permission on the organizing team
-	try {
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
-	} catch (error) {
-		if (
-			error instanceof ZSAError &&
-			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
-		) {
-			notFound()
-		}
-		throw error
-	}
-
-	// Fetch group and registrations in parallel
-	const [group, registrations] = await Promise.all([
-		competition.groupId
-			? db.query.competitionGroupsTable.findFirst({
-					where: eq(competitionGroupsTable.id, competition.groupId),
-				})
-			: Promise.resolve(null),
-		getCompetitionRegistrations(competitionId),
-	])
+	// Fetch registrations
+	const registrations = await getCompetitionRegistrations(competitionId)
 
 	const formatDate = (date: Date) => {
 		return new Date(date).toLocaleDateString(undefined, {
@@ -101,73 +70,9 @@ export default async function CompetitionDetailPage({
 		})
 	}
 
-	// Build breadcrumb segments
-	const breadcrumbSegments = group
-		? [
-				{ label: "Series", href: "/compete/organizer/series" },
-				{ label: group.name, href: `/compete/organizer/series/${group.id}` },
-				{ label: competition.name },
-			]
-		: [{ label: competition.name }]
-
 	return (
-		<div className="container mx-auto px-4 py-8">
-			<div className="flex flex-col gap-6">
-				{/* Breadcrumb and Header */}
-				<div>
-					<OrganizerBreadcrumb segments={breadcrumbSegments} />
-					<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-						<div className="flex-1 min-w-0">
-							<h1 className="text-3xl font-bold">{competition.name}</h1>
-							{competition.description && (
-								<p className="text-muted-foreground mt-2">
-									{competition.description}
-								</p>
-							)}
-						</div>
-						<div className="flex items-center gap-2 shrink-0">
-							<Link href={`/compete/${competition.slug}`}>
-								<Button variant="outline" size="sm">
-									<ExternalLink className="h-4 w-4 mr-2" />
-									View Public Page
-								</Button>
-							</Link>
-							<OrganizerCompetitionActions
-								competitionId={competition.id}
-								organizingTeamId={competition.organizingTeamId}
-							/>
-						</div>
-					</div>
-				</div>
-
-				{/* Navigation Tabs */}
-				<div className="border-b">
-					<nav className="flex gap-4">
-						<span className="px-4 py-2 border-b-2 border-primary font-medium">
-							Overview
-						</span>
-						<Link
-							href={`/compete/organizer/${competition.id}/divisions`}
-							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
-						>
-							Divisions
-						</Link>
-						<Link
-							href={`/compete/organizer/${competition.id}/athletes`}
-							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
-						>
-							Athletes
-						</Link>
-						<Link
-							href={`/compete/organizer/${competition.id}/settings/pricing`}
-							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
-						>
-							Pricing
-						</Link>
-					</nav>
-				</div>
-
-				{/* Competition Details Card */}
+		<div className="flex flex-col gap-6">
+			{/* Competition Details Card */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Competition Details</CardTitle>
@@ -191,22 +96,6 @@ export default async function CompetitionDetailPage({
 								<div className="text-sm font-mono mt-1">{competition.slug}</div>
 							</div>
 						</div>
-
-						{group && (
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">
-									Series
-								</div>
-								<div className="text-sm mt-1">
-									<Link
-										href={`/compete/organizer/series/${group.id}`}
-										className="text-primary hover:underline"
-									>
-										{group.name}
-									</Link>
-								</div>
-							</div>
-						)}
 
 						<div>
 							<div className="text-sm font-medium text-muted-foreground">
@@ -308,7 +197,6 @@ export default async function CompetitionDetailPage({
 						)}
 					</CardContent>
 				</Card>
-			</div>
 		</div>
 	)
 }
