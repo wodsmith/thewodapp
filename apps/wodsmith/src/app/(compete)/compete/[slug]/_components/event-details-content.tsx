@@ -3,12 +3,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import type { Competition, CompetitionGroup, Team, ScalingLevel } from "@/db/schema"
 
+interface DivisionFees {
+	defaultFeeCents: number
+	divisionFees: Array<{
+		divisionId: string
+		divisionLabel: string | undefined
+		feeCents: number
+	}>
+}
+
 interface EventDetailsContentProps {
 	competition: Competition & {
 		organizingTeam: Team | null
 		group: CompetitionGroup | null
 	}
 	divisions?: ScalingLevel[]
+	divisionFees?: DivisionFees
 }
 
 function formatDateShort(date: Date | number): string {
@@ -16,8 +26,20 @@ function formatDateShort(date: Date | number): string {
 	return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
 }
 
-export function EventDetailsContent({ competition, divisions }: EventDetailsContentProps) {
+function formatPrice(cents: number): string {
+	if (cents === 0) return "Free"
+	return `$${(cents / 100).toFixed(0)}`
+}
+
+export function EventDetailsContent({ competition, divisions, divisionFees }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
+
+	// Helper to get fee for a specific division
+	const getDivisionFee = (divisionId: string): number => {
+		const override = divisionFees?.divisionFees.find(f => f.divisionId === divisionId)
+		if (override) return override.feeCents
+		return divisionFees?.defaultFeeCents ?? 0
+	}
 
 	return (
 		<div className="space-y-8">
@@ -47,13 +69,22 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 				<Separator className="mb-4" />
 				{hasDivisions ? (
 					<div className="space-y-3">
-						{divisions.map((division) => (
-							<Card key={division.id}>
-								<CardHeader className="py-3 px-4">
-									<CardTitle className="text-base">{division.label}</CardTitle>
-								</CardHeader>
-							</Card>
-						))}
+						{divisions.map((division) => {
+							const feeCents = getDivisionFee(division.id)
+							const priceLabel = formatPrice(feeCents)
+							return (
+								<Card key={division.id}>
+									<CardHeader className="py-3 px-4">
+										<div className="flex items-center justify-between">
+											<CardTitle className="text-base">{division.label}</CardTitle>
+											<span className={`text-sm font-medium ${feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+												{priceLabel}
+											</span>
+										</div>
+									</CardHeader>
+								</Card>
+							)
+						})}
 					</div>
 				) : (
 					<Card className="border-dashed">

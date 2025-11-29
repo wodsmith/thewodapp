@@ -4,6 +4,7 @@ import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { getCompetition, getCompetitionRegistrations, getUserCompetitionRegistration } from "@/server/competitions"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { listScalingLevels } from "@/server/scaling-levels"
+import { getCompetitionDivisionFees } from "@/actions/commerce.action"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
@@ -59,13 +60,14 @@ export default async function CompetitionDetailPage({ params }: Props) {
   // Parse settings early to check for divisions
   const settings = parseCompetitionSettings(competition.settings)
 
-  // Parallel fetch: session, registrations, and divisions
-  const [session, registrations, divisions] = await Promise.all([
+  // Parallel fetch: session, registrations, divisions, and fees
+  const [session, registrations, divisions, divisionFees] = await Promise.all([
     getSessionFromCookie(),
     getCompetitionRegistrations(competition.id),
     settings?.divisions?.scalingGroupId
       ? listScalingLevels({ scalingGroupId: settings.divisions.scalingGroupId })
       : Promise.resolve(null),
+    getCompetitionDivisionFees(competition.id),
   ])
 
   // Check if user is already registered, get pending invites, and check manage permission (depends on session)
@@ -133,6 +135,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
             <EventDetailsContent
               competition={competition}
               divisions={divisions ?? undefined}
+              divisionFees={divisionFees}
             />
 
             {/* Sidebar */}
