@@ -665,7 +665,7 @@ export const addWorkoutToCompetitionAction = createServerAction()
 			})
 
 			// Revalidate
-			revalidatePath(`/admin/teams/[teamId]/competitions/${input.competitionId}`)
+			revalidatePath(`/compete/organizer/${input.competitionId}`)
 
 			return { success: true, data: result }
 		} catch (error) {
@@ -722,7 +722,7 @@ export const updateCompetitionWorkoutAction = createServerAction()
 			})
 
 			// Revalidate
-			revalidatePath("/admin/teams/[teamId]/competitions")
+			revalidatePath("/compete/organizer")
 
 			return { success: true }
 		} catch (error) {
@@ -753,7 +753,7 @@ export const removeWorkoutFromCompetitionAction = createServerAction()
 			await removeWorkoutFromCompetition(input.trackWorkoutId)
 
 			// Revalidate
-			revalidatePath("/admin/teams/[teamId]/competitions")
+			revalidatePath("/compete/organizer")
 
 			return { success: true }
 		} catch (error) {
@@ -787,7 +787,7 @@ export const reorderCompetitionEventsAction = createServerAction()
 			)
 
 			// Revalidate
-			revalidatePath(`/admin/teams/[teamId]/competitions/${input.competitionId}`)
+			revalidatePath(`/compete/organizer/${input.competitionId}`)
 
 			return { success: true, updateCount }
 		} catch (error) {
