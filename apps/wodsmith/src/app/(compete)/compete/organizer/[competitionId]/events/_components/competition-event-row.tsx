@@ -14,16 +14,20 @@ import {
 	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
-import { GripVertical, Trash2 } from "lucide-react"
+import { GripVertical, Pencil, Trash2 } from "lucide-react"
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 interface CompetitionEventRowProps {
 	event: CompetitionWorkout
 	index: number
 	instanceId: symbol
+	competitionId: string
+	onNameSave: (name: string) => void
 	onRemove: () => void
 	onDrop: (sourceIndex: number, targetIndex: number) => void
 }
@@ -32,6 +36,8 @@ export function CompetitionEventRow({
 	event,
 	index,
 	instanceId,
+	competitionId,
+	onNameSave,
 	onRemove,
 	onDrop,
 }: CompetitionEventRowProps) {
@@ -40,11 +46,13 @@ export function CompetitionEventRow({
 	const [isDragging, setIsDragging] = useState(false)
 	const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
 	const closestEdgeRef = useRef<Edge | null>(null)
-	const labelRef = useRef(event.workout.name)
+	const [localName, setLocalName] = useState(event.workout.name)
+	const nameRef = useRef(event.workout.name)
 
-	// Update ref when prop changes
+	// Sync local state when prop changes
 	useEffect(() => {
-		labelRef.current = event.workout.name
+		setLocalName(event.workout.name)
+		nameRef.current = event.workout.name
 	}, [event.workout.name])
 
 	useEffect(() => {
@@ -82,7 +90,7 @@ export function CompetitionEventRow({
 								color: hsl(var(--foreground));
 								box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 							`
-							preview.textContent = labelRef.current || "Event"
+							preview.textContent = nameRef.current || "Event"
 							container.appendChild(preview)
 						},
 					})
@@ -151,6 +159,14 @@ export function CompetitionEventRow({
 		)
 	}, [event.id, index, instanceId, onDrop])
 
+	const handleNameBlur = () => {
+		if (localName !== event.workout.name && localName.trim()) {
+			onNameSave(localName.trim())
+		} else if (!localName.trim()) {
+			setLocalName(event.workout.name)
+		}
+	}
+
 	return (
 		<div ref={ref} className="relative">
 			{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
@@ -168,39 +184,59 @@ export function CompetitionEventRow({
 						</button>
 
 						{/* Event Number */}
-						<div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+						<div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
 							{index + 1}
 						</div>
 
-						{/* Event Details */}
-						<div className="flex-1 min-w-0">
-							<h4 className="font-medium truncate">{event.workout.name}</h4>
-							{event.workout.description && (
-								<p className="text-sm text-muted-foreground truncate">
-									{event.workout.description}
-								</p>
-							)}
-							<div className="flex items-center gap-2 mt-1">
-								<span className="text-xs text-muted-foreground">
-									{event.workout.scheme}
-								</span>
-								{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
-									<span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-										{event.pointsMultiplier / 100}x points
-									</span>
-								)}
-							</div>
-						</div>
+						{/* Editable Name */}
+						<Input
+							value={localName}
+							onChange={(e) => setLocalName(e.target.value)}
+							onBlur={handleNameBlur}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.currentTarget.blur()
+								}
+							}}
+							className="flex-1 font-medium"
+							placeholder="Event name"
+						/>
+
+						{/* Scheme badge */}
+						{event.workout.scheme && (
+							<span className="text-xs bg-muted px-2 py-1 rounded shrink-0">
+								{event.workout.scheme}
+							</span>
+						)}
+
+						{/* Points multiplier badge */}
+						{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+							<span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
+								{event.pointsMultiplier / 100}x
+							</span>
+						)}
 
 						{/* Actions */}
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={onRemove}
-							className="text-muted-foreground hover:text-destructive"
-						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
+						<div className="flex items-center gap-1 shrink-0">
+							<Button
+								variant="ghost"
+								size="icon"
+								asChild
+								className="text-muted-foreground hover:text-foreground"
+							>
+								<Link href={`/compete/organizer/${competitionId}/events/${event.id}`}>
+									<Pencil className="h-4 w-4" />
+								</Link>
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onRemove}
+								className="text-muted-foreground hover:text-destructive"
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
 				</CardContent>
 			</Card>

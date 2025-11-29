@@ -4,11 +4,11 @@ import { Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
-import { useRouter } from "next/navigation"
 import {
-	addWorkoutToCompetitionAction,
+	createCompetitionEventAction,
 	reorderCompetitionEventsAction,
 	removeWorkoutFromCompetitionAction,
+	updateCompetitionEventAction,
 } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,43 +18,56 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import type { Movement, Tag } from "@/db/schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { AddEventDialog } from "./add-event-dialog"
 import { CompetitionEventRow } from "./competition-event-row"
+import { CreateEventDialog } from "./create-event-dialog"
 
 interface OrganizerEventManagerProps {
 	competitionId: string
 	organizingTeamId: string
 	events: CompetitionWorkout[]
-	availableWorkouts: Array<{
-		id: string
-		name: string
-		description: string | null
-		scheme: string
-		scoreType: string | null
-		tags: Array<{ id: string; name: string }>
-		movements: Array<{ id: string; name: string; type: string }>
-	}>
+	movements: Movement[]
+	tags: Tag[]
 }
 
 export function OrganizerEventManager({
 	competitionId,
 	organizingTeamId,
 	events: initialEvents,
-	availableWorkouts,
+	movements,
+	tags,
 }: OrganizerEventManagerProps) {
-	const router = useRouter()
 	const [events, setEvents] = useState(initialEvents)
+	const [showCreateDialog, setShowCreateDialog] = useState(false)
 	const [showAddDialog, setShowAddDialog] = useState(false)
 	const [instanceId] = useState(() => Symbol("competition-events"))
 
-	// Sync props to state when server data changes
+	// Sync props to state when server data changes, but deduplicate
 	useEffect(() => {
-		setEvents(initialEvents)
+		setEvents((currentEvents) => {
+			// Deduplicate by name + scheme (since new events may not have stable IDs yet)
+			const serverEventKeys = new Set(
+				initialEvents.map((e) => `${e.workout.name}:${e.workout.scheme}`)
+			)
+			const optimisticEvents = currentEvents.filter(
+				(e) => !serverEventKeys.has(`${e.workout.name}:${e.workout.scheme}`)
+			)
+
+			// Merge server events with any remaining optimistic events
+			return [...initialEvents, ...optimisticEvents]
+		})
 	}, [initialEvents])
 
-	const { execute: addWorkout, isPending: isAdding } = useServerAction(
-		addWorkoutToCompetitionAction,
+	const { execute: createEvent, isPending: isCreating } = useServerAction(
+		createCompetitionEventAction,
+	)
+
+	const [isAdding, setIsAdding] = useState(false)
+
+	const { execute: updateEvent } = useServerAction(
+		updateCompetitionEventAction,
 	)
 
 	const { execute: removeWorkout } = useServerAction(
@@ -68,47 +81,108 @@ export function OrganizerEventManager({
 	// Sort events by trackOrder
 	const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
-	const handleAddWorkout = async (workoutId: string) => {
-		const workout = availableWorkouts.find((w) => w.id === workoutId)
-		if (!workout) {
-			toast.error("Workout not found")
-			return
-		}
+	// Get existing workout IDs for filtering in AddEventDialog
+	const existingWorkoutIds = new Set(events.map((e) => e.workoutId))
 
-		const [result, error] = await addWorkout({
+	const handleCreateEvent = async (data: {
+		name: string
+		scheme: string
+		scoreType?: string
+		description?: string
+		roundsToScore?: number
+		repsPerRound?: number
+		tiebreakScheme?: string
+		secondaryScheme?: string
+		tagIds?: string[]
+		movementIds?: string[]
+	}) => {
+		const [result, error] = await createEvent({
 			competitionId,
 			organizingTeamId,
-			workoutId,
+			name: data.name,
+			scheme: data.scheme,
+			scoreType: data.scoreType,
+			description: data.description,
+			roundsToScore: data.roundsToScore,
+			repsPerRound: data.repsPerRound,
+			tiebreakScheme: data.tiebreakScheme as "time" | "reps" | undefined,
+			secondaryScheme: data.secondaryScheme as "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points" | undefined,
+			tagIds: data.tagIds,
+			movementIds: data.movementIds,
 		})
 
 		if (error) {
-			toast.error(error.message || "Failed to add workout")
+			toast.error(error.message || "Failed to create event")
 		} else if (result?.data) {
-			toast.success(`Added "${workout.name}" to competition`)
-			// Optimistically add the event
-			const newEvent: CompetitionWorkout = {
-				id: result.data.trackWorkoutId,
-				trackId: "",
-				workoutId,
-				trackOrder: events.length + 1,
-				notes: null,
-				pointsMultiplier: 100,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				workout: {
-					id: workout.id,
-					name: workout.name,
-					description: workout.description,
-					scheme: workout.scheme,
-					scoreType: workout.scoreType,
-				},
+			toast.success(`Created "${data.name}"`)
+			setShowCreateDialog(false)
+		}
+	}
+
+	const handleAddWorkout = async (workout: {
+		id: string
+		name: string
+		description: string | null
+		scheme: string
+		scoreType: string | null
+		tags: Array<{ id: string; name: string }>
+		movements: Array<{ id: string; name: string; type: string }>
+	}) => {
+		setIsAdding(true)
+		try {
+			// Create as a remix of the existing workout
+			const [result, error] = await createEvent({
+				competitionId,
+				organizingTeamId,
+				name: workout.name,
+				scheme: workout.scheme,
+				scoreType: workout.scoreType,
+				description: workout.description || undefined,
+				sourceWorkoutId: workout.id, // Mark as remix
+				tagIds: workout.tags.map((t) => t.id),
+				movementIds: workout.movements.map((m) => m.id),
+			})
+
+			if (error) {
+				toast.error(error.message || "Failed to add workout")
+			} else if (result?.data) {
+				toast.success(`Added "${workout.name}" as a remix`)
+				setShowAddDialog(false)
 			}
-			setEvents((prev) => [...prev, newEvent])
-			setShowAddDialog(false)
+		} finally {
+			setIsAdding(false)
+		}
+	}
+
+	const handleNameSave = async (trackWorkoutId: string, workoutId: string, name: string) => {
+		// Optimistic update
+		setEvents((prev) =>
+			prev.map((e) =>
+				e.id === trackWorkoutId
+					? { ...e, workout: { ...e.workout, name } }
+					: e,
+			),
+		)
+
+		const [_result, error] = await updateEvent({
+			trackWorkoutId,
+			workoutId,
+			organizingTeamId,
+			name,
+		})
+
+		if (error) {
+			toast.error(error.message || "Failed to update name")
+			// Revert
+			setEvents(initialEvents)
 		}
 	}
 
 	const handleRemove = async (trackWorkoutId: string) => {
+		// Optimistically remove from state
+		const eventToRemove = events.find((e) => e.id === trackWorkoutId)
+		setEvents((prev) => prev.filter((e) => e.id !== trackWorkoutId))
+
 		const [_result, error] = await removeWorkout({
 			trackWorkoutId,
 			organizingTeamId,
@@ -116,9 +190,12 @@ export function OrganizerEventManager({
 
 		if (error) {
 			toast.error(error.message || "Failed to remove event")
+			// Revert - add it back
+			if (eventToRemove) {
+				setEvents((prev) => [...prev, eventToRemove])
+			}
 		} else {
 			toast.success("Event removed")
-			setEvents((prev) => prev.filter((e) => e.id !== trackWorkoutId))
 		}
 	}
 
@@ -150,35 +227,40 @@ export function OrganizerEventManager({
 
 			if (error) {
 				toast.error(error.message || "Failed to reorder events")
-				// Revert
 				setEvents(initialEvents)
 			}
 		}
 	}
 
-	// Filter out workouts that are already in the competition
-	const existingWorkoutIds = new Set(events.map((e) => e.workoutId))
-	const filteredAvailableWorkouts = availableWorkouts.filter(
-		(w) => !existingWorkoutIds.has(w.id),
-	)
-
 	return (
 		<>
 			<div className="flex justify-end">
-				<Button onClick={() => setShowAddDialog(true)}>
-					<Plus className="h-4 w-4 mr-2" />
-					Add Event
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button variant="outline" onClick={() => setShowAddDialog(true)}>
+						<Plus className="h-4 w-4 mr-2" />
+						Add Existing
+					</Button>
+					<Button onClick={() => setShowCreateDialog(true)}>
+						<Plus className="h-4 w-4 mr-2" />
+						Create Event
+					</Button>
+				</div>
 			</div>
 			{events.length === 0 ? (
 				<div className="text-center py-8">
 					<p className="text-muted-foreground mb-4">
 						No events added to this competition yet.
 					</p>
-					<Button onClick={() => setShowAddDialog(true)} variant="outline">
-						<Plus className="h-4 w-4 mr-2" />
-						Add First Event
-					</Button>
+					<div className="flex items-center justify-center gap-2">
+						<Button variant="outline" onClick={() => setShowAddDialog(true)}>
+							<Plus className="h-4 w-4 mr-2" />
+							Add Existing Workout
+						</Button>
+						<Button onClick={() => setShowCreateDialog(true)}>
+							<Plus className="h-4 w-4 mr-2" />
+							Create New Event
+						</Button>
+					</div>
 				</div>
 			) : (
 				<div className="space-y-2">
@@ -188,6 +270,8 @@ export function OrganizerEventManager({
 							event={event}
 							index={index}
 							instanceId={instanceId}
+							competitionId={competitionId}
+							onNameSave={(name) => handleNameSave(event.id, event.workoutId, name)}
 							onRemove={() => handleRemove(event.id)}
 							onDrop={handleDrop}
 						/>
@@ -195,12 +279,22 @@ export function OrganizerEventManager({
 				</div>
 			)}
 
+			<CreateEventDialog
+				open={showCreateDialog}
+				onOpenChange={setShowCreateDialog}
+				onCreateEvent={handleCreateEvent}
+				isCreating={isCreating}
+				movements={movements}
+				tags={tags}
+			/>
+
 			<AddEventDialog
 				open={showAddDialog}
 				onOpenChange={setShowAddDialog}
-				availableWorkouts={filteredAvailableWorkouts}
 				onAddWorkout={handleAddWorkout}
 				isAdding={isAdding}
+				teamId={organizingTeamId}
+				existingWorkoutIds={existingWorkoutIds}
 			/>
 		</>
 	)

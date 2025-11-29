@@ -1,7 +1,7 @@
 "use client"
 
-import { Search } from "lucide-react"
-import { useState } from "react"
+import { Loader2, Search } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
 	Dialog,
 	DialogContent,
@@ -12,44 +12,71 @@ import {
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
+interface Workout {
+	id: string
+	name: string
+	description: string | null
+	scheme: string
+	scoreType: string | null
+	tags: Array<{ id: string; name: string }>
+	movements: Array<{ id: string; name: string; type: string }>
+}
+
 interface AddEventDialogProps {
 	open: boolean
 	onOpenChange: (open: boolean) => void
-	availableWorkouts: Array<{
-		id: string
-		name: string
-		description: string | null
-		scheme: string
-		scoreType: string | null
-		tags: Array<{ id: string; name: string }>
-		movements: Array<{ id: string; name: string; type: string }>
-	}>
-	onAddWorkout: (workoutId: string) => void
+	onAddWorkout: (workout: Workout) => void
 	isAdding?: boolean
+	teamId: string
+	existingWorkoutIds: Set<string>
 }
 
 export function AddEventDialog({
 	open,
 	onOpenChange,
-	availableWorkouts,
 	onAddWorkout,
 	isAdding,
+	teamId,
+	existingWorkoutIds,
 }: AddEventDialogProps) {
 	const [search, setSearch] = useState("")
+	const [workouts, setWorkouts] = useState<Workout[]>([])
+	const [isLoading, setIsLoading] = useState(false)
 
-	const filteredWorkouts = availableWorkouts.filter((workout) => {
-		const searchLower = search.toLowerCase()
-		return (
-			workout.name.toLowerCase().includes(searchLower) ||
-			workout.description?.toLowerCase().includes(searchLower) ||
-			workout.tags.some((t) => t.name.toLowerCase().includes(searchLower)) ||
-			workout.movements.some((m) => m.name.toLowerCase().includes(searchLower))
-		)
-	})
+	// Fetch workouts when dialog opens or search changes
+	useEffect(() => {
+		if (!open) return
 
-	const handleSelect = (workoutId: string) => {
+		const fetchWorkouts = async () => {
+			setIsLoading(true)
+			try {
+				const params = new URLSearchParams({
+					teamId,
+					q: search,
+				})
+				const response = await fetch(`/api/workouts/search?${params}`)
+				const data = await response.json()
+
+				// Filter out workouts already in competition
+				const filtered = (data.workouts || []).filter(
+					(w: Workout) => !existingWorkoutIds.has(w.id)
+				)
+				setWorkouts(filtered)
+			} catch (error) {
+				console.error("Failed to fetch workouts:", error)
+				setWorkouts([])
+			} finally {
+				setIsLoading(false)
+			}
+		}
+
+		const timeoutId = setTimeout(fetchWorkouts, 300) // Debounce
+		return () => clearTimeout(timeoutId)
+	}, [open, search, teamId, existingWorkoutIds])
+
+	const handleSelect = (workout: Workout) => {
 		if (isAdding) return
-		onAddWorkout(workoutId)
+		onAddWorkout(workout)
 		setSearch("")
 	}
 
@@ -72,24 +99,29 @@ export function AddEventDialog({
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 							className="pl-9"
+							autoFocus
 						/>
 					</div>
 
 					{/* Workout List */}
 					<ScrollArea className="h-[400px]">
-						{filteredWorkouts.length === 0 ? (
+						{isLoading ? (
+							<div className="flex items-center justify-center py-8">
+								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+							</div>
+						) : workouts.length === 0 ? (
 							<div className="text-center py-8 text-muted-foreground">
-								{availableWorkouts.length === 0
-									? "No workouts available. Create workouts first."
-									: "No workouts match your search."}
+								{search
+									? "No workouts match your search."
+									: "Start typing to search workouts..."}
 							</div>
 						) : (
 							<div className="space-y-2 pr-4">
-								{filteredWorkouts.map((workout) => (
+								{workouts.map((workout) => (
 									<button
 										key={workout.id}
 										type="button"
-										onClick={() => handleSelect(workout.id)}
+										onClick={() => handleSelect(workout)}
 										disabled={isAdding}
 										className="w-full text-left p-4 rounded-lg border hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 									>

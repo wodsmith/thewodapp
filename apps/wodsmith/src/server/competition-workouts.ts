@@ -1,12 +1,17 @@
 import "server-only"
 
-import { and, eq } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
+import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionsTable,
+	movements,
 	programmingTracksTable,
+	tags,
 	trackWorkoutsTable,
+	workoutMovements,
 	workouts,
+	workoutTags,
 } from "@/db/schema"
 
 export interface CompetitionWorkout {
@@ -24,6 +29,12 @@ export interface CompetitionWorkout {
 		description: string | null
 		scheme: string
 		scoreType: string | null
+		roundsToScore: number | null
+		repsPerRound: number | null
+		tiebreakScheme: string | null
+		secondaryScheme: string | null
+		tags?: Array<{ id: string; name: string }>
+		movements?: Array<{ id: string; name: string; type: string }>
 	}
 }
 
@@ -116,6 +127,10 @@ export async function getCompetitionWorkouts(
 				description: workouts.description,
 				scheme: workouts.scheme,
 				scoreType: workouts.scoreType,
+				roundsToScore: workouts.roundsToScore,
+				repsPerRound: workouts.repsPerRound,
+				tiebreakScheme: workouts.tiebreakScheme,
+				secondaryScheme: workouts.secondaryScheme,
 			},
 		})
 		.from(trackWorkoutsTable)
@@ -241,6 +256,75 @@ export async function getNextCompetitionEventOrder(
 }
 
 /**
+ * Get a single competition event by trackWorkoutId
+ */
+export async function getCompetitionEvent(
+	trackWorkoutId: string,
+): Promise<CompetitionWorkout | null> {
+	const db = getDb()
+
+	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
+		where: eq(trackWorkoutsTable.id, trackWorkoutId),
+		with: {
+			workout: true,
+		},
+	})
+
+	if (!trackWorkout || !trackWorkout.workout) {
+		return null
+	}
+
+	// Fetch tags for this workout
+	const workoutTagsData = await db
+		.select({
+			tagId: tags.id,
+			tagName: tags.name,
+		})
+		.from(workoutTags)
+		.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+		.where(eq(workoutTags.workoutId, trackWorkout.workoutId))
+
+	// Fetch movements for this workout
+	const workoutMovementsData = await db
+		.select({
+			movementId: movements.id,
+			movementName: movements.name,
+			movementType: movements.type,
+		})
+		.from(workoutMovements)
+		.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+		.where(eq(workoutMovements.workoutId, trackWorkout.workoutId))
+
+	return {
+		id: trackWorkout.id,
+		trackId: trackWorkout.trackId,
+		workoutId: trackWorkout.workoutId,
+		trackOrder: trackWorkout.trackOrder,
+		notes: trackWorkout.notes,
+		pointsMultiplier: trackWorkout.pointsMultiplier,
+		createdAt: trackWorkout.createdAt,
+		updatedAt: trackWorkout.updatedAt,
+		workout: {
+			id: trackWorkout.workout.id,
+			name: trackWorkout.workout.name,
+			description: trackWorkout.workout.description,
+			scheme: trackWorkout.workout.scheme,
+			scoreType: trackWorkout.workout.scoreType,
+			roundsToScore: trackWorkout.workout.roundsToScore,
+			repsPerRound: trackWorkout.workout.repsPerRound,
+			tiebreakScheme: trackWorkout.workout.tiebreakScheme,
+			secondaryScheme: trackWorkout.workout.secondaryScheme,
+			tags: workoutTagsData.map((t) => ({ id: t.tagId, name: t.tagName })),
+			movements: workoutMovementsData.map((m) => ({
+				id: m.movementId,
+				name: m.movementName,
+				type: m.movementType,
+			})),
+		},
+	}
+}
+
+/**
  * Get competition details with track info
  */
 export async function getCompetitionWithTrack(competitionId: string) {
@@ -259,5 +343,189 @@ export async function getCompetitionWithTrack(competitionId: string) {
 	return {
 		...competition,
 		track,
+	}
+}
+
+/**
+ * Create a new competition event (creates workout and adds to competition track)
+ */
+export async function createCompetitionEvent(params: {
+	competitionId: string
+	teamId: string
+	name: string
+	scheme: string
+	scoreType?: string
+	description?: string
+	roundsToScore?: number
+	repsPerRound?: number
+	tiebreakScheme?: "time" | "reps"
+	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points"
+	tagIds?: string[]
+	movementIds?: string[]
+	sourceWorkoutId?: string
+}): Promise<{ workoutId: string; trackWorkoutId: string }> {
+	const db = getDb()
+
+	// Get the competition track
+	const track = await getCompetitionTrack(params.competitionId)
+	if (!track) {
+		throw new Error("Competition track not found")
+	}
+
+	// Get the next track order
+	const nextOrder = await getNextCompetitionEventOrder(params.competitionId)
+
+	// Create the workout
+	const [workout] = await db
+		.insert(workouts)
+		.values({
+			id: `workout_${createId()}`,
+			name: params.name,
+			scheme: params.scheme as typeof workouts.$inferInsert.scheme,
+			scoreType: params.scoreType as typeof workouts.$inferInsert.scoreType,
+			description: params.description || "",
+			teamId: params.teamId,
+			scope: "private", // Competition workouts are private to the organizing team
+			roundsToScore: params.roundsToScore ?? null,
+			repsPerRound: params.repsPerRound ?? null,
+			tiebreakScheme: params.tiebreakScheme ?? null,
+			secondaryScheme: params.secondaryScheme ?? null,
+			sourceWorkoutId: params.sourceWorkoutId ?? null, // For remixes
+		})
+		.returning({ id: workouts.id })
+
+	if (!workout) {
+		throw new Error("Failed to create workout")
+	}
+
+	// Insert workout-tag relationships
+	const tagIds = (params.tagIds ?? []).filter((id) => !id.startsWith("new_tag_"))
+	if (tagIds.length > 0) {
+		await db.insert(workoutTags).values(
+			tagIds.map((tagId) => ({
+				id: `workout_tag_${createId()}`,
+				workoutId: workout.id,
+				tagId,
+			})),
+		)
+	}
+
+	// Insert workout-movement relationships
+	if (params.movementIds && params.movementIds.length > 0) {
+		await db.insert(workoutMovements).values(
+			params.movementIds.map((movementId) => ({
+				id: `workout_movement_${createId()}`,
+				workoutId: workout.id,
+				movementId,
+			})),
+		)
+	}
+
+	// Add to competition track
+	const [trackWorkout] = await db
+		.insert(trackWorkoutsTable)
+		.values({
+			trackId: track.id,
+			workoutId: workout.id,
+			trackOrder: nextOrder,
+			pointsMultiplier: 100,
+		})
+		.returning({ id: trackWorkoutsTable.id })
+
+	if (!trackWorkout) {
+		throw new Error("Failed to add workout to competition")
+	}
+
+	return {
+		workoutId: workout.id,
+		trackWorkoutId: trackWorkout.id,
+	}
+}
+
+/**
+ * Update a competition event's workout details
+ */
+export async function updateCompetitionEventWorkout(params: {
+	workoutId: string
+	name?: string
+	description?: string
+	scheme?: string
+	scoreType?: string | null
+	roundsToScore?: number | null
+	repsPerRound?: number | null
+	tiebreakScheme?: "time" | "reps" | null
+	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points" | null
+	tagIds?: string[]
+	movementIds?: string[]
+}): Promise<void> {
+	const db = getDb()
+
+	const updateData: Record<string, unknown> = {
+		updatedAt: new Date(),
+	}
+
+	if (params.name !== undefined) {
+		updateData.name = params.name
+	}
+	if (params.description !== undefined) {
+		updateData.description = params.description
+	}
+	if (params.scheme !== undefined) {
+		updateData.scheme = params.scheme
+	}
+	if (params.scoreType !== undefined) {
+		updateData.scoreType = params.scoreType
+	}
+	if (params.roundsToScore !== undefined) {
+		updateData.roundsToScore = params.roundsToScore
+	}
+	if (params.repsPerRound !== undefined) {
+		updateData.repsPerRound = params.repsPerRound
+	}
+	if (params.tiebreakScheme !== undefined) {
+		updateData.tiebreakScheme = params.tiebreakScheme
+	}
+	if (params.secondaryScheme !== undefined) {
+		updateData.secondaryScheme = params.secondaryScheme
+	}
+
+	await db
+		.update(workouts)
+		.set(updateData)
+		.where(eq(workouts.id, params.workoutId))
+
+	// Update tags if provided
+	if (params.tagIds !== undefined) {
+		// Delete existing tags
+		await db.delete(workoutTags).where(eq(workoutTags.workoutId, params.workoutId))
+
+		// Insert new tags (filter out any new_tag_ prefixed ids)
+		const tagIds = params.tagIds.filter((id) => !id.startsWith("new_tag_"))
+		if (tagIds.length > 0) {
+			await db.insert(workoutTags).values(
+				tagIds.map((tagId) => ({
+					id: `workout_tag_${createId()}`,
+					workoutId: params.workoutId,
+					tagId,
+				})),
+			)
+		}
+	}
+
+	// Update movements if provided
+	if (params.movementIds !== undefined) {
+		// Delete existing movements
+		await db.delete(workoutMovements).where(eq(workoutMovements.workoutId, params.workoutId))
+
+		// Insert new movements
+		if (params.movementIds.length > 0) {
+			await db.insert(workoutMovements).values(
+				params.movementIds.map((movementId) => ({
+					id: `workout_movement_${createId()}`,
+					workoutId: params.workoutId,
+					movementId,
+				})),
+			)
+		}
 	}
 }

@@ -423,10 +423,11 @@ export async function getUserWorkouts({
 	const workoutIds = allWorkouts.map((w) => w.id)
 
 	// Fetch related data in parallel
-	const [tagsByWorkoutId, movementsByWorkoutId] =
+	const [tagsByWorkoutId, movementsByWorkoutId, resultsByWorkoutId] =
 		await Promise.all([
 			fetchTagsByWorkoutId(db, workoutIds),
 			fetchMovementsByWorkoutId(db, workoutIds),
+			fetchTodaysResultsByWorkoutId(db, session.user.id, workoutIds),
 		])
 
 	// Fetch remix information for workouts that have sourceWorkoutId
@@ -499,6 +500,7 @@ export async function getUserWorkouts({
 			...w,
 			tags: tagsByWorkoutId.get(w.id) || [],
 			movements: movementsByWorkoutId.get(w.id) || [],
+			resultsToday: resultsByWorkoutId.get(w.id) || [],
 			sourceWorkout: sourceWorkoutData
 				? {
 						id: sourceWorkoutData.id,

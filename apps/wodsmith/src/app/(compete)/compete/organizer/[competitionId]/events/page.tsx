@@ -3,10 +3,11 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ZSAError } from "@repo/zsa"
+import { getAllMovementsAction } from "@/actions/movement-actions"
+import { getAllTagsAction } from "@/actions/tag-actions"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
-import { getUserWorkouts } from "@/server/workouts"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { OrganizerEventManager } from "./_components/organizer-event-manager"
@@ -63,14 +64,15 @@ export default async function CompetitionEventsPage({
 		throw error
 	}
 
-	// Parallel fetch: competition events and available workouts
-	const [competitionEvents, availableWorkouts] = await Promise.all([
+	// Parallel fetch: competition events, movements, and tags
+	const [competitionEvents, movementsResult, tagsResult] = await Promise.all([
 		getCompetitionWorkouts(competitionId),
-		getUserWorkouts({
-			teamId: competition.organizingTeamId,
-			limit: 100,
-		}),
+		getAllMovementsAction(),
+		getAllTagsAction(),
 	])
+
+	const [movements] = movementsResult ?? [null]
+	const [tags] = tagsResult ?? [null]
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -120,7 +122,8 @@ export default async function CompetitionEventsPage({
 					competitionId={competition.id}
 					organizingTeamId={competition.organizingTeamId}
 					events={competitionEvents}
-					availableWorkouts={availableWorkouts}
+					movements={movements?.data ?? []}
+					tags={tags?.data ?? []}
 				/>
 			</div>
 		</div>

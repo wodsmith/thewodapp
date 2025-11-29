@@ -169,7 +169,7 @@ export function MovementsList({
 			{/* Movements List */}
 			<div
 				id="movements-list"
-				className={`${containerHeight} overflow-y-auto border-2 border-black sm:p-4`}
+				className={`${containerHeight} overflow-y-auto sm:p-4`}
 			>
 				<div className="space-y-2">
 					{filteredMovements.length === 0 ? (
@@ -208,8 +208,8 @@ export function MovementsList({
 										}
 									}}
 									aria-pressed={isSelected}
-									className={`flex w-full cursor-pointer items-center justify-between border-2 border-black px-2 py-1 ${
-										isSelected ? "bg-black text-white" : ""
+									className={`flex w-full cursor-pointer items-center justify-between border px-2 py-1 rounded-md transition-colors ${
+										isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted"
 									}`}
 								>
 									<span className="font-bold">{movement.name}</span>
