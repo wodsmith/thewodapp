@@ -1,5 +1,4 @@
 import "server-only"
-import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -11,8 +10,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { getDb } from "@/db"
-import { TEAM_PERMISSIONS, competitionGroupsTable } from "@/db/schema"
+import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { getAdminTeamContext } from "../../_utils/get-team-context"
@@ -49,7 +47,6 @@ export default async function CompetitionDetailPage({
 }: CompetitionDetailPageProps) {
 	const { team } = await getAdminTeamContext()
 	const { competitionId } = await params
-	const db = getDb()
 
 	// Check if user has permission
 	await requireTeamPermission(team.id, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
