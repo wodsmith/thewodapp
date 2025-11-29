@@ -117,6 +117,7 @@ export const addCompetitionDivisionAction = createServerAction()
 			teamId: z.string().min(1, "Team ID is required"),
 			competitionId: z.string().min(1, "Competition ID is required"),
 			label: z.string().min(1, "Division name is required").max(100),
+			teamSize: z.number().int().min(1).max(10).default(1),
 		}),
 	)
 	.handler(async ({ input }) => {
@@ -139,6 +140,7 @@ export const addCompetitionDivisionAction = createServerAction()
 				competitionId: input.competitionId,
 				teamId: input.teamId,
 				label: input.label,
+				teamSize: input.teamSize,
 			})
 
 			revalidatePath(

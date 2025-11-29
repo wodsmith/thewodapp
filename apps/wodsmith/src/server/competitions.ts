@@ -519,7 +519,7 @@ export async function getCompetitions(
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
-		where: eq(competitionsTable.competitionTeamId, teamId),
+		where: eq(competitionsTable.organizingTeamId, teamId),
 		with: {
 			competitionTeam: true,
 			group: true,
@@ -1369,6 +1369,23 @@ export async function getCompetitionRegistrations(
 			},
 			division: true,
 			teamMember: true,
+			athleteTeam: {
+				with: {
+					memberships: {
+						with: {
+							user: {
+								columns: {
+									id: true,
+									firstName: true,
+									lastName: true,
+									email: true,
+									avatar: true,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		orderBy: (table, { asc }) => [asc(table.registeredAt)],
 	})

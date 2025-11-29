@@ -1,5 +1,6 @@
-import { Calendar, MapPin, Share2, Users } from "lucide-react"
+import { Calendar, MapPin, Settings, Share2, Users } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
@@ -10,6 +11,7 @@ interface CompetitionHeroProps {
 		group: CompetitionGroup | null
 	}
 	registrationCount: number
+	canManage?: boolean
 }
 
 function formatDateRange(startDate: Date | number, endDate: Date | number): string {
@@ -35,7 +37,7 @@ function formatDateRange(startDate: Date | number, endDate: Date | number): stri
 	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
 }
 
-export function CompetitionHero({ competition, registrationCount }: CompetitionHeroProps) {
+export function CompetitionHero({ competition, registrationCount, canManage = false }: CompetitionHeroProps) {
 	return (
 		<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white">
 			<div className="container mx-auto px-4 py-8 md:py-12">
@@ -79,14 +81,28 @@ export function CompetitionHero({ competition, registrationCount }: CompetitionH
 									</span>
 								</div>
 							</div>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="shrink-0 text-slate-400 hover:text-white hover:bg-slate-700"
-							>
-								<Share2 className="h-5 w-5" />
-								<span className="sr-only">Share</span>
-							</Button>
+							<div className="flex items-center gap-2 shrink-0">
+								{canManage && (
+									<Link href={`/compete/organizer/${competition.id}`}>
+										<Button
+											variant="secondary"
+											size="sm"
+											className="bg-teal-600 text-white hover:bg-teal-500"
+										>
+											<Settings className="h-4 w-4 mr-1" />
+											Manage
+										</Button>
+									</Link>
+								)}
+								<Button
+									variant="ghost"
+									size="icon"
+									className="text-slate-400 hover:text-white hover:bg-slate-700"
+								>
+									<Share2 className="h-5 w-5" />
+									<span className="sr-only">Share</span>
+								</Button>
+							</div>
 						</div>
 
 						{/* Quick Stats */}

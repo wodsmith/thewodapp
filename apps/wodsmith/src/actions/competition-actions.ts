@@ -60,8 +60,8 @@ export const createCompetitionGroupAction = createServerAction()
 			const result = await createCompetitionGroup(input)
 
 			// Revalidate competition pages
-			revalidatePath("/admin/teams/[teamId]/competitions")
-			revalidatePath("/admin/teams/[teamId]/competitions/series")
+			revalidatePath("/compete/organizer")
+			revalidatePath("/compete/organizer/series")
 
 			return { success: true, data: result }
 		} catch (error) {
@@ -156,9 +156,9 @@ export const updateCompetitionGroupAction = createServerAction()
 			)
 
 			// Revalidate competition pages
-			revalidatePath("/admin/teams/[teamId]/competitions")
-			revalidatePath("/admin/teams/[teamId]/competitions/series")
-			revalidatePath(`/admin/teams/[teamId]/competitions/series/${input.groupId}`)
+			revalidatePath("/compete/organizer")
+			revalidatePath("/compete/organizer/series")
+			revalidatePath(`/compete/organizer/series/${input.groupId}`)
 
 			return { success: true, data: result }
 		} catch (error) {
@@ -189,8 +189,8 @@ export const deleteCompetitionGroupAction = createServerAction()
 			await deleteCompetitionGroup(input.groupId)
 
 			// Revalidate competition pages
-			revalidatePath("/admin/teams/[teamId]/competitions")
-			revalidatePath("/admin/teams/[teamId]/competitions/series")
+			revalidatePath("/compete/organizer")
+			revalidatePath("/compete/organizer/series")
 
 			return { success: true }
 		} catch (error) {
@@ -225,9 +225,9 @@ export const createCompetitionAction = createServerAction()
 			const result = await createCompetition(input)
 
 			// Revalidate competition pages
-			revalidatePath("/admin/teams/[teamId]/competitions")
+			revalidatePath("/compete/organizer")
 			if (input.groupId) {
-				revalidatePath(`/admin/teams/[teamId]/competitions/series/${input.groupId}`)
+				revalidatePath(`/compete/organizer/series/${input.groupId}`)
 			}
 
 			return { success: true, data: result }
@@ -329,10 +329,10 @@ export const updateCompetitionAction = createServerAction()
 			const result = await updateCompetition(competitionId, updateData)
 
 			// Revalidate competition pages
-			revalidatePath("/admin/teams/[teamId]/competitions")
-			revalidatePath(`/admin/teams/[teamId]/competitions/${competitionId}`)
+			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${competitionId}`)
 			if (result.groupId) {
-				revalidatePath(`/admin/teams/[teamId]/competitions/series/${result.groupId}`)
+				revalidatePath(`/compete/organizer/series/${result.groupId}`)
 			}
 
 			return { success: true, data: result }
@@ -364,7 +364,7 @@ export const deleteCompetitionAction = createServerAction()
 			await deleteCompetition(input.competitionId)
 
 			// Revalidate competition pages
-			revalidatePath("/admin/teams/[teamId]/competitions")
+			revalidatePath("/compete/organizer")
 
 			return { success: true }
 		} catch (error) {
