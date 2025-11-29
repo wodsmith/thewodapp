@@ -304,7 +304,7 @@ export function PricingSettingsForm({
 														onClick={() =>
 															handleDivisionFeeUpdate(
 																division.id,
-																divisionFees[division.id]!,
+																currentFee,
 															)
 														}
 														disabled={isSubmitting}
