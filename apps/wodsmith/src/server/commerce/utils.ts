@@ -1,6 +1,21 @@
 import type { FeeConfiguration, FeeBreakdown } from "./fee-calculator"
 
 /**
+ * Platform default fee configuration
+ * These values are used when competitions don't specify custom fees
+ */
+export const PLATFORM_DEFAULTS = {
+	/** Platform fee percentage in basis points (250 = 2.5%) */
+	platformPercentageBasisPoints: 250,
+	/** Platform fixed fee in cents ($2.00) */
+	platformFixedCents: 200,
+	/** Stripe fee percentage in basis points (290 = 2.9%) */
+	stripePercentageBasisPoints: 290,
+	/** Stripe fixed fee in cents ($0.30) */
+	stripeFixedCents: 30,
+} as const
+
+/**
  * Calculate comprehensive fee breakdown for a competition registration
  *
  * Supports two fee models:
@@ -80,4 +95,33 @@ export function calculateCompetitionFees(
 		organizerNetCents,
 		passedToCustomer: false,
 	}
+}
+
+/**
+ * Build fee configuration from competition settings
+ * Falls back to platform defaults for any missing values
+ */
+export function buildFeeConfig(competition: {
+	platformFeePercentage?: number | null
+	platformFeeFixed?: number | null
+	passStripeFeesToCustomer?: boolean | null
+}): FeeConfiguration {
+	return {
+		platformPercentageBasisPoints:
+			competition.platformFeePercentage ??
+			PLATFORM_DEFAULTS.platformPercentageBasisPoints,
+		platformFixedCents:
+			competition.platformFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents,
+		stripePercentageBasisPoints: PLATFORM_DEFAULTS.stripePercentageBasisPoints,
+		stripeFixedCents: PLATFORM_DEFAULTS.stripeFixedCents,
+		passStripeFeesToCustomer: competition.passStripeFeesToCustomer ?? false,
+	}
+}
+
+/**
+ * Format cents as a dollar amount string
+ * @example formatCents(5325) => "$53.25"
+ */
+export function formatCents(cents: number): string {
+	return `$${(cents / 100).toFixed(2)}`
 }

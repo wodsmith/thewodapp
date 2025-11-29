@@ -107,7 +107,7 @@ import {
   competitionsTable,
   competitionRegistrationsTable,
 } from "@/db/schema"
-import { calculateCompetitionFees, PLATFORM_DEFAULTS } from "@/server/commerce/fee-calculator"
+import { calculateCompetitionFees, PLATFORM_DEFAULTS } from "@/server/commerce"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
