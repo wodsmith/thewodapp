@@ -1,4 +1,4 @@
-import { HelpCircle, Calendar, DollarSign, Dumbbell, Trophy, Users } from "lucide-react"
+import { HelpCircle, Calendar, DollarSign, Trophy, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import type { Competition, CompetitionGroup, Team, ScalingLevel } from "@/db/schema"
@@ -90,7 +90,7 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 			</section>
 
 			{/* Workouts Section */}
-			<WorkoutsContent competition={competition} />
+			<WorkoutsContent competition={competition} divisions={divisions ?? null} />
 
 			{/* Entry & Prizes */}
 			<section>

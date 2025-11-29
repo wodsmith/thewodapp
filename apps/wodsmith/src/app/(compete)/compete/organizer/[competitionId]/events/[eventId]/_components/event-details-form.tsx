@@ -8,6 +8,7 @@ import { useServerAction } from "@repo/zsa-react"
 import {
 	updateCompetitionEventAction,
 	updateCompetitionWorkoutAction,
+	updateDivisionDescriptionsAction,
 } from "@/actions/competition-actions"
 import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
@@ -99,11 +100,18 @@ interface Division {
 	registrationCount: number
 }
 
+interface DivisionDescriptionData {
+	divisionId: string
+	divisionLabel: string
+	description: string | null
+}
+
 interface EventDetailsFormProps {
 	event: CompetitionWorkout
 	competitionId: string
 	organizingTeamId: string
 	divisions: Division[]
+	divisionDescriptions: DivisionDescriptionData[]
 	movements: Movement[]
 	tags: Tag[]
 }
@@ -113,6 +121,7 @@ export function EventDetailsForm({
 	competitionId,
 	organizingTeamId,
 	divisions,
+	divisionDescriptions,
 	movements,
 	tags: initialTags,
 }: EventDetailsFormProps) {
@@ -131,6 +140,15 @@ export function EventDetailsForm({
 		event.pointsMultiplier || 100,
 	)
 	const [notes, setNotes] = useState(event.notes || "")
+
+	// Division descriptions state - map of divisionId to description
+	const [divisionDescs, setDivisionDescs] = useState<Record<string, string>>(() => {
+		const initial: Record<string, string> = {}
+		for (const dd of divisionDescriptions) {
+			initial[dd.divisionId] = dd.description || ""
+		}
+		return initial
+	})
 
 	// Tags and movements state
 	const [tags, setTags] = useState<Tag[]>(initialTags)
@@ -190,11 +208,14 @@ export function EventDetailsForm({
 	const { execute: updateWorkout, isPending: isUpdatingWorkout } =
 		useServerAction(updateCompetitionWorkoutAction)
 
-	const isSaving = isUpdatingEvent || isUpdatingWorkout
+	const { execute: updateDivisionDescs, isPending: isUpdatingDivisionDescs } =
+		useServerAction(updateDivisionDescriptionsAction)
+
+	const isSaving = isUpdatingEvent || isUpdatingWorkout || isUpdatingDivisionDescs
 
 	const handleSave = async () => {
 		// Update workout details
-		const [eventResult, eventError] = await updateEvent({
+		const [_eventResult, eventError] = await updateEvent({
 			trackWorkoutId: event.id,
 			workoutId: event.workoutId,
 			organizingTeamId,
@@ -216,7 +237,7 @@ export function EventDetailsForm({
 		}
 
 		// Update track workout details (points multiplier, notes)
-		const [workoutResult, workoutError] = await updateWorkout({
+		const [_workoutResult, workoutError] = await updateWorkout({
 			trackWorkoutId: event.id,
 			organizingTeamId,
 			pointsMultiplier,
@@ -226,6 +247,25 @@ export function EventDetailsForm({
 		if (workoutError) {
 			toast.error(workoutError.message || "Failed to update event settings")
 			return
+		}
+
+		// Update division descriptions if there are divisions
+		if (divisions.length > 0) {
+			const descriptionsToUpdate = divisions.map((division) => ({
+				divisionId: division.id,
+				description: divisionDescs[division.id]?.trim() || null,
+			}))
+
+			const [_descResult, descError] = await updateDivisionDescs({
+				workoutId: event.workoutId,
+				organizingTeamId,
+				descriptions: descriptionsToUpdate,
+			})
+
+			if (descError) {
+				toast.error(descError.message || "Failed to update division descriptions")
+				return
+			}
 		}
 
 		toast.success("Event updated")
@@ -515,34 +555,47 @@ export function EventDetailsForm({
 				</CardContent>
 			</Card>
 
-			{/* Division-Specific Descriptions (placeholder for now) */}
+			{/* Division-Specific Descriptions */}
 			{divisions.length > 0 && (
 				<Card>
 					<CardHeader>
 						<CardTitle>Division Variations</CardTitle>
 						<CardDescription>
-							Customize the workout description for each division
+							Customize the workout description for each division. Leave empty to use the default description above.
 						</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<p className="text-sm text-muted-foreground">
-							Division-specific descriptions coming soon. This will allow you to
-							specify different weights, movements, or scaling for each division
-							(e.g., RX vs Scaled).
-						</p>
-						<div className="mt-4 space-y-2">
-							{divisions.map((division) => (
-								<div
-									key={division.id}
-									className="p-3 border rounded-lg bg-muted/50"
-								>
-									<span className="font-medium">{division.label}</span>
-									<span className="text-sm text-muted-foreground ml-2">
-										- Uses default description
-									</span>
+					<CardContent className="space-y-4">
+						{divisions
+							.sort((a, b) => a.position - b.position)
+							.map((division) => (
+								<div key={division.id} className="space-y-2">
+									<Label htmlFor={`division-${division.id}`}>
+										{division.label}
+										{division.registrationCount > 0 && (
+											<span className="text-muted-foreground ml-2 font-normal">
+												({division.registrationCount} athlete{division.registrationCount !== 1 ? "s" : ""})
+											</span>
+										)}
+									</Label>
+									<Textarea
+										id={`division-${division.id}`}
+										value={divisionDescs[division.id] || ""}
+										onChange={(e) =>
+											setDivisionDescs((prev) => ({
+												...prev,
+												[division.id]: e.target.value,
+											}))
+										}
+										placeholder={`Custom description for ${division.label}... (leave empty to use default)`}
+										rows={4}
+									/>
+									{!divisionDescs[division.id]?.trim() && (
+										<p className="text-xs text-muted-foreground">
+											Using default description
+										</p>
+									)}
 								</div>
 							))}
-						</div>
 					</CardContent>
 				</Card>
 			)}

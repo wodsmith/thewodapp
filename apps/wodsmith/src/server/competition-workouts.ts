@@ -7,12 +7,21 @@ import {
 	competitionsTable,
 	movements,
 	programmingTracksTable,
+	scalingLevelsTable,
 	tags,
 	trackWorkoutsTable,
 	workoutMovements,
 	workouts,
+	workoutScalingDescriptionsTable,
 	workoutTags,
 } from "@/db/schema"
+
+export interface DivisionDescription {
+	divisionId: string
+	divisionLabel: string
+	description: string | null
+	position: number
+}
 
 export interface CompetitionWorkout {
 	id: string
@@ -36,6 +45,7 @@ export interface CompetitionWorkout {
 		tags?: Array<{ id: string; name: string }>
 		movements?: Array<{ id: string; name: string; type: string }>
 	}
+	divisionDescriptions?: DivisionDescription[]
 }
 
 /**
@@ -526,6 +536,109 @@ export async function updateCompetitionEventWorkout(params: {
 					movementId,
 				})),
 			)
+		}
+	}
+}
+
+/**
+ * Get division descriptions for a workout
+ */
+export async function getWorkoutDivisionDescriptions(
+	workoutId: string,
+	divisionIds: string[],
+): Promise<DivisionDescription[]> {
+	if (divisionIds.length === 0) {
+		return []
+	}
+
+	const db = getDb()
+
+	// Get the scaling levels (divisions) with their descriptions for this workout
+	const divisions = await db
+		.select({
+			divisionId: scalingLevelsTable.id,
+			divisionLabel: scalingLevelsTable.label,
+			position: scalingLevelsTable.position,
+		})
+		.from(scalingLevelsTable)
+		.where(inArray(scalingLevelsTable.id, divisionIds))
+
+	// Get existing descriptions for this workout
+	const descriptions = await db
+		.select({
+			scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+			description: workoutScalingDescriptionsTable.description,
+		})
+		.from(workoutScalingDescriptionsTable)
+		.where(
+			and(
+				eq(workoutScalingDescriptionsTable.workoutId, workoutId),
+				inArray(workoutScalingDescriptionsTable.scalingLevelId, divisionIds),
+			),
+		)
+
+	// Create a map for quick lookup
+	const descriptionMap = new Map(
+		descriptions.map((d) => [d.scalingLevelId, d.description]),
+	)
+
+	// Combine divisions with their descriptions
+	return divisions.map((division) => ({
+		divisionId: division.divisionId,
+		divisionLabel: division.divisionLabel,
+		description: descriptionMap.get(division.divisionId) ?? null,
+		position: division.position,
+	}))
+}
+
+/**
+ * Update division descriptions for a workout
+ * Pass null as description to remove it, empty string to clear, or a value to set
+ */
+export async function updateWorkoutDivisionDescriptions(params: {
+	workoutId: string
+	descriptions: Array<{ divisionId: string; description: string | null }>
+}): Promise<void> {
+	const db = getDb()
+
+	for (const { divisionId, description } of params.descriptions) {
+		// Check if a record already exists
+		const existing = await db
+			.select({ id: workoutScalingDescriptionsTable.id })
+			.from(workoutScalingDescriptionsTable)
+			.where(
+				and(
+					eq(workoutScalingDescriptionsTable.workoutId, params.workoutId),
+					eq(workoutScalingDescriptionsTable.scalingLevelId, divisionId),
+				),
+			)
+			.limit(1)
+
+		const existingRecord = existing[0]
+
+		if (description === null || description === "") {
+			// Delete the record if description is null or empty
+			if (existingRecord) {
+				await db
+					.delete(workoutScalingDescriptionsTable)
+					.where(eq(workoutScalingDescriptionsTable.id, existingRecord.id))
+			}
+		} else if (existingRecord) {
+			// Update existing record
+			await db
+				.update(workoutScalingDescriptionsTable)
+				.set({
+					description,
+					updatedAt: new Date(),
+				})
+				.where(eq(workoutScalingDescriptionsTable.id, existingRecord.id))
+		} else {
+			// Insert new record
+			await db.insert(workoutScalingDescriptionsTable).values({
+				workoutId: params.workoutId,
+				scalingLevelId: divisionId,
+				description,
+			})
 		}
 	}
 }

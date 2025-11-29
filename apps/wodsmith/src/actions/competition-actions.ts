@@ -583,6 +583,7 @@ import {
 	reorderCompetitionEvents,
 	updateCompetitionEventWorkout,
 	updateCompetitionWorkout,
+	updateWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
 import {
 	getCompetitionLeaderboard,
@@ -998,5 +999,54 @@ export const getEventLeaderboardAction = createServerAction()
 				throw new ZSAError("ERROR", error.message)
 			}
 			throw new ZSAError("ERROR", "Failed to get event leaderboard")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                     Division Descriptions Actions                           */
+/* -------------------------------------------------------------------------- */
+
+const updateDivisionDescriptionsSchema = z.object({
+	workoutId: z.string().min(1, "Workout ID is required"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	descriptions: z.array(
+		z.object({
+			divisionId: z.string().min(1, "Division ID is required"),
+			description: z.string().max(2000).nullable(),
+		}),
+	),
+})
+
+/**
+ * Update division-specific descriptions for a competition event
+ */
+export const updateDivisionDescriptionsAction = createServerAction()
+	.input(updateDivisionDescriptionsSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			await updateWorkoutDivisionDescriptions({
+				workoutId: input.workoutId,
+				descriptions: input.descriptions,
+			})
+
+			// Revalidate
+			revalidatePath("/compete/organizer")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update division descriptions:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to update division descriptions")
 		}
 	})

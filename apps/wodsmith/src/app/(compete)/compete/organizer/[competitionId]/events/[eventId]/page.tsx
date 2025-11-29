@@ -9,7 +9,10 @@ import { getAllTagsAction } from "@/actions/tag-actions"
 import { Button } from "@/components/ui/button"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
-import { getCompetitionEvent } from "@/server/competition-workouts"
+import {
+	getCompetitionEvent,
+	getWorkoutDivisionDescriptions,
+} from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../../_components/organizer-breadcrumb"
@@ -88,6 +91,12 @@ export default async function EventDetailsPage({
 	const [movements] = movementsResult ?? [null]
 	const [tags] = tagsResult ?? [null]
 
+	// Fetch division descriptions for this workout
+	const divisionDescriptions = await getWorkoutDivisionDescriptions(
+		event.workoutId,
+		divisions.map((d) => d.id),
+	)
+
 	return (
 		<div className="container mx-auto px-4 py-8">
 			<div className="flex flex-col gap-6 max-w-3xl">
@@ -125,6 +134,7 @@ export default async function EventDetailsPage({
 					competitionId={competition.id}
 					organizingTeamId={competition.organizingTeamId}
 					divisions={divisions}
+					divisionDescriptions={divisionDescriptions}
 					movements={movements?.data ?? []}
 					tags={tags?.data ?? []}
 				/>

@@ -113,7 +113,12 @@ export default async function CompetitionDetailPage({ params }: Props) {
 
       {/* Tabbed Content */}
       <CompetitionTabs
-        workoutsContent={<WorkoutsContent competition={competition} />}
+        workoutsContent={
+          <WorkoutsContent
+            competition={competition}
+            divisions={divisions}
+          />
+        }
         leaderboardContent={
           <LeaderboardContent
             competitionId={competition.id}
