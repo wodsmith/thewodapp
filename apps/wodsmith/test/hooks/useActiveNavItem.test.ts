@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { useActiveNavItem } from "@/hooks/useActiveNavItem"
 import { renderHook } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
