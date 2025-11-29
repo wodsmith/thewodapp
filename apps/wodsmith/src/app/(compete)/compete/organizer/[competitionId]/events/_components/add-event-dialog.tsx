@@ -55,7 +55,7 @@ export function AddEventDialog({
 					q: search,
 				})
 				const response = await fetch(`/api/workouts/search?${params}`)
-				const data = await response.json()
+				const data: { workouts?: Workout[] | null } = await response.json()
 
 				// Filter out workouts already in competition
 				const filtered = (data.workouts || []).filter(
