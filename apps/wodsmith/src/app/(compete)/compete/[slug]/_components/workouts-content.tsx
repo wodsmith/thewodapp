@@ -1,5 +1,6 @@
-import { Dumbbell, Target } from "lucide-react"
+import { Dumbbell, Tag as TagIcon, Target } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
@@ -78,6 +79,41 @@ export async function WorkoutsContent({ competition }: WorkoutsContentProps) {
 										Workout details will be released soon.
 									</p>
 								)}
+
+								{/* Movements */}
+								{event.workout.movements && event.workout.movements.length > 0 && (
+									<div className="mt-4">
+										<h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+											<Dumbbell className="h-4 w-4" />
+											Movements
+										</h4>
+										<div className="flex flex-wrap gap-2">
+											{event.workout.movements.map((movement) => (
+												<Badge key={movement.id} variant="outline">
+													{movement.name}
+												</Badge>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* Tags */}
+								{event.workout.tags && event.workout.tags.length > 0 && (
+									<div className="mt-4">
+										<h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+											<TagIcon className="h-4 w-4" />
+											Tags
+										</h4>
+										<div className="flex flex-wrap gap-2">
+											{event.workout.tags.map((tag) => (
+												<Badge key={tag.id} variant="secondary">
+													{tag.name}
+												</Badge>
+											))}
+										</div>
+									</div>
+								)}
+
 								{event.notes && (
 									<div className="mt-4 pt-4 border-t">
 										<p className="text-sm text-muted-foreground">
@@ -85,11 +121,22 @@ export async function WorkoutsContent({ competition }: WorkoutsContentProps) {
 										</p>
 									</div>
 								)}
+
 								<div className="flex items-center gap-4 mt-4 pt-4 border-t text-sm text-muted-foreground">
 									<div className="flex items-center gap-1">
 										<Target className="h-4 w-4" />
 										<span className="capitalize">{event.workout.scoreType || "Time"}</span>
 									</div>
+									{event.workout.roundsToScore && (
+										<div>
+											<strong>Rounds to Score:</strong> {event.workout.roundsToScore}
+										</div>
+									)}
+									{event.workout.repsPerRound && (
+										<div>
+											<strong>Reps/Round:</strong> {event.workout.repsPerRound}
+										</div>
+									)}
 								</div>
 							</CardContent>
 						</Card>
