@@ -1,5 +1,39 @@
 ## 1.3 Registration Payment Flow
 
+---
+
+### Implementation Summary (2025-01-29)
+
+**Status**: ✅ COMPLETED
+
+**Files Created/Modified**:
+- `src/actions/commerce.action.ts` - Server actions for commerce
+- `src/app/api/webhooks/stripe/route.ts` - Stripe webhook handler
+- `src/db/schemas/teams.ts` - Added MANAGE_COMPETITIONS permission
+
+**Exports from commerce.action.ts**:
+- `initiateRegistrationPayment()` - Start payment flow for paid/free registrations
+- `getRegistrationFeeBreakdown()` - Get fee breakdown for display
+- `getCompetitionDivisionFees()` - List all division fees for admin
+- `updateCompetitionFeeConfig()` - Update competition fee settings
+- `updateDivisionFee()` - Upsert/delete division-specific fees
+
+**Webhook Events Handled**:
+- `checkout.session.completed` - Creates registration after payment success
+- `checkout.session.expired` - Marks abandoned purchases as cancelled
+
+**Decisions Made**:
+1. Store team registration data (teamName, teammates) in purchase.metadata for webhook to use
+2. Checkout sessions expire after 30 minutes
+3. Added MANAGE_COMPETITIONS permission to teams schema for authorization
+4. Idempotency checks prevent duplicate registrations on webhook retries
+
+**Questions Exposed**:
+1. NEED: Confirmation email sending (marked with TODO in webhook)
+2. NEED: `NEXT_PUBLIC_APP_URL` environment variable for Stripe redirect URLs
+
+---
+
 ### Architecture
 
 ```

@@ -1,0 +1,232 @@
+import { NextRequest, NextResponse } from "next/server"
+import type Stripe from "stripe"
+import { and, eq } from "drizzle-orm"
+import { getStripe } from "@/lib/stripe"
+import { getDb } from "@/db"
+import {
+	commercePurchaseTable,
+	competitionRegistrationsTable,
+	COMMERCE_PURCHASE_STATUS,
+	COMMERCE_PAYMENT_STATUS,
+} from "@/db/schema"
+
+/**
+ * Stripe webhook handler for commerce events
+ *
+ * Handles:
+ * - checkout.session.completed: Completes purchase and creates registration
+ * - checkout.session.expired: Marks abandoned purchases as cancelled
+ */
+export async function POST(request: NextRequest) {
+	const body = await request.text()
+	const signature = request.headers.get("stripe-signature")
+
+	if (!signature) {
+		console.error("ERROR: [Stripe Webhook] Missing stripe-signature header")
+		return NextResponse.json({ error: "Missing signature" }, { status: 400 })
+	}
+
+	const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+	if (!webhookSecret) {
+		console.error("ERROR: [Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET")
+		return NextResponse.json(
+			{ error: "Webhook not configured" },
+			{ status: 500 },
+		)
+	}
+
+	// Step 1: Verify webhook signature
+	let event: Stripe.Event
+	try {
+		event = getStripe().webhooks.constructEvent(body, signature, webhookSecret)
+	} catch (err) {
+		console.error("ERROR: [Stripe Webhook] Signature verification failed:", err)
+		return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+	}
+
+	// Step 2: Process verified event
+	try {
+		switch (event.type) {
+			case "checkout.session.completed":
+				await handleCheckoutCompleted(
+					event.data.object as Stripe.Checkout.Session,
+				)
+				break
+
+			case "checkout.session.expired":
+				await handleCheckoutExpired(
+					event.data.object as Stripe.Checkout.Session,
+				)
+				break
+
+			default:
+				console.log(`INFO: [Stripe Webhook] Unhandled event type: ${event.type}`)
+		}
+
+		return NextResponse.json({ received: true })
+	} catch (err) {
+		console.error("ERROR: [Stripe Webhook] Processing failed:", err)
+		// Return 500 so Stripe will retry
+		return NextResponse.json({ error: "Processing failed" }, { status: 500 })
+	}
+}
+
+/**
+ * Handle successful checkout completion
+ * Creates the competition registration after payment succeeds
+ */
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+	const db = getDb()
+	const purchaseId = session.metadata?.purchaseId
+	const competitionId = session.metadata?.competitionId
+	const divisionId = session.metadata?.divisionId
+	const userId = session.metadata?.userId
+
+	if (!purchaseId || !competitionId || !divisionId || !userId) {
+		console.error(
+			"ERROR: [Stripe Webhook] Missing required metadata in Checkout Session",
+			{ purchaseId, competitionId, divisionId, userId },
+		)
+		return
+	}
+
+	// IDEMPOTENCY CHECK 1: Get purchase and check status
+	const existingPurchase = await db.query.commercePurchaseTable.findFirst({
+		where: eq(commercePurchaseTable.id, purchaseId),
+	})
+
+	if (!existingPurchase) {
+		console.error(`ERROR: [Stripe Webhook] Purchase not found: ${purchaseId}`)
+		return
+	}
+
+	if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
+		console.log(
+			`INFO: [Stripe Webhook] Purchase ${purchaseId} already completed, skipping`,
+		)
+		return
+	}
+
+	// IDEMPOTENCY CHECK 2: Check if registration already exists
+	const existingRegistration =
+		await db.query.competitionRegistrationsTable.findFirst({
+			where: eq(
+				competitionRegistrationsTable.commercePurchaseId,
+				purchaseId,
+			),
+		})
+
+	if (existingRegistration) {
+		console.log(
+			`INFO: [Stripe Webhook] Registration for purchase ${purchaseId} already exists`,
+		)
+		// Ensure purchase is marked as completed (it should be, but just in case)
+		await db
+			.update(commercePurchaseTable)
+			.set({
+				status: COMMERCE_PURCHASE_STATUS.COMPLETED,
+				completedAt: new Date(),
+			})
+			.where(eq(commercePurchaseTable.id, purchaseId))
+		return
+	}
+
+	// Parse stored registration data from purchase metadata
+	let registrationData: {
+		teamName?: string
+		affiliateName?: string
+		teammates?: Array<{
+			email: string
+			firstName?: string
+			lastName?: string
+			affiliateName?: string
+		}>
+	} = {}
+
+	if (existingPurchase.metadata) {
+		try {
+			registrationData = JSON.parse(existingPurchase.metadata)
+		} catch {
+			console.warn(
+				"WARN: [Stripe Webhook] Failed to parse purchase metadata",
+			)
+		}
+	}
+
+	// Create registration using existing logic
+	const { registerForCompetition } = await import("@/server/competitions")
+
+	try {
+		const result = await registerForCompetition({
+			competitionId,
+			userId,
+			divisionId,
+			teamName: registrationData.teamName,
+			affiliateName: registrationData.affiliateName,
+			teammates: registrationData.teammates,
+		})
+
+		// Update registration with payment info
+		await db
+			.update(competitionRegistrationsTable)
+			.set({
+				commercePurchaseId: purchaseId,
+				paymentStatus: COMMERCE_PAYMENT_STATUS.PAID,
+				paidAt: new Date(),
+			})
+			.where(eq(competitionRegistrationsTable.id, result.registrationId))
+
+		// Mark purchase as completed
+		await db
+			.update(commercePurchaseTable)
+			.set({
+				status: COMMERCE_PURCHASE_STATUS.COMPLETED,
+				stripePaymentIntentId:
+					typeof session.payment_intent === "string"
+						? session.payment_intent
+						: session.payment_intent?.id,
+				completedAt: new Date(),
+			})
+			.where(eq(commercePurchaseTable.id, purchaseId))
+
+		console.log(
+			`INFO: [Stripe Webhook] Registration created: ${result.registrationId} for purchase ${purchaseId}`,
+		)
+
+		// TODO: Send confirmation email
+	} catch (err) {
+		console.error(`ERROR: [Stripe Webhook] Failed to create registration:`, err)
+		await db
+			.update(commercePurchaseTable)
+			.set({ status: COMMERCE_PURCHASE_STATUS.FAILED })
+			.where(eq(commercePurchaseTable.id, purchaseId))
+		// Re-throw to trigger Stripe retry
+		throw err
+	}
+}
+
+/**
+ * Handle checkout session expiration
+ * Marks abandoned purchases as cancelled
+ */
+async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
+	const db = getDb()
+	const purchaseId = session.metadata?.purchaseId
+
+	if (!purchaseId) return
+
+	// Mark purchase as expired/cancelled (only if still pending)
+	await db
+		.update(commercePurchaseTable)
+		.set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
+		.where(
+			and(
+				eq(commercePurchaseTable.id, purchaseId),
+				eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+			),
+		)
+
+	console.log(
+		`INFO: [Stripe Webhook] Checkout expired for purchase: ${purchaseId}`,
+	)
+}
