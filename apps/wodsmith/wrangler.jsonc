@@ -9,7 +9,7 @@
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-03-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-	// Minification helps to keep the Worker bundle size down and improve start up time.
+	// Minification helps to keep the Worker bundle size down and improve start up time.1
 	"minify": true,
 	"assets": {
 		"binding": "ASSETS",
@@ -34,11 +34,13 @@
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 * Commerce: App URL for Stripe redirects (set to production URL in production)
 	 */
 	"vars": {
 		"EMAIL_FROM": "zacjones93@gmail.com",
 		"EMAIL_FROM_NAME": "Zac from WODsmith",
 		"EMAIL_REPLY_TO": "zacjones93@gmail.com",
+		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.

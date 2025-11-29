@@ -1,12 +1,12 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { useServerAction } from "@repo/zsa-react"
-import { registerForCompetitionAction } from "@/actions/competition-actions"
+import { initiateRegistrationPayment, getRegistrationFeeBreakdown } from "@/actions/commerce.action"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -27,7 +27,8 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Users, User } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Users, User, Loader2 } from "lucide-react"
 import type { Competition, ScalingGroup, ScalingLevel, Team } from "@/db/schema"
 import { AffiliateCombobox } from "./affiliate-combobox"
 
@@ -57,6 +58,72 @@ type Props = {
 	registrationClosesAt: Date | null
 }
 
+// Fee breakdown display component - updates when division changes
+function FeeBreakdownDisplay({
+	competitionId,
+	divisionId,
+}: {
+	competitionId: string
+	divisionId: string | null
+}) {
+	const [fees, setFees] = useState<{
+		isFree: boolean
+		registrationFeeCents?: number
+		platformFeeCents?: number
+		totalChargeCents?: number
+	} | null>(null)
+	const [isLoading, setIsLoading] = useState(false)
+
+	useEffect(() => {
+		if (!divisionId) {
+			setFees(null)
+			return
+		}
+
+		setIsLoading(true)
+		getRegistrationFeeBreakdown(competitionId, divisionId)
+			.then(setFees)
+			.finally(() => setIsLoading(false))
+	}, [competitionId, divisionId])
+
+	if (!divisionId) {
+		return <p className="text-muted-foreground text-sm">Select a division to see pricing</p>
+	}
+
+	if (isLoading) return <Skeleton className="h-20 w-full" />
+
+	if (!fees) return <Skeleton className="h-20 w-full" />
+
+	if (fees.isFree) {
+		return (
+			<div className="flex items-center gap-2">
+				<Badge variant="secondary" className="text-green-600 bg-green-100">
+					Free Registration
+				</Badge>
+			</div>
+		)
+	}
+
+	const formatCents = (cents: number) => `$${(cents / 100).toFixed(2)}`
+
+	return (
+		<div className="space-y-2 text-sm">
+			<div className="flex justify-between">
+				<span>Registration Fee</span>
+				<span className="font-medium">{formatCents(fees.registrationFeeCents ?? 0)}</span>
+			</div>
+			<div className="flex justify-between text-muted-foreground">
+				<span>Platform Fee</span>
+				<span>{formatCents(fees.platformFeeCents ?? 0)}</span>
+			</div>
+			<div className="flex justify-between font-medium pt-2 border-t">
+				<span>Total</span>
+				<span className="text-lg">{formatCents(fees.totalChargeCents ?? 0)}</span>
+			</div>
+		</div>
+	)
+}
+
 export function RegistrationForm({
 	competition,
 	scalingGroup,
@@ -66,6 +133,7 @@ export function RegistrationForm({
 	registrationClosesAt,
 }: Props) {
 	const router = useRouter()
+	const [isSubmitting, setIsSubmitting] = useState(false)
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(registrationSchema),
@@ -113,17 +181,7 @@ export function RegistrationForm({
 		}
 	}
 
-	const { execute, isPending } = useServerAction(registerForCompetitionAction, {
-		onSuccess: () => {
-			toast.success("Successfully registered for the competition!")
-			router.push(`/compete/${competition.slug}`)
-		},
-		onError: ({ err }) => {
-			toast.error(err?.message || "Failed to register for competition")
-		},
-	})
-
-	const onSubmit = (data: FormValues) => {
+	const onSubmit = async (data: FormValues) => {
 		// Validate team fields for team divisions
 		if (isTeamDivision) {
 			if (!data.teamName?.trim()) {
@@ -142,14 +200,36 @@ export function RegistrationForm({
 			}
 		}
 
-		execute({
-			competitionId: competition.id,
-			userId,
-			divisionId: data.divisionId,
-			teamName: isTeamDivision ? data.teamName : undefined,
-			affiliateName: data.affiliateName || undefined,
-			teammates: isTeamDivision ? data.teammates : undefined,
-		})
+		setIsSubmitting(true)
+
+		try {
+			const result = await initiateRegistrationPayment({
+				competitionId: competition.id,
+				divisionId: data.divisionId,
+				teamName: isTeamDivision ? data.teamName : undefined,
+				affiliateName: data.affiliateName || undefined,
+				teammates: isTeamDivision ? data.teammates : undefined,
+			})
+
+			// FREE registration - redirect to competition page
+			if (result.isFree) {
+				toast.success("Successfully registered!")
+				router.push(`/compete/${competition.slug}`)
+				return
+			}
+
+			// PAID registration - redirect to Stripe Checkout
+			if (result.checkoutUrl) {
+				// Use window.location for external redirect
+				window.location.href = result.checkoutUrl
+				return
+			}
+
+			throw new Error("Failed to create checkout session")
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Registration failed")
+			setIsSubmitting(false)
+		}
 	}
 
 	const formatDate = (date: Date | number | null): string => {
@@ -238,7 +318,7 @@ export function RegistrationForm({
 										<Select
 											onValueChange={handleDivisionChange}
 											defaultValue={field.value}
-											disabled={isPending || !registrationOpen}
+											disabled={isSubmitting || !registrationOpen}
 										>
 											<FormControl>
 												<SelectTrigger>
@@ -278,6 +358,19 @@ export function RegistrationForm({
 						</CardContent>
 					</Card>
 
+					{/* Registration Fee Card */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Registration Fee</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<FeeBreakdownDisplay
+								competitionId={competition.id}
+								divisionId={selectedDivisionId || null}
+							/>
+						</CardContent>
+					</Card>
+
 					{/* Team Registration Fields */}
 					{isTeamDivision && (
 						<Card>
@@ -298,7 +391,7 @@ export function RegistrationForm({
 												<Input
 													placeholder="Enter your team name"
 													{...field}
-													disabled={isPending || !registrationOpen}
+													disabled={isSubmitting || !registrationOpen}
 												/>
 											</FormControl>
 											<FormDescription>
@@ -320,7 +413,7 @@ export function RegistrationForm({
 													value={field.value || ""}
 													onChange={field.onChange}
 													placeholder="Search or enter affiliate..."
-													disabled={isPending || !registrationOpen}
+													disabled={isSubmitting || !registrationOpen}
 												/>
 											</FormControl>
 											<FormDescription>
@@ -359,7 +452,7 @@ export function RegistrationForm({
 																	type="email"
 																	placeholder="teammate@email.com"
 																	{...field}
-																	disabled={isPending || !registrationOpen}
+																	disabled={isSubmitting || !registrationOpen}
 																/>
 															</FormControl>
 															<FormMessage />
@@ -378,7 +471,7 @@ export function RegistrationForm({
 																	<Input
 																		placeholder="First name"
 																		{...field}
-																		disabled={isPending || !registrationOpen}
+																		disabled={isSubmitting || !registrationOpen}
 																	/>
 																</FormControl>
 																<FormMessage />
@@ -396,7 +489,7 @@ export function RegistrationForm({
 																	<Input
 																		placeholder="Last name"
 																		{...field}
-																		disabled={isPending || !registrationOpen}
+																		disabled={isSubmitting || !registrationOpen}
 																	/>
 																</FormControl>
 																<FormMessage />
@@ -416,7 +509,7 @@ export function RegistrationForm({
 																	value={field.value || ""}
 																	onChange={field.onChange}
 																	placeholder="Search or enter affiliate..."
-																	disabled={isPending || !registrationOpen}
+																	disabled={isSubmitting || !registrationOpen}
 																/>
 															</FormControl>
 															<FormMessage />
@@ -439,22 +532,27 @@ export function RegistrationForm({
 					<div className="flex gap-4">
 						<Button
 							type="submit"
-							disabled={isPending || !registrationOpen}
+							disabled={isSubmitting || !registrationOpen}
 							className="flex-1"
 						>
-							{isPending
-								? "Registering..."
-								: !registrationOpen
-									? "Registration Closed"
-									: isTeamDivision
-										? "Register Team"
-										: "Complete Registration"}
+							{isSubmitting ? (
+								<>
+									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+									Processing...
+								</>
+							) : !registrationOpen ? (
+								"Registration Closed"
+							) : isTeamDivision ? (
+								"Register Team"
+							) : (
+								"Complete Registration"
+							)}
 						</Button>
 						<Button
 							type="button"
 							variant="outline"
 							onClick={() => router.push(`/compete/${competition.slug}`)}
-							disabled={isPending}
+							disabled={isSubmitting}
 						>
 							Cancel
 						</Button>
