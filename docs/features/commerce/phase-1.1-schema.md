@@ -1,5 +1,29 @@
 ## 1.1 Database Schema
 
+---
+
+### Implementation Summary (2025-01-29)
+
+**Status**: ✅ COMPLETED
+
+**Files Created/Modified**:
+- `src/db/schemas/commerce.ts` - New file with commerce tables and relations
+- `src/db/schemas/common.ts` - Added 3 ID generators
+- `src/db/schemas/competitions.ts` - Added 4 fee config fields + 3 payment tracking fields
+- `src/db/schemas/teams.ts` - Added 3 Stripe Connect fields (Phase 2 prep)
+- `src/db/schema.ts` - Added commerce export
+- `src/db/migrations/0038_add-commerce-schema.sql` - Generated migration
+
+**Decisions Made**:
+1. Avoided circular imports by NOT adding FK reference from `competition_registrations.commercePurchaseId` to commerce table - used plain text field instead
+2. Added type enums (`COMMERCE_PRODUCT_TYPE`, `COMMERCE_PURCHASE_STATUS`, `COMMERCE_PAYMENT_STATUS`) for type safety
+3. Included `competitionDivisionFeesRelations` for easy querying with Drizzle ORM
+
+**Questions Exposed**:
+- None - schema follows plan specification exactly
+
+---
+
 ### New Tables
 
 **File**: `src/db/schemas/commerce.ts`

@@ -122,6 +122,11 @@ export const teamTable = sqliteTable(
 		parentOrganizationId: text(),
 		// JSON metadata for competition-specific settings
 		competitionMetadata: text({ length: 10000 }),
+
+		// Stripe Connect fields (Phase 2 prep for organizer payouts)
+		stripeConnectedAccountId: text(), // Stripe Express account ID (acct_xxx)
+		stripeAccountStatus: text({ length: 20 }), // NOT_CONNECTED | PENDING | VERIFIED
+		stripeOnboardingCompletedAt: integer({ mode: "timestamp" }),
 	},
 	(table) => [
 		index("team_slug_idx").on(table.slug),

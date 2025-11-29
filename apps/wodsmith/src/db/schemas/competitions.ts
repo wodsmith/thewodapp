@@ -79,6 +79,17 @@ export const competitionsTable = sqliteTable(
 		registrationClosesAt: integer({ mode: "timestamp" }),
 		// JSON settings (divisions, rules, etc.)
 		settings: text({ length: 10000 }),
+
+		// Commerce: Default registration fee (used if no division-specific fee exists)
+		// $0 = free by default
+		defaultRegistrationFeeCents: integer().default(0),
+		// Commerce: Fee configuration (nullable = use platform defaults)
+		// Basis points, null = default 250 (2.5%)
+		platformFeePercentage: integer(),
+		// Cents, null = default 200 ($2.00)
+		platformFeeFixed: integer(),
+		// If true, Stripe fees are passed to customer instead of absorbed by organizer
+		passStripeFeesToCustomer: integer({ mode: "boolean" }).default(false),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -131,6 +142,14 @@ export const competitionRegistrationsTable = sqliteTable(
 		pendingTeammates: text({ length: 5000 }), // JSON array
 		// Metadata as JSON (flexible for future expansion)
 		metadata: text({ length: 10000 }), // JSON: { notes: "..." }
+
+		// Commerce: Payment tracking
+		// Reference to commerce_purchase (no FK to avoid circular deps - relation defined separately)
+		commercePurchaseId: text(),
+		// Payment status: FREE | PENDING_PAYMENT | PAID | FAILED
+		paymentStatus: text({ length: 20 }),
+		// When payment was completed
+		paidAt: integer({ mode: "timestamp" }),
 	},
 	(table) => [
 		// One user can only register once per competition
@@ -143,6 +162,7 @@ export const competitionRegistrationsTable = sqliteTable(
 		index("competition_registrations_division_idx").on(table.divisionId),
 		index("competition_registrations_captain_idx").on(table.captainUserId),
 		index("competition_registrations_athlete_team_idx").on(table.athleteTeamId),
+		index("competition_registrations_purchase_idx").on(table.commercePurchaseId),
 	],
 )
 
