@@ -11,8 +11,6 @@ import {
 	teamProgrammingTracksTable,
 	teamTable,
 	userTable,
-	workoutMovements,
-	movements,
 } from "@/db/schema"
 
 /**

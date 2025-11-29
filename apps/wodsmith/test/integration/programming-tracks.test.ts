@@ -34,13 +34,11 @@ vi.mock("@/utils/kv-session", async () => {
 import { setTestDb } from "@/db"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 
-describe("Programming Subscription Integration", () => {
+describe("Programming Tracks Integration", () => {
 	let db: ReturnType<typeof createTestDb>["db"]
 	let sqlite: ReturnType<typeof createTestDb>["sqlite"]
 	let testUser: typeof schema.userTable.$inferSelect
 	let testTeam: typeof schema.teamTable.$inferSelect
-	let ownerTeam: typeof schema.teamTable.$inferSelect
-	let publicTrack: typeof schema.programmingTracksTable.$inferSelect
 
 	beforeEach(async () => {
 		const testDb = createTestDb()
@@ -65,44 +63,15 @@ describe("Programming Subscription Integration", () => {
 			})
 			.returning()
 
-		// Create subscriber team (the team that will subscribe to tracks)
+		// Create test team
 		;[testTeam] = await db
 			.insert(schema.teamTable)
 			.values({
 				id: `team_${createId()}`,
-				name: "Subscriber Gym",
-				slug: `subscriber-gym-${createId().slice(0, 8)}`,
-				type: "gym",
-				isPersonalTeam: 0, // Use 0 for better-sqlite3
-				createdAt: now,
-				updatedAt: now,
-			})
-			.returning()
-
-		// Create owner team (publishes tracks)
-		;[ownerTeam] = await db
-			.insert(schema.teamTable)
-			.values({
-				id: `team_${createId()}`,
-				name: "Programming Publisher",
-				slug: `publisher-${createId().slice(0, 8)}`,
+				name: "Test Gym",
+				slug: `test-gym-${createId().slice(0, 8)}`,
 				type: "gym",
 				isPersonalTeam: 0,
-				createdAt: now,
-				updatedAt: now,
-			})
-			.returning()
-
-		// Create a public programming track
-		;[publicTrack] = await db
-			.insert(schema.programmingTracksTable)
-			.values({
-				id: `track_${createId()}`,
-				name: "CrossFit Daily",
-				description: "Daily CrossFit programming",
-				type: "programming",
-				ownerTeamId: ownerTeam.id,
-				isPublic: 1, // Use 1 for better-sqlite3
 				createdAt: now,
 				updatedAt: now,
 			})
@@ -141,54 +110,50 @@ describe("Programming Subscription Integration", () => {
 		vi.clearAllMocks()
 	})
 
-	it("lists public programming tracks", async () => {
-		const { getPublicProgrammingTracks } = await import("@/server/programming")
-		const tracks = await getPublicProgrammingTracks()
-
-		expect(tracks).toHaveLength(1)
-		expect(tracks[0].name).toBe("CrossFit Daily")
-		expect(tracks[0].isPublic).toBe(1)
-		expect(tracks[0].ownerTeam?.name).toBe("Programming Publisher")
-	})
-
-	it("returns empty array when no public tracks exist", async () => {
-		// Delete the public track
-		await db.delete(schema.programmingTracksTable)
-
-		const { getPublicProgrammingTracks } = await import("@/server/programming")
-		const tracks = await getPublicProgrammingTracks()
-
-		expect(tracks).toHaveLength(0)
-	})
-
-	it("excludes private tracks from public listing", async () => {
+	it("returns owned tracks for a team", async () => {
 		const now = new Date()
-		// Add a private track
+		// Create a track owned by the team
 		await db.insert(schema.programmingTracksTable).values({
 			id: `track_${createId()}`,
-			name: "Private Track",
-			description: "Not for public",
+			name: "Team Owned Track",
+			description: "A track owned by the team",
 			type: "programming",
-			ownerTeamId: ownerTeam.id,
-			isPublic: 0, // Private
+			ownerTeamId: testTeam.id,
+			isPublic: 0,
 			createdAt: now,
 			updatedAt: now,
 		})
 
-		const { getPublicProgrammingTracks } = await import("@/server/programming")
-		const tracks = await getPublicProgrammingTracks()
+		const { getTeamTracks } = await import("@/server/programming-tracks")
+		const tracks = await getTeamTracks(testTeam.id)
 
 		expect(tracks).toHaveLength(1)
-		expect(tracks[0].name).toBe("CrossFit Daily")
+		expect(tracks[0].name).toBe("Team Owned Track")
+		expect(tracks[0].ownerTeamId).toBe(testTeam.id)
 	})
 
-	it("returns team subscribed tracks", async () => {
+	it("returns assigned tracks for a team", async () => {
 		const now = new Date()
-		// Subscribe the team to the track
+		// Create a track not owned by the team
+		const [track] = await db
+			.insert(schema.programmingTracksTable)
+			.values({
+				id: `track_${createId()}`,
+				name: "Third Party Track",
+				description: "A track from third party",
+				type: "programming",
+				ownerTeamId: null, // Not owned by any team
+				isPublic: 1,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.returning()
+
+		// Assign the track to the team
 		await db.insert(schema.teamProgrammingTracksTable).values({
 			id: `sub_${createId()}`,
 			teamId: testTeam.id,
-			trackId: publicTrack.id,
+			trackId: track.id,
 			isActive: 1,
 			isDefault: 0,
 			subscribedAt: now,
@@ -196,38 +161,46 @@ describe("Programming Subscription Integration", () => {
 			updatedAt: now,
 		})
 
-		const { getTeamProgrammingTracks } = await import("@/server/programming")
-		const subscriptions = await getTeamProgrammingTracks(testTeam.id)
+		const { getTeamTracks } = await import("@/server/programming-tracks")
+		const tracks = await getTeamTracks(testTeam.id)
 
-		expect(subscriptions).toHaveLength(1)
-		expect(subscriptions[0].name).toBe("CrossFit Daily")
-		expect(subscriptions[0].subscribedAt).toBeDefined()
+		expect(tracks.some((t) => t.id === track.id)).toBe(true)
 	})
 
-	it("returns empty array for team with no subscriptions", async () => {
-		const { getTeamProgrammingTracks } = await import("@/server/programming")
-		const subscriptions = await getTeamProgrammingTracks(testTeam.id)
-
-		expect(subscriptions).toHaveLength(0)
-	})
-
-	it("excludes inactive subscriptions from team tracks", async () => {
+	it("returns both owned and assigned tracks without duplicates", async () => {
 		const now = new Date()
-		// Add an inactive subscription
+		// Create a track owned by the team
+		const [ownedTrack] = await db
+			.insert(schema.programmingTracksTable)
+			.values({
+				id: `track_${createId()}`,
+				name: "Owned and Assigned Track",
+				description: "Track owned and assigned",
+				type: "programming",
+				ownerTeamId: testTeam.id,
+				isPublic: 0,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.returning()
+
+		// Also assign it to the team (this could happen in real scenarios)
 		await db.insert(schema.teamProgrammingTracksTable).values({
 			id: `sub_${createId()}`,
 			teamId: testTeam.id,
-			trackId: publicTrack.id,
-			isActive: 0, // Inactive
+			trackId: ownedTrack.id,
+			isActive: 1,
 			isDefault: 0,
 			subscribedAt: now,
 			createdAt: now,
 			updatedAt: now,
 		})
 
-		const { getTeamProgrammingTracks } = await import("@/server/programming")
-		const subscriptions = await getTeamProgrammingTracks(testTeam.id)
+		const { getTeamTracks } = await import("@/server/programming-tracks")
+		const tracks = await getTeamTracks(testTeam.id)
 
-		expect(subscriptions).toHaveLength(0)
+		// Should only appear once despite being both owned and assigned
+		const ownedTrackCount = tracks.filter((t) => t.id === ownedTrack.id).length
+		expect(ownedTrackCount).toBe(1)
 	})
 })

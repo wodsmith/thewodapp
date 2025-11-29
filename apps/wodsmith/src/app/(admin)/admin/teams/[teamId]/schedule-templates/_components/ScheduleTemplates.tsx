@@ -137,7 +137,10 @@ const ScheduleTemplates = ({
 
 	const onCreateTemplate = async (data: CreateTemplateData) => {
 		const [res, err] = await createTemplateExec({ teamId, ...data })
-		if (err || !res) return toast.error("Error creating template")
+		if (err || !res) {
+			toast.error("Error creating template")
+			return
+		}
 		setTemplates([...templates, { ...res, templateClasses: [] }])
 		createTemplateForm.reset()
 		toast.success("Template created")
@@ -160,7 +163,10 @@ const ScheduleTemplates = ({
 			teamId,
 			...data,
 		})
-		if (err) return toast.error("Error updating template")
+		if (err) {
+			toast.error("Error updating template")
+			return
+		}
 		setTemplates(
 			templates.map((t) => (t.id === editingTemplateId ? { ...t, ...res } : t)),
 		)
@@ -220,7 +226,10 @@ const ScheduleTemplates = ({
 			...data,
 			requiredSkillIds: selectedSkills,
 		})
-		if (err || !res) return toast.error("Error adding class")
+		if (err || !res) {
+			toast.error("Error adding class")
+			return
+		}
 		const newClass = {
 			...res,
 			requiredSkills: selectedSkills.map((skillId) => {
@@ -259,7 +268,10 @@ const ScheduleTemplates = ({
 	)
 	const _onDeleteClass = async (id: string, templateId: string) => {
 		const [_res, err] = await deleteClassExec({ id, templateId })
-		if (err) return toast.error("Error deleting class")
+		if (err) {
+			toast.error("Error deleting class")
+			return
+		}
 		setTemplates(
 			templates.map((t) =>
 				t.id === templateId
