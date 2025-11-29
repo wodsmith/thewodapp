@@ -146,7 +146,7 @@ export function LeaderboardContent({ competitionId, divisions }: LeaderboardCont
 											<TableHead>Athlete</TableHead>
 											<TableHead className="text-right">Points</TableHead>
 											{eventNames.map((name, i) => (
-												<TableHead key={i} className="text-center min-w-[80px]">
+												<TableHead key={`${i}-${name}`} className="text-center min-w-[80px]">
 													<span className="text-xs">{name}</span>
 												</TableHead>
 											))}
@@ -168,7 +168,7 @@ export function LeaderboardContent({ competitionId, divisions }: LeaderboardCont
 													{entry.totalPoints}
 												</TableCell>
 												{entry.eventResults.map((result, i) => (
-													<TableCell key={i} className="text-center">
+													<TableCell key={`${i}-${result.eventName}`} className="text-center">
 														{result.rank > 0 ? (
 															<div className="flex flex-col items-center">
 																<span className="text-xs text-muted-foreground">
