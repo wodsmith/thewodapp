@@ -740,6 +740,8 @@ export async function registerForCompetition(params: {
 		lastName?: string
 		affiliateName?: string
 	}>
+	// Skip profile validation when called from webhook (user already paid)
+	skipProfileValidation?: boolean
 }): Promise<{ registrationId: string; teamMemberId: string; athleteTeamId: string | null }> {
 	const db = getDb()
 	const {
@@ -777,11 +779,14 @@ export async function registerForCompetition(params: {
 	}
 
 	// 4. Validate user profile is complete (gender and dateOfBirth required)
-	if (!user.gender) {
-		throw new Error("Please complete your profile by adding your gender before registering")
-	}
-	if (!user.dateOfBirth) {
-		throw new Error("Please complete your profile by adding your date of birth before registering")
+	// Skip for webhook calls where user has already paid - they can complete profile after
+	if (!params.skipProfileValidation) {
+		if (!user.gender) {
+			throw new Error("Please complete your profile by adding your gender before registering")
+		}
+		if (!user.dateOfBirth) {
+			throw new Error("Please complete your profile by adding your date of birth before registering")
+		}
 	}
 
 	// 5. Validate division belongs to competition's scaling group

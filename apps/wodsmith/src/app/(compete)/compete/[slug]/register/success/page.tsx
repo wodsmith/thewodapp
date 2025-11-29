@@ -1,17 +1,35 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { and, eq } from "drizzle-orm"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getCompetition, getUserCompetitionRegistration } from "@/server/competitions"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getDb } from "@/db"
+import { userTable, commercePurchaseTable, teamInvitationTable } from "@/db/schema"
+import { getStripe } from "@/lib/stripe"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, Loader2 } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { CheckCircle, Loader2, AlertCircle, Receipt, Users, Copy, Mail, CheckCircle2, Clock } from "lucide-react"
+import { RefreshButton } from "./_components/refresh-button"
+import { ProfileCompletionForm } from "./_components/profile-completion-form"
+import { CopyInviteLink } from "./_components/copy-invite-link"
+
+function formatCurrency(cents: number): string {
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
+	}).format(cents / 100)
+}
 
 export default async function RegistrationSuccessPage({
 	params,
+	searchParams,
 }: {
 	params: Promise<{ slug: string }>
+	searchParams: Promise<{ session_id?: string }>
 }) {
 	const { slug } = await params
+	const { session_id } = await searchParams
 	const session = await getSessionFromCookie()
 
 	if (!session) {
@@ -24,11 +42,70 @@ export default async function RegistrationSuccessPage({
 		redirect("/compete")
 	}
 
+	// Get user profile to check if complete
+	const db = getDb()
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, session.userId),
+	})
+
+	const isProfileComplete = user?.gender && user?.dateOfBirth
+
 	// Check for registration
 	const registration = await getUserCompetitionRegistration(
 		competition.id,
 		session.userId,
 	)
+
+	// Fetch checkout session details if session_id provided
+	let checkoutSession: Awaited<
+		ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>
+	> | null = null
+
+	if (session_id) {
+		try {
+			checkoutSession = await getStripe().checkout.sessions.retrieve(session_id, {
+				expand: ["line_items", "payment_intent"],
+			})
+		} catch {
+			// Session not found or invalid - continue without payment details
+		}
+	}
+
+	// Fetch purchase record for fee breakdown
+	let purchase: typeof commercePurchaseTable.$inferSelect | null = null
+	if (registration?.commercePurchaseId) {
+		purchase = await db.query.commercePurchaseTable.findFirst({
+			where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
+		}) ?? null
+	}
+
+	// Check if competition passes Stripe fees to customer
+	const passStripeFeesToCustomer = competition.passStripeFeesToCustomer ?? false
+
+	// Fetch team invitations if this is a team registration
+	let teamInvites: Array<{
+		id: string
+		email: string
+		token: string
+		acceptedAt: Date | null
+		expiresAt: Date
+	}> = []
+
+	if (registration?.athleteTeam?.id) {
+		const invites = await db.query.teamInvitationTable.findMany({
+			where: eq(teamInvitationTable.teamId, registration.athleteTeam.id),
+		})
+		teamInvites = invites.map((inv) => ({
+			id: inv.id,
+			email: inv.email,
+			token: inv.token,
+			acceptedAt: inv.acceptedAt,
+			expiresAt: inv.expiresAt,
+		}))
+	}
+
+	// Get the base URL for invite links
+	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
 	if (!registration) {
 		// Payment may still be processing (webhook hasn't completed yet)
@@ -51,13 +128,7 @@ export default async function RegistrationSuccessPage({
 							<Button variant="outline" asChild>
 								<Link href={`/compete/${slug}`}>Back to Competition</Link>
 							</Button>
-							<Button
-								variant="ghost"
-								onClick={() => window.location.reload()}
-								className="text-sm"
-							>
-								Refresh Page
-							</Button>
+							<RefreshButton />
 						</div>
 					</CardContent>
 				</Card>
@@ -67,7 +138,7 @@ export default async function RegistrationSuccessPage({
 
 	// Registration found - show success
 	return (
-		<div className="mx-auto max-w-lg py-12 px-4">
+		<div className="mx-auto max-w-lg py-12 px-4 space-y-6">
 			<Card>
 				<CardHeader className="text-center">
 					<CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -91,6 +162,159 @@ export default async function RegistrationSuccessPage({
 					</div>
 				</CardContent>
 			</Card>
+
+      {/* Team Info with Invite Links */}
+			{registration.athleteTeam && teamInvites.length > 0 && (
+				<Card>
+					<CardHeader>
+						<div className="flex items-center gap-2">
+							<Users className="w-5 h-5 text-muted-foreground" />
+							<CardTitle className="text-lg">Your Team</CardTitle>
+						</div>
+						<CardDescription>
+							{registration.teamName || registration.athleteTeam.name}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<p className="text-sm text-muted-foreground">
+							Share these invite links with your teammates so they can join your team.
+						</p>
+
+						<div className="space-y-3">
+							{teamInvites.map((invite) => {
+								const inviteUrl = `${baseUrl}/compete/invite/${invite.token}`
+								const isAccepted = !!invite.acceptedAt
+								const isExpired = invite.expiresAt < new Date()
+
+								return (
+									<div
+										key={invite.id}
+										className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+									>
+										<div className="flex items-center gap-3 min-w-0">
+											{isAccepted ? (
+												<CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+											) : isExpired ? (
+												<Clock className="w-4 h-4 text-destructive flex-shrink-0" />
+											) : (
+												<Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+											)}
+											<div className="min-w-0">
+												<p className="text-sm font-medium truncate">{invite.email}</p>
+												<p className="text-xs text-muted-foreground">
+													{isAccepted
+														? "Joined"
+														: isExpired
+															? "Invite expired"
+															: "Pending"}
+												</p>
+											</div>
+										</div>
+
+										{!isAccepted && !isExpired && (
+											<CopyInviteLink inviteUrl={inviteUrl} />
+										)}
+									</div>
+								)
+							})}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Payment Receipt */}
+			{purchase && purchase.status === "COMPLETED" && (
+				<Card>
+					<CardHeader>
+						<div className="flex items-center gap-2">
+							<Receipt className="w-5 h-5 text-muted-foreground" />
+							<CardTitle className="text-lg">Payment Receipt</CardTitle>
+						</div>
+						{checkoutSession?.customer_details?.email && (
+							<CardDescription>
+								{checkoutSession.customer_details.email}
+							</CardDescription>
+						)}
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{/* Fee Breakdown */}
+						<div className="space-y-2">
+							{/* Registration Fee (base) - calculate from total minus fees */}
+							<div className="flex justify-between text-sm">
+								<span>Registration Fee</span>
+								<span>
+									{formatCurrency(
+										purchase.totalCents -
+											purchase.platformFeeCents -
+											(passStripeFeesToCustomer ? purchase.stripeFeeCents : 0)
+									)}
+								</span>
+							</div>
+
+							{/* Platform Fee */}
+							<div className="flex justify-between text-sm text-muted-foreground">
+								<span>Platform Fee</span>
+								<span>{formatCurrency(purchase.platformFeeCents)}</span>
+							</div>
+
+							{/* Stripe Fee (only if passed to customer) */}
+							{passStripeFeesToCustomer && purchase.stripeFeeCents > 0 && (
+								<div className="flex justify-between text-sm text-muted-foreground">
+									<span>Payment Processing Fee</span>
+									<span>{formatCurrency(purchase.stripeFeeCents)}</span>
+								</div>
+							)}
+						</div>
+
+						<Separator />
+
+						{/* Total */}
+						<div className="flex justify-between font-medium">
+							<span>Total Paid</span>
+							<span>{formatCurrency(purchase.totalCents)}</span>
+						</div>
+
+						{/* Payment Method & Date */}
+						<div className="text-xs text-muted-foreground text-center pt-2 space-y-1">
+							{typeof checkoutSession?.payment_intent === "object" &&
+								checkoutSession.payment_intent?.payment_method_types && (
+									<p>Paid via {checkoutSession.payment_intent.payment_method_types[0]}</p>
+								)}
+							{purchase.completedAt && (
+								<p>
+									{new Date(purchase.completedAt).toLocaleDateString("en-US", {
+										year: "numeric",
+										month: "long",
+										day: "numeric",
+									})}
+								</p>
+							)}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+
+
+			{!isProfileComplete && (
+				<Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+					<CardHeader>
+						<div className="flex items-center gap-2">
+							<AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+							<CardTitle className="text-lg">Complete Your Profile</CardTitle>
+						</div>
+						<CardDescription>
+							Please provide your gender and date of birth for competition purposes.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<ProfileCompletionForm
+							currentGender={user?.gender}
+							currentDateOfBirth={user?.dateOfBirth}
+						/>
+					</CardContent>
+				</Card>
+			)}
 		</div>
 	)
 }

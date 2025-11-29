@@ -164,6 +164,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			teamName: registrationData.teamName,
 			affiliateName: registrationData.affiliateName,
 			teammates: registrationData.teammates,
+			skipProfileValidation: true, // User already paid - they can complete profile on success page
 		})
 
 		// Update registration with payment info
