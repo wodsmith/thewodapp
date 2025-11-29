@@ -4,9 +4,42 @@ import { drizzle } from "drizzle-orm/d1"
 
 import * as schema from "./schema"
 
+// Test database injection - uses `unknown` to avoid type conflicts between D1 and better-sqlite3
+// biome-ignore lint/suspicious/noExplicitAny: Test injection needs flexible typing
+let testDbInstance: any = null
+
+/**
+ * Set a test database instance. Use this in tests to inject an in-memory SQLite DB.
+ * Call with null to clear the test instance.
+ *
+ * @example
+ * ```ts
+ * import { createTestDb, cleanupTestDb } from '../lib/test-db'
+ * import { setTestDb } from '@/db'
+ *
+ * beforeEach(() => {
+ *   const { db } = createTestDb()
+ *   setTestDb(db)
+ * })
+ *
+ * afterEach(() => {
+ *   setTestDb(null)
+ * })
+ * ```
+ */
+// biome-ignore lint/suspicious/noExplicitAny: Test injection needs flexible typing
+export function setTestDb(db: any) {
+	testDbInstance = db
+}
+
 // Don't cache the database connection globally in serverless environments
 // This can cause connection issues and ECONNRESET errors
 export const getDb = (): DrizzleD1Database<typeof schema> => {
+	// Return injected test DB if available (cast to preserve production types)
+	if (testDbInstance) {
+		return testDbInstance as DrizzleD1Database<typeof schema>
+	}
+
 	try {
 		const { env } = getCloudflareContext()
 
