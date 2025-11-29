@@ -56,7 +56,7 @@ export default async function PricingSettingsPage({
 	try {
 		await requireTeamPermission(
 			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
 	} catch (error) {
 		if (

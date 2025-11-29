@@ -20,7 +20,7 @@ import {
 	updateCompetitionFeeConfig,
 	updateDivisionFee,
 } from "@/actions/commerce.action"
-import { PLATFORM_DEFAULTS } from "@/server/commerce/fee-calculator"
+import { PLATFORM_DEFAULTS } from "@/server/commerce"
 
 interface Props {
 	competition: {

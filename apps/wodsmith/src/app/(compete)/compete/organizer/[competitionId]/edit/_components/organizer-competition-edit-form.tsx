@@ -302,7 +302,7 @@ export function OrganizerCompetitionEditForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select a scaling group to use as competition divisions. Athletes
+									Select divisions to use as competition divisions that you've used in the past. Athletes
 									will choose their division when registering.
 								</FormDescription>
 								<FormMessage />

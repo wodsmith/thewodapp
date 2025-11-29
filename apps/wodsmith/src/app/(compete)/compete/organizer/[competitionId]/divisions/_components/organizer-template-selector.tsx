@@ -102,56 +102,62 @@ export function OrganizerTemplateSelector({
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
-				<div className="space-y-2">
-					<Label htmlFor="template-select">Select a Template</Label>
-					<Select
-						value={selectedTemplateId}
-						onValueChange={setSelectedTemplateId}
-					>
-						<SelectTrigger>
-							<SelectValue placeholder="Choose a template (optional)" />
-						</SelectTrigger>
-						<SelectContent>
-							{scalingGroups.map((group) => (
-								<SelectItem key={group.id} value={group.id}>
-									<div className="flex items-center gap-2">
-										{group.title}
-										{group.isSystem === 1 && (
-											<Badge variant="secondary" className="text-xs">
-												System
-											</Badge>
-										)}
-									</div>
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-
-				{selectedTemplate && (
-					<div className="rounded-lg border p-3 bg-muted/50">
-						<p className="text-sm font-medium mb-2">Preview:</p>
-						<div className="flex flex-wrap gap-2">
-							{selectedTemplate.levels
-								.sort((a, b) => a.position - b.position)
-								.map((level) => (
-									<Badge key={level.id} variant="outline">
-										{level.label}
-									</Badge>
-								))}
+				{scalingGroups.length > 0 && (
+					<>
+						<div className="space-y-2">
+							<Label htmlFor="template-select">Select a Template</Label>
+							<Select
+								value={selectedTemplateId}
+								onValueChange={setSelectedTemplateId}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Choose a template (optional)" />
+								</SelectTrigger>
+								<SelectContent>
+									{scalingGroups.map((group) => (
+										<SelectItem key={group.id} value={group.id}>
+											<div className="flex items-center gap-2">
+												{group.title}
+												{group.isSystem === 1 && (
+													<Badge variant="secondary" className="text-xs">
+														System
+													</Badge>
+												)}
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
-					</div>
+
+						{selectedTemplate && (
+							<div className="rounded-lg border p-3 bg-muted/50">
+								<p className="text-sm font-medium mb-2">Preview:</p>
+								<div className="flex flex-wrap gap-2">
+									{selectedTemplate.levels
+										.sort((a, b) => a.position - b.position)
+										.map((level) => (
+											<Badge key={level.id} variant="outline">
+												{level.label}
+											</Badge>
+										))}
+								</div>
+							</div>
+						)}
+					</>
 				)}
 
 				<div className="flex gap-2">
+					{scalingGroups.length > 0 && (
+						<Button
+							onClick={handleApplyTemplate}
+							disabled={isPending || !selectedTemplateId}
+						>
+							{isPending ? "Creating..." : "Apply Template"}
+						</Button>
+					)}
 					<Button
-						onClick={handleApplyTemplate}
-						disabled={isPending || !selectedTemplateId}
-					>
-						{isPending ? "Creating..." : "Apply Template"}
-					</Button>
-					<Button
-						variant="outline"
+						variant={scalingGroups.length > 0 ? "outline" : "default"}
 						onClick={handleStartFresh}
 						disabled={isPending}
 					>

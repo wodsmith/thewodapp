@@ -312,8 +312,8 @@ export function OrganizerCompetitionForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select a scaling group to use as competition divisions. Athletes
-									will choose their division when registering.
+									Select from divisions to use that you've used in the past as a starting point. Athletes
+									will choose their division when registering. Leave blank to start from scratch.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
