@@ -1,52 +1,37 @@
 import { vi } from "vitest"
 import "@testing-library/jest-dom/vitest"
 
-// Mock the D1 client used by Drizzle
-const mockD1Client = {
-	prepare: () => mockD1Client,
-	bind: () => mockD1Client,
-	run: () => Promise.resolve({ success: true }),
-	all: () =>
-		Promise.resolve({
-			success: true,
-			results: [{ id: "test_team_id", name: "Test Team", slug: "test-team" }],
-		}),
-	get: () => Promise.resolve({ success: true }),
-	raw: () => Promise.resolve([]),
-	returning: () =>
-		Promise.resolve([
-			{ id: "test_team_id", name: "Test Team", slug: "test-team" },
-		]),
-}
+/**
+ * Global test setup
+ *
+ * This file sets up default mocks that can be overridden by individual tests.
+ *
+ * For INTEGRATION TESTS (tests that use real DB):
+ *   Use `vi.unmock("@/db")` at the top of your test file, then use
+ *   createTestDb() and setTestDb() to inject an in-memory SQLite database.
+ *   See test/lib/test-db.ts and test/integration/ for examples.
+ *
+ * For UNIT TESTS (tests that mock everything):
+ *   The mocks below will be used automatically. Override as needed.
+ */
 
-// Mock the db object that is null in test environment
-const mockDb = {
-	select: vi.fn().mockReturnThis(),
-	from: vi.fn().mockReturnThis(),
-	leftJoin: vi.fn().mockReturnThis(),
-	innerJoin: vi.fn().mockReturnThis(),
-	where: vi.fn().mockReturnThis(),
-	limit: vi.fn().mockImplementation(() => Promise.resolve([])),
-	orderBy: vi.fn().mockReturnThis(),
-	offset: vi.fn().mockImplementation(() => Promise.resolve([])),
-	insert: vi.fn().mockReturnThis(),
-	values: vi.fn().mockReturnThis(),
-	returning: vi.fn().mockResolvedValue([{ id: "test_id", name: "Test" }]),
-	delete: vi.fn().mockResolvedValue({ changes: 0 }),
-	update: vi.fn().mockReturnThis(),
-	set: vi.fn().mockReturnThis(),
-	get: vi.fn().mockResolvedValue(null),
-}
-
-vi.mock("@/db", () => ({
-	db: null,
-	getDd: vi.fn(() => mockDb),
+// Mock Cloudflare context (always needed since we're not running in Workers)
+vi.mock("@opennextjs/cloudflare", () => ({
+	getCloudflareContext: () => {
+		throw new Error(
+			"getCloudflareContext called in tests. For integration tests, use vi.unmock('@/db') and setTestDb(). " +
+				"For unit tests, mock the specific functions you need.",
+		)
+	},
 }))
 
-vi.mock("@opennextjs/cloudflare", () => ({
-	getCloudflareContext: () => ({
-		env: {
-			NEXT_TAG_CACHE_D1: mockD1Client,
-		},
+// Mock @/db - integration tests should use vi.unmock("@/db") to use real module
+vi.mock("@/db", () => ({
+	getDb: vi.fn(() => {
+		throw new Error(
+			"getDb() called without test DB. Use vi.unmock('@/db') and setTestDb() for integration tests, " +
+				"or mock getDb in your test file.",
+		)
 	}),
+	setTestDb: vi.fn(),
 }))

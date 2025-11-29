@@ -48,7 +48,7 @@ export function TeamSwitcher({
 
 		setIsLoading(true)
 		try {
-			const [result, error] = await setActiveTeam({ teamId })
+			const [_result, error] = await setActiveTeam({ teamId })
 
 			if (error) {
 				console.error("Failed to switch team:", error)

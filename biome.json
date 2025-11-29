@@ -42,7 +42,10 @@
 				"useUniqueElementIds": "off"
 			},
 			"suspicious": {
-				"noExplicitAny": "off"
+				"noExplicitAny": "warn"
+			},
+			"correctness": {
+				"noUnusedImports": "error"
 			}
 		}
 	},

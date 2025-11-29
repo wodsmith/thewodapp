@@ -13,6 +13,8 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"isolatedModules": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
 		"target": "ES2024"
 	}
 }

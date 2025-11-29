@@ -1,4 +1,4 @@
-import { Plus, Settings, User } from "lucide-react"
+import { User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"

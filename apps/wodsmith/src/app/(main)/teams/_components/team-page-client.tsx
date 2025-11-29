@@ -8,13 +8,6 @@ import {
 	getTeamLeaderboardsAction,
 } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Result } from "@/db/schema"
 import { SYSTEM_ROLES_ENUM } from "@/db/schemas/teams"
