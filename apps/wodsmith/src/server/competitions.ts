@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Competition,
@@ -8,6 +8,10 @@ import {
 	type Team,
 	competitionGroupsTable,
 	competitionsTable,
+	programmingTracksTable,
+	PROGRAMMING_TRACK_TYPE,
+	teamTable,
+	scalingLevelsTable,
 } from "@/db/schema"
 
 // Competition with organizing team relation for public display
@@ -442,26 +446,119 @@ export async function createCompetition(params: {
 	const competitionTeamId = competitionTeam.id
 
 	// Step 2: Insert competition record
-	const result = await db
-		.insert(competitionsTable)
-		.values({
-			id: `comp_${createId()}`,
-			organizingTeamId: params.organizingTeamId,
-			competitionTeamId,
-			groupId: params.groupId,
-			name: params.name,
-			slug: params.slug,
-			description: params.description,
-			startDate: params.startDate,
-			endDate: params.endDate,
-			registrationOpensAt: params.registrationOpensAt,
-			registrationClosesAt: params.registrationClosesAt,
-		})
-		.returning()
+	let competition: typeof competitionsTable.$inferSelect | undefined
+	try {
+		const result = await db
+			.insert(competitionsTable)
+			.values({
+				id: `comp_${createId()}`,
+				organizingTeamId: params.organizingTeamId,
+				competitionTeamId,
+				groupId: params.groupId,
+				name: params.name,
+				slug: params.slug,
+				description: params.description,
+				startDate: params.startDate,
+				endDate: params.endDate,
+				registrationOpensAt: params.registrationOpensAt,
+				registrationClosesAt: params.registrationClosesAt,
+			})
+			.returning()
 
-	const [competition] = Array.isArray(result) ? result : []
+		const [inserted] = Array.isArray(result) ? result : []
+		if (!inserted) {
+			throw new Error("Competition insert returned no result")
+		}
+		competition = inserted
+	} catch (competitionError) {
+		// Log the failure
+		console.error(
+			"[createCompetition] Failed to create competition record",
+			{
+				competitionTeamId,
+				competitionName: params.name,
+				error: competitionError instanceof Error ? competitionError.message : String(competitionError),
+			},
+		)
+
+		// Compensating cleanup: delete the competition team created in Step 1
+		try {
+			await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
+			console.log(`[createCompetition] Cleaned up competition team ${competitionTeamId}`)
+		} catch (cleanupError) {
+			console.error(
+				"[createCompetition] Failed to clean up competition team during rollback",
+				{ competitionTeamId, error: cleanupError },
+			)
+		}
+
+		throw new Error(
+			`Failed to create competition: ${competitionError instanceof Error ? competitionError.message : String(competitionError)}`,
+		)
+	}
+
+	// Step 3: Auto-create programming track for competition events
+	// TypeScript guard - competition is guaranteed to be defined here (we throw in catch above)
 	if (!competition) {
-		throw new Error("Failed to create competition")
+		throw new Error("Competition not defined after insert - this should not happen")
+	}
+
+	try {
+		const trackResult = await db
+			.insert(programmingTracksTable)
+			.values({
+				name: `${params.name} - Events`,
+				description: `Competition events for ${params.name}`,
+				type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+				ownerTeamId: competitionTeamId,
+				competitionId: competition.id,
+				isPublic: 0, // Competition events are not public by default
+			})
+			.returning()
+
+		const [track] = Array.isArray(trackResult) ? trackResult : []
+		if (!track) {
+			throw new Error("Programming track insert returned no result")
+		}
+	} catch (trackError) {
+		// Log the failure with details
+		console.error(
+			"[createCompetition] Failed to create programming track for competition",
+			{
+				competitionId: competition.id,
+				competitionTeamId,
+				competitionName: params.name,
+				error: trackError instanceof Error ? trackError.message : String(trackError),
+			},
+		)
+
+		// Compensating cleanup: delete the competition and competition team
+		// Delete competition first (has FK to competitionTeam)
+		try {
+			await db.delete(competitionsTable).where(eq(competitionsTable.id, competition.id))
+			console.log(`[createCompetition] Cleaned up competition ${competition.id}`)
+		} catch (cleanupError) {
+			console.error(
+				"[createCompetition] Failed to clean up competition during rollback",
+				{ competitionId: competition.id, error: cleanupError },
+			)
+		}
+
+		// Delete competition team
+		try {
+			const { teamTable } = await import("@/db/schema")
+			await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
+			console.log(`[createCompetition] Cleaned up competition team ${competitionTeamId}`)
+		} catch (cleanupError) {
+			console.error(
+				"[createCompetition] Failed to clean up competition team during rollback",
+				{ competitionTeamId, error: cleanupError },
+			)
+		}
+
+		throw new Error(
+			`Failed to create programming track for competition: ${trackError instanceof Error ? trackError.message : String(trackError)}`,
+		)
 	}
 
 	return {
@@ -487,7 +584,7 @@ export async function getPublicCompetitions(): Promise<
 		orderBy: (table, { asc }) => [asc(table.startDate)],
 	})
 
-	return competitions as CompetitionWithOrganizingTeam[]
+	return competitions as Array<CompetitionWithOrganizingTeam>
 }
 
 /**
@@ -514,7 +611,7 @@ export async function getCompetitions(
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
 
-	return competitions
+	return competitions as Array<Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }>
 }
 
 /**
@@ -544,7 +641,7 @@ export async function getAllPublicCompetitions(): Promise<Array<Competition & { 
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
 
-	return competitions
+	return competitions as Array<Competition & { organizingTeam: Partial<Team> | null; group: CompetitionGroup | null }>
 }
 
 /**
@@ -573,7 +670,7 @@ export async function getCompetition(
 		},
 	})
 
-	return competition ?? null
+	return (competition ?? null) as (Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }) | null
 }
 
 /**
@@ -1650,5 +1747,5 @@ export async function getUserCompetitionHistory(userId: string) {
 		return bDate - aDate
 	})
 
-	return uniqueRegistrations
+	return uniqueRegistrations as Array<typeof directRegistrations[0] & { competition: CompetitionWithOrganizingTeam }>
 }

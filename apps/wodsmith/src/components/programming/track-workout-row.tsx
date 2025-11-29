@@ -11,7 +11,7 @@ interface TrackWorkoutRowProps {
 }
 
 export function TrackWorkoutRow({ trackWorkout }: TrackWorkoutRowProps) {
-	const { workout, dayNumber, isScheduled } = trackWorkout
+	const { workout, trackOrder, isScheduled } = trackWorkout
 
 	return (
 		<article
@@ -27,7 +27,7 @@ export function TrackWorkoutRow({ trackWorkout }: TrackWorkoutRowProps) {
 					</h3>
 					<div className="flex items-center gap-2 flex-shrink-0">
 						<Badge variant="outline" className="text-xs">
-							Day {dayNumber}
+							#{trackOrder}
 						</Badge>
 						<Badge
 							variant={workout.scope === "public" ? "default" : "secondary"}

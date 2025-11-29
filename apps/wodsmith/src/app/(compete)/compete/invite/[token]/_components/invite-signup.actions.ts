@@ -9,7 +9,6 @@ import {
 	userTable,
 	teamInvitationTable,
 	teamMembershipTable,
-	teamTable,
 	TEAM_TYPE_ENUM,
 } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"

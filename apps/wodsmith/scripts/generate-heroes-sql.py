@@ -200,7 +200,7 @@ INSERT INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_s
     
     # Programming track
     sql_parts.append("\n-- Add workouts to the Heroes programming track")
-    sql_parts.append("INSERT INTO track_workout (id, trackId, workoutId, dayNumber, weekNumber, notes, createdAt, updatedAt, updateCounter) VALUES")
+    sql_parts.append("INSERT INTO track_workout (id, trackId, workoutId, trackOrder, notes, createdAt, updatedAt, updateCounter) VALUES")
     
     track_inserts = []
     day = start_day
@@ -211,7 +211,7 @@ INSERT INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_s
         description = workout['description'][:50] + '...' if len(workout['description']) > 50 else workout['description']
         description = description.replace('\n', ' ').replace("'", "''")
         
-        track_inserts.append(f"('trwk_heroes_{slug}', 'ptrk_heroes', 'wod_{slug}', {day}, {week}, '{description}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)")
+        track_inserts.append(f"('trwk_heroes_{slug}', 'ptrk_heroes', 'wod_{slug}', {day}, '{description}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)")
         
         day += 1
         if day > 7 * week:
