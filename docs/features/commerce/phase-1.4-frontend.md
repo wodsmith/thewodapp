@@ -1,5 +1,36 @@
 ## 1.4 Frontend Integration
 
+---
+
+### Implementation Summary (2025-01-29)
+
+**Status**: ✅ COMPLETED
+
+**Files Created/Modified**:
+- `src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx` - Updated with commerce integration
+- `src/app/(compete)/compete/[slug]/register/success/page.tsx` - New success page
+
+**Changes to RegistrationForm**:
+- Replaced `useServerAction` with direct `initiateRegistrationPayment()` call
+- Added `FeeBreakdownDisplay` component showing dynamic fee breakdown
+- Handles redirect to Stripe Checkout for paid registrations
+- Shows loading spinner during checkout creation
+
+**Success Page Features**:
+- Shows processing state while webhook creates registration
+- Displays success message with competition and team details
+- Includes refresh functionality for processing state
+
+**Decisions Made**:
+1. Removed dependency on `registerForCompetitionAction` - now all registrations go through commerce flow
+2. Fee display updates dynamically when division changes
+3. Success page handles race condition where user arrives before webhook completes
+
+**Questions Exposed**:
+- None - follows plan specification
+
+---
+
 **Integration Strategy**: Modify the existing `RegistrationForm` component to add a payment step after form validation, rather than creating a separate payment form.
 
 ### Modified Registration Flow
