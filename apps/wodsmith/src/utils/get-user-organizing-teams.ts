@@ -1,6 +1,8 @@
 import "server-only"
 import { cache } from "react"
+import { FEATURES } from "@/config/features"
 import { TEAM_PERMISSIONS } from "@/db/schema"
+import { hasFeature } from "@/server/entitlements"
 import { getSessionFromCookie } from "@/utils/auth"
 
 export interface OrganizingTeam {
@@ -11,6 +13,7 @@ export interface OrganizingTeam {
 
 /**
  * Get teams where the current user has MANAGE_PROGRAMMING permission
+ * AND the team has the HOST_COMPETITIONS feature enabled
  * These are the teams that can organize competitions
  */
 export const getUserOrganizingTeams = cache(
@@ -22,10 +25,20 @@ export const getUserOrganizingTeams = cache(
 		}
 
 		// Filter teams where user has MANAGE_PROGRAMMING permission
-		return session.teams
-			.filter((team) =>
-				team.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
-			)
+		const teamsWithPermission = session.teams.filter((team) =>
+			team.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
+		)
+
+		// Check each team for HOST_COMPETITIONS feature
+		const teamsWithFeature = await Promise.all(
+			teamsWithPermission.map(async (team) => {
+				const canHost = await hasFeature(team.id, FEATURES.HOST_COMPETITIONS)
+				return canHost ? team : null
+			}),
+		)
+
+		return teamsWithFeature
+			.filter((team): team is NonNullable<typeof team> => team !== null)
 			.map((team) => ({
 				id: team.id,
 				name: team.name,

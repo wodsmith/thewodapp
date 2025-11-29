@@ -15,14 +15,17 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { hasFeature } from "@/server/entitlements"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
+import { EnableCompetitionOrganizing } from "./_components/enable-competition-organizing"
+import { TeamEntitlements } from "./_components/team-entitlements"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
-import { TeamEntitlements } from "./_components/team-entitlements"
 
 interface TeamPageProps {
 	params: Promise<{
@@ -102,6 +105,16 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 	const canRemoveMembers = await hasTeamPermission(
 		team.id,
 		TEAM_PERMISSIONS.REMOVE_MEMBERS,
+	)
+	const canManageProgramming = await hasTeamPermission(
+		team.id,
+		TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+	)
+
+	// Check if competition organizing is enabled
+	const hasCompetitionOrganizing = await hasFeature(
+		team.id,
+		FEATURES.HOST_COMPETITIONS,
 	)
 
 	// Fetch team members
@@ -300,9 +313,20 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 					)}
 				</div>
 
+				{/* Competition Organizing */}
+				{canManageProgramming && (
+					<div className="col-span-3">
+						<h2 className="text-2xl font-bold mb-4">Competition Organizing</h2>
+						<EnableCompetitionOrganizing
+							teamId={team.id}
+							isEnabled={hasCompetitionOrganizing}
+						/>
+					</div>
+				)}
+
 				{/* Team Entitlements */}
 				<div className="col-span-3">
-					<h2 className="text-2xl font-bold mb-4">Plan & Entitlements</h2>
+					<h2 className="text-2xl font-bold mb-4">Plans & Enabled Features</h2>
 					<TeamEntitlements teamId={team.id} />
 				</div>
 			</div>
