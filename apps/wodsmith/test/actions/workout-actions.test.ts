@@ -1,7 +1,13 @@
-import { createWorkoutAction, createWorkoutRemixAction, updateWorkoutAction } from "@/actions/workout-actions"
-import { getDd } from "@/db"
-import { teamTable, workouts } from "@/db/schema"
 import { beforeAll, expect, test, describe, it, vi, beforeEach, afterEach } from "vitest"
+
+// Mock @/db before imports
+vi.mock("@/db", () => ({
+  getDb: vi.fn(),
+  setTestDb: vi.fn(),
+}))
+
+import { createWorkoutAction, createWorkoutRemixAction, updateWorkoutAction } from "@/actions/workout-actions"
+import { teamTable, workouts } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { canUserEditWorkout, shouldCreateRemix } from "@/utils/workout-permissions"
 import { createWorkoutRemix, getWorkoutById, updateWorkout } from "@/server/workouts"

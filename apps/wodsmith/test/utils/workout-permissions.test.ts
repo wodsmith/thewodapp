@@ -1,10 +1,4 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest"
-import { canUserEditWorkout, shouldCreateRemix, getWorkoutPermissions } from "@/utils/workout-permissions"
-import { requireVerifiedEmail } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
-import { getDd } from "@/db"
-import { eq } from "drizzle-orm"
-import { workouts } from "@/db/schema"
 import type { KVSession } from "@/utils/kv-session"
 
 // Mock the dependencies
@@ -19,13 +13,14 @@ vi.mock("@/utils/team-auth", () => ({
 const mockFindFirst = vi.fn()
 
 vi.mock("@/db", () => ({
-  getDd: vi.fn(() => ({
+  getDb: vi.fn(() => ({
     query: {
       workouts: {
         findFirst: mockFindFirst,
       },
     },
   })),
+  setTestDb: vi.fn(),
 }))
 
 vi.mock("@/db/schema", () => ({
@@ -38,6 +33,11 @@ vi.mock("@/db/schema", () => ({
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
 }))
+
+// Import after mocks
+import { canUserEditWorkout, shouldCreateRemix, getWorkoutPermissions } from "@/utils/workout-permissions"
+import { requireVerifiedEmail } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
 
 describe("workout-permissions", () => {
   const mockSession: KVSession = {

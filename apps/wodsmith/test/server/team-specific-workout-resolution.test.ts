@@ -1,5 +1,4 @@
 import { describe, expect, it, beforeEach, vi } from "vitest"
-import { getTeamSpecificWorkout } from "@/server/workouts"
 
 // Mock the database
 const mockDb = {
@@ -9,8 +8,12 @@ const mockDb = {
 }
 
 vi.mock("@/db", () => ({
-	getDd: vi.fn(() => mockDb),
+	getDb: vi.fn(() => mockDb),
+	setTestDb: vi.fn(),
 }))
+
+// Import after mocks
+import { getTeamSpecificWorkout } from "@/server/workouts"
 
 describe("Team-Specific Workout Resolution", () => {
 	beforeEach(() => {
