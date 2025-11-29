@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm"
 
 type Props = {
 	params: Promise<{ slug: string }>
+	searchParams: Promise<{ canceled?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -28,8 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	}
 }
 
-export default async function RegisterPage({ params }: Props) {
+export default async function RegisterPage({ params, searchParams }: Props) {
 	const { slug } = await params
+	const { canceled } = await searchParams
 
 	// Check authentication
 	const session = await getSessionFromCookie()
@@ -121,6 +123,7 @@ export default async function RegisterPage({ params }: Props) {
 				registrationOpen={registrationOpen}
 				registrationOpensAt={regOpensAt}
 				registrationClosesAt={regClosesAt}
+				paymentCanceled={canceled === "true"}
 			/>
 		</div>
 	)

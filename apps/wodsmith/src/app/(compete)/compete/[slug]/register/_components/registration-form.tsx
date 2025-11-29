@@ -56,6 +56,7 @@ type Props = {
 	registrationOpen: boolean
 	registrationOpensAt: Date | null
 	registrationClosesAt: Date | null
+	paymentCanceled?: boolean
 }
 
 // Fee breakdown display component - updates when division changes
@@ -131,9 +132,17 @@ export function RegistrationForm({
 	registrationOpen,
 	registrationOpensAt,
 	registrationClosesAt,
+	paymentCanceled,
 }: Props) {
 	const router = useRouter()
 	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	// Show toast if returning from canceled payment
+	useEffect(() => {
+		if (paymentCanceled) {
+			toast.error("Payment was canceled. Please try again when you're ready.")
+		}
+	}, [paymentCanceled])
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(registrationSchema),
