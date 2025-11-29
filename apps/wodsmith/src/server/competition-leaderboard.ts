@@ -381,7 +381,6 @@ export async function getCompetitionLeaderboard(params: {
 			const bSeconds = b.eventResults.filter((er) => er.rank === 2).length
 			return bSeconds - aSeconds
 		})
-dd 
 		// Assign ranks
 		for (let i = 0; i < entries.length; i++) {
 			const entry = entries[i]
