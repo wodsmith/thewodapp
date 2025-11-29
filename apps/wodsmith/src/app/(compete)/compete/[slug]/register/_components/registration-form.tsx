@@ -81,10 +81,21 @@ function FeeBreakdownDisplay({
 			return
 		}
 
-		setIsLoading(true)
-		getRegistrationFeeBreakdown(competitionId, divisionId)
-			.then(setFees)
-			.finally(() => setIsLoading(false))
+		const fetchFees = async () => {
+			setIsLoading(true)
+			try {
+				const result = await getRegistrationFeeBreakdown(competitionId, divisionId)
+				setFees(result)
+			} catch (error) {
+				console.error("Failed to fetch registration fee breakdown:", error)
+				setFees(null)
+				toast.error("Failed to load registration fees. Please try again.")
+			} finally {
+				setIsLoading(false)
+			}
+		}
+
+		fetchFees()
 	}, [competitionId, divisionId])
 
 	if (!divisionId) {
