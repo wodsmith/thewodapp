@@ -339,7 +339,7 @@ export function CompetitionEventRow({
 
 						{/* Division Scaling Descriptions - Collapsible Content */}
 						{sortedDivisions.length > 0 && (
-							<CollapsibleContent className="pt-4 mt-4 border-t space-y-3">
+							<CollapsibleContent className="pt-4 mt-4 border-t space-y-3 max-w-[75ch]">
 								<div className="flex items-center gap-2">
 									<Tabs
 										value={selectedDivisionId}
@@ -351,6 +351,7 @@ export function CompetitionEventRow({
 													key={division.id}
 													value={division.id}
 													className="text-xs"
+													disabled={isSaving}
 												>
 													{division.label}
 												</TabsTrigger>
