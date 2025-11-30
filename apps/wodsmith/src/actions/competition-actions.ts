@@ -1019,6 +1019,7 @@ export const updateDivisionDescriptionsAction = createServerAction()
 
 			await updateWorkoutDivisionDescriptions({
 				workoutId: input.workoutId,
+				teamId: input.organizingTeamId,
 				descriptions: input.descriptions,
 			})
 

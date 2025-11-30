@@ -92,6 +92,7 @@ export default async function EventDetailsPage({
 	const divisionDescriptions = await getWorkoutDivisionDescriptions(
 		event.workoutId,
 		divisions.map((d) => d.id),
+		competition.organizingTeamId,
 	)
 
 	return (

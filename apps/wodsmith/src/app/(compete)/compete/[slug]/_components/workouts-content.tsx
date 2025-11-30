@@ -33,6 +33,7 @@ export async function WorkoutsContent({
 			const descriptions = await getWorkoutDivisionDescriptions(
 				event.workoutId,
 				divisionIds,
+				competition.organizingTeamId,
 			)
 			return { workoutId: event.workoutId, descriptions }
 		})

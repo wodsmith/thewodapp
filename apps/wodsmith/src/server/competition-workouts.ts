@@ -591,16 +591,32 @@ export async function updateCompetitionEventWorkout(params: {
 
 /**
  * Get division descriptions for a workout
+ * @param workoutId - The workout to get descriptions for
+ * @param divisionIds - The division IDs to fetch descriptions for
+ * @param teamId - The team that owns the workout (for ownership verification)
+ * @throws Error if the workout doesn't belong to the specified team
  */
 export async function getWorkoutDivisionDescriptions(
 	workoutId: string,
 	divisionIds: string[],
+	teamId: string,
 ): Promise<DivisionDescription[]> {
 	if (divisionIds.length === 0) {
 		return []
 	}
 
 	const db = getDb()
+
+	// Verify the workout belongs to this team
+	const workout = await db
+		.select({ id: workouts.id })
+		.from(workouts)
+		.where(and(eq(workouts.id, workoutId), eq(workouts.teamId, teamId)))
+		.limit(1)
+
+	if (workout.length === 0) {
+		throw new Error("Workout not found or does not belong to this team")
+	}
 
 	// Get the scaling levels (divisions) with their descriptions for this workout
 	const divisions = await db
@@ -642,13 +658,30 @@ export async function getWorkoutDivisionDescriptions(
 
 /**
  * Update division descriptions for a workout
- * Pass null as description to remove it, empty string to clear, or a value to set
+ * @param workoutId - The workout to update descriptions for
+ * @param teamId - The team that owns the workout (for ownership verification)
+ * @param descriptions - Array of division descriptions to update
+ *   - description: null means delete the record
+ *   - description: "" (empty string) or any string is persisted as-is
+ * @throws Error if the workout doesn't belong to the specified team
  */
 export async function updateWorkoutDivisionDescriptions(params: {
 	workoutId: string
+	teamId: string
 	descriptions: Array<{ divisionId: string; description: string | null }>
 }): Promise<void> {
 	const db = getDb()
+
+	// Verify the workout belongs to this team
+	const workout = await db
+		.select({ id: workouts.id })
+		.from(workouts)
+		.where(and(eq(workouts.id, params.workoutId), eq(workouts.teamId, params.teamId)))
+		.limit(1)
+
+	if (workout.length === 0) {
+		throw new Error("Workout not found or does not belong to this team")
+	}
 
 	for (const { divisionId, description } of params.descriptions) {
 		// Check if a record already exists
@@ -665,15 +698,15 @@ export async function updateWorkoutDivisionDescriptions(params: {
 
 		const existingRecord = existing[0]
 
-		if (description === null || description === "") {
-			// Delete the record if description is null or empty
+		if (description === null) {
+			// Delete the record only when description is explicitly null
 			if (existingRecord) {
 				await db
 					.delete(workoutScalingDescriptionsTable)
 					.where(eq(workoutScalingDescriptionsTable.id, existingRecord.id))
 			}
 		} else if (existingRecord) {
-			// Update existing record
+			// Update existing record (including empty string)
 			await db
 				.update(workoutScalingDescriptionsTable)
 				.set({
@@ -682,7 +715,7 @@ export async function updateWorkoutDivisionDescriptions(params: {
 				})
 				.where(eq(workoutScalingDescriptionsTable.id, existingRecord.id))
 		} else {
-			// Insert new record
+			// Insert new record (including empty string)
 			await db.insert(workoutScalingDescriptionsTable).values({
 				workoutId: params.workoutId,
 				scalingLevelId: divisionId,
