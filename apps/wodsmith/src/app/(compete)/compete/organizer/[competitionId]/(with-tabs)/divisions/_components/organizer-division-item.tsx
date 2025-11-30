@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
 	Tooltip,
 	TooltipContent,
@@ -29,11 +30,13 @@ import {
 export interface OrganizerDivisionItemProps {
 	id: string
 	label: string
+	description: string | null
 	index: number
 	registrationCount: number
 	isOnly: boolean
 	instanceId: symbol
 	onLabelSave: (value: string) => void
+	onDescriptionSave: (value: string | null) => void
 	onRemove: () => void
 	onDrop: (sourceIndex: number, targetIndex: number) => void
 }
@@ -41,11 +44,13 @@ export interface OrganizerDivisionItemProps {
 export function OrganizerDivisionItem({
 	id,
 	label,
+	description,
 	index,
 	registrationCount,
 	isOnly,
 	instanceId,
 	onLabelSave,
+	onDescriptionSave,
 	onRemove,
 	onDrop,
 }: OrganizerDivisionItemProps) {
@@ -56,12 +61,17 @@ export function OrganizerDivisionItem({
 	const closestEdgeRef = useRef<Edge | null>(null)
 	const [localLabel, setLocalLabel] = useState(label)
 	const labelRef = useRef(label)
+	const [localDescription, setLocalDescription] = useState(description ?? "")
 
 	// Sync local state when prop changes (e.g., after server update)
 	useEffect(() => {
 		setLocalLabel(label)
 		labelRef.current = label
 	}, [label])
+
+	useEffect(() => {
+		setLocalDescription(description ?? "")
+	}, [description])
 
 	const canDelete = registrationCount === 0 && !isOnly
 
@@ -173,59 +183,75 @@ export function OrganizerDivisionItem({
 		<div ref={ref} className="relative">
 			{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
 			<div
-				className={`flex items-center gap-2 p-3 border rounded-lg bg-background ${isDragging ? "opacity-50" : ""
-					}`}
+				className={`border rounded-lg bg-background ${isDragging ? "opacity-50" : ""}`}
 			>
-				<button
-					ref={dragHandleRef}
-					type="button"
-					className="cursor-grab active:cursor-grabbing"
-					aria-label="Drag to reorder"
-				>
-					<GripVertical className="h-4 w-4 text-muted-foreground" />
-				</button>
-				<span className="text-sm font-mono text-muted-foreground w-8">
-					#{index + 1}
-				</span>
-				<Input
-					value={localLabel}
-					onChange={(e) => setLocalLabel(e.target.value)}
-					onBlur={() => {
-						if (localLabel !== label) {
-							onLabelSave(localLabel)
-						}
-					}}
-					placeholder="Enter division name"
-					className="flex-1"
-				/>
-				<Badge variant="secondary" className="flex items-center gap-1">
-					<Users className="h-3 w-3" />
-					{registrationCount}
-				</Badge>
-				<TooltipProvider>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span>
-								<Button
-									type="button"
-									size="sm"
-									variant="ghost"
-									onClick={onRemove}
-									disabled={!canDelete}
-								>
-									<Trash2 className="h-4 w-4" />
-								</Button>
-							</span>
-						</TooltipTrigger>
-						{!canDelete && (
-							<TooltipContent>
-								{isOnly
-									? "Competition must have at least one division"
-									: `Cannot delete: ${registrationCount} athlete${registrationCount > 1 ? "s" : ""} registered`}
-							</TooltipContent>
-						)}
-					</Tooltip>
-				</TooltipProvider>
+				<div className="flex items-center gap-2 p-3">
+					<button
+						ref={dragHandleRef}
+						type="button"
+						className="cursor-grab active:cursor-grabbing"
+						aria-label="Drag to reorder"
+					>
+						<GripVertical className="h-4 w-4 text-muted-foreground" />
+					</button>
+					<span className="text-sm font-mono text-muted-foreground w-8">
+						#{index + 1}
+					</span>
+					<Input
+						value={localLabel}
+						onChange={(e) => setLocalLabel(e.target.value)}
+						onBlur={() => {
+							if (localLabel !== label) {
+								onLabelSave(localLabel)
+							}
+						}}
+						placeholder="Enter division name"
+						className="flex-1"
+					/>
+					<Badge variant="secondary" className="flex items-center gap-1">
+						<Users className="h-3 w-3" />
+						{registrationCount}
+					</Badge>
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span>
+									<Button
+										type="button"
+										size="sm"
+										variant="ghost"
+										onClick={onRemove}
+										disabled={!canDelete}
+									>
+										<Trash2 className="h-4 w-4" />
+									</Button>
+								</span>
+							</TooltipTrigger>
+							{!canDelete && (
+								<TooltipContent>
+									{isOnly
+										? "Competition must have at least one division"
+										: `Cannot delete: ${registrationCount} athlete${registrationCount > 1 ? "s" : ""} registered`}
+								</TooltipContent>
+							)}
+						</Tooltip>
+					</TooltipProvider>
+				</div>
+				<div className="px-3 pb-3 pl-14">
+					<Textarea
+						value={localDescription}
+						onChange={(e) => setLocalDescription(e.target.value)}
+						onBlur={() => {
+							const newDesc = localDescription.trim() || null
+							if (newDesc !== description) {
+								onDescriptionSave(newDesc)
+							}
+						}}
+						placeholder="Description (optional) - Describe who this division is for"
+						className="text-sm"
+						rows={2}
+					/>
+				</div>
 			</div>
 		</div>
 	)

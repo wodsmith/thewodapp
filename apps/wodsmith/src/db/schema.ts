@@ -2,6 +2,7 @@
 
 export * from "./schemas/affiliates"
 export * from "./schemas/billing"
+export * from "./schemas/commerce"
 export * from "./schemas/common"
 export * from "./schemas/competitions"
 export * from "./schemas/entitlements"

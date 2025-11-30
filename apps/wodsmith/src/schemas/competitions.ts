@@ -152,6 +152,7 @@ export const updateCompetitionSchema = z
 			.max(10000, "Settings are too large")
 			.nullable()
 			.optional(),
+		visibility: z.enum(["public", "private"]).optional(),
 	})
 	.refine(
 		(data) => {

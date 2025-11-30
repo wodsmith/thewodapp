@@ -77,7 +77,8 @@ export const TEAM_PERMISSIONS = {
 	// Scaling group permissions
 	MANAGE_SCALING_GROUPS: "manage_scaling_groups",
 
-	// Add more as needed
+	// Competition permissions
+	MANAGE_COMPETITIONS: "manage_competitions",
 } as const
 
 // Team table - using self-reference pattern for parent organization
@@ -122,6 +123,11 @@ export const teamTable = sqliteTable(
 		parentOrganizationId: text(),
 		// JSON metadata for competition-specific settings
 		competitionMetadata: text({ length: 10000 }),
+
+		// Stripe Connect fields (Phase 2 prep for organizer payouts)
+		stripeConnectedAccountId: text(), // Stripe Express account ID (acct_xxx)
+		stripeAccountStatus: text({ length: 20 }), // NOT_CONNECTED | PENDING | VERIFIED
+		stripeOnboardingCompletedAt: integer({ mode: "timestamp" }),
 	},
 	(table) => [
 		index("team_slug_idx").on(table.slug),

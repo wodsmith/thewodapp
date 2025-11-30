@@ -267,6 +267,34 @@
       "when": 1764283120986,
       "tag": "0037_team-registration-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1764390000000,
+      "tag": "0038_add_competition_track_support",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1764396196351,
+      "tag": "0039_add-commerce-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1764480000000,
+      "tag": "0040_add-competition-visibility-divisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1764566400000,
+      "tag": "0041_add-pass-platform-fees-to-customer",
+      "breakpoints": true
     }
   ]
 }

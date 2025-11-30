@@ -10,6 +10,7 @@ import {
 	deleteCompetitionDivisionAction,
 	reorderCompetitionDivisionsAction,
 	updateCompetitionDivisionAction,
+	updateDivisionDescriptionAction,
 } from "@/actions/competition-division-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { OrganizerDivisionItem } from "./organizer-division-item"
 import { OrganizerTemplateSelector } from "./organizer-template-selector"
 
@@ -37,6 +39,8 @@ interface Division {
 	label: string
 	position: number
 	registrationCount: number
+	description: string | null
+	feeCents: number | null
 }
 
 interface ScalingGroupWithLevels {
@@ -71,6 +75,7 @@ export function OrganizerDivisionManager({
 	const [showAddDialog, setShowAddDialog] = useState(false)
 	const [newDivisionLabel, setNewDivisionLabel] = useState("")
 	const [newDivisionTeamSize, setNewDivisionTeamSize] = useState(1)
+	const [newDivisionDescription, setNewDivisionDescription] = useState("")
 	const [instanceId] = useState(() => Symbol("divisions"))
 
 	// Sync props to state when server data changes (e.g., after router.refresh())
@@ -92,6 +97,10 @@ export function OrganizerDivisionManager({
 
 	const { execute: reorderDivisions } = useServerAction(
 		reorderCompetitionDivisionsAction,
+	)
+
+	const { execute: updateDescription } = useServerAction(
+		updateDivisionDescriptionAction,
 	)
 
 	// If no divisions configured, show template selector
@@ -128,6 +137,33 @@ export function OrganizerDivisionManager({
 			setDivisions((prev) =>
 				prev.map((d) =>
 					d.id === divisionId ? { ...d, label: original?.label ?? newLabel } : d,
+				),
+			)
+		}
+	}
+
+	const handleDescriptionSave = async (divisionId: string, newDescription: string | null) => {
+		const original = initialDivisions.find((d) => d.id === divisionId)
+		if (original && original.description === newDescription) return
+
+		// Optimistically update
+		setDivisions((prev) =>
+			prev.map((d) => (d.id === divisionId ? { ...d, description: newDescription } : d)),
+		)
+
+		const [_result, error] = await updateDescription({
+			teamId,
+			competitionId,
+			divisionId,
+			description: newDescription,
+		})
+
+		if (error) {
+			toast.error(error.message || "Failed to update description")
+			// Revert to original
+			setDivisions((prev) =>
+				prev.map((d) =>
+					d.id === divisionId ? { ...d, description: original?.description ?? newDescription } : d,
 				),
 			)
 		}
@@ -190,6 +226,17 @@ export function OrganizerDivisionManager({
 		if (error) {
 			toast.error(error.message || "Failed to add division")
 		} else if (result?.data) {
+			// If description was provided, update it
+			const descriptionToSave = newDivisionDescription.trim() || null
+			if (descriptionToSave) {
+				await updateDescription({
+					teamId,
+					competitionId,
+					divisionId: result.data.divisionId,
+					description: descriptionToSave,
+				})
+			}
+
 			toast.success("Division added")
 			setDivisions((prev) => [
 				...prev,
@@ -198,10 +245,13 @@ export function OrganizerDivisionManager({
 					label: newDivisionLabel.trim(),
 					position: prev.length,
 					registrationCount: 0,
+					description: descriptionToSave,
+					feeCents: null,
 				},
 			])
 			setNewDivisionLabel("")
 			setNewDivisionTeamSize(1)
+			setNewDivisionDescription("")
 			setShowAddDialog(false)
 		}
 	}
@@ -233,12 +283,16 @@ export function OrganizerDivisionManager({
 									key={division.id}
 									id={division.id}
 									label={division.label}
+									description={division.description}
 									index={index}
 									registrationCount={division.registrationCount}
 									isOnly={divisions.length === 1}
 									instanceId={instanceId}
 									onLabelSave={(label) =>
 										handleLabelSave(division.id, label)
+									}
+									onDescriptionSave={(desc) =>
+										handleDescriptionSave(division.id, desc)
 									}
 									onRemove={() => handleRemove(division.id)}
 									onDrop={handleDrop}
@@ -308,6 +362,17 @@ export function OrganizerDivisionManager({
 							<p className="text-muted-foreground text-sm mt-1">
 								1 = Individual, 2+ = Team division
 							</p>
+						</div>
+						<div>
+							<Label htmlFor="description">Description (Optional)</Label>
+							<Textarea
+								id="description"
+								value={newDivisionDescription}
+								onChange={(e) => setNewDivisionDescription(e.target.value)}
+								placeholder="Describe who this division is for (e.g., athletes who can perform movements as prescribed)"
+								className="mt-2"
+								rows={3}
+							/>
 						</div>
 					</div>
 					<DialogFooter>

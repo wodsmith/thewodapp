@@ -1081,6 +1081,100 @@ async function getAddonLimitModifier(
 }
 
 // ============================================================================
+// GRANT TEAM FEATURE ENTITLEMENTS
+// ============================================================================
+
+/**
+ * Grant a feature to a team as an override
+ * This adds a new active feature entitlement to the team
+ *
+ * @param teamId - Team to grant feature to
+ * @param featureKey - Feature key to grant (e.g., "host_competitions")
+ * @param source - Source of the grant (default: "override")
+ */
+export async function grantTeamFeature(
+	teamId: string,
+	featureKey: string,
+	source: "plan" | "addon" | "override" = "override",
+): Promise<void> {
+	const db = getDb()
+
+	// 1. Get the feature by key
+	const feature = await db.query.featureTable.findFirst({
+		where: eq(featureTable.key, featureKey),
+	})
+
+	if (!feature) {
+		throw new Error(`Feature "${featureKey}" not found`)
+	}
+
+	// 2. Check if team already has this feature
+	const existingEntitlement = await db.query.teamFeatureEntitlementTable.findFirst({
+		where: and(
+			eq(teamFeatureEntitlementTable.teamId, teamId),
+			eq(teamFeatureEntitlementTable.featureId, feature.id),
+			eq(teamFeatureEntitlementTable.isActive, 1),
+		),
+	})
+
+	if (existingEntitlement) {
+		// Already has the feature, nothing to do
+		return
+	}
+
+	// 3. Insert new feature entitlement
+	await db.insert(teamFeatureEntitlementTable).values({
+		teamId,
+		featureId: feature.id,
+		source,
+		isActive: 1,
+	})
+
+	console.log(
+		`[Entitlements] Granted feature "${featureKey}" to team ${teamId}`,
+	)
+}
+
+/**
+ * Revoke a feature from a team
+ * This soft-deletes the feature entitlement
+ *
+ * @param teamId - Team to revoke feature from
+ * @param featureKey - Feature key to revoke
+ */
+export async function revokeTeamFeature(
+	teamId: string,
+	featureKey: string,
+): Promise<void> {
+	const db = getDb()
+
+	// 1. Get the feature by key
+	const feature = await db.query.featureTable.findFirst({
+		where: eq(featureTable.key, featureKey),
+	})
+
+	if (!feature) {
+		throw new Error(`Feature "${featureKey}" not found`)
+	}
+
+	// 2. Soft-delete the feature entitlement
+	await db
+		.update(teamFeatureEntitlementTable)
+		.set({ isActive: 0 })
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.featureId, feature.id),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+			),
+		)
+
+	console.log(
+		`[Entitlements] Revoked feature "${featureKey}" from team ${teamId}`,
+	)
+}
+
+// ============================================================================
 // DATE UTILITIES
 // ============================================================================
 

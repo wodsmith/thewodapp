@@ -42,6 +42,7 @@ import {
 	lbsToKg,
 	type AthleteProfileData,
 } from "@/utils/athlete-profile"
+import { GENDER_ENUM } from "@/db/schemas/users"
 
 type NotableMetconSuggestion = {
 	workoutId: string
@@ -270,6 +271,64 @@ export function AthleteProfileForm({
 								</FormItem>
 							)}
 						/>
+					</CardContent>
+				</Card>
+
+				{/* Basic Info */}
+				<Card>
+					<CardHeader>
+						<CardTitle>Basic Info</CardTitle>
+						<CardDescription>
+							Required for competition registration and division placement
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="grid gap-6 sm:grid-cols-2">
+							<FormField
+								control={form.control}
+								name="gender"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Gender</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select gender" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value={GENDER_ENUM.MALE}>Male</SelectItem>
+												<SelectItem value={GENDER_ENUM.FEMALE}>Female</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormDescription>
+											Used for competition division placement
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="dateOfBirth"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Date of Birth</FormLabel>
+										<FormControl>
+											<Input type="date" {...field} />
+										</FormControl>
+										<FormDescription>
+											Used for age division placement
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 					</CardContent>
 				</Card>
 
