@@ -1,6 +1,6 @@
 "use client"
 
-import { Edit } from "lucide-react"
+import { Edit, Receipt } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -82,12 +82,20 @@ export function AthleteHeader({
 							)}
 						</div>
 
-						<Button asChild variant="outline" size="sm">
-							<Link href="/compete/athlete/edit">
-								<Edit className="mr-2 h-4 w-4" />
-								Edit Profile
-							</Link>
-						</Button>
+						<div className="flex gap-2">
+							<Button asChild variant="outline" size="sm">
+								<Link href="/compete/athlete/invoices">
+									<Receipt className="mr-2 h-4 w-4" />
+									Invoices
+								</Link>
+							</Button>
+							<Button asChild variant="outline" size="sm">
+								<Link href="/compete/athlete/edit">
+									<Edit className="mr-2 h-4 w-4" />
+									Edit Profile
+								</Link>
+							</Button>
+						</div>
 					</div>
 				</div>
 			</div>
