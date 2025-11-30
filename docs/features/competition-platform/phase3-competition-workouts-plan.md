@@ -216,8 +216,8 @@ export const getEventLeaderboardAction = publicAction(...)
 
 ### Phase 3.6: UI Components
 
-#### Admin UI
-- **Event Manager**: `src/app/(admin)/admin/teams/[teamId]/competitions/[competitionId]/events/`
+#### Organizer UI
+- **Event Manager**: `src/app/(compete)/compete/organizer/[competitionId]/events/`
   - List events with drag-to-reorder
   - Add workout modal (search existing workouts)
   - Edit event settings (points multiplier, notes)

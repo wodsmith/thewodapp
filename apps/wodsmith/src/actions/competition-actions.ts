@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	WORKOUT_SCHEME_VALUES,
+	SCORE_TYPE_VALUES,
+	TIEBREAK_SCHEME_VALUES,
+	SECONDARY_SCHEME_VALUES,
+} from "@/db/schemas/workouts"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
@@ -576,11 +582,14 @@ export const updateRegistrationAffiliateAction = createServerAction()
 import { z } from "zod"
 import {
 	addWorkoutToCompetition,
+	createCompetitionEvent,
 	getCompetitionWorkouts,
 	getNextCompetitionEventOrder,
 	removeWorkoutFromCompetition,
 	reorderCompetitionEvents,
+	updateCompetitionEventWorkout,
 	updateCompetitionWorkout,
+	updateWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
 import {
 	getCompetitionLeaderboard,
@@ -636,6 +645,40 @@ const getEventLeaderboardSchema = z.object({
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	divisionId: z.string().optional(),
+})
+
+const createCompetitionEventSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	name: z.string().min(1, "Name is required").max(200),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES),
+	scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
+	description: z.string().max(5000).optional(),
+	roundsToScore: z.number().int().min(1).nullable().optional(),
+	repsPerRound: z.number().int().min(1).nullable().optional(),
+	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
+	tagIds: z.array(z.string()).optional(),
+	tagNames: z.array(z.string()).optional(), // For creating new tags
+	movementIds: z.array(z.string()).optional(),
+	sourceWorkoutId: z.string().nullable().optional(), // For remixing existing workouts
+})
+
+const updateCompetitionEventSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	workoutId: z.string().min(1, "Workout ID is required"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	name: z.string().min(1).max(200).optional(),
+	description: z.string().max(5000).optional(),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES).optional(),
+	scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
+	roundsToScore: z.number().int().min(1).nullable().optional(),
+	repsPerRound: z.number().int().min(1).nullable().optional(),
+	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
+	tagIds: z.array(z.string()).optional(),
+	tagNames: z.array(z.string()).optional(), // For creating new tags
+	movementIds: z.array(z.string()).optional(),
 })
 
 /**
@@ -802,6 +845,95 @@ export const reorderCompetitionEventsAction = createServerAction()
 		}
 	})
 
+/**
+ * Create a new competition event (creates workout and adds to track)
+ */
+export const createCompetitionEventAction = createServerAction()
+	.input(createCompetitionEventSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			const result = await createCompetitionEvent({
+				competitionId: input.competitionId,
+				teamId: input.organizingTeamId,
+				name: input.name,
+				scheme: input.scheme,
+				scoreType: input.scoreType ?? undefined,
+				description: input.description,
+				roundsToScore: input.roundsToScore ?? undefined,
+				repsPerRound: input.repsPerRound ?? undefined,
+				tiebreakScheme: input.tiebreakScheme ?? undefined,
+				secondaryScheme: input.secondaryScheme ?? undefined,
+				tagIds: input.tagIds,
+				tagNames: input.tagNames,
+				movementIds: input.movementIds,
+				sourceWorkoutId: input.sourceWorkoutId ?? undefined,
+			})
+
+			// Revalidate
+			revalidatePath(`/compete/organizer/${input.competitionId}`)
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to create competition event:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to create competition event")
+		}
+	})
+
+/**
+ * Update a competition event's workout details
+ */
+export const updateCompetitionEventAction = createServerAction()
+	.input(updateCompetitionEventSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			await updateCompetitionEventWorkout({
+				workoutId: input.workoutId,
+				name: input.name,
+				description: input.description,
+				scheme: input.scheme,
+				scoreType: input.scoreType,
+				roundsToScore: input.roundsToScore,
+				repsPerRound: input.repsPerRound,
+				tiebreakScheme: input.tiebreakScheme,
+				secondaryScheme: input.secondaryScheme,
+				tagIds: input.tagIds,
+				movementIds: input.movementIds,
+			})
+
+			// Revalidate
+			revalidatePath(`/compete/organizer`)
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update competition event:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to update competition event")
+		}
+	})
+
 /* -------------------------------------------------------------------------- */
 /*                      Competition Leaderboard Actions                        */
 /* -------------------------------------------------------------------------- */
@@ -854,5 +986,55 @@ export const getEventLeaderboardAction = createServerAction()
 				throw new ZSAError("ERROR", error.message)
 			}
 			throw new ZSAError("ERROR", "Failed to get event leaderboard")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                     Division Descriptions Actions                           */
+/* -------------------------------------------------------------------------- */
+
+const updateDivisionDescriptionsSchema = z.object({
+	workoutId: z.string().min(1, "Workout ID is required"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	descriptions: z.array(
+		z.object({
+			divisionId: z.string().min(1, "Division ID is required"),
+			description: z.string().max(2000).nullable(),
+		}),
+	),
+})
+
+/**
+ * Update division-specific descriptions for a competition event
+ */
+export const updateDivisionDescriptionsAction = createServerAction()
+	.input(updateDivisionDescriptionsSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			await updateWorkoutDivisionDescriptions({
+				workoutId: input.workoutId,
+				teamId: input.organizingTeamId,
+				descriptions: input.descriptions,
+			})
+
+			// Revalidate
+			revalidatePath("/compete/organizer")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update division descriptions:", error)
+			if (error instanceof ZSAError) {
+				throw error
+			}
+			if (error instanceof Error) {
+				throw new ZSAError("ERROR", error.message)
+			}
+			throw new ZSAError("ERROR", "Failed to update division descriptions")
 		}
 	})

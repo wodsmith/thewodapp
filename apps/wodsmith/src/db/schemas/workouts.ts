@@ -19,6 +19,45 @@ export const MOVEMENT_TYPE_VALUES = [
 	"monostructural",
 ] as const
 
+// Workout scheme values - source of truth for all workout scheme enums
+export const WORKOUT_SCHEME_VALUES = [
+	"time",
+	"time-with-cap",
+	"pass-fail",
+	"rounds-reps",
+	"reps",
+	"emom",
+	"load",
+	"calories",
+	"meters",
+	"feet",
+	"points",
+] as const
+export type WorkoutScheme = (typeof WORKOUT_SCHEME_VALUES)[number]
+
+// Score type values
+export const SCORE_TYPE_VALUES = ["min", "max", "sum", "average", "first", "last"] as const
+export type ScoreType = (typeof SCORE_TYPE_VALUES)[number]
+
+// Tiebreak scheme values
+export const TIEBREAK_SCHEME_VALUES = ["time", "reps"] as const
+export type TiebreakScheme = (typeof TIEBREAK_SCHEME_VALUES)[number]
+
+// Secondary scheme values (same as workout scheme minus time-with-cap)
+export const SECONDARY_SCHEME_VALUES = [
+	"time",
+	"pass-fail",
+	"rounds-reps",
+	"reps",
+	"emom",
+	"load",
+	"calories",
+	"meters",
+	"feet",
+	"points",
+] as const
+export type SecondaryScheme = (typeof SECONDARY_SCHEME_VALUES)[number]
+
 // Movements table
 export const movements = sqliteTable("movements", {
 	...commonColumns,
@@ -50,22 +89,10 @@ export const workouts = sqliteTable(
 			.default("private")
 			.notNull(),
 		scheme: text("scheme", {
-			enum: [
-				"time",
-				"time-with-cap",
-				"pass-fail",
-				"rounds-reps",
-				"reps",
-				"emom",
-				"load",
-				"calories",
-				"meters",
-				"feet",
-				"points",
-			],
+			enum: WORKOUT_SCHEME_VALUES,
 		}).notNull(),
 		scoreType: text("score_type", {
-			enum: ["min", "max", "sum", "average", "first", "last"],
+			enum: SCORE_TYPE_VALUES,
 		}),
 		repsPerRound: integer("reps_per_round"),
 		roundsToScore: integer("rounds_to_score").default(1),
@@ -73,20 +100,9 @@ export const workouts = sqliteTable(
 			onDelete: "set null",
 		}),
 		sugarId: text("sugar_id"),
-		tiebreakScheme: text("tiebreak_scheme", { enum: ["time", "reps"] }),
+		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
 		secondaryScheme: text("secondary_scheme", {
-			enum: [
-				"time",
-				"pass-fail",
-				"rounds-reps",
-				"reps",
-				"emom",
-				"load",
-				"calories",
-				"meters",
-				"feet",
-				"points",
-			],
+			enum: SECONDARY_SCHEME_VALUES,
 		}),
 		sourceTrackId: text("source_track_id").references(
 			() => programmingTracksTable.id,
