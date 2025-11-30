@@ -1,6 +1,5 @@
 import "server-only"
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ZSAError } from "@repo/zsa"
 import { getAllMovementsAction } from "@/actions/movement-actions"
@@ -12,7 +11,6 @@ import {
 } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { OrganizerEventManager } from "./_components/organizer-event-manager"
 
 interface CompetitionEventsPageProps {
@@ -102,58 +100,13 @@ export default async function CompetitionEventsPage({
 	}
 
 	return (
-		<div className="container mx-auto px-4 py-8">
-			<div className="flex flex-col gap-6">
-				{/* Header */}
-				<div>
-					<OrganizerBreadcrumb
-						segments={[
-							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
-							{ label: "Events" },
-						]}
-					/>
-					<h1 className="text-3xl font-bold">Competition Events</h1>
-					<p className="text-muted-foreground mt-1">
-						Manage the workouts/events for this competition
-					</p>
-				</div>
-
-				{/* Navigation Tabs */}
-				<div className="border-b">
-					<nav className="flex gap-4">
-						<Link
-							href={`/compete/organizer/${competition.id}`}
-							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
-						>
-							Overview
-						</Link>
-						<Link
-							href={`/compete/organizer/${competition.id}/divisions`}
-							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
-						>
-							Divisions
-						</Link>
-						<span className="px-4 py-2 border-b-2 border-primary font-medium">
-							Events
-						</span>
-						<Link
-							href={`/compete/organizer/${competition.id}/athletes`}
-							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
-						>
-							Athletes
-						</Link>
-					</nav>
-				</div>
-
-				<OrganizerEventManager
-					competitionId={competition.id}
-					organizingTeamId={competition.organizingTeamId}
-					events={competitionEvents}
-					movements={movements?.data ?? []}
-					divisions={divisions}
-					divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
-				/>
-			</div>
-		</div>
+		<OrganizerEventManager
+			competitionId={competition.id}
+			organizingTeamId={competition.organizingTeamId}
+			events={competitionEvents}
+			movements={movements?.data ?? []}
+			divisions={divisions}
+			divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
+		/>
 	)
 }

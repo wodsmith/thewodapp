@@ -11,6 +11,7 @@ interface CompetitionTabsProps {
 const tabs = [
 	{ label: "Overview", href: "" },
 	{ label: "Divisions", href: "/divisions" },
+	{ label: "Events", href: "/events" },
 	{ label: "Athletes", href: "/athletes" },
 	{ label: "Pricing", href: "/pricing" },
 	{ label: "Revenue", href: "/revenue" },
