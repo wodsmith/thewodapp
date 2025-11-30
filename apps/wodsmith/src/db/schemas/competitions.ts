@@ -90,6 +90,14 @@ export const competitionsTable = sqliteTable(
 		platformFeeFixed: integer(),
 		// If true, Stripe fees are passed to customer instead of absorbed by organizer
 		passStripeFeesToCustomer: integer({ mode: "boolean" }).default(false),
+		// If true, platform fees are passed to customer instead of absorbed by organizer
+		// Defaults to true for new competitions
+		passPlatformFeesToCustomer: integer({ mode: "boolean" }).default(true),
+		// Visibility: public = listed on /compete, private = unlisted but accessible via URL
+		visibility: text({ length: 10 })
+			.$type<"public" | "private">()
+			.default("public")
+			.notNull(),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -172,6 +180,15 @@ export type Competition = InferSelectModel<typeof competitionsTable>
 export type CompetitionRegistration = InferSelectModel<
 	typeof competitionRegistrationsTable
 >
+
+// Competition visibility constants
+export const COMPETITION_VISIBILITY = {
+	PUBLIC: "public",
+	PRIVATE: "private",
+} as const
+
+export type CompetitionVisibility =
+	(typeof COMPETITION_VISIBILITY)[keyof typeof COMPETITION_VISIBILITY]
 
 // Relations
 export const competitionGroupsRelations = relations(

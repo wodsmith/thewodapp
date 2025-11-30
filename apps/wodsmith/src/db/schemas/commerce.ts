@@ -130,45 +130,52 @@ export const commercePurchaseTable = sqliteTable(
 )
 
 /**
- * Competition Division Fees Table
- * Allows per-division pricing for competitions
- * (e.g., Individual RX: $200, Team of 3: $350)
+ * Competition Divisions Table
+ * Stores per-division configuration for competitions including fees and descriptions
+ * (e.g., Individual RX: $200 - "Athletes who can perform movements as prescribed")
  */
-export const competitionDivisionFeesTable = sqliteTable(
-	"competition_division_fees",
+export const competitionDivisionsTable = sqliteTable(
+	"competition_divisions",
 	{
 		...commonColumns,
 		id: text()
 			.primaryKey()
 			.$defaultFn(() => createCompetitionDivisionFeeId())
 			.notNull(),
-		// The competition this fee applies to
+		// The competition this division config applies to
 		competitionId: text()
 			.notNull()
 			.references(() => competitionsTable.id, { onDelete: "cascade" }),
-		// The division (scaling level) this fee applies to
+		// The division (scaling level) this config applies to
 		divisionId: text()
 			.notNull()
 			.references(() => scalingLevelsTable.id, { onDelete: "cascade" }),
 		// Fee in cents (e.g., 20000 = $200, 35000 = $350)
 		feeCents: integer().notNull(),
+		// Markdown description explaining who this division is for
+		description: text({ length: 2000 }),
 	},
 	(table) => [
-		// Each division can only have one fee per competition
-		uniqueIndex("competition_division_fees_unique_idx").on(
+		// Each division can only have one config per competition
+		uniqueIndex("competition_divisions_unique_idx").on(
 			table.competitionId,
 			table.divisionId,
 		),
-		index("competition_division_fees_competition_idx").on(table.competitionId),
+		index("competition_divisions_competition_idx").on(table.competitionId),
 	],
 )
+
+// Backward compatibility alias
+export const competitionDivisionFeesTable = competitionDivisionsTable
 
 // Type exports
 export type CommerceProduct = InferSelectModel<typeof commerceProductTable>
 export type CommercePurchase = InferSelectModel<typeof commercePurchaseTable>
-export type CompetitionDivisionFee = InferSelectModel<
-	typeof competitionDivisionFeesTable
+export type CompetitionDivision = InferSelectModel<
+	typeof competitionDivisionsTable
 >
+// Backward compatibility alias
+export type CompetitionDivisionFee = CompetitionDivision
 
 // Relations
 export const commerceProductRelations = relations(
@@ -192,16 +199,19 @@ export const commercePurchaseRelations = relations(
 	}),
 )
 
-export const competitionDivisionFeesRelations = relations(
-	competitionDivisionFeesTable,
+export const competitionDivisionsRelations = relations(
+	competitionDivisionsTable,
 	({ one }) => ({
 		competition: one(competitionsTable, {
-			fields: [competitionDivisionFeesTable.competitionId],
+			fields: [competitionDivisionsTable.competitionId],
 			references: [competitionsTable.id],
 		}),
 		division: one(scalingLevelsTable, {
-			fields: [competitionDivisionFeesTable.divisionId],
+			fields: [competitionDivisionsTable.divisionId],
 			references: [scalingLevelsTable.id],
 		}),
 	}),
 )
+
+// Backward compatibility alias
+export const competitionDivisionFeesRelations = competitionDivisionsRelations
