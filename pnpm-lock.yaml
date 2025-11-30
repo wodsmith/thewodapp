@@ -4,28 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-catalogs:
-  default:
-    '@typescript/native-preview':
-      specifier: 7.0.0-dev.20251007.1
-      version: 7.0.0-dev.20251007.1
-    react:
-      specifier: ^19.0.0
-      version: 19.0.0
-    react-dom:
-      specifier: ^19.0.0
-      version: 19.0.0
-    zod:
-      specifier: ^3.25.76
-      version: 3.25.76
-
 importers:
 
   .:
-    dependencies:
-      '@react-pdf/renderer':
-        specifier: ^4.3.1
-        version: 4.3.1(react@19.0.0)
     devDependencies:
       turbo:
         specifier: ^2.5.8
