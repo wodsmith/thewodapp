@@ -27,50 +27,17 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import type { Movement, Tag } from "@/db/schema"
-
-const WORKOUT_SCHEMES = [
-	{ value: "time", label: "For Time" },
-	{ value: "time-with-cap", label: "For Time (with cap)" },
-	{ value: "rounds-reps", label: "AMRAP (rounds + reps)" },
-	{ value: "reps", label: "Max Reps" },
-	{ value: "load", label: "Max Load" },
-	{ value: "calories", label: "Max Calories" },
-	{ value: "meters", label: "Max Distance (meters)" },
-	{ value: "feet", label: "Max Distance (feet)" },
-	{ value: "points", label: "Points" },
-	{ value: "pass-fail", label: "Pass/Fail" },
-	{ value: "emom", label: "EMOM" },
-]
-
-const SCORE_TYPES = [
-	{ value: "min", label: "Min (lowest single set wins)" },
-	{ value: "max", label: "Max (highest single set wins)" },
-	{ value: "sum", label: "Sum (total across rounds)" },
-	{ value: "average", label: "Average (mean across rounds)" },
-]
-
-const TIEBREAK_SCHEMES = [
-	{ value: "time", label: "Time" },
-	{ value: "reps", label: "Reps" },
-]
-
-const SECONDARY_SCHEMES = [
-	{ value: "time", label: "For Time" },
-	{ value: "rounds-reps", label: "AMRAP (rounds + reps)" },
-	{ value: "reps", label: "Max Reps" },
-	{ value: "load", label: "Max Load" },
-	{ value: "calories", label: "Max Calories" },
-	{ value: "meters", label: "Max Distance (meters)" },
-	{ value: "feet", label: "Max Distance (feet)" },
-	{ value: "points", label: "Points" },
-	{ value: "pass-fail", label: "Pass/Fail" },
-	{ value: "emom", label: "EMOM" },
-]
+import type {
+	WorkoutScheme,
+	ScoreType,
+	TiebreakScheme,
+	SecondaryScheme,
+} from "@/db/schemas/workouts"
+import { WORKOUT_SCHEMES, SCORE_TYPES, TIEBREAK_SCHEMES, SECONDARY_SCHEMES } from "@/constants"
 
 // Get default score type based on scheme
-function getDefaultScoreType(scheme: string): string | undefined {
+function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
 	switch (scheme) {
 		case "time":
 		case "time-with-cap":
@@ -85,8 +52,6 @@ function getDefaultScoreType(scheme: string): string | undefined {
 		case "pass-fail":
 		case "points":
 			return "max" // Higher is better
-		default:
-			return undefined
 	}
 }
 
@@ -95,14 +60,15 @@ interface CreateEventDialogProps {
 	onOpenChange: (open: boolean) => void
 	onCreateEvent: (data: {
 		name: string
-		scheme: string
-		scoreType?: string
+		scheme: WorkoutScheme
+		scoreType?: ScoreType
 		description?: string
 		roundsToScore?: number
 		repsPerRound?: number
-		tiebreakScheme?: string
-		secondaryScheme?: string
+		tiebreakScheme?: TiebreakScheme
+		secondaryScheme?: SecondaryScheme
 		tagIds?: string[]
+		tagNames?: string[]
 		movementIds?: string[]
 	}) => Promise<void>
 	isCreating?: boolean
@@ -119,13 +85,13 @@ export function CreateEventDialog({
 	tags: initialTags,
 }: CreateEventDialogProps) {
 	const [name, setName] = useState("")
-	const [scheme, setScheme] = useState("time")
-	const [scoreType, setScoreType] = useState<string | undefined>("min")
+	const [scheme, setScheme] = useState<WorkoutScheme>("time")
+	const [scoreType, setScoreType] = useState<ScoreType>("min")
 	const [description, setDescription] = useState("")
 	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(undefined)
 	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(undefined)
-	const [tiebreakScheme, setTiebreakScheme] = useState<string | undefined>(undefined)
-	const [secondaryScheme, setSecondaryScheme] = useState<string | undefined>(undefined)
+	const [tiebreakScheme, setTiebreakScheme] = useState<TiebreakScheme | undefined>(undefined)
+	const [secondaryScheme, setSecondaryScheme] = useState<SecondaryScheme | undefined>(undefined)
 	const [selectedTags, setSelectedTags] = useState<string[]>([])
 	const [selectedMovements, setSelectedMovements] = useState<string[]>([])
 	const [newTag, setNewTag] = useState("")
@@ -142,6 +108,13 @@ export function CreateEventDialog({
 		e.preventDefault()
 		if (!name.trim() || !scheme) return
 
+		// Separate new tags (with temp IDs) from existing tags
+		const existingTagIds = selectedTags.filter((id) => !id.startsWith("new_tag_"))
+		const newTagIds = selectedTags.filter((id) => id.startsWith("new_tag_"))
+		const newTagNames = newTagIds
+			.map((id) => tags.find((t) => t.id === id)?.name)
+			.filter((name): name is string => !!name)
+
 		await onCreateEvent({
 			name: name.trim(),
 			scheme,
@@ -151,7 +124,8 @@ export function CreateEventDialog({
 			repsPerRound,
 			tiebreakScheme,
 			secondaryScheme,
-			tagIds: selectedTags.length > 0 ? selectedTags : undefined,
+			tagIds: existingTagIds.length > 0 ? existingTagIds : undefined,
+			tagNames: newTagNames.length > 0 ? newTagNames : undefined,
 			movementIds: selectedMovements.length > 0 ? selectedMovements : undefined,
 		})
 
@@ -161,8 +135,8 @@ export function CreateEventDialog({
 
 	const resetForm = () => {
 		setName("")
-		setScheme("time")
-		setScoreType("min")
+		setScheme("time" as WorkoutScheme)
+		setScoreType("min" as ScoreType)
 		setDescription("")
 		setRoundsToScore(undefined)
 		setRepsPerRound(undefined)
@@ -239,7 +213,7 @@ export function CreateEventDialog({
 
 						<div className="space-y-2">
 							<Label htmlFor="scheme">Scheme</Label>
-							<Select value={scheme} onValueChange={setScheme}>
+							<Select value={scheme} onValueChange={(v) => setScheme(v as WorkoutScheme)}>
 								<SelectTrigger id="scheme">
 									<SelectValue placeholder="Select scheme" />
 								</SelectTrigger>
@@ -256,7 +230,7 @@ export function CreateEventDialog({
 						{scheme && (
 							<div className="space-y-2">
 								<Label htmlFor="scoreType">Score Type</Label>
-								<Select value={scoreType} onValueChange={setScoreType}>
+								<Select value={scoreType} onValueChange={(v) => setScoreType(v as ScoreType)}>
 									<SelectTrigger id="scoreType">
 										<SelectValue placeholder="Select score type" />
 									</SelectTrigger>
@@ -315,7 +289,7 @@ export function CreateEventDialog({
 								</Label>
 								<Select
 									value={tiebreakScheme ?? "none"}
-									onValueChange={(v) => setTiebreakScheme(v === "none" ? undefined : v)}
+									onValueChange={(v) => setTiebreakScheme(v === "none" ? undefined : v as TiebreakScheme)}
 								>
 									<SelectTrigger id="tiebreakScheme">
 										<SelectValue placeholder="None" />
@@ -336,7 +310,7 @@ export function CreateEventDialog({
 								</Label>
 								<Select
 									value={secondaryScheme ?? "none"}
-									onValueChange={(v) => setSecondaryScheme(v === "none" ? undefined : v)}
+									onValueChange={(v) => setSecondaryScheme(v === "none" ? undefined : v as SecondaryScheme)}
 								>
 									<SelectTrigger id="secondaryScheme">
 										<SelectValue placeholder="None" />

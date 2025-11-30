@@ -31,49 +31,17 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Movement, Tag } from "@/db/schema"
+import type {
+	WorkoutScheme,
+	ScoreType,
+	TiebreakScheme,
+	SecondaryScheme,
+} from "@/db/schemas/workouts"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
-
-const WORKOUT_SCHEMES = [
-	{ value: "time", label: "For Time" },
-	{ value: "time-with-cap", label: "For Time (with cap)" },
-	{ value: "rounds-reps", label: "AMRAP (rounds + reps)" },
-	{ value: "reps", label: "Max Reps" },
-	{ value: "load", label: "Max Load" },
-	{ value: "calories", label: "Max Calories" },
-	{ value: "meters", label: "Max Distance (meters)" },
-	{ value: "feet", label: "Max Distance (feet)" },
-	{ value: "points", label: "Points" },
-	{ value: "pass-fail", label: "Pass/Fail" },
-	{ value: "emom", label: "EMOM" },
-]
-
-const SCORE_TYPES = [
-	{ value: "min", label: "Min (lowest single set wins)" },
-	{ value: "max", label: "Max (highest single set wins)" },
-	{ value: "sum", label: "Sum (total across rounds)" },
-	{ value: "average", label: "Average (mean across rounds)" },
-]
-
-const TIEBREAK_SCHEMES = [
-	{ value: "time", label: "Time" },
-	{ value: "reps", label: "Reps" },
-]
-
-const SECONDARY_SCHEMES = [
-	{ value: "time", label: "For Time" },
-	{ value: "rounds-reps", label: "AMRAP (rounds + reps)" },
-	{ value: "reps", label: "Max Reps" },
-	{ value: "load", label: "Max Load" },
-	{ value: "calories", label: "Max Calories" },
-	{ value: "meters", label: "Max Distance (meters)" },
-	{ value: "feet", label: "Max Distance (feet)" },
-	{ value: "points", label: "Points" },
-	{ value: "pass-fail", label: "Pass/Fail" },
-	{ value: "emom", label: "EMOM" },
-]
+import { WORKOUT_SCHEMES, SCORE_TYPES, TIEBREAK_SCHEMES, SECONDARY_SCHEMES } from "@/constants"
 
 // Get default score type based on scheme
-function getDefaultScoreType(scheme: string): string | undefined {
+function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
 	switch (scheme) {
 		case "time":
 		case "time-with-cap":
@@ -88,8 +56,6 @@ function getDefaultScoreType(scheme: string): string | undefined {
 		case "pass-fail":
 		case "points":
 			return "max" // Higher is better
-		default:
-			return undefined
 	}
 }
 
@@ -130,12 +96,12 @@ export function EventDetailsForm({
 	// Form state
 	const [name, setName] = useState(event.workout.name)
 	const [description, setDescription] = useState(event.workout.description || "")
-	const [scheme, setScheme] = useState(event.workout.scheme)
-	const [scoreType, setScoreType] = useState<string | null>(event.workout.scoreType)
+	const [scheme, setScheme] = useState<WorkoutScheme>(event.workout.scheme)
+	const [scoreType, setScoreType] = useState<ScoreType | null>(event.workout.scoreType)
 	const [roundsToScore, setRoundsToScore] = useState<number | null>(event.workout.roundsToScore)
 	const [repsPerRound, setRepsPerRound] = useState<number | null>(event.workout.repsPerRound)
-	const [tiebreakScheme, setTiebreakScheme] = useState<string | null>(event.workout.tiebreakScheme)
-	const [secondaryScheme, setSecondaryScheme] = useState<string | null>(event.workout.secondaryScheme)
+	const [tiebreakScheme, setTiebreakScheme] = useState<TiebreakScheme | null>(event.workout.tiebreakScheme)
+	const [secondaryScheme, setSecondaryScheme] = useState<SecondaryScheme | null>(event.workout.secondaryScheme)
 	const [pointsMultiplier, setPointsMultiplier] = useState(
 		event.pointsMultiplier || 100,
 	)
@@ -225,8 +191,8 @@ export function EventDetailsForm({
 			scoreType,
 			roundsToScore,
 			repsPerRound,
-			tiebreakScheme: tiebreakScheme as "time" | "reps" | null,
-			secondaryScheme: secondaryScheme as "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points" | null,
+			tiebreakScheme,
+			secondaryScheme,
 			tagIds: selectedTags,
 			movementIds: selectedMovements,
 		})
@@ -295,7 +261,7 @@ export function EventDetailsForm({
 
 					<div className="space-y-2">
 						<Label htmlFor="scheme">Scheme</Label>
-						<Select value={scheme} onValueChange={setScheme}>
+						<Select value={scheme} onValueChange={(v) => setScheme(v as WorkoutScheme)}>
 							<SelectTrigger id="scheme">
 								<SelectValue placeholder="Select scheme" />
 							</SelectTrigger>
@@ -314,7 +280,7 @@ export function EventDetailsForm({
 							<Label htmlFor="scoreType">Score Type</Label>
 							<Select
 								value={scoreType ?? "none"}
-								onValueChange={(v) => setScoreType(v === "none" ? null : v)}
+								onValueChange={(v) => setScoreType(v === "none" ? null : v as ScoreType)}
 							>
 								<SelectTrigger id="scoreType">
 									<SelectValue placeholder="Select score type" />
@@ -375,7 +341,7 @@ export function EventDetailsForm({
 							</Label>
 							<Select
 								value={tiebreakScheme ?? "none"}
-								onValueChange={(v) => setTiebreakScheme(v === "none" ? null : v)}
+								onValueChange={(v) => setTiebreakScheme(v === "none" ? null : v as TiebreakScheme)}
 							>
 								<SelectTrigger id="tiebreakScheme">
 									<SelectValue placeholder="None" />
@@ -396,7 +362,7 @@ export function EventDetailsForm({
 							</Label>
 							<Select
 								value={secondaryScheme ?? "none"}
-								onValueChange={(v) => setSecondaryScheme(v === "none" ? null : v)}
+								onValueChange={(v) => setSecondaryScheme(v === "none" ? null : v as SecondaryScheme)}
 							>
 								<SelectTrigger id="secondaryScheme">
 									<SelectValue placeholder="None" />

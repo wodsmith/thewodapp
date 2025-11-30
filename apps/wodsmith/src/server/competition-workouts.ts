@@ -15,6 +15,7 @@ import {
 	workouts,
 	workoutScalingDescriptionsTable,
 	workoutTags,
+	type Workout,
 } from "@/db/schema"
 
 export interface DivisionDescription {
@@ -37,12 +38,12 @@ export interface CompetitionWorkout {
 		id: string
 		name: string
 		description: string | null
-		scheme: string
-		scoreType: string | null
+		scheme: Workout["scheme"]
+		scoreType: Workout["scoreType"]
 		roundsToScore: number | null
 		repsPerRound: number | null
-		tiebreakScheme: string | null
-		secondaryScheme: string | null
+		tiebreakScheme: Workout["tiebreakScheme"]
+		secondaryScheme: Workout["secondaryScheme"]
 		tags?: Array<{ id: string; name: string }>
 		movements?: Array<{ id: string; name: string; type: string }>
 	}
@@ -372,6 +373,7 @@ export async function createCompetitionEvent(params: {
 	tiebreakScheme?: "time" | "reps"
 	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points"
 	tagIds?: string[]
+	tagNames?: string[]
 	movementIds?: string[]
 	sourceWorkoutId?: string
 }): Promise<{ workoutId: string; trackWorkoutId: string }> {
@@ -435,11 +437,31 @@ export async function createCompetitionEvent(params: {
 		throw new Error("Failed to create workout")
 	}
 
+	// Handle tags - create new ones from names and use existing IDs
+	const finalTagIds: string[] = []
+
+	// Create new tags from tag names
+	if (params.tagNames && params.tagNames.length > 0) {
+		const { findOrCreateTag } = await import("@/server/tags")
+
+		for (const tagName of params.tagNames) {
+			const tag = await findOrCreateTag(tagName)
+			if (tag) {
+				finalTagIds.push(tag.id)
+			}
+		}
+	}
+
+	// Add existing tag IDs (filter out temporary IDs)
+	if (params.tagIds && params.tagIds.length > 0) {
+		const existingIds = params.tagIds.filter((id) => !id.startsWith("new_tag_"))
+		finalTagIds.push(...existingIds)
+	}
+
 	// Insert workout-tag relationships
-	const tagIds = (params.tagIds ?? []).filter((id) => !id.startsWith("new_tag_"))
-	if (tagIds.length > 0) {
+	if (finalTagIds.length > 0) {
 		await db.insert(workoutTags).values(
-			tagIds.map((tagId) => ({
+			finalTagIds.map((tagId) => ({
 				id: `workout_tag_${createId()}`,
 				workoutId: workout.id,
 				tagId,

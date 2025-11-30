@@ -201,12 +201,6 @@ export function MovementsList({
 									key={movement.id}
 									type="button"
 									onClick={() => onMovementToggle?.(movement.id)}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") {
-											e.preventDefault()
-											onMovementToggle?.(movement.id)
-										}
-									}}
 									aria-pressed={isSelected}
 									className={`flex w-full cursor-pointer items-center justify-between border px-2 py-1 rounded-md transition-colors ${
 										isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted"

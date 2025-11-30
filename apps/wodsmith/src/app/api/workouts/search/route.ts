@@ -11,10 +11,11 @@ export async function GET(request: Request) {
 
 		const { searchParams } = new URL(request.url)
 		const query = searchParams.get("q") || ""
-		const teamId = searchParams.get("teamId")
 
+		// Get team from authenticated session instead of trusting query param
+		const teamId = await getActiveOrPersonalTeamId(session.user.id)
 		if (!teamId) {
-			return NextResponse.json({ error: "Team ID required" }, { status: 400 })
+			return NextResponse.json({ error: "No active team" }, { status: 400 })
 		}
 
 		// Get workouts for the team

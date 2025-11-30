@@ -11,6 +11,12 @@ import {
 } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
 import type { Movement, Tag } from "@/db/schema"
+import type {
+	WorkoutScheme,
+	ScoreType,
+	TiebreakScheme,
+	SecondaryScheme,
+} from "@/db/schemas/workouts"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { AddEventDialog } from "./add-event-dialog"
 import { CompetitionEventRow } from "./competition-event-row"
@@ -91,14 +97,15 @@ export function OrganizerEventManager({
 
 	const handleCreateEvent = async (data: {
 		name: string
-		scheme: string
-		scoreType?: string
+		scheme: WorkoutScheme
+		scoreType?: ScoreType
 		description?: string
 		roundsToScore?: number
 		repsPerRound?: number
-		tiebreakScheme?: string
-		secondaryScheme?: string
+		tiebreakScheme?: TiebreakScheme
+		secondaryScheme?: SecondaryScheme
 		tagIds?: string[]
+		tagNames?: string[]
 		movementIds?: string[]
 	}) => {
 		const [result, error] = await createEvent({
@@ -110,9 +117,10 @@ export function OrganizerEventManager({
 			description: data.description,
 			roundsToScore: data.roundsToScore,
 			repsPerRound: data.repsPerRound,
-			tiebreakScheme: data.tiebreakScheme as "time" | "reps" | undefined,
-			secondaryScheme: data.secondaryScheme as "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points" | undefined,
+			tiebreakScheme: data.tiebreakScheme,
+			secondaryScheme: data.secondaryScheme,
 			tagIds: data.tagIds,
+			tagNames: data.tagNames,
 			movementIds: data.movementIds,
 		})
 
@@ -128,8 +136,8 @@ export function OrganizerEventManager({
 		id: string
 		name: string
 		description: string | null
-		scheme: string
-		scoreType: string | null
+		scheme: WorkoutScheme
+		scoreType: ScoreType | null
 		tags: Array<{ id: string; name: string }>
 		movements: Array<{ id: string; name: string; type: string }>
 	}) => {
@@ -192,6 +200,9 @@ export function OrganizerEventManager({
 				trackOrder: index + 1,
 			}))
 
+			// Capture previous state before optimistic update
+			const previousEvents = events
+
 			setEvents(updatedEvents)
 
 			// Persist to server
@@ -208,7 +219,8 @@ export function OrganizerEventManager({
 
 			if (error) {
 				toast.error(error.message || "Failed to reorder events")
-				setEvents(initialEvents)
+				// Revert to previous state instead of initialEvents
+				setEvents(previousEvents)
 			}
 		}
 	}

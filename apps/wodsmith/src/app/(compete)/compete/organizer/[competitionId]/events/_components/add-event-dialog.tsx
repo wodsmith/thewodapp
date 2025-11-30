@@ -11,13 +11,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import type { WorkoutScheme, ScoreType } from "@/db/schemas/workouts"
 
 interface Workout {
 	id: string
 	name: string
 	description: string | null
-	scheme: string
-	scoreType: string | null
+	scheme: WorkoutScheme
+	scoreType: ScoreType | null
 	tags: Array<{ id: string; name: string }>
 	movements: Array<{ id: string; name: string; type: string }>
 }
@@ -36,7 +37,7 @@ export function AddEventDialog({
 	onOpenChange,
 	onAddWorkout,
 	isAdding,
-	teamId,
+	teamId: _teamId,
 	existingWorkoutIds,
 }: AddEventDialogProps) {
 	const [search, setSearch] = useState("")
@@ -51,17 +52,15 @@ export function AddEventDialog({
 			setIsLoading(true)
 			try {
 				const params = new URLSearchParams({
-					teamId,
 					q: search,
 				})
 				const response = await fetch(`/api/workouts/search?${params}`)
+				if (!response.ok) {
+					throw new Error(`Search failed: ${response.status}`)
+				}
 				const data: { workouts?: Workout[] | null } = await response.json()
 
-				// Filter out workouts already in competition
-				const filtered = (data.workouts || []).filter(
-					(w: Workout) => !existingWorkoutIds.has(w.id)
-				)
-				setWorkouts(filtered)
+				setWorkouts(data.workouts || [])
 			} catch (error) {
 				console.error("Failed to fetch workouts:", error)
 				setWorkouts([])
@@ -72,13 +71,16 @@ export function AddEventDialog({
 
 		const timeoutId = setTimeout(fetchWorkouts, 300) // Debounce
 		return () => clearTimeout(timeoutId)
-	}, [open, search, teamId, existingWorkoutIds])
+	}, [open, search])
 
 	const handleSelect = (workout: Workout) => {
 		if (isAdding) return
 		onAddWorkout(workout)
 		setSearch("")
 	}
+
+	// Filter workouts in render to avoid dependency issues
+	const filteredWorkouts = workouts.filter((w) => !existingWorkoutIds.has(w.id))
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,7 +111,7 @@ export function AddEventDialog({
 							<div className="flex items-center justify-center py-8">
 								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 							</div>
-						) : workouts.length === 0 ? (
+						) : filteredWorkouts.length === 0 ? (
 							<div className="text-center py-8 text-muted-foreground">
 								{search
 									? "No workouts match your search."
@@ -117,7 +119,7 @@ export function AddEventDialog({
 							</div>
 						) : (
 							<div className="space-y-2 pr-4">
-								{workouts.map((workout) => (
+								{filteredWorkouts.map((workout) => (
 									<button
 										key={workout.id}
 										type="button"

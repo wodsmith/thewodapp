@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	WORKOUT_SCHEME_VALUES,
+	SCORE_TYPE_VALUES,
+	TIEBREAK_SCHEME_VALUES,
+	SECONDARY_SCHEME_VALUES,
+} from "@/db/schemas/workouts"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
@@ -645,25 +651,15 @@ const createCompetitionEventSchema = z.object({
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	name: z.string().min(1, "Name is required").max(200),
-	scheme: z.string().min(1, "Scheme is required"),
-	scoreType: z.string().nullable().optional(),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES),
+	scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
 	description: z.string().max(5000).optional(),
 	roundsToScore: z.number().int().min(1).nullable().optional(),
 	repsPerRound: z.number().int().min(1).nullable().optional(),
-	tiebreakScheme: z.enum(["time", "reps"]).nullable().optional(),
-	secondaryScheme: z.enum([
-		"time",
-		"pass-fail",
-		"rounds-reps",
-		"reps",
-		"emom",
-		"load",
-		"calories",
-		"meters",
-		"feet",
-		"points",
-	]).nullable().optional(),
+	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
 	tagIds: z.array(z.string()).optional(),
+	tagNames: z.array(z.string()).optional(), // For creating new tags
 	movementIds: z.array(z.string()).optional(),
 	sourceWorkoutId: z.string().nullable().optional(), // For remixing existing workouts
 })
@@ -674,24 +670,14 @@ const updateCompetitionEventSchema = z.object({
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	name: z.string().min(1).max(200).optional(),
 	description: z.string().max(5000).optional(),
-	scheme: z.string().optional(),
-	scoreType: z.string().nullable().optional(),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES).optional(),
+	scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
 	roundsToScore: z.number().int().min(1).nullable().optional(),
 	repsPerRound: z.number().int().min(1).nullable().optional(),
-	tiebreakScheme: z.enum(["time", "reps"]).nullable().optional(),
-	secondaryScheme: z.enum([
-		"time",
-		"pass-fail",
-		"rounds-reps",
-		"reps",
-		"emom",
-		"load",
-		"calories",
-		"meters",
-		"feet",
-		"points",
-	]).nullable().optional(),
+	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
 	tagIds: z.array(z.string()).optional(),
+	tagNames: z.array(z.string()).optional(), // For creating new tags
 	movementIds: z.array(z.string()).optional(),
 })
 
@@ -884,6 +870,7 @@ export const createCompetitionEventAction = createServerAction()
 				tiebreakScheme: input.tiebreakScheme ?? undefined,
 				secondaryScheme: input.secondaryScheme ?? undefined,
 				tagIds: input.tagIds,
+				tagNames: input.tagNames,
 				movementIds: input.movementIds,
 				sourceWorkoutId: input.sourceWorkoutId ?? undefined,
 			})
