@@ -1,13 +1,7 @@
-import { Calendar, Clock, MapPin, Users } from "lucide-react"
+import { Calendar, MapPin, Users } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
 import { getCompetitionScheduleSummary } from "@/server/competition-schedule"
 

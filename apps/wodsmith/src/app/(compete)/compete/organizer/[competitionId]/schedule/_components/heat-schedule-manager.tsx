@@ -31,7 +31,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -42,11 +41,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import type {
 	CompetitionFloor,
 	CompetitionRegistration,
-	ScalingLevel,
 } from "@/db/schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import type { HeatWithDetails } from "@/server/competition-schedule"
@@ -60,7 +58,7 @@ interface HeatScheduleManagerProps {
 	competitionId: string
 	floors: CompetitionFloor[]
 	events: CompetitionWorkout[]
-	divisions: ScalingLevel[]
+	divisions: { id: string; label: string }[]
 	heats: HeatWithDetails[]
 	registrations: CompetitionRegistration[]
 	competitionStartDate: Date
@@ -70,7 +68,7 @@ export function HeatScheduleManager({
 	competitionId,
 	floors,
 	events,
-	divisions,
+	divisions: _divisions,
 	heats,
 	registrations,
 	competitionStartDate,
@@ -159,13 +157,6 @@ export function HeatScheduleManager({
 			const count = registrationsByDivision.get(reg.divisionId) ?? 0
 			registrationsByDivision.set(reg.divisionId, count + 1)
 		}
-	}
-
-	const formatTime = (date: Date) => {
-		return new Date(date).toLocaleTimeString(undefined, {
-			hour: "numeric",
-			minute: "2-digit",
-		})
 	}
 
 	if (events.length === 0) {
@@ -397,17 +388,18 @@ export function HeatScheduleManager({
 							</div>
 						</div>
 
-						<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<Checkbox
+								id="keepDivisionsPure"
+								checked={keepDivisionsPure}
+								onCheckedChange={(checked) => setKeepDivisionsPure(checked === true)}
+							/>
 							<div className="space-y-0.5">
-								<Label>Keep Divisions Together</Label>
+								<Label htmlFor="keepDivisionsPure">Keep Divisions Together</Label>
 								<div className="text-sm text-muted-foreground">
 									Athletes in the same division compete in the same heats
 								</div>
 							</div>
-							<Switch
-								checked={keepDivisionsPure}
-								onCheckedChange={setKeepDivisionsPure}
-							/>
 						</div>
 
 						{/* Preview */}

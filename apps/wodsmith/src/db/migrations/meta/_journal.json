@@ -267,6 +267,20 @@
       "when": 1764283120986,
       "tag": "0037_team-registration-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1732948200000,
+      "tag": "0038_add_competition_track_support",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1732948800000,
+      "tag": "0039_add_heat_scheduling",
+      "breakpoints": true
     }
   ]
 }
