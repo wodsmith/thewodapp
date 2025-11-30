@@ -8,21 +8,26 @@ import {
 	createCompetitionEventAction,
 	reorderCompetitionEventsAction,
 	removeWorkoutFromCompetitionAction,
-	updateCompetitionEventAction,
 } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
 import type { Movement, Tag } from "@/db/schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { AddEventDialog } from "./add-event-dialog"
 import { CompetitionEventRow } from "./competition-event-row"
 import { CreateEventDialog } from "./create-event-dialog"
+
+interface Division {
+	id: string
+	label: string
+	position: number
+	registrationCount: number
+}
+
+interface DivisionDescription {
+	divisionId: string
+	divisionLabel: string
+	description: string | null
+}
 
 interface OrganizerEventManagerProps {
 	competitionId: string
@@ -30,6 +35,8 @@ interface OrganizerEventManagerProps {
 	events: CompetitionWorkout[]
 	movements: Movement[]
 	tags: Tag[]
+	divisions: Division[]
+	divisionDescriptionsByWorkout: Record<string, DivisionDescription[]>
 }
 
 export function OrganizerEventManager({
@@ -38,6 +45,8 @@ export function OrganizerEventManager({
 	events: initialEvents,
 	movements,
 	tags,
+	divisions,
+	divisionDescriptionsByWorkout,
 }: OrganizerEventManagerProps) {
 	const [events, setEvents] = useState(initialEvents)
 	const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -65,10 +74,6 @@ export function OrganizerEventManager({
 	)
 
 	const [isAdding, setIsAdding] = useState(false)
-
-	const { execute: updateEvent } = useServerAction(
-		updateCompetitionEventAction,
-	)
 
 	const { execute: removeWorkout } = useServerAction(
 		removeWorkoutFromCompetitionAction,
@@ -151,30 +156,6 @@ export function OrganizerEventManager({
 			}
 		} finally {
 			setIsAdding(false)
-		}
-	}
-
-	const handleNameSave = async (trackWorkoutId: string, workoutId: string, name: string) => {
-		// Optimistic update
-		setEvents((prev) =>
-			prev.map((e) =>
-				e.id === trackWorkoutId
-					? { ...e, workout: { ...e.workout, name } }
-					: e,
-			),
-		)
-
-		const [_result, error] = await updateEvent({
-			trackWorkoutId,
-			workoutId,
-			organizingTeamId,
-			name,
-		})
-
-		if (error) {
-			toast.error(error.message || "Failed to update name")
-			// Revert
-			setEvents(initialEvents)
 		}
 	}
 
@@ -271,7 +252,9 @@ export function OrganizerEventManager({
 							index={index}
 							instanceId={instanceId}
 							competitionId={competitionId}
-							onNameSave={(name) => handleNameSave(event.id, event.workoutId, name)}
+							organizingTeamId={organizingTeamId}
+							divisions={divisions}
+							divisionDescriptions={divisionDescriptionsByWorkout[event.workoutId] ?? []}
 							onRemove={() => handleRemove(event.id)}
 							onDrop={handleDrop}
 						/>

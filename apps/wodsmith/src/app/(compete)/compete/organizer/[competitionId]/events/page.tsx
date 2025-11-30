@@ -6,7 +6,11 @@ import { ZSAError } from "@repo/zsa"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { getAllTagsAction } from "@/actions/tag-actions"
 import { TEAM_PERMISSIONS } from "@/db/schema"
-import { getCompetitionWorkouts } from "@/server/competition-workouts"
+import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
+import {
+	getCompetitionWorkouts,
+	getWorkoutDivisionDescriptions,
+} from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
@@ -64,15 +68,40 @@ export default async function CompetitionEventsPage({
 		throw error
 	}
 
-	// Parallel fetch: competition events, movements, and tags
-	const [competitionEvents, movementsResult, tagsResult] = await Promise.all([
+	// Parallel fetch: competition events, divisions, movements, and tags
+	const [competitionEvents, divisionsData, movementsResult, tagsResult] = await Promise.all([
 		getCompetitionWorkouts(competitionId),
+		getCompetitionDivisionsWithCounts({ competitionId }),
 		getAllMovementsAction(),
 		getAllTagsAction(),
 	])
 
 	const [movements] = movementsResult ?? [null]
 	const [tags] = tagsResult ?? [null]
+	const { divisions } = divisionsData
+
+	// Fetch division descriptions for all events
+	const divisionIds = divisions.map((d) => d.id)
+	const divisionDescriptionsByWorkout: Record<
+		string,
+		Array<{ divisionId: string; divisionLabel: string; description: string | null }>
+	> = {}
+
+	if (divisionIds.length > 0) {
+		// Fetch descriptions for each workout in parallel
+		const descriptionPromises = competitionEvents.map(async (event) => {
+			const descriptions = await getWorkoutDivisionDescriptions(
+				event.workoutId,
+				divisionIds,
+			)
+			return { workoutId: event.workoutId, descriptions }
+		})
+
+		const results = await Promise.all(descriptionPromises)
+		for (const { workoutId, descriptions } of results) {
+			divisionDescriptionsByWorkout[workoutId] = descriptions
+		}
+	}
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -124,6 +153,8 @@ export default async function CompetitionEventsPage({
 					events={competitionEvents}
 					movements={movements?.data ?? []}
 					tags={tags?.data ?? []}
+					divisions={divisions}
+					divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
 				/>
 			</div>
 		</div>
