@@ -522,27 +522,34 @@ export function EventDetailsForm({
 			</Card>
 
 			{/* Division-Specific Descriptions */}
-			{divisions.length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle>Division Variations</CardTitle>
-						<CardDescription>
-							Customize the workout description for each division. Leave empty to use the default description above.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{divisions
+			<Card>
+				<CardHeader>
+					<CardTitle>Division Variations</CardTitle>
+					<CardDescription>
+						{divisions.length > 0
+							? "Customize the workout description for each division. Leave empty to use the default description above."
+							: "Create divisions for this competition to add division-specific workout variations."}
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					{divisions.length > 0 ? (
+						divisions
 							.sort((a, b) => a.position - b.position)
 							.map((division) => (
 								<div key={division.id} className="space-y-2">
-									<Label htmlFor={`division-${division.id}`}>
-										{division.label}
-										{division.registrationCount > 0 && (
-											<span className="text-muted-foreground ml-2 font-normal">
-												({division.registrationCount} athlete{division.registrationCount !== 1 ? "s" : ""})
-											</span>
-										)}
-									</Label>
+									<div className="flex items-center justify-between">
+										<Label htmlFor={`division-${division.id}`}>
+											{division.label}
+											{division.registrationCount > 0 && (
+												<span className="text-muted-foreground ml-2 font-normal">
+													({division.registrationCount} athlete{division.registrationCount !== 1 ? "s" : ""})
+												</span>
+											)}
+										</Label>
+										<span className="text-xs text-muted-foreground">
+											{divisionDescs[division.id]?.trim() ? "Custom" : "Using default"}
+										</span>
+									</div>
 									<Textarea
 										id={`division-${division.id}`}
 										value={divisionDescs[division.id] || ""}
@@ -555,16 +562,23 @@ export function EventDetailsForm({
 										placeholder={`Custom description for ${division.label}... (leave empty to use default)`}
 										rows={4}
 									/>
-									{!divisionDescs[division.id]?.trim() && (
-										<p className="text-xs text-muted-foreground">
-											Using default description
-										</p>
-									)}
 								</div>
-							))}
-					</CardContent>
-				</Card>
-			)}
+							))
+					) : (
+						<div className="text-center py-6">
+							<p className="text-muted-foreground mb-4">
+								No divisions have been created for this competition yet.
+							</p>
+							<Button
+								variant="outline"
+								onClick={() => router.push(`/compete/organizer/${competitionId}/divisions`)}
+							>
+								Create Divisions
+							</Button>
+						</div>
+					)}
+				</CardContent>
+			</Card>
 
 			{/* Actions */}
 			<div className="flex items-center justify-end gap-4">
