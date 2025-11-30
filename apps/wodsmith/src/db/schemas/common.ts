@@ -61,3 +61,8 @@ export const createCompetitionId = () => `comp_${createId()}`
 export const createCompetitionRegistrationId = () => `creg_${createId()}`
 export const createCompetitionRegistrationTeammateId = () => `crmt_${createId()}`
 export const createAffiliateId = () => `aff_${createId()}`
+
+// Competition scheduling ID generators
+export const createCompetitionFloorId = () => `cflr_${createId()}`
+export const createCompetitionHeatId = () => `cheat_${createId()}`
+export const createHeatAssignmentId = () => `hasgn_${createId()}`
