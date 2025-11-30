@@ -5,7 +5,6 @@ import { notFound } from "next/navigation"
 import { ChevronLeft } from "lucide-react"
 import { ZSAError } from "@repo/zsa"
 import { getAllMovementsAction } from "@/actions/movement-actions"
-import { getAllTagsAction } from "@/actions/tag-actions"
 import { Button } from "@/components/ui/button"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
@@ -81,15 +80,13 @@ export default async function EventDetailsPage({
 		throw error
 	}
 
-	// Get divisions for the competition (for division-specific descriptions), movements, and tags
-	const [{ divisions }, movementsResult, tagsResult] = await Promise.all([
+	// Get divisions for the competition (for division-specific descriptions) and movements
+	const [{ divisions }, movementsResult] = await Promise.all([
 		getCompetitionDivisionsWithCounts({ competitionId }),
 		getAllMovementsAction(),
-		getAllTagsAction(),
 	])
 
 	const [movements] = movementsResult ?? [null]
-	const [tags] = tagsResult ?? [null]
 
 	// Fetch division descriptions for this workout
 	const divisionDescriptions = await getWorkoutDivisionDescriptions(
@@ -136,7 +133,6 @@ export default async function EventDetailsPage({
 					divisions={divisions}
 					divisionDescriptions={divisionDescriptions}
 					movements={movements?.data ?? []}
-					tags={tags?.data ?? []}
 				/>
 			</div>
 		</div>

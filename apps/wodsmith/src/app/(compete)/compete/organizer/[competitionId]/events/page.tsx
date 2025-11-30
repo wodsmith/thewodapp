@@ -4,7 +4,6 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ZSAError } from "@repo/zsa"
 import { getAllMovementsAction } from "@/actions/movement-actions"
-import { getAllTagsAction } from "@/actions/tag-actions"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
 import {
@@ -68,16 +67,14 @@ export default async function CompetitionEventsPage({
 		throw error
 	}
 
-	// Parallel fetch: competition events, divisions, movements, and tags
-	const [competitionEvents, divisionsData, movementsResult, tagsResult] = await Promise.all([
+	// Parallel fetch: competition events, divisions, and movements
+	const [competitionEvents, divisionsData, movementsResult] = await Promise.all([
 		getCompetitionWorkouts(competitionId),
 		getCompetitionDivisionsWithCounts({ competitionId }),
 		getAllMovementsAction(),
-		getAllTagsAction(),
 	])
 
 	const [movements] = movementsResult ?? [null]
-	const [tags] = tagsResult ?? [null]
 	const { divisions } = divisionsData
 
 	// Fetch division descriptions for all events
@@ -152,7 +149,6 @@ export default async function CompetitionEventsPage({
 					organizingTeamId={competition.organizingTeamId}
 					events={competitionEvents}
 					movements={movements?.data ?? []}
-					tags={tags?.data ?? []}
 					divisions={divisions}
 					divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
 				/>

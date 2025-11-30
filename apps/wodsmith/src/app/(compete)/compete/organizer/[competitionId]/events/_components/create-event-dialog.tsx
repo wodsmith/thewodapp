@@ -1,6 +1,5 @@
 "use client"
 
-import { Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { Movement, Tag } from "@/db/schema"
+import type { Movement } from "@/db/schema"
 import type {
 	WorkoutScheme,
 	ScoreType,
@@ -67,13 +66,10 @@ interface CreateEventDialogProps {
 		repsPerRound?: number
 		tiebreakScheme?: TiebreakScheme
 		secondaryScheme?: SecondaryScheme
-		tagIds?: string[]
-		tagNames?: string[]
 		movementIds?: string[]
 	}) => Promise<void>
 	isCreating?: boolean
 	movements: Movement[]
-	tags: Tag[]
 }
 
 export function CreateEventDialog({
@@ -82,7 +78,6 @@ export function CreateEventDialog({
 	onCreateEvent,
 	isCreating,
 	movements,
-	tags: initialTags,
 }: CreateEventDialogProps) {
 	const [name, setName] = useState("")
 	const [scheme, setScheme] = useState<WorkoutScheme>("time")
@@ -92,10 +87,7 @@ export function CreateEventDialog({
 	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(undefined)
 	const [tiebreakScheme, setTiebreakScheme] = useState<TiebreakScheme | undefined>(undefined)
 	const [secondaryScheme, setSecondaryScheme] = useState<SecondaryScheme | undefined>(undefined)
-	const [selectedTags, setSelectedTags] = useState<string[]>([])
 	const [selectedMovements, setSelectedMovements] = useState<string[]>([])
-	const [newTag, setNewTag] = useState("")
-	const [tags, setTags] = useState<Tag[]>(initialTags)
 	const [showAdvanced, setShowAdvanced] = useState(false)
 
 	// Auto-set scoreType when scheme changes
@@ -108,13 +100,6 @@ export function CreateEventDialog({
 		e.preventDefault()
 		if (!name.trim() || !scheme) return
 
-		// Separate new tags (with temp IDs) from existing tags
-		const existingTagIds = selectedTags.filter((id) => !id.startsWith("new_tag_"))
-		const newTagIds = selectedTags.filter((id) => id.startsWith("new_tag_"))
-		const newTagNames = newTagIds
-			.map((id) => tags.find((t) => t.id === id)?.name)
-			.filter((name): name is string => !!name)
-
 		await onCreateEvent({
 			name: name.trim(),
 			scheme,
@@ -124,8 +109,6 @@ export function CreateEventDialog({
 			repsPerRound,
 			tiebreakScheme,
 			secondaryScheme,
-			tagIds: existingTagIds.length > 0 ? existingTagIds : undefined,
-			tagNames: newTagNames.length > 0 ? newTagNames : undefined,
 			movementIds: selectedMovements.length > 0 ? selectedMovements : undefined,
 		})
 
@@ -142,34 +125,8 @@ export function CreateEventDialog({
 		setRepsPerRound(undefined)
 		setTiebreakScheme(undefined)
 		setSecondaryScheme(undefined)
-		setSelectedTags([])
 		setSelectedMovements([])
-		setNewTag("")
 		setShowAdvanced(false)
-	}
-
-	const handleAddTag = () => {
-		if (newTag && !tags.some((t) => t.name === newTag)) {
-			const id = `new_tag_${crypto.randomUUID()}`
-			const newTagObj = {
-				id,
-				name: newTag,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				updateCounter: null,
-			}
-			setTags([...tags, newTagObj])
-			setSelectedTags([...selectedTags, id])
-			setNewTag("")
-		}
-	}
-
-	const handleTagToggle = (tagId: string) => {
-		if (selectedTags.includes(tagId)) {
-			setSelectedTags(selectedTags.filter((id) => id !== tagId))
-		} else {
-			setSelectedTags([...selectedTags, tagId])
-		}
 	}
 
 	const handleMovementToggle = (movementId: string) => {
@@ -328,61 +285,20 @@ export function CreateEventDialog({
 						</div>
 
 
-						{/* Tags and Movements - Collapsible */}
+						{/* Movements - Collapsible */}
 						<Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
 							<CollapsibleTrigger asChild>
 								<Button type="button" variant="ghost" className="w-full justify-between">
-									<span>Tags & Movements</span>
+									<span>Movements</span>
 									<span className="text-muted-foreground text-sm">
-										{selectedTags.length > 0 || selectedMovements.length > 0
-											? `(${selectedTags.length} tags, ${selectedMovements.length} movements)`
+										{selectedMovements.length > 0
+											? `(${selectedMovements.length} selected)`
 											: "(optional)"}
 									</span>
 								</Button>
 							</CollapsibleTrigger>
 							<CollapsibleContent className="space-y-4 pt-2">
-								{/* Tags */}
 								<div className="space-y-2">
-									<Label>Tags</Label>
-									<div className="flex gap-2">
-										<Input
-											type="text"
-											className="flex-1"
-											placeholder="Add a tag"
-											value={newTag}
-											onChange={(e) => setNewTag(e.target.value)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter") {
-													e.preventDefault()
-													handleAddTag()
-												}
-											}}
-										/>
-										<Button type="button" size="icon" onClick={handleAddTag}>
-											<Plus className="h-4 w-4" />
-										</Button>
-									</div>
-									<div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-										{tags.map((tag) => {
-											const isSelected = selectedTags.includes(tag.id)
-											return (
-												<Badge
-													key={tag.id}
-													variant={isSelected ? "default" : "outline"}
-													className="cursor-pointer"
-													onClick={() => handleTagToggle(tag.id)}
-												>
-													{tag.name}
-													{isSelected && " ✓"}
-												</Badge>
-											)
-										})}
-									</div>
-								</div>
-
-								{/* Movements */}
-								<div className="space-y-2">
-									<Label>Movements</Label>
 									{selectedMovements.length > 0 && (
 										<div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
 											{movements

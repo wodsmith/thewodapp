@@ -19,7 +19,6 @@ interface Workout {
 	description: string | null
 	scheme: WorkoutScheme
 	scoreType: ScoreType | null
-	tags: Array<{ id: string; name: string }>
 	movements: Array<{ id: string; name: string; type: string }>
 }
 
@@ -137,14 +136,6 @@ export function AddEventDialog({
 											<span className="text-xs bg-muted px-2 py-0.5 rounded">
 												{workout.scheme}
 											</span>
-											{workout.tags.slice(0, 3).map((tag) => (
-												<span
-													key={tag.id}
-													className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded"
-												>
-													{tag.name}
-												</span>
-											))}
 										</div>
 									</button>
 								))}

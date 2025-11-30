@@ -10,7 +10,7 @@ import {
 	removeWorkoutFromCompetitionAction,
 } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
-import type { Movement, Tag } from "@/db/schema"
+import type { Movement } from "@/db/schema"
 import type {
 	WorkoutScheme,
 	ScoreType,
@@ -40,7 +40,6 @@ interface OrganizerEventManagerProps {
 	organizingTeamId: string
 	events: CompetitionWorkout[]
 	movements: Movement[]
-	tags: Tag[]
 	divisions: Division[]
 	divisionDescriptionsByWorkout: Record<string, DivisionDescription[]>
 }
@@ -50,7 +49,6 @@ export function OrganizerEventManager({
 	organizingTeamId,
 	events: initialEvents,
 	movements,
-	tags,
 	divisions,
 	divisionDescriptionsByWorkout,
 }: OrganizerEventManagerProps) {
@@ -104,8 +102,6 @@ export function OrganizerEventManager({
 		repsPerRound?: number
 		tiebreakScheme?: TiebreakScheme
 		secondaryScheme?: SecondaryScheme
-		tagIds?: string[]
-		tagNames?: string[]
 		movementIds?: string[]
 	}) => {
 		const [result, error] = await createEvent({
@@ -119,8 +115,6 @@ export function OrganizerEventManager({
 			repsPerRound: data.repsPerRound,
 			tiebreakScheme: data.tiebreakScheme,
 			secondaryScheme: data.secondaryScheme,
-			tagIds: data.tagIds,
-			tagNames: data.tagNames,
 			movementIds: data.movementIds,
 		})
 
@@ -138,7 +132,6 @@ export function OrganizerEventManager({
 		description: string | null
 		scheme: WorkoutScheme
 		scoreType: ScoreType | null
-		tags: Array<{ id: string; name: string }>
 		movements: Array<{ id: string; name: string; type: string }>
 	}) => {
 		setIsAdding(true)
@@ -152,7 +145,6 @@ export function OrganizerEventManager({
 				scoreType: workout.scoreType,
 				description: workout.description || undefined,
 				sourceWorkoutId: workout.id, // Mark as remix
-				tagIds: workout.tags.map((t) => t.id),
 				movementIds: workout.movements.map((m) => m.id),
 			})
 
@@ -280,7 +272,6 @@ export function OrganizerEventManager({
 				onCreateEvent={handleCreateEvent}
 				isCreating={isCreating}
 				movements={movements}
-				tags={tags}
 			/>
 
 			<AddEventDialog

@@ -1,6 +1,5 @@
 "use client"
 
-import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -30,7 +29,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Movement, Tag } from "@/db/schema"
+import type { Movement } from "@/db/schema"
 import type {
 	WorkoutScheme,
 	ScoreType,
@@ -79,7 +78,6 @@ interface EventDetailsFormProps {
 	divisions: Division[]
 	divisionDescriptions: DivisionDescriptionData[]
 	movements: Movement[]
-	tags: Tag[]
 }
 
 export function EventDetailsForm({
@@ -89,7 +87,6 @@ export function EventDetailsForm({
 	divisions,
 	divisionDescriptions,
 	movements,
-	tags: initialTags,
 }: EventDetailsFormProps) {
 	const router = useRouter()
 
@@ -116,15 +113,10 @@ export function EventDetailsForm({
 		return initial
 	})
 
-	// Tags and movements state
-	const [tags, setTags] = useState<Tag[]>(initialTags)
-	const [selectedTags, setSelectedTags] = useState<string[]>(
-		event.workout.tags?.map((t) => t.id) ?? []
-	)
+	// Movements state
 	const [selectedMovements, setSelectedMovements] = useState<string[]>(
 		event.workout.movements?.map((m) => m.id) ?? []
 	)
-	const [newTag, setNewTag] = useState("")
 
 	// Auto-set scoreType when scheme changes (only if not already set or changing from default)
 	useEffect(() => {
@@ -134,30 +126,6 @@ export function EventDetailsForm({
 			setScoreType(defaultScoreType)
 		}
 	}, [scheme, scoreType])
-
-	const handleAddTag = () => {
-		if (newTag && !tags.some((t) => t.name === newTag)) {
-			const id = `new_tag_${crypto.randomUUID()}`
-			const newTagObj = {
-				id,
-				name: newTag,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				updateCounter: null,
-			}
-			setTags([...tags, newTagObj])
-			setSelectedTags([...selectedTags, id])
-			setNewTag("")
-		}
-	}
-
-	const handleTagToggle = (tagId: string) => {
-		if (selectedTags.includes(tagId)) {
-			setSelectedTags(selectedTags.filter((id) => id !== tagId))
-		} else {
-			setSelectedTags([...selectedTags, tagId])
-		}
-	}
 
 	const handleMovementToggle = (movementId: string) => {
 		if (selectedMovements.includes(movementId)) {
@@ -193,7 +161,6 @@ export function EventDetailsForm({
 			repsPerRound,
 			tiebreakScheme,
 			secondaryScheme,
-			tagIds: selectedTags,
 			movementIds: selectedMovements,
 		})
 
@@ -396,57 +363,16 @@ export function EventDetailsForm({
 				</CardContent>
 			</Card>
 
-			{/* Tags and Movements */}
+			{/* Movements */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Tags & Movements</CardTitle>
+					<CardTitle>Movements</CardTitle>
 					<CardDescription>
-						Categorize this event and track which movements are used
+						Track which movements are used in this event
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					{/* Tags */}
 					<div className="space-y-2">
-						<Label>Tags</Label>
-						<div className="flex gap-2">
-							<Input
-								type="text"
-								className="flex-1"
-								placeholder="Add a tag"
-								value={newTag}
-								onChange={(e) => setNewTag(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
-										e.preventDefault()
-										handleAddTag()
-									}
-								}}
-							/>
-							<Button type="button" size="icon" onClick={handleAddTag}>
-								<Plus className="h-4 w-4" />
-							</Button>
-						</div>
-						<div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-							{tags.map((tag) => {
-								const isSelected = selectedTags.includes(tag.id)
-								return (
-									<Badge
-										key={tag.id}
-										variant={isSelected ? "default" : "outline"}
-										className="cursor-pointer"
-										onClick={() => handleTagToggle(tag.id)}
-									>
-										{tag.name}
-										{isSelected && " ✓"}
-									</Badge>
-								)
-							})}
-						</div>
-					</div>
-
-					{/* Movements */}
-					<div className="space-y-2">
-						<Label>Movements</Label>
 						{selectedMovements.length > 0 && (
 							<div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
 								{movements
