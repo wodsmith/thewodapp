@@ -344,9 +344,8 @@ export function CompetitionEventRow({
 									<Tabs
 										value={selectedDivisionId}
 										onValueChange={handleDivisionChange}
-										className="flex-1"
 									>
-										<TabsList className="w-full justify-start flex-wrap h-auto gap-1">
+										<TabsList className="w-fit justify-start flex-wrap h-auto gap-1">
 											{sortedDivisions.map((division) => (
 												<TabsTrigger
 													key={division.id}
@@ -374,7 +373,7 @@ export function CompetitionEventRow({
 									onChange={(e) => handleDescriptionChange(e.target.value)}
 									onBlur={handleDescriptionBlur}
 									placeholder={`Enter scaling description for ${sortedDivisions.find((d) => d.id === selectedDivisionId)?.label || "this division"}...`}
-									rows={6}
+									rows={10}
 									className="text-sm"
 									disabled={!selectedDivisionId}
 								/>

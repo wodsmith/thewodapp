@@ -353,21 +353,6 @@ export function CreateEventDialog({
 							</div>
 						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="description">
-								Description <span className="text-muted-foreground">(optional)</span>
-							</Label>
-							<Textarea
-								id="description"
-								value={description}
-								onChange={(e) => setDescription(e.target.value)}
-								placeholder="21-15-9 Thrusters, Pull-ups..."
-								rows={4}
-							/>
-							<p className="text-xs text-muted-foreground">
-								You can add division-specific descriptions after creating the event.
-							</p>
-						</div>
 
 						{/* Tags and Movements - Collapsible */}
 						<Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>

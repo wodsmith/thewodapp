@@ -106,7 +106,7 @@ export function WorkoutCard({
 						onValueChange={setSelectedTab}
 						className="mb-4"
 					>
-						<TabsList className="w-full justify-start flex-wrap h-auto gap-1">
+						<TabsList className="w-fit justify-start flex-wrap h-auto gap-1">
 							{divisionsWithDescriptions.map((division) => (
 								<TabsTrigger
 									key={division.divisionId}

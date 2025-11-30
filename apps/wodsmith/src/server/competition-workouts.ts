@@ -7,6 +7,7 @@ import {
 	competitionsTable,
 	movements,
 	programmingTracksTable,
+	PROGRAMMING_TRACK_TYPE,
 	scalingLevelsTable,
 	tags,
 	trackWorkoutsTable,
@@ -376,10 +377,36 @@ export async function createCompetitionEvent(params: {
 }): Promise<{ workoutId: string; trackWorkoutId: string }> {
 	const db = getDb()
 
-	// Get the competition track
-	const track = await getCompetitionTrack(params.competitionId)
+	// Get or create the competition track
+	let track = await getCompetitionTrack(params.competitionId)
 	if (!track) {
-		throw new Error("Competition track not found")
+		// Track doesn't exist - get competition details and create it
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, params.competitionId),
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Create the programming track for this competition
+		const [createdTrack] = await db
+			.insert(programmingTracksTable)
+			.values({
+				name: `${competition.name} - Events`,
+				description: `Competition events for ${competition.name}`,
+				type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+				ownerTeamId: competition.competitionTeamId,
+				competitionId: competition.id,
+				isPublic: 0,
+			})
+			.returning()
+
+		if (!createdTrack) {
+			throw new Error("Failed to create programming track for competition")
+		}
+
+		track = createdTrack
 	}
 
 	// Get the next track order
