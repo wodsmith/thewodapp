@@ -13,6 +13,7 @@ import { EventDetailsContent } from "./_components/event-details-content"
 import { LeaderboardContent } from "./_components/leaderboard-content"
 import { RegisterButton } from "./_components/register-button"
 import { RegistrationSidebar } from "./_components/registration-sidebar"
+import { ScheduleContent } from "./_components/schedule-content"
 import { WorkoutsContent } from "./_components/workouts-content"
 
 type Props = {
@@ -118,6 +119,9 @@ export default async function CompetitionDetailPage({ params }: Props) {
             competition={competition}
             divisions={divisions}
           />
+        }
+        scheduleContent={
+          <ScheduleContent competition={competition} />
         }
         leaderboardContent={
           <LeaderboardContent

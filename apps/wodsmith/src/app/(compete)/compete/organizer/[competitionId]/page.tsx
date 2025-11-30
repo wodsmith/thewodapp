@@ -159,6 +159,12 @@ export default async function CompetitionDetailPage({
 							Events
 						</Link>
 						<Link
+							href={`/compete/organizer/${competition.id}/schedule`}
+							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
+						>
+							Schedule
+						</Link>
+						<Link
 							href={`/compete/organizer/${competition.id}/athletes`}
 							className="px-4 py-2 border-b-2 border-transparent hover:border-muted-foreground/50 text-muted-foreground hover:text-foreground transition-colors"
 						>

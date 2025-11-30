@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 interface CompetitionTabsProps {
 	children: React.ReactNode
 	workoutsContent: React.ReactNode
+	scheduleContent: React.ReactNode
 	leaderboardContent: React.ReactNode
 	registerButton: React.ReactNode
 }
@@ -12,6 +13,7 @@ interface CompetitionTabsProps {
 export function CompetitionTabs({
 	children,
 	workoutsContent,
+	scheduleContent,
 	leaderboardContent,
 	registerButton,
 }: CompetitionTabsProps) {
@@ -34,6 +36,12 @@ export function CompetitionTabs({
 								Workouts
 							</TabsTrigger>
 							<TabsTrigger
+								value="schedule"
+								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+							>
+								Schedule
+							</TabsTrigger>
+							<TabsTrigger
 								value="leaderboard"
 								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
@@ -53,6 +61,10 @@ export function CompetitionTabs({
 
 			<TabsContent value="workouts" className="mt-0">
 				{workoutsContent}
+			</TabsContent>
+
+			<TabsContent value="schedule" className="mt-0">
+				{scheduleContent}
 			</TabsContent>
 
 			<TabsContent value="leaderboard" className="mt-0">
