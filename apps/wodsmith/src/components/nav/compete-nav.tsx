@@ -49,7 +49,7 @@ export default async function CompeteNav() {
 					/>
 					<h1 className="text-2xl text-foreground dark:text-dark-foreground">
 						<span className="font-black uppercase">wod</span>smith{" "}
-						<span className="font-medium text-muted-foreground">Compete</span>
+						<span className="font-medium dark:text-amber-500 text-amber-600">Compete</span>
 					</h1>
 				</Link>
 				<nav className="hidden items-center gap-4 md:flex">
