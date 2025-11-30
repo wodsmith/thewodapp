@@ -2,7 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Users } from "lucide-react"
+import { DollarSign, TrendingUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -12,6 +12,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
+import { getCompetitionRevenueStats } from "@/server/commerce"
 
 interface CompetitionDetailPageProps {
 	params: Promise<{
@@ -49,8 +50,11 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Fetch registrations
-	const registrations = await getCompetitionRegistrations(competitionId)
+	// Fetch registrations and revenue stats
+	const [registrations, revenueStats] = await Promise.all([
+		getCompetitionRegistrations(competitionId),
+		getCompetitionRevenueStats(competitionId),
+	])
 
 	const formatDate = (date: Date) => {
 		return new Date(date).toLocaleDateString(undefined, {
@@ -161,42 +165,84 @@ export default async function CompetitionDetailPage({
 					</CardContent>
 				</Card>
 
-				{/* Registrations Card */}
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
-						<div>
-							<CardTitle>Registrations</CardTitle>
-							<CardDescription>Athletes registered for this competition</CardDescription>
-						</div>
-						<Link href={`/compete/organizer/${competition.id}/athletes`}>
-							<Button variant="outline" size="sm">
-								<Users className="h-4 w-4 mr-2" />
-								View All
-							</Button>
-						</Link>
-					</CardHeader>
-					<CardContent>
-						{registrations.length === 0 ? (
-							<div className="text-center py-8">
-								<p className="text-muted-foreground text-sm">
-									No athletes have registered yet
-								</p>
+				{/* Stats Row */}
+				<div className="grid gap-4 md:grid-cols-2">
+					{/* Registrations Card */}
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between">
+							<div>
+								<CardTitle>Registrations</CardTitle>
+								<CardDescription>Athletes registered</CardDescription>
 							</div>
-						) : (
-							<div className="flex items-center gap-4">
-								<div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-									<Users className="h-8 w-8 text-primary" />
+							<Link href={`/compete/organizer/${competition.id}/athletes`}>
+								<Button variant="outline" size="sm">
+									<Users className="h-4 w-4 mr-2" />
+									View All
+								</Button>
+							</Link>
+						</CardHeader>
+						<CardContent>
+							{registrations.length === 0 ? (
+								<div className="text-center py-8">
+									<p className="text-muted-foreground text-sm">
+										No athletes have registered yet
+									</p>
 								</div>
-								<div>
-									<div className="text-3xl font-bold">{registrations.length}</div>
-									<div className="text-sm text-muted-foreground">
-										{registrations.length === 1 ? "registration" : "registrations"}
+							) : (
+								<div className="flex items-center gap-4">
+									<div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+										<Users className="h-8 w-8 text-primary" />
+									</div>
+									<div>
+										<div className="text-3xl font-bold">{registrations.length}</div>
+										<div className="text-sm text-muted-foreground">
+											{registrations.length === 1 ? "registration" : "registrations"}
+										</div>
 									</div>
 								</div>
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Revenue Summary Card */}
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between">
+							<div>
+								<CardTitle>Revenue</CardTitle>
+								<CardDescription>Paid registrations</CardDescription>
 							</div>
-						)}
-					</CardContent>
-				</Card>
+							<Link href={`/compete/organizer/${competition.id}/revenue`}>
+								<Button variant="outline" size="sm">
+									<TrendingUp className="h-4 w-4 mr-2" />
+									Details
+								</Button>
+							</Link>
+						</CardHeader>
+						<CardContent>
+							{revenueStats.purchaseCount === 0 ? (
+								<div className="text-center py-8">
+									<p className="text-muted-foreground text-sm">
+										No paid registrations yet
+									</p>
+								</div>
+							) : (
+								<div className="flex items-center gap-4">
+									<div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10">
+										<DollarSign className="h-8 w-8 text-green-600" />
+									</div>
+									<div>
+										<div className="text-3xl font-bold text-green-600">
+											${(revenueStats.totalOrganizerNetCents / 100).toFixed(2)}
+										</div>
+										<div className="text-sm text-muted-foreground">
+											net from {revenueStats.purchaseCount} {revenueStats.purchaseCount === 1 ? "purchase" : "purchases"}
+										</div>
+									</div>
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				</div>
 		</div>
 	)
 }

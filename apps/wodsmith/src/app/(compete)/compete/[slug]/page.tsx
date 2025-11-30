@@ -2,10 +2,8 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { getCompetition, getCompetitionRegistrations, getUserCompetitionRegistration } from "@/server/competitions"
+import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
-import { listScalingLevels } from "@/server/scaling-levels"
-import { getCompetitionDivisionFees } from "@/actions/commerce.action"
-import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
 import { CompetitionHero } from "./_components/competition-hero"
@@ -57,17 +55,11 @@ export default async function CompetitionDetailPage({ params }: Props) {
     notFound()
   }
 
-  // Parse settings early to check for divisions
-  const settings = parseCompetitionSettings(competition.settings)
-
-  // Parallel fetch: session, registrations, divisions, and fees
-  const [session, registrations, divisions, divisionFees] = await Promise.all([
+  // Parallel fetch: session, registrations, and divisions with counts/descriptions
+  const [session, registrations, divisions] = await Promise.all([
     getSessionFromCookie(),
     getCompetitionRegistrations(competition.id),
-    settings?.divisions?.scalingGroupId
-      ? listScalingLevels({ scalingGroupId: settings.divisions.scalingGroupId })
-      : Promise.resolve(null),
-    getCompetitionDivisionFees(competition.id),
+    getPublicCompetitionDivisions(competition.id),
   ])
 
   // Check if user is already registered, get pending invites, and check manage permission (depends on session)
@@ -134,8 +126,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
             {/* Main Content */}
             <EventDetailsContent
               competition={competition}
-              divisions={divisions ?? undefined}
-              divisionFees={divisionFees}
+              divisions={divisions.length > 0 ? divisions : undefined}
             />
 
             {/* Sidebar */}

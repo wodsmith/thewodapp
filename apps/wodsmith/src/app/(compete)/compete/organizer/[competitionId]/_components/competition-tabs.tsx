@@ -13,6 +13,7 @@ const tabs = [
 	{ label: "Divisions", href: "/divisions" },
 	{ label: "Athletes", href: "/athletes" },
 	{ label: "Pricing", href: "/pricing" },
+	{ label: "Revenue", href: "/revenue" },
 	{ label: "Danger Zone", href: "/danger-zone" },
 ] as const
 

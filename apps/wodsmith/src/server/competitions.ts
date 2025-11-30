@@ -473,6 +473,7 @@ export async function createCompetition(params: {
 /**
  * Get all public competitions for browsing
  * Returns competitions ordered by startDate for public /compete page
+ * Only returns competitions with visibility = 'public'
  */
 export async function getPublicCompetitions(): Promise<
 	CompetitionWithOrganizingTeam[]
@@ -480,6 +481,7 @@ export async function getPublicCompetitions(): Promise<
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
+		where: eq(competitionsTable.visibility, "public"),
 		with: {
 			organizingTeam: true,
 			group: true,
@@ -521,7 +523,7 @@ export async function getCompetitions(
  * Get all public competitions (for competition discovery page)
  *
  * Phase 2 Implementation:
- * - Query all competitions
+ * - Query all competitions with visibility = 'public'
  * - Include organizing team and group data
  * - Order by startDate DESC (upcoming first)
  * - Return competitions with full details
@@ -530,6 +532,7 @@ export async function getAllPublicCompetitions(): Promise<Array<Competition & { 
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
+		where: eq(competitionsTable.visibility, "public"),
 		with: {
 			organizingTeam: {
 				columns: {
@@ -597,6 +600,7 @@ export async function updateCompetition(
 		registrationClosesAt: Date | null
 		groupId: string | null
 		settings: string | null
+		visibility: "public" | "private"
 	}>,
 ): Promise<Competition> {
 	const db = getDb()
@@ -649,6 +653,7 @@ export async function updateCompetition(
 	if (updates.registrationClosesAt !== undefined) updateData.registrationClosesAt = updates.registrationClosesAt
 	if (updates.groupId !== undefined) updateData.groupId = updates.groupId
 	if (updates.settings !== undefined) updateData.settings = updates.settings
+	if (updates.visibility !== undefined) updateData.visibility = updates.visibility
 
 	const result = await db
 		.update(competitionsTable)

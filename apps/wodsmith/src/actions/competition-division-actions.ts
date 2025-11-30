@@ -11,6 +11,7 @@ import {
 	initializeCompetitionDivisions,
 	reorderCompetitionDivisions,
 	updateCompetitionDivision,
+	updateCompetitionDivisionDescription,
 } from "@/server/competition-divisions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
@@ -317,5 +318,58 @@ export const reorderCompetitionDivisionsAction = createServerAction()
 			}
 
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to reorder divisions")
+		}
+	})
+
+/**
+ * Update a division's description
+ */
+export const updateDivisionDescriptionAction = createServerAction()
+	.input(
+		z.object({
+			teamId: z.string().min(1, "Team ID is required"),
+			competitionId: z.string().min(1, "Competition ID is required"),
+			divisionId: z.string().min(1, "Division ID is required"),
+			description: z.string().max(2000).nullable(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			}
+
+			const hasAccess = await hasTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			if (!hasAccess) {
+				throw new ZSAError("FORBIDDEN", "No permission to manage competitions")
+			}
+
+			await updateCompetitionDivisionDescription({
+				competitionId: input.competitionId,
+				teamId: input.teamId,
+				divisionId: input.divisionId,
+				description: input.description,
+			})
+
+			revalidatePath(
+				`/admin/teams/${input.teamId}/competitions/${input.competitionId}/divisions`,
+			)
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update division description:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			const message =
+				error instanceof Error ? error.message : "Failed to update description"
+			throw new ZSAError("INTERNAL_SERVER_ERROR", message)
 		}
 	})
