@@ -46,8 +46,7 @@ export function LeaderboardContent({ competitionId, divisions }: LeaderboardCont
 			competitionId,
 			divisionId: selectedDivision === "all" ? undefined : selectedDivision,
 		})
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [competitionId, selectedDivision])
+	}, [competitionId, selectedDivision, execute])
 
 	// Group leaderboard by division for display
 	const leaderboardByDivision = leaderboard.reduce((acc, entry) => {
