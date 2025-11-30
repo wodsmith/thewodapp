@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
-import { WorkoutsContent } from "./workouts-content"
 
 interface DivisionWithDetails {
 	id: string
@@ -22,6 +21,7 @@ interface EventDetailsContentProps {
 		group: CompetitionGroup | null
 	}
 	divisions?: DivisionWithDetails[]
+	workoutsContent?: React.ReactNode
 }
 
 function formatDateShort(date: Date | number): string {
@@ -34,7 +34,7 @@ function formatPrice(cents: number): string {
 	return `$${(cents / 100).toFixed(0)}`
 }
 
-export function EventDetailsContent({ competition, divisions }: EventDetailsContentProps) {
+export function EventDetailsContent({ competition, divisions, workoutsContent }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
 
 	return (
@@ -144,7 +144,7 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 			</section>
 
 			{/* Workouts Section */}
-			<WorkoutsContent competition={competition} divisions={divisions ?? null} />
+			{workoutsContent}
 
 			{/* Entry & Prizes */}
 			<section>

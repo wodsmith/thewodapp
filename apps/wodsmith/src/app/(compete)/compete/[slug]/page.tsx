@@ -137,6 +137,12 @@ export default async function CompetitionDetailPage({ params }: Props) {
             <EventDetailsContent
               competition={competition}
               divisions={divisions.length > 0 ? divisions : undefined}
+              workoutsContent={
+                <WorkoutsContent
+                  competition={competition}
+                  divisions={divisions}
+                />
+              }
             />
 
             {/* Sidebar */}
