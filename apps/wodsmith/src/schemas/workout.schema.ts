@@ -1,0 +1,50 @@
+import { z } from "zod"
+import {
+	WORKOUT_SCHEME_VALUES,
+	SCORE_TYPE_VALUES,
+	TIEBREAK_SCHEME_VALUES,
+	SECONDARY_SCHEME_VALUES,
+} from "@/db/schemas/workouts"
+
+/**
+ * Base workout fields schema - shared between create workout form and competition event form
+ * Uses optional() for consistency with existing form patterns where undefined means "not set"
+ */
+export const workoutFieldsSchema = z.object({
+	name: z.string().min(1, "Name is required"),
+	description: z.string(),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES, {
+		required_error: "Scheme is required",
+	}),
+	scoreType: z.enum(SCORE_TYPE_VALUES).optional(),
+	roundsToScore: z.number().min(1).optional(),
+	repsPerRound: z.number().min(1).optional(),
+	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).optional(),
+	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).optional(),
+	selectedMovements: z.array(z.string()).default([]),
+})
+
+export type WorkoutFieldsSchema = z.infer<typeof workoutFieldsSchema>
+
+/**
+ * Competition event details schema - extends workout fields with competition-specific fields
+ * Uses nullable() for fields that may be explicitly set to null in the database
+ */
+export const competitionEventSchema = z.object({
+	name: z.string().min(1, "Name is required"),
+	description: z.string(),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES, {
+		required_error: "Scheme is required",
+	}),
+	scoreType: z.enum(SCORE_TYPE_VALUES).nullable(),
+	roundsToScore: z.number().min(1).nullable(),
+	repsPerRound: z.number().min(1).nullable(),
+	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
+	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable(),
+	selectedMovements: z.array(z.string()).default([]),
+	pointsMultiplier: z.number().min(1).max(1000),
+	notes: z.string(),
+	divisionDescs: z.record(z.string(), z.string()),
+})
+
+export type CompetitionEventSchema = z.infer<typeof competitionEventSchema>

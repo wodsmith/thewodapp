@@ -1,10 +1,11 @@
 "use client"
 
-import { ChevronDown, HelpCircle, Calendar, DollarSign, Dumbbell, Trophy, Users } from "lucide-react"
+import { ChevronDown, HelpCircle, Calendar, DollarSign, Trophy, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
+import { WorkoutsContent } from "./workouts-content"
 
 interface DivisionWithDetails {
 	id: string
@@ -143,20 +144,7 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 			</section>
 
 			{/* Workouts Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Dumbbell className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Workouts</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							Workouts will be announced closer to the event.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
+			<WorkoutsContent competition={competition} divisions={divisions ?? null} />
 
 			{/* Entry & Prizes */}
 			<section>

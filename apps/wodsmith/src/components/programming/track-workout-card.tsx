@@ -12,7 +12,7 @@ interface TrackWorkoutCardProps {
 }
 
 export function TrackWorkoutCard({ trackWorkout }: TrackWorkoutCardProps) {
-	const { workout, dayNumber, isScheduled } = trackWorkout
+	const { workout, trackOrder, isScheduled } = trackWorkout
 
 	return (
 		<Card className="hover:shadow-md transition-shadow">
@@ -23,7 +23,7 @@ export function TrackWorkoutCard({ trackWorkout }: TrackWorkoutCardProps) {
 					</CardTitle>
 					<div className="flex gap-2 ml-2">
 						<Badge variant="outline" className="text-xs">
-							Day {dayNumber}
+							#{trackOrder}
 						</Badge>
 					</div>
 				</div>

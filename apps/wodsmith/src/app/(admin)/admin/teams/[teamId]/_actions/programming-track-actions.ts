@@ -216,7 +216,7 @@ export const getTeamTracksAction = createServerAction()
 export const addWorkoutToTrackAction = createServerAction()
 	.input(addWorkoutToTrackSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, workoutId, dayNumber, weekNumber, notes } = input
+		const { teamId, trackId, workoutId, trackOrder, notes, pointsMultiplier } = input
 
 		try {
 			// Check permissions
@@ -231,13 +231,13 @@ export const addWorkoutToTrackAction = createServerAction()
 			const trackWorkout = await addWorkoutToTrack({
 				trackId,
 				workoutId,
-				dayNumber,
-				weekNumber,
+				trackOrder,
 				notes,
+				pointsMultiplier,
 			})
 
 			console.log(
-				`INFO: [TrackWorkout] Added workout: ${workoutId} to track: ${trackId} at day: ${dayNumber}`,
+				`INFO: [TrackWorkout] Added workout: ${workoutId} to track: ${trackId} at order: ${trackOrder}`,
 			)
 
 			// Revalidate the track workout page
@@ -296,7 +296,7 @@ export const removeWorkoutFromTrackAction = createServerAction()
 export const updateTrackWorkoutAction = createServerAction()
 	.input(updateTrackWorkoutSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, trackWorkoutId, dayNumber, weekNumber, notes } =
+		const { teamId, trackId, trackWorkoutId, trackOrder, notes, pointsMultiplier } =
 			input
 
 		try {
@@ -311,9 +311,9 @@ export const updateTrackWorkoutAction = createServerAction()
 
 			const trackWorkout = await updateTrackWorkout({
 				trackWorkoutId,
-				dayNumber,
-				weekNumber,
+				trackOrder,
 				notes,
+				pointsMultiplier,
 			})
 
 			console.log(
@@ -368,7 +368,7 @@ export const getTrackWorkoutsAction = createServerAction()
 	})
 
 /**
- * Reorder track workouts by updating their day numbers in bulk.
+ * Reorder track workouts by updating their track order in bulk.
  */
 export const reorderTrackWorkoutsAction = createServerAction()
 	.input(reorderTrackWorkoutsSchema)

@@ -1,6 +1,5 @@
 "use server"
 
-import { notFound, redirect } from "next/navigation"
 import { Users, Calendar, Trophy, AlertCircle, LogIn, UserPlus } from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getTeammateInvite } from "@/server/competitions"
@@ -13,7 +12,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
 import { InviteSignUpForm } from "./_components/invite-signup-form"
 

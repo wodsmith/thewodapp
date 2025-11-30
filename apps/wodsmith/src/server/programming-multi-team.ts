@@ -47,6 +47,7 @@ export async function getPublicTracksWithTeamSubscriptions(
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
