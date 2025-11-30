@@ -22,6 +22,11 @@ export const athleteProfileSchema = z.object({
 
 // Extended athlete profile JSON schema
 export const athleteProfileExtendedSchema = z.object({
+	// Core profile fields (stored as direct columns)
+	gender: z.enum([GENDER_ENUM.MALE, GENDER_ENUM.FEMALE]).optional(),
+	dateOfBirth: z.string().optional(), // ISO date string YYYY-MM-DD
+
+	// Extended profile fields (stored as JSON)
 	preferredUnits: z.enum(["imperial", "metric"]).default("imperial"),
 	heightCm: z.number().positive().optional(),
 	weightKg: z.number().positive().optional(),
