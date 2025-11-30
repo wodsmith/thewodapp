@@ -12,6 +12,17 @@ import { programmingTracksTable } from "./programming"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
 
+// Score status for competition results
+export const SCORE_STATUS_VALUES = [
+	"scored",
+	"dns",
+	"dnf",
+	"cap",
+	"dq",
+	"withdrawn",
+] as const
+export type ScoreStatus = (typeof SCORE_STATUS_VALUES)[number]
+
 // Movement types
 export const MOVEMENT_TYPE_VALUES = [
 	"weightlifting",
@@ -193,6 +204,15 @@ export const results = sqliteTable(
 		// Monostructural specific results
 		distance: integer("distance"),
 		time: integer("time"),
+
+		// Competition-specific fields
+		competitionEventId: text("competition_event_id"), // References trackWorkoutsTable.id
+		competitionRegistrationId: text("competition_registration_id"), // References competitionRegistrationsTable.id
+		scoreStatus: text("score_status", { enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
+		tieBreakScore: text("tie_break_score"), // Raw tie-break value (e.g., "120" for reps or seconds)
+		enteredBy: text("entered_by").references(() => userTable.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("results_scaling_level_idx").on(table.scalingLevelId),
@@ -208,6 +228,16 @@ export const results = sqliteTable(
 		index("results_user_idx").on(table.userId),
 		index("results_date_idx").on(table.date),
 		index("results_workout_idx").on(table.workoutId),
+		// Competition queries: find all results for a competition event by division
+		index("results_competition_event_idx").on(
+			table.competitionEventId,
+			table.scalingLevelId,
+		),
+		// Unique constraint: one result per user per competition event
+		index("results_competition_unique_idx").on(
+			table.competitionEventId,
+			table.userId,
+		),
 	],
 )
 
