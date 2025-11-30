@@ -30,6 +30,7 @@ interface Props {
 		platformFeePercentage: number | null
 		platformFeeFixed: number | null
 		passStripeFeesToCustomer: boolean
+		passPlatformFeesToCustomer: boolean
 	}
 	divisions: Array<{
 		id: string
@@ -69,8 +70,11 @@ export function PricingSettingsForm({
 	const [defaultFee, setDefaultFee] = useState(
 		centsToDollars(competition.defaultRegistrationFeeCents),
 	)
-	const [passFeesToCustomer, setPassFeesToCustomer] = useState(
+	const [passStripeFeesToCustomer, setPassStripeFeesToCustomer] = useState(
 		competition.passStripeFeesToCustomer,
+	)
+	const [passPlatformFeesToCustomer, setPassPlatformFeesToCustomer] = useState(
+		competition.passPlatformFeesToCustomer,
 	)
 
 	// Division-specific fees (map of divisionId -> fee in dollars or empty string)
@@ -89,9 +93,10 @@ export function PricingSettingsForm({
 			await updateCompetitionFeeConfig({
 				competitionId: competition.id,
 				defaultRegistrationFeeCents: dollarsToCents(defaultFee),
-				passStripeFeesToCustomer: passFeesToCustomer,
+				passStripeFeesToCustomer,
+				passPlatformFeesToCustomer,
 			})
-			toast.success("Default fee updated")
+			toast.success("Pricing settings updated")
 			router.refresh()
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to update")
@@ -169,14 +174,33 @@ export function PricingSettingsForm({
 
 					<div className="flex items-start gap-3 py-3 border-t">
 						<Checkbox
-							id="passFeesToCustomer"
-							checked={passFeesToCustomer}
-							onCheckedChange={(checked) => setPassFeesToCustomer(checked === true)}
+							id="passPlatformFeesToCustomer"
+							checked={passPlatformFeesToCustomer}
+							onCheckedChange={(checked) => setPassPlatformFeesToCustomer(checked === true)}
 							disabled={isSubmitting}
 							className="mt-0.5"
 						/>
 						<div>
-							<Label htmlFor="passFeesToCustomer" className="cursor-pointer">
+							<Label htmlFor="passPlatformFeesToCustomer" className="cursor-pointer">
+								Pass platform fees to customer
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								When enabled, Wodsmith platform fees are added to the customer&apos;s
+								total. When disabled, platform fees are deducted from your payout.
+							</p>
+						</div>
+					</div>
+
+					<div className="flex items-start gap-3 py-3 border-t">
+						<Checkbox
+							id="passStripeFeesToCustomer"
+							checked={passStripeFeesToCustomer}
+							onCheckedChange={(checked) => setPassStripeFeesToCustomer(checked === true)}
+							disabled={isSubmitting}
+							className="mt-0.5"
+						/>
+						<div>
+							<Label htmlFor="passStripeFeesToCustomer" className="cursor-pointer">
 								Pass Stripe fees to customer
 							</Label>
 							<p className="text-xs text-muted-foreground">

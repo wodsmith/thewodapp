@@ -6,7 +6,7 @@ import {
   commercePurchaseTable,
   commerceProductTable,
   competitionsTable,
-  competitionDivisionFeesTable,
+  competitionDivisionsTable,
   competitionRegistrationsTable,
   scalingLevelsTable,
   COMMERCE_PURCHASE_STATUS,
@@ -228,8 +228,8 @@ export async function initiateRegistrationPayment(
             currency: "usd",
             unit_amount: feeBreakdown.totalChargeCents,
             product_data: {
-              name: `${competition.name} Registration`,
-              description: division?.label ?? "Competition Registration",
+              name: `${competition.name} - ${division?.label ?? "Registration"}`,
+              description: "Competition Registration",
             },
           },
           quantity: 1,
@@ -305,8 +305,8 @@ export async function getRegistrationFeeBreakdown(
 export async function getCompetitionDivisionFees(competitionId: string) {
   const db = getDb();
 
-  const fees = await db.query.competitionDivisionFeesTable.findMany({
-    where: eq(competitionDivisionFeesTable.competitionId, competitionId),
+  const fees = await db.query.competitionDivisionsTable.findMany({
+    where: eq(competitionDivisionsTable.competitionId, competitionId),
     with: {
       division: true,
     },
@@ -335,6 +335,7 @@ export async function updateCompetitionFeeConfig(input: {
   platformFeePercentage?: number | null;
   platformFeeFixed?: number | null;
   passStripeFeesToCustomer?: boolean;
+  passPlatformFeesToCustomer?: boolean;
 }) {
   return withRateLimit(async () => {
     const session = await requireVerifiedEmail();
@@ -363,6 +364,7 @@ export async function updateCompetitionFeeConfig(input: {
         platformFeePercentage: input.platformFeePercentage,
         platformFeeFixed: input.platformFeeFixed,
         passStripeFeesToCustomer: input.passStripeFeesToCustomer,
+        passPlatformFeesToCustomer: input.passPlatformFeesToCustomer,
         updatedAt: new Date(),
       })
       .where(eq(competitionsTable.id, input.competitionId));
@@ -400,29 +402,29 @@ export async function updateDivisionFee(input: {
     if (input.feeCents === null) {
       // Remove override
       await db
-        .delete(competitionDivisionFeesTable)
+        .delete(competitionDivisionsTable)
         .where(
           and(
-            eq(competitionDivisionFeesTable.competitionId, input.competitionId),
-            eq(competitionDivisionFeesTable.divisionId, input.divisionId),
+            eq(competitionDivisionsTable.competitionId, input.competitionId),
+            eq(competitionDivisionsTable.divisionId, input.divisionId),
           ),
         );
     } else {
       // Upsert fee
-      const existing = await db.query.competitionDivisionFeesTable.findFirst({
+      const existing = await db.query.competitionDivisionsTable.findFirst({
         where: and(
-          eq(competitionDivisionFeesTable.competitionId, input.competitionId),
-          eq(competitionDivisionFeesTable.divisionId, input.divisionId),
+          eq(competitionDivisionsTable.competitionId, input.competitionId),
+          eq(competitionDivisionsTable.divisionId, input.divisionId),
         ),
       });
 
       if (existing) {
         await db
-          .update(competitionDivisionFeesTable)
+          .update(competitionDivisionsTable)
           .set({ feeCents: input.feeCents, updatedAt: new Date() })
-          .where(eq(competitionDivisionFeesTable.id, existing.id));
+          .where(eq(competitionDivisionsTable.id, existing.id));
       } else {
-        await db.insert(competitionDivisionFeesTable).values({
+        await db.insert(competitionDivisionsTable).values({
           competitionId: input.competitionId,
           divisionId: input.divisionId,
           feeCents: input.feeCents,

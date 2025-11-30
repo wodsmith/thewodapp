@@ -77,6 +77,7 @@ export default async function PricingPage({ params }: PricingPageProps) {
 				platformFeePercentage: competition.platformFeePercentage ?? null,
 				platformFeeFixed: competition.platformFeeFixed ?? null,
 				passStripeFeesToCustomer: competition.passStripeFeesToCustomer ?? false,
+				passPlatformFeesToCustomer: competition.passPlatformFeesToCustomer ?? true,
 			}}
 			divisions={divisions}
 			currentFees={feeConfig}

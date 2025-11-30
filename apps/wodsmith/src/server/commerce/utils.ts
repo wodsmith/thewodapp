@@ -18,34 +18,39 @@ export const PLATFORM_DEFAULTS = {
 /**
  * Calculate comprehensive fee breakdown for a competition registration
  *
- * Supports two fee models:
- * 1. Organizer absorbs Stripe fees (default): Customer pays registration + platform fee only
- * 2. Customer pays Stripe fees: Customer pays registration + platform fee + Stripe fee
+ * Supports four fee models combining platform and Stripe fee options:
+ * 1. Customer pays both (default): Platform + Stripe fees added to registration
+ * 2. Customer pays platform only: Platform fees added, Stripe absorbed by organizer
+ * 3. Customer pays Stripe only: Stripe fees added, platform absorbed by organizer
+ * 4. Organizer absorbs both: Only registration fee charged
  *
- * @example Organizer absorbs (default) - $50 registration:
+ * @example Customer pays platform fees (default) - $50 registration:
  * - Platform fee: $50 * 2.5% + $2.00 = $3.25
- * - Total charged: $53.25
- * - Stripe deducts: $1.84
- * - Organizer receives: $48.16
+ * - Total charged: $53.25 (+ Stripe if passStripeFeesToCustomer)
+ * - Organizer receives: $50.00 (registration fee)
  *
- * @example Customer pays Stripe fees - $50 registration:
- * - Platform fee: $3.25
- * - Stripe fee: ~$1.90 (calculated to cover Stripe's cut exactly)
- * - Total charged: $55.15
- * - Organizer receives: $50.00 (exactly registration fee)
+ * @example Organizer absorbs platform fees - $50 registration:
+ * - Platform fee: $3.25 (deducted from organizer payout)
+ * - Total charged: $50.00 (only registration)
+ * - Organizer receives: $46.75 (after platform fee deduction)
  */
 export function calculateCompetitionFees(
 	registrationFeeCents: number,
 	config: FeeConfiguration,
 ): FeeBreakdown {
-	// Platform fee = (registration * percentage) + fixed
+	// Calculate platform fee (always calculated, but may be absorbed by organizer)
 	const platformFeeCents =
 		Math.round(
 			registrationFeeCents * (config.platformPercentageBasisPoints / 10000),
 		) + config.platformFixedCents
 
-	// Subtotal before Stripe processing
-	const subtotalCents = registrationFeeCents + platformFeeCents
+	// Determine what's included in customer charge
+	const platformFeeForCustomer = config.passPlatformFeesToCustomer
+		? platformFeeCents
+		: 0
+
+	// Subtotal before Stripe processing (registration + platform if passed to customer)
+	const subtotalCents = registrationFeeCents + platformFeeForCustomer
 
 	if (config.passStripeFeesToCustomer) {
 		// Customer pays Stripe fees - solve for total that covers Stripe's cut
@@ -63,8 +68,13 @@ export function calculateCompetitionFees(
 		// Stripe fee is what they actually take from the total
 		const stripeFeeCents =
 			Math.round(totalChargeCents * stripeRate) + config.stripeFixedCents
-		// Organizer gets exactly what they set as registration fee
-		const organizerNetCents = registrationFeeCents
+
+		// Calculate organizer net:
+		// - If platform passed to customer: organizer gets registration fee
+		// - If platform absorbed: organizer gets registration minus platform fee
+		const organizerNetCents = config.passPlatformFeesToCustomer
+			? registrationFeeCents
+			: registrationFeeCents - platformFeeCents
 
 		return {
 			registrationFeeCents,
@@ -72,7 +82,8 @@ export function calculateCompetitionFees(
 			stripeFeeCents,
 			totalChargeCents,
 			organizerNetCents,
-			passedToCustomer: true,
+			stripeFeesPassedToCustomer: true,
+			platformFeesPassedToCustomer: config.passPlatformFeesToCustomer,
 		}
 	}
 
@@ -85,7 +96,13 @@ export function calculateCompetitionFees(
 
 	// Net received after Stripe takes their cut
 	const netReceivedCents = totalChargeCents - stripeFeeCents
-	const organizerNetCents = netReceivedCents - platformFeeCents
+
+	// Calculate organizer net:
+	// - If platform passed to customer: organizer gets net minus nothing (platform already in total)
+	// - If platform absorbed: organizer gets net minus platform fee
+	const organizerNetCents = config.passPlatformFeesToCustomer
+		? netReceivedCents - platformFeeCents // Platform was in customer charge, now deduct for Wodsmith
+		: netReceivedCents - platformFeeCents // Platform wasn't charged to customer, deduct from organizer
 
 	return {
 		registrationFeeCents,
@@ -93,7 +110,8 @@ export function calculateCompetitionFees(
 		stripeFeeCents,
 		totalChargeCents,
 		organizerNetCents,
-		passedToCustomer: false,
+		stripeFeesPassedToCustomer: false,
+		platformFeesPassedToCustomer: config.passPlatformFeesToCustomer,
 	}
 }
 
@@ -105,6 +123,7 @@ export function buildFeeConfig(competition: {
 	platformFeePercentage?: number | null
 	platformFeeFixed?: number | null
 	passStripeFeesToCustomer?: boolean | null
+	passPlatformFeesToCustomer?: boolean | null
 }): FeeConfiguration {
 	return {
 		platformPercentageBasisPoints:
@@ -115,6 +134,8 @@ export function buildFeeConfig(competition: {
 		stripePercentageBasisPoints: PLATFORM_DEFAULTS.stripePercentageBasisPoints,
 		stripeFixedCents: PLATFORM_DEFAULTS.stripeFixedCents,
 		passStripeFeesToCustomer: competition.passStripeFeesToCustomer ?? false,
+		// Default to true for new competitions (platform fees passed to customer)
+		passPlatformFeesToCustomer: competition.passPlatformFeesToCustomer ?? true,
 	}
 }
 
