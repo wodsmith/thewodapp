@@ -105,6 +105,10 @@ export const trackWorkoutsTable = sqliteTable(
 		heatStatus: text({ length: 20 })
 			.$type<"draft" | "published">()
 			.default("draft"),
+		// Event visibility: draft = hidden from public, published = visible for marketing
+		eventStatus: text({ length: 20 })
+			.$type<"draft" | "published">()
+			.default("draft"),
 	},
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
@@ -225,3 +229,11 @@ export const HEAT_STATUS = {
 } as const
 
 export type HeatStatus = (typeof HEAT_STATUS)[keyof typeof HEAT_STATUS]
+
+// Event status constants
+export const EVENT_STATUS = {
+	DRAFT: "draft",
+	PUBLISHED: "published",
+} as const
+
+export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS]

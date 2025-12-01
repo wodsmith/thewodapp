@@ -5,6 +5,7 @@ import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionsTable,
+	type EventStatus,
 	type HeatStatus,
 	movements,
 	programmingTracksTable,
@@ -34,6 +35,7 @@ export interface CompetitionWorkout {
 	notes: string | null
 	pointsMultiplier: number | null
 	heatStatus: HeatStatus | null
+	eventStatus: EventStatus | null
 	createdAt: Date
 	updatedAt: Date
 	workout: {
@@ -134,6 +136,7 @@ export async function getCompetitionWorkouts(
 			notes: trackWorkoutsTable.notes,
 			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
 			heatStatus: trackWorkoutsTable.heatStatus,
+			eventStatus: trackWorkoutsTable.eventStatus,
 			createdAt: trackWorkoutsTable.createdAt,
 			updatedAt: trackWorkoutsTable.updatedAt,
 			workout: {
@@ -157,6 +160,58 @@ export async function getCompetitionWorkouts(
 }
 
 /**
+ * Get published workouts for a competition (for public views)
+ */
+export async function getPublishedCompetitionWorkouts(
+	competitionId: string,
+): Promise<CompetitionWorkout[]> {
+	const db = getDb()
+
+	// Get the competition's programming track
+	const track = await getCompetitionTrack(competitionId)
+	if (!track) {
+		return []
+	}
+
+	// Get only published workouts for this track
+	const trackWorkouts = await db
+		.select({
+			id: trackWorkoutsTable.id,
+			trackId: trackWorkoutsTable.trackId,
+			workoutId: trackWorkoutsTable.workoutId,
+			trackOrder: trackWorkoutsTable.trackOrder,
+			notes: trackWorkoutsTable.notes,
+			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+			heatStatus: trackWorkoutsTable.heatStatus,
+			eventStatus: trackWorkoutsTable.eventStatus,
+			createdAt: trackWorkoutsTable.createdAt,
+			updatedAt: trackWorkoutsTable.updatedAt,
+			workout: {
+				id: workouts.id,
+				name: workouts.name,
+				description: workouts.description,
+				scheme: workouts.scheme,
+				scoreType: workouts.scoreType,
+				roundsToScore: workouts.roundsToScore,
+				repsPerRound: workouts.repsPerRound,
+				tiebreakScheme: workouts.tiebreakScheme,
+				secondaryScheme: workouts.secondaryScheme,
+			},
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+		.where(
+			and(
+				eq(trackWorkoutsTable.trackId, track.id),
+				eq(trackWorkoutsTable.eventStatus, "published"),
+			),
+		)
+		.orderBy(trackWorkoutsTable.trackOrder)
+
+	return trackWorkouts
+}
+
+/**
  * Update a competition workout
  */
 export async function updateCompetitionWorkout(params: {
@@ -165,6 +220,7 @@ export async function updateCompetitionWorkout(params: {
 	pointsMultiplier?: number
 	notes?: string | null
 	heatStatus?: HeatStatus
+	eventStatus?: EventStatus
 }): Promise<void> {
 	const db = getDb()
 
@@ -183,6 +239,9 @@ export async function updateCompetitionWorkout(params: {
 	}
 	if (params.heatStatus !== undefined) {
 		updateData.heatStatus = params.heatStatus
+	}
+	if (params.eventStatus !== undefined) {
+		updateData.eventStatus = params.eventStatus
 	}
 
 	await db
@@ -322,6 +381,7 @@ export async function getCompetitionEvent(
 		notes: trackWorkout.notes,
 		pointsMultiplier: trackWorkout.pointsMultiplier,
 		heatStatus: trackWorkout.heatStatus,
+		eventStatus: trackWorkout.eventStatus,
 		createdAt: trackWorkout.createdAt,
 		updatedAt: trackWorkout.updatedAt,
 		workout: {

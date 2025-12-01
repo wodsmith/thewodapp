@@ -8,7 +8,7 @@ import {
 } from "@/server/competitions"
 import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import { getHeatsForCompetition } from "@/server/competition-heats"
-import { getCompetitionWorkouts } from "@/server/competition-workouts"
+import { getPublishedCompetitionWorkouts } from "@/server/competition-workouts"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
@@ -68,7 +68,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
 		getSessionFromCookie(),
 		getCompetitionRegistrations(competition.id),
 		getPublicCompetitionDivisions(competition.id),
-		getCompetitionWorkouts(competition.id),
+		getPublishedCompetitionWorkouts(competition.id),
 		getHeatsForCompetition(competition.id),
 	])
 

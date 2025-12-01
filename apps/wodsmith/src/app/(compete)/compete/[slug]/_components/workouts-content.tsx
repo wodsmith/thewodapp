@@ -7,7 +7,7 @@ import type {
 	Team,
 } from "@/db/schema"
 import {
-	getCompetitionWorkouts,
+	getPublishedCompetitionWorkouts,
 	getWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
 import { WorkoutCard } from "./workout-card"
@@ -24,7 +24,7 @@ export async function WorkoutsContent({
 	competition,
 	divisions,
 }: WorkoutsContentProps) {
-	const events = await getCompetitionWorkouts(competition.id)
+	const events = await getPublishedCompetitionWorkouts(competition.id)
 
 	// Fetch division descriptions for all workouts in parallel
 	const divisionIds = divisions?.map((d) => d.id) ?? []
