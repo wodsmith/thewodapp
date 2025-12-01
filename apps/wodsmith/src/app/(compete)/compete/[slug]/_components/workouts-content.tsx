@@ -1,11 +1,6 @@
 import { Dumbbell } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import type {
-	Competition,
-	CompetitionGroup,
-	ScalingLevel,
-	Team,
-} from "@/db/schema"
+import type { Competition, CompetitionGroup, Team } from "@/db/schema"
 import {
 	getPublishedCompetitionWorkouts,
 	getWorkoutDivisionDescriptions,
@@ -17,7 +12,7 @@ interface WorkoutsContentProps {
 		organizingTeam: Team | null
 		group: CompetitionGroup | null
 	}
-	divisions: ScalingLevel[] | null
+	divisions: Array<{ id: string }> | null
 }
 
 export async function WorkoutsContent({

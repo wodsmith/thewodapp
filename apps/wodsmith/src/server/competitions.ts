@@ -1175,7 +1175,7 @@ export async function registerForCompetition(params: {
 				competitionContext: {
 					competitionId: params.competitionId,
 					competitionSlug: competition.slug,
-					teamName: teamName,
+					teamName: params.teamName ?? "Unknown Team",
 					divisionName: division.label,
 				},
 			})
@@ -1216,7 +1216,7 @@ export async function acceptTeamInvite(params: {
  */
 export async function getTeammateInvite(inviteToken: string) {
 	const db = getDb()
-	const { teamInvitationTable } = await import("@/db/schema")
+	const { teamInvitationTable, TEAM_TYPE_ENUM } = await import("@/db/schema")
 
 	// Find the invitation by token
 	const invitation = await db.query.teamInvitationTable.findFirst({

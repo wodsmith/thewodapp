@@ -126,7 +126,7 @@ function DroppableLane({
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		if ((e.key === "Enter" || e.key === " ") && hasSelection) {
 			e.preventDefault()
-			handleClick?.(e as unknown as React.MouseEvent)
+			handleClick()
 		}
 	}
 

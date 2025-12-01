@@ -858,11 +858,12 @@ export async function getHeatsForUser(
 		)
 		.limit(1)
 
-	if (registration.length === 0) {
+	const userRegistration = registration[0]
+	if (!userRegistration) {
 		return []
 	}
 
-	const registrationId = registration[0]?.id
+	const registrationId = userRegistration.id
 
 	// Get assignments for this registration
 	const assignments = await db

@@ -16,6 +16,7 @@ import {
 	createCompetitionRegistrationId,
 	createCompetitionVenueId,
 } from "./common"
+import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
@@ -339,6 +340,8 @@ export const competitionsRelations = relations(
 		// Heat scheduling
 		venues: many(competitionVenuesTable),
 		heats: many(competitionHeatsTable),
+		// Programming tracks (events)
+		programmingTrack: many(programmingTracksTable),
 	}),
 )
 

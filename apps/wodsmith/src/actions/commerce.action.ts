@@ -184,12 +184,16 @@ export async function initiateRegistrationPayment(
 			product = newProduct
 		}
 
+		if (!product) {
+			throw new Error("Failed to get or create product")
+		}
+
 		// 9. Create purchase record
 		const purchaseResult = await db
 			.insert(commercePurchaseTable)
 			.values({
 				userId,
-				productId: product?.id,
+				productId: product.id,
 				status: COMMERCE_PURCHASE_STATUS.PENDING,
 				competitionId: input.competitionId,
 				divisionId: input.divisionId,
