@@ -183,6 +183,9 @@ export function ScheduleContent({
 			.map((group) => {
 				const filteredWorkouts = group.workouts
 					.map((workout) => {
+						// Only search published heats
+						if (workout.event.heatStatus !== "published") return null
+
 						// Filter heats that have matching competitors
 						const matchingHeats = workout.heats.filter((heat) =>
 							heat.assignments.some((a) => {
