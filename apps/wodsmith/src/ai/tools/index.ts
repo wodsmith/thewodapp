@@ -1,10 +1,10 @@
-import type { InferUITools } from "ai";
-import { getWorkouts } from "./get-workouts";
-import { getTags } from "./get-tags";
-import { getMovements } from "./get-movements";
+import type { InferUITools } from "ai"
+import { getWorkouts } from "./get-workouts"
+import { getTags } from "./get-tags"
+import { getMovements } from "./get-movements"
 
 interface Params {
-	teamId: string;
+	teamId: string
 }
 
 export function tools({ teamId }: Params) {
@@ -12,7 +12,7 @@ export function tools({ teamId }: Params) {
 		getWorkouts: getWorkouts(teamId),
 		getTags: getTags(teamId),
 		getMovements: getMovements(teamId),
-	};
+	}
 }
 
-export type ToolSet = InferUITools<ReturnType<typeof tools>>;
+export type ToolSet = InferUITools<ReturnType<typeof tools>>

@@ -13,7 +13,7 @@ import {
 	userTable,
 	workouts,
 } from "@/db/schema"
-import type { CompetitionSettings, ScoringSettings } from "@/types/competitions"
+import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import {
 	calculateAggregatedScore,
@@ -165,14 +165,18 @@ export async function getCompetitionLeaderboard(params: {
 
 	// Filter by division if specified
 	const filteredRegistrations = params.divisionId
-		? registrations.filter((r) => r.registration.divisionId === params.divisionId)
+		? registrations.filter(
+				(r) => r.registration.divisionId === params.divisionId,
+			)
 		: registrations
 
 	// Get all scheduled workout instances for this competition
 	const scheduledInstances = await db
 		.select()
 		.from(scheduledWorkoutInstancesTable)
-		.where(eq(scheduledWorkoutInstancesTable.teamId, competition.competitionTeamId))
+		.where(
+			eq(scheduledWorkoutInstancesTable.teamId, competition.competitionTeamId),
+		)
 
 	// Map track workout IDs to scheduled instance IDs
 	const trackWorkoutToScheduled = new Map<string, string>()
@@ -216,7 +220,8 @@ export async function getCompetitionLeaderboard(params: {
 	const leaderboardMap = new Map<string, CompetitionLeaderboardEntry>()
 
 	for (const reg of filteredRegistrations) {
-		const fullName = `${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
+		const fullName =
+			`${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
 
 		leaderboardMap.set(reg.registration.id, {
 			registrationId: reg.registration.id,
@@ -252,7 +257,7 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Rank athletes within each division
-		for (const [divisionId, divisionResults] of eventResultsByDivision) {
+		for (const [_divisionId, divisionResults] of eventResultsByDivision) {
 			// Calculate scores and sort
 			const scoredResults = divisionResults.map((result) => {
 				const resultSets = setsByResultId.get(result.id) || []
@@ -298,7 +303,11 @@ export async function getCompetitionLeaderboard(params: {
 				if (!scoredResult) continue
 				const { result, aggregatedScore, isTimeCapped } = scoredResult
 				const rank = i + 1
-				const basePoints = calculatePoints(rank, athleteCount, settings?.scoring)
+				const basePoints = calculatePoints(
+					rank,
+					athleteCount,
+					settings?.scoring,
+				)
 				const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
 				const points = Math.round(basePoints * multiplier)
 
@@ -332,7 +341,7 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Add empty results for athletes who didn't complete this event
-		for (const [regId, entry] of leaderboardMap) {
+		for (const [_regId, entry] of leaderboardMap) {
 			const hasResult = entry.eventResults.some(
 				(er) => er.trackWorkoutId === trackWorkout.id,
 			)
@@ -362,7 +371,7 @@ export async function getCompetitionLeaderboard(params: {
 	}
 
 	// Rank within each division
-	for (const [divisionId, entries] of divisionGroups) {
+	for (const [_divisionId, entries] of divisionGroups) {
 		// Sort by total points descending
 		entries.sort((a, b) => {
 			if (b.totalPoints !== a.totalPoints) {
@@ -408,7 +417,7 @@ export async function getEventLeaderboard(params: {
 	trackWorkoutId: string
 	divisionId?: string
 }): Promise<EventLeaderboardEntry[]> {
-	const db = getDb()
+	const _db = getDb()
 
 	// Get full leaderboard
 	const leaderboard = await getCompetitionLeaderboard({

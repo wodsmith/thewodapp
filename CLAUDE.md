@@ -2,186 +2,100 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Important** Never add "Co Authored by Claude" to commits or pull requests
+## Commands
 
-## Development Commands
+```bash
+# Development
+pnpm dev                  # Start dev server (localhost:3000)
+pnpm build               # Build for production
+pnpm preview             # Build and preview with OpenNext
 
-### Build and Development
-- `pnpm dev` - Start development server
-- `pnpm build` - Build Next.js application
-- `pnpm build:prod` - Build for production deployment with OpenNext
-- `pnpm start` - Start production server locally
-- `pnpm preview` - Preview production build with Cloudflare
+# Database (Drizzle + Cloudflare D1)
+pnpm db:generate [name]  # Generate migration (NEVER write SQL manually)
+pnpm db:migrate:dev      # Apply migrations locally
+pnpm db:studio           # Open Drizzle Studio
+pnpm db:seed             # Seed sample data
 
-### Code Quality
-- `pnpm lint` - Run Biome linter
-- `pnpm format` - Format code with Biome
-- `pnpm check` - Run Biome check (lint + format)
-- `pnpm type-check` - Run TypeScript type checking (uses tsgo for speed)
-- `pnpm type-check:changed` - Type check only changed files
+# Code Quality
+pnpm lint                # Biome linting
+pnpm format              # Biome formatting
+pnpm type-check          # TypeScript check (uses tsgo)
+pnpm test                # Run Vitest tests (single-run, no watch)
 
-### Database Operations
-- `pnpm db:generate` - Generate Drizzle migrations (never write SQL manually)
-- `pnpm db:studio` - Open Drizzle Studio
-- `pnpm db:migrate:dev` - Apply migrations to local D1 database
-- `pnpm db:migrate:staging` - Apply migrations to staging D1 database
-- `pnpm db:migrate:prod` - Apply migrations to production D1 database
-- `pnpm db:seed` - Seed local database
-- `pnpm db:seed:staging` - Seed staging database
-
-### Testing
-- `pnpm test` - Run all tests with Vitest (single run mode)
-- `pnpm test -- path/to/test.ts` - Run a specific test file
-- Test files in `apps/wodsmith/test/`
-
-### Email Development
-- `pnpm email:dev` - Start React Email development server on port 3001
-- Email templates are in `src/react-email/`
-
-### Cloudflare
-- `pnpm cf-typegen` - Generate Cloudflare types (run after wrangler.jsonc changes)
-- `pnpm deploy:prod` - Deploy to production
-
-## Architecture Overview
-
-### Monorepo Structure
-Turborepo monorepo with:
-- `apps/wodsmith/` - Main Next.js application
-- `packages/zsa/` - Server action library
-- `packages/zsa-react/` - React hooks for ZSA
-- `packages/typescript-config/` - Shared TypeScript config
-
-Run commands from root (uses Turbo) or from `apps/wodsmith/` directly.
-
-### Tech Stack
-- **Frontend**: Next.js 15.3.2 App Router, React 19, TypeScript
-- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
-- **Authentication**: Lucia Auth with KV sessions
-- **Deployment**: Cloudflare Workers with OpenNext
-- **UI**: Tailwind CSS, Shadcn UI, Radix primitives
-- **State**: Zustand (client), Server Components, NUQS (URL state)
-- **API**: Server Actions with ZSA, Next.js API routes
-
-### Project Structure
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication routes
-│   ├── (dashboard)/       # Main dashboard
-│   ├── (main)/            # Core app features (workouts, etc.)
-│   ├── (settings)/        # User settings
-│   ├── (admin)/           # Admin panel
-│   └── api/               # API routes
-├── components/            # React components
-├── db/                    # Database schema and migrations
-│   ├── schemas/           # Modular schema files
-│   └── migrations/        # Auto-generated migrations
-├── server/                # Server-side business logic
-├── actions/               # Server actions
-├── utils/                 # Shared utilities
-├── state/                 # Client state (Zustand)
-├── schemas/               # Zod validation schemas
-└── react-email/          # Email templates
+# Email
+pnpm email:dev           # Email template dev server (port 3001)
 ```
 
-### Multi-Tenancy
-- Team-based data isolation with `teamId` filtering
-- Role-based permissions (admin, member roles)
-- Team switching via team-switcher component
-- All database operations must include team context
+## Architecture
 
-### Database Schema
-Database is modularly structured in `src/db/schemas/`:
-- `users.ts` - User accounts and authentication
-- `teams.ts` - Team/organization management
-- `workouts.ts` - Workout management system
-- `programming.ts` - Programming tracks and scheduling
-- `billing.ts` - Credit billing system
-- `scaling.ts` - Workout scaling options
-- `scheduling.ts` - Schedule templates and scheduling
-- `entitlements.ts` - Feature entitlements and limits
-- `competitions.ts` - Competition management
-- `common.ts` - Shared schema utilities
-- Main schema exports from `src/db/schema.ts`
+**Monorepo Structure:**
+- `apps/wodsmith/` - Main Next.js 15 app (App Router)
+- `packages/zsa`, `packages/zsa-react` - Type-safe server actions
 
-## Development Guidelines
+**App Router Groups:**
+- `(main)` - Core features: workouts, programming, movements, log, calculator
+- `(auth)` - Authentication flows
+- `(admin)` - Admin dashboard
+- `(settings)` - User settings
+- `(compete)` - Competitions feature
+- `api/` - API routes including webhooks
 
-### Code Style
-- Use TypeScript everywhere, prefer interfaces over types
-- Functional components, avoid classes
-- Server Components by default, `use client` only when necessary
-- Add `import "server-only"` to server-only files (except page.tsx)
-- Use semantic commit messages: `feat:`, `fix:`, `chore:`
-- Use `pnpm` as package manager
+**Key Directories in `apps/wodsmith/src/`:**
+- `server/` - Business logic services (workouts.ts, teams.ts, programming-tracks.ts, etc.)
+- `db/schemas/` - Drizzle schema files (users, teams, workouts, programming, etc.)
+- `actions/` - Server actions using zsa
+- `utils/auth.ts` - Lucia Auth with Cloudflare KV sessions
+- `utils/team-auth.ts` - Team-based permission helpers
 
-### Database
-- **Never write SQL migrations manually** - always use `pnpm db:generate [MIGRATION_NAME]`
-- Never use Drizzle transactions (D1 doesn't support them)
-- Never pass `id` when inserting (auto-generated with CUID2)
-- Always filter by `teamId` for multi-tenant data
-- Use helper functions in `src/server/` for business logic
+**Data Flow:**
+1. Server Components → `server/*.ts` services → Drizzle ORM → D1
+2. Client Components → Server Actions (`actions/`) → services → D1
+3. Always filter by `teamId` in multi-tenant queries
 
-### Authentication & Authorization
-- Session handling: `getSessionFromCookie()` for server components
-- Client session: `useSessionStore()` from `src/state/session.ts`
-- Team authorization utilities in `src/utils/team-auth.ts`
-- Protect routes with team context validation
-- When checking roles use available roles from `src/db/schemas/teams.ts`
+## Code Patterns
 
-### State Management
-- Server state: React Server Components
-- Client state: Zustand stores in `src/state/`
-- URL state: NUQS for search parameters
-- Forms: React Hook Form with Zod validation
+**Server Actions:** Use `@repo/zsa` for type-safe actions, `@repo/zsa-react` for client hooks
+```typescript
+import { useServerAction } from "@repo/zsa-react"
+```
 
-### API Patterns
-- Server actions with ZSA: `import { useServerAction } from "@repo/zsa-react"`
-- Named object parameters for functions with >1 parameter
-- Consistent error handling with proper HTTP status codes
-- Rate limiting on auth endpoints
+**Authentication:**
+- Server: `getSessionFromCookie()` from `src/utils/auth.ts`
+- Client: `useSessionStore()` from `src/state/session.ts`
 
-### UI Components
-- Use Shadcn UI components from `src/components/ui/`
-- Mobile-first responsive design with Tailwind
-- Support both light and dark modes
-- Use Suspense for loading states
+**Database:**
+- Never write raw SQL - use `pnpm db:generate [name]`
+- Never pass `id` in insert/update (auto-generated)
+- No transactions (D1 doesn't support them)
+- Common columns: `id`, `createdAt`, `updatedAt`, `updateCounter`
 
-### Testing
-- Tests in `test/` directory using Vitest + jsdom
-- Always run tests in single-run mode (no watch mode)
-- Configure fail-fast behavior
+**Components:**
+- Server Components by default, `"use client"` only when needed
+- Use Shadcn UI + Radix + Tailwind
+- Add `import "server-only"` for server-only files (except page.tsx)
 
-## Important Files
+**Functions:**
+- Use `function` keyword for pure functions
+- Multiple params → named object: `fn({ param1, param2 })`
 
-### Configuration
-- `wrangler.jsonc` - Cloudflare Workers configuration (run `pnpm cf-typegen` after changes)
-- `drizzle.config.ts` - Database configuration
-- `biome.json` - Linting and formatting rules
-- `components.json` - Shadcn UI configuration
+**Cloudflare:**
+- After modifying `wrangler.jsonc`, run `pnpm cf-typegen`
+- Use existing KV namespace, don't create new ones
+- Global types go in `custom-env.d.ts` (not `cloudflare-env.d.ts`)
 
-### Key Utilities
-- `src/utils/auth.ts` - Authentication logic
-- `src/utils/team-auth.ts` - Team authorization
-- `src/utils/kv-session.ts` - Session management
-- `src/constants.ts` - App constants and configuration
+## Standards
 
-### Environment
-- `.env` - Environment variables for development
-- `.dev.vars` - Cloudflare Worker environment variables
+**Commits:** Use `fix:`, `feat:`, or `chore:` prefixes
 
-## Documentation
-Refer to `docs/` directory for:
-- `project-plan.md` - Comprehensive project overview
-- `architecture/` - Architecture decisions and patterns
-- `tasks/` - Development task documentation
+**Testing:** Run in single-run mode with fail-fast
 
-## Notes
-- This is a workout management SaaS for CrossFit gyms
-- Built on Cloudflare edge infrastructure for global performance
-- Uses credit-based billing system with Stripe integration
-- Supports team collaboration with fine-grained permissions
+**Naming:**
+- Files/folders: kebab-case
+- Components: PascalCase
+- Variables/functions: camelCase
 
-## Project Management
-- This project uses Linear for issue tracking and project management
-- For Linear-specific guidelines, refer to `.claude/agents/project-manager-linear.md`
-- Use the project-manager-linear agent for creating and managing Linear issues
+**No:**
+- `any` type
+- Enums (use maps)
+- `--no-verify` on commits
+- Interactive git commands (`rebase -i`, `commit --amend`)

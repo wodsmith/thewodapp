@@ -203,7 +203,9 @@ export function MovementsList({
 									onClick={() => onMovementToggle?.(movement.id)}
 									aria-pressed={isSelected}
 									className={`flex w-full cursor-pointer items-center justify-between border px-2 py-1 rounded-md transition-colors ${
-										isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+										isSelected
+											? "bg-primary text-primary-foreground"
+											: "hover:bg-muted"
 									}`}
 								>
 									<span className="font-bold">{movement.name}</span>

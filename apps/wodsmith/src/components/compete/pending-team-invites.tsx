@@ -99,9 +99,7 @@ export function PendingTeamInvites({
 							</div>
 						</div>
 						<Button asChild size="sm" variant="default" className="shrink-0">
-							<Link href={`/compete/invite/${invitation.token}`}>
-								Accept
-							</Link>
+							<Link href={`/compete/invite/${invitation.token}`}>Accept</Link>
 						</Button>
 					</div>
 				))}

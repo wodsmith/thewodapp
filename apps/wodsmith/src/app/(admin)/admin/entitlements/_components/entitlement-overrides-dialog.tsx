@@ -62,9 +62,8 @@ export function EntitlementOverridesDialog({
 		isPending: isLoadingOverrides,
 	} = useServerAction(getTeamOverridesAction)
 
-	const { execute: fetchFeatures, data: featuresData } = useServerAction(
-		getAllFeaturesAction,
-	)
+	const { execute: fetchFeatures, data: featuresData } =
+		useServerAction(getAllFeaturesAction)
 
 	const { execute: fetchLimits, data: limitsData } =
 		useServerAction(getAllLimitsAction)
@@ -190,12 +189,16 @@ export function EntitlementOverridesDialog({
 											<div className="flex items-center gap-2">
 												<Badge
 													variant={
-														override.type === "feature" ? "default" : "secondary"
+														override.type === "feature"
+															? "default"
+															: "secondary"
 													}
 												>
 													{override.type}
 												</Badge>
-												<span className="font-mono text-sm">{override.key}</span>
+												<span className="font-mono text-sm">
+													{override.key}
+												</span>
 											</div>
 											<div className="text-sm">
 												<span className="text-muted-foreground">Value: </span>
@@ -217,7 +220,9 @@ export function EntitlementOverridesDialog({
 											variant="ghost"
 											size="icon"
 											className="h-8 w-8"
-											onClick={() => removeOverride({ overrideId: override.id })}
+											onClick={() =>
+												removeOverride({ overrideId: override.id })
+											}
 										>
 											<Trash2 className="w-4 h-4 text-destructive" />
 										</Button>
@@ -229,7 +234,10 @@ export function EntitlementOverridesDialog({
 
 					{/* Add Override Form */}
 					{showAddForm && (
-						<form onSubmit={handleAddOverride} className="border rounded-lg p-4">
+						<form
+							onSubmit={handleAddOverride}
+							className="border rounded-lg p-4"
+						>
 							<div className="flex items-center justify-between mb-4">
 								<h3 className="text-sm font-medium">Add New Override</h3>
 								<Button
@@ -267,9 +275,7 @@ export function EntitlementOverridesDialog({
 								</div>
 
 								<div className="space-y-2">
-									<Label>
-										{type === "feature" ? "Feature" : "Limit"}
-									</Label>
+									<Label>{type === "feature" ? "Feature" : "Limit"}</Label>
 									<Select value={key} onValueChange={setKey}>
 										<SelectTrigger>
 											<SelectValue placeholder={`Select a ${type}...`} />
@@ -279,7 +285,9 @@ export function EntitlementOverridesDialog({
 												? features.map((feature) => (
 														<SelectItem key={feature.id} value={feature.key}>
 															<div className="flex flex-col">
-																<span className="font-medium">{feature.name}</span>
+																<span className="font-medium">
+																	{feature.name}
+																</span>
 																{feature.description && (
 																	<span className="text-xs text-muted-foreground">
 																		{feature.description}
@@ -291,7 +299,9 @@ export function EntitlementOverridesDialog({
 												: limits.map((limit) => (
 														<SelectItem key={limit.id} value={limit.key}>
 															<div className="flex flex-col">
-																<span className="font-medium">{limit.name}</span>
+																<span className="font-medium">
+																	{limit.name}
+																</span>
 																{limit.description && (
 																	<span className="text-xs text-muted-foreground">
 																		{limit.description} ({limit.unit})

@@ -53,6 +53,7 @@ const formSchema = z
 		registrationClosesAt: z.string().optional(),
 		groupId: z.string().nullable().optional(),
 		scalingGroupId: z.string().nullable().optional(),
+		visibility: z.enum(["public", "private"]).default("public"),
 	})
 	.refine(
 		(data) => {
@@ -134,6 +135,7 @@ export function OrganizerCompetitionEditForm({
 			),
 			groupId: competition.groupId ?? undefined,
 			scalingGroupId: existingScalingGroupId ?? undefined,
+			visibility: competition.visibility ?? "public",
 		},
 	})
 
@@ -175,6 +177,7 @@ export function OrganizerCompetitionEditForm({
 			groupId: data.groupId,
 			settings:
 				Object.keys(settings).length > 0 ? JSON.stringify(settings) : null,
+			visibility: data.visibility,
 		})
 	}
 
@@ -302,8 +305,9 @@ export function OrganizerCompetitionEditForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select a scaling group to use as competition divisions. Athletes
-									will choose their division when registering.
+									Select divisions to use as competition divisions that you've
+									used in the past. Athletes will choose their division when
+									registering.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
@@ -389,7 +393,39 @@ export function OrganizerCompetitionEditForm({
 									rows={4}
 								/>
 							</FormControl>
-							<FormDescription>Provide details about the competition</FormDescription>
+							<FormDescription>
+								Provide details about the competition
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="visibility"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Visibility</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select visibility" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="public">
+										Public - Listed on /compete page
+									</SelectItem>
+									<SelectItem value="private">
+										Private - Unlisted, accessible via direct URL
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								Private competitions are not listed publicly but can be accessed
+								via direct URL
+							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}

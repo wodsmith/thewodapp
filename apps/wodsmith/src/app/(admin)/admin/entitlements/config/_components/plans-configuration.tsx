@@ -19,8 +19,11 @@ export function PlansConfiguration() {
 	const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-	const { execute: fetchPlans, data: plansData, isPending } =
-		useServerAction(getAllPlansAction)
+	const {
+		execute: fetchPlans,
+		data: plansData,
+		isPending,
+	} = useServerAction(getAllPlansAction)
 
 	useEffect(() => {
 		fetchPlans()
@@ -74,9 +77,7 @@ export function PlansConfiguration() {
 														${(plan.price / 100).toFixed(2)}/{plan.interval}
 													</div>
 												)}
-												{!plan.interval && plan.price === 0 && (
-													<div>Free</div>
-												)}
+												{!plan.interval && plan.price === 0 && <div>Free</div>}
 											</div>
 											<Button
 												variant="outline"

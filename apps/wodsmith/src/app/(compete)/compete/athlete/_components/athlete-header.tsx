@@ -1,6 +1,6 @@
 "use client"
 
-import { Edit } from "lucide-react"
+import { Edit, Receipt } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -34,28 +34,26 @@ export function AthleteHeader({
 	}
 
 	const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim()
-	const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
+	const initials =
+		`${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
 
 	// Use cover image if available, otherwise show a gradient background
 	const coverImage = athleteProfile?.coverImageUrl
 	const backgroundStyle = coverImage
 		? {
-			backgroundImage: `url(${coverImage})`,
-			backgroundSize: "cover",
-			backgroundPosition: "center",
-		}
+				backgroundImage: `url(${coverImage})`,
+				backgroundSize: "cover",
+				backgroundPosition: "center",
+			}
 		: {
-			background:
-				"linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.5) 100%)",
-		}
+				background:
+					"linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.5) 100%)",
+			}
 
 	return (
 		<div className="relative">
 			{/* Cover Image */}
-			<div
-				className="h-48 w-full rounded-lg sm:h-64"
-				style={backgroundStyle}
-			/>
+			<div className="h-48 w-full rounded-lg sm:h-64" style={backgroundStyle} />
 
 			{/* Content Overlay */}
 			<div className="container mx-auto px-4">
@@ -76,18 +74,24 @@ export function AthleteHeader({
 								<p className="text-muted-foreground mt-1 text-lg">{gymName}</p>
 							)}
 							{age !== null && (
-								<p className="text-muted-foreground mt-1">
-									{age} years old
-								</p>
+								<p className="text-muted-foreground mt-1">{age} years old</p>
 							)}
 						</div>
 
-						<Button asChild variant="outline" size="sm">
-							<Link href="/compete/athlete/edit">
-								<Edit className="mr-2 h-4 w-4" />
-								Edit Profile
-							</Link>
-						</Button>
+						<div className="flex gap-2">
+							<Button asChild variant="outline" size="sm">
+								<Link href="/compete/athlete/invoices">
+									<Receipt className="mr-2 h-4 w-4" />
+									Invoices
+								</Link>
+							</Button>
+							<Button asChild variant="outline" size="sm">
+								<Link href="/compete/athlete/edit">
+									<Edit className="mr-2 h-4 w-4" />
+									Edit Profile
+								</Link>
+							</Button>
+						</div>
 					</div>
 				</div>
 			</div>

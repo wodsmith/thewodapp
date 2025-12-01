@@ -187,13 +187,14 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 		const plan = planMap.get(membership.teamId)
 
-		const team = membership.team && "name" in membership.team ? membership.team : null
+		const team =
+			membership.team && "name" in membership.team ? membership.team : null
 		return {
 			id: membership.teamId,
 			name: team?.name ?? "",
 			slug: team?.slug ?? "",
 			type: team?.type ?? "gym",
-			isPersonalTeam: !!(team?.isPersonalTeam),
+			isPersonalTeam: !!team?.isPersonalTeam,
 			role: {
 				id: membership.roleId,
 				name: roleName,
@@ -429,8 +430,9 @@ export async function getActiveOrPersonalTeamId(
 	const isValidTeam = session.teams.some((team) => team.id === activeTeamId)
 
 	if (!isValidTeam) {
-		// Active team is invalid, clear cookie and fall back to personal team
-		await deleteActiveTeamCookie()
+		// Active team is invalid, fall back to personal team
+		// Note: Cannot delete cookie here as this may be called from Server Components
+		// The stale cookie will be ignored and overwritten when user explicitly changes teams
 		const { getUserPersonalTeamId } = await import("@/server/user")
 		return getUserPersonalTeamId(userId)
 	}

@@ -17,17 +17,13 @@ export async function generateMetadata() {
 export default async function SchedulePage() {
 	const { teamId } = await getAdminTeamContext()
 
-	const [
-		[schedulesRes],
-		[templatesRes],
-		[locationsRes],
-		[coachesRes],
-	] = await Promise.all([
-		getGeneratedSchedulesByTeamAction({ teamId }),
-		getScheduleTemplatesByTeam({ teamId }),
-		getLocationsByTeam({ teamId }),
-		getCoachesByTeam({ teamId }),
-	])
+	const [[schedulesRes], [templatesRes], [locationsRes], [coachesRes]] =
+		await Promise.all([
+			getGeneratedSchedulesByTeamAction({ teamId }),
+			getScheduleTemplatesByTeam({ teamId }),
+			getLocationsByTeam({ teamId }),
+			getCoachesByTeam({ teamId }),
+		])
 
 	if (
 		!schedulesRes?.success ||

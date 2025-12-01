@@ -156,10 +156,7 @@ export const updateCompetitionGroupAction = createServerAction()
 			)
 
 			const { organizingTeamId: _organizingTeamId, ...updateData } = input
-			const result = await updateCompetitionGroup(
-				input.groupId,
-				updateData,
-			)
+			const result = await updateCompetitionGroup(input.groupId, updateData)
 
 			// Revalidate competition pages
 			revalidatePath("/compete/organizer")
@@ -322,15 +319,30 @@ export const updateCompetitionAction = createServerAction()
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			const { organizingTeamId: _organizingTeamId, competitionId, ...rawUpdateData } = input
+			const {
+				organizingTeamId: _organizingTeamId,
+				competitionId,
+				...rawUpdateData
+			} = input
 			// Convert null to undefined for fields that support it
 			const updateData = {
 				...rawUpdateData,
-				description: rawUpdateData.description === null ? null : rawUpdateData.description,
-				registrationOpensAt: rawUpdateData.registrationOpensAt === null ? null : rawUpdateData.registrationOpensAt,
-				registrationClosesAt: rawUpdateData.registrationClosesAt === null ? null : rawUpdateData.registrationClosesAt,
-				groupId: rawUpdateData.groupId === null || rawUpdateData.groupId === undefined ? null : rawUpdateData.groupId,
-				settings: rawUpdateData.settings === null ? null : rawUpdateData.settings,
+				description:
+					rawUpdateData.description === null ? null : rawUpdateData.description,
+				registrationOpensAt:
+					rawUpdateData.registrationOpensAt === null
+						? null
+						: rawUpdateData.registrationOpensAt,
+				registrationClosesAt:
+					rawUpdateData.registrationClosesAt === null
+						? null
+						: rawUpdateData.registrationClosesAt,
+				groupId:
+					rawUpdateData.groupId === null || rawUpdateData.groupId === undefined
+						? null
+						: rawUpdateData.groupId,
+				settings:
+					rawUpdateData.settings === null ? null : rawUpdateData.settings,
 			}
 			const result = await updateCompetition(competitionId, updateData)
 
@@ -399,7 +411,10 @@ export const registerForCompetitionAction = createServerAction()
 			// Get current user from session
 			const session = await getSessionFromCookie()
 			if (!session) {
-				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in to register")
+				throw new ZSAError(
+					"NOT_AUTHORIZED",
+					"You must be logged in to register",
+				)
 			}
 
 			// Validate user ID matches session
@@ -441,7 +456,10 @@ export const getUserCompetitionRegistrationAction = createServerAction()
 
 			// Validate user ID matches session
 			if (input.userId !== session.userId) {
-				throw new ZSAError("FORBIDDEN", "You can only view your own registration")
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You can only view your own registration",
+				)
 			}
 
 			const registration = await getUserCompetitionRegistration(
@@ -509,12 +527,18 @@ export const cancelCompetitionRegistrationAction = createServerAction()
 			// Get current user from session
 			const session = await getSessionFromCookie()
 			if (!session) {
-				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in to cancel registration")
+				throw new ZSAError(
+					"NOT_AUTHORIZED",
+					"You must be logged in to cancel registration",
+				)
 			}
 
 			// Validate user ID matches session
 			if (input.userId !== session.userId) {
-				throw new ZSAError("FORBIDDEN", "You can only cancel your own registration")
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You can only cancel your own registration",
+				)
 			}
 
 			const result = await cancelCompetitionRegistration(
@@ -554,7 +578,10 @@ export const updateRegistrationAffiliateAction = createServerAction()
 
 			// Validate user ID matches session
 			if (input.userId !== session.userId) {
-				throw new ZSAError("FORBIDDEN", "You can only update your own registration")
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You can only update your own registration",
+				)
 			}
 
 			const result = await updateRegistrationAffiliate(input)
@@ -612,6 +639,8 @@ const updateCompetitionWorkoutSchema = z.object({
 	trackOrder: z.number().int().min(1).optional(),
 	pointsMultiplier: z.number().int().min(1).optional(),
 	notes: z.string().max(1000).nullable().optional(),
+	heatStatus: z.enum(["draft", "published"]).optional(),
+	eventStatus: z.enum(["draft", "published"]).optional(),
 })
 
 const removeWorkoutFromCompetitionSchema = z.object({
@@ -762,6 +791,8 @@ export const updateCompetitionWorkoutAction = createServerAction()
 				trackOrder: input.trackOrder,
 				pointsMultiplier: input.pointsMultiplier,
 				notes: input.notes,
+				heatStatus: input.heatStatus,
+				eventStatus: input.eventStatus,
 			})
 
 			// Revalidate

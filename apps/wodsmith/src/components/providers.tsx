@@ -39,26 +39,16 @@ function RouterChecker() {
 
 		// Monkey patch: https://github.com/vercel/next.js/discussions/42016#discussioncomment-9027313
 		router.refresh = () => {
-			// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 			start()
-			// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 			fetchSession?.()
-			// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 			_refresh()
 		}
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 	}, [])
 
 	useEffect(() => {
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 		done()
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
 		fetchSession?.()
-	}, [
-		// biome-ignore lint/correctness/useExhaustiveDependencies: template code
-		done, // biome-ignore lint/correctness/useExhaustiveDependencies: template code
-		fetchSession,
-	])
+	}, [done, fetchSession])
 
 	return null
 }

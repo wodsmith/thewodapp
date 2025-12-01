@@ -9,18 +9,18 @@ initOpenNextCloudflareForDev()
 const nextConfig = {
 	turbopack: {
 		rules: {
-		  '*.md': {
-			loaders: ['raw-loader'],
-			as: '*.js',
-		  },
+			"*.md": {
+				loaders: ["raw-loader"],
+				as: "*.js",
+			},
 		},
-	  },
+	},
 	webpack: (config) => {
 		config.module.rules.push({
 			test: /\.md$/,
-			type: 'asset/source',
-		});
-		return config;
+			type: "asset/source",
+		})
+		return config
 	},
 	experimental: {
 		typedRoutes: true,

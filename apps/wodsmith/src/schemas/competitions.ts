@@ -60,9 +60,7 @@ export const deleteCompetitionGroupSchema = z.object({
 
 export const createCompetitionSchema = z
 	.object({
-		organizingTeamId: z
-			.string()
-			.startsWith("team_", "Invalid team ID format"),
+		organizingTeamId: z.string().startsWith("team_", "Invalid team ID format"),
 		name: z
 			.string()
 			.min(1, "Competition name is required")
@@ -152,6 +150,7 @@ export const updateCompetitionSchema = z
 			.max(10000, "Settings are too large")
 			.nullable()
 			.optional(),
+		visibility: z.enum(["public", "private"]).optional(),
 	})
 	.refine(
 		(data) => {

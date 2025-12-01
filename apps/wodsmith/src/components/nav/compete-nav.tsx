@@ -1,4 +1,4 @@
-import { Plus, Settings, User } from "lucide-react"
+import { User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
@@ -49,7 +49,9 @@ export default async function CompeteNav() {
 					/>
 					<h1 className="text-2xl text-foreground dark:text-dark-foreground">
 						<span className="font-black uppercase">wod</span>smith{" "}
-						<span className="font-medium text-muted-foreground">Compete</span>
+						<span className="font-medium dark:text-amber-500 text-amber-600">
+							Compete
+						</span>
 					</h1>
 				</Link>
 				<nav className="hidden items-center gap-4 md:flex">
@@ -101,7 +103,11 @@ export default async function CompeteNav() {
 						</div>
 					)}
 				</nav>
-				<CompeteMobileNav session={session} invitations={pendingInvitations} canOrganize={canOrganize} />
+				<CompeteMobileNav
+					session={session}
+					invitations={pendingInvitations}
+					canOrganize={canOrganize}
+				/>
 			</div>
 		</header>
 	)

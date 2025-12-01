@@ -380,5 +380,7 @@ export async function invalidateTeamMembersSessions(
 	})
 
 	// Update all their sessions in parallel
-	await Promise.all(members.map((member) => updateAllSessionsOfUser(member.userId)))
+	await Promise.all(
+		members.map((member) => updateAllSessionsOfUser(member.userId)),
+	)
 }

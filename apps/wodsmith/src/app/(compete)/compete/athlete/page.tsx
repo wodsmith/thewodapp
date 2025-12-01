@@ -76,7 +76,10 @@ export default async function AthletePage() {
 					<Separator />
 					<section className="space-y-4">
 						<h2 className="font-semibold text-lg">Pending Team Invites</h2>
-						<PendingTeamInvites invitations={pendingInvitations} variant="inline" />
+						<PendingTeamInvites
+							invitations={pendingInvitations}
+							variant="inline"
+						/>
 					</section>
 				</>
 			)}

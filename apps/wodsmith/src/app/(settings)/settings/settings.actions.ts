@@ -70,7 +70,10 @@ export const updateAthleteProfileAction = createServerAction()
 				return { success: true }
 			} catch (error) {
 				console.error(error)
-				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update athlete profile")
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					"Failed to update athlete profile",
+				)
 			}
 		}, RATE_LIMITS.SETTINGS)
 	})
@@ -87,14 +90,32 @@ export const updateAthleteExtendedProfileAction = createServerAction()
 			}
 
 			try {
-				// Stringify the athleteProfile JSON
-				const athleteProfileJson = JSON.stringify(input)
+				// Extract direct column fields
+				const { gender, dateOfBirth, ...jsonFields } = input
+
+				// Stringify the athleteProfile JSON (excluding direct column fields)
+				const athleteProfileJson = JSON.stringify(jsonFields)
+
+				// Build update object
+				const updateData: {
+					athleteProfile: string
+					gender?: "male" | "female"
+					dateOfBirth?: Date
+				} = {
+					athleteProfile: athleteProfileJson,
+				}
+
+				// Add direct column fields if provided
+				if (gender) {
+					updateData.gender = gender
+				}
+				if (dateOfBirth) {
+					updateData.dateOfBirth = new Date(dateOfBirth)
+				}
 
 				await db
 					.update(userTable)
-					.set({
-						athleteProfile: athleteProfileJson,
-					})
+					.set(updateData)
 					.where(eq(userTable.id, session.user.id))
 
 				await updateAllSessionsOfUser(session.user.id)

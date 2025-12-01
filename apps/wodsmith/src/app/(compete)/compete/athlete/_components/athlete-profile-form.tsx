@@ -42,6 +42,7 @@ import {
 	lbsToKg,
 	type AthleteProfileData,
 } from "@/utils/athlete-profile"
+import { GENDER_ENUM } from "@/db/schemas/users"
 
 type NotableMetconSuggestion = {
 	workoutId: string
@@ -166,7 +167,9 @@ export function AthleteProfileForm({
 		}
 
 		if (syncedCount > 0) {
-			toast.success(`Synced ${syncedCount} metcon times from your logged workouts`)
+			toast.success(
+				`Synced ${syncedCount} metcon times from your logged workouts`,
+			)
 		} else {
 			toast.info("No logged metcon results found to sync")
 		}
@@ -202,7 +205,9 @@ export function AthleteProfileForm({
 		}
 	}, [initialData, form])
 
-	async function onSubmit(values: z.infer<typeof athleteProfileExtendedSchema>) {
+	async function onSubmit(
+		values: z.infer<typeof athleteProfileExtendedSchema>,
+	) {
 		await execute(values)
 	}
 
@@ -263,13 +268,73 @@ export function AthleteProfileForm({
 										</SelectContent>
 									</Select>
 									<FormDescription>
-										This affects how weights and heights are displayed throughout
-										your profile
+										This affects how weights and heights are displayed
+										throughout your profile
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
 						/>
+					</CardContent>
+				</Card>
+
+				{/* Basic Info */}
+				<Card>
+					<CardHeader>
+						<CardTitle>Basic Info</CardTitle>
+						<CardDescription>
+							Required for competition registration and division placement
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="grid gap-6 sm:grid-cols-2">
+							<FormField
+								control={form.control}
+								name="gender"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Gender</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select gender" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value={GENDER_ENUM.MALE}>Male</SelectItem>
+												<SelectItem value={GENDER_ENUM.FEMALE}>
+													Female
+												</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormDescription>
+											Used for competition division placement
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="dateOfBirth"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Date of Birth</FormLabel>
+										<FormControl>
+											<Input type="date" {...field} />
+										</FormControl>
+										<FormDescription>
+											Used for age division placement
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 					</CardContent>
 				</Card>
 
@@ -342,7 +407,9 @@ export function AthleteProfileForm({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value ? Number(e.target.value) : undefined,
+																e.target.value
+																	? Number(e.target.value)
+																	: undefined,
 															)
 														}
 														value={field.value || ""}
@@ -676,7 +743,9 @@ export function AthleteProfileForm({
 													</Button>
 												)}
 											</div>
-											<FormDescription>Format: MM:SS or HH:MM:SS</FormDescription>
+											<FormDescription>
+												Format: MM:SS or HH:MM:SS
+											</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)
@@ -904,7 +973,16 @@ export function AthleteProfileForm({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						{(["backSquat", "deadlift", "benchPress", "press", "snatch", "cleanAndJerk"] as const).map((lift) => {
+						{(
+							[
+								"backSquat",
+								"deadlift",
+								"benchPress",
+								"press",
+								"snatch",
+								"cleanAndJerk",
+							] as const
+						).map((lift) => {
 							const liftKey = lift
 							return (
 								<div key={lift} className="grid gap-4 sm:grid-cols-3">
@@ -923,7 +1001,9 @@ export function AthleteProfileForm({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value ? Number(e.target.value) : undefined,
+																e.target.value
+																	? Number(e.target.value)
+																	: undefined,
 															)
 														}
 														value={field.value || ""}
@@ -1026,7 +1106,10 @@ export function AthleteProfileForm({
 								<FormItem>
 									<FormLabel>Twitter/X</FormLabel>
 									<FormControl>
-										<Input placeholder="https://twitter.com/yourhandle" {...field} />
+										<Input
+											placeholder="https://twitter.com/yourhandle"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -1040,7 +1123,10 @@ export function AthleteProfileForm({
 								<FormItem>
 									<FormLabel>TikTok</FormLabel>
 									<FormControl>
-										<Input placeholder="https://tiktok.com/@yourhandle" {...field} />
+										<Input
+											placeholder="https://tiktok.com/@yourhandle"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -1077,7 +1163,10 @@ export function AthleteProfileForm({
 							</p>
 						) : (
 							fields.map((field, index) => (
-								<div key={field.id} className="border-muted space-y-4 rounded-lg border p-4">
+								<div
+									key={field.id}
+									className="border-muted space-y-4 rounded-lg border p-4"
+								>
 									<div className="flex items-center justify-between">
 										<h4 className="font-semibold">Sponsor {index + 1}</h4>
 										<Button
@@ -1130,10 +1219,7 @@ export function AthleteProfileForm({
 											<FormItem>
 												<FormLabel>Website (optional)</FormLabel>
 												<FormControl>
-													<Input
-														placeholder="https://example.com"
-														{...field}
-													/>
+													<Input placeholder="https://example.com" {...field} />
 												</FormControl>
 												<FormMessage />
 											</FormItem>
