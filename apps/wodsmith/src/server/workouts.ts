@@ -194,7 +194,10 @@ export async function getUserWorkoutsCount({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	const teamOrPublicCondition = or(
+		inArray(workouts.teamId, teamIds),
+		eq(workouts.scope, "public"),
+	)
 	if (teamOrPublicCondition) {
 		conditions.push(teamOrPublicCondition)
 	}
@@ -331,7 +334,10 @@ export async function getUserWorkouts({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	const teamOrPublicCondition = or(
+		inArray(workouts.teamId, teamIds),
+		eq(workouts.scope, "public"),
+	)
 	if (teamOrPublicCondition) {
 		conditions.push(teamOrPublicCondition)
 	}
@@ -588,7 +594,6 @@ export async function createWorkout({
 		throw error
 	}
 }
-
 
 /**
  * Get a single workout by ID with its tags and movements, including remix information

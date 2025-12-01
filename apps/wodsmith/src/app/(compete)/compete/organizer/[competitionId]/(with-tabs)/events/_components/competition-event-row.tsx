@@ -14,12 +14,22 @@ import {
 	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
-import { GripVertical, Pencil, SlidersHorizontal, Trash2 } from "lucide-react"
+import {
+	Eye,
+	EyeOff,
+	GripVertical,
+	Pencil,
+	SlidersHorizontal,
+	Trash2,
+} from "lucide-react"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
-import { updateDivisionDescriptionsAction } from "@/actions/competition-actions"
+import {
+	updateCompetitionWorkoutAction,
+	updateDivisionDescriptionsAction,
+} from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -27,8 +37,16 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { EVENT_STATUS, type EventStatus } from "@/db/schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 interface Division {
@@ -76,10 +94,12 @@ export function CompetitionEventRow({
 
 	// Division editing state
 	const sortedDivisions = [...divisions].sort((a, b) => a.position - b.position)
-	const [selectedDivisionId, setSelectedDivisionId] = useState<string | undefined>(
-		sortedDivisions[0]?.id,
-	)
-	const [localDescriptions, setLocalDescriptions] = useState<Record<string, string>>(() => {
+	const [selectedDivisionId, setSelectedDivisionId] = useState<
+		string | undefined
+	>(sortedDivisions[0]?.id)
+	const [localDescriptions, setLocalDescriptions] = useState<
+		Record<string, string>
+	>(() => {
 		const initial: Record<string, string> = {}
 		for (const desc of divisionDescriptions) {
 			initial[desc.divisionId] = desc.description || ""
@@ -93,6 +113,43 @@ export function CompetitionEventRow({
 	const { execute: updateDescriptions, isPending: isSaving } = useServerAction(
 		updateDivisionDescriptionsAction,
 	)
+
+	// Event status state and action
+	const [localEventStatus, setLocalEventStatus] = useState<EventStatus>(
+		event.eventStatus ?? EVENT_STATUS.DRAFT,
+	)
+	const { execute: updateWorkout, isPending: isUpdatingStatus } =
+		useServerAction(updateCompetitionWorkoutAction)
+
+	// Sync local status when prop changes
+	useEffect(() => {
+		setLocalEventStatus(event.eventStatus ?? EVENT_STATUS.DRAFT)
+	}, [event.eventStatus])
+
+	const handleEventStatusChange = async (newStatus: EventStatus) => {
+		const previousStatus = localEventStatus
+
+		// Optimistic update
+		setLocalEventStatus(newStatus)
+
+		const [, error] = await updateWorkout({
+			trackWorkoutId: event.id,
+			organizingTeamId,
+			eventStatus: newStatus,
+		})
+
+		if (error) {
+			// Revert on error
+			setLocalEventStatus(previousStatus)
+			toast.error(error.message || "Failed to update event status")
+		} else {
+			toast.success(
+				newStatus === EVENT_STATUS.PUBLISHED
+					? "Event published"
+					: "Event moved to draft",
+			)
+		}
+	}
 
 	// Sync name ref when prop changes (for drag preview)
 	useEffect(() => {
@@ -302,6 +359,44 @@ export function CompetitionEventRow({
 								</span>
 							)}
 
+							{/* Event Status Toggle */}
+							<Select
+								value={localEventStatus}
+								onValueChange={(value) =>
+									handleEventStatusChange(value as EventStatus)
+								}
+								disabled={isUpdatingStatus}
+							>
+								<SelectTrigger className="w-[110px] h-8 text-xs">
+									<SelectValue>
+										<span className="flex items-center gap-1.5">
+											{localEventStatus === EVENT_STATUS.PUBLISHED ? (
+												<Eye className="h-3.5 w-3.5 text-green-600" />
+											) : (
+												<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+											)}
+											{localEventStatus === EVENT_STATUS.PUBLISHED
+												? "Published"
+												: "Draft"}
+										</span>
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value={EVENT_STATUS.DRAFT}>
+										<span className="flex items-center gap-2">
+											<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+											Draft
+										</span>
+									</SelectItem>
+									<SelectItem value={EVENT_STATUS.PUBLISHED}>
+										<span className="flex items-center gap-2">
+											<Eye className="h-3.5 w-3.5 text-green-600" />
+											Published
+										</span>
+									</SelectItem>
+								</SelectContent>
+							</Select>
+
 							{/* Actions */}
 							<div className="flex items-center gap-1 shrink-0">
 								{/* Division Descriptions Toggle */}
@@ -322,7 +417,9 @@ export function CompetitionEventRow({
 									asChild
 									className="text-muted-foreground hover:text-foreground"
 								>
-									<Link href={`/compete/organizer/${competitionId}/events/${event.id}`}>
+									<Link
+										href={`/compete/organizer/${competitionId}/events/${event.id}`}
+									>
 										<Pencil className="h-4 w-4" />
 									</Link>
 								</Button>
@@ -370,7 +467,11 @@ export function CompetitionEventRow({
 									)}
 								</div>
 								<Textarea
-									value={selectedDivisionId ? localDescriptions[selectedDivisionId] || "" : ""}
+									value={
+										selectedDivisionId
+											? localDescriptions[selectedDivisionId] || ""
+											: ""
+									}
 									onChange={(e) => handleDescriptionChange(e.target.value)}
 									onBlur={handleDescriptionBlur}
 									placeholder={`Enter scaling description for ${sortedDivisions.find((d) => d.id === selectedDivisionId)?.label || "this division"}...`}

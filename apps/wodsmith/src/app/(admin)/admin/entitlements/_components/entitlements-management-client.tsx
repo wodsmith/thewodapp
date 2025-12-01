@@ -1,7 +1,15 @@
 "use client"
 
 import { useServerAction } from "@repo/zsa-react"
-import { Building2, ChevronDown, ChevronRight, Crown, Search, Shield, User } from "lucide-react"
+import {
+	Building2,
+	ChevronDown,
+	ChevronRight,
+	Crown,
+	Search,
+	Shield,
+	User,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,10 +36,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import {
-	getAllPlansAction,
-	getAllTeamsWithPlansAction,
-} from "../../_actions"
+import { getAllPlansAction, getAllTeamsWithPlansAction } from "../../_actions"
 import type { Plan } from "@/db/schemas/entitlements"
 
 interface TeamWithPlan {
@@ -57,8 +62,11 @@ export function EntitlementsManagementClient() {
 	const [searchInput, setSearchInput] = useState("")
 	const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
 
-	const { execute: fetchTeams, data: teamsData, isPending: isLoadingTeams } =
-		useServerAction(getAllTeamsWithPlansAction)
+	const {
+		execute: fetchTeams,
+		data: teamsData,
+		isPending: isLoadingTeams,
+	} = useServerAction(getAllTeamsWithPlansAction)
 
 	const { execute: fetchPlans, data: plansData } =
 		useServerAction(getAllPlansAction)
@@ -207,7 +215,9 @@ export function EntitlementsManagementClient() {
 														</Button>
 													</CollapsibleTrigger>
 												</TableCell>
-												<TableCell className="font-medium">{team.name}</TableCell>
+												<TableCell className="font-medium">
+													{team.name}
+												</TableCell>
 												<TableCell className="font-mono text-sm">
 													{team.slug}
 												</TableCell>

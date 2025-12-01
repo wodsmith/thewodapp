@@ -82,35 +82,40 @@ export async function getUserPurchases(
 							columns: { name: true },
 						},
 					},
-					columns: {
-						id: true,
-						name: true,
-						slug: true,
-						startDate: true,
-					},
 				})
 			: []
 
 	const competitionMap = new Map(competitions.map((c) => [c.id, c]))
 
-	return purchases.map((p) => ({
-		id: p.id,
-		status: p.status,
-		totalCents: p.totalCents,
-		platformFeeCents: p.platformFeeCents,
-		stripeFeeCents: p.stripeFeeCents,
-		organizerNetCents: p.organizerNetCents,
-		stripePaymentIntentId: p.stripePaymentIntentId,
-		completedAt: p.completedAt,
-		createdAt: p.createdAt,
-		product: {
-			id: p.productId,
-			name: p.productName,
-			type: p.productType,
-			priceCents: p.productPriceCents,
-		},
-		competition: p.competitionId ? competitionMap.get(p.competitionId) ?? null : null,
-	}))
+	return purchases.map((p) => {
+		const comp = p.competitionId ? competitionMap.get(p.competitionId) : null
+		return {
+			id: p.id,
+			status: p.status,
+			totalCents: p.totalCents,
+			platformFeeCents: p.platformFeeCents,
+			stripeFeeCents: p.stripeFeeCents,
+			organizerNetCents: p.organizerNetCents,
+			stripePaymentIntentId: p.stripePaymentIntentId,
+			completedAt: p.completedAt,
+			createdAt: p.createdAt,
+			product: {
+				id: p.productId,
+				name: p.productName,
+				type: p.productType,
+				priceCents: p.productPriceCents,
+			},
+			competition: comp
+				? {
+						id: comp.id,
+						name: comp.name,
+						slug: comp.slug,
+						startDate: comp.startDate,
+						organizingTeam: comp.organizingTeam,
+					}
+				: null,
+		}
+	})
 }
 
 export type InvoiceDetails = PurchaseWithDetails & {
@@ -164,14 +169,16 @@ export async function getInvoiceDetails(
 					columns: { name: true },
 				},
 			},
-			columns: {
-				id: true,
-				name: true,
-				slug: true,
-				startDate: true,
-			},
 		})
-		competition = comp ?? null
+		if (comp) {
+			competition = {
+				id: comp.id,
+				name: comp.name,
+				slug: comp.slug,
+				startDate: comp.startDate,
+				organizingTeam: comp.organizingTeam,
+			}
+		}
 	}
 
 	// Fetch Stripe payment details if we have a payment intent

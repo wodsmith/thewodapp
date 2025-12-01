@@ -54,7 +54,9 @@ export function OrganizerTemplateSelector({
 		initializeCompetitionDivisionsAction,
 	)
 
-	const selectedTemplate = scalingGroups.find((g) => g.id === selectedTemplateId)
+	const selectedTemplate = scalingGroups.find(
+		(g) => g.id === selectedTemplateId,
+	)
 
 	const handleApplyTemplate = async () => {
 		const [_result, error] = await initializeDivisions({

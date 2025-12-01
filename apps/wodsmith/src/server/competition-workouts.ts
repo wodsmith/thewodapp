@@ -5,6 +5,8 @@ import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionsTable,
+	type EventStatus,
+	type HeatStatus,
 	movements,
 	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
@@ -32,6 +34,8 @@ export interface CompetitionWorkout {
 	trackOrder: number
 	notes: string | null
 	pointsMultiplier: number | null
+	heatStatus: HeatStatus | null
+	eventStatus: EventStatus | null
 	createdAt: Date
 	updatedAt: Date
 	workout: {
@@ -131,6 +135,8 @@ export async function getCompetitionWorkouts(
 			trackOrder: trackWorkoutsTable.trackOrder,
 			notes: trackWorkoutsTable.notes,
 			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+			heatStatus: trackWorkoutsTable.heatStatus,
+			eventStatus: trackWorkoutsTable.eventStatus,
 			createdAt: trackWorkoutsTable.createdAt,
 			updatedAt: trackWorkoutsTable.updatedAt,
 			workout: {
@@ -154,6 +160,58 @@ export async function getCompetitionWorkouts(
 }
 
 /**
+ * Get published workouts for a competition (for public views)
+ */
+export async function getPublishedCompetitionWorkouts(
+	competitionId: string,
+): Promise<CompetitionWorkout[]> {
+	const db = getDb()
+
+	// Get the competition's programming track
+	const track = await getCompetitionTrack(competitionId)
+	if (!track) {
+		return []
+	}
+
+	// Get only published workouts for this track
+	const trackWorkouts = await db
+		.select({
+			id: trackWorkoutsTable.id,
+			trackId: trackWorkoutsTable.trackId,
+			workoutId: trackWorkoutsTable.workoutId,
+			trackOrder: trackWorkoutsTable.trackOrder,
+			notes: trackWorkoutsTable.notes,
+			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+			heatStatus: trackWorkoutsTable.heatStatus,
+			eventStatus: trackWorkoutsTable.eventStatus,
+			createdAt: trackWorkoutsTable.createdAt,
+			updatedAt: trackWorkoutsTable.updatedAt,
+			workout: {
+				id: workouts.id,
+				name: workouts.name,
+				description: workouts.description,
+				scheme: workouts.scheme,
+				scoreType: workouts.scoreType,
+				roundsToScore: workouts.roundsToScore,
+				repsPerRound: workouts.repsPerRound,
+				tiebreakScheme: workouts.tiebreakScheme,
+				secondaryScheme: workouts.secondaryScheme,
+			},
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+		.where(
+			and(
+				eq(trackWorkoutsTable.trackId, track.id),
+				eq(trackWorkoutsTable.eventStatus, "published"),
+			),
+		)
+		.orderBy(trackWorkoutsTable.trackOrder)
+
+	return trackWorkouts
+}
+
+/**
  * Update a competition workout
  */
 export async function updateCompetitionWorkout(params: {
@@ -161,6 +219,8 @@ export async function updateCompetitionWorkout(params: {
 	trackOrder?: number
 	pointsMultiplier?: number
 	notes?: string | null
+	heatStatus?: HeatStatus
+	eventStatus?: EventStatus
 }): Promise<void> {
 	const db = getDb()
 
@@ -176,6 +236,12 @@ export async function updateCompetitionWorkout(params: {
 	}
 	if (params.notes !== undefined) {
 		updateData.notes = params.notes
+	}
+	if (params.heatStatus !== undefined) {
+		updateData.heatStatus = params.heatStatus
+	}
+	if (params.eventStatus !== undefined) {
+		updateData.eventStatus = params.eventStatus
 	}
 
 	await db
@@ -314,6 +380,8 @@ export async function getCompetitionEvent(
 		trackOrder: trackWorkout.trackOrder,
 		notes: trackWorkout.notes,
 		pointsMultiplier: trackWorkout.pointsMultiplier,
+		heatStatus: trackWorkout.heatStatus,
+		eventStatus: trackWorkout.eventStatus,
 		createdAt: trackWorkout.createdAt,
 		updatedAt: trackWorkout.updatedAt,
 		workout: {
@@ -371,7 +439,17 @@ export async function createCompetitionEvent(params: {
 	roundsToScore?: number
 	repsPerRound?: number
 	tiebreakScheme?: "time" | "reps"
-	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points"
+	secondaryScheme?:
+		| "time"
+		| "pass-fail"
+		| "rounds-reps"
+		| "reps"
+		| "emom"
+		| "load"
+		| "calories"
+		| "meters"
+		| "feet"
+		| "points"
 	tagIds?: string[]
 	tagNames?: string[]
 	movementIds?: string[]
@@ -513,7 +591,18 @@ export async function updateCompetitionEventWorkout(params: {
 	roundsToScore?: number | null
 	repsPerRound?: number | null
 	tiebreakScheme?: "time" | "reps" | null
-	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points" | null
+	secondaryScheme?:
+		| "time"
+		| "pass-fail"
+		| "rounds-reps"
+		| "reps"
+		| "emom"
+		| "load"
+		| "calories"
+		| "meters"
+		| "feet"
+		| "points"
+		| null
 	tagIds?: string[]
 	movementIds?: string[]
 }): Promise<void> {
@@ -556,7 +645,9 @@ export async function updateCompetitionEventWorkout(params: {
 	// Update tags if provided
 	if (params.tagIds !== undefined) {
 		// Delete existing tags
-		await db.delete(workoutTags).where(eq(workoutTags.workoutId, params.workoutId))
+		await db
+			.delete(workoutTags)
+			.where(eq(workoutTags.workoutId, params.workoutId))
 
 		// Insert new tags (filter out any new_tag_ prefixed ids)
 		const tagIds = params.tagIds.filter((id) => !id.startsWith("new_tag_"))
@@ -574,7 +665,9 @@ export async function updateCompetitionEventWorkout(params: {
 	// Update movements if provided
 	if (params.movementIds !== undefined) {
 		// Delete existing movements
-		await db.delete(workoutMovements).where(eq(workoutMovements.workoutId, params.workoutId))
+		await db
+			.delete(workoutMovements)
+			.where(eq(workoutMovements.workoutId, params.workoutId))
 
 		// Insert new movements
 		if (params.movementIds.length > 0) {
@@ -676,7 +769,12 @@ export async function updateWorkoutDivisionDescriptions(params: {
 	const workout = await db
 		.select({ id: workouts.id })
 		.from(workouts)
-		.where(and(eq(workouts.id, params.workoutId), eq(workouts.teamId, params.teamId)))
+		.where(
+			and(
+				eq(workouts.id, params.workoutId),
+				eq(workouts.teamId, params.teamId),
+			),
+		)
 		.limit(1)
 
 	if (workout.length === 0) {

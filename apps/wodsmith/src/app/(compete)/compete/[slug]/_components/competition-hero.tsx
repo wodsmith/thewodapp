@@ -14,7 +14,10 @@ interface CompetitionHeroProps {
 	canManage?: boolean
 }
 
-function formatDateRange(startDate: Date | number, endDate: Date | number): string {
+function formatDateRange(
+	startDate: Date | number,
+	endDate: Date | number,
+): string {
 	const start = typeof startDate === "number" ? new Date(startDate) : startDate
 	const end = typeof endDate === "number" ? new Date(endDate) : endDate
 
@@ -37,7 +40,11 @@ function formatDateRange(startDate: Date | number, endDate: Date | number): stri
 	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
 }
 
-export function CompetitionHero({ competition, registrationCount, canManage = false }: CompetitionHeroProps) {
+export function CompetitionHero({
+	competition,
+	registrationCount,
+	canManage = false,
+}: CompetitionHeroProps) {
 	return (
 		<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white">
 			<div className="container mx-auto px-4 py-8 md:py-12">
@@ -65,7 +72,9 @@ export function CompetitionHero({ competition, registrationCount, canManage = fa
 						<div className="flex items-start justify-between gap-4">
 							<div className="space-y-1">
 								{competition.group && (
-									<p className="text-sm text-teal-400">{competition.group.name}</p>
+									<p className="text-sm text-teal-400">
+										{competition.group.name}
+									</p>
 								)}
 								<h1 className="text-3xl font-bold md:text-4xl lg:text-5xl">
 									{competition.name}
@@ -73,7 +82,10 @@ export function CompetitionHero({ competition, registrationCount, canManage = fa
 								<div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-slate-300">
 									<span className="flex items-center gap-1.5">
 										<Calendar className="h-4 w-4" />
-										{formatDateRange(competition.startDate, competition.endDate)}
+										{formatDateRange(
+											competition.startDate,
+											competition.endDate,
+										)}
 									</span>
 									<span className="flex items-center gap-1.5">
 										<MapPin className="h-4 w-4" />
@@ -107,7 +119,10 @@ export function CompetitionHero({ competition, registrationCount, canManage = fa
 
 						{/* Quick Stats */}
 						<div className="flex flex-wrap gap-2">
-							<Badge variant="secondary" className="bg-slate-700/50 text-slate-200 hover:bg-slate-700">
+							<Badge
+								variant="secondary"
+								className="bg-slate-700/50 text-slate-200 hover:bg-slate-700"
+							>
 								<Users className="mr-1 h-3 w-3" />
 								{registrationCount} Athletes
 							</Badge>

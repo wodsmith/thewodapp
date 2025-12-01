@@ -83,7 +83,7 @@ export default async function MainNav() {
 									teams={session.teams.filter(
 										(team) =>
 											team.type !== "competition_event" &&
-											team.type !== "competition_team"
+											team.type !== "competition_team",
 									)}
 									activeTeamId={activeTeamId}
 								/>

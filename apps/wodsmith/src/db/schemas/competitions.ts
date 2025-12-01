@@ -10,9 +10,13 @@ import {
 import {
 	commonColumns,
 	createCompetitionGroupId,
+	createCompetitionHeatAssignmentId,
+	createCompetitionHeatId,
 	createCompetitionId,
 	createCompetitionRegistrationId,
+	createCompetitionVenueId,
 } from "./common"
+import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
@@ -170,7 +174,109 @@ export const competitionRegistrationsTable = sqliteTable(
 		index("competition_registrations_division_idx").on(table.divisionId),
 		index("competition_registrations_captain_idx").on(table.captainUserId),
 		index("competition_registrations_athlete_team_idx").on(table.athleteTeamId),
-		index("competition_registrations_purchase_idx").on(table.commercePurchaseId),
+		index("competition_registrations_purchase_idx").on(
+			table.commercePurchaseId,
+		),
+	],
+)
+
+// Competition Venues Table
+// Floors/areas for heat scheduling (e.g., "Main Floor", "Outside Rig")
+export const competitionVenuesTable = sqliteTable(
+	"competition_venues",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionVenueId())
+			.notNull(),
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		name: text({ length: 100 }).notNull(),
+		laneCount: integer().notNull().default(3),
+		// Minutes between heats for auto-scheduling
+		transitionMinutes: integer().notNull().default(3),
+		sortOrder: integer().default(0).notNull(),
+	},
+	(table) => [
+		index("competition_venues_competition_idx").on(table.competitionId),
+		index("competition_venues_sort_idx").on(
+			table.competitionId,
+			table.sortOrder,
+		),
+	],
+)
+
+// Competition Heats Table
+// Heat definitions per workout with time and venue
+export const competitionHeatsTable = sqliteTable(
+	"competition_heats",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionHeatId())
+			.notNull(),
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// References track_workout (competition event)
+		trackWorkoutId: text().notNull(),
+		venueId: text().references(() => competitionVenuesTable.id, {
+			onDelete: "set null",
+		}),
+		heatNumber: integer().notNull(),
+		scheduledTime: integer({ mode: "timestamp" }),
+		// Duration of this heat in minutes (workout cap + buffer)
+		durationMinutes: integer(),
+		// Optional division filter (null = mixed divisions)
+		divisionId: text().references(() => scalingLevelsTable.id, {
+			onDelete: "set null",
+		}),
+		notes: text({ length: 500 }),
+	},
+	(table) => [
+		index("competition_heats_competition_idx").on(table.competitionId),
+		index("competition_heats_workout_idx").on(table.trackWorkoutId),
+		index("competition_heats_time_idx").on(table.scheduledTime),
+		uniqueIndex("competition_heats_workout_number_idx").on(
+			table.trackWorkoutId,
+			table.heatNumber,
+		),
+	],
+)
+
+// Competition Heat Assignments Table
+// Athlete/team lane assignments within heats
+export const competitionHeatAssignmentsTable = sqliteTable(
+	"competition_heat_assignments",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createCompetitionHeatAssignmentId())
+			.notNull(),
+		heatId: text()
+			.notNull()
+			.references(() => competitionHeatsTable.id, { onDelete: "cascade" }),
+		registrationId: text()
+			.notNull()
+			.references(() => competitionRegistrationsTable.id, {
+				onDelete: "cascade",
+			}),
+		laneNumber: integer().notNull(),
+	},
+	(table) => [
+		index("competition_heat_assignments_heat_idx").on(table.heatId),
+		uniqueIndex("competition_heat_assignments_reg_idx").on(
+			table.heatId,
+			table.registrationId,
+		),
+		uniqueIndex("competition_heat_assignments_lane_idx").on(
+			table.heatId,
+			table.laneNumber,
+		),
 	],
 )
 
@@ -179,6 +285,11 @@ export type CompetitionGroup = InferSelectModel<typeof competitionGroupsTable>
 export type Competition = InferSelectModel<typeof competitionsTable>
 export type CompetitionRegistration = InferSelectModel<
 	typeof competitionRegistrationsTable
+>
+export type CompetitionVenue = InferSelectModel<typeof competitionVenuesTable>
+export type CompetitionHeat = InferSelectModel<typeof competitionHeatsTable>
+export type CompetitionHeatAssignment = InferSelectModel<
+	typeof competitionHeatAssignmentsTable
 >
 
 // Competition visibility constants
@@ -226,12 +337,17 @@ export const competitionsRelations = relations(
 		}),
 		// All athlete registrations for this competition
 		registrations: many(competitionRegistrationsTable),
+		// Heat scheduling
+		venues: many(competitionVenuesTable),
+		heats: many(competitionHeatsTable),
+		// Programming tracks (events)
+		programmingTrack: many(programmingTracksTable),
 	}),
 )
 
 export const competitionRegistrationsRelations = relations(
 	competitionRegistrationsTable,
-	({ one }) => ({
+	({ one, many }) => ({
 		// The competition being registered for
 		competition: one(competitionsTable, {
 			fields: [competitionRegistrationsTable.eventId],
@@ -264,6 +380,55 @@ export const competitionRegistrationsRelations = relations(
 			fields: [competitionRegistrationsTable.athleteTeamId],
 			references: [teamTable.id],
 			relationName: "athleteTeamRegistration",
+		}),
+		// Heat assignments for this registration
+		heatAssignments: many(competitionHeatAssignmentsTable),
+	}),
+)
+
+// Venue relations
+export const competitionVenuesRelations = relations(
+	competitionVenuesTable,
+	({ one, many }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionVenuesTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		heats: many(competitionHeatsTable),
+	}),
+)
+
+// Heat relations
+export const competitionHeatsRelations = relations(
+	competitionHeatsTable,
+	({ one, many }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionHeatsTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		venue: one(competitionVenuesTable, {
+			fields: [competitionHeatsTable.venueId],
+			references: [competitionVenuesTable.id],
+		}),
+		division: one(scalingLevelsTable, {
+			fields: [competitionHeatsTable.divisionId],
+			references: [scalingLevelsTable.id],
+		}),
+		assignments: many(competitionHeatAssignmentsTable),
+	}),
+)
+
+// Heat assignment relations
+export const competitionHeatAssignmentsRelations = relations(
+	competitionHeatAssignmentsTable,
+	({ one }) => ({
+		heat: one(competitionHeatsTable, {
+			fields: [competitionHeatAssignmentsTable.heatId],
+			references: [competitionHeatsTable.id],
+		}),
+		registration: one(competitionRegistrationsTable, {
+			fields: [competitionHeatAssignmentsTable.registrationId],
+			references: [competitionRegistrationsTable.id],
 		}),
 	}),
 )

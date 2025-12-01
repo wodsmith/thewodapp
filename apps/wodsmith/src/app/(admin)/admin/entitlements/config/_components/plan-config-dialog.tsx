@@ -55,8 +55,11 @@ export function PlanConfigDialog({
 	const [editingLimitId, setEditingLimitId] = useState<string | null>(null)
 	const [editingLimitValue, setEditingLimitValue] = useState<number>(0)
 
-	const { execute: fetchPlanConfig, data: configData, isPending } =
-		useServerAction(getPlanConfigAction)
+	const {
+		execute: fetchPlanConfig,
+		data: configData,
+		isPending,
+	} = useServerAction(getPlanConfigAction)
 
 	const { execute: removeFeature } = useServerAction(
 		removeFeatureFromPlanAction,
@@ -251,7 +254,9 @@ export function PlanConfigDialog({
 															<Button
 																variant="ghost"
 																size="sm"
-																onClick={() => handleEditLimitValue(pl.id, pl.value)}
+																onClick={() =>
+																	handleEditLimitValue(pl.id, pl.value)
+																}
 															>
 																<Pencil className="w-4 h-4" />
 															</Button>

@@ -57,7 +57,9 @@ export default async function OrganizerDashboard({
 					</div>
 					<div className="flex flex-col sm:flex-row gap-2">
 						<Link href="/compete/organizer/series">
-							<Button variant="outline" className="w-full sm:w-auto">Manage Series</Button>
+							<Button variant="outline" className="w-full sm:w-auto">
+								Manage Series
+							</Button>
 						</Link>
 						<Link href="/compete/organizer/new">
 							<Button className="w-full sm:w-auto">
@@ -70,10 +72,7 @@ export default async function OrganizerDashboard({
 
 				{/* Team Filter (only show if multiple teams) */}
 				{organizingTeams.length > 1 && (
-					<TeamFilter
-						teams={organizingTeams}
-						selectedTeamId={activeTeamId}
-					/>
+					<TeamFilter teams={organizingTeams} selectedTeamId={activeTeamId} />
 				)}
 
 				{/* Competitions List */}

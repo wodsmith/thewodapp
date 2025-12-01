@@ -73,11 +73,13 @@ export default async function PricingPage({ params }: PricingPageProps) {
 			competition={{
 				id: competition.id,
 				name: competition.name,
-				defaultRegistrationFeeCents: competition.defaultRegistrationFeeCents ?? 0,
+				defaultRegistrationFeeCents:
+					competition.defaultRegistrationFeeCents ?? 0,
 				platformFeePercentage: competition.platformFeePercentage ?? null,
 				platformFeeFixed: competition.platformFeeFixed ?? null,
 				passStripeFeesToCustomer: competition.passStripeFeesToCustomer ?? false,
-				passPlatformFeesToCustomer: competition.passPlatformFeesToCustomer ?? true,
+				passPlatformFeesToCustomer:
+					competition.passPlatformFeesToCustomer ?? true,
 			}}
 			divisions={divisions}
 			currentFees={feeConfig}

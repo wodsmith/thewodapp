@@ -122,6 +122,7 @@ export async function GET(request: Request) {
 						marginTop: "40px",
 					}}
 				>
+					{/* biome-ignore lint/performance/noImgElement: OG image route can't use Next Image */}
 					<img
 						alt={SITE_NAME}
 						height={60}

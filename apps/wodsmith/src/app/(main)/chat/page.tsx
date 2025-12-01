@@ -71,7 +71,10 @@ export default function ChatPage() {
 	const handleSubmit = (message: PromptInputMessage) => {
 		if (!message.text?.trim()) return
 
-		sendMessage({ text: message.text }, { body: { teamId: currentTeamId || "" } })
+		sendMessage(
+			{ text: message.text },
+			{ body: { teamId: currentTeamId || "" } },
+		)
 		setInput("")
 	}
 
@@ -110,15 +113,13 @@ export default function ChatPage() {
 				)}
 
 				{/* AI Usage Info */}
-				{aiLimit?.canCreate &&
-					!aiLimit.isUnlimited &&
-					aiLimit.message && (
-						<Alert className="mb-4">
-							<Info className="h-4 w-4" />
-							<AlertTitle>AI Usage</AlertTitle>
-							<AlertDescription>{aiLimit.message}</AlertDescription>
-						</Alert>
-					)}
+				{aiLimit?.canCreate && !aiLimit.isUnlimited && aiLimit.message && (
+					<Alert className="mb-4">
+						<Info className="h-4 w-4" />
+						<AlertTitle>AI Usage</AlertTitle>
+						<AlertDescription>{aiLimit.message}</AlertDescription>
+					</Alert>
+				)}
 
 				{/* Error Alert */}
 				{error && (

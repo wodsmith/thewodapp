@@ -1,15 +1,37 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { getSessionFromCookie } from "@/utils/auth"
-import { getCompetition, getUserCompetitionRegistration } from "@/server/competitions"
+import {
+	getCompetition,
+	getUserCompetitionRegistration,
+} from "@/server/competitions"
 import { getDb } from "@/db"
-import { userTable, commercePurchaseTable, teamInvitationTable } from "@/db/schema"
+import {
+	userTable,
+	commercePurchaseTable,
+	teamInvitationTable,
+} from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { CheckCircle, Loader2, AlertCircle, Receipt, Users, Copy, Mail, CheckCircle2, Clock } from "lucide-react"
+import {
+	CheckCircle,
+	Loader2,
+	AlertCircle,
+	Receipt,
+	Users,
+	Mail,
+	CheckCircle2,
+	Clock,
+} from "lucide-react"
 import { RefreshButton } from "./_components/refresh-button"
 import { ProfileCompletionForm } from "./_components/profile-completion-form"
 import { CopyInviteLink } from "./_components/copy-invite-link"
@@ -63,9 +85,12 @@ export default async function RegistrationSuccessPage({
 
 	if (session_id) {
 		try {
-			checkoutSession = await getStripe().checkout.sessions.retrieve(session_id, {
-				expand: ["line_items", "payment_intent"],
-			})
+			checkoutSession = await getStripe().checkout.sessions.retrieve(
+				session_id,
+				{
+					expand: ["line_items", "payment_intent"],
+				},
+			)
 		} catch {
 			// Session not found or invalid - continue without payment details
 		}
@@ -74,9 +99,10 @@ export default async function RegistrationSuccessPage({
 	// Fetch purchase record for fee breakdown
 	let purchase: typeof commercePurchaseTable.$inferSelect | null = null
 	if (registration?.commercePurchaseId) {
-		purchase = await db.query.commercePurchaseTable.findFirst({
-			where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
-		}) ?? null
+		purchase =
+			(await db.query.commercePurchaseTable.findFirst({
+				where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
+			})) ?? null
 	}
 
 	// Check if competition passes Stripe fees to customer
@@ -114,15 +140,18 @@ export default async function RegistrationSuccessPage({
 				<Card>
 					<CardHeader className="text-center">
 						<Loader2 className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-spin" />
-						<CardTitle className="text-2xl">Processing Your Registration...</CardTitle>
+						<CardTitle className="text-2xl">
+							Processing Your Registration...
+						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-4 text-center">
 						<p className="text-muted-foreground">
-							Your payment was successful! We&apos;re finalizing your registration.
+							Your payment was successful! We&apos;re finalizing your
+							registration.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							This usually takes just a few seconds. You&apos;ll receive a confirmation
-							email shortly.
+							This usually takes just a few seconds. You&apos;ll receive a
+							confirmation email shortly.
 						</p>
 						<div className="pt-4 flex flex-col gap-2">
 							<Button variant="outline" asChild>
@@ -163,7 +192,7 @@ export default async function RegistrationSuccessPage({
 				</CardContent>
 			</Card>
 
-      {/* Team Info with Invite Links */}
+			{/* Team Info with Invite Links */}
 			{registration.athleteTeam && teamInvites.length > 0 && (
 				<Card>
 					<CardHeader>
@@ -177,7 +206,8 @@ export default async function RegistrationSuccessPage({
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<p className="text-sm text-muted-foreground">
-							Share these invite links with your teammates so they can join your team.
+							Share these invite links with your teammates so they can join your
+							team.
 						</p>
 
 						<div className="space-y-3">
@@ -200,7 +230,9 @@ export default async function RegistrationSuccessPage({
 												<Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
 											)}
 											<div className="min-w-0">
-												<p className="text-sm font-medium truncate">{invite.email}</p>
+												<p className="text-sm font-medium truncate">
+													{invite.email}
+												</p>
 												<p className="text-xs text-muted-foreground">
 													{isAccepted
 														? "Joined"
@@ -246,7 +278,7 @@ export default async function RegistrationSuccessPage({
 									{formatCurrency(
 										purchase.totalCents -
 											purchase.platformFeeCents -
-											(passStripeFeesToCustomer ? purchase.stripeFeeCents : 0)
+											(passStripeFeesToCustomer ? purchase.stripeFeeCents : 0),
 									)}
 								</span>
 							</div>
@@ -278,7 +310,10 @@ export default async function RegistrationSuccessPage({
 						<div className="text-xs text-muted-foreground text-center pt-2 space-y-1">
 							{typeof checkoutSession?.payment_intent === "object" &&
 								checkoutSession.payment_intent?.payment_method_types && (
-									<p>Paid via {checkoutSession.payment_intent.payment_method_types[0]}</p>
+									<p>
+										Paid via{" "}
+										{checkoutSession.payment_intent.payment_method_types[0]}
+									</p>
 								)}
 							{purchase.completedAt && (
 								<p>
@@ -294,8 +329,6 @@ export default async function RegistrationSuccessPage({
 				</Card>
 			)}
 
-
-
 			{!isProfileComplete && (
 				<Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
 					<CardHeader>
@@ -304,7 +337,8 @@ export default async function RegistrationSuccessPage({
 							<CardTitle className="text-lg">Complete Your Profile</CardTitle>
 						</div>
 						<CardDescription>
-							Please provide your gender and date of birth for competition purposes.
+							Please provide your gender and date of birth for competition
+							purposes.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>

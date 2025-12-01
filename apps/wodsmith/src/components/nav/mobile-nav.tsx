@@ -49,11 +49,7 @@ export default function MobileNav({
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button
-					variant="outline"
-					size="icon"
-					className="relative md:hidden"
-				>
+				<Button variant="outline" size="icon" className="relative md:hidden">
 					<Menu className="h-6 w-6" />
 					{hasNotifications && (
 						<span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500" />

@@ -156,7 +156,9 @@ export function AddLimitDialog({
 								<Checkbox
 									id="unlimited"
 									checked={isUnlimited}
-									onCheckedChange={(checked) => setIsUnlimited(checked === true)}
+									onCheckedChange={(checked) =>
+										setIsUnlimited(checked === true)
+									}
 								/>
 								<Label htmlFor="unlimited" className="text-sm font-normal">
 									Unlimited (-1)

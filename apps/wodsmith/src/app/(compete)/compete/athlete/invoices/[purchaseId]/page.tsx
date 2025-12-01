@@ -1,6 +1,10 @@
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Receipt, CreditCard, Building2, Calendar } from "lucide-react"
+import {
+	ArrowLeft,
+	Receipt,
+	CreditCard,
+} from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getInvoiceDetails } from "@/server/commerce"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -174,8 +178,11 @@ export default async function InvoiceDetailPage({
 								<CreditCard className="h-4 w-4 text-muted-foreground" />
 								<div>
 									<p className="font-medium">
-										{capitalizeFirst(invoice.stripe.brand ?? invoice.stripe.paymentMethod)}
-										{invoice.stripe.last4 && ` ending in ${invoice.stripe.last4}`}
+										{capitalizeFirst(
+											invoice.stripe.brand ?? invoice.stripe.paymentMethod,
+										)}
+										{invoice.stripe.last4 &&
+											` ending in ${invoice.stripe.last4}`}
 									</p>
 									<p className="text-muted-foreground">
 										Paid on {formatDate(invoice.completedAt)}

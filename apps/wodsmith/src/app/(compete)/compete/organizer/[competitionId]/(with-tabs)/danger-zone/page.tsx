@@ -1,7 +1,10 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
+import {
+	getCompetition,
+	getCompetitionRegistrations,
+} from "@/server/competitions"
 import { DeleteCompetitionForm } from "./_components/delete-competition-form"
 
 interface DangerZonePageProps {

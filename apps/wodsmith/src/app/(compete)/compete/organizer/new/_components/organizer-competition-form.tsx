@@ -312,8 +312,9 @@ export function OrganizerCompetitionForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select from divisions to use that you've used in the past as a starting point. Athletes
-									will choose their division when registering. Leave blank to start from scratch.
+									Select from divisions to use that you've used in the past as a
+									starting point. Athletes will choose their division when
+									registering. Leave blank to start from scratch.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
@@ -331,9 +332,7 @@ export function OrganizerCompetitionForm({
 								<FormControl>
 									<Input type="date" {...field} />
 								</FormControl>
-								<FormDescription>
-									When the competition begins
-								</FormDescription>
+								<FormDescription>When the competition begins</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -365,9 +364,7 @@ export function OrganizerCompetitionForm({
 								<FormControl>
 									<Input type="date" {...field} value={field.value || ""} />
 								</FormControl>
-								<FormDescription>
-									When registration opens
-								</FormDescription>
+								<FormDescription>When registration opens</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -382,9 +379,7 @@ export function OrganizerCompetitionForm({
 								<FormControl>
 									<Input type="date" {...field} value={field.value || ""} />
 								</FormControl>
-								<FormDescription>
-									When registration closes
-								</FormDescription>
+								<FormDescription>When registration closes</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}

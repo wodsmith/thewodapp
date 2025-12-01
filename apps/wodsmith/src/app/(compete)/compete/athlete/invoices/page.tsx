@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Receipt, ArrowLeft, FileText, ExternalLink } from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getUserPurchases } from "@/server/commerce"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
@@ -67,7 +67,8 @@ export default async function InvoicesPage() {
 						<FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
 						<p className="mt-4 text-muted-foreground">No invoices yet</p>
 						<p className="text-muted-foreground text-sm">
-							When you register for competitions, your invoices will appear here.
+							When you register for competitions, your invoices will appear
+							here.
 						</p>
 					</CardContent>
 				</Card>

@@ -93,9 +93,7 @@ export function SubscriptionsList({
 					No active programming track subscriptions.
 				</p>
 				<Button asChild>
-					<a href="/admin/teams/programming">
-						Browse Programming Tracks
-					</a>
+					<a href="/admin/teams/programming">Browse Programming Tracks</a>
 				</Button>
 			</div>
 		)

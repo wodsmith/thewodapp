@@ -101,6 +101,14 @@ export const trackWorkoutsTable = sqliteTable(
 		notes: text({ length: 1000 }),
 		// Points multiplier for competitions (100 = 1x, 200 = 2x for finals, etc.)
 		pointsMultiplier: integer().default(100),
+		// Heat assignment visibility: draft = hidden from athletes, published = visible
+		heatStatus: text({ length: 20 })
+			.$type<"draft" | "published">()
+			.default("draft"),
+		// Event visibility: draft = hidden from public, published = visible for marketing
+		eventStatus: text({ length: 20 })
+			.$type<"draft" | "published">()
+			.default("draft"),
 	},
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
@@ -213,3 +221,19 @@ export type TrackWorkout = InferSelectModel<typeof trackWorkoutsTable>
 export type ScheduledWorkoutInstance = InferSelectModel<
 	typeof scheduledWorkoutInstancesTable
 >
+
+// Heat status constants
+export const HEAT_STATUS = {
+	DRAFT: "draft",
+	PUBLISHED: "published",
+} as const
+
+export type HeatStatus = (typeof HEAT_STATUS)[keyof typeof HEAT_STATUS]
+
+// Event status constants
+export const EVENT_STATUS = {
+	DRAFT: "draft",
+	PUBLISHED: "published",
+} as const
+
+export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS]

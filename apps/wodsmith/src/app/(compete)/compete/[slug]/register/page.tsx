@@ -1,6 +1,9 @@
 import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
-import { getCompetition, getUserCompetitionRegistration } from "@/server/competitions"
+import {
+	getCompetition,
+	getUserCompetitionRegistration,
+} from "@/server/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { RegistrationForm } from "./_components/registration-form"
@@ -72,7 +75,12 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 			: competition.registrationClosesAt
 		: null
 
-	const registrationOpen = !!(regOpensAt && regClosesAt && regOpensAt <= now && regClosesAt >= now)
+	const registrationOpen = !!(
+		regOpensAt &&
+		regClosesAt &&
+		regOpensAt <= now &&
+		regClosesAt >= now
+	)
 
 	// Get competition settings for divisions
 	const settings = parseCompetitionSettings(competition.settings)
@@ -81,7 +89,9 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 		return (
 			<div className="mx-auto max-w-2xl">
 				<div className="bg-destructive/10 rounded-lg border border-destructive/20 p-6">
-					<h1 className="text-2xl font-bold mb-2">Registration Not Available</h1>
+					<h1 className="text-2xl font-bold mb-2">
+						Registration Not Available
+					</h1>
 					<p>This competition does not have divisions configured yet.</p>
 				</div>
 			</div>
@@ -89,7 +99,6 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 	}
 
 	// Get scaling group and levels for divisions
-	
 
 	const db = getDb()
 	const scalingGroup = await db.query.scalingGroupsTable.findFirst({
@@ -97,15 +106,21 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 		with: {
 			scalingLevels: {
 				orderBy: (table, { asc }) => [asc(table.position)],
-			}
+			},
 		},
 	})
 
-	if (!scalingGroup || !scalingGroup.scalingLevels || scalingGroup.scalingLevels.length === 0) {
+	if (
+		!scalingGroup ||
+		!scalingGroup.scalingLevels ||
+		scalingGroup.scalingLevels.length === 0
+	) {
 		return (
 			<div className="mx-auto max-w-2xl">
 				<div className="bg-destructive/10 rounded-lg border border-destructive/20 p-6">
-					<h1 className="text-2xl font-bold mb-2">Registration Not Available</h1>
+					<h1 className="text-2xl font-bold mb-2">
+						Registration Not Available
+					</h1>
 					<p>This competition's divisions are not properly configured.</p>
 				</div>
 			</div>

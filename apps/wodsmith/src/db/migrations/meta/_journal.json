@@ -295,6 +295,34 @@
       "when": 1764566400000,
       "tag": "0041_add-pass-platform-fees-to-customer",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1764652800000,
+      "tag": "0042_add-heat-scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1764739200000,
+      "tag": "0043_add-venue-transition-time",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1764825600000,
+      "tag": "0044_add-heat-duration",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1764912000000,
+      "tag": "0045_add-heat-status",
+      "breakpoints": true
     }
   ]
 }

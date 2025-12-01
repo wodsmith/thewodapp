@@ -71,7 +71,10 @@ export const commerceProductTable = sqliteTable(
 	},
 	(table) => [
 		// Prevent duplicate products for the same resource
-		uniqueIndex("commerce_product_resource_idx").on(table.type, table.resourceId),
+		uniqueIndex("commerce_product_resource_idx").on(
+			table.type,
+			table.resourceId,
+		),
 	],
 )
 

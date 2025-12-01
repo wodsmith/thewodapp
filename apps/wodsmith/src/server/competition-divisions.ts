@@ -199,7 +199,11 @@ export async function getCompetitionDivisionsWithCounts({
 			),
 		)
 		.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
-		.groupBy(scalingLevelsTable.id, competitionDivisionsTable.description, competitionDivisionsTable.feeCents)
+		.groupBy(
+			scalingLevelsTable.id,
+			competitionDivisionsTable.description,
+			competitionDivisionsTable.feeCents,
+		)
 		.orderBy(scalingLevelsTable.position)
 
 	return {
@@ -642,8 +646,7 @@ export async function getPublicCompetitionDivisions(
 			teamSize: scalingLevelsTable.teamSize,
 			description: competitionDivisionsTable.description,
 			feeCents: competitionDivisionsTable.feeCents,
-			registrationCount:
-				sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
+			registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 		})
 		.from(scalingLevelsTable)
 		.leftJoin(
@@ -661,7 +664,11 @@ export async function getPublicCompetitionDivisions(
 			),
 		)
 		.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
-		.groupBy(scalingLevelsTable.id, competitionDivisionsTable.description, competitionDivisionsTable.feeCents)
+		.groupBy(
+			scalingLevelsTable.id,
+			competitionDivisionsTable.description,
+			competitionDivisionsTable.feeCents,
+		)
 		.orderBy(scalingLevelsTable.position)
 
 	// Apply default fee if no division-specific fee exists

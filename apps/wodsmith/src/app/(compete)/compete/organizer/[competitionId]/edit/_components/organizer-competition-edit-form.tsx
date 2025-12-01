@@ -305,8 +305,9 @@ export function OrganizerCompetitionEditForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select divisions to use as competition divisions that you've used in the past. Athletes
-									will choose their division when registering.
+									Select divisions to use as competition divisions that you've
+									used in the past. Athletes will choose their division when
+									registering.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
@@ -392,7 +393,9 @@ export function OrganizerCompetitionEditForm({
 									rows={4}
 								/>
 							</FormControl>
-							<FormDescription>Provide details about the competition</FormDescription>
+							<FormDescription>
+								Provide details about the competition
+							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}

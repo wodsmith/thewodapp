@@ -87,8 +87,9 @@ export function DeleteCompetitionForm({
 
 				<div className="space-y-2">
 					<Label htmlFor="confirm-name">
-						Type <span className="font-mono font-semibold">{competitionName}</span> to
-						confirm
+						Type{" "}
+						<span className="font-mono font-semibold">{competitionName}</span>{" "}
+						to confirm
 					</Label>
 					<Input
 						id="confirm-name"

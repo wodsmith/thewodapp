@@ -35,18 +35,40 @@ export const athleteProfileExtendedSchema = z.object({
 	conditioning: z
 		.object({
 			// Notable metcons (can be manually entered or suggested from database)
-			fran: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			grace: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			helen: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			diane: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			murph: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
+			fran: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			grace: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			helen: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			diane: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			murph: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
 			// Other conditioning benchmarks
-			row2k: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			run1Mile: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			run5k: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			row500m: z.object({ time: z.string().optional(), date: z.string().optional() }).optional(),
-			maxPullups: z.object({ reps: z.string().optional(), date: z.string().optional() }).optional(),
-			maxCindyRounds: z.object({ rounds: z.string().optional(), date: z.string().optional() }).optional(),
+			row2k: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			run1Mile: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			run5k: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			row500m: z
+				.object({ time: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			maxPullups: z
+				.object({ reps: z.string().optional(), date: z.string().optional() })
+				.optional(),
+			maxCindyRounds: z
+				.object({ rounds: z.string().optional(), date: z.string().optional() })
+				.optional(),
 		})
 		.optional(),
 

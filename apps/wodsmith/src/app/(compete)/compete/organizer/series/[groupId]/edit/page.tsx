@@ -32,9 +32,7 @@ export async function generateMetadata({
 	}
 }
 
-export default async function EditSeriesPage({
-	params,
-}: EditSeriesPageProps) {
+export default async function EditSeriesPage({ params }: EditSeriesPageProps) {
 	const { groupId } = await params
 
 	// Get series
@@ -68,14 +66,15 @@ export default async function EditSeriesPage({
 					<OrganizerBreadcrumb
 						segments={[
 							{ label: "Series", href: "/compete/organizer/series" },
-							{ label: group.name, href: `/compete/organizer/series/${groupId}` },
+							{
+								label: group.name,
+								href: `/compete/organizer/series/${groupId}`,
+							},
 							{ label: "Edit" },
 						]}
 					/>
 					<h1 className="text-3xl font-bold">Edit Series</h1>
-					<p className="text-muted-foreground mt-1">
-						Update series details
-					</p>
+					<p className="text-muted-foreground mt-1">Update series details</p>
 				</div>
 
 				{/* Form */}

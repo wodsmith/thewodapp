@@ -114,10 +114,7 @@ export const teamTable = sqliteTable(
 		personalTeamOwnerId: text().references(() => userTable.id),
 		// Competition platform fields
 		// Team type: gym (default), competition_event, or personal
-		type: text({ length: 50 })
-			.$type<TeamType>()
-			.default("gym")
-			.notNull(),
+		type: text({ length: 50 }).$type<TeamType>().default("gym").notNull(),
 		// For competition_event teams, the parent organizing gym/team
 		// Self-reference handled by Drizzle
 		parentOrganizationId: text(),

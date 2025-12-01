@@ -62,10 +62,10 @@ export function OrganizerEventManager({
 		setEvents((currentEvents) => {
 			// Deduplicate by name + scheme (since new events may not have stable IDs yet)
 			const serverEventKeys = new Set(
-				initialEvents.map((e) => `${e.workout.name}:${e.workout.scheme}`)
+				initialEvents.map((e) => `${e.workout.name}:${e.workout.scheme}`),
 			)
 			const optimisticEvents = currentEvents.filter(
-				(e) => !serverEventKeys.has(`${e.workout.name}:${e.workout.scheme}`)
+				(e) => !serverEventKeys.has(`${e.workout.name}:${e.workout.scheme}`),
 			)
 
 			// Merge server events with any remaining optimistic events
@@ -258,7 +258,9 @@ export function OrganizerEventManager({
 							competitionId={competitionId}
 							organizingTeamId={organizingTeamId}
 							divisions={divisions}
-							divisionDescriptions={divisionDescriptionsByWorkout[event.workoutId] ?? []}
+							divisionDescriptions={
+								divisionDescriptionsByWorkout[event.workoutId] ?? []
+							}
 							onRemove={() => handleRemove(event.id)}
 							onDrop={handleDrop}
 						/>

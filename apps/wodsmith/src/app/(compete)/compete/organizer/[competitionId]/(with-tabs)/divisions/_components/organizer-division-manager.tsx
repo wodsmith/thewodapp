@@ -136,19 +136,26 @@ export function OrganizerDivisionManager({
 			// Revert to original
 			setDivisions((prev) =>
 				prev.map((d) =>
-					d.id === divisionId ? { ...d, label: original?.label ?? newLabel } : d,
+					d.id === divisionId
+						? { ...d, label: original?.label ?? newLabel }
+						: d,
 				),
 			)
 		}
 	}
 
-	const handleDescriptionSave = async (divisionId: string, newDescription: string | null) => {
+	const handleDescriptionSave = async (
+		divisionId: string,
+		newDescription: string | null,
+	) => {
 		const original = initialDivisions.find((d) => d.id === divisionId)
 		if (original && original.description === newDescription) return
 
 		// Optimistically update
 		setDivisions((prev) =>
-			prev.map((d) => (d.id === divisionId ? { ...d, description: newDescription } : d)),
+			prev.map((d) =>
+				d.id === divisionId ? { ...d, description: newDescription } : d,
+			),
 		)
 
 		const [_result, error] = await updateDescription({
@@ -163,7 +170,9 @@ export function OrganizerDivisionManager({
 			// Revert to original
 			setDivisions((prev) =>
 				prev.map((d) =>
-					d.id === divisionId ? { ...d, description: original?.description ?? newDescription } : d,
+					d.id === divisionId
+						? { ...d, description: original?.description ?? newDescription }
+						: d,
 				),
 			)
 		}
@@ -288,9 +297,7 @@ export function OrganizerDivisionManager({
 									registrationCount={division.registrationCount}
 									isOnly={divisions.length === 1}
 									instanceId={instanceId}
-									onLabelSave={(label) =>
-										handleLabelSave(division.id, label)
-									}
+									onLabelSave={(label) => handleLabelSave(division.id, label)}
 									onDescriptionSave={(desc) =>
 										handleDescriptionSave(division.id, desc)
 									}

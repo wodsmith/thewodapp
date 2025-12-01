@@ -2,7 +2,10 @@ import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
-import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
+import {
+	getCompetition,
+	getCompetitionRegistrations,
+} from "@/server/competitions"
 import { OrganizerRegistrationList } from "./_components/organizer-registration-list"
 
 interface CompetitionAthletesPageProps {
@@ -57,7 +60,8 @@ export default async function CompetitionAthletesPage({
 			<div>
 				<h2 className="text-xl font-semibold">Registered Athletes</h2>
 				<p className="text-muted-foreground text-sm">
-					{registrations.length} registration{registrations.length !== 1 ? "s" : ""}
+					{registrations.length} registration
+					{registrations.length !== 1 ? "s" : ""}
 				</p>
 			</div>
 

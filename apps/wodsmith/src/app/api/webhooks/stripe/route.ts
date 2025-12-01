@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import type Stripe from "stripe"
 import { and, eq } from "drizzle-orm"
 import { getStripe } from "@/lib/stripe"
@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
 				break
 
 			default:
-				console.log(`INFO: [Stripe Webhook] Unhandled event type: ${event.type}`)
+				console.log(
+					`INFO: [Stripe Webhook] Unhandled event type: ${event.type}`,
+				)
 		}
 
 		return NextResponse.json({ received: true })
@@ -110,10 +112,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 	// IDEMPOTENCY CHECK 2: Check if registration already exists
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(
-				competitionRegistrationsTable.commercePurchaseId,
-				purchaseId,
-			),
+			where: eq(competitionRegistrationsTable.commercePurchaseId, purchaseId),
 		})
 
 	if (existingRegistration) {
@@ -147,9 +146,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 		try {
 			registrationData = JSON.parse(existingPurchase.metadata)
 		} catch {
-			console.warn(
-				"WARN: [Stripe Webhook] Failed to parse purchase metadata",
-			)
+			console.warn("WARN: [Stripe Webhook] Failed to parse purchase metadata")
 		}
 	}
 

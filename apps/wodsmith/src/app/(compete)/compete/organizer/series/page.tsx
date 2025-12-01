@@ -20,9 +20,7 @@ interface SeriesPageProps {
 	}>
 }
 
-export default async function SeriesPage({
-	searchParams,
-}: SeriesPageProps) {
+export default async function SeriesPage({ searchParams }: SeriesPageProps) {
 	const { teamId: selectedTeamId } = await searchParams
 	const organizingTeams = await getUserOrganizingTeams()
 
@@ -60,17 +58,11 @@ export default async function SeriesPage({
 
 				{/* Team Filter (only show if multiple teams) */}
 				{organizingTeams.length > 1 && (
-					<TeamFilter
-						teams={organizingTeams}
-						selectedTeamId={activeTeamId}
-					/>
+					<TeamFilter teams={organizingTeams} selectedTeamId={activeTeamId} />
 				)}
 
 				{/* Series List */}
-				<OrganizerSeriesList
-					groups={groups}
-					teamId={activeTeamId}
-				/>
+				<OrganizerSeriesList groups={groups} teamId={activeTeamId} />
 			</div>
 		</div>
 	)

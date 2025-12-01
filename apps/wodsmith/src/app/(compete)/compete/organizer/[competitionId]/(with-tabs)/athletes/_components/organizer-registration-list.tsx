@@ -96,7 +96,9 @@ export function OrganizerRegistrationList({
 		} else {
 			params.set("division", value)
 		}
-		router.push(`/compete/organizer/${competitionId}/athletes?${params.toString()}`)
+		router.push(
+			`/compete/organizer/${competitionId}/athletes?${params.toString()}`,
+		)
 	}
 
 	const formatDate = (date: Date) => {
@@ -187,13 +189,17 @@ export function OrganizerRegistrationList({
 							</TableHeader>
 							<TableBody>
 								{registrations.map((registration, index) => {
-									const pendingCount = getPendingCount(registration.pendingTeammates)
-									const isTeamDivision = (registration.division?.teamSize ?? 1) > 1
+									const pendingCount = getPendingCount(
+										registration.pendingTeammates,
+									)
+									const isTeamDivision =
+										(registration.division?.teamSize ?? 1) > 1
 
 									// Get teammates (non-captain members)
-									const teammates = registration.athleteTeam?.memberships?.filter(
-										(m) => m.userId !== registration.userId && m.user
-									) ?? []
+									const teammates =
+										registration.athleteTeam?.memberships?.filter(
+											(m) => m.userId !== registration.userId && m.user,
+										) ?? []
 
 									return (
 										<TableRow key={registration.id}>
@@ -221,7 +227,9 @@ export function OrganizerRegistrationList({
 																{registration.user?.firstName ?? ""}{" "}
 																{registration.user?.lastName ?? ""}
 																{isTeamDivision && (
-																	<span className="text-xs text-muted-foreground ml-1">(captain)</span>
+																	<span className="text-xs text-muted-foreground ml-1">
+																		(captain)
+																	</span>
 																)}
 															</span>
 															<span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -234,7 +242,10 @@ export function OrganizerRegistrationList({
 													{teammates.length > 0 && (
 														<div className="ml-11 flex flex-col gap-1">
 															{teammates.map((member) => (
-																<div key={member.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+																<div
+																	key={member.id}
+																	className="flex items-center gap-2 text-sm text-muted-foreground"
+																>
 																	<Avatar className="h-5 w-5">
 																		<AvatarImage
 																			src={member.user?.avatar ?? undefined}
@@ -248,7 +259,8 @@ export function OrganizerRegistrationList({
 																		</AvatarFallback>
 																	</Avatar>
 																	<span>
-																		{member.user?.firstName ?? ""} {member.user?.lastName ?? ""}
+																		{member.user?.firstName ?? ""}{" "}
+																		{member.user?.lastName ?? ""}
 																	</span>
 																</div>
 															))}

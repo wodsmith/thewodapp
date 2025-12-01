@@ -47,9 +47,7 @@ function formatDate(date: Date | number | null): string {
 	})
 }
 
-export function CompetitiveHistory({
-	registrations,
-}: CompetitiveHistoryProps) {
+export function CompetitiveHistory({ registrations }: CompetitiveHistoryProps) {
 	if (registrations.length === 0) {
 		return (
 			<Card>
@@ -89,7 +87,8 @@ export function CompetitiveHistory({
 				<div className="space-y-4">
 					{registrations.map((registration) => {
 						if (!registration.competition) return null
-						const isTeamRegistration = (registration.division?.teamSize ?? 1) > 1
+						const isTeamRegistration =
+							(registration.division?.teamSize ?? 1) > 1
 
 						return (
 							<div
@@ -107,17 +106,22 @@ export function CompetitiveHistory({
 											</Link>
 										</h3>
 
-										{isTeamRegistration && (registration.teamName || registration.athleteTeam?.name) && (
-											<p className="text-sm text-muted-foreground mt-1">
-												<Users className="inline h-3 w-3 mr-1" />
-												{registration.teamName || registration.athleteTeam?.name}
-											</p>
-										)}
+										{isTeamRegistration &&
+											(registration.teamName ||
+												registration.athleteTeam?.name) && (
+												<p className="text-sm text-muted-foreground mt-1">
+													<Users className="inline h-3 w-3 mr-1" />
+													{registration.teamName ||
+														registration.athleteTeam?.name}
+												</p>
+											)}
 
 										<div className="mt-2 flex flex-wrap gap-3 text-sm">
 											<div className="text-muted-foreground flex items-center gap-1">
 												<Calendar className="h-3 w-3" />
-												<span>{formatDate(registration.competition.startDate)}</span>
+												<span>
+													{formatDate(registration.competition.startDate)}
+												</span>
 											</div>
 
 											{registration.division && (
@@ -140,7 +144,9 @@ export function CompetitiveHistory({
 									<div className="flex gap-2">
 										{isTeamRegistration && (
 											<Button asChild variant="outline" size="sm">
-												<Link href={`/compete/${registration.competition.slug}/teams/${registration.id}`}>
+												<Link
+													href={`/compete/${registration.competition.slug}/teams/${registration.id}`}
+												>
 													<Users className="h-3 w-3 mr-1" />
 													Team
 												</Link>

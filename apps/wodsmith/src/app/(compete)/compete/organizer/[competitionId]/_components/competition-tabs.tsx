@@ -12,6 +12,7 @@ const tabs = [
 	{ label: "Overview", href: "" },
 	{ label: "Divisions", href: "/divisions" },
 	{ label: "Events", href: "/events" },
+	{ label: "Schedule", href: "/schedule" },
 	{ label: "Athletes", href: "/athletes" },
 	{ label: "Pricing", href: "/pricing" },
 	{ label: "Revenue", href: "/revenue" },
@@ -33,7 +34,7 @@ export function CompetitionTabs({ competitionId }: CompetitionTabsProps) {
 
 	return (
 		<div className="border-b">
-			<nav className="flex gap-4">
+			<nav className="flex gap-4 overflow-x-auto">
 				{tabs.map((tab) => {
 					const active = isActive(tab.href)
 					const fullHref = `${basePath}${tab.href}`

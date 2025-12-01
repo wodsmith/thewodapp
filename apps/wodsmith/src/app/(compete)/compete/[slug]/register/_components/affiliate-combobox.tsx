@@ -1,7 +1,14 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Check, ChevronsUpDown, Search, Building2, ShieldCheck, ShieldQuestion } from "lucide-react"
+import {
+	Check,
+	ChevronsUpDown,
+	Search,
+	Building2,
+	ShieldCheck,
+	ShieldQuestion,
+} from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,7 +35,11 @@ type Props = {
 	disabled?: boolean
 }
 
-function VerificationBadge({ status }: { status: Affiliate["verificationStatus"] }) {
+function VerificationBadge({
+	status,
+}: {
+	status: Affiliate["verificationStatus"]
+}) {
 	switch (status) {
 		case "verified":
 			return (
@@ -66,15 +77,18 @@ export function AffiliateCombobox({
 	const [isLoading, setIsLoading] = useState(false)
 	const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
-	const { execute: searchAffiliates } = useServerAction(searchAffiliatesAction, {
-		onSuccess: (result) => {
-			setAffiliates(result.data as Affiliate[])
-			setIsLoading(false)
+	const { execute: searchAffiliates } = useServerAction(
+		searchAffiliatesAction,
+		{
+			onSuccess: (result) => {
+				setAffiliates(result.data as Affiliate[])
+				setIsLoading(false)
+			},
+			onError: () => {
+				setIsLoading(false)
+			},
 		},
-		onError: () => {
-			setIsLoading(false)
-		},
-	})
+	)
 
 	// Load initial affiliates when dropdown opens
 	useEffect(() => {
@@ -136,7 +150,10 @@ export function AffiliateCombobox({
 					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+			<PopoverContent
+				className="w-[--radix-popover-trigger-width] p-0"
+				align="start"
+			>
 				<div className="flex items-center border-b px-3 py-2">
 					<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
 					<Input
@@ -167,7 +184,9 @@ export function AffiliateCombobox({
 									<span className="flex-1 text-left">
 										Add "<span className="font-medium">{searchQuery}</span>"
 									</span>
-									<Badge variant="secondary" className="text-xs">New</Badge>
+									<Badge variant="secondary" className="text-xs">
+										New
+									</Badge>
 								</button>
 							)}
 

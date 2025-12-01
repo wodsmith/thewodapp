@@ -318,7 +318,10 @@ export const getAllFeaturesAction = createServerAction().handler(async () => {
 	const db = getDb()
 
 	const features = await db.query.featureTable.findMany({
-		orderBy: (features, { asc }) => [asc(features.category), asc(features.name)],
+		orderBy: (features, { asc }) => [
+			asc(features.category),
+			asc(features.name),
+		],
 	})
 
 	return { success: true, data: features }
@@ -474,7 +477,7 @@ export const updateLimitAction = createServerAction()
 
 		const db = getDb()
 
-		const { id, ...updateData} = input
+		const { id, ...updateData } = input
 
 		await db
 			.update(limitTable)

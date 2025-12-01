@@ -22,9 +22,7 @@ export function parseAthleteProfile(
 /**
  * Calculate age from date of birth
  */
-export function calculateAge(
-	dateOfBirth: Date | number | null,
-): number | null {
+export function calculateAge(dateOfBirth: Date | number | null): number | null {
 	if (!dateOfBirth) return null
 
 	const dob =

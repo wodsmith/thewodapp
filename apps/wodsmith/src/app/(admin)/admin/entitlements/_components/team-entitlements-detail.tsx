@@ -104,38 +104,45 @@ export function TeamEntitlementsDetail({
 						</p>
 					) : (
 						<div className="space-y-4">
-								{Object.entries(featuresByCategory).map(([category, features]: [string, SnapshotFeature[]]) => (
-								<div key={category}>
-									<h4 className="text-xs font-semibold mb-2 capitalize text-muted-foreground">
-										{category.replace(/_/g, " ")}
-									</h4>
-									<div className="space-y-2">
-										{features.map((feature: SnapshotFeature) => (
-											<div
-												key={feature.id}
-												className="flex items-start gap-2 p-2 rounded border bg-card text-sm"
-											>
-												<Check className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
-												<div className="flex-1 space-y-0.5">
-													<div className="flex items-center gap-2">
-														<span className="font-medium">{feature.featureName}</span>
-														{feature.source !== "plan" && (
-															<Badge variant="secondary" className="text-xs h-5">
-																{feature.source}
-															</Badge>
+							{Object.entries(featuresByCategory).map(
+								([category, features]: [string, SnapshotFeature[]]) => (
+									<div key={category}>
+										<h4 className="text-xs font-semibold mb-2 capitalize text-muted-foreground">
+											{category.replace(/_/g, " ")}
+										</h4>
+										<div className="space-y-2">
+											{features.map((feature: SnapshotFeature) => (
+												<div
+													key={feature.id}
+													className="flex items-start gap-2 p-2 rounded border bg-card text-sm"
+												>
+													<Check className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+													<div className="flex-1 space-y-0.5">
+														<div className="flex items-center gap-2">
+															<span className="font-medium">
+																{feature.featureName}
+															</span>
+															{feature.source !== "plan" && (
+																<Badge
+																	variant="secondary"
+																	className="text-xs h-5"
+																>
+																	{feature.source}
+																</Badge>
+															)}
+														</div>
+														{feature.featureDescription && (
+															<p className="text-xs text-muted-foreground">
+																{feature.featureDescription}
+															</p>
 														)}
 													</div>
-													{feature.featureDescription && (
-														<p className="text-xs text-muted-foreground">
-															{feature.featureDescription}
-														</p>
-													)}
 												</div>
-											</div>
-										))}
+											))}
+										</div>
 									</div>
-								</div>
-							))}
+								),
+							)}
 						</div>
 					)}
 				</CardContent>
@@ -165,60 +172,75 @@ export function TeamEntitlementsDetail({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{(snapshot.limits as SnapshotLimit[]).map((limit: SnapshotLimit) => {
-									const usage = limit.currentUsage
-									const max = limit.value
-									const percentage = max === -1 ? 0 : Math.min((usage / max) * 100, 100)
-									const isUnlimited = max === -1
+								{(snapshot.limits as SnapshotLimit[]).map(
+									(limit: SnapshotLimit) => {
+										const usage = limit.currentUsage
+										const max = limit.value
+										const percentage =
+											max === -1 ? 0 : Math.min((usage / max) * 100, 100)
+										const isUnlimited = max === -1
 
-									return (
-										<TableRow key={limit.id}>
-											<TableCell>
-												<div className="space-y-0.5">
-													<p className="text-sm font-medium">{limit.limitName}</p>
-													{limit.limitDescription && (
-														<p className="text-xs text-muted-foreground">
-															{limit.limitDescription}
+										return (
+											<TableRow key={limit.id}>
+												<TableCell>
+													<div className="space-y-0.5">
+														<p className="text-sm font-medium">
+															{limit.limitName}
 														</p>
-													)}
-													{limit.source !== "plan" && (
-														<Badge variant="secondary" className="text-xs h-5">
-															{limit.source}
-														</Badge>
-													)}
-												</div>
-											</TableCell>
-											<TableCell>
-												<div className="space-y-1.5 max-w-[200px]">
-													<div className="flex items-center gap-2">
-														<span className="text-xs font-mono">
-															{usage}
-															{isUnlimited ? "" : ` / ${max}`} {limit.limitUnit}
-														</span>
-														{isUnlimited && (
-															<Badge variant="outline" className="text-xs h-5">
-																Unlimited
+														{limit.limitDescription && (
+															<p className="text-xs text-muted-foreground">
+																{limit.limitDescription}
+															</p>
+														)}
+														{limit.source !== "plan" && (
+															<Badge
+																variant="secondary"
+																className="text-xs h-5"
+															>
+																{limit.source}
 															</Badge>
 														)}
 													</div>
-													{!isUnlimited && (
-														<Progress value={percentage} className="h-1.5" />
-													)}
-												</div>
-											</TableCell>
-											<TableCell>
-												<span className="text-sm font-mono">
-													{isUnlimited ? "∞" : max}
-												</span>
-											</TableCell>
-											<TableCell>
-												<Badge variant="secondary" className="capitalize text-xs h-5">
-													{limit.limitResetPeriod}
-												</Badge>
-											</TableCell>
-										</TableRow>
-									)
-								})}
+												</TableCell>
+												<TableCell>
+													<div className="space-y-1.5 max-w-[200px]">
+														<div className="flex items-center gap-2">
+															<span className="text-xs font-mono">
+																{usage}
+																{isUnlimited ? "" : ` / ${max}`}{" "}
+																{limit.limitUnit}
+															</span>
+															{isUnlimited && (
+																<Badge
+																	variant="outline"
+																	className="text-xs h-5"
+																>
+																	Unlimited
+																</Badge>
+															)}
+														</div>
+														{!isUnlimited && (
+															<Progress value={percentage} className="h-1.5" />
+														)}
+													</div>
+												</TableCell>
+												<TableCell>
+													<span className="text-sm font-mono">
+														{isUnlimited ? "∞" : max}
+													</span>
+												</TableCell>
+												<TableCell>
+													<Badge
+														variant="secondary"
+														className="capitalize text-xs h-5"
+													>
+														{limit.limitResetPeriod}
+													</Badge>
+												</TableCell>
+											</TableRow>
+										)
+									},
+								)}
 							</TableBody>
 						</Table>
 					)}

@@ -136,7 +136,8 @@ export function OrganizerSeriesEditForm({
 								<Input placeholder="e.g., 2026-throwdown-series" {...field} />
 							</FormControl>
 							<FormDescription>
-								URL-friendly identifier (unique per team, lowercase, hyphens only)
+								URL-friendly identifier (unique per team, lowercase, hyphens
+								only)
 							</FormDescription>
 							<FormMessage />
 						</FormItem>

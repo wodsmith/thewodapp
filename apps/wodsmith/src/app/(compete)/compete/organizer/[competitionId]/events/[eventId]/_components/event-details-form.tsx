@@ -46,7 +46,12 @@ import {
 	competitionEventSchema,
 	type CompetitionEventSchema,
 } from "@/schemas/workout.schema"
-import { WORKOUT_SCHEMES, SCORE_TYPES, TIEBREAK_SCHEMES, SECONDARY_SCHEMES } from "@/constants"
+import {
+	WORKOUT_SCHEMES,
+	SCORE_TYPES,
+	TIEBREAK_SCHEMES,
+	SECONDARY_SCHEMES,
+} from "@/constants"
 
 // Get default score type based on scheme
 function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
@@ -155,10 +160,13 @@ export function EventDetailsForm({
 	const { execute: updateWorkout, isPending: isUpdatingWorkout } =
 		useServerAction(updateCompetitionWorkoutAction)
 
-	const { execute: updateDivisionDescsAction, isPending: isUpdatingDivisionDescs } =
-		useServerAction(updateDivisionDescriptionsAction)
+	const {
+		execute: updateDivisionDescsAction,
+		isPending: isUpdatingDivisionDescs,
+	} = useServerAction(updateDivisionDescriptionsAction)
 
-	const isSaving = isUpdatingEvent || isUpdatingWorkout || isUpdatingDivisionDescs
+	const isSaving =
+		isUpdatingEvent || isUpdatingWorkout || isUpdatingDivisionDescs
 
 	const onSubmit = async (data: CompetitionEventSchema) => {
 		// Update workout details
@@ -209,7 +217,9 @@ export function EventDetailsForm({
 			})
 
 			if (descError) {
-				toast.error(descError.message || "Failed to update division descriptions")
+				toast.error(
+					descError.message || "Failed to update division descriptions",
+				)
 				return
 			}
 		}
@@ -237,10 +247,7 @@ export function EventDetailsForm({
 								<FormItem>
 									<FormLabel>Event Name</FormLabel>
 									<FormControl>
-										<Input
-											placeholder="e.g., Event 1 - Fran"
-											{...field}
-										/>
+										<Input placeholder="e.g., Event 1 - Fran" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -253,10 +260,7 @@ export function EventDetailsForm({
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>Scheme</FormLabel>
-									<Select
-										value={field.value}
-										onValueChange={field.onChange}
-									>
+									<Select value={field.value} onValueChange={field.onChange}>
 										<FormControl>
 											<SelectTrigger>
 												<SelectValue placeholder="Select scheme" />
@@ -284,7 +288,9 @@ export function EventDetailsForm({
 										<FormLabel>Score Type</FormLabel>
 										<Select
 											value={field.value ?? "none"}
-											onValueChange={(v) => field.onChange(v === "none" ? null : v)}
+											onValueChange={(v) =>
+												field.onChange(v === "none" ? null : v)
+											}
 										>
 											<FormControl>
 												<SelectTrigger>
@@ -313,7 +319,8 @@ export function EventDetailsForm({
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>
-											Rounds to Score <span className="text-muted-foreground">(optional)</span>
+											Rounds to Score{" "}
+											<span className="text-muted-foreground">(optional)</span>
 										</FormLabel>
 										<FormControl>
 											<Input
@@ -322,7 +329,9 @@ export function EventDetailsForm({
 												value={field.value ?? ""}
 												onChange={(e) =>
 													field.onChange(
-														e.target.value ? Number.parseInt(e.target.value) : null,
+														e.target.value
+															? Number.parseInt(e.target.value)
+															: null,
 													)
 												}
 												min="1"
@@ -338,7 +347,8 @@ export function EventDetailsForm({
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>
-											Reps per Round <span className="text-muted-foreground">(optional)</span>
+											Reps per Round{" "}
+											<span className="text-muted-foreground">(optional)</span>
 										</FormLabel>
 										<FormControl>
 											<Input
@@ -347,7 +357,9 @@ export function EventDetailsForm({
 												value={field.value ?? ""}
 												onChange={(e) =>
 													field.onChange(
-														e.target.value ? Number.parseInt(e.target.value) : null,
+														e.target.value
+															? Number.parseInt(e.target.value)
+															: null,
 													)
 												}
 												min="1"
@@ -366,11 +378,14 @@ export function EventDetailsForm({
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>
-											Tiebreak Scheme <span className="text-muted-foreground">(optional)</span>
+											Tiebreak Scheme{" "}
+											<span className="text-muted-foreground">(optional)</span>
 										</FormLabel>
 										<Select
 											value={field.value ?? "none"}
-											onValueChange={(v) => field.onChange(v === "none" ? null : v)}
+											onValueChange={(v) =>
+												field.onChange(v === "none" ? null : v)
+											}
 										>
 											<FormControl>
 												<SelectTrigger>
@@ -396,11 +411,14 @@ export function EventDetailsForm({
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>
-											Secondary Scheme <span className="text-muted-foreground">(optional)</span>
+											Secondary Scheme{" "}
+											<span className="text-muted-foreground">(optional)</span>
 										</FormLabel>
 										<Select
 											value={field.value ?? "none"}
-											onValueChange={(v) => field.onChange(v === "none" ? null : v)}
+											onValueChange={(v) =>
+												field.onChange(v === "none" ? null : v)
+											}
 										>
 											<FormControl>
 												<SelectTrigger>
@@ -436,8 +454,8 @@ export function EventDetailsForm({
 										/>
 									</FormControl>
 									<FormDescription>
-										This is the default description shown to all athletes. You can add
-										division-specific variations below.
+										This is the default description shown to all athletes. You
+										can add division-specific variations below.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -571,7 +589,8 @@ export function EventDetailsForm({
 														{division.label}
 														{division.registrationCount > 0 && (
 															<span className="text-muted-foreground ml-2 font-normal">
-																({division.registrationCount} athlete{division.registrationCount !== 1 ? "s" : ""})
+																({division.registrationCount} athlete
+																{division.registrationCount !== 1 ? "s" : ""})
 															</span>
 														)}
 													</FormLabel>
@@ -600,7 +619,9 @@ export function EventDetailsForm({
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => router.push(`/compete/organizer/${competitionId}/divisions`)}
+									onClick={() =>
+										router.push(`/compete/organizer/${competitionId}/divisions`)
+									}
 								>
 									Create Divisions
 								</Button>
@@ -614,7 +635,9 @@ export function EventDetailsForm({
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => router.push(`/compete/organizer/${competitionId}/events`)}
+						onClick={() =>
+							router.push(`/compete/organizer/${competitionId}/events`)
+						}
 					>
 						Cancel
 					</Button>

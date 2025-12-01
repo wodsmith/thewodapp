@@ -186,16 +186,11 @@ export const setActiveTeamAction = createServerAction()
 			const team = session.teams.find((t) => t.id === input.teamId)
 
 			if (!team) {
-				throw new ZSAError(
-					"FORBIDDEN",
-					"You are not a member of this team",
-				)
+				throw new ZSAError("FORBIDDEN", "You are not a member of this team")
 			}
 
 			// Verify user has at least ACCESS_DASHBOARD permission
-			if (
-				!team.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)
-			) {
+			if (!team.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
 				throw new ZSAError(
 					"FORBIDDEN",
 					"You do not have permission to access this team",
@@ -213,10 +208,7 @@ export const setActiveTeamAction = createServerAction()
 				throw error
 			}
 
-			throw new ZSAError(
-				"INTERNAL_SERVER_ERROR",
-				"Failed to set active team",
-			)
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to set active team")
 		}
 	})
 

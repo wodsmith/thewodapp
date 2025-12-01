@@ -300,7 +300,7 @@ export async function generateSchedule({
 // Function to fetch scheduled classes with all related data for display
 export async function getScheduledClassesForDisplay({
 	scheduleId,
-	teamId,
+	teamId: _teamId,
 }: {
 	scheduleId: string
 	teamId: string

@@ -28,8 +28,11 @@ export function FeaturesManagement() {
 	const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-	const { execute: fetchFeatures, data: featuresData, isPending } =
-		useServerAction(getAllFeaturesAction)
+	const {
+		execute: fetchFeatures,
+		data: featuresData,
+		isPending,
+	} = useServerAction(getAllFeaturesAction)
 
 	useEffect(() => {
 		fetchFeatures()
