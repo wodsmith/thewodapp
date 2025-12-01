@@ -5,6 +5,7 @@ import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionsTable,
+	type HeatStatus,
 	movements,
 	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
@@ -32,6 +33,7 @@ export interface CompetitionWorkout {
 	trackOrder: number
 	notes: string | null
 	pointsMultiplier: number | null
+	heatStatus: HeatStatus | null
 	createdAt: Date
 	updatedAt: Date
 	workout: {
@@ -131,6 +133,7 @@ export async function getCompetitionWorkouts(
 			trackOrder: trackWorkoutsTable.trackOrder,
 			notes: trackWorkoutsTable.notes,
 			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+			heatStatus: trackWorkoutsTable.heatStatus,
 			createdAt: trackWorkoutsTable.createdAt,
 			updatedAt: trackWorkoutsTable.updatedAt,
 			workout: {
@@ -161,6 +164,7 @@ export async function updateCompetitionWorkout(params: {
 	trackOrder?: number
 	pointsMultiplier?: number
 	notes?: string | null
+	heatStatus?: HeatStatus
 }): Promise<void> {
 	const db = getDb()
 
@@ -176,6 +180,9 @@ export async function updateCompetitionWorkout(params: {
 	}
 	if (params.notes !== undefined) {
 		updateData.notes = params.notes
+	}
+	if (params.heatStatus !== undefined) {
+		updateData.heatStatus = params.heatStatus
 	}
 
 	await db
@@ -314,6 +321,7 @@ export async function getCompetitionEvent(
 		trackOrder: trackWorkout.trackOrder,
 		notes: trackWorkout.notes,
 		pointsMultiplier: trackWorkout.pointsMultiplier,
+		heatStatus: trackWorkout.heatStatus,
 		createdAt: trackWorkout.createdAt,
 		updatedAt: trackWorkout.updatedAt,
 		workout: {

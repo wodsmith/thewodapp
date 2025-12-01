@@ -1072,47 +1072,81 @@ INSERT INTO workout_movements (id, workout_id, movement_id, createdAt, updatedAt
 ('wm_nicole_pullup', 'wod_nicole', 'mov_pullup', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Add all workouts to the Girls programming track
-INSERT INTO track_workout (id, trackId, workoutId, trackOrder, notes, createdAt, updatedAt, updateCounter) VALUES
-('trwk_girls_amanda', 'ptrk_girls', 'wod_amanda', 1, 'Classic benchmark - muscle-ups and squat snatches', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_angie', 'ptrk_girls', 'wod_angie', 2, 'High volume bodyweight movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_annie', 'ptrk_girls', 'wod_annie', 3, 'Double-unders and sit-ups descending ladder', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_barbara', 'ptrk_girls', 'wod_barbara', 4, 'Time with rest - stay unbroken', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_candy', 'ptrk_girls', 'wod_candy', 5, 'High volume upper body work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_chelsea', 'ptrk_girls', 'wod_chelsea', 6, 'EMOM format - maintain consistency', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_cindy', 'ptrk_girls', 'wod_cindy', 7, 'Classic AMRAP - pace yourself', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_diane', 'ptrk_girls', 'wod_diane', 8, 'Heavy deadlifts and handstand push-ups', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_elizabeth', 'ptrk_girls', 'wod_elizabeth', 9, 'Squat cleans and ring dips', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_eva', 'ptrk_girls', 'wod_eva', 10, 'Long chipper - pace management critical', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_fran', 'ptrk_girls', 'wod_fran', 11, 'The classic sprint - fast and light', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_grace', 'ptrk_girls', 'wod_grace', 12, 'Pure strength endurance - 30 clean and jerks', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_gwen', 'ptrk_girls', 'wod_gwen', 13, 'Load-based scoring - find your max unbroken weight', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_helen', 'ptrk_girls', 'wod_helen', 14, 'Running and upper body combo', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_hope', 'ptrk_girls', 'wod_hope', 15, 'Points-based scoring across 5 stations', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_isabel', 'ptrk_girls', 'wod_isabel', 16, '30 snatches - technical and demanding', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_jackie', 'ptrk_girls', 'wod_jackie', 17, 'Chipper format - row, thrusters, pull-ups', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_karen', 'ptrk_girls', 'wod_karen', 18, 'Simple but brutal - just wall balls', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_kelly', 'ptrk_girls', 'wod_kelly', 19, 'Mixed modal endurance workout', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_linda', 'ptrk_girls', 'wod_linda', 20, 'Strength ladder based on bodyweight percentages', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_lynne', 'ptrk_girls', 'wod_lynne', 21, 'Upper body strength endurance test', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_maggie', 'ptrk_girls', 'wod_maggie', 22, 'Advanced gymnastic movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_marguerita', 'ptrk_girls', 'wod_marguerita', 23, 'High volume mixed movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_mary', 'ptrk_girls', 'wod_mary', 24, 'Advanced gymnastic AMRAP', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_megan', 'ptrk_girls', 'wod_megan', 25, 'Fast couplet with skill component', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_nancy', 'ptrk_girls', 'wod_nancy', 26, 'Running with overhead squats', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_nicole', 'ptrk_girls', 'wod_nicole', 27, 'Run and max pull-ups format', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+INSERT INTO track_workout (id, trackId, workoutId, trackOrder, notes, heatStatus, createdAt, updatedAt, updateCounter) VALUES
+('trwk_girls_amanda', 'ptrk_girls', 'wod_amanda', 1, 'Classic benchmark - muscle-ups and squat snatches', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_angie', 'ptrk_girls', 'wod_angie', 2, 'High volume bodyweight movements', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_annie', 'ptrk_girls', 'wod_annie', 3, 'Double-unders and sit-ups descending ladder', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_barbara', 'ptrk_girls', 'wod_barbara', 4, 'Time with rest - stay unbroken', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_candy', 'ptrk_girls', 'wod_candy', 5, 'High volume upper body work', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_chelsea', 'ptrk_girls', 'wod_chelsea', 6, 'EMOM format - maintain consistency', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_cindy', 'ptrk_girls', 'wod_cindy', 7, 'Classic AMRAP - pace yourself', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_diane', 'ptrk_girls', 'wod_diane', 8, 'Heavy deadlifts and handstand push-ups', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_elizabeth', 'ptrk_girls', 'wod_elizabeth', 9, 'Squat cleans and ring dips', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_eva', 'ptrk_girls', 'wod_eva', 10, 'Long chipper - pace management critical', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_fran', 'ptrk_girls', 'wod_fran', 11, 'The classic sprint - fast and light', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_grace', 'ptrk_girls', 'wod_grace', 12, 'Pure strength endurance - 30 clean and jerks', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_gwen', 'ptrk_girls', 'wod_gwen', 13, 'Load-based scoring - find your max unbroken weight', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_helen', 'ptrk_girls', 'wod_helen', 14, 'Running and upper body combo', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_hope', 'ptrk_girls', 'wod_hope', 15, 'Points-based scoring across 5 stations', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_isabel', 'ptrk_girls', 'wod_isabel', 16, '30 snatches - technical and demanding', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_jackie', 'ptrk_girls', 'wod_jackie', 17, 'Chipper format - row, thrusters, pull-ups', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_karen', 'ptrk_girls', 'wod_karen', 18, 'Simple but brutal - just wall balls', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_kelly', 'ptrk_girls', 'wod_kelly', 19, 'Mixed modal endurance workout', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_linda', 'ptrk_girls', 'wod_linda', 20, 'Strength ladder based on bodyweight percentages', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_lynne', 'ptrk_girls', 'wod_lynne', 21, 'Upper body strength endurance test', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_maggie', 'ptrk_girls', 'wod_maggie', 22, 'Advanced gymnastic movements', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_marguerita', 'ptrk_girls', 'wod_marguerita', 23, 'High volume mixed movements', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_mary', 'ptrk_girls', 'wod_mary', 24, 'Advanced gymnastic AMRAP', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_megan', 'ptrk_girls', 'wod_megan', 25, 'Fast couplet with skill component', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_nancy', 'ptrk_girls', 'wod_nancy', 26, 'Running with overhead squats', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_nicole', 'ptrk_girls', 'wod_nicole', 27, 'Run and max pull-ups format', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Remixed workouts for Winter Throwdown 2025 competition
+-- These are copies of the benchmark workouts, owned by the organizing team
+INSERT OR IGNORE INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_score, source_workout_id, createdAt, updatedAt, updateCounter) VALUES
+-- Fran (remixed for competition)
+('wod_winter_fran', 'Fran', 'For time:
+
+21-15-9 reps
+• Thrusters (95/75lb)
+• Pull-ups
+
+Target: 5 minutes', 'time', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_fran', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Grace (remixed for competition)
+('wod_winter_grace', 'Grace', 'For time:
+• 30 Clean-and-Jerks (135/95lb)
+
+Target: 8 minutes', 'time', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_grace', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Cindy (remixed for competition)
+('wod_winter_cindy', 'Cindy', 'AMRAP 20 minutes:
+• 5 pull-ups
+• 10 push-ups
+• 15 air squats
+
+Target: 12 rounds', 'rounds-reps', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_cindy', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Linda (remixed for competition)
+('wod_winter_linda', 'Linda', 'For time:
+
+10-9-8-7-6-5-4-3-2-1 reps
+• Deadlift (1.5 BW)
+• Bench Press (BW)
+• Clean (0.75 BW)
+
+Target: 30 minutes', 'time', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_linda', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Competition Events for Winter Throwdown 2025 (4 workouts: 2 short, 1 medium, 1 long)
--- Using existing benchmark workouts from the Girls collection
+-- Using remixed benchmark workouts owned by the organizing team
 -- trackOrder determines the event order in the competition
-INSERT OR IGNORE INTO track_workout (id, trackId, workoutId, trackOrder, notes, pointsMultiplier, createdAt, updatedAt, updateCounter) VALUES
+-- heatStatus: 'draft' (assignments hidden from athletes) or 'published' (assignments visible)
+INSERT OR IGNORE INTO track_workout (id, trackId, workoutId, trackOrder, notes, pointsMultiplier, heatStatus, createdAt, updatedAt, updateCounter) VALUES
 -- Event 1: Fran (short ~5 min) - Classic sprint workout
-('tw_winter_event1_fran', 'track_winter_throwdown_2025', 'wod_fran', 1, 'Event 1: Fran - A classic benchmark testing barbell cycling and gymnastics under fatigue. Fast and furious!', 100, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_winter_event1_fran', 'track_winter_throwdown_2025', 'wod_winter_fran', 1, 'Event 1: Fran - A classic benchmark testing barbell cycling and gymnastics under fatigue. Fast and furious!', 100, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 -- Event 2: Grace (short ~8 min) - Olympic lifting under fatigue
-('tw_winter_event2_grace', 'track_winter_throwdown_2025', 'wod_grace', 2, 'Event 2: Grace - 30 clean and jerks for time. Test your barbell cycling and mental fortitude.', 100, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_winter_event2_grace', 'track_winter_throwdown_2025', 'wod_winter_grace', 2, 'Event 2: Grace - 30 clean and jerks for time. Test your barbell cycling and mental fortitude.', 100, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 -- Event 3: Cindy (medium 20 min) - Bodyweight AMRAP
-('tw_winter_event3_cindy', 'track_winter_throwdown_2025', 'wod_cindy', 3, 'Event 3: Cindy - 20 minute AMRAP of pull-ups, push-ups, and squats. Pace yourself!', 100, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('tw_winter_event3_cindy', 'track_winter_throwdown_2025', 'wod_winter_cindy', 3, 'Event 3: Cindy - 20 minute AMRAP of pull-ups, push-ups, and squats. Pace yourself!', 100, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0),
 -- Event 4: Linda (long ~30 min) - Heavy barbell chipper, final event with 1.5x points
-('tw_winter_event4_linda', 'track_winter_throwdown_2025', 'wod_linda', 4, 'Event 4: Linda (Finals) - The ultimate test with deadlifts, bench press, and cleans. 1.5x points!', 150, strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('tw_winter_event4_linda', 'track_winter_throwdown_2025', 'wod_winter_linda', 4, 'Event 4: Linda (Finals) - The ultimate test with deadlifts, bench press, and cleans. 1.5x points!', 150, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed some sample results
 INSERT OR IGNORE INTO results (id, user_id, date, workout_id, type, wod_score, scale, notes, createdAt, updatedAt, updateCounter) VALUES 

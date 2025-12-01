@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Plus, Clock, MapPin, Users, Loader2, Calculator, Info } from "lucide-react"
+import { Plus, Clock, MapPin, Users, Loader2, Calculator, Info, Eye, EyeOff } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +30,9 @@ import {
 	getUnassignedRegistrationsAction,
 	bulkCreateHeatsAction,
 } from "@/actions/competition-heat-actions"
+import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
+import { Badge } from "@/components/ui/badge"
+import { HEAT_STATUS, type HeatStatus } from "@/db/schema"
 import {
 	Tooltip,
 	TooltipContent,
@@ -101,6 +104,11 @@ export function HeatScheduleManager({
 		new Set(),
 	)
 	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
+	// Track events locally to update heatStatus
+	const [localEvents, setLocalEvents] = useState(events)
+
+	// Action for updating heat status
+	const updateWorkout = useServerAction(updateCompetitionWorkoutAction)
 
 	// Selection handlers
 	function toggleAthleteSelection(id: string, shiftKey: boolean) {
@@ -142,6 +150,34 @@ export function HeatScheduleManager({
 	function clearSelection() {
 		setSelectedAthleteIds(new Set())
 		setLastSelectedId(null)
+	}
+
+	// Update heat status for an event
+	async function handleHeatStatusChange(eventId: string, newStatus: HeatStatus) {
+		const event = localEvents.find((e) => e.id === eventId)
+		if (!event || event.heatStatus === newStatus) return
+
+		const previousStatus = event.heatStatus
+
+		// Optimistic update
+		setLocalEvents((prev) =>
+			prev.map((e) => (e.id === eventId ? { ...e, heatStatus: newStatus } : e)),
+		)
+
+		const [, error] = await updateWorkout.execute({
+			trackWorkoutId: eventId,
+			organizingTeamId,
+			heatStatus: newStatus,
+		})
+
+		if (error) {
+			// Revert on error
+			setLocalEvents((prev) =>
+				prev.map((e) =>
+					e.id === eventId ? { ...e, heatStatus: previousStatus } : e,
+				),
+			)
+		}
 	}
 
 	// Format date for datetime-local input (YYYY-MM-DDTHH:MM) in local timezone
@@ -231,7 +267,7 @@ export function HeatScheduleManager({
 	const bulkCreateHeats = useServerAction(bulkCreateHeatsAction)
 
 	// Get the selected event
-	const selectedEvent = events.find((e) => e.id === selectedEventId)
+	const selectedEvent = localEvents.find((e) => e.id === selectedEventId)
 
 	// Filter heats for the selected event
 	const eventHeats = useMemo(
@@ -522,7 +558,7 @@ export function HeatScheduleManager({
 		setBulkHeatTimes([])
 	}
 
-	if (events.length === 0) {
+	if (localEvents.length === 0) {
 		return (
 			<Card className="border-dashed">
 				<CardContent className="py-8 text-center text-muted-foreground">
@@ -539,7 +575,51 @@ export function HeatScheduleManager({
 	return (
 		<div className="space-y-6">
 			{/* Event Overview */}
-			<EventOverview events={events} heats={heats} />
+			<EventOverview events={localEvents} heats={heats} />
+
+			{/* Heat Status Row */}
+			{selectedEvent && (
+				<div className="flex items-center gap-3">
+					<Label className="whitespace-nowrap text-sm flex items-center gap-1.5">
+						{selectedEvent.heatStatus === "published" ? (
+							<Eye className="h-4 w-4 text-green-600" />
+						) : (
+							<EyeOff className="h-4 w-4 text-muted-foreground" />
+						)}
+						Heat Assignments:
+					</Label>
+					<Select
+						value={selectedEvent.heatStatus ?? HEAT_STATUS.DRAFT}
+						onValueChange={(value) =>
+							handleHeatStatusChange(selectedEvent.id, value as HeatStatus)
+						}
+						disabled={updateWorkout.isPending}
+					>
+						<SelectTrigger className="w-[130px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value={HEAT_STATUS.DRAFT}>
+								<span className="flex items-center gap-2">
+									<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+									Draft
+								</span>
+							</SelectItem>
+							<SelectItem value={HEAT_STATUS.PUBLISHED}>
+								<span className="flex items-center gap-2">
+									<Eye className="h-3.5 w-3.5 text-green-600" />
+									Published
+								</span>
+							</SelectItem>
+						</SelectContent>
+					</Select>
+					<span className="text-xs text-muted-foreground">
+						{selectedEvent.heatStatus === "published"
+							? `Heat assignments for ${selectedEvent.workout.name} are visible to public`
+							: `Heat assignments for ${selectedEvent.workout.name} are hidden from public`}
+					</span>
+				</div>
+			)}
 
 			{/* Event & Venue Selector */}
 			<div className="flex flex-wrap items-center gap-4">
@@ -552,7 +632,7 @@ export function HeatScheduleManager({
 							<SelectValue placeholder="Select an event" />
 						</SelectTrigger>
 						<SelectContent>
-							{events.map((event) => (
+							{localEvents.map((event) => (
 								<SelectItem key={event.id} value={event.id}>
 									{event.trackOrder}. {event.workout.name}
 								</SelectItem>

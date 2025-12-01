@@ -439,6 +439,7 @@ export function TrackWorkoutManagement({
 						trackOrder,
 						notes: null,
 						pointsMultiplier: 100,
+						heatStatus: null, // Not used for regular programming tracks
 						updateCounter: null,
 						createdAt: new Date(), // Temporary UI object
 						updatedAt: new Date(), // Temporary UI object

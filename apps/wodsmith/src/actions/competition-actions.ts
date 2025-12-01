@@ -639,6 +639,7 @@ const updateCompetitionWorkoutSchema = z.object({
 	trackOrder: z.number().int().min(1).optional(),
 	pointsMultiplier: z.number().int().min(1).optional(),
 	notes: z.string().max(1000).nullable().optional(),
+	heatStatus: z.enum(["draft", "published"]).optional(),
 })
 
 const removeWorkoutFromCompetitionSchema = z.object({
@@ -789,6 +790,7 @@ export const updateCompetitionWorkoutAction = createServerAction()
 				trackOrder: input.trackOrder,
 				pointsMultiplier: input.pointsMultiplier,
 				notes: input.notes,
+				heatStatus: input.heatStatus,
 			})
 
 			// Revalidate
