@@ -227,6 +227,8 @@ export const competitionHeatsTable = sqliteTable(
 		}),
 		heatNumber: integer().notNull(),
 		scheduledTime: integer({ mode: "timestamp" }),
+		// Duration of this heat in minutes (workout cap + buffer)
+		durationMinutes: integer(),
 		// Optional division filter (null = mixed divisions)
 		divisionId: text().references(() => scalingLevelsTable.id, {
 			onDelete: "set null",
