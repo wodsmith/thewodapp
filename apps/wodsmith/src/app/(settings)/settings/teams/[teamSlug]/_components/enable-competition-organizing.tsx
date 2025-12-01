@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation"
 import { Trophy, CheckCircle, Loader2 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import { enableCompetitionOrganizingAction } from "@/actions/entitlements-actions"
 import { toast } from "sonner"
 
@@ -46,7 +52,9 @@ export function EnableCompetitionOrganizing({
 					<div className="flex items-center gap-3">
 						<CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
 						<div>
-							<CardTitle className="text-lg">Competition Organizing Enabled</CardTitle>
+							<CardTitle className="text-lg">
+								Competition Organizing Enabled
+							</CardTitle>
 							<CardDescription>
 								This team can create and manage competitions
 							</CardDescription>

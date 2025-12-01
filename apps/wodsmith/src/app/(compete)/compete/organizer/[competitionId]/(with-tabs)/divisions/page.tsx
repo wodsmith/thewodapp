@@ -45,7 +45,10 @@ export default async function CompetitionDivisionsPage({
 	// Parallel fetch: divisions with counts and available scaling groups
 	const [{ scalingGroupId, divisions }, scalingGroups] = await Promise.all([
 		getCompetitionDivisionsWithCounts({ competitionId }),
-		listScalingGroups({ teamId: competition.organizingTeamId, includeSystem: true }),
+		listScalingGroups({
+			teamId: competition.organizingTeamId,
+			includeSystem: true,
+		}),
 	])
 
 	return (

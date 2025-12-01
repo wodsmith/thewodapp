@@ -48,9 +48,7 @@ export function CompetitionTabs({
 								Leaderboard
 							</TabsTrigger>
 						</TabsList>
-						<div className="py-2 pr-4">
-							{registerButton}
-						</div>
+						<div className="py-2 pr-4">{registerButton}</div>
 					</div>
 				</div>
 			</div>

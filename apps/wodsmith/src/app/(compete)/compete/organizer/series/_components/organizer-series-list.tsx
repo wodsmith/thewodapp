@@ -73,7 +73,8 @@ export function OrganizerSeriesList({
 						<FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
 						<h3 className="text-lg font-medium mb-2">No series yet</h3>
 						<p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-							Create a series to organize related competitions together, like annual events or recurring challenges.
+							Create a series to organize related competitions together, like
+							annual events or recurring challenges.
 						</p>
 						<Link href="/compete/organizer/series/new">
 							<Button>
@@ -91,10 +92,7 @@ export function OrganizerSeriesList({
 		<>
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{groups.map((group) => (
-					<Card
-						key={group.id}
-						className="hover:bg-accent/50 transition-colors"
-					>
+					<Card key={group.id} className="hover:bg-accent/50 transition-colors">
 						<CardHeader>
 							<div className="flex items-start justify-between">
 								<div className="flex-1 min-w-0">
@@ -105,12 +103,16 @@ export function OrganizerSeriesList({
 									</Link>
 									<CardDescription className="mt-1">
 										<Badge variant="secondary">
-											{group.competitionCount} competition{group.competitionCount !== 1 ? "s" : ""}
+											{group.competitionCount} competition
+											{group.competitionCount !== 1 ? "s" : ""}
 										</Badge>
 									</CardDescription>
 								</div>
 								<DropdownMenu>
-									<DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+									<DropdownMenuTrigger
+										asChild
+										onClick={(e) => e.preventDefault()}
+									>
 										<Button variant="ghost" size="sm">
 											<MoreHorizontal className="h-4 w-4" />
 										</Button>
@@ -160,7 +162,8 @@ export function OrganizerSeriesList({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete Series?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action cannot be undone. Series with competitions cannot be deleted.
+							This action cannot be undone. Series with competitions cannot be
+							deleted.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

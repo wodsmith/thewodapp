@@ -9,8 +9,6 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 } from "@/db/schema"
 
-
-
 /**
  * Fee configuration for calculating competition fees
  */
@@ -144,34 +142,36 @@ export async function getCompetitionRevenueStats(
 		)
 
 	// Get division labels and fees
-	const divisionIds = [...new Set(purchases.map((p) => p.divisionId).filter(Boolean))]
-	const divisions = divisionIds.length > 0
-		? await db
-				.select({
-					id: scalingLevelsTable.id,
-					label: scalingLevelsTable.label,
-				})
-				.from(scalingLevelsTable)
-				.where(
-					sql`${scalingLevelsTable.id} IN ${divisionIds}`,
-				)
-		: []
+	const divisionIds = [
+		...new Set(purchases.map((p) => p.divisionId).filter(Boolean)),
+	]
+	const divisions =
+		divisionIds.length > 0
+			? await db
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
+					.from(scalingLevelsTable)
+					.where(sql`${scalingLevelsTable.id} IN ${divisionIds}`)
+			: []
 
 	// Get division fees for ticket prices
-	const divisionFees = divisionIds.length > 0
-		? await db
-				.select({
-					divisionId: competitionDivisionFeesTable.divisionId,
-					feeCents: competitionDivisionFeesTable.feeCents,
-				})
-				.from(competitionDivisionFeesTable)
-				.where(
-					and(
-						eq(competitionDivisionFeesTable.competitionId, competitionId),
-						sql`${competitionDivisionFeesTable.divisionId} IN ${divisionIds}`,
-					),
-				)
-		: []
+	const divisionFees =
+		divisionIds.length > 0
+			? await db
+					.select({
+						divisionId: competitionDivisionFeesTable.divisionId,
+						feeCents: competitionDivisionFeesTable.feeCents,
+					})
+					.from(competitionDivisionFeesTable)
+					.where(
+						and(
+							eq(competitionDivisionFeesTable.competitionId, competitionId),
+							sql`${competitionDivisionFeesTable.divisionId} IN ${divisionIds}`,
+						),
+					)
+			: []
 
 	// Get competition default fee as fallback for divisions without specific fees
 	const competition = await db.query.competitionsTable.findFirst({
@@ -181,7 +181,9 @@ export async function getCompetitionRevenueStats(
 	const defaultFeeCents = competition?.defaultRegistrationFeeCents ?? 0
 
 	const divisionMap = new Map(divisions.map((d) => [d.id, d.label]))
-	const divisionFeeMap = new Map(divisionFees.map((f) => [f.divisionId, f.feeCents]))
+	const divisionFeeMap = new Map(
+		divisionFees.map((f) => [f.divisionId, f.feeCents]),
+	)
 
 	// Aggregate totals
 	let totalGrossCents = 0
@@ -221,7 +223,8 @@ export async function getCompetitionRevenueStats(
 			grossCents: existing.grossCents + purchase.totalCents,
 			platformFeeCents: existing.platformFeeCents + purchase.platformFeeCents,
 			stripeFeeCents: existing.stripeFeeCents + purchase.stripeFeeCents,
-			organizerNetCents: existing.organizerNetCents + purchase.organizerNetCents,
+			organizerNetCents:
+				existing.organizerNetCents + purchase.organizerNetCents,
 		})
 	}
 

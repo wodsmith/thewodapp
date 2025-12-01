@@ -76,10 +76,12 @@ export function CompetitionEventRow({
 
 	// Division editing state
 	const sortedDivisions = [...divisions].sort((a, b) => a.position - b.position)
-	const [selectedDivisionId, setSelectedDivisionId] = useState<string | undefined>(
-		sortedDivisions[0]?.id,
-	)
-	const [localDescriptions, setLocalDescriptions] = useState<Record<string, string>>(() => {
+	const [selectedDivisionId, setSelectedDivisionId] = useState<
+		string | undefined
+	>(sortedDivisions[0]?.id)
+	const [localDescriptions, setLocalDescriptions] = useState<
+		Record<string, string>
+	>(() => {
 		const initial: Record<string, string> = {}
 		for (const desc of divisionDescriptions) {
 			initial[desc.divisionId] = desc.description || ""
@@ -322,7 +324,9 @@ export function CompetitionEventRow({
 									asChild
 									className="text-muted-foreground hover:text-foreground"
 								>
-									<Link href={`/compete/organizer/${competitionId}/events/${event.id}`}>
+									<Link
+										href={`/compete/organizer/${competitionId}/events/${event.id}`}
+									>
 										<Pencil className="h-4 w-4" />
 									</Link>
 								</Button>
@@ -370,7 +374,11 @@ export function CompetitionEventRow({
 									)}
 								</div>
 								<Textarea
-									value={selectedDivisionId ? localDescriptions[selectedDivisionId] || "" : ""}
+									value={
+										selectedDivisionId
+											? localDescriptions[selectedDivisionId] || ""
+											: ""
+									}
 									onChange={(e) => handleDescriptionChange(e.target.value)}
 									onBlur={handleDescriptionBlur}
 									placeholder={`Enter scaling description for ${sortedDivisions.find((d) => d.id === selectedDivisionId)?.label || "this division"}...`}

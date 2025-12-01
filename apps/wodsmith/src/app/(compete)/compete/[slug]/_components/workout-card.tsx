@@ -3,7 +3,13 @@
 import { useState } from "react"
 import { Dumbbell, Tag as TagIcon, Target } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { DivisionDescription } from "@/server/competition-workouts"
 

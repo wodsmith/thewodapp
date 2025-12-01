@@ -62,7 +62,9 @@ export const initializeCompetitionDivisionsAction = createServerAction()
 			}
 
 			const message =
-				error instanceof Error ? error.message : "Failed to initialize divisions"
+				error instanceof Error
+					? error.message
+					: "Failed to initialize divisions"
 			throw new ZSAError("INTERNAL_SERVER_ERROR", message)
 		}
 	})

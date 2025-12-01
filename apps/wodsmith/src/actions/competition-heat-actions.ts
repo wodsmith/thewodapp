@@ -30,14 +30,17 @@ import {
 
 const venueIdSchema = z.string().startsWith("cvenue_", "Invalid venue ID")
 const heatIdSchema = z.string().startsWith("cheat_", "Invalid heat ID")
-const assignmentIdSchema = z.string().startsWith("chasgn_", "Invalid assignment ID")
+const assignmentIdSchema = z
+	.string()
+	.startsWith("chasgn_", "Invalid assignment ID")
 
 // Venue schemas
 const createVenueSchema = z.object({
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	name: z.string().min(1, "Name is required").max(100),
-	laneCount: z.number().int().min(1).max(100).default(10),
+	laneCount: z.number().int().min(1).max(100).default(3),
+	transitionMinutes: z.number().int().min(1).max(120).default(3),
 	sortOrder: z.number().int().min(0).optional(),
 })
 
@@ -46,6 +49,7 @@ const updateVenueSchema = z.object({
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	name: z.string().min(1).max(100).optional(),
 	laneCount: z.number().int().min(1).max(100).optional(),
+	transitionMinutes: z.number().int().min(1).max(120).optional(),
 	sortOrder: z.number().int().min(0).optional(),
 })
 
@@ -148,6 +152,7 @@ export const createVenueAction = createServerAction()
 				competitionId: input.competitionId,
 				name: input.name,
 				laneCount: input.laneCount,
+				transitionMinutes: input.transitionMinutes,
 				sortOrder: input.sortOrder,
 			})
 
@@ -178,6 +183,7 @@ export const updateVenueAction = createServerAction()
 				id: input.id,
 				name: input.name,
 				laneCount: input.laneCount,
+				transitionMinutes: input.transitionMinutes,
 				sortOrder: input.sortOrder,
 			})
 
@@ -464,7 +470,10 @@ export const bulkAssignToHeatAction = createServerAction()
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			const assignments = await bulkAssignToHeat(input.heatId, input.assignments)
+			const assignments = await bulkAssignToHeat(
+				input.heatId,
+				input.assignments,
+			)
 
 			revalidatePath("/compete/organizer")
 

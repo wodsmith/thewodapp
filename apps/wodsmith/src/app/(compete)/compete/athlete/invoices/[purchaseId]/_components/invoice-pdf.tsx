@@ -1,10 +1,4 @@
-import {
-	Document,
-	Page,
-	Text,
-	View,
-	StyleSheet,
-} from "@react-pdf/renderer"
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
 import type { InvoiceDetails } from "@/server/commerce"
 
 const styles = StyleSheet.create({
@@ -269,7 +263,9 @@ export function InvoicePDF({ invoice }: InvoicePDFProps) {
 					<View style={[styles.section, { marginTop: 20 }]}>
 						<Text style={styles.infoLabel}>Payment Method</Text>
 						<Text style={styles.infoValue}>
-							{capitalizeFirst(invoice.stripe.brand ?? invoice.stripe.paymentMethod)}
+							{capitalizeFirst(
+								invoice.stripe.brand ?? invoice.stripe.paymentMethod,
+							)}
 							{invoice.stripe.last4 && ` ending in ${invoice.stripe.last4}`}
 						</Text>
 					</View>

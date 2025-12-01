@@ -167,7 +167,9 @@ export function AthleteProfileForm({
 		}
 
 		if (syncedCount > 0) {
-			toast.success(`Synced ${syncedCount} metcon times from your logged workouts`)
+			toast.success(
+				`Synced ${syncedCount} metcon times from your logged workouts`,
+			)
 		} else {
 			toast.info("No logged metcon results found to sync")
 		}
@@ -203,7 +205,9 @@ export function AthleteProfileForm({
 		}
 	}, [initialData, form])
 
-	async function onSubmit(values: z.infer<typeof athleteProfileExtendedSchema>) {
+	async function onSubmit(
+		values: z.infer<typeof athleteProfileExtendedSchema>,
+	) {
 		await execute(values)
 	}
 
@@ -264,8 +268,8 @@ export function AthleteProfileForm({
 										</SelectContent>
 									</Select>
 									<FormDescription>
-										This affects how weights and heights are displayed throughout
-										your profile
+										This affects how weights and heights are displayed
+										throughout your profile
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -301,7 +305,9 @@ export function AthleteProfileForm({
 											</FormControl>
 											<SelectContent>
 												<SelectItem value={GENDER_ENUM.MALE}>Male</SelectItem>
-												<SelectItem value={GENDER_ENUM.FEMALE}>Female</SelectItem>
+												<SelectItem value={GENDER_ENUM.FEMALE}>
+													Female
+												</SelectItem>
 											</SelectContent>
 										</Select>
 										<FormDescription>
@@ -401,7 +407,9 @@ export function AthleteProfileForm({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value ? Number(e.target.value) : undefined,
+																e.target.value
+																	? Number(e.target.value)
+																	: undefined,
 															)
 														}
 														value={field.value || ""}
@@ -735,7 +743,9 @@ export function AthleteProfileForm({
 													</Button>
 												)}
 											</div>
-											<FormDescription>Format: MM:SS or HH:MM:SS</FormDescription>
+											<FormDescription>
+												Format: MM:SS or HH:MM:SS
+											</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)
@@ -963,7 +973,16 @@ export function AthleteProfileForm({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						{(["backSquat", "deadlift", "benchPress", "press", "snatch", "cleanAndJerk"] as const).map((lift) => {
+						{(
+							[
+								"backSquat",
+								"deadlift",
+								"benchPress",
+								"press",
+								"snatch",
+								"cleanAndJerk",
+							] as const
+						).map((lift) => {
 							const liftKey = lift
 							return (
 								<div key={lift} className="grid gap-4 sm:grid-cols-3">
@@ -982,7 +1001,9 @@ export function AthleteProfileForm({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value ? Number(e.target.value) : undefined,
+																e.target.value
+																	? Number(e.target.value)
+																	: undefined,
 															)
 														}
 														value={field.value || ""}
@@ -1085,7 +1106,10 @@ export function AthleteProfileForm({
 								<FormItem>
 									<FormLabel>Twitter/X</FormLabel>
 									<FormControl>
-										<Input placeholder="https://twitter.com/yourhandle" {...field} />
+										<Input
+											placeholder="https://twitter.com/yourhandle"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -1099,7 +1123,10 @@ export function AthleteProfileForm({
 								<FormItem>
 									<FormLabel>TikTok</FormLabel>
 									<FormControl>
-										<Input placeholder="https://tiktok.com/@yourhandle" {...field} />
+										<Input
+											placeholder="https://tiktok.com/@yourhandle"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -1136,7 +1163,10 @@ export function AthleteProfileForm({
 							</p>
 						) : (
 							fields.map((field, index) => (
-								<div key={field.id} className="border-muted space-y-4 rounded-lg border p-4">
+								<div
+									key={field.id}
+									className="border-muted space-y-4 rounded-lg border p-4"
+								>
 									<div className="flex items-center justify-between">
 										<h4 className="font-semibold">Sponsor {index + 1}</h4>
 										<Button
@@ -1189,10 +1219,7 @@ export function AthleteProfileForm({
 											<FormItem>
 												<FormLabel>Website (optional)</FormLabel>
 												<FormControl>
-													<Input
-														placeholder="https://example.com"
-														{...field}
-													/>
+													<Input placeholder="https://example.com" {...field} />
 												</FormControl>
 												<FormMessage />
 											</FormItem>

@@ -4,9 +4,15 @@ import { notFound } from "next/navigation"
 import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
-import { getCompetitionVenues, getHeatsForCompetition } from "@/server/competition-heats"
+import {
+	getCompetitionVenues,
+	getHeatsForCompetition,
+} from "@/server/competition-heats"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
-import { getCompetition, getCompetitionRegistrations } from "@/server/competitions"
+import {
+	getCompetition,
+	getCompetitionRegistrations,
+} from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { HeatScheduleManager } from "./_components/heat-schedule-manager"
 import { VenueManager } from "./_components/venue-manager"
@@ -64,13 +70,14 @@ export default async function CompetitionSchedulePage({
 	}
 
 	// Parallel fetch: venues, events, heats, divisions, and registrations
-	const [venues, events, heats, divisionsData, registrations] = await Promise.all([
-		getCompetitionVenues(competitionId),
-		getCompetitionWorkouts(competitionId),
-		getHeatsForCompetition(competitionId),
-		getCompetitionDivisionsWithCounts({ competitionId }),
-		getCompetitionRegistrations(competitionId),
-	])
+	const [venues, events, heats, divisionsData, registrations] =
+		await Promise.all([
+			getCompetitionVenues(competitionId),
+			getCompetitionWorkouts(competitionId),
+			getHeatsForCompetition(competitionId),
+			getCompetitionDivisionsWithCounts({ competitionId }),
+			getCompetitionRegistrations(competitionId),
+		])
 
 	const { divisions } = divisionsData
 
@@ -92,6 +99,7 @@ export default async function CompetitionSchedulePage({
 				<HeatScheduleManager
 					competitionId={competition.id}
 					organizingTeamId={competition.organizingTeamId}
+					competitionStartDate={competition.startDate}
 					events={events}
 					venues={venues}
 					heats={heats}

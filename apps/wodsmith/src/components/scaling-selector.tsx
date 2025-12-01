@@ -153,12 +153,12 @@ export function ScalingSelector({
 						workoutId,
 					})
 					if (descriptionsResult?.data) {
-					descriptions = descriptionsResult.data
-						.map((d) => ({
-							scalingLevelId: d.scalingLevel?.id || "",
-							description: d.description,
-						}))
-						.filter((d) => d.scalingLevelId) // Remove entries without level ID
+						descriptions = descriptionsResult.data
+							.map((d) => ({
+								scalingLevelId: d.scalingLevel?.id || "",
+								description: d.description,
+							}))
+							.filter((d) => d.scalingLevelId) // Remove entries without level ID
 					}
 				} catch (error) {
 					console.error("Failed to fetch workout scaling descriptions:", error)

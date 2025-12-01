@@ -109,7 +109,9 @@ export async function getUserPurchases(
 			type: p.productType,
 			priceCents: p.productPriceCents,
 		},
-		competition: p.competitionId ? competitionMap.get(p.competitionId) ?? null : null,
+		competition: p.competitionId
+			? (competitionMap.get(p.competitionId) ?? null)
+			: null,
 	}))
 }
 

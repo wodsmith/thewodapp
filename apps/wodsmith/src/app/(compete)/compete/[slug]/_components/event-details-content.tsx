@@ -1,8 +1,19 @@
 "use client"
 
-import { ChevronDown, HelpCircle, Calendar, DollarSign, Trophy, Users } from "lucide-react"
+import {
+	ChevronDown,
+	HelpCircle,
+	Calendar,
+	DollarSign,
+	Trophy,
+	Users,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
 
@@ -26,7 +37,11 @@ interface EventDetailsContentProps {
 
 function formatDateShort(date: Date | number): string {
 	const d = typeof date === "number" ? new Date(date) : date
-	return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+	return d.toLocaleDateString("en-US", {
+		weekday: "short",
+		month: "short",
+		day: "numeric",
+	})
 }
 
 function formatPrice(cents: number): string {
@@ -34,7 +49,11 @@ function formatPrice(cents: number): string {
 	return `$${(cents / 100).toFixed(0)}`
 }
 
-export function EventDetailsContent({ competition, divisions, workoutsContent }: EventDetailsContentProps) {
+export function EventDetailsContent({
+	competition,
+	divisions,
+	workoutsContent,
+}: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
 
 	return (
@@ -74,13 +93,17 @@ export function EventDetailsContent({ competition, divisions, workoutsContent }:
 								<Collapsible key={division.id}>
 									<Card>
 										<CollapsibleTrigger asChild>
-											<CardHeader className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}>
+											<CardHeader
+												className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
+											>
 												<div className="flex items-center justify-between">
 													<div className="flex items-center gap-2">
 														<CardTitle className="text-base">
 															{division.label}{" "}
 															<span className="font-normal text-muted-foreground">
-																{division.teamSize === 1 ? "(Indy)" : `(Teams of ${division.teamSize})`}
+																{division.teamSize === 1
+																	? "(Indy)"
+																	: `(Teams of ${division.teamSize})`}
 															</span>
 														</CardTitle>
 														<span className="text-xs text-muted-foreground">
@@ -90,7 +113,9 @@ export function EventDetailsContent({ competition, divisions, workoutsContent }:
 															<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
 														)}
 													</div>
-													<span className={`text-sm font-medium ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+													<span
+														className={`text-sm font-medium ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
+													>
 														{priceLabel}
 													</span>
 												</div>

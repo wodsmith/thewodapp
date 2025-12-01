@@ -1,6 +1,11 @@
 import { Dumbbell } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import type { Competition, CompetitionGroup, ScalingLevel, Team } from "@/db/schema"
+import type {
+	Competition,
+	CompetitionGroup,
+	ScalingLevel,
+	Team,
+} from "@/db/schema"
 import {
 	getCompetitionWorkouts,
 	getWorkoutDivisionDescriptions,
@@ -54,8 +59,8 @@ export async function WorkoutsContent({
 						<Dumbbell className="h-4 w-4" />
 						<AlertTitle>Workouts not yet released</AlertTitle>
 						<AlertDescription>
-							Competition workouts will be announced closer to the event.
-							Check back soon or follow the event organizer for updates.
+							Competition workouts will be announced closer to the event. Check
+							back soon or follow the event organizer for updates.
 						</AlertDescription>
 					</Alert>
 				</div>

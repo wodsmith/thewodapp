@@ -30,7 +30,9 @@ export const affiliatesTable = sqliteTable(
 			.default("unverified")
 			.notNull(),
 		// When claimed, links to the team that owns this affiliate
-		ownerTeamId: text().references(() => teamTable.id, { onDelete: "set null" }),
+		ownerTeamId: text().references(() => teamTable.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("affiliates_name_idx").on(table.name),

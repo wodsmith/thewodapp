@@ -179,7 +179,9 @@ export function CompetitionRow({
 						{competition.organizingTeam && (
 							<span className="flex items-center gap-1 truncate">
 								<MapPinIcon className="h-3 w-3 shrink-0" />
-								<span className="truncate">{competition.organizingTeam.name}</span>
+								<span className="truncate">
+									{competition.organizingTeam.name}
+								</span>
 							</span>
 						)}
 					</div>
@@ -218,27 +220,35 @@ export function CompetitionRow({
 					)}
 
 					{/* Registration info */}
-					{status === "registration-open" && competition.registrationClosesAt && (
-						<p className="text-sm">
-							<span className="text-muted-foreground">Registration closes: </span>
-							<span className="font-medium">
-								{formatFullDate(competition.registrationClosesAt)}
-							</span>
-						</p>
-					)}
+					{status === "registration-open" &&
+						competition.registrationClosesAt && (
+							<p className="text-sm">
+								<span className="text-muted-foreground">
+									Registration closes:{" "}
+								</span>
+								<span className="font-medium">
+									{formatFullDate(competition.registrationClosesAt)}
+								</span>
+							</p>
+						)}
 
-					{status === "registration-closed" && competition.registrationClosesAt && (
-						<p className="text-sm">
-							<span className="text-muted-foreground">Registration closed: </span>
-							<span className="font-medium">
-								{formatFullDate(competition.registrationClosesAt)}
-							</span>
-						</p>
-					)}
+					{status === "registration-closed" &&
+						competition.registrationClosesAt && (
+							<p className="text-sm">
+								<span className="text-muted-foreground">
+									Registration closed:{" "}
+								</span>
+								<span className="font-medium">
+									{formatFullDate(competition.registrationClosesAt)}
+								</span>
+							</p>
+						)}
 
 					{status === "coming-soon" && competition.registrationOpensAt && (
 						<p className="text-sm">
-							<span className="text-muted-foreground">Registration opens: </span>
+							<span className="text-muted-foreground">
+								Registration opens:{" "}
+							</span>
 							<span className="font-medium">
 								{formatFullDate(competition.registrationOpensAt)}
 							</span>

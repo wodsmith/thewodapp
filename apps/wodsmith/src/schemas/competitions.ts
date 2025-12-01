@@ -60,9 +60,7 @@ export const deleteCompetitionGroupSchema = z.object({
 
 export const createCompetitionSchema = z
 	.object({
-		organizingTeamId: z
-			.string()
-			.startsWith("team_", "Invalid team ID format"),
+		organizingTeamId: z.string().startsWith("team_", "Invalid team ID format"),
 		name: z
 			.string()
 			.min(1, "Competition name is required")

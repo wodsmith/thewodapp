@@ -611,7 +611,8 @@ export async function updateTrackWorkout({
 
 	if (trackOrder !== undefined) updateData.trackOrder = trackOrder
 	if (notes !== undefined) updateData.notes = notes
-	if (pointsMultiplier !== undefined) updateData.pointsMultiplier = pointsMultiplier
+	if (pointsMultiplier !== undefined)
+		updateData.pointsMultiplier = pointsMultiplier
 
 	const [trackWorkout] = await db
 		.update(trackWorkoutsTable)

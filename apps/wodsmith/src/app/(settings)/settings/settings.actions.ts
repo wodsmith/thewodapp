@@ -70,7 +70,10 @@ export const updateAthleteProfileAction = createServerAction()
 				return { success: true }
 			} catch (error) {
 				console.error(error)
-				throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update athlete profile")
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					"Failed to update athlete profile",
+				)
 			}
 		}, RATE_LIMITS.SETTINGS)
 	})

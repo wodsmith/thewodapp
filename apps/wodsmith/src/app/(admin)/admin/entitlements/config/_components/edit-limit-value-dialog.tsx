@@ -69,7 +69,9 @@ export function EditLimitValueDialog({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Edit Limit Value</DialogTitle>
-					<DialogDescription>Update the limit value for this plan</DialogDescription>
+					<DialogDescription>
+						Update the limit value for this plan
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
@@ -89,7 +91,9 @@ export function EditLimitValueDialog({
 								<Checkbox
 									id="unlimited"
 									checked={isUnlimited}
-									onCheckedChange={(checked) => setIsUnlimited(checked === true)}
+									onCheckedChange={(checked) =>
+										setIsUnlimited(checked === true)
+									}
 								/>
 								<Label htmlFor="unlimited" className="text-sm font-normal">
 									Unlimited (-1)

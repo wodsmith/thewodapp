@@ -78,13 +78,15 @@ export function PricingSettingsForm({
 	)
 
 	// Division-specific fees (map of divisionId -> fee in dollars or empty string)
-	const [divisionFees, setDivisionFees] = useState<Record<string, string>>(() => {
-		const fees: Record<string, string> = {}
-		for (const fee of currentFees.divisionFees) {
-			fees[fee.divisionId] = centsToDollars(fee.feeCents)
-		}
-		return fees
-	})
+	const [divisionFees, setDivisionFees] = useState<Record<string, string>>(
+		() => {
+			const fees: Record<string, string> = {}
+			for (const fee of currentFees.divisionFees) {
+				fees[fee.divisionId] = centsToDollars(fee.feeCents)
+			}
+			return fees
+		},
+	)
 
 	// Handle default fee save
 	const handleSaveDefaultFee = async () => {
@@ -130,7 +132,8 @@ export function PricingSettingsForm({
 
 	// Calculate platform fee display
 	const platformPercentage =
-		competition.platformFeePercentage ?? PLATFORM_DEFAULTS.platformPercentageBasisPoints
+		competition.platformFeePercentage ??
+		PLATFORM_DEFAULTS.platformPercentageBasisPoints
 	const platformFixed =
 		competition.platformFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents
 
@@ -144,7 +147,8 @@ export function PricingSettingsForm({
 						Default Registration Fee
 					</CardTitle>
 					<CardDescription>
-						This fee applies to all divisions unless you set a specific fee below
+						This fee applies to all divisions unless you set a specific fee
+						below
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
@@ -176,17 +180,23 @@ export function PricingSettingsForm({
 						<Checkbox
 							id="passPlatformFeesToCustomer"
 							checked={passPlatformFeesToCustomer}
-							onCheckedChange={(checked) => setPassPlatformFeesToCustomer(checked === true)}
+							onCheckedChange={(checked) =>
+								setPassPlatformFeesToCustomer(checked === true)
+							}
 							disabled={isSubmitting}
 							className="mt-0.5"
 						/>
 						<div>
-							<Label htmlFor="passPlatformFeesToCustomer" className="cursor-pointer">
+							<Label
+								htmlFor="passPlatformFeesToCustomer"
+								className="cursor-pointer"
+							>
 								Pass platform fees to customer
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								When enabled, Wodsmith platform fees are added to the customer&apos;s
-								total. When disabled, platform fees are deducted from your payout.
+								When enabled, Wodsmith platform fees are added to the
+								customer&apos;s total. When disabled, platform fees are deducted
+								from your payout.
 							</p>
 						</div>
 					</div>
@@ -195,26 +205,28 @@ export function PricingSettingsForm({
 						<Checkbox
 							id="passStripeFeesToCustomer"
 							checked={passStripeFeesToCustomer}
-							onCheckedChange={(checked) => setPassStripeFeesToCustomer(checked === true)}
+							onCheckedChange={(checked) =>
+								setPassStripeFeesToCustomer(checked === true)
+							}
 							disabled={isSubmitting}
 							className="mt-0.5"
 						/>
 						<div>
-							<Label htmlFor="passStripeFeesToCustomer" className="cursor-pointer">
+							<Label
+								htmlFor="passStripeFeesToCustomer"
+								className="cursor-pointer"
+							>
 								Pass Stripe fees to customer
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								When enabled, Stripe processing fees are added to the customer&apos;s
-								total instead of being deducted from your payout
+								When enabled, Stripe processing fees are added to the
+								customer&apos;s total instead of being deducted from your payout
 							</p>
 						</div>
 					</div>
 
 					<div className="pt-2">
-						<Button
-							onClick={handleSaveDefaultFee}
-							disabled={isSubmitting}
-						>
+						<Button onClick={handleSaveDefaultFee} disabled={isSubmitting}>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -256,7 +268,8 @@ export function PricingSettingsForm({
 						</div>
 					</div>
 					<p className="text-sm text-muted-foreground mt-4">
-						Example: For a $50 registration, platform fee is $50 x 2.5% + $2.00 = $3.25
+						Example: For a $50 registration, platform fee is $50 x 2.5% + $2.00
+						= $3.25
 					</p>
 				</CardContent>
 			</Card>
@@ -267,8 +280,8 @@ export function PricingSettingsForm({
 					<CardHeader>
 						<CardTitle>Division-Specific Fees</CardTitle>
 						<CardDescription>
-							Override the default fee for specific divisions (e.g., team divisions
-							may cost more)
+							Override the default fee for specific divisions (e.g., team
+							divisions may cost more)
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -326,10 +339,7 @@ export function PricingSettingsForm({
 													<Button
 														size="sm"
 														onClick={() =>
-															handleDivisionFeeUpdate(
-																division.id,
-																currentFee,
-															)
+															handleDivisionFeeUpdate(division.id, currentFee)
 														}
 														disabled={isSubmitting}
 													>

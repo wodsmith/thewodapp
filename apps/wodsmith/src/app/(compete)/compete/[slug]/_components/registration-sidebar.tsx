@@ -1,4 +1,11 @@
-import { Calendar, CheckCircle2, Clock, Mail, MapPin, Users } from "lucide-react"
+import {
+	Calendar,
+	CheckCircle2,
+	Clock,
+	Mail,
+	MapPin,
+	Users,
+} from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +28,11 @@ interface RegistrationSidebarProps {
 
 function formatDateShort(date: Date | number): string {
 	const d = typeof date === "number" ? new Date(date) : date
-	return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+	return d.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	})
 }
 
 function formatDeadlineDate(date: Date | number): string {
@@ -29,7 +40,7 @@ function formatDeadlineDate(date: Date | number): string {
 	return d.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
-		year: "numeric"
+		year: "numeric",
 	})
 }
 
@@ -60,12 +71,20 @@ export function RegistrationSidebar({
 								</div>
 								{userDivision && (
 									<p className="text-sm text-muted-foreground">
-										Division: <span className="font-medium">{userDivision}</span>
+										Division:{" "}
+										<span className="font-medium">{userDivision}</span>
 									</p>
 								)}
 								{registrationId && (
-									<Button asChild variant="outline" size="sm" className="w-full">
-										<Link href={`/compete/${competition.slug}/teams/${registrationId}`}>
+									<Button
+										asChild
+										variant="outline"
+										size="sm"
+										className="w-full"
+									>
+										<Link
+											href={`/compete/${competition.slug}/teams/${registrationId}`}
+										>
 											<Users className="mr-2 h-4 w-4" />
 											{isTeamRegistration
 												? isCaptain
@@ -114,7 +133,9 @@ export function RegistrationSidebar({
 					<div className="flex items-start gap-3">
 						<MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
 						<div>
-							<p className="font-medium">{competition.organizingTeam?.name || "Location TBA"}</p>
+							<p className="font-medium">
+								{competition.organizingTeam?.name || "Location TBA"}
+							</p>
 						</div>
 					</div>
 				</CardContent>
@@ -155,7 +176,9 @@ export function RegistrationSidebar({
 						<CardTitle className="text-sm font-medium">Contact</CardTitle>
 					</CardHeader>
 					<CardContent className="pt-0">
-						<p className="font-medium text-sm">{competition.organizingTeam.name}</p>
+						<p className="font-medium text-sm">
+							{competition.organizingTeam.name}
+						</p>
 						<div className="mt-2 flex gap-2">
 							<Button variant="outline" size="sm" className="h-8" disabled>
 								<Mail className="mr-1 h-3 w-3" />

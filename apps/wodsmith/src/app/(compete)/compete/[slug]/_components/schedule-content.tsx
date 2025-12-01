@@ -37,7 +37,10 @@ export function ScheduleContent({
 			dayHeats.sort((a, b) => {
 				if (!a.scheduledTime) return 1
 				if (!b.scheduledTime) return -1
-				return new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime()
+				return (
+					new Date(a.scheduledTime).getTime() -
+					new Date(b.scheduledTime).getTime()
+				)
 			})
 			grouped.set(key, dayHeats)
 		}
@@ -57,7 +60,9 @@ export function ScheduleContent({
 	// Check if current user is in a heat
 	function isUserInHeat(heat: HeatWithAssignments): boolean {
 		if (!currentUserId) return false
-		return heat.assignments.some((a) => a.registration.user.id === currentUserId)
+		return heat.assignments.some(
+			(a) => a.registration.user.id === currentUserId,
+		)
 	}
 
 	// Get user's lane number in a heat
@@ -124,7 +129,10 @@ export function ScheduleContent({
 							const laneNumber = getUserLane(heat)
 
 							return (
-								<Card key={heat.id} className="border-teal-500/50 bg-teal-500/5">
+								<Card
+									key={heat.id}
+									className="border-teal-500/50 bg-teal-500/5"
+								>
 									<CardContent className="py-4">
 										<div className="flex justify-between items-start">
 											<div>
@@ -184,15 +192,19 @@ export function ScheduleContent({
 															{formatTime(heat.scheduledTime)}
 														</span>
 													)}
-													Event {event?.trackOrder}: {event?.workout.name} - Heat{" "}
-													{heat.heatNumber}
+													Event {event?.trackOrder}: {event?.workout.name} -
+													Heat {heat.heatNumber}
 												</CardTitle>
 												<div className="flex items-center gap-2">
 													{heat.division && (
-														<Badge variant="outline">{heat.division.label}</Badge>
+														<Badge variant="outline">
+															{heat.division.label}
+														</Badge>
 													)}
 													{userInHeat && (
-														<Badge className="bg-teal-500">You're in this heat</Badge>
+														<Badge className="bg-teal-500">
+															You're in this heat
+														</Badge>
 													)}
 												</div>
 											</div>
@@ -226,7 +238,7 @@ export function ScheduleContent({
 																</span>
 																{assignment.registration.teamName ??
 																	(`${assignment.registration.user.firstName ?? ""} ${assignment.registration.user.lastName ?? ""}`.trim() ||
-																	"Unknown")}
+																		"Unknown")}
 															</div>
 														)
 													})}

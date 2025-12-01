@@ -34,9 +34,12 @@ export function VenueManager({
 }: VenueManagerProps) {
 	const [venues, setVenues] = useState(initialVenues)
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
-	const [editingVenue, setEditingVenue] = useState<CompetitionVenue | null>(null)
+	const [editingVenue, setEditingVenue] = useState<CompetitionVenue | null>(
+		null,
+	)
 	const [newVenueName, setNewVenueName] = useState("")
-	const [newLaneCount, setNewLaneCount] = useState(10)
+	const [newLaneCount, setNewLaneCount] = useState(3)
+	const [newTransitionMinutes, setNewTransitionMinutes] = useState(3)
 
 	const createVenue = useServerAction(createVenueAction)
 	const updateVenue = useServerAction(updateVenueAction)
@@ -50,12 +53,14 @@ export function VenueManager({
 			organizingTeamId,
 			name: newVenueName.trim(),
 			laneCount: newLaneCount,
+			transitionMinutes: newTransitionMinutes,
 		})
 
 		if (result?.data) {
 			setVenues([...venues, result.data])
 			setNewVenueName("")
 			setNewLaneCount(10)
+			setNewTransitionMinutes(10)
 			setIsCreateOpen(false)
 		}
 	}
@@ -68,20 +73,23 @@ export function VenueManager({
 			organizingTeamId,
 			name: editingVenue.name.trim(),
 			laneCount: editingVenue.laneCount,
+			transitionMinutes: editingVenue.transitionMinutes,
 		})
 
 		if (!error) {
 			setVenues(
-				venues.map((v) =>
-					v.id === editingVenue.id ? editingVenue : v,
-				),
+				venues.map((v) => (v.id === editingVenue.id ? editingVenue : v)),
 			)
 			setEditingVenue(null)
 		}
 	}
 
 	async function handleDelete(venue: CompetitionVenue) {
-		if (!confirm(`Delete venue "${venue.name}"? This will unassign all heats from this venue.`)) {
+		if (
+			!confirm(
+				`Delete venue "${venue.name}"? This will unassign all heats from this venue.`,
+			)
+		) {
 			return
 		}
 
@@ -103,7 +111,8 @@ export function VenueManager({
 					<CardContent className="py-8 text-center text-muted-foreground">
 						<p className="mb-4">No venues created yet.</p>
 						<p className="text-sm">
-							Create venues like "Main Floor" or "Outside Rig" to assign heats to specific locations.
+							Create venues like "Main Floor" or "Outside Rig" to assign heats
+							to specific locations.
 						</p>
 					</CardContent>
 				</Card>
@@ -116,7 +125,7 @@ export function VenueManager({
 									<div>
 										<h3 className="font-medium">{venue.name}</h3>
 										<p className="text-sm text-muted-foreground">
-											{venue.laneCount} lanes
+											{venue.laneCount} lanes • {venue.transitionMinutes}min
 										</p>
 									</div>
 									<div className="flex gap-2">
@@ -179,6 +188,24 @@ export function VenueManager({
 								Maximum athletes per heat at this venue
 							</p>
 						</div>
+						<div>
+							<Label htmlFor="transition-minutes">
+								Transition Time (minutes)
+							</Label>
+							<Input
+								id="transition-minutes"
+								type="number"
+								min={1}
+								max={120}
+								value={newTransitionMinutes}
+								onChange={(e) =>
+									setNewTransitionMinutes(Number(e.target.value))
+								}
+							/>
+							<p className="text-xs text-muted-foreground mt-1">
+								Time between heats for setup/teardown
+							</p>
+						</div>
 						<div className="flex justify-end gap-2">
 							<Button variant="outline" onClick={() => setIsCreateOpen(false)}>
 								Cancel
@@ -195,7 +222,10 @@ export function VenueManager({
 			</Dialog>
 
 			{/* Edit Venue Dialog */}
-			<Dialog open={!!editingVenue} onOpenChange={(open) => !open && setEditingVenue(null)}>
+			<Dialog
+				open={!!editingVenue}
+				onOpenChange={(open) => !open && setEditingVenue(null)}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Edit Venue</DialogTitle>
@@ -224,6 +254,24 @@ export function VenueManager({
 										setEditingVenue({
 											...editingVenue,
 											laneCount: Number(e.target.value),
+										})
+									}
+								/>
+							</div>
+							<div>
+								<Label htmlFor="edit-transition-minutes">
+									Transition Time (minutes)
+								</Label>
+								<Input
+									id="edit-transition-minutes"
+									type="number"
+									min={1}
+									max={120}
+									value={editingVenue.transitionMinutes}
+									onChange={(e) =>
+										setEditingVenue({
+											...editingVenue,
+											transitionMinutes: Number(e.target.value),
 										})
 									}
 								/>

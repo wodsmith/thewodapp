@@ -45,7 +45,9 @@ export function ProfileCompletionForm({
 	currentDateOfBirth,
 }: ProfileCompletionFormProps) {
 	const router = useRouter()
-	const { execute, isPending, isSuccess } = useServerAction(updateAthleteProfileAction)
+	const { execute, isPending, isSuccess } = useServerAction(
+		updateAthleteProfileAction,
+	)
 
 	const form = useForm<ProfileFormValues>({
 		resolver: zodResolver(profileSchema),

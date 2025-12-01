@@ -55,7 +55,10 @@ export default async function EditCompetitionPage({
 				<div className="mb-8">
 					<OrganizerBreadcrumb
 						segments={[
-							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
+							{
+								label: competition.name,
+								href: `/compete/organizer/${competition.id}`,
+							},
 							{ label: "Edit" },
 						]}
 					/>

@@ -371,7 +371,17 @@ export async function createCompetitionEvent(params: {
 	roundsToScore?: number
 	repsPerRound?: number
 	tiebreakScheme?: "time" | "reps"
-	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points"
+	secondaryScheme?:
+		| "time"
+		| "pass-fail"
+		| "rounds-reps"
+		| "reps"
+		| "emom"
+		| "load"
+		| "calories"
+		| "meters"
+		| "feet"
+		| "points"
 	tagIds?: string[]
 	tagNames?: string[]
 	movementIds?: string[]
@@ -513,7 +523,18 @@ export async function updateCompetitionEventWorkout(params: {
 	roundsToScore?: number | null
 	repsPerRound?: number | null
 	tiebreakScheme?: "time" | "reps" | null
-	secondaryScheme?: "time" | "pass-fail" | "rounds-reps" | "reps" | "emom" | "load" | "calories" | "meters" | "feet" | "points" | null
+	secondaryScheme?:
+		| "time"
+		| "pass-fail"
+		| "rounds-reps"
+		| "reps"
+		| "emom"
+		| "load"
+		| "calories"
+		| "meters"
+		| "feet"
+		| "points"
+		| null
 	tagIds?: string[]
 	movementIds?: string[]
 }): Promise<void> {
@@ -556,7 +577,9 @@ export async function updateCompetitionEventWorkout(params: {
 	// Update tags if provided
 	if (params.tagIds !== undefined) {
 		// Delete existing tags
-		await db.delete(workoutTags).where(eq(workoutTags.workoutId, params.workoutId))
+		await db
+			.delete(workoutTags)
+			.where(eq(workoutTags.workoutId, params.workoutId))
 
 		// Insert new tags (filter out any new_tag_ prefixed ids)
 		const tagIds = params.tagIds.filter((id) => !id.startsWith("new_tag_"))
@@ -574,7 +597,9 @@ export async function updateCompetitionEventWorkout(params: {
 	// Update movements if provided
 	if (params.movementIds !== undefined) {
 		// Delete existing movements
-		await db.delete(workoutMovements).where(eq(workoutMovements.workoutId, params.workoutId))
+		await db
+			.delete(workoutMovements)
+			.where(eq(workoutMovements.workoutId, params.workoutId))
 
 		// Insert new movements
 		if (params.movementIds.length > 0) {
@@ -676,7 +701,12 @@ export async function updateWorkoutDivisionDescriptions(params: {
 	const workout = await db
 		.select({ id: workouts.id })
 		.from(workouts)
-		.where(and(eq(workouts.id, params.workoutId), eq(workouts.teamId, params.teamId)))
+		.where(
+			and(
+				eq(workouts.id, params.workoutId),
+				eq(workouts.teamId, params.teamId),
+			),
+		)
 		.limit(1)
 
 	if (workout.length === 0) {

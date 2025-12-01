@@ -173,7 +173,9 @@ export const competitionRegistrationsTable = sqliteTable(
 		index("competition_registrations_division_idx").on(table.divisionId),
 		index("competition_registrations_captain_idx").on(table.captainUserId),
 		index("competition_registrations_athlete_team_idx").on(table.athleteTeamId),
-		index("competition_registrations_purchase_idx").on(table.commercePurchaseId),
+		index("competition_registrations_purchase_idx").on(
+			table.commercePurchaseId,
+		),
 	],
 )
 
@@ -191,7 +193,9 @@ export const competitionVenuesTable = sqliteTable(
 			.notNull()
 			.references(() => competitionsTable.id, { onDelete: "cascade" }),
 		name: text({ length: 100 }).notNull(),
-		laneCount: integer().notNull().default(10),
+		laneCount: integer().notNull().default(3),
+		// Minutes between heats for auto-scheduling
+		transitionMinutes: integer().notNull().default(3),
 		sortOrder: integer().default(0).notNull(),
 	},
 	(table) => [

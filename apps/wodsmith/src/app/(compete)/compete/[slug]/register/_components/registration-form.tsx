@@ -6,9 +6,18 @@ import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { initiateRegistrationPayment, getRegistrationFeeBreakdown } from "@/actions/commerce.action"
+import {
+	initiateRegistrationPayment,
+	getRegistrationFeeBreakdown,
+} from "@/actions/commerce.action"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import {
 	Form,
 	FormControl,
@@ -87,7 +96,10 @@ function FeeBreakdownDisplay({
 		const fetchFees = async () => {
 			setIsLoading(true)
 			try {
-				const result = await getRegistrationFeeBreakdown(competitionId, divisionId)
+				const result = await getRegistrationFeeBreakdown(
+					competitionId,
+					divisionId,
+				)
 				setFees(result)
 			} catch (error) {
 				console.error("Failed to fetch registration fee breakdown:", error)
@@ -102,7 +114,11 @@ function FeeBreakdownDisplay({
 	}, [competitionId, divisionId])
 
 	if (!divisionId) {
-		return <p className="text-muted-foreground text-sm">Select a division to see pricing</p>
+		return (
+			<p className="text-muted-foreground text-sm">
+				Select a division to see pricing
+			</p>
+		)
 	}
 
 	if (isLoading) return <Skeleton className="h-20 w-full" />
@@ -125,23 +141,31 @@ function FeeBreakdownDisplay({
 		<div className="space-y-2 text-sm">
 			<div className="flex justify-between">
 				<span>Registration Fee</span>
-				<span className="font-medium">{formatCents(fees.registrationFeeCents ?? 0)}</span>
+				<span className="font-medium">
+					{formatCents(fees.registrationFeeCents ?? 0)}
+				</span>
 			</div>
-			{fees.platformFeesPassedToCustomer && fees.platformFeeCents && fees.platformFeeCents > 0 && (
-				<div className="flex justify-between text-muted-foreground">
-					<span>Platform Fee</span>
-					<span>{formatCents(fees.platformFeeCents)}</span>
-				</div>
-			)}
-			{fees.stripeFeesPassedToCustomer && fees.stripeFeeCents && fees.stripeFeeCents > 0 && (
-				<div className="flex justify-between text-muted-foreground">
-					<span>Processing Fee</span>
-					<span>{formatCents(fees.stripeFeeCents)}</span>
-				</div>
-			)}
+			{fees.platformFeesPassedToCustomer &&
+				fees.platformFeeCents &&
+				fees.platformFeeCents > 0 && (
+					<div className="flex justify-between text-muted-foreground">
+						<span>Platform Fee</span>
+						<span>{formatCents(fees.platformFeeCents)}</span>
+					</div>
+				)}
+			{fees.stripeFeesPassedToCustomer &&
+				fees.stripeFeeCents &&
+				fees.stripeFeeCents > 0 && (
+					<div className="flex justify-between text-muted-foreground">
+						<span>Processing Fee</span>
+						<span>{formatCents(fees.stripeFeeCents)}</span>
+					</div>
+				)}
 			<div className="flex justify-between font-medium pt-2 border-t">
 				<span>Total</span>
-				<span className="text-lg">{formatCents(fees.totalChargeCents ?? 0)}</span>
+				<span className="text-lg">
+					{formatCents(fees.totalChargeCents ?? 0)}
+				</span>
 			</div>
 		</div>
 	)
@@ -183,7 +207,7 @@ export function RegistrationForm({
 
 	const selectedDivisionId = form.watch("divisionId")
 	const selectedDivision = scalingGroup.scalingLevels.find(
-		(level) => level.id === selectedDivisionId
+		(level) => level.id === selectedDivisionId,
 	)
 	const isTeamDivision = (selectedDivision?.teamSize ?? 1) > 1
 	const teamSize = selectedDivision?.teamSize ?? 1
@@ -199,12 +223,15 @@ export function RegistrationForm({
 		if (newTeammatesNeeded > 0) {
 			// Initialize teammates array with empty objects
 			const currentTeammates = form.getValues("teammates") || []
-			const newTeammates = Array.from({ length: newTeammatesNeeded }, (_, i) => ({
-				email: currentTeammates[i]?.email ?? "",
-				firstName: currentTeammates[i]?.firstName ?? "",
-				lastName: currentTeammates[i]?.lastName ?? "",
-				affiliateName: currentTeammates[i]?.affiliateName ?? "",
-			}))
+			const newTeammates = Array.from(
+				{ length: newTeammatesNeeded },
+				(_, i) => ({
+					email: currentTeammates[i]?.email ?? "",
+					firstName: currentTeammates[i]?.firstName ?? "",
+					lastName: currentTeammates[i]?.lastName ?? "",
+					affiliateName: currentTeammates[i]?.affiliateName ?? "",
+				}),
+			)
 			replace(newTeammates)
 		} else {
 			replace([])
@@ -314,18 +341,22 @@ export function RegistrationForm({
 					<div>
 						<p className="text-muted-foreground text-sm">Competition Dates</p>
 						<p className="font-medium">
-							{formatDate(competition.startDate)} - {formatDate(competition.endDate)}
+							{formatDate(competition.startDate)} -{" "}
+							{formatDate(competition.endDate)}
 						</p>
 					</div>
 					<div>
 						<p className="text-muted-foreground text-sm">Registration Window</p>
 						<p className="font-medium">
-							{formatDate(registrationOpensAt)} - {formatDate(registrationClosesAt)}
+							{formatDate(registrationOpensAt)} -{" "}
+							{formatDate(registrationClosesAt)}
 						</p>
 					</div>
 					<div>
 						<p className="text-muted-foreground text-sm">Hosted By</p>
-						<p className="font-medium">{competition.organizingTeam?.name || "TBA"}</p>
+						<p className="font-medium">
+							{competition.organizingTeam?.name || "TBA"}
+						</p>
 					</div>
 				</CardContent>
 			</Card>
@@ -362,12 +393,18 @@ export function RegistrationForm({
 														<div className="flex items-center gap-2">
 															{level.label}
 															{(level.teamSize ?? 1) > 1 ? (
-																<Badge variant="secondary" className="ml-1 text-xs">
+																<Badge
+																	variant="secondary"
+																	className="ml-1 text-xs"
+																>
 																	<Users className="w-3 h-3 mr-1" />
 																	{level.teamSize}
 																</Badge>
 															) : (
-																<Badge variant="outline" className="ml-1 text-xs">
+																<Badge
+																	variant="outline"
+																	className="ml-1 text-xs"
+																>
 																	<User className="w-3 h-3 mr-1" />
 																	Individual
 																</Badge>
@@ -469,7 +506,9 @@ export function RegistrationForm({
 											<div className="space-y-4">
 												<div className="flex items-center gap-2">
 													<Users className="w-4 h-4 text-muted-foreground" />
-													<span className="font-medium">Teammate {index + 1}</span>
+													<span className="font-medium">
+														Teammate {index + 1}
+													</span>
 												</div>
 
 												<FormField
@@ -552,8 +591,9 @@ export function RegistrationForm({
 									))}
 
 									<p className="text-sm text-muted-foreground">
-										Teammates will receive an email invitation to join your team.
-										They must accept the invite to complete their registration.
+										Teammates will receive an email invitation to join your
+										team. They must accept the invite to complete their
+										registration.
 									</p>
 								</div>
 							</CardContent>

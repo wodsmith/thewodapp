@@ -71,6 +71,7 @@ export async function createVenue(params: {
 	competitionId: string
 	name: string
 	laneCount: number
+	transitionMinutes?: number
 	sortOrder?: number
 }): Promise<CompetitionVenue> {
 	const db = getDb()
@@ -88,6 +89,7 @@ export async function createVenue(params: {
 			competitionId: params.competitionId,
 			name: params.name,
 			laneCount: params.laneCount,
+			transitionMinutes: params.transitionMinutes ?? 3,
 			sortOrder,
 		})
 		.returning()
@@ -106,6 +108,7 @@ export async function updateVenue(params: {
 	id: string
 	name?: string
 	laneCount?: number
+	transitionMinutes?: number
 	sortOrder?: number
 }): Promise<void> {
 	const db = getDb()
@@ -116,6 +119,8 @@ export async function updateVenue(params: {
 
 	if (params.name !== undefined) updateData.name = params.name
 	if (params.laneCount !== undefined) updateData.laneCount = params.laneCount
+	if (params.transitionMinutes !== undefined)
+		updateData.transitionMinutes = params.transitionMinutes
 	if (params.sortOrder !== undefined) updateData.sortOrder = params.sortOrder
 
 	await db
@@ -130,7 +135,9 @@ export async function updateVenue(params: {
 export async function deleteVenue(id: string): Promise<void> {
 	const db = getDb()
 
-	await db.delete(competitionVenuesTable).where(eq(competitionVenuesTable.id, id))
+	await db
+		.delete(competitionVenuesTable)
+		.where(eq(competitionVenuesTable.id, id))
 }
 
 // ============================================================================
@@ -157,8 +164,12 @@ export async function getHeatsForWorkout(
 	}
 
 	// Get venue IDs and division IDs
-	const venueIds = heats.map((h) => h.venueId).filter((id): id is string => id !== null)
-	const divisionIds = heats.map((h) => h.divisionId).filter((id): id is string => id !== null)
+	const venueIds = heats
+		.map((h) => h.venueId)
+		.filter((id): id is string => id !== null)
+	const divisionIds = heats
+		.map((h) => h.divisionId)
+		.filter((id): id is string => id !== null)
 
 	// Fetch venues
 	const venues =
@@ -174,7 +185,10 @@ export async function getHeatsForWorkout(
 	const divisions =
 		divisionIds.length > 0
 			? await db
-					.select({ id: scalingLevelsTable.id, label: scalingLevelsTable.label })
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
 					.from(scalingLevelsTable)
 					.where(inArray(scalingLevelsTable.id, divisionIds))
 			: []
@@ -230,7 +244,10 @@ export async function getHeatsForWorkout(
 	const regDivisions =
 		regDivisionIds.length > 0
 			? await db
-					.select({ id: scalingLevelsTable.id, label: scalingLevelsTable.label })
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
 					.from(scalingLevelsTable)
 					.where(inArray(scalingLevelsTable.id, regDivisionIds))
 			: []
@@ -243,8 +260,14 @@ export async function getHeatsForWorkout(
 			{
 				id: r.id,
 				teamName: r.teamName,
-				user: userMap.get(r.userId) ?? { id: r.userId, firstName: null, lastName: null },
-				division: r.divisionId ? regDivisionMap.get(r.divisionId) ?? null : null,
+				user: userMap.get(r.userId) ?? {
+					id: r.userId,
+					firstName: null,
+					lastName: null,
+				},
+				division: r.divisionId
+					? (regDivisionMap.get(r.divisionId) ?? null)
+					: null,
 			},
 		]),
 	)
@@ -260,8 +283,10 @@ export async function getHeatsForWorkout(
 	// Build result
 	return heats.map((heat) => ({
 		...heat,
-		venue: heat.venueId ? venueMap.get(heat.venueId) ?? null : null,
-		division: heat.divisionId ? divisionMap.get(heat.divisionId) ?? null : null,
+		venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+		division: heat.divisionId
+			? (divisionMap.get(heat.divisionId) ?? null)
+			: null,
 		assignments: (assignmentsByHeat.get(heat.id) ?? []).map((a) => ({
 			id: a.id,
 			laneNumber: a.laneNumber,
@@ -287,15 +312,22 @@ export async function getHeatsForCompetition(
 		.select()
 		.from(competitionHeatsTable)
 		.where(eq(competitionHeatsTable.competitionId, competitionId))
-		.orderBy(asc(competitionHeatsTable.scheduledTime), asc(competitionHeatsTable.heatNumber))
+		.orderBy(
+			asc(competitionHeatsTable.scheduledTime),
+			asc(competitionHeatsTable.heatNumber),
+		)
 
 	if (heats.length === 0) {
 		return []
 	}
 
 	// Reuse the same logic as getHeatsForWorkout but for all heats
-	const venueIds = heats.map((h) => h.venueId).filter((id): id is string => id !== null)
-	const divisionIds = heats.map((h) => h.divisionId).filter((id): id is string => id !== null)
+	const venueIds = heats
+		.map((h) => h.venueId)
+		.filter((id): id is string => id !== null)
+	const divisionIds = heats
+		.map((h) => h.divisionId)
+		.filter((id): id is string => id !== null)
 
 	const venues =
 		venueIds.length > 0
@@ -309,7 +341,10 @@ export async function getHeatsForCompetition(
 	const divisions =
 		divisionIds.length > 0
 			? await db
-					.select({ id: scalingLevelsTable.id, label: scalingLevelsTable.label })
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
 					.from(scalingLevelsTable)
 					.where(inArray(scalingLevelsTable.id, divisionIds))
 			: []
@@ -361,7 +396,10 @@ export async function getHeatsForCompetition(
 	const regDivisions =
 		regDivisionIds.length > 0
 			? await db
-					.select({ id: scalingLevelsTable.id, label: scalingLevelsTable.label })
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
 					.from(scalingLevelsTable)
 					.where(inArray(scalingLevelsTable.id, regDivisionIds))
 			: []
@@ -373,8 +411,14 @@ export async function getHeatsForCompetition(
 			{
 				id: r.id,
 				teamName: r.teamName,
-				user: userMap.get(r.userId) ?? { id: r.userId, firstName: null, lastName: null },
-				division: r.divisionId ? regDivisionMap.get(r.divisionId) ?? null : null,
+				user: userMap.get(r.userId) ?? {
+					id: r.userId,
+					firstName: null,
+					lastName: null,
+				},
+				division: r.divisionId
+					? (regDivisionMap.get(r.divisionId) ?? null)
+					: null,
 			},
 		]),
 	)
@@ -388,8 +432,10 @@ export async function getHeatsForCompetition(
 
 	return heats.map((heat) => ({
 		...heat,
-		venue: heat.venueId ? venueMap.get(heat.venueId) ?? null : null,
-		division: heat.divisionId ? divisionMap.get(heat.divisionId) ?? null : null,
+		venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+		division: heat.divisionId
+			? (divisionMap.get(heat.divisionId) ?? null)
+			: null,
 		assignments: (assignmentsByHeat.get(heat.id) ?? []).map((a) => ({
 			id: a.id,
 			laneNumber: a.laneNumber,
@@ -456,7 +502,8 @@ export async function updateHeat(params: {
 
 	if (params.heatNumber !== undefined) updateData.heatNumber = params.heatNumber
 	if (params.venueId !== undefined) updateData.venueId = params.venueId
-	if (params.scheduledTime !== undefined) updateData.scheduledTime = params.scheduledTime
+	if (params.scheduledTime !== undefined)
+		updateData.scheduledTime = params.scheduledTime
 	if (params.divisionId !== undefined) updateData.divisionId = params.divisionId
 	if (params.notes !== undefined) updateData.notes = params.notes
 
@@ -478,7 +525,9 @@ export async function deleteHeat(id: string): Promise<void> {
 /**
  * Get the next heat number for a workout
  */
-export async function getNextHeatNumber(trackWorkoutId: string): Promise<number> {
+export async function getNextHeatNumber(
+	trackWorkoutId: string,
+): Promise<number> {
 	const db = getDb()
 
 	const heats = await db
@@ -598,7 +647,9 @@ export async function getUnassignedRegistrations(
 	const assignedRegistrations =
 		heatIds.length > 0
 			? await db
-					.select({ registrationId: competitionHeatAssignmentsTable.registrationId })
+					.select({
+						registrationId: competitionHeatAssignmentsTable.registrationId,
+					})
 					.from(competitionHeatAssignmentsTable)
 					.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
 			: []
@@ -654,7 +705,10 @@ export async function getUnassignedRegistrations(
 	const divisions =
 		divisionIds.length > 0
 			? await db
-					.select({ id: scalingLevelsTable.id, label: scalingLevelsTable.label })
+					.select({
+						id: scalingLevelsTable.id,
+						label: scalingLevelsTable.label,
+					})
 					.from(scalingLevelsTable)
 					.where(inArray(scalingLevelsTable.id, divisionIds))
 			: []
@@ -663,8 +717,12 @@ export async function getUnassignedRegistrations(
 	return registrations.map((r) => ({
 		id: r.id,
 		teamName: r.teamName,
-		user: userMap.get(r.userId) ?? { id: r.userId, firstName: null, lastName: null },
-		division: r.divisionId ? divisionMap.get(r.divisionId) ?? null : null,
+		user: userMap.get(r.userId) ?? {
+			id: r.userId,
+			firstName: null,
+			lastName: null,
+		},
+		division: r.divisionId ? (divisionMap.get(r.divisionId) ?? null) : null,
 	}))
 }
 
@@ -721,7 +779,10 @@ export async function getHeatsForUser(
 	// Get track workout info
 	const trackWorkoutIds = [...new Set(userHeats.map((h) => h.trackWorkoutId))]
 	const trackWorkouts = await db
-		.select({ id: trackWorkoutsTable.id, trackOrder: trackWorkoutsTable.trackOrder })
+		.select({
+			id: trackWorkoutsTable.id,
+			trackOrder: trackWorkoutsTable.trackOrder,
+		})
 		.from(trackWorkoutsTable)
 		.where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 	const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))

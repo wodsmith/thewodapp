@@ -67,7 +67,8 @@ export default async function InvoicesPage() {
 						<FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
 						<p className="mt-4 text-muted-foreground">No invoices yet</p>
 						<p className="text-muted-foreground text-sm">
-							When you register for competitions, your invoices will appear here.
+							When you register for competitions, your invoices will appear
+							here.
 						</p>
 					</CardContent>
 				</Card>

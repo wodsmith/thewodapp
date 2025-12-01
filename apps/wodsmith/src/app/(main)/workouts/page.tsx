@@ -10,10 +10,7 @@ import {
 	type ScheduledWorkoutInstanceWithDetails,
 } from "@/server/scheduling-service"
 import { getWorkoutResultsForScheduledInstances } from "@/server/workout-results"
-import {
-	getActiveOrPersonalTeamId,
-	requireVerifiedEmail,
-} from "@/utils/auth"
+import { getActiveOrPersonalTeamId, requireVerifiedEmail } from "@/utils/auth"
 import type { KVSession } from "@/utils/kv-session"
 import WorkoutRowCard from "../../../components/WorkoutRowCard"
 import { TeamWorkoutsDisplay } from "./_components/team-workouts-display"
@@ -146,10 +143,7 @@ export default async function WorkoutsPage({
 
 		initialScheduledWorkouts[activeTeamId] = workoutsWithResults
 	} catch (error) {
-		console.error(
-			`Failed to fetch workouts for team ${activeTeamId}:`,
-			error,
-		)
+		console.error(`Failed to fetch workouts for team ${activeTeamId}:`, error)
 		initialScheduledWorkouts[activeTeamId] = []
 	}
 

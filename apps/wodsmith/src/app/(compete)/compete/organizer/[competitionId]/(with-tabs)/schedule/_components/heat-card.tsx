@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Clock, MapPin, Plus, Trash2, X, Loader2 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -40,6 +41,62 @@ interface Registration {
 	} | null
 }
 
+interface DroppableLaneProps {
+	laneNum: number
+	heatId: string
+	organizingTeamId: string
+	onDrop: (registrationId: string, laneNumber: number) => void
+}
+
+function DroppableLane({
+	laneNum,
+	heatId,
+	organizingTeamId,
+	onDrop,
+}: DroppableLaneProps) {
+	const ref = useRef<HTMLDivElement>(null)
+	const [isDraggedOver, setIsDraggedOver] = useState(false)
+
+	useEffect(() => {
+		const element = ref.current
+		if (!element) return
+
+		return dropTargetForElements({
+			element,
+			canDrop: ({ source }) => source.data.type === "athlete",
+			onDragEnter: () => setIsDraggedOver(true),
+			onDragLeave: () => setIsDraggedOver(false),
+			onDrop: ({ source }) => {
+				setIsDraggedOver(false)
+				const registrationId = source.data.registrationId
+				if (typeof registrationId === "string") {
+					onDrop(registrationId, laneNum)
+				}
+			},
+		})
+	}, [laneNum, heatId, organizingTeamId, onDrop])
+
+	return (
+		<div
+			ref={ref}
+			className={`flex items-center gap-3 py-1 border-b border-border/50 last:border-0 transition-colors ${
+				isDraggedOver ? "bg-primary/10 border-primary rounded" : ""
+			}`}
+		>
+			<span className="w-8 text-sm text-muted-foreground font-mono">
+				L{laneNum}
+			</span>
+			<span
+				className={`flex-1 text-sm ${
+					isDraggedOver ? "text-primary font-medium" : "text-muted-foreground"
+				}`}
+			>
+				{isDraggedOver ? "Drop here" : "Empty"}
+			</span>
+		</div>
+	)
+}
+
 interface HeatCardProps {
 	heat: HeatWithAssignments
 	organizingTeamId: string
@@ -58,7 +115,8 @@ export function HeatCard({
 	onAssignmentChange,
 }: HeatCardProps) {
 	const [isAssignOpen, setIsAssignOpen] = useState(false)
-	const [selectedRegistrationId, setSelectedRegistrationId] = useState<string>("")
+	const [selectedRegistrationId, setSelectedRegistrationId] =
+		useState<string>("")
 	const [selectedLane, setSelectedLane] = useState<number>(1)
 
 	const assignToHeat = useServerAction(assignToHeatAction)
@@ -68,9 +126,10 @@ export function HeatCard({
 	const occupiedLanes = new Set(heat.assignments.map((a) => a.laneNumber))
 
 	// Get available lanes
-	const availableLanes = Array.from({ length: maxLanes }, (_, i) => i + 1).filter(
-		(lane) => !occupiedLanes.has(lane),
-	)
+	const availableLanes = Array.from(
+		{ length: maxLanes },
+		(_, i) => i + 1,
+	).filter((lane) => !occupiedLanes.has(lane))
 
 	// Format time
 	function formatTime(date: Date | null): string {
@@ -82,7 +141,9 @@ export function HeatCard({
 	}
 
 	// Get athlete display name
-	function getAthleteName(reg: HeatWithAssignments["assignments"][0]["registration"]): string {
+	function getAthleteName(
+		reg: HeatWithAssignments["assignments"][0]["registration"],
+	): string {
 		if (reg.teamName) return reg.teamName
 		const name = `${reg.user.firstName ?? ""} ${reg.user.lastName ?? ""}`.trim()
 		return name || "Unknown"
@@ -100,7 +161,9 @@ export function HeatCard({
 
 		if (result?.data) {
 			// Find the registration data
-			const reg = unassignedRegistrations.find((r) => r.id === selectedRegistrationId)
+			const reg = unassignedRegistrations.find(
+				(r) => r.id === selectedRegistrationId,
+			)
 			if (reg) {
 				const newAssignment = {
 					id: result.data.id,
@@ -117,7 +180,8 @@ export function HeatCard({
 			setIsAssignOpen(false)
 			setSelectedRegistrationId("")
 			// Auto-select next available lane
-			const nextLane = availableLanes.find((l) => l > selectedLane) ?? availableLanes[0]
+			const nextLane =
+				availableLanes.find((l) => l > selectedLane) ?? availableLanes[0]
 			setSelectedLane(nextLane ?? 1)
 		}
 	}
@@ -130,6 +194,32 @@ export function HeatCard({
 
 		if (!error) {
 			onAssignmentChange(heat.assignments.filter((a) => a.id !== assignmentId))
+		}
+	}
+
+	async function handleDropAssign(registrationId: string, laneNumber: number) {
+		const [result, error] = await assignToHeat.execute({
+			heatId: heat.id,
+			organizingTeamId,
+			registrationId,
+			laneNumber,
+		})
+
+		if (result?.data) {
+			const reg = unassignedRegistrations.find((r) => r.id === registrationId)
+			if (reg) {
+				const newAssignment = {
+					id: result.data.id,
+					laneNumber,
+					registration: {
+						id: reg.id,
+						teamName: reg.teamName,
+						user: reg.user,
+						division: reg.division,
+					},
+				}
+				onAssignmentChange([...heat.assignments, newAssignment])
+			}
 		}
 	}
 
@@ -170,6 +260,18 @@ export function HeatCard({
 							(a) => a.laneNumber === laneNum,
 						)
 
+						if (!assignment) {
+							return (
+								<DroppableLane
+									key={laneNum}
+									laneNum={laneNum}
+									heatId={heat.id}
+									organizingTeamId={organizingTeamId}
+									onDrop={handleDropAssign}
+								/>
+							)
+						}
+
 						return (
 							<div
 								key={laneNum}
@@ -178,31 +280,23 @@ export function HeatCard({
 								<span className="w-8 text-sm text-muted-foreground font-mono">
 									L{laneNum}
 								</span>
-								{assignment ? (
-									<>
-										<span className="flex-1 text-sm">
-											{getAthleteName(assignment.registration)}
-										</span>
-										{assignment.registration.division && (
-											<Badge variant="outline" className="text-xs">
-												{assignment.registration.division.label}
-											</Badge>
-										)}
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6"
-											onClick={() => handleRemove(assignment.id)}
-											disabled={removeFromHeat.isPending}
-										>
-											<X className="h-3 w-3" />
-										</Button>
-									</>
-								) : (
-									<span className="flex-1 text-sm text-muted-foreground">
-										Empty
-									</span>
+								<span className="flex-1 text-sm">
+									{getAthleteName(assignment.registration)}
+								</span>
+								{assignment.registration.division && (
+									<Badge variant="outline" className="text-xs">
+										{assignment.registration.division.label}
+									</Badge>
 								)}
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6"
+									onClick={() => handleRemove(assignment.id)}
+									disabled={removeFromHeat.isPending}
+								>
+									<X className="h-3 w-3" />
+								</Button>
 							</div>
 						)
 					})}
@@ -219,7 +313,9 @@ export function HeatCard({
 						</DialogTrigger>
 						<DialogContent>
 							<DialogHeader>
-								<DialogTitle>Assign Athlete to Heat {heat.heatNumber}</DialogTitle>
+								<DialogTitle>
+									Assign Athlete to Heat {heat.heatNumber}
+								</DialogTitle>
 							</DialogHeader>
 							<div className="space-y-4">
 								<div>
@@ -236,7 +332,7 @@ export function HeatCard({
 												<SelectItem key={reg.id} value={reg.id}>
 													{reg.teamName ??
 														(`${reg.user.firstName ?? ""} ${reg.user.lastName ?? ""}`.trim() ||
-														"Unknown")}{" "}
+															"Unknown")}{" "}
 													{reg.division && `(${reg.division.label})`}
 												</SelectItem>
 											))}
@@ -262,7 +358,10 @@ export function HeatCard({
 									</Select>
 								</div>
 								<div className="flex justify-end gap-2">
-									<Button variant="outline" onClick={() => setIsAssignOpen(false)}>
+									<Button
+										variant="outline"
+										onClick={() => setIsAssignOpen(false)}
+									>
 										Cancel
 									</Button>
 									<Button

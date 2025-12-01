@@ -66,11 +66,13 @@ export default async function CompetitionEventsPage({
 	}
 
 	// Parallel fetch: competition events, divisions, and movements
-	const [competitionEvents, divisionsData, movementsResult] = await Promise.all([
-		getCompetitionWorkouts(competitionId),
-		getCompetitionDivisionsWithCounts({ competitionId }),
-		getAllMovementsAction(),
-	])
+	const [competitionEvents, divisionsData, movementsResult] = await Promise.all(
+		[
+			getCompetitionWorkouts(competitionId),
+			getCompetitionDivisionsWithCounts({ competitionId }),
+			getAllMovementsAction(),
+		],
+	)
 
 	const [movements] = movementsResult ?? [null]
 	const { divisions } = divisionsData
@@ -79,7 +81,11 @@ export default async function CompetitionEventsPage({
 	const divisionIds = divisions.map((d) => d.id)
 	const divisionDescriptionsByWorkout: Record<
 		string,
-		Array<{ divisionId: string; divisionLabel: string; description: string | null }>
+		Array<{
+			divisionId: string
+			divisionLabel: string
+			description: string | null
+		}>
 	> = {}
 
 	if (divisionIds.length > 0) {

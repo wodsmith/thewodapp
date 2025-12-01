@@ -29,6 +29,7 @@ import {
 	deleteHeatAction,
 	getUnassignedRegistrationsAction,
 } from "@/actions/competition-heat-actions"
+import { DraggableAthlete } from "./draggable-athlete"
 import { HeatCard } from "./heat-card"
 
 interface Division {
@@ -43,6 +44,7 @@ interface Division {
 interface Registration {
 	id: string
 	teamName: string | null
+	registeredAt: Date
 	user: {
 		id: string
 		firstName: string | null
@@ -57,6 +59,7 @@ interface Registration {
 interface HeatScheduleManagerProps {
 	competitionId: string
 	organizingTeamId: string
+	competitionStartDate: Date
 	events: CompetitionWorkout[]
 	venues: CompetitionVenue[]
 	heats: HeatWithAssignments[]
@@ -67,6 +70,7 @@ interface HeatScheduleManagerProps {
 export function HeatScheduleManager({
 	competitionId,
 	organizingTeamId,
+	competitionStartDate,
 	events,
 	venues,
 	heats: initialHeats,
@@ -78,10 +82,65 @@ export function HeatScheduleManager({
 		events[0]?.id ?? "",
 	)
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
-	const [newHeatTime, setNewHeatTime] = useState("")
+	const [filterDivisionId, setFilterDivisionId] = useState<string>("all")
+
+	// Format date for datetime-local input (YYYY-MM-DDTHH:MM)
+	function formatDatetimeLocal(date: Date): string {
+		return date.toISOString().slice(0, 16)
+	}
+
+	function getDefaultHeatTime() {
+		const date = new Date(competitionStartDate)
+		date.setHours(8, 0, 0, 0)
+		return formatDatetimeLocal(date)
+	}
+
+	// Calculate next heat time based on last heat at venue + transition time
+	function getNextHeatTime(venueId: string | null): string {
+		// Get heats at this venue (or all heats if no venue)
+		const relevantHeats = venueId
+			? heats.filter((h) => h.venueId === venueId && h.scheduledTime)
+			: heats.filter((h) => h.scheduledTime)
+
+		if (relevantHeats.length === 0) {
+			return getDefaultHeatTime()
+		}
+
+		// Find the latest scheduled heat
+		const latestHeat = relevantHeats.reduce((latest, heat) => {
+			if (!heat.scheduledTime) return latest
+			if (!latest?.scheduledTime) return heat
+			return new Date(heat.scheduledTime) > new Date(latest.scheduledTime)
+				? heat
+				: latest
+		}, relevantHeats[0])
+
+		if (!latestHeat?.scheduledTime) {
+			return getDefaultHeatTime()
+		}
+
+		// Get transition time from venue (default 10 min)
+		const venue = venueId ? venues.find((v) => v.id === venueId) : null
+		const transitionMinutes = venue?.transitionMinutes ?? 3
+
+		// Add transition time to last heat
+		const nextTime = new Date(latestHeat.scheduledTime)
+		nextTime.setMinutes(nextTime.getMinutes() + transitionMinutes)
+
+		return formatDatetimeLocal(nextTime)
+	}
+
+	const [newHeatTime, setNewHeatTime] = useState(getDefaultHeatTime)
 	const [newHeatVenueId, setNewHeatVenueId] = useState<string>("")
 	const [newHeatDivisionId, setNewHeatDivisionId] = useState<string>("")
 	const [newHeatNotes, setNewHeatNotes] = useState("")
+
+	// Handle venue change - auto-update suggested time
+	function handleVenueChange(venueId: string) {
+		setNewHeatVenueId(venueId)
+		const actualVenueId = venueId === "none" ? null : venueId
+		setNewHeatTime(getNextHeatTime(actualVenueId))
+	}
 
 	const createHeat = useServerAction(createHeatAction)
 	const deleteHeat = useServerAction(deleteHeatAction)
@@ -113,28 +172,55 @@ export function HeatScheduleManager({
 		[registrations, assignedRegistrationIds],
 	)
 
-	// Group unassigned by division
+	// Group unassigned by division, filtered and sorted by registeredAt DESC (newest first)
 	const unassignedByDivision = useMemo(() => {
+		const filtered =
+			filterDivisionId === "all"
+				? unassignedRegistrations
+				: unassignedRegistrations.filter(
+						(r) => r.division?.id === filterDivisionId,
+					)
+
 		const grouped = new Map<string, Registration[]>()
-		for (const reg of unassignedRegistrations) {
+		for (const reg of filtered) {
 			const divId = reg.division?.id ?? "no-division"
 			const existing = grouped.get(divId) ?? []
 			existing.push(reg)
 			grouped.set(divId, existing)
 		}
+
+		// Sort each division by registeredAt DESC (newest first)
+		for (const [divId, regs] of grouped) {
+			grouped.set(
+				divId,
+				regs.sort(
+					(a, b) =>
+						new Date(b.registeredAt).getTime() -
+						new Date(a.registeredAt).getTime(),
+				),
+			)
+		}
+
 		return grouped
-	}, [unassignedRegistrations])
+	}, [unassignedRegistrations, filterDivisionId])
 
 	async function handleCreateHeat() {
 		if (!selectedEventId) return
+
+		const venueId =
+			newHeatVenueId && newHeatVenueId !== "none" ? newHeatVenueId : null
+		const divisionId =
+			newHeatDivisionId && newHeatDivisionId !== "none"
+				? newHeatDivisionId
+				: null
 
 		const [result, error] = await createHeat.execute({
 			competitionId,
 			organizingTeamId,
 			trackWorkoutId: selectedEventId,
-			venueId: newHeatVenueId || null,
+			venueId,
 			scheduledTime: newHeatTime ? new Date(newHeatTime) : null,
-			divisionId: newHeatDivisionId || null,
+			divisionId,
 			notes: newHeatNotes || null,
 		})
 
@@ -142,15 +228,26 @@ export function HeatScheduleManager({
 			// Add the new heat with empty assignments
 			const newHeat: HeatWithAssignments = {
 				...result.data,
-				venue: venues.find((v) => v.id === newHeatVenueId) ?? null,
-				division: divisions.find((d) => d.id === newHeatDivisionId) ?? null,
+				venue: venueId ? (venues.find((v) => v.id === venueId) ?? null) : null,
+				division: divisionId
+					? (divisions.find((d) => d.id === divisionId) ?? null)
+					: null,
 				assignments: [],
 			}
-			setHeats([...heats, newHeat])
+			const updatedHeats = [...heats, newHeat]
+			setHeats(updatedHeats)
 			setIsCreateOpen(false)
-			setNewHeatTime("")
-			setNewHeatVenueId("")
-			setNewHeatDivisionId("")
+			// Calculate next time based on the heat we just created
+			if (newHeatTime && venueId) {
+				const venue = venues.find((v) => v.id === venueId)
+				const transitionMinutes = venue?.transitionMinutes ?? 3
+				const nextTime = new Date(newHeatTime)
+				nextTime.setMinutes(nextTime.getMinutes() + transitionMinutes)
+				setNewHeatTime(formatDatetimeLocal(nextTime))
+			} else {
+				setNewHeatTime(getDefaultHeatTime())
+			}
+			// Keep venue and division for consecutive heat creation
 			setNewHeatNotes("")
 		}
 	}
@@ -185,7 +282,8 @@ export function HeatScheduleManager({
 				<CardContent className="py-8 text-center text-muted-foreground">
 					<p className="mb-4">No events created yet.</p>
 					<p className="text-sm">
-						Create events in the Events tab first, then come back to create the heat schedule.
+						Create events in the Events tab first, then come back to create the
+						heat schedule.
 					</p>
 				</CardContent>
 			</Card>
@@ -221,7 +319,9 @@ export function HeatScheduleManager({
 					</DialogTrigger>
 					<DialogContent>
 						<DialogHeader>
-							<DialogTitle>Create Heat for {selectedEvent?.workout.name}</DialogTitle>
+							<DialogTitle>
+								Create Heat for {selectedEvent?.workout.name}
+							</DialogTitle>
 						</DialogHeader>
 						<div className="space-y-4">
 							<div>
@@ -235,12 +335,15 @@ export function HeatScheduleManager({
 							</div>
 							<div>
 								<Label htmlFor="heat-venue">Venue (optional)</Label>
-								<Select value={newHeatVenueId} onValueChange={setNewHeatVenueId}>
+								<Select
+									value={newHeatVenueId}
+									onValueChange={handleVenueChange}
+								>
 									<SelectTrigger id="heat-venue">
 										<SelectValue placeholder="Select a venue" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">No venue</SelectItem>
+										<SelectItem value="none">No venue</SelectItem>
 										{venues.map((venue) => (
 											<SelectItem key={venue.id} value={venue.id}>
 												{venue.name} ({venue.laneCount} lanes)
@@ -250,13 +353,18 @@ export function HeatScheduleManager({
 								</Select>
 							</div>
 							<div>
-								<Label htmlFor="heat-division">Division Filter (optional)</Label>
-								<Select value={newHeatDivisionId} onValueChange={setNewHeatDivisionId}>
+								<Label htmlFor="heat-division">
+									Division Filter (optional)
+								</Label>
+								<Select
+									value={newHeatDivisionId}
+									onValueChange={setNewHeatDivisionId}
+								>
 									<SelectTrigger id="heat-division">
 										<SelectValue placeholder="All divisions" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">All divisions</SelectItem>
+										<SelectItem value="none">All divisions</SelectItem>
 										{divisions.map((div) => (
 											<SelectItem key={div.id} value={div.id}>
 												{div.label}
@@ -275,10 +383,16 @@ export function HeatScheduleManager({
 								/>
 							</div>
 							<div className="flex justify-end gap-2">
-								<Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+								<Button
+									variant="outline"
+									onClick={() => setIsCreateOpen(false)}
+								>
 									Cancel
 								</Button>
-								<Button onClick={handleCreateHeat} disabled={createHeat.isPending}>
+								<Button
+									onClick={handleCreateHeat}
+									disabled={createHeat.isPending}
+								>
 									{createHeat.isPending && (
 										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 									)}
@@ -331,15 +445,37 @@ export function HeatScheduleManager({
 				<div>
 					<Card>
 						<CardHeader className="pb-3">
-							<CardTitle className="text-base flex items-center gap-2">
-								<Users className="h-4 w-4" />
-								Unassigned Athletes
-							</CardTitle>
+							<div className="flex items-center justify-between">
+								<CardTitle className="text-base flex items-center gap-2">
+									<Users className="h-4 w-4" />
+									Unassigned Athletes
+								</CardTitle>
+							</div>
+							<Select
+								value={filterDivisionId}
+								onValueChange={setFilterDivisionId}
+							>
+								<SelectTrigger className="mt-2">
+									<SelectValue placeholder="Filter by division" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Divisions</SelectItem>
+									{divisions.map((div) => (
+										<SelectItem key={div.id} value={div.id}>
+											{div.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</CardHeader>
 						<CardContent>
 							{unassignedRegistrations.length === 0 ? (
 								<p className="text-sm text-muted-foreground text-center py-4">
 									All athletes are assigned to heats.
+								</p>
+							) : unassignedByDivision.size === 0 ? (
+								<p className="text-sm text-muted-foreground text-center py-4">
+									No athletes in this division.
 								</p>
 							) : (
 								<div className="space-y-4">
@@ -355,21 +491,12 @@ export function HeatScheduleManager({
 														{divisionLabel} ({regs.length})
 													</h4>
 													<div className="space-y-1">
-														{regs.slice(0, 10).map((reg) => (
-															<div
+														{regs.map((reg) => (
+															<DraggableAthlete
 																key={reg.id}
-																className="text-sm px-2 py-1 bg-muted rounded"
-															>
-																{reg.teamName ??
-																	(`${reg.user.firstName ?? ""} ${reg.user.lastName ?? ""}`.trim() ||
-																	"Unknown")}
-															</div>
+																registration={reg}
+															/>
 														))}
-														{regs.length > 10 && (
-															<p className="text-xs text-muted-foreground">
-																+{regs.length - 10} more
-															</p>
-														)}
 													</div>
 												</div>
 											)

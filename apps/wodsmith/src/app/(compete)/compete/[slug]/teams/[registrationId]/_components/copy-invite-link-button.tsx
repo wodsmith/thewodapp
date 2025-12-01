@@ -10,7 +10,10 @@ type Props = {
 	competitionSlug: string
 }
 
-export function CopyInviteLinkButton({ token, competitionSlug: _competitionSlug }: Props) {
+export function CopyInviteLinkButton({
+	token,
+	competitionSlug: _competitionSlug,
+}: Props) {
 	const [copied, setCopied] = useState(false)
 
 	const handleCopy = async () => {

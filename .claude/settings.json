@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd .claude/hooks && bun run STOP.ts"
+            "command": "bun run \"$CLAUDE_PROJECT_DIR\"/hooks/STOP.ts"
           }
         ]
       }

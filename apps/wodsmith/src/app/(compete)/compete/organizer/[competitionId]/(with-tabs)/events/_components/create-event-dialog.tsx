@@ -33,7 +33,12 @@ import type {
 	TiebreakScheme,
 	SecondaryScheme,
 } from "@/db/schemas/workouts"
-import { WORKOUT_SCHEMES, SCORE_TYPES, TIEBREAK_SCHEMES, SECONDARY_SCHEMES } from "@/constants"
+import {
+	WORKOUT_SCHEMES,
+	SCORE_TYPES,
+	TIEBREAK_SCHEMES,
+	SECONDARY_SCHEMES,
+} from "@/constants"
 
 // Get default score type based on scheme
 function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
@@ -83,10 +88,18 @@ export function CreateEventDialog({
 	const [scheme, setScheme] = useState<WorkoutScheme>("time")
 	const [scoreType, setScoreType] = useState<ScoreType>("min")
 	const [description, setDescription] = useState("")
-	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(undefined)
-	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(undefined)
-	const [tiebreakScheme, setTiebreakScheme] = useState<TiebreakScheme | undefined>(undefined)
-	const [secondaryScheme, setSecondaryScheme] = useState<SecondaryScheme | undefined>(undefined)
+	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
+		undefined,
+	)
+	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
+		undefined,
+	)
+	const [tiebreakScheme, setTiebreakScheme] = useState<
+		TiebreakScheme | undefined
+	>(undefined)
+	const [secondaryScheme, setSecondaryScheme] = useState<
+		SecondaryScheme | undefined
+	>(undefined)
 	const [selectedMovements, setSelectedMovements] = useState<string[]>([])
 	const [showAdvanced, setShowAdvanced] = useState(false)
 
@@ -152,7 +165,8 @@ export function CreateEventDialog({
 					<DialogHeader>
 						<DialogTitle>Create New Event</DialogTitle>
 						<DialogDescription>
-							Create a new workout event for this competition. You can add more details like division-specific descriptions after creating.
+							Create a new workout event for this competition. You can add more
+							details like division-specific descriptions after creating.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -170,7 +184,10 @@ export function CreateEventDialog({
 
 						<div className="space-y-2">
 							<Label htmlFor="scheme">Scheme</Label>
-							<Select value={scheme} onValueChange={(v) => setScheme(v as WorkoutScheme)}>
+							<Select
+								value={scheme}
+								onValueChange={(v) => setScheme(v as WorkoutScheme)}
+							>
 								<SelectTrigger id="scheme">
 									<SelectValue placeholder="Select scheme" />
 								</SelectTrigger>
@@ -187,7 +204,10 @@ export function CreateEventDialog({
 						{scheme && (
 							<div className="space-y-2">
 								<Label htmlFor="scoreType">Score Type</Label>
-								<Select value={scoreType} onValueChange={(v) => setScoreType(v as ScoreType)}>
+								<Select
+									value={scoreType}
+									onValueChange={(v) => setScoreType(v as ScoreType)}
+								>
 									<SelectTrigger id="scoreType">
 										<SelectValue placeholder="Select score type" />
 									</SelectTrigger>
@@ -205,7 +225,8 @@ export function CreateEventDialog({
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label htmlFor="roundsToScore">
-									Rounds to Score <span className="text-muted-foreground">(optional)</span>
+									Rounds to Score{" "}
+									<span className="text-muted-foreground">(optional)</span>
 								</Label>
 								<Input
 									id="roundsToScore"
@@ -214,7 +235,9 @@ export function CreateEventDialog({
 									value={roundsToScore ?? ""}
 									onChange={(e) =>
 										setRoundsToScore(
-											e.target.value ? Number.parseInt(e.target.value) : undefined
+											e.target.value
+												? Number.parseInt(e.target.value)
+												: undefined,
 										)
 									}
 									min="1"
@@ -222,7 +245,8 @@ export function CreateEventDialog({
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="repsPerRound">
-									Reps per Round <span className="text-muted-foreground">(optional)</span>
+									Reps per Round{" "}
+									<span className="text-muted-foreground">(optional)</span>
 								</Label>
 								<Input
 									id="repsPerRound"
@@ -231,7 +255,9 @@ export function CreateEventDialog({
 									value={repsPerRound ?? ""}
 									onChange={(e) =>
 										setRepsPerRound(
-											e.target.value ? Number.parseInt(e.target.value) : undefined
+											e.target.value
+												? Number.parseInt(e.target.value)
+												: undefined,
 										)
 									}
 									min="1"
@@ -242,11 +268,16 @@ export function CreateEventDialog({
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label htmlFor="tiebreakScheme">
-									Tiebreak Scheme <span className="text-muted-foreground">(optional)</span>
+									Tiebreak Scheme{" "}
+									<span className="text-muted-foreground">(optional)</span>
 								</Label>
 								<Select
 									value={tiebreakScheme ?? "none"}
-									onValueChange={(v) => setTiebreakScheme(v === "none" ? undefined : v as TiebreakScheme)}
+									onValueChange={(v) =>
+										setTiebreakScheme(
+											v === "none" ? undefined : (v as TiebreakScheme),
+										)
+									}
 								>
 									<SelectTrigger id="tiebreakScheme">
 										<SelectValue placeholder="None" />
@@ -263,11 +294,16 @@ export function CreateEventDialog({
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="secondaryScheme">
-									Secondary Scheme <span className="text-muted-foreground">(optional)</span>
+									Secondary Scheme{" "}
+									<span className="text-muted-foreground">(optional)</span>
 								</Label>
 								<Select
 									value={secondaryScheme ?? "none"}
-									onValueChange={(v) => setSecondaryScheme(v === "none" ? undefined : v as SecondaryScheme)}
+									onValueChange={(v) =>
+										setSecondaryScheme(
+											v === "none" ? undefined : (v as SecondaryScheme),
+										)
+									}
 								>
 									<SelectTrigger id="secondaryScheme">
 										<SelectValue placeholder="None" />
@@ -284,11 +320,14 @@ export function CreateEventDialog({
 							</div>
 						</div>
 
-
 						{/* Movements - Collapsible */}
 						<Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
 							<CollapsibleTrigger asChild>
-								<Button type="button" variant="ghost" className="w-full justify-between">
+								<Button
+									type="button"
+									variant="ghost"
+									className="w-full justify-between"
+								>
 									<span>Movements</span>
 									<span className="text-muted-foreground text-sm">
 										{selectedMovements.length > 0

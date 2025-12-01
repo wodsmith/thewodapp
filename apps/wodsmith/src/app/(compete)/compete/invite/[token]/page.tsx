@@ -1,6 +1,13 @@
 "use server"
 
-import { Users, Calendar, Trophy, AlertCircle, LogIn, UserPlus } from "lucide-react"
+import {
+	Users,
+	Calendar,
+	Trophy,
+	AlertCircle,
+	LogIn,
+	UserPlus,
+} from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getTeammateInvite } from "@/server/competitions"
 import { checkEmailExists } from "@/server/user"
@@ -78,8 +85,8 @@ export default async function CompeteInvitePage({
 						<AlertCircle className="w-12 h-12 mx-auto text-destructive" />
 						<h2 className="text-xl font-semibold">Invite Expired</h2>
 						<p className="text-muted-foreground">
-							This invitation has expired. Please ask your team captain to send a
-							new invite.
+							This invitation has expired. Please ask your team captain to send
+							a new invite.
 						</p>
 						<Button asChild variant="outline">
 							<a href="/compete">Browse Competitions</a>
@@ -91,7 +98,10 @@ export default async function CompeteInvitePage({
 	}
 
 	// Auth State 1: Logged in, email matches
-	if (session && session.user.email?.toLowerCase() === invite.email.toLowerCase()) {
+	if (
+		session &&
+		session.user.email?.toLowerCase() === invite.email.toLowerCase()
+	) {
 		return (
 			<div className="container mx-auto max-w-lg py-16">
 				<Card>
@@ -99,9 +109,12 @@ export default async function CompeteInvitePage({
 						<div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit">
 							<Users className="w-8 h-8 text-primary" />
 						</div>
-						<CardTitle className="text-2xl">Join Team {invite.team.name}</CardTitle>
+						<CardTitle className="text-2xl">
+							Join Team {invite.team.name}
+						</CardTitle>
 						<CardDescription>
-							You&apos;ve been invited to compete in {invite.competition?.name || "a competition"}
+							You&apos;ve been invited to compete in{" "}
+							{invite.competition?.name || "a competition"}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
@@ -111,7 +124,9 @@ export default async function CompeteInvitePage({
 								<Trophy className="w-5 h-5 text-muted-foreground" />
 								<div>
 									<p className="text-sm text-muted-foreground">Competition</p>
-									<p className="font-medium">{invite.competition?.name || "Competition"}</p>
+									<p className="font-medium">
+										{invite.competition?.name || "Competition"}
+									</p>
 								</div>
 							</div>
 							<div className="flex items-center gap-3">
@@ -143,7 +158,10 @@ export default async function CompeteInvitePage({
 							)}
 						</div>
 
-						<AcceptInviteButton token={token} competitionSlug={invite.competition?.slug} />
+						<AcceptInviteButton
+							token={token}
+							competitionSlug={invite.competition?.slug}
+						/>
 					</CardContent>
 				</Card>
 			</div>
@@ -151,7 +169,10 @@ export default async function CompeteInvitePage({
 	}
 
 	// Auth State 2: Logged in, email doesn't match
-	if (session && session.user.email?.toLowerCase() !== invite.email.toLowerCase()) {
+	if (
+		session &&
+		session.user.email?.toLowerCase() !== invite.email.toLowerCase()
+	) {
 		return (
 			<div className="container mx-auto max-w-lg py-16">
 				<Card>
@@ -159,8 +180,9 @@ export default async function CompeteInvitePage({
 						<AlertCircle className="w-12 h-12 mx-auto text-yellow-500" />
 						<h2 className="text-xl font-semibold">Wrong Account</h2>
 						<p className="text-muted-foreground">
-							This invite was sent to <strong>{invite.email}</strong>. You&apos;re
-							currently logged in as <strong>{session.user.email}</strong>.
+							This invite was sent to <strong>{invite.email}</strong>.
+							You&apos;re currently logged in as{" "}
+							<strong>{session.user.email}</strong>.
 						</p>
 						<p className="text-sm text-muted-foreground">
 							Please sign out and sign in with the correct account.
@@ -189,9 +211,12 @@ export default async function CompeteInvitePage({
 					<div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit">
 						<Users className="w-8 h-8 text-primary" />
 					</div>
-					<CardTitle className="text-2xl">Join Team {invite.team.name}</CardTitle>
+					<CardTitle className="text-2xl">
+						Join Team {invite.team.name}
+					</CardTitle>
 					<CardDescription>
-						You&apos;ve been invited to compete in {invite.competition?.name || "a competition"}
+						You&apos;ve been invited to compete in{" "}
+						{invite.competition?.name || "a competition"}
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
@@ -201,7 +226,9 @@ export default async function CompeteInvitePage({
 							<Trophy className="w-5 h-5 text-muted-foreground" />
 							<div>
 								<p className="text-sm text-muted-foreground">Competition</p>
-								<p className="font-medium">{invite.competition?.name || "Competition"}</p>
+								<p className="font-medium">
+									{invite.competition?.name || "Competition"}
+								</p>
 							</div>
 						</div>
 						<div className="flex items-center gap-3">
@@ -231,7 +258,9 @@ export default async function CompeteInvitePage({
 								</p>
 							</div>
 							<Button asChild className="w-full" size="lg">
-								<a href={`/sign-in?returnTo=${encodeURIComponent(returnTo)}&email=${encodedEmail}`}>
+								<a
+									href={`/sign-in?returnTo=${encodeURIComponent(returnTo)}&email=${encodedEmail}`}
+								>
 									<LogIn className="w-4 h-4 mr-2" />
 									Sign In to Accept
 								</a>

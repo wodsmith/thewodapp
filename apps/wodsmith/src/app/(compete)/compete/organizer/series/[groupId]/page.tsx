@@ -132,7 +132,8 @@ export default async function SeriesDetailPage({
 									Competitions
 								</div>
 								<div className="text-sm mt-1">
-									{seriesCompetitions.length} competition{seriesCompetitions.length !== 1 ? "s" : ""}
+									{seriesCompetitions.length} competition
+									{seriesCompetitions.length !== 1 ? "s" : ""}
 								</div>
 							</div>
 						</div>

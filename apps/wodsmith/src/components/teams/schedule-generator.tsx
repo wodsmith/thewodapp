@@ -500,13 +500,15 @@ export function ScheduleGenerator({
 																						: "Class"}
 																				</div>
 																				{scheduledClass.coach &&
-																				typeof scheduledClass.coach === "object" &&
+																				typeof scheduledClass.coach ===
+																					"object" &&
 																				"user" in scheduledClass.coach ? (
 																					<div className="text-slate-600 truncate w-full text-left">
 																						{scheduledClass.coach.user &&
 																						typeof scheduledClass.coach.user ===
 																							"object" &&
-																						"firstName" in scheduledClass.coach.user
+																						"firstName" in
+																							scheduledClass.coach.user
 																							? `${scheduledClass.coach.user.firstName} ${scheduledClass.coach.user.lastName}`
 																							: "Unknown"}
 																					</div>

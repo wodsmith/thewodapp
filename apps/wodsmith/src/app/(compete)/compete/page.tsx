@@ -1,7 +1,10 @@
 import "server-only"
 import type { Metadata } from "next"
 import { Suspense } from "react"
-import { getPublicCompetitions, getUserUpcomingRegisteredCompetitions } from "@/server/competitions"
+import {
+	getPublicCompetitions,
+	getUserUpcomingRegisteredCompetitions,
+} from "@/server/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { CompetitionRow } from "./_components/competition-row"
 import { CompetitionSearch } from "./_components/competition-search"
@@ -20,8 +23,12 @@ interface CompetePageProps {
 function getCompetitionStatus(comp: any, now: Date) {
 	const startDate = new Date(comp.startDate)
 	const endDate = new Date(comp.endDate)
-	const regOpens = comp.registrationOpensAt ? new Date(comp.registrationOpensAt) : null
-	const regCloses = comp.registrationClosesAt ? new Date(comp.registrationClosesAt) : null
+	const regOpens = comp.registrationOpensAt
+		? new Date(comp.registrationOpensAt)
+		: null
+	const regCloses = comp.registrationClosesAt
+		? new Date(comp.registrationClosesAt)
+		: null
 
 	// Active if currently happening
 	if (startDate <= now && endDate >= now) {
@@ -40,12 +47,7 @@ function getCompetitionStatus(comp: any, now: Date) {
 	}
 
 	// Registration closed if starts in future AND reg window closed
-	if (
-		startDate > now &&
-		regOpens &&
-		regCloses &&
-		regCloses <= now
-	) {
+	if (startDate > now && regOpens && regCloses && regCloses <= now) {
 		return "registration-closed"
 	}
 
@@ -68,7 +70,9 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 	// Fetch competitions and user registrations in parallel
 	const [allCompetitions, registeredCompetitions] = await Promise.all([
 		getPublicCompetitions(),
-		userId ? getUserUpcomingRegisteredCompetitions(userId) : Promise.resolve([]),
+		userId
+			? getUserUpcomingRegisteredCompetitions(userId)
+			: Promise.resolve([]),
 	])
 
 	const now = new Date()
@@ -76,26 +80,26 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 	// Filter by search query if provided
 	const filteredCompetitions = searchQuery
 		? allCompetitions.filter(
-			(comp) =>
-				comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				comp.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				comp.organizingTeam?.name
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase()),
-		)
+				(comp) =>
+					comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					comp.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					comp.organizingTeam?.name
+						.toLowerCase()
+						.includes(searchQuery.toLowerCase()),
+			)
 		: allCompetitions
 
 	// Create a set of registered competition IDs for easy filtering
-	const registeredCompIds = new Set(registeredCompetitions.map(c => c.id))
+	const registeredCompIds = new Set(registeredCompetitions.map((c) => c.id))
 
 	// Filter out registered competitions from main list
 	const unregisteredCompetitions = filteredCompetitions.filter(
-		comp => !registeredCompIds.has(comp.id)
+		(comp) => !registeredCompIds.has(comp.id),
 	)
 
 	// Sort competitions by start date
 	const sortedCompetitions = [...unregisteredCompetitions].sort(
-		(a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+		(a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
 	)
 
 	const hasNoCompetitions = sortedCompetitions.length === 0

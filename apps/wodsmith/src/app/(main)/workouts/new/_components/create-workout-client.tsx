@@ -654,7 +654,6 @@ export default function CreateWorkoutClient({
 										</FormItem>
 									)}
 								/>
-
 							</div>
 
 							<div>

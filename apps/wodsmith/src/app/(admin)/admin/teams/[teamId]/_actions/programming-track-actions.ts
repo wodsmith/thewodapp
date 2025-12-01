@@ -216,7 +216,8 @@ export const getTeamTracksAction = createServerAction()
 export const addWorkoutToTrackAction = createServerAction()
 	.input(addWorkoutToTrackSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, workoutId, trackOrder, notes, pointsMultiplier } = input
+		const { teamId, trackId, workoutId, trackOrder, notes, pointsMultiplier } =
+			input
 
 		try {
 			// Check permissions
@@ -296,8 +297,14 @@ export const removeWorkoutFromTrackAction = createServerAction()
 export const updateTrackWorkoutAction = createServerAction()
 	.input(updateTrackWorkoutSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, trackWorkoutId, trackOrder, notes, pointsMultiplier } =
-			input
+		const {
+			teamId,
+			trackId,
+			trackWorkoutId,
+			trackOrder,
+			notes,
+			pointsMultiplier,
+		} = input
 
 		try {
 			// Check permissions

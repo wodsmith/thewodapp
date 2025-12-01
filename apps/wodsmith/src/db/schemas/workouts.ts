@@ -36,7 +36,14 @@ export const WORKOUT_SCHEME_VALUES = [
 export type WorkoutScheme = (typeof WORKOUT_SCHEME_VALUES)[number]
 
 // Score type values
-export const SCORE_TYPE_VALUES = ["min", "max", "sum", "average", "first", "last"] as const
+export const SCORE_TYPE_VALUES = [
+	"min",
+	"max",
+	"sum",
+	"average",
+	"first",
+	"last",
+] as const
 export type ScoreType = (typeof SCORE_TYPE_VALUES)[number]
 
 // Tiebreak scheme values

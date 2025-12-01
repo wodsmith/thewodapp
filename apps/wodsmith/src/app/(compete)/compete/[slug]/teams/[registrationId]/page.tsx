@@ -50,25 +50,25 @@ export default async function TeamManagementPage({
 
 	// Get competition details
 	const competition = registration.competition
-		? (Array.isArray(registration.competition)
-				? registration.competition[0]
-				: registration.competition)
+		? Array.isArray(registration.competition)
+			? registration.competition[0]
+			: registration.competition
 		: null
 
 	const division = registration.division
-		? (Array.isArray(registration.division)
-				? registration.division[0]
-				: registration.division)
+		? Array.isArray(registration.division)
+			? registration.division[0]
+			: registration.division
 		: null
 
 	const _athleteTeam = registration.athleteTeam
-		? (Array.isArray(registration.athleteTeam)
-				? registration.athleteTeam[0]
-				: registration.athleteTeam)
+		? Array.isArray(registration.athleteTeam)
+			? registration.athleteTeam[0]
+			: registration.athleteTeam
 		: null
 
 	// Check if current user is a team member
-	const isTeamMember = members.some(m => m.userId === session.userId)
+	const isTeamMember = members.some((m) => m.userId === session.userId)
 	const isRegisteredUser = registration.userId === session.userId
 	const canEditOwnAffiliate = isTeamMember || isRegisteredUser
 
@@ -97,7 +97,9 @@ export default async function TeamManagementPage({
 	let pendingTeammates: PendingTeammate[] = []
 	if (registration.pendingTeammates) {
 		try {
-			pendingTeammates = JSON.parse(registration.pendingTeammates) as PendingTeammate[]
+			pendingTeammates = JSON.parse(
+				registration.pendingTeammates,
+			) as PendingTeammate[]
 		} catch {
 			// Invalid JSON, ignore
 		}
@@ -105,7 +107,9 @@ export default async function TeamManagementPage({
 
 	// Helper to get affiliate for a pending invite by email
 	const getPendingAffiliate = (email: string): string | null => {
-		const teammate = pendingTeammates.find(t => t.email.toLowerCase() === email.toLowerCase())
+		const teammate = pendingTeammates.find(
+			(t) => t.email.toLowerCase() === email.toLowerCase(),
+		)
 		return teammate?.affiliateName || null
 	}
 
@@ -116,7 +120,8 @@ export default async function TeamManagementPage({
 				<div className="space-y-2">
 					<h1 className="text-3xl font-bold">My Registration</h1>
 					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} - {division?.label || "Division"}
+						{competition?.name || "Competition"} -{" "}
+						{division?.label || "Division"}
 					</p>
 				</div>
 
@@ -134,7 +139,9 @@ export default async function TeamManagementPage({
 		<div className="container mx-auto max-w-4xl py-8 space-y-6">
 			{/* Header */}
 			<div className="space-y-2">
-				<h1 className="text-3xl font-bold">{registration.teamName || "Team"}</h1>
+				<h1 className="text-3xl font-bold">
+					{registration.teamName || "Team"}
+				</h1>
 				<p className="text-muted-foreground">
 					{competition?.name || "Competition"} - {division?.label || "Division"}
 				</p>
@@ -161,7 +168,9 @@ export default async function TeamManagementPage({
 						</h4>
 						<div className="space-y-2">
 							{members.map((member) => {
-								const memberAffiliate = member.userId ? memberAffiliates[member.userId] : null
+								const memberAffiliate = member.userId
+									? memberAffiliates[member.userId]
+									: null
 								return (
 									<div
 										key={member.id}
@@ -274,14 +283,15 @@ export default async function TeamManagementPage({
 					<CardHeader>
 						<CardTitle className="text-lg">Captain Actions</CardTitle>
 						<CardDescription>
-							Share the invite links with your teammates so they can join the team
+							Share the invite links with your teammates so they can join the
+							team
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<p className="text-sm text-muted-foreground">
-							Teammates will receive an email with their invitation link. If they
-							didn&apos;t receive it, you can copy the link above and share it
-							directly.
+							Teammates will receive an email with their invitation link. If
+							they didn&apos;t receive it, you can copy the link above and share
+							it directly.
 						</p>
 					</CardContent>
 				</Card>
