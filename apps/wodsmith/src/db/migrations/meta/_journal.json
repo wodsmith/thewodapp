@@ -295,6 +295,13 @@
       "when": 1764566400000,
       "tag": "0041_add-pass-platform-fees-to-customer",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1764652800000,
+      "tag": "0042_add-heat-scheduling",
+      "breakpoints": true
     }
   ]
 }

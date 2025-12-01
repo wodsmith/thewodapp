@@ -66,3 +66,8 @@ export const createAffiliateId = () => `aff_${createId()}`
 export const createCommerceProductId = () => `cprod_${createId()}`
 export const createCommercePurchaseId = () => `cpur_${createId()}`
 export const createCompetitionDivisionFeeId = () => `cdfee_${createId()}`
+
+// Competition heat scheduling ID generators
+export const createCompetitionVenueId = () => `cvenue_${createId()}`
+export const createCompetitionHeatId = () => `cheat_${createId()}`
+export const createCompetitionHeatAssignmentId = () => `chasgn_${createId()}`

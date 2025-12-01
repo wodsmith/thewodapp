@@ -3,6 +3,8 @@ import { notFound } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { getCompetition, getCompetitionRegistrations, getUserCompetitionRegistration } from "@/server/competitions"
 import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
+import { getHeatsForCompetition } from "@/server/competition-heats"
+import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
@@ -12,6 +14,7 @@ import { EventDetailsContent } from "./_components/event-details-content"
 import { LeaderboardContent } from "./_components/leaderboard-content"
 import { RegisterButton } from "./_components/register-button"
 import { RegistrationSidebar } from "./_components/registration-sidebar"
+import { ScheduleContent } from "./_components/schedule-content"
 import { WorkoutsContent } from "./_components/workouts-content"
 
 type Props = {
@@ -55,11 +58,13 @@ export default async function CompetitionDetailPage({ params }: Props) {
     notFound()
   }
 
-  // Parallel fetch: session, registrations, and divisions with counts/descriptions
-  const [session, registrations, divisions] = await Promise.all([
+  // Parallel fetch: session, registrations, divisions, events, and heats
+  const [session, registrations, divisions, events, heats] = await Promise.all([
     getSessionFromCookie(),
     getCompetitionRegistrations(competition.id),
     getPublicCompetitionDivisions(competition.id),
+    getCompetitionWorkouts(competition.id),
+    getHeatsForCompetition(competition.id),
   ])
 
   // Check if user is already registered, get pending invites, and check manage permission (depends on session)
@@ -111,6 +116,13 @@ export default async function CompetitionDetailPage({ params }: Props) {
           <WorkoutsContent
             competition={competition}
             divisions={divisions}
+          />
+        }
+        scheduleContent={
+          <ScheduleContent
+            events={events}
+            heats={heats}
+            currentUserId={session?.userId}
           />
         }
         leaderboardContent={
