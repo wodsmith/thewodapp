@@ -34,6 +34,7 @@ export interface HeatWithAssignments extends CompetitionHeat {
 			teamName: string | null
 			user: { id: string; firstName: string | null; lastName: string | null }
 			division: { id: string; label: string } | null
+			affiliate: string | null
 		}
 	}>
 }
@@ -217,6 +218,7 @@ export async function getHeatsForWorkout(
 						teamName: competitionRegistrationsTable.teamName,
 						userId: competitionRegistrationsTable.userId,
 						divisionId: competitionRegistrationsTable.divisionId,
+						metadata: competitionRegistrationsTable.metadata,
 					})
 					.from(competitionRegistrationsTable)
 					.where(inArray(competitionRegistrationsTable.id, registrationIds))
@@ -253,6 +255,22 @@ export async function getHeatsForWorkout(
 			: []
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
+	// Helper to extract affiliate from metadata
+	function getAffiliate(
+		metadata: string | null,
+		userId: string,
+	): string | null {
+		if (!metadata) return null
+		try {
+			const parsed = JSON.parse(metadata) as {
+				affiliates?: Record<string, string>
+			}
+			return parsed.affiliates?.[userId] ?? null
+		} catch {
+			return null
+		}
+	}
+
 	// Build registration map
 	const registrationMap = new Map(
 		registrations.map((r) => [
@@ -268,6 +286,7 @@ export async function getHeatsForWorkout(
 				division: r.divisionId
 					? (regDivisionMap.get(r.divisionId) ?? null)
 					: null,
+				affiliate: getAffiliate(r.metadata, r.userId),
 			},
 		]),
 	)
@@ -295,6 +314,7 @@ export async function getHeatsForWorkout(
 				teamName: null,
 				user: { id: "", firstName: null, lastName: null },
 				division: null,
+				affiliate: null,
 			},
 		})),
 	}))
@@ -371,6 +391,7 @@ export async function getHeatsForCompetition(
 						teamName: competitionRegistrationsTable.teamName,
 						userId: competitionRegistrationsTable.userId,
 						divisionId: competitionRegistrationsTable.divisionId,
+						metadata: competitionRegistrationsTable.metadata,
 					})
 					.from(competitionRegistrationsTable)
 					.where(inArray(competitionRegistrationsTable.id, registrationIds))
@@ -405,6 +426,22 @@ export async function getHeatsForCompetition(
 			: []
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
+	// Helper to extract affiliate from metadata
+	function getAffiliate(
+		metadata: string | null,
+		userId: string,
+	): string | null {
+		if (!metadata) return null
+		try {
+			const parsed = JSON.parse(metadata) as {
+				affiliates?: Record<string, string>
+			}
+			return parsed.affiliates?.[userId] ?? null
+		} catch {
+			return null
+		}
+	}
+
 	const registrationMap = new Map(
 		registrations.map((r) => [
 			r.id,
@@ -419,6 +456,7 @@ export async function getHeatsForCompetition(
 				division: r.divisionId
 					? (regDivisionMap.get(r.divisionId) ?? null)
 					: null,
+				affiliate: getAffiliate(r.metadata, r.userId),
 			},
 		]),
 	)
@@ -444,6 +482,7 @@ export async function getHeatsForCompetition(
 				teamName: null,
 				user: { id: "", firstName: null, lastName: null },
 				division: null,
+				affiliate: null,
 			},
 		})),
 	}))
@@ -458,6 +497,7 @@ export async function createHeat(params: {
 	heatNumber: number
 	venueId?: string | null
 	scheduledTime?: Date | null
+	durationMinutes?: number | null
 	divisionId?: string | null
 	notes?: string | null
 }): Promise<CompetitionHeat> {
@@ -471,6 +511,7 @@ export async function createHeat(params: {
 			heatNumber: params.heatNumber,
 			venueId: params.venueId ?? null,
 			scheduledTime: params.scheduledTime ?? null,
+			durationMinutes: params.durationMinutes ?? null,
 			divisionId: params.divisionId ?? null,
 			notes: params.notes ?? null,
 		})
@@ -520,6 +561,53 @@ export async function deleteHeat(id: string): Promise<void> {
 	const db = getDb()
 
 	await db.delete(competitionHeatsTable).where(eq(competitionHeatsTable.id, id))
+}
+
+/**
+ * Bulk create heats for a workout
+ */
+export async function bulkCreateHeats(params: {
+	competitionId: string
+	trackWorkoutId: string
+	count: number
+	venueId?: string | null
+	divisionId?: string | null
+	startTime?: Date | null
+	durationMinutes?: number | null
+}): Promise<CompetitionHeat[]> {
+	const db = getDb()
+
+	// Get current max heat number
+	const startNumber = await getNextHeatNumber(params.trackWorkoutId)
+
+	const heatsToCreate = []
+	let currentTime = params.startTime ? new Date(params.startTime) : null
+
+	for (let i = 0; i < params.count; i++) {
+		heatsToCreate.push({
+			competitionId: params.competitionId,
+			trackWorkoutId: params.trackWorkoutId,
+			heatNumber: startNumber + i,
+			venueId: params.venueId ?? null,
+			scheduledTime: currentTime ? new Date(currentTime) : null,
+			durationMinutes: params.durationMinutes ?? null,
+			divisionId: params.divisionId ?? null,
+			notes: null,
+		})
+
+		// Increment time for next heat
+		if (currentTime && params.durationMinutes) {
+			currentTime = new Date(currentTime)
+			currentTime.setMinutes(currentTime.getMinutes() + params.durationMinutes)
+		}
+	}
+
+	const result = await db
+		.insert(competitionHeatsTable)
+		.values(heatsToCreate)
+		.returning()
+
+	return result
 }
 
 /**
@@ -582,6 +670,23 @@ export async function removeFromHeat(assignmentId: string): Promise<void> {
 	await db
 		.delete(competitionHeatAssignmentsTable)
 		.where(eq(competitionHeatAssignmentsTable.id, assignmentId))
+}
+
+/**
+ * Get an assignment by ID
+ */
+export async function getAssignment(
+	assignmentId: string,
+): Promise<CompetitionHeatAssignment | null> {
+	const db = getDb()
+
+	const assignment = await db
+		.select()
+		.from(competitionHeatAssignmentsTable)
+		.where(eq(competitionHeatAssignmentsTable.id, assignmentId))
+		.get()
+
+	return assignment ?? null
 }
 
 /**

@@ -12,7 +12,13 @@ import {
 	Loader2,
 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
-import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import {
+	draggable,
+	dropTargetForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
+import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
+import { GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -35,6 +41,7 @@ import {
 	assignToHeatAction,
 	removeFromHeatAction,
 	bulkAssignToHeatAction,
+	moveAssignmentAction,
 } from "@/actions/competition-heat-actions"
 
 interface Registration {
@@ -51,18 +58,32 @@ interface Registration {
 	} | null
 }
 
+interface DropData {
+	type: "unassigned" | "assigned"
+	registrationIds?: string[]
+	assignmentId?: string
+	sourceHeatId?: string
+}
+
 interface DroppableLaneProps {
 	laneNum: number
 	heatId: string
 	organizingTeamId: string
-	onDrop: (registrationIds: string[], laneNumber: number) => void
+	onDropUnassigned: (registrationIds: string[], laneNumber: number) => void
+	onDropAssigned: (
+		assignmentId: string,
+		sourceHeatId: string,
+		laneNumber: number,
+		assignment: HeatWithAssignments["assignments"][0],
+	) => void
 }
 
 function DroppableLane({
 	laneNum,
 	heatId,
 	organizingTeamId,
-	onDrop,
+	onDropUnassigned,
+	onDropAssigned,
 }: DroppableLaneProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
@@ -73,21 +94,34 @@ function DroppableLane({
 
 		return dropTargetForElements({
 			element,
-			canDrop: ({ source }) => source.data.type === "athlete",
+			canDrop: ({ source }) =>
+				source.data.type === "athlete" || source.data.type === "assigned",
 			onDragEnter: () => setIsDraggedOver(true),
 			onDragLeave: () => setIsDraggedOver(false),
 			onDrop: ({ source }) => {
 				setIsDraggedOver(false)
-				// Get registrationIds array (for bulk) or single ID
-				const registrationIds = source.data.registrationIds as
-					| string[]
-					| undefined
-				if (registrationIds && Array.isArray(registrationIds)) {
-					onDrop(registrationIds, laneNum)
+
+				if (source.data.type === "assigned") {
+					// Moving an already assigned athlete
+					const assignmentId = source.data.assignmentId as string
+					const sourceHeatId = source.data.heatId as string
+					const assignment = source.data
+						.assignment as HeatWithAssignments["assignments"][0]
+					if (assignmentId && sourceHeatId && assignment) {
+						onDropAssigned(assignmentId, sourceHeatId, laneNum, assignment)
+					}
+				} else {
+					// Dropping unassigned athlete(s)
+					const registrationIds = source.data.registrationIds as
+						| string[]
+						| undefined
+					if (registrationIds && Array.isArray(registrationIds)) {
+						onDropUnassigned(registrationIds, laneNum)
+					}
 				}
 			},
 		})
-	}, [laneNum, heatId, organizingTeamId, onDrop])
+	}, [laneNum, heatId, organizingTeamId, onDropUnassigned, onDropAssigned])
 
 	return (
 		<div
@@ -96,7 +130,9 @@ function DroppableLane({
 				isDraggedOver ? "bg-primary/10 border-primary rounded" : ""
 			}`}
 		>
-			<span className="w-8 text-sm text-muted-foreground font-mono">
+			{/* Spacer to align with grip handle in assigned rows */}
+			<div className="h-3 w-3" />
+			<span className="w-6 text-sm text-muted-foreground font-mono">
 				L{laneNum}
 			</span>
 			<span
@@ -110,6 +146,104 @@ function DroppableLane({
 	)
 }
 
+interface DraggableAssignedAthleteProps {
+	assignment: HeatWithAssignments["assignments"][0]
+	heatId: string
+	laneNum: number
+	onRemove: () => void
+	isRemoving: boolean
+}
+
+function DraggableAssignedAthlete({
+	assignment,
+	heatId,
+	laneNum,
+	onRemove,
+	isRemoving,
+}: DraggableAssignedAthleteProps) {
+	const ref = useRef<HTMLDivElement>(null)
+	const [isDragging, setIsDragging] = useState(false)
+
+	const displayName =
+		assignment.registration.teamName ??
+		(`${assignment.registration.user.firstName ?? ""} ${assignment.registration.user.lastName ?? ""}`.trim() ||
+			"Unknown")
+
+	useEffect(() => {
+		const element = ref.current
+		if (!element) return
+
+		return draggable({
+			element,
+			getInitialData: () => ({
+				type: "assigned",
+				assignmentId: assignment.id,
+				heatId,
+				registrationId: assignment.registration.id,
+				displayName,
+				laneNumber: laneNum,
+				// Include full assignment for cross-heat moves
+				assignment: {
+					id: assignment.id,
+					laneNumber: laneNum,
+					registration: assignment.registration,
+				},
+			}),
+			onDragStart: () => setIsDragging(true),
+			onDrop: () => setIsDragging(false),
+			onGenerateDragPreview({ nativeSetDragImage }) {
+				setCustomNativeDragPreview({
+					nativeSetDragImage,
+					getOffset: pointerOutsideOfPreview({ x: "16px", y: "8px" }),
+					render({ container }) {
+						const preview = document.createElement("div")
+						preview.style.cssText = `
+							background: hsl(var(--background));
+							border: 2px solid hsl(var(--primary));
+							border-radius: 6px;
+							padding: 8px 12px;
+							font-size: 14px;
+							color: hsl(var(--foreground));
+							box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+						`
+						preview.textContent = displayName
+						container.appendChild(preview)
+					},
+				})
+			},
+		})
+	}, [assignment.id, heatId, assignment.registration.id, displayName, laneNum])
+
+	return (
+		<div
+			ref={ref}
+			className={`flex items-center gap-3 py-1 border-b border-border/50 last:border-0 ${
+				isDragging ? "opacity-50" : ""
+			}`}
+		>
+			<GripVertical className="h-3 w-3 text-muted-foreground cursor-grab active:cursor-grabbing" />
+			<span className="w-6 text-sm text-muted-foreground font-mono">
+				L{laneNum}
+			</span>
+			<span className="flex-1 text-sm">{displayName}</span>
+			{assignment.registration.division && (
+				<Badge variant="outline" className="text-xs">
+					{assignment.registration.division.label}
+				</Badge>
+			)}
+			<Button
+				variant="ghost"
+				size="icon"
+				className="h-6 w-6"
+				onClick={onRemove}
+				disabled={isRemoving}
+			>
+				<X className="h-3 w-3" />
+			</Button>
+		</div>
+	)
+}
+
 interface HeatCardProps {
 	heat: HeatWithAssignments
 	organizingTeamId: string
@@ -117,6 +251,13 @@ interface HeatCardProps {
 	maxLanes: number
 	onDelete: () => void
 	onAssignmentChange: (assignments: HeatWithAssignments["assignments"]) => void
+	onMoveAssignment?: (
+		assignmentId: string,
+		sourceHeatId: string,
+		targetHeatId: string,
+		targetLane: number,
+		assignment: HeatWithAssignments["assignments"][0],
+	) => void
 	onClearSelection?: () => void
 }
 
@@ -127,6 +268,7 @@ export function HeatCard({
 	maxLanes,
 	onDelete,
 	onAssignmentChange,
+	onMoveAssignment,
 	onClearSelection,
 }: HeatCardProps) {
 	const [isAssignOpen, setIsAssignOpen] = useState(false)
@@ -136,6 +278,7 @@ export function HeatCard({
 
 	const assignToHeat = useServerAction(assignToHeatAction)
 	const removeFromHeat = useServerAction(removeFromHeatAction)
+	const moveAssignment = useServerAction(moveAssignmentAction)
 	const bulkAssign = useServerAction(bulkAssignToHeatAction)
 
 	// Get occupied lanes
@@ -147,7 +290,6 @@ export function HeatCard({
 		(_, i) => i + 1,
 	).filter((lane) => !occupiedLanes.has(lane))
 
-	// Auto-collapse when full
 	const isFull = heat.assignments.length >= maxLanes
 	const [isExpanded, setIsExpanded] = useState(!isFull)
 
@@ -193,6 +335,7 @@ export function HeatCard({
 						teamName: reg.teamName,
 						user: reg.user,
 						division: reg.division,
+						affiliate: null,
 					},
 				}
 				onAssignmentChange([...heat.assignments, newAssignment])
@@ -271,6 +414,7 @@ export function HeatCard({
 							teamName: reg.teamName,
 							user: reg.user,
 							division: reg.division,
+							affiliate: null,
 						},
 					}
 					onAssignmentChange([...heat.assignments, newAssignment])
@@ -300,6 +444,7 @@ export function HeatCard({
 								teamName: reg.teamName,
 								user: reg.user,
 								division: reg.division,
+								affiliate: null,
 							},
 						}
 					})
@@ -311,6 +456,59 @@ export function HeatCard({
 
 		// Clear selection after successful drop
 		onClearSelection?.()
+	}
+
+	async function handleDropAssigned(
+		assignmentId: string,
+		sourceHeatId: string,
+		targetLane: number,
+		assignment: HeatWithAssignments["assignments"][0],
+	) {
+		// If lane is occupied in this heat by someone else, don't allow
+		const existingInLane = heat.assignments.find(
+			(a) => a.laneNumber === targetLane && a.id !== assignmentId,
+		)
+		if (existingInLane) {
+			return
+		}
+
+		// If moving within same heat, just update lane
+		if (sourceHeatId === heat.id) {
+			const [, error] = await moveAssignment.execute({
+				assignmentId,
+				organizingTeamId,
+				targetHeatId: heat.id,
+				targetLaneNumber: targetLane,
+			})
+
+			if (!error) {
+				// Update local state
+				onAssignmentChange(
+					heat.assignments.map((a) =>
+						a.id === assignmentId ? { ...a, laneNumber: targetLane } : a,
+					),
+				)
+			}
+		} else {
+			// Cross-heat move
+			const [, error] = await moveAssignment.execute({
+				assignmentId,
+				organizingTeamId,
+				targetHeatId: heat.id,
+				targetLaneNumber: targetLane,
+			})
+
+			if (!error && onMoveAssignment) {
+				// Let parent handle state updates for both heats
+				onMoveAssignment(
+					assignmentId,
+					sourceHeatId,
+					heat.id,
+					targetLane,
+					assignment,
+				)
+			}
+		}
 	}
 
 	// Group assignments by division for collapsed view
@@ -348,6 +546,9 @@ export function HeatCard({
 								</span>
 							)}
 						</div>
+						<Badge variant={isFull ? "default" : "outline"} className="text-xs">
+							{heat.assignments.length}/{maxLanes}
+						</Badge>
 						<div className="flex-1" />
 						{Object.entries(assignmentsByDivision).map(([divLabel, count]) => (
 							<Badge key={divLabel} variant="secondary" className="text-xs">
@@ -365,17 +566,18 @@ export function HeatCard({
 			<CardHeader className="pb-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						{isFull && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6"
-								onClick={() => setIsExpanded(false)}
-							>
-								<ChevronDown className="h-4 w-4" />
-							</Button>
-						)}
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-6 w-6"
+							onClick={() => setIsExpanded(false)}
+						>
+							<ChevronDown className="h-4 w-4" />
+						</Button>
 						<CardTitle className="text-base">Heat {heat.heatNumber}</CardTitle>
+						<Badge variant={isFull ? "default" : "outline"} className="text-xs">
+							{heat.assignments.length}/{maxLanes}
+						</Badge>
 					</div>
 					<div className="flex items-center gap-2">
 						{heat.division && (
@@ -416,37 +618,21 @@ export function HeatCard({
 									laneNum={laneNum}
 									heatId={heat.id}
 									organizingTeamId={organizingTeamId}
-									onDrop={handleDropAssign}
+									onDropUnassigned={handleDropAssign}
+									onDropAssigned={handleDropAssigned}
 								/>
 							)
 						}
 
 						return (
-							<div
+							<DraggableAssignedAthlete
 								key={laneNum}
-								className="flex items-center gap-3 py-1 border-b border-border/50 last:border-0"
-							>
-								<span className="w-8 text-sm text-muted-foreground font-mono">
-									L{laneNum}
-								</span>
-								<span className="flex-1 text-sm">
-									{getAthleteName(assignment.registration)}
-								</span>
-								{assignment.registration.division && (
-									<Badge variant="outline" className="text-xs">
-										{assignment.registration.division.label}
-									</Badge>
-								)}
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-6 w-6"
-									onClick={() => handleRemove(assignment.id)}
-									disabled={removeFromHeat.isPending}
-								>
-									<X className="h-3 w-3" />
-								</Button>
-							</div>
+								assignment={assignment}
+								heatId={heat.id}
+								laneNum={laneNum}
+								onRemove={() => handleRemove(assignment.id)}
+								isRemoving={removeFromHeat.isPending}
+							/>
 						)
 					})}
 				</div>
@@ -532,10 +718,6 @@ export function HeatCard({
 					</Dialog>
 				)}
 
-				{/* Capacity indicator */}
-				<div className="mt-3 text-xs text-muted-foreground text-right">
-					{heat.assignments.length}/{maxLanes} lanes filled
-				</div>
 			</CardContent>
 		</Card>
 	)

@@ -9,6 +9,7 @@ import { getCompetition } from "@/server/competitions"
 import {
 	assignToHeat,
 	bulkAssignToHeat,
+	bulkCreateHeats,
 	createHeat,
 	createVenue,
 	deleteHeat,
@@ -70,6 +71,7 @@ const createHeatSchema = z.object({
 	heatNumber: z.number().int().min(1).optional(), // Auto-increment if not provided
 	venueId: venueIdSchema.nullable().optional(),
 	scheduledTime: z.date().nullable().optional(),
+	durationMinutes: z.number().int().min(1).max(180).nullable().optional(),
 	divisionId: z.string().nullable().optional(),
 	notes: z.string().max(500).nullable().optional(),
 })
@@ -97,6 +99,17 @@ const getHeatsForCompetitionSchema = z.object({
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 })
 
+const bulkCreateHeatsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	count: z.number().int().min(1).max(50),
+	venueId: venueIdSchema.nullable().optional(),
+	divisionId: z.string().nullable().optional(),
+	startTime: z.date().nullable().optional(),
+	durationMinutes: z.number().int().min(1).max(180).nullable().optional(),
+})
+
 // Assignment schemas
 const assignToHeatSchema = z.object({
 	heatId: heatIdSchema,
@@ -114,6 +127,13 @@ const updateAssignmentSchema = z.object({
 	id: assignmentIdSchema,
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	laneNumber: z.number().int().min(1),
+})
+
+const moveAssignmentSchema = z.object({
+	assignmentId: assignmentIdSchema,
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	targetHeatId: heatIdSchema,
+	targetLaneNumber: z.number().int().min(1),
 })
 
 const bulkAssignSchema = z.object({
@@ -266,6 +286,7 @@ export const createHeatAction = createServerAction()
 				heatNumber,
 				venueId: input.venueId,
 				scheduledTime: input.scheduledTime,
+				durationMinutes: input.durationMinutes,
 				divisionId: input.divisionId,
 				notes: input.notes,
 			})
@@ -335,6 +356,39 @@ export const deleteHeatAction = createServerAction()
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to delete heat")
+		}
+	})
+
+/**
+ * Bulk create heats for a workout
+ */
+export const bulkCreateHeatsAction = createServerAction()
+	.input(bulkCreateHeatsSchema)
+	.handler(async ({ input }) => {
+		try {
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			const heats = await bulkCreateHeats({
+				competitionId: input.competitionId,
+				trackWorkoutId: input.trackWorkoutId,
+				count: input.count,
+				venueId: input.venueId,
+				divisionId: input.divisionId,
+				startTime: input.startTime,
+				durationMinutes: input.durationMinutes,
+			})
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
+
+			return { success: true, data: heats }
+		} catch (error) {
+			console.error("Failed to bulk create heats:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to create heats")
 		}
 	})
 
@@ -503,5 +557,53 @@ export const getUnassignedRegistrationsAction = createServerAction()
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to get unassigned registrations")
+		}
+	})
+
+/**
+ * Move an assignment to a different heat/lane
+ * Handles cross-heat moves by removing from old heat and assigning to new
+ */
+export const moveAssignmentAction = createServerAction()
+	.input(moveAssignmentSchema)
+	.handler(async ({ input }) => {
+		try {
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			// Get current assignment to find registrationId
+			const { getAssignment } = await import("@/server/competition-heats")
+			const currentAssignment = await getAssignment(input.assignmentId)
+
+			if (!currentAssignment) {
+				throw new ZSAError("NOT_FOUND", "Assignment not found")
+			}
+
+			// If same heat, just update lane
+			if (currentAssignment.heatId === input.targetHeatId) {
+				await updateAssignment({
+					id: input.assignmentId,
+					laneNumber: input.targetLaneNumber,
+				})
+			} else {
+				// Different heat: remove from old, add to new
+				await removeFromHeat(input.assignmentId)
+				await assignToHeat({
+					heatId: input.targetHeatId,
+					registrationId: currentAssignment.registrationId,
+					laneNumber: input.targetLaneNumber,
+				})
+			}
+
+			revalidatePath("/compete/organizer")
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to move assignment:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to move assignment")
 		}
 	})
