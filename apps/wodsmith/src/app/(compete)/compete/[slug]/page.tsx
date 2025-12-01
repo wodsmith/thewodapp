@@ -164,6 +164,14 @@ export default async function CompetitionDetailPage({ params }: Props) {
 									divisions={divisions}
 								/>
 							}
+							hasSchedule={heats.length > 0}
+							scheduleContent={
+								<ScheduleContent
+									events={events}
+									heats={heats}
+									currentUserId={session?.userId}
+								/>
+							}
 						/>
 
 						{/* Sidebar */}
