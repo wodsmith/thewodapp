@@ -76,6 +76,8 @@ interface DroppableLaneProps {
 		laneNumber: number,
 		assignment: HeatWithAssignments["assignments"][0],
 	) => void
+	selectedAthleteIds?: Set<string>
+	onTapAssign?: (laneNumber: number) => void
 }
 
 function DroppableLane({
@@ -84,9 +86,18 @@ function DroppableLane({
 	organizingTeamId,
 	onDropUnassigned,
 	onDropAssigned,
+	selectedAthleteIds,
+	onTapAssign,
 }: DroppableLaneProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
+	const hasSelection = selectedAthleteIds && selectedAthleteIds.size > 0
+
+	function handleClick() {
+		if (hasSelection && onTapAssign) {
+			onTapAssign(laneNum)
+		}
+	}
 
 	useEffect(() => {
 		const element = ref.current
@@ -126,21 +137,26 @@ function DroppableLane({
 	return (
 		<div
 			ref={ref}
+			onClick={handleClick}
 			className={`flex items-center gap-3 py-1 border-b border-border/50 last:border-0 transition-colors ${
 				isDraggedOver ? "bg-primary/10 border-primary rounded" : ""
-			}`}
+			} ${hasSelection ? "cursor-pointer hover:bg-primary/5" : ""}`}
 		>
-			{/* Spacer to align with grip handle in assigned rows */}
-			<div className="h-3 w-3" />
+			{/* Spacer to align with grip handle in assigned rows - hidden on mobile */}
+			<div className="hidden md:block h-3 w-3" />
 			<span className="w-6 text-sm text-muted-foreground font-mono">
 				L{laneNum}
 			</span>
 			<span
 				className={`flex-1 text-sm ${
-					isDraggedOver ? "text-primary font-medium" : "text-muted-foreground"
+					isDraggedOver
+						? "text-primary font-medium"
+						: hasSelection
+							? "text-primary/70"
+							: "text-muted-foreground"
 				}`}
 			>
-				{isDraggedOver ? "Drop here" : "Empty"}
+				{isDraggedOver ? "Drop here" : hasSelection ? "Tap to assign" : "Empty"}
 			</span>
 		</div>
 	)
@@ -221,7 +237,7 @@ function DraggableAssignedAthlete({
 				isDragging ? "opacity-50" : ""
 			}`}
 		>
-			<GripVertical className="h-3 w-3 text-muted-foreground cursor-grab active:cursor-grabbing" />
+			<GripVertical className="hidden md:block h-3 w-3 text-muted-foreground cursor-grab active:cursor-grabbing" />
 			<span className="w-6 text-sm text-muted-foreground font-mono">
 				L{laneNum}
 			</span>
@@ -258,6 +274,7 @@ interface HeatCardProps {
 		targetLane: number,
 		assignment: HeatWithAssignments["assignments"][0],
 	) => void
+	selectedAthleteIds?: Set<string>
 	onClearSelection?: () => void
 }
 
@@ -269,6 +286,7 @@ export function HeatCard({
 	onDelete,
 	onAssignmentChange,
 	onMoveAssignment,
+	selectedAthleteIds,
 	onClearSelection,
 }: HeatCardProps) {
 	const [isAssignOpen, setIsAssignOpen] = useState(false)
@@ -620,6 +638,12 @@ export function HeatCard({
 									organizingTeamId={organizingTeamId}
 									onDropUnassigned={handleDropAssign}
 									onDropAssigned={handleDropAssigned}
+									selectedAthleteIds={selectedAthleteIds}
+									onTapAssign={(lane) => {
+										if (selectedAthleteIds && selectedAthleteIds.size > 0) {
+											handleDropAssign(Array.from(selectedAthleteIds), lane)
+										}
+									}}
 								/>
 							)
 						}

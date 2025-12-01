@@ -856,6 +856,7 @@ export function HeatScheduleManager({
 									handleAssignmentChange(heat.id, assignments)
 								}
 								onMoveAssignment={handleMoveAssignment}
+								selectedAthleteIds={selectedAthleteIds}
 								onClearSelection={clearSelection}
 							/>
 						))
