@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm"
+import { and, asc, eq, inArray, notInArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
@@ -862,7 +862,7 @@ export async function getHeatsForUser(
 		return []
 	}
 
-	const registrationId = registration[0]!.id
+	const registrationId = registration[0]?.id
 
 	// Get assignments for this registration
 	const assignments = await db

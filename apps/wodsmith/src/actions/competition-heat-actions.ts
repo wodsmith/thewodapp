@@ -5,7 +5,6 @@ import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { getCompetition } from "@/server/competitions"
 import {
 	assignToHeat,
 	bulkAssignToHeat,

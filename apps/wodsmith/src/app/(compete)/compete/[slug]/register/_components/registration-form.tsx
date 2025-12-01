@@ -174,7 +174,7 @@ function FeeBreakdownDisplay({
 export function RegistrationForm({
 	competition,
 	scalingGroup,
-	userId,
+	userId: _userId,
 	registrationOpen,
 	registrationOpensAt,
 	registrationClosesAt,

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
 	getCompetition,
@@ -28,7 +28,6 @@ import {
 	AlertCircle,
 	Receipt,
 	Users,
-	Copy,
 	Mail,
 	CheckCircle2,
 	Clock,

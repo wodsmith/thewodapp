@@ -4,8 +4,6 @@ import {
 	ArrowLeft,
 	Receipt,
 	CreditCard,
-	Building2,
-	Calendar,
 } from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getInvoiceDetails } from "@/server/commerce"

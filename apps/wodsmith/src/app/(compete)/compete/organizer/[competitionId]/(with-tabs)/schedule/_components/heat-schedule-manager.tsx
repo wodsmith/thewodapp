@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Plus, Clock, MapPin, Users, Loader2, Calculator, Info, Eye, EyeOff } from "lucide-react"
+import { Plus, Users, Loader2, Calculator, Eye, EyeOff } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,7 +31,6 @@ import {
 	bulkCreateHeatsAction,
 } from "@/actions/competition-heat-actions"
 import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
-import { Badge } from "@/components/ui/badge"
 import { HEAT_STATUS, type HeatStatus } from "@/db/schema"
 import {
 	Tooltip,
@@ -263,7 +262,7 @@ export function HeatScheduleManager({
 
 	const createHeat = useServerAction(createHeatAction)
 	const deleteHeat = useServerAction(deleteHeatAction)
-	const getUnassigned = useServerAction(getUnassignedRegistrationsAction)
+	const _getUnassigned = useServerAction(getUnassignedRegistrationsAction)
 	const bulkCreateHeats = useServerAction(bulkCreateHeatsAction)
 
 	// Get the selected event
@@ -376,7 +375,7 @@ export function HeatScheduleManager({
 				? newHeatDivisionId
 				: null
 
-		const [result, error] = await createHeat.execute({
+		const [result, _error] = await createHeat.execute({
 			competitionId,
 			organizingTeamId,
 			trackWorkoutId: selectedEventId,
@@ -529,13 +528,15 @@ export function HeatScheduleManager({
 		const createdHeats: HeatWithAssignments[] = []
 
 		for (let i = 0; i < bulkHeatTimes.length; i++) {
+			const heatTime = bulkHeatTimes[i]
+			if (!heatTime) continue
 			const [result] = await createHeat.execute({
 				competitionId,
 				organizingTeamId,
 				trackWorkoutId: selectedEventId,
 				heatNumber: startNumber + i,
 				venueId,
-				scheduledTime: new Date(bulkHeatTimes[i]!),
+				scheduledTime: new Date(heatTime),
 				durationMinutes: duration,
 			})
 
@@ -865,6 +866,7 @@ export function HeatScheduleManager({
 						</div>
 						<div className="max-h-[300px] overflow-y-auto space-y-3">
 							{bulkHeatTimes.map((time, index) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: index is appropriate for this editable list
 								<div key={index} className="flex items-center gap-3">
 									<span className="text-sm font-medium w-16">
 										Heat {eventHeats.length + index + 1}

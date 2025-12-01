@@ -67,20 +67,24 @@ export function EventOverview({ events, heats }: EventOverviewProps) {
 				}
 
 				// Sort by scheduled time
-				const sortedHeats = eventHeats.sort(
-					(a, b) =>
-						toDate(a.scheduledTime!).getTime() -
-						toDate(b.scheduledTime!).getTime(),
-				)
+				const sortedHeats = eventHeats.sort((a, b) => {
+					const aTime = a.scheduledTime ? toDate(a.scheduledTime).getTime() : 0
+					const bTime = b.scheduledTime ? toDate(b.scheduledTime).getTime() : 0
+					return aTime - bTime
+				})
 
-				const firstHeat = sortedHeats[0]!
-				const lastHeat = sortedHeats[sortedHeats.length - 1]!
+				const firstHeat = sortedHeats[0]
+				const lastHeat = sortedHeats[sortedHeats.length - 1]
 
-				const startTime = toDate(firstHeat.scheduledTime!)
+				if (!firstHeat?.scheduledTime || !lastHeat?.scheduledTime) {
+					return { event, heatCount: eventHeats.length, startTime: null, endTime: null }
+				}
+
+				const startTime = toDate(firstHeat.scheduledTime)
 
 				// End time = last heat start + duration (default 8 min if not set)
 				const lastHeatDuration = lastHeat.durationMinutes ?? 8
-				const endTime = toDate(lastHeat.scheduledTime!)
+				const endTime = toDate(lastHeat.scheduledTime)
 				endTime.setMinutes(endTime.getMinutes() + lastHeatDuration)
 
 				return {

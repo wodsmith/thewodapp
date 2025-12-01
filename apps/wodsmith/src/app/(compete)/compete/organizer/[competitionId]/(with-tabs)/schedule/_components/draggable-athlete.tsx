@@ -34,7 +34,6 @@ export function DraggableAthlete({
 	registration,
 	isSelected = false,
 	onToggleSelect,
-	selectedCount = 0,
 	selectedIds,
 }: DraggableAthleteProps) {
 	const ref = useRef<HTMLDivElement>(null)
@@ -138,10 +137,23 @@ export function DraggableAthlete({
 		}
 	}
 
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault()
+			if (onToggleSelect) {
+				onToggleSelect(registration.id, e.shiftKey)
+			}
+		}
+	}
+
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop element with conditional click handler
 		<div
 			ref={ref}
+			role={onToggleSelect ? "button" : undefined}
+			tabIndex={onToggleSelect ? 0 : undefined}
 			onClick={handleClick}
+			onKeyDown={onToggleSelect ? handleKeyDown : undefined}
 			className={`flex items-center gap-2 text-sm px-2 py-1.5 rounded cursor-grab active:cursor-grabbing transition-colors ${
 				isDragging ? "opacity-50" : ""
 			} ${

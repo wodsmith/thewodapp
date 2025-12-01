@@ -58,17 +58,8 @@ interface Registration {
 	} | null
 }
 
-interface DropData {
-	type: "unassigned" | "assigned"
-	registrationIds?: string[]
-	assignmentId?: string
-	sourceHeatId?: string
-}
-
 interface DroppableLaneProps {
 	laneNum: number
-	heatId: string
-	organizingTeamId: string
 	onDropUnassigned: (registrationIds: string[], laneNumber: number) => void
 	onDropAssigned: (
 		assignmentId: string,
@@ -82,8 +73,6 @@ interface DroppableLaneProps {
 
 function DroppableLane({
 	laneNum,
-	heatId,
-	organizingTeamId,
 	onDropUnassigned,
 	onDropAssigned,
 	selectedAthleteIds,
@@ -132,12 +121,23 @@ function DroppableLane({
 				}
 			},
 		})
-	}, [laneNum, heatId, organizingTeamId, onDropUnassigned, onDropAssigned])
+	}, [laneNum, onDropUnassigned, onDropAssigned])
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if ((e.key === "Enter" || e.key === " ") && hasSelection) {
+			e.preventDefault()
+			handleClick?.(e as unknown as React.MouseEvent)
+		}
+	}
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: drop target with conditional click handler
 		<div
 			ref={ref}
+			role={hasSelection ? "button" : undefined}
+			tabIndex={hasSelection ? 0 : undefined}
 			onClick={handleClick}
+			onKeyDown={hasSelection ? handleKeyDown : undefined}
 			className={`flex items-center gap-3 py-1 border-b border-border/50 last:border-0 transition-colors ${
 				isDraggedOver ? "bg-primary/10 border-primary rounded" : ""
 			} ${hasSelection ? "cursor-pointer hover:bg-primary/5" : ""}`}
@@ -228,7 +228,7 @@ function DraggableAssignedAthlete({
 				})
 			},
 		})
-	}, [assignment.id, heatId, assignment.registration.id, displayName, laneNum])
+	}, [assignment.id, heatId, assignment.registration.id, displayName, laneNum, assignment.registration])
 
 	return (
 		<div
@@ -321,7 +321,7 @@ export function HeatCard({
 	}
 
 	// Get athlete display name
-	function getAthleteName(
+	function _getAthleteName(
 		reg: HeatWithAssignments["assignments"][0]["registration"],
 	): string {
 		if (reg.teamName) return reg.teamName
@@ -332,7 +332,7 @@ export function HeatCard({
 	async function handleAssign() {
 		if (!selectedRegistrationId || !selectedLane) return
 
-		const [result, error] = await assignToHeat.execute({
+		const [result, _error] = await assignToHeat.execute({
 			heatId: heat.id,
 			organizingTeamId,
 			registrationId: selectedRegistrationId,
@@ -411,7 +411,8 @@ export function HeatCard({
 
 		if (assignments.length === 1) {
 			// Single assignment - use existing action
-			const assignment = assignments[0]!
+			const assignment = assignments[0]
+			if (!assignment) return
 			const [result] = await assignToHeat.execute({
 				heatId: heat.id,
 				organizingTeamId,
@@ -634,8 +635,6 @@ export function HeatCard({
 								<DroppableLane
 									key={laneNum}
 									laneNum={laneNum}
-									heatId={heat.id}
-									organizingTeamId={organizingTeamId}
 									onDropUnassigned={handleDropAssign}
 									onDropAssigned={handleDropAssigned}
 									selectedAthleteIds={selectedAthleteIds}
@@ -678,6 +677,7 @@ export function HeatCard({
 							</DialogHeader>
 							<div className="space-y-4">
 								<div>
+									{/* biome-ignore lint/a11y/noLabelWithoutControl: Select component handles its own labeling */}
 									<label className="text-sm font-medium">Athlete</label>
 									<Select
 										value={selectedRegistrationId}
@@ -699,6 +699,7 @@ export function HeatCard({
 									</Select>
 								</div>
 								<div>
+									{/* biome-ignore lint/a11y/noLabelWithoutControl: Select component handles its own labeling */}
 									<label className="text-sm font-medium">Lane</label>
 									<Select
 										value={String(selectedLane)}

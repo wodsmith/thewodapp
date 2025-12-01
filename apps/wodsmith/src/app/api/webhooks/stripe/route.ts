@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import type Stripe from "stripe"
 import { and, eq } from "drizzle-orm"
 import { getStripe } from "@/lib/stripe"

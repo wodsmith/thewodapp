@@ -1,6 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm"
+import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Competition,
@@ -10,8 +10,6 @@ import {
 	competitionsTable,
 	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
-	teamTable,
-	scalingLevelsTable,
 } from "@/db/schema"
 
 // Competition with organizing team relation for public display
@@ -1062,10 +1060,11 @@ export async function registerForCompetition(params: {
 		}
 
 		// Create competition_team for athlete squad
+		const teamName = params.teamName ?? "Unknown Team"
 		const newAthleteTeam = await db
 			.insert(teamTable)
 			.values({
-				name: params.teamName!,
+				name: teamName,
 				slug: teamSlug,
 				type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
 				parentOrganizationId: competition.competitionTeamId, // Parent is the event team
@@ -1176,7 +1175,7 @@ export async function registerForCompetition(params: {
 				competitionContext: {
 					competitionId: params.competitionId,
 					competitionSlug: competition.slug,
-					teamName: params.teamName!,
+					teamName: teamName,
 					divisionName: division.label,
 				},
 			})
@@ -1217,9 +1216,7 @@ export async function acceptTeamInvite(params: {
  */
 export async function getTeammateInvite(inviteToken: string) {
 	const db = getDb()
-	const { teamInvitationTable, teamTable, TEAM_TYPE_ENUM } = await import(
-		"@/db/schema"
-	)
+	const { teamInvitationTable } = await import("@/db/schema")
 
 	// Find the invitation by token
 	const invitation = await db.query.teamInvitationTable.findFirst({
@@ -1274,9 +1271,7 @@ export async function getTeammateInvite(inviteToken: string) {
 	// Get the captain info from the registration
 	let captain = null
 	if (competitionContext.competitionId) {
-		const { competitionRegistrationsTable, userTable } = await import(
-			"@/db/schema"
-		)
+		const { competitionRegistrationsTable } = await import("@/db/schema")
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
 				where: and(

@@ -45,20 +45,6 @@ interface ScheduleGeneratorProps {
 	locationId?: string
 }
 
-interface TimeSlots {
-	[key: string]: string[]
-}
-
-interface ScheduleSlot {
-	class: string
-	coach: string | null
-	status: string
-}
-
-interface Schedule {
-	[key: string]: ScheduleSlot
-}
-
 interface ScheduledClass {
 	id: string
 	scheduleId: string

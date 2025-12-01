@@ -13,7 +13,7 @@ import {
 	userTable,
 	workouts,
 } from "@/db/schema"
-import type { CompetitionSettings, ScoringSettings } from "@/types/competitions"
+import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import {
 	calculateAggregatedScore,
@@ -257,7 +257,7 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Rank athletes within each division
-		for (const [divisionId, divisionResults] of eventResultsByDivision) {
+		for (const [_divisionId, divisionResults] of eventResultsByDivision) {
 			// Calculate scores and sort
 			const scoredResults = divisionResults.map((result) => {
 				const resultSets = setsByResultId.get(result.id) || []
@@ -341,7 +341,7 @@ export async function getCompetitionLeaderboard(params: {
 		}
 
 		// Add empty results for athletes who didn't complete this event
-		for (const [regId, entry] of leaderboardMap) {
+		for (const [_regId, entry] of leaderboardMap) {
 			const hasResult = entry.eventResults.some(
 				(er) => er.trackWorkoutId === trackWorkout.id,
 			)
@@ -371,7 +371,7 @@ export async function getCompetitionLeaderboard(params: {
 	}
 
 	// Rank within each division
-	for (const [divisionId, entries] of divisionGroups) {
+	for (const [_divisionId, entries] of divisionGroups) {
 		// Sort by total points descending
 		entries.sort((a, b) => {
 			if (b.totalPoints !== a.totalPoints) {
@@ -417,7 +417,7 @@ export async function getEventLeaderboard(params: {
 	trackWorkoutId: string
 	divisionId?: string
 }): Promise<EventLeaderboardEntry[]> {
-	const db = getDb()
+	const _db = getDb()
 
 	// Get full leaderboard
 	const leaderboard = await getCompetitionLeaderboard({

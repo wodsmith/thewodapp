@@ -48,7 +48,7 @@ export function VenueManager({
 	async function handleCreate() {
 		if (!newVenueName.trim()) return
 
-		const [result, error] = await createVenue.execute({
+		const [result, _error] = await createVenue.execute({
 			competitionId,
 			organizingTeamId,
 			name: newVenueName.trim(),

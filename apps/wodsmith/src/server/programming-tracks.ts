@@ -521,8 +521,8 @@ export async function scheduleStandaloneWorkout({
 	workoutId,
 	scheduledDate,
 	teamSpecificNotes,
-	scalingGuidanceForDay,
-	classTimes,
+	scalingGuidanceForDay: _scalingGuidanceForDay,
+	classTimes: _classTimes,
 }: {
 	teamId: string
 	workoutId: string

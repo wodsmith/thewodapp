@@ -11,8 +11,6 @@ import {
 	teamProgrammingTracksTable,
 	teamTable,
 	userTable,
-	workoutMovements,
-	movements,
 } from "@/db/schema"
 
 /**
@@ -164,7 +162,7 @@ export async function getUserGymAffiliation(userId: string) {
 export async function getUserNotableMetconResults(userId: string) {
 	const db = getDb()
 	const { results, workouts } = await import("@/db/schema")
-	const { inArray, sql } = await import("drizzle-orm")
+	const { inArray } = await import("drizzle-orm")
 
 	const notableMetconNames = ["Fran", "Grace", "Helen", "Diane", "Murph"]
 

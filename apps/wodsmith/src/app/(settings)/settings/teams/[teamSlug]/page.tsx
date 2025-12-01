@@ -142,7 +142,7 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 
 					{team.avatarUrl ? (
 						<div className="h-16 w-16 border-2 border-primary overflow-hidden shadow-[2px_2px_0px_0px] shadow-primary">
-							{/* eslint-disable-next-line @next/next/no-img-element */}
+							{/* biome-ignore lint/performance/noImgElement: external URL avatar, Next Image not suitable */}
 							<img
 								src={team.avatarUrl || ""}
 								alt={`${team.name} avatar`}

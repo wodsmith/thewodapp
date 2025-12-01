@@ -18,7 +18,6 @@ import {
 	calculateCompetitionFees,
 	getRegistrationFee,
 	buildFeeConfig,
-	PLATFORM_DEFAULTS,
 	type FeeBreakdown,
 } from "@/server/commerce"
 import { getStripe } from "@/lib/stripe"
@@ -190,7 +189,7 @@ export async function initiateRegistrationPayment(
 			.insert(commercePurchaseTable)
 			.values({
 				userId,
-				productId: product!.id,
+				productId: product?.id,
 				status: COMMERCE_PURCHASE_STATUS.PENDING,
 				competitionId: input.competitionId,
 				divisionId: input.divisionId,

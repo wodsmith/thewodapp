@@ -100,19 +100,25 @@ export function ScheduleContent({
 			let endTime: Date | null = null
 
 			if (scheduledHeats.length > 0) {
-				const sortedHeats = scheduledHeats.sort(
-					(a, b) =>
-						toDate(a.scheduledTime!).getTime() -
-						toDate(b.scheduledTime!).getTime(),
-				)
-				const firstHeat = sortedHeats[0]!
-				const lastHeat = sortedHeats[sortedHeats.length - 1]!
+				const sortedHeats = scheduledHeats.sort((a, b) => {
+					const aTime = a.scheduledTime ? toDate(a.scheduledTime).getTime() : 0
+					const bTime = b.scheduledTime ? toDate(b.scheduledTime).getTime() : 0
+					return aTime - bTime
+				})
+				const firstHeat = sortedHeats[0]
+				const lastHeat = sortedHeats[sortedHeats.length - 1]
 
-				startTime = toDate(firstHeat.scheduledTime!)
-				endTime = toDate(lastHeat.scheduledTime!)
+				if (firstHeat?.scheduledTime) {
+					startTime = toDate(firstHeat.scheduledTime)
+				}
+				if (lastHeat?.scheduledTime) {
+					endTime = toDate(lastHeat.scheduledTime)
+				}
 				// Add duration of last heat
-				const duration = lastHeat.durationMinutes ?? 8
-				endTime.setMinutes(endTime.getMinutes() + duration)
+				if (endTime && lastHeat) {
+					const duration = lastHeat.durationMinutes ?? 8
+					endTime.setMinutes(endTime.getMinutes() + duration)
+				}
 			}
 
 			return { event, heats: eventHeats, startTime, endTime }
@@ -532,7 +538,7 @@ export function ScheduleContent({
 															const divisionEntries = Object.entries(divisionCounts)
 															const divisionSummary =
 																divisionEntries.length === 1
-																	? divisionEntries[0]![0]
+																	? divisionEntries[0]?.[0]
 																	: divisionEntries
 																			.map(([label, count]) => `${count} ${label}`)
 																			.join(", ")
