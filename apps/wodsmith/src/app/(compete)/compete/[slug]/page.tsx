@@ -125,10 +125,15 @@ export default async function CompetitionDetailPage({ params }: Props) {
 			{/* Tabbed Content */}
 			<CompetitionTabs
 				workoutsContent={
-					<WorkoutsContent competition={competition} divisions={divisions} />
+					<WorkoutsContent
+						key="tab-workouts"
+						competition={competition}
+						divisions={divisions}
+					/>
 				}
 				scheduleContent={
 					<ScheduleContent
+						key="tab-schedule"
 						events={events}
 						heats={heats}
 						currentUserId={session?.userId}
@@ -136,6 +141,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
 				}
 				leaderboardContent={
 					<LeaderboardContent
+						key="tab-leaderboard"
 						competitionId={competition.id}
 						divisions={divisions}
 					/>
@@ -160,6 +166,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
 							divisions={divisions.length > 0 ? divisions : undefined}
 							workoutsContent={
 								<WorkoutsContent
+									key="workouts"
 									competition={competition}
 									divisions={divisions}
 								/>
@@ -167,6 +174,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
 							hasSchedule={heats.length > 0}
 							scheduleContent={
 								<ScheduleContent
+									key="schedule"
 									events={events}
 									heats={heats}
 									currentUserId={session?.userId}
