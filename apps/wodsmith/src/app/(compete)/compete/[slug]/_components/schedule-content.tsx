@@ -516,6 +516,24 @@ export function ScheduleContent({
 																workout.event.heatStatus === "published" &&
 																isUserInHeat(heat)
 
+															// Calculate division breakdown
+															const divisionCounts = heat.assignments.reduce(
+																(acc, a) => {
+																	const div =
+																		a.registration.division?.label ?? "No Div"
+																	acc[div] = (acc[div] ?? 0) + 1
+																	return acc
+																},
+																{} as Record<string, number>,
+															)
+															const divisionEntries = Object.entries(divisionCounts)
+															const divisionSummary =
+																divisionEntries.length === 1
+																	? divisionEntries[0]![0]
+																	: divisionEntries
+																			.map(([label, count]) => `${count} ${label}`)
+																			.join(", ")
+
 															return (
 																<div
 																	key={heat.id}
@@ -552,9 +570,9 @@ export function ScheduleContent({
 																					{heat.venue.name}
 																				</span>
 																			)}
-																			{heat.division && (
+																			{divisionSummary && heat.assignments.length > 0 && (
 																				<Badge variant="outline" className="text-xs">
-																					{heat.division.label}
+																					{divisionSummary}
 																				</Badge>
 																			)}
 																			{userInHeat && (
@@ -663,6 +681,13 @@ export function ScheduleContent({
 
 																				{/* Desktop View */}
 																				<div className="hidden md:block space-y-1">
+																					{/* Column Headers */}
+																					<div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-4 items-center px-2 pb-1 border-b border-border/50 text-xs text-muted-foreground uppercase tracking-wide">
+																						<span className="w-8 text-center">Lane</span>
+																						<span>Athlete</span>
+																						<span>Affiliate</span>
+																						<span>Division</span>
+																					</div>
 																					{heat.assignments
 																						.sort(
 																							(a, b) => a.laneNumber - b.laneNumber,
