@@ -31,6 +31,7 @@ import {
 } from "@/actions/competition-heat-actions"
 import { DraggableAthlete } from "./draggable-athlete"
 import { HeatCard } from "./heat-card"
+import { WorkoutPreview } from "./workout-preview"
 
 interface Division {
 	id: string
@@ -83,19 +84,46 @@ export function HeatScheduleManager({
 	)
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [filterDivisionId, setFilterDivisionId] = useState<string>("all")
+	// Workout cap in minutes - user can adjust per event
+	const [workoutCapMinutes, setWorkoutCapMinutes] = useState(8)
+	const [selectedAthleteIds, setSelectedAthleteIds] = useState<Set<string>>(
+		new Set(),
+	)
 
-	// Format date for datetime-local input (YYYY-MM-DDTHH:MM)
+	// Selection handlers
+	function toggleAthleteSelection(id: string, shiftKey: boolean) {
+		setSelectedAthleteIds((prev) => {
+			const next = new Set(prev)
+			if (next.has(id)) {
+				next.delete(id)
+			} else {
+				next.add(id)
+			}
+			return next
+		})
+	}
+
+	function clearSelection() {
+		setSelectedAthleteIds(new Set())
+	}
+
+	// Format date for datetime-local input (YYYY-MM-DDTHH:MM) in local timezone
 	function formatDatetimeLocal(date: Date): string {
-		return date.toISOString().slice(0, 16)
+		const year = date.getFullYear()
+		const month = String(date.getMonth() + 1).padStart(2, "0")
+		const day = String(date.getDate()).padStart(2, "0")
+		const hours = String(date.getHours()).padStart(2, "0")
+		const minutes = String(date.getMinutes()).padStart(2, "0")
+		return `${year}-${month}-${day}T${hours}:${minutes}`
 	}
 
 	function getDefaultHeatTime() {
 		const date = new Date(competitionStartDate)
-		date.setHours(8, 0, 0, 0)
+		date.setHours(9, 0, 0, 0)
 		return formatDatetimeLocal(date)
 	}
 
-	// Calculate next heat time based on last heat at venue + transition time
+	// Calculate next heat time based on last heat + workout cap + transition time
 	function getNextHeatTime(venueId: string | null): string {
 		// Get heats at this venue (or all heats if no venue)
 		const relevantHeats = venueId
@@ -119,13 +147,15 @@ export function HeatScheduleManager({
 			return getDefaultHeatTime()
 		}
 
-		// Get transition time from venue (default 10 min)
+		// Get transition time from venue (default 3 min)
 		const venue = venueId ? venues.find((v) => v.id === venueId) : null
 		const transitionMinutes = venue?.transitionMinutes ?? 3
 
-		// Add transition time to last heat
+		// Add workout cap + transition time to last heat
 		const nextTime = new Date(latestHeat.scheduledTime)
-		nextTime.setMinutes(nextTime.getMinutes() + transitionMinutes)
+		nextTime.setMinutes(
+			nextTime.getMinutes() + workoutCapMinutes + transitionMinutes,
+		)
 
 		return formatDatetimeLocal(nextTime)
 	}
@@ -237,12 +267,14 @@ export function HeatScheduleManager({
 			const updatedHeats = [...heats, newHeat]
 			setHeats(updatedHeats)
 			setIsCreateOpen(false)
-			// Calculate next time based on the heat we just created
+			// Calculate next time: current heat + workout cap + transition
 			if (newHeatTime && venueId) {
 				const venue = venues.find((v) => v.id === venueId)
 				const transitionMinutes = venue?.transitionMinutes ?? 3
 				const nextTime = new Date(newHeatTime)
-				nextTime.setMinutes(nextTime.getMinutes() + transitionMinutes)
+				nextTime.setMinutes(
+					nextTime.getMinutes() + workoutCapMinutes + transitionMinutes,
+				)
 				setNewHeatTime(formatDatetimeLocal(nextTime))
 			} else {
 				setNewHeatTime(getDefaultHeatTime())
@@ -309,6 +341,22 @@ export function HeatScheduleManager({
 						))}
 					</SelectContent>
 				</Select>
+
+				<div className="flex items-center gap-2">
+					<Label htmlFor="workout-cap" className="whitespace-nowrap text-sm">
+						Cap:
+					</Label>
+					<Input
+						id="workout-cap"
+						type="number"
+						min={1}
+						max={60}
+						value={workoutCapMinutes}
+						onChange={(e) => setWorkoutCapMinutes(Number(e.target.value))}
+						className="w-16"
+					/>
+					<span className="text-sm text-muted-foreground">min</span>
+				</div>
 
 				<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 					<DialogTrigger asChild>
@@ -404,6 +452,9 @@ export function HeatScheduleManager({
 				</Dialog>
 			</div>
 
+			{/* Workout Preview */}
+			{selectedEvent && <WorkoutPreview event={selectedEvent} />}
+
 			{/* Stats */}
 			<div className="flex gap-4 text-sm text-muted-foreground">
 				<span>{eventHeats.length} heats</span>
@@ -436,6 +487,7 @@ export function HeatScheduleManager({
 								onAssignmentChange={(assignments) =>
 									handleAssignmentChange(heat.id, assignments)
 								}
+								onClearSelection={clearSelection}
 							/>
 						))
 					)}
@@ -469,6 +521,21 @@ export function HeatScheduleManager({
 							</Select>
 						</CardHeader>
 						<CardContent>
+							{selectedAthleteIds.size > 0 && (
+								<div className="flex items-center justify-between mb-3 pb-2 border-b">
+									<span className="text-sm font-medium text-primary">
+										{selectedAthleteIds.size} selected
+									</span>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={clearSelection}
+										className="h-6 text-xs"
+									>
+										Clear
+									</Button>
+								</div>
+							)}
 							{unassignedRegistrations.length === 0 ? (
 								<p className="text-sm text-muted-foreground text-center py-4">
 									All athletes are assigned to heats.
@@ -495,6 +562,10 @@ export function HeatScheduleManager({
 															<DraggableAthlete
 																key={reg.id}
 																registration={reg}
+																isSelected={selectedAthleteIds.has(reg.id)}
+																onToggleSelect={toggleAthleteSelection}
+																selectedCount={selectedAthleteIds.size}
+																selectedIds={selectedAthleteIds}
 															/>
 														))}
 													</div>
