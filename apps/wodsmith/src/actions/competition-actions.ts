@@ -704,6 +704,7 @@ const updateCompetitionEventSchema = z.object({
 	roundsToScore: z.number().int().min(1).nullable().optional(),
 	repsPerRound: z.number().int().min(1).nullable().optional(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
+	timeCap: z.number().int().min(1).nullable().optional(), // Time cap in seconds
 	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
 	tagIds: z.array(z.string()).optional(),
 	tagNames: z.array(z.string()).optional(), // For creating new tags
@@ -944,6 +945,7 @@ export const updateCompetitionEventAction = createServerAction()
 				roundsToScore: input.roundsToScore,
 				repsPerRound: input.repsPerRound,
 				tiebreakScheme: input.tiebreakScheme,
+				timeCap: input.timeCap,
 				secondaryScheme: input.secondaryScheme,
 				tagIds: input.tagIds,
 				movementIds: input.movementIds,

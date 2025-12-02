@@ -119,6 +119,7 @@ export const workouts = sqliteTable(
 		}),
 		sugarId: text("sugar_id"),
 		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
+		timeCap: integer("time_cap"), // Time cap in seconds (for time-with-cap workouts)
 		secondaryScheme: text("secondary_scheme", {
 			enum: SECONDARY_SCHEME_VALUES,
 		}),
@@ -217,6 +218,7 @@ export const results = sqliteTable(
 		competitionRegistrationId: text("competition_registration_id"), // References competitionRegistrationsTable.id
 		scoreStatus: text("score_status", { enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
 		tieBreakScore: text("tie_break_score"), // Raw tie-break value (e.g., "120" for reps or seconds)
+		secondaryScore: text("secondary_score"), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
 		enteredBy: text("entered_by").references(() => userTable.id, {
 			onDelete: "set null",
 		}),

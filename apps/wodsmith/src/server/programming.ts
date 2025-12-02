@@ -367,6 +367,7 @@ export async function detectExternalProgrammingTrackWorkouts(
 									sugarId: null,
 									tiebreakScheme: null,
 									secondaryScheme: null,
+									timeCap: null,
 								}
 							: undefined,
 					}

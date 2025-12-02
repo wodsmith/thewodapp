@@ -174,14 +174,25 @@ function parseTimeScore(input: string, timeCap?: number): ParseResult {
 	const totalSeconds = minutes * 60 + seconds
 	const formatted = formatTime(totalSeconds)
 
-	// Check if time exceeds cap
+	// Check if time equals cap (treat as CAP)
+	if (timeCap && totalSeconds === timeCap) {
+		return {
+			formatted: `CAP (${formatted})`,
+			rawValue: totalSeconds,
+			isValid: true,
+			needsTieBreak: false,
+			scoreStatus: "cap",
+		}
+	}
+
+	// Check if time exceeds cap - still valid but with warning
 	if (timeCap && totalSeconds > timeCap) {
 		return {
 			formatted,
 			rawValue: totalSeconds,
-			isValid: false,
+			isValid: true,
 			needsTieBreak: false,
-			scoreStatus: null,
+			scoreStatus: "scored",
 			error: `Time exceeds cap of ${formatTime(timeCap)}`,
 		}
 	}

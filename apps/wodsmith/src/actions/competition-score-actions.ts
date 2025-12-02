@@ -36,6 +36,7 @@ const saveCompetitionScoreSchema = z.object({
 	score: z.string(),
 	scoreStatus: z.enum(SCORE_STATUS_VALUES),
 	tieBreakScore: z.string().nullable().optional(),
+	secondaryScore: z.string().nullable().optional(),
 })
 
 const saveCompetitionScoresSchema = z.object({
@@ -51,6 +52,7 @@ const saveCompetitionScoresSchema = z.object({
 			score: z.string(),
 			scoreStatus: z.enum(SCORE_STATUS_VALUES),
 			tieBreakScore: z.string().nullable().optional(),
+			secondaryScore: z.string().nullable().optional(),
 		}),
 	),
 })
@@ -124,6 +126,7 @@ export const saveCompetitionScoreAction = createServerAction()
 				score: input.score,
 				scoreStatus: input.scoreStatus,
 				tieBreakScore: input.tieBreakScore,
+				secondaryScore: input.secondaryScore,
 				enteredBy: session.user.id,
 			})
 

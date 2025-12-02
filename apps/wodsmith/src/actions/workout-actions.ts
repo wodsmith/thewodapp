@@ -116,6 +116,7 @@ const createWorkoutSchema = z.object({
 				"points",
 			])
 			.nullable(),
+		timeCap: z.number().int().min(1).nullable().optional(),
 	}),
 	tagIds: z.array(z.string()).default([]),
 	newTagNames: z.array(z.string()).optional(),
@@ -285,6 +286,7 @@ export const createWorkoutAction = createServerAction()
 					sourceTrackId: null,
 					sourceWorkoutId: null,
 					scalingGroupId: input.workout.scalingGroupId ?? null,
+					timeCap: input.workout.timeCap ?? null,
 				},
 			})
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { intervalToDuration } from "date-fns"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
@@ -14,7 +15,13 @@ import {
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Filter, Save, UserX } from "lucide-react"
+import { Filter, HelpCircle } from "lucide-react"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
 import type { EventScoreEntryData, EventScoreEntryAthlete } from "@/server/competition-scores"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
@@ -77,6 +84,7 @@ export function ResultsEntryForm({
 				score: data.score,
 				scoreStatus: data.scoreStatus,
 				tieBreakScore: data.tieBreakScore,
+				secondaryScore: data.secondaryScore,
 			})
 
 			setSavingIds((prev) => {
@@ -112,34 +120,6 @@ export function ResultsEntryForm({
 		[athletes],
 	)
 
-	// Mark all remaining as DNS
-	const handleMarkAllDNS = async () => {
-		const unscoredAthletes = athletes.filter(
-			(a) => !savedIds.has(a.registrationId) && !scores[a.registrationId],
-		)
-
-		if (unscoredAthletes.length === 0) {
-			toast.info("All athletes already have scores")
-			return
-		}
-
-		const confirmed = window.confirm(
-			`Mark ${unscoredAthletes.length} athlete(s) as DNS (Did Not Start)?`,
-		)
-		if (!confirmed) return
-
-		for (const athlete of unscoredAthletes) {
-			await handleScoreChange(athlete, {
-				score: "DNS",
-				scoreStatus: "dns",
-				tieBreakScore: null,
-				formattedScore: "DNS",
-			})
-		}
-
-		toast.success(`Marked ${unscoredAthletes.length} athlete(s) as DNS`)
-	}
-
 	// Division filter change
 	const handleDivisionChange = (value: string) => {
 		const url = new URL(window.location.href)
@@ -155,6 +135,71 @@ export function ResultsEntryForm({
 	const scoredCount = savedIds.size
 	const totalCount = athletes.length
 
+	// Get score format examples based on workout scheme
+	const getScoreExamples = () => {
+		switch (event.workout.scheme) {
+			case "time":
+			case "time-with-cap":
+				return {
+					format: "Time (MM:SS or M:SS)",
+					examples: ["3:45", "12:30", "1:05:30"],
+				}
+			case "rounds-reps":
+				return {
+					format: "Rounds + Reps",
+					examples: ["5+12", "10+0", "7+15"],
+				}
+			case "reps":
+				return {
+					format: "Total Reps",
+					examples: ["150", "87", "203"],
+				}
+			case "load":
+				return {
+					format: "Weight (lbs or kg)",
+					examples: ["225", "315", "185"],
+				}
+			case "calories":
+				return {
+					format: "Total Calories",
+					examples: ["150", "200", "175"],
+				}
+			case "meters":
+				return {
+					format: "Distance (meters)",
+					examples: ["5000", "2000", "1500"],
+				}
+			case "points":
+				return {
+					format: "Total Points",
+					examples: ["100", "85", "92"],
+				}
+			default:
+				return {
+					format: "Score",
+					examples: ["100", "3:45", "5+12"],
+				}
+		}
+	}
+
+	const scoreExamples = getScoreExamples()
+	const isTimeCapped = event.workout.scheme === "time-with-cap"
+	const hasTiebreak = !!event.workout.tiebreakScheme
+	const timeCap = event.workout.timeCap
+
+	// Format time cap for display (seconds to MM:SS or H:MM:SS)
+	const formatTimeCap = (seconds: number): string => {
+		const duration = intervalToDuration({ start: 0, end: seconds * 1000 })
+		const hours = duration.hours ?? 0
+		const mins = duration.minutes ?? 0
+		const secs = duration.seconds ?? 0
+
+		if (hours > 0) {
+			return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+		}
+		return `${mins}:${secs.toString().padStart(2, "0")}`
+	}
+
 	return (
 		<div className="space-y-4">
 			{/* Event Info & Filters */}
@@ -165,6 +210,7 @@ export function ResultsEntryForm({
 							<CardTitle>{event.workout.name}</CardTitle>
 							<p className="text-sm text-muted-foreground mt-1">
 								{event.workout.scheme.replace("-", " ").toUpperCase()}
+								{isTimeCapped && timeCap && ` • Cap: ${formatTimeCap(timeCap)}`}
 								{event.workout.tiebreakScheme &&
 									` • Tie-break: ${event.workout.tiebreakScheme}`}
 							</p>
@@ -200,15 +246,58 @@ export function ResultsEntryForm({
 				</CardContent>
 			</Card>
 
+			{/* Help Callout */}
+			<Collapsible>
+				<Alert className="bg-muted/50">
+					<HelpCircle className="h-4 w-4" />
+					<AlertDescription className="flex items-start justify-between">
+						<div className="flex-1">
+							<span className="font-medium">Format:</span>{" "}
+							<span className="text-muted-foreground">
+								{scoreExamples.format} (e.g., {scoreExamples.examples.join(", ")})
+							</span>
+							{isTimeCapped && (
+								<>
+									<span className="mx-2 text-muted-foreground">•</span>
+									<span className="text-muted-foreground">
+										Type <strong>CAP</strong> for {timeCap ? formatTimeCap(timeCap) : "time cap"}
+									</span>
+								</>
+							)}
+							<span className="mx-2 text-muted-foreground">•</span>
+							<span className="text-muted-foreground">Results auto-save</span>
+						</div>
+						<CollapsibleTrigger asChild>
+							<Button variant="ghost" size="sm" className="h-auto py-0 px-2 text-xs">
+								More info
+							</Button>
+						</CollapsibleTrigger>
+					</AlertDescription>
+					<CollapsibleContent className="mt-3 pt-3 border-t">
+						<div className="text-sm">
+							<p className="font-medium mb-1">Entering Scores</p>
+							<ul className="text-muted-foreground space-y-1 text-xs">
+								<li>• Type the score and press <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Tab</kbd> or <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> to move to the next athlete</li>
+								<li>• Results auto-save when you move to the next field or click away</li>
+								<li>• Time formats: 3:45, 12:30, or 1:05:30 for hours</li>
+								{isTimeCapped && (
+									<li>• Type <strong>CAP</strong> if the athlete hit the {timeCap ? formatTimeCap(timeCap) : "time"} cap</li>
+								)}
+							</ul>
+						</div>
+					</CollapsibleContent>
+				</Alert>
+			</Collapsible>
+
 			{/* Score Entry Table */}
 			<Card>
 				<CardContent className="p-0">
 					{/* Table Header */}
-					<div className="grid grid-cols-[60px_1fr_2fr_1fr_100px] gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground">
+					<div className={`grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}>
 						<div className="text-center">#</div>
 						<div>ATHLETE</div>
 						<div>SCORE</div>
-						<div>TIE-BREAK</div>
+						{hasTiebreak && <div>TIE-BREAK</div>}
 						<div className="text-center">STATUS</div>
 					</div>
 
@@ -233,6 +322,9 @@ export function ResultsEntryForm({
 										athlete={athlete}
 										workoutScheme={event.workout.scheme}
 										tiebreakScheme={event.workout.tiebreakScheme}
+										secondaryScheme={event.workout.secondaryScheme}
+										timeCap={timeCap ?? undefined}
+										showTiebreak={hasTiebreak}
 										value={scores[athlete.registrationId]}
 										isSaving={savingIds.has(athlete.registrationId)}
 										isSaved={savedIds.has(athlete.registrationId)}
@@ -246,20 +338,6 @@ export function ResultsEntryForm({
 					</div>
 				</CardContent>
 			</Card>
-
-			{/* Bottom Actions */}
-			<div className="sticky bottom-0 bg-background border-t p-4 -mx-4 shadow-lg">
-				<div className="container mx-auto flex items-center justify-between gap-4">
-					<Button variant="outline" onClick={handleMarkAllDNS}>
-						<UserX className="h-4 w-4 mr-2" />
-						Mark Remaining as DNS
-					</Button>
-					<div className="flex items-center gap-2 text-sm text-muted-foreground">
-						<Save className="h-4 w-4" />
-						Scores auto-save on Tab/Enter
-					</div>
-				</div>
-			</div>
 		</div>
 	)
 }

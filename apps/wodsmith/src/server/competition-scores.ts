@@ -13,6 +13,7 @@ import {
 	type WorkoutScheme,
 	type ScoreType,
 	type TiebreakScheme,
+	type SecondaryScheme,
 } from "@/db/schema"
 
 export interface EventScoreEntryAthlete {
@@ -28,6 +29,7 @@ export interface EventScoreEntryAthlete {
 		wodScore: string | null
 		scoreStatus: ScoreStatus | null
 		tieBreakScore: string | null
+		secondaryScore: string | null
 	} | null
 }
 
@@ -43,6 +45,8 @@ export interface EventScoreEntryData {
 			scheme: WorkoutScheme
 			scoreType: ScoreType | null
 			tiebreakScheme: TiebreakScheme | null
+			timeCap: number | null
+			secondaryScheme: SecondaryScheme | null
 			repsPerRound: number | null
 			roundsToScore: number | null
 		}
@@ -160,6 +164,7 @@ export async function getEventScoreEntryData(params: {
 							wodScore: existingResult.wodScore,
 							scoreStatus: existingResult.scoreStatus as ScoreStatus | null,
 							tieBreakScore: existingResult.tieBreakScore,
+							secondaryScore: existingResult.secondaryScore,
 						}
 					: null,
 			}
@@ -187,6 +192,9 @@ export async function getEventScoreEntryData(params: {
 				scoreType: trackWorkout.workout.scoreType as ScoreType | null,
 				tiebreakScheme: trackWorkout.workout
 					.tiebreakScheme as TiebreakScheme | null,
+				timeCap: trackWorkout.workout.timeCap,
+				secondaryScheme: trackWorkout.workout
+					.secondaryScheme as SecondaryScheme | null,
 				repsPerRound: trackWorkout.workout.repsPerRound,
 				roundsToScore: trackWorkout.workout.roundsToScore,
 			},
@@ -209,6 +217,7 @@ export async function saveCompetitionScore(params: {
 	score: string
 	scoreStatus: ScoreStatus
 	tieBreakScore?: string | null
+	secondaryScore?: string | null
 	enteredBy: string
 }): Promise<{ resultId: string; isNew: boolean }> {
 	const db = getDb()
@@ -229,6 +238,7 @@ export async function saveCompetitionScore(params: {
 				wodScore: params.score,
 				scoreStatus: params.scoreStatus,
 				tieBreakScore: params.tieBreakScore ?? null,
+				secondaryScore: params.secondaryScore ?? null,
 				scalingLevelId: params.divisionId,
 				competitionRegistrationId: params.registrationId,
 				enteredBy: params.enteredBy,
@@ -252,6 +262,7 @@ export async function saveCompetitionScore(params: {
 		wodScore: params.score,
 		scoreStatus: params.scoreStatus,
 		tieBreakScore: params.tieBreakScore ?? null,
+		secondaryScore: params.secondaryScore ?? null,
 		scalingLevelId: params.divisionId,
 		enteredBy: params.enteredBy,
 		asRx: true, // Competition scores are always "as prescribed" for the division

@@ -47,6 +47,7 @@ export interface CompetitionWorkout {
 		roundsToScore: number | null
 		repsPerRound: number | null
 		tiebreakScheme: Workout["tiebreakScheme"]
+		timeCap: number | null
 		secondaryScheme: Workout["secondaryScheme"]
 		tags?: Array<{ id: string; name: string }>
 		movements?: Array<{ id: string; name: string; type: string }>
@@ -148,6 +149,7 @@ export async function getCompetitionWorkouts(
 				roundsToScore: workouts.roundsToScore,
 				repsPerRound: workouts.repsPerRound,
 				tiebreakScheme: workouts.tiebreakScheme,
+				timeCap: workouts.timeCap,
 				secondaryScheme: workouts.secondaryScheme,
 			},
 		})
@@ -195,6 +197,7 @@ export async function getPublishedCompetitionWorkouts(
 				roundsToScore: workouts.roundsToScore,
 				repsPerRound: workouts.repsPerRound,
 				tiebreakScheme: workouts.tiebreakScheme,
+				timeCap: workouts.timeCap,
 				secondaryScheme: workouts.secondaryScheme,
 			},
 		})
@@ -393,6 +396,7 @@ export async function getCompetitionEvent(
 			roundsToScore: trackWorkout.workout.roundsToScore,
 			repsPerRound: trackWorkout.workout.repsPerRound,
 			tiebreakScheme: trackWorkout.workout.tiebreakScheme,
+			timeCap: trackWorkout.workout.timeCap,
 			secondaryScheme: trackWorkout.workout.secondaryScheme,
 			tags: workoutTagsData.map((t) => ({ id: t.tagId, name: t.tagName })),
 			movements: workoutMovementsData.map((m) => ({
@@ -591,6 +595,7 @@ export async function updateCompetitionEventWorkout(params: {
 	roundsToScore?: number | null
 	repsPerRound?: number | null
 	tiebreakScheme?: "time" | "reps" | null
+	timeCap?: number | null // Time cap in seconds
 	secondaryScheme?:
 		| "time"
 		| "pass-fail"
@@ -632,6 +637,9 @@ export async function updateCompetitionEventWorkout(params: {
 	}
 	if (params.tiebreakScheme !== undefined) {
 		updateData.tiebreakScheme = params.tiebreakScheme
+	}
+	if (params.timeCap !== undefined) {
+		updateData.timeCap = params.timeCap
 	}
 	if (params.secondaryScheme !== undefined) {
 		updateData.secondaryScheme = params.secondaryScheme

@@ -590,6 +590,7 @@ export async function getWorkoutResultsWithScaling({
 				competitionRegistrationId: results.competitionRegistrationId,
 				scoreStatus: results.scoreStatus,
 				tieBreakScore: results.tieBreakScore,
+				secondaryScore: results.secondaryScore,
 				enteredBy: results.enteredBy,
 			})
 			.from(results)
@@ -746,6 +747,7 @@ export async function getWorkoutLeaderboard({
 				competitionRegistrationId: results.competitionRegistrationId,
 				scoreStatus: results.scoreStatus,
 				tieBreakScore: results.tieBreakScore,
+				secondaryScore: results.secondaryScore,
 				enteredBy: results.enteredBy,
 			})
 			.from(results)

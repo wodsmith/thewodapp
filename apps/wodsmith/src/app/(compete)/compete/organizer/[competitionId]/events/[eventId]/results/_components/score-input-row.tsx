@@ -13,14 +13,36 @@ import {
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
+	SecondaryScheme,
 	ScoreStatus,
 } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
+
+// Helper to get placeholder text for secondary scheme input
+function getSecondaryPlaceholder(scheme: SecondaryScheme | null): string {
+	switch (scheme) {
+		case "rounds-reps":
+			return "e.g., 5+12"
+		case "reps":
+			return "e.g., 150"
+		case "calories":
+			return "e.g., 200"
+		case "meters":
+			return "e.g., 5000"
+		case "load":
+			return "e.g., 225"
+		case "points":
+			return "e.g., 100"
+		default:
+			return "Enter score..."
+	}
+}
 
 export interface ScoreEntryData {
 	score: string
 	scoreStatus: ScoreStatus
 	tieBreakScore: string | null
+	secondaryScore: string | null
 	formattedScore: string
 }
 
@@ -28,6 +50,8 @@ interface ScoreInputRowProps {
 	athlete: EventScoreEntryAthlete
 	workoutScheme: WorkoutScheme
 	tiebreakScheme: TiebreakScheme | null
+	secondaryScheme: SecondaryScheme | null
+	showTiebreak?: boolean
 	timeCap?: number
 	value?: ScoreEntryData
 	isSaving?: boolean
@@ -41,6 +65,8 @@ export function ScoreInputRow({
 	athlete,
 	workoutScheme,
 	tiebreakScheme,
+	secondaryScheme,
+	showTiebreak = false,
 	timeCap,
 	value,
 	isSaving,
@@ -55,11 +81,26 @@ export function ScoreInputRow({
 	const [tieBreakValue, setTieBreakValue] = useState(
 		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
 	)
+	const [secondaryValue, setSecondaryValue] = useState(
+		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
+	)
 	const [showWarning, setShowWarning] = useState(false)
-	const [parseResult, setParseResult] = useState<ParseResult | null>(null)
+	const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
+		const initialScore = value?.score || athlete.existingResult?.wodScore || ""
+		if (initialScore.trim()) {
+			return parseScore(initialScore, workoutScheme, timeCap, tiebreakScheme)
+		}
+		return null
+	})
 
 	const scoreInputRef = useRef<HTMLInputElement>(null)
 	const tieBreakInputRef = useRef<HTMLInputElement>(null)
+	const secondaryInputRef = useRef<HTMLInputElement>(null)
+
+	// Check if this is a time-capped workout and user entered CAP
+	const isTimeCapped = workoutScheme === "time-with-cap"
+	const isCapped = parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
+	const showSecondaryInput = isTimeCapped && isCapped && secondaryScheme
 
 	// Auto-focus on mount
 	useEffect(() => {
@@ -80,37 +121,83 @@ export function ScoreInputRow({
 		const result = parseScore(newValue, workoutScheme, timeCap, tiebreakScheme)
 		setParseResult(result)
 
-		if (result.error) {
+		// Only show blocking warning popup for invalid scores
+		// Valid scores with warnings (like time > cap) show inline message only
+		if (result.error && !result.isValid) {
 			setShowWarning(true)
 		}
 	}
 
 	// Submit the score
-	const submitScore = () => {
-		if (!parseResult?.isValid) return
+	const submitScore = (force = false) => {
+		if (!force && !parseResult?.isValid) return
+
+		const existing = athlete.existingResult
+		const newScoreStatus = parseResult?.scoreStatus || "scored"
+		const newTieBreak = tieBreakValue || null
+		const newSecondary = showSecondaryInput ? secondaryValue || null : null
+
+		// Don't save if nothing has changed
+		if (
+			existing &&
+			inputValue === (existing.wodScore || "") &&
+			newScoreStatus === (existing.scoreStatus || "scored") &&
+			newTieBreak === (existing.tieBreakScore || null) &&
+			newSecondary === (existing.secondaryScore || null)
+		) {
+			return
+		}
 
 		onChange({
 			score: inputValue,
-			scoreStatus: parseResult.scoreStatus || "scored",
-			tieBreakScore: tieBreakValue || null,
-			formattedScore: parseResult.formatted,
+			scoreStatus: newScoreStatus,
+			tieBreakScore: newTieBreak,
+			secondaryScore: newSecondary,
+			formattedScore: parseResult?.formatted || inputValue,
 		})
+	}
+
+	// Handle blur - save when user leaves the field
+	const handleBlur = (_field: "score" | "tieBreak" | "secondary") => {
+		// Don't save if moving to another field in this row
+		setTimeout(() => {
+			const activeEl = document.activeElement
+			const isMovingToRelatedField =
+				activeEl === scoreInputRef.current ||
+				activeEl === tieBreakInputRef.current ||
+				activeEl === secondaryInputRef.current
+
+			if (!isMovingToRelatedField) {
+				submitScore()
+			}
+		}, 0)
 	}
 
 	// Handle keyboard navigation
 	const handleKeyDown = (
 		e: KeyboardEvent<HTMLInputElement>,
-		field: "score" | "tieBreak",
+		field: "score" | "tieBreak" | "secondary",
 	) => {
 		if (e.key === "Tab" && !e.shiftKey) {
 			e.preventDefault()
 
 			if (field === "score") {
-				// If tie-break is needed and not filled, go there first
-				if (parseResult?.needsTieBreak && !tieBreakValue) {
+				// If secondary input needed (CAP entered), go there first
+				if (showSecondaryInput && !secondaryValue) {
+					secondaryInputRef.current?.focus()
+				} else if (showTiebreak && !tieBreakValue) {
+					// If tie-break exists and not filled, go there
 					tieBreakInputRef.current?.focus()
 				} else {
 					// Submit and move to next row
+					submitScore()
+					onTabNext()
+				}
+			} else if (field === "secondary") {
+				// From secondary, go to tiebreak if exists, else next row
+				if (showTiebreak && !tieBreakValue) {
+					tieBreakInputRef.current?.focus()
+				} else {
 					submitScore()
 					onTabNext()
 				}
@@ -125,9 +212,10 @@ export function ScoreInputRow({
 			e.preventDefault()
 
 			if (showWarning) {
-				// Dismiss warning and submit
+				// Dismiss warning and force submit
 				setShowWarning(false)
-				submitScore()
+				submitScore(true)
+				onTabNext()
 			} else if (parseResult?.isValid) {
 				submitScore()
 				onTabNext()
@@ -138,20 +226,25 @@ export function ScoreInputRow({
 	// Handle warning confirmation
 	const handleConfirmWarning = () => {
 		setShowWarning(false)
-		submitScore()
+		submitScore(true) // Force save even if invalid
 		onTabNext()
 	}
 
 	// Determine status display
 	const hasExistingResult = !!athlete.existingResult
-	const isWarning = showWarning || parseResult?.error
+	// Invalid scores get blocking warning (yellow)
+	const isInvalidWarning = showWarning || (parseResult?.error && !parseResult?.isValid)
+	// Valid scores with warnings (like time > cap) get amber styling
+	const hasWarning = parseResult?.error && parseResult?.isValid
 
 	return (
 		<div
 			className={cn(
-				"grid grid-cols-[60px_1fr_2fr_1fr_100px] items-center gap-3 border-b p-3 transition-colors",
-				isWarning && "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
-				isSaved && !isWarning && "bg-green-50 dark:bg-green-950/20",
+				"grid items-center gap-3 border-b p-3 transition-colors",
+				showTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]",
+				isInvalidWarning && "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
+				hasWarning && !isInvalidWarning && "bg-amber-50 dark:bg-amber-950/20 border-amber-300",
+				isSaved && !isInvalidWarning && !hasWarning && "bg-green-50 dark:bg-green-950/20",
 			)}
 		>
 			{/* Lane / Index */}
@@ -178,13 +271,15 @@ export function ScoreInputRow({
 						value={inputValue}
 						onChange={(e) => handleInputChange(e.target.value)}
 						onKeyDown={(e) => handleKeyDown(e, "score")}
+						onBlur={() => handleBlur("score")}
 						placeholder="Enter score..."
 						className={cn(
 							"h-10 text-base font-mono",
-							isWarning && "border-yellow-400 focus:ring-yellow-400",
+							isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
+							hasWarning && !isInvalidWarning && "border-amber-400 focus:ring-amber-400",
 						)}
 					/>
-					{parseResult?.isValid && (
+					{parseResult?.isValid && !showSecondaryInput && (
 						<div className="mt-1 text-xs text-muted-foreground">
 							Preview: {parseResult.formatted}
 						</div>
@@ -196,8 +291,26 @@ export function ScoreInputRow({
 					)}
 				</div>
 
-				{/* Warning Message */}
-				{showWarning && parseResult?.error && (
+				{/* Secondary Score Input (for time-capped workouts when CAP) */}
+				{showSecondaryInput && (
+					<div className="relative">
+						<Input
+							ref={secondaryInputRef}
+							value={secondaryValue}
+							onChange={(e) => setSecondaryValue(e.target.value)}
+							onKeyDown={(e) => handleKeyDown(e, "secondary")}
+							onBlur={() => handleBlur("secondary")}
+							placeholder={getSecondaryPlaceholder(secondaryScheme)}
+							className="h-10 text-base font-mono"
+						/>
+						<div className="mt-1 text-xs text-muted-foreground">
+							Enter {secondaryScheme?.replace("-", " + ")} achieved at cap
+						</div>
+					</div>
+				)}
+
+				{/* Warning Message (only for invalid scores) */}
+				{isInvalidWarning && parseResult?.error && (
 					<div className="flex items-start gap-2 rounded-md bg-yellow-100 dark:bg-yellow-900/30 p-2 text-sm">
 						<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
 						<div className="flex-1">
@@ -229,22 +342,21 @@ export function ScoreInputRow({
 			</div>
 
 			{/* Tie-Break Input */}
-			<div>
-				{parseResult?.needsTieBreak ? (
+			{showTiebreak && (
+				<div>
 					<Input
 						ref={tieBreakInputRef}
 						value={tieBreakValue}
 						onChange={(e) => setTieBreakValue(e.target.value)}
 						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
+						onBlur={() => handleBlur("tieBreak")}
 						placeholder={
 							tiebreakScheme === "time" ? "Time..." : "Reps..."
 						}
 						className="h-10 text-base font-mono"
 					/>
-				) : (
-					<div className="text-center text-muted-foreground">--</div>
-				)}
-			</div>
+				</div>
+			)}
 
 			{/* Status */}
 			<div className="text-center">
