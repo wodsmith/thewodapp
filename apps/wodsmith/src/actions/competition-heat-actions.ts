@@ -46,6 +46,7 @@ const createVenueSchema = z.object({
 
 const updateVenueSchema = z.object({
 	id: venueIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	name: z.string().min(1).max(100).optional(),
 	laneCount: z.number().int().min(1).max(100).optional(),
@@ -55,6 +56,7 @@ const updateVenueSchema = z.object({
 
 const deleteVenueSchema = z.object({
 	id: venueIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 })
 
@@ -77,6 +79,7 @@ const createHeatSchema = z.object({
 
 const updateHeatSchema = z.object({
 	id: heatIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	heatNumber: z.number().int().min(1).optional(),
 	venueId: venueIdSchema.nullable().optional(),
@@ -87,6 +90,7 @@ const updateHeatSchema = z.object({
 
 const deleteHeatSchema = z.object({
 	id: heatIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 })
 
@@ -112,6 +116,7 @@ const bulkCreateHeatsSchema = z.object({
 // Assignment schemas
 const assignToHeatSchema = z.object({
 	heatId: heatIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	registrationId: z.string().startsWith("creg_", "Invalid registration ID"),
 	laneNumber: z.number().int().min(1),
@@ -119,17 +124,20 @@ const assignToHeatSchema = z.object({
 
 const removeFromHeatSchema = z.object({
 	assignmentId: assignmentIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 })
 
 const updateAssignmentSchema = z.object({
 	id: assignmentIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	laneNumber: z.number().int().min(1),
 })
 
 const moveAssignmentSchema = z.object({
 	assignmentId: assignmentIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	targetHeatId: heatIdSchema,
 	targetLaneNumber: z.number().int().min(1),
@@ -137,6 +145,7 @@ const moveAssignmentSchema = z.object({
 
 const bulkAssignSchema = z.object({
 	heatId: heatIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
 	assignments: z.array(
 		z.object({
@@ -206,7 +215,7 @@ export const updateVenueAction = createServerAction()
 				sortOrder: input.sortOrder,
 			})
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
@@ -231,7 +240,7 @@ export const deleteVenueAction = createServerAction()
 
 			await deleteVenue(input.id)
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
@@ -322,7 +331,7 @@ export const updateHeatAction = createServerAction()
 				notes: input.notes,
 			})
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
@@ -347,7 +356,7 @@ export const deleteHeatAction = createServerAction()
 
 			await deleteHeat(input.id)
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
@@ -447,7 +456,7 @@ export const assignToHeatAction = createServerAction()
 				laneNumber: input.laneNumber,
 			})
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true, data: assignment }
 		} catch (error) {
@@ -472,7 +481,7 @@ export const removeFromHeatAction = createServerAction()
 
 			await removeFromHeat(input.assignmentId)
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
@@ -500,7 +509,7 @@ export const updateAssignmentAction = createServerAction()
 				laneNumber: input.laneNumber,
 			})
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
@@ -528,7 +537,7 @@ export const bulkAssignToHeatAction = createServerAction()
 				input.assignments,
 			)
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true, data: assignments }
 		} catch (error) {
@@ -596,7 +605,7 @@ export const moveAssignmentAction = createServerAction()
 				})
 			}
 
-			revalidatePath("/compete/organizer")
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
 
 			return { success: true }
 		} catch (error) {
