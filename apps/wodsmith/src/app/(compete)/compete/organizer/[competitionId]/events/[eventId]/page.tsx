@@ -2,7 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ChevronLeft, ClipboardList } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import { ZSAError } from "@repo/zsa"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { Button } from "@/components/ui/button"
@@ -113,19 +113,11 @@ export default async function EventDetailsPage({
 							{ label: event.workout.name },
 						]}
 					/>
-					<div className="flex items-center justify-between gap-4 mt-2">
+					<div className="flex items-center gap-4 mt-2">
 						<Button variant="ghost" size="sm" asChild>
 							<Link href={`/compete/organizer/${competition.id}/events`}>
 								<ChevronLeft className="h-4 w-4 mr-1" />
 								Back to Events
-							</Link>
-						</Button>
-						<Button asChild>
-							<Link
-								href={`/compete/organizer/${competition.id}/events/${eventId}/results`}
-							>
-								<ClipboardList className="h-4 w-4 mr-2" />
-								Enter Results
 							</Link>
 						</Button>
 					</div>

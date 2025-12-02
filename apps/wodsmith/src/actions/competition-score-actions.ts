@@ -13,6 +13,7 @@ import {
 	saveCompetitionScores,
 	deleteCompetitionScore,
 } from "@/server/competition-scores"
+import type { WorkoutScoreInfo } from "@/server/logs"
 
 /* -------------------------------------------------------------------------- */
 /*                        Competition Score Schemas                           */
@@ -23,6 +24,21 @@ const getEventScoreEntryDataSchema = z.object({
 	organizingTeamId: z.string().min(1),
 	trackWorkoutId: z.string().min(1),
 	divisionId: z.string().optional(),
+})
+
+/** Schema for round score data */
+const roundScoreSchema = z.object({
+	score: z.string(),
+	parts: z.tuple([z.string(), z.string()]).optional(),
+})
+
+/** Schema for workout info needed for proper score processing */
+const workoutInfoSchema = z.object({
+	scheme: z.string(),
+	scoreType: z.string().nullable(),
+	repsPerRound: z.number().nullable(),
+	roundsToScore: z.number().nullable(),
+	timeCap: z.number().nullable(),
 })
 
 const saveCompetitionScoreSchema = z.object({
@@ -37,6 +53,10 @@ const saveCompetitionScoreSchema = z.object({
 	scoreStatus: z.enum(SCORE_STATUS_VALUES),
 	tieBreakScore: z.string().nullable().optional(),
 	secondaryScore: z.string().nullable().optional(),
+	/** Round scores for multi-round workouts */
+	roundScores: z.array(roundScoreSchema).optional(),
+	/** Workout info for proper score processing */
+	workout: workoutInfoSchema.optional(),
 })
 
 const saveCompetitionScoresSchema = z.object({
@@ -127,6 +147,8 @@ export const saveCompetitionScoreAction = createServerAction()
 				scoreStatus: input.scoreStatus,
 				tieBreakScore: input.tieBreakScore,
 				secondaryScore: input.secondaryScore,
+				roundScores: input.roundScores,
+				workout: input.workout as WorkoutScoreInfo | undefined,
 				enteredBy: session.user.id,
 			})
 

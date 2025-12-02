@@ -89,6 +89,14 @@ export function ResultsEntryForm({
 				scoreStatus: data.scoreStatus,
 				tieBreakScore: data.tieBreakScore,
 				secondaryScore: data.secondaryScore,
+				roundScores: data.roundScores,
+				workout: {
+					scheme: event.workout.scheme,
+					scoreType: event.workout.scoreType,
+					repsPerRound: event.workout.repsPerRound,
+					roundsToScore: event.workout.roundsToScore,
+					timeCap: event.workout.timeCap,
+				},
 			})
 
 			setSavingIds((prev) => {
@@ -104,7 +112,7 @@ export function ResultsEntryForm({
 				)
 			}
 		},
-		[competitionId, organizingTeamId, event.id, event.workout.id, saveScore],
+		[competitionId, organizingTeamId, event.id, event.workout.id, event.workout.scheme, event.workout.scoreType, event.workout.repsPerRound, event.workout.roundsToScore, event.workout.timeCap, saveScore],
 	)
 
 	// Handle tab to next athlete
@@ -150,21 +158,29 @@ export function ResultsEntryForm({
 
 	// Get score format examples based on workout scheme
 	const getScoreExamples = () => {
+		const numRounds = event.workout.roundsToScore ?? 1
+		const isMultiRound = numRounds > 1
+
 		switch (event.workout.scheme) {
+			case "pass-fail":
+				return {
+					format: `Rounds Passed (0-${numRounds})`,
+					examples: ["0", String(Math.floor(numRounds / 2)), String(numRounds)],
+				}
 			case "time":
 			case "time-with-cap":
 				return {
-					format: "Time (MM:SS or M:SS)",
+					format: isMultiRound ? `Time per round (${numRounds} rounds)` : "Time (MM:SS or M:SS)",
 					examples: ["3:45", "12:30", "1:05:30"],
 				}
 			case "rounds-reps":
 				return {
-					format: "Rounds + Reps",
+					format: isMultiRound ? `Rounds + Reps (${numRounds} scores)` : "Rounds + Reps",
 					examples: ["5+12", "10+0", "7+15"],
 				}
 			case "reps":
 				return {
-					format: "Total Reps",
+					format: isMultiRound ? `Reps per round (${numRounds} rounds)` : "Total Reps",
 					examples: ["150", "87", "203"],
 				}
 			case "load":
@@ -174,17 +190,17 @@ export function ResultsEntryForm({
 				}
 			case "calories":
 				return {
-					format: "Total Calories",
+					format: isMultiRound ? `Calories per round (${numRounds} rounds)` : "Total Calories",
 					examples: ["150", "200", "175"],
 				}
 			case "meters":
 				return {
-					format: "Distance (meters)",
+					format: isMultiRound ? `Distance per round (${numRounds} rounds)` : "Distance (meters)",
 					examples: ["5000", "2000", "1500"],
 				}
 			case "points":
 				return {
-					format: "Total Points",
+					format: isMultiRound ? `Points per round (${numRounds} rounds)` : "Total Points",
 					examples: ["100", "85", "92"],
 				}
 			default:
@@ -329,7 +345,13 @@ export function ResultsEntryForm({
 					<div className={`grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}>
 						<div className="text-center">#</div>
 						<div>ATHLETE</div>
-						<div>SCORE</div>
+						<div>
+							{(event.workout.roundsToScore ?? 1) > 1
+								? `SCORES (${event.workout.roundsToScore} ROUNDS)`
+								: event.workout.scheme === "pass-fail"
+									? "ROUNDS PASSED"
+									: "SCORE"}
+						</div>
 						{hasTiebreak && <div>TIE-BREAK</div>}
 						<div className="text-center">STATUS</div>
 					</div>
@@ -357,6 +379,8 @@ export function ResultsEntryForm({
 										tiebreakScheme={event.workout.tiebreakScheme}
 										secondaryScheme={event.workout.secondaryScheme}
 										timeCap={timeCap ?? undefined}
+										roundsToScore={event.workout.roundsToScore ?? 1}
+										repsPerRound={event.workout.repsPerRound}
 										showTiebreak={hasTiebreak}
 										value={scores[athlete.registrationId]}
 										isSaving={savingIds.has(athlete.registrationId)}

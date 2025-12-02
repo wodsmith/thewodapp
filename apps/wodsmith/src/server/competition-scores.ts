@@ -7,6 +7,7 @@ import {
 	competitionRegistrationsTable,
 	results,
 	scalingLevelsTable,
+	sets,
 	trackWorkoutsTable,
 	userTable,
 	type ScoreStatus,
@@ -15,6 +16,25 @@ import {
 	type TiebreakScheme,
 	type SecondaryScheme,
 } from "@/db/schema"
+import {
+	processScoresToSetsAndWodScore,
+	type WorkoutScoreInfo,
+	type NormalizedScoreEntry,
+} from "@/server/logs"
+
+/** Round score data for multi-round workouts */
+export interface RoundScoreData {
+	score: string
+	/** For rounds+reps format: [rounds, reps] */
+	parts?: [string, string]
+}
+
+/** Existing set data from the sets table */
+export interface ExistingSetData {
+	setNumber: number
+	score: number | null
+	reps: number | null
+}
 
 export interface EventScoreEntryAthlete {
 	registrationId: string
@@ -30,6 +50,8 @@ export interface EventScoreEntryAthlete {
 		scoreStatus: ScoreStatus | null
 		tieBreakScore: string | null
 		secondaryScore: string | null
+		/** Existing sets for multi-round workouts */
+		sets: ExistingSetData[]
 	} | null
 }
 
@@ -119,6 +141,33 @@ export async function getEventScoreEntryData(params: {
 					)
 			: []
 
+	// Get sets for all existing results
+	const resultIds = existingResults.map((r) => r.id)
+	const existingSets =
+		resultIds.length > 0
+			? await db
+					.select({
+						resultId: sets.resultId,
+						setNumber: sets.setNumber,
+						score: sets.score,
+						reps: sets.reps,
+					})
+					.from(sets)
+					.where(inArray(sets.resultId, resultIds))
+			: []
+
+	// Group sets by resultId
+	const setsByResultId = new Map<string, ExistingSetData[]>()
+	for (const set of existingSets) {
+		const existing = setsByResultId.get(set.resultId) || []
+		existing.push({
+			setNumber: set.setNumber,
+			score: set.score,
+			reps: set.reps,
+		})
+		setsByResultId.set(set.resultId, existing)
+	}
+
 	// Create a map of userId to result
 	const resultsByUserId = new Map(
 		existingResults.map((r) => [r.userId, r]),
@@ -149,6 +198,11 @@ export async function getEventScoreEntryData(params: {
 	const athletes: EventScoreEntryAthlete[] = filteredRegistrations.map(
 		(reg) => {
 			const existingResult = resultsByUserId.get(reg.user.id)
+			const resultSets = existingResult
+				? (setsByResultId.get(existingResult.id) || []).sort(
+						(a, b) => a.setNumber - b.setNumber,
+					)
+				: []
 
 			return {
 				registrationId: reg.registration.id,
@@ -165,6 +219,7 @@ export async function getEventScoreEntryData(params: {
 							scoreStatus: existingResult.scoreStatus as ScoreStatus | null,
 							tieBreakScore: existingResult.tieBreakScore,
 							secondaryScore: existingResult.secondaryScore,
+							sets: resultSets,
 						}
 					: null,
 			}
@@ -205,7 +260,21 @@ export async function getEventScoreEntryData(params: {
 }
 
 /**
+ * Convert RoundScoreData to NormalizedScoreEntry format used by shared functions
+ */
+function convertToNormalizedEntries(
+	roundScores: RoundScoreData[],
+): NormalizedScoreEntry[] {
+	return roundScores.map((round) => ({
+		score: round.score,
+		parts: round.parts,
+		timeCapped: false, // Competition scores don't currently track per-round time cap
+	}))
+}
+
+/**
  * Save a single athlete's competition score
+ * Uses the same score processing logic as submitLogForm via shared functions
  */
 export async function saveCompetitionScore(params: {
 	competitionId: string
@@ -218,9 +287,77 @@ export async function saveCompetitionScore(params: {
 	scoreStatus: ScoreStatus
 	tieBreakScore?: string | null
 	secondaryScore?: string | null
+	/** Round scores for multi-round workouts - stored in sets table */
+	roundScores?: RoundScoreData[]
+	/** Workout info for proper score processing */
+	workout?: WorkoutScoreInfo
 	enteredBy: string
 }): Promise<{ resultId: string; isNew: boolean }> {
 	const db = getDb()
+
+	let finalWodScore = params.score
+	let setsToInsert: Array<{
+		id: string
+		resultId: string
+		setNumber: number
+		score: number | null
+		reps: number | null
+		time: number | null
+		weight: number | null
+		distance: number | null
+		status: "pass" | "fail" | null
+	}> = []
+
+	// Process round scores if provided using shared functions
+	if (params.roundScores && params.roundScores.length > 0 && params.workout) {
+		// Convert to normalized format used by shared functions
+		const normalizedEntries = convertToNormalizedEntries(params.roundScores)
+
+		// Use shared processing function from logs.ts
+		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+			normalizedEntries,
+			params.workout,
+		)
+
+		finalWodScore = wodScore
+
+		// Prepare sets for insertion (resultId will be set below)
+		setsToInsert = setsForDb.map((set, index) => ({
+			id: `set_${createId()}`,
+			resultId: "", // Will be set after we have the result ID
+			setNumber: index + 1,
+			score: set.score ?? null,
+			reps: set.reps ?? null,
+			time: set.time ?? null,
+			weight: set.weight ?? null,
+			distance: set.distance ?? null,
+			status: (set.status as "pass" | "fail" | null) ?? null,
+		}))
+	} else if (params.roundScores && params.roundScores.length > 0) {
+		// Fallback: no workout info, use simple formatting (legacy behavior)
+		const formattedRounds = params.roundScores.map((round) => {
+			if (round.parts) {
+				return `${round.parts[0] || "0"}+${round.parts[1] || "0"}`
+			}
+			return round.score || "0"
+		})
+		finalWodScore = formattedRounds.join(", ")
+
+		// Simple sets without proper processing
+		setsToInsert = params.roundScores.map((round, index) => ({
+			id: `set_${createId()}`,
+			resultId: "",
+			setNumber: index + 1,
+			score: round.parts
+				? parseInt(round.parts[0], 10) || null
+				: parseInt(round.score, 10) || null,
+			reps: round.parts?.[1] ? parseInt(round.parts[1], 10) || null : null,
+			time: null,
+			weight: null,
+			distance: null,
+			status: null,
+		}))
+	}
 
 	// Check if result already exists
 	const existingResult = await db.query.results.findFirst({
@@ -235,16 +372,30 @@ export async function saveCompetitionScore(params: {
 		await db
 			.update(results)
 			.set({
-				wodScore: params.score,
+				wodScore: finalWodScore,
 				scoreStatus: params.scoreStatus,
 				tieBreakScore: params.tieBreakScore ?? null,
 				secondaryScore: params.secondaryScore ?? null,
 				scalingLevelId: params.divisionId,
 				competitionRegistrationId: params.registrationId,
 				enteredBy: params.enteredBy,
+				setCount: setsToInsert.length || null,
 				updatedAt: new Date(),
 			})
 			.where(eq(results.id, existingResult.id))
+
+		// Update sets if we have any
+		if (setsToInsert.length > 0) {
+			// Delete existing sets for this result
+			await db.delete(sets).where(eq(sets.resultId, existingResult.id))
+
+			// Update resultId and insert
+			const setsWithResultId = setsToInsert.map((set) => ({
+				...set,
+				resultId: existingResult.id,
+			}))
+			await db.insert(sets).values(setsWithResultId)
+		}
 
 		return { resultId: existingResult.id, isNew: false }
 	}
@@ -259,14 +410,24 @@ export async function saveCompetitionScore(params: {
 		competitionRegistrationId: params.registrationId,
 		date: new Date(),
 		type: "wod",
-		wodScore: params.score,
+		wodScore: finalWodScore,
 		scoreStatus: params.scoreStatus,
 		tieBreakScore: params.tieBreakScore ?? null,
 		secondaryScore: params.secondaryScore ?? null,
 		scalingLevelId: params.divisionId,
 		enteredBy: params.enteredBy,
+		setCount: setsToInsert.length || null,
 		asRx: true, // Competition scores are always "as prescribed" for the division
 	})
+
+	// Insert sets if we have any
+	if (setsToInsert.length > 0) {
+		const setsWithResultId = setsToInsert.map((set) => ({
+			...set,
+			resultId,
+		}))
+		await db.insert(sets).values(setsWithResultId)
+	}
 
 	return { resultId, isNew: true }
 }
