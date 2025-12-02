@@ -357,6 +357,30 @@ export async function saveCompetitionScore(params: {
 			distance: null,
 			status: null,
 		}))
+	} else if (params.score && params.workout) {
+		// Single score (no roundScores array) - still create a set
+		const normalizedEntries: NormalizedScoreEntry[] = [
+			{ score: params.score, parts: undefined, timeCapped: false },
+		]
+
+		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+			normalizedEntries,
+			params.workout,
+		)
+
+		finalWodScore = wodScore
+
+		setsToInsert = setsForDb.map((set, index) => ({
+			id: `set_${createId()}`,
+			resultId: "",
+			setNumber: index + 1,
+			score: set.score ?? null,
+			reps: set.reps ?? null,
+			time: set.time ?? null,
+			weight: set.weight ?? null,
+			distance: set.distance ?? null,
+			status: (set.status as "pass" | "fail" | null) ?? null,
+		}))
 	}
 
 	// Check if result already exists
