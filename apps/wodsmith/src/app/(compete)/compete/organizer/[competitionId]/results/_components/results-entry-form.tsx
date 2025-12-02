@@ -29,6 +29,8 @@ import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 interface ResultsEntryFormProps {
 	competitionId: string
 	organizingTeamId: string
+	events: Array<{ id: string; name: string; trackOrder: number }>
+	selectedEventId?: string
 	event: EventScoreEntryData["event"]
 	athletes: EventScoreEntryAthlete[]
 	divisions: Array<{ id: string; label: string }>
@@ -38,6 +40,8 @@ interface ResultsEntryFormProps {
 export function ResultsEntryForm({
 	competitionId,
 	organizingTeamId,
+	events,
+	selectedEventId,
 	event,
 	athletes,
 	divisions,
@@ -119,6 +123,15 @@ export function ResultsEntryForm({
 		},
 		[athletes],
 	)
+
+	// Event filter change
+	const handleEventChange = (eventId: string) => {
+		const url = new URL(window.location.href)
+		url.searchParams.set("event", eventId)
+		// Clear division filter when changing events
+		url.searchParams.delete("division")
+		router.push(url.pathname + url.search)
+	}
 
 	// Division filter change
 	const handleDivisionChange = (value: string) => {
@@ -223,25 +236,45 @@ export function ResultsEntryForm({
 					</div>
 				</CardHeader>
 				<CardContent>
-					<div className="flex items-center gap-3">
-						<Filter className="h-4 w-4 text-muted-foreground" />
-						<span className="text-sm font-medium">Filter:</span>
-						<Select
-							value={selectedDivisionId || "all"}
-							onValueChange={handleDivisionChange}
-						>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="All Divisions" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Divisions</SelectItem>
-								{divisions.map((div) => (
-									<SelectItem key={div.id} value={div.id}>
-										{div.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+					<div className="flex items-center gap-6">
+						<div className="flex items-center gap-3">
+							<span className="text-sm font-medium">Event:</span>
+							<Select
+								value={selectedEventId}
+								onValueChange={handleEventChange}
+							>
+								<SelectTrigger className="w-[280px]">
+									<SelectValue placeholder="Select event..." />
+								</SelectTrigger>
+								<SelectContent>
+									{events.map((e) => (
+										<SelectItem key={e.id} value={e.id}>
+											Event {e.trackOrder}: {e.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="flex items-center gap-3">
+							<Filter className="h-4 w-4 text-muted-foreground" />
+							<span className="text-sm font-medium">Division:</span>
+							<Select
+								value={selectedDivisionId || "all"}
+								onValueChange={handleDivisionChange}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="All Divisions" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Divisions</SelectItem>
+									{divisions.map((div) => (
+										<SelectItem key={div.id} value={div.id}>
+											{div.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
 					</div>
 				</CardContent>
 			</Card>

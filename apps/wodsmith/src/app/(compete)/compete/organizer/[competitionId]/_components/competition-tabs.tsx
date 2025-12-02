@@ -12,6 +12,7 @@ const tabs = [
 	{ label: "Overview", href: "" },
 	{ label: "Divisions", href: "/divisions" },
 	{ label: "Events", href: "/events" },
+	{ label: "Results", href: "/results" },
 	{ label: "Schedule", href: "/schedule" },
 	{ label: "Athletes", href: "/athletes" },
 	{ label: "Pricing", href: "/pricing" },
