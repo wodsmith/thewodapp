@@ -151,7 +151,7 @@ export function EventOverview({ events, heats }: EventOverviewProps) {
 							{group.summaries.map((summary) => (
 								<div
 									key={summary.event.id}
-									className="flex items-center gap-3 text-sm font-mono"
+									className="flex items-center gap-3 text-sm tabular-nums"
 								>
 									<span className="text-muted-foreground w-6 text-right">
 										{String(summary.event.trackOrder).padStart(2, "0")}
