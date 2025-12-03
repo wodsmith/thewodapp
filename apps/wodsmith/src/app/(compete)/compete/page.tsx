@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 }
 
 interface CompetePageProps {
-	searchParams: Promise<{ q?: string }>
+	searchParams: Promise<{ q?: string; past?: string }>
 }
 
 // Helper to determine competition status
@@ -29,6 +29,11 @@ function getCompetitionStatus(comp: any, now: Date) {
 	const regCloses = comp.registrationClosesAt
 		? new Date(comp.registrationClosesAt)
 		: null
+
+	// Past if already ended
+	if (endDate < now) {
+		return "past"
+	}
 
 	// Active if currently happening
 	if (startDate <= now && endDate >= now) {
@@ -61,7 +66,8 @@ function getCompetitionStatus(comp: any, now: Date) {
 }
 
 export default async function CompetePage({ searchParams }: CompetePageProps) {
-	const { q: searchQuery } = await searchParams
+	const { q: searchQuery, past } = await searchParams
+	const showPast = past === "true"
 	const session = await getSessionFromCookie()
 
 	const isAuthenticated = !!session?.user
@@ -97,8 +103,15 @@ export default async function CompetePage({ searchParams }: CompetePageProps) {
 		(comp) => !registeredCompIds.has(comp.id),
 	)
 
+	// Filter out past competitions unless showPast is true
+	const visibleCompetitions = showPast
+		? unregisteredCompetitions
+		: unregisteredCompetitions.filter(
+				(comp) => getCompetitionStatus(comp, now) !== "past",
+			)
+
 	// Sort competitions by start date
-	const sortedCompetitions = [...unregisteredCompetitions].sort(
+	const sortedCompetitions = [...visibleCompetitions].sort(
 		(a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
 	)
 

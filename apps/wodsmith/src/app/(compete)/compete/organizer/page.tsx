@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups, getCompetitions } from "@/server/competitions"
+import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { OrganizerCompetitionsList } from "./_components/organizer-competitions-list"
 import { TeamFilter } from "./_components/team-filter"
@@ -25,11 +26,35 @@ export default async function OrganizerDashboard({
 }: OrganizerDashboardProps) {
 	const { teamId: selectedTeamId, groupId } = await searchParams
 	const organizingTeams = await getUserOrganizingTeams()
+	const activeTeamFromCookie = await getActiveTeamFromCookie()
 
-	// Use selected team or first team as default
-	const activeTeamId = selectedTeamId || organizingTeams[0]?.id
+	// Priority: URL param > active team cookie (if valid organizing team)
+	let activeTeamId: string | undefined = selectedTeamId
+	if (!activeTeamId && activeTeamFromCookie) {
+		if (organizingTeams.some((t) => t.id === activeTeamFromCookie)) {
+			activeTeamId = activeTeamFromCookie
+		}
+	}
 
 	if (!activeTeamId) {
+		// No valid organizing team - show message to switch teams
+		const firstTeam = organizingTeams[0]
+		if (firstTeam) {
+			return (
+				<div className="container mx-auto px-4 py-8">
+					<div className="flex flex-col gap-6">
+						<div>
+							<h1 className="text-3xl font-bold">My Competitions</h1>
+							<p className="text-muted-foreground mt-1">
+								Your current team cannot organize competitions. Please select an
+								organizing team:
+							</p>
+						</div>
+						<TeamFilter teams={organizingTeams} selectedTeamId={firstTeam.id} />
+					</div>
+				</div>
+			)
+		}
 		return null // Layout handles no access case
 	}
 

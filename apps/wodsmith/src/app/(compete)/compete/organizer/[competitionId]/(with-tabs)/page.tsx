@@ -16,6 +16,7 @@ import {
 	getCompetitionRegistrations,
 } from "@/server/competitions"
 import { getCompetitionRevenueStats } from "@/server/commerce"
+import { formatUTCDateFull } from "@/utils/date-utils"
 
 interface CompetitionDetailPageProps {
 	params: Promise<{
@@ -59,14 +60,7 @@ export default async function CompetitionDetailPage({
 		getCompetitionRevenueStats(competitionId),
 	])
 
-	const formatDate = (date: Date) => {
-		return new Date(date).toLocaleDateString(undefined, {
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		})
-	}
-
+	// Note: formatDateTime uses local time for timestamps like createdAt
 	const formatDateTime = (date: Date) => {
 		return new Date(date).toLocaleDateString(undefined, {
 			year: "numeric",
@@ -94,8 +88,8 @@ export default async function CompetitionDetailPage({
 								Competition Dates
 							</div>
 							<div className="text-sm mt-1">
-								{formatDate(competition.startDate)} -{" "}
-								{formatDate(competition.endDate)}
+								{formatUTCDateFull(competition.startDate)} -{" "}
+								{formatUTCDateFull(competition.endDate)}
 							</div>
 						</div>
 						<div>

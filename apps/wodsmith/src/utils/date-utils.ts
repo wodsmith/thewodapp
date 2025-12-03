@@ -93,3 +93,142 @@ export function endOfLocalWeek(date: Date = new Date()): Date {
 	localDate.setHours(23, 59, 59, 999)
 	return localDate
 }
+
+/**
+ * Parse a date input string (YYYY-MM-DD) as UTC midnight.
+ * Use for date-only fields where we want to preserve the calendar date
+ * regardless of the user's timezone.
+ *
+ * @param dateStr - The date string in YYYY-MM-DD format
+ * @returns Date object representing UTC midnight of that date
+ */
+export function parseDateInputAsUTC(dateStr: string): Date {
+	const parts = dateStr.split("-").map(Number)
+	const year = parts[0] ?? 0
+	const month = parts[1] ?? 1
+	const day = parts[2] ?? 1
+	return new Date(Date.UTC(year, month - 1, day))
+}
+
+/**
+ * Format a Date to YYYY-MM-DD string for HTML date inputs.
+ * Uses UTC methods to preserve the calendar date stored in the database.
+ *
+ * @param date - The date to format (can be Date, string, or number)
+ * @returns String in YYYY-MM-DD format, or empty string if null/undefined
+ */
+export function formatDateInputFromUTC(
+	date: Date | string | number | null | undefined,
+): string {
+	if (date == null) return ""
+	const d = date instanceof Date ? date : new Date(date)
+	if (Number.isNaN(d.getTime())) return ""
+	const year = d.getUTCFullYear()
+	const month = String(d.getUTCMonth() + 1).padStart(2, "0")
+	const day = String(d.getUTCDate()).padStart(2, "0")
+	return `${year}-${month}-${day}`
+}
+
+/**
+ * Format a UTC date for display (e.g., "Jan 15").
+ * Uses UTC to preserve the calendar date stored in the database.
+ */
+export function formatUTCDateShort(
+	date: Date | string | number | null | undefined,
+): string {
+	if (date == null) return ""
+	const d = date instanceof Date ? date : new Date(date)
+	if (Number.isNaN(d.getTime())) return ""
+
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`
+}
+
+/**
+ * Format a UTC date with year for display (e.g., "Jan 15, 2024").
+ * Uses UTC to preserve the calendar date stored in the database.
+ */
+export function formatUTCDateFull(
+	date: Date | string | number | null | undefined,
+): string {
+	if (date == null) return ""
+	const d = date instanceof Date ? date : new Date(date)
+	if (Number.isNaN(d.getTime())) return ""
+
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
+}
+
+/**
+ * Format a UTC date range for display (e.g., "January 15-17, 2024").
+ * Handles same month, different months, and different years.
+ */
+export function formatUTCDateRange(
+	startDate: Date | string | number,
+	endDate: Date | string | number,
+): string {
+	const start =
+		startDate instanceof Date ? startDate : new Date(startDate as string)
+	const end = endDate instanceof Date ? endDate : new Date(endDate as string)
+
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	]
+
+	const startMonth = months[start.getUTCMonth()]
+	const startDay = start.getUTCDate()
+	const startYear = start.getUTCFullYear()
+	const endMonth = months[end.getUTCMonth()]
+	const endDay = end.getUTCDate()
+	const endYear = end.getUTCFullYear()
+
+	// Same month and year
+	if (start.getUTCMonth() === end.getUTCMonth() && startYear === endYear) {
+		return `${startMonth} ${startDay}-${endDay}, ${startYear}`
+	}
+
+	// Same year, different months
+	if (startYear === endYear) {
+		return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`
+	}
+
+	// Different years
+	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
+}
