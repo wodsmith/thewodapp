@@ -741,6 +741,8 @@ export async function updateCompetition(
 		groupId: string | null
 		settings: string | null
 		visibility: "public" | "private"
+		profileImageUrl: string | null
+		bannerImageUrl: string | null
 	}>,
 ): Promise<Competition> {
 	const db = getDb()
@@ -801,6 +803,10 @@ export async function updateCompetition(
 	if (updates.settings !== undefined) updateData.settings = updates.settings
 	if (updates.visibility !== undefined)
 		updateData.visibility = updates.visibility
+	if (updates.profileImageUrl !== undefined)
+		updateData.profileImageUrl = updates.profileImageUrl
+	if (updates.bannerImageUrl !== undefined)
+		updateData.bannerImageUrl = updates.bannerImageUrl
 
 	const result = await db
 		.update(competitionsTable)

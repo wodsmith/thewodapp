@@ -1,7 +1,9 @@
 import "server-only"
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import { getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
+import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
 import { OrganizerCompetitionForm } from "./_components/organizer-competition-form"
@@ -23,12 +25,19 @@ export default async function NewCompetitionPage({
 }: NewCompetitionPageProps) {
 	const { teamId: selectedTeamId, groupId } = await searchParams
 	const organizingTeams = await getUserOrganizingTeams()
+	const activeTeamFromCookie = await getActiveTeamFromCookie()
 
-	// Use selected team or first team as default
-	const activeTeamId = selectedTeamId || organizingTeams[0]?.id
+	// Priority: URL param > active team cookie (if valid organizing team)
+	let activeTeamId: string | undefined = selectedTeamId
+	if (!activeTeamId && activeTeamFromCookie) {
+		if (organizingTeams.some((t) => t.id === activeTeamFromCookie)) {
+			activeTeamId = activeTeamFromCookie
+		}
+	}
 
 	if (!activeTeamId) {
-		return null // Layout handles no access case
+		// Redirect to organizer page which will show team selector
+		redirect("/compete/organizer")
 	}
 
 	// Fetch groups and scaling groups for the active team

@@ -22,6 +22,14 @@ const nextConfig = {
 		})
 		return config
 	},
+	images: {
+		remotePatterns: [
+			{
+				protocol: "https",
+				hostname: "pub-14c651314867492fa9637e830cc729a3.r2.dev",
+			},
+		],
+	},
 	experimental: {
 		typedRoutes: true,
 	},
