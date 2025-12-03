@@ -20,6 +20,7 @@ type CompetitionStatus =
 	| "active"
 	| "coming-soon"
 	| "registration-closed"
+	| "past"
 
 interface CompetitionRowProps {
 	competition: CompetitionWithOrganizingTeam
@@ -58,6 +59,12 @@ export function CompetitionRow({
 				return (
 					<Badge variant="secondary" className="shrink-0">
 						Soon
+					</Badge>
+				)
+			case "past":
+				return (
+					<Badge variant="outline" className="shrink-0 text-muted-foreground">
+						Past
 					</Badge>
 				)
 		}
