@@ -1,6 +1,9 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { NextResponse } from "next/server"
 import { getSessionFromCookie } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getCompetition } from "@/server/competitions"
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
@@ -13,6 +16,47 @@ const PURPOSE_CONFIG: Record<
 	"athlete-profile": { maxSizeMb: 2, pathPrefix: "athletes/profiles" },
 	"athlete-cover": { maxSizeMb: 5, pathPrefix: "athletes/covers" },
 	"sponsor-logo": { maxSizeMb: 2, pathPrefix: "sponsors/logos" },
+}
+
+/**
+ * Check if user has permission to upload for the given entity
+ */
+async function checkUploadAuthorization(
+	purpose: string,
+	entityId: string | null,
+	userId: string,
+): Promise<{ authorized: boolean; error?: string }> {
+	// Competition uploads require team permission
+	if (purpose.startsWith("competition-") && entityId) {
+		const competition = await getCompetition(entityId)
+		if (!competition) {
+			return { authorized: false, error: "Competition not found" }
+		}
+		const hasPermission = await hasTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+		if (!hasPermission) {
+			return { authorized: false, error: "Not authorized to upload for this competition" }
+		}
+		return { authorized: true }
+	}
+
+	// Athlete uploads can only be for the current user
+	if (purpose.startsWith("athlete-") && entityId) {
+		if (entityId !== userId) {
+			return { authorized: false, error: "Not authorized to upload for this athlete" }
+		}
+		return { authorized: true }
+	}
+
+	// Sponsor uploads require entityId to be the user's own or a team they manage
+	// For now, allow only if entityId matches user or is not provided
+	if (purpose === "sponsor-logo" && entityId && entityId !== userId) {
+		return { authorized: false, error: "Not authorized to upload sponsor logo" }
+	}
+
+	return { authorized: true }
 }
 
 export async function POST(request: Request) {
@@ -34,6 +78,15 @@ export async function POST(request: Request) {
 		return NextResponse.json(
 			{ error: "Invalid or missing purpose" },
 			{ status: 400 },
+		)
+	}
+
+	// Authorization check
+	const authCheck = await checkUploadAuthorization(purpose, entityId, session.user.id)
+	if (!authCheck.authorized) {
+		return NextResponse.json(
+			{ error: authCheck.error || "Forbidden" },
+			{ status: 403 },
 		)
 	}
 
