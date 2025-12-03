@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/collapsible"
 import { ListItem } from "@/components/ui/list-item"
 import type { CompetitionWithOrganizingTeam } from "@/server/competitions"
+import { formatUTCDateFull, formatUTCDateShort } from "@/utils/date-utils"
 import { cn } from "@/lib/utils"
 
 type CompetitionStatus =
@@ -32,21 +33,6 @@ export function CompetitionRow({
 	isAuthenticated,
 }: CompetitionRowProps) {
 	const [isOpen, setIsOpen] = useState(false)
-
-	const formatDate = (date: Date) => {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-		}).format(new Date(date))
-	}
-
-	const formatFullDate = (date: Date) => {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}).format(new Date(date))
-	}
 
 	const getStatusBadge = () => {
 		switch (status) {
@@ -110,16 +96,16 @@ export function CompetitionRow({
 		const now = new Date()
 
 		if (status === "coming-soon" && regOpens && regOpens > now) {
-			return `Register: ${formatDate(regOpens)}`
+			return `Register: ${formatUTCDateShort(regOpens)}`
 		}
 		if (status === "registration-open" && regOpens && regCloses) {
-			return `Register: ${formatDate(regOpens)} - ${formatDate(regCloses)}`
+			return `Register: ${formatUTCDateShort(regOpens)} - ${formatUTCDateShort(regCloses)}`
 		}
 		if (status === "registration-closed" && regCloses) {
-			return `Closed: ${formatDate(regCloses)}`
+			return `Closed: ${formatUTCDateShort(regCloses)}`
 		}
 		if (regCloses && regCloses > now) {
-			return `Register by ${formatDate(regCloses)}`
+			return `Register by ${formatUTCDateShort(regCloses)}`
 		}
 		return null
 	}
@@ -154,8 +140,8 @@ export function CompetitionRow({
 						<div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground ml-auto shrink-0">
 							<span className="flex items-center gap-1">
 								<CalendarIcon className="h-3.5 w-3.5" />
-								Event: {formatDate(competition.startDate)} -{" "}
-								{formatDate(competition.endDate)}
+								Event: {formatUTCDateShort(competition.startDate)} -{" "}
+								{formatUTCDateShort(competition.endDate)}
 							</span>
 							{competition.organizingTeam && (
 								<span className="flex items-center gap-1">
@@ -173,8 +159,8 @@ export function CompetitionRow({
 						)}
 						<span className="flex items-center gap-1">
 							<CalendarIcon className="h-3 w-3" />
-							Event: {formatDate(competition.startDate)} -{" "}
-							{formatDate(competition.endDate)}
+							Event: {formatUTCDateShort(competition.startDate)} -{" "}
+							{formatUTCDateShort(competition.endDate)}
 						</span>
 						{competition.organizingTeam && (
 							<span className="flex items-center gap-1 truncate">
@@ -227,7 +213,7 @@ export function CompetitionRow({
 									Registration closes:{" "}
 								</span>
 								<span className="font-medium">
-									{formatFullDate(competition.registrationClosesAt)}
+									{formatUTCDateFull(competition.registrationClosesAt)}
 								</span>
 							</p>
 						)}
@@ -239,7 +225,7 @@ export function CompetitionRow({
 									Registration closed:{" "}
 								</span>
 								<span className="font-medium">
-									{formatFullDate(competition.registrationClosesAt)}
+									{formatUTCDateFull(competition.registrationClosesAt)}
 								</span>
 							</p>
 						)}
@@ -250,7 +236,7 @@ export function CompetitionRow({
 								Registration opens:{" "}
 							</span>
 							<span className="font-medium">
-								{formatFullDate(competition.registrationOpensAt)}
+								{formatUTCDateFull(competition.registrationOpensAt)}
 							</span>
 						</p>
 					)}
