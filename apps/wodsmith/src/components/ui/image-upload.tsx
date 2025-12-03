@@ -92,7 +92,7 @@ export function ImageUpload({
 			setIsDragging(false)
 
 			const file = e.dataTransfer.files[0]
-			if (file && file.type.startsWith("image/")) {
+			if (file?.type.startsWith("image/")) {
 				handleUpload(file)
 			}
 		},
@@ -118,7 +118,8 @@ export function ImageUpload({
 
 	return (
 		<div className={cn("space-y-2", className)}>
-			<div
+			<section
+				aria-label="Image upload drop zone"
 				className={cn(
 					"relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
 					isDragging && "border-primary bg-primary/5",
@@ -181,7 +182,7 @@ export function ImageUpload({
 						)}
 					</button>
 				)}
-			</div>
+			</section>
 
 			{recommendedDimensions && (
 				<p className="text-xs text-muted-foreground">
