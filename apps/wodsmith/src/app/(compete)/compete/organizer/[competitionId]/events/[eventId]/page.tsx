@@ -1,9 +1,7 @@
 import "server-only"
-import type { Metadata } from "next"
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ChevronLeft } from "lucide-react"
 import { ZSAError } from "@repo/zsa"
+import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { Button } from "@/components/ui/button"
 import { TEAM_PERMISSIONS } from "@/db/schema"
@@ -15,7 +13,10 @@ import {
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../../_components/organizer-breadcrumb"
-import { EventDetailsForm } from "./_components/event-details-form"
+import {
+	EVENT_DETAILS_FORM_ID,
+	EventDetailsForm,
+} from "./_components/event-details-form"
 
 interface EventDetailsPageProps {
 	params: Promise<{
@@ -97,7 +98,7 @@ export default async function EventDetailsPage({
 
 	return (
 		<div className="container mx-auto px-4 py-8">
-			<div className="flex flex-col gap-6 max-w-3xl">
+			<div className="flex flex-col gap-6">
 				{/* Header */}
 				<div>
 					<OrganizerBreadcrumb
@@ -113,18 +114,17 @@ export default async function EventDetailsPage({
 							{ label: event.workout.name },
 						]}
 					/>
-					<div className="flex items-center gap-4 mt-2">
-						<Button variant="ghost" size="sm" asChild>
-							<Link href={`/compete/organizer/${competition.id}/events`}>
-								<ChevronLeft className="h-4 w-4 mr-1" />
-								Back to Events
-							</Link>
+					<div className="flex items-center justify-between mt-4">
+						<div>
+							<h1 className="text-3xl font-bold">Edit Event</h1>
+							<p className="text-muted-foreground mt-1">
+								Event #{event.trackOrder} - {event.workout.name}
+							</p>
+						</div>
+						<Button type="submit" form={EVENT_DETAILS_FORM_ID}>
+							Save Changes
 						</Button>
 					</div>
-					<h1 className="text-3xl font-bold mt-4">Edit Event</h1>
-					<p className="text-muted-foreground mt-1">
-						Event #{event.trackOrder} - {event.workout.name}
-					</p>
 				</div>
 
 				<EventDetailsForm
