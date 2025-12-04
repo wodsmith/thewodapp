@@ -70,6 +70,7 @@ const mockWorkout = {
 	sourceTrackId: null,
 	sourceWorkoutId: null,
 	scalingGroupId: null,
+	timeCap: null,
 }
 const mockUpdateWorkoutAction = vi.fn()
 

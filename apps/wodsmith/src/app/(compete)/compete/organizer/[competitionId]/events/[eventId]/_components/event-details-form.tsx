@@ -121,6 +121,7 @@ export function EventDetailsForm({
 			roundsToScore: event.workout.roundsToScore,
 			repsPerRound: event.workout.repsPerRound,
 			tiebreakScheme: event.workout.tiebreakScheme,
+			timeCap: event.workout.timeCap,
 			secondaryScheme: event.workout.secondaryScheme,
 			pointsMultiplier: event.pointsMultiplier || 100,
 			notes: event.notes || "",
@@ -181,6 +182,7 @@ export function EventDetailsForm({
 			roundsToScore: data.roundsToScore,
 			repsPerRound: data.repsPerRound,
 			tiebreakScheme: data.tiebreakScheme,
+			timeCap: data.timeCap,
 			secondaryScheme: data.secondaryScheme,
 			movementIds: data.selectedMovements,
 		})
@@ -312,106 +314,144 @@ export function EventDetailsForm({
 							/>
 						)}
 
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="roundsToScore"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Rounds to Score{" "}
-											<span className="text-muted-foreground">(optional)</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												placeholder="e.g., 4"
-												value={field.value ?? ""}
-												onChange={(e) =>
-													field.onChange(
-														e.target.value
-															? Number.parseInt(e.target.value)
-															: null,
-													)
-												}
-												min="1"
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-							<FormField
-								control={form.control}
-								name="repsPerRound"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Reps per Round{" "}
-											<span className="text-muted-foreground">(optional)</span>
-										</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												placeholder="e.g., 10"
-												value={field.value ?? ""}
-												onChange={(e) =>
-													field.onChange(
-														e.target.value
-															? Number.parseInt(e.target.value)
-															: null,
-													)
-												}
-												min="1"
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
-
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="tiebreakScheme"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>
-											Tiebreak Scheme{" "}
-											<span className="text-muted-foreground">(optional)</span>
-										</FormLabel>
-										<Select
-											value={field.value ?? "none"}
-											onValueChange={(v) =>
-												field.onChange(v === "none" ? null : v)
-											}
-										>
+						{scheme === "rounds-reps" && (
+							<div className="grid grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="roundsToScore"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>
+												Rounds to Score{" "}
+												<span className="text-muted-foreground">(optional)</span>
+											</FormLabel>
 											<FormControl>
-												<SelectTrigger>
-													<SelectValue placeholder="None" />
-												</SelectTrigger>
+												<Input
+													type="number"
+													placeholder="e.g., 4"
+													value={field.value ?? ""}
+													onChange={(e) =>
+														field.onChange(
+															e.target.value
+																? Number.parseInt(e.target.value)
+																: null,
+														)
+													}
+													min="1"
+												/>
 											</FormControl>
-											<SelectContent>
-												<SelectItem value="none">None</SelectItem>
-												{TIEBREAK_SCHEMES.map((s) => (
-													<SelectItem key={s.value} value={s.value}>
-														{s.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										<FormMessage />
-									</FormItem>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="repsPerRound"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>
+												Reps per Round{" "}
+												<span className="text-muted-foreground">(optional)</span>
+											</FormLabel>
+											<FormControl>
+												<Input
+													type="number"
+													placeholder="e.g., 10"
+													value={field.value ?? ""}
+													onChange={(e) =>
+														field.onChange(
+															e.target.value
+																? Number.parseInt(e.target.value)
+																: null,
+														)
+													}
+													min="1"
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						)}
+
+						{(scheme === "time" || scheme === "time-with-cap" || scheme === "rounds-reps") && (
+							<div className="grid grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="tiebreakScheme"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>
+												Tiebreak Scheme{" "}
+												<span className="text-muted-foreground">(optional)</span>
+											</FormLabel>
+											<Select
+												value={field.value ?? "none"}
+												onValueChange={(v) =>
+													field.onChange(v === "none" ? null : v)
+												}
+											>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder="None" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="none">None</SelectItem>
+													{TIEBREAK_SCHEMES.map((s) => (
+														<SelectItem key={s.value} value={s.value}>
+															{s.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								{scheme === "time-with-cap" && (
+									<FormField
+										control={form.control}
+										name="timeCap"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Time Cap (minutes)</FormLabel>
+												<FormControl>
+													<Input
+														type="number"
+														placeholder="e.g., 12"
+														value={field.value ? field.value / 60 : ""}
+														onChange={(e) =>
+															field.onChange(
+																e.target.value
+																	? Math.round(Number.parseFloat(e.target.value) * 60)
+																	: null,
+															)
+														}
+														min="1"
+														step="0.5"
+													/>
+												</FormControl>
+												<FormDescription>
+													Enter time cap in minutes (e.g., 12 for 12:00)
+												</FormDescription>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
 								)}
-							/>
+							</div>
+						)}
+
+						{scheme === "time-with-cap" && (
 							<FormField
 								control={form.control}
 								name="secondaryScheme"
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>
-											Secondary Scheme{" "}
+											Cap Score Scheme{" "}
 											<span className="text-muted-foreground">(optional)</span>
 										</FormLabel>
 										<Select
@@ -434,11 +474,14 @@ export function EventDetailsForm({
 												))}
 											</SelectContent>
 										</Select>
+										<FormDescription>
+											How to score athletes who hit the time cap
+										</FormDescription>
 										<FormMessage />
 									</FormItem>
 								)}
 							/>
-						</div>
+						)}
 
 						<FormField
 							control={form.control}

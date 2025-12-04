@@ -585,6 +585,13 @@ export async function getWorkoutResultsWithScaling({
 				updateCounter: results.updateCounter,
 				programmingTrackId: results.programmingTrackId,
 				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
+				// Competition-specific fields
+				competitionEventId: results.competitionEventId,
+				competitionRegistrationId: results.competitionRegistrationId,
+				scoreStatus: results.scoreStatus,
+				tieBreakScore: results.tieBreakScore,
+				secondaryScore: results.secondaryScore,
+				enteredBy: results.enteredBy,
 			})
 			.from(results)
 			.leftJoin(
@@ -735,6 +742,13 @@ export async function getWorkoutLeaderboard({
 				updateCounter: results.updateCounter,
 				programmingTrackId: results.programmingTrackId,
 				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
+				// Competition-specific fields
+				competitionEventId: results.competitionEventId,
+				competitionRegistrationId: results.competitionRegistrationId,
+				scoreStatus: results.scoreStatus,
+				tieBreakScore: results.tieBreakScore,
+				secondaryScore: results.secondaryScore,
+				enteredBy: results.enteredBy,
 			})
 			.from(results)
 			.leftJoin(userTable, eq(results.userId, userTable.id))

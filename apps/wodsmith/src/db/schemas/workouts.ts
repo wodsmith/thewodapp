@@ -6,11 +6,24 @@ import {
 	integer,
 	sqliteTable,
 	text,
+	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
-import { programmingTracksTable } from "./programming"
+import { competitionRegistrationsTable } from "./competitions"
+import { programmingTracksTable, trackWorkoutsTable } from "./programming"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
+
+// Score status for competition results
+export const SCORE_STATUS_VALUES = [
+	"scored",
+	"dns",
+	"dnf",
+	"cap",
+	"dq",
+	"withdrawn",
+] as const
+export type ScoreStatus = (typeof SCORE_STATUS_VALUES)[number]
 
 // Movement types
 export const MOVEMENT_TYPE_VALUES = [
@@ -108,6 +121,7 @@ export const workouts = sqliteTable(
 		}),
 		sugarId: text("sugar_id"),
 		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
+		timeCap: integer("time_cap"), // Time cap in seconds (for time-with-cap workouts)
 		secondaryScheme: text("secondary_scheme", {
 			enum: SECONDARY_SCHEME_VALUES,
 		}),
@@ -200,6 +214,22 @@ export const results = sqliteTable(
 		// Monostructural specific results
 		distance: integer("distance"),
 		time: integer("time"),
+
+		// Competition-specific fields
+		competitionEventId: text("competition_event_id").references(
+			() => trackWorkoutsTable.id,
+			{ onDelete: "set null" },
+		), // References trackWorkoutsTable.id
+		competitionRegistrationId: text("competition_registration_id").references(
+			() => competitionRegistrationsTable.id,
+			{ onDelete: "set null" },
+		), // References competitionRegistrationsTable.id
+		scoreStatus: text("score_status", { enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
+		tieBreakScore: text("tie_break_score"), // Raw tie-break value (e.g., "120" for reps or seconds)
+		secondaryScore: text("secondary_score"), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
+		enteredBy: text("entered_by").references(() => userTable.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("results_scaling_level_idx").on(table.scalingLevelId),
@@ -215,6 +245,16 @@ export const results = sqliteTable(
 		index("results_user_idx").on(table.userId),
 		index("results_date_idx").on(table.date),
 		index("results_workout_idx").on(table.workoutId),
+		// Competition queries: find all results for a competition event by division
+		index("results_competition_event_idx").on(
+			table.competitionEventId,
+			table.scalingLevelId,
+		),
+		// Unique constraint: one result per user per competition event
+		uniqueIndex("results_competition_unique_idx").on(
+			table.competitionEventId,
+			table.userId,
+		),
 	],
 )
 

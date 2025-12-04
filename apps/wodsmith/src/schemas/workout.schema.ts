@@ -40,6 +40,7 @@ export const competitionEventSchema = z.object({
 	roundsToScore: z.number().min(1).nullable(),
 	repsPerRound: z.number().min(1).nullable(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
+	timeCap: z.number().min(1).nullable(), // Time cap in seconds
 	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable(),
 	selectedMovements: z.array(z.string()).default([]),
 	pointsMultiplier: z.number().min(1).max(1000),

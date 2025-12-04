@@ -392,6 +392,7 @@ export async function getUserWorkouts({
 			sugarId: workouts.sugarId,
 			tiebreakScheme: workouts.tiebreakScheme,
 			secondaryScheme: workouts.secondaryScheme,
+			timeCap: workouts.timeCap,
 			sourceWorkoutId: workouts.sourceWorkoutId,
 			sourceTrackId: workouts.sourceTrackId,
 			createdAt: workouts.createdAt,
