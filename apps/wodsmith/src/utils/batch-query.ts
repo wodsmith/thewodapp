@@ -4,10 +4,10 @@
  */
 
 /**
- * D1/SQLite has a 999 variable limit, but we use 500 to leave room for other params.
+ * D1/SQLite has a 999 variable limit, but we use 100 to leave room for other params.
  * For simple ID arrays, each ID = 1 parameter.
  */
-export const SQL_BATCH_SIZE = 500
+export const SQL_BATCH_SIZE = 100
 const MAX_PARAMETERS = SQL_BATCH_SIZE
 
 /**
