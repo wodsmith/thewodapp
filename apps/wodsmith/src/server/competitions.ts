@@ -2,6 +2,7 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
+import { autochunk, autochunkFirst } from "@/utils/batch-query"
 import {
 	type Competition,
 	type CompetitionGroup,
@@ -1647,32 +1648,35 @@ export async function getUserCompetitionRegistration(
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
-	// Find registration where athleteTeamId is one of user's teams
-	const teamRegistration =
-		await db.query.competitionRegistrationsTable.findFirst({
-			where: and(
-				eq(competitionRegistrationsTable.eventId, competitionId),
-				inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-			),
-			with: {
-				division: true,
-				teamMember: true,
-				user: {
-					columns: {
-						id: true,
-						firstName: true,
-						lastName: true,
-						email: true,
-						avatar: true,
-						gender: true,
-						dateOfBirth: true,
+	// Find registration where athleteTeamId is one of user's teams (batched to avoid SQL variable limit)
+	const teamRegistration = await autochunkFirst(
+		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for competitionId
+		async (chunk) =>
+			db.query.competitionRegistrationsTable.findFirst({
+				where: and(
+					eq(competitionRegistrationsTable.eventId, competitionId),
+					inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+				),
+				with: {
+					division: true,
+					teamMember: true,
+					user: {
+						columns: {
+							id: true,
+							firstName: true,
+							lastName: true,
+							email: true,
+							avatar: true,
+							gender: true,
+							dateOfBirth: true,
+						},
 					},
+					athleteTeam: true,
 				},
-				athleteTeam: true,
-			},
-		})
+			}),
+	)
 
-	return teamRegistration ?? null
+	return teamRegistration
 }
 
 /**
@@ -1711,21 +1715,23 @@ export async function getUserUpcomingRegisteredCompetitions(
 	})
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
-	let teamRegistrations: typeof directRegistrations = []
 
-	if (userTeamIds.length > 0) {
-		teamRegistrations = await db.query.competitionRegistrationsTable.findMany({
-			where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-			with: {
-				competition: {
-					with: {
-						organizingTeam: true,
-						group: true,
+	// Get team registrations (batched to avoid SQL variable limit)
+	const teamRegistrations = await autochunk(
+		{ items: userTeamIds },
+		async (chunk) =>
+			db.query.competitionRegistrationsTable.findMany({
+				where: inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+				with: {
+					competition: {
+						with: {
+							organizingTeam: true,
+							group: true,
+						},
 					},
 				},
-			},
-		})
-	}
+			}),
+	)
 
 	// Combine and deduplicate by competition ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]
@@ -1832,23 +1838,25 @@ export async function getUserCompetitionHistory(userId: string) {
 	})
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
-	let teamRegistrations: typeof directRegistrations = []
 
-	if (userTeamIds.length > 0) {
-		teamRegistrations = await db.query.competitionRegistrationsTable.findMany({
-			where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-			with: {
-				competition: {
-					with: {
-						organizingTeam: true,
+	// Get team registrations (batched to avoid SQL variable limit)
+	const teamRegistrations = await autochunk(
+		{ items: userTeamIds },
+		async (chunk) =>
+			db.query.competitionRegistrationsTable.findMany({
+				where: inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+				with: {
+					competition: {
+						with: {
+							organizingTeam: true,
+						},
 					},
+					division: true,
+					athleteTeam: true,
 				},
-				division: true,
-				athleteTeam: true,
-			},
-			orderBy: (table, { desc }) => [desc(table.registeredAt)],
-		})
-	}
+				orderBy: (table, { desc }) => [desc(table.registeredAt)],
+			}),
+	)
 
 	// Combine and deduplicate by registration ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]

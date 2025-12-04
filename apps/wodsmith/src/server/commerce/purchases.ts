@@ -1,5 +1,5 @@
 "use server"
-import { desc, eq } from "drizzle-orm"
+import { desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	commercePurchaseTable,
@@ -7,6 +7,7 @@ import {
 	competitionsTable,
 } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
+import { autochunk } from "@/utils/batch-query"
 
 export type PurchaseWithDetails = {
 	id: string
@@ -68,24 +69,27 @@ export async function getUserPurchases(
 		.where(eq(commercePurchaseTable.userId, userId))
 		.orderBy(desc(commercePurchaseTable.createdAt))
 
-	// Fetch competition details for each purchase
+	// Fetch competition details for each purchase (batched)
 	const competitionIds = [
 		...new Set(purchases.map((p) => p.competitionId).filter(Boolean)),
 	] as string[]
 
-	const competitions =
-		competitionIds.length > 0
-			? await db.query.competitionsTable.findMany({
-					where: (table, { inArray }) => inArray(table.id, competitionIds),
-					with: {
-						organizingTeam: {
-							columns: { name: true },
-						},
+	const competitions = await autochunk(
+		{ items: competitionIds },
+		async (chunk: string[]) => {
+			const rows = await db.query.competitionsTable.findMany({
+				where: (table, { inArray }) => inArray(table.id, chunk),
+				with: {
+					organizingTeam: {
+						columns: { name: true },
 					},
-				})
-			: []
+				},
+			})
+			return rows
+		},
+	)
 
-	const competitionMap = new Map(competitions.map((c) => [c.id, c]))
+	const competitionMap = new Map(competitions.map((c) => [c.id, c] as const))
 
 	return purchases.map((p) => {
 		const comp = p.competitionId ? competitionMap.get(p.competitionId) : null

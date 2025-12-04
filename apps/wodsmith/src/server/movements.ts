@@ -13,6 +13,7 @@ import {
 	workoutTags,
 } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
 
 export const VALID_MOVEMENT_TYPES = movements.type
 
@@ -69,22 +70,25 @@ export async function getWorkoutsByMovementId(movementId: string) {
 		return []
 	}
 
-	// Get the actual workouts
-	const workoutsData = await db
-		.select()
-		.from(workouts)
-		.where(inArray(workouts.id, workoutIds))
+	// Get the actual workouts (batched)
+	const workoutsData = await autochunk({ items: workoutIds }, async (chunk) =>
+		db.select().from(workouts).where(inArray(workouts.id, chunk)),
+	)
 
-	// Get tags for these workouts
-	const workoutTagsData = await db
-		.select({
-			workoutId: workoutTags.workoutId,
-			tagId: tags.id,
-			tagName: tags.name,
-		})
-		.from(workoutTags)
-		.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-		.where(inArray(workoutTags.workoutId, workoutIds))
+	// Get tags for these workouts (batched)
+	const workoutTagsData = await autochunk(
+		{ items: workoutIds },
+		async (chunk) =>
+			db
+				.select({
+					workoutId: workoutTags.workoutId,
+					tagId: tags.id,
+					tagName: tags.name,
+				})
+				.from(workoutTags)
+				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+				.where(inArray(workoutTags.workoutId, chunk)),
+	)
 
 	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
 	for (const item of workoutTagsData) {
@@ -97,17 +101,21 @@ export async function getWorkoutsByMovementId(movementId: string) {
 		})
 	}
 
-	// Get movements for these workouts
-	const allWorkoutMovementsData = await db
-		.select({
-			workoutId: workoutMovements.workoutId,
-			movementId: movements.id,
-			movementName: movements.name,
-			movementType: movements.type,
-		})
-		.from(workoutMovements)
-		.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-		.where(inArray(workoutMovements.workoutId, workoutIds))
+	// Get movements for these workouts (batched)
+	const allWorkoutMovementsData = await autochunk(
+		{ items: workoutIds },
+		async (chunk) =>
+			db
+				.select({
+					workoutId: workoutMovements.workoutId,
+					movementId: movements.id,
+					movementName: movements.name,
+					movementType: movements.type,
+				})
+				.from(workoutMovements)
+				.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+				.where(inArray(workoutMovements.workoutId, chunk)),
+	)
 
 	const movementsByWorkoutId = new Map<
 		string,

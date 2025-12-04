@@ -19,6 +19,7 @@ import {
 	workoutTags,
 	type Workout,
 } from "@/db/schema"
+import { autochunk } from "@/utils/batch-query"
 
 export interface DivisionDescription {
 	divisionId: string
@@ -719,33 +720,45 @@ export async function getWorkoutDivisionDescriptions(
 		throw new Error("Workout not found or does not belong to this team")
 	}
 
-	// Get the scaling levels (divisions) with their descriptions for this workout
-	const divisions = await db
-		.select({
-			divisionId: scalingLevelsTable.id,
-			divisionLabel: scalingLevelsTable.label,
-			position: scalingLevelsTable.position,
-		})
-		.from(scalingLevelsTable)
-		.where(inArray(scalingLevelsTable.id, divisionIds))
+	// Get the scaling levels (divisions) with their descriptions for this workout (batched)
+	const divisions = await autochunk(
+		{ items: divisionIds },
+		async (chunk: string[]) => {
+			const rows = await db
+				.select({
+					divisionId: scalingLevelsTable.id,
+					divisionLabel: scalingLevelsTable.label,
+					position: scalingLevelsTable.position,
+				})
+				.from(scalingLevelsTable)
+				.where(inArray(scalingLevelsTable.id, chunk))
+			return rows
+		},
+	)
 
-	// Get existing descriptions for this workout
-	const descriptions = await db
-		.select({
-			scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
-			description: workoutScalingDescriptionsTable.description,
-		})
-		.from(workoutScalingDescriptionsTable)
-		.where(
-			and(
-				eq(workoutScalingDescriptionsTable.workoutId, workoutId),
-				inArray(workoutScalingDescriptionsTable.scalingLevelId, divisionIds),
-			),
-		)
+	// Get existing descriptions for this workout (batched)
+	const descriptions = await autochunk(
+		{ items: divisionIds, otherParametersCount: 1 }, // +1 for workoutId
+		async (chunk: string[]) => {
+			const rows = await db
+				.select({
+					scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+					description: workoutScalingDescriptionsTable.description,
+				})
+				.from(workoutScalingDescriptionsTable)
+				.where(
+					and(
+						eq(workoutScalingDescriptionsTable.workoutId, workoutId),
+						inArray(workoutScalingDescriptionsTable.scalingLevelId, chunk),
+					),
+				)
+			return rows
+		},
+	)
 
 	// Create a map for quick lookup
 	const descriptionMap = new Map(
-		descriptions.map((d) => [d.scalingLevelId, d.description]),
+		descriptions.map((d) => [d.scalingLevelId, d.description] as const),
 	)
 
 	// Combine divisions with their descriptions
