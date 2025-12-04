@@ -3,8 +3,6 @@ import { SITE_NAME, SITE_URL } from "@/constants"
 import { getCompetition } from "@/server/competitions"
 import { formatUTCDateShort } from "@/utils/date-utils"
 
-export const runtime = "edge"
-
 // Month names for UTC formatting (short form for OG image)
 const MONTH_NAMES_SHORT = [
 	"Jan",
