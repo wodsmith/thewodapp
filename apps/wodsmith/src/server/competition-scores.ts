@@ -393,19 +393,24 @@ export async function saveCompetitionScore(params: {
 		finalWodScore = formattedRounds.join(", ")
 
 		// Simple sets without proper processing
-		setsToInsert = params.roundScores.map((round, index) => ({
-			id: `set_${createId()}`,
-			resultId: "",
-			setNumber: index + 1,
-			score: round.parts
-				? parseInt(round.parts[0], 10) || null
-				: parseInt(round.score, 10) || null,
-			reps: round.parts?.[1] ? parseInt(round.parts[1], 10) || null : null,
-			time: null,
-			weight: null,
-			distance: null,
-			status: null,
-		}))
+		setsToInsert = params.roundScores.map((round, index) => {
+			const scoreNum = parseInt(
+				round.parts ? round.parts[0] : round.score,
+				10,
+			)
+			const repsNum = round.parts?.[1] ? parseInt(round.parts[1], 10) : NaN
+			return {
+				id: `set_${createId()}`,
+				resultId: "",
+				setNumber: index + 1,
+				score: Number.isNaN(scoreNum) ? null : scoreNum,
+				reps: Number.isNaN(repsNum) ? null : repsNum,
+				time: null,
+				weight: null,
+				distance: null,
+				status: null,
+			}
+		})
 	} else if (params.score && params.workout) {
 		// Single score (no roundScores array) - still create a set
 		const normalizedEntries: NormalizedScoreEntry[] = [
