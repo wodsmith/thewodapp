@@ -15,6 +15,7 @@ import {
 } from "@/db/schema"
 import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
+import { autochunk } from "@/utils/batch-query"
 import {
 	calculateAggregatedScore,
 	formatScore,
@@ -186,27 +187,27 @@ export async function getCompetitionLeaderboard(params: {
 		}
 	}
 
-	// Get all results for scheduled instances
+	// Get all results for scheduled instances (batched)
 	const scheduledInstanceIds = scheduledInstances.map((si) => si.id)
-	const allResults =
-		scheduledInstanceIds.length > 0
-			? await db
-					.select()
-					.from(results)
-					.where(
-						and(
-							inArray(results.scheduledWorkoutInstanceId, scheduledInstanceIds),
-							eq(results.type, "wod"),
-						),
-					)
-			: []
+	const allResults = await autochunk(
+		{ items: scheduledInstanceIds, otherParametersCount: 1 }, // +1 for type
+		async (chunk) =>
+			db
+				.select()
+				.from(results)
+				.where(
+					and(
+						inArray(results.scheduledWorkoutInstanceId, chunk),
+						eq(results.type, "wod"),
+					),
+				),
+	)
 
-	// Get all sets for results
+	// Get all sets for results (batched)
 	const resultIds = allResults.map((r) => r.id)
-	const allSets =
-		resultIds.length > 0
-			? await db.select().from(sets).where(inArray(sets.resultId, resultIds))
-			: []
+	const allSets = await autochunk({ items: resultIds }, async (chunk) =>
+		db.select().from(sets).where(inArray(sets.resultId, chunk)),
+	)
 
 	// Group sets by result ID
 	const setsByResultId = new Map<string, (typeof allSets)[number][]>()

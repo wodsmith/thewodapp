@@ -10,6 +10,7 @@ import {
 	userTable,
 	workouts,
 } from "@/db/schema"
+import { autochunk } from "@/utils/batch-query"
 import {
 	calculateAggregatedScore,
 	formatScore,
@@ -74,13 +75,12 @@ export async function getLeaderboardForScheduledWorkout({
 			),
 		)
 
-	// Get all sets for these results in one query
+	// Get all sets for these results (batched to avoid SQL variable limit)
 	const resultIds = workoutResults.map((r) => r.result.id)
 
-	const allSets =
-		resultIds.length > 0
-			? await db.select().from(sets).where(inArray(sets.resultId, resultIds))
-			: []
+	const allSets = await autochunk({ items: resultIds }, async (chunk) =>
+		db.select().from(sets).where(inArray(sets.resultId, chunk)),
+	)
 
 	// Group sets by resultId for efficient lookup
 	const setsByResultId = new Map<string, typeof allSets>()
