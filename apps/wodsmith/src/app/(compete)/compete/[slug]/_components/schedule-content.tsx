@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, use } from "react"
 import { ChevronDown, Clock, MapPin, Search, User, X } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,8 +10,8 @@ import type { CompetitionWorkout } from "@/server/competition-workouts"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 
 interface ScheduleContentProps {
-	events: CompetitionWorkout[]
-	heats: HeatWithAssignments[]
+	eventsPromise: Promise<CompetitionWorkout[]>
+	heatsPromise: Promise<HeatWithAssignments[]>
 	currentUserId?: string
 }
 
@@ -77,10 +77,14 @@ function getCompetitorName(
 }
 
 export function ScheduleContent({
-	events,
-	heats,
+	eventsPromise,
+	heatsPromise,
 	currentUserId,
 }: ScheduleContentProps) {
+	// Unwrap promises with use() - component will suspend until resolved
+	const events = use(eventsPromise)
+	const heats = use(heatsPromise)
+
 	const [selectedTab, setSelectedTab] = useState<string>("all")
 	const [searchTerm, setSearchTerm] = useState("")
 	const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(
