@@ -2,6 +2,7 @@ import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, inArray } from "drizzle-orm"
+import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
@@ -21,6 +22,40 @@ import {
 	type WorkoutScoreInfo,
 	type NormalizedScoreEntry,
 } from "@/server/logs"
+import { getSessionFromCookie } from "@/utils/auth"
+
+/**
+ * Verify that a track workout belongs to the specified competition team.
+ * This provides defense-in-depth security by validating ownership at the data layer.
+ */
+async function verifyTrackWorkoutOwnership(
+	trackWorkoutId: string,
+	competitionTeamId: string,
+): Promise<void> {
+	const db = getDb()
+
+	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
+		where: eq(trackWorkoutsTable.id, trackWorkoutId),
+		with: {
+			track: {
+				columns: {
+					ownerTeamId: true,
+				},
+			},
+		},
+	})
+
+	if (!trackWorkout) {
+		throw new ZSAError("NOT_FOUND", "Event not found")
+	}
+
+	if (trackWorkout.track?.ownerTeamId !== competitionTeamId) {
+		throw new ZSAError(
+			"NOT_AUTHORIZED",
+			"Not authorized to access this competition event",
+		)
+	}
+}
 
 /** Round score data for multi-round workouts */
 export interface RoundScoreData {
@@ -83,8 +118,21 @@ export interface EventScoreEntryData {
 export async function getEventScoreEntryData(params: {
 	competitionId: string
 	trackWorkoutId: string
+	competitionTeamId: string
 	divisionId?: string
 }): Promise<EventScoreEntryData> {
+	// Defense-in-depth: Verify session exists
+	const session = await getSessionFromCookie()
+	if (!session?.userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "Must be logged in")
+	}
+
+	// Defense-in-depth: Verify team ownership
+	await verifyTrackWorkoutOwnership(
+		params.trackWorkoutId,
+		params.competitionTeamId,
+	)
+
 	const db = getDb()
 
 	// Get the track workout (event) with workout details
@@ -96,7 +144,7 @@ export async function getEventScoreEntryData(params: {
 	})
 
 	if (!trackWorkout || !trackWorkout.workout) {
-		throw new Error("Event not found")
+		throw new ZSAError("NOT_FOUND", "Event not found")
 	}
 
 	// Get all registrations for this competition
@@ -384,19 +432,32 @@ export async function saveCompetitionScore(params: {
 		}))
 	}
 
-	// Check if result already exists
-	const existingResult = await db.query.results.findFirst({
-		where: and(
-			eq(results.competitionEventId, params.trackWorkoutId),
-			eq(results.userId, params.userId),
-		),
-	})
+	// Use upsert pattern to prevent race conditions
+	// The unique index on (competitionEventId, userId) ensures atomicity
+	const newResultId = `result_${createId()}`
 
-	if (existingResult) {
-		// Update existing result
-		await db
-			.update(results)
-			.set({
+	const [upsertedResult] = await db
+		.insert(results)
+		.values({
+			id: newResultId,
+			userId: params.userId,
+			workoutId: params.workoutId,
+			competitionEventId: params.trackWorkoutId,
+			competitionRegistrationId: params.registrationId,
+			date: new Date(),
+			type: "wod",
+			wodScore: finalWodScore,
+			scoreStatus: params.scoreStatus,
+			tieBreakScore: params.tieBreakScore ?? null,
+			secondaryScore: params.secondaryScore ?? null,
+			scalingLevelId: params.divisionId,
+			enteredBy: params.enteredBy,
+			setCount: setsToInsert.length || null,
+			asRx: true, // Competition scores are always "as prescribed" for the division
+		})
+		.onConflictDoUpdate({
+			target: [results.competitionEventId, results.userId],
+			set: {
 				wodScore: finalWodScore,
 				scoreStatus: params.scoreStatus,
 				tieBreakScore: params.tieBreakScore ?? null,
@@ -406,47 +467,23 @@ export async function saveCompetitionScore(params: {
 				enteredBy: params.enteredBy,
 				setCount: setsToInsert.length || null,
 				updatedAt: new Date(),
-			})
-			.where(eq(results.id, existingResult.id))
+			},
+		})
+		.returning({ id: results.id })
 
-		// Update sets if we have any
-		if (setsToInsert.length > 0) {
-			// Delete existing sets for this result
-			await db.delete(sets).where(eq(sets.resultId, existingResult.id))
-
-			// Update resultId and insert
-			const setsWithResultId = setsToInsert.map((set) => ({
-				...set,
-				resultId: existingResult.id,
-			}))
-			await db.insert(sets).values(setsWithResultId)
-		}
-
-		return { resultId: existingResult.id, isNew: false }
+	if (!upsertedResult) {
+		throw new ZSAError("ERROR", "Failed to save competition score")
 	}
 
-	// Create new result
-	const resultId = `result_${createId()}`
-	await db.insert(results).values({
-		id: resultId,
-		userId: params.userId,
-		workoutId: params.workoutId,
-		competitionEventId: params.trackWorkoutId,
-		competitionRegistrationId: params.registrationId,
-		date: new Date(),
-		type: "wod",
-		wodScore: finalWodScore,
-		scoreStatus: params.scoreStatus,
-		tieBreakScore: params.tieBreakScore ?? null,
-		secondaryScore: params.secondaryScore ?? null,
-		scalingLevelId: params.divisionId,
-		enteredBy: params.enteredBy,
-		setCount: setsToInsert.length || null,
-		asRx: true, // Competition scores are always "as prescribed" for the division
-	})
+	const resultId = upsertedResult.id
+	const isNew = resultId === newResultId
 
-	// Insert sets if we have any
+	// Handle sets - delete existing and insert new
 	if (setsToInsert.length > 0) {
+		// Delete existing sets for this result (if any)
+		await db.delete(sets).where(eq(sets.resultId, resultId))
+
+		// Insert new sets
 		const setsWithResultId = setsToInsert.map((set) => ({
 			...set,
 			resultId,
@@ -454,7 +491,7 @@ export async function saveCompetitionScore(params: {
 		await db.insert(sets).values(setsWithResultId)
 	}
 
-	return { resultId, isNew: true }
+	return { resultId, isNew }
 }
 
 /**
@@ -463,6 +500,7 @@ export async function saveCompetitionScore(params: {
 export async function saveCompetitionScores(params: {
 	competitionId: string
 	trackWorkoutId: string
+	competitionTeamId: string
 	workoutId: string
 	scores: Array<{
 		registrationId: string
@@ -474,6 +512,18 @@ export async function saveCompetitionScores(params: {
 	}>
 	enteredBy: string
 }): Promise<{ savedCount: number; errors: Array<{ userId: string; error: string }> }> {
+	// Defense-in-depth: Verify session exists
+	const session = await getSessionFromCookie()
+	if (!session?.userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "Must be logged in")
+	}
+
+	// Defense-in-depth: Verify team ownership
+	await verifyTrackWorkoutOwnership(
+		params.trackWorkoutId,
+		params.competitionTeamId,
+	)
+
 	const errors: Array<{ userId: string; error: string }> = []
 	let savedCount = 0
 
@@ -509,7 +559,20 @@ export async function saveCompetitionScores(params: {
 export async function deleteCompetitionScore(params: {
 	trackWorkoutId: string
 	userId: string
+	competitionTeamId: string
 }): Promise<void> {
+	// Defense-in-depth: Verify session exists
+	const session = await getSessionFromCookie()
+	if (!session?.userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "Must be logged in")
+	}
+
+	// Defense-in-depth: Verify team ownership
+	await verifyTrackWorkoutOwnership(
+		params.trackWorkoutId,
+		params.competitionTeamId,
+	)
+
 	const db = getDb()
 
 	await db

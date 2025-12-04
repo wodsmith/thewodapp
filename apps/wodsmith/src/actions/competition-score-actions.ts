@@ -103,6 +103,7 @@ export const getEventScoreEntryDataAction = createServerAction()
 			const data = await getEventScoreEntryData({
 				competitionId: input.competitionId,
 				trackWorkoutId: input.trackWorkoutId,
+				competitionTeamId: input.organizingTeamId,
 				divisionId: input.divisionId,
 			})
 
@@ -189,6 +190,7 @@ export const saveCompetitionScoresAction = createServerAction()
 			const result = await saveCompetitionScores({
 				competitionId: input.competitionId,
 				trackWorkoutId: input.trackWorkoutId,
+				competitionTeamId: input.organizingTeamId,
 				workoutId: input.workoutId,
 				scores: input.scores,
 				enteredBy: session.user.id,
@@ -226,6 +228,7 @@ export const deleteCompetitionScoreAction = createServerAction()
 			await deleteCompetitionScore({
 				trackWorkoutId: input.trackWorkoutId,
 				userId: input.userId,
+				competitionTeamId: input.organizingTeamId,
 			})
 
 			// Revalidate competition pages

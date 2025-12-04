@@ -85,6 +85,7 @@ export default async function ResultsPage({
 			getEventScoreEntryData({
 				competitionId,
 				trackWorkoutId: currentEvent.id,
+				competitionTeamId: competition.competitionTeamId,
 				divisionId: selectedDivisionId,
 			}),
 			getCompetitionDivisionsWithCounts({ competitionId }),

@@ -369,7 +369,8 @@ export function ScoreInputRow({
 
 	// Determine status display
 	const hasExistingResult = !!athlete.existingResult
-	const isInvalidWarning = showWarning || (parseResult?.error && !parseResult?.isValid)
+	// Only show invalid warning styling when explicitly triggered (not persisted after "Save Anyway")
+	const isInvalidWarning = showWarning
 	const hasWarning = parseResult?.error && parseResult?.isValid
 
 	return (

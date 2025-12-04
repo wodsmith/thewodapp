@@ -6,6 +6,7 @@ import {
 	integer,
 	sqliteTable,
 	text,
+	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { programmingTracksTable } from "./programming"
@@ -243,7 +244,7 @@ export const results = sqliteTable(
 			table.scalingLevelId,
 		),
 		// Unique constraint: one result per user per competition event
-		index("results_competition_unique_idx").on(
+		uniqueIndex("results_competition_unique_idx").on(
 			table.competitionEventId,
 			table.userId,
 		),
