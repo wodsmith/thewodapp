@@ -14,6 +14,9 @@ import {
 	type CompetitionHeatAssignment,
 	type CompetitionVenue,
 } from "@/db/schema"
+import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
+
+const BATCH_SIZE = SQL_BATCH_SIZE
 
 // ============================================================================
 // Types
@@ -195,64 +198,88 @@ export async function getHeatsForWorkout(
 			: []
 	const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
-	// Fetch all assignments for these heats
+	// Fetch assignments in batches to avoid SQLite variable limit
 	const heatIds = heats.map((h) => h.id)
-	const assignments = await db
-		.select({
-			id: competitionHeatAssignmentsTable.id,
-			heatId: competitionHeatAssignmentsTable.heatId,
-			laneNumber: competitionHeatAssignmentsTable.laneNumber,
-			registrationId: competitionHeatAssignmentsTable.registrationId,
-		})
-		.from(competitionHeatAssignmentsTable)
-		.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
-		.orderBy(asc(competitionHeatAssignmentsTable.laneNumber))
+	const assignmentBatches = await Promise.all(
+		chunk(heatIds, BATCH_SIZE).map((batch) =>
+			db
+				.select({
+					id: competitionHeatAssignmentsTable.id,
+					heatId: competitionHeatAssignmentsTable.heatId,
+					laneNumber: competitionHeatAssignmentsTable.laneNumber,
+					registrationId: competitionHeatAssignmentsTable.registrationId,
+				})
+				.from(competitionHeatAssignmentsTable)
+				.where(inArray(competitionHeatAssignmentsTable.heatId, batch))
+				.orderBy(asc(competitionHeatAssignmentsTable.laneNumber)),
+		),
+	)
+	const assignments = assignmentBatches.flat()
 
-	// Fetch registrations for assignments
-	const registrationIds = assignments.map((a) => a.registrationId)
-	const registrations =
+	// Fetch registrations in batches
+	const registrationIds = [...new Set(assignments.map((a) => a.registrationId))]
+	const registrationBatches =
 		registrationIds.length > 0
-			? await db
-					.select({
-						id: competitionRegistrationsTable.id,
-						teamName: competitionRegistrationsTable.teamName,
-						userId: competitionRegistrationsTable.userId,
-						divisionId: competitionRegistrationsTable.divisionId,
-						metadata: competitionRegistrationsTable.metadata,
-					})
-					.from(competitionRegistrationsTable)
-					.where(inArray(competitionRegistrationsTable.id, registrationIds))
+			? await Promise.all(
+					chunk(registrationIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: competitionRegistrationsTable.id,
+								teamName: competitionRegistrationsTable.teamName,
+								userId: competitionRegistrationsTable.userId,
+								divisionId: competitionRegistrationsTable.divisionId,
+								metadata: competitionRegistrationsTable.metadata,
+							})
+							.from(competitionRegistrationsTable)
+							.where(inArray(competitionRegistrationsTable.id, batch)),
+					),
+				)
 			: []
+	const registrations = registrationBatches.flat()
 
-	// Fetch users for registrations
-	const userIds = registrations.map((r) => r.userId)
-	const users =
+	// Fetch users in batches
+	const userIds = [...new Set(registrations.map((r) => r.userId))]
+	const userBatches =
 		userIds.length > 0
-			? await db
-					.select({
-						id: userTable.id,
-						firstName: userTable.firstName,
-						lastName: userTable.lastName,
-					})
-					.from(userTable)
-					.where(inArray(userTable.id, userIds))
+			? await Promise.all(
+					chunk(userIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: userTable.id,
+								firstName: userTable.firstName,
+								lastName: userTable.lastName,
+							})
+							.from(userTable)
+							.where(inArray(userTable.id, batch)),
+					),
+				)
 			: []
+	const users = userBatches.flat()
 	const userMap = new Map(users.map((u) => [u.id, u]))
 
-	// Fetch divisions for registrations
-	const regDivisionIds = registrations
-		.map((r) => r.divisionId)
-		.filter((id): id is string => id !== null)
-	const regDivisions =
+	// Fetch divisions in batches
+	const regDivisionIds = [
+		...new Set(
+			registrations
+				.map((r) => r.divisionId)
+				.filter((id): id is string => id !== null),
+		),
+	]
+	const regDivBatches =
 		regDivisionIds.length > 0
-			? await db
-					.select({
-						id: scalingLevelsTable.id,
-						label: scalingLevelsTable.label,
-					})
-					.from(scalingLevelsTable)
-					.where(inArray(scalingLevelsTable.id, regDivisionIds))
+			? await Promise.all(
+					chunk(regDivisionIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: scalingLevelsTable.id,
+								label: scalingLevelsTable.label,
+							})
+							.from(scalingLevelsTable)
+							.where(inArray(scalingLevelsTable.id, batch)),
+					),
+				)
 			: []
+	const regDivisions = regDivBatches.flat()
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
 	// Helper to extract affiliate from metadata
@@ -370,60 +397,88 @@ export async function getHeatsForCompetition(
 			: []
 	const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
+	// Fetch assignments in batches to avoid SQLite variable limit
 	const heatIds = heats.map((h) => h.id)
-	const assignments = await db
-		.select({
-			id: competitionHeatAssignmentsTable.id,
-			heatId: competitionHeatAssignmentsTable.heatId,
-			laneNumber: competitionHeatAssignmentsTable.laneNumber,
-			registrationId: competitionHeatAssignmentsTable.registrationId,
-		})
-		.from(competitionHeatAssignmentsTable)
-		.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
-		.orderBy(asc(competitionHeatAssignmentsTable.laneNumber))
+	const assignmentBatches = await Promise.all(
+		chunk(heatIds, BATCH_SIZE).map((batch) =>
+			db
+				.select({
+					id: competitionHeatAssignmentsTable.id,
+					heatId: competitionHeatAssignmentsTable.heatId,
+					laneNumber: competitionHeatAssignmentsTable.laneNumber,
+					registrationId: competitionHeatAssignmentsTable.registrationId,
+				})
+				.from(competitionHeatAssignmentsTable)
+				.where(inArray(competitionHeatAssignmentsTable.heatId, batch))
+				.orderBy(asc(competitionHeatAssignmentsTable.laneNumber)),
+		),
+	)
+	const assignments = assignmentBatches.flat()
 
-	const registrationIds = assignments.map((a) => a.registrationId)
-	const registrations =
+	// Fetch registrations in batches
+	const registrationIds = [...new Set(assignments.map((a) => a.registrationId))]
+	const registrationBatches =
 		registrationIds.length > 0
-			? await db
-					.select({
-						id: competitionRegistrationsTable.id,
-						teamName: competitionRegistrationsTable.teamName,
-						userId: competitionRegistrationsTable.userId,
-						divisionId: competitionRegistrationsTable.divisionId,
-						metadata: competitionRegistrationsTable.metadata,
-					})
-					.from(competitionRegistrationsTable)
-					.where(inArray(competitionRegistrationsTable.id, registrationIds))
+			? await Promise.all(
+					chunk(registrationIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: competitionRegistrationsTable.id,
+								teamName: competitionRegistrationsTable.teamName,
+								userId: competitionRegistrationsTable.userId,
+								divisionId: competitionRegistrationsTable.divisionId,
+								metadata: competitionRegistrationsTable.metadata,
+							})
+							.from(competitionRegistrationsTable)
+							.where(inArray(competitionRegistrationsTable.id, batch)),
+					),
+				)
 			: []
+	const registrations = registrationBatches.flat()
 
-	const userIds = registrations.map((r) => r.userId)
-	const users =
+	// Fetch users in batches
+	const userIds = [...new Set(registrations.map((r) => r.userId))]
+	const userBatches =
 		userIds.length > 0
-			? await db
-					.select({
-						id: userTable.id,
-						firstName: userTable.firstName,
-						lastName: userTable.lastName,
-					})
-					.from(userTable)
-					.where(inArray(userTable.id, userIds))
+			? await Promise.all(
+					chunk(userIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: userTable.id,
+								firstName: userTable.firstName,
+								lastName: userTable.lastName,
+							})
+							.from(userTable)
+							.where(inArray(userTable.id, batch)),
+					),
+				)
 			: []
+	const users = userBatches.flat()
 	const userMap = new Map(users.map((u) => [u.id, u]))
 
-	const regDivisionIds = registrations
-		.map((r) => r.divisionId)
-		.filter((id): id is string => id !== null)
-	const regDivisions =
+	// Fetch divisions in batches
+	const regDivisionIds = [
+		...new Set(
+			registrations
+				.map((r) => r.divisionId)
+				.filter((id): id is string => id !== null),
+		),
+	]
+	const regDivBatches =
 		regDivisionIds.length > 0
-			? await db
-					.select({
-						id: scalingLevelsTable.id,
-						label: scalingLevelsTable.label,
-					})
-					.from(scalingLevelsTable)
-					.where(inArray(scalingLevelsTable.id, regDivisionIds))
+			? await Promise.all(
+					chunk(regDivisionIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: scalingLevelsTable.id,
+								label: scalingLevelsTable.label,
+							})
+							.from(scalingLevelsTable)
+							.where(inArray(scalingLevelsTable.id, batch)),
+					),
+				)
 			: []
+	const regDivisions = regDivBatches.flat()
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
 	// Helper to extract affiliate from metadata
@@ -748,75 +803,83 @@ export async function getUnassignedRegistrations(
 
 	const heatIds = heats.map((h) => h.id)
 
-	// Get all assigned registration IDs for these heats
-	const assignedRegistrations =
+	// Get all assigned registration IDs for these heats (batched)
+	const assignedBatches =
 		heatIds.length > 0
-			? await db
-					.select({
-						registrationId: competitionHeatAssignmentsTable.registrationId,
-					})
-					.from(competitionHeatAssignmentsTable)
-					.where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+			? await Promise.all(
+					chunk(heatIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								registrationId:
+									competitionHeatAssignmentsTable.registrationId,
+							})
+							.from(competitionHeatAssignmentsTable)
+							.where(inArray(competitionHeatAssignmentsTable.heatId, batch)),
+					),
+				)
 			: []
-
-	const assignedIds = assignedRegistrations.map((a) => a.registrationId)
+	const assignedIds = [
+		...new Set(assignedBatches.flat().map((a) => a.registrationId)),
+	]
 
 	// Get all registrations for this competition that are not assigned
-	const registrations =
-		assignedIds.length > 0
-			? await db
-					.select({
-						id: competitionRegistrationsTable.id,
-						teamName: competitionRegistrationsTable.teamName,
-						userId: competitionRegistrationsTable.userId,
-						divisionId: competitionRegistrationsTable.divisionId,
-					})
-					.from(competitionRegistrationsTable)
-					.where(
-						and(
-							eq(competitionRegistrationsTable.eventId, competitionId),
-							notInArray(competitionRegistrationsTable.id, assignedIds),
-						),
-					)
-			: await db
-					.select({
-						id: competitionRegistrationsTable.id,
-						teamName: competitionRegistrationsTable.teamName,
-						userId: competitionRegistrationsTable.userId,
-						divisionId: competitionRegistrationsTable.divisionId,
-					})
-					.from(competitionRegistrationsTable)
-					.where(eq(competitionRegistrationsTable.eventId, competitionId))
+	// For notInArray, we filter in JS to avoid SQLite variable limits
+	const allRegistrations = await db
+		.select({
+			id: competitionRegistrationsTable.id,
+			teamName: competitionRegistrationsTable.teamName,
+			userId: competitionRegistrationsTable.userId,
+			divisionId: competitionRegistrationsTable.divisionId,
+		})
+		.from(competitionRegistrationsTable)
+		.where(eq(competitionRegistrationsTable.eventId, competitionId))
 
-	// Fetch users
-	const userIds = registrations.map((r) => r.userId)
-	const users =
+	const assignedSet = new Set(assignedIds)
+	const registrations = allRegistrations.filter((r) => !assignedSet.has(r.id))
+
+	// Fetch users in batches
+	const userIds = [...new Set(registrations.map((r) => r.userId))]
+	const userBatches =
 		userIds.length > 0
-			? await db
-					.select({
-						id: userTable.id,
-						firstName: userTable.firstName,
-						lastName: userTable.lastName,
-					})
-					.from(userTable)
-					.where(inArray(userTable.id, userIds))
+			? await Promise.all(
+					chunk(userIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: userTable.id,
+								firstName: userTable.firstName,
+								lastName: userTable.lastName,
+							})
+							.from(userTable)
+							.where(inArray(userTable.id, batch)),
+					),
+				)
 			: []
+	const users = userBatches.flat()
 	const userMap = new Map(users.map((u) => [u.id, u]))
 
-	// Fetch divisions
-	const divisionIds = registrations
-		.map((r) => r.divisionId)
-		.filter((id): id is string => id !== null)
-	const divisions =
+	// Fetch divisions in batches
+	const divisionIds = [
+		...new Set(
+			registrations
+				.map((r) => r.divisionId)
+				.filter((id): id is string => id !== null),
+		),
+	]
+	const divBatches =
 		divisionIds.length > 0
-			? await db
-					.select({
-						id: scalingLevelsTable.id,
-						label: scalingLevelsTable.label,
-					})
-					.from(scalingLevelsTable)
-					.where(inArray(scalingLevelsTable.id, divisionIds))
+			? await Promise.all(
+					chunk(divisionIds, BATCH_SIZE).map((batch) =>
+						db
+							.select({
+								id: scalingLevelsTable.id,
+								label: scalingLevelsTable.label,
+							})
+							.from(scalingLevelsTable)
+							.where(inArray(scalingLevelsTable.id, batch)),
+					),
+				)
 			: []
+	const divisions = divBatches.flat()
 	const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
 	return registrations.map((r) => ({
