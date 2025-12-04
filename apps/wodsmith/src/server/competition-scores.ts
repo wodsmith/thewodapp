@@ -295,6 +295,7 @@ export async function saveCompetitionScore(params: {
 }): Promise<{ resultId: string; isNew: boolean }> {
 	const db = getDb()
 
+	console.log("[Action] saveCompetitionScore called with:", params)
 	let finalWodScore = params.score
 	let setsToInsert: Array<{
 		id: string

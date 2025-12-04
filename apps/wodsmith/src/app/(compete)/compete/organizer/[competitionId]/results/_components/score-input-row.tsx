@@ -44,6 +44,8 @@ export interface ScoreEntryData {
 	tieBreakScore: string | null
 	secondaryScore: string | null
 	formattedScore: string
+	/** Parsed numeric value (seconds for time, reps for AMRAP, etc.) */
+	rawValue?: number | null
 	// Multi-round support: array of scores when roundsToScore > 1
 	roundScores?: Array<{
 		score: string
@@ -102,9 +104,9 @@ export function ScoreInputRow({
 				timeCapped: false,
 			}))
 		}
-		// Use existing sets data for multi-round
+		// Use existing sets data for multi-round or single-round rounds+reps
 		const existingSets = athlete.existingResult?.sets
-		if (existingSets && existingSets.length > 0 && isMultiRound) {
+		if (existingSets && existingSets.length > 0 && (isMultiRound || isRoundsReps)) {
 			return Array(numRounds).fill(null).map((_, index) => {
 				const set = existingSets.find((s) => s.setNumber === index + 1)
 				if (set) {
@@ -275,6 +277,7 @@ export function ScoreInputRow({
 			tieBreakScore: newTieBreak,
 			secondaryScore: newSecondary,
 			formattedScore: parseResult?.formatted || finalScore,
+			rawValue: parseResult?.rawValue,
 			roundScores: isMultiRound ? roundScores.map((rs) => ({
 				score: rs.score,
 				parts: rs.parts,

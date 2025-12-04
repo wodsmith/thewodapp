@@ -73,11 +73,11 @@ export default function LogFormClient({
 		selectedWorkoutId,
 		firstWorkout: workouts[0]
 			? {
-					id: workouts[0].id,
-					name: workouts[0].name,
-					hasScalingLevels: !!workouts[0].scalingLevels,
-					scalingLevelsCount: workouts[0].scalingLevels?.length || 0,
-				}
+				id: workouts[0].id,
+				name: workouts[0].name,
+				hasScalingLevels: !!workouts[0].scalingLevels,
+				scalingLevelsCount: workouts[0].scalingLevels?.length || 0,
+			}
 			: null,
 	})
 
@@ -251,6 +251,8 @@ export default function LogFormClient({
 			toast.error("Please select a workout first.")
 			return
 		}
+
+		console.log(data)
 
 		// Convert form data to FormData for the server action
 		const formData = new FormData()
@@ -564,7 +566,7 @@ export default function LogFormClient({
 																				>
 																					{currentWorkoutDetails?.roundsToScore &&
 																						currentWorkoutDetails.roundsToScore >
-																							1 && (
+																						1 && (
 																							<Label className="text-sm text-muted-foreground">
 																								Round {roundIndex + 1} Score
 																							</Label>
@@ -638,17 +640,17 @@ export default function LogFormClient({
 																							type={
 																								currentWorkoutDetails?.scheme ===
 																									"time" ||
-																								(isTimeWithCap && !isTimeCapped)
+																									(isTimeWithCap && !isTimeCapped)
 																									? "text"
 																									: "number"
 																							}
 																							placeholder={
 																								currentWorkoutDetails?.scheme ===
 																									"time" ||
-																								(isTimeWithCap && !isTimeCapped)
+																									(isTimeWithCap && !isTimeCapped)
 																									? "e.g. 3:21"
 																									: isTimeWithCap &&
-																											isTimeCapped
+																										isTimeCapped
 																										? "Reps completed"
 																										: "Reps/Load"
 																							}
@@ -663,9 +665,9 @@ export default function LogFormClient({
 																							min={
 																								currentWorkoutDetails?.scheme !==
 																									"time" &&
-																								!(
-																									isTimeWithCap && !isTimeCapped
-																								)
+																									!(
+																										isTimeWithCap && !isTimeCapped
+																									)
 																									? "0"
 																									: undefined
 																							}

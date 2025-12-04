@@ -138,7 +138,8 @@ export function processScoresToSetsAndWodScore(
 		const setNumber = k + 1
 
 		if (isRoundsAndRepsWorkout) {
-			// Rounds + Reps format
+			// Rounds + Reps format - store original values for display
+			// score = rounds completed, reps = extra reps
 			const roundsStr = entry.parts?.[0] || entry.score.split("+")[0] || "0"
 			const repsStr = entry.parts?.[1] || entry.score.split("+")[1] || "0"
 
@@ -149,15 +150,10 @@ export function processScoresToSetsAndWodScore(
 				continue // Skip invalid entries
 			}
 
-			// Calculate total reps: rounds * repsPerRound + reps
-			const totalReps =
-				roundsCompleted * (workout.repsPerRound ?? 0) +
-				(Number.isNaN(repsCompleted) ? 0 : repsCompleted)
-
 			setsForDb.push({
 				setNumber,
-				reps: totalReps,
-				score: null,
+				score: roundsCompleted,
+				reps: Number.isNaN(repsCompleted) ? 0 : repsCompleted,
 				weight: null,
 				status: null,
 				distance: null,
@@ -1044,14 +1040,6 @@ export async function submitLogForm(
 			workouts.map((w) => w.id),
 		)
 		return { error: "Selected workout not found. Please try again." }
-	}
-
-	// Special logging for the problematic workout
-	if (selectedWorkoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
-		console.log("[submitLogForm] SAWTOOTH WORKOUT - Full details:", {
-			workout,
-			formDataEntries: Array.from(formData.entries()),
-		})
 	}
 
 	const parsedScoreEntries = parseScoreEntries(formData)
