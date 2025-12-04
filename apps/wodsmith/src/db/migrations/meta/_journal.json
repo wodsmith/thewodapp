@@ -323,23 +323,6 @@
       "when": 1764912000000,
       "tag": "0045_add-heat-status",
       "breakpoints": true
-<<<<<<< HEAD
-    },
-    {
-      "idx": 46,
-      "version": "6",
-      "when": 1764632251444,
-      "tag": "0046_add_competition_result_fields",
-      "breakpoints": true
-    },
-    {
-      "idx": 47,
-      "version": "6",
-      "when": 1764634291417,
-      "tag": "0047_add_secondary_score",
-      "breakpoints": true
-||||||| ef8d707
-=======
     },
     {
       "idx": 46,
@@ -354,7 +337,20 @@
       "when": 1733169600000,
       "tag": "0047_add-competition-images",
       "breakpoints": true
->>>>>>> 2c94e6fea7c6b023b5e58035fbaf357bde119537
     }
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1733169600001,
+      "tag": "0048_add_secondary_score",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1733169600002,
+      "tag": "0049_add_competition_result_fields",
+      "breakpoints": true
+    },
   ]
 }
