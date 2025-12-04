@@ -1,16 +1,12 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
-import {
-	updateCompetitionEventAction,
-	updateCompetitionWorkoutAction,
-	updateDivisionDescriptionsAction,
-} from "@/actions/competition-actions"
+import { saveCompetitionEventAction } from "@/actions/competition-actions"
 import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,19 +35,19 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Movement } from "@/db/schema"
-import type { WorkoutScheme, ScoreType } from "@/db/schemas/workouts"
-import type { CompetitionWorkout } from "@/server/competition-workouts"
 import {
-	competitionEventSchema,
-	type CompetitionEventSchema,
-} from "@/schemas/workout.schema"
-import {
-	WORKOUT_SCHEMES,
 	SCORE_TYPES,
-	TIEBREAK_SCHEMES,
 	SECONDARY_SCHEMES,
+	TIEBREAK_SCHEMES,
+	WORKOUT_SCHEMES,
 } from "@/constants"
+import type { Movement } from "@/db/schema"
+import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
+import {
+	type CompetitionEventSchema,
+	competitionEventSchema,
+} from "@/schemas/workout.schema"
+import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 // Get default score type based on scheme
 function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {
@@ -154,24 +150,19 @@ export function EventDetailsForm({
 		}
 	}
 
-	const { execute: updateEvent, isPending: isUpdatingEvent } = useServerAction(
-		updateCompetitionEventAction,
+	const { execute: saveEvent, isPending: isSaving } = useServerAction(
+		saveCompetitionEventAction,
 	)
 
-	const { execute: updateWorkout, isPending: isUpdatingWorkout } =
-		useServerAction(updateCompetitionWorkoutAction)
-
-	const {
-		execute: updateDivisionDescsAction,
-		isPending: isUpdatingDivisionDescs,
-	} = useServerAction(updateDivisionDescriptionsAction)
-
-	const isSaving =
-		isUpdatingEvent || isUpdatingWorkout || isUpdatingDivisionDescs
-
 	const onSubmit = async (data: CompetitionEventSchema) => {
-		// Update workout details
-		const [_eventResult, eventError] = await updateEvent({
+		// Build division descriptions array
+		const divisionDescriptions = divisions.map((division) => ({
+			divisionId: division.id,
+			description: data.divisionDescs[division.id]?.trim() || null,
+		}))
+
+		// Single consolidated save operation
+		const [_result, error] = await saveEvent({
 			trackWorkoutId: event.id,
 			workoutId: event.workoutId,
 			organizingTeamId,
@@ -185,45 +176,15 @@ export function EventDetailsForm({
 			timeCap: data.timeCap,
 			secondaryScheme: data.secondaryScheme,
 			movementIds: data.selectedMovements,
-		})
-
-		if (eventError) {
-			toast.error(eventError.message || "Failed to update event")
-			return
-		}
-
-		// Update track workout details (points multiplier, notes)
-		const [_workoutResult, workoutError] = await updateWorkout({
-			trackWorkoutId: event.id,
-			organizingTeamId,
 			pointsMultiplier: data.pointsMultiplier,
 			notes: data.notes || null,
+			divisionDescriptions:
+				divisionDescriptions.length > 0 ? divisionDescriptions : undefined,
 		})
 
-		if (workoutError) {
-			toast.error(workoutError.message || "Failed to update event settings")
+		if (error) {
+			toast.error(error.message || "Failed to save event")
 			return
-		}
-
-		// Update division descriptions if there are divisions
-		if (divisions.length > 0) {
-			const descriptionsToUpdate = divisions.map((division) => ({
-				divisionId: division.id,
-				description: data.divisionDescs[division.id]?.trim() || null,
-			}))
-
-			const [_descResult, descError] = await updateDivisionDescsAction({
-				workoutId: event.workoutId,
-				organizingTeamId,
-				descriptions: descriptionsToUpdate,
-			})
-
-			if (descError) {
-				toast.error(
-					descError.message || "Failed to update division descriptions",
-				)
-				return
-			}
 		}
 
 		toast.success("Event updated")
@@ -323,7 +284,9 @@ export function EventDetailsForm({
 										<FormItem>
 											<FormLabel>
 												Rounds to Score{" "}
-												<span className="text-muted-foreground">(optional)</span>
+												<span className="text-muted-foreground">
+													(optional)
+												</span>
 											</FormLabel>
 											<FormControl>
 												<Input
@@ -351,7 +314,9 @@ export function EventDetailsForm({
 										<FormItem>
 											<FormLabel>
 												Reps per Round{" "}
-												<span className="text-muted-foreground">(optional)</span>
+												<span className="text-muted-foreground">
+													(optional)
+												</span>
 											</FormLabel>
 											<FormControl>
 												<Input
@@ -375,7 +340,9 @@ export function EventDetailsForm({
 							</div>
 						)}
 
-						{(scheme === "time" || scheme === "time-with-cap" || scheme === "rounds-reps") && (
+						{(scheme === "time" ||
+							scheme === "time-with-cap" ||
+							scheme === "rounds-reps") && (
 							<div className="grid grid-cols-2 gap-4">
 								<FormField
 									control={form.control}
@@ -384,7 +351,9 @@ export function EventDetailsForm({
 										<FormItem>
 											<FormLabel>
 												Tiebreak Scheme{" "}
-												<span className="text-muted-foreground">(optional)</span>
+												<span className="text-muted-foreground">
+													(optional)
+												</span>
 											</FormLabel>
 											<Select
 												value={field.value ?? "none"}
@@ -425,7 +394,9 @@ export function EventDetailsForm({
 														onChange={(e) =>
 															field.onChange(
 																e.target.value
-																	? Math.round(Number.parseFloat(e.target.value) * 60)
+																	? Math.round(
+																			Number.parseFloat(e.target.value) * 60,
+																		)
 																	: null,
 															)
 														}

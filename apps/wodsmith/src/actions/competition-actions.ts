@@ -1,33 +1,14 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { revalidatePath } from "next/cache"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
-	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
-	TIEBREAK_SCHEME_VALUES,
 	SECONDARY_SCHEME_VALUES,
+	TIEBREAK_SCHEME_VALUES,
+	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
-import { requireTeamPermission } from "@/utils/team-auth"
-import { getSessionFromCookie } from "@/utils/auth"
-import {
-	cancelCompetitionRegistration,
-	createCompetition,
-	createCompetitionGroup,
-	deleteCompetition,
-	deleteCompetitionGroup,
-	getCompetition,
-	getCompetitionGroup,
-	getCompetitionGroups,
-	getCompetitionRegistrations,
-	getCompetitions,
-	getUserCompetitionRegistration,
-	registerForCompetition,
-	updateCompetition,
-	updateCompetitionGroup,
-	updateRegistrationAffiliate,
-} from "@/server/competitions"
 import {
 	cancelCompetitionRegistrationSchema,
 	createCompetitionGroupSchema,
@@ -45,6 +26,25 @@ import {
 	updateCompetitionSchema,
 	updateRegistrationAffiliateSchema,
 } from "@/schemas/competitions"
+import {
+	cancelCompetitionRegistration,
+	createCompetition,
+	createCompetitionGroup,
+	deleteCompetition,
+	deleteCompetitionGroup,
+	getCompetition,
+	getCompetitionGroup,
+	getCompetitionGroups,
+	getCompetitionRegistrations,
+	getCompetitions,
+	getUserCompetitionRegistration,
+	registerForCompetition,
+	updateCompetition,
+	updateCompetitionGroup,
+	updateRegistrationAffiliate,
+} from "@/server/competitions"
+import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 /* -------------------------------------------------------------------------- */
 /*                        Competition Group Actions                           */
@@ -616,20 +616,20 @@ export const updateRegistrationAffiliateAction = createServerAction()
 
 import { z } from "zod"
 import {
+	getCompetitionLeaderboard,
+	getEventLeaderboard,
+} from "@/server/competition-leaderboard"
+import {
 	addWorkoutToCompetition,
 	createCompetitionEvent,
 	getCompetitionWorkouts,
 	getNextCompetitionEventOrder,
 	removeWorkoutFromCompetition,
 	reorderCompetitionEvents,
-	updateCompetitionEventWorkout,
+	saveCompetitionEvent,
 	updateCompetitionWorkout,
 	updateWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
-import {
-	getCompetitionLeaderboard,
-	getEventLeaderboard,
-} from "@/server/competition-leaderboard"
 
 // Competition Workout Schemas
 const addWorkoutToCompetitionSchema = z.object({
@@ -701,22 +701,34 @@ const createCompetitionEventSchema = z.object({
 	sourceWorkoutId: z.string().nullable().optional(), // For remixing existing workouts
 })
 
-const updateCompetitionEventSchema = z.object({
+const saveCompetitionEventSchema = z.object({
+	// Identifiers
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	workoutId: z.string().min(1, "Workout ID is required"),
 	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
-	name: z.string().min(1).max(200).optional(),
+	// Workout details
+	name: z.string().min(1, "Name is required").max(200),
 	description: z.string().max(5000).optional(),
-	scheme: z.enum(WORKOUT_SCHEME_VALUES).optional(),
+	scheme: z.enum(WORKOUT_SCHEME_VALUES),
 	scoreType: z.enum(SCORE_TYPE_VALUES).nullable().optional(),
 	roundsToScore: z.number().int().min(1).nullable().optional(),
 	repsPerRound: z.number().int().min(1).nullable().optional(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
-	timeCap: z.number().int().min(1).nullable().optional(), // Time cap in seconds
+	timeCap: z.number().int().min(1).nullable().optional(),
 	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
-	tagIds: z.array(z.string()).optional(),
-	tagNames: z.array(z.string()).optional(), // For creating new tags
 	movementIds: z.array(z.string()).optional(),
+	// Track workout details
+	pointsMultiplier: z.number().int().min(1).optional(),
+	notes: z.string().max(1000).nullable().optional(),
+	// Division descriptions
+	divisionDescriptions: z
+		.array(
+			z.object({
+				divisionId: z.string().min(1, "Division ID is required"),
+				description: z.string().max(2000).nullable(),
+			}),
+		)
+		.optional(),
 })
 
 /**
@@ -932,20 +944,24 @@ export const createCompetitionEventAction = createServerAction()
 	})
 
 /**
- * Update a competition event's workout details
+ * Save all competition event details in a single operation.
+ * This consolidates workout updates, track workout updates, and division descriptions
+ * into a single server call for better performance.
  */
-export const updateCompetitionEventAction = createServerAction()
-	.input(updateCompetitionEventSchema)
+export const saveCompetitionEventAction = createServerAction()
+	.input(saveCompetitionEventSchema)
 	.handler(async ({ input }) => {
 		try {
-			// Check permission
+			// Single permission check
 			await requireTeamPermission(
 				input.organizingTeamId,
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			await updateCompetitionEventWorkout({
+			await saveCompetitionEvent({
+				trackWorkoutId: input.trackWorkoutId,
 				workoutId: input.workoutId,
+				teamId: input.organizingTeamId,
 				name: input.name,
 				description: input.description,
 				scheme: input.scheme,
@@ -955,23 +971,25 @@ export const updateCompetitionEventAction = createServerAction()
 				tiebreakScheme: input.tiebreakScheme,
 				timeCap: input.timeCap,
 				secondaryScheme: input.secondaryScheme,
-				tagIds: input.tagIds,
 				movementIds: input.movementIds,
+				pointsMultiplier: input.pointsMultiplier,
+				notes: input.notes,
+				divisionDescriptions: input.divisionDescriptions,
 			})
 
-			// Revalidate
-			revalidatePath(`/compete/organizer`)
+			// Single revalidation
+			revalidatePath("/compete/organizer")
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to update competition event:", error)
+			console.error("Failed to save competition event:", error)
 			if (error instanceof ZSAError) {
 				throw error
 			}
 			if (error instanceof Error) {
 				throw new ZSAError("ERROR", error.message)
 			}
-			throw new ZSAError("ERROR", "Failed to update competition event")
+			throw new ZSAError("ERROR", "Failed to save competition event")
 		}
 	})
 
