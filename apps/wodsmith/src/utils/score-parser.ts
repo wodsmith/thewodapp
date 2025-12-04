@@ -80,7 +80,7 @@ export function parseScore(
 			formatted,
 			rawValue: timeCap ?? null,
 			isValid: true,
-			needsTieBreak: tiebreakScheme !== null, // Need tie-break if workout has one configured
+			needsTieBreak: tiebreakScheme != null, // Need tie-break if workout has one configured
 			scoreStatus: "cap",
 		}
 	}
@@ -246,7 +246,7 @@ function parseRoundsRepsScore(
 			formatted: `${rounds}+${reps}`,
 			rawValue: rounds * 1000 + reps, // Encode as rounds*1000 + reps for sorting
 			isValid: true,
-			needsTieBreak: tiebreakScheme !== null,
+			needsTieBreak: tiebreakScheme != null,
 			scoreStatus: "scored",
 		}
 	}
@@ -270,7 +270,7 @@ function parseRoundsRepsScore(
 		formatted: `${totalReps} reps`,
 		rawValue: totalReps,
 		isValid: true,
-		needsTieBreak: tiebreakScheme !== null,
+		needsTieBreak: tiebreakScheme != null,
 		scoreStatus: "scored",
 	}
 }
@@ -296,7 +296,7 @@ function parseRepScore(
 		formatted: `${reps} reps`,
 		rawValue: reps,
 		isValid: true,
-		needsTieBreak: tiebreakScheme !== null,
+		needsTieBreak: tiebreakScheme != null,
 		scoreStatus: "scored",
 	}
 }
