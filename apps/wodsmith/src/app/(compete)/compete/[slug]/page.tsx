@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import {
 	getCompetition,
@@ -19,7 +20,9 @@ import { LeaderboardContent } from "./_components/leaderboard-content"
 import { RegisterButton } from "./_components/register-button"
 import { RegistrationSidebar } from "./_components/registration-sidebar"
 import { ScheduleContent } from "./_components/schedule-content"
+import { ScheduleSkeleton } from "./_components/schedule-skeleton"
 import { WorkoutsContent } from "./_components/workouts-content"
+import { WorkoutsSkeleton } from "./_components/workouts-skeleton"
 
 type Props = {
 	params: Promise<{ slug: string }>
@@ -63,13 +66,15 @@ export default async function CompetitionDetailPage({ params }: Props) {
 		notFound()
 	}
 
-	// Parallel fetch: session, registrations, divisions, events, and heats
-	const [session, registrations, divisions, events, heats] = await Promise.all([
+	// Start heavy fetches immediately (don't await - pass promises to components)
+	const eventsPromise = getPublishedCompetitionWorkouts(competition.id)
+	const heatsPromise = getHeatsForCompetition(competition.id)
+
+	// Parallel fetch: session, registrations, divisions (needed for hero/sidebar)
+	const [session, registrations, divisions] = await Promise.all([
 		getSessionFromCookie(),
 		getCompetitionRegistrations(competition.id),
 		getPublicCompetitionDivisions(competition.id),
-		getPublishedCompetitionWorkouts(competition.id),
-		getHeatsForCompetition(competition.id),
 	])
 
 	// Check if user is already registered, get pending invites, and check manage permission (depends on session)
@@ -125,19 +130,23 @@ export default async function CompetitionDetailPage({ params }: Props) {
 			{/* Tabbed Content */}
 			<CompetitionTabs
 				workoutsContent={
-					<WorkoutsContent
-						key="tab-workouts"
-						competition={competition}
-						divisions={divisions}
-					/>
+					<Suspense fallback={<WorkoutsSkeleton />}>
+						<WorkoutsContent
+							key="tab-workouts"
+							competition={competition}
+							divisions={divisions}
+						/>
+					</Suspense>
 				}
 				scheduleContent={
-					<ScheduleContent
-						key="tab-schedule"
-						events={events}
-						heats={heats}
-						currentUserId={session?.userId}
-					/>
+					<Suspense fallback={<ScheduleSkeleton />}>
+						<ScheduleContent
+							key="tab-schedule"
+							eventsPromise={eventsPromise}
+							heatsPromise={heatsPromise}
+							currentUserId={session?.userId}
+						/>
+					</Suspense>
 				}
 				leaderboardContent={
 					<LeaderboardContent
@@ -165,20 +174,23 @@ export default async function CompetitionDetailPage({ params }: Props) {
 							competition={competition}
 							divisions={divisions.length > 0 ? divisions : undefined}
 							workoutsContent={
-								<WorkoutsContent
-									key="workouts"
-									competition={competition}
-									divisions={divisions}
-								/>
+								<Suspense fallback={<WorkoutsSkeleton />}>
+									<WorkoutsContent
+										key="workouts"
+										competition={competition}
+										divisions={divisions}
+									/>
+								</Suspense>
 							}
-							hasSchedule={heats.length > 0}
 							scheduleContent={
-								<ScheduleContent
-									key="schedule"
-									events={events}
-									heats={heats}
-									currentUserId={session?.userId}
-								/>
+								<Suspense fallback={<ScheduleSkeleton />}>
+									<ScheduleContent
+										key="schedule"
+										eventsPromise={eventsPromise}
+										heatsPromise={heatsPromise}
+										currentUserId={session?.userId}
+									/>
+								</Suspense>
 							}
 						/>
 

@@ -34,16 +34,6 @@ interface EventDetailsContentProps {
 	divisions?: DivisionWithDetails[]
 	workoutsContent?: React.ReactNode
 	scheduleContent?: React.ReactNode
-	hasSchedule?: boolean
-}
-
-function formatDateShort(date: Date | number): string {
-	const d = typeof date === "number" ? new Date(date) : date
-	return d.toLocaleDateString("en-US", {
-		weekday: "short",
-		month: "short",
-		day: "numeric",
-	})
 }
 
 function formatPrice(cents: number): string {
@@ -56,7 +46,6 @@ export function EventDetailsContent({
 	divisions,
 	workoutsContent,
 	scheduleContent,
-	hasSchedule,
 }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
 
@@ -157,23 +146,7 @@ export function EventDetailsContent({
 					<h2 className="text-xl font-semibold">Schedule</h2>
 				</div>
 				<Separator className="mb-4" />
-				{hasSchedule && scheduleContent ? (
-					scheduleContent
-				) : (
-					<Card className="border-dashed">
-						<CardContent className="py-6 text-center">
-							<p className="text-muted-foreground">
-								Detailed schedule coming soon.
-							</p>
-							<p className="text-sm text-muted-foreground mt-2">
-								Competition dates: {formatDateShort(competition.startDate)}
-								{competition.startDate !== competition.endDate && (
-									<> - {formatDateShort(competition.endDate)}</>
-								)}
-							</p>
-						</CardContent>
-					</Card>
-				)}
+				{scheduleContent}
 			</section>
 
 			{/* Workouts Section */}
