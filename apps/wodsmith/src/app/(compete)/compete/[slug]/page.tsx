@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 				competition.description || `Register for ${competition.name}`,
 			images: [
 				{
-					url: `/api/og?title=${encodeURIComponent(competition.name)}`,
+					url: `/api/og/competition?slug=${encodeURIComponent(slug)}`,
 					width: 1200,
 					height: 630,
 					alt: competition.name,
