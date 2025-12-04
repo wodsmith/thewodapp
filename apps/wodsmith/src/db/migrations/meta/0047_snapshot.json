@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "44a9f871-c1b9-414b-b9d2-496cbd57cb4e",
-  "prevId": "3f11fe1c-6827-43ee-85b8-5cd0d7047e90",
+  "id": "ddd8328e-a5e2-44b9-90c4-8d81661cbbcb",
+  "prevId": "9483ae7b-6320-4cfc-a197-01ea813874e0",
   "tables": {
     "affiliates": {
       "name": "affiliates",
@@ -1625,6 +1625,20 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'public'"
+        },
+        "profileImageUrl": {
+          "name": "profileImageUrl",
+          "type": "text(600)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bannerImageUrl": {
+          "name": "bannerImageUrl",
+          "type": "text(600)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -6434,48 +6448,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "competition_event_id": {
-          "name": "competition_event_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "competition_registration_id": {
-          "name": "competition_registration_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "score_status": {
-          "name": "score_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "tie_break_score": {
-          "name": "tie_break_score",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "secondary_score": {
-          "name": "secondary_score",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "entered_by": {
-          "name": "entered_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -6523,22 +6495,6 @@
             "workout_id"
           ],
           "isUnique": false
-        },
-        "results_competition_event_idx": {
-          "name": "results_competition_event_idx",
-          "columns": [
-            "competition_event_id",
-            "scaling_level_id"
-          ],
-          "isUnique": false
-        },
-        "results_competition_unique_idx": {
-          "name": "results_competition_unique_idx",
-          "columns": [
-            "competition_event_id",
-            "user_id"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -6561,19 +6517,6 @@
           "tableTo": "workouts",
           "columnsFrom": [
             "workout_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "results_entered_by_user_id_fk": {
-          "name": "results_entered_by_user_id_fk",
-          "tableFrom": "results",
-          "tableTo": "user",
-          "columnsFrom": [
-            "entered_by"
           ],
           "columnsTo": [
             "id"
@@ -7123,7 +7066,9 @@
   "_meta": {
     "schemas": {},
     "tables": {},
-    "columns": {}
+    "columns": {
+      "\"track_workout\".\"dayNumber\"": "\"track_workout\".\"trackOrder\""
+    }
   },
   "internal": {
     "indexes": {}

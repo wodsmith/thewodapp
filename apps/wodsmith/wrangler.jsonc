@@ -8,7 +8,10 @@
 	"name": "wodsmith",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-03-01",
-	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
 	// Minification helps to keep the Worker bundle size down and improve start up time.1
 	"minify": true,
 	"assets": {
@@ -22,15 +25,15 @@
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
 	 */
-	"placement": { "mode": "smart" },
-
+	"placement": {
+		"mode": "smart"
+	},
 	/**
 	 * Bindings
 	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
 	 * databases, object storage, AI inference, real-time communication and more.
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
-
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
@@ -40,13 +43,13 @@
 		"EMAIL_FROM": "zacjones93@gmail.com",
 		"EMAIL_FROM_NAME": "Zac from WODsmith",
 		"EMAIL_REPLY_TO": "zacjones93@gmail.com",
-		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com"
+		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com",
+		"R2_PUBLIC_URL": "https://pub-14c651314867492fa9637e830cc729a3.r2.dev"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
-
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
@@ -57,7 +60,6 @@
 			"service": "wodsmith"
 		}
 	],
-
 	"durable_objects": {
 		"bindings": [
 			{
@@ -66,14 +68,14 @@
 			}
 		]
 	},
-
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["DOQueueHandler"]
+			"new_sqlite_classes": [
+				"DOQueueHandler"
+			]
 		}
 	],
-
 	"d1_databases": [
 		{
 			"binding": "NEXT_TAG_CACHE_D1",
@@ -83,7 +85,7 @@
 		},
 		{
 			"binding": "STAGING_D1",
-			"database_name": "wodsmith-db-staging", 
+			"database_name": "wodsmith-db-staging",
 			"database_id": "e1e200c5-1671-455f-b40d-855b155cac48",
 			"migrations_dir": "src/db/migrations"
 		}
@@ -93,6 +95,16 @@
 			"binding": "NEXT_INC_CACHE_KV",
 			"id": "e7a18a19d2cb4afbaf02be597cbecb35"
 		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "R2_BUCKET",
+			"bucket_name": "wodsmith-uploads"
+		},
+		{
+			"bucket_name": "wodsmith-uploads-dev",
+			"binding": "wodsmith_uploads_dev"
+		},
 	],
 	"routes": [
 		{

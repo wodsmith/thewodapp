@@ -48,6 +48,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import type { Competition, CompetitionGroup } from "@/db/schema"
+import { formatUTCDateFull } from "@/utils/date-utils"
 import { deleteCompetitionAction } from "@/actions/competition-actions"
 
 interface OrganizerCompetitionsListProps {
@@ -95,14 +96,6 @@ export function OrganizerCompetitionsList({
 			params.set("groupId", value)
 		}
 		router.push(`/compete/organizer?${params.toString()}`)
-	}
-
-	const formatDate = (date: Date) => {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}).format(new Date(date))
 	}
 
 	return (
@@ -172,8 +165,8 @@ export function OrganizerCompetitionsList({
 											<CardDescription className="mt-1 flex items-center gap-1">
 												<Calendar className="h-3 w-3" />
 												<span>
-													{formatDate(competition.startDate)} -{" "}
-													{formatDate(competition.endDate)}
+													{formatUTCDateFull(competition.startDate)} -{" "}
+													{formatUTCDateFull(competition.endDate)}
 												</span>
 											</CardDescription>
 											{competition.groupId && (

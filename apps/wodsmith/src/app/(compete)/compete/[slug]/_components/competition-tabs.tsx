@@ -21,8 +21,8 @@ export function CompetitionTabs({
 		<Tabs defaultValue="details" className="w-full">
 			<div className="border-b bg-background sticky top-0 z-10">
 				<div className="container mx-auto">
-					<div className="flex items-center justify-between">
-						<TabsList className="h-auto justify-start gap-0 rounded-none bg-transparent p-0">
+					<div className="flex items-center justify-between gap-2">
+						<TabsList className="h-auto justify-start gap-0 rounded-none bg-transparent p-0 overflow-x-auto">
 							<TabsTrigger
 								value="details"
 								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"

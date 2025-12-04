@@ -343,6 +343,14 @@ export const updateCompetitionAction = createServerAction()
 						: rawUpdateData.groupId,
 				settings:
 					rawUpdateData.settings === null ? null : rawUpdateData.settings,
+				profileImageUrl:
+					rawUpdateData.profileImageUrl === null
+						? null
+						: rawUpdateData.profileImageUrl,
+				bannerImageUrl:
+					rawUpdateData.bannerImageUrl === null
+						? null
+						: rawUpdateData.bannerImageUrl,
 			}
 			const result = await updateCompetition(competitionId, updateData)
 

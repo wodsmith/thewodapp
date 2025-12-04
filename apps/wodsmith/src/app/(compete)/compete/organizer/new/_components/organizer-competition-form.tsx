@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { CompetitionGroup, ScalingGroup } from "@/db/schema"
 import type { CompetitionSettings } from "@/types/competitions"
+import { parseDateInputAsUTC } from "@/utils/date-utils"
 import type { OrganizingTeam } from "@/utils/get-user-organizing-teams"
 
 const formSchema = z
@@ -150,14 +151,14 @@ export function OrganizerCompetitionForm({
 			organizingTeamId: data.teamId,
 			name: data.name,
 			slug: data.slug,
-			startDate: new Date(data.startDate),
-			endDate: new Date(data.endDate),
+			startDate: parseDateInputAsUTC(data.startDate),
+			endDate: parseDateInputAsUTC(data.endDate),
 			description: data.description,
 			registrationOpensAt: data.registrationOpensAt
-				? new Date(data.registrationOpensAt)
+				? parseDateInputAsUTC(data.registrationOpensAt)
 				: undefined,
 			registrationClosesAt: data.registrationClosesAt
-				? new Date(data.registrationClosesAt)
+				? parseDateInputAsUTC(data.registrationClosesAt)
 				: undefined,
 			groupId: data.groupId || undefined,
 			settings:

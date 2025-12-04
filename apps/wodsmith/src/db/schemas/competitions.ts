@@ -102,6 +102,9 @@ export const competitionsTable = sqliteTable(
 			.$type<"public" | "private">()
 			.default("public")
 			.notNull(),
+		// Competition branding images
+		profileImageUrl: text({ length: 600 }),
+		bannerImageUrl: text({ length: 600 }),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
