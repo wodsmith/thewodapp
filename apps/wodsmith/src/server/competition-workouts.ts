@@ -18,6 +18,7 @@ import {
 	trackWorkoutsTable,
 	type Workout,
 	type WorkoutScheme,
+	type ScoreType,
 	workoutMovements,
 	workoutScalingDescriptionsTable,
 	workouts,
@@ -601,7 +602,7 @@ export async function saveCompetitionEvent(params: {
 	name: string
 	description?: string
 	scheme: WorkoutScheme
-	scoreType?: "min" | "max" | null
+	scoreType?: ScoreType | null 
 	roundsToScore?: number | null
 	repsPerRound?: number | null
 	tiebreakScheme?: TiebreakScheme | null
