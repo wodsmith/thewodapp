@@ -70,6 +70,7 @@ export function VenueManager({
 
 		const [, error] = await updateVenue.execute({
 			id: editingVenue.id,
+			competitionId,
 			organizingTeamId,
 			name: editingVenue.name.trim(),
 			laneCount: editingVenue.laneCount,
@@ -95,6 +96,7 @@ export function VenueManager({
 
 		const [, error] = await deleteVenue.execute({
 			id: venue.id,
+			competitionId,
 			organizingTeamId,
 		})
 

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { and, asc, eq, inArray, notInArray } from "drizzle-orm"
+import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	competitionHeatAssignmentsTable,
@@ -17,6 +18,30 @@ import {
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 const BATCH_SIZE = SQL_BATCH_SIZE
+
+// ============================================================================
+// Metadata Parsing
+// ============================================================================
+
+const registrationMetadataSchema = z
+	.object({
+		affiliates: z.record(z.string()).optional(),
+	})
+	.passthrough()
+
+/**
+ * Extract affiliate from registration metadata with runtime validation
+ */
+function getAffiliate(metadata: string | null, userId: string): string | null {
+	if (!metadata) return null
+	try {
+		const result = registrationMetadataSchema.safeParse(JSON.parse(metadata))
+		if (!result.success) return null
+		return result.data.affiliates?.[userId] ?? null
+	} catch {
+		return null
+	}
+}
 
 // ============================================================================
 // Types
@@ -282,22 +307,6 @@ export async function getHeatsForWorkout(
 	const regDivisions = regDivBatches.flat()
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
-	// Helper to extract affiliate from metadata
-	function getAffiliate(
-		metadata: string | null,
-		userId: string,
-	): string | null {
-		if (!metadata) return null
-		try {
-			const parsed = JSON.parse(metadata) as {
-				affiliates?: Record<string, string>
-			}
-			return parsed.affiliates?.[userId] ?? null
-		} catch {
-			return null
-		}
-	}
-
 	// Build registration map
 	const registrationMap = new Map(
 		registrations.map((r) => [
@@ -480,22 +489,6 @@ export async function getHeatsForCompetition(
 			: []
 	const regDivisions = regDivBatches.flat()
 	const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
-
-	// Helper to extract affiliate from metadata
-	function getAffiliate(
-		metadata: string | null,
-		userId: string,
-	): string | null {
-		if (!metadata) return null
-		try {
-			const parsed = JSON.parse(metadata) as {
-				affiliates?: Record<string, string>
-			}
-			return parsed.affiliates?.[userId] ?? null
-		} catch {
-			return null
-		}
-	}
 
 	const registrationMap = new Map(
 		registrations.map((r) => [

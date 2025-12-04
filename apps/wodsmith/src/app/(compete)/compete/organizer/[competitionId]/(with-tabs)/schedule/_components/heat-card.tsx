@@ -144,7 +144,7 @@ function DroppableLane({
 		>
 			{/* Spacer to align with grip handle in assigned rows - hidden on mobile */}
 			<div className="hidden md:block h-3 w-3" />
-			<span className="w-6 text-sm text-muted-foreground font-mono">
+			<span className="w-6 text-sm text-muted-foreground tabular-nums">
 				L{laneNum}
 			</span>
 			<span
@@ -238,7 +238,7 @@ function DraggableAssignedAthlete({
 			}`}
 		>
 			<GripVertical className="hidden md:block h-3 w-3 text-muted-foreground cursor-grab active:cursor-grabbing" />
-			<span className="w-6 text-sm text-muted-foreground font-mono">
+			<span className="w-6 text-sm text-muted-foreground tabular-nums">
 				L{laneNum}
 			</span>
 			<span className="flex-1 text-sm">{displayName}</span>
@@ -262,6 +262,7 @@ function DraggableAssignedAthlete({
 
 interface HeatCardProps {
 	heat: HeatWithAssignments
+	competitionId: string
 	organizingTeamId: string
 	unassignedRegistrations: Registration[]
 	maxLanes: number
@@ -280,6 +281,7 @@ interface HeatCardProps {
 
 export function HeatCard({
 	heat,
+	competitionId,
 	organizingTeamId,
 	unassignedRegistrations,
 	maxLanes,
@@ -320,20 +322,12 @@ export function HeatCard({
 		})
 	}
 
-	// Get athlete display name
-	function _getAthleteName(
-		reg: HeatWithAssignments["assignments"][0]["registration"],
-	): string {
-		if (reg.teamName) return reg.teamName
-		const name = `${reg.user.firstName ?? ""} ${reg.user.lastName ?? ""}`.trim()
-		return name || "Unknown"
-	}
-
 	async function handleAssign() {
 		if (!selectedRegistrationId || !selectedLane) return
 
 		const [result, _error] = await assignToHeat.execute({
 			heatId: heat.id,
+			competitionId,
 			organizingTeamId,
 			registrationId: selectedRegistrationId,
 			laneNumber: selectedLane,
@@ -370,6 +364,7 @@ export function HeatCard({
 	async function handleRemove(assignmentId: string) {
 		const [, error] = await removeFromHeat.execute({
 			assignmentId,
+			competitionId,
 			organizingTeamId,
 		})
 
@@ -415,6 +410,7 @@ export function HeatCard({
 			if (!assignment) return
 			const [result] = await assignToHeat.execute({
 				heatId: heat.id,
+				competitionId,
 				organizingTeamId,
 				registrationId: assignment.registrationId,
 				laneNumber: assignment.laneNumber,
@@ -443,6 +439,7 @@ export function HeatCard({
 			// Bulk assignment
 			const [result] = await bulkAssign.execute({
 				heatId: heat.id,
+				competitionId,
 				organizingTeamId,
 				assignments,
 			})
@@ -495,6 +492,7 @@ export function HeatCard({
 		if (sourceHeatId === heat.id) {
 			const [, error] = await moveAssignment.execute({
 				assignmentId,
+				competitionId,
 				organizingTeamId,
 				targetHeatId: heat.id,
 				targetLaneNumber: targetLane,
@@ -512,6 +510,7 @@ export function HeatCard({
 			// Cross-heat move
 			const [, error] = await moveAssignment.execute({
 				assignmentId,
+				competitionId,
 				organizingTeamId,
 				targetHeatId: heat.id,
 				targetLaneNumber: targetLane,
@@ -550,7 +549,7 @@ export function HeatCard({
 				<CardHeader className="py-3">
 					<div className="flex items-center gap-3">
 						<ChevronRight className="h-4 w-4 text-muted-foreground" />
-						<CardTitle className="text-base">Heat {heat.heatNumber}</CardTitle>
+						<CardTitle className="text-base">Heat <span className="tabular-nums">{heat.heatNumber}</span></CardTitle>
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							{heat.scheduledTime && (
 								<span className="flex items-center gap-1">
@@ -565,7 +564,7 @@ export function HeatCard({
 								</span>
 							)}
 						</div>
-						<Badge variant={isFull ? "default" : "outline"} className="text-xs">
+						<Badge variant={isFull ? "default" : "outline"} className="text-xs tabular-nums">
 							{heat.assignments.length}/{maxLanes}
 						</Badge>
 						<div className="flex-1" />
@@ -593,8 +592,8 @@ export function HeatCard({
 						>
 							<ChevronDown className="h-4 w-4" />
 						</Button>
-						<CardTitle className="text-base">Heat {heat.heatNumber}</CardTitle>
-						<Badge variant={isFull ? "default" : "outline"} className="text-xs">
+						<CardTitle className="text-base">Heat <span className="tabular-nums">{heat.heatNumber}</span></CardTitle>
+						<Badge variant={isFull ? "default" : "outline"} className="text-xs tabular-nums">
 							{heat.assignments.length}/{maxLanes}
 						</Badge>
 					</div>

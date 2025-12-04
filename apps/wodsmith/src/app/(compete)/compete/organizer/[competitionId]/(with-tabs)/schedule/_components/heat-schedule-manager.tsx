@@ -70,7 +70,7 @@ interface Registration {
 interface HeatScheduleManagerProps {
 	competitionId: string
 	organizingTeamId: string
-	competitionStartDate: Date
+	competitionStartDate: Date | null
 	events: CompetitionWorkout[]
 	venues: CompetitionVenue[]
 	heats: HeatWithAssignments[]
@@ -190,7 +190,9 @@ export function HeatScheduleManager({
 	}
 
 	function getDefaultHeatTime() {
-		const date = new Date(competitionStartDate)
+		const date = competitionStartDate
+			? new Date(competitionStartDate)
+			: new Date()
 		date.setHours(9, 0, 0, 0)
 		return formatDatetimeLocal(date)
 	}
@@ -418,6 +420,7 @@ export function HeatScheduleManager({
 
 		const [, error] = await deleteHeat.execute({
 			id: heatId,
+			competitionId,
 			organizingTeamId,
 		})
 
@@ -635,7 +638,7 @@ export function HeatScheduleManager({
 						<SelectContent>
 							{localEvents.map((event) => (
 								<SelectItem key={event.id} value={event.id}>
-									{event.trackOrder}. {event.workout.name}
+									<span className="tabular-nums">{event.trackOrder}</span>. {event.workout.name}
 								</SelectItem>
 							))}
 						</SelectContent>
@@ -654,7 +657,7 @@ export function HeatScheduleManager({
 							<SelectContent>
 								{venues.map((venue) => (
 									<SelectItem key={venue.id} value={venue.id}>
-										{venue.name} ({venue.laneCount} lanes)
+										{venue.name} (<span className="tabular-nums">{venue.laneCount}</span> lanes)
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -726,7 +729,7 @@ export function HeatScheduleManager({
 										<SelectItem value="none">No venue</SelectItem>
 										{venues.map((venue) => (
 											<SelectItem key={venue.id} value={venue.id}>
-												{venue.name} ({venue.laneCount} lanes)
+												{venue.name} (<span className="tabular-nums">{venue.laneCount}</span> lanes)
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -807,7 +810,7 @@ export function HeatScheduleManager({
 								<TooltipTrigger asChild>
 									<button
 										type="button"
-										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+										className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground tabular-nums"
 									>
 										<Calculator className="h-4 w-4" />
 										<span>
@@ -862,13 +865,13 @@ export function HeatScheduleManager({
 					</DialogHeader>
 					<div className="space-y-4">
 						<div className="text-sm text-muted-foreground">
-							Venue: {selectedVenue?.name} ({selectedVenue?.laneCount} lanes)
+							Venue: {selectedVenue?.name} (<span className="tabular-nums">{selectedVenue?.laneCount}</span> lanes)
 						</div>
 						<div className="max-h-[300px] overflow-y-auto space-y-3">
 							{bulkHeatTimes.map((time, index) => (
 								// biome-ignore lint/suspicious/noArrayIndexKey: index is appropriate for this editable list
 								<div key={index} className="flex items-center gap-3">
-									<span className="text-sm font-medium w-16">
+									<span className="text-sm font-medium w-16 tabular-nums">
 										Heat {eventHeats.length + index + 1}
 									</span>
 									<Input
@@ -930,6 +933,7 @@ export function HeatScheduleManager({
 							<HeatCard
 								key={heat.id}
 								heat={heat}
+								competitionId={competitionId}
 								organizingTeamId={organizingTeamId}
 								unassignedRegistrations={unassignedRegistrations}
 								maxLanes={heat.venue?.laneCount ?? 10}

@@ -336,9 +336,9 @@ export function ScheduleContent({
 										<div className="flex justify-between items-start">
 											<div>
 												<p className="font-medium">
-													Event {event?.trackOrder}: {event?.workout.name}
+													Event <span className="tabular-nums">{event?.trackOrder}</span>: {event?.workout.name}
 												</p>
-												<p className="text-sm text-muted-foreground">
+												<p className="text-sm text-muted-foreground tabular-nums">
 													Heat {heat.heatNumber}
 													{laneNumber && ` • Lane ${laneNumber}`}
 												</p>
@@ -475,7 +475,7 @@ export function ScheduleContent({
 											>
 												<div className="flex items-center gap-4 flex-1">
 													<div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-teal-600 to-teal-500 rounded-lg flex items-center justify-center">
-														<span className="text-white text-sm font-bold">
+														<span className="text-white text-sm font-bold tabular-nums">
 															{String(workout.event.trackOrder).padStart(
 																2,
 																"0",
@@ -496,7 +496,7 @@ export function ScheduleContent({
 																	)}
 																</span>
 															)}
-															<Badge variant="outline" className="text-xs">
+															<Badge variant="outline" className="text-xs tabular-nums">
 																{workout.heats.length} heat
 																{workout.heats.length !== 1 ? "s" : ""}
 																{searchTerm ? " (filtered)" : ""}
@@ -565,11 +565,11 @@ export function ScheduleContent({
 																		)}
 																	>
 																		<div className="flex items-center gap-3">
-																			<span className="font-medium">
+																			<span className="font-medium tabular-nums w-16">
 																				Heat {heat.heatNumber}
 																			</span>
 																			{heat.scheduledTime && (
-																				<span className="text-sm text-muted-foreground">
+																				<span className="text-sm text-muted-foreground tabular-nums">
 																					{formatTime(toDate(heat.scheduledTime))}
 																				</span>
 																			)}
@@ -580,7 +580,7 @@ export function ScheduleContent({
 																				</span>
 																			)}
 																			{divisionSummary && heat.assignments.length > 0 && (
-																				<Badge variant="outline" className="text-xs">
+																				<Badge variant="outline" className="text-xs tabular-nums">
 																					{divisionSummary}
 																				</Badge>
 																			)}
@@ -653,7 +653,7 @@ export function ScheduleContent({
 																									<div className="flex items-center gap-2 mb-2">
 																										<div
 																											className={cn(
-																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold",
+																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums",
 																												isMatch || isUser
 																													? "bg-teal-500 text-white"
 																													: "bg-muted",
@@ -734,7 +734,7 @@ export function ScheduleContent({
 																									<div className="flex items-center gap-2">
 																										<div
 																											className={cn(
-																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold",
+																												"w-8 h-8 rounded flex items-center justify-center text-sm font-bold tabular-nums",
 																												isMatch || isUser
 																													? "bg-teal-500 text-white"
 																													: "bg-muted",
