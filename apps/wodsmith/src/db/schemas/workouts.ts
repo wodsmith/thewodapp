@@ -9,7 +9,8 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
-import { programmingTracksTable } from "./programming"
+import { competitionRegistrationsTable } from "./competitions"
+import { programmingTracksTable, trackWorkoutsTable } from "./programming"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
 
@@ -215,8 +216,14 @@ export const results = sqliteTable(
 		time: integer("time"),
 
 		// Competition-specific fields
-		competitionEventId: text("competition_event_id"), // References trackWorkoutsTable.id
-		competitionRegistrationId: text("competition_registration_id"), // References competitionRegistrationsTable.id
+		competitionEventId: text("competition_event_id").references(
+			() => trackWorkoutsTable.id,
+			{ onDelete: "set null" },
+		), // References trackWorkoutsTable.id
+		competitionRegistrationId: text("competition_registration_id").references(
+			() => competitionRegistrationsTable.id,
+			{ onDelete: "set null" },
+		), // References competitionRegistrationsTable.id
 		scoreStatus: text("score_status", { enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
 		tieBreakScore: text("tie_break_score"), // Raw tie-break value (e.g., "120" for reps or seconds)
 		secondaryScore: text("secondary_score"), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
