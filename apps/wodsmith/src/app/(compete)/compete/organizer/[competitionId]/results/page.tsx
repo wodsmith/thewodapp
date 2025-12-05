@@ -82,14 +82,14 @@ export default async function ResultsPage({
 	// Get athletes and existing scores for selected event
 	const [scoreEntryData, { divisions }] = currentEvent
 		? await Promise.all([
-			getEventScoreEntryData({
-				competitionId,
-				trackWorkoutId: currentEvent.id,
-				competitionTeamId: competition.competitionTeamId,
-				divisionId: selectedDivisionId,
-			}),
-			getCompetitionDivisionsWithCounts({ competitionId }),
-		])
+				getEventScoreEntryData({
+					competitionId,
+					trackWorkoutId: currentEvent.id,
+					competitionTeamId: competition.competitionTeamId,
+					divisionId: selectedDivisionId,
+				}),
+				getCompetitionDivisionsWithCounts({ competitionId }),
+			])
 		: [null, { divisions: [] }]
 
 	return (

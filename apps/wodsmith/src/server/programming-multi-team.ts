@@ -206,7 +206,10 @@ export async function getTrackSubscribedTeams(
 					subscribedAt: teamProgrammingTracksTable.subscribedAt,
 				})
 				.from(teamProgrammingTracksTable)
-				.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
 				.where(
 					and(
 						eq(teamProgrammingTracksTable.trackId, trackId),
@@ -261,7 +264,10 @@ export async function getSubscriptionsByTeam(userTeamIds: string[]): Promise<
 					programmingTracksTable,
 					eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
 				)
-				.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
 				.where(
 					and(
 						inArray(teamProgrammingTracksTable.teamId, chunk),

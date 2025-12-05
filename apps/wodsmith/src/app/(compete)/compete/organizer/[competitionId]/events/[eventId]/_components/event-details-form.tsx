@@ -323,7 +323,9 @@ export function EventDetailsForm({
 										<FormItem>
 											<FormLabel>
 												Rounds to Score{" "}
-												<span className="text-muted-foreground">(optional)</span>
+												<span className="text-muted-foreground">
+													(optional)
+												</span>
 											</FormLabel>
 											<FormControl>
 												<Input
@@ -351,7 +353,9 @@ export function EventDetailsForm({
 										<FormItem>
 											<FormLabel>
 												Reps per Round{" "}
-												<span className="text-muted-foreground">(optional)</span>
+												<span className="text-muted-foreground">
+													(optional)
+												</span>
 											</FormLabel>
 											<FormControl>
 												<Input
@@ -375,7 +379,9 @@ export function EventDetailsForm({
 							</div>
 						)}
 
-						{(scheme === "time" || scheme === "time-with-cap" || scheme === "rounds-reps") && (
+						{(scheme === "time" ||
+							scheme === "time-with-cap" ||
+							scheme === "rounds-reps") && (
 							<div className="grid grid-cols-2 gap-4">
 								<FormField
 									control={form.control}
@@ -384,7 +390,9 @@ export function EventDetailsForm({
 										<FormItem>
 											<FormLabel>
 												Tiebreak Scheme{" "}
-												<span className="text-muted-foreground">(optional)</span>
+												<span className="text-muted-foreground">
+													(optional)
+												</span>
 											</FormLabel>
 											<Select
 												value={field.value ?? "none"}
@@ -425,7 +433,9 @@ export function EventDetailsForm({
 														onChange={(e) =>
 															field.onChange(
 																e.target.value
-																	? Math.round(Number.parseFloat(e.target.value) * 60)
+																	? Math.round(
+																			Number.parseFloat(e.target.value) * 60,
+																		)
 																	: null,
 															)
 														}

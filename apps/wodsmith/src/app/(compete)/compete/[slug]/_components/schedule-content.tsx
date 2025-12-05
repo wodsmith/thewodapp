@@ -340,7 +340,11 @@ export function ScheduleContent({
 										<div className="flex justify-between items-start">
 											<div>
 												<p className="font-medium">
-													Event <span className="tabular-nums">{event?.trackOrder}</span>: {event?.workout.name}
+													Event{" "}
+													<span className="tabular-nums">
+														{event?.trackOrder}
+													</span>
+													: {event?.workout.name}
 												</p>
 												<p className="text-sm text-muted-foreground tabular-nums">
 													Heat {heat.heatNumber}
@@ -500,7 +504,10 @@ export function ScheduleContent({
 																	)}
 																</span>
 															)}
-															<Badge variant="outline" className="text-xs tabular-nums">
+															<Badge
+																variant="outline"
+																className="text-xs tabular-nums"
+															>
 																{workout.heats.length} heat
 																{workout.heats.length !== 1 ? "s" : ""}
 																{searchTerm ? " (filtered)" : ""}
@@ -539,12 +546,15 @@ export function ScheduleContent({
 																},
 																{} as Record<string, number>,
 															)
-															const divisionEntries = Object.entries(divisionCounts)
+															const divisionEntries =
+																Object.entries(divisionCounts)
 															const divisionSummary =
 																divisionEntries.length === 1
 																	? divisionEntries[0]?.[0]
 																	: divisionEntries
-																			.map(([label, count]) => `${count} ${label}`)
+																			.map(
+																				([label, count]) => `${count} ${label}`,
+																			)
 																			.join(", ")
 
 															return (
@@ -574,7 +584,9 @@ export function ScheduleContent({
 																			</span>
 																			{heat.scheduledTime && (
 																				<span className="text-sm text-muted-foreground tabular-nums">
-																					{formatTime(toDate(heat.scheduledTime))}
+																					{formatTime(
+																						toDate(heat.scheduledTime),
+																					)}
 																				</span>
 																			)}
 																			{heat.venue && (
@@ -583,11 +595,15 @@ export function ScheduleContent({
 																					{heat.venue.name}
 																				</span>
 																			)}
-																			{divisionSummary && heat.assignments.length > 0 && (
-																				<Badge variant="outline" className="text-xs tabular-nums">
-																					{divisionSummary}
-																				</Badge>
-																			)}
+																			{divisionSummary &&
+																				heat.assignments.length > 0 && (
+																					<Badge
+																						variant="outline"
+																						className="text-xs tabular-nums"
+																					>
+																						{divisionSummary}
+																					</Badge>
+																				)}
 																			{userInHeat && (
 																				<Badge className="bg-teal-500 text-xs">
 																					You're here
@@ -598,7 +614,8 @@ export function ScheduleContent({
 																					variant="outline"
 																					className="text-xs text-amber-500 border-amber-500"
 																				>
-																					{workout.event.heatStatus !== "published"
+																					{workout.event.heatStatus !==
+																					"published"
 																						? "Assignments coming soon"
 																						: "Assignments pending"}
 																				</Badge>
@@ -622,7 +639,8 @@ export function ScheduleContent({
 																				<div className="grid gap-2 md:hidden">
 																					{heat.assignments
 																						.sort(
-																							(a, b) => a.laneNumber - b.laneNumber,
+																							(a, b) =>
+																								a.laneNumber - b.laneNumber,
 																						)
 																						.map((assignment) => {
 																							const name = getCompetitorName(
@@ -634,8 +652,8 @@ export function ScheduleContent({
 																							const isMatch =
 																								checkMatch(name) ||
 																								checkMatch(
-																									assignment.registration.division
-																										?.label ?? "",
+																									assignment.registration
+																										.division?.label ?? "",
 																								) ||
 																								checkMatch(
 																									assignment.registration
@@ -675,13 +693,15 @@ export function ScheduleContent({
 																										</p>
 																										<p className="text-xs text-muted-foreground">
 																											{assignment.registration
-																												.affiliate || "Independent"}
+																												.affiliate ||
+																												"Independent"}
 																										</p>
 																										{assignment.registration
 																											.division && (
 																											<p className="text-xs text-teal-500">
 																												{
-																													assignment.registration
+																													assignment
+																														.registration
 																														.division.label
 																												}
 																											</p>
@@ -696,14 +716,17 @@ export function ScheduleContent({
 																				<div className="hidden md:block space-y-1">
 																					{/* Column Headers */}
 																					<div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-4 items-center px-2 pb-1 border-b border-border/50 text-xs text-muted-foreground uppercase tracking-wide">
-																						<span className="w-8 text-center">Lane</span>
+																						<span className="w-8 text-center">
+																							Lane
+																						</span>
 																						<span>Athlete</span>
 																						<span>Affiliate</span>
 																						<span>Division</span>
 																					</div>
 																					{heat.assignments
 																						.sort(
-																							(a, b) => a.laneNumber - b.laneNumber,
+																							(a, b) =>
+																								a.laneNumber - b.laneNumber,
 																						)
 																						.map((assignment) => {
 																							const name = getCompetitorName(
@@ -715,8 +738,8 @@ export function ScheduleContent({
 																							const isMatch =
 																								checkMatch(name) ||
 																								checkMatch(
-																									assignment.registration.division
-																										?.label ?? "",
+																									assignment.registration
+																										.division?.label ?? "",
 																								) ||
 																								checkMatch(
 																									assignment.registration
@@ -752,11 +775,12 @@ export function ScheduleContent({
 																									</span>
 																									<span className="text-sm text-muted-foreground truncate">
 																										{assignment.registration
-																											.affiliate || "Independent"}
+																											.affiliate ||
+																											"Independent"}
 																									</span>
 																									<span className="text-sm text-teal-500 truncate">
-																										{assignment.registration.division
-																											?.label || "—"}
+																										{assignment.registration
+																											.division?.label || "—"}
 																									</span>
 																								</div>
 																							)

@@ -51,16 +51,18 @@ async function fetchTagsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutTagsData = await autochunk({ items: workoutIds }, async (chunk) =>
-		db
-			.select({
-				workoutId: workoutTags.workoutId,
-				tagId: tags.id,
-				tagName: tags.name,
-			})
-			.from(workoutTags)
-			.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-			.where(inArray(workoutTags.workoutId, chunk)),
+	const workoutTagsData = await autochunk(
+		{ items: workoutIds },
+		async (chunk) =>
+			db
+				.select({
+					workoutId: workoutTags.workoutId,
+					tagId: tags.id,
+					tagName: tags.name,
+				})
+				.from(workoutTags)
+				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+				.where(inArray(workoutTags.workoutId, chunk)),
 	)
 
 	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
@@ -1499,7 +1501,10 @@ export async function getWorkoutScheduleHistory(
 				.where(
 					and(
 						isNotNull(scheduledWorkoutInstancesTable.workoutId),
-						inArray(scheduledWorkoutInstancesTable.workoutId, relatedWorkoutIds),
+						inArray(
+							scheduledWorkoutInstancesTable.workoutId,
+							relatedWorkoutIds,
+						),
 						inArray(scheduledWorkoutInstancesTable.teamId, chunk),
 					),
 				)

@@ -6,10 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-	parseScore,
-	type ParseResult,
-} from "@/utils/score-parser"
+import { parseScore, type ParseResult } from "@/utils/score-parser"
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
@@ -96,7 +93,11 @@ export function ScoreInputRow({
 	const isMultiRound = numRounds > 1
 
 	// Initialize round scores state
-	const initializeRoundScores = (): Array<{ score: string; parts?: [string, string]; timeCapped?: boolean }> => {
+	const initializeRoundScores = (): Array<{
+		score: string
+		parts?: [string, string]
+		timeCapped?: boolean
+	}> => {
 		if (value?.roundScores && value.roundScores.length === numRounds) {
 			return value.roundScores.map((rs) => ({
 				score: rs.score,
@@ -106,33 +107,39 @@ export function ScoreInputRow({
 		}
 		// Use existing sets data for multi-round or single-round rounds+reps
 		const existingSets = athlete.existingResult?.sets
-		if (existingSets && existingSets.length > 0 && (isMultiRound || isRoundsReps)) {
-			return Array(numRounds).fill(null).map((_, index) => {
-				const set = existingSets.find((s) => s.setNumber === index + 1)
-				if (set) {
-					// For rounds+reps format, score contains rounds and reps contains reps
-					if (isRoundsReps && set.reps !== null) {
+		if (
+			existingSets &&
+			existingSets.length > 0 &&
+			(isMultiRound || isRoundsReps)
+		) {
+			return Array(numRounds)
+				.fill(null)
+				.map((_, index) => {
+					const set = existingSets.find((s) => s.setNumber === index + 1)
+					if (set) {
+						// For rounds+reps format, score contains rounds and reps contains reps
+						if (isRoundsReps && set.reps !== null) {
+							return {
+								score: set.score !== null ? `${set.score}+${set.reps}` : "",
+								parts: [
+									set.score !== null ? String(set.score) : "",
+									set.reps !== null ? String(set.reps) : "",
+								] as [string, string],
+								timeCapped: false,
+							}
+						}
 						return {
-							score: set.score !== null ? `${set.score}+${set.reps}` : "",
-							parts: [
-								set.score !== null ? String(set.score) : "",
-								set.reps !== null ? String(set.reps) : "",
-							] as [string, string],
+							score: set.score !== null ? String(set.score) : "",
+							parts: undefined,
 							timeCapped: false,
 						}
 					}
 					return {
-						score: set.score !== null ? String(set.score) : "",
-						parts: undefined,
+						score: "",
+						parts: isRoundsReps ? (["", ""] as [string, string]) : undefined,
 						timeCapped: false,
 					}
-				}
-				return {
-					score: "",
-					parts: isRoundsReps ? ["", ""] as [string, string] : undefined,
-					timeCapped: false,
-				}
-			})
+				})
 		}
 		// Fallback: Try to parse existing result wodScore as JSON (legacy format)
 		const existingScore = athlete.existingResult?.wodScore
@@ -140,27 +147,32 @@ export function ScoreInputRow({
 			try {
 				const parsed = JSON.parse(existingScore)
 				if (Array.isArray(parsed) && parsed.length === numRounds) {
-					return parsed.map((s: string | { score: string; parts?: [string, string] }) => {
-						if (typeof s === "string") {
-							return { score: s, parts: undefined, timeCapped: false }
-						}
-						return { score: s.score, parts: s.parts, timeCapped: false }
-					})
+					return parsed.map(
+						(s: string | { score: string; parts?: [string, string] }) => {
+							if (typeof s === "string") {
+								return { score: s, parts: undefined, timeCapped: false }
+							}
+							return { score: s.score, parts: s.parts, timeCapped: false }
+						},
+					)
 				}
 			} catch {
 				// Not JSON, fall through to default
 			}
 		}
-		return Array(numRounds).fill(null).map(() => ({
-			score: "",
-			parts: isRoundsReps ? ["", ""] as [string, string] : undefined,
-			timeCapped: false,
-		}))
+		return Array(numRounds)
+			.fill(null)
+			.map(() => ({
+				score: "",
+				parts: isRoundsReps ? (["", ""] as [string, string]) : undefined,
+				timeCapped: false,
+			}))
 	}
 
 	const [roundScores, setRoundScores] = useState(initializeRoundScores)
 	const [inputValue, setInputValue] = useState(
-		value?.score || (isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
+		value?.score ||
+			(isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
 	)
 	const [tieBreakValue, setTieBreakValue] = useState(
 		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
@@ -184,8 +196,10 @@ export function ScoreInputRow({
 	const secondaryInputRef = useRef<HTMLInputElement>(null)
 
 	// Check if CAP was entered (for single-round time-capped workouts)
-	const isCapped = parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
-	const showSecondaryInput = isTimeCapped && isCapped && secondaryScheme && !isMultiRound
+	const isCapped =
+		parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
+	const showSecondaryInput =
+		isTimeCapped && isCapped && secondaryScheme && !isMultiRound
 
 	// Auto-focus on mount
 	useEffect(() => {
@@ -216,7 +230,11 @@ export function ScoreInputRow({
 	}
 
 	// Handle round score change (for multi-round)
-	const handleRoundScoreChange = (roundIndex: number, newValue: string, partIndex?: number) => {
+	const handleRoundScoreChange = (
+		roundIndex: number,
+		newValue: string,
+		partIndex?: number,
+	) => {
 		setRoundScores((prev) => {
 			const updated = [...prev]
 			const currentRound = updated[roundIndex]
@@ -226,10 +244,15 @@ export function ScoreInputRow({
 				const newParts: [string, string] = [...currentRound.parts]
 				newParts[partIndex] = newValue
 				// Combine parts into score string
-				const newScore = newParts[0] && newParts[1]
-					? `${newParts[0]}+${newParts[1]}`
-					: newParts[0] || ""
-				updated[roundIndex] = { ...currentRound, parts: newParts, score: newScore }
+				const newScore =
+					newParts[0] && newParts[1]
+						? `${newParts[0]}+${newParts[1]}`
+						: newParts[0] || ""
+				updated[roundIndex] = {
+					...currentRound,
+					parts: newParts,
+					score: newScore,
+				}
 			} else {
 				updated[roundIndex] = { ...currentRound, score: newValue }
 			}
@@ -241,10 +264,12 @@ export function ScoreInputRow({
 	const buildScoreString = (): string => {
 		if (isMultiRound) {
 			// Store as JSON array for multi-round
-			return JSON.stringify(roundScores.map((rs) => ({
-				score: rs.score,
-				parts: rs.parts,
-			})))
+			return JSON.stringify(
+				roundScores.map((rs) => ({
+					score: rs.score,
+					parts: rs.parts,
+				})),
+			)
 		}
 		return inputValue
 	}
@@ -278,10 +303,12 @@ export function ScoreInputRow({
 			secondaryScore: newSecondary,
 			formattedScore: parseResult?.formatted || finalScore,
 			rawValue: parseResult?.rawValue,
-			roundScores: isMultiRound ? roundScores.map((rs) => ({
-				score: rs.score,
-				parts: rs.parts,
-			})) : undefined,
+			roundScores: isMultiRound
+				? roundScores.map((rs) => ({
+						score: rs.score,
+						parts: rs.parts,
+					}))
+				: undefined,
 		})
 	}
 
@@ -293,7 +320,9 @@ export function ScoreInputRow({
 				activeEl === scoreInputRef.current ||
 				activeEl === tieBreakInputRef.current ||
 				activeEl === secondaryInputRef.current ||
-				Array.from(roundInputRefs.current.values()).includes(activeEl as HTMLInputElement)
+				Array.from(roundInputRefs.current.values()).includes(
+					activeEl as HTMLInputElement,
+				)
 
 			if (!isMovingToRelatedField) {
 				submitScore()
@@ -377,16 +406,23 @@ export function ScoreInputRow({
 		<div
 			className={cn(
 				"grid items-center gap-3 border-b p-3 transition-colors",
-				showTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]",
-				isInvalidWarning && "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
-				hasWarning && !isInvalidWarning && "bg-amber-50 dark:bg-amber-950/20 border-amber-300",
-				isSaved && !isInvalidWarning && !hasWarning && "bg-green-50 dark:bg-green-950/20",
+				showTiebreak
+					? "grid-cols-[60px_1fr_2fr_1fr_100px]"
+					: "grid-cols-[60px_1fr_2fr_100px]",
+				isInvalidWarning &&
+					"bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
+				hasWarning &&
+					!isInvalidWarning &&
+					"bg-amber-50 dark:bg-amber-950/20 border-amber-300",
+				isSaved &&
+					!isInvalidWarning &&
+					!hasWarning &&
+					"bg-green-50 dark:bg-green-950/20",
 			)}
 		>
 			{/* Lane / Index */}
 			<div className="text-center font-semibold text-muted-foreground">
-				{/* No lanes in MVP - just show dash */}
-				-
+				{/* No lanes in MVP - just show dash */}-
 			</div>
 
 			{/* Athlete Name */}
@@ -413,7 +449,10 @@ export function ScoreInputRow({
 									const val = e.target.value
 									const numVal = parseInt(val, 10)
 									// Validate doesn't exceed total rounds
-									if (val !== "" && (Number.isNaN(numVal) || numVal > numRounds || numVal < 0)) {
+									if (
+										val !== "" &&
+										(Number.isNaN(numVal) || numVal > numRounds || numVal < 0)
+									) {
 										return
 									}
 									setInputValue(val)
@@ -435,7 +474,10 @@ export function ScoreInputRow({
 					<div className="space-y-2">
 						{roundScores.map((roundScore, roundIndex) => (
 							// biome-ignore lint/suspicious/noArrayIndexKey: rounds are fixed order and count
-							<div key={`round-${roundIndex}`} className="flex items-center gap-2">
+							<div
+								key={`round-${roundIndex}`}
+								className="flex items-center gap-2"
+							>
 								<span className="text-xs text-muted-foreground w-10 shrink-0">
 									R{roundIndex + 1}:
 								</span>
@@ -448,12 +490,16 @@ export function ScoreInputRow({
 											}}
 											type="number"
 											value={roundScore.parts[0]}
-											onChange={(e) => handleRoundScoreChange(roundIndex, e.target.value, 0)}
+											onChange={(e) =>
+												handleRoundScoreChange(roundIndex, e.target.value, 0)
+											}
 											onKeyDown={(e) => {
 												if (e.key === "Tab" && !e.shiftKey) {
 													e.preventDefault()
 													// Move to reps input
-													roundInputRefs.current.get(roundIndex * 2 + 1)?.focus()
+													roundInputRefs.current
+														.get(roundIndex * 2 + 1)
+														?.focus()
 												} else if (e.key === "Enter") {
 													handleKeyDown(e, "score", roundIndex)
 												}
@@ -466,14 +512,19 @@ export function ScoreInputRow({
 										<span className="text-muted-foreground">+</span>
 										<Input
 											ref={(el) => {
-												if (el) roundInputRefs.current.set(roundIndex * 2 + 1, el)
+												if (el)
+													roundInputRefs.current.set(roundIndex * 2 + 1, el)
 											}}
 											type="number"
 											value={roundScore.parts[1]}
-											onChange={(e) => handleRoundScoreChange(roundIndex, e.target.value, 1)}
+											onChange={(e) =>
+												handleRoundScoreChange(roundIndex, e.target.value, 1)
+											}
 											onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
 											onBlur={() => handleBlur("round")}
-											placeholder={repsPerRound ? `Reps (max ${repsPerRound - 1})` : "Reps"}
+											placeholder={
+												repsPerRound ? `Reps (max ${repsPerRound - 1})` : "Reps"
+											}
 											min="0"
 											max={repsPerRound ? repsPerRound - 1 : undefined}
 											className="h-8 text-sm font-mono w-24"
@@ -486,11 +537,14 @@ export function ScoreInputRow({
 											if (el) roundInputRefs.current.set(roundIndex, el)
 										}}
 										value={roundScore.score}
-										onChange={(e) => handleRoundScoreChange(roundIndex, e.target.value)}
+										onChange={(e) =>
+											handleRoundScoreChange(roundIndex, e.target.value)
+										}
 										onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
 										onBlur={() => handleBlur("round")}
 										placeholder={
-											workoutScheme === "time" || workoutScheme === "time-with-cap"
+											workoutScheme === "time" ||
+											workoutScheme === "time-with-cap"
 												? "e.g. 3:45"
 												: "Score"
 										}
@@ -531,7 +585,9 @@ export function ScoreInputRow({
 							onChange={(e) => handleRoundScoreChange(0, e.target.value, 1)}
 							onKeyDown={(e) => handleKeyDown(e, "score")}
 							onBlur={() => handleBlur("round")}
-							placeholder={repsPerRound ? `Reps (max ${repsPerRound - 1})` : "Reps"}
+							placeholder={
+								repsPerRound ? `Reps (max ${repsPerRound - 1})` : "Reps"
+							}
 							min="0"
 							max={repsPerRound ? repsPerRound - 1 : undefined}
 							className="h-10 text-base font-mono w-32"
@@ -550,7 +606,9 @@ export function ScoreInputRow({
 							className={cn(
 								"h-10 text-base font-mono",
 								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
-								hasWarning && !isInvalidWarning && "border-amber-400 focus:ring-amber-400",
+								hasWarning &&
+									!isInvalidWarning &&
+									"border-amber-400 focus:ring-amber-400",
 							)}
 						/>
 						{parseResult?.isValid && !showSecondaryInput && (
@@ -625,9 +683,7 @@ export function ScoreInputRow({
 						onChange={(e) => setTieBreakValue(e.target.value)}
 						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
 						onBlur={() => handleBlur("tieBreak")}
-						placeholder={
-							tiebreakScheme === "time" ? "Time..." : "Reps..."
-						}
+						placeholder={tiebreakScheme === "time" ? "Time..." : "Reps..."}
 						className="h-10 text-base font-mono"
 					/>
 				</div>
@@ -658,7 +714,9 @@ export function ScoreInputRow({
 						)
 					}
 					if (hasInput) {
-						return <span className="text-sm text-muted-foreground">Pending</span>
+						return (
+							<span className="text-sm text-muted-foreground">Pending</span>
+						)
 					}
 					return <span className="text-sm text-muted-foreground">-</span>
 				})()}
