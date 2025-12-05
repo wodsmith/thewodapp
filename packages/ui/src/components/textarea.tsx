@@ -1,0 +1,27 @@
+import * as React from "react"
+
+import { cn } from "../lib/utils"
+
+/**
+ * Textarea component following WODsmith Design System
+ * - Standard padding and border styling
+ * - Orange focus ring
+ */
+const Textarea = React.forwardRef<
+	HTMLTextAreaElement,
+	React.ComponentProps<"textarea">
+>(({ className, ...props }, ref) => {
+	return (
+		<textarea
+			className={cn(
+				"flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-base transition-colors duration-200 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+				className,
+			)}
+			ref={ref}
+			{...props}
+		/>
+	)
+})
+Textarea.displayName = "Textarea"
+
+export { Textarea }

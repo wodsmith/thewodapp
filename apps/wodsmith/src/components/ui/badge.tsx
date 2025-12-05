@@ -3,23 +3,34 @@ import type * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Badge variants following WODsmith Design System
+ * - Text-xs with font-medium
+ * - Colored backgrounds: orange (active), gray (neutral), green (success), yellow (warning), red (error)
+ */
 const badgeVariants = cva(
-	"inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded",
+	"inline-flex items-center rounded px-2 py-0.5 text-xs font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2",
 	{
 		variants: {
 			variant: {
 				default:
-					"border-transparent bg-black dark:bg-primary text-primary-foreground hover:bg-primary/80",
+					"bg-orange-500 text-white",
 				secondary:
-					"border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+					"border border-border bg-secondary text-secondary-foreground",
 				destructive:
-					"border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-				outline: "text-foreground",
-				rx: "border-transparent bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+					"bg-error-100 text-error-600 dark:bg-error-900/30 dark:text-error-500",
+				outline: "border border-border text-foreground bg-transparent",
+				success:
+					"bg-success-100 text-success-600 dark:bg-success-900/30 dark:text-success-500",
+				warning:
+					"bg-warning-100 text-warning-600 dark:bg-warning-900/30 dark:text-warning-500",
+				info:
+					"bg-info-100 text-info-600 dark:bg-info-900/30 dark:text-info-500",
+				rx: "bg-success-100 text-success-600 dark:bg-success-900/30 dark:text-success-500",
 				"rx+":
-					"border-transparent bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+					"bg-error-100 text-error-600 dark:bg-error-900/30 dark:text-error-500",
 				scaled:
-					"border-transparent bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+					"bg-warning-100 text-warning-600 dark:bg-warning-900/30 dark:text-warning-500",
 			},
 			clickable: {
 				true: "",
@@ -30,38 +41,32 @@ const badgeVariants = cva(
 			{
 				variant: "default",
 				clickable: true,
-				className:
-					"hover:bg-primary/80 hover:dark:text-secondary-foreground dark:text-muted-foreground",
+				className: "hover:bg-orange-600 cursor-pointer",
 			},
 			{
 				variant: "secondary",
 				clickable: true,
-				className:
-					"hover:bg-border dark:hover:bg-secondary hover:dark:text-secondary-foreground dark:text-muted-foreground",
+				className: "hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-900/30 dark:hover:text-orange-400 cursor-pointer",
 			},
 			{
 				variant: "destructive",
 				clickable: true,
-				className:
-					"hover:bg-destructive/80 hover:dark:text-secondary-foreground dark:text-muted-foreground",
+				className: "hover:bg-error-200 dark:hover:bg-error-800/40 cursor-pointer",
 			},
 			{
 				variant: "rx",
 				clickable: true,
-				className:
-					"hover:bg-green-200 dark:hover:bg-green-800 hover:dark:text-secondary-foreground dark:text-muted-foreground",
+				className: "hover:bg-success-200 dark:hover:bg-success-800/40 cursor-pointer",
 			},
 			{
 				variant: "rx+",
 				clickable: true,
-				className:
-					"hover:bg-red-200 dark:hover:bg-red-800 hover:dark:text-secondary-foreground dark:text-muted-foreground",
+				className: "hover:bg-error-200 dark:hover:bg-error-800/40 cursor-pointer",
 			},
 			{
 				variant: "scaled",
 				clickable: true,
-				className:
-					"hover:bg-yellow-200 dark:hover:bg-yellow-800 hover:dark:text-secondary-foreground dark:text-muted-foreground",
+				className: "hover:bg-warning-200 dark:hover:bg-warning-800/40 cursor-pointer",
 			},
 		],
 		defaultVariants: {

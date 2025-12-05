@@ -1,0 +1,35 @@
+/*
+ * WODsmith UI - Main Stylesheet
+ * Import this file in your app's global CSS
+ */
+
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================================
+ * COMPONENT LAYER STYLES
+ * =========================================== */
+
+@layer components {
+	/* Standard focus ring for all interactive elements */
+	.focus-visible-ring {
+		@apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2;
+	}
+
+	/* Card with left border indicator */
+	.card-indicator {
+		@apply border-l-[3px] border-l-transparent transition-all duration-200;
+	}
+
+	.card-indicator:hover {
+		@apply border-l-orange-500;
+	}
+
+	/* Standard transition for interactive elements */
+	.interactive {
+		@apply transition-colors duration-200;
+	}
+}
