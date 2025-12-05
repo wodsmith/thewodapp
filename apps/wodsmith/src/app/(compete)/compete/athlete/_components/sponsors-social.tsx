@@ -9,15 +9,19 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import type { Sponsor } from "@/db/schema"
 import type { AthleteProfileData } from "@/utils/athlete-profile"
 
 type SponsorsSocialProps = {
 	athleteProfile: AthleteProfileData | null
+	sponsors: Sponsor[]
 }
 
-export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
+export function SponsorsSocial({
+	athleteProfile,
+	sponsors,
+}: SponsorsSocialProps) {
 	const social = athleteProfile?.social
-	const sponsors = athleteProfile?.sponsors
 
 	const hasSocialLinks =
 		social?.facebook || social?.instagram || social?.twitter || social?.tiktok

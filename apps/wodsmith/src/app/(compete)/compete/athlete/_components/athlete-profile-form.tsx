@@ -3,11 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { useFieldArray, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import type * as z from "zod"
 import { useServerAction } from "@repo/zsa-react"
-import { Trash2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -103,11 +102,8 @@ export function AthleteProfileForm({
 
 	const preferredUnits = form.watch("preferredUnits")
 
-	// Field array for sponsors
-	const { fields, append, remove } = useFieldArray({
-		control: form.control,
-		name: "sponsors",
-	})
+	// Note: Sponsors are now managed in the sponsors table via separate UI
+	// See: getUserSponsorsAction, createSponsorAction, etc.
 
 	// Helper to find suggestion for a metcon
 	const getSuggestion = (metconName: string) => {
@@ -1135,101 +1131,8 @@ export function AthleteProfileForm({
 					</CardContent>
 				</Card>
 
-				{/* Sponsors */}
-				<Card>
-					<CardHeader>
-						<div className="flex items-start justify-between">
-							<div>
-								<CardTitle>Sponsors</CardTitle>
-								<CardDescription>
-									Add brands and partners that support you
-								</CardDescription>
-							</div>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => append({ name: "", logoUrl: "", website: "" })}
-							>
-								<Plus className="mr-2 h-4 w-4" />
-								Add Sponsor
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{fields.length === 0 ? (
-							<p className="text-muted-foreground text-sm">
-								No sponsors added yet. Click "Add Sponsor" to get started.
-							</p>
-						) : (
-							fields.map((field, index) => (
-								<div
-									key={field.id}
-									className="border-muted space-y-4 rounded-lg border p-4"
-								>
-									<div className="flex items-center justify-between">
-										<h4 className="font-semibold">Sponsor {index + 1}</h4>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={() => remove(index)}
-										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
-									</div>
-
-									<div className="grid gap-4 sm:grid-cols-2">
-										<FormField
-											control={form.control}
-											name={`sponsors.${index}.name`}
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Sponsor Name</FormLabel>
-													<FormControl>
-														<Input placeholder="Nike" {...field} />
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name={`sponsors.${index}.logoUrl`}
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Logo URL (optional)</FormLabel>
-													<FormControl>
-														<Input
-															placeholder="https://example.com/logo.png"
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</div>
-
-									<FormField
-										control={form.control}
-										name={`sponsors.${index}.website`}
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>Website (optional)</FormLabel>
-												<FormControl>
-													<Input placeholder="https://example.com" {...field} />
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-								</div>
-							))
-						)}
-					</CardContent>
-				</Card>
+				{/* Note: Sponsors section removed - now managed via separate sponsors UI */}
+				{/* TODO: Add link to sponsor management page when built */}
 
 				{/* Form Actions */}
 				<div className="flex justify-end gap-4">
