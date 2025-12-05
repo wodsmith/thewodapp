@@ -197,7 +197,7 @@ export function EventDetailsForm({
 	return (
 		<Form {...form}>
 			<form
-				id="event-details-form"
+				id={EVENT_DETAILS_FORM_ID}
 				onSubmit={form.handleSubmit(onSubmit)}
 				className="space-y-6"
 			>
