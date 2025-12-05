@@ -47,10 +47,10 @@ export const signInAction = createServerAction()
 					throw new ZSAError("NOT_AUTHORIZED", "Invalid email or password")
 				}
 
-				// Create session
-				await createAndStoreSession(user.id, "password")
+			// Create session
+			await createAndStoreSession(user.id, "password")
 
-				return { success: true }
+			return { success: true, userId: user.id }
 			} catch (error) {
 				console.error(error)
 

@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -63,9 +64,20 @@ export function OrganizerSeriesForm({
 		{
 			onError: (error) => {
 				toast.error(error.err?.message || "Failed to create series")
+				posthog.capture("competition_series_created_failed", {
+					error_message: error.err?.message,
+					organizing_team_id: form.getValues("teamId"),
+				})
 			},
-			onSuccess: () => {
+			onSuccess: (result) => {
 				toast.success("Series created successfully")
+				const seriesData = result?.data?.data
+				posthog.capture("competition_series_created", {
+					series_id: seriesData?.groupId,
+					series_name: form.getValues("name"),
+					series_slug: form.getValues("slug"),
+					organizing_team_id: form.getValues("teamId"),
+				})
 				router.push("/compete/organizer/series")
 				router.refresh()
 			},

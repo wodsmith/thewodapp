@@ -5,21 +5,26 @@ import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionsTable,
+	createWorkoutScalingDescriptionId,
 	type EventStatus,
 	type HeatStatus,
 	movements,
-	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
+	programmingTracksTable,
+	type SecondaryScheme,
 	scalingLevelsTable,
+	type TiebreakScheme,
 	tags,
 	trackWorkoutsTable,
-	workoutMovements,
-	workouts,
-	workoutScalingDescriptionsTable,
-	workoutTags,
 	type Workout,
+	type WorkoutScheme,
+	type ScoreType,
+	workoutMovements,
+	workoutScalingDescriptionsTable,
+	workouts,
+	workoutTags,
 } from "@/db/schema"
-import { autochunk } from "@/utils/batch-query"
+import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 export interface DivisionDescription {
 	divisionId: string
@@ -585,108 +590,167 @@ export async function createCompetitionEvent(params: {
 }
 
 /**
- * Update a competition event's workout details
+ * Save all competition event details in a single operation.
+ * This consolidates workout updates, track workout updates, and division descriptions
+ * into a single server call for better performance.
  */
-export async function updateCompetitionEventWorkout(params: {
+export async function saveCompetitionEvent(params: {
+	trackWorkoutId: string
 	workoutId: string
-	name?: string
+	teamId: string
+	// Workout fields
+	name: string
 	description?: string
-	scheme?: string
-	scoreType?: string | null
+	scheme: WorkoutScheme
+	scoreType?: ScoreType | null 
 	roundsToScore?: number | null
 	repsPerRound?: number | null
-	tiebreakScheme?: "time" | "reps" | null
-	timeCap?: number | null // Time cap in seconds
-	secondaryScheme?:
-		| "time"
-		| "pass-fail"
-		| "rounds-reps"
-		| "reps"
-		| "emom"
-		| "load"
-		| "calories"
-		| "meters"
-		| "feet"
-		| "points"
-		| null
-	tagIds?: string[]
+	tiebreakScheme?: TiebreakScheme | null
+	timeCap?: number | null
+	secondaryScheme?: SecondaryScheme | null
 	movementIds?: string[]
+	// Track workout fields
+	pointsMultiplier?: number
+	notes?: string | null
+	// Division descriptions
+	divisionDescriptions?: Array<{
+		divisionId: string
+		description: string | null
+	}>
 }): Promise<void> {
 	const db = getDb()
 
-	const updateData: Record<string, unknown> = {
+	// 1. Update workout table
+	const workoutUpdateData: Record<string, unknown> = {
+		name: params.name,
 		updatedAt: new Date(),
 	}
 
-	if (params.name !== undefined) {
-		updateData.name = params.name
-	}
 	if (params.description !== undefined) {
-		updateData.description = params.description
+		workoutUpdateData.description = params.description
 	}
 	if (params.scheme !== undefined) {
-		updateData.scheme = params.scheme
+		workoutUpdateData.scheme = params.scheme
 	}
 	if (params.scoreType !== undefined) {
-		updateData.scoreType = params.scoreType
+		workoutUpdateData.scoreType = params.scoreType
 	}
 	if (params.roundsToScore !== undefined) {
-		updateData.roundsToScore = params.roundsToScore
+		workoutUpdateData.roundsToScore = params.roundsToScore
 	}
 	if (params.repsPerRound !== undefined) {
-		updateData.repsPerRound = params.repsPerRound
+		workoutUpdateData.repsPerRound = params.repsPerRound
 	}
 	if (params.tiebreakScheme !== undefined) {
-		updateData.tiebreakScheme = params.tiebreakScheme
+		workoutUpdateData.tiebreakScheme = params.tiebreakScheme
 	}
 	if (params.timeCap !== undefined) {
-		updateData.timeCap = params.timeCap
+		workoutUpdateData.timeCap = params.timeCap
 	}
 	if (params.secondaryScheme !== undefined) {
-		updateData.secondaryScheme = params.secondaryScheme
+		workoutUpdateData.secondaryScheme = params.secondaryScheme
 	}
 
 	await db
 		.update(workouts)
-		.set(updateData)
+		.set(workoutUpdateData)
 		.where(eq(workouts.id, params.workoutId))
 
-	// Update tags if provided
-	if (params.tagIds !== undefined) {
-		// Delete existing tags
-		await db
-			.delete(workoutTags)
-			.where(eq(workoutTags.workoutId, params.workoutId))
-
-		// Insert new tags (filter out any new_tag_ prefixed ids)
-		const tagIds = params.tagIds.filter((id) => !id.startsWith("new_tag_"))
-		if (tagIds.length > 0) {
-			await db.insert(workoutTags).values(
-				tagIds.map((tagId) => ({
-					id: `workout_tag_${createId()}`,
-					workoutId: params.workoutId,
-					tagId,
-				})),
-			)
-		}
-	}
-
-	// Update movements if provided
+	// 2. Update movements if provided
 	if (params.movementIds !== undefined) {
 		// Delete existing movements
 		await db
 			.delete(workoutMovements)
 			.where(eq(workoutMovements.workoutId, params.workoutId))
 
-		// Insert new movements
+		// Insert new movements in batches
 		if (params.movementIds.length > 0) {
-			await db.insert(workoutMovements).values(
-				params.movementIds.map((movementId) => ({
-					id: `workout_movement_${createId()}`,
+			const movementValues = params.movementIds.map((movementId) => ({
+				id: `workout_movement_${createId()}`,
+				workoutId: params.workoutId,
+				movementId,
+			}))
+
+			// Each movement insert has 3 params, so batch ~33 at a time
+			const movementBatches = chunk(movementValues, 33)
+			for (const batch of movementBatches) {
+				await db.insert(workoutMovements).values(batch)
+			}
+		}
+	}
+
+	// 3. Update track workout (pointsMultiplier, notes)
+	const trackWorkoutUpdateData: Record<string, unknown> = {
+		updatedAt: new Date(),
+	}
+
+	if (params.pointsMultiplier !== undefined) {
+		trackWorkoutUpdateData.pointsMultiplier = params.pointsMultiplier
+	}
+	if (params.notes !== undefined) {
+		trackWorkoutUpdateData.notes = params.notes
+	}
+
+	await db
+		.update(trackWorkoutsTable)
+		.set(trackWorkoutUpdateData)
+		.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+
+	// 4. Update division descriptions using upsert with ON CONFLICT
+	if (params.divisionDescriptions && params.divisionDescriptions.length > 0) {
+		// Separate null descriptions (to delete) from non-null (to upsert)
+		const toDelete: string[] = []
+		const toUpsert: Array<{
+			divisionId: string
+			description: string
+		}> = []
+
+		for (const { divisionId, description } of params.divisionDescriptions) {
+			if (description === null) {
+				toDelete.push(divisionId)
+			} else {
+				toUpsert.push({ divisionId, description })
+			}
+		}
+
+		// Delete descriptions that are explicitly null
+		if (toDelete.length > 0) {
+			// Batch delete by divisionId
+			const deleteBatches = chunk(toDelete, SQL_BATCH_SIZE)
+			for (const batch of deleteBatches) {
+				await db
+					.delete(workoutScalingDescriptionsTable)
+					.where(
+						and(
+							eq(workoutScalingDescriptionsTable.workoutId, params.workoutId),
+							inArray(workoutScalingDescriptionsTable.scalingLevelId, batch),
+						),
+					)
+			}
+		}
+
+		// Upsert descriptions that have values
+		// Using individual upserts since D1 doesn't support batch upsert well
+		// Each upsert has ~4 params (id, workoutId, scalingLevelId, description)
+		for (const { divisionId, description } of toUpsert) {
+			await db
+				.insert(workoutScalingDescriptionsTable)
+				.values({
+					id: createWorkoutScalingDescriptionId(),
 					workoutId: params.workoutId,
-					movementId,
-				})),
-			)
+					scalingLevelId: divisionId,
+					description,
+				})
+				.onConflictDoUpdate({
+					target: [
+						workoutScalingDescriptionsTable.workoutId,
+						workoutScalingDescriptionsTable.scalingLevelId,
+					],
+					set: {
+						description,
+						updatedAt: new Date(),
+					},
+				})
 		}
 	}
 }

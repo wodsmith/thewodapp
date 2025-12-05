@@ -5,6 +5,7 @@ import { format } from "date-fns"
 import { ArrowLeft, CalendarIcon, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -122,10 +123,23 @@ export default function CreateWorkoutClient({
 				toast.error(
 					error.err?.message || "An error occurred creating the workout",
 				)
+				posthog.capture("workout_created_failed", {
+					error_message: error.err?.message,
+				})
 			},
 			onSuccess: (result) => {
 				console.log("[DEBUG] Create workout result:", result)
 				toast.success("Workout created successfully")
+				posthog.capture("workout_created", {
+					workout_id: result?.data?.data?.id,
+					workout_name: form.getValues("name"),
+					workout_scheme: form.getValues("scheme"),
+					workout_scope: form.getValues("scope"),
+					has_track: !!form.getValues("trackId"),
+					has_scheduled_date: !!form.getValues("scheduledDate"),
+					movements_count: form.getValues("selectedMovements").length,
+					tags_count: form.getValues("selectedTags").length,
+				})
 				if (result?.data?.data?.id) {
 					router.push(`/workouts/${result.data.data.id}`)
 				} else {

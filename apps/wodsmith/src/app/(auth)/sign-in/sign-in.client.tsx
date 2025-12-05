@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { startAuthentication } from "@simplewebauthn/browser"
 import { KeyIcon } from "lucide-react"
 import Link from "next/link"
+import posthog from "posthog-js"
 import { type ReactNode, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -61,12 +62,23 @@ function PasskeyAuthenticationButton({
 			onError: (error) => {
 				toast.dismiss()
 				toast.error(error.err?.message || "Authentication failed")
+				posthog.capture("user_signed_in_failed", {
+					error_message: error.err?.message,
+					auth_method: "passkey",
+				})
 			},
-			onSuccess: () => {
-				toast.dismiss()
-				toast.success("Authentication successful")
-				window.location.href = redirectPath
-			},
+		onSuccess: (result) => {
+			toast.dismiss()
+			toast.success("Authentication successful")
+			if (result?.data?.userId) {
+				posthog.identify(result.data.userId)
+			}
+			posthog.capture("user_signed_in", {
+				auth_method: "passkey",
+				user_id: result?.data?.userId,
+			})
+			window.location.href = redirectPath
+		},
 		},
 	)
 
@@ -121,13 +133,28 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 		onError: (error) => {
 			toast.dismiss()
 			toast.error(error.err?.message)
+			posthog.capture("user_signed_in_failed", {
+				error_message: error.err?.message,
+				auth_method: "email_password",
+			})
 		},
 		onStart: () => {
 			toast.loading("Signing you in...")
 		},
-		onSuccess: () => {
+		onSuccess: (result) => {
 			toast.dismiss()
 			toast.success("Signed in successfully")
+			// Identify the user in PostHog
+			const userId = result?.data?.userId
+			if (userId) {
+				posthog.identify(userId, {
+					email: form.getValues("email"),
+				})
+			}
+			posthog.capture("user_signed_in", {
+				auth_method: "email_password",
+				user_id: userId,
+			})
 			window.location.href = redirectPath
 		},
 	})

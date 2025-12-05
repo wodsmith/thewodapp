@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -80,6 +81,9 @@ export function AthleteProfileForm({
 			onError: (error) => {
 				toast.dismiss()
 				toast.error(error.err?.message || "Failed to update profile")
+				posthog.capture("athlete_profile_updated_failed", {
+					error_message: error.err?.message,
+				})
 			},
 			onStart: () => {
 				toast.loading("Saving profile...")
@@ -87,6 +91,26 @@ export function AthleteProfileForm({
 			onSuccess: () => {
 				toast.dismiss()
 				toast.success("Profile updated successfully")
+				posthog.capture("athlete_profile_updated", {
+					has_physical_stats: !!(
+						form.getValues("heightCm") || form.getValues("weightKg")
+					),
+					has_conditioning_times: !!(
+						form.getValues("conditioning.fran.time") ||
+						form.getValues("conditioning.grace.time") ||
+						form.getValues("conditioning.helen.time")
+					),
+					has_strength_lifts: !!(
+						form.getValues("strength.backSquat.weight") ||
+						form.getValues("strength.deadlift.weight") ||
+						form.getValues("strength.snatch.weight")
+					),
+					has_social_links: !!(
+						form.getValues("social.instagram") ||
+						form.getValues("social.facebook")
+					),
+					sponsors_count: form.getValues("sponsors")?.length || 0,
+				})
 				router.push("/compete/athlete")
 				router.refresh()
 			},
