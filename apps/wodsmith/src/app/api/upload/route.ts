@@ -13,6 +13,10 @@ const PURPOSE_CONFIG: Record<
 > = {
 	"competition-profile": { maxSizeMb: 5, pathPrefix: "competitions/profiles" },
 	"competition-banner": { maxSizeMb: 5, pathPrefix: "competitions/banners" },
+	"competition-sponsor-logo": {
+		maxSizeMb: 2,
+		pathPrefix: "competitions/sponsors",
+	},
 	"athlete-profile": { maxSizeMb: 2, pathPrefix: "athletes/profiles" },
 	"athlete-cover": { maxSizeMb: 5, pathPrefix: "athletes/covers" },
 	"sponsor-logo": { maxSizeMb: 2, pathPrefix: "sponsors/logos" },
@@ -37,7 +41,10 @@ async function checkUploadAuthorization(
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
 		if (!hasPermission) {
-			return { authorized: false, error: "Not authorized to upload for this competition" }
+			return {
+				authorized: false,
+				error: "Not authorized to upload for this competition",
+			}
 		}
 		return { authorized: true }
 	}
@@ -45,7 +52,10 @@ async function checkUploadAuthorization(
 	// Athlete uploads can only be for the current user
 	if (purpose.startsWith("athlete-") && entityId) {
 		if (entityId !== userId) {
-			return { authorized: false, error: "Not authorized to upload for this athlete" }
+			return {
+				authorized: false,
+				error: "Not authorized to upload for this athlete",
+			}
 		}
 		return { authorized: true }
 	}
@@ -82,7 +92,11 @@ export async function POST(request: Request) {
 	}
 
 	// Authorization check
-	const authCheck = await checkUploadAuthorization(purpose, entityId, session.user.id)
+	const authCheck = await checkUploadAuthorization(
+		purpose,
+		entityId,
+		session.user.id,
+	)
 	if (!authCheck.authorized) {
 		return NextResponse.json(
 			{ error: authCheck.error || "Forbidden" },
