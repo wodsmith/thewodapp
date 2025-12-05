@@ -351,6 +351,13 @@
       "when": 1733169600002,
       "tag": "0049_add_competition_result_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1733313600000,
+      "tag": "0050_add-unique-workout-scaling-desc",
+      "breakpoints": true
     }
   ]
 }
