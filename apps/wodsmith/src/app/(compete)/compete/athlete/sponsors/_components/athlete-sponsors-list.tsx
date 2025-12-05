@@ -12,13 +12,7 @@ import {
 	updateSponsorAction,
 } from "@/actions/sponsors.actions"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { Sponsor } from "@/db/schema"
 import { AthleteSponsorFormDialog } from "./athlete-sponsor-form-dialog"
 

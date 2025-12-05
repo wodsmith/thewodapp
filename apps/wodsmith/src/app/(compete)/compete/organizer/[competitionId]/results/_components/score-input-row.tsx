@@ -472,10 +472,9 @@ export function ScoreInputRow({
 				) : isMultiRound ? (
 					/* Multi-Round Scoring */
 					<div className="space-y-2">
-						{roundScores.map((roundScore, roundIndex) => (
-							// biome-ignore lint/suspicious/noArrayIndexKey: rounds are fixed order and count
-							<div
-								key={`round-${roundIndex}`}
+					{roundScores.map((roundScore, roundIndex) => (
+						<div
+							key={`round-${roundIndex}`}
 								className="flex items-center gap-2"
 							>
 								<span className="text-xs text-muted-foreground w-10 shrink-0">

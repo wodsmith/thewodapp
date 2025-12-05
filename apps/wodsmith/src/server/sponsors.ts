@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, asc, eq, isNull } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	type Sponsor,
@@ -383,7 +383,7 @@ export async function createSponsor({
 			.where(
 				competitionId
 					? eq(sponsorsTable.competitionId, competitionId)
-					: eq(sponsorsTable.userId, userId!),
+					: eq(sponsorsTable.userId, userId as string),
 			)
 
 		order = existingSponsors.length
@@ -414,8 +414,6 @@ export async function createSponsor({
  */
 export async function updateSponsor({
 	sponsorId,
-	competitionId,
-	userId,
 	groupId,
 	name,
 	logoUrl,
@@ -423,8 +421,6 @@ export async function updateSponsor({
 	displayOrder,
 }: {
 	sponsorId: string
-	competitionId?: string
-	userId?: string
 	groupId?: string | null
 	name?: string
 	logoUrl?: string | null
@@ -480,12 +476,8 @@ export async function updateSponsor({
  */
 export async function deleteSponsor({
 	sponsorId,
-	competitionId,
-	userId,
 }: {
 	sponsorId: string
-	competitionId?: string
-	userId?: string
 }): Promise<{ success: boolean; error?: string }> {
 	const db = getDb()
 
