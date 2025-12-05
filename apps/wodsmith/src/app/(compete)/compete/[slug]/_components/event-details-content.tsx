@@ -92,6 +92,57 @@ export function EventDetailsContent({
 				)}
 			</section>
 
+			{/* Sponsors Section - only show if there are sponsors */}
+			{hasSponsors && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<Trophy className="h-5 w-5 text-muted-foreground" />
+						<h2 className="text-xl font-semibold">Sponsors</h2>
+					</div>
+					<Separator className="mb-4" />
+					<div className="space-y-8">
+						{/* Grouped sponsors */}
+						{sponsors.groups.map((group) => {
+							const isFeatured = group.sponsors.length === 1
+							return (
+								<div key={group.id}>
+									<h3 className="text-lg font-medium mb-4">{group.name}</h3>
+									<div
+										className={`grid gap-4 ${
+											isFeatured
+												? "grid-cols-1 max-w-sm"
+												: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+										}`}
+									>
+										{group.sponsors.map((sponsor) => (
+											<SponsorCard
+												key={sponsor.id}
+												sponsor={sponsor}
+												featured={isFeatured}
+											/>
+										))}
+									</div>
+								</div>
+							)
+						})}
+
+						{/* Ungrouped sponsors */}
+						{sponsors.ungroupedSponsors.length > 0 && (
+							<div>
+								{sponsors.groups.length > 0 && (
+									<h3 className="text-lg font-medium mb-4">Partners</h3>
+								)}
+								<div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+									{sponsors.ungroupedSponsors.map((sponsor) => (
+										<SponsorCard key={sponsor.id} sponsor={sponsor} />
+									))}
+								</div>
+							</div>
+						)}
+					</div>
+				</section>
+			)}
+
 			{/* Divisions Section */}
 			<section>
 				<div className="flex items-center gap-2 mb-4">
@@ -208,64 +259,6 @@ export function EventDetailsContent({
 				</Card>
 			</section>
 
-			{/* Sponsors Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Trophy className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Sponsors</h2>
-				</div>
-				<Separator className="mb-4" />
-				{hasSponsors ? (
-					<div className="space-y-8">
-						{/* Grouped sponsors */}
-						{sponsors.groups.map((group) => {
-							const isFeatured = group.sponsors.length === 1
-							return (
-								<div key={group.id}>
-									<h3 className="text-lg font-medium mb-4">{group.name}</h3>
-									<div
-										className={`grid gap-4 ${
-											isFeatured
-												? "grid-cols-1 max-w-sm"
-												: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-										}`}
-									>
-										{group.sponsors.map((sponsor) => (
-											<SponsorCard
-												key={sponsor.id}
-												sponsor={sponsor}
-												featured={isFeatured}
-											/>
-										))}
-									</div>
-								</div>
-							)
-						})}
-
-						{/* Ungrouped sponsors */}
-						{sponsors.ungroupedSponsors.length > 0 && (
-							<div>
-								{sponsors.groups.length > 0 && (
-									<h3 className="text-lg font-medium mb-4">Partners</h3>
-								)}
-								<div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-									{sponsors.ungroupedSponsors.map((sponsor) => (
-										<SponsorCard key={sponsor.id} sponsor={sponsor} />
-									))}
-								</div>
-							</div>
-						)}
-					</div>
-				) : (
-					<Card className="border-dashed">
-						<CardContent className="py-6 text-center">
-							<p className="text-muted-foreground">
-								Sponsor information coming soon.
-							</p>
-						</CardContent>
-					</Card>
-				)}
-			</section>
 		</div>
 	)
 }
