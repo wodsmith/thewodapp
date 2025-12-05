@@ -10,6 +10,7 @@ import {
 import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import { getHeatsForCompetition } from "@/server/competition-heats"
 import { getPublishedCompetitionWorkouts } from "@/server/competition-workouts"
+import { getCompetitionSponsors } from "@/server/sponsors"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
@@ -70,12 +71,15 @@ export default async function CompetitionDetailPage({ params }: Props) {
 	const eventsPromise = getPublishedCompetitionWorkouts(competition.id)
 	const heatsPromise = getHeatsForCompetition(competition.id)
 
-	// Parallel fetch: session, registrations, divisions (needed for hero/sidebar)
-	const [session, registrations, divisions] = await Promise.all([
-		getSessionFromCookie(),
-		getCompetitionRegistrations(competition.id),
-		getPublicCompetitionDivisions(competition.id),
-	])
+	// Parallel fetch: session, registrations, divisions, sponsors (needed for hero/sidebar/content)
+	const [session, registrations, divisions, sponsorsResult] = await Promise.all(
+		[
+			getSessionFromCookie(),
+			getCompetitionRegistrations(competition.id),
+			getPublicCompetitionDivisions(competition.id),
+			getCompetitionSponsors(competition.id),
+		],
+	)
 
 	// Check if user is already registered, get pending invites, and check manage permission (depends on session)
 	let userRegistration = null
@@ -173,6 +177,7 @@ export default async function CompetitionDetailPage({ params }: Props) {
 						<EventDetailsContent
 							competition={competition}
 							divisions={divisions.length > 0 ? divisions : undefined}
+							sponsors={sponsorsResult}
 							workoutsContent={
 								<Suspense fallback={<WorkoutsSkeleton />}>
 									<WorkoutsContent
