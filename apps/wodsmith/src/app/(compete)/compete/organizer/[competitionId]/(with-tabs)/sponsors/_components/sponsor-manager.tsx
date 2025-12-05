@@ -1,10 +1,9 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	createSponsorAction,
 	createSponsorGroupAction,
@@ -16,16 +15,10 @@ import {
 	updateSponsorGroupAction,
 } from "@/actions/sponsors.actions"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Sponsor, SponsorGroup } from "@/db/schema"
-import { SponsorGroupCard } from "./sponsor-group-card"
 import { SponsorFormDialog } from "./sponsor-form-dialog"
+import { SponsorGroupCard } from "./sponsor-group-card"
 import { SponsorGroupFormDialog } from "./sponsor-group-form-dialog"
 import { UngroupedSponsors } from "./ungrouped-sponsors"
 
@@ -42,13 +35,16 @@ interface SponsorManagerProps {
 
 export function SponsorManager({
 	competitionId,
-	organizingTeamId,
+	organizingTeamId: _organizingTeamId,
 	groups: initialGroups,
 	ungroupedSponsors: initialUngrouped,
 }: SponsorManagerProps) {
-	const router = useRouter()
 	const [groups, setGroups] = useState(initialGroups)
 	const [ungroupedSponsors, setUngroupedSponsors] = useState(initialUngrouped)
+
+	// Instance IDs for drag-and-drop scoping
+	const [groupInstanceId] = useState(() => Symbol("sponsor-groups"))
+	const [sponsorInstanceId] = useState(() => Symbol("sponsors"))
 
 	// Dialog states
 	const [showAddGroupDialog, setShowAddGroupDialog] = useState(false)
@@ -230,6 +226,80 @@ export function SponsorManager({
 		toast.success("Sponsor deleted")
 	}
 
+	// Group reorder handler
+	const handleReorderGroups = async (
+		sourceIndex: number,
+		targetIndex: number,
+	) => {
+		// Optimistic update
+		const newGroups = [...groups]
+		const [movedGroup] = newGroups.splice(sourceIndex, 1)
+		if (movedGroup) {
+			newGroups.splice(targetIndex, 0, movedGroup)
+			setGroups(newGroups)
+
+			// Build ordered IDs for server
+			const orderedIds = newGroups.map((g) => g.id)
+
+			const [, error] = await reorderGroups({
+				competitionId,
+				groupIds: orderedIds,
+			})
+
+			if (error) {
+				// Revert on error
+				setGroups(groups)
+				toast.error(error.message || "Failed to reorder groups")
+			}
+		}
+	}
+
+	// Sponsor reorder handler (within a group)
+	const handleReorderSponsors = async (
+		groupId: string,
+		sourceIndex: number,
+		targetIndex: number,
+	) => {
+		// Find the group
+		const groupIndex = groups.findIndex((g) => g.id === groupId)
+		if (groupIndex === -1) return
+
+		const group = groups[groupIndex]
+		if (!group) return
+
+		// Optimistic update
+		const newSponsors = [...group.sponsors]
+		const [movedSponsor] = newSponsors.splice(sourceIndex, 1)
+		if (movedSponsor) {
+			newSponsors.splice(targetIndex, 0, movedSponsor)
+
+			const newGroups = [...groups]
+			const updatedGroup = newGroups[groupIndex]
+			if (updatedGroup) {
+				updatedGroup.sponsors = newSponsors
+				setGroups(newGroups)
+			}
+
+			// Build sponsorOrders array for server
+			const sponsorOrders = newSponsors.map((s, index) => ({
+				sponsorId: s.id,
+				groupId: s.groupId,
+				displayOrder: index,
+			}))
+
+			const [, error] = await reorderSponsors({
+				competitionId,
+				sponsorOrders,
+			})
+
+			if (error) {
+				// Revert on error
+				setGroups(groups)
+				toast.error(error.message || "Failed to reorder sponsors")
+			}
+		}
+	}
+
 	const totalSponsors =
 		groups.reduce((acc, g) => acc + g.sponsors.length, 0) +
 		ungroupedSponsors.length
@@ -315,11 +385,14 @@ export function SponsorManager({
 			) : (
 				<div className="space-y-4">
 					{/* Grouped sponsors */}
-					{groups.map((group) => (
+					{groups.map((group, index) => (
 						<SponsorGroupCard
 							key={group.id}
 							group={group}
 							sponsors={group.sponsors}
+							index={index}
+							instanceId={groupInstanceId}
+							sponsorInstanceId={sponsorInstanceId}
 							onEditGroup={() => setEditingGroup(group)}
 							onDeleteGroup={() => handleDeleteGroup(group.id)}
 							onAddSponsor={() => {
@@ -328,6 +401,8 @@ export function SponsorManager({
 							}}
 							onEditSponsor={setEditingSponsor}
 							onDeleteSponsor={handleDeleteSponsor}
+							onDropGroup={handleReorderGroups}
+							onDropSponsor={handleReorderSponsors}
 						/>
 					))}
 
