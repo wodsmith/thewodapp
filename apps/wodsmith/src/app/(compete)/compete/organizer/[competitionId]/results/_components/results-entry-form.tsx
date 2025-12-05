@@ -132,7 +132,7 @@ export function ResultsEntryForm({
 			)
 		}
 		},
-		[competitionId, organizingTeamId, event.id, event.workout.id, event.workout.scheme, event.workout.scoreType, event.workout.repsPerRound, event.workout.roundsToScore, event.workout.timeCap, saveScore],
+		[competitionId, organizingTeamId, event.id, event.workout.id, event.workout.scheme, event.workout.scoreType, event.workout.repsPerRound, event.workout.roundsToScore, event.workout.timeCap, event.workout.name, saveScore],
 	)
 
 	// Handle tab to next athlete
