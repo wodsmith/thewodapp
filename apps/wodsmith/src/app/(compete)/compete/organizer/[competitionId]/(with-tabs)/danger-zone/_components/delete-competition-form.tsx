@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { toast } from "sonner"
 import { Trash2 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
@@ -38,10 +39,19 @@ export function DeleteCompetitionForm({
 		{
 			onSuccess: () => {
 				toast.success("Competition deleted successfully")
+				posthog.capture("competition_deleted", {
+					competition_id: competitionId,
+					competition_name: competitionName,
+					registration_count: registrationCount,
+				})
 				router.push("/compete/organizer")
 			},
 			onError: ({ err }) => {
 				toast.error(err.message || "Failed to delete competition")
+				posthog.capture("competition_deleted_failed", {
+					competition_id: competitionId,
+					error_message: err.message,
+				})
 			},
 		},
 	)

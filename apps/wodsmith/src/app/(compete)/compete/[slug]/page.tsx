@@ -15,6 +15,7 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
 import { CompetitionHero } from "./_components/competition-hero"
 import { CompetitionTabs } from "./_components/competition-tabs"
+import { CompetitionViewTracker } from "./_components/competition-view-tracker"
 import { EventDetailsContent } from "./_components/event-details-content"
 import { LeaderboardContent } from "./_components/leaderboard-content"
 import { RegisterButton } from "./_components/register-button"
@@ -120,6 +121,15 @@ export default async function CompetitionDetailPage({ params }: Props) {
 
 	return (
 		<div className="min-h-screen bg-background">
+			{/* PostHog page view tracking */}
+			<CompetitionViewTracker
+				competitionId={competition.id}
+				competitionSlug={competition.slug}
+				competitionName={competition.name}
+				isRegistered={!!userRegistration}
+				isOrganizer={canManage}
+			/>
+
 			{/* Hero Section */}
 			<CompetitionHero
 				competition={competition}

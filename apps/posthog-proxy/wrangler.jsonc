@@ -1,0 +1,23 @@
+{
+	"$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+	"name": "posthog-proxy",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"observability": {
+		"enabled": true
+	},
+	"vars": {
+		"POSTHOG_HOST": "us.i.posthog.com",
+		"POSTHOG_ASSETS_HOST": "us-assets.i.posthog.com",
+		"PUBLIC_PATH_PREFIX": "/ingest",
+		"ALLOWED_ORIGINS": "https://wodsmith.com,https://www.wodsmith.com"
+	},
+	"routes": [
+		{
+			"pattern": "analytics.wodsmith.com",
+			"custom_domain": true
+		}
+	]
+}

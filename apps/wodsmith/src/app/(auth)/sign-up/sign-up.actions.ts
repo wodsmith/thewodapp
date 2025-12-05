@@ -106,6 +106,6 @@ export const signUpAction = createServerAction()
 				)
 			}
 
-			return { success: true }
+			return { success: true, userId: user.id }
 		}, RATE_LIMITS.SIGN_UP)
 	})

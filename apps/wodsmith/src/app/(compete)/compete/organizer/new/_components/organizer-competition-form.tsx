@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -101,9 +102,23 @@ export function OrganizerCompetitionForm({
 		{
 			onError: (error) => {
 				toast.error(error.err?.message || "Failed to create competition")
+				posthog.capture("competition_created_failed", {
+					error_message: error.err?.message,
+					organizing_team_id: form.getValues("teamId"),
+				})
 			},
-			onSuccess: () => {
+			onSuccess: (result) => {
 				toast.success("Competition created successfully")
+				const competitionData = result?.data?.data
+				posthog.capture("competition_created", {
+					competition_id: competitionData?.competitionId,
+					competition_name: form.getValues("name"),
+					competition_slug: form.getValues("slug"),
+					organizing_team_id: form.getValues("teamId"),
+					has_series: !!form.getValues("groupId"),
+					has_divisions: !!form.getValues("scalingGroupId"),
+					series_id: form.getValues("groupId"),
+				})
 				router.push("/compete/organizer")
 				router.refresh()
 			},

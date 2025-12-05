@@ -39,6 +39,21 @@ const nextConfig = {
 	typescript: {
 		ignoreBuildErrors: process.env.SKIP_LINTER === "true",
 	},
+	// PostHog reverse proxy configuration
+	async rewrites() {
+		return [
+			{
+				source: "/ingest/static/:path*",
+				destination: "https://us-assets.i.posthog.com/static/:path*",
+			},
+			{
+				source: "/ingest/:path*",
+				destination: "https://us.i.posthog.com/:path*",
+			},
+		]
+	},
+	// Required to support PostHog trailing slash API requests
+	skipTrailingSlashRedirect: true,
 }
 
 export default process.env.ANALYZE === "true"

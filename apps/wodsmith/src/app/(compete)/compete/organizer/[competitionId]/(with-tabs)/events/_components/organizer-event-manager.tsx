@@ -1,6 +1,7 @@
 "use client"
 
 import { Plus } from "lucide-react"
+import posthog from "posthog-js"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
@@ -120,8 +121,19 @@ export function OrganizerEventManager({
 
 		if (error) {
 			toast.error(error.message || "Failed to create event")
+			posthog.capture("competition_event_created_failed", {
+				competition_id: competitionId,
+				error_message: error.message,
+			})
 		} else if (result?.data) {
 			toast.success(`Created "${data.name}"`)
+			posthog.capture("competition_event_created", {
+				competition_id: competitionId,
+					event_id: result.data.trackWorkoutId,
+				event_name: data.name,
+				workout_scheme: data.scheme,
+				is_remix: false,
+			})
 			setShowCreateDialog(false)
 		}
 	}
@@ -150,8 +162,20 @@ export function OrganizerEventManager({
 
 			if (error) {
 				toast.error(error.message || "Failed to add workout")
+				posthog.capture("competition_event_created_failed", {
+					competition_id: competitionId,
+					error_message: error.message,
+				})
 			} else if (result?.data) {
 				toast.success(`Added "${workout.name}" as a remix`)
+				posthog.capture("competition_event_created", {
+					competition_id: competitionId,
+					event_id: result.data.trackWorkoutId,
+					event_name: workout.name,
+					workout_scheme: workout.scheme,
+					is_remix: true,
+					source_workout_id: workout.id,
+				})
 				setShowAddDialog(false)
 			}
 		} finally {
