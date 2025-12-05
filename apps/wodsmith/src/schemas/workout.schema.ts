@@ -46,6 +46,7 @@ export const competitionEventSchema = z.object({
 	pointsMultiplier: z.number().min(1).max(1000),
 	notes: z.string(),
 	divisionDescs: z.record(z.string(), z.string()),
+	sponsorId: z.string().nullable(), // "Presented by" sponsor
 })
 
 export type CompetitionEventSchema = z.infer<typeof competitionEventSchema>

@@ -13,6 +13,7 @@ import {
 	getWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
+import { getCompetitionSponsors } from "@/server/sponsors"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../../_components/organizer-breadcrumb"
 import { EventDetailsForm } from "./_components/event-details-form"
@@ -80,10 +81,11 @@ export default async function EventDetailsPage({
 		throw error
 	}
 
-	// Get divisions for the competition (for division-specific descriptions) and movements
-	const [{ divisions }, movementsResult] = await Promise.all([
+	// Get divisions for the competition (for division-specific descriptions), movements, and sponsors
+	const [{ divisions }, movementsResult, sponsorsResult] = await Promise.all([
 		getCompetitionDivisionsWithCounts({ competitionId }),
 		getAllMovementsAction(),
+		getCompetitionSponsors(competitionId),
 	])
 
 	const [movements] = movementsResult ?? [null]
@@ -134,6 +136,10 @@ export default async function EventDetailsPage({
 					divisions={divisions}
 					divisionDescriptions={divisionDescriptions}
 					movements={movements?.data ?? []}
+					sponsors={[
+						...sponsorsResult.groups.flatMap((g) => g.sponsors),
+						...sponsorsResult.ungroupedSponsors,
+					]}
 				/>
 			</div>
 		</div>

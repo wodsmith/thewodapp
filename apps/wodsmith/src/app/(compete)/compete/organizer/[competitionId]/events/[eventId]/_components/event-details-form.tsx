@@ -11,6 +11,7 @@ import {
 	updateCompetitionWorkoutAction,
 	updateDivisionDescriptionsAction,
 } from "@/actions/competition-actions"
+import { assignWorkoutSponsorAction } from "@/actions/sponsors.actions"
 import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,7 +40,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { Movement } from "@/db/schema"
+import type { Movement, Sponsor } from "@/db/schema"
 import type { WorkoutScheme, ScoreType } from "@/db/schemas/workouts"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import {
@@ -92,6 +93,7 @@ interface EventDetailsFormProps {
 	divisions: Division[]
 	divisionDescriptions: DivisionDescriptionData[]
 	movements: Movement[]
+	sponsors: Sponsor[]
 }
 
 export function EventDetailsForm({
@@ -101,6 +103,7 @@ export function EventDetailsForm({
 	divisions,
 	divisionDescriptions,
 	movements,
+	sponsors,
 }: EventDetailsFormProps) {
 	const router = useRouter()
 
@@ -127,6 +130,7 @@ export function EventDetailsForm({
 			notes: event.notes || "",
 			selectedMovements: event.workout.movements?.map((m) => m.id) ?? [],
 			divisionDescs: initialDivisionDescs,
+			sponsorId: event.sponsorId,
 		},
 	})
 
@@ -166,8 +170,14 @@ export function EventDetailsForm({
 		isPending: isUpdatingDivisionDescs,
 	} = useServerAction(updateDivisionDescriptionsAction)
 
+	const { execute: assignSponsor, isPending: isAssigningSponsor } =
+		useServerAction(assignWorkoutSponsorAction)
+
 	const isSaving =
-		isUpdatingEvent || isUpdatingWorkout || isUpdatingDivisionDescs
+		isUpdatingEvent ||
+		isUpdatingWorkout ||
+		isUpdatingDivisionDescs ||
+		isAssigningSponsor
 
 	const onSubmit = async (data: CompetitionEventSchema) => {
 		// Update workout details
@@ -222,6 +232,20 @@ export function EventDetailsForm({
 				toast.error(
 					descError.message || "Failed to update division descriptions",
 				)
+				return
+			}
+		}
+
+		// Update sponsor assignment ("Presented by") if changed
+		if (data.sponsorId !== event.sponsorId) {
+			const [, sponsorError] = await assignSponsor({
+				trackWorkoutId: event.id,
+				competitionId,
+				sponsorId: data.sponsorId,
+			})
+
+			if (sponsorError) {
+				toast.error(sponsorError.message || "Failed to assign sponsor")
 				return
 			}
 		}
@@ -588,6 +612,40 @@ export function EventDetailsForm({
 											% (100 = normal, 200 = 2x points)
 										</span>
 									</div>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name="sponsorId"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Presented by</FormLabel>
+									<Select
+										value={field.value ?? "none"}
+										onValueChange={(v) =>
+											field.onChange(v === "none" ? null : v)
+										}
+									>
+										<FormControl>
+											<SelectTrigger>
+												<SelectValue placeholder="Select a sponsor" />
+											</SelectTrigger>
+										</FormControl>
+										<SelectContent>
+											<SelectItem value="none">No sponsor</SelectItem>
+											{sponsors.map((sponsor) => (
+												<SelectItem key={sponsor.id} value={sponsor.id}>
+													{sponsor.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									<FormDescription>
+										Assign a sponsor to this event for "Presented by" branding
+									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}

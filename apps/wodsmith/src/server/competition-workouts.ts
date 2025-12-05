@@ -37,6 +37,7 @@ export interface CompetitionWorkout {
 	pointsMultiplier: number | null
 	heatStatus: HeatStatus | null
 	eventStatus: EventStatus | null
+	sponsorId: string | null
 	createdAt: Date
 	updatedAt: Date
 	workout: {
@@ -139,6 +140,7 @@ export async function getCompetitionWorkouts(
 			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
 			heatStatus: trackWorkoutsTable.heatStatus,
 			eventStatus: trackWorkoutsTable.eventStatus,
+			sponsorId: trackWorkoutsTable.sponsorId,
 			createdAt: trackWorkoutsTable.createdAt,
 			updatedAt: trackWorkoutsTable.updatedAt,
 			workout: {
@@ -187,6 +189,7 @@ export async function getPublishedCompetitionWorkouts(
 			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
 			heatStatus: trackWorkoutsTable.heatStatus,
 			eventStatus: trackWorkoutsTable.eventStatus,
+			sponsorId: trackWorkoutsTable.sponsorId,
 			createdAt: trackWorkoutsTable.createdAt,
 			updatedAt: trackWorkoutsTable.updatedAt,
 			workout: {
@@ -386,6 +389,7 @@ export async function getCompetitionEvent(
 		pointsMultiplier: trackWorkout.pointsMultiplier,
 		heatStatus: trackWorkout.heatStatus,
 		eventStatus: trackWorkout.eventStatus,
+		sponsorId: trackWorkout.sponsorId,
 		createdAt: trackWorkout.createdAt,
 		updatedAt: trackWorkout.updatedAt,
 		workout: {
