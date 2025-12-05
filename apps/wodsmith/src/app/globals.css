@@ -2,86 +2,363 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * WODsmith Design System
+ * Three-level token hierarchy: Primitive → Semantic → Component
+ *
+ * @see /src/styles/design-tokens.ts for TypeScript definitions
+ */
+
 @layer base {
-	:root {
-	  --background: 0 0% 100%;
-	  --foreground: 20 14.3% 4.1%;
-	  --card: 0 0% 100%;
-	  --card-foreground: 20 14.3% 4.1%;
-	  --popover: 0 0% 100%;
-	  --popover-foreground: 20 14.3% 4.1%;
-	  --primary: 24.6 95% 53.1%;
-	  --primary-foreground: 60 9.1% 97.8%;
-	  --secondary: 60 4.8% 95.9%;
-	  --secondary-foreground: 24 9.8% 10%;
-	  --muted: 60 4.8% 95.9%;
-	  --muted-foreground: 25 5.3% 44.7%;
-	  --accent: 60 4.8% 95.9%;
-	  --accent-foreground: 24 9.8% 10%;
-	  --destructive: 0 84.2% 60.2%;
-	  --destructive-foreground: 60 9.1% 97.8%;
-	  --border: 20 5.9% 90%;
-	  --input: 20 5.9% 90%;
-	  --ring: 24.6 95% 53.1%;
-	  --radius: 0.5rem;
-	  --chart-1: 12 76% 61%;
-	  --chart-2: 173 58% 39%;
-	  --chart-3: 197 37% 24%;
-	  --chart-4: 43 74% 66%;
-	  --chart-5: 27 87% 67%;
-	  --sidebar-background: 0 0% 98%;
-	  --sidebar-foreground: 240 5.3% 26.1%;
-	  --sidebar-primary: 240 5.9% 10%;
-	  --sidebar-primary-foreground: 0 0% 98%;
-	  --sidebar-accent: 240 4.8% 95.9%;
-	  --sidebar-accent-foreground: 240 5.9% 10%;
-	  --sidebar-border: 220 13% 91%;
-	  --sidebar-ring: 217.2 91.2% 59.8%;
-	}
-   
-	.dark {
-	  --background: 20 14.3% 4.1%;
-	  --foreground: 60 9.1% 97.8%;
-	  --card: 20 14.3% 4.1%;
-	  --card-foreground: 60 9.1% 97.8%;
-	  --popover: 20 14.3% 4.1%;
-	  --popover-foreground: 60 9.1% 97.8%;
-	  --primary: 20.5 90.2% 48.2%;
-	  --primary-foreground: 60 9.1% 97.8%;
-	  --secondary: 12 6.5% 15.1%;
-	  --secondary-foreground: 60 9.1% 97.8%;
-	  --muted: 12 6.5% 15.1%;
-	  --muted-foreground: 24 5.4% 63.9%;
-	  --accent: 12 6.5% 15.1%;
-	  --accent-foreground: 60 9.1% 97.8%;
-	  --destructive: 0 72.2% 50.6%;
-	  --destructive-foreground: 60 9.1% 97.8%;
-	  --border: 12 6.5% 15.1%;
-	  --input: 12 6.5% 15.1%;
-	  --ring: 20.5 90.2% 48.2%;
-	  --chart-1: 220 70% 50%;
-	  --chart-2: 160 60% 45%;
-	  --chart-3: 30 80% 55%;
-	  --chart-4: 280 65% 60%;
-	  --chart-5: 340 75% 55%;
-	  --sidebar-background: 240 5.9% 10%;
-	  --sidebar-foreground: 240 4.8% 95.9%;
-	  --sidebar-primary: 224.3 76.3% 48%;
-	  --sidebar-primary-foreground: 0 0% 100%;
-	  --sidebar-accent: 240 3.7% 15.9%;
-	  --sidebar-accent-foreground: 240 4.8% 95.9%;
-	  --sidebar-border: 240 3.7% 15.9%;
-	  --sidebar-ring: 217.2 91.2% 59.8%;
-	}
+  :root {
+    /* =================================================================
+     * PRIMITIVE TOKENS - Raw color values
+     * ================================================================= */
+
+    /* Orange Scale - Primary brand color */
+    --orange-50: 24 100% 96%;
+    --orange-100: 25 100% 91%;
+    --orange-200: 25 100% 82%;
+    --orange-300: 23 100% 73%;
+    --orange-400: 24 100% 63%;
+    --orange-500: 16 100% 60%;
+    --orange-600: 16 80% 53%;
+    --orange-700: 15 74% 46%;
+    --orange-800: 16 73% 37%;
+    --orange-900: 15 72% 28%;
+
+    /* Neutral Scale - Grays */
+    --neutral-0: 0 0% 100%;
+    --neutral-50: 0 0% 98%;
+    --neutral-100: 0 0% 96%;
+    --neutral-200: 0 0% 90%;
+    --neutral-300: 0 0% 83%;
+    --neutral-400: 0 0% 64%;
+    --neutral-500: 0 0% 45%;
+    --neutral-600: 0 0% 32%;
+    --neutral-700: 0 0% 25%;
+    --neutral-800: 0 0% 15%;
+    --neutral-900: 0 0% 10%;
+    --neutral-950: 0 0% 4%;
+
+    /* Success (Green) */
+    --success-50: 152 81% 96%;
+    --success-400: 160 64% 52%;
+    --success-500: 160 84% 39%;
+    --success-600: 161 94% 30%;
+
+    /* Error (Red) */
+    --error-50: 0 86% 97%;
+    --error-400: 0 91% 71%;
+    --error-500: 0 84% 60%;
+    --error-600: 0 72% 51%;
+
+    /* Warning (Yellow) */
+    --warning-50: 48 100% 96%;
+    --warning-400: 43 96% 56%;
+    --warning-500: 38 92% 50%;
+    --warning-600: 32 95% 44%;
+
+    /* Info (Blue) */
+    --info-50: 214 100% 97%;
+    --info-400: 213 94% 68%;
+    --info-500: 217 91% 60%;
+    --info-600: 221 83% 53%;
+
+    /* =================================================================
+     * SEMANTIC TOKENS - Purpose-based mappings
+     * ================================================================= */
+
+    /* Background */
+    --background: var(--neutral-0);
+    --background-subtle: var(--neutral-50);
+    --background-muted: var(--neutral-100);
+
+    /* Foreground/Text */
+    --foreground: var(--neutral-900);
+    --foreground-muted: var(--neutral-600);
+    --foreground-subtle: var(--neutral-500);
+
+    /* Card */
+    --card: var(--neutral-0);
+    --card-foreground: var(--neutral-900);
+
+    /* Popover */
+    --popover: var(--neutral-0);
+    --popover-foreground: var(--neutral-900);
+
+    /* Primary (Orange) */
+    --primary: var(--orange-500);
+    --primary-hover: var(--orange-600);
+    --primary-active: var(--orange-700);
+    --primary-foreground: var(--neutral-0);
+
+    /* Secondary */
+    --secondary: var(--neutral-100);
+    --secondary-hover: var(--neutral-200);
+    --secondary-foreground: var(--neutral-900);
+
+    /* Muted */
+    --muted: var(--neutral-100);
+    --muted-foreground: var(--neutral-600);
+
+    /* Accent */
+    --accent: var(--neutral-100);
+    --accent-foreground: var(--neutral-900);
+
+    /* Destructive */
+    --destructive: var(--error-500);
+    --destructive-hover: var(--error-600);
+    --destructive-foreground: var(--neutral-0);
+
+    /* Border */
+    --border: var(--neutral-200);
+    --border-subtle: var(--neutral-100);
+    --border-strong: var(--neutral-300);
+
+    /* Input */
+    --input: var(--neutral-200);
+    --input-focus: var(--orange-500);
+
+    /* Ring (focus) */
+    --ring: var(--orange-500);
+
+    /* =================================================================
+     * COMPONENT TOKENS
+     * ================================================================= */
+
+    /* Radius */
+    --radius: 0.5rem;
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    /* Charts */
+    --chart-1: var(--orange-500);
+    --chart-2: var(--success-500);
+    --chart-3: var(--info-500);
+    --chart-4: var(--warning-500);
+    --chart-5: var(--error-500);
+
+    /* Sidebar */
+    --sidebar-background: var(--neutral-50);
+    --sidebar-foreground: var(--neutral-700);
+    --sidebar-primary: var(--neutral-900);
+    --sidebar-primary-foreground: var(--neutral-50);
+    --sidebar-accent: var(--neutral-100);
+    --sidebar-accent-foreground: var(--neutral-900);
+    --sidebar-border: var(--neutral-200);
+    --sidebar-ring: var(--orange-500);
+
+    /* Status indicators */
+    --status-success: var(--success-500);
+    --status-success-bg: var(--success-50);
+    --status-error: var(--error-500);
+    --status-error-bg: var(--error-50);
+    --status-warning: var(--warning-500);
+    --status-warning-bg: var(--warning-50);
+    --status-info: var(--info-500);
+    --status-info-bg: var(--info-50);
+
+    /* Legacy compatibility - keeping orange and surface for existing usage */
+    --orange: var(--orange-500);
+    --surface: var(--neutral-50);
   }
 
+  /* =================================================================
+   * DARK MODE TOKENS
+   * ================================================================= */
+  .dark {
+    /* Dark mode surfaces (GitHub-style) */
+    --dark-page: 216 33% 6%;
+    --dark-surface: 215 21% 11%;
+    --dark-surface-hover: 215 18% 14%;
+    --dark-surface-recessed: 215 29% 7%;
+    --dark-border-default: 210 12% 21%;
+    --dark-border-subtle: 215 15% 15%;
 
+    /* Background */
+    --background: var(--dark-page);
+    --background-subtle: var(--dark-surface);
+    --background-muted: var(--dark-surface-recessed);
+
+    /* Foreground/Text */
+    --foreground: var(--neutral-50);
+    --foreground-muted: var(--neutral-400);
+    --foreground-subtle: var(--neutral-500);
+
+    /* Card */
+    --card: var(--dark-surface);
+    --card-foreground: var(--neutral-50);
+
+    /* Popover */
+    --popover: var(--dark-surface);
+    --popover-foreground: var(--neutral-50);
+
+    /* Primary (slightly lighter orange for dark mode) */
+    --primary: var(--orange-500);
+    --primary-hover: var(--orange-400);
+    --primary-active: var(--orange-600);
+    --primary-foreground: var(--neutral-0);
+
+    /* Secondary */
+    --secondary: var(--dark-surface);
+    --secondary-hover: var(--dark-surface-hover);
+    --secondary-foreground: var(--neutral-50);
+
+    /* Muted */
+    --muted: var(--dark-surface-recessed);
+    --muted-foreground: var(--neutral-400);
+
+    /* Accent */
+    --accent: var(--dark-surface);
+    --accent-foreground: var(--neutral-50);
+
+    /* Destructive */
+    --destructive: var(--error-500);
+    --destructive-hover: var(--error-400);
+    --destructive-foreground: var(--neutral-0);
+
+    /* Border */
+    --border: var(--dark-border-default);
+    --border-subtle: var(--dark-border-subtle);
+    --border-strong: var(--neutral-600);
+
+    /* Input */
+    --input: var(--dark-border-default);
+    --input-focus: var(--orange-500);
+
+    /* Ring */
+    --ring: var(--orange-500);
+
+    /* Charts (adjusted for dark mode visibility) */
+    --chart-1: var(--orange-400);
+    --chart-2: var(--success-400);
+    --chart-3: var(--info-400);
+    --chart-4: var(--warning-400);
+    --chart-5: var(--error-400);
+
+    /* Sidebar */
+    --sidebar-background: var(--dark-surface-recessed);
+    --sidebar-foreground: var(--neutral-100);
+    --sidebar-primary: var(--info-500);
+    --sidebar-primary-foreground: var(--neutral-0);
+    --sidebar-accent: var(--dark-surface);
+    --sidebar-accent-foreground: var(--neutral-100);
+    --sidebar-border: var(--dark-border-subtle);
+    --sidebar-ring: var(--orange-500);
+
+    /* Status indicators (lighter variants for dark mode) */
+    --status-success: var(--success-400);
+    --status-success-bg: 160 84% 39% / 0.1;
+    --status-error: var(--error-400);
+    --status-error-bg: 0 84% 60% / 0.1;
+    --status-warning: var(--warning-400);
+    --status-warning-bg: 38 92% 50% / 0.1;
+    --status-info: var(--info-400);
+    --status-info-bg: 217 91% 60% / 0.1;
+
+    /* Legacy compatibility */
+    --orange: var(--orange-500);
+    --surface: var(--dark-surface);
+  }
+}
 
 @layer base {
   * {
     @apply border-border;
-	}
+  }
   body {
     @apply bg-background text-foreground;
-	}
+  }
+}
+
+/* =================================================================
+ * UTILITY CLASSES
+ * Semantic utility classes for common patterns
+ * ================================================================= */
+
+@layer utilities {
+  /* Text utilities */
+  .text-link {
+    @apply text-primary hover:text-primary-hover transition-colors duration-200;
+  }
+
+  .text-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  /* Card hover effect from design spec */
+  .card-interactive {
+    @apply transition-all duration-200;
+  }
+
+  .card-interactive:hover {
+    @apply border-l-[3px] border-l-primary bg-orange-50/30;
+  }
+
+  .dark .card-interactive:hover {
+    @apply bg-orange-500/5;
+  }
+
+  /* Minimum touch target (44x44px) for accessibility */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Status badge utilities */
+  .badge-success {
+    @apply bg-success-50 text-success-600;
+  }
+
+  .badge-error {
+    @apply bg-error-50 text-error-600;
+  }
+
+  .badge-warning {
+    @apply bg-warning-50 text-warning-600;
+  }
+
+  .badge-info {
+    @apply bg-info-50 text-info-600;
+  }
+
+  .badge-neutral {
+    @apply bg-neutral-100 text-neutral-600;
+  }
+
+  .badge-primary {
+    @apply bg-orange-100 text-orange-700;
+  }
+
+  .dark .badge-success {
+    @apply bg-success-500/10 text-success-400;
+  }
+
+  .dark .badge-error {
+    @apply bg-error-500/10 text-error-400;
+  }
+
+  .dark .badge-warning {
+    @apply bg-warning-500/10 text-warning-400;
+  }
+
+  .dark .badge-info {
+    @apply bg-info-500/10 text-info-400;
+  }
+
+  .dark .badge-neutral {
+    @apply bg-neutral-700 text-neutral-300;
+  }
+
+  .dark .badge-primary {
+    @apply bg-orange-500/10 text-orange-400;
+  }
 }
