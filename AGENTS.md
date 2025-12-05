@@ -101,6 +101,16 @@ Database is modularly structured in `src/db/schemas/`:
 - Never pass `id` when inserting (auto-generated with CUID2)
 - Always filter by `teamId` for multi-tenant data
 - Use helper functions in `src/server/` for business logic
+- **D1 has a 100 SQL parameter limit** - use `autochunk` from `@/utils/batch-query` for `inArray` queries with dynamic arrays:
+  ```typescript
+  import { autochunk } from "@/utils/batch-query"
+  
+  // Instead of: db.select().from(table).where(inArray(table.id, ids))
+  const results = await autochunk(
+    { items: ids, otherParametersCount: 1 }, // count other WHERE params
+    async (chunk) => db.select().from(table).where(inArray(table.id, chunk))
+  )
+  ```
 
 ### Authentication & Authorization
 - Session handling: `getSessionFromCookie()` for server components
