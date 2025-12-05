@@ -55,12 +55,17 @@ export function CreateTeamForm() {
 		onSuccess: (result) => {
 			toast.dismiss()
 			toast.success("Team created successfully")
+			const teamData = result?.data?.data
+			const teamId = teamData?.teamId
+			const teamSlug = teamData?.slug
 			posthog.capture("team_created", {
-				team_id: result.data.data.id,
-				team_slug: result.data.data.slug,
+				team_id: teamId,
+				team_slug: teamSlug,
 				has_description: !!form.getValues("description"),
 			})
-			router.push(`/settings/teams/${result.data.data.slug}` as Route)
+			if (teamSlug) {
+				router.push(`/settings/teams/${teamSlug}` as Route)
+			}
 			router.refresh()
 		},
 	})

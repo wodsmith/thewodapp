@@ -47,7 +47,23 @@ export default async function CreateMovementPage() {
 			throw new Error("No user found")
 		}
 		try {
-			await createMovementAction(data)
+			const [result, error] = await createMovementAction(data)
+			if (error) {
+				console.error("[movements/new/page] createMovementAction error", error)
+				throw error
+			}
+
+			if (!result?.success || !result.data?.id) {
+				console.error("[movements/new/page] Unexpected result", result)
+				return undefined
+			}
+
+			return {
+				success: true,
+				data: {
+					id: result.data.id,
+				},
+			}
 		} catch (error) {
 			console.error("[movements/new/page] Error creating movement", error)
 			throw new Error("Error creating movement")

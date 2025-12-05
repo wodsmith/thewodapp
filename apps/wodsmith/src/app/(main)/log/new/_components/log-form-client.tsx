@@ -135,7 +135,11 @@ export default function LogFormClient({
 			console.log("[LogFormClient] Server action success:", result)
 			toast.success("Result logged successfully")
 			const currentWorkout = getSelectedWorkout()
+			const logResult = result?.data?.data
+			const logResultId = (logResult as { resultId?: string } | undefined)
+				?.resultId
 			posthog.capture("workout_result_logged", {
+				result_id: logResultId,
 				workout_id: form.getValues("selectedWorkoutId"),
 				workout_name: currentWorkout?.name,
 				workout_scheme: currentWorkout?.scheme,

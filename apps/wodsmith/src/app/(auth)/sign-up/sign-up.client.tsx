@@ -62,20 +62,21 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 		onStart: () => {
 			toast.loading("Creating your account...")
 		},
-		onSuccess: () => {
+		onSuccess: (result) => {
 			toast.dismiss()
 			toast.success("Account created successfully")
 			// Identify the user in PostHog
-			const email = form.getValues("email")
-			const firstName = form.getValues("firstName")
-			const lastName = form.getValues("lastName")
-			posthog.identify(email, {
-				email,
-				first_name: firstName,
-				last_name: lastName,
-			})
+			const userId = result?.data?.userId
+			if (userId) {
+				posthog.identify(userId, {
+					email: form.getValues("email"),
+					first_name: form.getValues("firstName"),
+					last_name: form.getValues("lastName"),
+				})
+			}
 			posthog.capture("user_signed_up", {
 				auth_method: "email_password",
+				user_id: userId,
 			})
 			window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 		},
@@ -93,20 +94,21 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 					auth_method: "passkey",
 				})
 			},
-			onSuccess: () => {
+			onSuccess: (result) => {
 				toast.dismiss()
 				toast.success("Account created successfully")
 				// Identify the user in PostHog
-				const email = passkeyForm.getValues("email")
-				const firstName = passkeyForm.getValues("firstName")
-				const lastName = passkeyForm.getValues("lastName")
-				posthog.identify(email, {
-					email,
-					first_name: firstName,
-					last_name: lastName,
-				})
+				const userId = result?.data?.userId
+				if (userId) {
+					posthog.identify(userId, {
+						email: passkeyForm.getValues("email"),
+						first_name: passkeyForm.getValues("firstName"),
+						last_name: passkeyForm.getValues("lastName"),
+					})
+				}
 				posthog.capture("user_signed_up", {
 					auth_method: "passkey",
+					user_id: userId,
 				})
 				window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 			},

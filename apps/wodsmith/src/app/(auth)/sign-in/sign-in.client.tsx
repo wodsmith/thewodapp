@@ -67,14 +67,18 @@ function PasskeyAuthenticationButton({
 					auth_method: "passkey",
 				})
 			},
-			onSuccess: () => {
-				toast.dismiss()
-				toast.success("Authentication successful")
-				posthog.capture("user_signed_in", {
-					auth_method: "passkey",
-				})
-				window.location.href = redirectPath
-			},
+		onSuccess: (result) => {
+			toast.dismiss()
+			toast.success("Authentication successful")
+			if (result?.data?.userId) {
+				posthog.identify(result.data.userId)
+			}
+			posthog.capture("user_signed_in", {
+				auth_method: "passkey",
+				user_id: result?.data?.userId,
+			})
+			window.location.href = redirectPath
+		},
 		},
 	)
 
@@ -137,16 +141,19 @@ const SignInPage = ({ redirectPath }: SignInClientProps) => {
 		onStart: () => {
 			toast.loading("Signing you in...")
 		},
-		onSuccess: () => {
+		onSuccess: (result) => {
 			toast.dismiss()
 			toast.success("Signed in successfully")
 			// Identify the user in PostHog
-			const email = form.getValues("email")
-			posthog.identify(email, {
-				email,
-			})
+			const userId = result?.data?.userId
+			if (userId) {
+				posthog.identify(userId, {
+					email: form.getValues("email"),
+				})
+			}
 			posthog.capture("user_signed_in", {
 				auth_method: "email_password",
+				user_id: userId,
 			})
 			window.location.href = redirectPath
 		},

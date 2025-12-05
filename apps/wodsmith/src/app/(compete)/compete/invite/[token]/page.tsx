@@ -158,10 +158,12 @@ export default async function CompeteInvitePage({
 							)}
 						</div>
 
-						<AcceptInviteButton
-							token={token}
-							competitionSlug={invite.competition?.slug}
-						/>
+					<AcceptInviteButton
+						token={token}
+						competitionSlug={invite.competition?.slug}
+						competitionId={invite.competition?.id}
+						teamName={invite.team.name}
+					/>
 					</CardContent>
 				</Card>
 			</div>

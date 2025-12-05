@@ -670,6 +670,7 @@ export async function acceptTeamInvitation(token: string) {
 		success: true,
 		teamId: invitation.teamId,
 		teamSlug: team.slug,
+		teamName: team.name,
 	}
 }
 

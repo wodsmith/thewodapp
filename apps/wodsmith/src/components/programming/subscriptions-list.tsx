@@ -1,6 +1,7 @@
 "use client"
 
 import posthog from "posthog-js"
+import { useState } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import {
@@ -51,20 +52,31 @@ export function SubscriptionsList({
 			},
 		})
 
+	// Track which subscription is being unsubscribed (for PostHog tracking)
+	const [unsubscribingTrack, setUnsubscribingTrack] = useState<{
+		id: string
+		name: string
+	} | null>(null)
+
 	const { execute: unsubscribe, isPending: isUnsubscribing } = useServerAction(
 		unsubscribeFromTrackAction,
 		{
 			onSuccess: () => {
 				toast.success("Successfully unsubscribed from track")
-				posthog.capture("track_subscription_changed", {
-					action: "unsubscribed",
-					team_id: teamId,
-				})
+				if (unsubscribingTrack) {
+					posthog.capture("track_subscription_changed", {
+						action: "unsubscribed",
+						team_id: teamId,
+						track_id: unsubscribingTrack.id,
+						track_name: unsubscribingTrack.name,
+					})
+				}
 				// Optionally trigger a page refresh or update the list
 				window.location.reload()
 			},
 			onError: (error) => {
 				toast.error(error.err.message || "Failed to unsubscribe from track")
+				setUnsubscribingTrack(null)
 			},
 		},
 	)
@@ -80,7 +92,7 @@ export function SubscriptionsList({
 		await setDefaultTrack({ teamId, trackId })
 	}
 
-	const handleUnsubscribe = async (trackId: string) => {
+	const handleUnsubscribe = async (trackId: string, trackName: string) => {
 		if (!canManageProgramming) {
 			toast.error(
 				"You don't have permission to manage programming for this team",
@@ -88,6 +100,7 @@ export function SubscriptionsList({
 			return
 		}
 
+		setUnsubscribingTrack({ id: trackId, name: trackName })
 		await unsubscribe({ teamId, trackId })
 	}
 
@@ -139,14 +152,16 @@ export function SubscriptionsList({
 									>
 										{isSettingDefault ? "Setting..." : "Set as Default"}
 									</Button>
-									<Button
-										size="sm"
-										variant="destructive"
-										onClick={() => handleUnsubscribe(subscription.id)}
-										disabled={isUnsubscribing}
-									>
-										{isUnsubscribing ? "Unsubscribing..." : "Unsubscribe"}
-									</Button>
+								<Button
+									size="sm"
+									variant="destructive"
+									onClick={() =>
+										handleUnsubscribe(subscription.id, subscription.name)
+									}
+									disabled={isUnsubscribing}
+								>
+									{isUnsubscribing ? "Unsubscribing..." : "Unsubscribe"}
+								</Button>
 								</div>
 							)}
 						</div>

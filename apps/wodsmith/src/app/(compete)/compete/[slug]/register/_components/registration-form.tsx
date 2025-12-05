@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useForm, useFieldArray } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -260,6 +261,17 @@ export function RegistrationForm({
 
 		setIsSubmitting(true)
 
+		// Track registration started
+		posthog.capture("competition_registration_started", {
+			competition_id: competition.id,
+			competition_name: competition.name,
+			competition_slug: competition.slug,
+			division_id: data.divisionId,
+			division_name: selectedDivision?.label,
+			is_team_division: isTeamDivision,
+			team_size: teamSize,
+		})
+
 		try {
 			const result = await initiateRegistrationPayment({
 				competitionId: competition.id,
@@ -272,12 +284,29 @@ export function RegistrationForm({
 			// FREE registration - redirect to competition page
 			if (result.isFree) {
 				toast.success("Successfully registered!")
+				posthog.capture("competition_registration_completed", {
+					competition_id: competition.id,
+					competition_name: competition.name,
+					competition_slug: competition.slug,
+					division_id: data.divisionId,
+					division_name: selectedDivision?.label,
+					is_team_division: isTeamDivision,
+					is_free: true,
+					registration_id: result.registrationId,
+				})
 				router.push(`/compete/${competition.slug}`)
 				return
 			}
 
 			// PAID registration - redirect to Stripe Checkout
 			if (result.checkoutUrl) {
+				// Track that we're redirecting to payment (completion tracked server-side on webhook)
+				posthog.capture("competition_registration_payment_started", {
+					competition_id: competition.id,
+					competition_name: competition.name,
+					division_id: data.divisionId,
+					is_team_division: isTeamDivision,
+				})
 				// Use window.location for external redirect
 				window.location.href = result.checkoutUrl
 				return
@@ -285,6 +314,12 @@ export function RegistrationForm({
 
 			throw new Error("Failed to create checkout session")
 		} catch (err) {
+			posthog.capture("competition_registration_failed", {
+				competition_id: competition.id,
+				competition_name: competition.name,
+				division_id: data.divisionId,
+				error_message: err instanceof Error ? err.message : "Unknown error",
+			})
 			toast.error(err instanceof Error ? err.message : "Registration failed")
 			setIsSubmitting(false)
 		}

@@ -20,7 +20,9 @@ import { MOVEMENT_TYPE_VALUES } from "@/db/schema"
 import type { Movement } from "@/types"
 
 interface Props {
-	createMovementAction: (data: CreateMovementActionInput) => Promise<void>
+	createMovementAction: (
+		data: CreateMovementActionInput,
+	) => Promise<{ success: boolean; data: { id: string } } | undefined>
 }
 
 export default function CreateMovementForm({ createMovementAction }: Props) {
@@ -42,8 +44,9 @@ export default function CreateMovementForm({ createMovementAction }: Props) {
 		}
 
 		try {
-			await createMovementAction({ name, type })
+			const result = await createMovementAction({ name, type })
 			posthog.capture("movement_created", {
+				movement_id: result?.data?.id,
 				movement_name: name,
 				movement_type: type,
 			})
