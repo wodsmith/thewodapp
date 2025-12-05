@@ -1,11 +1,11 @@
 "use client"
 
 import {
+	Calendar,
 	ChevronDown,
+	DollarSign,
 	ExternalLink,
 	HelpCircle,
-	Calendar,
-	DollarSign,
 	Trophy,
 	Users,
 } from "lucide-react"

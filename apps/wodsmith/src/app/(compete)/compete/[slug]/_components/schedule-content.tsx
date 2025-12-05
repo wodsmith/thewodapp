@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useMemo, useEffect, use } from "react"
 import { ChevronDown, Clock, MapPin, Search, User, X } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+import { use, useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import type { CompetitionWorkout } from "@/server/competition-workouts"
 import type { HeatWithAssignments } from "@/server/competition-heats"
+import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 interface ScheduleContentProps {
 	eventsPromise: Promise<CompetitionWorkout[]>
