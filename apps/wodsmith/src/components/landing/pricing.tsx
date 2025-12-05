@@ -1,4 +1,7 @@
+"use client"
+
 import { BoltIcon, CheckIcon, TrophyIcon } from "@heroicons/react/24/outline"
+import posthog from "posthog-js"
 import { Button } from "@/components/ui/button"
 
 const Pricing = () => {
@@ -113,6 +116,14 @@ const Pricing = () => {
 							<Button
 								variant={plan.popular ? "default" : "outline"}
 								className="w-full font-mono text-lg py-6"
+								onClick={() => {
+									posthog.capture("pricing_plan_clicked", {
+										plan_name: plan.name,
+										plan_price: plan.price,
+										plan_period: plan.period,
+										is_popular: plan.popular,
+									})
+								}}
 							>
 								{plan.buttonText}
 							</Button>

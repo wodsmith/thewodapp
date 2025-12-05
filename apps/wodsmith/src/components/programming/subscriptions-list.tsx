@@ -1,5 +1,6 @@
 "use client"
 
+import posthog from "posthog-js"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import {
@@ -55,6 +56,10 @@ export function SubscriptionsList({
 		{
 			onSuccess: () => {
 				toast.success("Successfully unsubscribed from track")
+				posthog.capture("track_subscription_changed", {
+					action: "unsubscribed",
+					team_id: teamId,
+				})
 				// Optionally trigger a page refresh or update the list
 				window.location.reload()
 			},

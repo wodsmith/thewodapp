@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { startRegistration } from "@simplewebauthn/browser"
 import { KeyIcon } from "lucide-react"
 import Link from "next/link"
+import posthog from "posthog-js"
 import { useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
@@ -53,6 +54,10 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 		onError: (error) => {
 			toast.dismiss()
 			toast.error(error.err?.message)
+			posthog.capture("user_signed_up_failed", {
+				error_message: error.err?.message,
+				auth_method: "email_password",
+			})
 		},
 		onStart: () => {
 			toast.loading("Creating your account...")
@@ -60,6 +65,18 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 		onSuccess: () => {
 			toast.dismiss()
 			toast.success("Account created successfully")
+			// Identify the user in PostHog
+			const email = form.getValues("email")
+			const firstName = form.getValues("firstName")
+			const lastName = form.getValues("lastName")
+			posthog.identify(email, {
+				email,
+				first_name: firstName,
+				last_name: lastName,
+			})
+			posthog.capture("user_signed_up", {
+				auth_method: "email_password",
+			})
 			window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 		},
 	})
@@ -71,10 +88,26 @@ const SignUpPage = ({ redirectPath }: SignUpClientProps) => {
 				toast.dismiss()
 				toast.error(error.err?.message)
 				setIsRegistering(false)
+				posthog.capture("user_signed_up_failed", {
+					error_message: error.err?.message,
+					auth_method: "passkey",
+				})
 			},
 			onSuccess: () => {
 				toast.dismiss()
 				toast.success("Account created successfully")
+				// Identify the user in PostHog
+				const email = passkeyForm.getValues("email")
+				const firstName = passkeyForm.getValues("firstName")
+				const lastName = passkeyForm.getValues("lastName")
+				posthog.identify(email, {
+					email,
+					first_name: firstName,
+					last_name: lastName,
+				})
+				posthog.capture("user_signed_up", {
+					auth_method: "passkey",
+				})
 				window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 			},
 		},

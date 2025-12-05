@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useState } from "react"
 import type { CreateMovementActionInput } from "@/actions/movement-actions"
 import { Button } from "@/components/ui/button"
@@ -42,11 +43,19 @@ export default function CreateMovementForm({ createMovementAction }: Props) {
 
 		try {
 			await createMovementAction({ name, type })
+			posthog.capture("movement_created", {
+				movement_name: name,
+				movement_type: type,
+			})
 			// Assuming the server action handles potential errors and revalidates/redirects
 			// For now, we redirect on the client side after successful submission
 			router.push("/movements") // Redirect to the movements list page
 		} catch (err) {
 			console.error("Failed to create movement:", err)
+			posthog.capture("movement_created_failed", {
+				error_message:
+					err instanceof Error ? err.message : "An unknown error occurred.",
+			})
 			setError(
 				err instanceof Error ? err.message : "An unknown error occurred.",
 			)
