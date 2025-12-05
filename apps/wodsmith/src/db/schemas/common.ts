@@ -72,3 +72,7 @@ export const createCompetitionDivisionFeeId = () => `cdfee_${createId()}`
 export const createCompetitionVenueId = () => `cvenue_${createId()}`
 export const createCompetitionHeatId = () => `cheat_${createId()}`
 export const createCompetitionHeatAssignmentId = () => `chasgn_${createId()}`
+
+// Sponsor ID generators
+export const createSponsorGroupId = () => `spgrp_${createId()}`
+export const createSponsorId = () => `spnsr_${createId()}`

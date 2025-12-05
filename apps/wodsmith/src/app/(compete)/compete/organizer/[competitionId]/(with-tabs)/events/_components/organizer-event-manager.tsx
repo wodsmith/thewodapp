@@ -1,21 +1,21 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	createCompetitionEventAction,
-	reorderCompetitionEventsAction,
 	removeWorkoutFromCompetitionAction,
+	reorderCompetitionEventsAction,
 } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
-import type { Movement } from "@/db/schema"
+import type { Movement, Sponsor } from "@/db/schema"
 import type {
-	WorkoutScheme,
 	ScoreType,
-	TiebreakScheme,
 	SecondaryScheme,
+	TiebreakScheme,
+	WorkoutScheme,
 } from "@/db/schemas/workouts"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { AddEventDialog } from "./add-event-dialog"
@@ -42,6 +42,7 @@ interface OrganizerEventManagerProps {
 	movements: Movement[]
 	divisions: Division[]
 	divisionDescriptionsByWorkout: Record<string, DivisionDescription[]>
+	sponsors: Sponsor[]
 }
 
 export function OrganizerEventManager({
@@ -51,6 +52,7 @@ export function OrganizerEventManager({
 	movements,
 	divisions,
 	divisionDescriptionsByWorkout,
+	sponsors,
 }: OrganizerEventManagerProps) {
 	const [events, setEvents] = useState(initialEvents)
 	const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -261,6 +263,7 @@ export function OrganizerEventManager({
 							divisionDescriptions={
 								divisionDescriptionsByWorkout[event.workoutId] ?? []
 							}
+							sponsors={sponsors}
 							onRemove={() => handleRemove(event.id)}
 							onDrop={handleDrop}
 						/>

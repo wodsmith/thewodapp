@@ -1,7 +1,7 @@
 import "server-only"
+import { ZSAError } from "@repo/zsa"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { ZSAError } from "@repo/zsa"
 import { getAllMovementsAction } from "@/actions/movement-actions"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
@@ -10,6 +10,7 @@ import {
 	getWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
+import { getCompetitionSponsors } from "@/server/sponsors"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerEventManager } from "./_components/organizer-event-manager"
 
@@ -65,17 +66,23 @@ export default async function CompetitionEventsPage({
 		throw error
 	}
 
-	// Parallel fetch: competition events, divisions, and movements
-	const [competitionEvents, divisionsData, movementsResult] = await Promise.all(
-		[
+	// Parallel fetch: competition events, divisions, movements, and sponsors
+	const [competitionEvents, divisionsData, movementsResult, sponsorsResult] =
+		await Promise.all([
 			getCompetitionWorkouts(competitionId),
 			getCompetitionDivisionsWithCounts({ competitionId }),
 			getAllMovementsAction(),
-		],
-	)
+			getCompetitionSponsors(competitionId),
+		])
 
 	const [movements] = movementsResult ?? [null]
 	const { divisions } = divisionsData
+
+	// Flatten sponsors from groups and ungrouped
+	const allSponsors = [
+		...sponsorsResult.groups.flatMap((g) => g.sponsors),
+		...sponsorsResult.ungroupedSponsors,
+	]
 
 	// Fetch division descriptions for all events
 	const divisionIds = divisions.map((d) => d.id)
@@ -113,6 +120,7 @@ export default async function CompetitionEventsPage({
 			movements={movements?.data ?? []}
 			divisions={divisions}
 			divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
+			sponsors={allSponsors}
 		/>
 	)
 }

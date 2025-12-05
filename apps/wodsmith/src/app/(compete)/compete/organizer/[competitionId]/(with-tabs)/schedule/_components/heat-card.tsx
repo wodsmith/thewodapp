@@ -228,7 +228,14 @@ function DraggableAssignedAthlete({
 				})
 			},
 		})
-	}, [assignment.id, heatId, assignment.registration.id, displayName, laneNum, assignment.registration])
+	}, [
+		assignment.id,
+		heatId,
+		assignment.registration.id,
+		displayName,
+		laneNum,
+		assignment.registration,
+	])
 
 	return (
 		<div
@@ -549,7 +556,9 @@ export function HeatCard({
 				<CardHeader className="py-3">
 					<div className="flex items-center gap-3">
 						<ChevronRight className="h-4 w-4 text-muted-foreground" />
-						<CardTitle className="text-base">Heat <span className="tabular-nums">{heat.heatNumber}</span></CardTitle>
+						<CardTitle className="text-base">
+							Heat <span className="tabular-nums">{heat.heatNumber}</span>
+						</CardTitle>
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							{heat.scheduledTime && (
 								<span className="flex items-center gap-1">
@@ -564,7 +573,10 @@ export function HeatCard({
 								</span>
 							)}
 						</div>
-						<Badge variant={isFull ? "default" : "outline"} className="text-xs tabular-nums">
+						<Badge
+							variant={isFull ? "default" : "outline"}
+							className="text-xs tabular-nums"
+						>
 							{heat.assignments.length}/{maxLanes}
 						</Badge>
 						<div className="flex-1" />
@@ -592,8 +604,13 @@ export function HeatCard({
 						>
 							<ChevronDown className="h-4 w-4" />
 						</Button>
-						<CardTitle className="text-base">Heat <span className="tabular-nums">{heat.heatNumber}</span></CardTitle>
-						<Badge variant={isFull ? "default" : "outline"} className="text-xs tabular-nums">
+						<CardTitle className="text-base">
+							Heat <span className="tabular-nums">{heat.heatNumber}</span>
+						</CardTitle>
+						<Badge
+							variant={isFull ? "default" : "outline"}
+							className="text-xs tabular-nums"
+						>
 							{heat.assignments.length}/{maxLanes}
 						</Badge>
 					</div>
@@ -741,7 +758,6 @@ export function HeatCard({
 						</DialogContent>
 					</Dialog>
 				)}
-
 			</CardContent>
 		</Card>
 	)

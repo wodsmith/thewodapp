@@ -1,10 +1,11 @@
 import { Dumbbell } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import type { Competition, CompetitionGroup, Team } from "@/db/schema"
+import type { Competition, CompetitionGroup, Sponsor, Team } from "@/db/schema"
 import {
 	getPublishedCompetitionWorkouts,
 	getWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
+import { getCompetitionSponsors } from "@/server/sponsors"
 import { WorkoutCard } from "./workout-card"
 
 interface WorkoutsContentProps {
@@ -19,7 +20,22 @@ export async function WorkoutsContent({
 	competition,
 	divisions,
 }: WorkoutsContentProps) {
-	const events = await getPublishedCompetitionWorkouts(competition.id)
+	// Fetch events and sponsors in parallel
+	const [events, sponsorsResult] = await Promise.all([
+		getPublishedCompetitionWorkouts(competition.id),
+		getCompetitionSponsors(competition.id),
+	])
+
+	// Build sponsor lookup map
+	const sponsorMap = new Map<string, Sponsor>()
+	for (const group of sponsorsResult.groups) {
+		for (const sponsor of group.sponsors) {
+			sponsorMap.set(sponsor.id, sponsor)
+		}
+	}
+	for (const sponsor of sponsorsResult.ungroupedSponsors) {
+		sponsorMap.set(sponsor.id, sponsor)
+	}
 
 	// Fetch division descriptions for all workouts in parallel
 	const divisionIds = divisions?.map((d) => d.id) ?? []
@@ -74,25 +90,32 @@ export async function WorkoutsContent({
 				</h2>
 
 				<div className="space-y-4">
-					{events.map((event) => (
-						<WorkoutCard
-							key={event.id}
-							trackOrder={event.trackOrder}
-							name={event.workout.name}
-							scheme={event.workout.scheme}
-							description={event.workout.description}
-							scoreType={event.workout.scoreType}
-							roundsToScore={event.workout.roundsToScore}
-							repsPerRound={event.workout.repsPerRound}
-							pointsMultiplier={event.pointsMultiplier}
-							notes={event.notes}
-							movements={event.workout.movements}
-							tags={event.workout.tags}
-							divisionDescriptions={
-								divisionDescriptionsMap.get(event.workoutId) ?? []
-							}
-						/>
-					))}
+					{events.map((event) => {
+						const sponsor = event.sponsorId
+							? sponsorMap.get(event.sponsorId)
+							: undefined
+						return (
+							<WorkoutCard
+								key={event.id}
+								trackOrder={event.trackOrder}
+								name={event.workout.name}
+								scheme={event.workout.scheme}
+								description={event.workout.description}
+								scoreType={event.workout.scoreType}
+								roundsToScore={event.workout.roundsToScore}
+								repsPerRound={event.workout.repsPerRound}
+								pointsMultiplier={event.pointsMultiplier}
+								notes={event.notes}
+								movements={event.workout.movements}
+								tags={event.workout.tags}
+								divisionDescriptions={
+									divisionDescriptionsMap.get(event.workoutId) ?? []
+								}
+								sponsorName={sponsor?.name}
+								sponsorLogoUrl={sponsor?.logoUrl}
+							/>
+						)
+					})}
 				</div>
 			</div>
 		</div>

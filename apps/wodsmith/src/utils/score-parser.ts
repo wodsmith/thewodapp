@@ -72,9 +72,7 @@ export function parseScore(
 			}
 		}
 
-		const formatted = timeCap
-			? `CAP (${formatTime(timeCap)})`
-			: "CAP"
+		const formatted = timeCap ? `CAP (${formatTime(timeCap)})` : "CAP"
 
 		return {
 			formatted,

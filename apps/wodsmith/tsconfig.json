@@ -21,5 +21,11 @@
 		".next/types/**/*.ts",
 		"custom-env.d.ts"
 	],
-	"exclude": ["node_modules", ".next", "test/**/*", "scripts/**/*", "v0-generation/**/*"]
+	"exclude": [
+		"node_modules",
+		".next",
+		"test/**/*",
+		"scripts/**/*",
+		"v0-generation/**/*"
+	]
 }

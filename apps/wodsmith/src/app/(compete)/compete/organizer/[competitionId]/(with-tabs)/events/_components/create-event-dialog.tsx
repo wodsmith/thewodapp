@@ -26,19 +26,19 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import {
+	SCORE_TYPES,
+	SECONDARY_SCHEMES,
+	TIEBREAK_SCHEMES,
+	WORKOUT_SCHEMES,
+} from "@/constants"
 import type { Movement } from "@/db/schema"
 import type {
-	WorkoutScheme,
 	ScoreType,
-	TiebreakScheme,
 	SecondaryScheme,
+	TiebreakScheme,
+	WorkoutScheme,
 } from "@/db/schemas/workouts"
-import {
-	WORKOUT_SCHEMES,
-	SCORE_TYPES,
-	TIEBREAK_SCHEMES,
-	SECONDARY_SCHEMES,
-} from "@/constants"
 
 // Get default score type based on scheme
 function getDefaultScoreType(scheme: WorkoutScheme): ScoreType {

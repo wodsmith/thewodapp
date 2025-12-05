@@ -309,7 +309,10 @@ export async function detectExternalProgrammingTrackWorkouts(
 				.from(scheduledWorkoutInstancesTable)
 				.leftJoin(
 					trackWorkoutsTable,
-					eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
+					eq(
+						trackWorkoutsTable.id,
+						scheduledWorkoutInstancesTable.trackWorkoutId,
+					),
 				)
 				.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
 				.leftJoin(
@@ -347,6 +350,7 @@ export async function detectExternalProgrammingTrackWorkouts(
 						pointsMultiplier: row.trackWorkoutPointsMultiplier,
 						heatStatus: row.trackWorkoutHeatStatus,
 						eventStatus: row.trackWorkoutEventStatus,
+						sponsorId: null, // Not included in this query
 						notes: row.trackWorkoutNotes,
 						createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
 						updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,
@@ -499,7 +503,10 @@ export async function getUserProgrammingTracks(userTeamIds: string[]): Promise<
 					programmingTracksTable,
 					eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
 				)
-				.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
 				.where(
 					and(
 						inArray(teamProgrammingTracksTable.teamId, chunk),

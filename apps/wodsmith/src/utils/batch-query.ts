@@ -83,15 +83,11 @@ export async function autochunk<
 	let chunkParameters = 0
 
 	if (otherParametersCount >= MAX_PARAMETERS) {
-		throw new Error(
-			`otherParametersCount cannot be >= ${MAX_PARAMETERS}`,
-		)
+		throw new Error(`otherParametersCount cannot be >= ${MAX_PARAMETERS}`)
 	}
 
 	for (const item of items) {
-		const itemParameters = isPlainObject(item)
-			? Object.keys(item).length
-			: 1
+		const itemParameters = isPlainObject(item) ? Object.keys(item).length : 1
 
 		if (itemParameters > MAX_PARAMETERS) {
 			throw new Error(`Item has too many parameters (${itemParameters})`)
@@ -154,15 +150,11 @@ export async function autochunkFirst<
 	let chunkParameters = 0
 
 	if (otherParametersCount >= MAX_PARAMETERS) {
-		throw new Error(
-			`otherParametersCount cannot be >= ${MAX_PARAMETERS}`,
-		)
+		throw new Error(`otherParametersCount cannot be >= ${MAX_PARAMETERS}`)
 	}
 
 	for (const item of items) {
-		const itemParameters = isPlainObject(item)
-			? Object.keys(item).length
-			: 1
+		const itemParameters = isPlainObject(item) ? Object.keys(item).length : 1
 
 		if (itemParameters > MAX_PARAMETERS) {
 			throw new Error(`Item has too many parameters (${itemParameters})`)

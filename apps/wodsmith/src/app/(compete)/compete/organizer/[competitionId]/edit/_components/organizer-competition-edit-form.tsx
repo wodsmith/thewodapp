@@ -34,10 +34,7 @@ import {
 	type CompetitionSettings,
 	parseCompetitionSettings,
 } from "@/types/competitions"
-import {
-	formatDateInputFromUTC,
-	parseDateInputAsUTC,
-} from "@/utils/date-utils"
+import { formatDateInputFromUTC, parseDateInputAsUTC } from "@/utils/date-utils"
 
 const formSchema = z
 	.object({

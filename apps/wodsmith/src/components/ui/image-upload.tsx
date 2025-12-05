@@ -10,6 +10,7 @@ import { Button } from "./button"
 type UploadPurpose =
 	| "competition-profile"
 	| "competition-banner"
+	| "competition-sponsor-logo"
 	| "athlete-profile"
 	| "athlete-cover"
 	| "sponsor-logo"

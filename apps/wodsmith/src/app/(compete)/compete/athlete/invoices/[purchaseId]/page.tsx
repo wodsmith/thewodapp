@@ -1,10 +1,6 @@
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import {
-	ArrowLeft,
-	Receipt,
-	CreditCard,
-} from "lucide-react"
+import { ArrowLeft, Receipt, CreditCard } from "lucide-react"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getInvoiceDetails } from "@/server/commerce"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

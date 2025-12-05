@@ -14,6 +14,7 @@ import {
 	createTrackWorkoutId,
 } from "./common"
 import { competitionsTable } from "./competitions"
+import { sponsorsTable } from "./sponsors"
 import { teamTable } from "./teams"
 import { workouts } from "./workouts"
 
@@ -109,6 +110,10 @@ export const trackWorkoutsTable = sqliteTable(
 		eventStatus: text({ length: 20 })
 			.$type<"draft" | "published">()
 			.default("draft"),
+		// Presenting sponsor for this event ("Presented by X")
+		sponsorId: text().references(() => sponsorsTable.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
@@ -119,6 +124,7 @@ export const trackWorkoutsTable = sqliteTable(
 			table.workoutId,
 			table.trackOrder,
 		),
+		index("track_workout_sponsor_idx").on(table.sponsorId),
 	],
 )
 
@@ -189,6 +195,10 @@ export const trackWorkoutsRelations = relations(
 		workout: one(workouts, {
 			fields: [trackWorkoutsTable.workoutId],
 			references: [workouts.id],
+		}),
+		sponsor: one(sponsorsTable, {
+			fields: [trackWorkoutsTable.sponsorId],
+			references: [sponsorsTable.id],
 		}),
 		scheduledInstances: many(scheduledWorkoutInstancesTable),
 	}),

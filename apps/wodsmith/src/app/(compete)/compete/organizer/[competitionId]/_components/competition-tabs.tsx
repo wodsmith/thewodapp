@@ -14,6 +14,7 @@ const tabs = [
 	{ label: "Events", href: "/events" },
 	{ label: "Results", href: "/results" },
 	{ label: "Schedule", href: "/schedule" },
+	{ label: "Sponsors", href: "/sponsors" },
 	{ label: "Athletes", href: "/athletes" },
 	{ label: "Pricing", href: "/pricing" },
 	{ label: "Revenue", href: "/revenue" },

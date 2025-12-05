@@ -1,4 +1,10 @@
-import { ExternalLink, Facebook, Instagram, Twitter } from "lucide-react"
+import {
+	ExternalLink,
+	Facebook,
+	Instagram,
+	Pencil,
+	Twitter,
+} from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,15 +15,19 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import type { Sponsor } from "@/db/schema"
 import type { AthleteProfileData } from "@/utils/athlete-profile"
 
 type SponsorsSocialProps = {
 	athleteProfile: AthleteProfileData | null
+	sponsors: Sponsor[]
 }
 
-export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
+export function SponsorsSocial({
+	athleteProfile,
+	sponsors,
+}: SponsorsSocialProps) {
 	const social = athleteProfile?.social
-	const sponsors = athleteProfile?.sponsors
 
 	const hasSocialLinks =
 		social?.facebook || social?.instagram || social?.twitter || social?.tiktok
@@ -93,9 +103,17 @@ export function SponsorsSocial({ athleteProfile }: SponsorsSocialProps) {
 
 			{/* Sponsors */}
 			<Card>
-				<CardHeader>
-					<CardTitle>Sponsors</CardTitle>
-					<CardDescription>Supporting brands and partners</CardDescription>
+				<CardHeader className="flex flex-row items-center justify-between space-y-0">
+					<div className="space-y-1.5">
+						<CardTitle>Sponsors</CardTitle>
+						<CardDescription>Supporting brands and partners</CardDescription>
+					</div>
+					<Button asChild variant="outline" size="sm">
+						<Link href="/compete/athlete/sponsors">
+							<Pencil className="mr-2 h-4 w-4" />
+							Manage
+						</Link>
+					</Button>
 				</CardHeader>
 				<CardContent>
 					{hasSponsors ? (

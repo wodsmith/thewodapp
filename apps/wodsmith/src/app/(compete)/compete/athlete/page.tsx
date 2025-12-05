@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { Separator } from "@/components/ui/separator"
 import { getUserCompetitionHistory } from "@/server/competitions"
+import { getUserSponsors } from "@/server/sponsors"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getUserGymAffiliation } from "@/server/user"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -44,12 +45,14 @@ export default async function AthletePage() {
 	// Parse athlete profile JSON
 	const athleteProfile = parseAthleteProfile(user.athleteProfile)
 
-	// Get gym affiliation, competition history, and pending invitations in parallel
-	const [gym, competitionHistory, pendingInvitations] = await Promise.all([
-		getUserGymAffiliation(session.userId),
-		getUserCompetitionHistory(session.userId),
-		getPendingInvitationsForCurrentUser().catch(() => []),
-	])
+	// Get gym affiliation, competition history, sponsors, and pending invitations in parallel
+	const [gym, competitionHistory, sponsors, pendingInvitations] =
+		await Promise.all([
+			getUserGymAffiliation(session.userId),
+			getUserCompetitionHistory(session.userId),
+			getUserSponsors(session.userId),
+			getPendingInvitationsForCurrentUser().catch(() => []),
+		])
 
 	// Calculate age
 	const age = calculateAge(user.dateOfBirth)
@@ -97,7 +100,7 @@ export default async function AthletePage() {
 			<Separator />
 
 			{/* Sponsors & Social */}
-			<SponsorsSocial athleteProfile={athleteProfile} />
+			<SponsorsSocial athleteProfile={athleteProfile} sponsors={sponsors} />
 		</div>
 	)
 }

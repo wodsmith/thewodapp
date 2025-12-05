@@ -41,7 +41,7 @@ import {
 	TIEBREAK_SCHEMES,
 	WORKOUT_SCHEMES,
 } from "@/constants"
-import type { Movement } from "@/db/schema"
+import type { Movement, Sponsor } from "@/db/schema"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import {
 	type CompetitionEventSchema,
@@ -91,6 +91,7 @@ interface EventDetailsFormProps {
 	divisions: Division[]
 	divisionDescriptions: DivisionDescriptionData[]
 	movements: Movement[]
+	sponsors: Sponsor[]
 }
 
 export function EventDetailsForm({
@@ -100,6 +101,7 @@ export function EventDetailsForm({
 	divisions,
 	divisionDescriptions,
 	movements,
+	sponsors,
 }: EventDetailsFormProps) {
 	const router = useRouter()
 
@@ -126,6 +128,7 @@ export function EventDetailsForm({
 			notes: event.notes || "",
 			selectedMovements: event.workout.movements?.map((m) => m.id) ?? [],
 			divisionDescs: initialDivisionDescs,
+			sponsorId: event.sponsorId,
 		},
 	})
 
@@ -183,6 +186,7 @@ export function EventDetailsForm({
 			notes: data.notes || null,
 			divisionDescriptions:
 				divisionDescriptions.length > 0 ? divisionDescriptions : undefined,
+			sponsorId: data.sponsorId,
 		})
 
 		if (error) {
@@ -570,6 +574,41 @@ export function EventDetailsForm({
 													% (100 = normal, 200 = 2x points)
 												</span>
 											</div>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								<FormField
+									control={form.control}
+									name="sponsorId"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Presented by</FormLabel>
+											<Select
+												value={field.value ?? "none"}
+												onValueChange={(v) =>
+													field.onChange(v === "none" ? null : v)
+												}
+											>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder="Select a sponsor" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="none">No sponsor</SelectItem>
+													{sponsors.map((sponsor) => (
+														<SelectItem key={sponsor.id} value={sponsor.id}>
+															{sponsor.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											<FormDescription>
+												Assign a sponsor to this event for "Presented by"
+												branding
+											</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)}

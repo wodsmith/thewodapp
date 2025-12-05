@@ -41,9 +41,10 @@
 			"nursery": {
 				"useUniqueElementIds": "off"
 			},
-			"suspicious": {
-				"noExplicitAny": "off"
-			}
+		"suspicious": {
+			"noExplicitAny": "off",
+			"noArrayIndexKey": "warn"
+		}
 		}
 	},
 	"formatter": {
