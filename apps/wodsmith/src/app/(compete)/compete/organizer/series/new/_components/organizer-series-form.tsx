@@ -110,36 +110,36 @@ export function OrganizerSeriesForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-				{/* Team selector (only if multiple teams) */}
-				{teams.length > 1 && (
-					<FormField
-						control={form.control}
-						name="teamId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Organizing Team</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select team" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{teams.map((team) => (
+				{/* Team selector (only show gym teams) */}
+				<FormField
+					control={form.control}
+					name="teamId"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Organizing Team</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select team" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{teams
+										.filter((team) => team.type === "gym")
+										.map((team) => (
 											<SelectItem key={team.id} value={team.id}>
 												{team.name}
 											</SelectItem>
 										))}
-									</SelectContent>
-								</Select>
-								<FormDescription>
-									The team that will organize this series
-								</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								The team that will organize this series
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}

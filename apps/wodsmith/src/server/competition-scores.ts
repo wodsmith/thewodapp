@@ -4,6 +4,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, eq, inArray } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
+import { autochunk } from "@/utils/batch-query"
 import {
 	competitionRegistrationsTable,
 	results,
@@ -174,34 +175,40 @@ export async function getEventScoreEntryData(params: {
 			)
 		: registrations
 
-	// Get existing results for this event
+	// Get existing results for this event (chunked to avoid D1 parameter limit)
 	const userIds = filteredRegistrations.map((r) => r.user.id)
 	const existingResults =
 		userIds.length > 0
-			? await db
-					.select()
-					.from(results)
-					.where(
-						and(
-							eq(results.competitionEventId, params.trackWorkoutId),
-							inArray(results.userId, userIds),
-						),
-					)
+			? await autochunk(
+					{ items: userIds, otherParametersCount: 1 },
+					async (chunk) =>
+						db
+							.select()
+							.from(results)
+							.where(
+								and(
+									eq(results.competitionEventId, params.trackWorkoutId),
+									inArray(results.userId, chunk),
+								),
+							),
+				)
 			: []
 
-	// Get sets for all existing results
+	// Get sets for all existing results (chunked to avoid D1 parameter limit)
 	const resultIds = existingResults.map((r) => r.id)
 	const existingSets =
 		resultIds.length > 0
-			? await db
-					.select({
-						resultId: sets.resultId,
-						setNumber: sets.setNumber,
-						score: sets.score,
-						reps: sets.reps,
-					})
-					.from(sets)
-					.where(inArray(sets.resultId, resultIds))
+			? await autochunk({ items: resultIds }, async (chunk) =>
+					db
+						.select({
+							resultId: sets.resultId,
+							setNumber: sets.setNumber,
+							score: sets.score,
+							reps: sets.reps,
+						})
+						.from(sets)
+						.where(inArray(sets.resultId, chunk)),
+				)
 			: []
 
 	// Group sets by resultId
@@ -232,14 +239,16 @@ export async function getEventScoreEntryData(params: {
 
 	const divisions =
 		divisionIds.length > 0
-			? await db
-					.select({
-						id: scalingLevelsTable.id,
-						label: scalingLevelsTable.label,
-						position: scalingLevelsTable.position,
-					})
-					.from(scalingLevelsTable)
-					.where(inArray(scalingLevelsTable.id, divisionIds))
+			? await autochunk({ items: divisionIds }, async (chunk) =>
+					db
+						.select({
+							id: scalingLevelsTable.id,
+							label: scalingLevelsTable.label,
+							position: scalingLevelsTable.position,
+						})
+						.from(scalingLevelsTable)
+						.where(inArray(scalingLevelsTable.id, chunk)),
+				)
 			: []
 
 	// Build athletes array
