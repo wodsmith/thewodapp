@@ -34,9 +34,14 @@ export default async function SeriesPage({ searchParams }: SeriesPageProps) {
 			activeTeamId = activeTeamFromCookie
 		}
 	}
-
 	if (!activeTeamId) {
-		redirect("/compete/organizer")
+	  const gymTeams = organizingTeams.filter((team) => team.type === "gym")
+		const firstTeam = gymTeams[0]
+		if (firstTeam) {
+			activeTeamId = firstTeam.id
+		} else {
+			redirect("/compete/organizer")
+		}
 	}
 
 	// Fetch series for the active team

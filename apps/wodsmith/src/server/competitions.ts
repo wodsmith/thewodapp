@@ -364,6 +364,7 @@ export async function createCompetition(params: {
 	registrationOpensAt?: Date
 	registrationClosesAt?: Date
 	groupId?: string
+	settings?: string
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
 	const db = getDb()
 
@@ -460,6 +461,7 @@ export async function createCompetition(params: {
 				endDate: params.endDate,
 				registrationOpensAt: params.registrationOpensAt,
 				registrationClosesAt: params.registrationClosesAt,
+				settings: params.settings,
 			})
 			.returning()
 

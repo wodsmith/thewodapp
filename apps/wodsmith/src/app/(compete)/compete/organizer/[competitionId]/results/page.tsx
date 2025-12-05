@@ -1,59 +1,56 @@
-import "server-only"
-import type { Metadata } from "next"
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ChevronLeft } from "lucide-react"
-import { ZSAError } from "@repo/zsa"
-import { Button } from "@/components/ui/button"
-import { TEAM_PERMISSIONS } from "@/db/schema"
-import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
-import { getCompetitionWorkouts } from "@/server/competition-workouts"
-import { getEventScoreEntryData } from "@/server/competition-scores"
-import { getCompetition } from "@/server/competitions"
-import { requireTeamPermission } from "@/utils/team-auth"
-import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
-import { ResultsEntryForm } from "./_components/results-entry-form"
+import "server-only";
+import { ZSAError } from "@repo/zsa";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { TEAM_PERMISSIONS } from "@/db/schema";
+import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions";
+import { getEventScoreEntryData } from "@/server/competition-scores";
+import { getCompetitionWorkouts } from "@/server/competition-workouts";
+import { getCompetition } from "@/server/competitions";
+import { requireTeamPermission } from "@/utils/team-auth";
+import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb";
+import { ResultsEntryForm } from "./_components/results-entry-form";
 
 interface ResultsPageProps {
 	params: Promise<{
-		competitionId: string
-	}>
+		competitionId: string;
+	}>;
 	searchParams: Promise<{
-		event?: string
-		division?: string
-	}>
+		event?: string;
+		division?: string;
+	}>;
 }
 
 export async function generateMetadata({
 	params,
 }: ResultsPageProps): Promise<Metadata> {
-	const { competitionId } = await params
-	const competition = await getCompetition(competitionId)
+	const { competitionId } = await params;
+	const competition = await getCompetition(competitionId);
 
 	if (!competition) {
 		return {
 			title: "Results Not Found",
-		}
+		};
 	}
 
 	return {
 		title: `Enter Results - ${competition.name}`,
 		description: `Enter competition results for ${competition.name}`,
-	}
+	};
 }
 
 export default async function ResultsPage({
 	params,
 	searchParams,
 }: ResultsPageProps) {
-	const { competitionId } = await params
+	const { competitionId } = await params;
 	const { event: selectedEventId, division: selectedDivisionId } =
-		await searchParams
+		await searchParams;
 
-	const competition = await getCompetition(competitionId)
+	const competition = await getCompetition(competitionId);
 
 	if (!competition) {
-		notFound()
+		notFound();
 	}
 
 	// Check permission
@@ -61,36 +58,36 @@ export default async function ResultsPage({
 		await requireTeamPermission(
 			competition.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+		);
 	} catch (error) {
 		if (
 			error instanceof ZSAError &&
 			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
 		) {
-			notFound()
+			notFound();
 		}
-		throw error
+		throw error;
 	}
 
 	// Get all events for this competition
-	const events = await getCompetitionWorkouts(competitionId)
+	const events = await getCompetitionWorkouts(competitionId);
 
 	// Default to first event if none selected
-	const currentEventId = selectedEventId || events[0]?.id
-	const currentEvent = events.find((e) => e.id === currentEventId)
+	const currentEventId = selectedEventId || events[0]?.id;
+	const currentEvent = events.find((e) => e.id === currentEventId);
 
 	// Get athletes and existing scores for selected event
 	const [scoreEntryData, { divisions }] = currentEvent
 		? await Promise.all([
-			getEventScoreEntryData({
-				competitionId,
-				trackWorkoutId: currentEvent.id,
-				competitionTeamId: competition.competitionTeamId,
-				divisionId: selectedDivisionId,
-			}),
-			getCompetitionDivisionsWithCounts({ competitionId }),
-		])
-		: [null, { divisions: [] }]
+				getEventScoreEntryData({
+					competitionId,
+					trackWorkoutId: currentEvent.id,
+					competitionTeamId: competition.competitionTeamId,
+					divisionId: selectedDivisionId,
+				}),
+				getCompetitionDivisionsWithCounts({ competitionId }),
+			])
+		: [null, { divisions: [] }];
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -106,15 +103,7 @@ export default async function ResultsPage({
 							{ label: "Enter Results" },
 						]}
 					/>
-					<div className="flex items-center gap-4 mt-2">
-						<Button variant="ghost" size="sm" asChild>
-							<Link href={`/compete/organizer/${competition.id}`}>
-								<ChevronLeft className="h-4 w-4 mr-1" />
-								Back to Competition
-							</Link>
-						</Button>
-					</div>
-					<h1 className="text-3xl font-bold mt-4">Enter Results</h1>
+					<h1 className="text-3xl font-bold mt-2">Enter Results</h1>
 				</div>
 
 				{events.length > 0 && currentEvent && scoreEntryData ? (
@@ -141,5 +130,5 @@ export default async function ResultsPage({
 				)}
 			</div>
 		</div>
-	)
+	);
 }

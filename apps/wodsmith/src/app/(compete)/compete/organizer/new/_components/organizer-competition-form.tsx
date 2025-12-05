@@ -1,12 +1,12 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { useRouter } from "next/navigation"
 import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { useServerAction } from "@repo/zsa-react"
 import { createCompetitionAction } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -119,7 +119,11 @@ export function OrganizerCompetitionForm({
 					has_divisions: !!form.getValues("scalingGroupId"),
 					series_id: form.getValues("groupId"),
 				})
-				router.push("/compete/organizer")
+				if (result?.data?.data?.competitionId) {
+					router.push(`/compete/organizer/${result.data.data.competitionId}`)
+				} else {
+					router.push("/compete/organizer")
+				}
 				router.refresh()
 			},
 		},
@@ -188,36 +192,36 @@ export function OrganizerCompetitionForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-				{/* Team selector (only if multiple teams) */}
-				{teams.length > 1 && (
-					<FormField
-						control={form.control}
-						name="teamId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Organizing Team</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select team" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{teams.map((team) => (
+				{/* Team selector (only show gym teams) */}
+				<FormField
+					control={form.control}
+					name="teamId"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Organizing Team</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select team" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{teams
+										.filter((team) => team.type === "gym")
+										.map((team) => (
 											<SelectItem key={team.id} value={team.id}>
 												{team.name}
 											</SelectItem>
 										))}
-									</SelectContent>
-								</Select>
-								<FormDescription>
-									The team that will organize this competition
-								</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								The team that will organize this competition
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}

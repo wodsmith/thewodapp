@@ -36,8 +36,13 @@ export default async function NewCompetitionPage({
 	}
 
 	if (!activeTeamId) {
-		// Redirect to organizer page which will show team selector
-		redirect("/compete/organizer")
+		const gymTeams = organizingTeams.filter((team) => team.type === "gym")
+		const firstTeam = gymTeams[0]
+		if (firstTeam) {
+			activeTeamId = firstTeam.id
+		} else {
+			redirect("/compete/organizer")
+		}
 	}
 
 	// Fetch groups and scaling groups for the active team
