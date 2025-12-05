@@ -14,6 +14,7 @@ import {
 	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	Eye,
 	EyeOff,
@@ -25,7 +26,6 @@ import {
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	updateCompetitionWorkoutAction,
 	updateDivisionDescriptionsAction,
@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { EVENT_STATUS, type EventStatus } from "@/db/schema"
+import { EVENT_STATUS, type EventStatus, type Sponsor } from "@/db/schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 interface Division {
@@ -70,6 +70,7 @@ interface CompetitionEventRowProps {
 	organizingTeamId: string
 	divisions: Division[]
 	divisionDescriptions: DivisionDescription[]
+	sponsors: Sponsor[]
 	onRemove: () => void
 	onDrop: (sourceIndex: number, targetIndex: number) => void
 }
@@ -82,6 +83,7 @@ export function CompetitionEventRow({
 	organizingTeamId,
 	divisions,
 	divisionDescriptions,
+	sponsors,
 	onRemove,
 	onDrop,
 }: CompetitionEventRowProps) {
@@ -356,6 +358,15 @@ export function CompetitionEventRow({
 							{event.pointsMultiplier && event.pointsMultiplier !== 100 && (
 								<span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
 									{event.pointsMultiplier / 100}x
+								</span>
+							)}
+
+							{/* Presented by sponsor badge */}
+							{event.sponsorId && (
+								<span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-2 py-1 rounded shrink-0">
+									Presented by{" "}
+									{sponsors.find((s) => s.id === event.sponsorId)?.name ??
+										"Sponsor"}
 								</span>
 							)}
 
