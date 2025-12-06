@@ -152,10 +152,10 @@ export function HeatScheduleManager({
 	}
 
 	// Update heat status for an event
-	async function handleHeatStatusChange(
-		eventId: string,
-		newStatus: HeatStatus,
-	) {
+	async function handleHeatStatusChange({
+		eventId,
+		newStatus,
+	}: { eventId: string; newStatus: HeatStatus }) {
 		const event = localEvents.find((e) => e.id === eventId)
 		if (!event || event.heatStatus === newStatus) return
 
@@ -604,7 +604,10 @@ export function HeatScheduleManager({
 					<Select
 						value={selectedEvent.heatStatus ?? HEAT_STATUS.DRAFT}
 						onValueChange={(value) =>
-							handleHeatStatusChange(selectedEvent.id, value as HeatStatus)
+							handleHeatStatusChange({
+								eventId: selectedEvent.id,
+								newStatus: value as HeatStatus,
+							})
 						}
 						disabled={updateWorkout.isPending}
 					>

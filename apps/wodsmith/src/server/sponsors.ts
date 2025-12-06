@@ -8,6 +8,7 @@ import {
 	sponsorGroupsTable,
 	sponsorsTable,
 	trackWorkoutsTable,
+	programmingTracksTable,
 	competitionsTable,
 	TEAM_PERMISSIONS,
 } from "@/db/schema"
@@ -600,6 +601,28 @@ export async function assignWorkoutSponsor({
 		competition.organizingTeamId,
 		TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 	)
+
+	// Verify the track workout belongs to this competition
+	const [trackWorkout] = await db
+		.select({ id: trackWorkoutsTable.id })
+		.from(trackWorkoutsTable)
+		.innerJoin(
+			programmingTracksTable,
+			eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+		)
+		.where(
+			and(
+				eq(trackWorkoutsTable.id, trackWorkoutId),
+				eq(programmingTracksTable.competitionId, competitionId),
+			),
+		)
+
+	if (!trackWorkout) {
+		return {
+			success: false,
+			error: "Track workout not found for this competition",
+		}
+	}
 
 	// If assigning a sponsor, verify it belongs to this competition
 	if (sponsorId) {

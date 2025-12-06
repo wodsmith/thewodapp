@@ -33,5 +33,5 @@ CREATE INDEX `sponsors_user_idx` ON `sponsors` (`userId`);--> statement-breakpoi
 CREATE INDEX `sponsors_group_idx` ON `sponsors` (`groupId`);--> statement-breakpoint
 CREATE INDEX `sponsors_competition_order_idx` ON `sponsors` (`competitionId`,`groupId`,`displayOrder`);--> statement-breakpoint
 CREATE INDEX `sponsors_user_order_idx` ON `sponsors` (`userId`,`displayOrder`);--> statement-breakpoint
-ALTER TABLE `track_workout` ADD `sponsorId` text REFERENCES sponsors(id);--> statement-breakpoint
+ALTER TABLE `track_workout` ADD `sponsorId` text REFERENCES sponsors(id) ON DELETE SET NULL;--> statement-breakpoint
 CREATE INDEX `track_workout_sponsor_idx` ON `track_workout` (`sponsorId`);

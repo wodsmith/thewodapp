@@ -231,6 +231,9 @@ export function SponsorManager({
 		sourceIndex: number,
 		targetIndex: number,
 	) => {
+		// Capture previous state before optimistic update
+		const previousGroups = [...groups]
+
 		// Optimistic update
 		const newGroups = [...groups]
 		const [movedGroup] = newGroups.splice(sourceIndex, 1)
@@ -248,7 +251,7 @@ export function SponsorManager({
 
 			if (error) {
 				// Revert on error
-				setGroups(groups)
+				setGroups(previousGroups)
 				toast.error(error.message || "Failed to reorder groups")
 			}
 		}
