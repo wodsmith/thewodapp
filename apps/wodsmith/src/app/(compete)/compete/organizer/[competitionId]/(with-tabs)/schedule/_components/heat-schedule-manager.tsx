@@ -152,7 +152,10 @@ export function HeatScheduleManager({
 	}
 
 	// Update heat status for an event
-	async function handleHeatStatusChange(eventId: string, newStatus: HeatStatus) {
+	async function handleHeatStatusChange({
+		eventId,
+		newStatus,
+	}: { eventId: string; newStatus: HeatStatus }) {
 		const event = localEvents.find((e) => e.id === eventId)
 		if (!event || event.heatStatus === newStatus) return
 
@@ -365,7 +368,12 @@ export function HeatScheduleManager({
 			remainingHeats,
 			heatsForUnassigned,
 		}
-	}, [registrations.length, unassignedRegistrations.length, eventHeats.length, selectedVenue])
+	}, [
+		registrations.length,
+		unassignedRegistrations.length,
+		eventHeats.length,
+		selectedVenue,
+	])
 
 	async function handleCreateHeat() {
 		if (!selectedEventId) return
@@ -523,9 +531,10 @@ export function HeatScheduleManager({
 		const duration = workoutCapMinutes + transitionMinutes
 
 		// Get the starting heat number
-		const startNumber = eventHeats.length > 0
-			? Math.max(...eventHeats.map((h) => h.heatNumber)) + 1
-			: 1
+		const startNumber =
+			eventHeats.length > 0
+				? Math.max(...eventHeats.map((h) => h.heatNumber)) + 1
+				: 1
 
 		// Create heats one by one with their specific times
 		const createdHeats: HeatWithAssignments[] = []
@@ -595,7 +604,10 @@ export function HeatScheduleManager({
 					<Select
 						value={selectedEvent.heatStatus ?? HEAT_STATUS.DRAFT}
 						onValueChange={(value) =>
-							handleHeatStatusChange(selectedEvent.id, value as HeatStatus)
+							handleHeatStatusChange({
+								eventId: selectedEvent.id,
+								newStatus: value as HeatStatus,
+							})
 						}
 						disabled={updateWorkout.isPending}
 					>
@@ -638,7 +650,8 @@ export function HeatScheduleManager({
 						<SelectContent>
 							{localEvents.map((event) => (
 								<SelectItem key={event.id} value={event.id}>
-									<span className="tabular-nums">{event.trackOrder}</span>. {event.workout.name}
+									<span className="tabular-nums">{event.trackOrder}</span>.{" "}
+									{event.workout.name}
 								</SelectItem>
 							))}
 						</SelectContent>
@@ -657,7 +670,9 @@ export function HeatScheduleManager({
 							<SelectContent>
 								{venues.map((venue) => (
 									<SelectItem key={venue.id} value={venue.id}>
-										{venue.name} (<span className="tabular-nums">{venue.laneCount}</span> lanes)
+										{venue.name} (
+										<span className="tabular-nums">{venue.laneCount}</span>{" "}
+										lanes)
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -682,18 +697,18 @@ export function HeatScheduleManager({
 				</div>
 
 				<Dialog
-				open={isCreateOpen}
-				onOpenChange={(open) => {
-					if (open) {
-						// Initialize with selected venue and calculate next time
-						const venueId = selectedVenueId || null
-						setNewHeatVenueId(selectedVenueId)
-						setNewHeatTime(getNextHeatTime(venueId))
-						setNewHeatDuration(getHeatDuration(venueId))
-					}
-					setIsCreateOpen(open)
-				}}
-			>
+					open={isCreateOpen}
+					onOpenChange={(open) => {
+						if (open) {
+							// Initialize with selected venue and calculate next time
+							const venueId = selectedVenueId || null
+							setNewHeatVenueId(selectedVenueId)
+							setNewHeatTime(getNextHeatTime(venueId))
+							setNewHeatDuration(getHeatDuration(venueId))
+						}
+						setIsCreateOpen(open)
+					}}
+				>
 					<DialogTrigger asChild>
 						<Button size="sm">
 							<Plus className="h-4 w-4 mr-2" />
@@ -729,7 +744,9 @@ export function HeatScheduleManager({
 										<SelectItem value="none">No venue</SelectItem>
 										{venues.map((venue) => (
 											<SelectItem key={venue.id} value={venue.id}>
-												{venue.name} (<span className="tabular-nums">{venue.laneCount}</span> lanes)
+												{venue.name} (
+												<span className="tabular-nums">{venue.laneCount}</span>{" "}
+												lanes)
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -825,8 +842,8 @@ export function HeatScheduleManager({
 									<ul className="text-xs space-y-1">
 										<li>Total athletes: {heatCalculation.totalAthletes}</li>
 										<li>
-											Venue: {heatCalculation.venueName} ({heatCalculation.laneCount}{" "}
-											lanes)
+											Venue: {heatCalculation.venueName} (
+											{heatCalculation.laneCount} lanes)
 										</li>
 										<li>Min heats needed: {heatCalculation.minHeatsNeeded}</li>
 										<li>Current heats: {heatCalculation.currentHeats}</li>
@@ -860,12 +877,15 @@ export function HeatScheduleManager({
 				<DialogContent className="max-w-md">
 					<DialogHeader>
 						<DialogTitle>
-							Add {bulkHeatTimes.length} Heat{bulkHeatTimes.length !== 1 ? "s" : ""}
+							Add {bulkHeatTimes.length} Heat
+							{bulkHeatTimes.length !== 1 ? "s" : ""}
 						</DialogTitle>
 					</DialogHeader>
 					<div className="space-y-4">
 						<div className="text-sm text-muted-foreground">
-							Venue: {selectedVenue?.name} (<span className="tabular-nums">{selectedVenue?.laneCount}</span> lanes)
+							Venue: {selectedVenue?.name} (
+							<span className="tabular-nums">{selectedVenue?.laneCount}</span>{" "}
+							lanes)
 						</div>
 						<div className="max-h-[300px] overflow-y-auto space-y-3">
 							{bulkHeatTimes.map((time, index) => (

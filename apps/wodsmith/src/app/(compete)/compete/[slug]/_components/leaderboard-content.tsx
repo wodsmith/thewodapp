@@ -1,8 +1,9 @@
 "use client"
 
-import { BarChart3, Trophy, Medal } from "lucide-react"
-import { useState, useEffect } from "react"
 import { useServerAction } from "@repo/zsa-react"
+import { BarChart3, Medal, Trophy } from "lucide-react"
+import { useEffect, useState } from "react"
+import { getCompetitionLeaderboardAction } from "@/actions/competition-actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -12,6 +13,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
 	Table,
 	TableBody,
@@ -20,8 +22,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
-import { getCompetitionLeaderboardAction } from "@/actions/competition-actions"
 import type { CompetitionLeaderboardEntry } from "@/server/competition-leaderboard"
 
 interface LeaderboardContentProps {

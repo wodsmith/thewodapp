@@ -24,7 +24,10 @@ import {
 } from "@/components/ui/collapsible"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
-import type { EventScoreEntryData, EventScoreEntryAthlete } from "@/server/competition-scores"
+import type {
+	EventScoreEntryData,
+	EventScoreEntryAthlete,
+} from "@/server/competition-scores"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 
 interface ResultsEntryFormProps {
@@ -53,9 +56,7 @@ export function ResultsEntryForm({
 	const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
 	const [savedIds, setSavedIds] = useState<Set<string>>(
 		new Set(
-			athletes
-				.filter((a) => a.existingResult)
-				.map((a) => a.registrationId),
+			athletes.filter((a) => a.existingResult).map((a) => a.registrationId),
 		),
 	)
 	const [focusedIndex, setFocusedIndex] = useState(0)
@@ -85,10 +86,13 @@ export function ResultsEntryForm({
 
 			// For time-based scores, convert the raw value (seconds) to string for server
 			// The UI displays "10:00" but we need to send "600" (seconds) to the server
-			const isTimeBasedScheme = event.workout.scheme === "time" || event.workout.scheme === "time-with-cap"
-			const scoreToSend = isTimeBasedScheme && data.rawValue != null
-				? String(data.rawValue)
-				: data.score
+			const isTimeBasedScheme =
+				event.workout.scheme === "time" ||
+				event.workout.scheme === "time-with-cap"
+			const scoreToSend =
+				isTimeBasedScheme && data.rawValue != null
+					? String(data.rawValue)
+					: data.score
 
 			const [result] = await saveScore({
 				competitionId,
@@ -132,7 +136,19 @@ export function ResultsEntryForm({
 			)
 		}
 		},
-		[competitionId, organizingTeamId, event.id, event.workout.id, event.workout.scheme, event.workout.scoreType, event.workout.repsPerRound, event.workout.roundsToScore, event.workout.timeCap, event.workout.name, saveScore],
+		[
+			competitionId,
+			organizingTeamId,
+			event.id,
+			event.workout.id,
+			event.workout.scheme,
+			event.workout.scoreType,
+			event.workout.repsPerRound,
+			event.workout.roundsToScore,
+			event.workout.timeCap,
+			event.workout.name,
+			saveScore,
+		],
 	)
 
 	// Handle tab to next athlete
@@ -190,17 +206,23 @@ export function ResultsEntryForm({
 			case "time":
 			case "time-with-cap":
 				return {
-					format: isMultiRound ? `Time per round (${numRounds} rounds)` : "Time (MM:SS or M:SS)",
+					format: isMultiRound
+						? `Time per round (${numRounds} rounds)`
+						: "Time (MM:SS or M:SS)",
 					examples: ["3:45", "12:30", "1:05:30"],
 				}
 			case "rounds-reps":
 				return {
-					format: isMultiRound ? `Rounds + Reps (${numRounds} scores)` : "Rounds + Reps",
+					format: isMultiRound
+						? `Rounds + Reps (${numRounds} scores)`
+						: "Rounds + Reps",
 					examples: ["5+12", "10+0", "7+15"],
 				}
 			case "reps":
 				return {
-					format: isMultiRound ? `Reps per round (${numRounds} rounds)` : "Total Reps",
+					format: isMultiRound
+						? `Reps per round (${numRounds} rounds)`
+						: "Total Reps",
 					examples: ["150", "87", "203"],
 				}
 			case "load":
@@ -210,17 +232,23 @@ export function ResultsEntryForm({
 				}
 			case "calories":
 				return {
-					format: isMultiRound ? `Calories per round (${numRounds} rounds)` : "Total Calories",
+					format: isMultiRound
+						? `Calories per round (${numRounds} rounds)`
+						: "Total Calories",
 					examples: ["150", "200", "175"],
 				}
 			case "meters":
 				return {
-					format: isMultiRound ? `Distance per round (${numRounds} rounds)` : "Distance (meters)",
+					format: isMultiRound
+						? `Distance per round (${numRounds} rounds)`
+						: "Distance (meters)",
 					examples: ["5000", "2000", "1500"],
 				}
 			case "points":
 				return {
-					format: isMultiRound ? `Points per round (${numRounds} rounds)` : "Total Points",
+					format: isMultiRound
+						? `Points per round (${numRounds} rounds)`
+						: "Total Points",
 					examples: ["100", "85", "92"],
 				}
 			default:
@@ -275,10 +303,7 @@ export function ResultsEntryForm({
 					<div className="flex items-center gap-6">
 						<div className="flex items-center gap-3">
 							<span className="text-sm font-medium">Event:</span>
-							<Select
-								value={selectedEventId}
-								onValueChange={handleEventChange}
-							>
+							<Select value={selectedEventId} onValueChange={handleEventChange}>
 								<SelectTrigger className="w-[280px]">
 									<SelectValue placeholder="Select event..." />
 								</SelectTrigger>
@@ -323,13 +348,15 @@ export function ResultsEntryForm({
 						<div className="flex-1">
 							<span className="font-medium">Format:</span>{" "}
 							<span className="text-muted-foreground">
-								{scoreExamples.format} (e.g., {scoreExamples.examples.join(", ")})
+								{scoreExamples.format} (e.g.,{" "}
+								{scoreExamples.examples.join(", ")})
 							</span>
 							{isTimeCapped && (
 								<>
 									<span className="mx-2 text-muted-foreground">•</span>
 									<span className="text-muted-foreground">
-										Type <strong>CAP</strong> for {timeCap ? formatTimeCap(timeCap) : "time cap"}
+										Type <strong>CAP</strong> for{" "}
+										{timeCap ? formatTimeCap(timeCap) : "time cap"}
 									</span>
 								</>
 							)}
@@ -337,7 +364,11 @@ export function ResultsEntryForm({
 							<span className="text-muted-foreground">Results auto-save</span>
 						</div>
 						<CollapsibleTrigger asChild>
-							<Button variant="ghost" size="sm" className="h-auto py-0 px-2 text-xs">
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-auto py-0 px-2 text-xs"
+							>
 								More info
 							</Button>
 						</CollapsibleTrigger>
@@ -346,11 +377,27 @@ export function ResultsEntryForm({
 						<div className="text-sm">
 							<p className="font-medium mb-1">Entering Scores</p>
 							<ul className="text-muted-foreground space-y-1 text-xs">
-								<li>• Type the score and press <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Tab</kbd> or <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> to move to the next athlete</li>
-								<li>• Results auto-save when you move to the next field or click away</li>
+								<li>
+									• Type the score and press{" "}
+									<kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
+										Tab
+									</kbd>{" "}
+									or{" "}
+									<kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">
+										Enter
+									</kbd>{" "}
+									to move to the next athlete
+								</li>
+								<li>
+									• Results auto-save when you move to the next field or click
+									away
+								</li>
 								<li>• Time formats: 3:45, 12:30, or 1:05:30 for hours</li>
 								{isTimeCapped && (
-									<li>• Type <strong>CAP</strong> if the athlete hit the {timeCap ? formatTimeCap(timeCap) : "time"} cap</li>
+									<li>
+										• Type <strong>CAP</strong> if the athlete hit the{" "}
+										{timeCap ? formatTimeCap(timeCap) : "time"} cap
+									</li>
 								)}
 							</ul>
 						</div>
@@ -362,7 +409,9 @@ export function ResultsEntryForm({
 			<Card>
 				<CardContent className="p-0">
 					{/* Table Header */}
-					<div className={`grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}>
+					<div
+						className={`grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}
+					>
 						<div className="text-center">#</div>
 						<div>ATHLETE</div>
 						<div>

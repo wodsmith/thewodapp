@@ -128,13 +128,6 @@ export const athleteProfileExtendedSchema = z.object({
 		})
 		.optional(),
 
-	sponsors: z
-		.array(
-			z.object({
-				name: z.string().min(1),
-				logoUrl: z.string().optional(),
-				website: z.string().url().optional().or(z.literal("")),
-			}),
-		)
-		.optional(),
+	// NOTE: sponsors field removed - now stored in sponsors table
+	// Use getUserSponsors() from @/server/sponsors instead
 })

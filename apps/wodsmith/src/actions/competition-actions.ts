@@ -720,6 +720,7 @@ const saveCompetitionEventSchema = z.object({
 	// Track workout details
 	pointsMultiplier: z.number().int().min(1).optional(),
 	notes: z.string().max(1000).nullable().optional(),
+	sponsorId: z.string().nullable().optional(),
 	// Division descriptions
 	divisionDescriptions: z
 		.array(
@@ -974,6 +975,7 @@ export const saveCompetitionEventAction = createServerAction()
 				movementIds: input.movementIds,
 				pointsMultiplier: input.pointsMultiplier,
 				notes: input.notes,
+				sponsorId: input.sponsorId,
 				divisionDescriptions: input.divisionDescriptions,
 			})
 

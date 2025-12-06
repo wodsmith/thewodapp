@@ -441,6 +441,7 @@ export function TrackWorkoutManagement({
 						pointsMultiplier: 100,
 						heatStatus: null, // Not used for regular programming tracks
 						eventStatus: null, // Not used for regular programming tracks
+						sponsorId: null, // Not used for regular programming tracks
 						updateCounter: null,
 						createdAt: new Date(), // Temporary UI object
 						updatedAt: new Date(), // Temporary UI object

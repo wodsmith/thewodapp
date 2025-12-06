@@ -224,9 +224,7 @@ export async function getEventScoreEntryData(params: {
 	}
 
 	// Create a map of userId to result
-	const resultsByUserId = new Map(
-		existingResults.map((r) => [r.userId, r]),
-	)
+	const resultsByUserId = new Map(existingResults.map((r) => [r.userId, r]))
 
 	// Get unique divisions for the filter dropdown
 	const divisionIds = [
@@ -403,10 +401,7 @@ export async function saveCompetitionScore(params: {
 
 		// Simple sets without proper processing
 		setsToInsert = params.roundScores.map((round, index) => {
-			const scoreNum = parseInt(
-				round.parts ? round.parts[0] : round.score,
-				10,
-			)
+			const scoreNum = parseInt(round.parts ? round.parts[0] : round.score, 10)
 			const repsNum = round.parts?.[1] ? parseInt(round.parts[1], 10) : NaN
 			return {
 				id: `set_${createId()}`,
@@ -525,7 +520,10 @@ export async function saveCompetitionScores(params: {
 		tieBreakScore?: string | null
 	}>
 	enteredBy: string
-}): Promise<{ savedCount: number; errors: Array<{ userId: string; error: string }> }> {
+}): Promise<{
+	savedCount: number
+	errors: Array<{ userId: string; error: string }>
+}> {
 	// Defense-in-depth: Verify session exists
 	const session = await getSessionFromCookie()
 	if (!session?.userId) {

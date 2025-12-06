@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { Dumbbell, Tag as TagIcon, Target } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import {
 	Card,
@@ -26,6 +26,8 @@ interface WorkoutCardProps {
 	movements?: Array<{ id: string; name: string }>
 	tags?: Array<{ id: string; name: string }>
 	divisionDescriptions: DivisionDescription[]
+	sponsorName?: string
+	sponsorLogoUrl?: string | null
 }
 
 export function WorkoutCard({
@@ -41,6 +43,8 @@ export function WorkoutCard({
 	movements,
 	tags,
 	divisionDescriptions,
+	sponsorName,
+	sponsorLogoUrl: _sponsorLogoUrl,
 }: WorkoutCardProps) {
 	// Sort divisions by position and filter to only those with custom descriptions
 	const sortedDivisions = [...divisionDescriptions].sort(
@@ -97,11 +101,18 @@ export function WorkoutCard({
 							)}
 						</div>
 					</div>
-					{pointsMultiplier && pointsMultiplier !== 100 && (
-						<span className="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-							{pointsMultiplier / 100}x points
-						</span>
-					)}
+					<div className="flex items-center gap-2">
+						{sponsorName && (
+							<span className="text-sm bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-3 py-1 rounded-full font-medium">
+								Presented by {sponsorName}
+							</span>
+						)}
+						{pointsMultiplier && pointsMultiplier !== 100 && (
+							<span className="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
+								{pointsMultiplier / 100}x points
+							</span>
+						)}
+					</div>
 				</div>
 			</CardHeader>
 			<CardContent>

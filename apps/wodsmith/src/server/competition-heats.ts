@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, asc, eq, inArray, notInArray } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -803,8 +803,7 @@ export async function getUnassignedRegistrations(
 					chunk(heatIds, BATCH_SIZE).map((batch) =>
 						db
 							.select({
-								registrationId:
-									competitionHeatAssignmentsTable.registrationId,
+								registrationId: competitionHeatAssignmentsTable.registrationId,
 							})
 							.from(competitionHeatAssignmentsTable)
 							.where(inArray(competitionHeatAssignmentsTable.heatId, batch)),

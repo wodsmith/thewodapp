@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { WorkoutScheme, ScoreType } from "@/db/schemas/workouts"
+import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 
 interface Workout {
 	id: string
