@@ -7,6 +7,7 @@ initOpenNextCloudflareForDev()
 // TODO cache-control headers don't work for static files
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	typedRoutes: true,
 	turbopack: {
 		rules: {
 			"*.md": {
@@ -23,6 +24,7 @@ const nextConfig = {
 		return config
 	},
 	images: {
+		localPatterns: [{ pathname: "/**" }, { pathname: "/public/**" }],
 		remotePatterns: [
 			{
 				protocol: "https",
@@ -30,9 +32,7 @@ const nextConfig = {
 			},
 		],
 	},
-	experimental: {
-		typedRoutes: true,
-	},
+	experimental: {},
 	eslint: {
 		ignoreDuringBuilds: process.env.SKIP_LINTER === "true",
 	},

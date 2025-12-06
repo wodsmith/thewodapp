@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
 import "server-only"
 
@@ -12,8 +11,6 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/constants"
 
 export const dynamic = "force-dynamic"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
 	title: {
@@ -70,7 +67,7 @@ export default function BaseLayout({
 			suppressHydrationWarning
 			className={`${GeistSans.variable} ${GeistMono.variable}`}
 		>
-			<body className={inter.className}>
+			<body className={`${GeistSans.className} ${GeistMono.variable}`}>
 				<NextTopLoader
 					initialPosition={0.15}
 					shadow="0 0 10px #000, 0 0 5px #000"
