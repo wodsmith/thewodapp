@@ -33,7 +33,13 @@ export default async function NewSeriesPage({
 	}
 
 	if (!activeTeamId) {
-		redirect("/compete/organizer")
+		const gymTeams = organizingTeams.filter((team) => team.type === "gym")
+		const firstTeam = gymTeams[0]
+		if (firstTeam) {
+			activeTeamId = firstTeam.id
+		} else {
+			redirect("/compete/organizer")
+		}
 	}
 
 	return (

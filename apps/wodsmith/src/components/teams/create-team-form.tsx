@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { Route } from "next"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -44,6 +45,9 @@ export function CreateTeamForm() {
 		onError: (error) => {
 			toast.dismiss()
 			toast.error(error.err?.message || "Failed to create team")
+			posthog.capture("team_created_failed", {
+				error_message: error.err?.message,
+			})
 		},
 		onStart: () => {
 			toast.loading("Creating team...")
@@ -51,7 +55,17 @@ export function CreateTeamForm() {
 		onSuccess: (result) => {
 			toast.dismiss()
 			toast.success("Team created successfully")
-			router.push(`/settings/teams/${result.data.data.slug}` as Route)
+			const teamData = result?.data?.data
+			const teamId = teamData?.teamId
+			const teamSlug = teamData?.slug
+			posthog.capture("team_created", {
+				team_id: teamId,
+				team_slug: teamSlug,
+				has_description: !!form.getValues("description"),
+			})
+			if (teamSlug) {
+				router.push(`/settings/teams/${teamSlug}` as Route)
+			}
 			router.refresh()
 		},
 	})

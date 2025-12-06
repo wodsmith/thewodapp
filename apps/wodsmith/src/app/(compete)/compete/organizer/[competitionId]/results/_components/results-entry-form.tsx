@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { intervalToDuration } from "date-fns"
+import posthog from "posthog-js"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,11 @@ export function ResultsEntryForm({
 	const { execute: saveScore } = useServerAction(saveCompetitionScoreAction, {
 		onError: (error) => {
 			toast.error(error.err?.message || "Failed to save score")
+			posthog.capture("competition_score_saved_failed", {
+				competition_id: competitionId,
+				event_id: event.id,
+				error_message: error.err?.message,
+			})
 		},
 	})
 
@@ -116,12 +122,19 @@ export function ResultsEntryForm({
 				return next
 			})
 
-			if (result) {
-				setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
-				toast.success(
-					`Score saved for ${athlete.firstName} ${athlete.lastName}`,
-				)
-			}
+		if (result) {
+			setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+			posthog.capture("competition_score_saved", {
+				competition_id: competitionId,
+				event_id: event.id,
+				event_name: event.workout.name,
+				division_id: athlete.divisionId,
+				registration_id: athlete.registrationId,
+			})
+			toast.success(
+				`Score saved for ${athlete.firstName} ${athlete.lastName}`,
+			)
+		}
 		},
 		[
 			competitionId,
@@ -133,6 +146,7 @@ export function ResultsEntryForm({
 			event.workout.repsPerRound,
 			event.workout.roundsToScore,
 			event.workout.timeCap,
+			event.workout.name,
 			saveScore,
 		],
 	)

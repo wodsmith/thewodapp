@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useEffect, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
@@ -125,10 +126,26 @@ export default function LogFormClient({
 				code: error.err?.code,
 			})
 			toast.error(error.err?.message || "An error occurred")
+			posthog.capture("workout_result_logged_failed", {
+				error_message: error.err?.message,
+				workout_id: form.getValues("selectedWorkoutId"),
+			})
 		},
 		onSuccess: (result) => {
 			console.log("[LogFormClient] Server action success:", result)
 			toast.success("Result logged successfully")
+			const currentWorkout = getSelectedWorkout()
+			const logResult = result?.data?.data
+			const logResultId = (logResult as { resultId?: string } | undefined)
+				?.resultId
+			posthog.capture("workout_result_logged", {
+				result_id: logResultId,
+				workout_id: form.getValues("selectedWorkoutId"),
+				workout_name: currentWorkout?.name,
+				workout_scheme: currentWorkout?.scheme,
+				has_scheduled_instance: !!scheduledInstanceId,
+				has_programming_track: !!programmingTrackId,
+			})
 			router.push((redirectUrl || "/log") as Parameters<typeof router.push>[0])
 		},
 	})

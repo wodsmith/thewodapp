@@ -9,6 +9,7 @@ export interface OrganizingTeam {
 	id: string
 	name: string
 	slug: string | null
+	type: string
 }
 
 /**
@@ -42,6 +43,7 @@ export const getUserOrganizingTeams = cache(
 			.map((team) => ({
 				id: team.id,
 				name: team.name,
+				type: team.type,
 				slug: team.slug,
 			}))
 	},

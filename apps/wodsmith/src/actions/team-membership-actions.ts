@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { getPostHogClient } from "@/lib/posthog-server"
 import {
 	acceptTeamInvitation,
 	cancelTeamInvitation,
@@ -12,6 +13,7 @@ import {
 	removeTeamMember,
 	updateTeamMemberRole,
 } from "@/server/team-members"
+import { getSessionFromCookie } from "@/utils/auth"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 
 // Invite user schema
@@ -56,6 +58,23 @@ export const inviteUserAction = createServerAction()
 		return withRateLimit(async () => {
 			try {
 				const result = await inviteUserToTeam(input)
+
+				// Track team invite event server-side
+				const session = await getSessionFromCookie()
+				if (session?.userId) {
+					const posthog = getPostHogClient()
+					posthog.capture({
+						distinctId: session.userId,
+						event: "team_invite_sent",
+						properties: {
+							team_id: input.teamId,
+							invitee_email: input.email,
+							role_id: input.roleId,
+							is_system_role: input.isSystemRole,
+						},
+					})
+				}
+
 				return { success: true, data: result }
 			} catch (error) {
 				console.error("Failed to invite user:", error)
