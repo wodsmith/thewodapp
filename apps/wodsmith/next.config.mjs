@@ -34,7 +34,7 @@ const nextConfig = {
 	},
 	experimental: {},
 	eslint: {
-		ignoreDuringBuilds: true,
+		ignoreDuringBuilds: process.env.SKIP_LINTER === "true",
 	},
 	typescript: {
 		ignoreBuildErrors: process.env.SKIP_LINTER === "true",
