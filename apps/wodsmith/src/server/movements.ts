@@ -1,6 +1,10 @@
 import "server-only"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import {
+	logError,
+	logInfo,
+} from "@/lib/logging/posthog-otel-logger"
 import { z } from "zod"
 import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
@@ -156,10 +160,10 @@ export async function createMovement(
 		userId?: string
 	},
 ) {
-	console.log(
-		"[server/functions/movement] createMovement called with data:",
-		data,
-	)
+	logInfo({
+		message: "[movement] createMovement called",
+		attributes: { data },
+	})
 	const { name, type: rawType } = data
 
 	const lowerCaseType = rawType.toLowerCase()
@@ -168,7 +172,10 @@ export async function createMovement(
 	if (!parseResult.success) {
 		const allowed = MOVEMENT_TYPE_SCHEMA.options.join(", ")
 		const errorMessage = `Invalid movement type: '${lowerCaseType}'. Must be one of: ${allowed}.`
-		console.error(`[server/functions/movement] ${errorMessage}`)
+		logError({
+			message: "[movement] Invalid movement type",
+			attributes: { lowerCaseType, allowed },
+		})
 		throw new Error(errorMessage)
 	}
 
@@ -176,12 +183,15 @@ export async function createMovement(
 
 	if (!name) {
 		// type is already validated by implication above
-		console.error("[server/functions/movement] Name is required.")
+		logError({ message: "[movement] Name is required" })
 		throw new Error("Movement name is required.")
 	}
 
 	const movementId = crypto.randomUUID()
-	console.log(`[server/functions/movement] Generated movementId: ${movementId}`)
+	logInfo({
+		message: "[movement] Generated movementId",
+		attributes: { movementId },
+	})
 
 	try {
 		await db.insert(movements).values({
@@ -189,22 +199,27 @@ export async function createMovement(
 			name,
 			type: movementType,
 		})
-		console.log(
-			`[server/functions/movement] Movement created successfully: ${movementId}`,
-		)
+		logInfo({
+			message: "[movement] Movement created successfully",
+			attributes: { movementId },
+		})
 
 		revalidatePath("/movements")
 		revalidatePath("/") // Revalidate home page if it lists movements or related data
-		console.log("[server/functions/movement] Revalidated paths: /movements, /")
+		logInfo({
+		message: "[movement] Revalidated movement paths",
+		attributes: { paths: ["/movements", "/"] },
+	})
 
 		// Return the created movement or its ID, could be useful for the client
 		// For now, the action in page.tsx doesn't expect a return value for redirection
 		return { id: movementId, name, movementType }
 	} catch (error) {
-		console.error(
-			`[server/functions/movement] Error creating movement '${name}':`,
+		logError({
+			message: "[movement] Error creating movement",
 			error,
-		)
+			attributes: { name },
+		})
 		// Consider more specific error messages based on error type
 		throw new Error("Failed to create movement in the database.")
 	}

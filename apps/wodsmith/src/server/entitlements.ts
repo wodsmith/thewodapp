@@ -23,6 +23,11 @@ import {
 	teamUsageTable,
 } from "../db/schema"
 import { getDb } from "@/db"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 import { FEATURES } from "../config/features"
 import { LIMITS } from "../config/limits"
 
@@ -89,7 +94,10 @@ export async function snapshotAllTeams(): Promise<{
 		try {
 			const hasSnapshot = await teamHasSnapshot(team.id)
 			if (hasSnapshot) {
-				console.log(`[Snapshot] Team ${team.id} already has snapshot, skipping`)
+				logInfo({
+					message: "[entitlements] Team already has snapshot, skipping",
+					attributes: { teamId: team.id },
+				})
 				success++
 				continue
 			}
@@ -193,9 +201,16 @@ export async function snapshotPlanEntitlements(
 		)
 	}
 
-	console.log(
-		`[Entitlements] Snapshotted plan "${plan.name}" entitlements to team ${teamId}: ${plan.planFeatures.length} features, ${plan.planLimits.length} limits`,
-	)
+	logInfo({
+		message: "[entitlements] Snapshotted plan to team",
+		attributes: {
+			teamId,
+			planId,
+			planName: plan.name,
+			features: plan.planFeatures.length,
+			limits: plan.planLimits.length,
+		},
+	})
 }
 
 /**
@@ -275,9 +290,11 @@ export async function getTeamPlan(teamId: string): Promise<{
 	let entitlements: PlanEntitlements
 
 	if (teamFeatures.length === 0 && teamLimitsRaw.length === 0) {
-		console.warn(
-			`[Entitlements] Team ${teamId} has no snapshotted entitlements, falling back to plan definition. Consider running snapshotPlanEntitlements().`,
-		)
+		logWarning({
+			message:
+				"[entitlements] Team missing snapshotted entitlements, falling back to plan definition",
+			attributes: { teamId, planId: plan.id },
+		})
 
 		// Query plan's current features and limits as fallback
 		const planFeatures = await db
@@ -1136,9 +1153,10 @@ export async function grantTeamFeature(
 		isActive: 1,
 	})
 
-	console.log(
-		`[Entitlements] Granted feature "${featureKey}" to team ${teamId}`,
-	)
+	logInfo({
+		message: "[entitlements] Granted feature to team",
+		attributes: { teamId, featureKey },
+	})
 }
 
 /**
@@ -1175,9 +1193,10 @@ export async function revokeTeamFeature(
 			),
 		)
 
-	console.log(
-		`[Entitlements] Revoked feature "${featureKey}" from team ${teamId}`,
-	)
+	logInfo({
+		message: "[entitlements] Revoked feature from team",
+		attributes: { teamId, featureKey },
+	})
 }
 
 // ============================================================================

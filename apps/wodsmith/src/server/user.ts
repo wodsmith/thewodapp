@@ -4,6 +4,11 @@ import { and, eq } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
 import { getDefaultProgrammingTracks } from "@/config/programming-tracks"
 import { getDb } from "@/db"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 import type { User } from "@/db/schema"
 import {
 	programmingTracksTable,
@@ -86,17 +91,25 @@ export async function createPersonalTeamForUser(
 			}))
 
 			await db.insert(teamProgrammingTracksTable).values(subscriptions)
-			console.log(
-				`Auto-subscribed personal team ${personalTeam.id} to ${existingTracks.length} programming tracks`,
-			)
+			logInfo({
+				message: "[user] Auto-subscribed personal team to tracks",
+				attributes: {
+					personalTeamId: personalTeam.id,
+					tracks: existingTracks.length,
+				},
+			})
 		} else {
-			console.warn(
-				"Default programming tracks not found. Skipping auto-subscription.",
-			)
+			logWarning({
+				message:
+					"[user] Default programming tracks not found. Skipping auto-subscription.",
+			})
 		}
 	} catch (error) {
 		// Log error but don't fail the user creation
-		console.error("Failed to auto-subscribe to programming tracks:", error)
+		logError({
+			message: "[user] Failed to auto-subscribe to programming tracks",
+			error,
+		})
 	}
 
 	return { teamId: personalTeam.id }

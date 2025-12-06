@@ -23,6 +23,11 @@ import type {
 	WorkoutResultWithWorkoutName,
 } from "@/types"
 import { requireVerifiedEmail } from "@/utils/auth"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 
 /* -------------------------------------------------------------------------- */
 /*                         Shared Score Processing Types                       */
@@ -418,7 +423,10 @@ export async function getLogsByUser(
 	userId: string,
 ): Promise<WorkoutResultWithWorkoutName[]> {
 	const db = getDb()
-	console.log(`[getLogsByUser] Fetching logs for userId: ${userId}`)
+	logInfo({
+		message: "[getLogsByUser] Fetching logs for user",
+		attributes: { userId },
+	})
 
 	try {
 		const logs = await db
@@ -452,9 +460,10 @@ export async function getLogsByUser(
 			.where(eq(results.userId, userId))
 			.orderBy(desc(results.date))
 
-		console.log(
-			`[getLogsByUser] Found ${logs.length} logs for userId: ${userId}`,
-		)
+		logInfo({
+			message: "[getLogsByUser] Fetched logs for user",
+			attributes: { userId, count: logs.length },
+		})
 		return logs.map((log) => ({
 			...log,
 			workoutName: log.workoutName || undefined,
@@ -462,10 +471,11 @@ export async function getLogsByUser(
 			scalingLevelPosition: log.scalingLevelPosition ?? undefined,
 		})) as WorkoutResultWithWorkoutName[]
 	} catch (error) {
-		console.error(
-			`[getLogsByUser] Error fetching logs for userId ${userId}:`,
+		logError({
+			message: "[getLogsByUser] Error fetching logs for user",
 			error,
-		)
+			attributes: { userId },
+		})
 		return []
 	}
 }
@@ -498,39 +508,44 @@ export async function addLog({
 	scheduledWorkoutInstanceId?: string | null
 	programmingTrackId?: string | null
 }): Promise<{ success: boolean; resultId?: string; error?: string }> {
-	console.log("[addLog] START - Input parameters:", {
-		userId,
-		workoutId,
-		date,
-		scalingLevelId,
-		asRx,
-		wodScore,
-		notes,
-		setsDataLength: setsData.length,
-		setsData,
-		type,
-		scheduledWorkoutInstanceId,
-		programmingTrackId,
+	logInfo({
+		message: "[addLog] Start",
+		attributes: {
+			userId,
+			workoutId,
+			date,
+			scalingLevelId,
+			asRx,
+			wodScore,
+			notesPresent: Boolean(notes),
+			setsCount: setsData.length,
+			type,
+			scheduledWorkoutInstanceId,
+			programmingTrackId,
+		},
 	})
 
 	const session = await requireVerifiedEmail()
 	if (!session) {
-		console.error("[addLog] No session found - not authenticated")
+		logError({
+			message: "[addLog] No session found - not authenticated",
+			attributes: { userId, workoutId },
+		})
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
-	console.log("[addLog] Session verified for user:", session.user.id)
 
 	let db: ReturnType<typeof getDb>
 	try {
 		db = getDb()
-		console.log("[addLog] Database connection obtained successfully")
 	} catch (error) {
-		console.error("[addLog] Failed to get database connection:", error)
+		logError({
+			message: "[addLog] Failed to get database connection",
+			error,
+		})
 		return { success: false, error: "Database connection failed" }
 	}
 
 	const resultId = `result_${createId()}`
-	console.log("[addLog] Generated resultId:", resultId)
 
 	try {
 		const insertData = {
@@ -548,21 +563,13 @@ export async function addLog({
 			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
 			programmingTrackId: programmingTrackId || null,
 		}
-		console.log("[addLog] Attempting to insert result with data:", insertData)
-
-		// Special logging for the problematic workout
-		if (workoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
-			console.log("[addLog] SAWTOOTH WORKOUT INSERT - Full details:", {
-				insertData,
-				setsData,
-				dateObject: new Date(date),
-				dateTimestamp: date,
-			})
-		}
 
 		// Insert the main result - using timestamp mode for date field
 		const insertResult = await db.insert(results).values(insertData).returning()
-		console.log("[addLog] Result insert successful, returned:", insertResult)
+		logInfo({
+			message: "[addLog] Result inserted",
+			attributes: { resultId, insertCount: insertResult.length },
+		})
 
 		// Insert sets if any
 		if (setsData.length > 0) {
@@ -577,26 +584,31 @@ export async function addLog({
 				score: set.score || null,
 				status: set.status || null,
 			}))
-			console.log("[addLog] Attempting to insert sets:", setsToInsert)
 
 			const setsInsertResult = await db
 				.insert(sets)
 				.values(setsToInsert)
 				.returning()
-			console.log(
-				`[addLog] Added ${setsToInsert.length} sets for resultId: ${resultId}`,
-				setsInsertResult,
-			)
+			logInfo({
+				message: "[addLog] Inserted sets for result",
+				attributes: {
+					resultId,
+					insertedSets: setsToInsert.length,
+					returned: setsInsertResult.length,
+				},
+			})
 		}
 
-		console.log(`[addLog] SUCCESS - Added log with resultId: ${resultId}`)
+		logInfo({
+			message: "[addLog] Success",
+			attributes: { resultId, workoutId, userId },
+		})
 		return { success: true, resultId }
 	} catch (error) {
-		console.error(`[addLog] ERROR adding log for userId ${userId}:`, error)
-		console.error("[addLog] Error details:", {
-			name: error instanceof Error ? error.name : "Unknown",
-			message: error instanceof Error ? error.message : String(error),
-			stack: error instanceof Error ? error.stack : "No stack trace",
+		logError({
+			message: "[addLog] Error adding log",
+			error,
+			attributes: { userId, workoutId, resultId },
 		})
 		if (error instanceof Error) {
 			return { success: false, error: error.message }
@@ -612,7 +624,10 @@ export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
 	const db = getDb()
-	console.log(`[getResultSetsById] Fetching sets for resultId: ${resultId}`)
+	logInfo({
+		message: "[getResultSetsById] Fetching sets",
+		attributes: { resultId },
+	})
 
 	try {
 		const setDetails = await db
@@ -621,15 +636,17 @@ export async function getResultSetsById(
 			.where(eq(sets.resultId, resultId))
 			.orderBy(sets.setNumber)
 
-		console.log(
-			`[getResultSetsById] Found ${setDetails.length} sets for resultId ${resultId}`,
-		)
+		logInfo({
+			message: "[getResultSetsById] Found sets",
+			attributes: { resultId, count: setDetails.length },
+		})
 		return setDetails
 	} catch (error) {
-		console.error(
-			`[getResultSetsById] Error fetching sets for resultId ${resultId}:`,
+		logError({
+			message: "[getResultSetsById] Error fetching sets",
 			error,
-		)
+			attributes: { resultId },
+		})
 		return []
 	}
 }
@@ -639,7 +656,10 @@ export async function getResultSetsById(
  */
 export async function getResultById(resultId: string) {
 	const db = getDb()
-	console.log(`[getResultById] Fetching result with id: ${resultId}`)
+	logInfo({
+		message: "[getResultById] Fetching result",
+		attributes: { resultId },
+	})
 
 	try {
 		const [result] = await db
@@ -679,17 +699,24 @@ export async function getResultById(resultId: string) {
 			.limit(1)
 
 		if (!result) {
-			console.log(`[getResultById] No result found with id: ${resultId}`)
+			logWarning({
+				message: "[getResultById] No result found",
+				attributes: { resultId },
+			})
 			return null
 		}
 
-		console.log(`[getResultById] Found result for id: ${resultId}`)
+		logInfo({
+			message: "[getResultById] Found result",
+			attributes: { resultId, workoutId: result.workoutId },
+		})
 		return result
 	} catch (error) {
-		console.error(
-			`[getResultById] Error fetching result with id ${resultId}:`,
+		logError({
+			message: "[getResultById] Error fetching result",
 			error,
-		)
+			attributes: { resultId },
+		})
 		return null
 	}
 }
@@ -731,9 +758,10 @@ export async function updateResult({
 
 	const db = getDb()
 
-	console.log(
-		`[updateResult] Updating result with id: ${resultId}, userId: ${userId}, workoutId: ${workoutId}`,
-	)
+	logInfo({
+		message: "[updateResult] Updating result",
+		attributes: { resultId, userId, workoutId, setsCount: setsData.length },
+	})
 
 	try {
 		// Update the main result
@@ -773,19 +801,22 @@ export async function updateResult({
 			}))
 
 			await db.insert(sets).values(setsToInsert)
-			console.log(
-				`[updateResult] Updated ${setsToInsert.length} sets for resultId: ${resultId}`,
-			)
+			logInfo({
+				message: "[updateResult] Inserted replacement sets",
+				attributes: { resultId, insertedSets: setsToInsert.length },
+			})
 		}
 
-		console.log(
-			`[updateResult] Successfully updated result with id: ${resultId}`,
-		)
+		logInfo({
+			message: "[updateResult] Success",
+			attributes: { resultId, workoutId, userId },
+		})
 	} catch (error) {
-		console.error(
-			`[updateResult] Error updating result with id ${resultId}:`,
+		logError({
+			message: "[updateResult] Error updating result",
 			error,
-		)
+			attributes: { resultId, workoutId, userId },
+		})
 		throw error
 	}
 }
@@ -867,9 +898,10 @@ function validateParsedScores(
 	if (parsedScoreEntries.length === 0 || !atLeastOneScorePartFilled) {
 		if (workoutScheme !== undefined) {
 			// N/A scheme might not require scores
-			console.error(
-				"[Action] No valid score parts provided for a workout that expects scores.",
-			)
+			logWarning({
+				message:
+					"[submitLogForm] No valid score parts provided for a workout that expects scores",
+			})
 			return {
 				error: "At least one score input is required and must not be empty.",
 			}
@@ -888,9 +920,10 @@ function validateProcessedSets(
 		workoutScheme !== undefined &&
 		atLeastOneScorePartFilled
 	) {
-		console.error(
-			"[Action] All provided score entries resulted in no valid sets to save, but some input was detected.",
-		)
+		logWarning({
+			message:
+				"[submitLogForm] Score entries produced no valid sets despite input",
+		})
 		return {
 			error:
 				"Valid score information is required. Please check your inputs for each round/set.",
@@ -901,9 +934,10 @@ function validateProcessedSets(
 		workoutScheme !== undefined &&
 		!atLeastOneScorePartFilled
 	) {
-		console.error(
-			"[Action] No score entries provided or all were empty, and workout expects scores.",
-		)
+		logWarning({
+			message:
+				"[submitLogForm] No score entries provided for workout that expects scores",
+		})
 		return {
 			error: "At least one score input is required and must not be empty.",
 		}
@@ -924,25 +958,25 @@ async function submitLogToDatabase(
 	scheduledInstanceId?: string | null,
 	programmingTrackId?: string | null,
 ) {
-	console.log("[Action] Submitting log with sets:", {
-		userId,
-		selectedWorkoutId,
-		date: dateStr,
-		scale: scaleValue,
-		wodScoreSummary: finalWodScoreSummary,
-		notes: notesValue,
-		sets: setsForDb,
+	logInfo({
+		message: "[submitLogToDatabase] Start",
+		attributes: {
+			userId,
+			workoutId: selectedWorkoutId,
+			date: dateStr,
+			timezone,
+			scale: scaleValue,
+			wodScoreSummary: finalWodScoreSummary,
+			notesPresent: Boolean(notesValue),
+			setsCount: setsForDb.length,
+			scheduledInstanceId,
+			programmingTrackId,
+		},
 	})
-
-	console.log("[Action] Date in timezone:", new Date(dateStr).getTime())
 
 	try {
 		const dateInTargetTz = fromZonedTime(`${dateStr}T00:00:00`, timezone)
 		const timestamp = dateInTargetTz.getTime()
-
-		console.log(
-			`[Action] Original date string: ${dateStr}, Target Timezone: ${timezone}, Timestamp: ${timestamp}`,
-		)
 
 		// Map legacy scale to new scaling fields
 		const { scalingLevelId, asRx } = await mapLegacyScaleToScalingLevel({
@@ -966,17 +1000,24 @@ async function submitLogToDatabase(
 		})
 
 		if (!result.success) {
-			console.error("[Action] Failed to add log:", result.error)
+			logError({
+				message: "[submitLogToDatabase] Failed to add log",
+				attributes: { userId, workoutId: selectedWorkoutId },
+			})
 			return { error: result.error || "Failed to save log" }
 		}
 
-		console.log(
-			"[Action] Successfully added log with resultId:",
-			result.resultId,
-		)
+		logInfo({
+			message: "[submitLogToDatabase] Success",
+			attributes: { resultId: result.resultId, workoutId: selectedWorkoutId },
+		})
 		return { success: true, resultId: result.resultId }
 	} catch (error) {
-		console.error("[Action] Failed to add log with sets:", error)
+		logError({
+			message: "[submitLogToDatabase] Error saving log",
+			error,
+			attributes: { userId, workoutId: selectedWorkoutId },
+		})
 		return {
 			error: `Failed to save log: ${
 				error instanceof Error ? error.message : String(error)
@@ -990,10 +1031,12 @@ export async function submitLogForm(
 	workouts: Workout[],
 	formData: FormData,
 ) {
-	console.log("[submitLogForm] START with params:", {
-		userId,
-		workoutsCount: workouts.length,
-		workoutIds: workouts.map((w) => w.id),
+	logInfo({
+		message: "[submitLogForm] Start",
+		attributes: {
+			userId,
+			workoutsCount: workouts.length,
+		},
 	})
 
 	const headerList = await headers()
@@ -1007,51 +1050,26 @@ export async function submitLogForm(
 		programmingTrackId,
 	} = parseBasicFormData(formData)
 
-	console.log("[submitLogForm] Parsed form data:", {
-		selectedWorkoutId,
-		dateStr,
-		scaleValue,
-		notesValue,
-		scheduledInstanceId,
-		programmingTrackId,
-	})
-
 	if (!selectedWorkoutId) {
-		console.error("[submitLogForm] No workout selected")
+		logError({
+			message: "[submitLogForm] No workout selected",
+			attributes: { userId },
+		})
 		return { error: "No workout selected. Please select a workout." }
 	}
 
 	const workout = workouts.find((w) => w.id === selectedWorkoutId)
-	console.log("[submitLogForm] Found workout:", {
-		id: workout?.id,
-		name: workout?.name,
-		scheme: workout?.scheme,
-		repsPerRound: workout?.repsPerRound,
-		roundsToScore: workout?.roundsToScore,
-	})
 
 	if (!workout) {
-		console.error(
-			"[submitLogForm] Workout not found for ID:",
-			selectedWorkoutId,
-		)
-		console.error(
-			"[submitLogForm] Available workout IDs:",
-			workouts.map((w) => w.id),
-		)
+		logError({
+			message: "[submitLogForm] Workout not found for ID",
+			attributes: { selectedWorkoutId, userId },
+		})
 		return { error: "Selected workout not found. Please try again." }
 	}
 
 	const parsedScoreEntries = parseScoreEntries(formData)
 	const timeCappedEntries = parseTimeCappedEntries(formData)
-	console.log(
-		"[Action] Parsed Score Entries:",
-		JSON.stringify(parsedScoreEntries),
-	)
-	console.log(
-		"[Action] Parsed Time Capped Entries:",
-		JSON.stringify(timeCappedEntries),
-	)
 
 	const validationError = validateParsedScores(
 		parsedScoreEntries,

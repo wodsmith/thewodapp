@@ -5,6 +5,7 @@ import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
+import { logError } from "@/lib/logging/posthog-otel-logger"
 import { signUpSchema } from "@/schemas/signup.schema"
 import { createPersonalTeamForUser } from "@/server/user"
 import {
@@ -68,11 +69,11 @@ export const signUpAction = createServerAction()
 			try {
 				await createPersonalTeamForUser(user)
 			} catch (error) {
-				console.error(
-					"Failed to create personal team for user:",
-					user.id,
+				logError({
+					message: "[signUpAction] Failed to create personal team for user",
 					error,
-				)
+					attributes: { userId: user.id, email: user.email },
+				})
 				throw new ZSAError(
 					"INTERNAL_SERVER_ERROR",
 					"Failed to set up user account. Please try again.",
@@ -98,7 +99,11 @@ export const signUpAction = createServerAction()
 				// Skip email verification since we auto-verify on signup
 				// No need to generate verification token or send email
 			} catch (error) {
-				console.error(error)
+				logError({
+					message: "[signUpAction] Failed to create session after signup",
+					error,
+					attributes: { userId: user.id, email: user.email },
+				})
 
 				throw new ZSAError(
 					"INTERNAL_SERVER_ERROR",

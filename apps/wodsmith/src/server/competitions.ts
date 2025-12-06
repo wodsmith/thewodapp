@@ -12,6 +12,7 @@ import {
 	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
 } from "@/db/schema"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 
 // Competition with organizing team relation for public display
 export type CompetitionWithOrganizingTeam = Competition & {
@@ -472,26 +473,29 @@ export async function createCompetition(params: {
 		competition = inserted
 	} catch (competitionError) {
 		// Log the failure
-		console.error("[createCompetition] Failed to create competition record", {
-			competitionTeamId,
-			competitionName: params.name,
-			error:
-				competitionError instanceof Error
-					? competitionError.message
-					: String(competitionError),
+		logError({
+			message: "[createCompetition] Failed to create competition record",
+			error: competitionError,
+			attributes: {
+				competitionTeamId,
+				competitionName: params.name,
+			},
 		})
 
 		// Compensating cleanup: delete the competition team created in Step 1
 		try {
 			await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
-			console.log(
-				`[createCompetition] Cleaned up competition team ${competitionTeamId}`,
-			)
+			logInfo({
+				message: "[createCompetition] Cleaned up competition team",
+				attributes: { competitionTeamId },
+			})
 		} catch (cleanupError) {
-			console.error(
-				"[createCompetition] Failed to clean up competition team during rollback",
-				{ competitionTeamId, error: cleanupError },
-			)
+			logError({
+				message:
+					"[createCompetition] Failed to clean up competition team during rollback",
+				error: cleanupError,
+				attributes: { competitionTeamId },
+			})
 		}
 
 		throw new Error(
@@ -526,16 +530,16 @@ export async function createCompetition(params: {
 		}
 	} catch (trackError) {
 		// Log the failure with details
-		console.error(
-			"[createCompetition] Failed to create programming track for competition",
-			{
+		logError({
+			message:
+				"[createCompetition] Failed to create programming track for competition",
+			error: trackError,
+			attributes: {
 				competitionId: competition.id,
 				competitionTeamId,
 				competitionName: params.name,
-				error:
-					trackError instanceof Error ? trackError.message : String(trackError),
 			},
-		)
+		})
 
 		// Compensating cleanup: delete the competition and competition team
 		// Delete competition first (has FK to competitionTeam)
@@ -543,28 +547,34 @@ export async function createCompetition(params: {
 			await db
 				.delete(competitionsTable)
 				.where(eq(competitionsTable.id, competition.id))
-			console.log(
-				`[createCompetition] Cleaned up competition ${competition.id}`,
-			)
+			logInfo({
+				message: "[createCompetition] Cleaned up competition",
+				attributes: { competitionId: competition.id },
+			})
 		} catch (cleanupError) {
-			console.error(
-				"[createCompetition] Failed to clean up competition during rollback",
-				{ competitionId: competition.id, error: cleanupError },
-			)
+			logError({
+				message:
+					"[createCompetition] Failed to clean up competition during rollback",
+				error: cleanupError,
+				attributes: { competitionId: competition.id },
+			})
 		}
 
 		// Delete competition team
 		try {
 			const { teamTable } = await import("@/db/schema")
 			await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
-			console.log(
-				`[createCompetition] Cleaned up competition team ${competitionTeamId}`,
-			)
+			logInfo({
+				message: "[createCompetition] Cleaned up competition team",
+				attributes: { competitionTeamId },
+			})
 		} catch (cleanupError) {
-			console.error(
-				"[createCompetition] Failed to clean up competition team during rollback",
-				{ competitionTeamId, error: cleanupError },
-			)
+			logError({
+				message:
+					"[createCompetition] Failed to clean up competition team during rollback",
+				error: cleanupError,
+				attributes: { competitionTeamId },
+			})
 		}
 
 		throw new Error(

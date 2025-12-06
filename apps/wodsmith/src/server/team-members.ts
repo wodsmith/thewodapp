@@ -514,14 +514,20 @@ export async function inviteUserToTeamInternal({
 
 	// TODO: Send competition team invite email
 	if (competitionContext) {
-		console.log(
-			`\n📧 Competition Team Invite:\n` +
-				`  To: ${email}\n` +
-				`  Team: ${competitionContext.teamName}\n` +
-				`  Competition: ${competitionContext.competitionSlug}\n` +
-				`  Division: ${competitionContext.divisionName}\n` +
-				`  Accept URL: ${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/compete/invite/${token}\n`,
-		)
+		const acceptUrl = `${
+			process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+		}/compete/invite/${token}`
+		const { logInfo } = await import("@/lib/logging/posthog-otel-logger")
+		logInfo({
+			message: "[team-members] Competition team invite created",
+			attributes: {
+				to: email,
+				teamName: competitionContext.teamName,
+				competitionSlug: competitionContext.competitionSlug,
+				divisionName: competitionContext.divisionName,
+				acceptUrl,
+			},
+		})
 	}
 
 	return { userJoined: false, invitationSent: true, token }

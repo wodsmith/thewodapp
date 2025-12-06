@@ -1,6 +1,7 @@
 import "server-only"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "@/db"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -406,7 +407,10 @@ export async function isTeamSubscribedToProgrammingTrack(
 	teamId: string,
 	trackId: string,
 ): Promise<boolean> {
-	console.log("🔍 Checking team subscription:", { teamId, trackId })
+	logInfo({
+		message: "[programming] Checking team subscription",
+		attributes: { teamId, trackId },
+	})
 
 	const db = getDb()
 	const result = await db
@@ -421,9 +425,9 @@ export async function isTeamSubscribedToProgrammingTrack(
 		)
 		.limit(1)
 
-	console.log("🔍 Subscription query result:", {
-		result,
-		isSubscribed: result.length > 0,
+	logInfo({
+		message: "[programming] Subscription query result",
+		attributes: { teamId, trackId, isSubscribed: result.length > 0 },
 	})
 	return result.length > 0
 }
@@ -432,9 +436,9 @@ export async function isWorkoutInTeamSubscribedTrack(
 	teamId: string,
 	workoutId: string,
 ): Promise<boolean> {
-	console.log("🔍 Checking if workout is in team subscribed track:", {
-		teamId,
-		workoutId,
+	logInfo({
+		message: "[programming] Checking workout in subscribed track",
+		attributes: { teamId, workoutId },
 	})
 
 	const db = getDb()
@@ -456,9 +460,9 @@ export async function isWorkoutInTeamSubscribedTrack(
 		)
 		.limit(1)
 
-	console.log("🔍 Workout in subscribed track query result:", {
-		result,
-		isInSubscribedTrack: result.length > 0,
+	logInfo({
+		message: "[programming] Workout in subscribed track result",
+		attributes: { teamId, workoutId, isInSubscribedTrack: result.length > 0 },
 	})
 	return result.length > 0
 }

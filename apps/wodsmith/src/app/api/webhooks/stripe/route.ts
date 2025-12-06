@@ -9,6 +9,11 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	COMMERCE_PAYMENT_STATUS,
 } from "@/db/schema"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 
 /**
  * Stripe webhook handler for commerce events
@@ -22,13 +27,17 @@ export async function POST(request: NextRequest) {
 	const signature = request.headers.get("stripe-signature")
 
 	if (!signature) {
-		console.error("ERROR: [Stripe Webhook] Missing stripe-signature header")
+		logError({
+			message: "[Stripe Webhook] Missing stripe-signature header",
+		})
 		return NextResponse.json({ error: "Missing signature" }, { status: 400 })
 	}
 
 	const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 	if (!webhookSecret) {
-		console.error("ERROR: [Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET")
+		logError({
+			message: "[Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET",
+		})
 		return NextResponse.json(
 			{ error: "Webhook not configured" },
 			{ status: 500 },
@@ -40,7 +49,10 @@ export async function POST(request: NextRequest) {
 	try {
 		event = getStripe().webhooks.constructEvent(body, signature, webhookSecret)
 	} catch (err) {
-		console.error("ERROR: [Stripe Webhook] Signature verification failed:", err)
+		logError({
+			message: "[Stripe Webhook] Signature verification failed",
+			error: err,
+		})
 		return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
 	}
 
@@ -67,7 +79,11 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json({ received: true })
 	} catch (err) {
-		console.error("ERROR: [Stripe Webhook] Processing failed:", err)
+		logError({
+			message: "[Stripe Webhook] Processing failed",
+			error: err,
+			attributes: { eventType: event.type },
+		})
 		// Return 500 so Stripe will retry
 		return NextResponse.json({ error: "Processing failed" }, { status: 500 })
 	}
@@ -85,10 +101,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 	const userId = session.metadata?.userId
 
 	if (!purchaseId || !competitionId || !divisionId || !userId) {
-		console.error(
-			"ERROR: [Stripe Webhook] Missing required metadata in Checkout Session",
-			{ purchaseId, competitionId, divisionId, userId },
-		)
+		logError({
+			message:
+				"[Stripe Webhook] Missing required metadata in Checkout Session",
+			attributes: { purchaseId, competitionId, divisionId, userId },
+		})
 		return
 	}
 
@@ -98,14 +115,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 	})
 
 	if (!existingPurchase) {
-		console.error(`ERROR: [Stripe Webhook] Purchase not found: ${purchaseId}`)
+		logError({
+		message: "[Stripe Webhook] Purchase not found",
+		attributes: { purchaseId },
+	})
 		return
 	}
 
 	if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
-		console.log(
-			`INFO: [Stripe Webhook] Purchase ${purchaseId} already completed, skipping`,
-		)
+		logInfo({
+			message:
+				"[Stripe Webhook] Purchase already completed, skipping registration",
+			attributes: { purchaseId },
+		})
 		return
 	}
 
@@ -116,9 +138,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 		})
 
 	if (existingRegistration) {
-		console.log(
-			`INFO: [Stripe Webhook] Registration for purchase ${purchaseId} already exists`,
-		)
+		logInfo({
+			message:
+				"[Stripe Webhook] Registration already exists for purchase, skipping",
+			attributes: { purchaseId, registrationId: existingRegistration.id },
+		})
 		// Ensure purchase is marked as completed (it should be, but just in case)
 		await db
 			.update(commercePurchaseTable)
@@ -146,7 +170,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 		try {
 			registrationData = JSON.parse(existingPurchase.metadata)
 		} catch {
-			console.warn("WARN: [Stripe Webhook] Failed to parse purchase metadata")
+			logWarning({
+				message: "[Stripe Webhook] Failed to parse purchase metadata",
+				attributes: { purchaseId },
+			})
 		}
 	}
 
@@ -187,13 +214,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			})
 			.where(eq(commercePurchaseTable.id, purchaseId))
 
-		console.log(
-			`INFO: [Stripe Webhook] Registration created: ${result.registrationId} for purchase ${purchaseId}`,
-		)
+		logInfo({
+			message: "[Stripe Webhook] Registration created",
+			attributes: {
+				registrationId: result.registrationId,
+				purchaseId,
+				competitionId,
+				userId,
+			},
+		})
 
 		// TODO: Send confirmation email
 	} catch (err) {
-		console.error(`ERROR: [Stripe Webhook] Failed to create registration:`, err)
+		logError({
+			message: "[Stripe Webhook] Failed to create registration",
+			error: err,
+			attributes: { purchaseId, competitionId, userId },
+		})
 		await db
 			.update(commercePurchaseTable)
 			.set({ status: COMMERCE_PURCHASE_STATUS.FAILED })
@@ -224,7 +261,8 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 			),
 		)
 
-	console.log(
-		`INFO: [Stripe Webhook] Checkout expired for purchase: ${purchaseId}`,
-	)
+	logInfo({
+		message: "[Stripe Webhook] Checkout expired for purchase",
+		attributes: { purchaseId },
+	})
 }

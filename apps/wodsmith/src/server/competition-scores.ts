@@ -24,6 +24,10 @@ import {
 	type NormalizedScoreEntry,
 } from "@/server/logs"
 import { getSessionFromCookie } from "@/utils/auth"
+import {
+	logError,
+	logInfo,
+} from "@/lib/logging/posthog-otel-logger"
 
 /**
  * Verify that a track workout belongs to the specified competition team.
@@ -352,7 +356,17 @@ export async function saveCompetitionScore(params: {
 }): Promise<{ resultId: string; isNew: boolean }> {
 	const db = getDb()
 
-	console.log("[Action] saveCompetitionScore called with:", params)
+	logInfo({
+		message: "[competition-scores] saveCompetitionScore called",
+		attributes: {
+			competitionId: params.competitionId,
+			registrationId: params.registrationId,
+			userId: params.userId,
+			workoutId: params.workoutId,
+			trackWorkoutId: params.trackWorkoutId,
+			scoreStatus: params.scoreStatus,
+		},
+	})
 	let finalWodScore = params.score
 	let setsToInsert: Array<{
 		id: string
