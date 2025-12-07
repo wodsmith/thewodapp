@@ -1,5 +1,6 @@
 import "server-only"
 
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api"
 import { logs, type Logger, SeverityNumber } from "@opentelemetry/api-logs"
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http"
@@ -107,6 +108,31 @@ function enrichAttributes({
 }
 
 /**
+ * Schedule a flush using Cloudflare's waitUntil to ensure logs are sent
+ * before the worker terminates. This is critical for serverless environments.
+ */
+function scheduleFlush() {
+	if (!isPostHogEnabled || !cachedProvider) {
+		return
+	}
+
+	try {
+		const { ctx } = getCloudflareContext()
+		if (ctx?.waitUntil) {
+			ctx.waitUntil(
+				cachedProvider.forceFlush().catch((err) => {
+					// Silently ignore flush errors - logging shouldn't break the app
+					console.error("[posthog-otel] flush error:", err)
+				}),
+			)
+		}
+	} catch {
+		// getCloudflareContext may throw if called outside request context
+		// This is fine - logs will be batched and sent on next successful flush
+	}
+}
+
+/**
  * Emit to console as fallback when PostHog is disabled or in development.
  * This ensures logs are always visible somewhere.
  */
@@ -169,6 +195,7 @@ export function logInfo(params: LogParams) {
 		}),
 	})
 
+	scheduleFlush()
 	emitToConsole(severityText, params.message, params.attributes, params.error)
 }
 
@@ -187,6 +214,7 @@ export function logWarning(params: LogParams) {
 		}),
 	})
 
+	scheduleFlush()
 	emitToConsole(severityText, params.message, params.attributes, params.error)
 }
 
@@ -205,6 +233,7 @@ export function logError(params: LogParams) {
 		}),
 	})
 
+	scheduleFlush()
 	emitToConsole(severityText, params.message, params.attributes, params.error)
 }
 
