@@ -4,6 +4,11 @@ import { createId } from "@paralleldrive/cuid2"
 import { and, eq, max, notExists, or } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
+import {
 	type ProgrammingTrack,
 	programmingTracksTable,
 	scheduledWorkoutInstancesTable,
@@ -363,9 +368,10 @@ export async function getTeamTracks(
 ): Promise<ProgrammingTrack[]> {
 	const db = getDb()
 
-	console.log(
-		`DEBUG: [getTeamTracks] Fetching tracks for teamId: ${teamId}, activeOnly: ${activeOnly}`,
-	)
+	logInfo({
+		message: "[programming-tracks] Fetching team tracks",
+		attributes: { teamId, activeOnly },
+	})
 
 	// Get tracks owned by the team
 	const ownedTracks = await db
@@ -373,7 +379,10 @@ export async function getTeamTracks(
 		.from(programmingTracksTable)
 		.where(eq(programmingTracksTable.ownerTeamId, teamId))
 
-	console.log(`DEBUG: [getTeamTracks] Found ${ownedTracks.length} owned tracks`)
+	logInfo({
+		message: "[programming-tracks] Owned tracks fetched",
+		attributes: { teamId, count: ownedTracks.length },
+	})
 
 	// Get tracks assigned to the team via team_programming_tracks table
 	const assignedTracksQuery = db
@@ -391,9 +400,10 @@ export async function getTeamTracks(
 	const assignedRecords = await assignedTracksQuery
 	const assignedTracks = assignedRecords.map((r) => r.track)
 
-	console.log(
-		`DEBUG: [getTeamTracks] Found ${assignedTracks.length} assigned tracks`,
-	)
+	logInfo({
+		message: "[programming-tracks] Assigned tracks fetched",
+		attributes: { teamId, count: assignedTracks.length },
+	})
 
 	// Combine and deduplicate tracks (in case a team owns a track and is also assigned to it)
 	const allTracks = [...ownedTracks, ...assignedTracks]
@@ -402,9 +412,10 @@ export async function getTeamTracks(
 			array.findIndex((t) => t.id === track.id) === index,
 	)
 
-	console.log(
-		`DEBUG: [getTeamTracks] Returning ${uniqueTracks.length} total unique tracks`,
-	)
+	logInfo({
+		message: "[programming-tracks] Returning unique tracks",
+		attributes: { teamId, count: uniqueTracks.length },
+	})
 
 	return uniqueTracks
 }
@@ -575,7 +586,10 @@ export async function deleteProgrammingTrack(trackId: string): Promise<void> {
 		.delete(programmingTracksTable)
 		.where(eq(programmingTracksTable.id, trackId))
 
-	console.log(`INFO: [ProgrammingTrack] Deleted programming track: ${trackId}`)
+	logInfo({
+		message: "[programming-tracks] Deleted programming track",
+		attributes: { trackId },
+	})
 }
 
 export async function removeWorkoutFromTrack(
@@ -587,9 +601,10 @@ export async function removeWorkoutFromTrack(
 		.delete(trackWorkoutsTable)
 		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
 
-	console.log(
-		`INFO: [TrackWorkout] Removed workout from track: ${trackWorkoutId}`,
-	)
+	logInfo({
+		message: "[programming-tracks] Removed workout from track",
+		attributes: { trackWorkoutId },
+	})
 }
 
 export async function updateTrackWorkout({
@@ -623,7 +638,10 @@ export async function updateTrackWorkout({
 	if (!trackWorkout) {
 		throw new Error("Failed to update track workout")
 	}
-	console.log(`INFO: [TrackWorkout] Updated track workout: ${trackWorkoutId}`)
+	logInfo({
+		message: "[programming-tracks] Updated track workout",
+		attributes: { trackWorkoutId },
+	})
 	return trackWorkout
 }
 
@@ -640,12 +658,10 @@ export async function reorderTrackWorkouts(
 ): Promise<number> {
 	const db = getDb()
 
-	console.log(
-		"DEBUG: [ReorderFunction] Starting with trackId:",
-		trackId,
-		"updates:",
-		updates,
-	)
+	logInfo({
+		message: "[programming-tracks] Reorder start",
+		attributes: { trackId, updatesCount: updates.length },
+	})
 
 	try {
 		// First, validate all track workouts exist and belong to this track
@@ -657,20 +673,19 @@ export async function reorderTrackWorkouts(
 			.from(trackWorkoutsTable)
 			.where(eq(trackWorkoutsTable.trackId, trackId))
 
-		console.log(
-			"DEBUG: [ReorderFunction] Found existing workouts for track:",
-			existingWorkouts,
-		)
+		logInfo({
+			message: "[programming-tracks] Found existing track workouts",
+			attributes: { trackId, existingCount: existingWorkouts.length },
+		})
 
 		const trackWorkoutIds = existingWorkouts.map((w) => w.id)
 
 		// Validate all updates refer to valid track workouts
 		for (const { trackWorkoutId } of updates) {
 			if (!trackWorkoutIds.includes(trackWorkoutId)) {
-				console.error("ERROR: [ReorderFunction] Invalid track workout ID:", {
-					trackWorkoutId,
-					trackId,
-					validIds: trackWorkoutIds,
+				logError({
+					message: "[programming-tracks] Invalid track workout ID",
+					attributes: { trackWorkoutId, trackId, validIds: trackWorkoutIds },
 				})
 				throw new Error(
 					`Track workout ${trackWorkoutId} does not belong to track ${trackId}`,
@@ -681,9 +696,9 @@ export async function reorderTrackWorkouts(
 		// Perform the updates without using a transaction for Cloudflare D1 compatibility
 		let updateCount = 0
 		for (const { trackWorkoutId, trackOrder } of updates) {
-			console.log("DEBUG: [ReorderFunction] Updating track workout:", {
-				trackWorkoutId,
-				trackOrder,
+			logInfo({
+				message: "[programming-tracks] Updating track workout",
+				attributes: { trackWorkoutId, trackOrder },
 			})
 
 			try {
@@ -696,38 +711,35 @@ export async function reorderTrackWorkouts(
 						trackOrder: trackWorkoutsTable.trackOrder,
 					})
 
-				console.log("DEBUG: [ReorderFunction] Update successful:", updateResult)
+				logInfo({
+					message: "[programming-tracks] Track workout update success",
+					attributes: { trackWorkoutId },
+				})
 				updateCount += 1
 			} catch (updateError) {
-				console.error(
-					"ERROR: [ReorderFunction] Failed to update individual track workout:",
-					{
-						trackWorkoutId,
-						trackOrder,
-						error: updateError,
-					},
-				)
+				logError({
+					message:
+						"[programming-tracks] Failed to update individual track workout",
+					error: updateError,
+					attributes: { trackWorkoutId, trackOrder },
+				})
 				throw updateError
 			}
 		}
 
-		console.log(
-			"DEBUG: [ReorderFunction] All updates completed successfully, updateCount:",
-			updateCount,
-		)
+		logInfo({
+			message: "[programming-tracks] Reorder completed",
+			attributes: { trackId, updateCount },
+		})
 		return updateCount
 	} catch (error) {
-		console.error("ERROR: [ReorderFunction] Reorder operation failed:", error)
-		console.error("ERROR: [ReorderFunction] Full error details:", {
-			name: error instanceof Error ? error.name : "Unknown",
-			message: error instanceof Error ? error.message : "Unknown error",
-			stack: error instanceof Error ? error.stack : undefined,
-			trackId,
-			updatesCount: updates.length,
-			updates: updates.map((u) => ({
-				trackWorkoutId: u.trackWorkoutId,
-				trackOrder: u.trackOrder,
-			})),
+		logError({
+			message: "[programming-tracks] Reorder operation failed",
+			error,
+			attributes: {
+				trackId,
+				updatesCount: updates.length,
+			},
 		})
 		throw error
 	}

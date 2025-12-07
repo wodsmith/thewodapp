@@ -1,5 +1,6 @@
-import "server-only"
-import { createId } from "@paralleldrive/cuid2"
+import "server-only";
+import { createId } from "@paralleldrive/cuid2";
+import { ZSAError } from "@repo/zsa";
 import {
 	and,
 	asc,
@@ -14,10 +15,9 @@ import {
 	or,
 	type SQL,
 	sql,
-} from "drizzle-orm"
-import { ZSAError } from "@repo/zsa"
-import { getDb } from "@/db"
-import type { Workout } from "@/db/schema"
+} from "drizzle-orm";
+import { getDb } from "@/db";
+import type { Workout } from "@/db/schema";
 import {
 	movements,
 	results,
@@ -28,19 +28,24 @@ import {
 	workoutMovements,
 	workouts,
 	workoutTags,
-} from "@/db/schema"
-import { trackWorkoutsTable } from "@/db/schemas/programming"
+} from "@/db/schema";
+import { trackWorkoutsTable } from "@/db/schemas/programming";
 import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
-} from "@/db/schemas/scaling"
+} from "@/db/schemas/scaling";
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger";
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
-} from "@/server/programming"
-import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
-import { isTeamMember } from "@/utils/team-auth"
+} from "@/server/programming";
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth";
+import { autochunk } from "@/utils/batch-query";
+import { isTeamMember } from "@/utils/team-auth";
 
 /**
  * Helper function to fetch tags by workout IDs (batched)
@@ -49,7 +54,7 @@ async function fetchTagsByWorkoutId(
 	db: ReturnType<typeof getDb>,
 	workoutIds: string[],
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
-	if (workoutIds.length === 0) return new Map()
+	if (workoutIds.length === 0) return new Map();
 
 	const workoutTagsData = await autochunk(
 		{ items: workoutIds },
@@ -63,21 +68,24 @@ async function fetchTagsByWorkoutId(
 				.from(workoutTags)
 				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
 				.where(inArray(workoutTags.workoutId, chunk)),
-	)
+	);
 
-	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
+	const tagsByWorkoutId = new Map<
+		string,
+		Array<{ id: string; name: string }>
+	>();
 
 	for (const item of workoutTagsData) {
 		if (!tagsByWorkoutId.has(item.workoutId)) {
-			tagsByWorkoutId.set(item.workoutId, [])
+			tagsByWorkoutId.set(item.workoutId, []);
 		}
 		tagsByWorkoutId.get(item.workoutId)?.push({
 			id: item.tagId,
 			name: item.tagName,
-		})
+		});
 	}
 
-	return tagsByWorkoutId
+	return tagsByWorkoutId;
 }
 
 /**
@@ -87,7 +95,7 @@ async function fetchMovementsByWorkoutId(
 	db: ReturnType<typeof getDb>,
 	workoutIds: string[],
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
-	if (workoutIds.length === 0) return new Map()
+	if (workoutIds.length === 0) return new Map();
 
 	const workoutMovementsData = await autochunk(
 		{ items: workoutIds },
@@ -102,25 +110,25 @@ async function fetchMovementsByWorkoutId(
 				.from(workoutMovements)
 				.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
 				.where(inArray(workoutMovements.workoutId, chunk)),
-	)
+	);
 
 	const movementsByWorkoutId = new Map<
 		string,
 		Array<{ id: string; name: string; type: string }>
-	>()
+	>();
 
 	for (const item of workoutMovementsData) {
 		if (!movementsByWorkoutId.has(item?.workoutId || "")) {
-			movementsByWorkoutId.set(item?.workoutId || "", [])
+			movementsByWorkoutId.set(item?.workoutId || "", []);
 		}
 		movementsByWorkoutId.get(item?.workoutId || "")?.push({
 			id: item.movementId,
 			name: item.movementName,
 			type: item.movementType,
-		})
+		});
 	}
 
-	return movementsByWorkoutId
+	return movementsByWorkoutId;
 }
 
 /**
@@ -132,12 +140,12 @@ async function fetchTodaysResultsByWorkoutId(
 	workoutIds: string[],
 ) {
 	if (workoutIds.length === 0)
-		return new Map<string, Array<typeof results.$inferSelect>>()
+		return new Map<string, Array<typeof results.$inferSelect>>();
 
-	const today = new Date()
-	today.setHours(0, 0, 0, 0)
-	const tomorrow = new Date(today)
-	tomorrow.setDate(tomorrow.getDate() + 1)
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const tomorrow = new Date(today);
+	tomorrow.setDate(tomorrow.getDate() + 1);
 
 	const todaysResults = await autochunk(
 		{ items: workoutIds, otherParametersCount: 4 }, // +4 for userId, isNotNull, gte, lt
@@ -154,22 +162,25 @@ async function fetchTodaysResultsByWorkoutId(
 						lt(results.date, tomorrow),
 					),
 				),
-	)
+	);
 
-	const resultsByWorkoutId = new Map<string, Array<(typeof todaysResults)[0]>>()
+	const resultsByWorkoutId = new Map<
+		string,
+		Array<(typeof todaysResults)[0]>
+	>();
 
 	for (const result of todaysResults) {
 		if (result.workoutId) {
-			const workoutId = result.workoutId
+			const workoutId = result.workoutId;
 
 			if (!resultsByWorkoutId.has(workoutId)) {
-				resultsByWorkoutId.set(workoutId, [])
+				resultsByWorkoutId.set(workoutId, []);
 			}
-			resultsByWorkoutId.get(workoutId)?.push(result)
+			resultsByWorkoutId.get(workoutId)?.push(result);
 		}
 	}
 
-	return resultsByWorkoutId
+	return resultsByWorkoutId;
 }
 
 /**
@@ -183,70 +194,70 @@ export async function getUserWorkoutsCount({
 	movement,
 	type,
 }: {
-	teamId: string | string[]
-	trackId?: string
-	search?: string
-	tag?: string
-	movement?: string
-	type?: "all" | "original" | "remix"
+	teamId: string | string[];
+	trackId?: string;
+	search?: string;
+	tag?: string;
+	movement?: string;
+	type?: "all" | "original" | "remix";
 }): Promise<number> {
-	const db = getDb()
-	const session = await requireVerifiedEmail()
+	const db = getDb();
+	const session = await requireVerifiedEmail();
 
 	if (!session?.user?.id) {
-		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated");
 	}
 
 	// Build a single query with all necessary joins
-	const needsTrackJoin = !!trackId
-	const needsTagJoin = !!tag
-	const needsMovementJoin = !!movement
+	const needsTrackJoin = !!trackId;
+	const needsTagJoin = !!tag;
+	const needsMovementJoin = !!movement;
 
 	// Build conditions
-	const conditions: SQL[] = []
+	const conditions: SQL[] = [];
 
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
-	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
+	const teamIds = Array.isArray(teamId) ? teamId : [teamId];
 	const teamOrPublicCondition = or(
 		inArray(workouts.teamId, teamIds),
 		eq(workouts.scope, "public"),
-	)
+	);
 	if (teamOrPublicCondition) {
-		conditions.push(teamOrPublicCondition)
+		conditions.push(teamOrPublicCondition);
 	}
 
 	// Type filter
 	if (type === "original") {
-		conditions.push(isNull(workouts.sourceWorkoutId))
+		conditions.push(isNull(workouts.sourceWorkoutId));
 	} else if (type === "remix") {
-		conditions.push(isNotNull(workouts.sourceWorkoutId))
+		conditions.push(isNotNull(workouts.sourceWorkoutId));
 	}
 
 	// Track filter
 	if (trackId) {
-		conditions.push(eq(trackWorkoutsTable.trackId, trackId))
+		conditions.push(eq(trackWorkoutsTable.trackId, trackId));
 	}
 
 	// Tag filter
 	if (tag) {
-		conditions.push(eq(tags.name, tag))
+		conditions.push(eq(tags.name, tag));
 	}
 
 	// Movement filter
 	if (movement) {
-		conditions.push(eq(movements.name, movement))
+		conditions.push(eq(movements.name, movement));
 	}
 
 	// Search filter
 	if (search) {
-		const searchLower = search.toLowerCase()
+		const searchLower = search.toLowerCase();
 		const searchCondition = or(
 			sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
 			sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-		)
+		);
 		if (searchCondition) {
-			conditions.push(searchCondition)
+			conditions.push(searchCondition);
 		}
 	}
 
@@ -255,18 +266,18 @@ export async function getUserWorkoutsCount({
 		.select({
 			count: sql<number>`COUNT(DISTINCT ${workouts.id})`,
 		})
-		.from(workouts)
+		.from(workouts);
 
 	if (needsTrackJoin) {
 		baseQuery = baseQuery.innerJoin(
 			trackWorkoutsTable,
 			eq(trackWorkoutsTable.workoutId, workouts.id),
-		) as any
+		) as any;
 	}
 	if (needsTagJoin) {
 		baseQuery = baseQuery
 			.innerJoin(workoutTags, eq(workoutTags.workoutId, workouts.id))
-			.innerJoin(tags, eq(tags.id, workoutTags.tagId)) as any
+			.innerJoin(tags, eq(tags.id, workoutTags.tagId)) as any;
 	}
 	if (needsMovementJoin) {
 		baseQuery = baseQuery
@@ -274,11 +285,11 @@ export async function getUserWorkoutsCount({
 			.innerJoin(
 				movements,
 				eq(movements.id, workoutMovements.movementId),
-			) as any
+			) as any;
 	}
 
-	const result = await baseQuery.where(and(...conditions))
-	return result[0]?.count || 0
+	const result = await baseQuery.where(and(...conditions));
+	return result[0]?.count || 0;
 }
 
 /**
@@ -294,99 +305,99 @@ export async function getUserWorkouts({
 	limit = 50,
 	offset = 0,
 }: {
-	teamId: string | string[]
-	trackId?: string
-	search?: string
-	tag?: string
-	movement?: string
-	type?: "all" | "original" | "remix"
-	limit?: number
-	offset?: number
+	teamId: string | string[];
+	trackId?: string;
+	search?: string;
+	tag?: string;
+	movement?: string;
+	type?: "all" | "original" | "remix";
+	limit?: number;
+	offset?: number;
 }): Promise<
 	Array<
 		Workout & {
-			tags: Array<{ id: string; name: string }>
-			movements: Array<{ id: string; name: string; type: string }>
+			tags: Array<{ id: string; name: string }>;
+			movements: Array<{ id: string; name: string; type: string }>;
 			resultsToday: Array<{
-				id: string
-				userId: string
-				date: Date
-				workoutId: string | null
-				type: "wod" | "strength" | "monostructural"
-				notes: string | null
-				scale: string | null
-				wodScore: string | null
-				setCount: number | null
-				distance: number | null
-				time: number | null
-			}>
+				id: string;
+				userId: string;
+				date: Date;
+				workoutId: string | null;
+				type: "wod" | "strength" | "monostructural";
+				notes: string | null;
+				scale: string | null;
+				wodScore: string | null;
+				setCount: number | null;
+				distance: number | null;
+				time: number | null;
+			}>;
 			// Optional remix information
 			sourceWorkout?: {
-				id: string
-				name: string
-				teamName?: string
-			} | null
-			remixCount?: number
+				id: string;
+				name: string;
+				teamName?: string;
+			} | null;
+			remixCount?: number;
 		}
 	>
 > {
-	const db = getDb()
-	const session = await requireVerifiedEmail()
+	const db = getDb();
+	const session = await requireVerifiedEmail();
 
 	if (!session?.user?.id) {
-		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated");
 	}
 
 	// Determine which joins we need
-	const needsTrackJoin = !!trackId
-	const needsTagJoin = !!tag
-	const needsMovementJoin = !!movement
+	const needsTrackJoin = !!trackId;
+	const needsTagJoin = !!tag;
+	const needsMovementJoin = !!movement;
 
 	// Build conditions
-	const conditions: SQL[] = []
+	const conditions: SQL[] = [];
 
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
-	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
+	const teamIds = Array.isArray(teamId) ? teamId : [teamId];
 	const teamOrPublicCondition = or(
 		inArray(workouts.teamId, teamIds),
 		eq(workouts.scope, "public"),
-	)
+	);
 	if (teamOrPublicCondition) {
-		conditions.push(teamOrPublicCondition)
+		conditions.push(teamOrPublicCondition);
 	}
 
 	// Type filter
 	if (type === "original") {
-		conditions.push(isNull(workouts.sourceWorkoutId))
+		conditions.push(isNull(workouts.sourceWorkoutId));
 	} else if (type === "remix") {
-		conditions.push(isNotNull(workouts.sourceWorkoutId))
+		conditions.push(isNotNull(workouts.sourceWorkoutId));
 	}
 
 	// Track filter
 	if (trackId) {
-		conditions.push(eq(trackWorkoutsTable.trackId, trackId))
+		conditions.push(eq(trackWorkoutsTable.trackId, trackId));
 	}
 
 	// Tag filter
 	if (tag) {
-		conditions.push(eq(tags.name, tag))
+		conditions.push(eq(tags.name, tag));
 	}
 
 	// Movement filter
 	if (movement) {
-		conditions.push(eq(movements.name, movement))
+		conditions.push(eq(movements.name, movement));
 	}
 
 	// Search filter
 	if (search) {
-		const searchLower = search.toLowerCase()
+		const searchLower = search.toLowerCase();
 		const searchCondition = or(
 			sql`LOWER(${workouts.name}) LIKE ${`%${searchLower}%`}`,
 			sql`LOWER(${workouts.description}) LIKE ${`%${searchLower}%`}`,
-		)
+		);
 		if (searchCondition) {
-			conditions.push(searchCondition)
+			conditions.push(searchCondition);
 		}
 	}
 
@@ -413,18 +424,18 @@ export async function getUserWorkouts({
 			updatedAt: workouts.updatedAt,
 			updateCounter: workouts.updateCounter,
 		})
-		.from(workouts)
+		.from(workouts);
 
 	if (needsTrackJoin) {
 		baseQuery = baseQuery.innerJoin(
 			trackWorkoutsTable,
 			eq(trackWorkoutsTable.workoutId, workouts.id),
-		) as any
+		) as any;
 	}
 	if (needsTagJoin) {
 		baseQuery = baseQuery
 			.innerJoin(workoutTags, eq(workoutTags.workoutId, workouts.id))
-			.innerJoin(tags, eq(tags.id, workoutTags.tagId)) as any
+			.innerJoin(tags, eq(tags.id, workoutTags.tagId)) as any;
 	}
 	if (needsMovementJoin) {
 		baseQuery = baseQuery
@@ -432,16 +443,16 @@ export async function getUserWorkouts({
 			.innerJoin(
 				movements,
 				eq(movements.id, workoutMovements.movementId),
-			) as any
+			) as any;
 	}
 
 	const allWorkouts = await baseQuery
 		.where(and(...conditions))
 		.orderBy(desc(workouts.updatedAt))
 		.limit(limit)
-		.offset(offset)
+		.offset(offset);
 
-	const workoutIds = allWorkouts.map((w) => w.id)
+	const workoutIds = allWorkouts.map((w) => w.id);
 
 	// Fetch related data in parallel
 	const [tagsByWorkoutId, movementsByWorkoutId, resultsByWorkoutId] =
@@ -449,18 +460,18 @@ export async function getUserWorkouts({
 			fetchTagsByWorkoutId(db, workoutIds),
 			fetchMovementsByWorkoutId(db, workoutIds),
 			fetchTodaysResultsByWorkoutId(db, session.user.id, workoutIds),
-		])
+		]);
 
 	// Fetch remix information for workouts that have sourceWorkoutId
-	const workoutsWithSource = allWorkouts.filter((w) => w.sourceWorkoutId)
+	const workoutsWithSource = allWorkouts.filter((w) => w.sourceWorkoutId);
 	const sourceWorkoutIds = workoutsWithSource
 		.map((w) => w.sourceWorkoutId)
-		.filter((id): id is string => id !== null)
+		.filter((id): id is string => id !== null);
 
 	let sourceWorkoutsMap = new Map<
 		string,
 		{ id: string; name: string; teamId: string | null }
-	>()
+	>();
 	if (sourceWorkoutIds.length > 0) {
 		const sourceWorkouts = await autochunk(
 			{ items: sourceWorkoutIds },
@@ -473,26 +484,26 @@ export async function getUserWorkouts({
 					})
 					.from(workouts)
 					.where(inArray(workouts.id, chunk)),
-		)
+		);
 
-		sourceWorkoutsMap = new Map(sourceWorkouts.map((w) => [w.id, w]))
+		sourceWorkoutsMap = new Map(sourceWorkouts.map((w) => [w.id, w]));
 	}
 
 	// Fetch team names for source workouts (batched)
 	const sourceTeamIds = Array.from(sourceWorkoutsMap.values())
 		.map((w) => w.teamId)
-		.filter((id): id is string => id !== null)
+		.filter((id): id is string => id !== null);
 
-	let teamsMap = new Map<string, { name: string }>()
+	let teamsMap = new Map<string, { name: string }>();
 	if (sourceTeamIds.length > 0) {
 		const teams = await autochunk({ items: sourceTeamIds }, async (chunk) =>
 			db
 				.select({ id: teamTable.id, name: teamTable.name })
 				.from(teamTable)
 				.where(inArray(teamTable.id, chunk)),
-		)
+		);
 
-		teamsMap = new Map(teams.map((t) => [t.id, { name: t.name }]))
+		teamsMap = new Map(teams.map((t) => [t.id, { name: t.name }]));
 	}
 
 	// Fetch remix counts for all workouts (batched)
@@ -512,20 +523,20 @@ export async function getUserWorkouts({
 					),
 				)
 				.groupBy(workouts.sourceWorkoutId),
-	)
+	);
 
 	const remixCountsMap = new Map(
 		remixCounts.map((rc) => [rc.sourceWorkoutId, rc.count]),
-	)
+	);
 
 	// Compose final structure
 	return allWorkouts.map((w) => {
 		const sourceWorkoutData = w.sourceWorkoutId
 			? sourceWorkoutsMap.get(w.sourceWorkoutId)
-			: null
+			: null;
 		const teamData = sourceWorkoutData?.teamId
 			? teamsMap.get(sourceWorkoutData.teamId)
-			: null
+			: null;
 
 		return {
 			...w,
@@ -540,8 +551,8 @@ export async function getUserWorkouts({
 					}
 				: null,
 			remixCount: remixCountsMap.get(w.id) || 0,
-		}
-	})
+		};
+	});
 }
 
 /**
@@ -556,13 +567,13 @@ export async function createWorkout({
 	workout: Omit<
 		Workout,
 		"id" | "createdAt" | "updatedAt" | "updateCounter" | "teamId"
-	>
-	tagIds: string[]
-	movementIds: string[]
-	teamId: string
+	>;
+	tagIds: string[];
+	movementIds: string[];
+	teamId: string;
 }) {
 	try {
-		const db = getDb()
+		const db = getDb();
 
 		// Create the workout first
 		const newWorkout = await db
@@ -585,7 +596,7 @@ export async function createWorkout({
 				updateCounter: 0,
 			})
 			.returning()
-			.get()
+			.get();
 
 		// Insert workout-tag relationships
 		if (tagIds.length > 0) {
@@ -595,7 +606,7 @@ export async function createWorkout({
 					workoutId: newWorkout.id,
 					tagId,
 				})),
-			)
+			);
 		}
 
 		// Insert workout-movement relationships
@@ -606,17 +617,20 @@ export async function createWorkout({
 					workoutId: newWorkout.id,
 					movementId,
 				})),
-			)
+			);
 		}
 
-		return newWorkout
+		return newWorkout;
 	} catch (error) {
-		console.error("Failed to create workout:", error)
+		logError({
+			message: "[createWorkout] Failed to create workout",
+			error,
+		});
 		// Re-throw with a more specific error message
 		if (error instanceof Error && error.message.includes("ECONNRESET")) {
-			throw new Error("Database connection error. Please try again.")
+			throw new Error("Database connection error. Please try again.");
 		}
-		throw error
+		throw error;
 	}
 }
 
@@ -626,75 +640,75 @@ export async function createWorkout({
 export async function getWorkoutById(id: string): Promise<
 	| (Workout & {
 			tags: Array<{
-				id: string
-				name: string
-				createdAt: Date
-				updatedAt: Date
-				updateCounter: number | null
-			}>
+				id: string;
+				name: string;
+				createdAt: Date;
+				updatedAt: Date;
+				updateCounter: number | null;
+			}>;
 			movements: Array<{
-				id: string
-				name: string
-				type: string
-				createdAt: Date
-				updatedAt: Date
-				updateCounter: number | null
-			}>
+				id: string;
+				name: string;
+				type: string;
+				createdAt: Date;
+				updatedAt: Date;
+				updateCounter: number | null;
+			}>;
 			// Optional remix information
 			sourceWorkout?: {
-				id: string
-				name: string
-				teamName?: string
-			} | null
-			remixCount?: number
+				id: string;
+				name: string;
+				teamName?: string;
+			} | null;
+			remixCount?: number;
 			// Scaling information
 			scalingLevels?: Array<{
-				id: string
-				label: string
-				position: number
-			}>
+				id: string;
+				label: string;
+				position: number;
+			}>;
 			scalingDescriptions?: Array<{
-				scalingLevelId: string
-				description: string | null
-			}>
+				scalingLevelId: string;
+				description: string | null;
+			}>;
 	  })
 	| null
 > {
-	const db = getDb()
+	const db = getDb();
 
 	const workout = await db
 		.select()
 		.from(workouts)
 		.where(eq(workouts.id, id))
-		.get()
+		.get();
 
-	if (!workout) return null
+	if (!workout) return null;
 
 	const workoutTagRows = await db
 		.select()
 		.from(workoutTags)
-		.where(eq(workoutTags.workoutId, id))
-	const tagIds = workoutTagRows.map((wt) => wt.tagId)
+		.where(eq(workoutTags.workoutId, id));
+	const tagIds = workoutTagRows.map((wt) => wt.tagId);
 	const tagObjs = tagIds.length
 		? await db.select().from(tags).where(inArray(tags.id, tagIds))
-		: []
+		: [];
 
 	const workoutMovementRows = await db
 		.select()
 		.from(workoutMovements)
-		.where(eq(workoutMovements.workoutId, id))
+		.where(eq(workoutMovements.workoutId, id));
 	const movementIds = workoutMovementRows
 		.map((wm) => wm.movementId)
-		.filter((id): id is string => id !== null)
+		.filter((id): id is string => id !== null);
 	const movementObjs = movementIds.length
 		? await db
 				.select()
 				.from(movements)
 				.where(inArray(movements.id, movementIds))
-		: []
+		: [];
 
 	// Fetch source workout info if this is a remix
-	let sourceWorkout = null
+	let sourceWorkout = null;
 	if (workout.sourceWorkoutId) {
 		const source = await db
 			.select({
@@ -704,7 +718,7 @@ export async function getWorkoutById(id: string): Promise<
 			})
 			.from(workouts)
 			.where(eq(workouts.id, workout.sourceWorkoutId))
-			.get()
+			.get();
 
 		if (source) {
 			// Get team name for source workout
@@ -714,13 +728,13 @@ export async function getWorkoutById(id: string): Promise<
 						.from(teamTable)
 						.where(eq(teamTable.id, source.teamId))
 						.get()
-				: null
+				: null;
 
 			sourceWorkout = {
 				id: source.id,
 				name: source.name,
 				teamName: teamInfo?.name,
-			}
+			};
 		}
 	}
 
@@ -729,16 +743,17 @@ export async function getWorkoutById(id: string): Promise<
 		.select({ count: count() })
 		.from(workouts)
 		.where(eq(workouts.sourceWorkoutId, id))
-		.get()
+		.get();
 
-	const remixCount = remixCountResult?.count || 0
+	const remixCount = remixCountResult?.count || 0;
 
 	// Fetch scaling levels and descriptions if workout has a scaling group
-	let scalingLevels: Array<{ id: string; label: string; position: number }> = []
+	let scalingLevels: Array<{ id: string; label: string; position: number }> =
+		[];
 	let scalingDescriptions: Array<{
-		scalingLevelId: string
-		description: string | null
-	}> = []
+		scalingLevelId: string;
+		description: string | null;
+	}> = [];
 
 	if (workout.scalingGroupId) {
 		// Get scaling levels for this group
@@ -750,11 +765,11 @@ export async function getWorkoutById(id: string): Promise<
 			})
 			.from(scalingLevelsTable)
 			.where(eq(scalingLevelsTable.scalingGroupId, workout.scalingGroupId))
-			.orderBy(asc(scalingLevelsTable.position))
+			.orderBy(asc(scalingLevelsTable.position));
 
 		// Get workout-specific scaling descriptions
 		if (scalingLevels.length > 0) {
-			const levelIds = scalingLevels.map((l) => l.id)
+			const levelIds = scalingLevels.map((l) => l.id);
 			scalingDescriptions = await db
 				.select({
 					scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
@@ -766,7 +781,7 @@ export async function getWorkoutById(id: string): Promise<
 						eq(workoutScalingDescriptionsTable.workoutId, id),
 						inArray(workoutScalingDescriptionsTable.scalingLevelId, levelIds),
 					),
-				)
+				);
 		}
 	}
 
@@ -778,7 +793,7 @@ export async function getWorkoutById(id: string): Promise<
 		remixCount,
 		scalingLevels,
 		scalingDescriptions,
-	}
+	};
 }
 
 /**
@@ -790,7 +805,7 @@ export async function updateWorkout({
 	tagIds,
 	movementIds,
 }: {
-	id: string
+	id: string;
 	workout: Partial<
 		Pick<
 			Workout,
@@ -803,11 +818,11 @@ export async function updateWorkout({
 			| "roundsToScore"
 			| "scalingGroupId"
 		>
-	>
-	tagIds: string[]
-	movementIds: string[]
+	>;
+	tagIds: string[];
+	movementIds: string[];
 }) {
-	const db = getDb()
+	const db = getDb();
 
 	await db
 		.update(workouts)
@@ -815,10 +830,10 @@ export async function updateWorkout({
 			...workout,
 			updatedAt: new Date(),
 		})
-		.where(eq(workouts.id, id))
+		.where(eq(workouts.id, id));
 
-	await db.delete(workoutTags).where(eq(workoutTags.workoutId, id))
-	await db.delete(workoutMovements).where(eq(workoutMovements.workoutId, id))
+	await db.delete(workoutTags).where(eq(workoutTags.workoutId, id));
+	await db.delete(workoutMovements).where(eq(workoutMovements.workoutId, id));
 
 	if (tagIds.length) {
 		await db.insert(workoutTags).values(
@@ -827,7 +842,7 @@ export async function updateWorkout({
 				workoutId: id,
 				tagId,
 			})),
-		)
+		);
 	}
 	if (movementIds.length) {
 		await db.insert(workoutMovements).values(
@@ -836,7 +851,7 @@ export async function updateWorkout({
 				workoutId: id,
 				movementId,
 			})),
-		)
+		);
 	}
 }
 
@@ -847,13 +862,13 @@ export async function getUserWorkoutsWithTrackScheduling({
 	trackId,
 	teamId,
 }: {
-	trackId: string
-	teamId: string
+	trackId: string;
+	teamId: string;
 }) {
-	const db = getDb()
+	const db = getDb();
 
 	// Get all team workouts
-	const userWorkouts = await getUserWorkouts({ teamId, trackId: undefined })
+	const userWorkouts = await getUserWorkouts({ teamId, trackId: undefined });
 
 	// Get scheduling information for workouts in this track
 	const scheduledWorkouts = await db
@@ -871,27 +886,27 @@ export async function getUserWorkoutsWithTrackScheduling({
 				eq(trackWorkoutsTable.trackId, trackId),
 				eq(scheduledWorkoutInstancesTable.teamId, teamId),
 			),
-		)
+		);
 
 	// Create a map of workout ID to last scheduled date
-	const schedulingMap = new Map<string, Date>()
+	const schedulingMap = new Map<string, Date>();
 	for (const row of scheduledWorkouts) {
 		if (row.workoutId && row.scheduledDate) {
-			const existingDate = schedulingMap.get(row.workoutId)
+			const existingDate = schedulingMap.get(row.workoutId);
 			if (!existingDate || row.scheduledDate > existingDate) {
-				schedulingMap.set(row.workoutId, row.scheduledDate)
+				schedulingMap.set(row.workoutId, row.scheduledDate);
 			}
 		}
 	}
 
 	// Combine user workouts with scheduling information
 	return userWorkouts.map((workout) => {
-		const { resultsToday: _resultsToday, ...workoutWithoutResults } = workout
+		const { resultsToday: _resultsToday, ...workoutWithoutResults } = workout;
 		return {
 			...workoutWithoutResults,
 			lastScheduledAt: schedulingMap.get(workout.id) ?? null,
-		}
-	})
+		};
+	});
 }
 
 /**
@@ -900,7 +915,7 @@ export async function getUserWorkoutsWithTrackScheduling({
 export async function getAvailableWorkoutTags(
 	teamId: string,
 ): Promise<string[]> {
-	const db = getDb()
+	const db = getDb();
 
 	// Get tags from workouts that are either team-owned or public
 	const result = await db
@@ -909,9 +924,9 @@ export async function getAvailableWorkoutTags(
 		.innerJoin(workoutTags, eq(workoutTags.tagId, tags.id))
 		.innerJoin(workouts, eq(workouts.id, workoutTags.workoutId))
 		.where(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
-		.orderBy(tags.name)
+		.orderBy(tags.name);
 
-	return result.map((r) => r.name).filter(Boolean) as string[]
+	return result.map((r) => r.name).filter(Boolean) as string[];
 }
 
 /**
@@ -920,7 +935,7 @@ export async function getAvailableWorkoutTags(
 export async function getAvailableWorkoutMovements(
 	teamId: string,
 ): Promise<string[]> {
-	const db = getDb()
+	const db = getDb();
 
 	// Get movements from workouts that are either team-owned or public
 	const result = await db
@@ -929,9 +944,9 @@ export async function getAvailableWorkoutMovements(
 		.innerJoin(workoutMovements, eq(workoutMovements.movementId, movements.id))
 		.innerJoin(workouts, eq(workouts.id, workoutMovements.workoutId))
 		.where(or(eq(workouts.teamId, teamId), eq(workouts.scope, "public")))
-		.orderBy(movements.name)
+		.orderBy(movements.name);
 
-	return result.map((r) => r.name).filter(Boolean) as string[]
+	return result.map((r) => r.name).filter(Boolean) as string[];
 }
 
 /**
@@ -942,109 +957,112 @@ export async function createWorkoutRemix({
 	sourceWorkoutId,
 	teamId,
 }: {
-	sourceWorkoutId: string
-	teamId: string
+	sourceWorkoutId: string;
+	teamId: string;
 }) {
-	const db = getDb()
-	const session = await requireVerifiedEmail()
+	const db = getDb();
+	const session = await requireVerifiedEmail();
 
 	if (!session?.user?.id) {
-		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated");
 	}
 
 	// Validate that the user is a member of the target team
-	const isMember = await isTeamMember(teamId)
+	const isMember = await isTeamMember(teamId);
 	if (!isMember) {
 		throw new ZSAError(
 			"FORBIDDEN",
 			"You are not authorized to create workouts for this team",
-		)
+		);
 	}
 
 	// First, get the source workout with all related data
-	const sourceWorkout = await getWorkoutById(sourceWorkoutId)
+	const sourceWorkout = await getWorkoutById(sourceWorkoutId);
 
 	if (!sourceWorkout) {
-		throw new ZSAError("NOT_FOUND", "Source workout not found")
+		throw new ZSAError("NOT_FOUND", "Source workout not found");
 	}
 
 	// Check if user can view the source workout
 	// User can view if: it's public OR they belong to the workout's team OR they're subscribed to the programming track
-	console.log("🔍 Permission Debug - createWorkoutRemix:", {
-		sourceWorkoutId,
-		teamId,
-		sourceWorkout: {
-			id: sourceWorkout.id,
-			scope: sourceWorkout.scope,
-			teamId: sourceWorkout.teamId,
+	logInfo({
+		message: "[createWorkoutRemix] Permission check start",
+		attributes: {
+			sourceWorkoutId,
+			targetTeamId: teamId,
+			sourceScope: sourceWorkout.scope,
+			sourceTeamId: sourceWorkout.teamId,
 			sourceTrackId: sourceWorkout.sourceTrackId,
-		},
-		session: {
 			userId: session.user?.id,
-			teams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
+			userTeams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
 		},
-	})
+	});
 
 	let canViewSource =
 		sourceWorkout.scope === "public" ||
 		sourceWorkout.teamId === teamId ||
-		session.teams?.some((team) => team.id === sourceWorkout.teamId)
+		session.teams?.some((team) => team.id === sourceWorkout.teamId);
 
-	console.log("🔍 Initial permission check:", {
-		isPublic: sourceWorkout.scope === "public",
-		isOwnedByTeam: sourceWorkout.teamId === teamId,
-		isInUserTeams: session.teams?.some(
-			(team) => team.id === sourceWorkout.teamId,
-		),
-		canViewSource,
-	})
+	logInfo({
+		message: "[createWorkoutRemix] Initial permission check",
+		attributes: {
+			isPublic: sourceWorkout.scope === "public",
+			isOwnedByTeam: sourceWorkout.teamId === teamId,
+			isInUserTeams: session.teams?.some(
+				(team) => team.id === sourceWorkout.teamId,
+			),
+			canViewSource,
+		},
+	});
 
 	// If not already allowed, check if this workout is in any programming track the team is subscribed to
 	if (!canViewSource) {
 		// First try the sourceTrackId approach if available
 		if (sourceWorkout.sourceTrackId) {
-			console.log("🔍 Checking programming track subscription:", {
-				teamId,
-				sourceTrackId: sourceWorkout.sourceTrackId,
-			})
-
 			canViewSource = await isTeamSubscribedToProgrammingTrack(
 				teamId,
 				sourceWorkout.sourceTrackId,
-			)
+			);
 
-			console.log("🔍 Programming track subscription result:", {
-				canViewSource,
-			})
+			logInfo({
+				message: "[createWorkoutRemix] Source track subscription result",
+				attributes: {
+					canViewSource,
+					sourceTrackId: sourceWorkout.sourceTrackId,
+					teamId,
+				},
+			});
 		}
 
 		// If still not allowed, check if this workout exists in any subscribed programming track
 		if (!canViewSource) {
-			console.log(
-				"🔍 Checking if workout is in any subscribed programming track",
-			)
-
 			canViewSource = await isWorkoutInTeamSubscribedTrack(
 				teamId,
 				sourceWorkout.id,
-			)
+			);
 
-			console.log("🔍 Workout in subscribed track result:", { canViewSource })
+			logInfo({
+				message: "[createWorkoutRemix] Workout in subscribed track result",
+				attributes: { canViewSource, teamId, workoutId: sourceWorkout.id },
+			});
 		}
 	}
 
-	console.log("🔍 Final permission result:", { canViewSource })
+	logInfo({
+		message: "[createWorkoutRemix] Final permission result",
+		attributes: { canViewSource, teamId, sourceWorkoutId },
+	});
 
 	if (!canViewSource) {
 		throw new ZSAError(
 			"FORBIDDEN",
 			"You don't have permission to view the source workout",
-		)
+		);
 	}
 
 	// Extract tag and movement IDs from the source workout
-	const tagIds = sourceWorkout.tags.map((tag) => tag.id)
-	const movementIds = sourceWorkout.movements.map((movement) => movement.id)
+	const tagIds = sourceWorkout.tags.map((tag) => tag.id);
+	const movementIds = sourceWorkout.movements.map((movement) => movement.id);
 
 	// Create the remixed workout (D1 doesn't support transactions)
 	// Create the workout first
@@ -1068,7 +1086,7 @@ export async function createWorkoutRemix({
 			updateCounter: 0,
 		})
 		.returning()
-		.get()
+		.get();
 
 	// Insert workout-tag relationships
 	if (tagIds.length > 0) {
@@ -1078,7 +1096,7 @@ export async function createWorkoutRemix({
 				workoutId: newWorkout.id,
 				tagId,
 			})),
-		)
+		);
 	}
 
 	// Insert workout-movement relationships
@@ -1089,14 +1107,14 @@ export async function createWorkoutRemix({
 				workoutId: newWorkout.id,
 				movementId,
 			})),
-		)
+		);
 	}
 
-	const remixedWorkout = newWorkout
+	const remixedWorkout = newWorkout;
 
 	// Return the newly created workout with all related data
-	const result = await getWorkoutById(remixedWorkout.id)
-	return result
+	const result = await getWorkoutById(remixedWorkout.id);
+	return result;
 }
 
 /**
@@ -1108,108 +1126,109 @@ export async function createProgrammingTrackWorkoutRemix({
 	sourceTrackId,
 	teamId,
 }: {
-	sourceWorkoutId: string
-	sourceTrackId: string
-	teamId: string
+	sourceWorkoutId: string;
+	sourceTrackId: string;
+	teamId: string;
 }) {
-	const db = getDb()
-	const session = await requireVerifiedEmail()
+	const db = getDb();
+	const session = await requireVerifiedEmail();
 
 	if (!session?.user?.id) {
-		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated")
+		throw new ZSAError("NOT_AUTHORIZED", "User must be authenticated");
 	}
 
 	// Validate that the user is a member of the target team
-	const isMember = await isTeamMember(teamId)
+	const isMember = await isTeamMember(teamId);
 	if (!isMember) {
 		throw new ZSAError(
 			"FORBIDDEN",
 			"You are not authorized to create workouts for this team",
-		)
+		);
 	}
 
 	// First, get the source workout with all related data
-	const sourceWorkout = await getWorkoutById(sourceWorkoutId)
+	const sourceWorkout = await getWorkoutById(sourceWorkoutId);
 
 	if (!sourceWorkout) {
-		throw new ZSAError("NOT_FOUND", "Source workout not found")
+		throw new ZSAError("NOT_FOUND", "Source workout not found");
 	}
 
 	// Check if user can view the source workout
 	// User can view if: it's public OR they belong to the workout's team OR they're subscribed to the programming track
-	console.log("🔍 Permission Debug - createProgrammingTrackWorkoutRemix:", {
-		sourceWorkoutId,
-		sourceTrackId,
-		teamId,
-		sourceWorkout: {
-			id: sourceWorkout.id,
-			scope: sourceWorkout.scope,
-			teamId: sourceWorkout.teamId,
-			sourceTrackId: sourceWorkout.sourceTrackId,
-		},
-		session: {
+	logInfo({
+		message: "[createProgrammingTrackWorkoutRemix] Permission check start",
+		attributes: {
+			sourceWorkoutId,
+			sourceTrackId,
+			teamId,
+			sourceScope: sourceWorkout.scope,
+			sourceTeamId: sourceWorkout.teamId,
+			sourceWorkoutTrackId: sourceWorkout.sourceTrackId,
 			userId: session.user?.id,
-			teams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
+			userTeams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
 		},
-	})
+	});
 
 	let canViewSource =
 		sourceWorkout.scope === "public" ||
 		sourceWorkout.teamId === teamId ||
-		session.teams?.some((team) => team.id === sourceWorkout.teamId)
+		session.teams?.some((team) => team.id === sourceWorkout.teamId);
 
-	console.log("🔍 Initial permission check (Programming Track):", {
-		isPublic: sourceWorkout.scope === "public",
-		isOwnedByTeam: sourceWorkout.teamId === teamId,
-		isInUserTeams: session.teams?.some(
-			(team) => team.id === sourceWorkout.teamId,
-		),
-		canViewSource,
-	})
+	logInfo({
+		message: "[createProgrammingTrackWorkoutRemix] Initial permission check",
+		attributes: {
+			isPublic: sourceWorkout.scope === "public",
+			isOwnedByTeam: sourceWorkout.teamId === teamId,
+			isInUserTeams: session.teams?.some(
+				(team) => team.id === sourceWorkout.teamId,
+			),
+			canViewSource,
+		},
+	});
 
 	// If not already allowed, check programming track subscription
 	if (!canViewSource) {
-		console.log("🔍 Checking programming track subscription:", {
-			teamId,
-			sourceTrackId,
-		})
-
 		canViewSource = await isTeamSubscribedToProgrammingTrack(
 			teamId,
 			sourceTrackId,
-		)
+		);
 
-		console.log("🔍 Programming track subscription result:", { canViewSource })
+		logInfo({
+			message:
+				"[createProgrammingTrackWorkoutRemix] Source track subscription result",
+			attributes: { canViewSource, teamId, sourceTrackId },
+		});
 
 		// If still not allowed, check if this workout exists in any subscribed programming track
 		if (!canViewSource) {
-			console.log(
-				"🔍 Checking if workout is in any subscribed programming track",
-			)
-
 			canViewSource = await isWorkoutInTeamSubscribedTrack(
 				teamId,
 				sourceWorkout.id,
-			)
+			);
 
-			console.log("🔍 Workout in subscribed track result:", { canViewSource })
+			logInfo({
+				message:
+					"[createProgrammingTrackWorkoutRemix] Workout in subscribed track result",
+				attributes: { canViewSource, teamId, workoutId: sourceWorkout.id },
+			});
 		}
 	}
 
-	console.log("🔍 Final permission result (Programming Track):", {
-		canViewSource,
-	})
+	logInfo({
+		message: "[createProgrammingTrackWorkoutRemix] Final permission result",
+		attributes: { canViewSource, teamId, sourceWorkoutId, sourceTrackId },
+	});
 
 	if (!canViewSource) {
 		throw new ZSAError(
 			"FORBIDDEN",
 			"You don't have permission to view the source workout",
-		)
+		);
 	}
 
 	// Extract tag and movement IDs from the source workout
-	const tagIds = sourceWorkout.tags.map((tag) => tag.id)
-	const movementIds = sourceWorkout.movements.map((movement) => movement.id)
+	const tagIds = sourceWorkout.tags.map((tag) => tag.id);
+	const movementIds = sourceWorkout.movements.map((movement) => movement.id);
 
 	// Create the remixed workout (D1 doesn't support transactions)
 	// Create the workout first
@@ -1234,7 +1253,7 @@ export async function createProgrammingTrackWorkoutRemix({
 			updateCounter: 0,
 		})
 		.returning()
-		.get()
+		.get();
 
 	// Insert workout-tag relationships
 	if (tagIds.length > 0) {
@@ -1244,7 +1263,7 @@ export async function createProgrammingTrackWorkoutRemix({
 				workoutId: newWorkout.id,
 				tagId,
 			})),
-		)
+		);
 	}
 
 	// Insert workout-movement relationships
@@ -1255,7 +1274,7 @@ export async function createProgrammingTrackWorkoutRemix({
 				workoutId: newWorkout.id,
 				movementId,
 			})),
-		)
+		);
 	}
 
 	console.info("INFO: Created programming track workout remix", {
@@ -1263,11 +1282,11 @@ export async function createProgrammingTrackWorkoutRemix({
 		sourceTrackId,
 		newWorkoutId: newWorkout.id,
 		teamId,
-	})
+	});
 
 	// Return the newly created workout with all related data
-	const result = await getWorkoutById(newWorkout.id)
-	return result
+	const result = await getWorkoutById(newWorkout.id);
+	return result;
 }
 
 /**
@@ -1279,25 +1298,25 @@ export async function getTeamSpecificWorkout({
 	teamId,
 	preferOriginal = false,
 }: {
-	originalWorkoutId: string
-	teamId: string
-	preferOriginal?: boolean
+	originalWorkoutId: string;
+	teamId: string;
+	preferOriginal?: boolean;
 }) {
-	const db = getDb()
+	const db = getDb();
 
 	// If preferOriginal is true, skip remix lookup and return the original workout directly
 	if (preferOriginal) {
 		const originalWorkoutResult = await db
 			.select()
 			.from(workouts)
-			.where(eq(workouts.id, originalWorkoutId))
-		const originalWorkout = originalWorkoutResult[0]
+			.where(eq(workouts.id, originalWorkoutId));
+		const originalWorkout = originalWorkoutResult[0];
 
 		if (!originalWorkout) {
-			throw new ZSAError("NOT_FOUND", "Original workout not found")
+			throw new ZSAError("NOT_FOUND", "Original workout not found");
 		}
 
-		return originalWorkout
+		return originalWorkout;
 	}
 
 	// Check if team has a remix of this workout
@@ -1309,44 +1328,44 @@ export async function getTeamSpecificWorkout({
 				eq(workouts.sourceWorkoutId, originalWorkoutId),
 				eq(workouts.teamId, teamId),
 			),
-		)
-	const teamRemix = teamRemixResult[0]
+		);
+	const teamRemix = teamRemixResult[0];
 
 	if (teamRemix) {
 		console.info("INFO: Using team-specific remix for workout", {
 			originalWorkoutId,
 			remixWorkoutId: teamRemix.id,
 			teamId,
-		})
-		return teamRemix
+		});
+		return teamRemix;
 	}
 
 	// Return original workout if no team remix exists
 	const originalWorkoutResult = await db
 		.select()
 		.from(workouts)
-		.where(eq(workouts.id, originalWorkoutId))
-	const originalWorkout = originalWorkoutResult[0]
+		.where(eq(workouts.id, originalWorkoutId));
+	const originalWorkout = originalWorkoutResult[0];
 
 	if (!originalWorkout) {
-		throw new ZSAError("NOT_FOUND", "Original workout not found")
+		throw new ZSAError("NOT_FOUND", "Original workout not found");
 	}
 
-	return originalWorkout
+	return originalWorkout;
 }
 
 /**
  * Get workouts that are remixes of a given workout
  */
 export async function getRemixedWorkouts(sourceWorkoutId: string) {
-	const db = getDb()
-	const session = await getSessionFromCookie()
-	if (!session) throw new ZSAError("NOT_AUTHORIZED", "No session found")
+	const db = getDb();
+	const session = await getSessionFromCookie();
+	if (!session) throw new ZSAError("NOT_AUTHORIZED", "No session found");
 
 	// Guard against missing user information
-	const userId = session.userId || session.user?.id
+	const userId = session.userId || session.user?.id;
 	if (!userId) {
-		throw new ZSAError("NOT_AUTHORIZED", "User ID not found in session")
+		throw new ZSAError("NOT_AUTHORIZED", "User ID not found in session");
 	}
 
 	const remixedWorkouts = await db
@@ -1379,19 +1398,19 @@ export async function getRemixedWorkouts(sourceWorkoutId: string) {
 				),
 			),
 		)
-		.orderBy(desc(workouts.updatedAt))
+		.orderBy(desc(workouts.updatedAt));
 
-	return remixedWorkouts
+	return remixedWorkouts;
 }
 
 /**
  * Get the last time a workout was scheduled
  */
 export async function getWorkoutLastScheduled(workoutId: string): Promise<{
-	scheduledDate: Date
-	teamName: string
+	scheduledDate: Date;
+	teamName: string;
 } | null> {
-	const db = getDb()
+	const db = getDb();
 
 	const lastScheduled = await db
 		.select({
@@ -1405,9 +1424,9 @@ export async function getWorkoutLastScheduled(workoutId: string): Promise<{
 		)
 		.where(eq(scheduledWorkoutInstancesTable.workoutId, workoutId))
 		.orderBy(desc(scheduledWorkoutInstancesTable.scheduledDate))
-		.limit(1)
+		.limit(1);
 
-	return lastScheduled[0] || null
+	return lastScheduled[0] || null;
 }
 
 /**
@@ -1419,18 +1438,18 @@ export async function getWorkoutScheduleHistory(
 	userTeamIds: string[],
 ): Promise<
 	Array<{
-		id: string
-		scheduledDate: Date
-		teamId: string
-		teamName: string
-		workoutId: string
-		workoutName: string
-		isRemix: boolean
+		id: string;
+		scheduledDate: Date;
+		teamId: string;
+		teamName: string;
+		workoutId: string;
+		workoutName: string;
+		isRemix: boolean;
 	}>
 > {
-	if (userTeamIds.length === 0) return []
+	if (userTeamIds.length === 0) return [];
 
-	const db = getDb()
+	const db = getDb();
 
 	// Get the workout to check if it's a remix or has remixes
 	const workout = await db
@@ -1441,20 +1460,20 @@ export async function getWorkoutScheduleHistory(
 		})
 		.from(workouts)
 		.where(eq(workouts.id, workoutId))
-		.limit(1)
+		.limit(1);
 
-	if (!workout[0]) return []
+	if (!workout[0]) return [];
 
 	// Get all related workout IDs (original + remixes)
-	const relatedWorkoutIds = [workoutId]
+	const relatedWorkoutIds = [workoutId];
 
 	// If this is a remix, include the original
 	if (workout[0].sourceWorkoutId) {
-		relatedWorkoutIds.push(workout[0].sourceWorkoutId)
+		relatedWorkoutIds.push(workout[0].sourceWorkoutId);
 	}
 
 	// Find all remixes of this workout (or remixes of the original if this is a remix) - batched
-	const baseWorkoutId = workout[0].sourceWorkoutId || workoutId
+	const baseWorkoutId = workout[0].sourceWorkoutId || workoutId;
 	const remixes = await autochunk(
 		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for sourceWorkoutId
 		async (chunk) =>
@@ -1467,11 +1486,11 @@ export async function getWorkoutScheduleHistory(
 						inArray(workouts.teamId, chunk),
 					),
 				),
-	)
+	);
 
 	for (const remix of remixes) {
 		if (!relatedWorkoutIds.includes(remix.id)) {
-			relatedWorkoutIds.push(remix.id)
+			relatedWorkoutIds.push(remix.id);
 		}
 	}
 
@@ -1509,7 +1528,7 @@ export async function getWorkoutScheduleHistory(
 					),
 				)
 				.orderBy(desc(scheduledWorkoutInstancesTable.scheduledDate)),
-	)
+	);
 
 	return scheduleHistory
 		.filter((row) => row.workoutId !== null)
@@ -1517,5 +1536,5 @@ export async function getWorkoutScheduleHistory(
 			...row,
 			workoutId: row.workoutId as string,
 			isRemix: row.workoutId !== workoutId,
-		}))
+		}));
 }

@@ -108,7 +108,6 @@ export function AthleteProfileForm({
 						form.getValues("social.instagram") ||
 						form.getValues("social.facebook")
 					),
-					sponsors_count: form.getValues("sponsors")?.length || 0,
 				})
 				router.push("/compete/athlete")
 				router.refresh()

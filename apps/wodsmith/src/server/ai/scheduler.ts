@@ -8,13 +8,20 @@ import {
 	scheduledClassesTable,
 	scheduleTemplatesTable,
 } from "@/db/schemas/scheduling"
+import {
+	logError,
+	logInfo,
+} from "@/lib/logging/posthog-otel-logger"
 
 // This is a simplified mock for the LLM interaction. In a real scenario,
 // this would involve calling an actual LLM API.
 async function callLLMForSchedulingOptimization(
 	prompt: string,
 ): Promise<string> {
-	console.log("LLM Prompt:", prompt)
+	logInfo({
+		message: "[scheduler] LLM prompt",
+		attributes: { prompt },
+	})
 	// Mock LLM response for now
 	return "Coach A is the best fit for this slot based on preferences."
 }
@@ -229,9 +236,10 @@ export async function generateSchedule({
 
 	// Insert scheduled classes individually to avoid SQL variables limit
 	if (finalScheduledClasses.length > 0) {
-		console.log(
-			`INFO: [generateSchedule] Inserting ${finalScheduledClasses.length} scheduled classes individually`,
-		)
+		logInfo({
+			message: "[scheduler] Inserting scheduled classes individually",
+			attributes: { count: finalScheduledClasses.length },
+		})
 
 		for (let i = 0; i < finalScheduledClasses.length; i++) {
 			const scheduledClass = finalScheduledClasses[i]
@@ -241,19 +249,23 @@ export async function generateSchedule({
 				await db.insert(scheduledClassesTable).values(scheduledClass)
 
 				if ((i + 1) % 10 === 0) {
-					console.log(
-						`INFO: [generateSchedule] Progress: ${i + 1}/${
-							finalScheduledClasses.length
-						} scheduled classes inserted`,
-					)
+					logInfo({
+						message: "[scheduler] Scheduled class insert progress",
+						attributes: {
+							inserted: i + 1,
+							total: finalScheduledClasses.length,
+						},
+					})
 				}
 			} catch (error) {
-				console.error(
-					`ERROR: [generateSchedule] Failed to insert scheduled class ${
-						i + 1
-					}:`,
+				logError({
+					message: "[scheduler] Failed to insert scheduled class",
 					error,
-				)
+					attributes: {
+						index: i + 1,
+						total: finalScheduledClasses.length,
+					},
+				})
 				throw error
 			}
 		}
@@ -261,9 +273,10 @@ export async function generateSchedule({
 
 	// Insert unstaffed classes individually to avoid SQL variables limit
 	if (finalUnstaffedClasses.length > 0) {
-		console.log(
-			`INFO: [generateSchedule] Inserting ${finalUnstaffedClasses.length} unstaffed classes individually`,
-		)
+		logInfo({
+			message: "[scheduler] Inserting unstaffed classes individually",
+			attributes: { count: finalUnstaffedClasses.length },
+		})
 
 		for (let i = 0; i < finalUnstaffedClasses.length; i++) {
 			const unstaffedClass = finalUnstaffedClasses[i]
@@ -273,19 +286,23 @@ export async function generateSchedule({
 				await db.insert(scheduledClassesTable).values(unstaffedClass)
 
 				if ((i + 1) % 10 === 0) {
-					console.log(
-						`INFO: [generateSchedule] Progress: ${i + 1}/${
-							finalUnstaffedClasses.length
-						} unstaffed classes inserted`,
-					)
+					logInfo({
+						message: "[scheduler] Unstaffed class insert progress",
+						attributes: {
+							inserted: i + 1,
+							total: finalUnstaffedClasses.length,
+						},
+					})
 				}
 			} catch (error) {
-				console.error(
-					`ERROR: [generateSchedule] Failed to insert unstaffed class ${
-						i + 1
-					}:`,
+				logError({
+					message: "[scheduler] Failed to insert unstaffed class",
 					error,
-				)
+					attributes: {
+						index: i + 1,
+						total: finalUnstaffedClasses.length,
+					},
+				})
 				throw error
 			}
 		}

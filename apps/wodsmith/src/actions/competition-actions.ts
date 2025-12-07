@@ -1,7 +1,7 @@
 "use server"
 
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
 	SCORE_TYPE_VALUES,
@@ -9,6 +9,7 @@ import {
 	TIEBREAK_SCHEME_VALUES,
 	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
+import { logError } from "@/lib/logging/posthog-otel-logger"
 import {
 	cancelCompetitionRegistrationSchema,
 	createCompetitionGroupSchema,
@@ -71,7 +72,11 @@ export const createCompetitionGroupAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to create competition series:", error)
+			logError({
+				message: "[createCompetitionGroupAction] Failed to create competition series",
+				error,
+				attributes: { teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -99,7 +104,11 @@ export const getCompetitionGroupsAction = createServerAction()
 
 			return { success: true, data: groups }
 		} catch (error) {
-			console.error("Failed to get competition groups:", error)
+			logError({
+				message: "[getCompetitionGroupsAction] Failed to get competition groups",
+				error,
+				attributes: { teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -131,7 +140,11 @@ export const getCompetitionGroupAction = createServerAction()
 
 			return { success: true, data: group }
 		} catch (error) {
-			console.error("Failed to get competition group:", error)
+			logError({
+				message: "[getCompetitionGroupAction] Failed to get competition group",
+				error,
+				attributes: { groupId: input.groupId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -165,7 +178,11 @@ export const updateCompetitionGroupAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to update competition series:", error)
+			logError({
+				message: "[updateCompetitionGroupAction] Failed to update competition series",
+				error,
+				attributes: { teamId: input.organizingTeamId, groupId: input.groupId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -197,7 +214,11 @@ export const deleteCompetitionGroupAction = createServerAction()
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to delete competition series:", error)
+			logError({
+				message: "[deleteCompetitionGroupAction] Failed to delete competition series",
+				error,
+				attributes: { teamId: input.organizingTeamId, groupId: input.groupId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -235,7 +256,11 @@ export const createCompetitionAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to create competition:", error)
+			logError({
+				message: "[createCompetitionAction] Failed to create competition",
+				error,
+				attributes: { teamId: input.organizingTeamId, name: input.name },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -263,7 +288,11 @@ export const getCompetitionsAction = createServerAction()
 
 			return { success: true, data: competitions }
 		} catch (error) {
-			console.error("Failed to get competitions:", error)
+			logError({
+				message: "[getCompetitionsAction] Failed to get competitions",
+				error,
+				attributes: { teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -295,7 +324,11 @@ export const getCompetitionAction = createServerAction()
 
 			return { success: true, data: competition }
 		} catch (error) {
-			console.error("Failed to get competition:", error)
+			logError({
+				message: "[getCompetitionAction] Failed to get competition",
+				error,
+				attributes: { idOrSlug: input.idOrSlug },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -363,7 +396,11 @@ export const updateCompetitionAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to update competition:", error)
+			logError({
+				message: "[updateCompetitionAction] Failed to update competition",
+				error,
+				attributes: { teamId: input.organizingTeamId, competitionId: input.competitionId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -394,7 +431,11 @@ export const deleteCompetitionAction = createServerAction()
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to delete competition:", error)
+			logError({
+				message: "[deleteCompetitionAction] Failed to delete competition",
+				error,
+				attributes: { teamId: input.organizingTeamId, competitionId: input.competitionId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -438,7 +479,11 @@ export const registerForCompetitionAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to register for competition:", error)
+			logError({
+				message: "[registerForCompetitionAction] Failed to register for competition",
+				error,
+				attributes: { competitionId: input.competitionId, userId: input.userId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -477,7 +522,11 @@ export const getUserCompetitionRegistrationAction = createServerAction()
 
 			return { success: true, data: registration }
 		} catch (error) {
-			console.error("Failed to get registration:", error)
+			logError({
+				message: "[getUserCompetitionRegistrationAction] Failed to get registration",
+				error,
+				attributes: { competitionId: input.competitionId, userId: input.userId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -514,7 +563,11 @@ export const getCompetitionRegistrationsAction = createServerAction()
 
 			return { success: true, data: registrations }
 		} catch (error) {
-			console.error("Failed to get competition registrations:", error)
+			logError({
+				message: "[getCompetitionRegistrationsAction] Failed to get competition registrations",
+				error,
+				attributes: { competitionId: input.competitionId, divisionId: input.divisionId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -560,7 +613,11 @@ export const cancelCompetitionRegistrationAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to cancel registration:", error)
+			logError({
+				message: "[cancelCompetitionRegistrationAction] Failed to cancel registration",
+				error,
+				attributes: { registrationId: input.registrationId, userId: input.userId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -599,7 +656,11 @@ export const updateRegistrationAffiliateAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to update affiliate:", error)
+			logError({
+				message: "[updateRegistrationAffiliateAction] Failed to update affiliate",
+				error,
+				attributes: { userId: input.userId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -763,7 +824,11 @@ export const addWorkoutToCompetitionAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to add workout to competition:", error)
+			logError({
+				message: "[addWorkoutToCompetitionAction] Failed to add workout to competition",
+				error,
+				attributes: { competitionId: input.competitionId, workoutId: input.workoutId, teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -784,7 +849,11 @@ export const getCompetitionWorkoutsAction = createServerAction()
 			const workouts = await getCompetitionWorkouts(input.competitionId)
 			return { success: true, data: workouts }
 		} catch (error) {
-			console.error("Failed to get competition workouts:", error)
+			logError({
+				message: "[getCompetitionWorkoutsAction] Failed to get competition workouts",
+				error,
+				attributes: { competitionId: input.competitionId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -822,7 +891,11 @@ export const updateCompetitionWorkoutAction = createServerAction()
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to update competition workout:", error)
+			logError({
+				message: "[updateCompetitionWorkoutAction] Failed to update competition workout",
+				error,
+				attributes: { trackWorkoutId: input.trackWorkoutId, teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -853,7 +926,11 @@ export const removeWorkoutFromCompetitionAction = createServerAction()
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to remove workout from competition:", error)
+			logError({
+				message: "[removeWorkoutFromCompetitionAction] Failed to remove workout from competition",
+				error,
+				attributes: { trackWorkoutId: input.trackWorkoutId, teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -887,7 +964,11 @@ export const reorderCompetitionEventsAction = createServerAction()
 
 			return { success: true, updateCount }
 		} catch (error) {
-			console.error("Failed to reorder competition events:", error)
+			logError({
+				message: "[reorderCompetitionEventsAction] Failed to reorder competition events",
+				error,
+				attributes: { competitionId: input.competitionId, teamId: input.organizingTeamId, updateCount: input.updates.length },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -933,7 +1014,11 @@ export const createCompetitionEventAction = createServerAction()
 
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to create competition event:", error)
+			logError({
+				message: "[createCompetitionEventAction] Failed to create competition event",
+				error,
+				attributes: { competitionId: input.competitionId, teamId: input.organizingTeamId, eventName: input.name },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -984,7 +1069,11 @@ export const saveCompetitionEventAction = createServerAction()
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to save competition event:", error)
+			logError({
+				message: "[saveCompetitionEventAction] Failed to save competition event",
+				error,
+				attributes: { trackWorkoutId: input.trackWorkoutId, workoutId: input.workoutId, teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -1013,7 +1102,11 @@ export const getCompetitionLeaderboardAction = createServerAction()
 
 			return { success: true, data: leaderboard }
 		} catch (error) {
-			console.error("Failed to get competition leaderboard:", error)
+			logError({
+				message: "[getCompetitionLeaderboardAction] Failed to get competition leaderboard",
+				error,
+				attributes: { competitionId: input.competitionId, divisionId: input.divisionId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -1039,7 +1132,11 @@ export const getEventLeaderboardAction = createServerAction()
 
 			return { success: true, data: leaderboard }
 		} catch (error) {
-			console.error("Failed to get event leaderboard:", error)
+			logError({
+				message: "[getEventLeaderboardAction] Failed to get event leaderboard",
+				error,
+				attributes: { competitionId: input.competitionId, trackWorkoutId: input.trackWorkoutId, divisionId: input.divisionId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
@@ -1089,7 +1186,11 @@ export const updateDivisionDescriptionsAction = createServerAction()
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to update division descriptions:", error)
+			logError({
+				message: "[updateDivisionDescriptionsAction] Failed to update division descriptions",
+				error,
+				attributes: { workoutId: input.workoutId, teamId: input.organizingTeamId },
+			})
 			if (error instanceof ZSAError) {
 				throw error
 			}
