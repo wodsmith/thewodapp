@@ -75,7 +75,9 @@ export interface ProcessedScoresResult {
 /**
  * Get default scoreType for a scheme
  */
-export function getDefaultScoreType(scheme: WorkoutScheme | Workout["scheme"]): string {
+export function getDefaultScoreType(
+	scheme: WorkoutScheme | Workout["scheme"],
+): string {
 	const defaults: Record<string, string> = {
 		time: "min",
 		"time-with-cap": "min",
@@ -327,7 +329,9 @@ export function normalizeScoreEntries(
 		const hasTwoParts = parts.length >= 2
 
 		return {
-			score: hasTwoParts ? `${parts[0] || "0"}+${parts[1] || "0"}` : parts[0] || "",
+			score: hasTwoParts
+				? `${parts[0] || "0"}+${parts[1] || "0"}`
+				: parts[0] || "",
 			parts: hasTwoParts ? [parts[0] || "0", parts[1] || "0"] : undefined,
 			timeCapped: timeCappedEntries[index] || false,
 		}
@@ -944,7 +948,6 @@ function validateProcessedSets(
 	}
 	return undefined
 }
-
 
 async function submitLogToDatabase(
 	userId: string,

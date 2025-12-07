@@ -77,7 +77,12 @@ export function EventOverview({ events, heats }: EventOverviewProps) {
 				const lastHeat = sortedHeats[sortedHeats.length - 1]
 
 				if (!firstHeat?.scheduledTime || !lastHeat?.scheduledTime) {
-					return { event, heatCount: eventHeats.length, startTime: null, endTime: null }
+					return {
+						event,
+						heatCount: eventHeats.length,
+						startTime: null,
+						endTime: null,
+					}
 				}
 
 				const startTime = toDate(firstHeat.scheduledTime)
