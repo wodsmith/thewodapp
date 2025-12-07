@@ -72,7 +72,7 @@ export const signUpAction = createServerAction()
 				logError({
 					message: "[signUpAction] Failed to create personal team for user",
 					error,
-					attributes: { userId: user.id, email: user.email },
+					attributes: { userId: user.id },
 				})
 				throw new ZSAError(
 					"INTERNAL_SERVER_ERROR",
@@ -102,7 +102,7 @@ export const signUpAction = createServerAction()
 				logError({
 					message: "[signUpAction] Failed to create session after signup",
 					error,
-					attributes: { userId: user.id, email: user.email },
+					attributes: { userId: user.id },
 				})
 
 				throw new ZSAError(

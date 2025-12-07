@@ -160,7 +160,7 @@ export const updateTeamPlanAction = createServerAction()
 		logInfo({
 			message: "[Admin] Team plan updated",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				teamId: input.teamId,
 				teamName: team.name,
 				planId: input.planId,
@@ -221,7 +221,7 @@ export const addEntitlementOverrideAction = createServerAction()
 		logInfo({
 			message: "[Admin] Entitlement override added",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				teamId: input.teamId,
 				teamName: team.name,
 				type: input.type,
@@ -286,7 +286,7 @@ export const removeEntitlementOverrideAction = createServerAction()
 		logInfo({
 			message: "[Admin] Entitlement override removed",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				overrideId: input.overrideId,
 				type: override.type,
 				key: override.key,
@@ -386,7 +386,7 @@ export const createFeatureAction = createServerAction()
 		logInfo({
 			message: "[Admin] Feature created",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				featureKey: input.key,
 				featureName: input.name,
 				category: input.category,
@@ -436,7 +436,7 @@ export const updateFeatureAction = createServerAction()
 		logInfo({
 			message: "[Admin] Feature updated",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				featureId: id,
 				featureName: input.name,
 				isActive: String(input.isActive),
@@ -492,7 +492,7 @@ export const createLimitAction = createServerAction()
 		logInfo({
 			message: "[Admin] Limit created",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				limitKey: input.key,
 				limitName: input.name,
 				unit: input.unit,
@@ -536,7 +536,7 @@ export const updateLimitAction = createServerAction()
 		logInfo({
 			message: "[Admin] Limit updated",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				limitId: id,
 				limitName: input.name,
 				isActive: String(input.isActive),
@@ -619,7 +619,7 @@ export const assignFeatureToPlanAction = createServerAction()
 		logInfo({
 			message: "[Admin] Feature assigned to plan",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				planId: input.planId,
 				featureId: input.featureId,
 			},
@@ -646,7 +646,7 @@ export const removeFeatureFromPlanAction = createServerAction()
 		logInfo({
 			message: "[Admin] Feature removed from plan",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				planFeatureId: input.planFeatureId,
 			},
 		})
@@ -692,7 +692,7 @@ export const assignLimitToPlanAction = createServerAction()
 		logInfo({
 			message: "[Admin] Limit assigned to plan",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				planId: input.planId,
 				limitId: input.limitId,
 				value: input.value,
@@ -726,7 +726,7 @@ export const updatePlanLimitValueAction = createServerAction()
 		logInfo({
 			message: "[Admin] Plan limit value updated",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				planLimitId: input.planLimitId,
 				newValue: input.value,
 			},
@@ -753,7 +753,7 @@ export const removeLimitFromPlanAction = createServerAction()
 		logInfo({
 			message: "[Admin] Limit removed from plan",
 			attributes: {
-				adminEmail: admin.user.email,
+				adminUserId: admin.userId,
 				planLimitId: input.planLimitId,
 			},
 		})

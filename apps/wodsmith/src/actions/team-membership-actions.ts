@@ -63,17 +63,16 @@ export const inviteUserAction = createServerAction()
 				// Track team invite event server-side
 				const session = await getSessionFromCookie()
 				if (session?.userId) {
-					const posthog = getPostHogClient()
-					posthog.capture({
-						distinctId: session.userId,
-						event: "team_invite_sent",
-						properties: {
-							team_id: input.teamId,
-							invitee_email: input.email,
-							role_id: input.roleId,
-							is_system_role: input.isSystemRole,
-						},
-					})
+				const posthog = getPostHogClient()
+				posthog.capture({
+					distinctId: session.userId,
+					event: "team_invite_sent",
+					properties: {
+						team_id: input.teamId,
+						role_id: input.roleId,
+						is_system_role: input.isSystemRole,
+					},
+				})
 				}
 
 				return { success: true, data: result }
@@ -81,7 +80,7 @@ export const inviteUserAction = createServerAction()
 				logError({
 					message: "[inviteUserAction] Failed to invite user",
 					error,
-					attributes: { teamId: input.teamId, email: input.email, roleId: input.roleId },
+					attributes: { teamId: input.teamId, roleId: input.roleId },
 				})
 
 				if (error instanceof ZSAError) {

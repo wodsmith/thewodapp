@@ -56,7 +56,7 @@ export const signInAction = createServerAction()
 				logError({
 					message: "[signInAction] Sign-in failed",
 					error,
-					attributes: { email: input.email },
+					// Note: Not logging email to avoid PII in logs
 				})
 
 				if (error instanceof ZSAError) {
