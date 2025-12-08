@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useServerAction } from "@repo/zsa-react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -23,17 +24,24 @@ export function QuickActionsEvents({
 	events,
 	organizingTeamId,
 }: QuickActionsEventsProps) {
-	const { execute, isPending } = useServerAction(updateCompetitionWorkoutAction)
+	const { execute } = useServerAction(updateCompetitionWorkoutAction)
+	const [pendingEvents, setPendingEvents] = useState<Set<string>>(new Set())
 
 	const handleToggleEventStatus = async (
 		trackWorkoutId: string,
 		currentStatus: string | null,
 	) => {
+		setPendingEvents((prev) => new Set(prev).add(trackWorkoutId))
 		const newStatus = currentStatus === "published" ? "draft" : "published"
 		await execute({
 			trackWorkoutId,
 			organizingTeamId,
 			eventStatus: newStatus,
+		})
+		setPendingEvents((prev) => {
+			const next = new Set(prev)
+			next.delete(trackWorkoutId)
+			return next
 		})
 	}
 
@@ -80,23 +88,23 @@ export function QuickActionsEvents({
 									>
 										{isPublished ? "Published" : "Draft"}
 									</Badge>
-									<Button
-										variant="ghost"
-										size="sm"
-										className="h-7 w-7 p-0"
-										onClick={() =>
-											handleToggleEventStatus(event.id, event.eventStatus)
-										}
-										disabled={isPending}
-									>
-										{isPending ? (
-											<Loader2 className="h-3.5 w-3.5 animate-spin" />
-										) : isPublished ? (
-											<EyeOff className="h-3.5 w-3.5" />
-										) : (
-											<Eye className="h-3.5 w-3.5" />
-										)}
-									</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 w-7 p-0"
+									onClick={() =>
+										handleToggleEventStatus(event.id, event.eventStatus)
+									}
+									disabled={pendingEvents.has(event.id)}
+								>
+									{pendingEvents.has(event.id) ? (
+										<Loader2 className="h-3.5 w-3.5 animate-spin" />
+									) : isPublished ? (
+										<EyeOff className="h-3.5 w-3.5" />
+									) : (
+										<Eye className="h-3.5 w-3.5" />
+									)}
+								</Button>
 								</div>
 							</div>
 						)
