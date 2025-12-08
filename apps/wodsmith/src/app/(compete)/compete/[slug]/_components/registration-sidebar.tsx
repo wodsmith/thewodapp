@@ -2,13 +2,14 @@ import {
 	Calendar,
 	CheckCircle2,
 	Clock,
+	DollarSign,
 	Mail,
 	MapPin,
 	Users,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
 
 interface RegistrationSidebarProps {
@@ -24,6 +25,8 @@ interface RegistrationSidebarProps {
 	registrationId?: string | null
 	isTeamRegistration?: boolean
 	isCaptain?: boolean
+	priceRange?: { min: number; max: number } | null
+	divisionCount?: number
 }
 
 function formatDateShort(date: Date | number): string {
@@ -44,6 +47,11 @@ function formatDeadlineDate(date: Date | number): string {
 	})
 }
 
+function formatPrice(cents: number): string {
+	if (cents === 0) return "Free"
+	return `$${(cents / 100).toFixed(0)}`
+}
+
 export function RegistrationSidebar({
 	competition,
 	isRegistered,
@@ -54,6 +62,8 @@ export function RegistrationSidebar({
 	registrationId,
 	isTeamRegistration,
 	isCaptain,
+	priceRange,
+	divisionCount,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 
@@ -116,73 +126,86 @@ export function RegistrationSidebar({
 				</Card>
 			)}
 
-			{/* Date & Location Card */}
+			{/* Quick Facts Card */}
 			<Card>
-				<CardContent className="p-4 space-y-3">
-					<div className="flex items-start gap-3">
-						<Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-						<div>
-							<p className="font-medium">
+				<CardContent className="p-4">
+					<div className="grid grid-cols-2 gap-4">
+						{/* Date */}
+						<div className="space-y-1">
+							<div className="flex items-center gap-1.5 text-muted-foreground">
+								<Calendar className="h-3.5 w-3.5" />
+								<span className="text-xs uppercase tracking-wide">When</span>
+							</div>
+							<p className="text-sm font-medium">
 								{formatDateShort(competition.startDate)}
 								{competition.startDate !== competition.endDate && (
-									<> - {formatDateShort(competition.endDate)}</>
+									<>
+										<br />
+										{formatDateShort(competition.endDate)}
+									</>
+								)}
+							</p>
+						</div>
+
+						{/* Location */}
+						<div className="space-y-1">
+							<div className="flex items-center gap-1.5 text-muted-foreground">
+								<MapPin className="h-3.5 w-3.5" />
+								<span className="text-xs uppercase tracking-wide">Where</span>
+							</div>
+							<p className="text-sm font-medium">
+								{competition.organizingTeam?.name || "TBA"}
+							</p>
+						</div>
+
+						{/* Price */}
+						{priceRange && (
+							<div className="space-y-1">
+								<div className="flex items-center gap-1.5 text-muted-foreground">
+									<DollarSign className="h-3.5 w-3.5" />
+									<span className="text-xs uppercase tracking-wide">Entry</span>
+								</div>
+								<p className="text-sm font-medium">
+									{priceRange.min === priceRange.max
+										? formatPrice(priceRange.min)
+										: `${formatPrice(priceRange.min)} - ${formatPrice(priceRange.max)}`}
+								</p>
+							</div>
+						)}
+
+						{/* Athletes */}
+						<div className="space-y-1">
+							<div className="flex items-center gap-1.5 text-muted-foreground">
+								<Users className="h-3.5 w-3.5" />
+								<span className="text-xs uppercase tracking-wide">Athletes</span>
+							</div>
+							<p className="text-sm font-medium">
+								{registrationCount}
+								{maxSpots && (
+									<span className="text-muted-foreground">/{maxSpots}</span>
 								)}
 							</p>
 						</div>
 					</div>
-					<div className="flex items-start gap-3">
-						<MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-						<div>
-							<p className="font-medium">
-								{competition.organizingTeam?.name || "Location TBA"}
-							</p>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Spectator Info - Stub */}
-			<Card className="border-dashed">
-				<CardHeader className="pb-2">
-					<CardTitle className="text-sm font-medium text-muted-foreground">
-						Spectators
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="pt-0">
-					<p className="text-xs text-muted-foreground italic">
-						Spectator ticket info coming soon
-					</p>
-				</CardContent>
-			</Card>
-
-			{/* Refund Policy - Stub */}
-			<Card className="border-dashed">
-				<CardHeader className="pb-2">
-					<CardTitle className="text-sm font-medium text-muted-foreground">
-						Refund Policy
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="pt-0">
-					<p className="text-xs text-muted-foreground italic">
-						Refund policy coming soon
-					</p>
 				</CardContent>
 			</Card>
 
 			{/* Contact Card */}
 			{competition.organizingTeam && (
 				<Card>
-					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium">Contact</CardTitle>
-					</CardHeader>
-					<CardContent className="pt-0">
-						<p className="font-medium text-sm">
-							{competition.organizingTeam.name}
-						</p>
-						<div className="mt-2 flex gap-2">
-							<Button variant="outline" size="sm" className="h-8" disabled>
-								<Mail className="mr-1 h-3 w-3" />
-								Email
+					<CardContent className="p-4">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+									Organized by
+								</p>
+								<p className="font-medium text-sm">
+									{competition.organizingTeam.name}
+								</p>
+							</div>
+							<Button variant="outline" size="sm" className="h-8 shrink-0">
+								<Mail className="mr-1.5 h-3.5 w-3.5" />
+								Contact
 							</Button>
 						</div>
 					</CardContent>

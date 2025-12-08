@@ -1,14 +1,6 @@
 "use client"
 
-import {
-	Calendar,
-	ChevronDown,
-	DollarSign,
-	ExternalLink,
-	HelpCircle,
-	Trophy,
-	Users,
-} from "lucide-react"
+import { ChevronDown, ExternalLink, Trophy, Users } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -51,8 +43,6 @@ interface EventDetailsContentProps {
 	}
 	divisions?: DivisionWithDetails[]
 	sponsors?: SponsorsData
-	workoutsContent?: React.ReactNode
-	scheduleContent?: React.ReactNode
 }
 
 function formatPrice(cents: number): string {
@@ -60,12 +50,37 @@ function formatPrice(cents: number): string {
 	return `$${(cents / 100).toFixed(0)}`
 }
 
+// Helper to parse division category from label (e.g., "Co-Ed - RX" → "Co-Ed")
+function parseDivisionCategory(label: string): string {
+	// Try to match pattern like "Category - Level"
+	const dashIndex = label.lastIndexOf(" - ")
+	if (dashIndex !== -1) {
+		return label.substring(0, dashIndex).trim()
+	}
+	return label
+}
+
+// Group divisions by category
+function groupDivisionsByCategory<T extends { label: string }>(
+	divisions: T[],
+): Map<string, T[]> {
+	const groups = new Map<string, T[]>()
+
+	for (const division of divisions) {
+		const category = parseDivisionCategory(division.label)
+		if (!groups.has(category)) {
+			groups.set(category, [])
+		}
+		groups.get(category)?.push(division)
+	}
+
+	return groups
+}
+
 export function EventDetailsContent({
 	competition,
 	divisions,
 	sponsors,
-	workoutsContent,
-	scheduleContent,
 }: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
 	const hasSponsors =
@@ -80,9 +95,9 @@ export function EventDetailsContent({
 				<Separator className="mb-4" />
 				{competition.description ? (
 					<div className="prose prose-sm max-w-none dark:prose-invert">
-						<p className="whitespace-pre-wrap text-muted-foreground">
+						<div className="whitespace-pre-wrap text-muted-foreground leading-relaxed">
 							{competition.description}
-						</p>
+						</div>
 					</div>
 				) : (
 					<p className="text-muted-foreground italic">
@@ -150,58 +165,7 @@ export function EventDetailsContent({
 				</div>
 				<Separator className="mb-4" />
 				{hasDivisions ? (
-					<div className="space-y-3">
-						{divisions.map((division) => {
-							const priceLabel = formatPrice(division.feeCents)
-							const hasDescription = !!division.description
-							const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
-
-							return (
-								<Collapsible key={division.id}>
-									<Card>
-										<CollapsibleTrigger asChild>
-											<CardHeader
-												className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
-											>
-												<div className="flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<CardTitle className="text-base">
-															{division.label}{" "}
-															<span className="font-normal text-muted-foreground">
-																{division.teamSize === 1
-																	? "(Indy)"
-																	: `(Teams of ${division.teamSize})`}
-															</span>
-														</CardTitle>
-														<span className="text-xs text-muted-foreground">
-															({division.registrationCount} {athleteLabel})
-														</span>
-														{hasDescription && (
-															<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-														)}
-													</div>
-													<span
-														className={`text-sm font-medium ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
-													>
-														{priceLabel}
-													</span>
-												</div>
-											</CardHeader>
-										</CollapsibleTrigger>
-										{hasDescription && (
-											<CollapsibleContent>
-												<CardContent className="pt-0 pb-4 px-4">
-													<p className="text-sm text-muted-foreground whitespace-pre-wrap">
-														{division.description}
-													</p>
-												</CardContent>
-											</CollapsibleContent>
-										)}
-									</Card>
-								</Collapsible>
-							)
-						})}
-					</div>
+					<DivisionsDisplay divisions={divisions} />
 				) : (
 					<Card className="border-dashed">
 						<CardContent className="py-6 text-center">
@@ -212,53 +176,125 @@ export function EventDetailsContent({
 					</Card>
 				)}
 			</section>
-
-			{/* Schedule Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Calendar className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Schedule</h2>
-				</div>
-				<Separator className="mb-4" />
-				{scheduleContent}
-			</section>
-
-			{/* Workouts Section */}
-			{workoutsContent}
-
-			{/* Entry & Prizes */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<DollarSign className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Entry & Prizes</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							Entry fees and prize information coming soon.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
-
-			{/* FAQ Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<HelpCircle className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Frequently Asked Questions</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							FAQs will be added by the event organizer.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
-
 		</div>
+	)
+}
+
+// Divisions display component with category grouping
+function DivisionsDisplay({
+	divisions,
+}: {
+	divisions: DivisionWithDetails[]
+}) {
+	const groupedDivisions = groupDivisionsByCategory(divisions)
+	const categories = Array.from(groupedDivisions.keys())
+
+	// If all divisions are in one category or no clear categories, show flat list
+	if (categories.length <= 1) {
+		return (
+			<div className="space-y-2">
+				{divisions.map((division) => (
+					<DivisionRow key={division.id} division={division} />
+				))}
+			</div>
+		)
+	}
+
+	return (
+		<div className="space-y-6">
+			{categories.map((category) => {
+				const categoryDivisions = groupedDivisions.get(category) ?? []
+				const totalAthletes = categoryDivisions.reduce(
+					(sum, d) => sum + d.registrationCount,
+					0,
+				)
+
+				return (
+					<div key={category}>
+						<div className="flex items-center justify-between mb-3">
+							<h3 className="text-base font-semibold text-foreground">
+								{category}
+							</h3>
+							<span className="text-xs text-muted-foreground">
+								{totalAthletes} registered
+							</span>
+						</div>
+						<div className="space-y-2">
+							{categoryDivisions.map((division) => (
+								<DivisionRow
+									key={division.id}
+									division={division}
+									showShortLabel
+								/>
+							))}
+						</div>
+					</div>
+				)
+			})}
+		</div>
+	)
+}
+
+// Individual division row component
+function DivisionRow({
+	division,
+	showShortLabel = false,
+}: {
+	division: DivisionWithDetails
+	showShortLabel?: boolean
+}) {
+	const priceLabel = formatPrice(division.feeCents)
+	const hasDescription = !!division.description
+	const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
+
+	// Extract short label (e.g., "RX" from "Co-Ed - RX")
+	const displayLabel = showShortLabel
+		? division.label.split(" - ").pop() ?? division.label
+		: division.label
+
+	return (
+		<Collapsible>
+			<Card>
+				<CollapsibleTrigger asChild>
+					<CardHeader
+						className={`py-2.5 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
+					>
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-3 min-w-0">
+								<CardTitle className="text-sm font-medium">
+									{displayLabel}
+								</CardTitle>
+								<span className="text-xs text-muted-foreground whitespace-nowrap">
+									{division.teamSize === 1
+										? "Individual"
+										: `Teams of ${division.teamSize}`}
+								</span>
+								<span className="text-xs text-muted-foreground">
+									({division.registrationCount} {athleteLabel})
+								</span>
+								{hasDescription && (
+									<ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform data-[state=open]:rotate-180 shrink-0" />
+								)}
+							</div>
+							<span
+								className={`text-sm font-medium shrink-0 ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
+							>
+								{priceLabel}
+							</span>
+						</div>
+					</CardHeader>
+				</CollapsibleTrigger>
+				{hasDescription && (
+					<CollapsibleContent>
+						<CardContent className="pt-0 pb-3 px-4">
+							<p className="text-sm text-muted-foreground whitespace-pre-wrap">
+								{division.description}
+							</p>
+						</CardContent>
+					</CollapsibleContent>
+				)}
+			</Card>
+		</Collapsible>
 	)
 }
 

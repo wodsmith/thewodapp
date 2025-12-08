@@ -20,35 +20,35 @@ export function CompetitionTabs({
 	return (
 		<Tabs defaultValue="details" className="w-full">
 			<div className="border-b bg-background sticky top-0 z-10">
-				<div className="container mx-auto">
-					<div className="flex items-center justify-between gap-2">
+				<div className="container mx-auto px-4">
+					<div className="flex items-center justify-between gap-4">
 						<TabsList className="h-auto justify-start gap-0 rounded-none bg-transparent p-0 overflow-x-auto">
 							<TabsTrigger
 								value="details"
-								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-b-2 border-transparent px-3 lg:px-4 py-3 text-sm data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Event Details
 							</TabsTrigger>
 							<TabsTrigger
 								value="workouts"
-								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-b-2 border-transparent px-3 lg:px-4 py-3 text-sm data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Workouts
 							</TabsTrigger>
 							<TabsTrigger
 								value="schedule"
-								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-b-2 border-transparent px-3 lg:px-4 py-3 text-sm data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Schedule
 							</TabsTrigger>
 							<TabsTrigger
 								value="leaderboard"
-								className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+								className="rounded-none border-b-2 border-transparent px-3 lg:px-4 py-3 text-sm data-[state=active]:border-teal-500 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 							>
 								Leaderboard
 							</TabsTrigger>
 						</TabsList>
-						<div className="py-2 pr-4">{registerButton}</div>
+						<div className="shrink-0">{registerButton}</div>
 					</div>
 				</div>
 			</div>

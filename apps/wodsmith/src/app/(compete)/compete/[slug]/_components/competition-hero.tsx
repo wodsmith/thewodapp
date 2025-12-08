@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Settings, Share2, Users } from "lucide-react"
+import { Calendar, Clock, MapPin, Settings, Share2, Users } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -13,13 +13,40 @@ interface CompetitionHeroProps {
 	}
 	registrationCount: number
 	canManage?: boolean
+	registrationOpen?: boolean
+	registrationClosed?: boolean
+	registrationNotYetOpen?: boolean
+	registrationClosesAt?: Date | number | null
+	maxCapacity?: number | null
+}
+
+function getDaysUntil(date: Date | number): number {
+	const target = typeof date === "number" ? new Date(date) : date
+	const now = new Date()
+	const diff = target.getTime() - now.getTime()
+	return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
 export function CompetitionHero({
 	competition,
 	registrationCount,
 	canManage = false,
+	registrationOpen = false,
+	registrationClosed = false,
+	registrationNotYetOpen = false,
+	registrationClosesAt,
+	maxCapacity,
 }: CompetitionHeroProps) {
+	const daysUntilClose = registrationClosesAt
+		? getDaysUntil(registrationClosesAt)
+		: null
+	const showUrgency =
+		registrationOpen && daysUntilClose !== null && daysUntilClose <= 14
+	const spotsRemaining = maxCapacity
+		? maxCapacity - registrationCount
+		: null
+	const showSpotsWarning =
+		spotsRemaining !== null && spotsRemaining <= 50 && spotsRemaining > 0
 	// Use competition profile image, fall back to organizing team avatar
 	const profileImage =
 		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
@@ -114,7 +141,7 @@ export function CompetitionHero({
 							</div>
 						</div>
 
-						{/* Quick Stats */}
+						{/* Quick Stats & Urgency Indicators */}
 						<div className="flex flex-wrap gap-2">
 							<Badge
 								variant="secondary"
@@ -123,13 +150,40 @@ export function CompetitionHero({
 								<Users className="mr-1 h-3 w-3" />
 								{registrationCount} Athletes
 							</Badge>
-							{/* TODO: Add these badges when data is available */}
-							{/* <Badge variant="secondary" className="bg-slate-700/50 text-slate-200">
-								Teams of 2
-							</Badge>
-							<Badge variant="secondary" className="bg-slate-700/50 text-slate-200">
-								6 Workouts
-							</Badge> */}
+							{registrationClosed && (
+								<Badge
+									variant="secondary"
+									className="bg-red-900/50 text-red-200 border border-red-700/50"
+								>
+									Registration Closed
+								</Badge>
+							)}
+							{registrationNotYetOpen && (
+								<Badge
+									variant="secondary"
+									className="bg-blue-900/50 text-blue-200 border border-blue-700/50"
+								>
+									Registration Opening Soon
+								</Badge>
+							)}
+							{showUrgency && daysUntilClose !== null && (
+								<Badge
+									variant="secondary"
+									className="bg-amber-900/50 text-amber-200 border border-amber-700/50"
+								>
+									<Clock className="mr-1 h-3 w-3" />
+									{daysUntilClose} day{daysUntilClose === 1 ? "" : "s"} left to
+									register
+								</Badge>
+							)}
+							{showSpotsWarning && spotsRemaining !== null && (
+								<Badge
+									variant="secondary"
+									className="bg-orange-900/50 text-orange-200 border border-orange-700/50"
+								>
+									Only {spotsRemaining} spots left!
+								</Badge>
+							)}
 						</div>
 					</div>
 				</div>

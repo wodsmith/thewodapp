@@ -19,6 +19,7 @@ import { CompetitionTabs } from "./_components/competition-tabs"
 import { CompetitionViewTracker } from "./_components/competition-view-tracker"
 import { EventDetailsContent } from "./_components/event-details-content"
 import { LeaderboardContent } from "./_components/leaderboard-content"
+import { MobileRegistrationBar } from "./_components/mobile-registration-bar"
 import { RegisterButton } from "./_components/register-button"
 import { RegistrationSidebar } from "./_components/registration-sidebar"
 import { ScheduleContent } from "./_components/schedule-content"
@@ -123,8 +124,17 @@ export default async function CompetitionDetailPage({ params }: Props) {
 	const registrationClosed = !!(regClosesAt && regClosesAt < now)
 	const registrationNotYetOpen = !!(regOpensAt && regOpensAt > now)
 
+	// Calculate price range from divisions for mobile bar
+	const priceRange =
+		divisions.length > 0
+			? {
+					min: Math.min(...divisions.map((d) => d.feeCents)),
+					max: Math.max(...divisions.map((d) => d.feeCents)),
+				}
+			: null
+
 	return (
-		<div className="min-h-screen bg-background">
+		<div className="min-h-screen bg-background pb-20 lg:pb-0">
 			{/* PostHog page view tracking */}
 			<CompetitionViewTracker
 				competitionId={competition.id}
@@ -139,6 +149,10 @@ export default async function CompetitionDetailPage({ params }: Props) {
 				competition={competition}
 				registrationCount={registrationCount}
 				canManage={canManage}
+				registrationOpen={registrationOpen}
+				registrationClosed={registrationClosed}
+				registrationNotYetOpen={registrationNotYetOpen}
+				registrationClosesAt={regClosesAt}
 			/>
 
 			{/* Tabbed Content */}
@@ -188,25 +202,6 @@ export default async function CompetitionDetailPage({ params }: Props) {
 							competition={competition}
 							divisions={divisions.length > 0 ? divisions : undefined}
 							sponsors={sponsorsResult}
-							workoutsContent={
-								<Suspense fallback={<WorkoutsSkeleton />}>
-									<WorkoutsContent
-										key="workouts"
-										competition={competition}
-										divisions={divisions}
-									/>
-								</Suspense>
-							}
-							scheduleContent={
-								<Suspense fallback={<ScheduleSkeleton />}>
-									<ScheduleContent
-										key="schedule"
-										eventsPromise={eventsPromise}
-										heatsPromise={heatsPromise}
-										currentUserId={session?.userId}
-									/>
-								</Suspense>
-							}
 						/>
 
 						{/* Sidebar */}
@@ -226,11 +221,25 @@ export default async function CompetitionDetailPage({ params }: Props) {
 									(userRegistration?.division?.teamSize ?? 1) > 1
 								}
 								isCaptain={userRegistration?.userId === session?.userId}
+								priceRange={priceRange}
+								divisionCount={divisions.length}
 							/>
 						</aside>
 					</div>
 				</div>
 			</CompetitionTabs>
+
+			{/* Mobile sticky registration bar */}
+			<MobileRegistrationBar
+				slug={slug}
+				isLoggedIn={!!session}
+				isRegistered={!!userRegistration}
+				registrationOpen={registrationOpen}
+				registrationClosed={registrationClosed}
+				registrationNotYetOpen={registrationNotYetOpen}
+				registrationClosesAt={regClosesAt}
+				priceRange={priceRange}
+			/>
 		</div>
 	)
 }
