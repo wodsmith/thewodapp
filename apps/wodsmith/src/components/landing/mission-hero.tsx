@@ -27,10 +27,9 @@ export function MissionHero() {
 
 				{/* Subheadline */}
 				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
-					Track your training. Run your competitions. Get insights that matter.
+					Log your workouts. Follow your gym's programming. Run your competitions.
 					<br className="hidden md:block" />
-					WODsmith makes it easy to glean insights from the data you work hard
-					to track.
+					WODsmith helps you track and organize the work you put in.
 				</p>
 
 				{/* CTAs */}

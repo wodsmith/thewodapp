@@ -7,27 +7,27 @@ import {
 
 const features = [
 	{
-		name: "Data That Matters",
+		name: "Flexible Scoring",
 		description:
-			"Don't just log weights. See your volume trends, strength curves, and metabolic conditioning improvements over time.",
+			"Log For Time, AMRAP, EMOM, max lifts, and more. Track sets, reps, weights, and tiebreaks the way your gym programs.",
 		icon: ChartBarIcon,
 	},
 	{
-		name: "Community Built",
+		name: "Team Management",
 		description:
-			"Create teams, share workouts, and compete on leaderboards with your gym buddies or remote training partners.",
+			"Create your gym team, manage member roles and permissions, and organize programming for your athletes.",
 		icon: UserGroupIcon,
 	},
 	{
-		name: "Zero Friction Logging",
+		name: "Programming Tracks",
 		description:
-			"We know you're tired. Our interface is designed to let you log complex WODs quickly so you can recover.",
+			"Build programming schedules, assign workouts to specific days, and let athletes follow along with their gym's plan.",
 		icon: BoltIcon,
 	},
 	{
-		name: "Access Anywhere",
+		name: "Responsive Design",
 		description:
-			"Mobile optimized for the gym floor, desktop optimized for coaches planning the programming.",
+			"Works on your phone at the gym or your computer at home. Dark mode included for late night programming.",
 		icon: DevicePhoneMobileIcon,
 	},
 ]
@@ -39,11 +39,11 @@ export function InsightsFeatures() {
 				{/* Section header */}
 				<div className="mx-auto mb-16 max-w-2xl text-center">
 					<h2 className="mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl">
-						Insights Beyond the Whiteboard
+						Built for How You Train
 					</h2>
 					<p className="text-lg text-muted-foreground">
-						WODsmith supports the functional fitness community with purpose-built
-						tools designed to make your hard work visible.
+						WODsmith understands functional fitness workouts and gives you the
+						tools to log them properly.
 					</p>
 				</div>
 

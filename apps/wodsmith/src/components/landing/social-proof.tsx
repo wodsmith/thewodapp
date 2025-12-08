@@ -3,15 +3,15 @@ import { StarIcon } from "@heroicons/react/24/solid"
 const testimonials = [
 	{
 		quote:
-			"Finally, a tracker that understands CrossFit. I can actually see my strength numbers going up alongside my metcon times. It makes programming so much easier.",
-		author: "Sarah Jenkins",
-		role: "Regional Athlete",
+			"Finally, a tracker that gets functional fitness. I can log AMRAPs, For Time workouts, and lifts the way they're actually programmed instead of forcing everything into sets and reps.",
+		author: "Sarah J.",
+		role: "CrossFit Athlete",
 		initials: "SJ",
 	},
 	{
 		quote:
-			"We switched to WODsmith Compete for our Summer Throwdown. The heat scheduling saved us hours, and the live leaderboard kept the crowd engaged all day.",
-		author: "Mike Ross",
+			"The heat scheduling alone made our throwdown run smoother. Athletes could see their heat times, and we could enter scores and update the leaderboard without scrambling.",
+		author: "Mike R.",
 		role: "Gym Owner & Organizer",
 		initials: "MR",
 	},

@@ -8,17 +8,17 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 const athleteFeatures = [
-	"Log any workout type (AMRAP, EMOM, Strength)",
-	"Follow gym programming or build your own",
-	"Analyze progress with deep data insights",
-	"Works for individuals and team training",
+	"Log any workout type (For Time, AMRAP, EMOM, max lifts)",
+	"Follow your gym's programming or create your own",
+	"Track scores with scaling levels (RX, Scaled)",
+	"View workout history and leaderboards",
 ]
 
 const organizerFeatures = [
-	"Efficient heat scheduling & lane assignments",
-	"Real-time live scoring and leaderboards",
-	"Seamless athlete registration & payments",
-	"Revenue tracking and sponsor management",
+	"Heat scheduling with venues and lane assignments",
+	"Score entry and leaderboards by division",
+	"Athlete registration with Stripe payments",
+	"Track registration revenue and platform fees",
 ]
 
 export function ProductCards() {
@@ -60,8 +60,8 @@ export function ProductCards() {
 
 						{/* Description */}
 						<p className="mt-3 text-lg text-muted-foreground">
-							Track your training, analyze your history, and see your progress
-							over time.
+							Log your workouts, track your scores, and follow your gym's
+							programming schedule.
 						</p>
 
 						<hr className="my-8 border-border" />
