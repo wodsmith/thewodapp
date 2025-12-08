@@ -27,8 +27,10 @@ import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
 import type {
 	EventScoreEntryData,
 	EventScoreEntryAthlete,
+	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
+import { HeatScoreGroup } from "./heat-score-group"
 
 interface ResultsEntryFormProps {
 	competitionId: string
@@ -37,6 +39,8 @@ interface ResultsEntryFormProps {
 	selectedEventId?: string
 	event: EventScoreEntryData["event"]
 	athletes: EventScoreEntryAthlete[]
+	heats: HeatScoreGroupType[]
+	unassignedRegistrationIds: string[]
 	divisions: Array<{ id: string; label: string }>
 	selectedDivisionId?: string
 }
@@ -48,6 +52,8 @@ export function ResultsEntryForm({
 	selectedEventId,
 	event,
 	athletes,
+	heats,
+	unassignedRegistrationIds,
 	divisions,
 	selectedDivisionId,
 }: ResultsEntryFormProps) {
@@ -61,6 +67,32 @@ export function ResultsEntryForm({
 	)
 	const [focusedIndex, setFocusedIndex] = useState(0)
 	const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+	// Check if we have heats to display
+	const hasHeats = heats.length > 0
+
+	// Create athlete map for quick lookup by registrationId
+	const athleteMap = new Map(athletes.map((a) => [a.registrationId, a]))
+
+	// Get unassigned athletes
+	const unassignedAthletes = athletes.filter((a) =>
+		unassignedRegistrationIds.includes(a.registrationId),
+	)
+
+	// Build a flat list of all athletes in heat order for focus navigation
+	const allAthletesInOrder = hasHeats
+		? [
+				// Athletes in heats (ordered by heat, then lane)
+				...heats.flatMap((heat) =>
+					heat.assignments
+						.sort((a, b) => a.laneNumber - b.laneNumber)
+						.map((assignment) => athleteMap.get(assignment.registrationId))
+						.filter((a): a is EventScoreEntryAthlete => a !== undefined),
+				),
+				// Unassigned athletes
+				...unassignedAthletes,
+			]
+		: athletes
 
 	const { execute: saveScore } = useServerAction(saveCompetitionScoreAction, {
 		onError: (error) => {
@@ -131,9 +163,8 @@ export function ResultsEntryForm({
 				division_id: athlete.divisionId,
 				registration_id: athlete.registrationId,
 			})
-			toast.success(
-				`Score saved for ${athlete.firstName} ${athlete.lastName}`,
-			)
+			const displayName = athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+			toast.success(`Score saved for ${displayName}`)
 		}
 		},
 		[
@@ -151,21 +182,22 @@ export function ResultsEntryForm({
 		],
 	)
 
-	// Handle tab to next athlete
+	// Handle tab to next athlete (uses allAthletesInOrder for consistent navigation)
 	const handleTabNext = useCallback(
 		(currentIndex: number) => {
-			const nextIndex = Math.min(currentIndex + 1, athletes.length - 1)
+			const athleteList = hasHeats ? allAthletesInOrder : athletes
+			const nextIndex = Math.min(currentIndex + 1, athleteList.length - 1)
 			setFocusedIndex(nextIndex)
 
 			// Focus the next row's input
-			const nextAthlete = athletes[nextIndex]
+			const nextAthlete = athleteList[nextIndex]
 			if (nextAthlete) {
 				const rowEl = rowRefs.current.get(nextAthlete.registrationId)
 				const input = rowEl?.querySelector("input")
 				input?.focus()
 			}
 		},
-		[athletes],
+		[athletes, hasHeats, allAthletesInOrder],
 	)
 
 	// Event filter change
@@ -412,8 +444,8 @@ export function ResultsEntryForm({
 					<div
 						className={`grid gap-3 border-b bg-muted/30 p-3 text-sm font-medium text-muted-foreground ${hasTiebreak ? "grid-cols-[60px_1fr_2fr_1fr_100px]" : "grid-cols-[60px_1fr_2fr_100px]"}`}
 					>
-						<div className="text-center">#</div>
-						<div>ATHLETE</div>
+						<div className="text-center">{hasHeats ? "LANE" : "#"}</div>
+						<div>TEAM / ATHLETE</div>
 						<div>
 							{(event.workout.roundsToScore ?? 1) > 1
 								? `SCORES (${event.workout.roundsToScore} ROUNDS)`
@@ -432,7 +464,91 @@ export function ResultsEntryForm({
 								No athletes found
 								{selectedDivisionId && " for this division"}
 							</div>
+						) : hasHeats ? (
+							/* Heat-based layout */
+							<>
+								{heats.map((heat) => {
+									// Calculate starting index for this heat
+									const startIndex = allAthletesInOrder.findIndex(
+										(a) =>
+											heat.assignments.some(
+												(assignment) =>
+													assignment.registrationId === a.registrationId,
+											),
+									)
+									return (
+										<HeatScoreGroup
+											key={heat.heatId}
+											heat={heat}
+											athleteMap={athleteMap}
+											workoutScheme={event.workout.scheme}
+											tiebreakScheme={event.workout.tiebreakScheme}
+											secondaryScheme={event.workout.secondaryScheme}
+											timeCap={timeCap ?? undefined}
+											roundsToScore={event.workout.roundsToScore ?? 1}
+											repsPerRound={event.workout.repsPerRound}
+											showTiebreak={hasTiebreak}
+											scores={scores}
+											savingIds={savingIds}
+											savedIds={savedIds}
+											onScoreChange={handleScoreChange}
+											onTabNext={handleTabNext}
+											rowRefs={rowRefs}
+											startIndex={startIndex >= 0 ? startIndex : 0}
+											defaultOpen={true}
+										/>
+									)
+								})}
+
+								{/* Unassigned athletes section */}
+								{unassignedAthletes.length > 0 && (
+									<div className="border-t">
+										<div className="px-4 py-3 bg-amber-50 dark:bg-amber-950/20 border-b">
+											<span className="font-medium text-amber-800 dark:text-amber-200">
+												Unassigned Athletes
+											</span>
+											<span className="ml-2 text-sm text-amber-600 dark:text-amber-400">
+												({unassignedAthletes.length} athletes not in any heat)
+											</span>
+										</div>
+										{unassignedAthletes.map((athlete) => {
+											const globalIndex = allAthletesInOrder.findIndex(
+												(a) => a.registrationId === athlete.registrationId,
+											)
+											return (
+												<div
+													key={athlete.registrationId}
+													ref={(el) => {
+														if (el) {
+															rowRefs.current.set(athlete.registrationId, el)
+														}
+													}}
+												>
+													<ScoreInputRow
+														athlete={athlete}
+														workoutScheme={event.workout.scheme}
+														tiebreakScheme={event.workout.tiebreakScheme}
+														secondaryScheme={event.workout.secondaryScheme}
+														timeCap={timeCap ?? undefined}
+														roundsToScore={event.workout.roundsToScore ?? 1}
+														repsPerRound={event.workout.repsPerRound}
+														showTiebreak={hasTiebreak}
+														value={scores[athlete.registrationId]}
+														isSaving={savingIds.has(athlete.registrationId)}
+														isSaved={savedIds.has(athlete.registrationId)}
+														onChange={(data) =>
+															handleScoreChange(athlete, data)
+														}
+														onTabNext={() => handleTabNext(globalIndex)}
+													/>
+												</div>
+											)
+										})}
+									</div>
+								)}
+							</>
 						) : (
+							/* Flat layout (no heats) */
 							athletes.map((athlete, index) => (
 								<div
 									key={athlete.registrationId}

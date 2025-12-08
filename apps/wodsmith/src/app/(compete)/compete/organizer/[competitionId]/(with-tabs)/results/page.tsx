@@ -4,7 +4,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionDivisionsWithCounts } from "@/server/competition-divisions"
-import { getEventScoreEntryData } from "@/server/competition-scores"
+import { getEventScoreEntryDataWithHeats } from "@/server/competition-scores"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -76,10 +76,10 @@ export default async function ResultsPage({
 	const currentEventId = selectedEventId || events[0]?.id
 	const currentEvent = events.find((e) => e.id === currentEventId)
 
-	// Get athletes and existing scores for selected event
+	// Get athletes, existing scores, and heat assignments for selected event
 	const [scoreEntryData, { divisions }] = currentEvent
 		? await Promise.all([
-				getEventScoreEntryData({
+				getEventScoreEntryDataWithHeats({
 					competitionId,
 					trackWorkoutId: currentEvent.id,
 					competitionTeamId: competition.competitionTeamId,
@@ -119,6 +119,8 @@ export default async function ResultsPage({
 						selectedEventId={currentEventId}
 						event={scoreEntryData.event}
 						athletes={scoreEntryData.athletes}
+						heats={scoreEntryData.heats}
+						unassignedRegistrationIds={scoreEntryData.unassignedRegistrationIds}
 						divisions={divisions}
 						selectedDivisionId={selectedDivisionId}
 					/>
