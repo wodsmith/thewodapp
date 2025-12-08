@@ -56,7 +56,7 @@ export function ProductCards() {
 						</span>
 
 						{/* Title */}
-						<h3 className="font-mono text-3xl font-bold">Workout Tracking</h3>
+						<h3 className="font-mono text-3xl font-bold">WODsmith Track</h3>
 
 						{/* Description */}
 						<p className="mt-3 text-lg text-muted-foreground">
