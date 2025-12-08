@@ -25,14 +25,22 @@ interface VenueManagerProps {
 	competitionId: string
 	organizingTeamId: string
 	venues: CompetitionVenue[]
+	onVenueUpdate?: (venue: CompetitionVenue) => void
+	onVenueCreate?: (venue: CompetitionVenue) => void
+	onVenueDelete?: (venueId: string) => void
 }
 
 export function VenueManager({
 	competitionId,
 	organizingTeamId,
-	venues: initialVenues,
+	venues,
+	onVenueUpdate,
+	onVenueCreate,
+	onVenueDelete,
 }: VenueManagerProps) {
-	const [venues, setVenues] = useState(initialVenues)
+	// Use controlled state if callbacks provided, otherwise internal state
+	const [internalVenues, setInternalVenues] = useState(venues)
+	const displayVenues = onVenueUpdate ? venues : internalVenues
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [editingVenue, setEditingVenue] = useState<CompetitionVenue | null>(
 		null,
@@ -57,7 +65,11 @@ export function VenueManager({
 		})
 
 		if (result?.data) {
-			setVenues([...venues, result.data])
+			if (onVenueCreate) {
+				onVenueCreate(result.data)
+			} else {
+				setInternalVenues([...internalVenues, result.data])
+			}
 			setNewVenueName("")
 			setNewLaneCount(10)
 			setNewTransitionMinutes(10)
@@ -78,9 +90,15 @@ export function VenueManager({
 		})
 
 		if (!error) {
-			setVenues(
-				venues.map((v) => (v.id === editingVenue.id ? editingVenue : v)),
-			)
+			if (onVenueUpdate) {
+				onVenueUpdate(editingVenue)
+			} else {
+				setInternalVenues(
+					internalVenues.map((v) =>
+						v.id === editingVenue.id ? editingVenue : v,
+					),
+				)
+			}
 			setEditingVenue(null)
 		}
 	}
@@ -101,14 +119,18 @@ export function VenueManager({
 		})
 
 		if (!error) {
-			setVenues(venues.filter((v) => v.id !== venue.id))
+			if (onVenueDelete) {
+				onVenueDelete(venue.id)
+			} else {
+				setInternalVenues(internalVenues.filter((v) => v.id !== venue.id))
+			}
 		}
 	}
 
 	return (
 		<div className="space-y-4">
 			{/* Venue List */}
-			{venues.length === 0 ? (
+			{displayVenues.length === 0 ? (
 				<Card className="border-dashed">
 					<CardContent className="py-8 text-center text-muted-foreground">
 						<p className="mb-4">No venues created yet.</p>
@@ -120,7 +142,7 @@ export function VenueManager({
 				</Card>
 			) : (
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{venues.map((venue) => (
+					{displayVenues.map((venue) => (
 						<Card key={venue.id}>
 							<CardContent className="py-4">
 								<div className="flex items-center justify-between">
