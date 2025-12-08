@@ -30,15 +30,17 @@ interface CompeteMobileNavProps {
 	session: SessionValidationResult | null
 	invitations?: PendingInvitation[]
 	canOrganize?: boolean
+	isProfileIncomplete?: boolean
 }
 
 export default function CompeteMobileNav({
 	session,
 	invitations = [],
 	canOrganize = false,
+	isProfileIncomplete = false,
 }: CompeteMobileNavProps) {
 	const [open, setOpen] = useState(false)
-	const hasNotifications = invitations.length > 0
+	const hasNotifications = invitations.length > 0 || isProfileIncomplete
 
 	const handleLinkClick = () => {
 		setOpen(false)
@@ -109,6 +111,22 @@ export default function CompeteMobileNav({
 									<p className="font-bold text-muted-foreground text-sm uppercase">
 										Notifications
 									</p>
+									{isProfileIncomplete && (
+										<Link
+											href="/compete/athlete"
+											className="flex items-center gap-2 hover:text-primary"
+											onClick={handleLinkClick}
+										>
+											<User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+											<div className="flex flex-col">
+												<span>Complete Your Profile</span>
+												<span className="text-muted-foreground text-sm">
+													Add gender & date of birth
+												</span>
+											</div>
+											<span className="ml-auto h-2 w-2 rounded-full bg-red-500" />
+										</Link>
+									)}
 									{invitations.map((invitation) => (
 										<Link
 											key={invitation.id}

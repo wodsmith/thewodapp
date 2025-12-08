@@ -133,7 +133,13 @@ export function AffiliateCombobox({
 	const exactMatch = affiliates.find(
 		(a) => a.name.toLowerCase() === searchQuery.toLowerCase(),
 	)
-	const showAddNew = searchQuery.trim().length > 0 && !exactMatch
+	const showAddNew =
+		searchQuery.trim().length > 0 &&
+		!exactMatch &&
+		searchQuery.toLowerCase() !== "independent"
+
+	// "Independent" option for athletes not affiliated with a gym
+	const INDEPENDENT_OPTION = "Independent"
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -168,12 +174,36 @@ export function AffiliateCombobox({
 						<div className="py-6 text-center text-sm text-muted-foreground">
 							Loading...
 						</div>
-					) : affiliates.length === 0 && !searchQuery ? (
-						<div className="py-6 text-center text-sm text-muted-foreground">
-							No affiliates found. Type to add a new one.
-						</div>
 					) : (
 						<div className="p-1">
+							{/* Independent option - always visible at the top */}
+							{(!searchQuery ||
+								INDEPENDENT_OPTION.toLowerCase().includes(
+									searchQuery.toLowerCase(),
+								)) && (
+								<button
+									type="button"
+									onClick={() => handleSelect(INDEPENDENT_OPTION)}
+									className={cn(
+										"relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1",
+										value === INDEPENDENT_OPTION && "bg-accent",
+									)}
+								>
+									<Check
+										className={cn(
+											"mr-2 h-4 w-4",
+											value === INDEPENDENT_OPTION
+												? "opacity-100"
+												: "opacity-0",
+										)}
+									/>
+									<span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>
+									<Badge variant="outline" className="text-xs">
+										No gym affiliation
+									</Badge>
+								</button>
+							)}
+
 							{/* Option to add custom affiliate */}
 							{showAddNew && (
 								<button

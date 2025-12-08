@@ -136,6 +136,7 @@ export async function initiateRegistrationPayment(
 				teamName: input.teamName,
 				affiliateName: input.affiliateName,
 				teammates: input.teammates,
+				skipProfileValidation: true, // User can complete profile after registration
 			})
 
 			// Mark as free registration

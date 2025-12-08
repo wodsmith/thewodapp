@@ -231,3 +231,25 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 
 	return !!user
 }
+
+/**
+ * Check if a user's athlete profile is complete (has gender and date of birth)
+ * @param userId - The user's ID
+ * @returns Promise<boolean> - True if profile is complete
+ */
+export async function isAthleteProfileComplete(
+	userId: string,
+): Promise<boolean> {
+	const db = getDb()
+
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, userId),
+		columns: { gender: true, dateOfBirth: true },
+	})
+
+	if (!user) {
+		return false
+	}
+
+	return !!(user.gender && user.dateOfBirth)
+}

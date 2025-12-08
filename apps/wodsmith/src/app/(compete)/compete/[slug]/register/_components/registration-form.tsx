@@ -51,9 +51,12 @@ const teammateSchema = z.object({
 
 const registrationSchema = z.object({
 	divisionId: z.string().min(1, "Please select a division"),
+	// Affiliate is required for all registrations
+	affiliateName: z
+		.string()
+		.min(1, "Please select your affiliate or Independent"),
 	// Team fields (validated based on division.teamSize)
 	teamName: z.string().max(255).optional(),
-	affiliateName: z.string().max(255).optional(),
 	teammates: z.array(teammateSchema).optional(),
 })
 
@@ -461,6 +464,41 @@ export function RegistrationForm({
 						</CardContent>
 					</Card>
 
+					{/* Affiliate Selection Card - Required for all registrations */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Your Affiliate</CardTitle>
+							<CardDescription>
+								Select your gym or affiliate. Choose "Independent" if you don't
+								train at a gym.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<FormField
+								control={form.control}
+								name="affiliateName"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Affiliate *</FormLabel>
+										<FormControl>
+											<AffiliateCombobox
+												value={field.value || ""}
+												onChange={field.onChange}
+												placeholder="Search or select affiliate..."
+												disabled={isSubmitting || !registrationOpen}
+											/>
+										</FormControl>
+										<FormDescription>
+											Your gym or affiliate name will be displayed on
+											leaderboards
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</CardContent>
+					</Card>
+
 					{/* Registration Fee Card */}
 					<Card>
 						<CardHeader>
@@ -499,28 +537,6 @@ export function RegistrationForm({
 											</FormControl>
 											<FormDescription>
 												This will be displayed on leaderboards
-											</FormDescription>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-
-								<FormField
-									control={form.control}
-									name="affiliateName"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Your Affiliate (Optional)</FormLabel>
-											<FormControl>
-												<AffiliateCombobox
-													value={field.value || ""}
-													onChange={field.onChange}
-													placeholder="Search or enter affiliate..."
-													disabled={isSubmitting || !registrationOpen}
-												/>
-											</FormControl>
-											<FormDescription>
-												Your gym or affiliate name
 											</FormDescription>
 											<FormMessage />
 										</FormItem>

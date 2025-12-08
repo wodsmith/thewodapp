@@ -7,6 +7,7 @@ import { ActiveTeamSwitcher } from "@/components/nav/active-team-switcher"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
+import { isAthleteProfileComplete } from "@/server/user"
 import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
 
 export default async function MainNav() {
@@ -16,9 +17,15 @@ export default async function MainNav() {
 	let pendingInvitations: Awaited<
 		ReturnType<typeof getPendingInvitationsForCurrentUser>
 	> = []
+	let isProfileIncomplete = false
 	if (session?.user) {
 		try {
-			pendingInvitations = await getPendingInvitationsForCurrentUser()
+			const [invitations, profileComplete] = await Promise.all([
+				getPendingInvitationsForCurrentUser(),
+				isAthleteProfileComplete(session.userId),
+			])
+			pendingInvitations = invitations
+			isProfileIncomplete = !profileComplete
 		} catch {
 			// User not authenticated, no invitations
 		}
@@ -94,7 +101,10 @@ export default async function MainNav() {
 							>
 								<User className="h-5 w-5" />
 							</Link>
-							<NotificationBell invitations={pendingInvitations} />
+							<NotificationBell
+								invitations={pendingInvitations}
+								isProfileIncomplete={isProfileIncomplete}
+							/>
 							<DarkModeToggle />
 							<LogoutButton />
 						</>
@@ -122,7 +132,11 @@ export default async function MainNav() {
 						</div>
 					)}
 				</nav>
-				<MobileNav session={session} invitations={pendingInvitations} />
+				<MobileNav
+					session={session}
+					invitations={pendingInvitations}
+					isProfileIncomplete={isProfileIncomplete}
+				/>
 			</div>
 		</header>
 	)
