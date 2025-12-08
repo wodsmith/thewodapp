@@ -271,12 +271,25 @@ export function ScoreInputRow({
 				})),
 			)
 		}
+		// For single-round rounds+reps, use the score from roundScores
+		if (isRoundsReps && roundScores[0]) {
+			return roundScores[0].score
+		}
 		return inputValue
 	}
 
 	// Submit the score
 	const submitScore = (force = false) => {
-		if (!isMultiRound && !isPassFail && !force && !parseResult?.isValid) return
+		// For rounds+reps, we don't use parseResult (it uses handleRoundScoreChange instead)
+		// so we need to allow submission when isRoundsReps is true
+		if (
+			!isMultiRound &&
+			!isPassFail &&
+			!isRoundsReps &&
+			!force &&
+			!parseResult?.isValid
+		)
+			return
 
 		const existing = athlete.existingResult
 		const finalScore = buildScoreString()
@@ -303,12 +316,14 @@ export function ScoreInputRow({
 			secondaryScore: newSecondary,
 			formattedScore: parseResult?.formatted || finalScore,
 			rawValue: parseResult?.rawValue,
-			roundScores: isMultiRound
-				? roundScores.map((rs) => ({
-						score: rs.score,
-						parts: rs.parts,
-					}))
-				: undefined,
+			// Pass roundScores for multi-round OR single-round rounds+reps to preserve parts data
+			roundScores:
+				isMultiRound || isRoundsReps
+					? roundScores.map((rs) => ({
+							score: rs.score,
+							parts: rs.parts,
+						}))
+					: undefined,
 		})
 	}
 

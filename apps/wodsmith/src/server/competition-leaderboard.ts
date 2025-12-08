@@ -7,7 +7,6 @@ import {
 	competitionsTable,
 	results,
 	scalingLevelsTable,
-	scheduledWorkoutInstancesTable,
 	sets,
 	trackWorkoutsTable,
 	userTable,
@@ -35,6 +34,7 @@ export interface CompetitionLeaderboardEntry {
 		trackWorkoutId: string
 		trackOrder: number
 		eventName: string
+		scheme: string
 		rank: number
 		points: number
 		rawScore: string | null
@@ -171,33 +171,17 @@ export async function getCompetitionLeaderboard(params: {
 			)
 		: registrations
 
-	// Get all scheduled workout instances for this competition
-	const scheduledInstances = await db
-		.select()
-		.from(scheduledWorkoutInstancesTable)
-		.where(
-			eq(scheduledWorkoutInstancesTable.teamId, competition.competitionTeamId),
-		)
-
-	// Map track workout IDs to scheduled instance IDs
-	const trackWorkoutToScheduled = new Map<string, string>()
-	for (const instance of scheduledInstances) {
-		if (instance.trackWorkoutId) {
-			trackWorkoutToScheduled.set(instance.trackWorkoutId, instance.id)
-		}
-	}
-
-	// Get all results for scheduled instances (batched)
-	const scheduledInstanceIds = scheduledInstances.map((si) => si.id)
+	// Get all results for competition events (by competitionEventId = trackWorkout.id)
+	const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
 	const allResults = await autochunk(
-		{ items: scheduledInstanceIds, otherParametersCount: 1 }, // +1 for type
+		{ items: trackWorkoutIds, otherParametersCount: 1 }, // +1 for type
 		async (chunk) =>
 			db
 				.select()
 				.from(results)
 				.where(
 					and(
-						inArray(results.scheduledWorkoutInstanceId, chunk),
+						inArray(results.competitionEventId, chunk),
 						eq(results.type, "wod"),
 					),
 				),
@@ -238,13 +222,11 @@ export async function getCompetitionLeaderboard(params: {
 
 	// Process each event
 	for (const trackWorkout of trackWorkouts) {
-		const scheduledInstanceId = trackWorkoutToScheduled.get(trackWorkout.id)
-
 		// Get results for this event, grouped by division
 		const eventResultsByDivision = new Map<string, typeof allResults>()
 
 		for (const result of allResults) {
-			if (result.scheduledWorkoutInstanceId !== scheduledInstanceId) continue
+			if (result.competitionEventId !== trackWorkout.id) continue
 
 			const registration = filteredRegistrations.find(
 				(r) => r.user.id === result.userId,
@@ -331,6 +313,7 @@ export async function getCompetitionLeaderboard(params: {
 					trackWorkoutId: trackWorkout.id,
 					trackOrder: trackWorkout.trackOrder,
 					eventName: trackWorkout.workout.name,
+					scheme: trackWorkout.workout.scheme,
 					rank,
 					points,
 					rawScore: result.wodScore,
@@ -351,6 +334,7 @@ export async function getCompetitionLeaderboard(params: {
 					trackWorkoutId: trackWorkout.id,
 					trackOrder: trackWorkout.trackOrder,
 					eventName: trackWorkout.workout.name,
+					scheme: trackWorkout.workout.scheme,
 					rank: 0,
 					points: 0,
 					rawScore: null,

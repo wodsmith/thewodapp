@@ -1,11 +1,11 @@
 "use client"
 
 import { useServerAction } from "@repo/zsa-react"
-import { BarChart3, Medal, Trophy } from "lucide-react"
-import { useEffect, useState } from "react"
+import { BarChart3 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { getCompetitionLeaderboardAction } from "@/actions/competition-actions"
+import { CompetitionLeaderboardTable } from "@/components/compete/competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
 	Select,
 	SelectContent,
@@ -14,14 +14,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
 import type { CompetitionLeaderboardEntry } from "@/server/competition-leaderboard"
 
 interface LeaderboardContentProps {
@@ -33,7 +25,11 @@ export function LeaderboardContent({
 	competitionId,
 	divisions,
 }: LeaderboardContentProps) {
-	const [selectedDivision, setSelectedDivision] = useState<string>("all")
+	// Default to first division if available
+	const defaultDivision = divisions?.[0]?.id ?? ""
+	const [selectedDivision, setSelectedDivision] =
+		useState<string>(defaultDivision)
+	const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
 	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
 		[],
 	)
@@ -49,47 +45,39 @@ export function LeaderboardContent({
 		},
 	)
 
+	// Update selected division when divisions change
 	useEffect(() => {
-		execute({
-			competitionId,
-			divisionId: selectedDivision === "all" ? undefined : selectedDivision,
-		})
+		if (divisions && divisions.length > 0 && !selectedDivision) {
+			setSelectedDivision(divisions[0]?.id ?? "")
+		}
+	}, [divisions, selectedDivision])
+
+	// Fetch leaderboard when division changes
+	useEffect(() => {
+		if (selectedDivision) {
+			execute({
+				competitionId,
+				divisionId: selectedDivision,
+			})
+		}
 	}, [competitionId, selectedDivision, execute])
 
-	// Group leaderboard by division for display
-	const leaderboardByDivision = leaderboard.reduce(
-		(acc, entry) => {
-			const divisionId = entry.divisionId
-			if (!acc[divisionId]) {
-				acc[divisionId] = {
-					label: entry.divisionLabel,
-					entries: [],
-				}
-			}
-			acc[divisionId].entries.push(entry)
-			return acc
-		},
-		{} as Record<
-			string,
-			{ label: string; entries: CompetitionLeaderboardEntry[] }
-		>,
-	)
+	// Extract events from leaderboard data
+	const events = useMemo(() => {
+		if (leaderboard.length === 0) return []
 
-	// Get event names from first entry (all entries have same events)
-	const eventNames = leaderboard[0]?.eventResults.map((e) => e.eventName) || []
+		const firstEntry = leaderboard[0]
+		if (!firstEntry) return []
 
-	const getRankIcon = (rank: number) => {
-		switch (rank) {
-			case 1:
-				return <Trophy className="h-4 w-4 text-yellow-500" />
-			case 2:
-				return <Medal className="h-4 w-4 text-gray-400" />
-			case 3:
-				return <Medal className="h-4 w-4 text-amber-600" />
-			default:
-				return null
-		}
-	}
+		return firstEntry.eventResults
+			.map((r) => ({
+				id: r.trackWorkoutId,
+				name: r.eventName,
+				trackOrder: r.trackOrder,
+				scheme: r.scheme,
+			}))
+			.sort((a, b) => a.trackOrder - b.trackOrder)
+	}, [leaderboard])
 
 	if (isPending && leaderboard.length === 0) {
 		return (
@@ -97,7 +85,10 @@ export function LeaderboardContent({
 				<div className="max-w-6xl">
 					<h2 className="text-2xl font-bold mb-6">Leaderboard</h2>
 					<div className="space-y-4">
-						<Skeleton className="h-10 w-48" />
+						<div className="flex gap-4">
+							<Skeleton className="h-10 w-48" />
+							<Skeleton className="h-10 w-48" />
+						</div>
 						<Skeleton className="h-64 w-full" />
 					</div>
 				</div>
@@ -110,6 +101,27 @@ export function LeaderboardContent({
 			<div className="container mx-auto px-4 py-8">
 				<div className="max-w-4xl">
 					<h2 className="text-2xl font-bold mb-6">Leaderboard</h2>
+
+					{/* Division selector even when empty */}
+					{divisions && divisions.length > 1 && (
+						<div className="mb-6">
+							<Select
+								value={selectedDivision}
+								onValueChange={setSelectedDivision}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="Select division" />
+								</SelectTrigger>
+								<SelectContent>
+									{divisions.map((division) => (
+										<SelectItem key={division.id} value={division.id}>
+											{division.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
 
 					<Alert variant="default" className="border-dashed">
 						<BarChart3 className="h-4 w-4" />
@@ -127,96 +139,60 @@ export function LeaderboardContent({
 	return (
 		<div className="container mx-auto px-4 py-8">
 			<div className="max-w-6xl">
-				<div className="flex items-center justify-between mb-6">
+				<div className="flex flex-col gap-4 mb-6">
 					<h2 className="text-2xl font-bold">Leaderboard</h2>
 
-					{divisions && divisions.length > 1 && (
-						<Select
-							value={selectedDivision}
-							onValueChange={setSelectedDivision}
-						>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="Filter by division" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Divisions</SelectItem>
-								{divisions.map((division) => (
-									<SelectItem key={division.id} value={division.id}>
-										{division.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					)}
+					<div className="flex flex-wrap items-center gap-4">
+						{/* Division selector */}
+						{divisions && divisions.length > 1 && (
+							<Select
+								value={selectedDivision}
+								onValueChange={setSelectedDivision}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="Select division" />
+								</SelectTrigger>
+								<SelectContent>
+									{divisions.map((division) => (
+										<SelectItem key={division.id} value={division.id}>
+											{division.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+
+						{/* View selector (Overall vs individual events) */}
+						{events.length > 0 && (
+							<Select
+								value={selectedEventId ?? "overall"}
+								onValueChange={(value) =>
+									setSelectedEventId(value === "overall" ? null : value)
+								}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="View" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="overall">Overall</SelectItem>
+									{events.map((event) => (
+										<SelectItem key={event.id} value={event.id}>
+											{event.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						)}
+					</div>
 				</div>
 
-				{Object.entries(leaderboardByDivision).map(
-					([divisionId, { label, entries }]) => (
-						<Card key={divisionId} className="mb-6">
-							<CardHeader className="pb-3">
-								<CardTitle className="text-lg">{label}</CardTitle>
-							</CardHeader>
-							<CardContent className="p-0">
-								<div className="overflow-x-auto">
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead className="w-16 text-center">Rank</TableHead>
-												<TableHead>Athlete</TableHead>
-												<TableHead className="text-right">Points</TableHead>
-												{eventNames.map((name, i) => (
-													<TableHead
-														key={`${i}-${name}`}
-														className="text-center min-w-[80px]"
-													>
-														<span className="text-xs">{name}</span>
-													</TableHead>
-												))}
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{entries.map((entry) => (
-												<TableRow key={entry.registrationId}>
-													<TableCell className="text-center font-medium">
-														<div className="flex items-center justify-center gap-1">
-															{getRankIcon(entry.overallRank)}
-															<span>{entry.overallRank}</span>
-														</div>
-													</TableCell>
-													<TableCell className="font-medium">
-														{entry.athleteName}
-													</TableCell>
-													<TableCell className="text-right font-bold">
-														{entry.totalPoints}
-													</TableCell>
-													{entry.eventResults.map((result, i) => (
-														<TableCell
-															key={`${i}-${result.eventName}`}
-															className="text-center"
-														>
-															{result.rank > 0 ? (
-																<div className="flex flex-col items-center">
-																	<span className="text-xs text-muted-foreground">
-																		{result.formattedScore}
-																	</span>
-																	<span className="text-xs font-medium">
-																		+{result.points}
-																	</span>
-																</div>
-															) : (
-																<span className="text-muted-foreground">-</span>
-															)}
-														</TableCell>
-													))}
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								</div>
-							</CardContent>
-						</Card>
-					),
-				)}
+				<div className="rounded-md border">
+					<CompetitionLeaderboardTable
+						leaderboard={leaderboard}
+						events={events}
+						selectedEventId={selectedEventId}
+					/>
+				</div>
 			</div>
 		</div>
 	)
