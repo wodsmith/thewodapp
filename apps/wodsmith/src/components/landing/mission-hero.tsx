@@ -26,9 +26,8 @@ export function MissionHero() {
 				</h1>
 
 				{/* Subheadline */}
-				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
+				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl text-balance">
 					Log your workouts. Follow your gym's programming. Run your competitions.
-					<br className="hidden md:block" />
 					WODsmith helps you track and organize the work you put in.
 				</p>
 
@@ -40,8 +39,16 @@ export function MissionHero() {
 							<ArrowRightIcon className="ml-2 h-4 w-4" />
 						</Link>
 					</Button>
-					<Button variant="outline" size="lg" asChild>
-						<Link href="#products">Explore Products</Link>
+					<Button
+						variant="outline"
+						size="lg"
+						onClick={() => {
+							document
+								.getElementById("products")
+								?.scrollIntoView({ behavior: "smooth" })
+						}}
+					>
+						Explore Products
 					</Button>
 				</div>
 			</div>
