@@ -16,7 +16,11 @@ import {
 	getCompetitionRegistrations,
 } from "@/server/competitions"
 import { getCompetitionRevenueStats } from "@/server/commerce"
+import { getCompetitionWorkouts } from "@/server/competition-workouts"
+import { getHeatsForCompetition } from "@/server/competition-heats"
 import { formatUTCDateFull } from "@/utils/date-utils"
+import { QuickActionsEvents } from "./_components/quick-actions-events"
+import { QuickActionsHeats } from "./_components/quick-actions-heats"
 
 interface CompetitionDetailPageProps {
 	params: Promise<{
@@ -54,10 +58,12 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Fetch registrations and revenue stats
-	const [registrations, revenueStats] = await Promise.all([
+	// Fetch registrations, revenue stats, events, and heats
+	const [registrations, revenueStats, events, heats] = await Promise.all([
 		getCompetitionRegistrations(competitionId),
 		getCompetitionRevenueStats(competitionId),
+		getCompetitionWorkouts(competitionId),
+		getHeatsForCompetition(competitionId),
 	])
 
 	// Note: formatDateTime uses local time for timestamps like createdAt
@@ -73,6 +79,21 @@ export default async function CompetitionDetailPage({
 
 	return (
 		<div className="flex flex-col gap-6">
+			{/* Quick Actions Row */}
+			{events.length > 0 && (
+				<div className="grid gap-4 md:grid-cols-2">
+					<QuickActionsEvents
+						events={events}
+						organizingTeamId={competition.organizingTeamId}
+					/>
+					<QuickActionsHeats
+						events={events}
+						heats={heats}
+						organizingTeamId={competition.organizingTeamId}
+					/>
+				</div>
+			)}
+
 			{/* Description Card */}
 			{competition.description && (
 				<Card>
