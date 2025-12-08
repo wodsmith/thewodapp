@@ -70,6 +70,7 @@ type Props = {
 	registrationOpensAt: Date | null
 	registrationClosesAt: Date | null
 	paymentCanceled?: boolean
+	defaultAffiliateName?: string
 }
 
 // Fee breakdown display component - updates when division changes
@@ -183,6 +184,7 @@ export function RegistrationForm({
 	registrationOpensAt,
 	registrationClosesAt,
 	paymentCanceled,
+	defaultAffiliateName,
 }: Props) {
 	const router = useRouter()
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -199,7 +201,7 @@ export function RegistrationForm({
 		defaultValues: {
 			divisionId: "",
 			teamName: "",
-			affiliateName: "",
+			affiliateName: defaultAffiliateName ?? "",
 			teammates: [],
 		},
 	})

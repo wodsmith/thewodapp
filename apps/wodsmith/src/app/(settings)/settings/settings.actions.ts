@@ -61,12 +61,14 @@ export const updateAthleteProfileAction = createServerAction()
 					.set({
 						gender: input.gender,
 						dateOfBirth: input.dateOfBirth,
+						affiliateName: input.affiliateName,
 					})
 					.where(eq(userTable.id, session.user.id))
 
 				await updateAllSessionsOfUser(session.user.id)
 
 				revalidatePath("/compete/profile")
+				revalidatePath("/compete/athlete")
 				return { success: true }
 			} catch (error) {
 				console.error(error)
