@@ -1,8 +1,14 @@
+"use client"
+
 import { ArrowRightIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useSessionStore } from "@/state/session"
 
 export function MissionHero() {
+	const session = useSessionStore((state) => state.session)
+	const isLoggedIn = !!session?.user
+
 	return (
 		<section className="relative overflow-hidden bg-background py-20 md:py-32">
 			{/* Abstract background elements */}
@@ -19,8 +25,8 @@ export function MissionHero() {
 				</div>
 
 				{/* Headline */}
-				<h1 className="mb-6 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-					Tools Built for
+				<h1 className="mb-6 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
+					Tools Built for{" "}
 					<br className="hidden md:block" />
 					<span className="text-primary">Functional Fitness</span>
 				</h1>
@@ -34,8 +40,8 @@ export function MissionHero() {
 				{/* CTAs */}
 				<div className="flex flex-col justify-center gap-4 sm:flex-row">
 					<Button size="lg" asChild>
-						<Link href="/sign-up">
-							Start Tracking Free
+						<Link href={isLoggedIn ? "/workouts" : "/sign-up"}>
+							{isLoggedIn ? "Go to Workouts" : "Start Tracking Free"}
 							<ArrowRightIcon className="ml-2 h-4 w-4" />
 						</Link>
 					</Button>

@@ -1,3 +1,5 @@
+"use client"
+
 import {
 	ArrowRightIcon,
 	BoltIcon,
@@ -6,6 +8,7 @@ import {
 } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useSessionStore } from "@/state/session"
 
 const athleteFeatures = [
 	"Log any workout type (For Time, AMRAP, EMOM, max lifts)",
@@ -22,6 +25,9 @@ const organizerFeatures = [
 ]
 
 export function ProductCards() {
+	const session = useSessionStore((state) => state.session)
+	const isLoggedIn = !!session?.user
+
 	return (
 		<section id="products" className="border-y border-border bg-secondary py-20">
 			<div className="container mx-auto px-4">
@@ -56,7 +62,7 @@ export function ProductCards() {
 						</span>
 
 						{/* Title */}
-						<h3 className="font-mono text-3xl font-bold">WODsmith Track</h3>
+						<h3 className="font-mono text-3xl font-bold">WODsmith Train</h3>
 
 						{/* Description */}
 						<p className="mt-3 text-lg text-muted-foreground">
@@ -79,8 +85,8 @@ export function ProductCards() {
 						{/* CTA */}
 						<div className="mt-10 pt-4">
 							<Button className="group/btn w-full" size="lg" asChild>
-								<Link href="/sign-up">
-									Start Tracking Free
+								<Link href={isLoggedIn ? "/workouts" : "/sign-up"}>
+									{isLoggedIn ? "Go to Workouts" : "Start Tracking Free"}
 									<ArrowRightIcon className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
 								</Link>
 							</Button>

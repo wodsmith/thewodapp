@@ -17,7 +17,7 @@ export default function Home() {
 			<MissionHero />
 			<ProductCards />
 			<InsightsFeatures />
-			<SocialProof />
+			{/* <SocialProof /> */}
 		</main>
 	)
 }
