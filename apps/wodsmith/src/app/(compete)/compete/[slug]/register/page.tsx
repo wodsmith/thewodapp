@@ -42,10 +42,9 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 		notFound()
 	}
 
-	// Check authentication - redirect to competition page if not logged in
 	const session = await getSessionFromCookie()
 	if (!session) {
-		redirect(`/compete/${slug}`)
+		redirect(`/sign-in?redirect=/compete/${slug}/register`)
 	}
 
 	// Check if already registered
