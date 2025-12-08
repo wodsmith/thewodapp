@@ -166,7 +166,7 @@ VALUES (
   'MWFC 2025 Events',
   'Competition events for Mountain West Fitness Championship 2025',
   'team_owned',
-  'team_cokkpu1klwo0ulfhl1iwzpvnbox1', -- Replace with organizing team
+  'team_mwfc2025_event', -- Must match competition.competitionTeamId for auth
   'sgrp_mwfc2025_divisions',
   1,
   'comp_mwfc2025'
