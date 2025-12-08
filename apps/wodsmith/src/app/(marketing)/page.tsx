@@ -1,20 +1,23 @@
 import type { Metadata } from "next"
-import { Features } from "@/components/landing/features"
-import { Hero } from "@/components/landing/hero"
-import Pricing from "@/components/landing/pricing"
-import { SITE_DESCRIPTION, SITE_NAME } from "@/constants"
+import { InsightsFeatures } from "@/components/landing/insights-features"
+import { MissionHero } from "@/components/landing/mission-hero"
+import { ProductCards } from "@/components/landing/product-cards"
+import { SocialProof } from "@/components/landing/social-proof"
+import { SITE_NAME } from "@/constants"
 
 export const metadata: Metadata = {
 	title: SITE_NAME,
-	description: SITE_DESCRIPTION,
+	description:
+		"Tools for the functional fitness community. Track your training. Run your competitions. Get insights that matter.",
 }
 
 export default function Home() {
 	return (
 		<main>
-			<Hero />
-			<Features />
-			<Pricing />
+			<MissionHero />
+			<ProductCards />
+			<InsightsFeatures />
+			<SocialProof />
 		</main>
 	)
 }

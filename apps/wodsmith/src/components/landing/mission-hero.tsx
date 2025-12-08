@@ -1,0 +1,53 @@
+import { ArrowRightIcon } from "@heroicons/react/24/outline"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+
+export function MissionHero() {
+	return (
+		<section className="relative overflow-hidden bg-background py-20 md:py-32">
+			{/* Abstract background elements */}
+			<div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+				<div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-primary/5 blur-3xl" />
+				<div className="absolute right-1/4 bottom-0 h-[500px] w-[500px] rounded-full bg-secondary blur-3xl" />
+			</div>
+
+			<div className="container mx-auto px-4 text-center">
+				{/* Badge */}
+				<div className="mb-8 inline-flex items-center rounded-full border border-border bg-secondary px-4 py-1.5 font-medium text-sm">
+					<span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-primary" />
+					The platform for functional fitness
+				</div>
+
+				{/* Headline */}
+				<h1 className="mb-6 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+					Tools Built for
+					<br className="hidden md:block" />
+					<span className="text-primary">Functional Fitness</span>
+				</h1>
+
+				{/* Subheadline */}
+				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
+					Track your training. Run your competitions. Get insights that matter.
+					<br className="hidden md:block" />
+					WODsmith makes it easy to glean insights from the data you work hard
+					to track.
+				</p>
+
+				{/* CTAs */}
+				<div className="flex flex-col justify-center gap-4 sm:flex-row">
+					<Button size="lg" asChild>
+						<Link href="/sign-up">
+							Start Tracking Free
+							<ArrowRightIcon className="ml-2 h-4 w-4" />
+						</Link>
+					</Button>
+					<Button variant="outline" size="lg" asChild>
+						<Link href="#products">Explore Products</Link>
+					</Button>
+				</div>
+			</div>
+		</section>
+	)
+}
+
+export default MissionHero
