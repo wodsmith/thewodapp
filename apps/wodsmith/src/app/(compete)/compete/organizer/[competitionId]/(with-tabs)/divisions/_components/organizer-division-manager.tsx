@@ -247,17 +247,8 @@ export function OrganizerDivisionManager({
 			}
 
 			toast.success("Division added")
-			setDivisions((prev) => [
-				...prev,
-				{
-					id: result.data.divisionId,
-					label: newDivisionLabel.trim(),
-					position: prev.length,
-					registrationCount: 0,
-					description: descriptionToSave,
-					feeCents: null,
-				},
-			])
+			// Don't optimistically update - let useEffect sync from server via revalidation
+			// to avoid duplicate entries when server action revalidates the page
 			setNewDivisionLabel("")
 			setNewDivisionTeamSize(1)
 			setNewDivisionDescription("")

@@ -231,3 +231,50 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 
 	return !!user
 }
+
+export interface AthleteProfileMissingFields {
+	gender: boolean
+	dateOfBirth: boolean
+	affiliateName: boolean
+}
+
+/**
+ * Get which fields are missing from a user's athlete profile
+ * @param userId - The user's ID
+ * @returns Promise<AthleteProfileMissingFields | null> - Object with missing field flags, null if user not found
+ */
+export async function getAthleteProfileMissingFields(
+	userId: string,
+): Promise<AthleteProfileMissingFields | null> {
+	const db = getDb()
+
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, userId),
+		columns: { gender: true, dateOfBirth: true, affiliateName: true },
+	})
+
+	if (!user) {
+		return null
+	}
+
+	return {
+		gender: !user.gender,
+		dateOfBirth: !user.dateOfBirth,
+		affiliateName: !user.affiliateName,
+	}
+}
+
+/**
+ * Check if a user's athlete profile is complete (has gender, date of birth, and affiliate)
+ * @param userId - The user's ID
+ * @returns Promise<boolean> - True if profile is complete
+ */
+export async function isAthleteProfileComplete(
+	userId: string,
+): Promise<boolean> {
+	const missing = await getAthleteProfileMissingFields(userId)
+	if (!missing) {
+		return false
+	}
+	return !missing.gender && !missing.dateOfBirth && !missing.affiliateName
+}

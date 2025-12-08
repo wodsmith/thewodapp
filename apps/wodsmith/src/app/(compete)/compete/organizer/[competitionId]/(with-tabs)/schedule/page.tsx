@@ -6,9 +6,8 @@ import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { HeatScheduleContainer } from "./_components/heat-schedule-container"
+import { ScheduleContainer } from "./_components/schedule-container"
 import { HeatScheduleSkeleton } from "./_components/heat-schedule-skeleton"
-import { VenueManagerContainer } from "./_components/venue-manager-container"
 import { VenueManagerSkeleton } from "./_components/venue-manager-skeleton"
 
 interface CompetitionSchedulePageProps {
@@ -64,29 +63,25 @@ export default async function CompetitionSchedulePage({
 	}
 
 	return (
-		<div className="space-y-8">
-			{/* Venue Manager */}
-			<section>
-				<h2 className="text-lg font-semibold mb-4">Venues</h2>
-				<Suspense fallback={<VenueManagerSkeleton />}>
-					<VenueManagerContainer
-						competitionId={competition.id}
-						organizingTeamId={competition.organizingTeamId}
-					/>
-				</Suspense>
-			</section>
-
-			{/* Heat Schedule Manager */}
-			<section>
-				<h2 className="text-lg font-semibold mb-4">Heat Schedule</h2>
-				<Suspense fallback={<HeatScheduleSkeleton />}>
-					<HeatScheduleContainer
-						competitionId={competition.id}
-						organizingTeamId={competition.organizingTeamId}
-						competitionStartDate={competition.startDate}
-					/>
-				</Suspense>
-			</section>
-		</div>
+		<Suspense
+			fallback={
+				<div className="space-y-8">
+					<section>
+						<h2 className="text-lg font-semibold mb-4">Venues</h2>
+						<VenueManagerSkeleton />
+					</section>
+					<section>
+						<h2 className="text-lg font-semibold mb-4">Heat Schedule</h2>
+						<HeatScheduleSkeleton />
+					</section>
+				</div>
+			}
+		>
+			<ScheduleContainer
+				competitionId={competition.id}
+				organizingTeamId={competition.organizingTeamId}
+				competitionStartDate={competition.startDate}
+			/>
+		</Suspense>
 	)
 }

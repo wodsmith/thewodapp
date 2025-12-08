@@ -365,6 +365,13 @@
       "when": 1733400000000,
       "tag": "0051_add-sponsors-system",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1765170694320,
+      "tag": "0052_add-affiliate-to-user",
+      "breakpoints": true
     }
   ]
 }

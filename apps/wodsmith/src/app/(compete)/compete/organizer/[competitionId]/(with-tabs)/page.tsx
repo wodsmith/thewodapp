@@ -2,7 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { DollarSign, TrendingUp, Users } from "lucide-react"
+import { DollarSign, FileText, TrendingUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -16,7 +16,11 @@ import {
 	getCompetitionRegistrations,
 } from "@/server/competitions"
 import { getCompetitionRevenueStats } from "@/server/commerce"
+import { getCompetitionWorkouts } from "@/server/competition-workouts"
+import { getHeatsForCompetition } from "@/server/competition-heats"
 import { formatUTCDateFull } from "@/utils/date-utils"
+import { QuickActionsEvents } from "./_components/quick-actions-events"
+import { QuickActionsHeats } from "./_components/quick-actions-heats"
 
 interface CompetitionDetailPageProps {
 	params: Promise<{
@@ -54,10 +58,12 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Fetch registrations and revenue stats
-	const [registrations, revenueStats] = await Promise.all([
+	// Fetch registrations, revenue stats, events, and heats
+	const [registrations, revenueStats, events, heats] = await Promise.all([
 		getCompetitionRegistrations(competitionId),
 		getCompetitionRevenueStats(competitionId),
+		getCompetitionWorkouts(competitionId),
+		getHeatsForCompetition(competitionId),
 	])
 
 	// Note: formatDateTime uses local time for timestamps like createdAt
@@ -73,6 +79,36 @@ export default async function CompetitionDetailPage({
 
 	return (
 		<div className="flex flex-col gap-6">
+			{/* Quick Actions Row */}
+			{events.length > 0 && (
+				<div className="grid gap-4 md:grid-cols-2">
+					<QuickActionsEvents
+						events={events}
+						organizingTeamId={competition.organizingTeamId}
+					/>
+					<QuickActionsHeats
+						events={events}
+						heats={heats}
+						organizingTeamId={competition.organizingTeamId}
+					/>
+				</div>
+			)}
+
+			{/* Description Card */}
+			{competition.description && (
+				<Card>
+					<CardHeader className="flex flex-row items-center gap-2 pb-3">
+						<FileText className="h-5 w-5 text-muted-foreground" />
+						<CardTitle>Description</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className="text-sm text-muted-foreground whitespace-pre-wrap">
+							{competition.description}
+						</p>
+					</CardContent>
+				</Card>
+			)}
+
 			{/* Competition Details Card */}
 			<Card>
 				<CardHeader>
