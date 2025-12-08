@@ -18,9 +18,7 @@ export const athleteProfileSchema = z.object({
 		required_error: "Please enter your date of birth",
 		invalid_type_error: "Invalid date",
 	}),
-	affiliateName: z
-		.string()
-		.min(1, "Please select your affiliate or Independent"),
+	affiliateName: z.string().optional(),
 })
 
 // Extended athlete profile JSON schema
