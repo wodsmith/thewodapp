@@ -68,6 +68,8 @@ interface ScoreInputRowProps {
 	onChange: (data: ScoreEntryData) => void
 	onTabNext: () => void
 	autoFocus?: boolean
+	/** Lane number to display (optional) */
+	laneNumber?: number
 }
 
 export function ScoreInputRow({
@@ -85,6 +87,7 @@ export function ScoreInputRow({
 	onChange,
 	onTabNext,
 	autoFocus,
+	laneNumber,
 }: ScoreInputRowProps) {
 	const numRounds = roundsToScore || 1
 	const isPassFail = workoutScheme === "pass-fail"
@@ -436,18 +439,46 @@ export function ScoreInputRow({
 			)}
 		>
 			{/* Lane / Index */}
-			<div className="text-center font-semibold text-muted-foreground">
-				{/* No lanes in MVP - just show dash */}-
+			<div className="text-center">
+				{laneNumber !== undefined ? (
+					<span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+						{laneNumber}
+					</span>
+				) : (
+					<span className="text-muted-foreground">-</span>
+				)}
 			</div>
 
-			{/* Athlete Name */}
+			{/* Athlete / Team Name */}
 			<div className="min-w-0">
-				<div className="truncate font-medium">
-					{athlete.lastName}, {athlete.firstName}
-				</div>
-				<Badge variant="outline" className="mt-1 text-xs">
-					{athlete.divisionLabel}
-				</Badge>
+				{athlete.teamName ? (
+					<>
+						<div className="truncate font-medium">{athlete.teamName}</div>
+						{athlete.teamMembers.length > 0 && (
+							<div className="mt-0.5 text-xs text-muted-foreground">
+								{athlete.teamMembers.map((member, idx) => (
+									<span key={member.userId}>
+										{idx > 0 && ", "}
+										{member.firstName} {member.lastName}
+										{member.isCaptain && (
+											<span className="text-muted-foreground/70"> (c)</span>
+										)}
+									</span>
+								))}
+							</div>
+						)}
+					</>
+				) : (
+					<div className="truncate font-medium">
+						{athlete.lastName}, {athlete.firstName}
+					</div>
+				)}
+				{/* Only show division badge when not in heat view (no lane number) */}
+				{laneNumber === undefined && (
+					<Badge variant="outline" className="mt-1 text-xs">
+						{athlete.divisionLabel}
+					</Badge>
+				)}
 			</div>
 
 			{/* Score Input */}

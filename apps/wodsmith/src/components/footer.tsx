@@ -3,14 +3,14 @@ import ThemeSwitch from "./theme-switch"
 
 export const Footer = () => {
 	return (
-		<footer className="bg-primary text-primary-foreground py-16">
+		<footer className="bg-black text-white py-16">
 			<div className="container mx-auto px-4">
 				<div className="grid md:grid-cols-4 gap-8 mb-12">
 					<div>
-						<div className="font-mono text-2xl text-primary-foreground mb-4">
+						<div className="font-mono text-2xl text-white mb-4">
 							<span className="text-orange">WOD</span>smith
 						</div>
-						<p className="font-sans text-primary-foreground mb-6">
+						<p className="font-sans text-white/80 mb-6">
 							The brutally simple workout tracker that helps you crush your
 							fitness goals.
 						</p>
@@ -138,13 +138,13 @@ export const Footer = () => {
           </div> */}
 				</div>
 
-				<div className="border-t-2 border-primary-foreground pt-8">
+				<div className="border-t border-white/20 pt-8">
 					<div className="flex flex-col md:flex-row justify-between items-center">
-						<p className="font-sans text-primary-foreground mb-4 md:mb-0">
-							Made with <HeartIcon className="inline text-accent size-4" /> by
+						<p className="font-sans text-white/80 mb-4 md:mb-0">
+							Made with <HeartIcon className="inline text-primary size-4" /> by
 							athletes, for athletes
 						</p>
-						<p className="font-sans text-primary-foreground">
+						<p className="font-sans text-white/80">
 							© 2025 WODsmith. All rights reserved.
 						</p>
 					</div>

@@ -73,6 +73,10 @@ export const userTable = sqliteTable(
 		dateOfBirth: integer({
 			mode: "timestamp",
 		}),
+		// Default affiliate/gym for competition registration
+		affiliateName: text({
+			length: 255,
+		}),
 		// JSON field for extended athlete profile (PRs, history, etc.)
 		athleteProfile: text({
 			length: 10000,

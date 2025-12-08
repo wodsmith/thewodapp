@@ -6,6 +6,10 @@ import CompeteMobileNav from "@/components/nav/compete-mobile-nav"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
+import {
+	type AthleteProfileMissingFields,
+	getAthleteProfileMissingFields,
+} from "@/server/user"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeCompetitions } from "@/utils/get-user-organizing-teams"
 
@@ -16,14 +20,17 @@ export default async function CompeteNav() {
 		ReturnType<typeof getPendingInvitationsForCurrentUser>
 	> = []
 	let canOrganize = false
+	let missingProfileFields: AthleteProfileMissingFields | null = null
 	if (session?.user) {
 		try {
-			const [invitations, organize] = await Promise.all([
+			const [invitations, organize, missing] = await Promise.all([
 				getPendingInvitationsForCurrentUser(),
 				canOrganizeCompetitions(),
+				getAthleteProfileMissingFields(session.userId),
 			])
 			pendingInvitations = invitations
 			canOrganize = organize
+			missingProfileFields = missing
 		} catch {
 			// User not authenticated or error fetching invitations
 		}
@@ -81,7 +88,10 @@ export default async function CompeteNav() {
 							>
 								<User className="h-5 w-5" />
 							</Link>
-							<NotificationBell invitations={pendingInvitations} />
+							<NotificationBell
+								invitations={pendingInvitations}
+								missingProfileFields={missingProfileFields}
+							/>
 							<DarkModeToggle />
 							<LogoutButton />
 						</>
@@ -107,6 +117,7 @@ export default async function CompeteNav() {
 					session={session}
 					invitations={pendingInvitations}
 					canOrganize={canOrganize}
+					missingProfileFields={missingProfileFields}
 				/>
 			</div>
 		</header>

@@ -70,7 +70,8 @@ export default async function RegistrationSuccessPage({
 		where: eq(userTable.id, session.userId),
 	})
 
-	const isProfileComplete = user?.gender && user?.dateOfBirth
+	const isProfileComplete =
+		user?.gender && user?.dateOfBirth && user?.affiliateName
 
 	// Check for registration
 	const registration = await getUserCompetitionRegistration(
@@ -345,6 +346,7 @@ export default async function RegistrationSuccessPage({
 						<ProfileCompletionForm
 							currentGender={user?.gender}
 							currentDateOfBirth={user?.dateOfBirth}
+							currentAffiliateName={user?.affiliateName}
 						/>
 					</CardContent>
 				</Card>
