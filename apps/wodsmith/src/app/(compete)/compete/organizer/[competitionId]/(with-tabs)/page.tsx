@@ -2,7 +2,7 @@ import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { DollarSign, TrendingUp, Users } from "lucide-react"
+import { DollarSign, FileText, TrendingUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -73,6 +73,21 @@ export default async function CompetitionDetailPage({
 
 	return (
 		<div className="flex flex-col gap-6">
+			{/* Description Card */}
+			{competition.description && (
+				<Card>
+					<CardHeader className="flex flex-row items-center gap-2 pb-3">
+						<FileText className="h-5 w-5 text-muted-foreground" />
+						<CardTitle>Description</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className="text-sm text-muted-foreground whitespace-pre-wrap">
+							{competition.description}
+						</p>
+					</CardContent>
+				</Card>
+			)}
+
 			{/* Competition Details Card */}
 			<Card>
 				<CardHeader>
