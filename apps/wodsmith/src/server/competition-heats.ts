@@ -771,9 +771,10 @@ export async function bulkAssignToHeat(
 		return []
 	}
 
-	// Each insert row uses ~3 params (heatId, registrationId, laneNumber)
-	// Use smaller batch size to stay well under D1's 100 param limit
-	const INSERT_BATCH_SIZE = 25
+	// Each insert row uses 7 params (id, heatId, registrationId, laneNumber, createdAt, updatedAt, updateCounter)
+	// D1 has a 100 param limit, so max 14 rows per batch (14 * 7 = 98)
+	// Use 10 to be safe
+	const INSERT_BATCH_SIZE = 10
 
 	const results = await Promise.all(
 		chunk(assignments, INSERT_BATCH_SIZE).map((batch) =>
