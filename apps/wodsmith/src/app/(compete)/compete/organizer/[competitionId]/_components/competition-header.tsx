@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Calendar, ExternalLink, Pencil, UserPlus } from "lucide-react"
+import { Calendar, ExternalLink, Eye, EyeOff, Pencil, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatUTCDateFull } from "@/utils/date-utils"
@@ -14,6 +14,7 @@ interface CompetitionHeaderProps {
 		endDate: Date
 		registrationOpensAt: Date | null
 		registrationClosesAt: Date | null
+		visibility: "public" | "private"
 	}
 }
 
@@ -58,6 +59,24 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 				<h1 className="text-3xl font-bold">{competition.name}</h1>
 				<div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-muted-foreground text-sm">
 					<div className="flex items-center gap-2">
+						{competition.visibility === "private" ? (
+							<Badge variant="secondary" className="shrink-0">
+								<EyeOff className="h-3 w-3 mr-1" />
+								Private
+							</Badge>
+						) : (
+							<Badge variant="outline" className="shrink-0">
+								<Eye className="h-3 w-3 mr-1" />
+								Public
+							</Badge>
+						)}
+						{registrationStatus && (
+							<Badge variant={registrationStatus.variant}>
+								{registrationStatus.label}
+							</Badge>
+						)}
+					</div>
+					<div className="flex items-center gap-2">
 						<Calendar className="h-4 w-4" />
 						<span>
 							{formatUTCDateFull(competition.startDate)} -{" "}
@@ -73,11 +92,6 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 									{formatDateTime(competition.registrationOpensAt)} -{" "}
 									{formatDateTime(competition.registrationClosesAt)}
 								</span>
-								{registrationStatus && (
-									<Badge variant={registrationStatus.variant}>
-										{registrationStatus.label}
-									</Badge>
-								)}
 							</div>
 						)}
 				</div>
