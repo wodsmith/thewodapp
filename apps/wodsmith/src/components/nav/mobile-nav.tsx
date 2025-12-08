@@ -13,6 +13,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet"
+import type { AthleteProfileMissingFields } from "@/server/user"
 import type { SessionValidationResult } from "@/types"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
@@ -29,15 +30,34 @@ interface PendingInvitation {
 interface MobileNavProps {
 	session: SessionValidationResult | null
 	invitations?: PendingInvitation[]
-	isProfileIncomplete?: boolean
+	missingProfileFields?: AthleteProfileMissingFields | null
+}
+
+function formatMissingFields(
+	missing: AthleteProfileMissingFields | null | undefined,
+): string {
+	if (!missing) return ""
+	const fields: string[] = []
+	if (missing.gender) fields.push("gender")
+	if (missing.dateOfBirth) fields.push("date of birth")
+	if (missing.affiliateName) fields.push("affiliate")
+	if (fields.length === 0) return ""
+	if (fields.length === 1) return `Add ${fields[0]}`
+	if (fields.length === 2) return `Add ${fields[0]} & ${fields[1]}`
+	return `Add ${fields.slice(0, -1).join(", ")} & ${fields[fields.length - 1]}`
 }
 
 export default function MobileNav({
 	session,
 	invitations = [],
-	isProfileIncomplete = false,
+	missingProfileFields = null,
 }: MobileNavProps) {
 	const [open, setOpen] = useState(false)
+	const isProfileIncomplete =
+		missingProfileFields &&
+		(missingProfileFields.gender ||
+			missingProfileFields.dateOfBirth ||
+			missingProfileFields.affiliateName)
 	const hasNotifications = invitations.length > 0 || isProfileIncomplete
 
 	// Filter teams where the user is an owner
@@ -143,7 +163,7 @@ export default function MobileNav({
 											<div className="flex flex-col">
 												<span>Complete Your Profile</span>
 												<span className="text-muted-foreground text-sm">
-													Add gender & date of birth
+													{formatMissingFields(missingProfileFields)}
 												</span>
 											</div>
 											<span className="ml-auto h-2 w-2 rounded-full bg-red-500" />

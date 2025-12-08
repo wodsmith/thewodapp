@@ -6,7 +6,10 @@ import CompeteMobileNav from "@/components/nav/compete-mobile-nav"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
-import { isAthleteProfileComplete } from "@/server/user"
+import {
+	type AthleteProfileMissingFields,
+	getAthleteProfileMissingFields,
+} from "@/server/user"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeCompetitions } from "@/utils/get-user-organizing-teams"
 
@@ -17,17 +20,17 @@ export default async function CompeteNav() {
 		ReturnType<typeof getPendingInvitationsForCurrentUser>
 	> = []
 	let canOrganize = false
-	let isProfileIncomplete = false
+	let missingProfileFields: AthleteProfileMissingFields | null = null
 	if (session?.user) {
 		try {
-			const [invitations, organize, profileComplete] = await Promise.all([
+			const [invitations, organize, missing] = await Promise.all([
 				getPendingInvitationsForCurrentUser(),
 				canOrganizeCompetitions(),
-				isAthleteProfileComplete(session.userId),
+				getAthleteProfileMissingFields(session.userId),
 			])
 			pendingInvitations = invitations
 			canOrganize = organize
-			isProfileIncomplete = !profileComplete
+			missingProfileFields = missing
 		} catch {
 			// User not authenticated or error fetching invitations
 		}
@@ -87,7 +90,7 @@ export default async function CompeteNav() {
 							</Link>
 							<NotificationBell
 								invitations={pendingInvitations}
-								isProfileIncomplete={isProfileIncomplete}
+								missingProfileFields={missingProfileFields}
 							/>
 							<DarkModeToggle />
 							<LogoutButton />
@@ -114,7 +117,7 @@ export default async function CompeteNav() {
 					session={session}
 					invitations={pendingInvitations}
 					canOrganize={canOrganize}
-					isProfileIncomplete={isProfileIncomplete}
+					missingProfileFields={missingProfileFields}
 				/>
 			</div>
 		</header>

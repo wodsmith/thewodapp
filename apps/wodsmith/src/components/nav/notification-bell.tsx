@@ -10,6 +10,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { AthleteProfileMissingFields } from "@/server/user"
 
 interface PendingInvitation {
 	id: string
@@ -23,13 +24,32 @@ interface PendingInvitation {
 
 interface NotificationBellProps {
 	invitations: PendingInvitation[]
-	isProfileIncomplete?: boolean
+	missingProfileFields?: AthleteProfileMissingFields | null
+}
+
+function formatMissingFields(
+	missing: AthleteProfileMissingFields | null | undefined,
+): string {
+	if (!missing) return ""
+	const fields: string[] = []
+	if (missing.gender) fields.push("gender")
+	if (missing.dateOfBirth) fields.push("date of birth")
+	if (missing.affiliateName) fields.push("affiliate")
+	if (fields.length === 0) return ""
+	if (fields.length === 1) return `Add ${fields[0]}`
+	if (fields.length === 2) return `Add ${fields[0]} & ${fields[1]}`
+	return `Add ${fields.slice(0, -1).join(", ")} & ${fields[fields.length - 1]}`
 }
 
 export function NotificationBell({
 	invitations,
-	isProfileIncomplete = false,
+	missingProfileFields = null,
 }: NotificationBellProps) {
+	const isProfileIncomplete =
+		missingProfileFields &&
+		(missingProfileFields.gender ||
+			missingProfileFields.dateOfBirth ||
+			missingProfileFields.affiliateName)
 	const hasNotifications = invitations.length > 0 || isProfileIncomplete
 
 	return (
@@ -60,7 +80,8 @@ export function NotificationBell({
 										<div className="flex flex-col gap-0.5">
 											<span className="font-medium">Complete Your Profile</span>
 											<span className="text-muted-foreground text-sm">
-												Add your gender and date of birth for competitions
+												{formatMissingFields(missingProfileFields)} for
+												competitions
 											</span>
 										</div>
 									</div>
