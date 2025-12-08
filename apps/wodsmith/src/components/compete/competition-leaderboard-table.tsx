@@ -28,7 +28,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import type { CompetitionLeaderboardEntry } from "@/server/competition-leaderboard"
+import type { CompetitionLeaderboardEntry, TeamMemberInfo } from "@/server/competition-leaderboard"
 
 interface CompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]
@@ -125,6 +125,30 @@ function SortableHeader({
 	)
 }
 
+/** Format member name with optional captain indicator */
+function formatMemberName(member: TeamMemberInfo): string {
+	const name = `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
+	return member.isCaptain ? `${name} (C)` : name
+}
+
+/** Team cell for team divisions - shows team name with members underneath */
+function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
+	if (!entry.isTeamDivision) {
+		return <span className="font-medium">{entry.athleteName}</span>
+	}
+
+	return (
+		<div className="flex flex-col gap-0.5">
+			<span className="font-medium">{entry.teamName || "Unknown Team"}</span>
+			{entry.teamMembers.length > 0 && (
+				<span className="text-[10px] text-muted-foreground leading-tight">
+					{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+				</span>
+			)}
+		</div>
+	)
+}
+
 /** Mobile expandable row for leaderboard */
 function MobileLeaderboardRow({
 	entry,
@@ -162,9 +186,20 @@ function MobileLeaderboardRow({
 						</span>
 					</div>
 
-					{/* Athlete name - takes remaining space, right-aligned */}
+					{/* Athlete/Team name - takes remaining space, right-aligned */}
 					<div className="flex-1 min-w-0 text-right">
-						<span className="font-medium truncate block">{entry.athleteName}</span>
+						{entry.isTeamDivision ? (
+							<>
+								<span className="font-medium truncate block">{entry.teamName || "Unknown Team"}</span>
+								{entry.teamMembers.length > 0 && (
+									<span className="text-[10px] text-muted-foreground truncate block">
+										{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+									</span>
+								)}
+							</>
+						) : (
+							<span className="font-medium truncate block">{entry.athleteName}</span>
+						)}
 					</div>
 
 					{/* Expand indicator */}
@@ -243,8 +278,17 @@ export function CompetitionLeaderboardTable({
 		})
 	}, [leaderboard, selectedEventId])
 
+	// Determine if this is a team division leaderboard
+	const isTeamLeaderboard = useMemo(
+		() => leaderboard.some((entry) => entry.isTeamDivision),
+		[leaderboard],
+	)
+
 	// Build columns dynamically based on view mode
 	const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
+		// Column header label: "Team" for team divisions, "Athlete" for individual
+		const athleteColumnLabel = isTeamLeaderboard ? "Team" : "Athlete"
+
 		if (selectedEventId) {
 			// Single event view
 			return [
@@ -270,11 +314,9 @@ export function CompetitionLeaderboardTable({
 				},
 				{
 					id: "athlete",
-					header: "Athlete",
-					accessorKey: "athleteName",
-					cell: ({ row }) => (
-						<span className="font-medium">{row.original.athleteName}</span>
-					),
+					header: athleteColumnLabel,
+					accessorKey: isTeamLeaderboard ? "teamName" : "athleteName",
+					cell: ({ row }) => <TeamCell entry={row.original} />,
 				},
 				{
 					id: "score",
@@ -317,12 +359,10 @@ export function CompetitionLeaderboardTable({
 			{
 				id: "athlete",
 				header: ({ column }) => (
-					<SortableHeader column={column}>Athlete</SortableHeader>
+					<SortableHeader column={column}>{athleteColumnLabel}</SortableHeader>
 				),
-				accessorKey: "athleteName",
-				cell: ({ row }) => (
-					<span className="font-medium">{row.original.athleteName}</span>
-				),
+				accessorKey: isTeamLeaderboard ? "teamName" : "athleteName",
+				cell: ({ row }) => <TeamCell entry={row.original} />,
 			},
 		]
 
@@ -360,7 +400,7 @@ export function CompetitionLeaderboardTable({
 		}
 
 		return baseColumns
-	}, [events, selectedEventId])
+	}, [events, selectedEventId, isTeamLeaderboard])
 
 	const table = useReactTable({
 		data: tableData,

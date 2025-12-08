@@ -8,6 +8,7 @@ import {
 	results,
 	scalingLevelsTable,
 	sets,
+	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
 	workouts,
@@ -22,6 +23,13 @@ import {
 } from "@/utils/score-formatting"
 import { getCompetitionTrack } from "./competition-workouts"
 
+export interface TeamMemberInfo {
+	userId: string
+	firstName: string | null
+	lastName: string | null
+	isCaptain: boolean
+}
+
 export interface CompetitionLeaderboardEntry {
 	registrationId: string
 	userId: string
@@ -30,6 +38,10 @@ export interface CompetitionLeaderboardEntry {
 	divisionLabel: string
 	totalPoints: number
 	overallRank: number
+	// Team info (null for individual divisions)
+	isTeamDivision: boolean
+	teamName: string | null
+	teamMembers: TeamMemberInfo[]
 	eventResults: Array<{
 		trackWorkoutId: string
 		trackOrder: number
@@ -171,6 +183,38 @@ export async function getCompetitionLeaderboard(params: {
 			)
 		: registrations
 
+	// Get team members for team registrations
+	// First, collect all athleteTeamIds from team registrations
+	const athleteTeamIds = filteredRegistrations
+		.filter((r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1)
+		.map((r) => r.registration.athleteTeamId as string)
+
+	// Fetch all team memberships for these teams in one query
+	const allTeamMemberships = athleteTeamIds.length > 0
+		? await autochunk({ items: athleteTeamIds }, async (chunk) =>
+				db
+					.select({
+						membership: teamMembershipTable,
+						user: userTable,
+					})
+					.from(teamMembershipTable)
+					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+					.where(inArray(teamMembershipTable.teamId, chunk)),
+			)
+		: []
+
+	// Group memberships by teamId
+	const membershipsByTeamId = new Map<
+		string,
+		Array<{ membership: typeof allTeamMemberships[number]["membership"]; user: typeof allTeamMemberships[number]["user"] }>
+	>()
+	for (const m of allTeamMemberships) {
+		const teamId = m.membership.teamId
+		const existing = membershipsByTeamId.get(teamId) || []
+		existing.push(m)
+		membershipsByTeamId.set(teamId, existing)
+	}
+
 	// Get all results for competition events (by competitionEventId = trackWorkout.id)
 	const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
 	const allResults = await autochunk(
@@ -208,6 +252,23 @@ export async function getCompetitionLeaderboard(params: {
 		const fullName =
 			`${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
 
+		const isTeamDivision = (reg.division?.teamSize ?? 1) > 1
+		const athleteTeamId = reg.registration.athleteTeamId
+
+		// Build team members list for team divisions
+		let teamMembers: TeamMemberInfo[] = []
+		if (isTeamDivision && athleteTeamId) {
+			const memberships = membershipsByTeamId.get(athleteTeamId) || []
+			teamMembers = memberships.map((m) => ({
+				userId: m.user.id,
+				firstName: m.user.firstName,
+				lastName: m.user.lastName,
+				isCaptain: m.membership.userId === reg.registration.captainUserId,
+			}))
+			// Sort so captain appears first
+			teamMembers.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0))
+		}
+
 		leaderboardMap.set(reg.registration.id, {
 			registrationId: reg.registration.id,
 			userId: reg.user.id,
@@ -216,6 +277,9 @@ export async function getCompetitionLeaderboard(params: {
 			divisionLabel: reg.division?.label || "Open",
 			totalPoints: 0,
 			overallRank: 0,
+			isTeamDivision,
+			teamName: reg.registration.teamName,
+			teamMembers,
 			eventResults: [],
 		})
 	}
