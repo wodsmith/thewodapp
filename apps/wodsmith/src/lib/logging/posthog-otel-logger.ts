@@ -1,14 +1,23 @@
 import "server-only"
 
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api"
-import { logs, type Logger, SeverityNumber } from "@opentelemetry/api-logs"
-import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http"
-import { resourceFromAttributes } from "@opentelemetry/resources"
-import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions"
-import {
-	BatchLogRecordProcessor,
-	LoggerProvider,
-} from "@opentelemetry/sdk-logs"
+import { SeverityNumber } from "@opentelemetry/api-logs"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+
+/**
+ * PostHog OpenTelemetry Logger for Cloudflare Workers via OpenNext
+ *
+ * SERVERLESS ENVIRONMENT NOTES:
+ * - This module uses module-level state to cache configuration (PostHog token, endpoint).
+ * - Configuration is initialized once and assumed to remain stable throughout the module's lifetime.
+ * - In Cloudflare Workers, modules are cached across requests, so environment variables
+ *   must remain consistent between deployments.
+ * - If environment variables change between deployments, restart the worker to pick up new values.
+ *
+ * PREVENTING LOG LOSS:
+ * - Automatically uses OpenNext's CloudflareContext to access ctx.waitUntil
+ * - This ensures logs complete even after the response is sent
+ * - No manual configuration needed - just call logInfo(), logWarning(), or logError()
+ */
 
 interface LogParams {
 	message: string
@@ -20,69 +29,127 @@ interface LogParams {
 
 const DEFAULT_ENDPOINT = "https://us.i.posthog.com/i/v1/logs"
 
-let cachedLogger: Logger | null = null
-let cachedProvider: LoggerProvider | null = null
 let isPostHogEnabled = false
+let posthogToken: string | undefined
+let endpoint: string
 
-function buildResource() {
-	return resourceFromAttributes({
-		[ATTR_SERVICE_NAME]: "wodsmith",
-		// service.namespace and deployment.environment are in incubating semconv
-		// Using string literals as they're stable attribute keys
-		"service.namespace": "web",
-		"deployment.environment.name": process.env.NODE_ENV ?? "development",
-	})
+function initConfig() {
+	if (posthogToken !== undefined) return
+
+	posthogToken = process.env.NEXT_PUBLIC_POSTHOG_KEY
+	endpoint = process.env.POSTHOG_LOGS_ENDPOINT ?? DEFAULT_ENDPOINT
+	isPostHogEnabled = !!posthogToken
 }
 
-function createLogger() {
-	if (cachedLogger) {
-		return cachedLogger
+/**
+ * Send log directly to PostHog using fetch (Cloudflare Workers compatible)
+ * Uses OTLP JSON format: https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding
+ * Automatically uses OpenNext CloudflareContext to ensure logs complete via waitUntil
+ */
+function sendLogToPostHog(params: {
+	message: string
+	severityNumber: SeverityNumber
+	severityText: string
+	attributes: Record<string, unknown>
+}) {
+	if (!isPostHogEnabled || !posthogToken) return
+
+	const now = Date.now()
+	const body = {
+		resourceLogs: [
+			{
+				resource: {
+					attributes: [
+						{ key: "service.name", value: { stringValue: "wodsmith" } },
+						{ key: "service.namespace", value: { stringValue: "web" } },
+						{
+							key: "deployment.environment.name",
+							value: { stringValue: process.env.NODE_ENV ?? "development" },
+						},
+					],
+				},
+				scopeLogs: [
+					{
+						scope: { name: "posthog-otel-logger", version: "1.0.0" },
+						logRecords: [
+							{
+								timeUnixNano: String(now * 1_000_000),
+								severityNumber: params.severityNumber,
+								severityText: params.severityText,
+								body: { stringValue: params.message },
+								attributes: Object.entries(params.attributes).map(
+									([key, value]) => ({
+										key,
+										value: formatAttributeValue(value),
+									}),
+								),
+							},
+						],
+					},
+				],
+			},
+		],
 	}
 
-	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO)
+	// Create the async fetch operation
+	const fetchPromise = (async () => {
+		try {
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${posthogToken}`,
+				},
+				body: JSON.stringify(body),
+			})
 
-	const posthogToken = process.env.NEXT_PUBLIC_POSTHOG_KEY
-	const endpoint = process.env.POSTHOG_LOGS_ENDPOINT ?? DEFAULT_ENDPOINT
+			if (!response.ok) {
+				console.error(
+					"[posthog-otel] Failed to send log:",
+					response.status,
+					await response.text(),
+				)
+			}
+		} catch (err) {
+			console.error("[posthog-otel] Error sending log:", err)
+		}
+	})()
 
-	if (!posthogToken) {
-		diag.warn("PostHog logging disabled: missing NEXT_PUBLIC_POSTHOG_KEY")
-		const provider = new LoggerProvider({ resource: buildResource() })
-		logs.setGlobalLoggerProvider(provider)
-		cachedProvider = provider
-		cachedLogger = provider.getLogger("posthog-otel-logger", "1.0.0")
-		isPostHogEnabled = false
-		return cachedLogger
+	// Use OpenNext's CloudflareContext to get waitUntil and prevent log loss
+	try {
+		const cloudflareContext = getCloudflareContext()
+		if (cloudflareContext?.ctx?.waitUntil) {
+			cloudflareContext.ctx.waitUntil(fetchPromise)
+		}
+	} catch (err) {
+		// Context not available (e.g., local dev or non-Cloudflare environment)
+		// Log will still be attempted but may not complete if execution terminates early
 	}
-
-	const exporter = new OTLPLogExporter({
-		url: endpoint,
-		headers: {
-			Authorization: `Bearer ${posthogToken}`,
-		},
-	})
-
-	const processor = new BatchLogRecordProcessor(exporter, {
-		exportTimeoutMillis: 5_000,
-		maxQueueSize: 512,
-		maxExportBatchSize: 128,
-		scheduledDelayMillis: 1_000,
-	})
-
-	const provider = new LoggerProvider({
-		resource: buildResource(),
-		processors: [processor],
-	})
-
-	logs.setGlobalLoggerProvider(provider)
-	cachedProvider = provider
-	cachedLogger = provider.getLogger("posthog-otel-logger", "1.0.0")
-	isPostHogEnabled = true
-
-	return cachedLogger
 }
 
-function ensureLogger() {
-	return cachedLogger ?? createLogger()
+function formatAttributeValue(value: unknown): Record<string, unknown> {
+	if (typeof value === "string") {
+		return { stringValue: value }
+	}
+	if (typeof value === "number") {
+		return Number.isInteger(value)
+			? { intValue: String(value) }
+			: { doubleValue: value }
+	}
+	if (typeof value === "boolean") {
+		return { boolValue: value }
+	}
+	if (Array.isArray(value)) {
+		return {
+			arrayValue: {
+				values: value.map((v) => formatAttributeValue(v)),
+			},
+		}
+	}
+	if (value !== null && typeof value === "object") {
+		return { stringValue: JSON.stringify(value) }
+	}
+	return { stringValue: String(value) }
 }
 
 function enrichAttributes({
@@ -154,12 +221,12 @@ function emitToConsole(
 }
 
 export function logInfo(params: LogParams) {
-	const logger = ensureLogger()
+	initConfig()
 	const severityNumber = params.severityNumber ?? SeverityNumber.INFO
 	const severityText = params.severityText ?? "INFO"
 
-	logger.emit({
-		body: params.message,
+	sendLogToPostHog({
+		message: params.message,
 		severityNumber,
 		severityText,
 		attributes: enrichAttributes({
@@ -173,12 +240,13 @@ export function logInfo(params: LogParams) {
 }
 
 export function logWarning(params: LogParams) {
-	const logger = ensureLogger()
+	initConfig()
 	const severityText = params.severityText ?? "WARN"
+	const severityNumber = params.severityNumber ?? SeverityNumber.WARN
 
-	logger.emit({
-		body: params.message,
-		severityNumber: params.severityNumber ?? SeverityNumber.WARN,
+	sendLogToPostHog({
+		message: params.message,
+		severityNumber,
 		severityText,
 		attributes: enrichAttributes({
 			attributes: params.attributes,
@@ -191,12 +259,13 @@ export function logWarning(params: LogParams) {
 }
 
 export function logError(params: LogParams) {
-	const logger = ensureLogger()
+	initConfig()
 	const severityText = params.severityText ?? "ERROR"
+	const severityNumber = params.severityNumber ?? SeverityNumber.ERROR
 
-	logger.emit({
-		body: params.message,
-		severityNumber: params.severityNumber ?? SeverityNumber.ERROR,
+	sendLogToPostHog({
+		message: params.message,
+		severityNumber,
 		severityText,
 		attributes: enrichAttributes({
 			attributes: params.attributes,
@@ -233,13 +302,8 @@ export function logDebug(params: Omit<LogParams, "severityNumber" | "severityTex
 
 /**
  * Flush all pending logs. Call this before process shutdown.
+ * No-op with fetch-based implementation since logs are sent immediately.
  */
 export async function flushLogs(): Promise<void> {
-	try {
-		if (cachedProvider && typeof cachedProvider.forceFlush === "function") {
-			await cachedProvider.forceFlush()
-		}
-	} catch {
-		// Ignore flush errors during shutdown
-	}
+	// No-op - logs are sent immediately with fetch
 }
