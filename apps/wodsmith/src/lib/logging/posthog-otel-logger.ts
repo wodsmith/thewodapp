@@ -1,6 +1,23 @@
 import "server-only"
 
 import { SeverityNumber } from "@opentelemetry/api-logs"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
+
+/**
+ * PostHog OpenTelemetry Logger for Cloudflare Workers via OpenNext
+ *
+ * SERVERLESS ENVIRONMENT NOTES:
+ * - This module uses module-level state to cache configuration (PostHog token, endpoint).
+ * - Configuration is initialized once and assumed to remain stable throughout the module's lifetime.
+ * - In Cloudflare Workers, modules are cached across requests, so environment variables
+ *   must remain consistent between deployments.
+ * - If environment variables change between deployments, restart the worker to pick up new values.
+ *
+ * PREVENTING LOG LOSS:
+ * - Automatically uses OpenNext's CloudflareContext to access ctx.waitUntil
+ * - This ensures logs complete even after the response is sent
+ * - No manual configuration needed - just call logInfo(), logWarning(), or logError()
+ */
 
 interface LogParams {
 	message: string
@@ -27,8 +44,9 @@ function initConfig() {
 /**
  * Send log directly to PostHog using fetch (Cloudflare Workers compatible)
  * Uses OTLP JSON format: https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding
+ * Automatically uses OpenNext CloudflareContext to ensure logs complete via waitUntil
  */
-async function sendLogToPostHog(params: {
+function sendLogToPostHog(params: {
 	message: string
 	severityNumber: SeverityNumber
 	severityText: string
@@ -73,25 +91,39 @@ async function sendLogToPostHog(params: {
 		],
 	}
 
-	try {
-		const response = await fetch(endpoint, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${posthogToken}`,
-			},
-			body: JSON.stringify(body),
-		})
+	// Create the async fetch operation
+	const fetchPromise = (async () => {
+		try {
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${posthogToken}`,
+				},
+				body: JSON.stringify(body),
+			})
 
-		if (!response.ok) {
-			console.error(
-				"[posthog-otel] Failed to send log:",
-				response.status,
-				await response.text(),
-			)
+			if (!response.ok) {
+				console.error(
+					"[posthog-otel] Failed to send log:",
+					response.status,
+					await response.text(),
+				)
+			}
+		} catch (err) {
+			console.error("[posthog-otel] Error sending log:", err)
+		}
+	})()
+
+	// Use OpenNext's CloudflareContext to get waitUntil and prevent log loss
+	try {
+		const cloudflareContext = getCloudflareContext()
+		if (cloudflareContext?.ctx?.waitUntil) {
+			cloudflareContext.ctx.waitUntil(fetchPromise)
 		}
 	} catch (err) {
-		console.error("[posthog-otel] Error sending log:", err)
+		// Context not available (e.g., local dev or non-Cloudflare environment)
+		// Log will still be attempted but may not complete if execution terminates early
 	}
 }
 
@@ -193,7 +225,6 @@ export function logInfo(params: LogParams) {
 	const severityNumber = params.severityNumber ?? SeverityNumber.INFO
 	const severityText = params.severityText ?? "INFO"
 
-	// Fire and forget - don't await to avoid blocking
 	sendLogToPostHog({
 		message: params.message,
 		severityNumber,
