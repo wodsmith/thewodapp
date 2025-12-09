@@ -100,8 +100,8 @@ function compareTiebreaks(a: Score, b: Score): number {
  * scores.sort(compare)
  */
 export function createComparator(
-	scheme: Score["scheme"],
-	scoreType: Score["scoreType"],
+	_scheme: Score["scheme"],
+	_scoreType: Score["scoreType"],
 ): (a: Score, b: Score) => number {
 	return compareScores
 }

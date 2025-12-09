@@ -2,7 +2,7 @@
  * Smart time parsing: converts various input formats to standardized time
  */
 
-import { MS_PER_MINUTE, MS_PER_SECOND } from "../constants"
+import { MS_PER_SECOND } from "../constants"
 import { decodeTime } from "../decode/time"
 import { encodeTime } from "../encode/time"
 import type { ParseResult } from "../types"
@@ -190,13 +190,14 @@ function parseTimeAuto(input: string): ParseResult {
 			formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)}:${digits.slice(4)}`
 			break
 
-		default:
+		default: {
 			// 7+ digits: parse as HH...H:MM:SS
 			const hours = digits.slice(0, -4)
 			const minutes = digits.slice(-4, -2)
 			const seconds = digits.slice(-2)
 			formatted = `${hours}:${minutes}:${seconds}`
 			break
+		}
 	}
 
 	// Now encode the formatted time

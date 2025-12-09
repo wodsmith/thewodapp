@@ -19,8 +19,8 @@ import type {
 } from "../types"
 import { encodeDistance, encodeDistanceFromNumber } from "./distance"
 import { encodeLoad, encodeLoadFromNumber } from "./load"
-import { encodeRoundsReps, encodeRoundsRepsFromParts } from "./rounds-reps"
-import { encodeTime, encodeTimeFromMs, encodeTimeFromSeconds } from "./time"
+import { encodeRoundsReps } from "./rounds-reps"
+import { encodeTime, encodeTimeFromSeconds } from "./time"
 import { aggregateValues } from "../aggregate"
 
 // Re-export individual encoders

@@ -6,7 +6,6 @@ import { getDb } from "@/db"
 import {
 	logError,
 	logInfo,
-	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 import {
 	type ProgrammingTrack,
@@ -702,7 +701,7 @@ export async function reorderTrackWorkouts(
 			})
 
 			try {
-				const updateResult = await db
+				await db
 					.update(trackWorkoutsTable)
 					.set({ trackOrder, updatedAt: new Date() })
 					.where(eq(trackWorkoutsTable.id, trackWorkoutId))

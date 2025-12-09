@@ -2,7 +2,7 @@
  * Time decoding: converts milliseconds to formatted time strings
  */
 
-import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "../constants"
+import { MS_PER_SECOND } from "../constants"
 
 export interface DecodeTimeOptions {
 	/** Always show milliseconds even if .000 */

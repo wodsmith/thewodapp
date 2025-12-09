@@ -1,7 +1,6 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { Suspense } from "react"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import {
 	getCompetition,
@@ -66,7 +65,7 @@ export default async function CompetitionTabsLayout({ params, children }: Props)
 	}
 
 	// Parallel fetch: session, registrations, divisions (needed for hero/sidebar)
-	const [session, registrations, divisions] = await Promise.all([
+	const [session, registrations, _divisions] = await Promise.all([
 		getSessionFromCookie(),
 		getCompetitionRegistrations(competition.id),
 		getPublicCompetitionDivisions(competition.id),

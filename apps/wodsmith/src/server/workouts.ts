@@ -37,7 +37,6 @@ import {
 import {
 	logError,
 	logInfo,
-	logWarning,
 } from "@/lib/logging/posthog-otel-logger";
 import {
 	isTeamSubscribedToProgrammingTrack,

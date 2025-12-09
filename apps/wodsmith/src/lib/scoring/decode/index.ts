@@ -8,10 +8,10 @@ import {
 	isLoadBasedScheme,
 	isTimeBasedScheme,
 } from "../constants"
-import type { DistanceUnit, FormatOptions, WeightUnit, WorkoutScheme } from "../types"
+import type { DistanceUnit, FormatOptions, WorkoutScheme } from "../types"
 import { decodeDistance, mmToUnit } from "./distance"
 import { decodeLoad, gramsToUnit } from "./load"
-import { decodeRoundsReps, extractRoundsReps } from "./rounds-reps"
+import { decodeRoundsReps } from "./rounds-reps"
 import { decodeTime, decodeTimeToSeconds } from "./time"
 
 // Re-export individual decoders

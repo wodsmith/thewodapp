@@ -5,7 +5,6 @@
 import { ROUNDS_REPS_MULTIPLIER } from "../constants"
 import { parseScore } from "../parse"
 import type {
-	ParseOptions,
 	ScoreInput,
 	ScoreStatus,
 	ValidationResult,

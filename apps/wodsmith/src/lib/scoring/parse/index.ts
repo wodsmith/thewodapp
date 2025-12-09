@@ -227,7 +227,7 @@ function parseDistance(input: string, unit: DistanceUnit = "m"): ParseResult {
 /**
  * Parse count-based input (reps, calories, points).
  */
-function parseCount(input: string, scheme: WorkoutScheme): ParseResult {
+function parseCount(input: string, _scheme: WorkoutScheme): ParseResult {
 	const value = Number.parseInt(input, 10)
 	if (Number.isNaN(value) || value < 0) {
 		return {
