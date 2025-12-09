@@ -36,26 +36,14 @@ export default async function OrganizerDashboard({
 		}
 	}
 
+	// If no active team selected but there are organizing teams, use the first one
+	if (!activeTeamId && organizingTeams.length > 0) {
+		activeTeamId = organizingTeams[0]?.id
+	}
+
 	if (!activeTeamId) {
-		// No valid organizing team - show message to switch teams
-		const firstTeam = organizingTeams[0]
-		if (firstTeam) {
-			return (
-				<div className="container mx-auto px-4 py-8">
-					<div className="flex flex-col gap-6">
-						<div>
-							<h1 className="text-3xl font-bold">My Competitions</h1>
-							<p className="text-muted-foreground mt-1">
-								Your current team cannot organize competitions. Please select an
-								organizing team:
-							</p>
-						</div>
-						<TeamFilter teams={organizingTeams} selectedTeamId={firstTeam.id} />
-					</div>
-				</div>
-			)
-		}
-		return null // Layout handles no access case
+		// No organizing teams at all - layout handles no access case
+		return null
 	}
 
 	// Fetch competitions for the active team
