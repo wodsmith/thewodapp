@@ -191,7 +191,7 @@ describe("parseScore", () => {
 			expect(result.encoded).toBe(85)
 		})
 
-		it("should return invalid for non-integer", () => {
+		it("should truncate non-integer values", () => {
 			const result = parseScore("150.5", "reps")
 			expect(result.isValid).toBe(true) // parseInt handles this
 			expect(result.encoded).toBe(150)

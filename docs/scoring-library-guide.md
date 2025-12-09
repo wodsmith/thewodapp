@@ -434,7 +434,7 @@ LIMIT 50
 ### With Drizzle
 
 ```typescript
-import { asc } from "drizzle-orm"
+import { asc, and, eq } from "drizzle-orm"
 import { scoresTable } from "@/db/schema"
 
 const leaderboard = await db

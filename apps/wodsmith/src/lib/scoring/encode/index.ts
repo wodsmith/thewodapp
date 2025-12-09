@@ -29,11 +29,8 @@ export {
 	encodeTimeFromSeconds,
 	encodeTimeFromMs,
 } from "./time"
-export {
-	encodeRoundsReps,
-	encodeRoundsRepsFromParts,
-	extractRoundsReps,
-} from "./rounds-reps"
+export { encodeRoundsReps, encodeRoundsRepsFromParts } from "./rounds-reps"
+export { extractRoundsReps } from "../decode/rounds-reps"
 export { encodeLoad, encodeLoadFromNumber, gramsToUnit } from "./load"
 export {
 	encodeDistance,

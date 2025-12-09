@@ -7,6 +7,7 @@ import {
 	isDistanceBasedScheme,
 	isLoadBasedScheme,
 	isTimeBasedScheme,
+	ROUNDS_REPS_MULTIPLIER,
 } from "../constants"
 import { decodeScore } from "../decode"
 import { encodeScore } from "../encode"
@@ -126,7 +127,16 @@ function parseRoundsReps(input: string, strict?: boolean): ParseResult {
 			}
 		}
 
-		const encoded = rounds * 100_000 + reps
+		if (reps >= ROUNDS_REPS_MULTIPLIER) {
+			return {
+				isValid: false,
+				encoded: null,
+				formatted: input,
+				error: `Reps cannot exceed ${ROUNDS_REPS_MULTIPLIER - 1}`,
+			}
+		}
+
+		const encoded = rounds * ROUNDS_REPS_MULTIPLIER + reps
 		return {
 			isValid: true,
 			encoded,
@@ -147,7 +157,7 @@ function parseRoundsReps(input: string, strict?: boolean): ParseResult {
 		}
 	}
 
-	const encoded = rounds * 100_000
+	const encoded = rounds * ROUNDS_REPS_MULTIPLIER
 	return {
 		isValid: true,
 		encoded,

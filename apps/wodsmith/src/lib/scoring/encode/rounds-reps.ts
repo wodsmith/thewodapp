@@ -78,19 +78,3 @@ export function encodeRoundsRepsFromParts(
 
 	return rounds * ROUNDS_REPS_MULTIPLIER + reps
 }
-
-/**
- * Extract rounds and reps from an encoded value.
- * Useful for validation or display.
- *
- * @example
- * extractRoundsReps(500012)  // → { rounds: 5, reps: 12 }
- */
-export function extractRoundsReps(encoded: number): {
-	rounds: number
-	reps: number
-} {
-	const rounds = Math.floor(encoded / ROUNDS_REPS_MULTIPLIER)
-	const reps = encoded % ROUNDS_REPS_MULTIPLIER
-	return { rounds, reps }
-}

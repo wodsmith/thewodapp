@@ -152,10 +152,6 @@ export function validateRoundsReps(encoded: number): ValidationResult {
 	const rounds = Math.floor(encoded / ROUNDS_REPS_MULTIPLIER)
 	const reps = encoded % ROUNDS_REPS_MULTIPLIER
 
-	if (reps >= ROUNDS_REPS_MULTIPLIER) {
-		errors.push(`Reps cannot exceed ${ROUNDS_REPS_MULTIPLIER - 1}`)
-	}
-
 	if (rounds > 1000) {
 		warnings.push("Unusually high number of rounds")
 	}
