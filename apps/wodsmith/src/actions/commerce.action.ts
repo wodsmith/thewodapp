@@ -1,6 +1,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
+import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
 	commercePurchaseTable,
@@ -9,6 +10,7 @@ import {
 	competitionDivisionsTable,
 	competitionRegistrationsTable,
 	scalingLevelsTable,
+	teamTable,
 	COMMERCE_PURCHASE_STATUS,
 	COMMERCE_PRODUCT_TYPE,
 	COMMERCE_PAYMENT_STATUS,
@@ -126,6 +128,21 @@ export async function initiateRegistrationPayment(
 			input.divisionId,
 		)
 
+		// 5.5. For paid competitions, verify organizer has Stripe connected
+		if (registrationFeeCents > 0) {
+			const organizingTeam = await db.query.teamTable.findFirst({
+				where: eq(teamTable.id, competition.organizingTeamId),
+				columns: { stripeAccountStatus: true },
+			})
+
+			if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
+				throw new Error(
+					"This competition is temporarily unable to accept paid registrations. " +
+						"Please contact the organizer."
+				)
+			}
+		}
+
 		// 6. FREE DIVISION - create registration directly
 		if (registrationFeeCents === 0) {
 			const { registerForCompetition } = await import("@/server/competitions")
@@ -220,9 +237,18 @@ export async function initiateRegistrationPayment(
 			where: eq(scalingLevelsTable.id, input.divisionId),
 		})
 
+		// 10.5. Get organizing team's Stripe connection for payouts
+		const organizingTeam = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, competition.organizingTeamId),
+			columns: {
+				stripeConnectedAccountId: true,
+				stripeAccountStatus: true,
+			},
+		})
+
 		// 11. Create Stripe Checkout Session
 		const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-		const checkoutSession = await getStripe().checkout.sessions.create({
+		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",
 			payment_method_types: ["card"],
 			line_items: [
@@ -249,7 +275,23 @@ export async function initiateRegistrationPayment(
 			cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
 			expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes
 			customer_email: session.user.email ?? undefined, // Pre-fill email
-		})
+		}
+
+		// Add transfer_data if organizer has verified Stripe connection
+		if (
+			organizingTeam?.stripeConnectedAccountId &&
+			organizingTeam.stripeAccountStatus === "VERIFIED"
+		) {
+			sessionParams.payment_intent_data = {
+				application_fee_amount: feeBreakdown.platformFeeCents,
+				transfer_data: {
+					destination: organizingTeam.stripeConnectedAccountId,
+				},
+			}
+		}
+
+		const checkoutSession =
+			await getStripe().checkout.sessions.create(sessionParams)
 
 		// 12. Update purchase with Checkout Session ID
 		await db
