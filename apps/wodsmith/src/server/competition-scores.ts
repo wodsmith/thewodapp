@@ -10,6 +10,7 @@ import {
 	results,
 	scalingLevelsTable,
 	sets,
+	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
 	type ScoreStatus,
@@ -24,10 +25,37 @@ import {
 	type NormalizedScoreEntry,
 } from "@/server/logs"
 import { getSessionFromCookie } from "@/utils/auth"
-import {
-	logError,
-	logInfo,
-} from "@/lib/logging/posthog-otel-logger"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
+import { getHeatsForWorkout } from "./competition-heats"
+
+// ============================================================================
+// Heat-Based Score Entry Types
+// ============================================================================
+
+/** Heat info with assignment context for score entry UI */
+export interface HeatScoreGroup {
+	heatId: string
+	heatNumber: number
+	scheduledTime: Date | null
+	venue: { id: string; name: string } | null
+	division: { id: string; label: string } | null
+	/** Lane assignments with registration IDs for linking to athletes */
+	assignments: Array<{
+		laneNumber: number
+		registrationId: string
+	}>
+}
+
+/** Response for heat-grouped score entry data */
+export interface EventScoreEntryDataWithHeats extends EventScoreEntryData {
+	heats: HeatScoreGroup[]
+	/** Registration IDs that are not assigned to any heat */
+	unassignedRegistrationIds: string[]
+}
+
+// ============================================================================
+// Verification Functions
+// ============================================================================
 
 /**
  * Verify that a track workout belongs to the specified competition team.
@@ -76,6 +104,14 @@ export interface ExistingSetData {
 	reps: number | null
 }
 
+/** Team member info for team competitions */
+export interface TeamMemberInfo {
+	userId: string
+	firstName: string
+	lastName: string
+	isCaptain: boolean
+}
+
 export interface EventScoreEntryAthlete {
 	registrationId: string
 	userId: string
@@ -84,6 +120,10 @@ export interface EventScoreEntryAthlete {
 	email: string
 	divisionId: string | null
 	divisionLabel: string
+	/** Team name for team competitions (null for individuals) */
+	teamName: string | null
+	/** Team members including captain (empty for individuals) */
+	teamMembers: TeamMemberInfo[]
 	existingResult: {
 		resultId: string
 		wodScore: string | null
@@ -253,6 +293,47 @@ export async function getEventScoreEntryData(params: {
 				)
 			: []
 
+	// Get team members for team registrations
+	const athleteTeamIds = [
+		...new Set(
+			filteredRegistrations
+				.map((r) => r.registration.athleteTeamId)
+				.filter((id): id is string => id !== null),
+		),
+	]
+
+	// Fetch team memberships with user info for all athlete teams
+	const teamMemberships =
+		athleteTeamIds.length > 0
+			? await autochunk({ items: athleteTeamIds }, async (chunk) =>
+					db
+						.select({
+							teamId: teamMembershipTable.teamId,
+							userId: teamMembershipTable.userId,
+							firstName: userTable.firstName,
+							lastName: userTable.lastName,
+						})
+						.from(teamMembershipTable)
+						.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+						.where(inArray(teamMembershipTable.teamId, chunk)),
+				)
+			: []
+
+	// Group team members by teamId
+	const membersByTeamId = new Map<
+		string,
+		Array<{ userId: string; firstName: string | null; lastName: string | null }>
+	>()
+	for (const membership of teamMemberships) {
+		const existing = membersByTeamId.get(membership.teamId) || []
+		existing.push({
+			userId: membership.userId,
+			firstName: membership.firstName,
+			lastName: membership.lastName,
+		})
+		membersByTeamId.set(membership.teamId, existing)
+	}
+
 	// Build athletes array
 	const athletes: EventScoreEntryAthlete[] = filteredRegistrations.map(
 		(reg) => {
@@ -263,6 +344,25 @@ export async function getEventScoreEntryData(params: {
 					)
 				: []
 
+			// Get team members if this is a team registration
+			const athleteTeamId = reg.registration.athleteTeamId
+			const captainUserId = reg.registration.captainUserId || reg.user.id
+			const teamMembers: TeamMemberInfo[] = athleteTeamId
+				? (membersByTeamId.get(athleteTeamId) || []).map((member) => ({
+						userId: member.userId,
+						firstName: member.firstName || "",
+						lastName: member.lastName || "",
+						isCaptain: member.userId === captainUserId,
+					}))
+				: []
+
+			// Sort team members: captain first, then alphabetically by last name
+			teamMembers.sort((a, b) => {
+				if (a.isCaptain && !b.isCaptain) return -1
+				if (!a.isCaptain && b.isCaptain) return 1
+				return a.lastName.localeCompare(b.lastName)
+			})
+
 			return {
 				registrationId: reg.registration.id,
 				userId: reg.user.id,
@@ -271,6 +371,8 @@ export async function getEventScoreEntryData(params: {
 				email: reg.user.email || "",
 				divisionId: reg.registration.divisionId,
 				divisionLabel: reg.division?.label || "Open",
+				teamName: reg.registration.teamName || null,
+				teamMembers,
 				existingResult: existingResult
 					? {
 							resultId: existingResult.id,
@@ -285,12 +387,14 @@ export async function getEventScoreEntryData(params: {
 		},
 	)
 
-	// Sort by division label, then by last name
+	// Sort by division label, then by team name (or last name for individuals)
 	athletes.sort((a, b) => {
 		if (a.divisionLabel !== b.divisionLabel) {
 			return a.divisionLabel.localeCompare(b.divisionLabel)
 		}
-		return a.lastName.localeCompare(b.lastName)
+		const aName = a.teamName || a.lastName
+		const bName = b.teamName || b.lastName
+		return aName.localeCompare(bName)
 	})
 
 	return {
@@ -315,6 +419,59 @@ export async function getEventScoreEntryData(params: {
 		},
 		athletes,
 		divisions: divisions.sort((a, b) => a.position - b.position),
+	}
+}
+
+/**
+ * Get score entry data with heat groupings for a competition event.
+ * This extends getEventScoreEntryData with heat assignment information.
+ */
+export async function getEventScoreEntryDataWithHeats(params: {
+	competitionId: string
+	trackWorkoutId: string
+	competitionTeamId: string
+	divisionId?: string
+}): Promise<EventScoreEntryDataWithHeats> {
+	// Get the base score entry data
+	const baseData = await getEventScoreEntryData(params)
+
+	// Get heats for this workout
+	const heatsWithAssignments = await getHeatsForWorkout(params.trackWorkoutId)
+
+	// Build a set of all assigned registration IDs
+	const assignedRegistrationIds = new Set<string>()
+	for (const heat of heatsWithAssignments) {
+		for (const assignment of heat.assignments) {
+			assignedRegistrationIds.add(assignment.registration.id)
+		}
+	}
+
+	// Find unassigned registration IDs (athletes in baseData but not in any heat)
+	const allRegistrationIds = new Set(baseData.athletes.map((a) => a.registrationId))
+	const unassignedRegistrationIds = [...allRegistrationIds].filter(
+		(id) => !assignedRegistrationIds.has(id),
+	)
+
+	// Transform heats to simplified format for UI
+	const heats: HeatScoreGroup[] = heatsWithAssignments.map((heat) => ({
+		heatId: heat.id,
+		heatNumber: heat.heatNumber,
+		scheduledTime: heat.scheduledTime,
+		venue: heat.venue ? { id: heat.venue.id, name: heat.venue.name } : null,
+		division: heat.division,
+		assignments: heat.assignments.map((a) => ({
+			laneNumber: a.laneNumber,
+			registrationId: a.registration.id,
+		})),
+	}))
+
+	// Sort heats by number
+	heats.sort((a, b) => a.heatNumber - b.heatNumber)
+
+	return {
+		...baseData,
+		heats,
+		unassignedRegistrationIds,
 	}
 }
 

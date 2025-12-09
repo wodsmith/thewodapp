@@ -102,8 +102,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 	if (!purchaseId || !competitionId || !divisionId || !userId) {
 		logError({
-			message:
-				"[Stripe Webhook] Missing required metadata in Checkout Session",
+			message: "[Stripe Webhook] Missing required metadata in Checkout Session",
 			attributes: { purchaseId, competitionId, divisionId, userId },
 		})
 		return
@@ -116,9 +115,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 	if (!existingPurchase) {
 		logError({
-		message: "[Stripe Webhook] Purchase not found",
-		attributes: { purchaseId },
-	})
+			message: "[Stripe Webhook] Purchase not found",
+			attributes: { purchaseId },
+		})
 		return
 	}
 
@@ -188,7 +187,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			teamName: registrationData.teamName,
 			affiliateName: registrationData.affiliateName,
 			teammates: registrationData.teammates,
-			skipProfileValidation: true, // User already paid - they can complete profile on success page
 		})
 
 		// Update registration with payment info

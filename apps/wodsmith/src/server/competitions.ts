@@ -910,8 +910,6 @@ export async function registerForCompetition(params: {
 		lastName?: string
 		affiliateName?: string
 	}>
-	// Skip profile validation when called from webhook (user already paid)
-	skipProfileValidation?: boolean
 }): Promise<{
 	registrationId: string
 	teamMemberId: string
@@ -958,22 +956,10 @@ export async function registerForCompetition(params: {
 		throw new Error("User not found")
 	}
 
-	// 4. Validate user profile is complete (gender and dateOfBirth required)
-	// Skip for webhook calls where user has already paid - they can complete profile after
-	if (!params.skipProfileValidation) {
-		if (!user.gender) {
-			throw new Error(
-				"Please complete your profile by adding your gender before registering",
-			)
-		}
-		if (!user.dateOfBirth) {
-			throw new Error(
-				"Please complete your profile by adding your date of birth before registering",
-			)
-		}
-	}
+	// Profile validation removed - users can complete profile after registration
+	// The nav bar will show a notification prompting them to complete their profile
 
-	// 5. Validate division belongs to competition's scaling group
+	// 4. Validate division belongs to competition's scaling group
 	const settings = parseCompetitionSettings(competition.settings)
 	if (!settings?.divisions?.scalingGroupId) {
 		throw new Error("This competition does not have divisions configured")

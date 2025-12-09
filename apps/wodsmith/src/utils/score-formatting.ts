@@ -101,12 +101,26 @@ export function calculateAggregatedScore(
 			break
 		}
 		case "reps":
-		case "rounds-reps":
 			// Try reps field first, then score field (reps are sometimes stored in score)
 			values = resultSets
 				.map((s) => s.reps ?? s.score)
 				.filter((v): v is number => v !== null)
 			break
+		case "rounds-reps": {
+			// For rounds+reps: score = rounds, reps = reps
+			// Combine into a single value as rounds.reps (e.g., 5 rounds + 12 reps = 5.12)
+			// This allows proper sorting and formatting
+			values = resultSets
+				.map((s) => {
+					const rounds = s.score ?? 0
+					const reps = s.reps ?? 0
+					// Store as rounds + reps/100 for proper sorting
+					// e.g., 5 rounds + 12 reps = 5.12
+					return rounds + reps / 100
+				})
+				.filter((v) => v > 0)
+			break
+		}
 		case "load":
 			values = resultSets
 				.map((s) => s.weight)

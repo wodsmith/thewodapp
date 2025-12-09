@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { GENDER_ENUM, type Gender } from "@/db/schemas/users"
 import { updateAthleteProfileAction } from "@/app/(settings)/settings/settings.actions"
+import { AffiliateCombobox } from "../../_components/affiliate-combobox"
 import { CheckCircle, Loader2 } from "lucide-react"
 
 const profileSchema = z.object({
@@ -31,6 +32,9 @@ const profileSchema = z.object({
 		required_error: "Please select your gender",
 	}),
 	dateOfBirth: z.string().min(1, "Please enter your date of birth"),
+	affiliateName: z
+		.string()
+		.min(1, "Please select your affiliate or Independent"),
 })
 
 type ProfileFormValues = z.infer<typeof profileSchema>
@@ -38,11 +42,13 @@ type ProfileFormValues = z.infer<typeof profileSchema>
 type ProfileCompletionFormProps = {
 	currentGender?: Gender | null
 	currentDateOfBirth?: Date | null
+	currentAffiliateName?: string | null
 }
 
 export function ProfileCompletionForm({
 	currentGender,
 	currentDateOfBirth,
+	currentAffiliateName,
 }: ProfileCompletionFormProps) {
 	const router = useRouter()
 	const { execute, isPending, isSuccess } = useServerAction(
@@ -56,6 +62,7 @@ export function ProfileCompletionForm({
 			dateOfBirth: currentDateOfBirth
 				? currentDateOfBirth.toISOString().split("T")[0]
 				: "",
+			affiliateName: currentAffiliateName ?? "",
 		},
 	})
 
@@ -63,6 +70,7 @@ export function ProfileCompletionForm({
 		const [, error] = await execute({
 			gender: values.gender,
 			dateOfBirth: new Date(values.dateOfBirth),
+			affiliateName: values.affiliateName,
 		})
 
 		if (!error) {
@@ -122,6 +130,25 @@ export function ProfileCompletionForm({
 						)}
 					/>
 				</div>
+
+				<FormField
+					control={form.control}
+					name="affiliateName"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Affiliate</FormLabel>
+							<FormControl>
+								<AffiliateCombobox
+									value={field.value || ""}
+									onChange={field.onChange}
+									placeholder="Select your affiliate..."
+									disabled={isPending}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<Button type="submit" disabled={isPending} className="w-full">
 					{isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

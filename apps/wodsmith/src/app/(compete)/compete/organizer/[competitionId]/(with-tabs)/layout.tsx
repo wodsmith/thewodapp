@@ -58,6 +58,11 @@ export default async function CompetitionTabsLayout({
 						name: competition.name,
 						slug: competition.slug,
 						description: competition.description,
+						startDate: competition.startDate,
+						endDate: competition.endDate,
+						registrationOpensAt: competition.registrationOpensAt,
+						registrationClosesAt: competition.registrationClosesAt,
+						visibility: competition.visibility,
 					}}
 				/>
 

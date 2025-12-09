@@ -76,6 +76,7 @@ interface HeatScheduleManagerProps {
 	heats: HeatWithAssignments[]
 	divisions: Division[]
 	registrations: Registration[]
+	onHeatsChange?: (heats: HeatWithAssignments[]) => void
 }
 
 export function HeatScheduleManager({
@@ -84,11 +85,15 @@ export function HeatScheduleManager({
 	competitionStartDate,
 	events,
 	venues,
-	heats: initialHeats,
+	heats: controlledHeats,
 	divisions,
 	registrations,
+	onHeatsChange,
 }: HeatScheduleManagerProps) {
-	const [heats, setHeats] = useState(initialHeats)
+	// Support both controlled and uncontrolled state
+	const [internalHeats, setInternalHeats] = useState(controlledHeats)
+	const heats = onHeatsChange ? controlledHeats : internalHeats
+	const setHeats = onHeatsChange ?? setInternalHeats
 	const [selectedEventId, setSelectedEventId] = useState<string>(
 		events[0]?.id ?? "",
 	)

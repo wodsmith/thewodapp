@@ -613,6 +613,7 @@ export async function deleteHeat(id: string): Promise<void> {
 
 /**
  * Bulk create heats for a workout
+ * Batches inserts to avoid D1 SQL variable limit
  */
 export async function bulkCreateHeats(params: {
 	competitionId: string
@@ -650,12 +651,16 @@ export async function bulkCreateHeats(params: {
 		}
 	}
 
-	const result = await db
-		.insert(competitionHeatsTable)
-		.values(heatsToCreate)
-		.returning()
+	// Each heat row uses ~8 params - batch to stay under D1's 100 param limit
+	const INSERT_BATCH_SIZE = 10
 
-	return result
+	const results = await Promise.all(
+		chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>
+			db.insert(competitionHeatsTable).values(batch).returning(),
+		),
+	)
+
+	return results.flat()
 }
 
 /**
@@ -754,6 +759,7 @@ export async function updateAssignment(params: {
 
 /**
  * Bulk assign registrations to a heat
+ * Batches inserts to avoid D1 SQL variable limit
  */
 export async function bulkAssignToHeat(
 	heatId: string,
@@ -765,18 +771,27 @@ export async function bulkAssignToHeat(
 		return []
 	}
 
-	const result = await db
-		.insert(competitionHeatAssignmentsTable)
-		.values(
-			assignments.map((a) => ({
-				heatId,
-				registrationId: a.registrationId,
-				laneNumber: a.laneNumber,
-			})),
-		)
-		.returning()
+	// Each insert row uses 7 params (id, heatId, registrationId, laneNumber, createdAt, updatedAt, updateCounter)
+	// D1 has a 100 param limit, so max 14 rows per batch (14 * 7 = 98)
+	// Use 10 to be safe
+	const INSERT_BATCH_SIZE = 10
 
-	return result
+	const results = await Promise.all(
+		chunk(assignments, INSERT_BATCH_SIZE).map((batch) =>
+			db
+				.insert(competitionHeatAssignmentsTable)
+				.values(
+					batch.map((a) => ({
+						heatId,
+						registrationId: a.registrationId,
+						laneNumber: a.laneNumber,
+					})),
+				)
+				.returning(),
+		),
+	)
+
+	return results.flat()
 }
 
 /**
