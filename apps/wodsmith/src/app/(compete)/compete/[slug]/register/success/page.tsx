@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation"
+
+export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { eq } from "drizzle-orm"
 import { getSessionFromCookie } from "@/utils/auth"
