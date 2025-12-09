@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { InsightsFeatures } from "@/components/landing/insights-features"
 import { MissionHero } from "@/components/landing/mission-hero"
 import { ProductCards } from "@/components/landing/product-cards"
-import { SocialProof } from "@/components/landing/social-proof"
 import { SITE_NAME } from "@/constants"
 
 export const metadata: Metadata = {

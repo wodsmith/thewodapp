@@ -24,7 +24,6 @@ import {
 } from "../db/schema"
 import { getDb } from "@/db"
 import {
-	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
