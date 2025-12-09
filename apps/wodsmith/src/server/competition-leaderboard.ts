@@ -7,8 +7,8 @@ import {
 	competitionsTable,
 	results,
 	scalingLevelsTable,
-	scheduledWorkoutInstancesTable,
 	sets,
+	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
 	workouts,
@@ -23,6 +23,13 @@ import {
 } from "@/utils/score-formatting"
 import { getCompetitionTrack } from "./competition-workouts"
 
+export interface TeamMemberInfo {
+	userId: string
+	firstName: string | null
+	lastName: string | null
+	isCaptain: boolean
+}
+
 export interface CompetitionLeaderboardEntry {
 	registrationId: string
 	userId: string
@@ -31,10 +38,15 @@ export interface CompetitionLeaderboardEntry {
 	divisionLabel: string
 	totalPoints: number
 	overallRank: number
+	// Team info (null for individual divisions)
+	isTeamDivision: boolean
+	teamName: string | null
+	teamMembers: TeamMemberInfo[]
 	eventResults: Array<{
 		trackWorkoutId: string
 		trackOrder: number
 		eventName: string
+		scheme: string
 		rank: number
 		points: number
 		rawScore: string | null
@@ -171,33 +183,49 @@ export async function getCompetitionLeaderboard(params: {
 			)
 		: registrations
 
-	// Get all scheduled workout instances for this competition
-	const scheduledInstances = await db
-		.select()
-		.from(scheduledWorkoutInstancesTable)
-		.where(
-			eq(scheduledWorkoutInstancesTable.teamId, competition.competitionTeamId),
-		)
+	// Get team members for team registrations
+	// First, collect all athleteTeamIds from team registrations
+	const athleteTeamIds = filteredRegistrations
+		.filter((r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1)
+		.map((r) => r.registration.athleteTeamId as string)
 
-	// Map track workout IDs to scheduled instance IDs
-	const trackWorkoutToScheduled = new Map<string, string>()
-	for (const instance of scheduledInstances) {
-		if (instance.trackWorkoutId) {
-			trackWorkoutToScheduled.set(instance.trackWorkoutId, instance.id)
-		}
+	// Fetch all team memberships for these teams in one query
+	const allTeamMemberships = athleteTeamIds.length > 0
+		? await autochunk({ items: athleteTeamIds }, async (chunk) =>
+				db
+					.select({
+						membership: teamMembershipTable,
+						user: userTable,
+					})
+					.from(teamMembershipTable)
+					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+					.where(inArray(teamMembershipTable.teamId, chunk)),
+			)
+		: []
+
+	// Group memberships by teamId
+	const membershipsByTeamId = new Map<
+		string,
+		Array<{ membership: typeof allTeamMemberships[number]["membership"]; user: typeof allTeamMemberships[number]["user"] }>
+	>()
+	for (const m of allTeamMemberships) {
+		const teamId = m.membership.teamId
+		const existing = membershipsByTeamId.get(teamId) || []
+		existing.push(m)
+		membershipsByTeamId.set(teamId, existing)
 	}
 
-	// Get all results for scheduled instances (batched)
-	const scheduledInstanceIds = scheduledInstances.map((si) => si.id)
+	// Get all results for competition events (by competitionEventId = trackWorkout.id)
+	const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
 	const allResults = await autochunk(
-		{ items: scheduledInstanceIds, otherParametersCount: 1 }, // +1 for type
+		{ items: trackWorkoutIds, otherParametersCount: 1 }, // +1 for type
 		async (chunk) =>
 			db
 				.select()
 				.from(results)
 				.where(
 					and(
-						inArray(results.scheduledWorkoutInstanceId, chunk),
+						inArray(results.competitionEventId, chunk),
 						eq(results.type, "wod"),
 					),
 				),
@@ -224,6 +252,23 @@ export async function getCompetitionLeaderboard(params: {
 		const fullName =
 			`${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
 
+		const isTeamDivision = (reg.division?.teamSize ?? 1) > 1
+		const athleteTeamId = reg.registration.athleteTeamId
+
+		// Build team members list for team divisions
+		let teamMembers: TeamMemberInfo[] = []
+		if (isTeamDivision && athleteTeamId) {
+			const memberships = membershipsByTeamId.get(athleteTeamId) || []
+			teamMembers = memberships.map((m) => ({
+				userId: m.user.id,
+				firstName: m.user.firstName,
+				lastName: m.user.lastName,
+				isCaptain: m.membership.userId === reg.registration.captainUserId,
+			}))
+			// Sort so captain appears first
+			teamMembers.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0))
+		}
+
 		leaderboardMap.set(reg.registration.id, {
 			registrationId: reg.registration.id,
 			userId: reg.user.id,
@@ -232,19 +277,20 @@ export async function getCompetitionLeaderboard(params: {
 			divisionLabel: reg.division?.label || "Open",
 			totalPoints: 0,
 			overallRank: 0,
+			isTeamDivision,
+			teamName: reg.registration.teamName,
+			teamMembers,
 			eventResults: [],
 		})
 	}
 
 	// Process each event
 	for (const trackWorkout of trackWorkouts) {
-		const scheduledInstanceId = trackWorkoutToScheduled.get(trackWorkout.id)
-
 		// Get results for this event, grouped by division
 		const eventResultsByDivision = new Map<string, typeof allResults>()
 
 		for (const result of allResults) {
-			if (result.scheduledWorkoutInstanceId !== scheduledInstanceId) continue
+			if (result.competitionEventId !== trackWorkout.id) continue
 
 			const registration = filteredRegistrations.find(
 				(r) => r.user.id === result.userId,
@@ -331,6 +377,7 @@ export async function getCompetitionLeaderboard(params: {
 					trackWorkoutId: trackWorkout.id,
 					trackOrder: trackWorkout.trackOrder,
 					eventName: trackWorkout.workout.name,
+					scheme: trackWorkout.workout.scheme,
 					rank,
 					points,
 					rawScore: result.wodScore,
@@ -351,6 +398,7 @@ export async function getCompetitionLeaderboard(params: {
 					trackWorkoutId: trackWorkout.id,
 					trackOrder: trackWorkout.trackOrder,
 					eventName: trackWorkout.workout.name,
+					scheme: trackWorkout.workout.scheme,
 					rank: 0,
 					points: 0,
 					rawScore: null,
