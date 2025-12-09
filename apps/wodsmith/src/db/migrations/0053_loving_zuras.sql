@@ -11,7 +11,6 @@ CREATE TABLE `score_rounds` (
 	FOREIGN KEY (`score_id`) REFERENCES `scores`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `idx_score_rounds_score` ON `score_rounds` (`score_id`,`round_number`);--> statement-breakpoint
 CREATE UNIQUE INDEX `idx_score_rounds_unique` ON `score_rounds` (`score_id`,`round_number`);--> statement-breakpoint
 CREATE TABLE `scores` (
 	`createdAt` integer NOT NULL,
