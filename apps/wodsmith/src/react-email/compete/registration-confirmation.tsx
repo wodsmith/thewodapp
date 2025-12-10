@@ -14,6 +14,7 @@ export interface RegistrationConfirmationProps {
 	athleteName?: string
 	competitionName?: string
 	competitionSlug?: string
+	registrationId?: string
 	competitionDate?: string
 	divisionName?: string
 	teamName?: string
@@ -26,6 +27,7 @@ export const RegistrationConfirmationEmail = ({
 	athleteName = "Athlete",
 	competitionName = "Competition",
 	competitionSlug = "competition",
+	registrationId = "creg_example",
 	competitionDate,
 	divisionName = "Division",
 	teamName,
@@ -33,7 +35,7 @@ export const RegistrationConfirmationEmail = ({
 	isPaid = false,
 	amountPaidFormatted,
 }: RegistrationConfirmationProps) => {
-	const registrationUrl = `https://${SITE_DOMAIN}/compete/${competitionSlug}/my-registration`
+	const registrationUrl = `https://${SITE_DOMAIN}/compete/${competitionSlug}/teams/${registrationId}`
 
 	return (
 		<Html>
@@ -104,6 +106,7 @@ RegistrationConfirmationEmail.PreviewProps = {
 	athleteName: "John Smith",
 	competitionName: "CrossFit Open 2025",
 	competitionSlug: "crossfit-open-2025",
+	registrationId: "creg_mbwft7k18l8niqu9s39zv1hf",
 	competitionDate: "March 15, 2025",
 	divisionName: "RX Male",
 	teamName: "Team Alpha",

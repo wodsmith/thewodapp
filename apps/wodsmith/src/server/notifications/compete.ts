@@ -112,6 +112,7 @@ export async function notifyRegistrationConfirmed(params: {
 				athleteName,
 				competitionName: competition.name,
 				competitionSlug: competition.slug,
+				registrationId: registration.id,
 				competitionDate: formatDate(competition.startDate),
 				divisionName,
 				teamName: registration.teamName ?? undefined,
