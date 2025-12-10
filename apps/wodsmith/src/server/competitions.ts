@@ -19,8 +19,9 @@ export type CompetitionWithOrganizingTeam = Competition & {
 	organizingTeam: Team | null
 	group: CompetitionGroup | null
 }
-import { requireFeature } from "./entitlements"
+import { getTeamLimit, requireFeature } from "./entitlements"
 import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 
 /* -------------------------------------------------------------------------- */
 /*                           Competition Helper Functions                      */
@@ -792,6 +793,43 @@ export async function updateCompetition(
 			if (group.organizingTeamId !== existingCompetition.organizingTeamId) {
 				throw new Error(
 					"Competition series does not belong to the organizing team",
+				)
+			}
+		}
+	}
+
+	// Check publish limit when changing visibility to public
+	if (
+		updates.visibility === "public" &&
+		existingCompetition.visibility !== "public"
+	) {
+		const limit = await getTeamLimit(
+			existingCompetition.organizingTeamId,
+			LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		)
+		if (limit === 0) {
+			throw new Error(
+				"Your organizer application is pending approval. You can create private competitions while you wait.",
+			)
+		}
+		// If limit > 0, count published competitions and check
+		if (limit > 0) {
+			const publishedCount = await db
+				.select({ count: count() })
+				.from(competitionsTable)
+				.where(
+					and(
+						eq(
+							competitionsTable.organizingTeamId,
+							existingCompetition.organizingTeamId,
+						),
+						eq(competitionsTable.visibility, "public"),
+					),
+				)
+
+			if ((publishedCount[0]?.count ?? 0) >= limit) {
+				throw new Error(
+					`You have reached your limit of ${limit} published competitions. Please upgrade to publish more.`,
 				)
 			}
 		}
