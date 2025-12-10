@@ -30,12 +30,14 @@ export interface OrganizerRequestWithDetails extends OrganizerRequest {
 	}
 	user: {
 		id: string
-		displayName: string | null
-		email: string
+		firstName: string | null
+		lastName: string | null
+		email: string | null
 	}
 	reviewer?: {
 		id: string
-		displayName: string | null
+		firstName: string | null
+		lastName: string | null
 	} | null
 }
 
@@ -153,7 +155,8 @@ export async function getPendingOrganizerRequests(): Promise<
 			updateCounter: organizerRequestTable.updateCounter,
 			teamName: teamTable.name,
 			teamSlug: teamTable.slug,
-			userDisplayName: userTable.displayName,
+			userFirstName: userTable.firstName,
+			userLastName: userTable.lastName,
 			userEmail: userTable.email,
 		})
 		.from(organizerRequestTable)
@@ -181,7 +184,8 @@ export async function getPendingOrganizerRequests(): Promise<
 		},
 		user: {
 			id: r.userId,
-			displayName: r.userDisplayName,
+			firstName: r.userFirstName,
+			lastName: r.userLastName,
 			email: r.userEmail,
 		},
 	}))

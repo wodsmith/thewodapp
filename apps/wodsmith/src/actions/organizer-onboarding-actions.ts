@@ -34,12 +34,11 @@ export const submitOrganizerRequestAction = createServerAction()
 		try {
 			const session = await getSessionFromCookie()
 			if (!session?.user) {
-				throw new ZSAError("UNAUTHORIZED", "You must be logged in")
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
 			}
 
 			// Check if user has permission to manage the team
 			const hasPermission = await hasTeamPermission(
-				session.user.id,
 				input.teamId,
 				TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
 			)
@@ -88,7 +87,7 @@ export const getOrganizerRequestStatusAction = createServerAction()
 		try {
 			const session = await getSessionFromCookie()
 			if (!session?.user) {
-				throw new ZSAError("UNAUTHORIZED", "You must be logged in")
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
 			}
 
 			const request = await getOrganizerRequest(input.teamId)

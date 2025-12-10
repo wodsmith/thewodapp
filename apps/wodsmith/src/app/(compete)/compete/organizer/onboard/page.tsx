@@ -23,7 +23,7 @@ export default async function OrganizerOnboardPage() {
 	}
 
 	// Get user's teams
-	const teams = await getUserTeams(session.user.id)
+	const teams = await getUserTeams()
 	const gymTeams = teams.filter(
 		(t) => t.type === "gym" && !t.isPersonalTeam,
 	)

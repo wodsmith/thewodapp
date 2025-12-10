@@ -81,10 +81,10 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 		createTeamAction,
 		{
 			onSuccess: async (result) => {
-				if (result.data?.data?.id) {
+				if (result.data?.data?.teamId) {
 					// Submit the organizer request with the new team
 					await submitRequest({
-						teamId: result.data.data.id,
+						teamId: result.data.data.teamId,
 						reason: form.getValues("reason"),
 					})
 				}

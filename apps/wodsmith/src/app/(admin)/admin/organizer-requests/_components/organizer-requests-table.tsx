@@ -141,10 +141,12 @@ export function OrganizerRequestsTable({
 							<div className="flex items-start justify-between">
 								<div>
 									<CardTitle>{request.team.name}</CardTitle>
-									<CardDescription>
-										Requested by {request.user.displayName || request.user.email}{" "}
-										{formatDistanceToNow(request.createdAt, { addSuffix: true })}
-									</CardDescription>
+							<CardDescription>
+								Requested by {request.user.firstName && request.user.lastName 
+									? `${request.user.firstName} ${request.user.lastName}` 
+									: request.user.email}{" "}
+								{formatDistanceToNow(request.createdAt, { addSuffix: true })}
+							</CardDescription>
 								</div>
 								<div className="flex gap-2">
 									<Button

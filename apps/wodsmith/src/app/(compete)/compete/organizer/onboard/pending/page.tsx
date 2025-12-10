@@ -26,7 +26,7 @@ export default async function OrganizerOnboardPendingPage() {
 	}
 
 	// Get user's teams and find one with pending request
-	const teams = await getUserTeams(session.user.id)
+	const teams = await getUserTeams()
 	const gymTeams = teams.filter((t) => t.type === "gym" && !t.isPersonalTeam)
 
 	let pendingRequest = null
