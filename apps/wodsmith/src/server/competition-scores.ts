@@ -505,13 +505,15 @@ export async function getEventScoreEntryData(params: {
 				}
 				
 				// Decode tiebreak score if present (show milliseconds for time)
-				if (existingScore.tiebreakValue && existingScore.tiebreakScheme) {
-					tieBreakScore = decodeScore(existingScore.tiebreakValue, existingScore.tiebreakScheme, { compact: false })
+				// Use !== null check because 0 is a valid tiebreak value
+				if (existingScore.tiebreakValue !== null && existingScore.tiebreakScheme) {
+					tieBreakScore = decodeScore(existingScore.tiebreakValue, existingScore.tiebreakScheme as WorkoutScheme, { compact: false })
 				}
 				
 				// Decode secondary score if present (show milliseconds for time)
-				if (existingScore.secondaryValue && existingScore.secondaryScheme) {
-					secondaryScore = decodeScore(existingScore.secondaryValue, existingScore.secondaryScheme, { compact: false })
+				// Use !== null check because 0 is a valid secondary value
+				if (existingScore.secondaryValue !== null && existingScore.secondaryScheme) {
+					secondaryScore = decodeScore(existingScore.secondaryValue, existingScore.secondaryScheme as WorkoutScheme, { compact: false })
 				}
 			}
 
@@ -876,6 +878,7 @@ export async function saveCompetitionScore(params: {
 					status: newStatus,
 					statusOrder: getStatusOrder(params.scoreStatus),
 					sortKey: sortKey ? sortKeyToString(sortKey) : null,
+					tiebreakScheme: params.workout.tiebreakScheme ?? null,
 					tiebreakValue,
 					scalingLevelId: params.divisionId,
 					updatedAt: new Date(),

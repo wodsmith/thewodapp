@@ -140,6 +140,7 @@ export function ResultsEntryForm({
 					repsPerRound: event.workout.repsPerRound,
 					roundsToScore: event.workout.roundsToScore,
 					timeCap: event.workout.timeCap,
+					tiebreakScheme: event.workout.tiebreakScheme,
 				},
 			})
 

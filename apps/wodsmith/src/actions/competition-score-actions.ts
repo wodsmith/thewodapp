@@ -47,6 +47,7 @@ const workoutInfoSchema = z.object({
 	repsPerRound: z.number().nullable(),
 	roundsToScore: z.number().nullable(),
 	timeCap: z.number().nullable(),
+	tiebreakScheme: z.string().nullable().optional(),
 })
 
 const saveCompetitionScoreSchema = z.object({

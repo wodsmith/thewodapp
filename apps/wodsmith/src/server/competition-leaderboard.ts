@@ -16,7 +16,8 @@ import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { autochunk } from "@/utils/batch-query"
 import { getCompetitionTrack } from "./competition-workouts"
-import { formatScore, getDefaultScoreType } from "@/lib/scoring"
+import { formatScore, getDefaultScoreType, decodeScore, getSortDirection } from "@/lib/scoring"
+import type { WorkoutScheme } from "@/db/schema"
 
 export interface TeamMemberInfo {
 	userId: string
@@ -46,6 +47,8 @@ export interface CompetitionLeaderboardEntry {
 		points: number
 		rawScore: string | null
 		formattedScore: string
+		/** Formatted tiebreak value if present (e.g., "8:30.123" or "150") */
+		formattedTiebreak: string | null
 	}>
 }
 
@@ -82,6 +85,7 @@ async function fetchScoresFromNewTable(params: {
 					competitionEventId: scoresTable.competitionEventId,
 					scheme: scoresTable.scheme,
 					scoreValue: scoresTable.scoreValue,
+					tiebreakScheme: scoresTable.tiebreakScheme,
 					tiebreakValue: scoresTable.tiebreakValue,
 					status: scoresTable.status,
 					statusOrder: scoresTable.statusOrder,
@@ -316,12 +320,25 @@ export async function getCompetitionLeaderboard(params: {
 
 		// Rank athletes within each division using sortKey
 		for (const [_divisionId, divisionScores] of eventScoresByDivision) {
-			// Sort by sortKey (already contains status + normalized score)
+			// Sort by sortKey, then by tiebreak if scores are equal
 			const sortedScores = divisionScores.sort((a, b) => {
-				// sortKey is stored as text, but represents a bigint
-				// Format: status_order (1 digit) + normalized_score (15 digits)
+				// Primary sort: sortKey (status + normalized score)
 				if (!a.sortKey || !b.sortKey) return 0
-				return a.sortKey.localeCompare(b.sortKey)
+				const sortKeyCompare = a.sortKey.localeCompare(b.sortKey)
+				if (sortKeyCompare !== 0) return sortKeyCompare
+				
+				// Secondary sort: tiebreak value (if both have tiebreak)
+				if (a.tiebreakValue !== null && b.tiebreakValue !== null && a.tiebreakScheme) {
+					const tiebreakDirection = getSortDirection(a.tiebreakScheme as WorkoutScheme)
+					// For "asc" (time tiebreak): lower is better
+					// For "desc" (reps tiebreak): higher is better
+					if (tiebreakDirection === "asc") {
+						return a.tiebreakValue - b.tiebreakValue
+					}
+					return b.tiebreakValue - a.tiebreakValue
+				}
+				
+				return 0
 			})
 
 			const athleteCount = sortedScores.length
@@ -359,10 +376,10 @@ export async function getCompetitionLeaderboard(params: {
 					status: score.status,
 				}
 				
-				// Add tiebreak if present
-				if (score.tiebreakValue && score.scheme === "time-with-cap") {
+				// Add tiebreak if present (for any scheme that has tiebreak configured)
+				if (score.tiebreakValue !== null && score.tiebreakScheme) {
 					scoreObj.tiebreak = {
-						scheme: "reps",
+						scheme: score.tiebreakScheme,
 						value: score.tiebreakValue,
 					}
 				}
@@ -377,6 +394,16 @@ export async function getCompetitionLeaderboard(params: {
 				}
 
 				const formattedScore = formatScore(scoreObj, { compact: false })
+				
+				// Format tiebreak separately for display
+				let formattedTiebreak: string | null = null
+				if (score.tiebreakValue !== null && score.tiebreakScheme) {
+					formattedTiebreak = decodeScore(
+						score.tiebreakValue,
+						score.tiebreakScheme as WorkoutScheme,
+						{ compact: false }
+					)
+				}
 
 				entry.eventResults.push({
 					trackWorkoutId: trackWorkout.id,
@@ -387,6 +414,7 @@ export async function getCompetitionLeaderboard(params: {
 					points,
 					rawScore: String(score.scoreValue ?? ""),
 					formattedScore,
+					formattedTiebreak,
 				})
 
 				entry.totalPoints += points
@@ -408,6 +436,7 @@ export async function getCompetitionLeaderboard(params: {
 					points: 0,
 					rawScore: null,
 					formattedScore: "N/A",
+					formattedTiebreak: null,
 				})
 			}
 		}

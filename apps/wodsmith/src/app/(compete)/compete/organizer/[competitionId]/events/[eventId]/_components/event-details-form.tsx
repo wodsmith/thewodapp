@@ -121,7 +121,6 @@ export function EventDetailsForm({
 			scheme: event.workout.scheme,
 			scoreType: event.workout.scoreType,
 			roundsToScore: event.workout.roundsToScore,
-			repsPerRound: event.workout.repsPerRound,
 			tiebreakScheme: event.workout.tiebreakScheme,
 			timeCap: event.workout.timeCap,
 			secondaryScheme: event.workout.secondaryScheme,
@@ -178,7 +177,6 @@ export function EventDetailsForm({
 			scheme: data.scheme,
 			scoreType: data.scoreType,
 			roundsToScore: data.roundsToScore,
-			repsPerRound: data.repsPerRound,
 			tiebreakScheme: data.tiebreakScheme,
 			timeCap: data.timeCap,
 			secondaryScheme: data.secondaryScheme,
@@ -294,68 +292,36 @@ export function EventDetailsForm({
 								)}
 
 								{scheme === "rounds-reps" && (
-									<div className="grid grid-cols-2 gap-4">
-										<FormField
-											control={form.control}
-											name="roundsToScore"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>
-														Rounds to Score{" "}
-														<span className="text-muted-foreground">
-															(optional)
-														</span>
-													</FormLabel>
-													<FormControl>
-														<Input
-															type="number"
-															placeholder="e.g., 4"
-															value={field.value ?? ""}
-															onChange={(e) =>
-																field.onChange(
-																	e.target.value
-																		? Number.parseInt(e.target.value)
-																		: null,
-																)
-															}
-															min="1"
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<FormField
-											control={form.control}
-											name="repsPerRound"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>
-														Reps per Round{" "}
-														<span className="text-muted-foreground">
-															(optional)
-														</span>
-													</FormLabel>
-													<FormControl>
-														<Input
-															type="number"
-															placeholder="e.g., 10"
-															value={field.value ?? ""}
-															onChange={(e) =>
-																field.onChange(
-																	e.target.value
-																		? Number.parseInt(e.target.value)
-																		: null,
-																)
-															}
-															min="1"
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</div>
+									<FormField
+										control={form.control}
+										name="roundsToScore"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>
+													Rounds to Score{" "}
+													<span className="text-muted-foreground">
+														(optional)
+													</span>
+												</FormLabel>
+												<FormControl>
+													<Input
+														type="number"
+														placeholder="e.g., 4"
+														value={field.value ?? ""}
+														onChange={(e) =>
+															field.onChange(
+																e.target.value
+																	? Number.parseInt(e.target.value)
+																	: null,
+															)
+														}
+														min="1"
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
 								)}
 
 							{(isTimeBasedScheme(scheme) ||

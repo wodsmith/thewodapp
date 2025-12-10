@@ -89,7 +89,14 @@ function EventResultCell({
 	return (
 		<div className="flex flex-col gap-0.5">
 			{/* Primary: Score value - medium weight for emphasis */}
-			<span className="font-medium tabular-nums">{result.formattedScore}</span>
+			<span className="font-medium tabular-nums">
+				{result.formattedScore}
+				{result.formattedTiebreak && (
+					<span className="text-muted-foreground font-normal ml-1">
+						(TB: {result.formattedTiebreak})
+					</span>
+				)}
+			</span>
 			{/* Secondary: Rank & points - lighter, smaller */}
 			<span className="text-xs text-muted-foreground tabular-nums">
 				<span className="font-medium">#{result.rank}</span>
@@ -225,9 +232,14 @@ function MobileLeaderboardRow({
 										{event.name}
 									</span>
 									{result && result.rank > 0 ? (
-										<div className="flex items-baseline gap-2">
+										<div className="flex flex-col gap-0.5">
 											<span className="font-medium tabular-nums">
 												{result.formattedScore}
+												{result.formattedTiebreak && (
+													<span className="text-muted-foreground font-normal ml-1">
+														(TB: {result.formattedTiebreak})
+													</span>
+												)}
 											</span>
 											<span className="text-xs text-muted-foreground tabular-nums">
 												#{result.rank} +{result.points}
@@ -254,8 +266,6 @@ export function CompetitionLeaderboardTable({
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
 	])
-
-	console.log(leaderboard)
 
 	// Reset sorting when view changes between overall and single event
 	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
@@ -343,7 +353,16 @@ export function CompetitionLeaderboardTable({
 						if (!result || result.rank === 0) {
 							return <span className="text-muted-foreground italic">—</span>
 						}
-						return <span className="font-medium tabular-nums">{result.formattedScore}</span>
+						return (
+							<span className="font-medium tabular-nums">
+								{result.formattedScore}
+								{result.formattedTiebreak && (
+									<span className="text-muted-foreground font-normal ml-1">
+										(TB: {result.formattedTiebreak})
+									</span>
+								)}
+							</span>
+						)
 					},
 				},
 			]

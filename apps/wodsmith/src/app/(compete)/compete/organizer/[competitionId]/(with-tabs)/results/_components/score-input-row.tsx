@@ -91,6 +91,7 @@ export function ScoreInputRow({
 	const isPassFail = workoutScheme === "pass-fail"
 	const isTimeCapped = workoutScheme === "time-with-cap"
 	const isMultiRound = numRounds > 1
+	const isRoundsReps = workoutScheme === "rounds-reps"
 
 	// Initialize round scores state
 	const initializeRoundScores = (): Array<{
@@ -111,8 +112,16 @@ export function ScoreInputRow({
 				.map((_, index) => {
 					const set = existingSets.find((s) => s.setNumber === index + 1)
 					if (set) {
+						// For rounds-reps, format as "rounds+reps" or "rounds.reps"
+						let scoreStr = ""
+						if (isRoundsReps && set.score !== null) {
+							const reps = set.reps ?? 0
+							scoreStr = `${set.score}+${reps}`
+						} else if (set.score !== null) {
+							scoreStr = String(set.score)
+						}
 						return {
-							score: set.score !== null ? String(set.score) : "",
+							score: scoreStr,
 							timeCapped: false,
 						}
 					}

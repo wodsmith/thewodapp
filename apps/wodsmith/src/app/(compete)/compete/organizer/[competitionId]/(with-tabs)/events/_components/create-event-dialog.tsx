@@ -68,7 +68,6 @@ interface CreateEventDialogProps {
 		scoreType?: ScoreType
 		description?: string
 		roundsToScore?: number
-		repsPerRound?: number
 		tiebreakScheme?: TiebreakScheme
 		secondaryScheme?: SecondaryScheme
 		movementIds?: string[]
@@ -89,9 +88,6 @@ export function CreateEventDialog({
 	const [scoreType, setScoreType] = useState<ScoreType>("min")
 	const [description, setDescription] = useState("")
 	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
-		undefined,
-	)
-	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
 		undefined,
 	)
 	const [tiebreakScheme, setTiebreakScheme] = useState<
@@ -119,7 +115,6 @@ export function CreateEventDialog({
 			scoreType,
 			description: description.trim() || undefined,
 			roundsToScore,
-			repsPerRound,
 			tiebreakScheme,
 			secondaryScheme,
 			movementIds: selectedMovements.length > 0 ? selectedMovements : undefined,
@@ -135,7 +130,6 @@ export function CreateEventDialog({
 		setScoreType("min" as ScoreType)
 		setDescription("")
 		setRoundsToScore(undefined)
-		setRepsPerRound(undefined)
 		setTiebreakScheme(undefined)
 		setSecondaryScheme(undefined)
 		setSelectedMovements([])
@@ -222,47 +216,25 @@ export function CreateEventDialog({
 							</div>
 						)}
 
-						<div className="grid grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="roundsToScore">
-									Rounds to Score{" "}
-									<span className="text-muted-foreground">(optional)</span>
-								</Label>
-								<Input
-									id="roundsToScore"
-									type="number"
-									placeholder="e.g., 4"
-									value={roundsToScore ?? ""}
-									onChange={(e) =>
-										setRoundsToScore(
-											e.target.value
-												? Number.parseInt(e.target.value)
-												: undefined,
-										)
-									}
-									min="1"
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="repsPerRound">
-									Reps per Round{" "}
-									<span className="text-muted-foreground">(optional)</span>
-								</Label>
-								<Input
-									id="repsPerRound"
-									type="number"
-									placeholder="e.g., 10"
-									value={repsPerRound ?? ""}
-									onChange={(e) =>
-										setRepsPerRound(
-											e.target.value
-												? Number.parseInt(e.target.value)
-												: undefined,
-										)
-									}
-									min="1"
-								/>
-							</div>
+						<div className="space-y-2">
+							<Label htmlFor="roundsToScore">
+								Rounds to Score{" "}
+								<span className="text-muted-foreground">(optional)</span>
+							</Label>
+							<Input
+								id="roundsToScore"
+								type="number"
+								placeholder="e.g., 4"
+								value={roundsToScore ?? ""}
+								onChange={(e) =>
+									setRoundsToScore(
+										e.target.value
+											? Number.parseInt(e.target.value)
+											: undefined,
+									)
+								}
+								min="1"
+							/>
 						</div>
 
 						<div className="grid grid-cols-2 gap-4">

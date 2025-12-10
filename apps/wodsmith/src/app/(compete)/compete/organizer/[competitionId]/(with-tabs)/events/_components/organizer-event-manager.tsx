@@ -102,7 +102,6 @@ export function OrganizerEventManager({
 		scoreType?: ScoreType
 		description?: string
 		roundsToScore?: number
-		repsPerRound?: number
 		tiebreakScheme?: TiebreakScheme
 		secondaryScheme?: SecondaryScheme
 		movementIds?: string[]
@@ -115,7 +114,6 @@ export function OrganizerEventManager({
 			scoreType: data.scoreType,
 			description: data.description,
 			roundsToScore: data.roundsToScore,
-			repsPerRound: data.repsPerRound,
 			tiebreakScheme: data.tiebreakScheme,
 			secondaryScheme: data.secondaryScheme,
 			movementIds: data.movementIds,
