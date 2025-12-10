@@ -23,6 +23,7 @@ import {
 	parsePendingTeammateCount,
 	isTeamComplete,
 	getTeammateJoinedSubject,
+	buildInviteLink,
 } from "./helpers"
 
 // ============================================================================
@@ -229,7 +230,7 @@ export async function notifyCompetitionTeamInvite(params: {
 			currentRosterSize = members.length
 		}
 
-		const inviteLink = `https://wodsmith.com/team-invite?token=${inviteToken}`
+		const inviteLink = buildInviteLink(inviteToken)
 
 		await sendEmail({
 			to: recipientEmail,

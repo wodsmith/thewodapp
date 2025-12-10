@@ -197,9 +197,15 @@ describe("buildInviteLink", () => {
 		)
 	})
 
-	it("handles special characters in token", () => {
+	it("handles URL-safe special characters in token", () => {
 		expect(buildInviteLink("token-with-dash_underscore")).toBe(
 			"https://wodsmith.com/team-invite?token=token-with-dash_underscore",
+		)
+	})
+
+	it("encodes URL-unsafe characters in token", () => {
+		expect(buildInviteLink("token+with/special=chars&more")).toBe(
+			"https://wodsmith.com/team-invite?token=token%2Bwith%2Fspecial%3Dchars%26more",
 		)
 	})
 

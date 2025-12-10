@@ -95,7 +95,7 @@ export function isTeamComplete(
  * Build team invite link with token
  */
 export function buildInviteLink(token: string, baseUrl = "https://wodsmith.com"): string {
-	return `${baseUrl}/team-invite?token=${token}`
+	return `${baseUrl}/team-invite?token=${encodeURIComponent(token)}`
 }
 
 /**

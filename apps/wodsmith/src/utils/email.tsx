@@ -367,7 +367,7 @@ export async function sendTeamInvitationEmail({
 	teamName: string
 	inviterName: string
 }) {
-	const inviteUrl = `${SITE_URL}/team-invite?token=${invitationToken}`
+	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
 	if (!isProd) {
 		console.warn("\n\n\nTeam invitation url: ", inviteUrl)
