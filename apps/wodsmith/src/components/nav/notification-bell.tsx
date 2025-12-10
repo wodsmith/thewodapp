@@ -74,7 +74,7 @@ export function NotificationBell({
 					<>
 						{isProfileIncomplete && (
 							<DropdownMenuItem asChild>
-								<Link href="/settings/profile" className="cursor-pointer">
+								<Link href="/compete/athlete/edit" className="cursor-pointer">
 									<div className="flex items-start gap-2">
 										<User className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400" />
 										<div className="flex flex-col gap-0.5">

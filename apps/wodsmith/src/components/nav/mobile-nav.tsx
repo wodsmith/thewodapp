@@ -155,7 +155,7 @@ export default function MobileNav({
 									</p>
 									{isProfileIncomplete && (
 										<Link
-											href="/settings/profile"
+											href="/compete/athlete/edit"
 											className="flex items-center gap-2 hover:text-primary"
 											onClick={handleLinkClick}
 										>

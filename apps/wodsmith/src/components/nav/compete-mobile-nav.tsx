@@ -133,7 +133,7 @@ export default function CompeteMobileNav({
 									</p>
 									{isProfileIncomplete && (
 										<Link
-											href="/compete/athlete"
+											href="/compete/athlete/edit"
 											className="flex items-center gap-2 hover:text-primary"
 											onClick={handleLinkClick}
 										>
