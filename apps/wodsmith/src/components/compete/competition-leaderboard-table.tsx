@@ -8,9 +8,20 @@ import {
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table"
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, Medal, Trophy, ArrowUpDown, ChevronDown } from "lucide-react"
+import {
+	ArrowDownNarrowWide,
+	ArrowUpNarrowWide,
+	Medal,
+	Trophy,
+	ArrowUpDown,
+	ChevronDown,
+} from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,12 +39,20 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import type { CompetitionLeaderboardEntry, TeamMemberInfo } from "@/server/competition-leaderboard"
+import type {
+	CompetitionLeaderboardEntry,
+	TeamMemberInfo,
+} from "@/server/competition-leaderboard"
 import { getSortDirection } from "@/lib/scoring"
 
 interface CompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]
-	events: Array<{ id: string; name: string; trackOrder: number; scheme: string }>
+	events: Array<{
+		id: string
+		name: string
+		trackOrder: number
+		scheme: string
+	}>
 	selectedEventId: string | null // null = overall view
 }
 
@@ -111,7 +130,10 @@ function SortableHeader({
 	column,
 	children,
 }: {
-	column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: () => void }
+	column: {
+		getIsSorted: () => false | "asc" | "desc"
+		toggleSorting: () => void
+	}
 	children: React.ReactNode
 }) {
 	const sorted = column.getIsSorted()
@@ -134,7 +156,8 @@ function SortableHeader({
 
 /** Format member name with optional captain indicator */
 function formatMemberName(member: TeamMemberInfo): string {
-	const name = `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
+	const name =
+		`${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
 	return member.isCaptain ? `${name} (C)` : name
 }
 
@@ -162,7 +185,12 @@ function MobileLeaderboardRow({
 	events,
 }: {
 	entry: CompetitionLeaderboardEntry
-	events: Array<{ id: string; name: string; trackOrder: number; scheme: string }>
+	events: Array<{
+		id: string
+		name: string
+		trackOrder: number
+		scheme: string
+	}>
 }) {
 	const [isOpen, setIsOpen] = useState(false)
 	const icon = getRankIcon(entry.overallRank)
@@ -181,7 +209,12 @@ function MobileLeaderboardRow({
 					{/* Rank with icon */}
 					<div className="flex items-center gap-1.5 w-12 shrink-0">
 						{icon}
-						<span className={cn("tabular-nums", isPodium ? "font-bold" : "font-semibold")}>
+						<span
+							className={cn(
+								"tabular-nums",
+								isPodium ? "font-bold" : "font-semibold",
+							)}
+						>
 							{entry.overallRank}
 						</span>
 					</div>
@@ -197,15 +230,21 @@ function MobileLeaderboardRow({
 					<div className="flex-1 min-w-0 text-right">
 						{entry.isTeamDivision ? (
 							<>
-								<span className="font-medium truncate block">{entry.teamName || "Unknown Team"}</span>
+								<span className="font-medium truncate block">
+									{entry.teamName || "Unknown Team"}
+								</span>
 								{entry.teamMembers.length > 0 && (
 									<span className="text-[10px] text-muted-foreground truncate block">
-										{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+										{entry.teamMembers
+											.map((m) => formatMemberName(m))
+											.join(", ")}
 									</span>
 								)}
 							</>
 						) : (
-							<span className="font-medium truncate block">{entry.athleteName}</span>
+							<span className="font-medium truncate block">
+								{entry.athleteName}
+							</span>
 						)}
 					</div>
 
@@ -270,7 +309,9 @@ export function CompetitionLeaderboardTable({
 	// Reset sorting when view changes between overall and single event
 	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
 	useEffect(() => {
-		setSorting([{ id: selectedEventId ? "eventRank" : "overallRank", desc: false }])
+		setSorting([
+			{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
+		])
 	}, [selectedEventId])
 
 	// Transform data for single event view
@@ -448,21 +489,30 @@ export function CompetitionLeaderboardTable({
 			const selectedEvent = events.find((e) => e.id === selectedEventId)
 			options.push({ id: "eventRank", label: "Rank" })
 			options.push({ id: "athlete", label: "Athlete" })
-			options.push({ id: "score", label: "Score", scheme: selectedEvent?.scheme })
+			options.push({
+				id: "score",
+				label: "Score",
+				scheme: selectedEvent?.scheme,
+			})
 		} else {
 			// Overall view - rank (by points) is the primary sort
 			options.push({ id: "overallRank", label: "Rank" })
 			options.push({ id: "athlete", label: "Athlete" })
 			// Add event columns with their schemes
 			for (const event of events) {
-				options.push({ id: `event-${event.id}`, label: event.name, scheme: event.scheme })
+				options.push({
+					id: `event-${event.id}`,
+					label: event.name,
+					scheme: event.scheme,
+				})
 			}
 		}
 
 		return options
 	}, [selectedEventId, events])
 
-	const currentSortId = sorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
+	const currentSortId =
+		sorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
 	const currentSortDesc = sorting[0]?.desc ?? false
 
 	const handleSortChange = (columnId: string) => {
@@ -561,9 +611,9 @@ export function CompetitionLeaderboardTable({
 										{header.isPlaceholder
 											? null
 											: flexRender(
-												header.column.columnDef.header,
-												header.getContext(),
-											)}
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
 									</TableHead>
 								))}
 							</TableRow>
@@ -584,7 +634,10 @@ export function CompetitionLeaderboardTable({
 								<TableRow key={row.id} className="table-row">
 									{row.getVisibleCells().map((cell) => (
 										<TableCell key={cell.id} className="table-cell">
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext(),
+											)}
 										</TableCell>
 									))}
 								</TableRow>

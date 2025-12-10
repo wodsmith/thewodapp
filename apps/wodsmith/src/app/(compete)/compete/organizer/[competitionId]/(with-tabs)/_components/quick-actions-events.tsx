@@ -88,23 +88,23 @@ export function QuickActionsEvents({
 									>
 										{isPublished ? "Published" : "Draft"}
 									</Badge>
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-7 w-7 p-0"
-									onClick={() =>
-										handleToggleEventStatus(event.id, event.eventStatus)
-									}
-									disabled={pendingEvents.has(event.id)}
-								>
-									{pendingEvents.has(event.id) ? (
-										<Loader2 className="h-3.5 w-3.5 animate-spin" />
-									) : isPublished ? (
-										<EyeOff className="h-3.5 w-3.5" />
-									) : (
-										<Eye className="h-3.5 w-3.5" />
-									)}
-								</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-7 w-7 p-0"
+										onClick={() =>
+											handleToggleEventStatus(event.id, event.eventStatus)
+										}
+										disabled={pendingEvents.has(event.id)}
+									>
+										{pendingEvents.has(event.id) ? (
+											<Loader2 className="h-3.5 w-3.5 animate-spin" />
+										) : isPublished ? (
+											<EyeOff className="h-3.5 w-3.5" />
+										) : (
+											<Eye className="h-3.5 w-3.5" />
+										)}
+									</Button>
 								</div>
 							</div>
 						)

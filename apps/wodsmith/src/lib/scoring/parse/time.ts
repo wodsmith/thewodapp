@@ -81,17 +81,17 @@ export function parseTime(
 	// Handle period-delimited input (e.g., "12.34.567" or "1.02.34.567")
 	if (trimmed.includes(".")) {
 		const parts = trimmed.split(".")
-		
+
 		// If 3+ parts, treat as period-delimited time: MM.SS.ms or H.MM.SS.ms
 		if (parts.length >= 3) {
 			// Last part is always milliseconds
 			const msPart = parts[parts.length - 1] ?? "0"
 			const timeParts = parts.slice(0, -1)
-			
+
 			// Convert to colon format: join time parts with colons
 			const colonFormat = timeParts.join(":")
 			const withMs = `${colonFormat}.${msPart}`
-			
+
 			const encoded = encodeTime(withMs)
 			if (encoded === null) {
 				return {
@@ -107,7 +107,7 @@ export function parseTime(
 				formatted: decodeTime(encoded),
 			}
 		}
-		
+
 		// If 2 parts (one period), treat as time.milliseconds
 		const [wholePart, decimalPart] = parts
 		if (!wholePart) {
@@ -120,13 +120,20 @@ export function parseTime(
 		}
 
 		// Parse the whole part as time, then add milliseconds
-		const { isValid, encoded: wholeEncoded, error } = parseTime(wholePart, options)
+		const {
+			isValid,
+			encoded: wholeEncoded,
+			error,
+		} = parseTime(wholePart, options)
 		if (!isValid || wholeEncoded === null) {
 			return { isValid: false, encoded: null, formatted: trimmed, error }
 		}
 
 		// Add milliseconds
-		const ms = Number.parseInt((decimalPart ?? "0").padEnd(3, "0").slice(0, 3), 10)
+		const ms = Number.parseInt(
+			(decimalPart ?? "0").padEnd(3, "0").slice(0, 3),
+			10,
+		)
 		if (Number.isNaN(ms)) {
 			return {
 				isValid: false,
@@ -262,7 +269,7 @@ function parseTimeAuto(input: string): ParseResult {
  */
 export function validateTimeInput(encoded: number): string[] {
 	const warnings: string[] = []
-	
+
 	// Check for very long times (> 24 hours)
 	if (encoded > 24 * 60 * 60 * 1000) {
 		warnings.push("Time exceeds 24 hours")

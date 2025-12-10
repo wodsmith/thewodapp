@@ -137,14 +137,12 @@ export function ScoreInputRow({
 			try {
 				const parsed = JSON.parse(existingScore)
 				if (Array.isArray(parsed) && parsed.length === numRounds) {
-					return parsed.map(
-						(s: string | { score: string }) => {
-							if (typeof s === "string") {
-								return { score: s, timeCapped: false }
-							}
-							return { score: s.score, timeCapped: false }
-						},
-					)
+					return parsed.map((s: string | { score: string }) => {
+						if (typeof s === "string") {
+							return { score: s, timeCapped: false }
+						}
+						return { score: s.score, timeCapped: false }
+					})
 				}
 			} catch {
 				// Not JSON, fall through to default
@@ -244,13 +242,7 @@ export function ScoreInputRow({
 
 	// Submit the score
 	const submitScore = (force = false) => {
-		if (
-			!isMultiRound &&
-			!isPassFail &&
-			!force &&
-			!parseResult?.isValid
-		)
-			return
+		if (!isMultiRound && !isPassFail && !force && !parseResult?.isValid) return
 
 		const existing = athlete.existingResult
 		const finalScore = buildScoreString()
@@ -474,34 +466,34 @@ export function ScoreInputRow({
 				) : isMultiRound ? (
 					/* Multi-Round Scoring */
 					<div className="space-y-2">
-					{roundScores.map((roundScore, roundIndex) => (
-						<div
-							key={`round-${roundIndex}`}
+						{roundScores.map((roundScore, roundIndex) => (
+							<div
+								key={`round-${roundIndex}`}
 								className="flex items-center gap-2"
 							>
 								<span className="text-xs text-muted-foreground w-10 shrink-0">
 									R{roundIndex + 1}:
 								</span>
 								<Input
-								ref={(el) => {
-									if (el) roundInputRefs.current.set(roundIndex, el)
-								}}
-								value={roundScore.score}
-								onChange={(e) =>
-									handleRoundScoreChange(roundIndex, e.target.value)
-								}
-								onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
-								onBlur={() => handleBlur("round")}
-								placeholder={
-									workoutScheme === "time" ||
-									workoutScheme === "time-with-cap"
-										? "2:34.567 or 2.34.567"
-										: workoutScheme === "rounds-reps"
-											? "5+12 or 5.12"
-											: "Score"
-								}
-								className="h-8 text-sm font-mono flex-1"
-							/>
+									ref={(el) => {
+										if (el) roundInputRefs.current.set(roundIndex, el)
+									}}
+									value={roundScore.score}
+									onChange={(e) =>
+										handleRoundScoreChange(roundIndex, e.target.value)
+									}
+									onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
+									onBlur={() => handleBlur("round")}
+									placeholder={
+										workoutScheme === "time" ||
+										workoutScheme === "time-with-cap"
+											? "2:34.567 or 2.34.567"
+											: workoutScheme === "rounds-reps"
+												? "5+12 or 5.12"
+												: "Score"
+									}
+									className="h-8 text-sm font-mono flex-1"
+								/>
 							</div>
 						))}
 					</div>

@@ -117,9 +117,7 @@ export function parseScore(
 
 	// Convert new encoding to legacy encoding
 	const legacyValue =
-		result.encoded !== null
-			? convertNewToLegacy(result.encoded, scheme)
-			: null
+		result.encoded !== null ? convertNewToLegacy(result.encoded, scheme) : null
 
 	return {
 		formatted: result.formatted,

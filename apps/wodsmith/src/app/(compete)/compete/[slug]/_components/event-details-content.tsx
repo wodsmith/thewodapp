@@ -257,7 +257,6 @@ export function EventDetailsContent({
 					</CardContent>
 				</Card>
 			</section>
-
 		</div>
 	)
 }

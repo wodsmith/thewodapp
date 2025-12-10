@@ -16,7 +16,12 @@ import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { autochunk } from "@/utils/batch-query"
 import { getCompetitionTrack } from "./competition-workouts"
-import { formatScore, getDefaultScoreType, decodeScore, getSortDirection } from "@/lib/scoring"
+import {
+	formatScore,
+	getDefaultScoreType,
+	decodeScore,
+	getSortDirection,
+} from "@/lib/scoring"
 import type { WorkoutScheme } from "@/db/schema"
 
 export interface TeamMemberInfo {
@@ -73,7 +78,7 @@ async function fetchScoresFromNewTable(params: {
 	userIds: string[]
 }) {
 	const db = getDb()
-	
+
 	// Query new scores table with efficient sortKey ordering
 	const scores = await autochunk(
 		{ items: params.trackWorkoutIds, otherParametersCount: 1 },
@@ -102,7 +107,7 @@ async function fetchScoresFromNewTable(params: {
 					),
 				),
 	)
-	
+
 	return scores
 }
 
@@ -225,27 +230,33 @@ export async function getCompetitionLeaderboard(params: {
 	// Get team members for team registrations
 	// First, collect all athleteTeamIds from team registrations
 	const athleteTeamIds = filteredRegistrations
-		.filter((r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1)
+		.filter(
+			(r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1,
+		)
 		.map((r) => r.registration.athleteTeamId as string)
 
 	// Fetch all team memberships for these teams in one query
-	const allTeamMemberships = athleteTeamIds.length > 0
-		? await autochunk({ items: athleteTeamIds }, async (chunk) =>
-				db
-					.select({
-						membership: teamMembershipTable,
-						user: userTable,
-					})
-					.from(teamMembershipTable)
-					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-					.where(inArray(teamMembershipTable.teamId, chunk)),
-			)
-		: []
+	const allTeamMemberships =
+		athleteTeamIds.length > 0
+			? await autochunk({ items: athleteTeamIds }, async (chunk) =>
+					db
+						.select({
+							membership: teamMembershipTable,
+							user: userTable,
+						})
+						.from(teamMembershipTable)
+						.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+						.where(inArray(teamMembershipTable.teamId, chunk)),
+				)
+			: []
 
 	// Group memberships by teamId
 	const membershipsByTeamId = new Map<
 		string,
-		Array<{ membership: typeof allTeamMemberships[number]["membership"]; user: typeof allTeamMemberships[number]["user"] }>
+		Array<{
+			membership: (typeof allTeamMemberships)[number]["membership"]
+			user: (typeof allTeamMemberships)[number]["user"]
+		}>
 	>()
 	for (const m of allTeamMemberships) {
 		const teamId = m.membership.teamId
@@ -257,7 +268,7 @@ export async function getCompetitionLeaderboard(params: {
 	// Get all scores for competition events from new scores table
 	const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
 	const userIds = filteredRegistrations.map((r) => r.user.id)
-	
+
 	const allScores = await fetchScoresFromNewTable({ trackWorkoutIds, userIds })
 
 	// Build leaderboard entries
@@ -326,10 +337,16 @@ export async function getCompetitionLeaderboard(params: {
 				if (!a.sortKey || !b.sortKey) return 0
 				const sortKeyCompare = a.sortKey.localeCompare(b.sortKey)
 				if (sortKeyCompare !== 0) return sortKeyCompare
-				
+
 				// Secondary sort: tiebreak value (if both have tiebreak)
-				if (a.tiebreakValue !== null && b.tiebreakValue !== null && a.tiebreakScheme) {
-					const tiebreakDirection = getSortDirection(a.tiebreakScheme as WorkoutScheme)
+				if (
+					a.tiebreakValue !== null &&
+					b.tiebreakValue !== null &&
+					a.tiebreakScheme
+				) {
+					const tiebreakDirection = getSortDirection(
+						a.tiebreakScheme as WorkoutScheme,
+					)
 					// For "asc" (time tiebreak): lower is better
 					// For "desc" (reps tiebreak): higher is better
 					if (tiebreakDirection === "asc") {
@@ -337,7 +354,7 @@ export async function getCompetitionLeaderboard(params: {
 					}
 					return b.tiebreakValue - a.tiebreakValue
 				}
-				
+
 				return 0
 			})
 
@@ -366,8 +383,10 @@ export async function getCompetitionLeaderboard(params: {
 				if (!entry) continue
 
 				// Format score using new encoding
-				const scoreType = trackWorkout.workout.scoreType || getDefaultScoreType(trackWorkout.workout.scheme)
-				
+				const scoreType =
+					trackWorkout.workout.scoreType ||
+					getDefaultScoreType(trackWorkout.workout.scheme)
+
 				// Build Score object for formatting
 				const scoreObj: Parameters<typeof formatScore>[0] = {
 					scheme: score.scheme,
@@ -375,7 +394,7 @@ export async function getCompetitionLeaderboard(params: {
 					value: score.scoreValue ?? 0,
 					status: score.status,
 				}
-				
+
 				// Add tiebreak if present (for any scheme that has tiebreak configured)
 				if (score.tiebreakValue !== null && score.tiebreakScheme) {
 					scoreObj.tiebreak = {
@@ -383,9 +402,13 @@ export async function getCompetitionLeaderboard(params: {
 						value: score.tiebreakValue,
 					}
 				}
-				
+
 				// Add time cap if present
-				if (score.timeCapMs && score.secondaryScheme && score.secondaryValue !== null) {
+				if (
+					score.timeCapMs &&
+					score.secondaryScheme &&
+					score.secondaryValue !== null
+				) {
 					scoreObj.timeCap = {
 						ms: score.timeCapMs,
 						secondaryScheme: score.secondaryScheme,
@@ -394,14 +417,14 @@ export async function getCompetitionLeaderboard(params: {
 				}
 
 				const formattedScore = formatScore(scoreObj, { compact: false })
-				
+
 				// Format tiebreak separately for display
 				let formattedTiebreak: string | null = null
 				if (score.tiebreakValue !== null && score.tiebreakScheme) {
 					formattedTiebreak = decodeScore(
 						score.tiebreakValue,
 						score.tiebreakScheme as WorkoutScheme,
-						{ compact: false }
+						{ compact: false },
 					)
 				}
 

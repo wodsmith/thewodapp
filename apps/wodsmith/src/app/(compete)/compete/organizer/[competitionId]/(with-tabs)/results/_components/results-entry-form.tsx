@@ -117,9 +117,9 @@ export function ResultsEntryForm({
 			// Auto-save
 			setSavingIds((prev) => new Set(prev).add(athlete.registrationId))
 
-		// Send the original score string directly - the server will encode it properly
-		// This preserves milliseconds for time-based workouts (e.g., "2:01.567")
-		const scoreToSend = data.score
+			// Send the original score string directly - the server will encode it properly
+			// This preserves milliseconds for time-based workouts (e.g., "2:01.567")
+			const scoreToSend = data.score
 
 			const [result] = await saveScore({
 				competitionId,
@@ -150,18 +150,19 @@ export function ResultsEntryForm({
 				return next
 			})
 
-		if (result) {
-			setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
-			posthog.capture("competition_score_saved", {
-				competition_id: competitionId,
-				event_id: event.id,
-				event_name: event.workout.name,
-				division_id: athlete.divisionId,
-				registration_id: athlete.registrationId,
-			})
-			const displayName = athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
-			toast.success(`Score saved for ${displayName}`)
-		}
+			if (result) {
+				setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+				posthog.capture("competition_score_saved", {
+					competition_id: competitionId,
+					event_id: event.id,
+					event_name: event.workout.name,
+					division_id: athlete.divisionId,
+					registration_id: athlete.registrationId,
+				})
+				const displayName =
+					athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+				toast.success(`Score saved for ${displayName}`)
+			}
 		},
 		[
 			competitionId,
@@ -465,12 +466,11 @@ export function ResultsEntryForm({
 							<>
 								{heats.map((heat) => {
 									// Calculate starting index for this heat
-									const startIndex = allAthletesInOrder.findIndex(
-										(a) =>
-											heat.assignments.some(
-												(assignment) =>
-													assignment.registrationId === a.registrationId,
-											),
+									const startIndex = allAthletesInOrder.findIndex((a) =>
+										heat.assignments.some(
+											(assignment) =>
+												assignment.registrationId === a.registrationId,
+										),
 									)
 									return (
 										<HeatScoreGroup

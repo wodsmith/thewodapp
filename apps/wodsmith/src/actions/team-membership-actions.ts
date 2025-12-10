@@ -63,16 +63,16 @@ export const inviteUserAction = createServerAction()
 				// Track team invite event server-side
 				const session = await getSessionFromCookie()
 				if (session?.userId) {
-				const posthog = getPostHogClient()
-				posthog.capture({
-					distinctId: session.userId,
-					event: "team_invite_sent",
-					properties: {
-						team_id: input.teamId,
-						role_id: input.roleId,
-						is_system_role: input.isSystemRole,
-					},
-				})
+					const posthog = getPostHogClient()
+					posthog.capture({
+						distinctId: session.userId,
+						event: "team_invite_sent",
+						properties: {
+							team_id: input.teamId,
+							role_id: input.roleId,
+							is_system_role: input.isSystemRole,
+						},
+					})
 				}
 
 				return { success: true, data: result }
@@ -129,7 +129,11 @@ export const updateMemberRoleAction = createServerAction()
 			logError({
 				message: "[updateMemberRoleAction] Failed to update member role",
 				error,
-				attributes: { teamId: input.teamId, userId: input.userId, roleId: input.roleId },
+				attributes: {
+					teamId: input.teamId,
+					userId: input.userId,
+					roleId: input.roleId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -255,7 +259,8 @@ export const getPendingInvitationsForCurrentUserAction =
 			return { success: true, data: invitations }
 		} catch (error) {
 			logError({
-				message: "[getPendingInvitationsForCurrentUserAction] Failed to get pending team invitations",
+				message:
+					"[getPendingInvitationsForCurrentUserAction] Failed to get pending team invitations",
 				error,
 			})
 

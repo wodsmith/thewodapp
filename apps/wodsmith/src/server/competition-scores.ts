@@ -31,7 +31,15 @@ import {
 	logError,
 } from "@/lib/logging/posthog-otel-logger"
 import { getHeatsForWorkout } from "./competition-heats"
-import { encodeScore, encodeRounds, computeSortKey, decodeScore, sortKeyToString, getDefaultScoreType, encodeRoundsReps } from "@/lib/scoring"
+import {
+	encodeScore,
+	encodeRounds,
+	computeSortKey,
+	decodeScore,
+	sortKeyToString,
+	getDefaultScoreType,
+	encodeRoundsReps,
+} from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
 import { convertLegacyToNew } from "@/utils/score-adapter"
 
@@ -111,11 +119,7 @@ function convertSetsToEncodedValue(
 	}
 
 	// For time-based schemes, use time in seconds (legacy format)
-	if (
-		scheme === "time" ||
-		scheme === "time-with-cap" ||
-		scheme === "emom"
-	) {
+	if (scheme === "time" || scheme === "time-with-cap" || scheme === "emom") {
 		const timeInSeconds = firstSet.time ?? 0
 		return convertLegacyToNew(timeInSeconds, scheme)
 	}
@@ -356,22 +360,26 @@ export async function getEventScoreEntryData(params: {
 	const setsByScoreId = new Map<string, ExistingSetData[]>()
 	for (const round of existingRounds) {
 		const existing = setsByScoreId.get(round.scoreId) || []
-		
+
 		// Convert from new encoding back to legacy format for display
 		// IMPORTANT: For time schemes, we need to keep in seconds (not formatted string)
 		// because the UI's parseScore function expects numeric seconds as input.
 		// For rounds-reps: extract rounds and reps from encoded value
 		// For other schemes: use value as-is
-		const scheme = existingScores.find(s => s.id === round.scoreId)?.scheme
+		const scheme = existingScores.find((s) => s.id === round.scoreId)?.scheme
 		let score: number | null = null
 		let reps: number | null = null
-		
+
 		if (scheme === "rounds-reps") {
 			// Encoded as rounds*100000+reps, extract both
 			const rounds = Math.floor(round.value / 100000)
 			reps = round.value % 100000
 			score = rounds
-		} else if (scheme === "time" || scheme === "time-with-cap" || scheme === "emom") {
+		} else if (
+			scheme === "time" ||
+			scheme === "time-with-cap" ||
+			scheme === "emom"
+		) {
 			// Convert milliseconds to seconds
 			// The UI will format this as HH:MM:SS using parseScore
 			score = Math.round(round.value / 1000)
@@ -382,13 +390,13 @@ export async function getEventScoreEntryData(params: {
 			// Millimeters to meters
 			score = Math.round(round.value / 1000)
 		} else if (scheme === "feet") {
-			// Millimeters to feet  
+			// Millimeters to feet
 			score = Math.round(round.value / 304.8)
 		} else {
 			// For reps, calories, points, pass-fail: value is already correct
 			score = round.value
 		}
-		
+
 		existing.push({
 			setNumber: round.roundNumber,
 			score,
@@ -497,23 +505,41 @@ export async function getEventScoreEntryData(params: {
 			let wodScore = ""
 			let tieBreakScore: string | null = null
 			let secondaryScore: string | null = null
-			
+
 			if (existingScore) {
 				// Decode primary score (show milliseconds for time-based schemes)
 				if (existingScore.scoreValue !== null) {
-					wodScore = decodeScore(existingScore.scoreValue, existingScore.scheme, { compact: false })
+					wodScore = decodeScore(
+						existingScore.scoreValue,
+						existingScore.scheme,
+						{ compact: false },
+					)
 				}
-				
+
 				// Decode tiebreak score if present (show milliseconds for time)
 				// Use !== null check because 0 is a valid tiebreak value
-				if (existingScore.tiebreakValue !== null && existingScore.tiebreakScheme) {
-					tieBreakScore = decodeScore(existingScore.tiebreakValue, existingScore.tiebreakScheme as WorkoutScheme, { compact: false })
+				if (
+					existingScore.tiebreakValue !== null &&
+					existingScore.tiebreakScheme
+				) {
+					tieBreakScore = decodeScore(
+						existingScore.tiebreakValue,
+						existingScore.tiebreakScheme as WorkoutScheme,
+						{ compact: false },
+					)
 				}
-				
+
 				// Decode secondary score if present (show milliseconds for time)
 				// Use !== null check because 0 is a valid secondary value
-				if (existingScore.secondaryValue !== null && existingScore.secondaryScheme) {
-					secondaryScore = decodeScore(existingScore.secondaryValue, existingScore.secondaryScheme as WorkoutScheme, { compact: false })
+				if (
+					existingScore.secondaryValue !== null &&
+					existingScore.secondaryScheme
+				) {
+					secondaryScore = decodeScore(
+						existingScore.secondaryValue,
+						existingScore.secondaryScheme as WorkoutScheme,
+						{ compact: false },
+					)
 				}
 			}
 
@@ -601,7 +627,9 @@ export async function getEventScoreEntryDataWithHeats(params: {
 	}
 
 	// Find unassigned registration IDs (athletes in baseData but not in any heat)
-	const allRegistrationIds = new Set(baseData.athletes.map((a) => a.registrationId))
+	const allRegistrationIds = new Set(
+		baseData.athletes.map((a) => a.registrationId),
+	)
 	const unassignedRegistrationIds = [...allRegistrationIds].filter(
 		(id) => !assignedRegistrationIds.has(id),
 	)
@@ -778,7 +806,10 @@ export async function saveCompetitionScore(params: {
 
 	// Validate workout info is provided
 	if (!params.workout) {
-		throw new ZSAError("ERROR", "Workout info is required to save competition score")
+		throw new ZSAError(
+			"ERROR",
+			"Workout info is required to save competition score",
+		)
 	}
 
 	// Write to new scores table
@@ -788,7 +819,7 @@ export async function saveCompetitionScore(params: {
 
 		// Encode score using new encoding
 		let encodedValue: number | null = null
-		
+
 		if (params.roundScores && params.roundScores.length > 0) {
 			// Multi-round: encode each round and aggregate
 			const roundInputs = params.roundScores.map((rs) => ({ raw: rs.score }))
@@ -826,7 +857,10 @@ export async function saveCompetitionScore(params: {
 		})
 
 		if (!trackWorkout?.track?.ownerTeamId) {
-			throw new ZSAError("ERROR", "Could not determine team ownership for competition")
+			throw new ZSAError(
+				"ERROR",
+				"Could not determine team ownership for competition",
+			)
 		}
 
 		const teamId = trackWorkout.track.ownerTeamId
@@ -902,7 +936,7 @@ export async function saveCompetitionScore(params: {
 		}
 
 		const scoreId = finalScore.id
-		
+
 		logInfo({
 			message: "[competition-scores] Saved score to new scores table",
 			attributes: {
@@ -1070,7 +1104,7 @@ export async function deleteCompetitionScore(params: {
 				eq(scoresTable.userId, params.userId),
 			),
 		)
-	
+
 	logInfo({
 		message: "[competition-scores] Deleted competition score",
 		attributes: {

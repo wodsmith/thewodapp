@@ -73,7 +73,8 @@ export const createCompetitionGroupAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[createCompetitionGroupAction] Failed to create competition series",
+				message:
+					"[createCompetitionGroupAction] Failed to create competition series",
 				error,
 				attributes: { teamId: input.organizingTeamId },
 			})
@@ -105,7 +106,8 @@ export const getCompetitionGroupsAction = createServerAction()
 			return { success: true, data: groups }
 		} catch (error) {
 			logError({
-				message: "[getCompetitionGroupsAction] Failed to get competition groups",
+				message:
+					"[getCompetitionGroupsAction] Failed to get competition groups",
 				error,
 				attributes: { teamId: input.organizingTeamId },
 			})
@@ -179,7 +181,8 @@ export const updateCompetitionGroupAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[updateCompetitionGroupAction] Failed to update competition series",
+				message:
+					"[updateCompetitionGroupAction] Failed to update competition series",
 				error,
 				attributes: { teamId: input.organizingTeamId, groupId: input.groupId },
 			})
@@ -215,7 +218,8 @@ export const deleteCompetitionGroupAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[deleteCompetitionGroupAction] Failed to delete competition series",
+				message:
+					"[deleteCompetitionGroupAction] Failed to delete competition series",
 				error,
 				attributes: { teamId: input.organizingTeamId, groupId: input.groupId },
 			})
@@ -399,7 +403,10 @@ export const updateCompetitionAction = createServerAction()
 			logError({
 				message: "[updateCompetitionAction] Failed to update competition",
 				error,
-				attributes: { teamId: input.organizingTeamId, competitionId: input.competitionId },
+				attributes: {
+					teamId: input.organizingTeamId,
+					competitionId: input.competitionId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -434,7 +441,10 @@ export const deleteCompetitionAction = createServerAction()
 			logError({
 				message: "[deleteCompetitionAction] Failed to delete competition",
 				error,
-				attributes: { teamId: input.organizingTeamId, competitionId: input.competitionId },
+				attributes: {
+					teamId: input.organizingTeamId,
+					competitionId: input.competitionId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -480,9 +490,13 @@ export const registerForCompetitionAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[registerForCompetitionAction] Failed to register for competition",
+				message:
+					"[registerForCompetitionAction] Failed to register for competition",
 				error,
-				attributes: { competitionId: input.competitionId, userId: input.userId },
+				attributes: {
+					competitionId: input.competitionId,
+					userId: input.userId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -523,9 +537,13 @@ export const getUserCompetitionRegistrationAction = createServerAction()
 			return { success: true, data: registration }
 		} catch (error) {
 			logError({
-				message: "[getUserCompetitionRegistrationAction] Failed to get registration",
+				message:
+					"[getUserCompetitionRegistrationAction] Failed to get registration",
 				error,
-				attributes: { competitionId: input.competitionId, userId: input.userId },
+				attributes: {
+					competitionId: input.competitionId,
+					userId: input.userId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -564,9 +582,13 @@ export const getCompetitionRegistrationsAction = createServerAction()
 			return { success: true, data: registrations }
 		} catch (error) {
 			logError({
-				message: "[getCompetitionRegistrationsAction] Failed to get competition registrations",
+				message:
+					"[getCompetitionRegistrationsAction] Failed to get competition registrations",
 				error,
-				attributes: { competitionId: input.competitionId, divisionId: input.divisionId },
+				attributes: {
+					competitionId: input.competitionId,
+					divisionId: input.divisionId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -614,9 +636,13 @@ export const cancelCompetitionRegistrationAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[cancelCompetitionRegistrationAction] Failed to cancel registration",
+				message:
+					"[cancelCompetitionRegistrationAction] Failed to cancel registration",
 				error,
-				attributes: { registrationId: input.registrationId, userId: input.userId },
+				attributes: {
+					registrationId: input.registrationId,
+					userId: input.userId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -657,7 +683,8 @@ export const updateRegistrationAffiliateAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[updateRegistrationAffiliateAction] Failed to update affiliate",
+				message:
+					"[updateRegistrationAffiliateAction] Failed to update affiliate",
 				error,
 				attributes: { userId: input.userId },
 			})
@@ -825,9 +852,14 @@ export const addWorkoutToCompetitionAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[addWorkoutToCompetitionAction] Failed to add workout to competition",
+				message:
+					"[addWorkoutToCompetitionAction] Failed to add workout to competition",
 				error,
-				attributes: { competitionId: input.competitionId, workoutId: input.workoutId, teamId: input.organizingTeamId },
+				attributes: {
+					competitionId: input.competitionId,
+					workoutId: input.workoutId,
+					teamId: input.organizingTeamId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -850,7 +882,8 @@ export const getCompetitionWorkoutsAction = createServerAction()
 			return { success: true, data: workouts }
 		} catch (error) {
 			logError({
-				message: "[getCompetitionWorkoutsAction] Failed to get competition workouts",
+				message:
+					"[getCompetitionWorkoutsAction] Failed to get competition workouts",
 				error,
 				attributes: { competitionId: input.competitionId },
 			})
@@ -892,9 +925,13 @@ export const updateCompetitionWorkoutAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[updateCompetitionWorkoutAction] Failed to update competition workout",
+				message:
+					"[updateCompetitionWorkoutAction] Failed to update competition workout",
 				error,
-				attributes: { trackWorkoutId: input.trackWorkoutId, teamId: input.organizingTeamId },
+				attributes: {
+					trackWorkoutId: input.trackWorkoutId,
+					teamId: input.organizingTeamId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -927,9 +964,13 @@ export const removeWorkoutFromCompetitionAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[removeWorkoutFromCompetitionAction] Failed to remove workout from competition",
+				message:
+					"[removeWorkoutFromCompetitionAction] Failed to remove workout from competition",
 				error,
-				attributes: { trackWorkoutId: input.trackWorkoutId, teamId: input.organizingTeamId },
+				attributes: {
+					trackWorkoutId: input.trackWorkoutId,
+					teamId: input.organizingTeamId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -965,9 +1006,14 @@ export const reorderCompetitionEventsAction = createServerAction()
 			return { success: true, updateCount }
 		} catch (error) {
 			logError({
-				message: "[reorderCompetitionEventsAction] Failed to reorder competition events",
+				message:
+					"[reorderCompetitionEventsAction] Failed to reorder competition events",
 				error,
-				attributes: { competitionId: input.competitionId, teamId: input.organizingTeamId, updateCount: input.updates.length },
+				attributes: {
+					competitionId: input.competitionId,
+					teamId: input.organizingTeamId,
+					updateCount: input.updates.length,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -1015,9 +1061,14 @@ export const createCompetitionEventAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[createCompetitionEventAction] Failed to create competition event",
+				message:
+					"[createCompetitionEventAction] Failed to create competition event",
 				error,
-				attributes: { competitionId: input.competitionId, teamId: input.organizingTeamId, eventName: input.name },
+				attributes: {
+					competitionId: input.competitionId,
+					teamId: input.organizingTeamId,
+					eventName: input.name,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -1070,9 +1121,14 @@ export const saveCompetitionEventAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[saveCompetitionEventAction] Failed to save competition event",
+				message:
+					"[saveCompetitionEventAction] Failed to save competition event",
 				error,
-				attributes: { trackWorkoutId: input.trackWorkoutId, workoutId: input.workoutId, teamId: input.organizingTeamId },
+				attributes: {
+					trackWorkoutId: input.trackWorkoutId,
+					workoutId: input.workoutId,
+					teamId: input.organizingTeamId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -1103,9 +1159,13 @@ export const getCompetitionLeaderboardAction = createServerAction()
 			return { success: true, data: leaderboard }
 		} catch (error) {
 			logError({
-				message: "[getCompetitionLeaderboardAction] Failed to get competition leaderboard",
+				message:
+					"[getCompetitionLeaderboardAction] Failed to get competition leaderboard",
 				error,
-				attributes: { competitionId: input.competitionId, divisionId: input.divisionId },
+				attributes: {
+					competitionId: input.competitionId,
+					divisionId: input.divisionId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -1135,7 +1195,11 @@ export const getEventLeaderboardAction = createServerAction()
 			logError({
 				message: "[getEventLeaderboardAction] Failed to get event leaderboard",
 				error,
-				attributes: { competitionId: input.competitionId, trackWorkoutId: input.trackWorkoutId, divisionId: input.divisionId },
+				attributes: {
+					competitionId: input.competitionId,
+					trackWorkoutId: input.trackWorkoutId,
+					divisionId: input.divisionId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error
@@ -1187,9 +1251,13 @@ export const updateDivisionDescriptionsAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[updateDivisionDescriptionsAction] Failed to update division descriptions",
+				message:
+					"[updateDivisionDescriptionsAction] Failed to update division descriptions",
 				error,
-				attributes: { workoutId: input.workoutId, teamId: input.organizingTeamId },
+				attributes: {
+					workoutId: input.workoutId,
+					teamId: input.organizingTeamId,
+				},
 			})
 			if (error instanceof ZSAError) {
 				throw error

@@ -43,7 +43,7 @@ export function encodeTime(input: string): number | null {
 			// Last part is always milliseconds, remaining parts are time components
 			const msPart = parts[parts.length - 1] ?? "0"
 			const timeParts = parts.slice(0, -1)
-			
+
 			// Convert to colon format and parse
 			const colonFormat = timeParts.join(":")
 			const withMs = `${colonFormat}.${msPart}`

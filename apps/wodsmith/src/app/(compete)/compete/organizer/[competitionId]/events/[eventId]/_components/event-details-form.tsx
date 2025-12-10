@@ -324,8 +324,7 @@ export function EventDetailsForm({
 									/>
 								)}
 
-							{(isTimeBasedScheme(scheme) ||
-								scheme === "rounds-reps") && (
+								{(isTimeBasedScheme(scheme) || scheme === "rounds-reps") && (
 									<div className="grid grid-cols-2 gap-4">
 										<FormField
 											control={form.control}

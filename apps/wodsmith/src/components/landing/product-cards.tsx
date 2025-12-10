@@ -29,7 +29,10 @@ export function ProductCards() {
 	const isLoggedIn = !!session?.user
 
 	return (
-		<section id="products" className="border-y border-border bg-secondary py-20">
+		<section
+			id="products"
+			className="border-y border-border bg-secondary py-20"
+		>
 			<div className="container mx-auto px-4">
 				{/* Section header */}
 				<div className="mx-auto mb-16 max-w-3xl text-center">

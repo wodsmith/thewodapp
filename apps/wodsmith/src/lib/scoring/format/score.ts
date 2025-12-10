@@ -92,7 +92,10 @@ function formatSpecialStatus(
  * formatScoreCompact({ scheme: "time", value: 754000, ... })
  * // → "12:34" (no milliseconds shown)
  */
-export function formatScoreCompact(score: Score, options?: FormatOptions): string {
+export function formatScoreCompact(
+	score: Score,
+	options?: FormatOptions,
+): string {
 	return formatScore(score, { ...options, compact: true })
 }
 
@@ -118,7 +121,7 @@ export function formatRounds(
 ): string[] {
 	return rounds.map((round) => {
 		const effectiveScheme = round.schemeOverride ?? scheme
-		
+
 		// Handle rounds with special status
 		if (round.status && isSpecialStatus(round.status)) {
 			const statusStr = formatStatus(round.status)

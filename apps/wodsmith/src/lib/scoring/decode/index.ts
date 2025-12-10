@@ -87,10 +87,7 @@ export function decodeScore(
 /**
  * Get the unit suffix for count-based schemes.
  */
-function getCountSuffix(
-	scheme: WorkoutScheme,
-	includeUnit?: boolean,
-): string {
+function getCountSuffix(scheme: WorkoutScheme, includeUnit?: boolean): string {
 	if (!includeUnit) return ""
 
 	switch (scheme) {

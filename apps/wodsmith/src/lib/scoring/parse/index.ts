@@ -77,7 +77,10 @@ export function parseScore(
 	// Distance
 	if (isDistanceBasedScheme(scheme)) {
 		const defaultUnit: DistanceUnit = scheme === "feet" ? "ft" : "m"
-		return parseDistance(trimmed, (options?.unit as DistanceUnit) ?? defaultUnit)
+		return parseDistance(
+			trimmed,
+			(options?.unit as DistanceUnit) ?? defaultUnit,
+		)
 	}
 
 	// Count-based schemes (reps, calories, points)
@@ -100,12 +103,12 @@ export function parseScore(
 
 /**
  * Parse rounds+reps input.
- * 
+ *
  * Supports multiple input formats:
  * - Standard: "5+12" (rounds+reps)
  * - Period-delimited: "5.12" (rounds.reps)
  * - Plain number: "5" (complete rounds, interpreted as 5+0)
- * 
+ *
  * @example
  * parseRoundsReps("5+12")  // → { encoded: 500012, formatted: "5+12" }
  * parseRoundsReps("5.12")  // → { encoded: 500012, formatted: "5+12" }
@@ -115,7 +118,7 @@ function parseRoundsReps(input: string, strict?: boolean): ParseResult {
 	// Check for + or . delimiter
 	const hasPlus = input.includes("+")
 	const hasPeriod = input.includes(".")
-	
+
 	if (hasPlus || hasPeriod) {
 		const delimiter = hasPlus ? "+" : "."
 		const parts = input.split(delimiter)

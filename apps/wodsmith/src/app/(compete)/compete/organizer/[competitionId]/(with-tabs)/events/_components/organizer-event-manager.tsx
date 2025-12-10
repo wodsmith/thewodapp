@@ -129,7 +129,7 @@ export function OrganizerEventManager({
 			toast.success(`Created "${data.name}"`)
 			posthog.capture("competition_event_created", {
 				competition_id: competitionId,
-					event_id: result.data.trackWorkoutId,
+				event_id: result.data.trackWorkoutId,
 				event_name: data.name,
 				workout_scheme: data.scheme,
 				is_remix: false,
