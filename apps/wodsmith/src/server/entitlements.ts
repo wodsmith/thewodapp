@@ -1198,6 +1198,60 @@ export async function revokeTeamFeature(
 	})
 }
 
+/**
+ * Set a limit override for a team
+ * This creates or updates an override in the team_entitlement_override table
+ *
+ * @param teamId - Team to set limit override for
+ * @param limitKey - Limit key (e.g., "max_published_competitions")
+ * @param value - Limit value (-1 for unlimited, 0 for none, or positive number)
+ * @param reason - Optional reason for the override
+ */
+export async function setTeamLimitOverride(
+	teamId: string,
+	limitKey: string,
+	value: number,
+	reason?: string,
+): Promise<void> {
+	const db = getDb()
+
+	// Check if override already exists
+	const existingOverride = await db.query.teamEntitlementOverrideTable.findFirst(
+		{
+			where: and(
+				eq(teamEntitlementOverrideTable.teamId, teamId),
+				eq(teamEntitlementOverrideTable.type, "limit"),
+				eq(teamEntitlementOverrideTable.key, limitKey),
+			),
+		},
+	)
+
+	if (existingOverride) {
+		// Update existing override
+		await db
+			.update(teamEntitlementOverrideTable)
+			.set({
+				value: value.toString(),
+				reason: reason ?? existingOverride.reason,
+			})
+			.where(eq(teamEntitlementOverrideTable.id, existingOverride.id))
+	} else {
+		// Create new override
+		await db.insert(teamEntitlementOverrideTable).values({
+			teamId,
+			type: "limit",
+			key: limitKey,
+			value: value.toString(),
+			reason,
+		})
+	}
+
+	logInfo({
+		message: "[entitlements] Set limit override for team",
+		attributes: { teamId, limitKey, value },
+	})
+}
+
 // ============================================================================
 // DATE UTILITIES
 // ============================================================================

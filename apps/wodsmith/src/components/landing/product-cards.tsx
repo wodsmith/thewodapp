@@ -143,7 +143,7 @@ export function ProductCards() {
 								size="lg"
 								asChild
 							>
-								<Link href="/compete/organizer">
+								<Link href="/compete/organizer/onboard">
 									Host Your Competition
 									<ArrowRightIcon className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
 								</Link>
