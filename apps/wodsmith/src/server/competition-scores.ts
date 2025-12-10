@@ -784,11 +784,14 @@ export async function saveCompetitionScore(params: {
 		const scheme = params.workout.scheme as WorkoutScheme
 		const scoreType = params.workout.scoreType || getDefaultScoreType(scheme)
 
-		// Encode score directly from input string using new encoding
-		// This preserves milliseconds for time-based workouts
+		// Encode score using new encoding
+		// For multi-round workouts, use the aggregated finalWodScore (which includes max/total logic)
+		// For single scores, use params.score
+		// This preserves milliseconds for time-based workouts and correct aggregation for multi-round
 		let encodedValue: number | null = null
-		if (params.score && params.score.trim()) {
-			encodedValue = encodeScore(params.score, scheme)
+		const scoreToEncode = (params.roundScores && params.roundScores.length > 0) ? finalWodScore : params.score
+		if (scoreToEncode && scoreToEncode.trim()) {
+			encodedValue = encodeScore(scoreToEncode, scheme)
 		}
 
 		// Map status to new simplified type
