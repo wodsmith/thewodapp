@@ -44,9 +44,7 @@ export const CompetitionTeamInviteEmail = ({
 			<Head />
 			<Body style={main}>
 				<Container style={container}>
-					<Heading style={preheader}>
-						You&apos;re invited to compete!
-					</Heading>
+					<Heading style={preheader}>You&apos;re invited to compete!</Heading>
 					<Text style={paragraph}>Hello,</Text>
 					<Text style={paragraph}>
 						<strong>{captainName}</strong> has invited you to join{" "}
@@ -146,9 +144,8 @@ const container = {
 	border: "1px solid #f0f0f0",
 	borderRadius: "5px",
 	boxShadow: "0 5px 10px rgba(20,50,70,.2)",
-	marginTop: "20px",
 	maxWidth: "600px",
-	margin: "0 auto",
+	margin: "20px auto 0",
 	padding: "40px",
 }
 

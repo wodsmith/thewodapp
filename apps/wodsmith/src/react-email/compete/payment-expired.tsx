@@ -35,8 +35,8 @@ export const PaymentExpiredEmail = ({
 					<Heading style={preheader}>Payment Session Expired</Heading>
 					<Text style={paragraph}>Hi {athleteName},</Text>
 					<Text style={paragraph}>
-						Your payment session for <strong>{competitionName}</strong>{" "}
-						({divisionName}) has expired. Don&apos;t worry — your spot isn&apos;t
+						Your payment session for <strong>{competitionName}</strong> (
+						{divisionName}) has expired. Don&apos;t worry — your spot isn&apos;t
 						lost yet!
 					</Text>
 
@@ -100,9 +100,8 @@ const container = {
 	border: "1px solid #f0f0f0",
 	borderRadius: "5px",
 	boxShadow: "0 5px 10px rgba(20,50,70,.2)",
-	marginTop: "20px",
 	maxWidth: "600px",
-	margin: "0 auto",
+	margin: "20px auto 0",
 	padding: "40px",
 }
 

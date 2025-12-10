@@ -243,16 +243,26 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 		})
 
 		// Send registration confirmation email (paid path)
-		const { notifyRegistrationConfirmed } = await import(
-			"@/server/notifications"
-		)
-		await notifyRegistrationConfirmed({
-			userId,
-			registrationId: result.registrationId,
-			competitionId,
-			isPaid: true,
-			amountPaidCents: session.amount_total ?? undefined,
-		})
+		// Wrapped in separate try-catch so email failures don't affect purchase status
+		try {
+			const { notifyRegistrationConfirmed } = await import(
+				"@/server/notifications"
+			)
+			await notifyRegistrationConfirmed({
+				userId,
+				registrationId: result.registrationId,
+				competitionId,
+				isPaid: true,
+				amountPaidCents: session.amount_total ?? undefined,
+			})
+		} catch (emailErr) {
+			logError({
+				message: "[Stripe Webhook] Failed to send confirmation email",
+				error: emailErr,
+				attributes: { purchaseId, competitionId, userId, registrationId: result.registrationId },
+			})
+			// Don't rethrow - registration and payment succeeded
+		}
 	} catch (err) {
 		logError({
 			message: "[Stripe Webhook] Failed to create registration",
