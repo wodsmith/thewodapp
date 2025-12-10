@@ -186,7 +186,10 @@ export async function syncAccountStatus(teamId: string): Promise<void> {
 
 	const team = await db.query.teamTable.findFirst({
 		where: eq(teamTable.id, teamId),
-		columns: { stripeConnectedAccountId: true },
+		columns: {
+			stripeConnectedAccountId: true,
+			stripeOnboardingCompletedAt: true,
+		},
 	})
 
 	if (!team?.stripeConnectedAccountId) {
@@ -197,13 +200,19 @@ export async function syncAccountStatus(teamId: string): Promise<void> {
 	const status =
 		account.charges_enabled && account.payouts_enabled ? "VERIFIED" : "PENDING"
 
-	await db
-		.update(teamTable)
-		.set({
-			stripeAccountStatus: status,
-			stripeOnboardingCompletedAt: status === "VERIFIED" ? new Date() : null,
-		})
-		.where(eq(teamTable.id, teamId))
+	// Only set onboarding timestamp if not already set and status is VERIFIED
+	const updateData: {
+		stripeAccountStatus: string
+		stripeOnboardingCompletedAt?: Date | null
+	} = {
+		stripeAccountStatus: status,
+	}
+
+	if (status === "VERIFIED" && !team.stripeOnboardingCompletedAt) {
+		updateData.stripeOnboardingCompletedAt = new Date()
+	}
+
+	await db.update(teamTable).set(updateData).where(eq(teamTable.id, teamId))
 }
 
 /**

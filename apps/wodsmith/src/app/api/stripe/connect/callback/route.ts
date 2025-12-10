@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 			const stateData = JSON.parse(Buffer.from(state, "base64").toString("utf-8"))
 			return NextResponse.redirect(
 				new URL(
-					`/settings/teams/${stateData.teamSlug}?stripe_error=${encodeURIComponent(String(err))}`,
+					`/settings/teams/${stateData.teamSlug}?stripe_error=connection_failed`,
 					appUrl
 				)
 			)

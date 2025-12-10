@@ -53,13 +53,14 @@ export default async function RevenuePage({ params }: RevenuePageProps) {
 
 	const stats = await getCompetitionRevenueStats(competitionId)
 
-	return (
-		<RevenueStatsDisplay
-			stats={stats}
-			stripeStatus={{
-				isConnected: organizingTeam?.stripeAccountStatus === "VERIFIED",
-				teamSlug: organizingTeam?.slug ?? "",
-			}}
-		/>
-	)
+	// Only pass stripeStatus if we have a valid team with slug
+	const stripeStatus =
+		organizingTeam?.slug
+			? {
+					isConnected: organizingTeam.stripeAccountStatus === "VERIFIED",
+					teamSlug: organizingTeam.slug,
+				}
+			: undefined
+
+	return <RevenueStatsDisplay stats={stats} stripeStatus={stripeStatus} />
 }

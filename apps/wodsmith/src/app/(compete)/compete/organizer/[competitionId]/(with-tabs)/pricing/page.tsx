@@ -54,13 +54,17 @@ export default async function PricingPage({ params }: PricingPageProps) {
 		},
 	})
 
-	const isStripeConnected = organizingTeam?.stripeAccountStatus === "VERIFIED"
+	if (!organizingTeam) {
+		notFound()
+	}
+
+	const isStripeConnected = organizingTeam.stripeAccountStatus === "VERIFIED"
 
 	// If Stripe not connected, show the connection prompt
 	if (!isStripeConnected) {
 		return (
 			<StripeConnectionRequired
-				teamSlug={organizingTeam?.slug ?? ""}
+				teamSlug={organizingTeam.slug}
 				competitionName={competition.name}
 			/>
 		)

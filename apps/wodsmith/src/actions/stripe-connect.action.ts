@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import { teamTable, TEAM_PERMISSIONS } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireTeamPermission, requireTeamMembership } from "@/utils/team-auth"
 import {
 	createExpressAccount,
 	createExpressAccountLink,
@@ -132,10 +132,9 @@ export async function refreshOnboardingLink(input: { teamId: string }) {
  */
 export async function getStripeConnectionStatus(input: { teamId: string }) {
 	return withRateLimit(async () => {
-		const session = await requireVerifiedEmail()
-		if (!session) throw new Error("Unauthorized")
+		// Verify user is a member of this team
+		await requireTeamMembership(input.teamId)
 
-		// Only need to be a team member to view status
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
 			where: eq(teamTable.id, input.teamId),
