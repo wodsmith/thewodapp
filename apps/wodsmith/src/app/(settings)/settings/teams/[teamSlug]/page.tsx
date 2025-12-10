@@ -19,6 +19,7 @@ import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { hasFeature } from "@/server/entitlements"
+import { getAccountBalance, type AccountBalance } from "@/server/stripe-connect"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
@@ -30,6 +31,11 @@ import { TeamMemberCard } from "./_components/team-members"
 interface TeamPageProps {
 	params: Promise<{
 		teamSlug: string
+	}>
+	searchParams: Promise<{
+		stripe_connected?: string
+		stripe_refresh?: string
+		stripe_error?: string
 	}>
 }
 
@@ -54,8 +60,12 @@ export async function generateMetadata({ params }: TeamPageProps) {
 	}
 }
 
-export default async function TeamDashboardPage({ params }: TeamPageProps) {
+export default async function TeamDashboardPage({
+	params,
+	searchParams,
+}: TeamPageProps) {
 	const { teamSlug } = await params
+	const { stripe_connected, stripe_refresh, stripe_error } = await searchParams
 	const db = getDb()
 
 	// Find the team by slug
@@ -116,6 +126,19 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 		team.id,
 		FEATURES.HOST_COMPETITIONS,
 	)
+
+	// Fetch Stripe balance if connected
+	let stripeBalance: AccountBalance | null = null
+	if (
+		team.stripeConnectedAccountId &&
+		team.stripeAccountStatus === "VERIFIED"
+	) {
+		try {
+			stripeBalance = await getAccountBalance(team.stripeConnectedAccountId)
+		} catch {
+			// Silently fail - balance display is a convenience feature
+		}
+	}
 
 	// Fetch team members
 	const teamMembers = await getTeamMembers(team.id)
@@ -319,7 +342,15 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 						<h2 className="text-2xl font-bold mb-4">Competition Organizing</h2>
 						<EnableCompetitionOrganizing
 							teamId={team.id}
+							teamSlug={team.slug}
 							isEnabled={hasCompetitionOrganizing}
+							stripeAccountStatus={team.stripeAccountStatus}
+							stripeAccountType={team.stripeAccountType}
+							stripeOnboardingCompletedAt={team.stripeOnboardingCompletedAt}
+							balance={stripeBalance}
+							showConnectedMessage={stripe_connected === "true"}
+							showRefreshMessage={stripe_refresh === "true"}
+							stripeError={stripe_error}
 						/>
 					</div>
 				)}

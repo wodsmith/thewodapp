@@ -6,6 +6,7 @@ import { getDb } from "@/db"
 import {
 	commercePurchaseTable,
 	competitionRegistrationsTable,
+	teamTable,
 	COMMERCE_PURCHASE_STATUS,
 	COMMERCE_PAYMENT_STATUS,
 } from "@/db/schema"
@@ -68,6 +69,25 @@ export async function POST(request: NextRequest) {
 			case "checkout.session.expired":
 				await handleCheckoutExpired(
 					event.data.object as Stripe.Checkout.Session,
+				)
+				break
+
+			// Stripe Connect events
+			case "account.updated":
+				await handleAccountUpdated(event.data.object as Stripe.Account)
+				break
+
+			case "account.application.authorized":
+				// Standard OAuth connection confirmed - logged for debugging
+				logInfo({
+					message: "[Stripe Webhook] Account application authorized",
+					attributes: { accountId: (event.data.object as { id: string }).id },
+				})
+				break
+
+			case "account.application.deauthorized":
+				await handleAccountDeauthorized(
+					event.data.object as { id: string; account?: string }
 				)
 				break
 
@@ -262,5 +282,83 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 	logInfo({
 		message: "[Stripe Webhook] Checkout expired for purchase",
 		attributes: { purchaseId },
+	})
+}
+
+/**
+ * Handle account.updated webhook - update team's Stripe status
+ */
+async function handleAccountUpdated(account: Stripe.Account) {
+	const db = getDb()
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.stripeConnectedAccountId, account.id),
+	})
+
+	if (!team) {
+		logInfo({
+			message: "[Stripe Webhook] No team found for account",
+			attributes: { accountId: account.id },
+		})
+		return
+	}
+
+	const status =
+		account.charges_enabled && account.payouts_enabled ? "VERIFIED" : "PENDING"
+
+	const updateData: Record<string, unknown> = {
+		stripeAccountStatus: status,
+		updatedAt: new Date(),
+	}
+
+	// Set onboarding completed timestamp when first verified
+	if (status === "VERIFIED" && !team.stripeOnboardingCompletedAt) {
+		updateData.stripeOnboardingCompletedAt = new Date()
+	}
+
+	await db
+		.update(teamTable)
+		.set(updateData)
+		.where(eq(teamTable.id, team.id))
+
+	logInfo({
+		message: "[Stripe Webhook] Updated team Stripe status",
+		attributes: { teamId: team.id, status, accountId: account.id },
+	})
+}
+
+/**
+ * Handle account.application.deauthorized webhook - user disconnected from Stripe side
+ */
+async function handleAccountDeauthorized(data: {
+	id: string
+	account?: string
+}) {
+	const db = getDb()
+	const accountId = data.account || data.id
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.stripeConnectedAccountId, accountId),
+	})
+
+	if (!team) {
+		return
+	}
+
+	// Clear Stripe connection
+	await db
+		.update(teamTable)
+		.set({
+			stripeConnectedAccountId: null,
+			stripeAccountStatus: null,
+			stripeAccountType: null,
+			stripeOnboardingCompletedAt: null,
+			updatedAt: new Date(),
+		})
+		.where(eq(teamTable.id, team.id))
+
+	logWarning({
+		message: "[Stripe Webhook] Team Stripe account deauthorized",
+		attributes: { teamId: team.id, accountId },
 	})
 }

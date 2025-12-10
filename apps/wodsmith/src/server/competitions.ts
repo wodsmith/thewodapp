@@ -1187,7 +1187,15 @@ export async function registerForCompetition(params: {
 		}
 	}
 
-	// 16. Update all user sessions to include new team
+	// 16. Update user's affiliate profile if not already set
+	if (params.affiliateName && !user.affiliateName) {
+		await db
+			.update(userTable)
+			.set({ affiliateName: params.affiliateName })
+			.where(eq(userTable.id, params.userId))
+	}
+
+	// 17. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
 	return {

@@ -3,11 +3,12 @@ import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { getDb } from "@/db"
-import { scalingGroupsTable } from "@/db/schema"
+import { scalingGroupsTable, teamTable } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { getCompetitionDivisionFees } from "@/actions/commerce.action"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { PricingSettingsForm } from "./_components/pricing-settings-form"
+import { StripeConnectionRequired } from "./_components/stripe-connection-required"
 
 interface PricingPageProps {
 	params: Promise<{
@@ -42,6 +43,31 @@ export default async function PricingPage({ params }: PricingPageProps) {
 
 	if (!competition) {
 		notFound()
+	}
+
+	// Get organizing team's Stripe connection status
+	const organizingTeam = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, competition.organizingTeamId),
+		columns: {
+			slug: true,
+			stripeAccountStatus: true,
+		},
+	})
+
+	if (!organizingTeam) {
+		notFound()
+	}
+
+	const isStripeConnected = organizingTeam.stripeAccountStatus === "VERIFIED"
+
+	// If Stripe not connected, show the connection prompt
+	if (!isStripeConnected) {
+		return (
+			<StripeConnectionRequired
+				teamSlug={organizingTeam.slug}
+				competitionName={competition.name}
+			/>
+		)
 	}
 
 	// Get competition's divisions from scaling group
