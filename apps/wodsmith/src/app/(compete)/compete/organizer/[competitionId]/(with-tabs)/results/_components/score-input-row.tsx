@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { parseScore, type ParseResult } from "@/utils/score-parser"
+import { parseScore, type ParseResult } from "@/utils/score-parser-new"
 import type {
 	WorkoutScheme,
 	TiebreakScheme,

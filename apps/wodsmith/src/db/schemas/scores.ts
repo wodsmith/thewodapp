@@ -108,6 +108,11 @@ export const scoresTable = sqliteTable(
 		),
 		// Scheduled workout lookup
 		index("idx_scores_scheduled").on(table.scheduledWorkoutInstanceId),
+		// Unique constraint for competition scores (one score per user per event)
+		uniqueIndex("idx_scores_competition_user_unique").on(
+			table.competitionEventId,
+			table.userId,
+		),
 	],
 )
 

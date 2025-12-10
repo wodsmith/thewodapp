@@ -48,6 +48,7 @@ import {
 	competitionEventSchema,
 } from "@/schemas/workout.schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
+import { isTimeBasedScheme } from "@/lib/scoring"
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"
@@ -357,9 +358,8 @@ export function EventDetailsForm({
 									</div>
 								)}
 
-								{(scheme === "time" ||
-									scheme === "time-with-cap" ||
-									scheme === "rounds-reps") && (
+							{(isTimeBasedScheme(scheme) ||
+								scheme === "rounds-reps") && (
 									<div className="grid grid-cols-2 gap-4">
 										<FormField
 											control={form.control}

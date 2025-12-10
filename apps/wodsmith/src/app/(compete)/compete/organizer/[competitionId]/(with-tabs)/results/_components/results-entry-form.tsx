@@ -31,6 +31,7 @@ import type {
 } from "@/server/competition-scores"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 import { HeatScoreGroup } from "./heat-score-group"
+import { isTimeBasedScheme } from "@/lib/scoring"
 
 interface ResultsEntryFormProps {
 	competitionId: string
@@ -116,13 +117,10 @@ export function ResultsEntryForm({
 			// Auto-save
 			setSavingIds((prev) => new Set(prev).add(athlete.registrationId))
 
-			// For time-based scores, convert the raw value (seconds) to string for server
-			// The UI displays "10:00" but we need to send "600" (seconds) to the server
-			const isTimeBasedScheme =
-				event.workout.scheme === "time" ||
-				event.workout.scheme === "time-with-cap"
-			const scoreToSend =
-				isTimeBasedScheme && data.rawValue != null
+		// For time-based scores, convert the raw value (seconds) to string for server
+		// The UI displays "10:00" but we need to send "600" (seconds) to the server
+		const scoreToSend =
+			isTimeBasedScheme(event.workout.scheme) && data.rawValue != null
 					? String(data.rawValue)
 					: data.score
 

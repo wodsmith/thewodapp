@@ -29,6 +29,7 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import type { CompetitionLeaderboardEntry, TeamMemberInfo } from "@/server/competition-leaderboard"
+import { getSortDirection } from "@/lib/scoring"
 
 interface CompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]
@@ -36,8 +37,7 @@ interface CompetitionLeaderboardTableProps {
 	selectedEventId: string | null // null = overall view
 }
 
-// Schemes where lower is better (time-based)
-const LOWER_IS_BETTER_SCHEMES = ["time", "time-with-cap", "emom"]
+// Note: Sort direction is now determined by getSortDirection() from @/lib/scoring
 
 function getRankIcon(rank: number) {
 	switch (rank) {
@@ -454,8 +454,9 @@ export function CompetitionLeaderboardTable({
 			} else if (columnId === "score" || columnId.startsWith("event-")) {
 				// Score/Event: check scheme - time-based is ascending (lower is better)
 				const option = sortOptions.find((o) => o.id === columnId)
-				if (option?.scheme && LOWER_IS_BETTER_SCHEMES.includes(option.scheme)) {
-					defaultDesc = false // Lower time is better, so ascending shows best first
+				if (option?.scheme) {
+					const sortDirection = getSortDirection(option.scheme as any)
+					defaultDesc = sortDirection === "desc" // desc = higher is better
 				}
 			}
 

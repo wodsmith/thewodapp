@@ -7,9 +7,9 @@ import { getDb } from "@/db"
 import { autochunk } from "@/utils/batch-query"
 import {
 	competitionRegistrationsTable,
-	results,
 	scalingLevelsTable,
-	sets,
+	scoresTable,
+	scoreRoundsTable,
 	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
@@ -25,8 +25,106 @@ import {
 	type NormalizedScoreEntry,
 } from "@/server/logs"
 import { getSessionFromCookie } from "@/utils/auth"
-import { logInfo } from "@/lib/logging/posthog-otel-logger"
+import {
+	logInfo,
+	logWarning,
+	logError,
+} from "@/lib/logging/posthog-otel-logger"
 import { getHeatsForWorkout } from "./competition-heats"
+import { encodeScore, computeSortKey } from "@/lib/scoring"
+import { STATUS_ORDER } from "@/lib/scoring/constants"
+import { convertLegacyToNew } from "@/utils/score-adapter"
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Map ScoreStatus to statusOrder for the new scores table.
+ * The old results table uses more status values, but the new scores table
+ * uses a simplified set focused on competition scoring.
+ */
+function getStatusOrder(status: ScoreStatus): number {
+	// Map old status values to new simplified set
+	switch (status) {
+		case "scored":
+			return STATUS_ORDER.scored // 0
+		case "cap":
+			return STATUS_ORDER.cap // 1
+		case "dq":
+			return STATUS_ORDER.dq // 2
+		case "withdrawn":
+		case "dns":
+		case "dnf":
+			return STATUS_ORDER.withdrawn // 3
+		default:
+			return STATUS_ORDER.scored // 0 - default to scored
+	}
+}
+
+/**
+ * Map ScoreStatus to the simplified status type for new scores table.
+ */
+function mapToNewStatus(
+	status: ScoreStatus,
+): "scored" | "cap" | "dq" | "withdrawn" {
+	switch (status) {
+		case "scored":
+			return "scored"
+		case "cap":
+			return "cap"
+		case "dq":
+			return "dq"
+		case "withdrawn":
+		case "dns":
+		case "dnf":
+			return "withdrawn"
+		default:
+			return "scored"
+	}
+}
+
+/**
+ * Convert legacy set data to encoded value for new scores table.
+ * Uses the first set's score/reps for the primary value.
+ */
+function convertSetsToEncodedValue(
+	setsData: Array<{
+		score: number | null
+		reps: number | null
+		time: number | null
+	}>,
+	scheme: WorkoutScheme,
+): number | null {
+	if (setsData.length === 0) return null
+
+	const firstSet = setsData[0]
+	if (!firstSet) return null
+
+	// For rounds-reps, use score (rounds) and reps
+	if (scheme === "rounds-reps") {
+		const rounds = firstSet.score ?? 0
+		const reps = firstSet.reps ?? 0
+		// Legacy: rounds * 1000 + reps
+		const legacyValue = rounds * 1000 + reps
+		return convertLegacyToNew(legacyValue, scheme)
+	}
+
+	// For time-based schemes, use time in seconds (legacy format)
+	if (
+		scheme === "time" ||
+		scheme === "time-with-cap" ||
+		scheme === "emom"
+	) {
+		const timeInSeconds = firstSet.time ?? 0
+		return convertLegacyToNew(timeInSeconds, scheme)
+	}
+
+	// For other schemes, use score directly
+	const value = firstSet.score ?? null
+	if (value === null) return null
+	return convertLegacyToNew(value, scheme)
+}
 
 // ============================================================================
 // Heat-Based Score Entry Types
@@ -219,56 +317,76 @@ export async function getEventScoreEntryData(params: {
 			)
 		: registrations
 
-	// Get existing results for this event (chunked to avoid D1 parameter limit)
+	// Get existing scores for this event from new scores table (chunked to avoid D1 parameter limit)
 	const userIds = filteredRegistrations.map((r) => r.user.id)
-	const existingResults =
+	const existingScores =
 		userIds.length > 0
 			? await autochunk(
 					{ items: userIds, otherParametersCount: 1 },
 					async (chunk) =>
 						db
 							.select()
-							.from(results)
+							.from(scoresTable)
 							.where(
 								and(
-									eq(results.competitionEventId, params.trackWorkoutId),
-									inArray(results.userId, chunk),
+									eq(scoresTable.competitionEventId, params.trackWorkoutId),
+									inArray(scoresTable.userId, chunk),
 								),
 							),
 				)
 			: []
 
-	// Get sets for all existing results (chunked to avoid D1 parameter limit)
-	const resultIds = existingResults.map((r) => r.id)
-	const existingSets =
-		resultIds.length > 0
-			? await autochunk({ items: resultIds }, async (chunk) =>
+	// Get score_rounds for all existing scores (chunked to avoid D1 parameter limit)
+	const scoreIds = existingScores.map((s) => s.id)
+	const existingRounds =
+		scoreIds.length > 0
+			? await autochunk({ items: scoreIds }, async (chunk) =>
 					db
 						.select({
-							resultId: sets.resultId,
-							setNumber: sets.setNumber,
-							score: sets.score,
-							reps: sets.reps,
+							scoreId: scoreRoundsTable.scoreId,
+							roundNumber: scoreRoundsTable.roundNumber,
+							value: scoreRoundsTable.value,
 						})
-						.from(sets)
-						.where(inArray(sets.resultId, chunk)),
+						.from(scoreRoundsTable)
+						.where(inArray(scoreRoundsTable.scoreId, chunk)),
 				)
 			: []
 
-	// Group sets by resultId
-	const setsByResultId = new Map<string, ExistingSetData[]>()
-	for (const set of existingSets) {
-		const existing = setsByResultId.get(set.resultId) || []
+	// Group rounds by scoreId and convert to legacy format
+	const setsByScoreId = new Map<string, ExistingSetData[]>()
+	for (const round of existingRounds) {
+		const existing = setsByScoreId.get(round.scoreId) || []
+		
+		// Convert from new encoding back to legacy format for display
+		// For rounds-reps: extract rounds and reps from encoded value
+		// For time: convert ms to seconds
+		// For other schemes: use value as-is
+		const scheme = existingScores.find(s => s.id === round.scoreId)?.scheme
+		let score: number | null = null
+		let reps: number | null = null
+		
+		if (scheme === "rounds-reps") {
+			// Encoded as rounds*100000+reps, extract both
+			const rounds = Math.floor(round.value / 100000)
+			reps = round.value % 100000
+			score = rounds
+		} else if (scheme === "time" || scheme === "time-with-cap") {
+			// Convert milliseconds to seconds for display
+			score = Math.round(round.value / 1000)
+		} else {
+			score = round.value
+		}
+		
 		existing.push({
-			setNumber: set.setNumber,
-			score: set.score,
-			reps: set.reps,
+			setNumber: round.roundNumber,
+			score,
+			reps,
 		})
-		setsByResultId.set(set.resultId, existing)
+		setsByScoreId.set(round.scoreId, existing)
 	}
 
-	// Create a map of userId to result
-	const resultsByUserId = new Map(existingResults.map((r) => [r.userId, r]))
+	// Create a map of userId to score
+	const scoresByUserId = new Map(existingScores.map((s) => [s.userId, s]))
 
 	// Get unique divisions for the filter dropdown
 	const divisionIds = [
@@ -337,9 +455,9 @@ export async function getEventScoreEntryData(params: {
 	// Build athletes array
 	const athletes: EventScoreEntryAthlete[] = filteredRegistrations.map(
 		(reg) => {
-			const existingResult = resultsByUserId.get(reg.user.id)
-			const resultSets = existingResult
-				? (setsByResultId.get(existingResult.id) || []).sort(
+			const existingScore = scoresByUserId.get(reg.user.id)
+			const scoreSets = existingScore
+				? (setsByScoreId.get(existingScore.id) || []).sort(
 						(a, b) => a.setNumber - b.setNumber,
 					)
 				: []
@@ -373,14 +491,14 @@ export async function getEventScoreEntryData(params: {
 				divisionLabel: reg.division?.label || "Open",
 				teamName: reg.registration.teamName || null,
 				teamMembers,
-				existingResult: existingResult
+				existingResult: existingScore
 					? {
-							resultId: existingResult.id,
-							wodScore: existingResult.wodScore,
-							scoreStatus: existingResult.scoreStatus as ScoreStatus | null,
-							tieBreakScore: existingResult.tieBreakScore,
-							secondaryScore: existingResult.secondaryScore,
-							sets: resultSets,
+							resultId: existingScore.id,
+							wodScore: String(existingScore.scoreValue ?? ""),
+							scoreStatus: existingScore.status as ScoreStatus | null,
+							tieBreakScore: existingScore.tiebreakValue ? String(existingScore.tiebreakValue) : null,
+							secondaryScore: existingScore.secondaryValue ? String(existingScore.secondaryValue) : null,
+							sets: scoreSets,
 						}
 					: null,
 			}
@@ -491,6 +609,14 @@ function convertToNormalizedEntries(
 /**
  * Save a single athlete's competition score
  * Uses the same score processing logic as submitLogForm via shared functions
+ *
+ * TODO Phase 4: Dual-write to new scores table
+ * After Phase 4 migration:
+ * 1. Use encodeScore() to encode the primary score to new format
+ * 2. Use encodeRounds() for round-by-round data
+ * 3. Insert into scores table alongside results table
+ * 4. Populate sortKey column using computeSortKey()
+ * 5. Eventually remove results+sets writes after verification
  */
 export async function saveCompetitionScore(params: {
 	competitionId: string
@@ -522,6 +648,7 @@ export async function saveCompetitionScore(params: {
 			scoreStatus: params.scoreStatus,
 		},
 	})
+
 	let finalWodScore = params.score
 	let setsToInsert: Array<{
 		id: string
@@ -536,6 +663,7 @@ export async function saveCompetitionScore(params: {
 	}> = []
 
 	// Process round scores if provided using shared functions
+	// TODO Phase 4: Also encode using encodeScore() and encodeRounds() here
 	if (params.roundScores && params.roundScores.length > 0 && params.workout) {
 		// Convert to normalized format used by shared functions
 		const normalizedEntries = convertToNormalizedEntries(params.roundScores)
@@ -612,66 +740,194 @@ export async function saveCompetitionScore(params: {
 		}))
 	}
 
-	// Use upsert pattern to prevent race conditions
-	// The unique index on (competitionEventId, userId) ensures atomicity
-	const newResultId = `result_${createId()}`
+	// Validate workout info is provided
+	if (!params.workout) {
+		throw new ZSAError("ERROR", "Workout info is required to save competition score")
+	}
 
-	const [upsertedResult] = await db
-		.insert(results)
-		.values({
-			id: newResultId,
-			userId: params.userId,
-			workoutId: params.workoutId,
-			competitionEventId: params.trackWorkoutId,
-			competitionRegistrationId: params.registrationId,
-			date: new Date(),
-			type: "wod",
-			wodScore: finalWodScore,
-			scoreStatus: params.scoreStatus,
-			tieBreakScore: params.tieBreakScore ?? null,
-			secondaryScore: params.secondaryScore ?? null,
-			scalingLevelId: params.divisionId,
-			enteredBy: params.enteredBy,
-			setCount: setsToInsert.length || null,
-			asRx: true, // Competition scores are always "as prescribed" for the division
-		})
-		.onConflictDoUpdate({
-			target: [results.competitionEventId, results.userId],
-			set: {
-				wodScore: finalWodScore,
-				scoreStatus: params.scoreStatus,
-				tieBreakScore: params.tieBreakScore ?? null,
-				secondaryScore: params.secondaryScore ?? null,
-				scalingLevelId: params.divisionId,
-				competitionRegistrationId: params.registrationId,
-				enteredBy: params.enteredBy,
-				setCount: setsToInsert.length || null,
-				updatedAt: new Date(),
+	// Write to new scores table
+	try {
+		const scheme = params.workout.scheme
+		const scoreType = params.workout.scoreType || "max"
+
+		// Convert legacy sets to encoded value for new table
+		const encodedValue = convertSetsToEncodedValue(setsToInsert, scheme)
+
+		// Map status to new simplified type
+		const newStatus = mapToNewStatus(params.scoreStatus)
+
+		// Compute sort key for efficient leaderboard queries
+		const sortKey =
+			encodedValue !== null
+				? computeSortKey({
+						value: encodedValue,
+						status: newStatus,
+						scheme,
+						scoreType,
+					})
+				: null
+
+		// Get teamId from competition context
+		const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
+			where: eq(trackWorkoutsTable.id, params.trackWorkoutId),
+			with: {
+				track: {
+					columns: {
+						ownerTeamId: true,
+					},
+				},
 			},
 		})
-		.returning({ id: results.id })
 
-	if (!upsertedResult) {
+		if (!trackWorkout?.track?.ownerTeamId) {
+			throw new ZSAError("ERROR", "Could not determine team ownership for competition")
+		}
+
+		const teamId = trackWorkout.track.ownerTeamId
+
+		// Encode tiebreak if provided
+		let tiebreakValue: number | null = null
+		if (params.tieBreakScore && params.workout.tiebreakScheme) {
+			try {
+				tiebreakValue = encodeScore(
+					params.tieBreakScore,
+					params.workout.tiebreakScheme,
+				)
+			} catch (error) {
+				logWarning({
+					message: "[competition-scores] Failed to encode tiebreak",
+					attributes: {
+						tieBreakScore: params.tieBreakScore,
+						tiebreakScheme: params.workout.tiebreakScheme,
+						error: error instanceof Error ? error.message : String(error),
+					},
+				})
+			}
+		}
+
+		// Insert/update scores table
+		await db
+			.insert(scoresTable)
+			.values({
+				userId: params.userId,
+				teamId,
+				workoutId: params.workoutId,
+				competitionEventId: params.trackWorkoutId,
+				scheme,
+				scoreType,
+				scoreValue: encodedValue,
+				status: newStatus,
+				statusOrder: getStatusOrder(params.scoreStatus),
+				sortKey: sortKey?.toString() ?? null,
+				tiebreakScheme: params.workout.tiebreakScheme ?? null,
+				tiebreakValue,
+				scalingLevelId: params.divisionId,
+				asRx: true,
+				recordedAt: new Date(),
+			})
+			.onConflictDoUpdate({
+				target: [scoresTable.competitionEventId, scoresTable.userId],
+				set: {
+					scoreValue: encodedValue,
+					status: newStatus,
+					statusOrder: getStatusOrder(params.scoreStatus),
+					sortKey: sortKey?.toString() ?? null,
+					tiebreakValue,
+					scalingLevelId: params.divisionId,
+					updatedAt: new Date(),
+				},
+			})
+
+		// Get the final score ID (either new or existing)
+		const [finalScore] = await db
+			.select({ id: scoresTable.id })
+			.from(scoresTable)
+			.where(
+				and(
+					eq(scoresTable.competitionEventId, params.trackWorkoutId),
+					eq(scoresTable.userId, params.userId),
+				),
+			)
+			.limit(1)
+
+		if (!finalScore) {
+			throw new ZSAError("ERROR", "Failed to retrieve score after upsert")
+		}
+
+		const scoreId = finalScore.id
+		
+		logInfo({
+			message: "[competition-scores] Saved score to new scores table",
+			attributes: {
+				scoreId,
+				userId: params.userId,
+				competitionEventId: params.trackWorkoutId,
+			},
+		})
+
+		// Handle score_rounds - delete existing and insert new
+		if (setsToInsert.length > 0) {
+			// Delete existing rounds
+			await db
+				.delete(scoreRoundsTable)
+				.where(eq(scoreRoundsTable.scoreId, scoreId))
+
+			// Convert and insert new rounds
+			const roundsToInsert = setsToInsert.map((set, index) => {
+				// Convert each round's value using the adapter
+				let roundValue: number
+
+				if (scheme === "rounds-reps") {
+					const rounds = set.score ?? 0
+					const reps = set.reps ?? 0
+					const legacyValue = rounds * 1000 + reps
+					roundValue = convertLegacyToNew(legacyValue, scheme)
+				} else if (
+					scheme === "time" ||
+					scheme === "time-with-cap" ||
+					scheme === "emom"
+				) {
+					const timeInSeconds = set.time ?? 0
+					roundValue = convertLegacyToNew(timeInSeconds, scheme)
+				} else {
+					const value = set.score ?? 0
+					roundValue = convertLegacyToNew(value, scheme)
+				}
+
+				return {
+					id: `scrd_${createId()}`,
+					scoreId,
+					roundNumber: index + 1,
+					value: roundValue,
+					status: null, // Individual round status not tracked in competitions yet
+				}
+			})
+
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
+
+			logInfo({
+				message: "[competition-scores] Saved score rounds",
+				attributes: {
+					scoreId,
+					roundCount: roundsToInsert.length,
+				},
+			})
+		}
+
+		const isNew = true // Always true since we're using upsert pattern
+		return { resultId: scoreId, isNew }
+	} catch (error) {
+		logError({
+			message: "[competition-scores] Failed to save competition score",
+			attributes: {
+				userId: params.userId,
+				competitionEventId: params.trackWorkoutId,
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined,
+			},
+		})
 		throw new ZSAError("ERROR", "Failed to save competition score")
 	}
-
-	const resultId = upsertedResult.id
-	const isNew = resultId === newResultId
-
-	// Handle sets - delete existing and insert new
-	if (setsToInsert.length > 0) {
-		// Delete existing sets for this result (if any)
-		await db.delete(sets).where(eq(sets.resultId, resultId))
-
-		// Insert new sets
-		const setsWithResultId = setsToInsert.map((set) => ({
-			...set,
-			resultId,
-		}))
-		await db.insert(sets).values(setsWithResultId)
-	}
-
-	return { resultId, isNew }
 }
 
 /**
@@ -758,12 +1014,21 @@ export async function deleteCompetitionScore(params: {
 
 	const db = getDb()
 
+	// Delete from new scores table
 	await db
-		.delete(results)
+		.delete(scoresTable)
 		.where(
 			and(
-				eq(results.competitionEventId, params.trackWorkoutId),
-				eq(results.userId, params.userId),
+				eq(scoresTable.competitionEventId, params.trackWorkoutId),
+				eq(scoresTable.userId, params.userId),
 			),
 		)
+	
+	logInfo({
+		message: "[competition-scores] Deleted competition score",
+		attributes: {
+			competitionEventId: params.trackWorkoutId,
+			userId: params.userId,
+		},
+	})
 }
