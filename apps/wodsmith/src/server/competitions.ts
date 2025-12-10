@@ -1198,6 +1198,17 @@ export async function registerForCompetition(params: {
 	// 17. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
+	// 18. Send registration confirmation email (free registration path)
+	const { notifyRegistrationConfirmed } = await import(
+		"@/server/notifications"
+	)
+	await notifyRegistrationConfirmed({
+		userId: params.userId,
+		registrationId: registration.id,
+		competitionId: params.competitionId,
+		isPaid: false,
+	})
+
 	return {
 		registrationId: registration.id,
 		teamMemberId: teamMember.id,

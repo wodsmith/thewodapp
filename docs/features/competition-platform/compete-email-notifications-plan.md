@@ -601,23 +601,23 @@ Email templates are in `src/react-email/`:
 
 ## Implementation Checklist
 
-- [x] **Phase 0.1** - Update `wrangler.jsonc` email vars — `f70d1e4` `thewodapp-zqa`
-- [x] **Phase 0.1** - Update `.env.example` with email documentation — `f70d1e4` `thewodapp-acz`
-- [x] **Phase 0.2** - Refactor `email.tsx` (Resend-only, add `sendEmail`, PostHog logging, test mode) — `f70d1e4` `thewodapp-t5o`
-- [ ] **Phase 1.1** - Create `registration-confirmation.tsx` template — `thewodapp-cqo`
-- [ ] **Phase 2.1** - Create `notifications/compete.ts` with `notifyRegistrationConfirmed` — `thewodapp-d9v`
-- [ ] **Phase 3.1** - Integrate in `competitions.ts` (free path) — `thewodapp-0gm`
-- [ ] **Phase 3.1** - Integrate in `stripe/route.ts` (paid path) — `thewodapp-f6e`
-- [ ] **Phase 1.2** - Create `compete/team-invite.tsx` template — `thewodapp-3vw`
-- [ ] **Phase 2.1** - Add `notifyCompetitionTeamInvite` to notifications module — `thewodapp-rvh`
-- [ ] **Phase 3.2** - Integrate in `team-members.ts` — `thewodapp-vuh`
-- [ ] **Phase 1.3** - Create `payment-expired.tsx` template — `thewodapp-geu`
-- [ ] **Phase 2.1** - Add `notifyPaymentExpired` to notifications module — `thewodapp-sjv`
-- [ ] **Phase 3.3** - Integrate in `stripe/route.ts` checkout expired handler — `thewodapp-b0k`
-- [ ] **Phase 1.4** - Create `teammate-joined.tsx` template — `thewodapp-dho`
-- [ ] **Phase 2.1** - Add `notifyTeammateJoined` to notifications module — `thewodapp-qoo`
-- [ ] **Phase 3.4** - Integrate in `team-members.ts` accept flow — `thewodapp-dpm`
-- [ ] **Phase 4.1** - Create `resend-email-setup.md` guide — `thewodapp-mc8`
+- [x] **Phase 0.1** - Update `wrangler.jsonc` email vars — `a90f7cf` `thewodapp-zqa`
+- [x] **Phase 0.1** - Update `.env.example` with email documentation — `a90f7cf` `thewodapp-acz`
+- [x] **Phase 0.2** - Refactor `email.tsx` (Resend-only, add `sendEmail`, PostHog logging, test mode) — `a90f7cf` `thewodapp-t5o`
+- [x] **Phase 1.1** - Create `registration-confirmation.tsx` template — `3b2c5e4` `thewodapp-cqo`
+- [x] **Phase 2.1** - Create `notifications/compete.ts` with `notifyRegistrationConfirmed` — `3b2c5e4` `thewodapp-d9v`
+- [x] **Phase 3.1** - Integrate in `competitions.ts` (free path) — `3b2c5e4` `thewodapp-0gm`
+- [x] **Phase 3.1** - Integrate in `stripe/route.ts` (paid path) — `3b2c5e4` `thewodapp-f6e`
+- [x] **Phase 1.2** - Create `compete/team-invite.tsx` template — `3b2c5e4` `thewodapp-3vw`
+- [x] **Phase 2.1** - Add `notifyCompetitionTeamInvite` to notifications module — `3b2c5e4` `thewodapp-rvh`
+- [x] **Phase 3.2** - Integrate in `team-members.ts` — `3b2c5e4` `thewodapp-vuh`
+- [x] **Phase 1.3** - Create `payment-expired.tsx` template — `3b2c5e4` `thewodapp-geu`
+- [x] **Phase 2.1** - Add `notifyPaymentExpired` to notifications module — `3b2c5e4` `thewodapp-sjv`
+- [x] **Phase 3.3** - Integrate in `stripe/route.ts` checkout expired handler — `3b2c5e4` `thewodapp-b0k`
+- [x] **Phase 1.4** - Create `teammate-joined.tsx` template — `3b2c5e4` `thewodapp-dho`
+- [x] **Phase 2.1** - Add `notifyTeammateJoined` to notifications module — `3b2c5e4` `thewodapp-qoo`
+- [x] **Phase 3.4** - Integrate in `team-members.ts` accept flow — `3b2c5e4` `thewodapp-dpm`
+- [x] **Phase 4.1** - Create `resend-email-setup.md` guide — `3b2c5e4` `thewodapp-mc8`
 
 ---
 

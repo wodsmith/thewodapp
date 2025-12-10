@@ -242,7 +242,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			},
 		})
 
-		// TODO: Send confirmation email
+		// Send registration confirmation email (paid path)
+		const { notifyRegistrationConfirmed } = await import(
+			"@/server/notifications"
+		)
+		await notifyRegistrationConfirmed({
+			userId,
+			registrationId: result.registrationId,
+			competitionId,
+			isPaid: true,
+			amountPaidCents: session.amount_total ?? undefined,
+		})
 	} catch (err) {
 		logError({
 			message: "[Stripe Webhook] Failed to create registration",
@@ -283,6 +293,20 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 		message: "[Stripe Webhook] Checkout expired for purchase",
 		attributes: { purchaseId },
 	})
+
+	// Send payment expired notification if we have the required metadata
+	const userId = session.metadata?.userId
+	const competitionId = session.metadata?.competitionId
+	const divisionId = session.metadata?.divisionId
+
+	if (userId && competitionId && divisionId) {
+		const { notifyPaymentExpired } = await import("@/server/notifications")
+		await notifyPaymentExpired({
+			userId,
+			competitionId,
+			divisionId,
+		})
+	}
 }
 
 /**
