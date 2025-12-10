@@ -16,23 +16,14 @@ import { RegistrationConfirmationEmail } from "@/react-email/compete/registratio
 import { CompetitionTeamInviteEmail } from "@/react-email/compete/team-invite"
 import { PaymentExpiredEmail } from "@/react-email/compete/payment-expired"
 import { TeammateJoinedEmail } from "@/react-email/compete/teammate-joined"
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function formatCents(cents: number): string {
-	return `$${(cents / 100).toFixed(2)}`
-}
-
-function formatDate(date: Date): string {
-	return date.toLocaleDateString("en-US", {
-		weekday: "long",
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	})
-}
+import {
+	formatCents,
+	formatDate,
+	getAthleteName,
+	parsePendingTeammateCount,
+	isTeamComplete,
+	getTeammateJoinedSubject,
+} from "./helpers"
 
 // ============================================================================
 // Registration Confirmation
@@ -108,18 +99,11 @@ export async function notifyRegistrationConfirmed(params: {
 		}
 
 		// Count pending teammates
-		let pendingTeammateCount = 0
-		if (registration.pendingTeammates) {
-			try {
-				const pending = JSON.parse(registration.pendingTeammates) as unknown[]
-				pendingTeammateCount = pending.length
-			} catch {
-				// Ignore parse errors
-			}
-		}
+		const pendingTeammateCount = parsePendingTeammateCount(
+			registration.pendingTeammates,
+		)
 
-		const athleteName =
-			user.firstName || user.email.split("@")[0] || "Athlete"
+		const athleteName = getAthleteName(user)
 
 		await sendEmail({
 			to: user.email,
@@ -203,7 +187,9 @@ export async function notifyCompetitionTeamInvite(params: {
 			where: eq(userTable.id, invitedByUserId),
 		})
 
-		const captainName = captain?.firstName || captain?.email?.split("@")[0] || "Team Captain"
+		const captainName = captain
+			? getAthleteName(captain)
+			: "Team Captain"
 
 		// Fetch athlete team
 		const athleteTeam = await db.query.teamTable.findFirst({
@@ -338,8 +324,7 @@ export async function notifyPaymentExpired(params: {
 			}
 		}
 
-		const athleteName =
-			user.firstName || user.email.split("@")[0] || "Athlete"
+		const athleteName = getAthleteName(user)
 
 		await sendEmail({
 			to: user.email,
@@ -411,10 +396,9 @@ export async function notifyTeammateJoined(params: {
 			where: eq(userTable.id, newTeammateUserId),
 		})
 
-		const newTeammateName =
-			newTeammate?.firstName ||
-			newTeammate?.email?.split("@")[0] ||
-			"A teammate"
+		const newTeammateName = newTeammate
+			? getAthleteName(newTeammate)
+			: "A teammate"
 
 		// Fetch competition
 		const competition = await db.query.competitionsTable.findFirst({
@@ -460,16 +444,20 @@ export async function notifyTeammateJoined(params: {
 			.where(eq(teamMembershipTable.teamId, competitionTeamId))
 		const currentRosterSize = members.length
 
-		const isTeamComplete = currentRosterSize >= maxRosterSize
+		const teamComplete = isTeamComplete(currentRosterSize, maxRosterSize)
 
-		const captainName =
-			captain.firstName || captain.email.split("@")[0] || "Captain"
+		const captainName = getAthleteName(captain)
+
+		const subject = getTeammateJoinedSubject({
+			isTeamComplete: teamComplete,
+			newTeammateName,
+			teamName,
+			competitionName: competition.name,
+		})
 
 		await sendEmail({
 			to: captain.email,
-			subject: isTeamComplete
-				? `Your team is complete for ${competition.name}!`
-				: `${newTeammateName} joined ${teamName}`,
+			subject,
 			template: TeammateJoinedEmail({
 				captainName,
 				newTeammateName,
@@ -478,7 +466,7 @@ export async function notifyTeammateJoined(params: {
 				competitionSlug: competition.slug,
 				currentRosterSize,
 				maxRosterSize,
-				isTeamComplete,
+				isTeamComplete: teamComplete,
 			}),
 			tags: [{ name: "type", value: "compete-teammate-joined" }],
 		})
@@ -490,7 +478,7 @@ export async function notifyTeammateJoined(params: {
 				newTeammateUserId,
 				competitionTeamId,
 				competitionId,
-				isTeamComplete,
+				isTeamComplete: teamComplete,
 			},
 		})
 	} catch (err) {
