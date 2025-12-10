@@ -755,6 +755,7 @@ export async function updateCompetition(
 		groupId: string | null
 		settings: string | null
 		visibility: "public" | "private"
+		status: "draft" | "published"
 		profileImageUrl: string | null
 		bannerImageUrl: string | null
 	}>,
@@ -798,10 +799,10 @@ export async function updateCompetition(
 		}
 	}
 
-	// Check publish limit when changing visibility to public
+	// Check publish limit when changing status to published
 	if (
-		updates.visibility === "public" &&
-		existingCompetition.visibility !== "public"
+		updates.status === "published" &&
+		existingCompetition.status !== "published"
 	) {
 		const limit = await getTeamLimit(
 			existingCompetition.organizingTeamId,
@@ -809,7 +810,7 @@ export async function updateCompetition(
 		)
 		if (limit === 0) {
 			throw new Error(
-				"Your organizer application is pending approval. You can create private competitions while you wait.",
+				"Your organizer application is pending approval. You can create draft competitions while you wait.",
 			)
 		}
 		// If limit > 0, count published competitions and check
@@ -823,7 +824,7 @@ export async function updateCompetition(
 							competitionsTable.organizingTeamId,
 							existingCompetition.organizingTeamId,
 						),
-						eq(competitionsTable.visibility, "public"),
+						eq(competitionsTable.status, "published"),
 					),
 				)
 
@@ -854,6 +855,7 @@ export async function updateCompetition(
 	if (updates.settings !== undefined) updateData.settings = updates.settings
 	if (updates.visibility !== undefined)
 		updateData.visibility = updates.visibility
+	if (updates.status !== undefined) updateData.status = updates.status
 	if (updates.profileImageUrl !== undefined)
 		updateData.profileImageUrl = updates.profileImageUrl
 	if (updates.bannerImageUrl !== undefined)
