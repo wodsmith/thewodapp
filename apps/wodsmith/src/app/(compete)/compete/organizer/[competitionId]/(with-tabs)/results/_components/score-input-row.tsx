@@ -647,7 +647,11 @@ export function ScoreInputRow({
 							onChange={(e) => handleInputChange(e.target.value)}
 							onKeyDown={(e) => handleKeyDown(e, "score")}
 							onBlur={() => handleBlur("score")}
-							placeholder="Enter score..."
+							placeholder={
+								workoutScheme === "time" || workoutScheme === "time-with-cap"
+									? "2:34.567 or 234"
+									: "Enter score..."
+							}
 							className={cn(
 								"h-10 text-base font-mono",
 								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",

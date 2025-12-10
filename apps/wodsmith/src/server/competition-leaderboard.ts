@@ -375,7 +375,7 @@ export async function getCompetitionLeaderboard(params: {
 					}
 				}
 				
-				const formattedScore = formatScore(scoreObj)
+				const formattedScore = formatScore(scoreObj, { compact: false })
 
 				entry.eventResults.push({
 					trackWorkoutId: trackWorkout.id,

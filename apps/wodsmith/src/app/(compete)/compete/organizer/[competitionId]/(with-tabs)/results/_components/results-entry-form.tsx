@@ -117,12 +117,9 @@ export function ResultsEntryForm({
 			// Auto-save
 			setSavingIds((prev) => new Set(prev).add(athlete.registrationId))
 
-		// For time-based scores, convert the raw value (seconds) to string for server
-		// The UI displays "10:00" but we need to send "600" (seconds) to the server
-		const scoreToSend =
-			isTimeBasedScheme(event.workout.scheme) && data.rawValue != null
-					? String(data.rawValue)
-					: data.score
+		// Send the original score string directly - the server will encode it properly
+		// This preserves milliseconds for time-based workouts (e.g., "2:01.567")
+		const scoreToSend = data.score
 
 			const [result] = await saveScore({
 				competitionId,

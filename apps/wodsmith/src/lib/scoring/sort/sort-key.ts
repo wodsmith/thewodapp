@@ -113,3 +113,22 @@ export function statusFromOrder(order: number): ScoreStatus {
 	}
 	return "scored"
 }
+
+/**
+ * Convert a bigint sort key to a zero-padded string for database storage.
+ * 
+ * Since SQLite stores sortKey as text, we need zero-padding to ensure
+ * lexicographic string comparison produces the same ordering as numeric comparison.
+ * 
+ * Max value is 2^63 - 1 which is 19 digits, so we pad to 19 characters.
+ * 
+ * @param sortKey - The bigint sort key to convert
+ * @returns Zero-padded string representation
+ * 
+ * @example
+ * sortKeyToString(510000n) // → "0000000000000510000"
+ * sortKeyToString(1152921504606846975n) // → "1152921504606846975"
+ */
+export function sortKeyToString(sortKey: bigint): string {
+	return sortKey.toString().padStart(19, "0")
+}

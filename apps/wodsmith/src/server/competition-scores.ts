@@ -31,7 +31,7 @@ import {
 	logError,
 } from "@/lib/logging/posthog-otel-logger"
 import { getHeatsForWorkout } from "./competition-heats"
-import { encodeScore, computeSortKey } from "@/lib/scoring"
+import { encodeScore, computeSortKey, decodeScore, sortKeyToString, getDefaultScoreType, encodeRoundsReps } from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
 import { convertLegacyToNew } from "@/utils/score-adapter"
 
@@ -358,8 +358,9 @@ export async function getEventScoreEntryData(params: {
 		const existing = setsByScoreId.get(round.scoreId) || []
 		
 		// Convert from new encoding back to legacy format for display
+		// IMPORTANT: For time schemes, we need to keep in seconds (not formatted string)
+		// because the UI's parseScore function expects numeric seconds as input.
 		// For rounds-reps: extract rounds and reps from encoded value
-		// For time: convert ms to seconds
 		// For other schemes: use value as-is
 		const scheme = existingScores.find(s => s.id === round.scoreId)?.scheme
 		let score: number | null = null
@@ -370,10 +371,21 @@ export async function getEventScoreEntryData(params: {
 			const rounds = Math.floor(round.value / 100000)
 			reps = round.value % 100000
 			score = rounds
-		} else if (scheme === "time" || scheme === "time-with-cap") {
-			// Convert milliseconds to seconds for display
+		} else if (scheme === "time" || scheme === "time-with-cap" || scheme === "emom") {
+			// Convert milliseconds to seconds
+			// The UI will format this as HH:MM:SS using parseScore
 			score = Math.round(round.value / 1000)
+		} else if (scheme === "load") {
+			// Convert grams to pounds (assuming US/imperial by default)
+			score = Math.round(round.value / 453.592)
+		} else if (scheme === "meters") {
+			// Millimeters to meters
+			score = Math.round(round.value / 1000)
+		} else if (scheme === "feet") {
+			// Millimeters to feet  
+			score = Math.round(round.value / 304.8)
 		} else {
+			// For reps, calories, points, pass-fail: value is already correct
 			score = round.value
 		}
 		
@@ -481,6 +493,28 @@ export async function getEventScoreEntryData(params: {
 				return a.lastName.localeCompare(b.lastName)
 			})
 
+			// Decode scores from new encoding to display format
+			let wodScore = ""
+			let tieBreakScore: string | null = null
+			let secondaryScore: string | null = null
+			
+			if (existingScore) {
+				// Decode primary score (show milliseconds for time-based schemes)
+				if (existingScore.scoreValue !== null) {
+					wodScore = decodeScore(existingScore.scoreValue, existingScore.scheme, { compact: false })
+				}
+				
+				// Decode tiebreak score if present (show milliseconds for time)
+				if (existingScore.tiebreakValue && existingScore.tiebreakScheme) {
+					tieBreakScore = decodeScore(existingScore.tiebreakValue, existingScore.tiebreakScheme, { compact: false })
+				}
+				
+				// Decode secondary score if present (show milliseconds for time)
+				if (existingScore.secondaryValue && existingScore.secondaryScheme) {
+					secondaryScore = decodeScore(existingScore.secondaryValue, existingScore.secondaryScheme, { compact: false })
+				}
+			}
+
 			return {
 				registrationId: reg.registration.id,
 				userId: reg.user.id,
@@ -494,10 +528,10 @@ export async function getEventScoreEntryData(params: {
 				existingResult: existingScore
 					? {
 							resultId: existingScore.id,
-							wodScore: String(existingScore.scoreValue ?? ""),
+							wodScore,
 							scoreStatus: existingScore.status as ScoreStatus | null,
-							tieBreakScore: existingScore.tiebreakValue ? String(existingScore.tiebreakValue) : null,
-							secondaryScore: existingScore.secondaryValue ? String(existingScore.secondaryValue) : null,
+							tieBreakScore,
+							secondaryScore,
 							sets: scoreSets,
 						}
 					: null,
@@ -747,11 +781,15 @@ export async function saveCompetitionScore(params: {
 
 	// Write to new scores table
 	try {
-		const scheme = params.workout.scheme
-		const scoreType = params.workout.scoreType || "max"
+		const scheme = params.workout.scheme as WorkoutScheme
+		const scoreType = params.workout.scoreType || getDefaultScoreType(scheme)
 
-		// Convert legacy sets to encoded value for new table
-		const encodedValue = convertSetsToEncodedValue(setsToInsert, scheme)
+		// Encode score directly from input string using new encoding
+		// This preserves milliseconds for time-based workouts
+		let encodedValue: number | null = null
+		if (params.score && params.score.trim()) {
+			encodedValue = encodeScore(params.score, scheme)
+		}
 
 		// Map status to new simplified type
 		const newStatus = mapToNewStatus(params.scoreStatus)
@@ -818,7 +856,7 @@ export async function saveCompetitionScore(params: {
 				scoreValue: encodedValue,
 				status: newStatus,
 				statusOrder: getStatusOrder(params.scoreStatus),
-				sortKey: sortKey?.toString() ?? null,
+				sortKey: sortKey ? sortKeyToString(sortKey) : null,
 				tiebreakScheme: params.workout.tiebreakScheme ?? null,
 				tiebreakValue,
 				scalingLevelId: params.divisionId,
@@ -831,7 +869,7 @@ export async function saveCompetitionScore(params: {
 					scoreValue: encodedValue,
 					status: newStatus,
 					statusOrder: getStatusOrder(params.scoreStatus),
-					sortKey: sortKey?.toString() ?? null,
+					sortKey: sortKey ? sortKeyToString(sortKey) : null,
 					tiebreakValue,
 					scalingLevelId: params.divisionId,
 					updatedAt: new Date(),

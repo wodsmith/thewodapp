@@ -29,6 +29,7 @@ import { workouts } from "@/db/schemas/workouts"
 import type { WorkoutScheme } from "@/db/schema"
 import {
 	computeSortKey,
+	sortKeyToString,
 	type Score,
 	type ScoreStatus,
 	type ScoreType,
@@ -333,7 +334,7 @@ async function migrateResult(
 			newValue: value,
 			rounds: rounds.length,
 			status,
-			sortKey: sortKey?.toString(),
+			sortKey: sortKey ? sortKeyToString(sortKey) : null,
 		})
 		return { success: true }
 	}
@@ -360,7 +361,7 @@ async function migrateResult(
 					: null,
 				status,
 				statusOrder,
-				sortKey: sortKey?.toString() ?? null,
+				sortKey: sortKey ? sortKeyToString(sortKey) : null,
 				scalingLevelId: result.scalingLevelId,
 				asRx: result.asRx,
 				notes: result.notes,

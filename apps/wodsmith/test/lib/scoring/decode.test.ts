@@ -139,6 +139,28 @@ describe("decodeScore", () => {
 		expect(decodeScore(1, "pass-fail")).toBe("Pass")
 		expect(decodeScore(0, "pass-fail")).toBe("Fail")
 	})
+
+	it("should show milliseconds with compact=false", () => {
+		// With compact=false, should always show milliseconds
+		expect(decodeScore(120000, "time", { compact: false })).toBe("2:00.000")
+		expect(decodeScore(120567, "time", { compact: false })).toBe("2:00.567")
+		expect(decodeScore(754000, "time", { compact: false })).toBe("12:34.000")
+		expect(decodeScore(754567, "time", { compact: false })).toBe("12:34.567")
+	})
+
+	it("should hide .000 with compact=true", () => {
+		// With compact=true, should hide .000 but show non-zero ms
+		expect(decodeScore(120000, "time", { compact: true })).toBe("2:00")
+		expect(decodeScore(120567, "time", { compact: true })).toBe("2:00.567")
+		expect(decodeScore(754000, "time", { compact: true })).toBe("12:34")
+		expect(decodeScore(754567, "time", { compact: true })).toBe("12:34.567")
+	})
+
+	it("should hide .000 by default (no options)", () => {
+		// Default behavior: hide .000 but show non-zero ms
+		expect(decodeScore(120000, "time")).toBe("2:00")
+		expect(decodeScore(120567, "time")).toBe("2:00.567")
+	})
 })
 
 describe("decodeToNumber", () => {
