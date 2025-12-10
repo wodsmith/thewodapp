@@ -31,7 +31,7 @@ import {
 	logError,
 } from "@/lib/logging/posthog-otel-logger"
 import { getHeatsForWorkout } from "./competition-heats"
-import { encodeScore, computeSortKey, decodeScore, sortKeyToString, getDefaultScoreType, encodeRoundsReps } from "@/lib/scoring"
+import { encodeScore, encodeRounds, computeSortKey, decodeScore, sortKeyToString, getDefaultScoreType, encodeRoundsReps } from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
 import { convertLegacyToNew } from "@/utils/score-adapter"
 
@@ -785,13 +785,16 @@ export async function saveCompetitionScore(params: {
 		const scoreType = params.workout.scoreType || getDefaultScoreType(scheme)
 
 		// Encode score using new encoding
-		// For multi-round workouts, use the aggregated finalWodScore (which includes max/total logic)
-		// For single scores, use params.score
-		// This preserves milliseconds for time-based workouts and correct aggregation for multi-round
 		let encodedValue: number | null = null
-		const scoreToEncode = (params.roundScores && params.roundScores.length > 0) ? finalWodScore : params.score
-		if (scoreToEncode && scoreToEncode.trim()) {
-			encodedValue = encodeScore(scoreToEncode, scheme)
+		
+		if (params.roundScores && params.roundScores.length > 0) {
+			// Multi-round: encode each round and aggregate
+			const roundInputs = params.roundScores.map((rs) => ({ raw: rs.score }))
+			const result = encodeRounds(roundInputs, scheme, scoreType)
+			encodedValue = result.aggregated
+		} else if (params.score && params.score.trim()) {
+			// Single score: encode directly
+			encodedValue = encodeScore(params.score, scheme)
 		}
 
 		// Map status to new simplified type

@@ -255,6 +255,8 @@ export function CompetitionLeaderboardTable({
 		{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
 	])
 
+	console.log(leaderboard)
+
 	// Reset sorting when view changes between overall and single event
 	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
 	useEffect(() => {
@@ -298,16 +300,16 @@ export function CompetitionLeaderboardTable({
 		if (selectedEventId) {
 			// Single event view
 			return [
-			{
-				id: "eventRank",
-				header: "Rank",
-				accessorFn: (row) => {
-					const result = row.eventResults.find(
-						(r) => r.trackWorkoutId === selectedEventId,
-					)
-					// No result or rank 0 sorts to bottom
-					return result?.rank && result.rank > 0 ? result.rank : 999
-				},
+				{
+					id: "eventRank",
+					header: "Rank",
+					accessorFn: (row) => {
+						const result = row.eventResults.find(
+							(r) => r.trackWorkoutId === selectedEventId,
+						)
+						// No result or rank 0 sorts to bottom
+						return result?.rank && result.rank > 0 ? result.rank : 999
+					},
 					cell: ({ row }) => {
 						const result = row.original.eventResults.find(
 							(r) => r.trackWorkoutId === selectedEventId,
@@ -540,9 +542,9 @@ export function CompetitionLeaderboardTable({
 										{header.isPlaceholder
 											? null
 											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
+												header.column.columnDef.header,
+												header.getContext(),
+											)}
 									</TableHead>
 								))}
 							</TableRow>

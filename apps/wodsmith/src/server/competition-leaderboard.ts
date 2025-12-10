@@ -328,6 +328,7 @@ export async function getCompetitionLeaderboard(params: {
 
 			for (let i = 0; i < sortedScores.length; i++) {
 				const score = sortedScores[i]
+
 				if (!score) continue
 				const rank = i + 1
 				const basePoints = calculatePoints(
@@ -374,7 +375,7 @@ export async function getCompetitionLeaderboard(params: {
 						secondaryValue: score.secondaryValue,
 					}
 				}
-				
+
 				const formattedScore = formatScore(scoreObj, { compact: false })
 
 				entry.eventResults.push({
