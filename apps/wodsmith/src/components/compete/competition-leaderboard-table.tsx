@@ -9,7 +9,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table"
 import { ArrowDownNarrowWide, ArrowUpNarrowWide, Medal, Trophy, ArrowUpDown, ChevronDown } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -255,6 +255,12 @@ export function CompetitionLeaderboardTable({
 		{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
 	])
 
+	// Reset sorting when view changes between overall and single event
+	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
+	useEffect(() => {
+		setSorting([{ id: selectedEventId ? "eventRank" : "overallRank", desc: false }])
+	}, [selectedEventId])
+
 	// Transform data for single event view
 	const tableData = useMemo(() => {
 		if (!selectedEventId) {
@@ -292,15 +298,16 @@ export function CompetitionLeaderboardTable({
 		if (selectedEventId) {
 			// Single event view
 			return [
-				{
-					id: "eventRank",
-					header: "Rank",
-					accessorFn: (row) => {
-						const result = row.eventResults.find(
-							(r) => r.trackWorkoutId === selectedEventId,
-						)
-						return result?.rank ?? 999
-					},
+			{
+				id: "eventRank",
+				header: "Rank",
+				accessorFn: (row) => {
+					const result = row.eventResults.find(
+						(r) => r.trackWorkoutId === selectedEventId,
+					)
+					// No result or rank 0 sorts to bottom
+					return result?.rank && result.rank > 0 ? result.rank : 999
+				},
 					cell: ({ row }) => {
 						const result = row.original.eventResults.find(
 							(r) => r.trackWorkoutId === selectedEventId,
@@ -383,8 +390,8 @@ export function CompetitionLeaderboardTable({
 					const result = row.eventResults.find(
 						(r) => r.trackWorkoutId === event.id,
 					)
-					// Use rank for sorting, with 999 for no result (sorts to bottom)
-					return result?.rank ?? 999
+					// No result or rank 0 sorts to bottom
+					return result?.rank && result.rank > 0 ? result.rank : 999
 				},
 				cell: ({ row }) => {
 					const result = row.original.eventResults.find(

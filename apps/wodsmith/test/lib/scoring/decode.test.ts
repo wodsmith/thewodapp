@@ -51,15 +51,16 @@ describe("decodeTimeToSeconds", () => {
 })
 
 describe("decodeRoundsReps", () => {
-	it("should decode to rounds+reps format", () => {
-		expect(decodeRoundsReps(500012)).toBe("5+12")
-		expect(decodeRoundsReps(1000000)).toBe("10+0")
-		expect(decodeRoundsReps(45)).toBe("0+45")
+	it("should decode to rounds+reps format with zero padding", () => {
+		expect(decodeRoundsReps(500012)).toBe("05+12")
+		expect(decodeRoundsReps(1000000)).toBe("10+00")
+		expect(decodeRoundsReps(45)).toBe("00+45")
+		expect(decodeRoundsReps(2000001)).toBe("20+01")
 	})
 
 	it("should use compact format when enabled", () => {
 		expect(decodeRoundsReps(1000000, { compact: true })).toBe("10")
-		expect(decodeRoundsReps(500012, { compact: true })).toBe("5+12") // Still shows reps
+		expect(decodeRoundsReps(500012, { compact: true })).toBe("05+12") // Still shows reps
 	})
 })
 
@@ -115,7 +116,7 @@ describe("decodeScore", () => {
 	})
 
 	it("should decode rounds-reps scores", () => {
-		expect(decodeScore(500012, "rounds-reps")).toBe("5+12")
+		expect(decodeScore(500012, "rounds-reps")).toBe("05+12")
 	})
 
 	it("should decode load scores", () => {

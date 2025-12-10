@@ -20,8 +20,15 @@ export interface TimeParseOptions {
 /**
  * Parse a time input string with smart formatting.
  *
+ * Supports multiple input formats:
+ * - Standard: "12:34" or "12:34.567" or "1:02:34.567"
+ * - Period-delimited: "12.34.567" (MM.SS.ms) or "1.02.34.567" (H.MM.SS.ms)
+ * - Digits only: "1234" → "12:34"
+ *
  * Smart parsing rules (when precision is 'auto'):
  * - Input with colons: parse as MM:SS or HH:MM:SS
+ * - Input with 2+ periods: treat as period-delimited time (MM.SS.ms or H.MM.SS.ms)
+ * - Input with 1 period: treat as time.milliseconds (e.g., "1234.567" → "12:34.567")
  * - 1-2 digits: treat as seconds (e.g., "45" → "0:45")
  * - 3 digits: treat as M:SS (e.g., "345" → "3:45")
  * - 4 digits: treat as MM:SS (e.g., "1234" → "12:34")
@@ -32,6 +39,8 @@ export interface TimeParseOptions {
  * parseTime("1234")        // → { encoded: 754000, formatted: "12:34" }
  * parseTime("12:34")       // → { encoded: 754000, formatted: "12:34" }
  * parseTime("12:34.567")   // → { encoded: 754567, formatted: "12:34.567" }
+ * parseTime("12.34.567")   // → { encoded: 754567, formatted: "12:34.567" }
+ * parseTime("1.02.34.567") // → { encoded: 3754567, formatted: "1:02:34.567" }
  * parseTime("45")          // → { encoded: 45000, formatted: "0:45" }
  * parseTime("345")         // → { encoded: 225000, formatted: "3:45" }
  */
@@ -69,9 +78,38 @@ export function parseTime(
 		}
 	}
 
-	// Handle decimal point (could be SS.fff)
+	// Handle period-delimited input (e.g., "12.34.567" or "1.02.34.567")
 	if (trimmed.includes(".")) {
-		const [wholePart, decimalPart] = trimmed.split(".")
+		const parts = trimmed.split(".")
+		
+		// If 3+ parts, treat as period-delimited time: MM.SS.ms or H.MM.SS.ms
+		if (parts.length >= 3) {
+			// Last part is always milliseconds
+			const msPart = parts[parts.length - 1] ?? "0"
+			const timeParts = parts.slice(0, -1)
+			
+			// Convert to colon format: join time parts with colons
+			const colonFormat = timeParts.join(":")
+			const withMs = `${colonFormat}.${msPart}`
+			
+			const encoded = encodeTime(withMs)
+			if (encoded === null) {
+				return {
+					isValid: false,
+					encoded: null,
+					formatted: trimmed,
+					error: "Invalid time format",
+				}
+			}
+			return {
+				isValid: true,
+				encoded,
+				formatted: decodeTime(encoded),
+			}
+		}
+		
+		// If 2 parts (one period), treat as time.milliseconds
+		const [wholePart, decimalPart] = parts
 		if (!wholePart) {
 			return {
 				isValid: false,

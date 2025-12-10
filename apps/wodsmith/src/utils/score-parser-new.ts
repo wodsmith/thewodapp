@@ -21,6 +21,8 @@ export interface ParseResult {
 	needsTieBreak: boolean
 	scoreStatus: "scored" | "dns" | "dnf" | "cap" | null
 	error?: string
+	/** Non-blocking warning message (e.g., "Interpreted as complete rounds") */
+	warning?: string
 }
 
 /**
@@ -125,7 +127,8 @@ export function parseScore(
 		isValid: true,
 		needsTieBreak: tiebreakScheme != null,
 		scoreStatus: "scored",
-		error: result.warnings?.[0],
+		// Warnings are non-blocking hints, not errors
+		warning: result.warnings?.[0],
 	}
 }
 

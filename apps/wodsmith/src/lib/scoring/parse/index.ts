@@ -100,17 +100,31 @@ export function parseScore(
 
 /**
  * Parse rounds+reps input.
+ * 
+ * Supports multiple input formats:
+ * - Standard: "5+12" (rounds+reps)
+ * - Period-delimited: "5.12" (rounds.reps)
+ * - Plain number: "5" (complete rounds, interpreted as 5+0)
+ * 
+ * @example
+ * parseRoundsReps("5+12")  // → { encoded: 500012, formatted: "5+12" }
+ * parseRoundsReps("5.12")  // → { encoded: 500012, formatted: "5+12" }
+ * parseRoundsReps("5")     // → { encoded: 500000, formatted: "5+0" }
  */
 function parseRoundsReps(input: string, strict?: boolean): ParseResult {
-	// Must contain + for rounds+reps, or be a plain number for complete rounds
-	if (input.includes("+")) {
-		const parts = input.split("+")
+	// Check for + or . delimiter
+	const hasPlus = input.includes("+")
+	const hasPeriod = input.includes(".")
+	
+	if (hasPlus || hasPeriod) {
+		const delimiter = hasPlus ? "+" : "."
+		const parts = input.split(delimiter)
 		if (parts.length !== 2) {
 			return {
 				isValid: false,
 				encoded: null,
 				formatted: input,
-				error: "Invalid format. Use rounds+reps (e.g., 5+12)",
+				error: "Invalid format. Use rounds+reps (e.g., 5+12 or 5.12)",
 			}
 		}
 
@@ -137,10 +151,13 @@ function parseRoundsReps(input: string, strict?: boolean): ParseResult {
 		}
 
 		const encoded = rounds * ROUNDS_REPS_MULTIPLIER + reps
+		// Pad single digits with leading zero for uniform display
+		const roundsPadded = rounds.toString().padStart(2, "0")
+		const repsPadded = reps.toString().padStart(2, "0")
 		return {
 			isValid: true,
 			encoded,
-			formatted: `${rounds}+${reps}`,
+			formatted: `${roundsPadded}+${repsPadded}`,
 		}
 	}
 
@@ -152,16 +169,18 @@ function parseRoundsReps(input: string, strict?: boolean): ParseResult {
 			encoded: null,
 			formatted: input,
 			error: strict
-				? "Use rounds+reps format (e.g., 5+12)"
+				? "Use rounds+reps format (e.g., 5+12 or 5.12)"
 				: "Invalid number",
 		}
 	}
 
 	const encoded = rounds * ROUNDS_REPS_MULTIPLIER
+	// Pad single digits with leading zero for uniform display
+	const roundsPadded = rounds.toString().padStart(2, "0")
 	return {
 		isValid: true,
 		encoded,
-		formatted: `${rounds}+0`,
+		formatted: `${roundsPadded}+00`,
 		warnings: strict ? undefined : ["Interpreted as complete rounds"],
 	}
 }

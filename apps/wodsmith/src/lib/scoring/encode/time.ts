@@ -12,11 +12,15 @@ import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "../constants"
  * - "MM:SS.fff" → minutes, seconds, and milliseconds
  * - "HH:MM:SS" → hours, minutes, and seconds
  * - "HH:MM:SS.fff" → hours, minutes, seconds, and milliseconds
- * - "SS" or "SSS..." → raw seconds (when no colon present)
+ * - "MM.SS.fff" → period-delimited (minutes.seconds.milliseconds)
+ * - "H.MM.SS.fff" → period-delimited with hours
+ * - "SS" or "SSS..." → raw seconds (when no colon or multiple periods present)
  *
  * @example
  * encodeTime("12:34")        // → 754000 (12 min 34 sec)
  * encodeTime("12:34.567")    // → 754567 (12 min 34.567 sec)
+ * encodeTime("12.34.567")    // → 754567 (period-delimited)
+ * encodeTime("2.32.123")     // → 152123 (2 min 32.123 sec)
  * encodeTime("1:02:34")      // → 3754000 (1 hr 2 min 34 sec)
  * encodeTime("1:02:34.500")  // → 3754500
  * encodeTime("90")           // → 90000 (90 seconds)
@@ -28,6 +32,24 @@ export function encodeTime(input: string): number | null {
 	// Check if input contains a colon (formatted time)
 	if (trimmed.includes(":")) {
 		return parseFormattedTime(trimmed)
+	}
+
+	// Check for period-delimited format (e.g., "12.34.567" or "1.02.34.567")
+	// Must have 2+ periods to be period-delimited time (not just decimal seconds)
+	if (trimmed.includes(".")) {
+		const parts = trimmed.split(".")
+		if (parts.length >= 3) {
+			// Period-delimited time: MM.SS.ms or H.MM.SS.ms
+			// Last part is always milliseconds, remaining parts are time components
+			const msPart = parts[parts.length - 1] ?? "0"
+			const timeParts = parts.slice(0, -1)
+			
+			// Convert to colon format and parse
+			const colonFormat = timeParts.join(":")
+			const withMs = `${colonFormat}.${msPart}`
+			return parseFormattedTime(withMs)
+		}
+		// Single period - treat as decimal seconds (e.g., "45.5" → 45.5 seconds)
 	}
 
 	// No colon - treat as raw seconds
