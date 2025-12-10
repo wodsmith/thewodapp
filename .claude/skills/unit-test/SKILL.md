@@ -1,22 +1,11 @@
 ---
-name: testing-strategy
-description: Guide for writing unit and integration tests with Vitest. Use when writing tests, designing testable code, or testing service functions. Covers the pure function testing pattern - mock boundaries (webhooks, DB), test business logic in isolation, verify calculated values before persistence.
+name: unit-test
+description: Guide for writing unit tests with Vitest. Use when writing tests for service functions, pure logic, or webhook handlers. Covers the pure function testing pattern - mock boundaries (webhooks, DB), test business logic in isolation, verify calculated values before persistence.
 ---
 
-# Testing Strategy
+# Unit Testing
 
 Test pure business logic in isolation. Mock system boundaries (DB, webhooks, external APIs). Verify calculated values, not side effects.
-
-## Test Hierarchy
-
-**1. Unit tests (fast, preferred)**
-- Pure functions: input → output
-- Service functions: mock DB/external calls
-- Run frequently, catch bugs early
-
-**2. Integration tests (slow, selective)**
-- Full request flows when unit coverage insufficient
-- Use sparingly - they're slow and brittle
 
 ## Core Pattern: Pure Function Testing
 
@@ -134,24 +123,21 @@ describe("handleCheckoutCompleted", () => {
 
 ```
 test/
-├── lib/           # Pure function tests (fast)
+├── lib/           # Pure function tests
 │   └── scoring/
 │       ├── encode.test.ts
 │       ├── decode.test.ts
 │       └── validate.test.ts
 ├── server/        # Service tests (mock DB)
 │   └── workouts.test.ts
-├── actions/       # Action tests (mock services)
-│   └── workout-actions.test.ts
-└── integration/   # Full flow tests (slow)
-    └── checkout.test.ts
+└── actions/       # Action tests (mock services)
+    └── workout-actions.test.ts
 ```
 
 ## Running Tests
 
 ```bash
-pnpm test              # all tests, single run
-pnpm test -- --watch   # watch mode (dev only)
+pnpm test                          # all tests
 pnpm test -- path/to/file.test.ts  # single file
 ```
 
