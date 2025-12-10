@@ -250,6 +250,7 @@ function parseAndConvertWodScore(
 
 /**
  * Parse tiebreak score
+ * Handles both numeric strings ("120") and time-formatted strings ("2:00")
  */
 function parseTiebreak(
 	tieBreakScore: string | null,
@@ -259,17 +260,32 @@ function parseTiebreak(
 		return { scheme: null, value: null }
 	}
 
-	const numValue = Number.parseInt(tieBreakScore, 10)
-	if (Number.isNaN(numValue)) {
-		return { scheme: null, value: null }
-	}
-
 	if (tiebreakScheme === "time") {
+		// Handle both numeric (seconds) and formatted time (MM:SS or M:SS)
+		let seconds: number
+		if (tieBreakScore.includes(":")) {
+			const parts = tieBreakScore.split(":")
+			const mins = Number.parseInt(parts[0] ?? "0", 10)
+			const secs = Number.parseInt(parts[1] ?? "0", 10)
+			if (Number.isNaN(mins) || Number.isNaN(secs)) {
+				return { scheme: null, value: null }
+			}
+			seconds = mins * 60 + secs
+		} else {
+			seconds = Number.parseInt(tieBreakScore, 10)
+			if (Number.isNaN(seconds)) {
+				return { scheme: null, value: null }
+			}
+		}
 		// Convert seconds → milliseconds
-		return { scheme: "time", value: numValue * 1000 }
+		return { scheme: "time", value: seconds * 1000 }
 	}
 
 	if (tiebreakScheme === "reps") {
+		const numValue = Number.parseInt(tieBreakScore, 10)
+		if (Number.isNaN(numValue)) {
+			return { scheme: null, value: null }
+		}
 		return { scheme: "reps", value: numValue }
 	}
 
@@ -340,37 +356,50 @@ async function migrateResult(
 	}
 
 	try {
-		// Insert into scores table
+		// Insert into scores table with upsert for competition scores
+		// (unique constraint on competition_event_id + user_id)
+		const scoreValues = {
+			userId: result.userId,
+			teamId: workout.teamId,
+			workoutId: result.workoutId!,
+			competitionEventId: result.competitionEventId,
+			scheduledWorkoutInstanceId: result.scheduledWorkoutInstanceId,
+			scheme: workout.scheme,
+			scoreType: workout.scoreType ?? "max",
+			scoreValue: value,
+			tiebreakScheme: tiebreak.scheme,
+			tiebreakValue: tiebreak.value,
+			timeCapMs: workout.timeCap ? workout.timeCap * 1000 : null,
+			secondaryScheme: null, // TODO: parse from secondaryScore if needed
+			secondaryValue: result.secondaryScore
+				? Number.parseInt(result.secondaryScore, 10)
+				: null,
+			status,
+			statusOrder,
+			sortKey: sortKey ? sortKeyToString(sortKey) : null,
+			scalingLevelId: result.scalingLevelId,
+			asRx: result.asRx,
+			notes: result.notes,
+			recordedAt: result.date,
+		}
+
 		const [insertedScore] = await db
 			.insert(scoresTable)
-			.values({
-				userId: result.userId,
-				teamId: workout.teamId,
-				workoutId: result.workoutId!,
-				competitionEventId: result.competitionEventId,
-				scheduledWorkoutInstanceId: result.scheduledWorkoutInstanceId,
-				scheme: workout.scheme,
-				scoreType: workout.scoreType ?? "max",
-				scoreValue: value,
-				tiebreakScheme: tiebreak.scheme,
-				tiebreakValue: tiebreak.value,
-				timeCapMs: workout.timeCap ? workout.timeCap * 1000 : null,
-				secondaryScheme: null, // TODO: parse from secondaryScore if needed
-				secondaryValue: result.secondaryScore
-					? Number.parseInt(result.secondaryScore, 10)
-					: null,
-				status,
-				statusOrder,
-				sortKey: sortKey ? sortKeyToString(sortKey) : null,
-				scalingLevelId: result.scalingLevelId,
-				asRx: result.asRx,
-				notes: result.notes,
-				recordedAt: result.date,
+			.values(scoreValues)
+			.onConflictDoUpdate({
+				target: [scoresTable.competitionEventId, scoresTable.userId],
+				set: scoreValues,
 			})
 			.returning()
 
 		// Insert rounds if multiple sets
 		if (rounds.length > 1) {
+			// Delete existing rounds (for re-run scenarios)
+			await db
+				.delete(scoreRoundsTable)
+				.where(eq(scoreRoundsTable.scoreId, insertedScore.id))
+
+			// Insert new rounds
 			await db.insert(scoreRoundsTable).values(
 				rounds.map((value, index) => ({
 					scoreId: insertedScore.id,

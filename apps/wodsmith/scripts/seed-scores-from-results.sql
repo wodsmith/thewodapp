@@ -61,7 +61,7 @@
 -- ============================================
 
 -- RX Division - Event 1
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 -- Fast finishers (sub 4 min)
 ('score_mike_fran', 'usr_athlete_mike', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 223000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '223000', 'slvl_winter_rx', 1, 'Smooth bar cycling, kipping pull-ups', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_alex_fran', 'usr_athlete_alex', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 235000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '235000', 'slvl_winter_rx', 1, 'Strong finish on final round', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -77,7 +77,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_sarah_fran', 'usr_athlete_sarah', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 256000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '256000', 'slvl_winter_rx', 1, 'Great form on thrusters', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Scaled Division - Event 1 (lighter weights, potentially assisted pull-ups)
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_emma_fran', 'usr_athlete_emma', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 298000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '298000', 'slvl_winter_scaled', 0, 'Banded pull-ups', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_john_fran', 'usr_demo3member', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 314000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '314000', 'slvl_winter_scaled', 0, 'Solid effort', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_megan_fran', 'usr_athlete_megan', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 325000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '325000', 'slvl_winter_scaled', 0, 'Steady pace', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -90,7 +90,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_kaitlyn_fran', 'usr_athlete_kaitlyn', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 425000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '425000', 'slvl_winter_scaled', 0, 'Great heart', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Masters 40+ - Event 1
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_chris_fran', 'usr_athlete_chris', 'team_winter_throwdown_2025', 'wod_winter_fran', 'tw_winter_event1_fran', 'time', 'min', 285000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '285000', 'slvl_winter_masters_40', 1, 'Experience shows', strftime('%s', datetime('now', '+14 days', '+2 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
@@ -100,7 +100,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 -- ============================================
 
 -- RX Division - Event 2
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_alex_grace', 'usr_athlete_alex', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 387000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '387000', 'slvl_winter_rx', 1, 'Fast singles', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_mike_grace', 'usr_athlete_mike', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 412000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '412000', 'slvl_winter_rx', 1, 'Strong cleans', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_tyler_grace', 'usr_athlete_tyler', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 428000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '428000', 'slvl_winter_rx', 1, 'Paced well', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -113,7 +113,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_sarah_grace', 'usr_athlete_sarah', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 467000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '467000', 'slvl_winter_rx', 1, 'Solid cleans', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Scaled Division - Event 2
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_emma_grace', 'usr_athlete_emma', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 489000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '489000', 'slvl_winter_scaled', 0, 'Lighter bar', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_megan_grace', 'usr_athlete_megan', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 512000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '512000', 'slvl_winter_scaled', 0, 'Good pace', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_john_grace', 'usr_demo3member', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 527000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '527000', 'slvl_winter_scaled', 0, 'Steady work', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -126,7 +126,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_kaitlyn_grace', 'usr_athlete_kaitlyn', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 693000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '693000', 'slvl_winter_scaled', 0, 'Persevered', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Masters 40+ - Event 2
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_chris_grace', 'usr_athlete_chris', 'team_winter_throwdown_2025', 'wod_winter_grace', 'tw_winter_event2_grace', 'time', 'min', 456000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '456000', 'slvl_winter_masters_40', 1, 'Smart pacing', strftime('%s', datetime('now', '+14 days', '+4 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
@@ -138,7 +138,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 -- ============================================
 
 -- RX Division - Event 3
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 -- Top performers (16+ rounds)
 ('score_ryan_cindy', 'usr_athlete_ryan', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1800015, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999981999985', 'slvl_winter_rx', 1, 'Unbroken sets', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_mike_cindy', 'usr_athlete_mike', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1700025, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999982299975', 'slvl_winter_rx', 1, 'Fast transitions', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -154,7 +154,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_sarah_cindy', 'usr_athlete_sarah', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1600015, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999983399985', 'slvl_winter_rx', 1, 'Strong', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Scaled Division - Event 3 (modified movements)
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_emma_cindy', 'usr_athlete_emma', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1400020, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999985599980', 'slvl_winter_scaled', 0, 'Modified', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_megan_cindy', 'usr_athlete_megan', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1300025, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999986699975', 'slvl_winter_scaled', 0, 'Good pace', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_john_cindy', 'usr_demo3member', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1300005, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999986699995', 'slvl_winter_scaled', 0, 'Steady', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -167,7 +167,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_kaitlyn_cindy', 'usr_athlete_kaitlyn', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 900025, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999991099975', 'slvl_winter_scaled', 0, 'Great effort', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Masters 40+ - Event 3
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_chris_cindy', 'usr_athlete_chris', 'team_winter_throwdown_2025', 'wod_winter_cindy', 'tw_winter_event3_cindy', 'rounds-reps', 'max', 1500018, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '999984499982', 'slvl_winter_masters_40', 1, 'Smart pacing', strftime('%s', datetime('now', '+14 days', '+6 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
@@ -178,7 +178,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 -- ============================================
 
 -- RX Division - Event 4
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_mike_linda', 'usr_athlete_mike', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1567000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1567000', 'slvl_winter_rx', 1, 'Beast mode', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_alex_linda', 'usr_athlete_alex', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1612000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1612000', 'slvl_winter_rx', 1, 'Strong lifts', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_ryan_linda', 'usr_athlete_ryan', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1678000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1678000', 'slvl_winter_rx', 1, 'Grinded', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -191,7 +191,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_sarah_linda', 'usr_athlete_sarah', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1823000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1823000', 'slvl_winter_rx', 1, 'Strong finish', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Scaled Division - Event 4
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_emma_linda', 'usr_athlete_emma', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1767000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1767000', 'slvl_winter_scaled', 0, 'Lighter weights', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_megan_linda', 'usr_athlete_megan', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1834000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1834000', 'slvl_winter_scaled', 0, 'Good work', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('score_john_linda', 'usr_demo3member', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1912000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1912000', 'slvl_winter_scaled', 0, 'Finished strong', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0),
@@ -204,7 +204,7 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 ('score_kaitlyn_linda', 'usr_athlete_kaitlyn', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 2612000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '2612000', 'slvl_winter_scaled', 0, 'Never quit', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Masters 40+ - Event 4
-INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId, scheme, scoreType, scoreValue, tiebreakScheme, tiebreakValue, timeCapMs, secondaryScheme, secondaryValue, status, statusOrder, sortKey, scalingLevelId, asRx, notes, recordedAt, createdAt, updatedAt, updateCounter) VALUES
+INSERT OR IGNORE INTO scores (id, user_id, team_id, workout_id, competition_event_id, scheme, score_type, score_value, tiebreak_scheme, tiebreak_value, time_cap_ms, secondary_scheme, secondary_value, status, status_order, sort_key, scaling_level_id, as_rx, notes, recorded_at, createdAt, updatedAt, updateCounter) VALUES
 ('score_chris_linda', 'usr_athlete_chris', 'team_winter_throwdown_2025', 'wod_winter_linda', 'tw_winter_event4_linda', 'time', 'min', 1745000, NULL, NULL, NULL, NULL, NULL, 'scored', 0, '1745000', 'slvl_winter_masters_40', 1, 'Experience pays off', strftime('%s', datetime('now', '+14 days', '+8 hours')), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
@@ -224,12 +224,12 @@ INSERT OR IGNORE INTO scores (id, userId, teamId, workoutId, competitionEventId,
 --
 -- VERIFICATION:
 -- After seeding, verify with:
---   SELECT COUNT(*) FROM scores WHERE competitionEventId IS NOT NULL;
+--   SELECT COUNT(*) FROM scores WHERE competition_event_id IS NOT NULL;
 --   -- Should return 84 scores (21 athletes × 4 events)
 --
---   SELECT competitionEventId, COUNT(*) FROM scores 
---   WHERE competitionEventId IS NOT NULL 
---   GROUP BY competitionEventId;
+--   SELECT competition_event_id, COUNT(*) FROM scores
+--   WHERE competition_event_id IS NOT NULL
+--   GROUP BY competition_event_id;
 --   -- Should show 21 scores per event
 --
 -- PRODUCTION MIGRATION:

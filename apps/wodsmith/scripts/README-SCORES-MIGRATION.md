@@ -87,21 +87,21 @@ After running the migration, verify:
 
 ```sql
 -- Count competition scores
-SELECT COUNT(*) FROM scores WHERE competitionEventId IS NOT NULL;
+SELECT COUNT(*) FROM scores WHERE competition_event_id IS NOT NULL;
 -- Expected: 84 scores (from seed data)
 
 -- Scores per event
-SELECT competitionEventId, COUNT(*) 
-FROM scores 
-WHERE competitionEventId IS NOT NULL 
-GROUP BY competitionEventId;
+SELECT competition_event_id, COUNT(*)
+FROM scores
+WHERE competition_event_id IS NOT NULL
+GROUP BY competition_event_id;
 -- Expected: 21 scores per event
 
 -- Check encoding
-SELECT scheme, scoreValue, notes 
-FROM scores 
-WHERE competitionEventId = 'tw_winter_event1_fran'
-ORDER BY sortKey
+SELECT scheme, score_value, notes
+FROM scores
+WHERE competition_event_id = 'tw_winter_event1_fran'
+ORDER BY sort_key
 LIMIT 5;
 -- Should show time values in milliseconds, sorted ascending
 ```
