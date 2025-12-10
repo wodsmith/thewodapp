@@ -376,8 +376,15 @@
     {
       "idx": 53,
       "version": "6",
+      "when": 1765300273507,
+      "tag": "0053_add-stripe-account-type",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
       "when": 1765321685103,
-      "tag": "0053_loving_zuras",
+      "tag": "0054_loving_zuras",
       "breakpoints": true
     },
     {

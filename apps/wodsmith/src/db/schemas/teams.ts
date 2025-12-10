@@ -122,8 +122,9 @@ export const teamTable = sqliteTable(
 		competitionMetadata: text({ length: 10000 }),
 
 		// Stripe Connect fields (Phase 2 prep for organizer payouts)
-		stripeConnectedAccountId: text(), // Stripe Express account ID (acct_xxx)
+		stripeConnectedAccountId: text(), // Stripe account ID (acct_xxx)
 		stripeAccountStatus: text({ length: 20 }), // NOT_CONNECTED | PENDING | VERIFIED
+		stripeAccountType: text({ length: 20 }), // 'express' | 'standard' | null
 		stripeOnboardingCompletedAt: integer({ mode: "timestamp" }),
 	},
 	(table) => [

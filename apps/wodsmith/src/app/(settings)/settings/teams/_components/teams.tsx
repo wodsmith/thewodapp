@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -29,11 +30,20 @@ export function TeamsClient({
 	return (
 		<div className="space-y-6">
 			<Card>
-				<CardHeader>
-					<CardTitle>Your Teams</CardTitle>
-					<CardDescription>
-						You are a member of the following teams.
-					</CardDescription>
+				<CardHeader className="flex flex-row items-center justify-between space-y-0">
+					<div>
+						<CardTitle>Your Teams</CardTitle>
+						<CardDescription>
+							You are a member of the following teams.
+						</CardDescription>
+					</div>
+					<Link
+						href="/settings/teams/create"
+						className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+					>
+						<Plus className="h-4 w-4 mr-2" />
+						Create New Team
+					</Link>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-1">
