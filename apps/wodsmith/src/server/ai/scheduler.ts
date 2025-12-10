@@ -8,10 +8,7 @@ import {
 	scheduledClassesTable,
 	scheduleTemplatesTable,
 } from "@/db/schemas/scheduling"
-import {
-	logError,
-	logInfo,
-} from "@/lib/logging/posthog-otel-logger"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 
 // This is a simplified mock for the LLM interaction. In a real scenario,
 // this would involve calling an actual LLM API.

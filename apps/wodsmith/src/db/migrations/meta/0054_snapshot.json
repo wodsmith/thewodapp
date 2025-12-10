@@ -5591,6 +5591,14 @@
             "scheduled_workout_instance_id"
           ],
           "isUnique": false
+        },
+        "idx_scores_competition_user_unique": {
+          "name": "idx_scores_competition_user_unique",
+          "columns": [
+            "competition_event_id",
+            "user_id"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {

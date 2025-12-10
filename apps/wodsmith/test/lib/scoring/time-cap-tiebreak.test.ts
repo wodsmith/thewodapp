@@ -83,7 +83,7 @@ describe("Time Cap Scenarios", () => {
 					secondaryValue: 500012, // 5+12
 				},
 			}
-			expect(formatScore(score)).toBe("CAP (5+12)")
+			expect(formatScore(score)).toBe("CAP (05+12)")
 		})
 	})
 
@@ -232,7 +232,7 @@ describe("Tiebreak Scenarios", () => {
 					value: 510000, // 8:30
 				},
 			}
-			expect(formatScoreWithTiebreak(score)).toBe("5+12 (TB: 8:30)")
+			expect(formatScoreWithTiebreak(score)).toBe("05+12 (TB: 8:30)")
 		})
 
 		it("should sort by tiebreak when primary scores are equal", () => {
@@ -653,6 +653,6 @@ describe("Millisecond precision in time caps and tiebreaks", () => {
 		}
 
 		const formatted = formatScoreWithTiebreak(score)
-		expect(formatted).toBe("5+12 (TB: 8:30.567)")
+		expect(formatted).toBe("05+12 (TB: 8:30.567)")
 	})
 })

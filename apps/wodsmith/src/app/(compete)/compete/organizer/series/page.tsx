@@ -35,7 +35,7 @@ export default async function SeriesPage({ searchParams }: SeriesPageProps) {
 		}
 	}
 	if (!activeTeamId) {
-	  const gymTeams = organizingTeams.filter((team) => team.type === "gym")
+		const gymTeams = organizingTeams.filter((team) => team.type === "gym")
 		const firstTeam = gymTeams[0]
 		if (firstTeam) {
 			activeTeamId = firstTeam.id

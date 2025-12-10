@@ -56,7 +56,10 @@ export async function generateMetadata({
 	}
 }
 
-export default async function CompetitionTabsLayout({ params, children }: Props) {
+export default async function CompetitionTabsLayout({
+	params,
+	children,
+}: Props) {
 	const { slug } = await params
 	const competition = await getCompetition(slug)
 

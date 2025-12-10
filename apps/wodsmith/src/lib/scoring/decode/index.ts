@@ -41,9 +41,11 @@ export function decodeScore(
 	options?: FormatOptions,
 ): string {
 	// Time-based schemes
-	// Only show ms if they're non-zero (default behavior) unless alwaysShowMs would be true
+	// Show ms if non-zero, or if alwaysShowMs option is set
 	if (isTimeBasedScheme(scheme)) {
-		return decodeTime(value)
+		return decodeTime(value, {
+			alwaysShowMs: options?.compact === false, // Show .000 when not compact
+		})
 	}
 
 	// Rounds + Reps
@@ -85,10 +87,7 @@ export function decodeScore(
 /**
  * Get the unit suffix for count-based schemes.
  */
-function getCountSuffix(
-	scheme: WorkoutScheme,
-	includeUnit?: boolean,
-): string {
+function getCountSuffix(scheme: WorkoutScheme, includeUnit?: boolean): string {
 	if (!includeUnit) return ""
 
 	switch (scheme) {

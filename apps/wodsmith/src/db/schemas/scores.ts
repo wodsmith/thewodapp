@@ -7,7 +7,13 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
 import { scalingLevelsTable } from "./scaling"
 import { teamTable } from "./teams"
@@ -75,14 +81,18 @@ export const scoresTable = sqliteTable(
 		secondaryValue: integer("secondary_value"), // e.g., reps completed if capped
 
 		// Status & sorting
-		status: text("status", { enum: SCORE_STATUS_NEW_VALUES }).notNull().default("scored"),
+		status: text("status", { enum: SCORE_STATUS_NEW_VALUES })
+			.notNull()
+			.default("scored"),
 		statusOrder: integer("status_order").notNull().default(0), // 0=scored, 1=cap, 2=dq, 3=withdrawn
 		// Compound sort key: encodes status + normalized score for single-column sorting
 		// Stored as text since SQLite doesn't natively support BIGINT
 		sortKey: text("sort_key"),
 
 		// Scaling
-		scalingLevelId: text("scaling_level_id").references(() => scalingLevelsTable.id),
+		scalingLevelId: text("scaling_level_id").references(
+			() => scalingLevelsTable.id,
+		),
 		asRx: integer("as_rx", { mode: "boolean" }).notNull().default(false),
 
 		// Metadata
@@ -108,6 +118,11 @@ export const scoresTable = sqliteTable(
 		),
 		// Scheduled workout lookup
 		index("idx_scores_scheduled").on(table.scheduledWorkoutInstanceId),
+		// Unique constraint for competition scores (one score per user per event)
+		uniqueIndex("idx_scores_competition_user_unique").on(
+			table.competitionEventId,
+			table.userId,
+		),
 	],
 )
 

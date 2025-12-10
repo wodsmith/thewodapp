@@ -12,11 +12,14 @@ import { ROUNDS_REPS_MULTIPLIER } from "../constants"
  *
  * Supported formats:
  * - "5+12" → 5 rounds + 12 reps
+ * - "5.12" → 5 rounds + 12 reps (period-delimited)
  * - "5" → 5 complete rounds (0 extra reps)
  * - "0+45" → 0 rounds + 45 reps (partial first round)
  *
  * @example
  * encodeRoundsReps("5+12")  // → 500012
+ * encodeRoundsReps("5.12")  // → 500012
+ * encodeRoundsReps("20.1")  // → 2000001
  * encodeRoundsReps("10")    // → 1000000
  * encodeRoundsReps("0+45")  // → 45
  */
@@ -24,9 +27,13 @@ export function encodeRoundsReps(input: string): number | null {
 	const trimmed = input.trim()
 	if (!trimmed) return null
 
-	// Check for + separator
-	if (trimmed.includes("+")) {
-		const parts = trimmed.split("+")
+	// Check for + or . separator
+	const hasPlus = trimmed.includes("+")
+	const hasPeriod = trimmed.includes(".")
+
+	if (hasPlus || hasPeriod) {
+		const delimiter = hasPlus ? "+" : "."
+		const parts = trimmed.split(delimiter)
 		if (parts.length !== 2) return null
 
 		const [roundsStr, repsStr] = parts
@@ -46,7 +53,7 @@ export function encodeRoundsReps(input: string): number | null {
 		return rounds * ROUNDS_REPS_MULTIPLIER + reps
 	}
 
-	// No + separator - treat as complete rounds
+	// No separator - treat as complete rounds
 	const rounds = Number.parseInt(trimmed, 10)
 	if (Number.isNaN(rounds) || rounds < 0) {
 		return null

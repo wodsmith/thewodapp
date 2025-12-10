@@ -72,7 +72,9 @@ export function validateScoreInput(input: ScoreInput): ValidationResult {
 				errors.push(`Round ${i + 1}: ${parseResult.error ?? "Invalid value"}`)
 			}
 			if (parseResult.warnings) {
-				warnings.push(...parseResult.warnings.map((w) => `Round ${i + 1}: ${w}`))
+				warnings.push(
+					...parseResult.warnings.map((w) => `Round ${i + 1}: ${w}`),
+				)
 			}
 		}
 	}
@@ -97,7 +99,9 @@ export function validateScoreInput(input: ScoreInput): ValidationResult {
 			errors.push("Time cap must be positive")
 		}
 		if (input.status === "cap" && !input.timeCap.secondaryRaw) {
-			warnings.push("Capped result should have secondary score (e.g., reps completed)")
+			warnings.push(
+				"Capped result should have secondary score (e.g., reps completed)",
+			)
 		}
 	}
 

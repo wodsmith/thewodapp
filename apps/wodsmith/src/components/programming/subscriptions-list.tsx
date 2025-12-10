@@ -152,16 +152,16 @@ export function SubscriptionsList({
 									>
 										{isSettingDefault ? "Setting..." : "Set as Default"}
 									</Button>
-								<Button
-									size="sm"
-									variant="destructive"
-									onClick={() =>
-										handleUnsubscribe(subscription.id, subscription.name)
-									}
-									disabled={isUnsubscribing}
-								>
-									{isUnsubscribing ? "Unsubscribing..." : "Unsubscribe"}
-								</Button>
+									<Button
+										size="sm"
+										variant="destructive"
+										onClick={() =>
+											handleUnsubscribe(subscription.id, subscription.name)
+										}
+										disabled={isUnsubscribing}
+									>
+										{isUnsubscribing ? "Unsubscribing..." : "Unsubscribe"}
+									</Button>
 								</div>
 							)}
 						</div>

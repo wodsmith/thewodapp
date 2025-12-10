@@ -181,11 +181,11 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 				expirationTtl: CACHE_TTL.KV_EDGE,
 			})
 		} catch (error) {
-				logWarning({
-					message: "[workout-results] KV cache write failed",
-					error,
-					attributes: { cacheKey },
-				})
+			logWarning({
+				message: "[workout-results] KV cache write failed",
+				error,
+				attributes: { cacheKey },
+			})
 		}
 	}
 

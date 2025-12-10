@@ -31,6 +31,7 @@ import type {
 } from "@/server/competition-scores"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 import { HeatScoreGroup } from "./heat-score-group"
+import { isTimeBasedScheme } from "@/lib/scoring"
 
 interface ResultsEntryFormProps {
 	competitionId: string
@@ -116,15 +117,9 @@ export function ResultsEntryForm({
 			// Auto-save
 			setSavingIds((prev) => new Set(prev).add(athlete.registrationId))
 
-			// For time-based scores, convert the raw value (seconds) to string for server
-			// The UI displays "10:00" but we need to send "600" (seconds) to the server
-			const isTimeBasedScheme =
-				event.workout.scheme === "time" ||
-				event.workout.scheme === "time-with-cap"
-			const scoreToSend =
-				isTimeBasedScheme && data.rawValue != null
-					? String(data.rawValue)
-					: data.score
+			// Send the original score string directly - the server will encode it properly
+			// This preserves milliseconds for time-based workouts (e.g., "2:01.567")
+			const scoreToSend = data.score
 
 			const [result] = await saveScore({
 				competitionId,
@@ -145,6 +140,7 @@ export function ResultsEntryForm({
 					repsPerRound: event.workout.repsPerRound,
 					roundsToScore: event.workout.roundsToScore,
 					timeCap: event.workout.timeCap,
+					tiebreakScheme: event.workout.tiebreakScheme,
 				},
 			})
 
@@ -154,18 +150,19 @@ export function ResultsEntryForm({
 				return next
 			})
 
-		if (result) {
-			setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
-			posthog.capture("competition_score_saved", {
-				competition_id: competitionId,
-				event_id: event.id,
-				event_name: event.workout.name,
-				division_id: athlete.divisionId,
-				registration_id: athlete.registrationId,
-			})
-			const displayName = athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
-			toast.success(`Score saved for ${displayName}`)
-		}
+			if (result) {
+				setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+				posthog.capture("competition_score_saved", {
+					competition_id: competitionId,
+					event_id: event.id,
+					event_name: event.workout.name,
+					division_id: athlete.divisionId,
+					registration_id: athlete.registrationId,
+				})
+				const displayName =
+					athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+				toast.success(`Score saved for ${displayName}`)
+			}
 		},
 		[
 			competitionId,
@@ -177,6 +174,7 @@ export function ResultsEntryForm({
 			event.workout.repsPerRound,
 			event.workout.roundsToScore,
 			event.workout.timeCap,
+			event.workout.tiebreakScheme,
 			event.workout.name,
 			saveScore,
 		],
@@ -469,12 +467,11 @@ export function ResultsEntryForm({
 							<>
 								{heats.map((heat) => {
 									// Calculate starting index for this heat
-									const startIndex = allAthletesInOrder.findIndex(
-										(a) =>
-											heat.assignments.some(
-												(assignment) =>
-													assignment.registrationId === a.registrationId,
-											),
+									const startIndex = allAthletesInOrder.findIndex((a) =>
+										heat.assignments.some(
+											(assignment) =>
+												assignment.registrationId === a.registrationId,
+										),
 									)
 									return (
 										<HeatScoreGroup

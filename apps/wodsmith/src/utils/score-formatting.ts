@@ -1,12 +1,28 @@
 /**
  * Utilities for formatting and calculating workout scores
  * Used across leaderboards, workout cards, and result displays
+ *
+ * LEGACY ADAPTER: This file maintains backward compatibility with the old
+ * results+sets encoding while internally using the new @/lib/scoring library.
  */
 
-import type { Set as DBSet } from "@/db/schema"
+import type { Set as DBSet, WorkoutScheme } from "@/db/schema"
+import {
+	decodeScore as libDecodeScore,
+	formatScore as libFormatScore,
+	type Score,
+} from "@/lib/scoring"
+import {
+	convertLegacyToNew,
+	convertLegacyFractionalRoundsReps,
+} from "./score-adapter"
 
 /**
  * Format a score based on the workout scheme
+ *
+ * @param aggregatedScore - Legacy encoded value (seconds, fractional rounds-reps, lbs, etc.)
+ * @param scheme - Workout scheme
+ * @param isTimeCapped - For time-with-cap, whether the result was capped
  */
 export function formatScore(
 	aggregatedScore: number | null,
@@ -14,51 +30,36 @@ export function formatScore(
 	isTimeCapped = false,
 ): string {
 	if (aggregatedScore === null) return "N/A"
+	if (!scheme) return aggregatedScore.toString()
 
-	switch (scheme) {
-		case "time":
-		case "emom": {
-			// Convert seconds to MM:SS format
-			const minutes = Math.floor(aggregatedScore / 60)
-			const seconds = Math.floor(aggregatedScore % 60)
-			return `${minutes}:${seconds.toString().padStart(2, "0")}`
-		}
-		case "time-with-cap": {
-			if (isTimeCapped) {
-				// Time-capped result - show reps
-				return `${aggregatedScore} reps (capped)`
-			}
-			// Finished result - show time
-			const minutes = Math.floor(aggregatedScore / 60)
-			const seconds = Math.floor(aggregatedScore % 60)
-			return `${minutes}:${seconds.toString().padStart(2, "0")}`
-		}
-		case "reps":
-		case "calories":
-		case "points":
-			return aggregatedScore.toString()
-		case "rounds-reps": {
-			// For AMRAP, show as rounds if whole number
-			const rounds = Math.floor(aggregatedScore)
-			const reps = Math.round((aggregatedScore % 1) * 100) // Assuming fractional part represents reps
-			return reps > 0 ? `${rounds}+${reps}` : rounds.toString()
-		}
-		case "load":
-			return `${aggregatedScore} lbs`
-		case "meters":
-			return `${aggregatedScore}m`
-		case "feet":
-			return `${aggregatedScore}ft`
-		case "pass-fail":
-			return `${aggregatedScore} passes`
-		default:
-			return aggregatedScore.toString()
+	// Special handling for time-with-cap when capped
+	if (scheme === "time-with-cap" && isTimeCapped) {
+		// When capped, aggregatedScore is reps (already in correct format)
+		return `${aggregatedScore} reps (capped)`
 	}
+
+	// For rounds-reps, check if it's fractional format (legacy)
+	let newEncoded: number
+	if (scheme === "rounds-reps" && aggregatedScore < 100) {
+		// Fractional format: 5.12 = 5 rounds + 12 reps
+		newEncoded = convertLegacyFractionalRoundsReps(aggregatedScore)
+	} else {
+		// Convert legacy encoding to new encoding
+		newEncoded = convertLegacyToNew(aggregatedScore, scheme as WorkoutScheme)
+	}
+
+	// Use new library to decode and format
+	return libDecodeScore(newEncoded, scheme as WorkoutScheme, {
+		includeUnit: scheme === "load" || scheme === "meters" || scheme === "feet",
+		weightUnit: "lbs",
+	})
 }
 
 /**
  * Calculate aggregated score from sets based on scoreType
  * Returns tuple: [aggregatedScore, isTimeCapped]
+ *
+ * @returns Legacy encoded aggregated score (seconds, fractional rounds-reps, lbs, etc.)
  */
 export function calculateAggregatedScore(
 	resultSets: Array<
@@ -114,7 +115,7 @@ export function calculateAggregatedScore(
 				.map((s) => {
 					const rounds = s.score ?? 0
 					const reps = s.reps ?? 0
-					// Store as rounds + reps/100 for proper sorting
+					// Store as rounds + reps/100 for proper sorting (legacy fractional format)
 					// e.g., 5 rounds + 12 reps = 5.12
 					return rounds + reps / 100
 				})
@@ -181,22 +182,15 @@ export function calculateAggregatedScore(
 
 /**
  * Get default scoreType for a scheme
+ *
+ * Uses the new library's defaults for consistency
  */
 export function getDefaultScoreType(scheme: string): string {
-	const defaults: Record<string, string> = {
-		time: "min", // Lower time is better
-		"time-with-cap": "min", // Lower time is better
-		"pass-fail": "first", // First attempt matters
-		"rounds-reps": "max", // Higher rounds+reps is better
-		reps: "max", // Higher reps is better
-		emom: "max", // Higher reps/score in EMOM is better
-		load: "max", // Higher load is better
-		calories: "max", // Higher calories is better
-		meters: "max", // Higher distance is better
-		feet: "max", // Higher distance is better
-		points: "max", // Higher points is better
-	}
-	return defaults[scheme] || "max"
+	// Import from new library to ensure consistency
+	const { getDefaultScoreType: libGetDefaultScoreType } =
+		// biome-ignore lint/style/noRestrictedImports: adapter layer
+		require("@/lib/scoring")
+	return libGetDefaultScoreType(scheme as WorkoutScheme)
 }
 
 /**
