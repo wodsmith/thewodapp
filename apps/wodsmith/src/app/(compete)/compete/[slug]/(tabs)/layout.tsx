@@ -1,7 +1,6 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { Suspense } from "react"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import {
 	getCompetition,
@@ -65,11 +64,10 @@ export default async function CompetitionTabsLayout({ params, children }: Props)
 		notFound()
 	}
 
-	// Parallel fetch: session, registrations, divisions (needed for hero/sidebar)
-	const [session, registrations, divisions] = await Promise.all([
+	// Parallel fetch: session, registrations
+	const [session, registrations] = await Promise.all([
 		getSessionFromCookie(),
 		getCompetitionRegistrations(competition.id),
-		getPublicCompetitionDivisions(competition.id),
 	])
 
 	// Check if user is already registered, get pending invites, and check manage permission (depends on session)
