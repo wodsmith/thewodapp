@@ -1198,16 +1198,10 @@ export async function registerForCompetition(params: {
 	// 17. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
-	// 18. Send registration confirmation email (free registration path)
-	const { notifyRegistrationConfirmed } = await import(
-		"@/server/notifications"
-	)
-	await notifyRegistrationConfirmed({
-		userId: params.userId,
-		registrationId: registration.id,
-		competitionId: params.competitionId,
-		isPaid: false,
-	})
+	// NOTE: Notification is NOT sent here - callers are responsible for calling
+	// notifyRegistrationConfirmed() with appropriate isPaid/amountPaidCents values.
+	// - Free registrations: caller sends with isPaid: false
+	// - Paid registrations: Stripe webhook sends with isPaid: true after payment
 
 	return {
 		registrationId: registration.id,
