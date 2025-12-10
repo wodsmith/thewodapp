@@ -11,15 +11,41 @@ export function formatCents(cents: number): string {
 }
 
 /**
- * Format date for email display
+ * Format date for email display using UTC to preserve calendar date.
+ * Competition dates are stored as UTC midnight - using UTC methods
+ * ensures consistent display regardless of server/recipient timezone.
  */
 export function formatDate(date: Date): string {
-	return date.toLocaleDateString("en-US", {
-		weekday: "long",
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	})
+	const weekdays = [
+		"Sunday",
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday",
+	]
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	]
+
+	const weekday = weekdays[date.getUTCDay()]
+	const month = months[date.getUTCMonth()]
+	const day = date.getUTCDate()
+	const year = date.getUTCFullYear()
+
+	return `${weekday}, ${month} ${day}, ${year}`
 }
 
 /**

@@ -37,34 +37,38 @@ describe("formatCents", () => {
 })
 
 describe("formatDate", () => {
-	it("formats date with full weekday, month, day, year", () => {
-		// Use noon time to avoid timezone edge cases
-		const date = new Date(2025, 2, 15, 12, 0, 0) // March 15, 2025
+	it("formats date with full weekday, month, day, year using UTC", () => {
+		// UTC midnight - March 15, 2025 is a Saturday
+		const date = new Date(Date.UTC(2025, 2, 15))
 		const result = formatDate(date)
 
-		// Should contain all parts
-		expect(result).toContain("2025")
-		expect(result).toContain("March")
-		expect(result).toContain("15")
-		expect(result).toContain("Saturday")
+		expect(result).toBe("Saturday, March 15, 2025")
 	})
 
 	it("formats different dates correctly", () => {
-		const date = new Date(2024, 11, 25, 12, 0, 0) // December 25, 2024
+		// December 25, 2024 is a Wednesday
+		const date = new Date(Date.UTC(2024, 11, 25))
 		const result = formatDate(date)
 
-		expect(result).toContain("December")
-		expect(result).toContain("25")
-		expect(result).toContain("2024")
+		expect(result).toBe("Wednesday, December 25, 2024")
 	})
 
 	it("formats first day of month", () => {
-		const date = new Date(2025, 0, 1, 12, 0, 0) // January 1, 2025
+		// January 1, 2025 is a Wednesday
+		const date = new Date(Date.UTC(2025, 0, 1))
 		const result = formatDate(date)
 
-		expect(result).toContain("January")
-		expect(result).toContain("1")
-		expect(result).toContain("2025")
+		expect(result).toBe("Wednesday, January 1, 2025")
+	})
+
+	it("preserves calendar date regardless of local timezone", () => {
+		// This date at UTC midnight would show as Dec 31 in US Pacific
+		// Using UTC methods ensures it displays as Jan 1
+		const date = new Date(Date.UTC(2025, 0, 1, 0, 0, 0))
+		const result = formatDate(date)
+
+		expect(result).toContain("January 1")
+		expect(result).not.toContain("December")
 	})
 })
 
@@ -263,12 +267,13 @@ describe("Integration: notification helper combinations", () => {
 		const user = { firstName: "Jane", email: "jane@crossfit.com" }
 		const amountPaidCents = 7500 // $75.00
 		const pendingTeammates = '[{"email": "teammate@gym.com"}]'
-		const registrationDate = new Date(2025, 3, 1, 12, 0, 0) // April 1, 2025
+		// April 1, 2025 is a Tuesday - use UTC to match DB storage
+		const registrationDate = new Date(Date.UTC(2025, 3, 1))
 
 		expect(getAthleteName(user)).toBe("Jane")
 		expect(formatCents(amountPaidCents)).toBe("$75.00")
 		expect(parsePendingTeammateCount(pendingTeammates)).toBe(1)
-		expect(formatDate(registrationDate)).toContain("April")
+		expect(formatDate(registrationDate)).toBe("Tuesday, April 1, 2025")
 	})
 
 	it("builds complete team notification data", () => {
