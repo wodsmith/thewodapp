@@ -73,7 +73,7 @@ export const RegistrationConfirmationEmail = ({
 						)}
 					</Section>
 
-					{pendingTeammateCount && pendingTeammateCount > 0 && (
+					{pendingTeammateCount !== undefined && pendingTeammateCount > 0 && (
 						<Section style={warningBox}>
 							<Text style={warningText}>
 								⚠️ You have {pendingTeammateCount} pending teammate{" "}
