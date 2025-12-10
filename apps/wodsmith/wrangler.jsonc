@@ -40,9 +40,9 @@
 	 * Commerce: App URL for Stripe redirects (set to production URL in production)
 	 */
 	"vars": {
-		"EMAIL_FROM": "team@wodsmith.com",
+		"EMAIL_FROM": "team@mail.wodsmith.com",
 		"EMAIL_FROM_NAME": "WODsmith",
-		"EMAIL_REPLY_TO": "support@wodsmith.com",
+		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
 		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com",
 		"R2_PUBLIC_URL": "https://pub-14c651314867492fa9637e830cc729a3.r2.dev"
 	},

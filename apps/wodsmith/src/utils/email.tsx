@@ -67,9 +67,10 @@ export async function sendEmail({
 	}
 
 	// Default email sender config (fallback for development)
-	const emailFrom = process.env.EMAIL_FROM || "team@wodsmith.com"
+	// Uses mail.wodsmith.com subdomain which is verified in Resend
+	const emailFrom = process.env.EMAIL_FROM || "team@mail.wodsmith.com"
 	const emailFromName = process.env.EMAIL_FROM_NAME || "WODsmith"
-	const emailReplyTo = process.env.EMAIL_REPLY_TO || "support@wodsmith.com"
+	const emailReplyTo = process.env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
 
 	try {
 		const html = await render(template)
