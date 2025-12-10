@@ -174,6 +174,7 @@ export function ResultsEntryForm({
 			event.workout.repsPerRound,
 			event.workout.roundsToScore,
 			event.workout.timeCap,
+			event.workout.tiebreakScheme,
 			event.workout.name,
 			saveScore,
 		],
