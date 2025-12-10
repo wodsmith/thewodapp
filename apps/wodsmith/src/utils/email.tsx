@@ -66,6 +66,11 @@ export async function sendEmail({
 		return
 	}
 
+	// Default email sender config (fallback for development)
+	const emailFrom = process.env.EMAIL_FROM || "team@wodsmith.com"
+	const emailFromName = process.env.EMAIL_FROM_NAME || "WODsmith"
+	const emailReplyTo = process.env.EMAIL_REPLY_TO || "support@wodsmith.com"
+
 	try {
 		const html = await render(template)
 
@@ -76,11 +81,11 @@ export async function sendEmail({
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				from: `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM}>`,
+				from: `${emailFromName} <${emailFrom}>`,
 				to: recipients,
 				subject,
 				html,
-				reply_to: replyTo ?? process.env.EMAIL_REPLY_TO,
+				reply_to: replyTo ?? emailReplyTo,
 				tags,
 			}),
 		})
