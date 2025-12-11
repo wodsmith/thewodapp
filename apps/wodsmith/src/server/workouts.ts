@@ -406,7 +406,6 @@ export async function getUserWorkouts({
 			roundsToScore: workouts.roundsToScore,
 			sugarId: workouts.sugarId,
 			tiebreakScheme: workouts.tiebreakScheme,
-			secondaryScheme: workouts.secondaryScheme,
 			timeCap: workouts.timeCap,
 			sourceWorkoutId: workouts.sourceWorkoutId,
 			sourceTrackId: workouts.sourceTrackId,
@@ -579,7 +578,6 @@ export async function createWorkout({
 				roundsToScore: workout.roundsToScore,
 				sugarId: workout.sugarId,
 				tiebreakScheme: workout.tiebreakScheme,
-				secondaryScheme: workout.secondaryScheme,
 				scalingGroupId: workout.scalingGroupId,
 				teamId,
 				// Let database defaults handle timestamps
@@ -1068,7 +1066,6 @@ export async function createWorkoutRemix({
 			roundsToScore: sourceWorkout.roundsToScore,
 			sugarId: sourceWorkout.sugarId,
 			tiebreakScheme: sourceWorkout.tiebreakScheme,
-			secondaryScheme: sourceWorkout.secondaryScheme,
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
 			// Let database defaults handle timestamps
@@ -1234,7 +1231,6 @@ export async function createProgrammingTrackWorkoutRemix({
 			roundsToScore: sourceWorkout.roundsToScore,
 			sugarId: sourceWorkout.sugarId,
 			tiebreakScheme: sourceWorkout.tiebreakScheme,
-			secondaryScheme: sourceWorkout.secondaryScheme,
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
 			sourceTrackId, // Reference to the original programming track

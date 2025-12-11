@@ -37,7 +37,6 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
 	SCORE_TYPES,
-	SECONDARY_SCHEMES,
 	TIEBREAK_SCHEMES,
 	WORKOUT_SCHEMES,
 } from "@/constants"
@@ -115,6 +114,7 @@ export function EventDetailsForm({
 	// Initialize form with React Hook Form
 	const form = useForm<CompetitionEventSchema>({
 		resolver: zodResolver(competitionEventSchema),
+		mode: "onChange",
 		defaultValues: {
 			name: event.workout.name,
 			description: event.workout.description || "",
@@ -123,7 +123,6 @@ export function EventDetailsForm({
 			roundsToScore: event.workout.roundsToScore,
 			tiebreakScheme: event.workout.tiebreakScheme,
 			timeCap: event.workout.timeCap,
-			secondaryScheme: event.workout.secondaryScheme,
 			pointsMultiplier: event.pointsMultiplier || 100,
 			notes: event.notes || "",
 			selectedMovements: event.workout.movements?.map((m) => m.id) ?? [],
@@ -179,7 +178,6 @@ export function EventDetailsForm({
 			roundsToScore: data.roundsToScore,
 			tiebreakScheme: data.tiebreakScheme,
 			timeCap: data.timeCap,
-			secondaryScheme: data.secondaryScheme,
 			movementIds: data.selectedMovements,
 			pointsMultiplier: data.pointsMultiplier,
 			notes: data.notes || null,
@@ -396,47 +394,6 @@ export function EventDetailsForm({
 											/>
 										)}
 									</div>
-								)}
-
-								{scheme === "time-with-cap" && (
-									<FormField
-										control={form.control}
-										name="secondaryScheme"
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>
-													Cap Score Scheme{" "}
-													<span className="text-muted-foreground">
-														(optional)
-													</span>
-												</FormLabel>
-												<Select
-													value={field.value ?? "none"}
-													onValueChange={(v) =>
-														field.onChange(v === "none" ? null : v)
-													}
-												>
-													<FormControl>
-														<SelectTrigger>
-															<SelectValue placeholder="None" />
-														</SelectTrigger>
-													</FormControl>
-													<SelectContent>
-														<SelectItem value="none">None</SelectItem>
-														{SECONDARY_SCHEMES.map((s) => (
-															<SelectItem key={s.value} value={s.value}>
-																{s.label}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-												<FormDescription>
-													How to score athletes who hit the time cap
-												</FormDescription>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
 								)}
 
 								<FormField

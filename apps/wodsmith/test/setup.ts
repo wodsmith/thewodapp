@@ -40,7 +40,7 @@ const mockDb = {
 
 vi.mock("@/db", () => ({
 	db: null,
-	getDd: vi.fn(() => mockDb),
+	getDb: vi.fn(() => mockDb),
 }))
 
 vi.mock("@opennextjs/cloudflare", () => ({

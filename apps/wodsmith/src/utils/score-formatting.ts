@@ -10,6 +10,7 @@ import type { Set as DBSet, WorkoutScheme } from "@/db/schema"
 import {
 	decodeScore as libDecodeScore,
 	formatScore as libFormatScore,
+	getDefaultScoreType as libGetDefaultScoreType,
 	type Score,
 } from "@/lib/scoring"
 import {
@@ -186,10 +187,6 @@ export function calculateAggregatedScore(
  * Uses the new library's defaults for consistency
  */
 export function getDefaultScoreType(scheme: string): string {
-	// Import from new library to ensure consistency
-	const { getDefaultScoreType: libGetDefaultScoreType } =
-		// biome-ignore lint/style/noRestrictedImports: adapter layer
-		require("@/lib/scoring")
 	return libGetDefaultScoreType(scheme as WorkoutScheme)
 }
 

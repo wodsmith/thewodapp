@@ -17,7 +17,6 @@ import type {
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
-	SecondaryScheme,
 } from "@/db/schema"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 
@@ -28,7 +27,6 @@ interface HeatScoreGroupProps {
 	/** Workout config for score input */
 	workoutScheme: WorkoutScheme
 	tiebreakScheme: TiebreakScheme | null
-	secondaryScheme: SecondaryScheme | null
 	timeCap?: number
 	roundsToScore: number
 	repsPerRound?: number | null
@@ -56,7 +54,6 @@ export function HeatScoreGroup({
 	athleteMap,
 	workoutScheme,
 	tiebreakScheme,
-	secondaryScheme,
 	timeCap,
 	roundsToScore,
 	repsPerRound,
@@ -181,7 +178,6 @@ export function HeatScoreGroup({
 									laneNumber={item.laneNumber}
 									workoutScheme={workoutScheme}
 									tiebreakScheme={tiebreakScheme}
-									secondaryScheme={secondaryScheme}
 									timeCap={timeCap}
 									roundsToScore={roundsToScore}
 									repsPerRound={repsPerRound}

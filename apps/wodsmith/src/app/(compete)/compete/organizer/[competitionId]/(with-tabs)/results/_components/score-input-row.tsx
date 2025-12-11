@@ -10,30 +10,12 @@ import { parseScore, type ParseResult } from "@/utils/score-parser-new"
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
-	SecondaryScheme,
 	ScoreStatus,
 } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 
-// Helper to get placeholder text for secondary scheme input
-function getSecondaryPlaceholder(scheme: SecondaryScheme | null): string {
-	switch (scheme) {
-		case "rounds-reps":
-			return "e.g., 5+12"
-		case "reps":
-			return "e.g., 150"
-		case "calories":
-			return "e.g., 200"
-		case "meters":
-			return "e.g., 5000"
-		case "load":
-			return "e.g., 225"
-		case "points":
-			return "e.g., 100"
-		default:
-			return "Enter score..."
-	}
-}
+// Secondary score for time-capped workouts is always reps
+const SECONDARY_PLACEHOLDER = "e.g., 150 reps"
 
 export interface ScoreEntryData {
 	score: string
@@ -53,7 +35,6 @@ interface ScoreInputRowProps {
 	athlete: EventScoreEntryAthlete
 	workoutScheme: WorkoutScheme
 	tiebreakScheme: TiebreakScheme | null
-	secondaryScheme: SecondaryScheme | null
 	showTiebreak?: boolean
 	timeCap?: number
 	/** Number of rounds to score (default 1) */
@@ -74,7 +55,6 @@ export function ScoreInputRow({
 	athlete,
 	workoutScheme,
 	tiebreakScheme,
-	secondaryScheme,
 	showTiebreak = false,
 	timeCap,
 	roundsToScore = 1,
@@ -185,8 +165,8 @@ export function ScoreInputRow({
 	// Check if CAP was entered (for single-round time-capped workouts)
 	const isCapped =
 		parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
-	const showSecondaryInput =
-		isTimeCapped && isCapped && secondaryScheme && !isMultiRound
+	// When capped, always show secondary input for reps (secondary scheme is always reps)
+	const showSecondaryInput = isTimeCapped && isCapped && !isMultiRound
 
 	// Auto-focus on mount
 	useEffect(() => {
@@ -548,11 +528,11 @@ export function ScoreInputRow({
 							onChange={(e) => setSecondaryValue(e.target.value)}
 							onKeyDown={(e) => handleKeyDown(e, "secondary")}
 							onBlur={() => handleBlur("secondary")}
-							placeholder={getSecondaryPlaceholder(secondaryScheme)}
+							placeholder={SECONDARY_PLACEHOLDER}
 							className="h-10 text-base font-mono"
 						/>
 						<div className="mt-1 text-xs text-muted-foreground">
-							Enter {secondaryScheme?.replace("-", " + ")} achieved at cap
+							Enter reps achieved at cap
 						</div>
 					</div>
 				)}

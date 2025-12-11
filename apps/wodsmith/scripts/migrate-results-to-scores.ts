@@ -370,7 +370,7 @@ async function migrateResult(
 			tiebreakScheme: tiebreak.scheme,
 			tiebreakValue: tiebreak.value,
 			timeCapMs: workout.timeCap ? workout.timeCap * 1000 : null,
-			secondaryScheme: null, // TODO: parse from secondaryScore if needed
+			// Note: secondaryScheme removed - secondary is always reps when time-capped
 			secondaryValue: result.secondaryScore
 				? Number.parseInt(result.secondaryScore, 10)
 				: null,

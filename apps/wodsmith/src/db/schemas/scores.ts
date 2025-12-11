@@ -77,8 +77,8 @@ export const scoresTable = sqliteTable(
 
 		// Time cap handling (for time-with-cap workouts)
 		timeCapMs: integer("time_cap_ms"),
-		secondaryScheme: text("secondary_scheme", { enum: WORKOUT_SCHEME_VALUES }),
-		secondaryValue: integer("secondary_value"), // e.g., reps completed if capped
+		// Note: secondaryScheme removed - when capped, score is always reps
+		secondaryValue: integer("secondary_value"), // reps completed if capped
 
 		// Status & sorting
 		status: text("status", { enum: SCORE_STATUS_NEW_VALUES })

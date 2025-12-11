@@ -66,7 +66,6 @@ const mockWorkout = {
 	teamId: "team1",
 	sugarId: "sugar1",
 	tiebreakScheme: null,
-	secondaryScheme: null,
 	sourceTrackId: null,
 	sourceWorkoutId: null,
 	scalingGroupId: null,

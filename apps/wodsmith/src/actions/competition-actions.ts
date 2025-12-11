@@ -5,7 +5,6 @@ import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
 	SCORE_TYPE_VALUES,
-	SECONDARY_SCHEME_VALUES,
 	TIEBREAK_SCHEME_VALUES,
 	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
@@ -782,7 +781,6 @@ const createCompetitionEventSchema = z.object({
 	roundsToScore: z.number().int().min(1).nullable().optional(),
 	repsPerRound: z.number().int().min(1).nullable().optional(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
-	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
 	tagIds: z.array(z.string()).optional(),
 	tagNames: z.array(z.string()).optional(), // For creating new tags
 	movementIds: z.array(z.string()).optional(),
@@ -803,7 +801,6 @@ const saveCompetitionEventSchema = z.object({
 	repsPerRound: z.number().int().min(1).nullable().optional(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable().optional(),
 	timeCap: z.number().int().min(1).nullable().optional(),
-	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable().optional(),
 	movementIds: z.array(z.string()).optional(),
 	// Track workout details
 	pointsMultiplier: z.number().int().min(1).optional(),
@@ -1048,7 +1045,6 @@ export const createCompetitionEventAction = createServerAction()
 				roundsToScore: input.roundsToScore ?? undefined,
 				repsPerRound: input.repsPerRound ?? undefined,
 				tiebreakScheme: input.tiebreakScheme ?? undefined,
-				secondaryScheme: input.secondaryScheme ?? undefined,
 				tagIds: input.tagIds,
 				tagNames: input.tagNames,
 				movementIds: input.movementIds,
@@ -1107,7 +1103,6 @@ export const saveCompetitionEventAction = createServerAction()
 				repsPerRound: input.repsPerRound,
 				tiebreakScheme: input.tiebreakScheme,
 				timeCap: input.timeCap,
-				secondaryScheme: input.secondaryScheme,
 				movementIds: input.movementIds,
 				pointsMultiplier: input.pointsMultiplier,
 				notes: input.notes,

@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);
