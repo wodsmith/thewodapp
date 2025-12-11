@@ -26,7 +26,10 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
@@ -48,7 +51,7 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 		if (team.stripeConnectedAccountId) {
 			const link = await createExpressAccountLink(
 				team.stripeConnectedAccountId,
-				team.id
+				team.id,
 			)
 			return { onboardingUrl: link.url }
 		}
@@ -57,7 +60,7 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 		const result = await createExpressAccount(
 			team.id,
 			session.user.email ?? "",
-			team.name
+			team.name,
 		)
 
 		return { onboardingUrl: result.onboardingUrl }
@@ -73,7 +76,10 @@ export async function initiateStandardOAuth(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
@@ -98,7 +104,10 @@ export async function refreshOnboardingLink(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
@@ -120,7 +129,7 @@ export async function refreshOnboardingLink(input: { teamId: string }) {
 
 		const link = await createExpressAccountLink(
 			team.stripeConnectedAccountId,
-			team.id
+			team.id,
 		)
 
 		return { onboardingUrl: link.url }
@@ -151,7 +160,10 @@ export async function getStripeConnectionStatus(input: { teamId: string }) {
 		}
 
 		// If pending, sync status from Stripe
-		if (team.stripeConnectedAccountId && team.stripeAccountStatus === "PENDING") {
+		if (
+			team.stripeConnectedAccountId &&
+			team.stripeAccountStatus === "PENDING"
+		) {
 			await syncAccountStatus(input.teamId)
 			// Re-fetch after sync
 			const updated = await db.query.teamTable.findFirst({
@@ -225,7 +237,10 @@ export async function disconnectStripeAccount(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		await disconnectAccount(input.teamId)
 

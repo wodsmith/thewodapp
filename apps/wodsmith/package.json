@@ -93,6 +93,7 @@
 		"@react-email/components": "0.0.32",
 		"@react-email/render": "1.0.4",
 		"@react-pdf/renderer": "^4.3.1",
+		"@repo/anvil": "workspace:*",
 		"@repo/zsa": "workspace:*",
 		"@repo/zsa-react": "workspace:*",
 		"@simplewebauthn/browser": "^13.1.0",
@@ -100,6 +101,7 @@
 		"@stripe/react-stripe-js": "^3.7.0",
 		"@stripe/stripe-js": "^6.1.0",
 		"@tanstack/react-table": "^8.21.3",
+		"agents": "^0.1.6",
 		"ai": "^5.0.59",
 		"arctic": "^3.7.0",
 		"braintrust": "^0.3.8",
@@ -176,7 +178,7 @@
 		"typescript": "^5.8.3",
 		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.2.3",
-		"wrangler": "^4.16.1"
+		"wrangler": "^4.54.0"
 	},
 	"packageManager": "pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4"
 }

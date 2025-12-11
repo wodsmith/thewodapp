@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
 			case "account.application.deauthorized":
 				await handleAccountDeauthorized(
-					event.data.object as { id: string; account?: string }
+					event.data.object as { id: string; account?: string },
 				)
 				break
 
@@ -316,10 +316,7 @@ async function handleAccountUpdated(account: Stripe.Account) {
 		updateData.stripeOnboardingCompletedAt = new Date()
 	}
 
-	await db
-		.update(teamTable)
-		.set(updateData)
-		.where(eq(teamTable.id, team.id))
+	await db.update(teamTable).set(updateData).where(eq(teamTable.id, team.id))
 
 	logInfo({
 		message: "[Stripe Webhook] Updated team Stripe status",

@@ -14,10 +14,7 @@ import type {
 	EventScoreEntryAthlete,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
-import type {
-	WorkoutScheme,
-	TiebreakScheme,
-} from "@/db/schema"
+import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 
 interface HeatScoreGroupProps {

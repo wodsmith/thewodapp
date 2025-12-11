@@ -19,24 +19,24 @@ export async function GET(request: NextRequest) {
 		// Decode state to get team slug for redirect
 		try {
 			const stateData = JSON.parse(
-				Buffer.from(state ?? "", "base64").toString("utf-8")
+				Buffer.from(state ?? "", "base64").toString("utf-8"),
 			)
 			return NextResponse.redirect(
 				new URL(
 					`/settings/teams/${stateData.teamSlug}?stripe_error=${encodeURIComponent(error)}`,
-					appUrl
-				)
+					appUrl,
+				),
 			)
 		} catch {
 			return NextResponse.redirect(
-				new URL("/settings?error=oauth_failed", appUrl)
+				new URL("/settings?error=oauth_failed", appUrl),
 			)
 		}
 	}
 
 	if (!code || !state) {
 		return NextResponse.redirect(
-			new URL("/settings?error=missing_oauth_params", appUrl)
+			new URL("/settings?error=missing_oauth_params", appUrl),
 		)
 	}
 
@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
 		return NextResponse.redirect(
 			new URL(
 				`/settings/teams/${result.teamSlug}?stripe_connected=true`,
-				appUrl
-			)
+				appUrl,
+			),
 		)
 	} catch (err) {
 		console.error("[Stripe OAuth] Callback failed:", err)
@@ -65,19 +65,21 @@ export async function GET(request: NextRequest) {
 			message: "[Stripe OAuth] Callback failed",
 			error: err,
 		})
-		
+
 		// Try to extract team slug from state for better redirect
 		try {
-			const stateData = JSON.parse(Buffer.from(state, "base64").toString("utf-8"))
+			const stateData = JSON.parse(
+				Buffer.from(state, "base64").toString("utf-8"),
+			)
 			return NextResponse.redirect(
 				new URL(
 					`/settings/teams/${stateData.teamSlug}?stripe_error=connection_failed`,
-					appUrl
-				)
+					appUrl,
+				),
 			)
 		} catch {
 			return NextResponse.redirect(
-				new URL("/settings?error=oauth_exchange_failed", appUrl)
+				new URL("/settings?error=oauth_exchange_failed", appUrl),
 			)
 		}
 	}
