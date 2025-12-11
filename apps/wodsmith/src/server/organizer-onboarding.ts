@@ -138,7 +138,27 @@ export async function getOrganizerRequest(
 export async function getPendingOrganizerRequests(): Promise<
 	OrganizerRequestWithDetails[]
 > {
+	return getAllOrganizerRequests({ statusFilter: "pending" })
+}
+
+/**
+ * Get all organizer requests with optional status filter (for admin review)
+ */
+export async function getAllOrganizerRequests({
+	statusFilter,
+}: {
+	statusFilter?: "pending" | "approved" | "rejected" | "all"
+} = {}): Promise<OrganizerRequestWithDetails[]> {
 	const db = getDb()
+
+	// Alias for reviewer user join
+	const reviewerTable = db.$with("reviewer").as(
+		db.select({
+			id: userTable.id,
+			firstName: userTable.firstName,
+			lastName: userTable.lastName,
+		}).from(userTable)
+	)
 
 	const requests = await db
 		.select({
@@ -162,8 +182,31 @@ export async function getPendingOrganizerRequests(): Promise<
 		.from(organizerRequestTable)
 		.innerJoin(teamTable, eq(organizerRequestTable.teamId, teamTable.id))
 		.innerJoin(userTable, eq(organizerRequestTable.userId, userTable.id))
-		.where(eq(organizerRequestTable.status, ORGANIZER_REQUEST_STATUS.PENDING))
+		.where(
+			statusFilter && statusFilter !== "all"
+				? eq(organizerRequestTable.status, statusFilter)
+				: undefined,
+		)
 		.orderBy(desc(organizerRequestTable.createdAt))
+
+	// Fetch reviewer details separately for requests that have reviewedBy
+	const reviewerIds = [...new Set(requests.filter(r => r.reviewedBy).map(r => r.reviewedBy!))]
+	const reviewerMap = new Map<string, { id: string; firstName: string | null; lastName: string | null }>()
+
+	if (reviewerIds.length > 0) {
+		const { inArray } = await import("drizzle-orm")
+		const reviewers = await db
+			.select({
+				id: userTable.id,
+				firstName: userTable.firstName,
+				lastName: userTable.lastName,
+			})
+			.from(userTable)
+			.where(inArray(userTable.id, reviewerIds))
+		for (const r of reviewers) {
+			reviewerMap.set(r.id, r)
+		}
+	}
 
 	return requests.map((r) => ({
 		id: r.id,
@@ -188,6 +231,7 @@ export async function getPendingOrganizerRequests(): Promise<
 			lastName: r.userLastName,
 			email: r.userEmail,
 		},
+		reviewer: r.reviewedBy ? reviewerMap.get(r.reviewedBy) ?? null : null,
 	}))
 }
 

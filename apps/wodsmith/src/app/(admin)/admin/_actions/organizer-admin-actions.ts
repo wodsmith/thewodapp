@@ -59,7 +59,7 @@ export const approveOrganizerRequestAction = createServerAction()
 		try {
 			const result = await approveOrganizerRequest({
 				requestId: input.requestId,
-				adminUserId: admin.id,
+				adminUserId: admin.user.id,
 				adminNotes: input.adminNotes,
 			})
 
@@ -105,7 +105,7 @@ export const rejectOrganizerRequestAction = createServerAction()
 		try {
 			const result = await rejectOrganizerRequest({
 				requestId: input.requestId,
-				adminUserId: admin.id,
+				adminUserId: admin.user.id,
 				adminNotes: input.adminNotes,
 				revokeFeature: input.revokeFeature,
 			})
