@@ -4,12 +4,13 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useServerAction } from "@repo/zsa-react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { PlusIcon } from "@heroicons/react/24/outline"
 import { submitOrganizerRequestAction } from "@/actions/organizer-onboarding-actions"
 import { createTeamAction } from "@/actions/team-actions"
+import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -30,6 +31,8 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Team } from "@/db/schema"
+import { catchaSchema } from "@/schemas/catcha.schema"
+import { useConfigStore } from "@/state/config"
 
 const CREATE_NEW_TEAM = "__create_new__"
 
@@ -40,6 +43,7 @@ const formSchema = z.object({
 		.string()
 		.min(10, "Please provide more detail about why you want to organize")
 		.max(2000, "Reason is too long"),
+	captchaToken: catchaSchema,
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -51,6 +55,7 @@ interface OnboardFormProps {
 export function OnboardForm({ teams }: OnboardFormProps) {
 	const router = useRouter()
 	const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+	const { isTurnstileEnabled } = useConfigStore()
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -58,10 +63,15 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 			teamId: teams.length === 1 ? teams[0]?.id : "",
 			newTeamName: "",
 			reason: "",
+			captchaToken: "",
 		},
 	})
 
 	const watchTeamId = form.watch("teamId")
+	const captchaToken = useWatch({
+		control: form.control,
+		name: "captchaToken",
+	})
 	const showNewTeamFields = watchTeamId === CREATE_NEW_TEAM
 
 	const { execute: submitRequest, isPending: isSubmitting } = useServerAction(
@@ -108,6 +118,7 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 			await submitRequest({
 				teamId: data.teamId,
 				reason: data.reason,
+				captchaToken: data.captchaToken,
 			})
 		}
 	}
@@ -198,6 +209,12 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 					)}
 				/>
 
+				{/* Captcha */}
+				<Captcha
+					onSuccess={(token: string) => form.setValue("captchaToken", token)}
+					validationError={form.formState.errors.captchaToken?.message}
+				/>
+
 				{/* Submit */}
 				<div className="flex justify-end gap-4 pt-4">
 					<Button
@@ -208,7 +225,10 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 					>
 						Cancel
 					</Button>
-					<Button type="submit" disabled={isPending}>
+					<Button
+						type="submit"
+						disabled={isPending || (isTurnstileEnabled && !captchaToken)}
+					>
 						{isPending ? "Submitting..." : "Submit Application"}
 					</Button>
 				</div>

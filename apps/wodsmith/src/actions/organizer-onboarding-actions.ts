@@ -1,8 +1,15 @@
 "use server"
 
+import { eq, and } from "drizzle-orm"
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
+import { getDb } from "@/db"
+import {
+	SYSTEM_ROLES_ENUM,
+	TEAM_PERMISSIONS,
+	teamMembershipTable,
+} from "@/db/schema"
 import {
 	getOrganizerRequest,
 	hasPendingOrganizerRequest,
@@ -11,7 +18,7 @@ import {
 } from "@/server/organizer-onboarding"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
-import { TEAM_PERMISSIONS } from "@/db/schema"
+import { validateTurnstileToken } from "@/utils/validate-captcha"
 
 const submitOrganizerRequestSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
@@ -19,11 +26,32 @@ const submitOrganizerRequestSchema = z.object({
 		.string()
 		.min(10, "Please provide more detail about why you want to organize")
 		.max(2000, "Reason is too long"),
+	captchaToken: z.string().optional(),
 })
 
 const getOrganizerRequestStatusSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 })
+
+/**
+ * Check if user is team owner directly from database
+ * This bypasses the cached session which may not include newly created teams
+ */
+async function isTeamOwnerFromDb(
+	userId: string,
+	teamId: string,
+): Promise<boolean> {
+	const db = getDb()
+	const membership = await db.query.teamMembershipTable.findFirst({
+		where: and(
+			eq(teamMembershipTable.userId, userId),
+			eq(teamMembershipTable.teamId, teamId),
+			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
+			eq(teamMembershipTable.isSystemRole, 1),
+		),
+	})
+	return !!membership
+}
 
 /**
  * Submit an organizer request for a team
@@ -32,16 +60,30 @@ export const submitOrganizerRequestAction = createServerAction()
 	.input(submitOrganizerRequestSchema)
 	.handler(async ({ input }) => {
 		try {
+			// Validate turnstile token
+			if (input.captchaToken) {
+				const isValidCaptcha = await validateTurnstileToken(input.captchaToken)
+				if (!isValidCaptcha) {
+					throw new ZSAError("FORBIDDEN", "Invalid captcha. Please try again.")
+				}
+			}
+
 			const session = await getSessionFromCookie()
 			if (!session?.user) {
 				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
 			}
 
-			// Check if user has permission to manage the team
-			const hasPermission = await hasTeamPermission(
+			// First try cached session permissions (fast path)
+			let hasPermission = await hasTeamPermission(
 				input.teamId,
 				TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
 			)
+
+			// If cached session doesn't have permission, check DB directly
+			// This handles newly created teams where session hasn't refreshed yet
+			if (!hasPermission) {
+				hasPermission = await isTeamOwnerFromDb(session.user.id, input.teamId)
+			}
 
 			if (!hasPermission) {
 				throw new ZSAError(
