@@ -1,6 +1,7 @@
 import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { ClockIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
@@ -25,10 +26,16 @@ export default async function OrganizerLayout({
 		redirect("/sign-in")
 	}
 
+	// Get current pathname to allow onboard routes through
+	const headersList = await headers()
+	const pathname = headersList.get("x-pathname") || ""
+	const isOnboardRoute = pathname.startsWith("/compete/organizer/onboard")
+
 	// Check if user can organize competitions
 	const organizingTeams = await getUserOrganizingTeams()
 
-	if (organizingTeams.length === 0) {
+	// Allow onboard routes through even if user has no organizing teams
+	if (organizingTeams.length === 0 && !isOnboardRoute) {
 		return (
 			<div className="container mx-auto px-4 py-16">
 				<div className="max-w-md mx-auto text-center">
