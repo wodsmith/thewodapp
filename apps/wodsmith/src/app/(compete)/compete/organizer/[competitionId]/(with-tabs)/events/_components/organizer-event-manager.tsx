@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import type { Movement, Sponsor } from "@/db/schema"
 import type {
 	ScoreType,
-	SecondaryScheme,
 	TiebreakScheme,
 	WorkoutScheme,
 } from "@/db/schemas/workouts"
@@ -103,7 +102,6 @@ export function OrganizerEventManager({
 		description?: string
 		roundsToScore?: number
 		tiebreakScheme?: TiebreakScheme
-		secondaryScheme?: SecondaryScheme
 		movementIds?: string[]
 	}) => {
 		const [result, error] = await createEvent({
@@ -115,7 +113,6 @@ export function OrganizerEventManager({
 			description: data.description,
 			roundsToScore: data.roundsToScore,
 			tiebreakScheme: data.tiebreakScheme,
-			secondaryScheme: data.secondaryScheme,
 			movementIds: data.movementIds,
 		})
 

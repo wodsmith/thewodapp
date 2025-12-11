@@ -91,7 +91,6 @@ describe("workouts server functions", () => {
     roundsToScore: 5,
     sugarId: null,
     tiebreakScheme: null,
-    secondaryScheme: null,
     teamId: "team-456", // Different team
     sourceWorkoutId: null,
     sourceTrackId: null,

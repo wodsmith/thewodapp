@@ -96,7 +96,6 @@ async function fetchScoresFromNewTable(params: {
 					statusOrder: scoresTable.statusOrder,
 					sortKey: scoresTable.sortKey,
 					secondaryValue: scoresTable.secondaryValue,
-					secondaryScheme: scoresTable.secondaryScheme,
 					timeCapMs: scoresTable.timeCapMs,
 				})
 				.from(scoresTable)
@@ -403,15 +402,10 @@ export async function getCompetitionLeaderboard(params: {
 					}
 				}
 
-				// Add time cap if present
-				if (
-					score.timeCapMs &&
-					score.secondaryScheme &&
-					score.secondaryValue !== null
-				) {
+				// Add time cap if present (secondary is always reps)
+				if (score.timeCapMs && score.secondaryValue !== null) {
 					scoreObj.timeCap = {
 						ms: score.timeCapMs,
-						secondaryScheme: score.secondaryScheme,
 						secondaryValue: score.secondaryValue,
 					}
 				}

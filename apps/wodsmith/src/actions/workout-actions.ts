@@ -103,20 +103,6 @@ const createWorkoutSchema = z.object({
 			)
 			.nullable()
 			.optional(), // Add scaling group support
-		secondaryScheme: z
-			.enum([
-				"time",
-				"pass-fail",
-				"rounds-reps",
-				"reps",
-				"emom",
-				"load",
-				"calories",
-				"meters",
-				"feet",
-				"points",
-			])
-			.nullable(),
 		timeCap: z.number().int().min(1).nullable().optional(),
 	}),
 	tagIds: z.array(z.string()).default([]),

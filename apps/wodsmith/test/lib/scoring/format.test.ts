@@ -76,7 +76,6 @@ describe("formatScore", () => {
 			status: "cap",
 			timeCap: {
 				ms: 900000,
-				secondaryScheme: "reps",
 				secondaryValue: 142,
 			},
 		}
@@ -91,7 +90,6 @@ describe("formatScore", () => {
 			status: "cap",
 			timeCap: {
 				ms: 900000,
-				secondaryScheme: "reps",
 				secondaryValue: 142,
 			},
 		}

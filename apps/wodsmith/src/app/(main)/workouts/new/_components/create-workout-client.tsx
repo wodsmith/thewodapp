@@ -296,7 +296,6 @@ export default function CreateWorkoutClient({
 					data.scalingGroupId && data.scalingGroupId !== "none"
 						? data.scalingGroupId
 						: null,
-				secondaryScheme: null,
 			},
 			tagIds: existingTagIds,
 			newTagNames,

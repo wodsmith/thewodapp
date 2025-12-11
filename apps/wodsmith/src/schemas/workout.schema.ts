@@ -3,7 +3,6 @@ import {
 	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
-	SECONDARY_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 
 /**
@@ -20,7 +19,6 @@ export const workoutFieldsSchema = z.object({
 	roundsToScore: z.number().min(1).optional(),
 	repsPerRound: z.number().min(1).optional(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).optional(),
-	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).optional(),
 	selectedMovements: z.array(z.string()).default([]),
 })
 
@@ -41,7 +39,6 @@ export const competitionEventSchema = z.object({
 	repsPerRound: z.number().min(1).nullable(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
 	timeCap: z.number().min(1).nullable(), // Time cap in seconds
-	secondaryScheme: z.enum(SECONDARY_SCHEME_VALUES).nullable(),
 	selectedMovements: z.array(z.string()).default([]),
 	pointsMultiplier: z.number().min(1).max(1000),
 	notes: z.string(),

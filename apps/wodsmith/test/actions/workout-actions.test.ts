@@ -91,7 +91,6 @@ describe("workout actions", () => {
       roundsToScore: 5,
       sugarId: null,
       tiebreakScheme: null,
-      secondaryScheme: null,
     }
 
     const [data, err] = await createWorkoutAction({

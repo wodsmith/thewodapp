@@ -17,7 +17,6 @@ import {
 	type WorkoutScheme,
 	type ScoreType,
 	type TiebreakScheme,
-	type SecondaryScheme,
 } from "@/db/schema"
 import {
 	processScoresToSetsAndWodScore,
@@ -250,7 +249,6 @@ export interface EventScoreEntryData {
 			scoreType: ScoreType | null
 			tiebreakScheme: TiebreakScheme | null
 			timeCap: number | null
-			secondaryScheme: SecondaryScheme | null
 			repsPerRound: number | null
 			roundsToScore: number | null
 		}
@@ -529,17 +527,11 @@ export async function getEventScoreEntryData(params: {
 					)
 				}
 
-				// Decode secondary score if present (show milliseconds for time)
+				// Decode secondary score if present (always reps when capped)
 				// Use !== null check because 0 is a valid secondary value
-				if (
-					existingScore.secondaryValue !== null &&
-					existingScore.secondaryScheme
-				) {
-					secondaryScore = decodeScore(
-						existingScore.secondaryValue,
-						existingScore.secondaryScheme as WorkoutScheme,
-						{ compact: false },
-					)
+				if (existingScore.secondaryValue !== null) {
+					// Secondary score is always reps when time-capped
+					secondaryScore = String(existingScore.secondaryValue)
 				}
 			}
 
@@ -591,8 +583,6 @@ export async function getEventScoreEntryData(params: {
 				tiebreakScheme: trackWorkout.workout
 					.tiebreakScheme as TiebreakScheme | null,
 				timeCap: trackWorkout.workout.timeCap,
-				secondaryScheme: trackWorkout.workout
-					.secondaryScheme as SecondaryScheme | null,
 				repsPerRound: trackWorkout.workout.repsPerRound,
 				roundsToScore: trackWorkout.workout.roundsToScore,
 			},

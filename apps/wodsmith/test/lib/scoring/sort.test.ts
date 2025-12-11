@@ -200,14 +200,14 @@ describe("compareScores", () => {
 			scoreType: "min",
 			value: null,
 			status: "cap",
-			timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 150 },
+			timeCap: { ms: 900000, secondaryValue: 150 },
 		}
 		const fewerReps: Score = {
 			scheme: "time-with-cap",
 			scoreType: "min",
 			value: null,
 			status: "cap",
-			timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 100 },
+			timeCap: { ms: 900000, secondaryValue: 100 },
 		}
 		expect(compareScores(moreReps, fewerReps)).toBeLessThan(0)
 	})
