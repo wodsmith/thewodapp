@@ -592,7 +592,7 @@ export async function createCompetition(params: {
 /**
  * Get all public competitions for browsing
  * Returns competitions ordered by startDate for public /compete page
- * Only returns competitions with visibility = 'public'
+ * Only returns published competitions with visibility = 'public'
  */
 export async function getPublicCompetitions(): Promise<
 	CompetitionWithOrganizingTeam[]
@@ -600,7 +600,10 @@ export async function getPublicCompetitions(): Promise<
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
-		where: eq(competitionsTable.visibility, "public"),
+		where: and(
+			eq(competitionsTable.visibility, "public"),
+			eq(competitionsTable.status, "published"),
+		),
 		with: {
 			organizingTeam: true,
 			group: true,
@@ -654,7 +657,7 @@ export async function getCompetitions(teamId: string): Promise<
  * Get all public competitions (for competition discovery page)
  *
  * Phase 2 Implementation:
- * - Query all competitions with visibility = 'public'
+ * - Query all published competitions with visibility = 'public'
  * - Include organizing team and group data
  * - Order by startDate DESC (upcoming first)
  * - Return competitions with full details
@@ -670,7 +673,10 @@ export async function getAllPublicCompetitions(): Promise<
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
-		where: eq(competitionsTable.visibility, "public"),
+		where: and(
+			eq(competitionsTable.visibility, "public"),
+			eq(competitionsTable.status, "published"),
+		),
 		with: {
 			organizingTeam: {
 				columns: {
