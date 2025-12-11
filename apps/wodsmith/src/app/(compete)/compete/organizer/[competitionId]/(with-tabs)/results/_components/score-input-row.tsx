@@ -8,9 +8,9 @@ import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseScore, type ParseResult } from "@/utils/score-parser-new"
 import type {
-	WorkoutScheme,
-	TiebreakScheme,
-	ScoreStatus,
+  WorkoutScheme,
+  TiebreakScheme,
+  ScoreStatus,
 } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 
@@ -18,604 +18,622 @@ import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 const SECONDARY_PLACEHOLDER = "e.g., 150 reps"
 
 export interface ScoreEntryData {
-	score: string
-	scoreStatus: ScoreStatus
-	tieBreakScore: string | null
-	secondaryScore: string | null
-	formattedScore: string
-	/** Parsed numeric value (seconds for time, reps for AMRAP, etc.) */
-	rawValue?: number | null
-	// Multi-round support: array of scores when roundsToScore > 1
-	roundScores?: Array<{
-		score: string
-	}>
+  score: string
+  scoreStatus: ScoreStatus
+  tieBreakScore: string | null
+  secondaryScore: string | null
+  formattedScore: string
+  /** Parsed numeric value (seconds for time, reps for AMRAP, etc.) */
+  rawValue?: number | null
+  // Multi-round support: array of scores when roundsToScore > 1
+  roundScores?: Array<{
+    score: string
+  }>
 }
 
 interface ScoreInputRowProps {
-	athlete: EventScoreEntryAthlete
-	workoutScheme: WorkoutScheme
-	tiebreakScheme: TiebreakScheme | null
-	showTiebreak?: boolean
-	timeCap?: number
-	/** Number of rounds to score (default 1) */
-	roundsToScore?: number
-	/** Reps per round - enables rounds+reps split input */
-	repsPerRound?: number | null
-	value?: ScoreEntryData
-	isSaving?: boolean
-	isSaved?: boolean
-	onChange: (data: ScoreEntryData) => void
-	onTabNext: () => void
-	autoFocus?: boolean
-	/** Lane number to display (optional) */
-	laneNumber?: number
+  athlete: EventScoreEntryAthlete
+  workoutScheme: WorkoutScheme
+  tiebreakScheme: TiebreakScheme | null
+  showTiebreak?: boolean
+  timeCap?: number
+  /** Number of rounds to score (default 1) */
+  roundsToScore?: number
+  /** Reps per round - enables rounds+reps split input */
+  repsPerRound?: number | null
+  value?: ScoreEntryData
+  isSaving?: boolean
+  isSaved?: boolean
+  onChange: (data: ScoreEntryData) => void
+  onTabNext: () => void
+  autoFocus?: boolean
+  /** Lane number to display (optional) */
+  laneNumber?: number
 }
 
 export function ScoreInputRow({
-	athlete,
-	workoutScheme,
-	tiebreakScheme,
-	showTiebreak = false,
-	timeCap,
-	roundsToScore = 1,
-	repsPerRound,
-	value,
-	isSaving,
-	isSaved,
-	onChange,
-	onTabNext,
-	autoFocus,
-	laneNumber,
+  athlete,
+  workoutScheme,
+  tiebreakScheme,
+  showTiebreak = false,
+  timeCap,
+  roundsToScore = 1,
+  repsPerRound,
+  value,
+  isSaving,
+  isSaved,
+  onChange,
+  onTabNext,
+  autoFocus,
+  laneNumber,
 }: ScoreInputRowProps) {
-	const numRounds = roundsToScore || 1
-	const isPassFail = workoutScheme === "pass-fail"
-	const isTimeCapped = workoutScheme === "time-with-cap"
-	const isMultiRound = numRounds > 1
-	const isRoundsReps = workoutScheme === "rounds-reps"
+  const numRounds = roundsToScore || 1
+  const isPassFail = workoutScheme === "pass-fail"
+  const isTimeCapped = workoutScheme === "time-with-cap"
+  const isMultiRound = numRounds > 1
+  const isRoundsReps = workoutScheme === "rounds-reps"
 
-	// Initialize round scores state
-	const initializeRoundScores = (): Array<{
-		score: string
-		timeCapped?: boolean
-	}> => {
-		if (value?.roundScores && value.roundScores.length === numRounds) {
-			return value.roundScores.map((rs) => ({
-				score: rs.score,
-				timeCapped: false,
-			}))
-		}
-		// Use existing sets data for multi-round
-		const existingSets = athlete.existingResult?.sets
-		if (existingSets && existingSets.length > 0 && isMultiRound) {
-			return Array(numRounds)
-				.fill(null)
-				.map((_, index) => {
-					const set = existingSets.find((s) => s.setNumber === index + 1)
-					if (set) {
-						// For rounds-reps, format as "rounds+reps" or "rounds.reps"
-						let scoreStr = ""
-						if (isRoundsReps && set.score !== null) {
-							const reps = set.reps ?? 0
-							scoreStr = `${set.score}+${reps}`
-						} else if (set.score !== null) {
-							scoreStr = String(set.score)
-						}
-						return {
-							score: scoreStr,
-							timeCapped: false,
-						}
-					}
-					return {
-						score: "",
-						timeCapped: false,
-					}
-				})
-		}
-		// Fallback: Try to parse existing result wodScore as JSON (legacy format)
-		const existingScore = athlete.existingResult?.wodScore
-		if (existingScore && isMultiRound) {
-			try {
-				const parsed = JSON.parse(existingScore)
-				if (Array.isArray(parsed) && parsed.length === numRounds) {
-					return parsed.map((s: string | { score: string }) => {
-						if (typeof s === "string") {
-							return { score: s, timeCapped: false }
-						}
-						return { score: s.score, timeCapped: false }
-					})
-				}
-			} catch {
-				// Not JSON, fall through to default
-			}
-		}
-		return Array(numRounds)
-			.fill(null)
-			.map(() => ({
-				score: "",
-				timeCapped: false,
-			}))
-	}
+  // Initialize round scores state
+  const initializeRoundScores = (): Array<{
+    score: string
+    timeCapped?: boolean
+  }> => {
+    if (value?.roundScores && value.roundScores.length === numRounds) {
+      return value.roundScores.map((rs) => ({
+        score: rs.score,
+        timeCapped: false,
+      }))
+    }
+    // Use existing sets data for multi-round
+    const existingSets = athlete.existingResult?.sets
+    if (existingSets && existingSets.length > 0 && isMultiRound) {
+      return Array(numRounds)
+        .fill(null)
+        .map((_, index) => {
+          const set = existingSets.find((s) => s.setNumber === index + 1)
+          if (set) {
+            // For rounds-reps, format as "rounds+reps" or "rounds.reps"
+            let scoreStr = ""
+            if (isRoundsReps && set.score !== null) {
+              const reps = set.reps ?? 0
+              scoreStr = `${set.score}+${reps}`
+            } else if (set.score !== null) {
+              scoreStr = String(set.score)
+            }
+            return {
+              score: scoreStr,
+              timeCapped: false,
+            }
+          }
+          return {
+            score: "",
+            timeCapped: false,
+          }
+        })
+    }
+    // Fallback: Try to parse existing result wodScore as JSON (legacy format)
+    const existingScore = athlete.existingResult?.wodScore
+    if (existingScore && isMultiRound) {
+      try {
+        const parsed = JSON.parse(existingScore)
+        if (Array.isArray(parsed) && parsed.length === numRounds) {
+          return parsed.map((s: string | { score: string }) => {
+            if (typeof s === "string") {
+              return { score: s, timeCapped: false }
+            }
+            return { score: s.score, timeCapped: false }
+          })
+        }
+      } catch {
+        // Not JSON, fall through to default
+      }
+    }
+    return Array(numRounds)
+      .fill(null)
+      .map(() => ({
+        score: "",
+        timeCapped: false,
+      }))
+  }
 
-	const [roundScores, setRoundScores] = useState(initializeRoundScores)
-	const [inputValue, setInputValue] = useState(
-		value?.score ||
-			(isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
-	)
-	const [tieBreakValue, setTieBreakValue] = useState(
-		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
-	)
-	const [secondaryValue, setSecondaryValue] = useState(
-		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
-	)
-	const [showWarning, setShowWarning] = useState(false)
-	const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
-		if (isMultiRound || isPassFail) return null
-		const initialScore = value?.score || athlete.existingResult?.wodScore || ""
-		if (initialScore.trim()) {
-			return parseScore(initialScore, workoutScheme, timeCap, tiebreakScheme)
-		}
-		return null
-	})
+  const [roundScores, setRoundScores] = useState(initializeRoundScores)
+  const [inputValue, setInputValue] = useState(
+    value?.score ||
+    (isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
+  )
+  const [tieBreakValue, setTieBreakValue] = useState(
+    value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
+  )
+  const [secondaryValue, setSecondaryValue] = useState(
+    value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
+  )
+  const [showWarning, setShowWarning] = useState(false)
+  const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
+    if (isMultiRound || isPassFail) return null
+    const initialScore = value?.score || athlete.existingResult?.wodScore || ""
+    if (initialScore.trim()) {
+      return parseScore(initialScore, workoutScheme, timeCap, tiebreakScheme)
+    }
+    return null
+  })
 
-	const scoreInputRef = useRef<HTMLInputElement>(null)
-	const roundInputRefs = useRef<Map<number, HTMLInputElement>>(new Map())
-	const tieBreakInputRef = useRef<HTMLInputElement>(null)
-	const secondaryInputRef = useRef<HTMLInputElement>(null)
+  const scoreInputRef = useRef<HTMLInputElement>(null)
+  const roundInputRefs = useRef<Map<number, HTMLInputElement>>(new Map())
+  const tieBreakInputRef = useRef<HTMLInputElement>(null)
+  const secondaryInputRef = useRef<HTMLInputElement>(null)
+  /**
+   * When we submit via Enter/Tab and immediately move focus, the browser fires blur on the
+   * previous input. Our blur handler also submits, causing a duplicate save. This flag
+   * skips exactly one blur-driven submit after a keyboard-driven submit+navigation.
+   */
+  const shouldSkipNextBlurSubmitRef = useRef(false)
 
-	// Check if CAP was entered (for single-round time-capped workouts)
-	const isCapped =
-		parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
-	// When capped, always show secondary input for reps (secondary scheme is always reps)
-	const showSecondaryInput = isTimeCapped && isCapped && !isMultiRound
+  // Check if CAP was entered (for single-round time-capped workouts)
+  const isCapped =
+    parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
+  // When capped, always show secondary input for reps (secondary scheme is always reps)
+  const showSecondaryInput = isTimeCapped && isCapped && !isMultiRound
 
-	// Auto-focus on mount
-	useEffect(() => {
-		if (autoFocus) {
-			if (isMultiRound) {
-				roundInputRefs.current.get(0)?.focus()
-			} else {
-				scoreInputRef.current?.focus()
-			}
-		}
-	}, [autoFocus, isMultiRound])
+  // Auto-focus on mount
+  useEffect(() => {
+    if (autoFocus) {
+      if (isMultiRound) {
+        roundInputRefs.current.get(0)?.focus()
+      } else {
+        scoreInputRef.current?.focus()
+      }
+    }
+  }, [autoFocus, isMultiRound])
 
-	// Parse input as user types (for single-round non-pass-fail)
-	const handleInputChange = (newValue: string) => {
-		setInputValue(newValue)
+  // Parse input as user types (for single-round non-pass-fail)
+  const handleInputChange = (newValue: string) => {
+    setInputValue(newValue)
 
-		if (!newValue.trim()) {
-			setParseResult(null)
-			return
-		}
+    if (!newValue.trim()) {
+      setParseResult(null)
+      return
+    }
 
-		const result = parseScore(newValue, workoutScheme, timeCap, tiebreakScheme)
-		setParseResult(result)
+    const result = parseScore(newValue, workoutScheme, timeCap, tiebreakScheme)
+    setParseResult(result)
 
-		if (result.error && !result.isValid) {
-			setShowWarning(true)
-		}
-	}
+    if (result.error && !result.isValid) {
+      setShowWarning(true)
+    }
+  }
 
-	// Handle round score change (for multi-round)
-	const handleRoundScoreChange = (roundIndex: number, newValue: string) => {
-		setRoundScores((prev) => {
-			const updated = [...prev]
-			const currentRound = updated[roundIndex]
-			if (!currentRound) return prev
-			updated[roundIndex] = { ...currentRound, score: newValue }
-			return updated
-		})
-	}
+  // Handle round score change (for multi-round)
+  const handleRoundScoreChange = (roundIndex: number, newValue: string) => {
+    setRoundScores((prev) => {
+      const updated = [...prev]
+      const currentRound = updated[roundIndex]
+      if (!currentRound) return prev
+      updated[roundIndex] = { ...currentRound, score: newValue }
+      return updated
+    })
+  }
 
-	// Build the final score string for storage
-	const buildScoreString = (): string => {
-		if (isMultiRound) {
-			// Store as JSON array for multi-round
-			return JSON.stringify(
-				roundScores.map((rs) => ({
-					score: rs.score,
-				})),
-			)
-		}
-		return inputValue
-	}
+  // Build the final score string for storage
+  const buildScoreString = (): string => {
+    if (isMultiRound) {
+      // Store as JSON array for multi-round
+      return JSON.stringify(
+        roundScores.map((rs) => ({
+          score: rs.score,
+        })),
+      )
+    }
+    return inputValue
+  }
 
-	// Submit the score
-	const submitScore = (force = false) => {
-		if (!isMultiRound && !isPassFail && !force && !parseResult?.isValid) return
+  // Submit the score
+  const submitScore = (force = false) => {
+    if (!isMultiRound && !isPassFail && !force && !parseResult?.isValid) return
 
-		const existing = athlete.existingResult
-		const finalScore = buildScoreString()
-		const newScoreStatus = parseResult?.scoreStatus || "scored"
-		const newTieBreak = tieBreakValue || null
-		const newSecondary = showSecondaryInput ? secondaryValue || null : null
+    const existing = athlete.existingResult
+    const finalScore = buildScoreString()
+    const newScoreStatus = parseResult?.scoreStatus || "scored"
+    const newTieBreak = tieBreakValue || null
+    const newSecondary = showSecondaryInput ? secondaryValue || null : null
 
-		// Don't save if nothing has changed (for single-round)
-		if (
-			!isMultiRound &&
-			existing &&
-			finalScore === (existing.wodScore || "") &&
-			newScoreStatus === (existing.scoreStatus || "scored") &&
-			newTieBreak === (existing.tieBreakScore || null) &&
-			newSecondary === (existing.secondaryScore || null)
-		) {
-			return
-		}
+    // Don't save if nothing has changed (for single-round)
+    if (
+      !isMultiRound &&
+      existing &&
+      finalScore === (existing.wodScore || "") &&
+      newScoreStatus === (existing.scoreStatus || "scored") &&
+      newTieBreak === (existing.tieBreakScore || null) &&
+      newSecondary === (existing.secondaryScore || null)
+    ) {
+      return
+    }
 
-		onChange({
-			score: finalScore,
-			scoreStatus: newScoreStatus,
-			tieBreakScore: newTieBreak,
-			secondaryScore: newSecondary,
-			formattedScore: parseResult?.formatted || finalScore,
-			rawValue: parseResult?.rawValue,
-			// Pass roundScores for multi-round
-			roundScores: isMultiRound
-				? roundScores.map((rs) => ({
-						score: rs.score,
-					}))
-				: undefined,
-		})
-	}
+    onChange({
+      score: finalScore,
+      scoreStatus: newScoreStatus,
+      tieBreakScore: newTieBreak,
+      secondaryScore: newSecondary,
+      formattedScore: parseResult?.formatted || finalScore,
+      rawValue: parseResult?.rawValue,
+      // Pass roundScores for multi-round
+      roundScores: isMultiRound
+        ? roundScores.map((rs) => ({
+          score: rs.score,
+        }))
+        : undefined,
+    })
+  }
 
-	// Handle blur - save when user leaves the field
-	const handleBlur = (_field: "score" | "tieBreak" | "secondary" | "round") => {
-		setTimeout(() => {
-			const activeEl = document.activeElement
-			const isMovingToRelatedField =
-				activeEl === scoreInputRef.current ||
-				activeEl === tieBreakInputRef.current ||
-				activeEl === secondaryInputRef.current ||
-				Array.from(roundInputRefs.current.values()).includes(
-					activeEl as HTMLInputElement,
-				)
+  // Handle blur - save when user leaves the field
+  const handleBlur = (_field: "score" | "tieBreak" | "secondary" | "round") => {
+    setTimeout(() => {
+      const activeEl = document.activeElement
+      const isMovingToRelatedField =
+        activeEl === scoreInputRef.current ||
+        activeEl === tieBreakInputRef.current ||
+        activeEl === secondaryInputRef.current ||
+        Array.from(roundInputRefs.current.values()).includes(
+          activeEl as HTMLInputElement,
+        )
 
-			if (!isMovingToRelatedField) {
-				submitScore()
-			}
-		}, 0)
-	}
+      if (shouldSkipNextBlurSubmitRef.current) {
+        shouldSkipNextBlurSubmitRef.current = false
+        return
+      }
 
-	// Handle keyboard navigation
-	const handleKeyDown = (
-		e: KeyboardEvent<HTMLInputElement>,
-		field: "score" | "tieBreak" | "secondary",
-		roundIndex?: number,
-	) => {
-		if (e.key === "Tab" && !e.shiftKey) {
-			e.preventDefault()
+      if (!isMovingToRelatedField) {
+        submitScore()
+      }
+    }, 0)
+  }
 
-			if (field === "score") {
-				if (isMultiRound && roundIndex !== undefined) {
-					// Move to next round input or tie-break or next row
-					const nextRoundIndex = roundIndex + 1
-					if (nextRoundIndex < numRounds) {
-						roundInputRefs.current.get(nextRoundIndex)?.focus()
-					} else if (showTiebreak && !tieBreakValue) {
-						tieBreakInputRef.current?.focus()
-					} else {
-						submitScore()
-						onTabNext()
-					}
-				} else {
-					// Single round logic
-					if (showSecondaryInput && !secondaryValue) {
-						secondaryInputRef.current?.focus()
-					} else if (showTiebreak && !tieBreakValue) {
-						tieBreakInputRef.current?.focus()
-					} else {
-						submitScore()
-						onTabNext()
-					}
-				}
-			} else if (field === "secondary") {
-				if (showTiebreak && !tieBreakValue) {
-					tieBreakInputRef.current?.focus()
-				} else {
-					submitScore()
-					onTabNext()
-				}
-			} else {
-				submitScore()
-				onTabNext()
-			}
-		}
+  // Handle keyboard navigation
+  const handleKeyDown = (
+    e: KeyboardEvent<HTMLInputElement>,
+    field: "score" | "tieBreak" | "secondary",
+    roundIndex?: number,
+  ) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault()
 
-		if (e.key === "Enter") {
-			e.preventDefault()
+      if (field === "score") {
+        if (isMultiRound && roundIndex !== undefined) {
+          // Move to next round input or tie-break or next row
+          const nextRoundIndex = roundIndex + 1
+          if (nextRoundIndex < numRounds) {
+            roundInputRefs.current.get(nextRoundIndex)?.focus()
+          } else if (showTiebreak && !tieBreakValue) {
+            tieBreakInputRef.current?.focus()
+          } else {
+            submitScore()
+            shouldSkipNextBlurSubmitRef.current = true
+            onTabNext()
+          }
+        } else {
+          // Single round logic
+          if (showSecondaryInput && !secondaryValue) {
+            secondaryInputRef.current?.focus()
+          } else if (showTiebreak && !tieBreakValue) {
+            tieBreakInputRef.current?.focus()
+          } else {
+            submitScore()
+            shouldSkipNextBlurSubmitRef.current = true
+            onTabNext()
+          }
+        }
+      } else if (field === "secondary") {
+        if (showTiebreak && !tieBreakValue) {
+          tieBreakInputRef.current?.focus()
+        } else {
+          submitScore()
+          shouldSkipNextBlurSubmitRef.current = true
+          onTabNext()
+        }
+      } else {
+        submitScore()
+        shouldSkipNextBlurSubmitRef.current = true
+        onTabNext()
+      }
+    }
 
-			if (showWarning) {
-				setShowWarning(false)
-				submitScore(true)
-				onTabNext()
-			} else if (isMultiRound || isPassFail || parseResult?.isValid) {
-				submitScore()
-				onTabNext()
-			}
-		}
-	}
+    if (e.key === "Enter") {
+      e.preventDefault()
 
-	// Handle warning confirmation
-	const handleConfirmWarning = () => {
-		setShowWarning(false)
-		submitScore(true)
-		onTabNext()
-	}
+      if (showWarning) {
+        setShowWarning(false)
+        submitScore(true)
+        shouldSkipNextBlurSubmitRef.current = true
+        onTabNext()
+      } else if (isMultiRound || isPassFail || parseResult?.isValid) {
+        submitScore()
+        shouldSkipNextBlurSubmitRef.current = true
+        onTabNext()
+      }
+    }
+  }
 
-	// Determine status display
-	const hasExistingResult = !!athlete.existingResult
-	// Only show invalid warning styling when explicitly triggered (not persisted after "Save Anyway")
-	const isInvalidWarning = showWarning
-	const hasWarning = parseResult?.error && parseResult?.isValid
+  // Handle warning confirmation
+  const handleConfirmWarning = () => {
+    setShowWarning(false)
+    submitScore(true)
+    shouldSkipNextBlurSubmitRef.current = true
+    onTabNext()
+  }
 
-	return (
-		<div
-			className={cn(
-				"grid items-center gap-3 border-b p-3 transition-colors",
-				showTiebreak
-					? "grid-cols-[60px_1fr_2fr_1fr_100px]"
-					: "grid-cols-[60px_1fr_2fr_100px]",
-				isInvalidWarning &&
-					"bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
-				hasWarning &&
-					!isInvalidWarning &&
-					"bg-amber-50 dark:bg-amber-950/20 border-amber-300",
-				isSaved &&
-					!isInvalidWarning &&
-					!hasWarning &&
-					"bg-green-50 dark:bg-green-950/20",
-			)}
-		>
-			{/* Lane / Index */}
-			<div className="text-center">
-				{laneNumber !== undefined ? (
-					<span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-						{laneNumber}
-					</span>
-				) : (
-					<span className="text-muted-foreground">-</span>
-				)}
-			</div>
+  // Determine status display
+  const hasExistingResult = !!athlete.existingResult
+  // Only show invalid warning styling when explicitly triggered (not persisted after "Save Anyway")
+  const isInvalidWarning = showWarning
+  const hasWarning = parseResult?.error && parseResult?.isValid
 
-			{/* Athlete / Team Name */}
-			<div className="min-w-0">
-				{athlete.teamName ? (
-					<>
-						<div className="truncate font-medium">{athlete.teamName}</div>
-						{athlete.teamMembers.length > 0 && (
-							<div className="mt-0.5 text-xs text-muted-foreground">
-								{athlete.teamMembers.map((member, idx) => (
-									<span key={member.userId}>
-										{idx > 0 && ", "}
-										{member.firstName} {member.lastName}
-										{member.isCaptain && (
-											<span className="text-muted-foreground/70"> (c)</span>
-										)}
-									</span>
-								))}
-							</div>
-						)}
-					</>
-				) : (
-					<div className="truncate font-medium">
-						{athlete.lastName}, {athlete.firstName}
-					</div>
-				)}
-				{/* Only show division badge when not in heat view (no lane number) */}
-				{laneNumber === undefined && (
-					<Badge variant="outline" className="mt-1 text-xs">
-						{athlete.divisionLabel}
-					</Badge>
-				)}
-			</div>
+  return (
+    <div
+      className={cn(
+        "grid items-center gap-3 border-b p-3 transition-colors",
+        showTiebreak
+          ? "grid-cols-[60px_1fr_2fr_1fr_100px]"
+          : "grid-cols-[60px_1fr_2fr_100px]",
+        isInvalidWarning &&
+        "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300",
+        hasWarning &&
+        !isInvalidWarning &&
+        "bg-amber-50 dark:bg-amber-950/20 border-amber-300",
+        isSaved &&
+        !isInvalidWarning &&
+        !hasWarning &&
+        "bg-green-50 dark:bg-green-950/20",
+      )}
+    >
+      {/* Lane / Index */}
+      <div className="text-center">
+        {laneNumber !== undefined ? (
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+            {laneNumber}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </div>
 
-			{/* Score Input */}
-			<div className="space-y-2">
-				{/* Pass-Fail Scheme */}
-				{isPassFail ? (
-					<div className="relative">
-						<div className="flex items-center gap-2">
-							<Input
-								ref={scoreInputRef}
-								type="number"
-								value={inputValue}
-								onChange={(e) => {
-									const val = e.target.value
-									const numVal = parseInt(val, 10)
-									// Validate doesn't exceed total rounds
-									if (
-										val !== "" &&
-										(Number.isNaN(numVal) || numVal > numRounds || numVal < 0)
-									) {
-										return
-									}
-									setInputValue(val)
-								}}
-								onKeyDown={(e) => handleKeyDown(e, "score")}
-								onBlur={() => handleBlur("score")}
-								placeholder={`Rounds passed (max ${numRounds})`}
-								min="0"
-								max={numRounds}
-								className="h-10 text-base font-mono w-40"
-							/>
-							<span className="text-sm text-muted-foreground">
-								/ {numRounds} rounds
-							</span>
-						</div>
-					</div>
-				) : isMultiRound ? (
-					/* Multi-Round Scoring */
-					<div className="space-y-2">
-						{roundScores.map((roundScore, roundIndex) => (
-							<div
-								key={`round-${roundIndex}`}
-								className="flex items-center gap-2"
-							>
-								<span className="text-xs text-muted-foreground w-10 shrink-0">
-									R{roundIndex + 1}:
-								</span>
-								<Input
-									ref={(el) => {
-										if (el) roundInputRefs.current.set(roundIndex, el)
-									}}
-									value={roundScore.score}
-									onChange={(e) =>
-										handleRoundScoreChange(roundIndex, e.target.value)
-									}
-									onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
-									onBlur={() => handleBlur("round")}
-									placeholder={
-										workoutScheme === "time" ||
-										workoutScheme === "time-with-cap"
-											? "2:34.567 or 2.34.567"
-											: workoutScheme === "rounds-reps"
-												? "5+12 or 5.12"
-												: "Score"
-									}
-									className="h-8 text-sm font-mono flex-1"
-								/>
-							</div>
-						))}
-					</div>
-				) : (
-					/* Default: Single score input for all schemes */
-					<div className="relative">
-						<Input
-							ref={scoreInputRef}
-							value={inputValue}
-							onChange={(e) => handleInputChange(e.target.value)}
-							onKeyDown={(e) => handleKeyDown(e, "score")}
-							onBlur={() => handleBlur("score")}
-							placeholder={
-								workoutScheme === "time" || workoutScheme === "time-with-cap"
-									? "2:34.567 or 2.34.567"
-									: workoutScheme === "rounds-reps"
-										? "5+12 or 5.12"
-										: "Enter score..."
-							}
-							className={cn(
-								"h-10 text-base font-mono",
-								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
-								hasWarning &&
-									!isInvalidWarning &&
-									"border-amber-400 focus:ring-amber-400",
-							)}
-						/>
-						{parseResult?.isValid && !showSecondaryInput && (
-							<div className="mt-1 text-xs text-muted-foreground">
-								Preview: {parseResult.formatted}
-							</div>
-						)}
-						{parseResult?.warning && (
-							<div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-								{parseResult.warning}
-							</div>
-						)}
-						{parseResult?.error && (
-							<div className="mt-1 text-xs text-destructive">
-								{parseResult.error}
-							</div>
-						)}
-					</div>
-				)}
+      {/* Athlete / Team Name */}
+      <div className="min-w-0">
+        {athlete.teamName ? (
+          <>
+            <div className="truncate font-medium">{athlete.teamName}</div>
+            {athlete.teamMembers.length > 0 && (
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {athlete.teamMembers.map((member, idx) => (
+                  <span key={member.userId}>
+                    {idx > 0 && ", "}
+                    {member.firstName} {member.lastName}
+                    {member.isCaptain && (
+                      <span className="text-muted-foreground/70"> (c)</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="truncate font-medium">
+            {athlete.lastName}, {athlete.firstName}
+          </div>
+        )}
+        {/* Only show division badge when not in heat view (no lane number) */}
+        {laneNumber === undefined && (
+          <Badge variant="outline" className="mt-1 text-xs">
+            {athlete.divisionLabel}
+          </Badge>
+        )}
+      </div>
 
-				{/* Secondary Score Input (for time-capped workouts when CAP) */}
-				{showSecondaryInput && (
-					<div className="relative">
-						<Input
-							ref={secondaryInputRef}
-							value={secondaryValue}
-							onChange={(e) => setSecondaryValue(e.target.value)}
-							onKeyDown={(e) => handleKeyDown(e, "secondary")}
-							onBlur={() => handleBlur("secondary")}
-							placeholder={SECONDARY_PLACEHOLDER}
-							className="h-10 text-base font-mono"
-						/>
-						<div className="mt-1 text-xs text-muted-foreground">
-							Enter reps achieved at cap
-						</div>
-					</div>
-				)}
+      {/* Score Input */}
+      <div className="space-y-2">
+        {/* Pass-Fail Scheme */}
+        {isPassFail ? (
+          <div className="relative">
+            <div className="flex items-center gap-2">
+              <Input
+                ref={scoreInputRef}
+                type="number"
+                value={inputValue}
+                onChange={(e) => {
+                  const val = e.target.value
+                  const numVal = parseInt(val, 10)
+                  // Validate doesn't exceed total rounds
+                  if (
+                    val !== "" &&
+                    (Number.isNaN(numVal) || numVal > numRounds || numVal < 0)
+                  ) {
+                    return
+                  }
+                  setInputValue(val)
+                }}
+                onKeyDown={(e) => handleKeyDown(e, "score")}
+                onBlur={() => handleBlur("score")}
+                placeholder={`Rounds passed (max ${numRounds})`}
+                min="0"
+                max={numRounds}
+                className="h-10 text-base font-mono w-40"
+              />
+              <span className="text-sm text-muted-foreground">
+                / {numRounds} rounds
+              </span>
+            </div>
+          </div>
+        ) : isMultiRound ? (
+          /* Multi-Round Scoring */
+          <div className="space-y-2">
+            {roundScores.map((roundScore, roundIndex) => (
+              <div
+                key={`round-${roundIndex}`}
+                className="flex items-center gap-2"
+              >
+                <span className="text-xs text-muted-foreground w-10 shrink-0">
+                  R{roundIndex + 1}:
+                </span>
+                <Input
+                  ref={(el) => {
+                    if (el) roundInputRefs.current.set(roundIndex, el)
+                  }}
+                  value={roundScore.score}
+                  onChange={(e) =>
+                    handleRoundScoreChange(roundIndex, e.target.value)
+                  }
+                  onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
+                  onBlur={() => handleBlur("round")}
+                  placeholder={
+                    workoutScheme === "time" ||
+                      workoutScheme === "time-with-cap"
+                      ? "2:34.567 or 2.34.567"
+                      : workoutScheme === "rounds-reps"
+                        ? "5+12 or 5.12"
+                        : "Score"
+                  }
+                  className="h-8 text-sm font-mono flex-1"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Default: Single score input for all schemes */
+          <div className="relative">
+            <Input
+              ref={scoreInputRef}
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "score")}
+              onBlur={() => handleBlur("score")}
+              placeholder={
+                workoutScheme === "time" || workoutScheme === "time-with-cap"
+                  ? "2:34.567 or 2.34.567"
+                  : workoutScheme === "rounds-reps"
+                    ? "5+12 or 5.12"
+                    : "Enter score..."
+              }
+              className={cn(
+                "h-10 text-base font-mono",
+                isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
+                hasWarning &&
+                !isInvalidWarning &&
+                "border-amber-400 focus:ring-amber-400",
+              )}
+            />
+            {parseResult?.isValid && !showSecondaryInput && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                Preview: {parseResult.formatted}
+              </div>
+            )}
+            {parseResult?.warning && (
+              <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                {parseResult.warning}
+              </div>
+            )}
+            {parseResult?.error && (
+              <div className="mt-1 text-xs text-destructive">
+                {parseResult.error}
+              </div>
+            )}
+          </div>
+        )}
 
-				{/* Warning Message (only for invalid scores) */}
-				{isInvalidWarning && parseResult?.error && (
-					<div className="flex items-start gap-2 rounded-md bg-yellow-100 dark:bg-yellow-900/30 p-2 text-sm">
-						<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
-						<div className="flex-1">
-							<p className="font-medium text-yellow-800 dark:text-yellow-200">
-								{parseResult.error}
-							</p>
-							<div className="mt-2 flex gap-2">
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={handleConfirmWarning}
-								>
-									Save Anyway
-								</Button>
-								<Button
-									size="sm"
-									variant="ghost"
-									onClick={() => {
-										setShowWarning(false)
-										scoreInputRef.current?.focus()
-									}}
-								>
-									Edit
-								</Button>
-							</div>
-						</div>
-					</div>
-				)}
-			</div>
+        {/* Secondary Score Input (for time-capped workouts when CAP) */}
+        {showSecondaryInput && (
+          <div className="relative">
+            <Input
+              ref={secondaryInputRef}
+              value={secondaryValue}
+              onChange={(e) => setSecondaryValue(e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, "secondary")}
+              onBlur={() => handleBlur("secondary")}
+              placeholder={SECONDARY_PLACEHOLDER}
+              className="h-10 text-base font-mono"
+            />
+            <div className="mt-1 text-xs text-muted-foreground">
+              Enter reps achieved at cap
+            </div>
+          </div>
+        )}
 
-			{/* Tie-Break Input */}
-			{showTiebreak && (
-				<div>
-					<Input
-						ref={tieBreakInputRef}
-						value={tieBreakValue}
-						onChange={(e) => setTieBreakValue(e.target.value)}
-						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
-						onBlur={() => handleBlur("tieBreak")}
-						placeholder={tiebreakScheme === "time" ? "Time..." : "Reps..."}
-						className="h-10 text-base font-mono"
-					/>
-				</div>
-			)}
+        {/* Warning Message (only for invalid scores) */}
+        {isInvalidWarning && parseResult?.error && (
+          <div className="flex items-start gap-2 rounded-md bg-yellow-100 dark:bg-yellow-900/30 p-2 text-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
+            <div className="flex-1">
+              <p className="font-medium text-yellow-800 dark:text-yellow-200">
+                {parseResult.error}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleConfirmWarning}
+                >
+                  Save Anyway
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowWarning(false)
+                    scoreInputRef.current?.focus()
+                  }}
+                >
+                  Edit
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
-			{/* Status */}
-			<div className="text-center">
-				{(() => {
-					// Check if there's any input (for multi-round or single)
-					const hasInput = isMultiRound
-						? roundScores.some((rs) => rs.score)
-						: inputValue
+      {/* Tie-Break Input */}
+      {showTiebreak && (
+        <div>
+          <Input
+            ref={tieBreakInputRef}
+            value={tieBreakValue}
+            onChange={(e) => setTieBreakValue(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
+            onBlur={() => handleBlur("tieBreak")}
+            placeholder={tiebreakScheme === "time" ? "Time..." : "Reps..."}
+            className="h-10 text-base font-mono"
+          />
+        </div>
+      )}
 
-					if (isSaving) {
-						return (
-							<div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-								<Loader2 className="h-4 w-4 animate-spin" />
-								<span className="hidden sm:inline">Saving...</span>
-							</div>
-						)
-					}
-					if (isSaved || hasExistingResult) {
-						return (
-							<div className="flex items-center justify-center gap-1.5 text-sm text-green-600">
-								<Check className="h-4 w-4" />
-								<span className="hidden sm:inline">Saved</span>
-							</div>
-						)
-					}
-					if (hasInput) {
-						return (
-							<span className="text-sm text-muted-foreground">Pending</span>
-						)
-					}
-					return <span className="text-sm text-muted-foreground">-</span>
-				})()}
-			</div>
-		</div>
-	)
+      {/* Status */}
+      <div className="text-center">
+        {(() => {
+          // Check if there's any input (for multi-round or single)
+          const hasInput = isMultiRound
+            ? roundScores.some((rs) => rs.score)
+            : inputValue
+
+          if (isSaving) {
+            return (
+              <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="hidden sm:inline">Saving...</span>
+              </div>
+            )
+          }
+          if (isSaved || hasExistingResult) {
+            return (
+              <div className="flex items-center justify-center gap-1.5 text-sm text-green-600">
+                <Check className="h-4 w-4" />
+                <span className="hidden sm:inline">Saved</span>
+              </div>
+            )
+          }
+          if (hasInput) {
+            return (
+              <span className="text-sm text-muted-foreground">Pending</span>
+            )
+          }
+          return <span className="text-sm text-muted-foreground">-</span>
+        })()}
+      </div>
+    </div>
+  )
 }
