@@ -330,14 +330,24 @@ export async function getCompetitionLeaderboard(params: {
 
 		// Rank athletes within each division using sortKey
 		for (const [_divisionId, divisionScores] of eventScoresByDivision) {
-			// Sort by sortKey, then by tiebreak if scores are equal
+			// Sort by sortKey, then by secondary value (for capped scores), then by tiebreak
 			const sortedScores = divisionScores.sort((a, b) => {
 				// Primary sort: sortKey (status + normalized score)
 				if (!a.sortKey || !b.sortKey) return 0
 				const sortKeyCompare = a.sortKey.localeCompare(b.sortKey)
 				if (sortKeyCompare !== 0) return sortKeyCompare
 
-				// Secondary sort: tiebreak value (if both have tiebreak)
+				// Secondary sort for capped scores: by secondaryValue (reps completed)
+				// Higher reps = better, so sort descending
+				if (a.status === "cap" && b.status === "cap") {
+					const aSecondary = a.secondaryValue ?? 0
+					const bSecondary = b.secondaryValue ?? 0
+					if (aSecondary !== bSecondary) {
+						return bSecondary - aSecondary // Higher is better (descending)
+					}
+				}
+
+				// Tertiary sort: tiebreak value (if both have tiebreak)
 				if (
 					a.tiebreakValue !== null &&
 					b.tiebreakValue !== null &&

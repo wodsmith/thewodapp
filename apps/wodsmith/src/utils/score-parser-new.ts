@@ -119,6 +119,36 @@ export function parseScore(
 	const legacyValue =
 		result.encoded !== null ? convertNewToLegacy(result.encoded, scheme) : null
 
+	// For time-with-cap scheme, validate against time cap
+	if (
+		scheme === "time-with-cap" &&
+		timeCap !== undefined &&
+		legacyValue !== null
+	) {
+		// If time equals cap exactly, treat as CAP
+		if (legacyValue === timeCap) {
+			return {
+				formatted: `CAP (${formatTime(timeCap)})`,
+				rawValue: timeCap,
+				isValid: true,
+				needsTieBreak: tiebreakScheme != null,
+				scoreStatus: "cap",
+			}
+		}
+
+		// If time exceeds cap, reject it
+		if (legacyValue > timeCap) {
+			return {
+				formatted: result.formatted,
+				rawValue: null,
+				isValid: false,
+				needsTieBreak: false,
+				scoreStatus: null,
+				error: `Time cannot exceed cap of ${formatTime(timeCap)}`,
+			}
+		}
+	}
+
 	return {
 		formatted: result.formatted,
 		rawValue: legacyValue,
