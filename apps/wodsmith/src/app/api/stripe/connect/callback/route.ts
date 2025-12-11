@@ -23,20 +23,20 @@ export async function GET(request: NextRequest) {
 			)
 			return NextResponse.redirect(
 				new URL(
-					`/settings/teams/${stateData.teamSlug}?stripe_error=${encodeURIComponent(error)}`,
+					`/compete/organizer/settings/payouts/${stateData.teamSlug}?stripe_error=${encodeURIComponent(error)}`,
 					appUrl
 				)
 			)
 		} catch {
 			return NextResponse.redirect(
-				new URL("/settings?error=oauth_failed", appUrl)
+				new URL("/compete/organizer?error=oauth_failed", appUrl)
 			)
 		}
 	}
 
 	if (!code || !state) {
 		return NextResponse.redirect(
-			new URL("/settings?error=missing_oauth_params", appUrl)
+			new URL("/compete/organizer?error=missing_oauth_params", appUrl)
 		)
 	}
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.redirect(
 			new URL(
-				`/settings/teams/${result.teamSlug}?stripe_connected=true`,
+				`/compete/organizer/settings/payouts/${result.teamSlug}?stripe_connected=true`,
 				appUrl
 			)
 		)
@@ -71,13 +71,13 @@ export async function GET(request: NextRequest) {
 			const stateData = JSON.parse(Buffer.from(state, "base64").toString("utf-8"))
 			return NextResponse.redirect(
 				new URL(
-					`/settings/teams/${stateData.teamSlug}?stripe_error=connection_failed`,
+					`/compete/organizer/settings/payouts/${stateData.teamSlug}?stripe_error=connection_failed`,
 					appUrl
 				)
 			)
 		} catch {
 			return NextResponse.redirect(
-				new URL("/settings?error=oauth_exchange_failed", appUrl)
+				new URL("/compete/organizer?error=oauth_exchange_failed", appUrl)
 			)
 		}
 	}

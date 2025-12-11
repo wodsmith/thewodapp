@@ -74,8 +74,8 @@ export async function createExpressAccountLink(
 
 	const accountLink = await stripe.accountLinks.create({
 		account: accountId,
-		refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/teams/${team.slug}?stripe_refresh=true`,
-		return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/teams/${team.slug}?stripe_connected=true`,
+		refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/compete/organizer/settings/payouts/${team.slug}?stripe_refresh=true`,
+		return_url: `${process.env.NEXT_PUBLIC_APP_URL}/compete/organizer/settings/payouts/${team.slug}?stripe_connected=true`,
 		type: "account_onboarding",
 	})
 
