@@ -58,6 +58,12 @@
 		{
 			"binding": "WORKER_SELF_REFERENCE",
 			"service": "wodsmith"
+		},
+		{
+			// Service binding to the anvil-worker for ChatAgent
+			// This allows the main app to communicate with the separate agent worker
+			"binding": "ANVIL_WORKER",
+			"service": "anvil-worker"
 		}
 	],
 	"durable_objects": {
@@ -65,6 +71,12 @@
 			{
 				"name": "NEXT_CACHE_DO_QUEUE",
 				"class_name": "DOQueueHandler"
+			},
+			{
+				// External DO binding - ChatAgent lives in anvil-worker
+				"name": "CHAT_AGENT",
+				"class_name": "ChatAgent",
+				"script_name": "anvil-worker"
 			}
 		]
 	},
@@ -75,6 +87,7 @@
 				"DOQueueHandler"
 			]
 		}
+		// Note: ChatAgent migration is in anvil-worker/wrangler.jsonc
 	],
 	"d1_databases": [
 		{

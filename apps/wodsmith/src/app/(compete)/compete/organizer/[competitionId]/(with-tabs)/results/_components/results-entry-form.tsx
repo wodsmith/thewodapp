@@ -520,11 +520,11 @@ export function ResultsEntryForm({
 														}
 													}}
 												>
-												<ScoreInputRow
-													athlete={athlete}
-													workoutScheme={event.workout.scheme}
-													tiebreakScheme={event.workout.tiebreakScheme}
-													timeCap={timeCap ?? undefined}
+													<ScoreInputRow
+														athlete={athlete}
+														workoutScheme={event.workout.scheme}
+														tiebreakScheme={event.workout.tiebreakScheme}
+														timeCap={timeCap ?? undefined}
 														roundsToScore={event.workout.roundsToScore ?? 1}
 														repsPerRound={event.workout.repsPerRound}
 														showTiebreak={hasTiebreak}
@@ -553,11 +553,11 @@ export function ResultsEntryForm({
 										}
 									}}
 								>
-								<ScoreInputRow
-									athlete={athlete}
-									workoutScheme={event.workout.scheme}
-									tiebreakScheme={event.workout.tiebreakScheme}
-									timeCap={timeCap ?? undefined}
+									<ScoreInputRow
+										athlete={athlete}
+										workoutScheme={event.workout.scheme}
+										tiebreakScheme={event.workout.tiebreakScheme}
+										timeCap={timeCap ?? undefined}
 										roundsToScore={event.workout.roundsToScore ?? 1}
 										repsPerRound={event.workout.repsPerRound}
 										showTiebreak={hasTiebreak}

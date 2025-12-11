@@ -1,0 +1,2 @@
+# Copy this to .dev.vars and fill in your OpenAI API key
+OPENAI_API_KEY=sk-your-openai-api-key-here

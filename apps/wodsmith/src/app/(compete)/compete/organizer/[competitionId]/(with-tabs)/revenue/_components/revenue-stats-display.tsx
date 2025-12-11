@@ -48,7 +48,10 @@ export function RevenueStatsDisplay({
 		<div className="space-y-6">
 			{/* Stripe Connection Warning */}
 			{stripeStatus && !stripeStatus.isConnected && (
-				<Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+				<Alert
+					variant="default"
+					className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+				>
 					<AlertCircle className="h-4 w-4 text-yellow-600" />
 					<AlertTitle>Payouts Not Set Up</AlertTitle>
 					<AlertDescription>

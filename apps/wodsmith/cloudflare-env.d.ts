@@ -10,6 +10,8 @@ declare namespace Cloudflare {
 		NEXT_PUBLIC_APP_URL: "https://wodsmith.com";
 		R2_PUBLIC_URL: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev";
 		NEXT_CACHE_DO_QUEUE: DurableObjectNamespace<import("./.open-next/worker").DOQueueHandler>;
+		CHAT_AGENT: DurableObjectNamespace;
+		ANVIL_WORKER: Fetcher;
 		R2_BUCKET: R2Bucket;
 		wodsmith_uploads_dev: R2Bucket;
 		NEXT_TAG_CACHE_D1: D1Database;

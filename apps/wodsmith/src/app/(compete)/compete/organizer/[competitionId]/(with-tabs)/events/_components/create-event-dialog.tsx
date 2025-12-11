@@ -26,11 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import {
-	SCORE_TYPES,
-	TIEBREAK_SCHEMES,
-	WORKOUT_SCHEMES,
-} from "@/constants"
+import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
 import type { Movement } from "@/db/schema"
 import type {
 	ScoreType,

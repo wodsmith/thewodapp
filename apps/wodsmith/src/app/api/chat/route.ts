@@ -1,8 +1,7 @@
 import "server-only"
+import type { NextRequest } from "next/server"
 import { openai } from "@ai-sdk/openai"
 import * as ai from "ai"
-import { initLogger, wrapAISDK } from "braintrust"
-import type { NextRequest } from "next/server"
 import { tryCatch } from "@/lib/try-catch"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireFeature, requireLimit } from "@/server/entitlements"
@@ -10,12 +9,8 @@ import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { tools } from "@/ai/tools"
 
-const _logger = initLogger({
-	projectName: "My Project",
-	apiKey: process.env.BRAINTRUST_API_KEY,
-})
-
-const { streamText } = wrapAISDK(ai)
+// Re-export ChatAgent for Cloudflare Workers runtime (production)
+export { ChatAgent } from "@repo/anvil"
 
 export const maxDuration = 30
 
@@ -34,10 +29,6 @@ export async function POST(req: NextRequest) {
 
 	const body = (await req.json()) as ChatRequestBody
 
-	if (!body.messages || !Array.isArray(body.messages)) {
-		return new Response("Invalid request body", { status: 400 })
-	}
-
 	if (!body.teamId) {
 		return new Response("Team ID is required", { status: 400 })
 	}
@@ -47,24 +38,40 @@ export async function POST(req: NextRequest) {
 		await requireFeature(body.teamId, FEATURES.AI_WORKOUT_GENERATION)
 
 		// Check and increment AI message usage
-		// This checks if team has messages remaining and increments by 1
 		await requireLimit(body.teamId, LIMITS.AI_MESSAGES_PER_MONTH, 1)
 	} catch (error) {
-		// ZSAError thrown by requireFeature/requireLimit
 		if (error instanceof Error) {
 			return new Response(error.message, { status: 403 })
 		}
 		return new Response("Access denied", { status: 403 })
 	}
 
-	const result = streamText({
+	// Try to use Cloudflare Agents (Durable Objects) in production
+	// Fall back to direct AI SDK streaming for local development
+	try {
+		const { getCloudflareContext } = await import("@opennextjs/cloudflare")
+		const { env } = getCloudflareContext()
+
+		if (env?.CHAT_AGENT) {
+			// Production: Route to ChatAgent Durable Object
+			const id = env.CHAT_AGENT.idFromName(body.teamId)
+			const stub = env.CHAT_AGENT.get(id)
+			return stub.fetch(req)
+		}
+	} catch {
+		// getCloudflareContext not available - running in standard Next.js dev
+	}
+
+	// Fallback: Direct AI SDK streaming (for pnpm dev)
+	if (!body.messages || !Array.isArray(body.messages)) {
+		return new Response("Invalid request body", { status: 400 })
+	}
+
+	const result = ai.streamText({
 		model: openai("gpt-4o"),
 		tools: tools({ teamId: body.teamId }),
 		stopWhen: ai.stepCountIs(10),
 		messages: ai.convertToModelMessages(body.messages),
-		onFinish: (cb) => {
-			console.log(cb.response.messages)
-		},
 	})
 
 	return result.toUIMessageStreamResponse()

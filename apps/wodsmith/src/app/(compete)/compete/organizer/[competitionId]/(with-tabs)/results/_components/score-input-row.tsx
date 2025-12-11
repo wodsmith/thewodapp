@@ -7,11 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseScore, type ParseResult } from "@/utils/score-parser-new"
-import type {
-	WorkoutScheme,
-	TiebreakScheme,
-	ScoreStatus,
-} from "@/db/schema"
+import type { WorkoutScheme, TiebreakScheme, ScoreStatus } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 
 // Secondary score for time-capped workouts is always reps

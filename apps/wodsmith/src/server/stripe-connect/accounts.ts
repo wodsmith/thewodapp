@@ -13,7 +13,7 @@ const STRIPE_CLIENT_ID = process.env.STRIPE_CLIENT_ID
 export async function createExpressAccount(
 	teamId: string,
 	email: string,
-	teamName: string
+	teamName: string,
 ): Promise<{ accountId: string; onboardingUrl: string }> {
 	const db = getDb()
 	const stripe = getStripe()
@@ -57,7 +57,7 @@ export async function createExpressAccount(
  */
 export async function createExpressAccountLink(
 	accountId: string,
-	teamId: string
+	teamId: string,
 ): Promise<{ url: string }> {
 	const stripe = getStripe()
 	const db = getDb()
@@ -91,7 +91,7 @@ export function getOAuthAuthorizeUrl(teamId: string, teamSlug: string): string {
 	}
 
 	const state = Buffer.from(JSON.stringify({ teamId, teamSlug })).toString(
-		"base64"
+		"base64",
 	)
 	const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`
 
@@ -111,7 +111,7 @@ export function getOAuthAuthorizeUrl(teamId: string, teamSlug: string): string {
  */
 export async function handleOAuthCallback(
 	code: string,
-	state: string
+	state: string,
 ): Promise<{ teamId: string; teamSlug: string; accountId: string }> {
 	const stripe = getStripe()
 	const db = getDb()
@@ -253,7 +253,7 @@ export async function disconnectAccount(teamId: string): Promise<void> {
  * Get Stripe Express dashboard login link
  */
 export async function getStripeDashboardLink(
-	accountId: string
+	accountId: string,
 ): Promise<string> {
 	const stripe = getStripe()
 	const loginLink = await stripe.accounts.createLoginLink(accountId)
@@ -280,7 +280,7 @@ export interface AccountBalance {
  * Get the balance for a connected account
  */
 export async function getAccountBalance(
-	accountId: string
+	accountId: string,
 ): Promise<AccountBalance> {
 	const stripe = getStripe()
 

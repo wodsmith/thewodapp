@@ -1,0 +1,32 @@
+{
+  "name": "@repo/anvil",
+  "version": "0.1.0",
+  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/**"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false,
+  "license": "MIT",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsgo --noEmit",
+    "clean": "rm -rf .turbo && rm -rf node_modules"
+  },
+  "dependencies": {
+    "agents": "^0.1.0",
+    "@ai-sdk/openai": "^1.0.0",
+    "ai": "^5.0.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@typescript/native-preview": "catalog:",
+    "typescript": "latest"
+  }
+}
