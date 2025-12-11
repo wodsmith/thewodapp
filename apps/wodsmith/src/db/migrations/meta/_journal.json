@@ -383,22 +383,8 @@
     {
       "idx": 54,
       "version": "6",
-      "when": 1765321685103,
-      "tag": "0054_loving_zuras",
-      "breakpoints": true
-    },
-    {
-      "idx": 54,
-      "version": "6",
-      "when": 1765327503231,
-      "tag": "0054_free_gorilla_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 55,
-      "version": "6",
-      "when": 1765410781236,
-      "tag": "0055_fuzzy_sunfire",
+      "when": 1765411794589,
+      "tag": "0054_create_scores_table",
       "breakpoints": true
     }
   ]

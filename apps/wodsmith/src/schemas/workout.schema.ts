@@ -36,7 +36,6 @@ export const competitionEventSchema = z.object({
 	}),
 	scoreType: z.enum(SCORE_TYPE_VALUES).nullable(),
 	roundsToScore: z.number().min(1).nullable(),
-	repsPerRound: z.number().min(1).nullable(),
 	tiebreakScheme: z.enum(TIEBREAK_SCHEME_VALUES).nullable(),
 	timeCap: z.number().min(1).nullable(), // Time cap in seconds
 	selectedMovements: z.array(z.string()).default([]),

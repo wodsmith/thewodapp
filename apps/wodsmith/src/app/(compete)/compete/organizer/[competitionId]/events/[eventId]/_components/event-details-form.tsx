@@ -114,6 +114,7 @@ export function EventDetailsForm({
 	// Initialize form with React Hook Form
 	const form = useForm<CompetitionEventSchema>({
 		resolver: zodResolver(competitionEventSchema),
+		mode: "onChange",
 		defaultValues: {
 			name: event.workout.name,
 			description: event.workout.description || "",
