@@ -17,5 +17,4 @@ CREATE TABLE `organizer_request` (
 --> statement-breakpoint
 CREATE INDEX `organizer_request_team_idx` ON `organizer_request` (`teamId`);--> statement-breakpoint
 CREATE INDEX `organizer_request_user_idx` ON `organizer_request` (`userId`);--> statement-breakpoint
-CREATE INDEX `organizer_request_status_idx` ON `organizer_request` (`status`);--> statement-breakpoint
-ALTER TABLE `team` ADD `stripeAccountType` text(20);
+CREATE INDEX `organizer_request_status_idx` ON `organizer_request` (`status`);
