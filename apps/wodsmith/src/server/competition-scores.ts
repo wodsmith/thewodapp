@@ -823,6 +823,31 @@ export async function saveCompetitionScore(params: {
 		// Map status to new simplified type
 		const newStatus = mapToNewStatus(params.scoreStatus)
 
+		// Handle CAP status for time-with-cap workouts
+		// When capped, the scoreValue should be the time cap in milliseconds
+		if (
+			newStatus === "cap" &&
+			scheme === "time-with-cap" &&
+			params.workout.timeCap
+		) {
+			// Time cap is stored in seconds, convert to milliseconds
+			encodedValue = params.workout.timeCap * 1000
+		}
+
+		// Parse secondary score (reps completed at cap) if provided
+		let secondaryValue: number | null = null
+		if (params.secondaryScore && newStatus === "cap") {
+			const parsed = Number.parseInt(params.secondaryScore.trim(), 10)
+			if (!Number.isNaN(parsed) && parsed >= 0) {
+				secondaryValue = parsed
+			}
+		}
+
+		// Store time cap in milliseconds for reference
+		const timeCapMs = params.workout.timeCap
+			? params.workout.timeCap * 1000
+			: null
+
 		// Compute sort key for efficient leaderboard queries
 		const sortKey =
 			encodedValue !== null
@@ -891,6 +916,8 @@ export async function saveCompetitionScore(params: {
 				sortKey: sortKey ? sortKeyToString(sortKey) : null,
 				tiebreakScheme: params.workout.tiebreakScheme ?? null,
 				tiebreakValue,
+				timeCapMs,
+				secondaryValue,
 				scalingLevelId: params.divisionId,
 				asRx: true,
 				recordedAt: new Date(),
@@ -904,6 +931,8 @@ export async function saveCompetitionScore(params: {
 					sortKey: sortKey ? sortKeyToString(sortKey) : null,
 					tiebreakScheme: params.workout.tiebreakScheme ?? null,
 					tiebreakValue,
+					timeCapMs,
+					secondaryValue,
 					scalingLevelId: params.divisionId,
 					updatedAt: new Date(),
 				},
