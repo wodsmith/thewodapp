@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
 import {
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
 	WORKOUT_SCHEME_VALUES,
-} from "@/db/schemas/workouts"
-import { logError } from "@/lib/logging/posthog-otel-logger"
+} from "~/db/schemas/workouts"
+import { logError } from "~/lib/logging/posthog-otel-logger"
 import {
 	cancelCompetitionRegistrationSchema,
 	createCompetitionGroupSchema,
@@ -23,7 +23,7 @@ import {
 	updateCompetitionGroupSchema,
 	updateCompetitionSchema,
 	updateRegistrationAffiliateSchema,
-} from "@/schemas/competitions"
+} from "~/schemas/competitions"
 import {
 	cancelCompetitionRegistration,
 	createCompetition,
@@ -40,11 +40,11 @@ import {
 	updateCompetition,
 	updateCompetitionGroup,
 	updateRegistrationAffiliate,
-} from "@/server/competitions"
+} from "~/server/competitions"
 import {
 	getCompetitionLeaderboard,
 	getEventLeaderboard,
-} from "@/server/competition-leaderboard"
+} from "~/server/competition-leaderboard"
 import {
 	addWorkoutToCompetition,
 	createCompetitionEvent,
@@ -55,9 +55,63 @@ import {
 	saveCompetitionEvent,
 	updateCompetitionWorkout,
 	updateWorkoutDivisionDescriptions,
-} from "@/server/competition-workouts"
-import { getSessionFromCookie } from "@/utils/auth.server"
-import { requireTeamPermission } from "@/utils/team-auth.server"
+} from "~/server/competition-workouts"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import { requireTeamPermission } from "~/utils/team-auth.server"
+import { hasFeature } from "~/server/entitlements.server"
+import { FEATURES } from "~/constants"
+
+/* -------------------------------------------------------------------------- */
+/*                         User Team Functions                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get teams where the current user has MANAGE_PROGRAMMING permission
+ * AND the team has the HOST_COMPETITIONS feature enabled
+ * These are the teams that can organize competitions
+ */
+export const getUserOrganizingTeamsFn = createServerFn({ method: "POST" })
+	.handler(async () => {
+		try {
+			const session = await getSessionFromCookie()
+
+			if (!session?.teams) {
+				return { success: true, data: [] }
+			}
+
+			// Filter teams where user has MANAGE_PROGRAMMING permission
+			const teamsWithPermission = session.teams.filter((team) =>
+				team.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
+			)
+
+			// Check each team for HOST_COMPETITIONS feature
+			const teamsWithFeature = await Promise.all(
+				teamsWithPermission.map(async (team) => {
+					const canHost = await hasFeature(team.id, FEATURES.HOST_COMPETITIONS)
+					return canHost ? team : null
+				}),
+			)
+
+			const organizingTeams = teamsWithFeature
+				.filter((team): team is NonNullable<typeof team> => team !== null)
+				.map((team) => ({
+					id: team.id,
+					name: team.name,
+					type: team.type,
+					slug: team.slug,
+				}))
+
+			return { success: true, data: organizingTeams }
+		} catch (error) {
+			logError({
+				message:
+					"[getUserOrganizingTeamsFn] Failed to get user organizing teams",
+				error,
+			})
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get organizing teams")
+		}
+	})
 
 /* -------------------------------------------------------------------------- */
 /*                        Competition Group Functions                         */
