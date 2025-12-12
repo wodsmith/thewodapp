@@ -1,8 +1,43 @@
 "use server"
-export async function subscribeToTrack(trackId: string) {
-  return { success: false, error: "Not implemented" }
+
+import {
+	subscribeToTrackFn,
+	unsubscribeFromTrackFn,
+	setDefaultTrackFn,
+} from "~/server-functions/programming"
+
+export async function subscribeToTrackAction({
+	teamId,
+	trackId,
+}: {
+	teamId: string
+	trackId: string
+}) {
+	return await subscribeToTrackFn({
+		data: { teamId, trackId },
+	})
 }
 
-export async function unsubscribeFromTrack(trackId: string) {
-  return { success: false, error: "Not implemented" }
+export async function unsubscribeFromTrackAction({
+	teamId,
+	trackId,
+}: {
+	teamId: string
+	trackId: string
+}) {
+	return await unsubscribeFromTrackFn({
+		data: { teamId, trackId },
+	})
+}
+
+export async function setDefaultTrackAction({
+	teamId,
+	trackId,
+}: {
+	teamId: string
+	trackId: string
+}) {
+	return await setDefaultTrackFn({
+		data: { teamId, trackId },
+	})
 }

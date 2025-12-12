@@ -1,12 +1,14 @@
-import { createServerFn } from "@tanstack/react-start/server"
+import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "~/db/index.server"
 import {
 	programmingTracksTable,
 	teamProgrammingTracksTable,
+	trackWorkoutsTable,
 } from "~/db/schemas/programming"
 import { TEAM_PERMISSIONS, teamTable } from "~/db/schemas/teams"
+import { workouts } from "~/db/schemas/workouts"
 import { getSessionFromCookie } from "~/utils/auth.server"
 import { requireTeamPermission } from "~/utils/team-auth.server"
 
@@ -34,7 +36,7 @@ const setDefaultTrackSchema = z.object({
 })
 
 export const subscribeToTrackFn = createServerFn({ method: "POST" })
-	.validator(subscribeToTrackSchema)
+	.inputValidator(subscribeToTrackSchema)
 	.handler(async ({ data }) => {
 		try {
 			const session = await getSessionFromCookie()
@@ -117,7 +119,7 @@ export const subscribeToTrackFn = createServerFn({ method: "POST" })
 	})
 
 export const unsubscribeFromTrackFn = createServerFn({ method: "POST" })
-	.validator(unsubscribeFromTrackSchema)
+	.inputValidator(unsubscribeFromTrackSchema)
 	.handler(async ({ data }) => {
 		try {
 			const session = await getSessionFromCookie()
@@ -150,7 +152,7 @@ export const unsubscribeFromTrackFn = createServerFn({ method: "POST" })
 	})
 
 export const getTeamSubscriptionsFn = createServerFn({ method: "POST" })
-	.validator(getTeamSubscriptionsSchema)
+	.inputValidator(getTeamSubscriptionsSchema)
 	.handler(async ({ data }) => {
 		try {
 			const session = await getSessionFromCookie()
@@ -202,7 +204,7 @@ export const getTeamSubscriptionsFn = createServerFn({ method: "POST" })
 	})
 
 export const setDefaultTrackFn = createServerFn({ method: "POST" })
-	.validator(setDefaultTrackSchema)
+	.inputValidator(setDefaultTrackSchema)
 	.handler(async ({ data }) => {
 		try {
 			const session = await getSessionFromCookie()
@@ -245,6 +247,104 @@ export const setDefaultTrackFn = createServerFn({ method: "POST" })
 			return { success: true }
 		} catch (error) {
 			console.error("Failed to set default track:", error)
+			throw error
+		}
+	})
+
+// Get paginated track workouts schema
+const getPaginatedTrackWorkoutsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+	page: z.number().min(1, "Page must be at least 1"),
+	pageSize: z.number().min(1, "Page size must be at least 1"),
+})
+
+export const getPaginatedTrackWorkoutsFn = createServerFn({ method: "POST" })
+	.inputValidator(getPaginatedTrackWorkoutsSchema)
+	.handler(async ({ data }) => {
+		try {
+			const session = await getSessionFromCookie()
+			if (!session || !session.user) {
+				throw new Error("Not authenticated")
+			}
+
+			await requireTeamPermission(
+				data.teamId,
+				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+			)
+
+			const db = getDb()
+
+			// Verify team is subscribed to track
+			const subscription = await db
+				.select()
+				.from(teamProgrammingTracksTable)
+				.where(
+					and(
+						eq(teamProgrammingTracksTable.teamId, data.teamId),
+						eq(teamProgrammingTracksTable.trackId, data.trackId),
+						eq(teamProgrammingTracksTable.isActive, 1),
+					),
+				)
+				.get()
+
+			if (!subscription) {
+				throw new Error("Team is not subscribed to this track or track is inactive")
+			}
+
+			// Calculate offset
+			const offset = (data.page - 1) * data.pageSize
+
+			// Get total count
+			const countResult = await db
+				.select({ count: trackWorkoutsTable.id })
+				.from(trackWorkoutsTable)
+				.where(eq(trackWorkoutsTable.trackId, data.trackId))
+
+			const totalCount = countResult.length
+
+			// Get paginated workouts with related data
+			const trackWorkouts = await db
+				.select({
+					id: trackWorkoutsTable.id,
+					trackId: trackWorkoutsTable.trackId,
+					workoutId: trackWorkoutsTable.workoutId,
+					trackOrder: trackWorkoutsTable.trackOrder,
+					notes: trackWorkoutsTable.notes,
+					pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+					heatStatus: trackWorkoutsTable.heatStatus,
+					eventStatus: trackWorkoutsTable.eventStatus,
+					createdAt: trackWorkoutsTable.createdAt,
+					updatedAt: trackWorkoutsTable.updatedAt,
+					workout: {
+						id: workouts.id,
+						name: workouts.name,
+						description: workouts.description,
+						scheme: workouts.scheme,
+						timeCap: workouts.timeCap,
+					},
+				})
+				.from(trackWorkoutsTable)
+				.leftJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+				.where(eq(trackWorkoutsTable.trackId, data.trackId))
+				.orderBy(trackWorkoutsTable.trackOrder)
+				.limit(data.pageSize)
+				.offset(offset)
+
+			const totalPages = Math.ceil(totalCount / data.pageSize)
+
+			return {
+				success: true,
+				workouts: trackWorkouts,
+				pagination: {
+					page: data.page,
+					pageSize: data.pageSize,
+					totalCount,
+					totalPages,
+				},
+			}
+		} catch (error) {
+			console.error("Failed to get paginated track workouts:", error)
 			throw error
 		}
 	})

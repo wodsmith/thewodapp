@@ -137,14 +137,14 @@ export function PaginatedTrackWorkouts({
 						<div className="text-sm text-muted-foreground">Loading...</div>
 					</div>
 				)}
-				<div className="space-y-3">
-					{workouts.map((trackWorkout) => (
-						<TrackWorkoutRow
-							key={trackWorkout.id}
-							trackWorkout={trackWorkout}
-						/>
-					))}
-				</div>
+			<div className="space-y-3">
+				{workouts.map((trackWorkout: any) => (
+					<TrackWorkoutRow
+						key={trackWorkout.id}
+						trackWorkout={trackWorkout}
+					/>
+				))}
+			</div>
 			</div>
 
 			{/* Pagination controls */}
@@ -161,3 +161,5 @@ export function PaginatedTrackWorkouts({
 		</div>
 	)
 }
+
+export default PaginatedTrackWorkouts

@@ -116,7 +116,9 @@ export function EnhancedSubscribeButton({
 			disabled={isLoading}
 			variant="default"
 		>
-			{isLoading ? "Processing..." : "Subscribe"}
-		</Button>
+		{isLoading ? "Processing..." : "Subscribe"}
+	</Button>
 	)
 }
+
+export default EnhancedSubscribeButton
