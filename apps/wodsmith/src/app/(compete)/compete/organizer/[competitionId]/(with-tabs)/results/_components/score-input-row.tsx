@@ -92,6 +92,8 @@ export function ScoreInputRow({
 		// Use existing sets data for multi-round
 		const existingSets = athlete.existingResult?.sets
 		if (existingSets && existingSets.length > 0 && isMultiRound) {
+			const isTimeScheme =
+				workoutScheme === "time" || workoutScheme === "time-with-cap"
 			return Array(numRounds)
 				.fill(null)
 				.map((_, index) => {
@@ -103,7 +105,13 @@ export function ScoreInputRow({
 							const reps = set.reps ?? 0
 							scoreStr = `${set.score}+${reps}`
 						} else if (set.score !== null) {
-							scoreStr = String(set.score)
+							// For time schemes, format seconds as time (e.g., 90 -> "1:30")
+							if (isTimeScheme) {
+								// set.score is in seconds, convert to ms for decodeScore
+								scoreStr = decodeScore(set.score * 1000, workoutScheme)
+							} else {
+								scoreStr = String(set.score)
+							}
 						}
 						return {
 							score: scoreStr,
