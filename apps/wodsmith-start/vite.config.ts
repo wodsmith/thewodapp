@@ -8,6 +8,12 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  build: {
+    rollupOptions: {
+      // Cloudflare Workers-only module specifier. It must not be bundled into the browser build.
+      external: ['cloudflare:workers'],
+    },
+  },
   plugins: [
     tsConfigPaths({
       projects: ['./tsconfig.json'],

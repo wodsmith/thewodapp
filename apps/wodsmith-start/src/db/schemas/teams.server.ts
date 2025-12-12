@@ -13,13 +13,13 @@ import {
 	createTeamInvitationId,
 	createTeamMembershipId,
 	createTeamRoleId,
-} from "./common"
+} from "./common.server"
 import {
 	competitionGroupsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
-} from "./competitions"
-import { userTable } from "./users"
+} from "./competitions.server"
+import { userTable } from "./users.server"
 
 // Team types for competition platform
 export const TEAM_TYPE_ENUM = {

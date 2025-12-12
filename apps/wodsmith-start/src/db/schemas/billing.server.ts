@@ -5,8 +5,8 @@ import {
 	commonColumns,
 	createCreditTransactionId,
 	createPurchasedItemId,
-} from "./common"
-import { userTable } from "./users"
+} from "./common.server"
+import { userTable } from "./users.server"
 
 // Credit transaction types
 export const CREDIT_TRANSACTION_TYPE = {

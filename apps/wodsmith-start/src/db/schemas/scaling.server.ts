@@ -12,9 +12,9 @@ import {
 	createScalingGroupId,
 	createScalingLevelId,
 	createWorkoutScalingDescriptionId,
-} from "./common"
-import { teamTable } from "./teams"
-import { workouts } from "./workouts"
+} from "./common.server"
+import { teamTable } from "./teams.server"
+import { workouts } from "./workouts.server"
 
 // Scaling Groups table
 export const scalingGroupsTable = sqliteTable(

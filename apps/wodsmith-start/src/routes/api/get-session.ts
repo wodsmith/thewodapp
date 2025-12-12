@@ -1,16 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
-import { getSessionFromCookie } from '~/utils/auth'
-import { getConfig } from '~/flags'
-import { tryCatch } from '~/lib/try-catch'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/api/get-session')({
 	server: {
 		handlers: {
 			GET: async () => {
-				const { data: session, error } = await tryCatch(getSessionFromCookie())
-				const config = await getConfig()
-
 				const headers = new Headers()
 				headers.set(
 					'Cache-Control',
@@ -19,27 +14,32 @@ export const Route = createFileRoute('/api/get-session')({
 				headers.set('Pragma', 'no-cache')
 				headers.set('Expires', '0')
 
-				if (error) {
+				try {
+					const session = await getSessionFromCookie()
+
+					return json(
+						{
+							session,
+							// Note: this endpoint used to return feature flags/config.
+							// If/when you reintroduce flags, keep this field stable for clients.
+							config: null,
+						},
+						{
+							headers: Object.fromEntries(headers.entries()),
+						},
+					)
+				} catch (error) {
+					console.error('GET /api/get-session failed:', error)
 					return json(
 						{
 							session: null,
-							config,
+							config: null,
 						},
 						{
 							headers: Object.fromEntries(headers.entries()),
 						},
 					)
 				}
-
-				return json(
-					{
-						session,
-						config,
-					},
-					{
-						headers: Object.fromEntries(headers.entries()),
-					},
-				)
 			},
 		},
 	},

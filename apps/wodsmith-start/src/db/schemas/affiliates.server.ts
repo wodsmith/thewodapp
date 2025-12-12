@@ -1,8 +1,8 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import { index, sqliteTable, text } from "drizzle-orm/sqlite-core"
-import { commonColumns, createAffiliateId } from "./common"
-import { teamTable } from "./teams"
+import { commonColumns, createAffiliateId } from "./common.server"
+import { teamTable } from "./teams.server"
 
 // Verification status enum for affiliates
 export const affiliateVerificationStatus = [

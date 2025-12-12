@@ -12,11 +12,11 @@ import {
 	createProgrammingTrackId,
 	createScheduledWorkoutInstanceId,
 	createTrackWorkoutId,
-} from "./common"
-import { competitionsTable } from "./competitions"
-import { sponsorsTable } from "./sponsors"
-import { teamTable } from "./teams"
-import { workouts } from "./workouts"
+} from "./common.server"
+import { competitionsTable } from "./competitions.server"
+import { sponsorsTable } from "./sponsors.server"
+import { teamTable } from "./teams.server"
+import { workouts } from "./workouts.server"
 
 // Track types enum & tuple
 export const PROGRAMMING_TRACK_TYPE = {

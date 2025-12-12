@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Badge } from '~/components/ui/badge'
 import { Building2, Users } from 'lucide-react'
-import { getSessionFromCookie } from '@/utils/auth'
 import {
 	getProgrammingTrackByIdFn,
 	getTrackSubscribedTeamsFn,
@@ -9,10 +8,11 @@ import {
 import { PaginatedTrackWorkouts } from '~/components/programming/paginated-track-workouts'
 import { EnhancedSubscribeButton } from '~/components/programming/enhanced-subscribe-button'
 import { TrackDetailTeamSelector } from '~/components/programming/track-detail-team-selector'
+import { getCurrentUserFn } from '~/server-functions/auth'
 
 export const Route = createFileRoute('/_main/programming/$trackId')({
 	loader: async ({ params }) => {
-		const session = await getSessionFromCookie()
+		const { session } = await getCurrentUserFn()
 		const userTeamIds = session?.teams?.map((team) => team.id) || []
 
 		if (!session?.teams?.[0]?.id) {

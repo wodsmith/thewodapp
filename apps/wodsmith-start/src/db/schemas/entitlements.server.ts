@@ -16,9 +16,9 @@ import {
 	createTeamUsageId,
 	createTeamFeatureEntitlementId,
 	createTeamLimitEntitlementId,
-} from "./common"
-import { teamTable } from "./teams"
-import { userTable } from "./users"
+} from "./common.server"
+import { teamTable } from "./teams.server"
+import { userTable } from "./users.server"
 
 // Predefined entitlement types (seeded in database)
 export const ENTITLEMENT_TYPES = {

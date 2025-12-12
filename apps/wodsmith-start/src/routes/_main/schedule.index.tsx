@@ -1,17 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getSessionFromCookie } from '@/utils/auth'
+import { getDefaultTeamContextFn } from '~/server-functions/teams-context'
 
 export const Route = createFileRoute('/_main/schedule/')({
 	loader: async () => {
-		const session = await getSessionFromCookie()
-
-		if (!session?.teams?.[0]?.id) {
+		const teamContext = await getDefaultTeamContextFn()
+		if (!teamContext.isAuthenticated || !teamContext.teamId) {
 			throw new Error('Not authenticated or no team')
 		}
 
 		return {
-			teamId: session.teams[0].id,
-			teamName: session.teams[0].name || '',
+			teamId: teamContext.teamId,
+			teamName: teamContext.teamName,
 		}
 	},
 	component: SchedulePage,

@@ -7,9 +7,9 @@ import {
 	sqliteTable,
 	text,
 } from "drizzle-orm/sqlite-core"
-import { commonColumns } from "./common"
-import { teamTable } from "./teams"
-import { userTable } from "./users"
+import { commonColumns } from "./common.server"
+import { teamTable } from "./teams.server"
+import { userTable } from "./users.server"
 
 // Store coach-specific settings, linking a user to a team
 export const coachesTable = sqliteTable(

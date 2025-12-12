@@ -8,11 +8,11 @@ import {
 	text,
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
-import { commonColumns } from "./common"
-import { competitionRegistrationsTable } from "./competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "./programming"
-import { teamTable } from "./teams"
-import { userTable } from "./users"
+import { commonColumns } from "./common.server"
+import { competitionRegistrationsTable } from "./competitions.server"
+import { programmingTracksTable, trackWorkoutsTable } from "./programming.server"
+import { teamTable } from "./teams.server"
+import { userTable } from "./users.server"
 
 // Score status for competition results
 export const SCORE_STATUS_VALUES = [

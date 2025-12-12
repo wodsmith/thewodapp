@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
 import { getSessionFromCookie } from '~/utils/auth.server'
-import { ROLES_ENUM } from '~/db/schemas/users'
+import { ROLES_ENUM } from '~/db/schemas/users.server'
 
 export const Route = createFileRoute('/_admin')({
 	beforeLoad: async () => {

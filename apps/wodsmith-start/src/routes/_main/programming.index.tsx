@@ -1,26 +1,23 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getSessionFromCookie } from '@/utils/auth'
 import { getPublicTracksWithTeamSubscriptionsFn } from '@/server-functions/programming'
 import { ProgrammingTracksClient } from '~/components/programming/programming-tracks-client'
+import { getDefaultTeamContextFn } from '~/server-functions/teams-context'
 
 export const Route = createFileRoute('/_main/programming/')({
 	loader: async () => {
-		const session = await getSessionFromCookie()
-		const userTeamIds = session?.teams?.map((team) => team.id) || []
-		const defaultTeam = session?.teams?.[0]
-
-		if (!session || !defaultTeam) {
+		const teamContext = await getDefaultTeamContextFn()
+		if (!teamContext.isAuthenticated || !teamContext.teamId) {
 			throw new Error('Not authenticated or no team')
 		}
 
 		const result = await getPublicTracksWithTeamSubscriptionsFn({
-			data: { userTeamIds },
+			data: { userTeamIds: teamContext.userTeamIds },
 		})
 
 		return {
 			allTracks: result.data || [],
-			teamId: defaultTeam.id,
-			teamName: defaultTeam.name || '',
+			teamId: teamContext.teamId,
+			teamName: teamContext.teamName,
 		}
 	},
 	component: ProgrammingIndexPage,

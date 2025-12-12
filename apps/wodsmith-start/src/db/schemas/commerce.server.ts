@@ -12,10 +12,10 @@ import {
 	createCommerceProductId,
 	createCommercePurchaseId,
 	createCompetitionDivisionFeeId,
-} from "./common"
-import { competitionsTable } from "./competitions"
-import { scalingLevelsTable } from "./scaling"
-import { userTable } from "./users"
+} from "./common.server"
+import { competitionsTable } from "./competitions.server"
+import { scalingLevelsTable } from "./scaling.server"
+import { userTable } from "./users.server"
 
 // Commerce product types
 export const COMMERCE_PRODUCT_TYPE = {

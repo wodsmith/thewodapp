@@ -14,16 +14,16 @@ import {
 	text,
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
-import { commonColumns } from "./common"
-import { scalingLevelsTable } from "./scaling"
-import { teamTable } from "./teams"
-import { userTable } from "./users"
+import { commonColumns } from "./common.server"
+import { scalingLevelsTable } from "./scaling.server"
+import { teamTable } from "./teams.server"
+import { userTable } from "./users.server"
 import {
 	workouts,
 	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
-} from "./workouts"
+} from "./workouts.server"
 
 // ID generators
 export const createScoreId = () => `score_${createId()}`

@@ -15,11 +15,11 @@ import {
 	createCompetitionId,
 	createCompetitionRegistrationId,
 	createCompetitionVenueId,
-} from "./common"
-import { programmingTracksTable } from "./programming"
-import { scalingLevelsTable } from "./scaling"
-import { teamMembershipTable, teamTable } from "./teams"
-import { userTable } from "./users"
+} from "./common.server"
+import { programmingTracksTable } from "./programming.server"
+import { scalingLevelsTable } from "./scaling.server"
+import { teamMembershipTable, teamTable } from "./teams.server"
+import { userTable } from "./users.server"
 
 // Competition Groups (Series) Table
 // Groups organize multiple competitions into series (e.g., "2026 Throwdowns Series")

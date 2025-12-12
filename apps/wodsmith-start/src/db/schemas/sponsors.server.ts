@@ -1,9 +1,13 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
-import { commonColumns, createSponsorGroupId, createSponsorId } from "./common"
-import { competitionsTable } from "./competitions"
-import { userTable } from "./users"
+import {
+	commonColumns,
+	createSponsorGroupId,
+	createSponsorId,
+} from "./common.server"
+import { competitionsTable } from "./competitions.server"
+import { userTable } from "./users.server"
 
 // Sponsor Groups table (for competitions only - Gold, Silver, Title Sponsor, etc.)
 export const sponsorGroupsTable = sqliteTable(
