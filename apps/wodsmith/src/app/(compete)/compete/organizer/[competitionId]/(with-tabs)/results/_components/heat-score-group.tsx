@@ -26,10 +26,11 @@ interface HeatScoreGroupProps {
 	athleteMap: Map<string, EventScoreEntryAthlete>
 	/** Workout config for score input */
 	workoutScheme: WorkoutScheme
+	/** Score aggregation type */
+	scoreType?: string | null
 	tiebreakScheme: TiebreakScheme | null
 	timeCap?: number
 	roundsToScore: number
-	repsPerRound?: number | null
 	showTiebreak: boolean
 	/** Current score values by registrationId */
 	scores: Record<string, ScoreEntryData>
@@ -53,10 +54,10 @@ export function HeatScoreGroup({
 	heat,
 	athleteMap,
 	workoutScheme,
+	scoreType,
 	tiebreakScheme,
 	timeCap,
 	roundsToScore,
-	repsPerRound,
 	showTiebreak,
 	scores,
 	savingIds,
@@ -177,10 +178,10 @@ export function HeatScoreGroup({
 									athlete={item.athlete}
 									laneNumber={item.laneNumber}
 									workoutScheme={workoutScheme}
+									scoreType={scoreType as import("@/db/schema").ScoreType | undefined}
 									tiebreakScheme={tiebreakScheme}
 									timeCap={timeCap}
 									roundsToScore={roundsToScore}
-									repsPerRound={repsPerRound}
 									showTiebreak={showTiebreak}
 									value={scores[item.registrationId]}
 									isSaving={savingIds.has(item.registrationId)}

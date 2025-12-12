@@ -481,7 +481,7 @@ export function ResultsEntryForm({
 											tiebreakScheme={event.workout.tiebreakScheme}
 											timeCap={timeCap ?? undefined}
 											roundsToScore={event.workout.roundsToScore ?? 1}
-											repsPerRound={event.workout.repsPerRound}
+											scoreType={event.workout.scoreType}
 											showTiebreak={hasTiebreak}
 											scores={scores}
 											savingIds={savingIds}
@@ -519,13 +519,13 @@ export function ResultsEntryForm({
 														}
 													}}
 												>
-												<ScoreInputRow
-													athlete={athlete}
-													workoutScheme={event.workout.scheme}
-													tiebreakScheme={event.workout.tiebreakScheme}
-													timeCap={timeCap ?? undefined}
+													<ScoreInputRow
+														athlete={athlete}
+														workoutScheme={event.workout.scheme}
+														tiebreakScheme={event.workout.tiebreakScheme}
+														timeCap={timeCap ?? undefined}
 														roundsToScore={event.workout.roundsToScore ?? 1}
-														repsPerRound={event.workout.repsPerRound}
+														scoreType={event.workout.scoreType}
 														showTiebreak={hasTiebreak}
 														value={scores[athlete.registrationId]}
 														isSaving={savingIds.has(athlete.registrationId)}
@@ -552,13 +552,13 @@ export function ResultsEntryForm({
 										}
 									}}
 								>
-								<ScoreInputRow
-									athlete={athlete}
-									workoutScheme={event.workout.scheme}
-									tiebreakScheme={event.workout.tiebreakScheme}
-									timeCap={timeCap ?? undefined}
+									<ScoreInputRow
+										athlete={athlete}
+										workoutScheme={event.workout.scheme}
+										tiebreakScheme={event.workout.tiebreakScheme}
+										timeCap={timeCap ?? undefined}
 										roundsToScore={event.workout.roundsToScore ?? 1}
-										repsPerRound={event.workout.repsPerRound}
+										scoreType={event.workout.scoreType}
 										showTiebreak={hasTiebreak}
 										value={scores[athlete.registrationId]}
 										isSaving={savingIds.has(athlete.registrationId)}

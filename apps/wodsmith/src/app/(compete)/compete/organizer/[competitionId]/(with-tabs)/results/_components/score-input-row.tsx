@@ -6,7 +6,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { parseScore, parseTieBreakScore, type ParseResult } from "@/utils/score-parser-new"
+import {
+	parseScore,
+	parseTieBreakScore,
+	type ParseResult,
+} from "@/utils/score-parser-new"
 import {
 	aggregateValues,
 	getDefaultScoreType,
@@ -16,6 +20,7 @@ import type {
 	WorkoutScheme,
 	TiebreakScheme,
 	ScoreStatus,
+	ScoreType,
 } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 
@@ -39,13 +44,13 @@ export interface ScoreEntryData {
 interface ScoreInputRowProps {
 	athlete: EventScoreEntryAthlete
 	workoutScheme: WorkoutScheme
+	/** Score aggregation type (min, max, sum, average, etc.) */
+	scoreType?: ScoreType | null
 	tiebreakScheme: TiebreakScheme | null
 	showTiebreak?: boolean
 	timeCap?: number
 	/** Number of rounds to score (default 1) */
 	roundsToScore?: number
-	/** Reps per round - enables rounds+reps split input */
-	repsPerRound?: number | null
 	value?: ScoreEntryData
 	isSaving?: boolean
 	isSaved?: boolean
@@ -59,11 +64,11 @@ interface ScoreInputRowProps {
 export function ScoreInputRow({
 	athlete,
 	workoutScheme,
+	scoreType: scoreTypeProp,
 	tiebreakScheme,
 	showTiebreak = false,
 	timeCap,
 	roundsToScore = 1,
-	repsPerRound,
 	value,
 	isSaving,
 	isSaved,
@@ -260,17 +265,21 @@ export function ScoreInputRow({
 	}
 
 	// Calculate aggregate score from valid round parse results
+	// Use the configured scoreType prop, or fall back to the default for the scheme
+	const effectiveScoreType = scoreTypeProp ?? getDefaultScoreType(workoutScheme)
+
 	const getAggregateScore = (): { value: number | null; formatted: string } => {
 		const validValues = roundParseResults
-			.filter((r): r is ParseResult => r?.isValid === true && r.rawValue !== null)
+			.filter(
+				(r): r is ParseResult => r?.isValid === true && r.rawValue !== null,
+			)
 			.map((r) => r.rawValue as number)
 
 		if (validValues.length === 0) {
 			return { value: null, formatted: "" }
 		}
 
-		const scoreType = getDefaultScoreType(workoutScheme)
-		const aggregated = aggregateValues(validValues, scoreType)
+		const aggregated = aggregateValues(validValues, effectiveScoreType)
 
 		if (aggregated === null) {
 			return { value: null, formatted: "" }
@@ -278,7 +287,8 @@ export function ScoreInputRow({
 
 		// Format the aggregated value based on scheme
 		// For time schemes, rawValue is in seconds, need to convert to ms for decodeScore
-		const isTimeScheme = workoutScheme === "time" || workoutScheme === "time-with-cap"
+		const isTimeScheme =
+			workoutScheme === "time" || workoutScheme === "time-with-cap"
 		const encodedValue = isTimeScheme ? aggregated * 1000 : aggregated
 		const formatted = decodeScore(encodedValue, workoutScheme)
 
@@ -377,7 +387,11 @@ export function ScoreInputRow({
 
 			if (!isMovingToRelatedField) {
 				// If leaving tiebreak field with invalid input, show warning instead of saving
-				if (field === "tieBreak" && tieBreakValue.trim() && !isTieBreakValid()) {
+				if (
+					field === "tieBreak" &&
+					tieBreakValue.trim() &&
+					!isTieBreakValid()
+				) {
 					setShowTieBreakWarning(true)
 					return
 				}
@@ -648,7 +662,10 @@ export function ScoreInputRow({
 										</span>
 									)}
 									{roundResult?.error && !roundResult?.isValid && (
-										<span className="text-xs text-destructive w-20 shrink-0 truncate" title={roundResult.error}>
+										<span
+											className="text-xs text-destructive w-20 shrink-0 truncate"
+											title={roundResult.error}
+										>
 											Invalid
 										</span>
 									)}
@@ -661,12 +678,29 @@ export function ScoreInputRow({
 							const validCount = roundParseResults.filter(
 								(r) => r?.isValid && r?.rawValue !== null,
 							).length
-							const scoreType = getDefaultScoreType(workoutScheme)
 							if (validCount > 0 && aggregate.formatted) {
+								const getAggregateLabel = () => {
+									switch (effectiveScoreType) {
+										case "min":
+											return "Best:"
+										case "max":
+											return "Best:"
+										case "sum":
+											return "Total:"
+										case "average":
+											return "Avg:"
+										case "first":
+											return "First:"
+										case "last":
+											return "Last:"
+										default:
+											return "Score:"
+									}
+								}
 								return (
 									<div className="flex items-center gap-2 pt-1 border-t border-dashed">
 										<span className="text-xs font-medium text-muted-foreground w-10 shrink-0">
-											{scoreType === "min" ? "Best:" : scoreType === "max" ? "Best:" : scoreType === "sum" ? "Total:" : "Avg:"}
+											{getAggregateLabel()}
 										</span>
 										<span className="text-sm font-mono font-medium">
 											{aggregate.formatted}
@@ -689,13 +723,13 @@ export function ScoreInputRow({
 							onChange={(e) => handleInputChange(e.target.value)}
 							onKeyDown={(e) => handleKeyDown(e, "score")}
 							onBlur={() => handleBlur("score")}
-						placeholder={
-							workoutScheme === "time" || workoutScheme === "time-with-cap"
-								? "90 (secs) or 1:30"
-								: workoutScheme === "rounds-reps"
-									? "5+12 or 5.12"
-									: "Enter score..."
-						}
+							placeholder={
+								workoutScheme === "time" || workoutScheme === "time-with-cap"
+									? "90 (secs) or 1:30"
+									: workoutScheme === "rounds-reps"
+										? "5+12 or 5.12"
+										: "Enter score..."
+							}
 							className={cn(
 								"h-10 text-base font-mono",
 								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
@@ -782,9 +816,7 @@ export function ScoreInputRow({
 						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
 						onBlur={() => handleBlur("tieBreak")}
 						placeholder={
-							tiebreakScheme === "time"
-								? "90 (secs) or 1:30"
-								: "e.g., 150 reps"
+							tiebreakScheme === "time" ? "90 (secs) or 1:30" : "e.g., 150 reps"
 						}
 						className={cn(
 							"h-10 text-base font-mono",
