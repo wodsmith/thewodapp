@@ -59,16 +59,15 @@ export function RevenueStatsDisplay({
 				>
 					<AlertCircle className="h-4 w-4 text-yellow-600" />
 					<AlertTitle>Payouts Not Set Up</AlertTitle>
-					<AlertDescription>
-						Connect your Stripe account to receive payouts for registrations.{" "}
-						<Link
-							to="/settings/teams/$teamSlug/payouts"
-							params={{ teamSlug: stripeStatus.teamSlug }}
-							className="font-medium underline"
-						>
-							Set up payouts &rarr;
-						</Link>
-					</AlertDescription>
+				<AlertDescription>
+					Connect your Stripe account to receive payouts for registrations.{" "}
+					<a
+						href={`/settings/teams/${stripeStatus.teamSlug}`}
+						className="font-medium underline"
+					>
+						Go to settings &rarr;
+					</a>
+				</AlertDescription>
 				</Alert>
 			)}
 

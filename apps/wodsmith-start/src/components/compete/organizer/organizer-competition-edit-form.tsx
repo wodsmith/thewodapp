@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { useServerFnMutation } from "@tanstack/react-start"
+import { useServerFnMutation } from "~/hooks/use-server-fn"
 import { updateCompetitionFn } from "~/server-functions/competitions"
 import { Button } from "~/components/ui/button"
 import {
