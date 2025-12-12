@@ -1,77 +1,77 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { Separator } from '~/components/ui/separator'
-import { PendingTeamInvites } from '~/components/compete/pending-team-invites'
-import { AthleteHeader } from '~/components/compete/athlete/athlete-header'
-import { AthleteStats } from '~/components/compete/athlete/athlete-stats'
-import { BenchmarkStats } from '~/components/compete/athlete/benchmark-stats'
-import { CompetitiveHistory } from '~/components/compete/athlete/competitive-history'
-import { SponsorsSocial } from '~/components/compete/athlete/sponsors-social'
-import { getAthleteProfileFn } from '~/server-functions/user'
-import { getSessionFromCookie } from '~/utils/auth.server'
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useEffect } from "react"
+import { Separator } from "~/components/ui/separator"
+import { PendingTeamInvites } from "~/components/compete/pending-team-invites"
+import { AthleteHeader } from "~/components/compete/athlete/athlete-header"
+import { AthleteStats } from "~/components/compete/athlete/athlete-stats"
+import { BenchmarkStats } from "~/components/compete/athlete/benchmark-stats"
+import { CompetitiveHistory } from "~/components/compete/athlete/competitive-history"
+import { SponsorsSocial } from "~/components/compete/athlete/sponsors-social"
+import { getAthleteProfileFn } from "~/server-functions/user"
+import { getSessionFromCookie } from "~/utils/auth.server"
 
-export const Route = createFileRoute('/_compete/compete/athlete')({
-  loader: async () => {
-    const session = await getSessionFromCookie()
-    if (!session) {
-      throw new Error('Unauthorized')
-    }
+export const Route = createFileRoute("/_compete/compete/athlete")({
+	loader: async () => {
+		const session = await getSessionFromCookie()
+		if (!session) {
+			throw new Error("Unauthorized")
+		}
 
-    return {
-      athleteProfile: await getAthleteProfileFn({ data: { userId: session.userId } }),
-    }
-  },
-  component: AthletePageComponent,
-  errorComponent: () => {
-    const navigate = useNavigate()
-    useEffect(() => {
-      navigate({ to: '/sign-in', search: { redirect: '/compete/athlete' } })
-    }, [navigate])
-    return null
-  },
+		return {
+			athleteProfile: await getAthleteProfileFn({
+				data: { userId: session.userId },
+			}),
+		}
+	},
+	component: AthletePageComponent,
+	errorComponent: () => {
+		const navigate = useNavigate()
+		useEffect(() => {
+			navigate({ to: "/sign-in", search: { redirect: "/compete/athlete" } })
+		}, [navigate])
+		return null
+	},
 })
 
 function AthletePageComponent() {
-  const { athleteProfile } = Route.useLoaderData()
+	const { athleteProfile } = Route.useLoaderData()
 
-  return (
-    <div className="mx-auto max-w-4xl space-y-8 pb-12">
-      {/* Header with cover image and avatar */}
-      <AthleteHeader athleteProfile={athleteProfile} />
+	return (
+		<div className="mx-auto max-w-4xl space-y-8 pb-12">
+			{/* Header with cover image and avatar */}
+			<AthleteHeader athleteProfile={athleteProfile} />
 
-      {/* Stats Section */}
-      <AthleteStats athleteProfile={athleteProfile} />
+			{/* Stats Section */}
+			<AthleteStats athleteProfile={athleteProfile} />
 
-      {/* Pending Team Invites */}
-      {athleteProfile.pendingInvitations?.length > 0 && (
-        <>
-          <Separator />
-          <section className="space-y-4">
-            <h2 className="font-semibold text-lg">Pending Team Invites</h2>
-            <PendingTeamInvites
-              invitations={athleteProfile.pendingInvitations}
-              variant="inline"
-            />
-          </section>
-        </>
-      )}
+			{/* Pending Team Invites */}
+			{athleteProfile.pendingInvitations?.length > 0 && (
+				<>
+					<Separator />
+					<section className="space-y-4">
+						<h2 className="font-semibold text-lg">Pending Team Invites</h2>
+						<PendingTeamInvites
+							invitations={athleteProfile.pendingInvitations}
+							variant="inline"
+						/>
+					</section>
+				</>
+			)}
 
-      <Separator />
+			<Separator />
 
-      {/* Competitive History */}
-      <CompetitiveHistory
-        registrations={athleteProfile.competitionHistory}
-      />
+			{/* Competitive History */}
+			<CompetitiveHistory registrations={athleteProfile.competitionHistory} />
 
-      <Separator />
+			<Separator />
 
-      {/* Benchmark Stats */}
-      <BenchmarkStats athleteProfile={athleteProfile} />
+			{/* Benchmark Stats */}
+			<BenchmarkStats athleteProfile={athleteProfile} />
 
-      <Separator />
+			<Separator />
 
-      {/* Sponsors & Social */}
-      <SponsorsSocial athleteProfile={athleteProfile} />
-    </div>
-  )
+			{/* Sponsors & Social */}
+			<SponsorsSocial athleteProfile={athleteProfile} />
+		</div>
+	)
 }

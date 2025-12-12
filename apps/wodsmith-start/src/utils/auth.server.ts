@@ -460,7 +460,9 @@ export async function requireVerifiedEmail() {
 
 export async function requireAdmin({
 	doNotThrowError = false,
-}: { doNotThrowError?: boolean } = {}) {
+}: {
+	doNotThrowError?: boolean
+} = {}) {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
@@ -602,9 +604,7 @@ export async function canSignUp({ email }: { email: string }): Promise<void> {
 
 		// If we got a successful response and it's disposable, reject the signup
 		if (result.isDisposable) {
-			throw new Error(
-				"Disposable email addresses are not allowed",
-			)
+			throw new Error("Disposable email addresses are not allowed")
 		}
 
 		// If we got a successful response and it's not disposable, allow the signup

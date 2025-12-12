@@ -1,11 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { getDefaultTeamContextFn } from '~/server-functions/teams-context'
+import { createFileRoute } from "@tanstack/react-router"
+import { getDefaultTeamContextFn } from "~/server-functions/teams-context"
 
-export const Route = createFileRoute('/_main/schedule/')({
+export const Route = createFileRoute("/_main/schedule/")({
 	loader: async () => {
 		const teamContext = await getDefaultTeamContextFn()
 		if (!teamContext.isAuthenticated || !teamContext.teamId) {
-			throw new Error('Not authenticated or no team')
+			throw new Error("Not authenticated or no team")
 		}
 
 		return {

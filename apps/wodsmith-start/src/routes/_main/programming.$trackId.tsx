@@ -1,22 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Badge } from '~/components/ui/badge'
-import { Building2, Users } from 'lucide-react'
+import { createFileRoute } from "@tanstack/react-router"
+import { Badge } from "~/components/ui/badge"
+import { Building2, Users } from "lucide-react"
 import {
 	getProgrammingTrackByIdFn,
 	getTrackSubscribedTeamsFn,
-} from '@/server-functions/programming'
-import { PaginatedTrackWorkouts } from '~/components/programming/paginated-track-workouts'
-import { EnhancedSubscribeButton } from '~/components/programming/enhanced-subscribe-button'
-import { TrackDetailTeamSelector } from '~/components/programming/track-detail-team-selector'
-import { getCurrentUserFn } from '~/server-functions/auth'
+} from "@/server-functions/programming"
+import { PaginatedTrackWorkouts } from "~/components/programming/paginated-track-workouts"
+import { EnhancedSubscribeButton } from "~/components/programming/enhanced-subscribe-button"
+import { TrackDetailTeamSelector } from "~/components/programming/track-detail-team-selector"
+import { getCurrentUserFn } from "~/server-functions/auth"
 
-export const Route = createFileRoute('/_main/programming/$trackId')({
+export const Route = createFileRoute("/_main/programming/$trackId")({
 	loader: async ({ params }) => {
 		const { session } = await getCurrentUserFn()
 		const userTeamIds = session?.teams?.map((team) => team.id) || []
 
 		if (!session?.teams?.[0]?.id) {
-			throw new Error('Not authenticated or no team')
+			throw new Error("Not authenticated or no team")
 		}
 
 		const trackResult = await getProgrammingTrackByIdFn({
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/_main/programming/$trackId')({
 		})
 
 		if (!trackResult.success || !trackResult.data) {
-			throw new Error('Programming track not found')
+			throw new Error("Programming track not found")
 		}
 
 		const track = trackResult.data
@@ -35,7 +35,7 @@ export const Route = createFileRoute('/_main/programming/$trackId')({
 
 		const subscribedTeams = subscribedTeamsResult.data || []
 		const subscribedTeamIds = new Set(subscribedTeams.map((t) => t.teamId))
-		const isOwned = userTeamIds.includes(track.ownerTeamId || '')
+		const isOwned = userTeamIds.includes(track.ownerTeamId || "")
 		const defaultTeamId = session.teams[0].id
 
 		return {
@@ -69,7 +69,7 @@ function ProgrammingTrackPage() {
 							<h1 className="text-3xl font-bold tracking-tight">
 								{track.name}
 							</h1>
-							<Badge variant="secondary">{track.type.replace(/_/g, ' ')}</Badge>
+							<Badge variant="secondary">{track.type.replace(/_/g, " ")}</Badge>
 						</div>
 						{track.description && (
 							<p className="text-muted-foreground text-lg mb-4">
@@ -89,10 +89,10 @@ function ProgrammingTrackPage() {
 								<div className="flex items-center gap-1">
 									<Users className="h-3 w-3" />
 									<span>
-										{subscribedTeams.length}{' '}
+										{subscribedTeams.length}{" "}
 										{subscribedTeams.length === 1
-											? 'of your teams subscribed'
-											: 'of your teams subscribed'}
+											? "of your teams subscribed"
+											: "of your teams subscribed"}
 									</span>
 								</div>
 							)}

@@ -1,5 +1,10 @@
 import { createServerFn } from "@tanstack/react-start"
-import { getSessionFromCookie, getActiveOrPersonalTeamId, deleteSessionTokenCookie, deleteActiveTeamCookie } from "@/utils/auth.server"
+import {
+	getSessionFromCookie,
+	getActiveOrPersonalTeamId,
+	deleteSessionTokenCookie,
+	deleteActiveTeamCookie,
+} from "@/utils/auth.server"
 
 /**
  * Get current user session
@@ -10,7 +15,9 @@ export const getCurrentUserFn = createServerFn("GET", async () => {
 		const session = await getSessionFromCookie()
 		return {
 			session,
-			activeTeamId: session ? await getActiveOrPersonalTeamId(session.userId) : null,
+			activeTeamId: session
+				? await getActiveOrPersonalTeamId(session.userId)
+				: null,
 		}
 	} catch (error) {
 		console.error("Error getting current user:", error)

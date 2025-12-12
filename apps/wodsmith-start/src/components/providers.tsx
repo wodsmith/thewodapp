@@ -20,10 +20,7 @@ interface SessionHydrationProps {
  * into the Zustand store. For TanStack Start, session data
  * comes from server functions or loader data, not API endpoints.
  */
-function SessionHydration({
-	initialSession,
-	children,
-}: SessionHydrationProps) {
+function SessionHydration({ initialSession, children }: SessionHydrationProps) {
 	const setSession = useSessionStore((store) => store.setSession)
 	const clearSession = useSessionStore((store) => store.clearSession)
 

@@ -68,10 +68,10 @@ function sendLogToPostHog(params: {
 	// Build error details if provided
 	const errorAttributes = error
 		? {
-				"error.type": error instanceof Error ? error.constructor.name : typeof error,
+				"error.type":
+					error instanceof Error ? error.constructor.name : typeof error,
 				"error.message": error instanceof Error ? error.message : String(error),
-				"error.stack":
-					error instanceof Error ? error.stack : undefined,
+				"error.stack": error instanceof Error ? error.stack : undefined,
 			}
 		: {}
 
@@ -141,7 +141,9 @@ function sendLogToPostHog(params: {
 /**
  * Log info level message to PostHog
  */
-export function logInfo(params: Omit<LogParams, "severityNumber" | "severityText">) {
+export function logInfo(
+	params: Omit<LogParams, "severityNumber" | "severityText">,
+) {
 	return sendLogToPostHog({
 		...params,
 		severityNumber: SeverityNumber.INFO,
@@ -152,7 +154,9 @@ export function logInfo(params: Omit<LogParams, "severityNumber" | "severityText
 /**
  * Log warning level message to PostHog
  */
-export function logWarning(params: Omit<LogParams, "severityNumber" | "severityText">) {
+export function logWarning(
+	params: Omit<LogParams, "severityNumber" | "severityText">,
+) {
 	return sendLogToPostHog({
 		...params,
 		severityNumber: SeverityNumber.WARN,
@@ -163,7 +167,9 @@ export function logWarning(params: Omit<LogParams, "severityNumber" | "severityT
 /**
  * Log error level message to PostHog
  */
-export function logError(params: Omit<LogParams, "severityNumber" | "severityText">) {
+export function logError(
+	params: Omit<LogParams, "severityNumber" | "severityText">,
+) {
 	return sendLogToPostHog({
 		...params,
 		severityNumber: SeverityNumber.ERROR,

@@ -1,19 +1,19 @@
-import { createServerFn } from '@tanstack/react-start/server'
-import { createId } from '@paralleldrive/cuid2'
-import { and, eq, inArray } from 'drizzle-orm'
-import { z } from 'zod'
-import { getDb } from '@/db/index.server'
+import { createServerFn } from "@tanstack/react-start/server"
+import { createId } from "@paralleldrive/cuid2"
+import { and, eq, inArray } from "drizzle-orm"
+import { z } from "zod"
+import { getDb } from "@/db/index.server"
 import {
 	scheduleTemplateClassesTable,
 	scheduleTemplateClassRequiredSkillsTable,
 	scheduleTemplatesTable,
-} from '@/db/schemas/scheduling'
-import { requireTeamMembership } from '@/utils/team-auth.server'
+} from "@/db/schemas/scheduling"
+import { requireTeamMembership } from "@/utils/team-auth.server"
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({
 	teamId: z.string(),
-	name: z.string().min(1, 'Template name cannot be empty'),
+	name: z.string().min(1, "Template name cannot be empty"),
 	classCatalogId: z.string(),
 	locationId: z.string(),
 })
@@ -21,7 +21,7 @@ const createScheduleTemplateSchema = z.object({
 const updateScheduleTemplateSchema = z.object({
 	id: z.string(),
 	teamId: z.string(),
-	name: z.string().min(1, 'Template name cannot be empty').optional(),
+	name: z.string().min(1, "Template name cannot be empty").optional(),
 	classCatalogId: z.string().optional(),
 	locationId: z.string().optional(),
 })
@@ -45,10 +45,10 @@ const createScheduleTemplateClassSchema = z.object({
 	dayOfWeek: z.number().int().min(0).max(6),
 	startTime: z
 		.string()
-		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
 	endTime: z
 		.string()
-		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)'),
+		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
 	requiredCoaches: z.number().int().min(1).optional(),
 	requiredSkillIds: z.array(z.string()).optional(),
 })
@@ -59,11 +59,11 @@ const updateScheduleTemplateClassSchema = z.object({
 	dayOfWeek: z.number().int().min(0).max(6).optional(),
 	startTime: z
 		.string()
-		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)')
+		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)")
 		.optional(),
 	endTime: z
 		.string()
-		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM)')
+		.regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)")
 		.optional(),
 	requiredCoaches: z.number().int().min(1).optional(),
 	requiredSkillIds: z.array(z.string()).optional(),
@@ -79,7 +79,7 @@ const deleteAllScheduleTemplateClassesSchema = z.object({
 })
 
 // Server Functions for Schedule Templates
-export const createScheduleTemplateFn = createServerFn({ method: 'POST' })
+export const createScheduleTemplateFn = createServerFn({ method: "POST" })
 	.validator(createScheduleTemplateSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -99,12 +99,12 @@ export const createScheduleTemplateFn = createServerFn({ method: 'POST' })
 				.returning()
 			return newTemplate
 		} catch (error) {
-			console.error('Failed to create schedule template:', error)
+			console.error("Failed to create schedule template:", error)
 			throw error
 		}
 	})
 
-export const updateScheduleTemplateFn = createServerFn({ method: 'POST' })
+export const updateScheduleTemplateFn = createServerFn({ method: "POST" })
 	.validator(updateScheduleTemplateSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -130,12 +130,12 @@ export const updateScheduleTemplateFn = createServerFn({ method: 'POST' })
 				.returning()
 			return updatedTemplate
 		} catch (error) {
-			console.error('Failed to update schedule template:', error)
+			console.error("Failed to update schedule template:", error)
 			throw error
 		}
 	})
 
-export const deleteScheduleTemplateFn = createServerFn({ method: 'POST' })
+export const deleteScheduleTemplateFn = createServerFn({ method: "POST" })
 	.validator(deleteScheduleTemplateSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -172,12 +172,12 @@ export const deleteScheduleTemplateFn = createServerFn({ method: 'POST' })
 				.returning()
 			return deletedTemplate
 		} catch (error) {
-			console.error('Failed to delete schedule template:', error)
+			console.error("Failed to delete schedule template:", error)
 			throw error
 		}
 	})
 
-export const getScheduleTemplatesByTeamFn = createServerFn({ method: 'POST' })
+export const getScheduleTemplatesByTeamFn = createServerFn({ method: "POST" })
 	.validator(getScheduleTemplatesByTeamSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -195,12 +195,12 @@ export const getScheduleTemplatesByTeamFn = createServerFn({ method: 'POST' })
 			})
 			return templates
 		} catch (error) {
-			console.error('Failed to get schedule templates by team:', error)
+			console.error("Failed to get schedule templates by team:", error)
 			throw error
 		}
 	})
 
-export const getScheduleTemplateByIdFn = createServerFn({ method: 'POST' })
+export const getScheduleTemplateByIdFn = createServerFn({ method: "POST" })
 	.validator(getScheduleTemplateByIdSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -223,14 +223,14 @@ export const getScheduleTemplateByIdFn = createServerFn({ method: 'POST' })
 			})
 			return template
 		} catch (error) {
-			console.error('Failed to get schedule template by ID:', error)
+			console.error("Failed to get schedule template by ID:", error)
 			throw error
 		}
 	})
 
 // Server Functions for Schedule Template Classes
 export const createScheduleTemplateClassFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(createScheduleTemplateClassSchema)
 	.handler(async ({ data }) => {
@@ -242,7 +242,7 @@ export const createScheduleTemplateClassFn = createServerFn({
 				columns: { teamId: true },
 			})
 			if (!template) {
-				throw new Error('Schedule template not found')
+				throw new Error("Schedule template not found")
 			}
 			await requireTeamMembership(template.teamId)
 
@@ -261,13 +261,13 @@ export const createScheduleTemplateClassFn = createServerFn({
 			}
 			return newTemplateClass
 		} catch (error) {
-			console.error('Failed to create schedule template class:', error)
+			console.error("Failed to create schedule template class:", error)
 			throw error
 		}
 	})
 
 export const updateScheduleTemplateClassFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(updateScheduleTemplateClassSchema)
 	.handler(async ({ data }) => {
@@ -279,7 +279,7 @@ export const updateScheduleTemplateClassFn = createServerFn({
 				columns: { teamId: true },
 			})
 			if (!template) {
-				throw new Error('Schedule template not found')
+				throw new Error("Schedule template not found")
 			}
 			await requireTeamMembership(template.teamId)
 
@@ -317,13 +317,13 @@ export const updateScheduleTemplateClassFn = createServerFn({
 			}
 			return updatedTemplateClass
 		} catch (error) {
-			console.error('Failed to update schedule template class:', error)
+			console.error("Failed to update schedule template class:", error)
 			throw error
 		}
 	})
 
 export const deleteScheduleTemplateClassFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(deleteScheduleTemplateClassSchema)
 	.handler(async ({ data }) => {
@@ -336,7 +336,7 @@ export const deleteScheduleTemplateClassFn = createServerFn({
 				columns: { teamId: true },
 			})
 			if (!template) {
-				throw new Error('Schedule template not found')
+				throw new Error("Schedule template not found")
 			}
 			await requireTeamMembership(template.teamId)
 
@@ -351,14 +351,14 @@ export const deleteScheduleTemplateClassFn = createServerFn({
 				.returning()
 			return deletedTemplateClass
 		} catch (error) {
-			console.error('Failed to delete schedule template class:', error)
+			console.error("Failed to delete schedule template class:", error)
 			throw error
 		}
 	})
 
 // Server Function to delete all classes for a template
 export const deleteAllScheduleTemplateClassesForTemplateFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(deleteAllScheduleTemplateClassesSchema)
 	.handler(async ({ data }) => {
@@ -370,7 +370,7 @@ export const deleteAllScheduleTemplateClassesForTemplateFn = createServerFn({
 				columns: { teamId: true },
 			})
 			if (!template) {
-				throw new Error('Schedule template not found')
+				throw new Error("Schedule template not found")
 			}
 			await requireTeamMembership(template.teamId)
 
@@ -392,7 +392,7 @@ export const deleteAllScheduleTemplateClassesForTemplateFn = createServerFn({
 				.where(eq(scheduleTemplateClassesTable.templateId, data.templateId))
 			return { deleted: true }
 		} catch (error) {
-			console.error('Failed to delete all schedule template classes:', error)
+			console.error("Failed to delete all schedule template classes:", error)
 			throw error
 		}
 	})
@@ -407,13 +407,13 @@ const bulkCreateScheduleTemplateClassesSimpleSchema = z.object({
 				.string()
 				.regex(
 					/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
-					'Invalid time format (HH:MM)',
+					"Invalid time format (HH:MM)",
 				),
 			endTime: z
 				.string()
 				.regex(
 					/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
-					'Invalid time format (HH:MM)',
+					"Invalid time format (HH:MM)",
 				),
 		}),
 	),
@@ -423,7 +423,7 @@ const bulkCreateScheduleTemplateClassesSimpleSchema = z.object({
 
 // Server Function for simple bulk create
 export const bulkCreateScheduleTemplateClassesSimpleFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(bulkCreateScheduleTemplateClassesSimpleSchema)
 	.handler(async ({ data }) => {
@@ -436,7 +436,7 @@ export const bulkCreateScheduleTemplateClassesSimpleFn = createServerFn({
 				columns: { teamId: true },
 			})
 			if (!template) {
-				throw new Error('Schedule template not found')
+				throw new Error("Schedule template not found")
 			}
 			await requireTeamMembership(template.teamId)
 
@@ -477,7 +477,7 @@ export const bulkCreateScheduleTemplateClassesSimpleFn = createServerFn({
 			}
 			return newTemplateClasses
 		} catch (error) {
-			console.error('Failed to bulk create schedule template classes:', error)
+			console.error("Failed to bulk create schedule template classes:", error)
 			throw error
 		}
 	})

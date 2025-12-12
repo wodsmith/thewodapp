@@ -1,10 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Suspense } from 'react'
-import { Card, CardContent, CardHeader } from '~/components/ui/card'
-import { Skeleton } from '~/components/ui/skeleton'
-import { SettingsForm } from '~/components/settings/settings-form'
+import { createFileRoute } from "@tanstack/react-router"
+import { Suspense } from "react"
+import { Card, CardContent, CardHeader } from "~/components/ui/card"
+import { Skeleton } from "~/components/ui/skeleton"
+import { SettingsForm } from "~/components/settings/settings-form"
 
-export const Route = createFileRoute('/_settings/settings/profile')({
+export const Route = createFileRoute("/_settings/settings/profile")({
 	component: ProfileSettingsPage,
 })
 

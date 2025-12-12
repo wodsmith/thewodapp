@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { createTeamRole, deleteTeamRole, getTeamRoles, updateTeamRole } from "@/server/team-roles"
+import {
+	createTeamRole,
+	deleteTeamRole,
+	getTeamRoles,
+	updateTeamRole,
+} from "@/server/team-roles"
 
 // Create role schema
 const createRoleSchema = z.object({

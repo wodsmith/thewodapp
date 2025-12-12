@@ -97,7 +97,7 @@ export function ScheduleGenerator({
 		staffedClassesCount: number
 	} | null>(null)
 
-// TODO: Convert useServerAction calls to useTransition pattern
+	// TODO: Convert useServerAction calls to useTransition pattern
 	// Server actions
 	const { execute: generateSchedule } = useServerAction(
 		generateScheduleAction,

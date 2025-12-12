@@ -1,23 +1,23 @@
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useRef, useTransition } from 'react'
-import * as React from 'react'
-import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
+import { useEffect, useRef, useTransition } from "react"
+import * as React from "react"
+import { toast } from "sonner"
+import { Button } from "~/components/ui/button"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
-import { Spinner } from '~/components/ui/spinner'
-import { verifyEmailSchema } from '~/schemas/verify-email.schema'
-import { verifyEmailAction } from '~/server-functions/auth'
-import { REDIRECT_AFTER_SIGN_IN } from '~/constants'
+} from "~/components/ui/card"
+import { Spinner } from "~/components/ui/spinner"
+import { verifyEmailSchema } from "~/schemas/verify-email.schema"
+import { verifyEmailAction } from "~/server-functions/auth"
+import { REDIRECT_AFTER_SIGN_IN } from "~/constants"
 
-export const Route = createFileRoute('/_auth/verify-email')({
+export const Route = createFileRoute("/_auth/verify-email")({
 	validateSearch: (search: Record<string, unknown>) => ({
-		token: (search.token as string) || '',
+		token: (search.token as string) || "",
 	}),
 	component: VerifyEmailPage,
 })
@@ -28,7 +28,7 @@ interface VerifyEmailSearch {
 
 function VerifyEmailPage() {
 	const navigate = useNavigate()
-	const { token } = useSearch({ from: '/_auth/verify-email' })
+	const { token } = useSearch({ from: "/_auth/verify-email" })
 	const hasCalledVerification = useRef(false)
 	const [isPending, startTransition] = useTransition()
 	const [error, setError] = React.useState<Error | null>(null)
@@ -38,26 +38,29 @@ function VerifyEmailPage() {
 			const result = verifyEmailSchema.safeParse({ token })
 			if (result.success) {
 				hasCalledVerification.current = true
-				toast.loading('Verifying your email...')
+				toast.loading("Verifying your email...")
 				startTransition(async () => {
 					try {
 						await verifyEmailAction(result.data)
 						toast.dismiss()
-						toast.success('Email verified successfully')
+						toast.success("Email verified successfully")
 
 						setTimeout(() => {
 							navigate({ to: REDIRECT_AFTER_SIGN_IN })
 						}, 500)
 					} catch (error) {
 						toast.dismiss()
-						const err = error instanceof Error ? error : new Error('Failed to verify email')
+						const err =
+							error instanceof Error
+								? error
+								: new Error("Failed to verify email")
 						setError(err)
-						toast.error(err.message || 'Failed to verify email')
+						toast.error(err.message || "Failed to verify email")
 					}
 				})
 			} else {
-				toast.error('Invalid verification token')
-				navigate({ to: '/sign-in' })
+				toast.error("Invalid verification token")
+				navigate({ to: "/sign-in" })
 			}
 		}
 	}, [token, navigate])
@@ -87,14 +90,14 @@ function VerifyEmailPage() {
 					<CardHeader>
 						<CardTitle>Verification failed</CardTitle>
 						<CardDescription>
-							{error?.message || 'Failed to verify email'}
+							{error?.message || "Failed to verify email"}
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => navigate({ to: '/sign-in' })}
+							onClick={() => navigate({ to: "/sign-in" })}
 						>
 							Back to sign in
 						</Button>
@@ -119,7 +122,7 @@ function VerifyEmailPage() {
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => navigate({ to: '/sign-in' })}
+							onClick={() => navigate({ to: "/sign-in" })}
 						>
 							Back to sign in
 						</Button>

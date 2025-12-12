@@ -1,8 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import Link from '~/components/link'
-import { Button } from '~/components/ui/button'
+import { createFileRoute } from "@tanstack/react-router"
+import Link from "~/components/link"
+import { Button } from "~/components/ui/button"
 
-export const Route = createFileRoute('/privacy')({
+export const Route = createFileRoute("/privacy")({
 	component: PrivacyPage,
 })
 
@@ -49,9 +49,9 @@ function PrivacyPage() {
 						3. Data Security
 					</h2>
 					<p className="text-muted-foreground">
-						We take reasonable measures to help protect information about you from
-						loss, theft, misuse and unauthorized access, disclosure, alteration,
-						and destruction.
+						We take reasonable measures to help protect information about you
+						from loss, theft, misuse and unauthorized access, disclosure,
+						alteration, and destruction.
 					</p>
 				</section>
 
@@ -60,8 +60,8 @@ function PrivacyPage() {
 						4. Contact Us
 					</h2>
 					<p className="text-muted-foreground">
-						If you have any questions about this Privacy Policy, please contact us
-						at:
+						If you have any questions about this Privacy Policy, please contact
+						us at:
 						<br />
 						Email: privacy@example.com
 					</p>

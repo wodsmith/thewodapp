@@ -10,7 +10,10 @@ import {
 } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common.server"
 import { competitionRegistrationsTable } from "./competitions.server"
-import { programmingTracksTable, trackWorkoutsTable } from "./programming.server"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "./programming.server"
 import { teamTable } from "./teams.server"
 import { userTable } from "./users.server"
 

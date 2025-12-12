@@ -1,36 +1,34 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { SITE_NAME, SITE_URL } from '~/constants'
-import { getCompetition } from '~/server/competitions'
-import { formatUTCDateShort } from '~/utils/date-utils'
+import { createFileRoute } from "@tanstack/react-router"
+import { SITE_NAME, SITE_URL } from "~/constants"
+import { getCompetition } from "~/server/competitions"
+import { formatUTCDateShort } from "~/utils/date-utils"
 
 // Month names for UTC formatting (short form for OG image)
 const MONTH_NAMES_SHORT = [
-	'Jan',
-	'Feb',
-	'Mar',
-	'Apr',
-	'May',
-	'Jun',
-	'Jul',
-	'Aug',
-	'Sep',
-	'Oct',
-	'Nov',
-	'Dec',
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
 ]
 
 /**
  * Normalize a value that may be a Date, numeric timestamp, or null to Date | null.
  * Treats invalid values as null.
  */
-function normalizeToDate(
-	value: Date | number | null | undefined,
-): Date | null {
+function normalizeToDate(value: Date | number | null | undefined): Date | null {
 	if (value == null) return null
 	if (value instanceof Date) {
 		return Number.isNaN(value.getTime()) ? null : value
 	}
-	if (typeof value === 'number') {
+	if (typeof value === "number") {
 		const date = new Date(value)
 		return Number.isNaN(date.getTime()) ? null : date
 	}
@@ -52,7 +50,7 @@ function formatDateRangeShort({
 	const startDate = normalizeToDate(start)
 	const endDate = normalizeToDate(end)
 
-	if (!startDate || !endDate) return ''
+	if (!startDate || !endDate) return ""
 
 	const startMonth = MONTH_NAMES_SHORT[startDate.getUTCMonth()]
 	const endMonth = MONTH_NAMES_SHORT[endDate.getUTCMonth()]
@@ -62,11 +60,7 @@ function formatDateRangeShort({
 	const endYear = endDate.getUTCFullYear()
 
 	// Same day
-	if (
-		startYear === endYear &&
-		startMonth === endMonth &&
-		startDay === endDay
-	) {
+	if (startYear === endYear && startMonth === endMonth && startDay === endDay) {
 		return `${startMonth} ${startDay}, ${endYear}`
 	}
 
@@ -80,10 +74,10 @@ function formatDateRangeShort({
 }
 
 type RegistrationStatus =
-	| { status: 'open'; opensAt: Date; closesAt: Date }
-	| { status: 'opens_soon'; opensAt: Date }
-	| { status: 'closed' }
-	| { status: 'none' }
+	| { status: "open"; opensAt: Date; closesAt: Date }
+	| { status: "opens_soon"; opensAt: Date }
+	| { status: "closed" }
+	| { status: "none" }
 
 /**
  * Determine registration status from potentially mixed Date/timestamp inputs.
@@ -100,44 +94,38 @@ function getRegistrationStatus({
 	const closesAt = normalizeToDate(registrationClosesAt)
 
 	if (!opensAt || !closesAt) {
-		return { status: 'none' }
+		return { status: "none" }
 	}
 
 	const now = new Date()
 
 	if (now < opensAt) {
-		return { status: 'opens_soon', opensAt }
+		return { status: "opens_soon", opensAt }
 	}
 
 	if (now >= opensAt && now <= closesAt) {
-		return { status: 'open', opensAt, closesAt }
+		return { status: "open", opensAt, closesAt }
 	}
 
-	return { status: 'closed' }
+	return { status: "closed" }
 }
 
-export const Route = createFileRoute('/api/og-competition')({
+export const Route = createFileRoute("/api/og-competition")({
 	server: {
 		handlers: {
 			GET: async ({ request }) => {
 				try {
 					const { searchParams } = new URL(request.url)
-					const slug = searchParams.get('slug')
+					const slug = searchParams.get("slug")
 
 					if (!slug) {
-						return new Response(
-							'Missing slug parameter',
-							{ status: 400 },
-						)
+						return new Response("Missing slug parameter", { status: 400 })
 					}
 
 					const competition = await getCompetition(slug)
 
 					if (!competition) {
-						return new Response(
-							'Competition not found',
-							{ status: 404 },
-						)
+						return new Response("Competition not found", { status: 404 })
 					}
 
 					const logoUrl =
@@ -150,29 +138,24 @@ export const Route = createFileRoute('/api/og-competition')({
 					})
 
 					const registrationStatus = getRegistrationStatus({
-						registrationOpensAt:
-							competition.registrationOpensAt,
-						registrationClosesAt:
-							competition.registrationClosesAt,
+						registrationOpensAt: competition.registrationOpensAt,
+						registrationClosesAt: competition.registrationClosesAt,
 					})
 
-					let registrationStatusHtml = ''
-					if (registrationStatus.status === 'open') {
+					let registrationStatusHtml = ""
+					if (registrationStatus.status === "open") {
 						registrationStatusHtml = `
 							<div style="color: #22c55e; font-size: 24px;">
 								Registration Open: ${formatUTCDateShort(registrationStatus.opensAt)} - ${formatUTCDateShort(registrationStatus.closesAt)}
 							</div>
 						`
-					} else if (
-						registrationStatus.status ===
-						'opens_soon'
-					) {
+					} else if (registrationStatus.status === "opens_soon") {
 						registrationStatusHtml = `
 							<div style="color: #eab308; font-size: 24px;">
 								Registration Opens ${formatUTCDateShort(registrationStatus.opensAt)}
 							</div>
 						`
-					} else if (registrationStatus.status === 'closed') {
+					} else if (registrationStatus.status === "closed") {
 						registrationStatusHtml = `
 							<div style="color: #737373; font-size: 24px;">
 								Registration Closed
@@ -289,15 +272,12 @@ export const Route = createFileRoute('/api/og-competition')({
 
 					return new Response(ogHtml, {
 						headers: {
-							'Content-Type': 'text/html; charset=utf-8',
+							"Content-Type": "text/html; charset=utf-8",
 						},
 					})
 				} catch (e: unknown) {
-					console.error('OG image generation error:', e)
-					return new Response(
-						'Failed to generate the image',
-						{ status: 500 },
-					)
+					console.error("OG image generation error:", e)
+					return new Response("Failed to generate the image", { status: 500 })
 				}
 			},
 		},

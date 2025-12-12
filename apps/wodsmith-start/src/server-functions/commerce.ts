@@ -151,7 +151,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
 					throw new Error(
 						"This competition is temporarily unable to accept paid registrations. " +
-							"Please contact the organizer."
+							"Please contact the organizer.",
 					)
 				}
 			}
@@ -295,7 +295,8 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				const stripeRate = 0.029
 				const stripeFixedCents = 30
 				const connectedAccountReceives = Math.ceil(
-					(feeBreakdown.organizerNetCents + stripeFixedCents) / (1 - stripeRate),
+					(feeBreakdown.organizerNetCents + stripeFixedCents) /
+						(1 - stripeRate),
 				)
 				const applicationFeeAmount = Math.max(
 					0,
@@ -357,7 +358,10 @@ export const getRegistrationFeeBreakdownFn = createServerFn({ method: "POST" })
 			}
 
 			const feeConfig = buildFeeConfig(competition)
-			const breakdown = calculateCompetitionFees(registrationFeeCents, feeConfig)
+			const breakdown = calculateCompetitionFees(
+				registrationFeeCents,
+				feeConfig,
+			)
 
 			return {
 				isFree: false,
@@ -456,34 +460,34 @@ export const updateCompetitionFeeConfigFn = createServerFn({ method: "POST" })
 		}, RATE_LIMITS.SETTINGS)
 	})
 
-	/**
-	 * Update or remove a division-specific fee
-	 */
-	export const updateDivisionFeeFn = createServerFn({ method: "POST" })
-		.validator(
-			z.object({
-				competitionId: z.string(),
-				divisionId: z.string(),
-				feeCents: z.number().nullable(),
-			}),
-		)
-		.handler(async ({ data: input }) => {
-			return withRateLimit(async () => {
-				const session = await requireVerifiedEmail()
-				if (!session) throw new Error("Unauthorized")
+/**
+ * Update or remove a division-specific fee
+ */
+export const updateDivisionFeeFn = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			competitionId: z.string(),
+			divisionId: z.string(),
+			feeCents: z.number().nullable(),
+		}),
+	)
+	.handler(async ({ data: input }) => {
+		return withRateLimit(async () => {
+			const session = await requireVerifiedEmail()
+			if (!session) throw new Error("Unauthorized")
 
-				const db = getDb()
+			const db = getDb()
 
-				const competition = await db.query.competitionsTable.findFirst({
-					where: eq(competitionsTable.id, input.competitionId),
-				})
-				if (!competition) throw new Error("Competition not found")
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, input.competitionId),
+			})
+			if (!competition) throw new Error("Competition not found")
 
-				const { requireTeamPermission } = await import("@/utils/team-auth.server")
-				await requireTeamPermission(
-					competition.organizingTeamId,
-					TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-				)
+			const { requireTeamPermission } = await import("@/utils/team-auth.server")
+			await requireTeamPermission(
+				competition.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
 
 			if (input.feeCents === null) {
 				await db

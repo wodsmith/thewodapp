@@ -20,5 +20,3 @@ export const getDefaultTeamContextFn = createServerFn("GET", async () => {
 		teamName: defaultTeam.name ?? "",
 	}
 })
-
-

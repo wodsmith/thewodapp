@@ -1,32 +1,31 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { handleOAuthCallback } from '~/server/stripe-connect'
-import { logError, logInfo } from '~/lib/logging/posthog-otel-logger'
+import { createFileRoute } from "@tanstack/react-router"
+import { handleOAuthCallback } from "~/server/stripe-connect/accounts.server"
+import { logError, logInfo } from "~/lib/logging/posthog-otel-logger"
 
-export const Route = createFileRoute('/api/stripe-connect-callback')({
+export const Route = createFileRoute("/api/stripe-connect-callback")({
 	server: {
 		handlers: {
 			GET: async ({ request }) => {
 				const { searchParams } = new URL(request.url)
 
-				const code = searchParams.get('code')
-				const state = searchParams.get('state')
-				const error = searchParams.get('error')
-				const errorDescription =
-					searchParams.get('error_description')
+				const code = searchParams.get("code")
+				const state = searchParams.get("state")
+				const error = searchParams.get("error")
+				const errorDescription = searchParams.get("error_description")
 
 				const appUrl =
-					process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+					process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
 				// Handle OAuth errors
 				if (error) {
 					logError({
-						message: '[Stripe OAuth] Authorization error',
+						message: "[Stripe OAuth] Authorization error",
 						attributes: { error, errorDescription },
 					})
 					// Decode state to get team slug for redirect
 					try {
 						const stateData = JSON.parse(
-							Buffer.from(state ?? '', 'base64').toString('utf-8'),
+							Buffer.from(state ?? "", "base64").toString("utf-8"),
 						)
 						return new Response(null, {
 							status: 302,
@@ -54,21 +53,18 @@ export const Route = createFileRoute('/api/stripe-connect-callback')({
 				}
 
 				try {
-					console.log(
-						'[Stripe OAuth] Processing callback with code and state',
-					)
+					console.log("[Stripe OAuth] Processing callback with code and state")
 					const result = await handleOAuthCallback(code, state)
 
 					logInfo({
-						message:
-							'[Stripe OAuth] Successfully connected account',
+						message: "[Stripe OAuth] Successfully connected account",
 						attributes: {
 							teamId: result.teamId,
 							accountId: result.accountId,
 						},
 					})
 					console.log(
-						'[Stripe OAuth] Success - redirecting to team page',
+						"[Stripe OAuth] Success - redirecting to team page",
 						result,
 					)
 
@@ -79,16 +75,16 @@ export const Route = createFileRoute('/api/stripe-connect-callback')({
 						},
 					})
 				} catch (err) {
-					console.error('[Stripe OAuth] Callback failed:', err)
+					console.error("[Stripe OAuth] Callback failed:", err)
 					logError({
-						message: '[Stripe OAuth] Callback failed',
+						message: "[Stripe OAuth] Callback failed",
 						error: err,
 					})
 
 					// Try to extract team slug from state for better redirect
 					try {
 						const stateData = JSON.parse(
-							Buffer.from(state, 'base64').toString('utf-8'),
+							Buffer.from(state, "base64").toString("utf-8"),
 						)
 						return new Response(null, {
 							status: 302,

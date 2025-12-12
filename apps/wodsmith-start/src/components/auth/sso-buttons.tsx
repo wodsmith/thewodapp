@@ -1,6 +1,6 @@
-'use client'
+"use client"
 
-import { Button } from '~/components/ui/button'
+import { Button } from "~/components/ui/button"
 
 interface SSOButtonsProps {
 	isSignIn?: boolean
@@ -8,18 +8,14 @@ interface SSOButtonsProps {
 
 export default function SSOButtons({ isSignIn = false }: SSOButtonsProps) {
 	const handleGoogleAuth = () => {
-		// Redirect to OAuth handler
-		window.location.href = '/api/auth/google'
+		// Redirect to Google OAuth initiation route
+		window.location.href = "/sso/google"
 	}
 
 	return (
 		<>
-			<Button
-				onClick={handleGoogleAuth}
-				variant="outline"
-				className="w-full"
-			>
-				SIGN {isSignIn ? 'IN' : 'UP'} WITH GOOGLE
+			<Button onClick={handleGoogleAuth} variant="outline" className="w-full">
+				SIGN {isSignIn ? "IN" : "UP"} WITH GOOGLE
 			</Button>
 		</>
 	)

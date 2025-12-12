@@ -1,22 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { eq } from 'drizzle-orm'
-import { getDb } from '~/db/index.server'
-import { teamTable } from '~/db/schema.server'
+import { createFileRoute } from "@tanstack/react-router"
+import { eq } from "drizzle-orm"
+import { getDb } from "~/db/index.server"
+import { teamTable } from "~/db/schema.server"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
+} from "~/components/ui/card"
 
-export const Route = createFileRoute('/_admin/admin/teams/programming')({
+export const Route = createFileRoute("/_admin/admin/teams/programming")({
 	component: AdminTeamsProgrammingPage,
 	loader: async () => {
 		const db = getDb()
 		// Get all teams with programming tracks info
 		const teams = await db.query.teamTable.findMany({
-			orderBy: [{ createdAt: 'desc' }],
+			orderBy: [{ createdAt: "desc" }],
 		})
 		return { teams }
 	},
@@ -39,9 +39,7 @@ function AdminTeamsProgrammingPage() {
 			{teams.length === 0 ? (
 				<Card>
 					<CardContent className="pt-6">
-						<p className="text-muted-foreground text-center">
-							No teams found
-						</p>
+						<p className="text-muted-foreground text-center">No teams found</p>
 					</CardContent>
 				</Card>
 			) : (

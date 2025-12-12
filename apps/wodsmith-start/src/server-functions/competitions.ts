@@ -107,8 +107,7 @@ export const getCompetitionGroupsFn = createServerFn({ method: "POST" })
 			return { success: true, data: groups }
 		} catch (error) {
 			logError({
-				message:
-					"[getCompetitionGroupsFn] Failed to get competition groups",
+				message: "[getCompetitionGroupsFn] Failed to get competition groups",
 				error,
 				attributes: { teamId: input.organizingTeamId },
 			})
@@ -403,7 +402,8 @@ export const registerForCompetitionFn = createServerFn({ method: "POST" })
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[registerForCompetitionFn] Failed to register for competition",
+				message:
+					"[registerForCompetitionFn] Failed to register for competition",
 				error,
 				attributes: {
 					competitionId: input.competitionId,
@@ -552,8 +552,7 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message:
-					"[updateRegistrationAffiliateFn] Failed to update affiliate",
+				message: "[updateRegistrationAffiliateFn] Failed to update affiliate",
 				error,
 				attributes: { userId: input.userId },
 			})
@@ -903,8 +902,7 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
 			return { success: true }
 		} catch (error) {
 			logError({
-				message:
-					"[saveCompetitionEventFn] Failed to save competition event",
+				message: "[saveCompetitionEventFn] Failed to save competition event",
 				error,
 				attributes: {
 					trackWorkoutId: input.trackWorkoutId,

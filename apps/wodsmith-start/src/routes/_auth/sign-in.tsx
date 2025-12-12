@@ -1,32 +1,32 @@
-import { createFileRoute, redirect, useSearch } from '@tanstack/react-router'
-import { useEffect, useState, useTransition } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { startAuthentication } from '@simplewebauthn/browser'
-import { KeyIcon } from 'lucide-react'
-import posthog from 'posthog-js'
-import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
+import { createFileRoute, redirect, useSearch } from "@tanstack/react-router"
+import { useEffect, useState, useTransition } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { startAuthentication } from "@simplewebauthn/browser"
+import { KeyIcon } from "lucide-react"
+import posthog from "posthog-js"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { Button } from "~/components/ui/button"
 import {
 	Form,
 	FormControl,
 	FormField,
 	FormItem,
 	FormMessage,
-} from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import SeparatorWithText from '~/components/separator-with-text'
-import SSOButtons from '~/components/auth/sso-buttons'
-import { signInSchema, type SignInSchema } from '~/schemas/signin.schema'
-import { signInAction } from '~/server-functions/auth'
+} from "~/components/ui/form"
+import { Input } from "~/components/ui/input"
+import SeparatorWithText from "~/components/separator-with-text"
+import SSOButtons from "~/components/auth/sso-buttons"
+import { signInSchema, type SignInSchema } from "~/schemas/signin.schema"
+import { signInAction } from "~/server-functions/auth"
 import {
 	generateAuthenticationOptionsAction,
 	verifyAuthenticationAction,
-} from '~/server-functions/passkey'
-import { REDIRECT_AFTER_SIGN_IN } from '~/constants'
-import Link from '~/components/link'
+} from "~/server-functions/passkey"
+import { REDIRECT_AFTER_SIGN_IN } from "~/constants"
+import Link from "~/components/link"
 
-export const Route = createFileRoute('/_auth/sign-in')({
+export const Route = createFileRoute("/_auth/sign-in")({
 	validateSearch: (search: Record<string, unknown>) => ({
 		redirect: (search.redirect as string) ?? REDIRECT_AFTER_SIGN_IN,
 	}),
@@ -38,7 +38,7 @@ interface SignInSearch {
 }
 
 function SignInPage() {
-	const { redirect: redirectPath } = useSearch({ from: '/_auth/sign-in' })
+	const { redirect: redirectPath } = useSearch({ from: "/_auth/sign-in" })
 	const form = useForm<SignInSchema>({
 		resolver: zodResolver(signInSchema),
 	})
@@ -47,30 +47,31 @@ function SignInPage() {
 	const [isAuthenticating, setIsAuthenticating] = useState(false)
 
 	const onSubmit = (data: SignInSchema) => {
-		toast.loading('Signing you in...')
+		toast.loading("Signing you in...")
 		startTransition(async () => {
 			try {
 				const result = await signInAction(data)
 				toast.dismiss()
-				toast.success('Signed in successfully')
+				toast.success("Signed in successfully")
 				const userId = result?.userId
 				if (userId) {
 					posthog.identify(userId, {
-						email: form.getValues('email'),
+						email: form.getValues("email"),
 					})
 				}
-				posthog.capture('user_signed_in', {
-					auth_method: 'email_password',
+				posthog.capture("user_signed_in", {
+					auth_method: "email_password",
 					user_id: userId,
 				})
 				window.location.href = redirectPath
 			} catch (error) {
 				toast.dismiss()
-				const message = error instanceof Error ? error.message : 'Failed to sign in'
+				const message =
+					error instanceof Error ? error.message : "Failed to sign in"
 				toast.error(message)
-				posthog.capture('user_signed_in_failed', {
+				posthog.capture("user_signed_in_failed", {
 					error_message: message,
-					auth_method: 'email_password',
+					auth_method: "email_password",
 				})
 			}
 		})
@@ -79,12 +80,12 @@ function SignInPage() {
 	const handlePasskeyAuth = async () => {
 		try {
 			setIsAuthenticating(true)
-			toast.loading('Authenticating with passkey...')
+			toast.loading("Authenticating with passkey...")
 
 			const options = await generateAuthenticationOptionsAction({})
 
 			if (!options) {
-				throw new Error('Failed to get authentication options')
+				throw new Error("Failed to get authentication options")
 			}
 
 			const authenticationResponse = await startAuthentication({
@@ -92,29 +93,30 @@ function SignInPage() {
 			})
 
 			toast.dismiss()
-			toast.loading('Verifying passkey...')
+			toast.loading("Verifying passkey...")
 			const result = await verifyAuthenticationAction({
 				response: authenticationResponse,
 				challenge: options.challenge,
 			})
 			toast.dismiss()
-			toast.success('Authentication successful')
+			toast.success("Authentication successful")
 			if (result?.userId) {
 				posthog.identify(result.userId)
 			}
-			posthog.capture('user_signed_in', {
-				auth_method: 'passkey',
+			posthog.capture("user_signed_in", {
+				auth_method: "passkey",
 				user_id: result?.userId,
 			})
 			window.location.href = redirectPath
 		} catch (error) {
-			console.error('Passkey authentication error:', error)
+			console.error("Passkey authentication error:", error)
 			toast.dismiss()
-			const message = error instanceof Error ? error.message : 'Authentication failed'
+			const message =
+				error instanceof Error ? error.message : "Authentication failed"
 			toast.error(message)
-			posthog.capture('user_signed_in_failed', {
+			posthog.capture("user_signed_in_failed", {
 				error_message: message,
-				auth_method: 'passkey',
+				auth_method: "passkey",
 			})
 		} finally {
 			setIsAuthenticating(false)
@@ -129,7 +131,7 @@ function SignInPage() {
 						SIGN IN
 					</h2>
 					<p className="mt-4 text-black dark:text-primary font-mono">
-						OR{' '}
+						OR{" "}
 						<Link
 							to="/sign-up"
 							search={{ redirect: redirectPath }}

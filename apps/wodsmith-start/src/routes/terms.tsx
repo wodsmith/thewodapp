@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { CREDITS_EXPIRATION_YEARS } from '~/constants'
-import Link from '~/components/link'
-import { Button } from '~/components/ui/button'
+import { createFileRoute } from "@tanstack/react-router"
+import { CREDITS_EXPIRATION_YEARS } from "~/constants"
+import Link from "~/components/link"
+import { Button } from "~/components/ui/button"
 
-export const Route = createFileRoute('/terms')({
+export const Route = createFileRoute("/terms")({
 	component: TermsPage,
 })
 
@@ -24,8 +24,8 @@ function TermsPage() {
 						1. Acceptance of Terms
 					</h2>
 					<p className="text-muted-foreground">
-						By accessing and using this website, you accept and agree to be bound
-						by the terms and provision of this agreement.
+						By accessing and using this website, you accept and agree to be
+						bound by the terms and provision of this agreement.
 					</p>
 				</section>
 
@@ -49,8 +49,8 @@ function TermsPage() {
 						basis. We make no warranties, expressed or implied, and hereby
 						disclaim and negate all other warranties including, without
 						limitation, implied warranties or conditions of merchantability,
-						fitness for a particular purpose, or non-infringement of intellectual
-						property or other violation of rights.
+						fitness for a particular purpose, or non-infringement of
+						intellectual property or other violation of rights.
 					</p>
 				</section>
 
@@ -61,20 +61,20 @@ function TermsPage() {
 					<p className="text-muted-foreground mb-4">
 						Our service operates on a credit-based system. Credits purchased
 						through our platform are valid for {CREDITS_EXPIRATION_YEARS} years
-						from the date of purchase. All payments are processed securely through
-						Stripe, our payment processing partner.
+						from the date of purchase. All payments are processed securely
+						through Stripe, our payment processing partner.
 					</p>
 					<p className="text-muted-foreground mb-4">
-						Once a payment is successfully processed, credits will be immediately
-						added to your account. We do not offer refunds for purchased credits.
-						The price and availability of credit packages may change without prior
-						notice.
+						Once a payment is successfully processed, credits will be
+						immediately added to your account. We do not offer refunds for
+						purchased credits. The price and availability of credit packages may
+						change without prior notice.
 					</p>
 					<p className="text-muted-foreground">
-						Free credits may be provided as part of promotional offers or monthly
-						allocations. These credits are subject to different terms and
-						expiration periods, which will be clearly communicated at the time
-						they are issued.
+						Free credits may be provided as part of promotional offers or
+						monthly allocations. These credits are subject to different terms
+						and expiration periods, which will be clearly communicated at the
+						time they are issued.
 					</p>
 				</section>
 
@@ -84,9 +84,9 @@ function TermsPage() {
 					</h2>
 					<p className="text-muted-foreground">
 						In no event shall we or our suppliers be liable for any damages
-						(including, without limitation, damages for loss of data or profit, or
-						due to business interruption) arising out of the use or inability to
-						use the materials on our website.
+						(including, without limitation, damages for loss of data or profit,
+						or due to business interruption) arising out of the use or inability
+						to use the materials on our website.
 					</p>
 				</section>
 

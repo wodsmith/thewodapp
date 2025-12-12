@@ -97,7 +97,11 @@ export function CreateTeamForm() {
 
 	return (
 		<Form {...form}>
-			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
+			<form
+				onSubmit={form.handleSubmit(onSubmit)}
+				className="space-y-6"
+				noValidate
+			>
 				<FormField
 					control={form.control}
 					name="name"
@@ -134,13 +138,9 @@ export function CreateTeamForm() {
 					)}
 				/>
 
-			<Button
-				type="submit"
-				className="w-full"
-				disabled={isPending}
-			>
-				Create Team
-			</Button>
+				<Button type="submit" className="w-full" disabled={isPending}>
+					Create Team
+				</Button>
 			</form>
 		</Form>
 	)

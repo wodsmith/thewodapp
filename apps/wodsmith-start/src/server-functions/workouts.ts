@@ -1,17 +1,17 @@
-import { createServerFn } from '@tanstack/react-start/server'
-import { z } from 'zod'
-import { createId } from '@paralleldrive/cuid2'
-import type { LeaderboardEntry } from '@/server/leaderboard'
+import { createServerFn } from "@tanstack/react-start/server"
+import { z } from "zod"
+import { createId } from "@paralleldrive/cuid2"
+import type { LeaderboardEntry } from "@/server/leaderboard"
 import {
 	getScheduledWorkoutsForTeam,
 	getWorkoutResultForScheduledInstance,
 	getWorkoutResultsForScheduledInstances,
-} from '@/server/scheduling-service'
-import { getUserTeams } from '@/server/teams'
+} from "@/server/scheduling-service"
+import { getUserTeams } from "@/server/teams"
 import {
 	getResultSetsById,
 	getWorkoutResultsWithScalingForUser,
-} from '@/server/workout-results'
+} from "@/server/workout-results"
 import {
 	createProgrammingTrackWorkoutRemix,
 	createWorkout,
@@ -22,68 +22,68 @@ import {
 	getUserWorkoutsCount,
 	getWorkoutById,
 	updateWorkout,
-} from '@/server/workouts'
-import { requireVerifiedEmail } from '@/utils/auth.server'
+} from "@/server/workouts"
+import { requireVerifiedEmail } from "@/utils/auth.server"
 import {
 	hasTeamPermission,
 	isTeamMember,
 	requireTeamMembership,
 	requireTeamPermission,
-} from '@/utils/team-auth.server'
+} from "@/utils/team-auth.server"
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,
-} from '@/utils/workout-permissions'
-import { TEAM_PERMISSIONS } from '@/db/schemas/teams'
-import { logDebug, logError } from '@/lib/logging/posthog-otel-logger'
+} from "@/utils/workout-permissions"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { logDebug, logError } from "@/lib/logging/posthog-otel-logger"
 
 const createWorkoutRemixSchema = z.object({
-	sourceWorkoutId: z.string().min(1, 'Source workout ID is required'),
-	teamId: z.string().min(1, 'Team ID is required'),
+	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 const createProgrammingTrackWorkoutRemixSchema = z.object({
-	sourceWorkoutId: z.string().min(1, 'Source workout ID is required'),
-	sourceTrackId: z.string().min(1, 'Source track ID is required'),
-	teamId: z.string().min(1, 'Team ID is required'),
+	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
+	sourceTrackId: z.string().min(1, "Source track ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 const getTeamSpecificWorkoutSchema = z.object({
-	originalWorkoutId: z.string().min(1, 'Original workout ID is required'),
-	teamId: z.string().min(1, 'Team ID is required'),
+	originalWorkoutId: z.string().min(1, "Original workout ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 const createWorkoutSchema = z.object({
 	workout: z.object({
-		name: z.string().min(1, 'Name is required').max(255, 'Name is too long'),
-		description: z.string().min(1, 'Description is required'),
-		scope: z.enum(['private', 'public']).default('private'),
+		name: z.string().min(1, "Name is required").max(255, "Name is too long"),
+		description: z.string().min(1, "Description is required"),
+		scope: z.enum(["private", "public"]).default("private"),
 		scheme: z.enum([
-			'time',
-			'time-with-cap',
-			'pass-fail',
-			'rounds-reps',
-			'reps',
-			'emom',
-			'load',
-			'calories',
-			'meters',
-			'feet',
-			'points',
+			"time",
+			"time-with-cap",
+			"pass-fail",
+			"rounds-reps",
+			"reps",
+			"emom",
+			"load",
+			"calories",
+			"meters",
+			"feet",
+			"points",
 		]),
 		scoreType: z
-			.enum(['min', 'max', 'sum', 'average', 'first', 'last'])
+			.enum(["min", "max", "sum", "average", "first", "last"])
 			.nullable()
 			.optional()
 			.transform((val) => val ?? null),
 		repsPerRound: z.number().nullable(),
 		roundsToScore: z.number().nullable(),
 		sugarId: z.string().nullable(),
-		tiebreakScheme: z.enum(['time', 'reps']).nullable(),
+		tiebreakScheme: z.enum(["time", "reps"]).nullable(),
 		scalingGroupId: z
 			.union([z.string(), z.null(), z.undefined()])
 			.transform((val) => {
-				if (val === '' || val === 'none' || val === null || val === undefined) {
+				if (val === "" || val === "none" || val === null || val === undefined) {
 					return null
 				}
 				return val
@@ -94,7 +94,7 @@ const createWorkoutSchema = z.object({
 					return /^sgrp_[a-zA-Z0-9_-]+$/.test(val)
 				},
 				{
-					message: 'Invalid scaling group ID format',
+					message: "Invalid scaling group ID format",
 				},
 			)
 			.nullable()
@@ -104,13 +104,13 @@ const createWorkoutSchema = z.object({
 	tagIds: z.array(z.string()).default([]),
 	newTagNames: z.array(z.string()).optional(),
 	movementIds: z.array(z.string()).default([]),
-	teamId: z.string().min(1, 'Team ID is required'),
+	teamId: z.string().min(1, "Team ID is required"),
 	trackId: z.string().optional(),
 	scheduledDate: z.date().optional(),
 	scalingDescriptions: z
 		.array(
 			z.object({
-				scalingLevelId: z.string().min(1, 'Scaling level ID is required'),
+				scalingLevelId: z.string().min(1, "Scaling level ID is required"),
 				description: z.string().nullable(),
 			}),
 		)
@@ -120,7 +120,7 @@ const createWorkoutSchema = z.object({
 /**
  * Create a remix of an existing workout
  */
-export const createWorkoutRemixFn = createServerFn({ method: 'POST' })
+export const createWorkoutRemixFn = createServerFn({ method: "POST" })
 	.validator(createWorkoutRemixSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -130,7 +130,7 @@ export const createWorkoutRemixFn = createServerFn({ method: 'POST' })
 
 			const hasEditPermission = await hasTeamPermission(
 				teamId,
-				'EDIT_COMPONENTS',
+				"EDIT_COMPONENTS",
 			)
 			if (!hasEditPermission) {
 				throw new Error(
@@ -154,11 +154,11 @@ export const createWorkoutRemixFn = createServerFn({ method: 'POST' })
 			return {
 				success: true,
 				data: remixedWorkout,
-				message: 'Workout remix created successfully',
+				message: "Workout remix created successfully",
 			}
 		} catch (error) {
 			logError({
-				message: '[createWorkoutRemixFn] Failed to create workout remix',
+				message: "[createWorkoutRemixFn] Failed to create workout remix",
 				error,
 				attributes: {
 					sourceWorkoutId: data.sourceWorkoutId,
@@ -173,7 +173,7 @@ export const createWorkoutRemixFn = createServerFn({ method: 'POST' })
  * Create a remix of a programming track workout
  */
 export const createProgrammingTrackWorkoutRemixFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(createProgrammingTrackWorkoutRemixSchema)
 	.handler(async ({ data }) => {
@@ -184,7 +184,7 @@ export const createProgrammingTrackWorkoutRemixFn = createServerFn({
 
 			const hasEditPermission = await hasTeamPermission(
 				teamId,
-				'EDIT_COMPONENTS',
+				"EDIT_COMPONENTS",
 			)
 			if (!hasEditPermission) {
 				throw new Error(
@@ -201,12 +201,12 @@ export const createProgrammingTrackWorkoutRemixFn = createServerFn({
 			return {
 				success: true,
 				data: remixedWorkout,
-				message: 'Programming track workout remix created successfully',
+				message: "Programming track workout remix created successfully",
 			}
 		} catch (error) {
 			logError({
 				message:
-					'[createProgrammingTrackWorkoutRemixFn] Failed to create programming track workout remix',
+					"[createProgrammingTrackWorkoutRemixFn] Failed to create programming track workout remix",
 				error,
 				attributes: {
 					sourceWorkoutId: data.sourceWorkoutId,
@@ -221,17 +221,17 @@ export const createProgrammingTrackWorkoutRemixFn = createServerFn({
 /**
  * Create a new workout
  */
-export const createWorkoutFn = createServerFn({ method: 'POST' })
+export const createWorkoutFn = createServerFn({ method: "POST" })
 	.validator(createWorkoutSchema)
 	.handler(async ({ data }) => {
 		try {
-			const { findOrCreateTag } = await import('@/server/tags')
-			const { addWorkoutToTrack } = await import('@/server/programming-tracks')
+			const { findOrCreateTag } = await import("@/server/tags")
+			const { addWorkoutToTrack } = await import("@/server/programming-tracks")
 			const { scheduleStandaloneWorkoutForTeam } = await import(
-				'@/server/scheduling-service'
+				"@/server/scheduling-service"
 			)
 			const { upsertWorkoutScalingDescriptions } = await import(
-				'@/server/scaling-levels'
+				"@/server/scaling-levels"
 			)
 
 			let finalTagIds = [...data.tagIds]
@@ -281,7 +281,7 @@ export const createWorkoutFn = createServerFn({ method: 'POST' })
 
 				if (trackWorkoutId) {
 					const { scheduleWorkoutForTeam } = await import(
-						'@/server/scheduling-service'
+						"@/server/scheduling-service"
 					)
 					await scheduleWorkoutForTeam({
 						teamId: data.teamId,
@@ -299,7 +299,7 @@ export const createWorkoutFn = createServerFn({ method: 'POST' })
 			}
 
 			logDebug({
-				message: '[createWorkoutFn] Created workout',
+				message: "[createWorkoutFn] Created workout",
 				attributes: {
 					workoutId: workout.id,
 					workoutName: workout.name,
@@ -310,7 +310,7 @@ export const createWorkoutFn = createServerFn({ method: 'POST' })
 			return { success: true, data: workout }
 		} catch (error) {
 			logError({
-				message: '[createWorkoutFn] Failed to create workout',
+				message: "[createWorkoutFn] Failed to create workout",
 				error,
 				attributes: { teamId: data.teamId, workoutName: data.workout.name },
 			})
@@ -321,18 +321,18 @@ export const createWorkoutFn = createServerFn({ method: 'POST' })
 /**
  * Get all workouts for the current user
  */
-export const getUserWorkoutsFn = createServerFn({ method: 'POST' })
+export const getUserWorkoutsFn = createServerFn({ method: "POST" })
 	.validator(
 		z.object({
 			teamId: z.union([
-				z.string().min(1, 'Team ID is required'),
-				z.array(z.string().min(1, 'Team ID is required')),
+				z.string().min(1, "Team ID is required"),
+				z.array(z.string().min(1, "Team ID is required")),
 			]),
 			trackId: z.string().optional(),
 			search: z.string().optional(),
 			tag: z.string().optional(),
 			movement: z.string().optional(),
-			type: z.enum(['all', 'original', 'remix']).optional(),
+			type: z.enum(["all", "original", "remix"]).optional(),
 			page: z.number().int().min(1).optional().default(1),
 			pageSize: z.number().int().min(1).max(100).optional().default(50),
 		}),
@@ -350,10 +350,10 @@ export const getUserWorkoutsFn = createServerFn({ method: 'POST' })
 			}
 
 			logDebug({
-				message: '[getUserWorkoutsFn] called',
+				message: "[getUserWorkoutsFn] called",
 				attributes: {
 					teamId: Array.isArray(data.teamId)
-						? data.teamId.join(',')
+						? data.teamId.join(",")
 						: data.teamId,
 					filters: JSON.stringify(filters),
 					limit: data.pageSize,
@@ -372,12 +372,12 @@ export const getUserWorkoutsFn = createServerFn({ method: 'POST' })
 			])
 
 			logDebug({
-				message: '[getUserWorkoutsFn] result',
+				message: "[getUserWorkoutsFn] result",
 				attributes: {
 					workoutCount: workouts.length,
 					totalCount,
-					firstWorkoutId: workouts[0]?.id ?? 'none',
-					firstWorkoutName: workouts[0]?.name ?? 'none',
+					firstWorkoutId: workouts[0]?.id ?? "none",
+					firstWorkoutName: workouts[0]?.name ?? "none",
 				},
 			})
 
@@ -391,11 +391,11 @@ export const getUserWorkoutsFn = createServerFn({ method: 'POST' })
 			}
 		} catch (error) {
 			logError({
-				message: '[getUserWorkoutsFn] Failed to get user workouts',
+				message: "[getUserWorkoutsFn] Failed to get user workouts",
 				error,
 				attributes: {
 					teamId: Array.isArray(data.teamId)
-						? data.teamId.join(',')
+						? data.teamId.join(",")
 						: data.teamId,
 				},
 			})
@@ -406,15 +406,15 @@ export const getUserWorkoutsFn = createServerFn({ method: 'POST' })
 /**
  * Get a single workout by ID
  */
-export const getWorkoutByIdFn = createServerFn({ method: 'POST' })
-	.validator(z.object({ id: z.string().min(1, 'Workout ID is required') }))
+export const getWorkoutByIdFn = createServerFn({ method: "POST" })
+	.validator(z.object({ id: z.string().min(1, "Workout ID is required") }))
 	.handler(async ({ data }) => {
 		try {
 			const workout = await getWorkoutById(data.id)
 			return { success: true, data: workout }
 		} catch (error) {
 			logError({
-				message: '[getWorkoutByIdFn] Failed to get workout',
+				message: "[getWorkoutByIdFn] Failed to get workout",
 				error,
 				attributes: { workoutId: data.id },
 			})
@@ -426,15 +426,17 @@ export const getWorkoutByIdFn = createServerFn({ method: 'POST' })
  * Get workout results by workout and user
  */
 export const getWorkoutResultsByWorkoutAndUserFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
-	.validator(z.object({ workoutId: z.string().min(1, 'Workout ID is required') }))
+	.validator(
+		z.object({ workoutId: z.string().min(1, "Workout ID is required") }),
+	)
 	.handler(async ({ data }) => {
 		try {
 			const session = await requireVerifiedEmail()
 
 			if (!session?.user?.id) {
-				throw new Error('User must be authenticated')
+				throw new Error("User must be authenticated")
 			}
 
 			const results = await getWorkoutResultsWithScalingForUser(
@@ -444,7 +446,8 @@ export const getWorkoutResultsByWorkoutAndUserFn = createServerFn({
 			return { success: true, data: results }
 		} catch (error) {
 			logError({
-				message: '[getWorkoutResultsByWorkoutAndUserFn] Failed to get workout results',
+				message:
+					"[getWorkoutResultsByWorkoutAndUserFn] Failed to get workout results",
 				error,
 				attributes: { workoutId: data.workoutId },
 			})
@@ -455,15 +458,15 @@ export const getWorkoutResultsByWorkoutAndUserFn = createServerFn({
 /**
  * Get result sets by result ID
  */
-export const getResultSetsByIdFn = createServerFn({ method: 'POST' })
-	.validator(z.object({ resultId: z.string().min(1, 'Result ID is required') }))
+export const getResultSetsByIdFn = createServerFn({ method: "POST" })
+	.validator(z.object({ resultId: z.string().min(1, "Result ID is required") }))
 	.handler(async ({ data }) => {
 		try {
 			const sets = await getResultSetsById(data.resultId)
 			return { success: true, data: sets }
 		} catch (error) {
 			logError({
-				message: '[getResultSetsByIdFn] Failed to get result sets',
+				message: "[getResultSetsByIdFn] Failed to get result sets",
 				error,
 				attributes: { resultId: data.resultId },
 			})
@@ -475,11 +478,11 @@ export const getResultSetsByIdFn = createServerFn({ method: 'POST' })
  * Get scheduled workouts for a team within a date range
  */
 export const getScheduledTeamWorkoutsFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(
 		z.object({
-			teamId: z.string().min(1, 'Team ID is required'),
+			teamId: z.string().min(1, "Team ID is required"),
 			startDate: z.string().datetime(),
 			endDate: z.string().datetime(),
 		}),
@@ -496,7 +499,8 @@ export const getScheduledTeamWorkoutsFn = createServerFn({
 			return { success: true, data: scheduledWorkouts }
 		} catch (error) {
 			logError({
-				message: '[getScheduledTeamWorkoutsFn] Failed to get scheduled team workouts',
+				message:
+					"[getScheduledTeamWorkoutsFn] Failed to get scheduled team workouts",
 				error,
 				attributes: {
 					teamId: data.teamId,
@@ -512,14 +516,14 @@ export const getScheduledTeamWorkoutsFn = createServerFn({
  * Get scheduled workouts with results for a team within a date range
  */
 export const getScheduledTeamWorkoutsWithResultsFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(
 		z.object({
-			teamId: z.string().min(1, 'Team ID is required'),
+			teamId: z.string().min(1, "Team ID is required"),
 			startDate: z.string().datetime(),
 			endDate: z.string().datetime(),
-			userId: z.string().min(1, 'User ID is required'),
+			userId: z.string().min(1, "User ID is required"),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -552,7 +556,7 @@ export const getScheduledTeamWorkoutsWithResultsFn = createServerFn({
 		} catch (error) {
 			logError({
 				message:
-					'[getScheduledTeamWorkoutsWithResultsFn] Failed to get scheduled team workouts with results',
+					"[getScheduledTeamWorkoutsWithResultsFn] Failed to get scheduled team workouts with results",
 				error,
 				attributes: {
 					teamId: data.teamId,
@@ -569,13 +573,13 @@ export const getScheduledTeamWorkoutsWithResultsFn = createServerFn({
  * Get workout result for a scheduled workout instance
  */
 export const getScheduledWorkoutResultFn = createServerFn({
-	method: 'POST',
+	method: "POST",
 })
 	.validator(
 		z.object({
 			scheduledInstanceId: z
 				.string()
-				.min(1, 'Scheduled instance ID is required'),
+				.min(1, "Scheduled instance ID is required"),
 			date: z.string().datetime(),
 		}),
 	)
@@ -584,7 +588,7 @@ export const getScheduledWorkoutResultFn = createServerFn({
 			const session = await requireVerifiedEmail()
 
 			if (!session?.user?.id) {
-				throw new Error('User must be authenticated')
+				throw new Error("User must be authenticated")
 			}
 
 			const result = await getWorkoutResultForScheduledInstance(
@@ -597,7 +601,7 @@ export const getScheduledWorkoutResultFn = createServerFn({
 		} catch (error) {
 			logError({
 				message:
-					'[getScheduledWorkoutResultFn] Failed to get scheduled workout result',
+					"[getScheduledWorkoutResultFn] Failed to get scheduled workout result",
 				error,
 				attributes: {
 					scheduledInstanceId: data.scheduledInstanceId,
@@ -611,10 +615,10 @@ export const getScheduledWorkoutResultFn = createServerFn({
 /**
  * Get workouts that are remixes of a given workout
  */
-export const getRemixedWorkoutsFn = createServerFn({ method: 'POST' })
+export const getRemixedWorkoutsFn = createServerFn({ method: "POST" })
 	.validator(
 		z.object({
-			sourceWorkoutId: z.string().min(1, 'Source workout ID is required'),
+			sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -623,7 +627,7 @@ export const getRemixedWorkoutsFn = createServerFn({ method: 'POST' })
 			return { success: true, data: remixedWorkouts }
 		} catch (error) {
 			logError({
-				message: '[getRemixedWorkoutsFn] Failed to get remixed workouts',
+				message: "[getRemixedWorkoutsFn] Failed to get remixed workouts",
 				error,
 				attributes: { sourceWorkoutId: data.sourceWorkoutId },
 			})
@@ -634,7 +638,7 @@ export const getRemixedWorkoutsFn = createServerFn({ method: 'POST' })
 /**
  * Get team-specific workout (checks for team remix, otherwise returns original)
  */
-export const getTeamSpecificWorkoutFn = createServerFn({ method: 'POST' })
+export const getTeamSpecificWorkoutFn = createServerFn({ method: "POST" })
 	.validator(getTeamSpecificWorkoutSchema)
 	.handler(async ({ data }) => {
 		try {
@@ -642,14 +646,12 @@ export const getTeamSpecificWorkoutFn = createServerFn({ method: 'POST' })
 
 			const session = await requireVerifiedEmail()
 			if (!session) {
-				throw new Error('Authentication required')
+				throw new Error("Authentication required")
 			}
 
 			const isMember = await isTeamMember(teamId)
 			if (!isMember) {
-				throw new Error(
-					'You are not authorized to access this team\'s workouts',
-				)
+				throw new Error("You are not authorized to access this team's workouts")
 			}
 
 			const workout = await getTeamSpecificWorkout({
@@ -663,7 +665,8 @@ export const getTeamSpecificWorkoutFn = createServerFn({ method: 'POST' })
 			}
 		} catch (error) {
 			logError({
-				message: '[getTeamSpecificWorkoutFn] Failed to get team-specific workout',
+				message:
+					"[getTeamSpecificWorkoutFn] Failed to get team-specific workout",
 				error,
 				attributes: {
 					originalWorkoutId: data.originalWorkoutId,
@@ -677,7 +680,7 @@ export const getTeamSpecificWorkoutFn = createServerFn({ method: 'POST' })
 /**
  * Get user teams
  */
-export const getUserTeamsFn = createServerFn({ method: 'POST' })
+export const getUserTeamsFn = createServerFn({ method: "POST" })
 	.validator(z.object({}))
 	.handler(async () => {
 		try {
@@ -685,7 +688,7 @@ export const getUserTeamsFn = createServerFn({ method: 'POST' })
 			return { success: true, data: teams }
 		} catch (error) {
 			logError({
-				message: '[getUserTeamsFn] Failed to get user teams',
+				message: "[getUserTeamsFn] Failed to get user teams",
 				error,
 			})
 			throw error
@@ -695,7 +698,7 @@ export const getUserTeamsFn = createServerFn({ method: 'POST' })
 /**
  * Get team leaderboards for multiple scheduled workout instances
  */
-export const getTeamLeaderboardsFn = createServerFn({ method: 'POST' })
+export const getTeamLeaderboardsFn = createServerFn({ method: "POST" })
 	.validator(
 		z.object({
 			scheduledWorkoutInstanceIds: z.array(z.string()).min(1),
@@ -705,7 +708,7 @@ export const getTeamLeaderboardsFn = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		try {
 			const { getLeaderboardForScheduledWorkout } = await import(
-				'@/server/leaderboard'
+				"@/server/leaderboard"
 			)
 
 			const leaderboards: Record<string, LeaderboardEntry[]> = {}
@@ -726,7 +729,7 @@ export const getTeamLeaderboardsFn = createServerFn({ method: 'POST' })
 			}
 		} catch (error) {
 			logError({
-				message: '[getTeamLeaderboardsFn] Failed to fetch team leaderboards',
+				message: "[getTeamLeaderboardsFn] Failed to fetch team leaderboards",
 				error,
 				attributes: {
 					teamId: data.teamId,

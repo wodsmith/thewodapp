@@ -81,10 +81,7 @@ export async function hasSystemRole(teamId: string, role: string) {
 }
 
 // Check if the user has a specific permission in a team
-export async function hasTeamPermission(
-	teamId: string,
-	permission: string,
-) {
+export async function hasTeamPermission(teamId: string, permission: string) {
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
@@ -133,9 +130,7 @@ export async function requireTeamRole(
 	const hasRole = await hasTeamRole(teamId, roleId, isSystemRole)
 
 	if (!hasRole) {
-		throw new Error(
-			"You don't have the required role in this team",
-		)
+		throw new Error("You don't have the required role in this team")
 	}
 
 	return session
@@ -160,9 +155,7 @@ export async function requireTeamPermission(
 	const hasPermission = await hasTeamPermission(teamId, permission)
 
 	if (!hasPermission) {
-		throw new Error(
-			"You don't have the required permission in this team",
-		)
+		throw new Error("You don't have the required permission in this team")
 	}
 
 	return session
@@ -179,9 +172,7 @@ export async function requireTeamPermission(
  * @param teamId - The team ID to check
  * @returns boolean - true if team has competition hosting access
  */
-export async function canHostCompetitions(
-	teamId: string,
-): Promise<boolean> {
+export async function canHostCompetitions(teamId: string): Promise<boolean> {
 	try {
 		// Import dynamically to avoid circular dependencies
 		const { hasFeature } = await import("@/server/entitlements")
@@ -220,9 +211,7 @@ export async function requireCompetitionHostingAccess(teamId: string) {
  * @param teamId - The team ID to check
  * @returns boolean - true if team type is 'competition_event'
  */
-export async function isCompetitionEventTeam(
-	teamId: string,
-): Promise<boolean> {
+export async function isCompetitionEventTeam(teamId: string): Promise<boolean> {
 	const { getDb } = await import("@/db/index.server")
 	const { teamTable } = await import("@/db/schema")
 	const { eq } = await import("drizzle-orm")

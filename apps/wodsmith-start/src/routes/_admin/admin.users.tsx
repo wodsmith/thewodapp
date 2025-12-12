@@ -1,20 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { getDb } from '~/db/index.server'
-import { userTable } from '~/db/schema.server'
+import { createFileRoute } from "@tanstack/react-router"
+import { getDb } from "~/db/index.server"
+import { userTable } from "~/db/schema.server"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
+} from "~/components/ui/card"
 
-export const Route = createFileRoute('/_admin/admin/users')({
+export const Route = createFileRoute("/_admin/admin/users")({
 	component: AdminUsersPage,
 	loader: async () => {
 		const db = getDb()
 		const users = await db.query.userTable.findMany({
-			orderBy: [{ createdAt: 'desc' }],
+			orderBy: [{ createdAt: "desc" }],
 			limit: 100,
 		})
 		return { users }
@@ -36,9 +36,7 @@ function AdminUsersPage() {
 			{users.length === 0 ? (
 				<Card>
 					<CardContent className="pt-6">
-						<p className="text-muted-foreground text-center">
-							No users found
-						</p>
+						<p className="text-muted-foreground text-center">No users found</p>
 					</CardContent>
 				</Card>
 			) : (
@@ -66,7 +64,7 @@ function AdminUsersPage() {
 											Email Verified:
 										</span>
 										<p className="font-medium">
-											{user.emailVerified ? 'Yes' : 'No'}
+											{user.emailVerified ? "Yes" : "No"}
 										</p>
 									</div>
 									<div className="col-span-2">

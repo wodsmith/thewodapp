@@ -148,20 +148,20 @@ export function SubscriptionsList({
 							</div>
 							{canManageProgramming && (
 								<div className="flex gap-2">
-							<Button
-									size="sm"
-									variant="outline"
-									onClick={() => handleSetDefault(subscription.id)}
-									disabled={isPending}
-								>
-									{isPending ? "Setting..." : "Set as Default"}
-								</Button>
-								<Button
-									size="sm"
-									variant="destructive"
-									onClick={() =>
-										handleUnsubscribe(subscription.id, subscription.name)
-									}
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => handleSetDefault(subscription.id)}
+										disabled={isPending}
+									>
+										{isPending ? "Setting..." : "Set as Default"}
+									</Button>
+									<Button
+										size="sm"
+										variant="destructive"
+										onClick={() =>
+											handleUnsubscribe(subscription.id, subscription.name)
+										}
 										disabled={isPending}
 									>
 										{isPending ? "Unsubscribing..." : "Unsubscribe"}

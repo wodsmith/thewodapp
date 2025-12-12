@@ -1,7 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { SITE_NAME, SITE_URL } from '~/constants'
+import { createFileRoute } from "@tanstack/react-router"
+import { SITE_NAME, SITE_URL } from "~/constants"
 
-export const Route = createFileRoute('/api/og')({
+export const Route = createFileRoute("/api/og")({
 	server: {
 		handlers: {
 			GET: async ({ request }) => {
@@ -9,28 +9,25 @@ export const Route = createFileRoute('/api/og')({
 					const { searchParams } = new URL(request.url)
 
 					// ?title=<title>&description=<description>
-					const hasTitle = searchParams.has('title')
+					const hasTitle = searchParams.has("title")
 					const title = hasTitle
-						? searchParams.get('title')?.slice(0, 100)
-						: 'Track your workouts and progress'
+						? searchParams.get("title")?.slice(0, 100)
+						: "Track your workouts and progress"
 
-					const hasDescription = searchParams.has('description')
+					const hasDescription = searchParams.has("description")
 					const rawDescription = hasDescription
-						? searchParams.get('description')
+						? searchParams.get("description")
 						: null
 
 					// Truncate description intelligently to fit nicely on the card
 					// Aim for ~200 characters max to ensure it fits well
 					let description = rawDescription
-					if (
-						description &&
-						description.length > 200
-					) {
+					if (description && description.length > 200) {
 						// Try to cut at a natural break point (period, newline, or space)
 						const naturalBreaks = [
-							description.lastIndexOf('.', 200),
-							description.lastIndexOf('\n', 200),
-							description.lastIndexOf(' ', 200),
+							description.lastIndexOf(".", 200),
+							description.lastIndexOf("\n", 200),
+							description.lastIndexOf(" ", 200),
 						]
 						const breakPoint = Math.max(...naturalBreaks)
 						if (breakPoint > 100) {
@@ -66,18 +63,18 @@ export const Route = createFileRoute('/api/og')({
 		}
 		.content {
 			display: flex;
-			flex-direction: ${description ? 'row' : 'column'};
-			justify-content: ${description ? 'space-between' : 'center'};
+			flex-direction: ${description ? "row" : "column"};
+			justify-content: ${description ? "space-between" : "center"};
 			align-items: flex-start;
 			flex: 1;
 		}
 		.title {
-			font-size: ${description ? '56px' : '72px'};
+			font-size: ${description ? "56px" : "72px"};
 			font-weight: bold;
 			color: white;
 			line-height: 1.2;
 			letter-spacing: -0.02em;
-			max-width: ${description ? '380px' : '1000px'};
+			max-width: ${description ? "380px" : "1000px"};
 		}
 		.description {
 			font-size: 24px;
@@ -121,7 +118,7 @@ export const Route = createFileRoute('/api/og')({
 <body>
 	<div class="content">
 		<div class="title">${title}</div>
-		${description ? `<div class="description">${description}</div>` : ''}
+		${description ? `<div class="description">${description}</div>` : ""}
 	</div>
 	<div class="branding">
 		<img alt="${SITE_NAME}" class="logo" src="${SITE_URL}/wodsmith-logo-no-text.png" />
@@ -134,29 +131,23 @@ export const Route = createFileRoute('/api/og')({
 
 					return new Response(ogHtml, {
 						headers: {
-							'Content-Type': 'text/html; charset=utf-8',
+							"Content-Type": "text/html; charset=utf-8",
 						},
 					})
 				} catch (e: unknown) {
 					const message =
-						typeof e === 'object' &&
-						e !== null &&
-						'message' in e
+						typeof e === "object" && e !== null && "message" in e
 							? (e as { message: string }).message
-							: 'Unknown error'
+							: "Unknown error"
 					const errorPayload =
-						typeof e === 'object' && e !== null
-							? JSON.stringify(e)
-							: String(e)
-					const { logError } = await import(
-						'~/lib/logging/posthog-otel-logger'
-					)
+						typeof e === "object" && e !== null ? JSON.stringify(e) : String(e)
+					const { logError } = await import("~/lib/logging/posthog-otel-logger")
 					logError({
-						message: '[api/og] Failed to generate image',
+						message: "[api/og] Failed to generate image",
 						error: e,
 						attributes: { message, errorPayload },
 					})
-					return new Response('Failed to generate the image', {
+					return new Response("Failed to generate the image", {
 						status: 500,
 					})
 				}

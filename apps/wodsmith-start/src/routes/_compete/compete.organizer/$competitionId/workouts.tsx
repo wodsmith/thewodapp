@@ -1,14 +1,19 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { getCompetitionFn, getCompetitionWorkoutsFn } from '~/server-functions/competitions'
-import { listScalingGroupsFn } from '~/server-functions/competition-divisions'
-import { OrganizerWorkoutsManager } from '~/components/compete/organizer/organizer-workouts-manager'
-import { getSessionFromCookie } from '~/utils/auth.server'
+import { createFileRoute, notFound } from "@tanstack/react-router"
+import {
+	getCompetitionFn,
+	getCompetitionWorkoutsFn,
+} from "~/server-functions/competitions"
+import { listScalingGroupsFn } from "~/server-functions/competition-divisions"
+import { OrganizerWorkoutsManager } from "~/components/compete/organizer/organizer-workouts-manager"
+import { getSessionFromCookie } from "~/utils/auth.server"
 
-export const Route = createFileRoute('/_compete/compete/organizer/$competitionId/workouts')({
+export const Route = createFileRoute(
+	"/_compete/compete/organizer/$competitionId/workouts",
+)({
 	beforeLoad: async () => {
 		const session = await getSessionFromCookie()
 		if (!session) {
-			throw new Error('Unauthorized')
+			throw new Error("Unauthorized")
 		}
 	},
 	loader: async ({ params }) => {
@@ -36,7 +41,9 @@ export const Route = createFileRoute('/_compete/compete/organizer/$competitionId
 		return {
 			competition,
 			workouts: workoutsResult.success ? workoutsResult.data : [],
-			scalingGroups: scalingGroupsResult.success ? scalingGroupsResult.data : [],
+			scalingGroups: scalingGroupsResult.success
+				? scalingGroupsResult.data
+				: [],
 		}
 	},
 	component: OrganizerWorkoutsComponent,

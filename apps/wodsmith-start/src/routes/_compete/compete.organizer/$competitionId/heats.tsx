@@ -1,14 +1,19 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { getCompetitionFn, getCompetitionWorkoutsFn } from '~/server-functions/competitions'
-import { getHeatsForCompetitionFn } from '~/server-functions/competition-heats'
-import { OrganizerHeatsManager } from '~/components/compete/organizer/organizer-heats-manager'
-import { getSessionFromCookie } from '~/utils/auth.server'
+import { createFileRoute, notFound } from "@tanstack/react-router"
+import {
+	getCompetitionFn,
+	getCompetitionWorkoutsFn,
+} from "~/server-functions/competitions"
+import { getHeatsForCompetitionFn } from "~/server-functions/competition-heats"
+import { OrganizerHeatsManager } from "~/components/compete/organizer/organizer-heats-manager"
+import { getSessionFromCookie } from "~/utils/auth.server"
 
-export const Route = createFileRoute('/_compete/compete/organizer/$competitionId/heats')({
+export const Route = createFileRoute(
+	"/_compete/compete/organizer/$competitionId/heats",
+)({
 	beforeLoad: async () => {
 		const session = await getSessionFromCookie()
 		if (!session) {
-			throw new Error('Unauthorized')
+			throw new Error("Unauthorized")
 		}
 	},
 	loader: async ({ params }) => {

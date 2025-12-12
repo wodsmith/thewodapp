@@ -1,22 +1,22 @@
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useRef, useTransition } from 'react'
-import * as React from 'react'
-import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
+import { useEffect, useRef, useTransition } from "react"
+import * as React from "react"
+import { toast } from "sonner"
+import { Button } from "~/components/ui/button"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
-import { Spinner } from '~/components/ui/spinner'
-import { teamInviteSchema } from '~/schemas/team-invite.schema'
-import { acceptTeamInviteAction } from '~/server-functions/auth'
+} from "~/components/ui/card"
+import { Spinner } from "~/components/ui/spinner"
+import { teamInviteSchema } from "~/schemas/team-invite.schema"
+import { acceptTeamInviteAction } from "~/server-functions/auth"
 
-export const Route = createFileRoute('/_auth/team-invite')({
+export const Route = createFileRoute("/_auth/team-invite")({
 	validateSearch: (search: Record<string, unknown>) => ({
-		token: (search.token as string) || '',
+		token: (search.token as string) || "",
 	}),
 	component: TeamInvitePage,
 })
@@ -27,7 +27,7 @@ interface TeamInviteSearch {
 
 function TeamInvitePage() {
 	const navigate = useNavigate()
-	const { token } = useSearch({ from: '/_auth/team-invite' })
+	const { token } = useSearch({ from: "/_auth/team-invite" })
 	const hasCalledAcceptInvite = useRef(false)
 	const [isPending, startTransition] = useTransition()
 	const [error, setError] = React.useState<Error | null>(null)
@@ -37,7 +37,7 @@ function TeamInvitePage() {
 			const result = teamInviteSchema.safeParse({ token })
 			if (result.success) {
 				hasCalledAcceptInvite.current = true
-				toast.loading('Processing your invitation...')
+				toast.loading("Processing your invitation...")
 				startTransition(async () => {
 					try {
 						const data = await acceptTeamInviteAction(result.data)
@@ -46,30 +46,33 @@ function TeamInvitePage() {
 
 						// Redirect to the team dashboard, with fallback to general dashboard
 						setTimeout(() => {
-							if (data && typeof data === 'object' && 'teamSlug' in data) {
+							if (data && typeof data === "object" && "teamSlug" in data) {
 								navigate({ to: `/settings/teams/${data.teamSlug}` })
 							} else if (
 								data &&
-								typeof data === 'object' &&
+								typeof data === "object" &&
 								data.data &&
-								'teamSlug' in data.data
+								"teamSlug" in data.data
 							) {
 								navigate({ to: `/settings/teams/${data.data.teamSlug}` })
 							} else {
 								// Fallback to dashboard if teamSlug is not found
-								navigate({ to: '/settings' })
+								navigate({ to: "/settings" })
 							}
 						}, 500)
 					} catch (error) {
 						toast.dismiss()
-						const err = error instanceof Error ? error : new Error('Failed to accept team invitation')
+						const err =
+							error instanceof Error
+								? error
+								: new Error("Failed to accept team invitation")
 						setError(err)
-						toast.error(err.message || 'Failed to accept team invitation')
+						toast.error(err.message || "Failed to accept team invitation")
 					}
 				})
 			} else {
-				toast.error('Invalid invitation token')
-				navigate({ to: '/sign-in' })
+				toast.error("Invalid invitation token")
+				navigate({ to: "/sign-in" })
 			}
 		}
 	}, [token, navigate])
@@ -99,22 +102,22 @@ function TeamInvitePage() {
 					<CardHeader>
 						<CardTitle>Invitation Error</CardTitle>
 						<CardDescription>
-							{error?.message || 'Failed to process the invitation'}
+							{error?.message || "Failed to process the invitation"}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="flex flex-col gap-4">
 						<p className="text-sm text-muted-foreground">
-							{error?.code === 'CONFLICT'
-								? 'You are already a member of this team.'
-								: error?.code === 'FORBIDDEN' &&
-									  error?.message.includes('limit')
+							{error?.code === "CONFLICT"
+								? "You are already a member of this team."
+								: error?.code === "FORBIDDEN" &&
+										error?.message.includes("limit")
 									? "You've reached the maximum number of teams you can join."
-									: 'The invitation may have expired or been revoked.'}
+									: "The invitation may have expired or been revoked."}
 						</p>
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => navigate({ to: '/settings/teams' })}
+							onClick={() => navigate({ to: "/settings/teams" })}
 						>
 							Go to Teams
 						</Button>
@@ -138,7 +141,7 @@ function TeamInvitePage() {
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => navigate({ to: '/settings/teams' })}
+							onClick={() => navigate({ to: "/settings/teams" })}
 						>
 							Go to Dashboard
 						</Button>

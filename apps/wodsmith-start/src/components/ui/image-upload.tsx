@@ -132,26 +132,26 @@ export function ImageUpload({
 				onDragOver={handleDragOver}
 				onDragLeave={handleDragLeave}
 			>
-			{value ? (
-				<>
-					<img
-						src={value}
-						alt="Uploaded image"
-						className="rounded-lg object-cover w-full h-full"
-					/>
-					{!disabled && (
-						<Button
-							type="button"
-							variant="destructive"
-							size="icon"
-							className="absolute right-2 top-2 h-8 w-8"
-							onClick={handleRemove}
-						>
-							<X className="h-4 w-4" />
-						</Button>
-					)}
-				</>
-			) : (
+				{value ? (
+					<>
+						<img
+							src={value}
+							alt="Uploaded image"
+							className="rounded-lg object-cover w-full h-full"
+						/>
+						{!disabled && (
+							<Button
+								type="button"
+								variant="destructive"
+								size="icon"
+								className="absolute right-2 top-2 h-8 w-8"
+								onClick={handleRemove}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						)}
+					</>
+				) : (
 					<button
 						type="button"
 						className="flex h-full w-full flex-col items-center justify-center gap-2 p-6"

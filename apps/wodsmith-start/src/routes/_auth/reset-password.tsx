@@ -1,17 +1,17 @@
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useTransition } from 'react'
-import * as React from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
+import { useEffect, useTransition } from "react"
+import * as React from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { Button } from "~/components/ui/button"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
+} from "~/components/ui/card"
 import {
 	Form,
 	FormControl,
@@ -19,14 +19,17 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
-} from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import { resetPasswordSchema, type ResetPasswordSchema } from '~/schemas/reset-password.schema'
-import { resetPasswordAction } from '~/server-functions/auth'
+} from "~/components/ui/form"
+import { Input } from "~/components/ui/input"
+import {
+	resetPasswordSchema,
+	type ResetPasswordSchema,
+} from "~/schemas/reset-password.schema"
+import { resetPasswordAction } from "~/server-functions/auth"
 
-export const Route = createFileRoute('/_auth/reset-password')({
+export const Route = createFileRoute("/_auth/reset-password")({
 	validateSearch: (search: Record<string, unknown>) => ({
-		token: (search.token as string) || '',
+		token: (search.token as string) || "",
 	}),
 	component: ResetPasswordPage,
 })
@@ -37,36 +40,37 @@ interface ResetPasswordSearch {
 
 function ResetPasswordPage() {
 	const navigate = useNavigate()
-	const { token } = useSearch({ from: '/_auth/reset-password' })
+	const { token } = useSearch({ from: "/_auth/reset-password" })
 	const [isPending, startTransition] = useTransition()
 	const [isSuccess, setIsSuccess] = React.useState(false)
 
 	const form = useForm<ResetPasswordSchema>({
 		resolver: zodResolver(resetPasswordSchema),
 		defaultValues: {
-			token: token || '',
-			password: '',
-			confirmPassword: '',
+			token: token || "",
+			password: "",
+			confirmPassword: "",
 		},
 	})
 
 	useEffect(() => {
 		if (token) {
-			form.setValue('token', token)
+			form.setValue("token", token)
 		}
 	}, [token, form.setValue])
 
 	const onSubmit = (data: ResetPasswordSchema) => {
-		toast.loading('Resetting password...')
+		toast.loading("Resetting password...")
 		startTransition(async () => {
 			try {
 				await resetPasswordAction(data)
 				toast.dismiss()
-				toast.success('Password reset successfully')
+				toast.success("Password reset successfully")
 				setIsSuccess(true)
 			} catch (error) {
 				toast.dismiss()
-				const message = error instanceof Error ? error.message : 'Failed to reset password'
+				const message =
+					error instanceof Error ? error.message : "Failed to reset password"
 				toast.error(message)
 			}
 		})
@@ -87,7 +91,7 @@ function ResetPasswordPage() {
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => navigate({ to: '/sign-in' })}
+							onClick={() => navigate({ to: "/sign-in" })}
 						>
 							Go to Login
 						</Button>

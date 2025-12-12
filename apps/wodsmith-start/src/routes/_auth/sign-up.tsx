@@ -1,45 +1,45 @@
-import { createFileRoute, useSearch } from '@tanstack/react-router'
-import { useState, useTransition } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { startRegistration } from '@simplewebauthn/browser'
-import { KeyIcon } from 'lucide-react'
-import posthog from 'posthog-js'
-import { useForm, useWatch } from 'react-hook-form'
-import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
-import { Captcha } from '~/components/captcha'
+import { createFileRoute, useSearch } from "@tanstack/react-router"
+import { useState, useTransition } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { startRegistration } from "@simplewebauthn/browser"
+import { KeyIcon } from "lucide-react"
+import posthog from "posthog-js"
+import { useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
+import { Button } from "~/components/ui/button"
+import { Captcha } from "~/components/captcha"
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-} from '~/components/ui/dialog'
+} from "~/components/ui/dialog"
 import {
 	Form,
 	FormControl,
 	FormField,
 	FormItem,
 	FormMessage,
-} from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import { Spinner } from '~/components/ui/spinner'
-import SeparatorWithText from '~/components/separator-with-text'
-import SSOButtons from '~/components/auth/sso-buttons'
-import { signUpSchema, type SignUpSchema } from '~/schemas/signup.schema'
+} from "~/components/ui/form"
+import { Input } from "~/components/ui/input"
+import { Spinner } from "~/components/ui/spinner"
+import SeparatorWithText from "~/components/separator-with-text"
+import SSOButtons from "~/components/auth/sso-buttons"
+import { signUpSchema, type SignUpSchema } from "~/schemas/signup.schema"
 import {
 	passkeyEmailSchema,
 	type PasskeyEmailSchema,
-} from '~/schemas/passkey.schema'
-import { signUpAction } from '~/server-functions/auth'
+} from "~/schemas/passkey.schema"
+import { signUpAction } from "~/server-functions/auth"
 import {
 	startPasskeyRegistrationAction,
 	completePasskeyRegistrationAction,
-} from '~/server-functions/passkey'
-import { useConfigStore } from '~/state/config'
-import { REDIRECT_AFTER_SIGN_IN } from '~/constants'
-import Link from '~/components/link'
+} from "~/server-functions/passkey"
+import { useConfigStore } from "~/state/config"
+import { REDIRECT_AFTER_SIGN_IN } from "~/constants"
+import Link from "~/components/link"
 
-export const Route = createFileRoute('/_auth/sign-up')({
+export const Route = createFileRoute("/_auth/sign-up")({
 	validateSearch: (search: Record<string, unknown>) => ({
 		redirect: (search.redirect as string) ?? REDIRECT_AFTER_SIGN_IN,
 	}),
@@ -51,7 +51,7 @@ interface SignUpSearch {
 }
 
 function SignUpPage() {
-	const { redirect: redirectPath } = useSearch({ from: '/_auth/sign-up' })
+	const { redirect: redirectPath } = useSearch({ from: "/_auth/sign-up" })
 	const { isTurnstileEnabled } = useConfigStore()
 	const [isPasskeyModalOpen, setIsPasskeyModalOpen] = useState(false)
 	const [isRegistering, setIsRegistering] = useState(false)
@@ -67,55 +67,56 @@ function SignUpPage() {
 
 	const captchaToken = useWatch({
 		control: form.control,
-		name: 'captchaToken',
+		name: "captchaToken",
 	})
 	const passkeyCaptchaToken = useWatch({
 		control: passkeyForm.control,
-		name: 'captchaToken',
+		name: "captchaToken",
 	})
 
 	const onSubmit = (data: SignUpSchema) => {
-		toast.loading('Creating your account...')
+		toast.loading("Creating your account...")
 		startTransition(async () => {
 			try {
 				const result = await signUpAction(data)
 				toast.dismiss()
-				toast.success('Account created successfully')
+				toast.success("Account created successfully")
 				const userId = result?.userId
 				if (userId) {
 					posthog.identify(userId, {
-						email: form.getValues('email'),
-						first_name: form.getValues('firstName'),
-						last_name: form.getValues('lastName'),
+						email: form.getValues("email"),
+						first_name: form.getValues("firstName"),
+						last_name: form.getValues("lastName"),
 					})
 				}
-				posthog.capture('user_signed_up', {
-					auth_method: 'email_password',
+				posthog.capture("user_signed_up", {
+					auth_method: "email_password",
 					user_id: userId,
 				})
 				window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 			} catch (error) {
 				toast.dismiss()
-				const message = error instanceof Error ? error.message : 'Failed to create account'
+				const message =
+					error instanceof Error ? error.message : "Failed to create account"
 				toast.error(message)
-				posthog.capture('user_signed_up_failed', {
+				posthog.capture("user_signed_up_failed", {
 					error_message: message,
-					auth_method: 'email_password',
+					auth_method: "email_password",
 				})
 			}
 		})
 	}
 
 	const onPasskeySubmit = (data: PasskeyEmailSchema) => {
-		toast.loading('Starting passkey registration...')
+		toast.loading("Starting passkey registration...")
 		setIsRegistering(true)
 		startTransition(async () => {
 			try {
 				const response = await startPasskeyRegistrationAction(data)
-				
+
 				if (!response?.optionsJSON) {
 					toast.dismiss()
-					toast.error('Failed to start passkey registration')
+					toast.error("Failed to start passkey registration")
 					setIsRegistering(false)
 					return
 				}
@@ -126,37 +127,42 @@ function SignUpPage() {
 						useAutoRegister: true,
 					})
 					toast.dismiss()
-					toast.loading('Completing passkey registration...')
-					const result = await completePasskeyRegistrationAction({ response: attResp })
+					toast.loading("Completing passkey registration...")
+					const result = await completePasskeyRegistrationAction({
+						response: attResp,
+					})
 					toast.dismiss()
-					toast.success('Account created successfully')
+					toast.success("Account created successfully")
 					const userId = result?.userId
 					if (userId) {
 						posthog.identify(userId, {
-							email: passkeyForm.getValues('email'),
-							first_name: passkeyForm.getValues('firstName'),
-							last_name: passkeyForm.getValues('lastName'),
+							email: passkeyForm.getValues("email"),
+							first_name: passkeyForm.getValues("firstName"),
+							last_name: passkeyForm.getValues("lastName"),
 						})
 					}
-					posthog.capture('user_signed_up', {
-						auth_method: 'passkey',
+					posthog.capture("user_signed_up", {
+						auth_method: "passkey",
 						user_id: userId,
 					})
 					window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 				} catch (error: unknown) {
-					console.error('Failed to register passkey:', error)
+					console.error("Failed to register passkey:", error)
 					toast.dismiss()
-					toast.error('Failed to register passkey')
+					toast.error("Failed to register passkey")
 					setIsRegistering(false)
 				}
 			} catch (error) {
 				toast.dismiss()
-				const message = error instanceof Error ? error.message : 'Failed to start passkey registration'
+				const message =
+					error instanceof Error
+						? error.message
+						: "Failed to start passkey registration"
 				toast.error(message)
 				setIsRegistering(false)
-				posthog.capture('user_signed_up_failed', {
+				posthog.capture("user_signed_up_failed", {
 					error_message: message,
-					auth_method: 'passkey',
+					auth_method: "passkey",
 				})
 			}
 		})
@@ -170,7 +176,7 @@ function SignUpPage() {
 						CREATE ACCOUNT
 					</h2>
 					<p className="mt-4 text-primary font-mono">
-						ALREADY HAVE AN ACCOUNT?{' '}
+						ALREADY HAVE AN ACCOUNT?{" "}
 						<Link
 							to="/sign-in"
 							search={{ redirect: redirectPath }}
@@ -274,14 +280,16 @@ function SignUpPage() {
 						<div className="flex flex-col justify-center items-center">
 							<Captcha
 								onSuccess={(token: string) =>
-									form.setValue('captchaToken', token)
+									form.setValue("captchaToken", token)
 								}
 								validationError={form.formState.errors.captchaToken?.message}
 							/>
 
 							<Button
 								type="submit"
-								disabled={isPending || Boolean(isTurnstileEnabled && !captchaToken)}
+								disabled={
+									isPending || Boolean(isTurnstileEnabled && !captchaToken)
+								}
 							>
 								CREATE ACCOUNT
 							</Button>
@@ -291,14 +299,14 @@ function SignUpPage() {
 
 				<div className="mt-8">
 					<p className="text-xs text-center text-primary font-mono">
-						BY SIGNING UP, YOU AGREE TO OUR{' '}
+						BY SIGNING UP, YOU AGREE TO OUR{" "}
 						<Link
 							to="/terms"
 							className="font-bold text-orange underline hover:no-underline"
 						>
 							TERMS OF SERVICE
-						</Link>{' '}
-						AND{' '}
+						</Link>{" "}
+						AND{" "}
 						<Link
 							to="/privacy"
 							className="font-bold text-orange underline hover:no-underline"
@@ -373,7 +381,7 @@ function SignUpPage() {
 							<div className="flex flex-col justify-center items-center">
 								<Captcha
 									onSuccess={(token: string) =>
-										passkeyForm.setValue('captchaToken', token)
+										passkeyForm.setValue("captchaToken", token)
 									}
 									validationError={
 										passkeyForm.formState.errors.captchaToken?.message
@@ -394,7 +402,7 @@ function SignUpPage() {
 											REGISTERING...
 										</>
 									) : (
-										'CONTINUE'
+										"CONTINUE"
 									)}
 								</Button>
 							</div>

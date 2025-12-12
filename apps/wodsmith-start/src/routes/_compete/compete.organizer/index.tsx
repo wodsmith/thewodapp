@@ -1,31 +1,45 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { Plus } from 'lucide-react'
-import { Button } from '~/components/ui/button'
-import { OrganizerCompetitionsList } from '~/components/compete/organizer/organizer-competitions-list'
-import { TeamFilter } from '~/components/compete/organizer/team-filter'
-import { getCompetitionsForOrganizerFn, getCompetitionGroupsFn, getUserOrganizingTeamsFn } from '~/server-functions/competitions'
-import { getActiveTeamFromCookie, getSessionFromCookie } from '~/utils/auth.server'
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useEffect } from "react"
+import { Plus } from "lucide-react"
+import { Button } from "~/components/ui/button"
+import { OrganizerCompetitionsList } from "~/components/compete/organizer/organizer-competitions-list"
+import { TeamFilter } from "~/components/compete/organizer/team-filter"
+import {
+	getCompetitionsForOrganizerFn,
+	getCompetitionGroupsFn,
+	getUserOrganizingTeamsFn,
+} from "~/server-functions/competitions"
+import {
+	getActiveTeamFromCookie,
+	getSessionFromCookie,
+} from "~/utils/auth.server"
 
-export const Route = createFileRoute('/_compete/compete/organizer/')({
+export const Route = createFileRoute("/_compete/compete/organizer/")({
 	beforeLoad: async () => {
 		const session = await getSessionFromCookie()
 		if (!session) {
-			throw new Error('Unauthorized')
+			throw new Error("Unauthorized")
 		}
 	},
 	loader: async ({ search }) => {
 		const session = await getSessionFromCookie()
-		if (!session) throw new Error('Unauthorized')
+		if (!session) throw new Error("Unauthorized")
 
-		const organizingTeams = await getUserOrganizingTeamsFn({ data: { userId: session.userId } })
-		
+		const organizingTeams = await getUserOrganizingTeamsFn({
+			data: { userId: session.userId },
+		})
+
 		if (!organizingTeams.success || organizingTeams.data.length === 0) {
-			return { organizingTeams: [], competitions: [], groups: [], activeTeamId: null }
+			return {
+				organizingTeams: [],
+				competitions: [],
+				groups: [],
+				activeTeamId: null,
+			}
 		}
 
 		const activeTeamFromCookie = await getActiveTeamFromCookie()
-		
+
 		// Priority: URL param > active team cookie (if valid organizing team)
 		let activeTeamId: string | undefined = (search as any)?.teamId
 		if (!activeTeamId && activeTeamFromCookie) {
@@ -40,7 +54,12 @@ export const Route = createFileRoute('/_compete/compete/organizer/')({
 		}
 
 		if (!activeTeamId) {
-			return { organizingTeams: organizingTeams.data, competitions: [], groups: [], activeTeamId: null }
+			return {
+				organizingTeams: organizingTeams.data,
+				competitions: [],
+				groups: [],
+				activeTeamId: null,
+			}
 		}
 
 		// Fetch competitions and groups for the active team
@@ -70,14 +89,20 @@ export const Route = createFileRoute('/_compete/compete/organizer/')({
 	errorComponent: () => {
 		const navigate = useNavigate()
 		useEffect(() => {
-			navigate({ to: '/sign-in', search: { redirect: '/compete/organizer' } })
+			navigate({ to: "/sign-in", search: { redirect: "/compete/organizer" } })
 		}, [navigate])
 		return null
 	},
 })
 
 function OrganizerDashboardComponent() {
-	const { organizingTeams, competitions, groups, activeTeamId, currentGroupId } = Route.useLoaderData()
+	const {
+		organizingTeams,
+		competitions,
+		groups,
+		activeTeamId,
+		currentGroupId,
+	} = Route.useLoaderData()
 
 	// Show no access message if no organizing teams
 	if (organizingTeams.length === 0) {
@@ -118,7 +143,10 @@ function OrganizerDashboardComponent() {
 
 				{/* Team Filter (only show if multiple teams) */}
 				{organizingTeams.length > 1 && (
-					<TeamFilter teams={organizingTeams} selectedTeamId={activeTeamId ?? ''} />
+					<TeamFilter
+						teams={organizingTeams}
+						selectedTeamId={activeTeamId ?? ""}
+					/>
 				)}
 
 				{/* Competitions List */}

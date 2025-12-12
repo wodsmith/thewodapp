@@ -1,21 +1,21 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-import type Stripe from 'stripe'
-import { and, eq } from 'drizzle-orm'
-import { getStripe } from '~/lib/stripe'
-import { getDb } from '~/db'
+import { createFileRoute } from "@tanstack/react-router"
+import { json } from "@tanstack/react-start"
+import type Stripe from "stripe"
+import { and, eq } from "drizzle-orm"
+import { getStripe } from "~/lib/stripe"
+import { getDb } from "~/db"
 import {
 	commercePurchaseTable,
 	competitionRegistrationsTable,
 	teamTable,
 	COMMERCE_PURCHASE_STATUS,
 	COMMERCE_PAYMENT_STATUS,
-} from '~/db/schema'
+} from "~/db/schema"
 import {
 	logError,
 	logInfo,
 	logWarning,
-} from '~/lib/logging/posthog-otel-logger'
+} from "~/lib/logging/posthog-otel-logger"
 
 /**
  * Stripe webhook handler for commerce events
@@ -24,32 +24,26 @@ import {
  * - checkout.session.completed: Completes purchase and creates registration
  * - checkout.session.expired: Marks abandoned purchases as cancelled
  */
-export const Route = createFileRoute('/api/webhooks/stripe')({
+export const Route = createFileRoute("/api/webhooks/stripe")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
 				const body = await request.text()
-				const signature = request.headers.get('stripe-signature')
+				const signature = request.headers.get("stripe-signature")
 
 				if (!signature) {
 					logError({
-						message: '[Stripe Webhook] Missing stripe-signature header',
+						message: "[Stripe Webhook] Missing stripe-signature header",
 					})
-					return json(
-						{ error: 'Missing signature' },
-						{ status: 400 },
-					)
+					return json({ error: "Missing signature" }, { status: 400 })
 				}
 
 				const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 				if (!webhookSecret) {
 					logError({
-						message: '[Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET',
+						message: "[Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET",
 					})
-					return json(
-						{ error: 'Webhook not configured' },
-						{ status: 500 },
-					)
+					return json({ error: "Webhook not configured" }, { status: 500 })
 				}
 
 				// Step 1: Verify webhook signature
@@ -62,50 +56,43 @@ export const Route = createFileRoute('/api/webhooks/stripe')({
 					)
 				} catch (err) {
 					logError({
-						message: '[Stripe Webhook] Signature verification failed',
+						message: "[Stripe Webhook] Signature verification failed",
 						error: err,
 					})
-					return json(
-						{ error: 'Invalid signature' },
-						{ status: 401 },
-					)
+					return json({ error: "Invalid signature" }, { status: 401 })
 				}
 
 				// Step 2: Process verified event
 				try {
 					switch (event.type) {
-						case 'checkout.session.completed':
+						case "checkout.session.completed":
 							await handleCheckoutCompleted(
 								event.data.object as Stripe.Checkout.Session,
 							)
 							break
 
-						case 'checkout.session.expired':
+						case "checkout.session.expired":
 							await handleCheckoutExpired(
 								event.data.object as Stripe.Checkout.Session,
 							)
 							break
 
 						// Stripe Connect events
-						case 'account.updated':
-							await handleAccountUpdated(
-								event.data.object as Stripe.Account,
-							)
+						case "account.updated":
+							await handleAccountUpdated(event.data.object as Stripe.Account)
 							break
 
-						case 'account.application.authorized':
+						case "account.application.authorized":
 							// Standard OAuth connection confirmed - logged for debugging
 							logInfo({
-								message:
-									'[Stripe Webhook] Account application authorized',
+								message: "[Stripe Webhook] Account application authorized",
 								attributes: {
-									accountId: (event.data.object as { id: string })
-										.id,
+									accountId: (event.data.object as { id: string }).id,
 								},
 							})
 							break
 
-						case 'account.application.deauthorized':
+						case "account.application.deauthorized":
 							await handleAccountDeauthorized(
 								event.data.object as {
 									id: string
@@ -123,15 +110,12 @@ export const Route = createFileRoute('/api/webhooks/stripe')({
 					return json({ received: true })
 				} catch (err) {
 					logError({
-						message: '[Stripe Webhook] Processing failed',
+						message: "[Stripe Webhook] Processing failed",
 						error: err,
 						attributes: { eventType: event.type },
 					})
 					// Return 500 so Stripe will retry
-					return json(
-						{ error: 'Processing failed' },
-						{ status: 500 },
-					)
+					return json({ error: "Processing failed" }, { status: 500 })
 				}
 			},
 		},
@@ -151,8 +135,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 	if (!purchaseId || !competitionId || !divisionId || !userId) {
 		logError({
-			message:
-				'[Stripe Webhook] Missing required metadata in Checkout Session',
+			message: "[Stripe Webhook] Missing required metadata in Checkout Session",
 			attributes: { purchaseId, competitionId, divisionId, userId },
 		})
 		return
@@ -165,7 +148,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 	if (!existingPurchase) {
 		logError({
-			message: '[Stripe Webhook] Purchase not found',
+			message: "[Stripe Webhook] Purchase not found",
 			attributes: { purchaseId },
 		})
 		return
@@ -174,7 +157,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 	if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
 		logInfo({
 			message:
-				'[Stripe Webhook] Purchase already completed, skipping registration',
+				"[Stripe Webhook] Purchase already completed, skipping registration",
 			attributes: { purchaseId },
 		})
 		return
@@ -183,16 +166,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 	// IDEMPOTENCY CHECK 2: Check if registration already exists
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(
-				competitionRegistrationsTable.commercePurchaseId,
-				purchaseId,
-			),
+			where: eq(competitionRegistrationsTable.commercePurchaseId, purchaseId),
 		})
 
 	if (existingRegistration) {
 		logInfo({
 			message:
-				'[Stripe Webhook] Registration already exists for purchase, skipping',
+				"[Stripe Webhook] Registration already exists for purchase, skipping",
 			attributes: {
 				purchaseId,
 				registrationId: existingRegistration.id,
@@ -226,17 +206,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			registrationData = JSON.parse(existingPurchase.metadata)
 		} catch {
 			logWarning({
-				message:
-					'[Stripe Webhook] Failed to parse purchase metadata',
+				message: "[Stripe Webhook] Failed to parse purchase metadata",
 				attributes: { purchaseId },
 			})
 		}
 	}
 
 	// Create registration using existing logic
-	const { registerForCompetition } = await import(
-		'~/server/competitions'
-	)
+	const { registerForCompetition } = await import("~/server/competitions")
 
 	try {
 		const result = await registerForCompetition({
@@ -256,9 +233,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 				paymentStatus: COMMERCE_PAYMENT_STATUS.PAID,
 				paidAt: new Date(),
 			})
-			.where(
-				eq(competitionRegistrationsTable.id, result.registrationId),
-			)
+			.where(eq(competitionRegistrationsTable.id, result.registrationId))
 
 		// Mark purchase as completed
 		await db
@@ -266,7 +241,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			.set({
 				status: COMMERCE_PURCHASE_STATUS.COMPLETED,
 				stripePaymentIntentId:
-					typeof session.payment_intent === 'string'
+					typeof session.payment_intent === "string"
 						? session.payment_intent
 						: session.payment_intent?.id,
 				completedAt: new Date(),
@@ -274,7 +249,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			.where(eq(commercePurchaseTable.id, purchaseId))
 
 		logInfo({
-			message: '[Stripe Webhook] Registration created',
+			message: "[Stripe Webhook] Registration created",
 			attributes: {
 				registrationId: result.registrationId,
 				purchaseId,
@@ -286,7 +261,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 		// TODO: Send confirmation email
 	} catch (err) {
 		logError({
-			message: '[Stripe Webhook] Failed to create registration',
+			message: "[Stripe Webhook] Failed to create registration",
 			error: err,
 			attributes: { purchaseId, competitionId, userId },
 		})
@@ -316,15 +291,12 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 		.where(
 			and(
 				eq(commercePurchaseTable.id, purchaseId),
-				eq(
-					commercePurchaseTable.status,
-					COMMERCE_PURCHASE_STATUS.PENDING,
-				),
+				eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
 			),
 		)
 
 	logInfo({
-		message: '[Stripe Webhook] Checkout expired for purchase',
+		message: "[Stripe Webhook] Checkout expired for purchase",
 		attributes: { purchaseId },
 	})
 }
@@ -341,16 +313,14 @@ async function handleAccountUpdated(account: Stripe.Account) {
 
 	if (!team) {
 		logInfo({
-			message: '[Stripe Webhook] No team found for account',
+			message: "[Stripe Webhook] No team found for account",
 			attributes: { accountId: account.id },
 		})
 		return
 	}
 
 	const status =
-		account.charges_enabled && account.payouts_enabled
-			? 'VERIFIED'
-			: 'PENDING'
+		account.charges_enabled && account.payouts_enabled ? "VERIFIED" : "PENDING"
 
 	const updateData: Record<string, unknown> = {
 		stripeAccountStatus: status,
@@ -358,17 +328,14 @@ async function handleAccountUpdated(account: Stripe.Account) {
 	}
 
 	// Set onboarding completed timestamp when first verified
-	if (status === 'VERIFIED' && !team.stripeOnboardingCompletedAt) {
+	if (status === "VERIFIED" && !team.stripeOnboardingCompletedAt) {
 		updateData.stripeOnboardingCompletedAt = new Date()
 	}
 
-	await db
-		.update(teamTable)
-		.set(updateData)
-		.where(eq(teamTable.id, team.id))
+	await db.update(teamTable).set(updateData).where(eq(teamTable.id, team.id))
 
 	logInfo({
-		message: '[Stripe Webhook] Updated team Stripe status',
+		message: "[Stripe Webhook] Updated team Stripe status",
 		attributes: { teamId: team.id, status, accountId: account.id },
 	})
 }
@@ -404,7 +371,7 @@ async function handleAccountDeauthorized(data: {
 		.where(eq(teamTable.id, team.id))
 
 	logWarning({
-		message: '[Stripe Webhook] Team Stripe account deauthorized',
+		message: "[Stripe Webhook] Team Stripe account deauthorized",
 		attributes: { teamId: team.id, accountId },
 	})
 }

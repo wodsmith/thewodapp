@@ -1,18 +1,18 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useTransition } from 'react'
-import * as React from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, useWatch } from 'react-hook-form'
-import { toast } from 'sonner'
-import { Button } from '~/components/ui/button'
-import { Captcha } from '~/components/captcha'
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useTransition } from "react"
+import * as React from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm, useWatch } from "react-hook-form"
+import { toast } from "sonner"
+import { Button } from "~/components/ui/button"
+import { Captcha } from "~/components/captcha"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
+} from "~/components/ui/card"
 import {
 	Form,
 	FormControl,
@@ -20,15 +20,15 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
-} from '~/components/ui/form'
-import { Input } from '~/components/ui/input'
-import { forgotPasswordSchema } from '~/schemas/forgot-password.schema'
-import { forgotPasswordAction } from '~/server-functions/auth'
-import { useConfigStore } from '~/state/config'
-import { useSessionStore } from '~/state/session'
-import type { z } from 'zod'
+} from "~/components/ui/form"
+import { Input } from "~/components/ui/input"
+import { forgotPasswordSchema } from "~/schemas/forgot-password.schema"
+import { forgotPasswordAction } from "~/server-functions/auth"
+import { useConfigStore } from "~/state/config"
+import { useSessionStore } from "~/state/session"
+import type { z } from "zod"
 
-export const Route = createFileRoute('/_auth/forgot-password')({
+export const Route = createFileRoute("/_auth/forgot-password")({
 	component: ForgotPasswordPage,
 })
 
@@ -45,19 +45,22 @@ function ForgotPasswordPage() {
 		resolver: zodResolver(forgotPasswordSchema),
 	})
 
-	const captchaToken = useWatch({ control: form.control, name: 'captchaToken' })
+	const captchaToken = useWatch({ control: form.control, name: "captchaToken" })
 
 	const onSubmit = (data: ForgotPasswordSchema) => {
-		toast.loading('Sending reset instructions...')
+		toast.loading("Sending reset instructions...")
 		startTransition(async () => {
 			try {
 				await forgotPasswordAction(data)
 				toast.dismiss()
-				toast.success('Reset instructions sent')
+				toast.success("Reset instructions sent")
 				setIsSuccess(true)
 			} catch (error) {
 				toast.dismiss()
-				const message = error instanceof Error ? error.message : 'Failed to send reset instructions'
+				const message =
+					error instanceof Error
+						? error.message
+						: "Failed to send reset instructions"
 				toast.error(message)
 			}
 		})
@@ -78,7 +81,7 @@ function ForgotPasswordPage() {
 						<Button
 							variant="outline"
 							className="w-full"
-							onClick={() => navigate({ to: '/sign-in' })}
+							onClick={() => navigate({ to: "/sign-in" })}
 						>
 							Back to login
 						</Button>
@@ -93,7 +96,7 @@ function ForgotPasswordPage() {
 			<Card className="w-full max-w-md">
 				<CardHeader>
 					<CardTitle>
-						{session ? 'Change Password' : 'Forgot Password'}
+						{session ? "Change Password" : "Forgot Password"}
 					</CardTitle>
 					<CardDescription>
 						Enter your email address and we&apos;ll send you instructions to
@@ -125,14 +128,16 @@ function ForgotPasswordPage() {
 							<div className="flex flex-col justify-center items-center">
 								<Captcha
 									onSuccess={(token: string) =>
-										form.setValue('captchaToken', token)
+										form.setValue("captchaToken", token)
 									}
 									validationError={form.formState.errors.captchaToken?.message}
 								/>
 
 								<Button
 									type="submit"
-									disabled={isPending || Boolean(isTurnstileEnabled && !captchaToken)}
+									disabled={
+										isPending || Boolean(isTurnstileEnabled && !captchaToken)
+									}
 								>
 									Send Reset Instructions
 								</Button>
@@ -148,7 +153,7 @@ function ForgotPasswordPage() {
 						type="button"
 						variant="link"
 						className="w-full"
-						onClick={() => navigate({ to: '/settings' })}
+						onClick={() => navigate({ to: "/settings" })}
 					>
 						Back to settings
 					</Button>
@@ -157,7 +162,7 @@ function ForgotPasswordPage() {
 						type="button"
 						variant="link"
 						className="w-full"
-						onClick={() => navigate({ to: '/sign-in' })}
+						onClick={() => navigate({ to: "/sign-in" })}
 					>
 						Back to login
 					</Button>

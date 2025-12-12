@@ -1,13 +1,15 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { getCompetitionFn } from '~/server-functions/competitions'
-import { OrganizerSettingsManager } from '~/components/compete/organizer/organizer-settings-manager'
-import { getSessionFromCookie } from '~/utils/auth.server'
+import { createFileRoute, notFound } from "@tanstack/react-router"
+import { getCompetitionFn } from "~/server-functions/competitions"
+import { OrganizerSettingsManager } from "~/components/compete/organizer/organizer-settings-manager"
+import { getSessionFromCookie } from "~/utils/auth.server"
 
-export const Route = createFileRoute('/_compete/compete/organizer/$competitionId/settings')({
+export const Route = createFileRoute(
+	"/_compete/compete/organizer/$competitionId/settings",
+)({
 	beforeLoad: async () => {
 		const session = await getSessionFromCookie()
 		if (!session) {
-			throw new Error('Unauthorized')
+			throw new Error("Unauthorized")
 		}
 	},
 	loader: async ({ params }) => {
@@ -29,9 +31,5 @@ export const Route = createFileRoute('/_compete/compete/organizer/$competitionId
 function OrganizerSettingsComponent() {
 	const { competition } = Route.useLoaderData()
 
-	return (
-		<OrganizerSettingsManager
-			competition={competition}
-		/>
-	)
+	return <OrganizerSettingsManager competition={competition} />
 }

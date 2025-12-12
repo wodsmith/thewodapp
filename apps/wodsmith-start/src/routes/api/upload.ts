@@ -1,26 +1,26 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-import { getSessionFromCookie } from '~/utils/auth'
-import { hasTeamPermission } from '~/utils/team-auth'
-import { TEAM_PERMISSIONS } from '~/db/schemas/teams'
-import { getCompetition } from '~/server/competitions'
-import { getCloudflareContext } from '@opennextjs/cloudflare'
+import { createFileRoute } from "@tanstack/react-router"
+import { json } from "@tanstack/react-start"
+import { getSessionFromCookie } from "~/utils/auth"
+import { hasTeamPermission } from "~/utils/team-auth"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
+import { getCompetition } from "~/server/competitions"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
 const PURPOSE_CONFIG: Record<
 	string,
 	{ maxSizeMb: number; pathPrefix: string }
 > = {
-	'competition-profile': { maxSizeMb: 5, pathPrefix: 'competitions/profiles' },
-	'competition-banner': { maxSizeMb: 5, pathPrefix: 'competitions/banners' },
-	'competition-sponsor-logo': {
+	"competition-profile": { maxSizeMb: 5, pathPrefix: "competitions/profiles" },
+	"competition-banner": { maxSizeMb: 5, pathPrefix: "competitions/banners" },
+	"competition-sponsor-logo": {
 		maxSizeMb: 2,
-		pathPrefix: 'competitions/sponsors',
+		pathPrefix: "competitions/sponsors",
 	},
-	'athlete-profile': { maxSizeMb: 2, pathPrefix: 'athletes/profiles' },
-	'athlete-cover': { maxSizeMb: 5, pathPrefix: 'athletes/covers' },
-	'sponsor-logo': { maxSizeMb: 2, pathPrefix: 'sponsors/logos' },
+	"athlete-profile": { maxSizeMb: 2, pathPrefix: "athletes/profiles" },
+	"athlete-cover": { maxSizeMb: 5, pathPrefix: "athletes/covers" },
+	"sponsor-logo": { maxSizeMb: 2, pathPrefix: "sponsors/logos" },
 }
 
 /**
@@ -32,10 +32,10 @@ async function checkUploadAuthorization(
 	userId: string,
 ): Promise<{ authorized: boolean; error?: string }> {
 	// Competition uploads require team permission
-	if (purpose.startsWith('competition-') && entityId) {
+	if (purpose.startsWith("competition-") && entityId) {
 		const competition = await getCompetition(entityId)
 		if (!competition) {
-			return { authorized: false, error: 'Competition not found' }
+			return { authorized: false, error: "Competition not found" }
 		}
 		const hasPermission = await hasTeamPermission(
 			competition.organizingTeamId,
@@ -44,18 +44,18 @@ async function checkUploadAuthorization(
 		if (!hasPermission) {
 			return {
 				authorized: false,
-				error: 'Not authorized to upload for this competition',
+				error: "Not authorized to upload for this competition",
 			}
 		}
 		return { authorized: true }
 	}
 
 	// Athlete uploads can only be for the current user
-	if (purpose.startsWith('athlete-') && entityId) {
+	if (purpose.startsWith("athlete-") && entityId) {
 		if (entityId !== userId) {
 			return {
 				authorized: false,
-				error: 'Not authorized to upload for this athlete',
+				error: "Not authorized to upload for this athlete",
 			}
 		}
 		return { authorized: true }
@@ -63,36 +63,33 @@ async function checkUploadAuthorization(
 
 	// Sponsor uploads require entityId to be the user's own or a team they manage
 	// For now, allow only if entityId matches user or is not provided
-	if (purpose === 'sponsor-logo' && entityId && entityId !== userId) {
-		return { authorized: false, error: 'Not authorized to upload sponsor logo' }
+	if (purpose === "sponsor-logo" && entityId && entityId !== userId) {
+		return { authorized: false, error: "Not authorized to upload sponsor logo" }
 	}
 
 	return { authorized: true }
 }
 
-export const Route = createFileRoute('/api/upload')({
+export const Route = createFileRoute("/api/upload")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
 				const session = await getSessionFromCookie()
 				if (!session) {
-					return json({ error: 'Unauthorized' }, { status: 401 })
+					return json({ error: "Unauthorized" }, { status: 401 })
 				}
 
 				const formData = await request.formData()
-				const file = formData.get('file') as File | null
-				const purpose = formData.get('purpose') as string | null
-				const entityId = formData.get('entityId') as string | null
+				const file = formData.get("file") as File | null
+				const purpose = formData.get("purpose") as string | null
+				const entityId = formData.get("entityId") as string | null
 
 				if (!file) {
-					return json({ error: 'No file provided' }, { status: 400 })
+					return json({ error: "No file provided" }, { status: 400 })
 				}
 
 				if (!purpose || !PURPOSE_CONFIG[purpose]) {
-					return json(
-						{ error: 'Invalid or missing purpose' },
-						{ status: 400 },
-					)
+					return json({ error: "Invalid or missing purpose" }, { status: 400 })
 				}
 
 				// Authorization check
@@ -103,7 +100,7 @@ export const Route = createFileRoute('/api/upload')({
 				)
 				if (!authCheck.authorized) {
 					return json(
-						{ error: authCheck.error || 'Forbidden' },
+						{ error: authCheck.error || "Forbidden" },
 						{ status: 403 },
 					)
 				}
@@ -123,13 +120,13 @@ export const Route = createFileRoute('/api/upload')({
 				if (!ALLOWED_TYPES.includes(file.type)) {
 					return json(
 						{
-							error: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF',
+							error: "Invalid file type. Allowed: JPEG, PNG, WebP, GIF",
 						},
 						{ status: 400 },
 					)
 				}
 
-				const extension = file.name.split('.').pop() || 'jpg'
+				const extension = file.name.split(".").pop() || "jpg"
 				const timestamp = Date.now()
 				const filename = `${timestamp}.${extension}`
 				const key = entityId

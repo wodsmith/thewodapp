@@ -1,15 +1,15 @@
-import { createFileRoute } from '@tanstack/react-router'
-import Link from '~/components/link'
-import { Button } from '~/components/ui/button'
+import { createFileRoute } from "@tanstack/react-router"
+import Link from "~/components/link"
+import { Button } from "~/components/ui/button"
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from '~/components/ui/card'
+} from "~/components/ui/card"
 
-export const Route = createFileRoute('/_admin/admin/')({
+export const Route = createFileRoute("/_admin/admin/")({
 	component: AdminDashboard,
 })
 

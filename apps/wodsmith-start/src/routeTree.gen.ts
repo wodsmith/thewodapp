@@ -8,1718 +8,1770 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as UsersRouteImport } from './routes/users'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as RedirectRouteImport } from './routes/redirect'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as PostsRouteImport } from './routes/posts'
-import { Route as DeferredRouteImport } from './routes/deferred'
-import { Route as CustomScriptDotjsRouteImport } from './routes/customScript[.]js'
-import { Route as SettingsRouteImport } from './routes/_settings'
-import { Route as PathlessLayoutRouteImport } from './routes/_pathlessLayout'
-import { Route as MainRouteImport } from './routes/_main'
-import { Route as CompeteRouteImport } from './routes/_compete'
-import { Route as AuthRouteImport } from './routes/_auth'
-import { Route as AdminRouteImport } from './routes/_admin'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as UsersIndexRouteImport } from './routes/users.index'
-import { Route as PostsIndexRouteImport } from './routes/posts.index'
-import { Route as UsersUserIdRouteImport } from './routes/users.$userId'
-import { Route as PostsPostIdRouteImport } from './routes/posts.$postId'
-import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts-search'
-import { Route as ApiUsersRouteImport } from './routes/api/users'
-import { Route as ApiUploadRouteImport } from './routes/api/upload'
-import { Route as ApiStripeConnectCallbackRouteImport } from './routes/api/stripe-connect-callback'
-import { Route as ApiOgCompetitionRouteImport } from './routes/api/og-competition'
-import { Route as ApiOgRouteImport } from './routes/api/og'
-import { Route as ApiGetSessionRouteImport } from './routes/api/get-session'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as PathlessLayoutNestedLayoutRouteImport } from './routes/_pathlessLayout/_nested-layout'
-import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email'
-import { Route as AuthTeamInviteRouteImport } from './routes/_auth/team-invite'
-import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
-import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
-import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
-import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
-import { Route as SettingsSettingsIndexRouteImport } from './routes/_settings/settings.index'
-import { Route as MainWorkoutsIndexRouteImport } from './routes/_main/workouts.index'
-import { Route as MainScheduleIndexRouteImport } from './routes/_main/schedule.index'
-import { Route as MainProgrammingIndexRouteImport } from './routes/_main/programming.index'
-import { Route as MainMovementsIndexRouteImport } from './routes/_main/movements.index'
-import { Route as MainLogIndexRouteImport } from './routes/_main/log.index'
-import { Route as MainCalendarIndexRouteImport } from './routes/_main/calendar.index'
-import { Route as CompeteCompeteIndexRouteImport } from './routes/_compete/compete.index'
-import { Route as AdminAdminIndexRouteImport } from './routes/_admin/admin.index'
-import { Route as PostsPostIdDeepRouteImport } from './routes/posts_.$postId.deep'
-import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
-import { Route as ApiUsersUserIdRouteImport } from './routes/api/users.$userId'
-import { Route as SettingsSettingsTeamsRouteImport } from './routes/_settings/settings.teams'
-import { Route as SettingsSettingsSecurityRouteImport } from './routes/_settings/settings.security'
-import { Route as SettingsSettingsProfileRouteImport } from './routes/_settings/settings.profile'
-import { Route as PathlessLayoutNestedLayoutRouteBRouteImport } from './routes/_pathlessLayout/_nested-layout/route-b'
-import { Route as PathlessLayoutNestedLayoutRouteARouteImport } from './routes/_pathlessLayout/_nested-layout/route-a'
-import { Route as MainWorkoutsNewRouteImport } from './routes/_main/workouts.new'
-import { Route as MainWorkoutsIdRouteImport } from './routes/_main/workouts.$id'
-import { Route as MainProgrammingTrackIdRouteImport } from './routes/_main/programming.$trackId'
-import { Route as MainMovementsIdRouteImport } from './routes/_main/movements.$id'
-import { Route as CompeteCompeteAthleteRouteImport } from './routes/_compete/compete.athlete'
-import { Route as CompeteCompeteSlugRouteImport } from './routes/_compete/compete.$slug'
-import { Route as AdminAdminUsersRouteImport } from './routes/_admin/admin.users'
-import { Route as AdminAdminTeamsRouteImport } from './routes/_admin/admin.teams'
-import { Route as AdminAdminEntitlementsRouteImport } from './routes/_admin/admin.entitlements'
-import { Route as CompeteCompeteOrganizerIndexRouteImport } from './routes/_compete/compete.organizer/index'
-import { Route as MainWorkoutsIdEditRouteImport } from './routes/_main/workouts.$id.edit'
-import { Route as CompeteCompeteSlugTabsRouteImport } from './routes/_compete/compete.$slug.tabs'
-import { Route as CompeteCompeteSlugRegisterRouteImport } from './routes/_compete/compete.$slug.register'
-import { Route as AdminAdminTeamsScalingRouteImport } from './routes/_admin/admin.teams.scaling'
-import { Route as AdminAdminTeamsProgrammingRouteImport } from './routes/_admin/admin.teams.programming'
-import { Route as CompeteCompeteOrganizerCompetitionIdIndexRouteImport } from './routes/_compete/compete.organizer/$competitionId/index'
-import { Route as CompeteCompeteOrganizerCompetitionIdWorkoutsRouteImport } from './routes/_compete/compete.organizer/$competitionId/workouts'
-import { Route as CompeteCompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/_compete/compete.organizer/$competitionId/sponsors'
-import { Route as CompeteCompeteOrganizerCompetitionIdSettingsRouteImport } from './routes/_compete/compete.organizer/$competitionId/settings'
-import { Route as CompeteCompeteOrganizerCompetitionIdScoresRouteImport } from './routes/_compete/compete.organizer/$competitionId/scores'
-import { Route as CompeteCompeteOrganizerCompetitionIdHeatsRouteImport } from './routes/_compete/compete.organizer/$competitionId/heats'
-import { Route as CompeteCompeteOrganizerCompetitionIdDivisionsRouteImport } from './routes/_compete/compete.organizer/$competitionId/divisions'
-import { Route as CompeteCompeteSlugTabsScheduleRouteImport } from './routes/_compete/compete.$slug.tabs.schedule'
-import { Route as CompeteCompeteSlugTabsLeaderboardRouteImport } from './routes/_compete/compete.$slug.tabs.leaderboard'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as UsersRouteImport } from "./routes/users"
+import { Route as TermsRouteImport } from "./routes/terms"
+import { Route as RedirectRouteImport } from "./routes/redirect"
+import { Route as PrivacyRouteImport } from "./routes/privacy"
+import { Route as PostsRouteImport } from "./routes/posts"
+import { Route as DeferredRouteImport } from "./routes/deferred"
+import { Route as CustomScriptDotjsRouteImport } from "./routes/customScript[.]js"
+import { Route as SettingsRouteImport } from "./routes/_settings"
+import { Route as PathlessLayoutRouteImport } from "./routes/_pathlessLayout"
+import { Route as MainRouteImport } from "./routes/_main"
+import { Route as CompeteRouteImport } from "./routes/_compete"
+import { Route as AuthRouteImport } from "./routes/_auth"
+import { Route as AdminRouteImport } from "./routes/_admin"
+import { Route as IndexRouteImport } from "./routes/index"
+import { Route as UsersIndexRouteImport } from "./routes/users.index"
+import { Route as PostsIndexRouteImport } from "./routes/posts.index"
+import { Route as UsersUserIdRouteImport } from "./routes/users.$userId"
+import { Route as SsoGoogleRouteImport } from "./routes/sso/google"
+import { Route as PostsPostIdRouteImport } from "./routes/posts.$postId"
+import { Route as ApiWorkoutsSearchRouteImport } from "./routes/api/workouts-search"
+import { Route as ApiUsersRouteImport } from "./routes/api/users"
+import { Route as ApiUploadRouteImport } from "./routes/api/upload"
+import { Route as ApiStripeConnectCallbackRouteImport } from "./routes/api/stripe-connect-callback"
+import { Route as ApiOgCompetitionRouteImport } from "./routes/api/og-competition"
+import { Route as ApiOgRouteImport } from "./routes/api/og"
+import { Route as ApiGetSessionRouteImport } from "./routes/api/get-session"
+import { Route as ApiChatRouteImport } from "./routes/api/chat"
+import { Route as PathlessLayoutNestedLayoutRouteImport } from "./routes/_pathlessLayout/_nested-layout"
+import { Route as AuthVerifyEmailRouteImport } from "./routes/_auth/verify-email"
+import { Route as AuthTeamInviteRouteImport } from "./routes/_auth/team-invite"
+import { Route as AuthSignUpRouteImport } from "./routes/_auth/sign-up"
+import { Route as AuthSignInRouteImport } from "./routes/_auth/sign-in"
+import { Route as AuthResetPasswordRouteImport } from "./routes/_auth/reset-password"
+import { Route as AuthForgotPasswordRouteImport } from "./routes/_auth/forgot-password"
+import { Route as SettingsSettingsIndexRouteImport } from "./routes/_settings/settings.index"
+import { Route as MainWorkoutsIndexRouteImport } from "./routes/_main/workouts.index"
+import { Route as MainScheduleIndexRouteImport } from "./routes/_main/schedule.index"
+import { Route as MainProgrammingIndexRouteImport } from "./routes/_main/programming.index"
+import { Route as MainMovementsIndexRouteImport } from "./routes/_main/movements.index"
+import { Route as MainLogIndexRouteImport } from "./routes/_main/log.index"
+import { Route as MainCalendarIndexRouteImport } from "./routes/_main/calendar.index"
+import { Route as CompeteCompeteIndexRouteImport } from "./routes/_compete/compete.index"
+import { Route as AdminAdminIndexRouteImport } from "./routes/_admin/admin.index"
+import { Route as SsoGoogleCallbackRouteImport } from "./routes/sso/google.callback"
+import { Route as PostsPostIdDeepRouteImport } from "./routes/posts_.$postId.deep"
+import { Route as ApiWebhooksStripeRouteImport } from "./routes/api/webhooks/stripe"
+import { Route as ApiUsersUserIdRouteImport } from "./routes/api/users.$userId"
+import { Route as SettingsSettingsTeamsRouteImport } from "./routes/_settings/settings.teams"
+import { Route as SettingsSettingsSecurityRouteImport } from "./routes/_settings/settings.security"
+import { Route as SettingsSettingsProfileRouteImport } from "./routes/_settings/settings.profile"
+import { Route as PathlessLayoutNestedLayoutRouteBRouteImport } from "./routes/_pathlessLayout/_nested-layout/route-b"
+import { Route as PathlessLayoutNestedLayoutRouteARouteImport } from "./routes/_pathlessLayout/_nested-layout/route-a"
+import { Route as MainWorkoutsNewRouteImport } from "./routes/_main/workouts.new"
+import { Route as MainWorkoutsIdRouteImport } from "./routes/_main/workouts.$id"
+import { Route as MainProgrammingTrackIdRouteImport } from "./routes/_main/programming.$trackId"
+import { Route as MainMovementsIdRouteImport } from "./routes/_main/movements.$id"
+import { Route as CompeteCompeteAthleteRouteImport } from "./routes/_compete/compete.athlete"
+import { Route as CompeteCompeteSlugRouteImport } from "./routes/_compete/compete.$slug"
+import { Route as AdminAdminUsersRouteImport } from "./routes/_admin/admin.users"
+import { Route as AdminAdminTeamsRouteImport } from "./routes/_admin/admin.teams"
+import { Route as AdminAdminEntitlementsRouteImport } from "./routes/_admin/admin.entitlements"
+import { Route as CompeteCompeteOrganizerIndexRouteImport } from "./routes/_compete/compete.organizer/index"
+import { Route as MainWorkoutsIdEditRouteImport } from "./routes/_main/workouts.$id.edit"
+import { Route as CompeteCompeteSlugTabsRouteImport } from "./routes/_compete/compete.$slug.tabs"
+import { Route as CompeteCompeteSlugRegisterRouteImport } from "./routes/_compete/compete.$slug.register"
+import { Route as AdminAdminTeamsScalingRouteImport } from "./routes/_admin/admin.teams.scaling"
+import { Route as AdminAdminTeamsProgrammingRouteImport } from "./routes/_admin/admin.teams.programming"
+import { Route as CompeteCompeteOrganizerCompetitionIdIndexRouteImport } from "./routes/_compete/compete.organizer/$competitionId/index"
+import { Route as CompeteCompeteOrganizerCompetitionIdWorkoutsRouteImport } from "./routes/_compete/compete.organizer/$competitionId/workouts"
+import { Route as CompeteCompeteOrganizerCompetitionIdSponsorsRouteImport } from "./routes/_compete/compete.organizer/$competitionId/sponsors"
+import { Route as CompeteCompeteOrganizerCompetitionIdSettingsRouteImport } from "./routes/_compete/compete.organizer/$competitionId/settings"
+import { Route as CompeteCompeteOrganizerCompetitionIdScoresRouteImport } from "./routes/_compete/compete.organizer/$competitionId/scores"
+import { Route as CompeteCompeteOrganizerCompetitionIdHeatsRouteImport } from "./routes/_compete/compete.organizer/$competitionId/heats"
+import { Route as CompeteCompeteOrganizerCompetitionIdDivisionsRouteImport } from "./routes/_compete/compete.organizer/$competitionId/divisions"
+import { Route as CompeteCompeteSlugTabsScheduleRouteImport } from "./routes/_compete/compete.$slug.tabs.schedule"
+import { Route as CompeteCompeteSlugTabsLeaderboardRouteImport } from "./routes/_compete/compete.$slug.tabs.leaderboard"
 
 const UsersRoute = UsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => rootRouteImport,
+	id: "/users",
+	path: "/users",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
+	id: "/terms",
+	path: "/terms",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const RedirectRoute = RedirectRouteImport.update({
-  id: '/redirect',
-  path: '/redirect',
-  getParentRoute: () => rootRouteImport,
+	id: "/redirect",
+	path: "/redirect",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
+	id: "/privacy",
+	path: "/privacy",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const PostsRoute = PostsRouteImport.update({
-  id: '/posts',
-  path: '/posts',
-  getParentRoute: () => rootRouteImport,
+	id: "/posts",
+	path: "/posts",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const DeferredRoute = DeferredRouteImport.update({
-  id: '/deferred',
-  path: '/deferred',
-  getParentRoute: () => rootRouteImport,
+	id: "/deferred",
+	path: "/deferred",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const CustomScriptDotjsRoute = CustomScriptDotjsRouteImport.update({
-  id: '/customScript.js',
-  path: '/customScript.js',
-  getParentRoute: () => rootRouteImport,
+	id: "/customScript.js",
+	path: "/customScript.js",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
-  id: '/_settings',
-  getParentRoute: () => rootRouteImport,
+	id: "/_settings",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const PathlessLayoutRoute = PathlessLayoutRouteImport.update({
-  id: '/_pathlessLayout',
-  getParentRoute: () => rootRouteImport,
+	id: "/_pathlessLayout",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const MainRoute = MainRouteImport.update({
-  id: '/_main',
-  getParentRoute: () => rootRouteImport,
+	id: "/_main",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteRoute = CompeteRouteImport.update({
-  id: '/_compete',
-  getParentRoute: () => rootRouteImport,
+	id: "/_compete",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
-  id: '/_auth',
-  getParentRoute: () => rootRouteImport,
+	id: "/_auth",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
-  id: '/_admin',
-  getParentRoute: () => rootRouteImport,
+	id: "/_admin",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
+	id: "/",
+	path: "/",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const UsersIndexRoute = UsersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => UsersRoute,
+	id: "/",
+	path: "/",
+	getParentRoute: () => UsersRoute,
 } as any)
 const PostsIndexRoute = PostsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PostsRoute,
+	id: "/",
+	path: "/",
+	getParentRoute: () => PostsRoute,
 } as any)
 const UsersUserIdRoute = UsersUserIdRouteImport.update({
-  id: '/$userId',
-  path: '/$userId',
-  getParentRoute: () => UsersRoute,
+	id: "/$userId",
+	path: "/$userId",
+	getParentRoute: () => UsersRoute,
+} as any)
+const SsoGoogleRoute = SsoGoogleRouteImport.update({
+	id: "/sso/google",
+	path: "/sso/google",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const PostsPostIdRoute = PostsPostIdRouteImport.update({
-  id: '/$postId',
-  path: '/$postId',
-  getParentRoute: () => PostsRoute,
+	id: "/$postId",
+	path: "/$postId",
+	getParentRoute: () => PostsRoute,
 } as any)
 const ApiWorkoutsSearchRoute = ApiWorkoutsSearchRouteImport.update({
-  id: '/api/workouts-search',
-  path: '/api/workouts-search',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/workouts-search",
+	path: "/api/workouts-search",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUsersRoute = ApiUsersRouteImport.update({
-  id: '/api/users',
-  path: '/api/users',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/users",
+	path: "/api/users",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUploadRoute = ApiUploadRouteImport.update({
-  id: '/api/upload',
-  path: '/api/upload',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/upload",
+	path: "/api/upload",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStripeConnectCallbackRoute =
-  ApiStripeConnectCallbackRouteImport.update({
-    id: '/api/stripe-connect-callback',
-    path: '/api/stripe-connect-callback',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+	ApiStripeConnectCallbackRouteImport.update({
+		id: "/api/stripe-connect-callback",
+		path: "/api/stripe-connect-callback",
+		getParentRoute: () => rootRouteImport,
+	} as any)
 const ApiOgCompetitionRoute = ApiOgCompetitionRouteImport.update({
-  id: '/api/og-competition',
-  path: '/api/og-competition',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/og-competition",
+	path: "/api/og-competition",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiOgRoute = ApiOgRouteImport.update({
-  id: '/api/og',
-  path: '/api/og',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/og",
+	path: "/api/og",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGetSessionRoute = ApiGetSessionRouteImport.update({
-  id: '/api/get-session',
-  path: '/api/get-session',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/get-session",
+	path: "/api/get-session",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/chat",
+	path: "/api/chat",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const PathlessLayoutNestedLayoutRoute =
-  PathlessLayoutNestedLayoutRouteImport.update({
-    id: '/_nested-layout',
-    getParentRoute: () => PathlessLayoutRoute,
-  } as any)
+	PathlessLayoutNestedLayoutRouteImport.update({
+		id: "/_nested-layout",
+		getParentRoute: () => PathlessLayoutRoute,
+	} as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => AuthRoute,
+	id: "/verify-email",
+	path: "/verify-email",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthTeamInviteRoute = AuthTeamInviteRouteImport.update({
-  id: '/team-invite',
-  path: '/team-invite',
-  getParentRoute: () => AuthRoute,
+	id: "/team-invite",
+	path: "/team-invite",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
-  getParentRoute: () => AuthRoute,
+	id: "/sign-up",
+	path: "/sign-up",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
-  getParentRoute: () => AuthRoute,
+	id: "/sign-in",
+	path: "/sign-in",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => AuthRoute,
+	id: "/reset-password",
+	path: "/reset-password",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => AuthRoute,
+	id: "/forgot-password",
+	path: "/forgot-password",
+	getParentRoute: () => AuthRoute,
 } as any)
 const SettingsSettingsIndexRoute = SettingsSettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => SettingsRoute,
+	id: "/settings/",
+	path: "/settings/",
+	getParentRoute: () => SettingsRoute,
 } as any)
 const MainWorkoutsIndexRoute = MainWorkoutsIndexRouteImport.update({
-  id: '/workouts/',
-  path: '/workouts/',
-  getParentRoute: () => MainRoute,
+	id: "/workouts/",
+	path: "/workouts/",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainScheduleIndexRoute = MainScheduleIndexRouteImport.update({
-  id: '/schedule/',
-  path: '/schedule/',
-  getParentRoute: () => MainRoute,
+	id: "/schedule/",
+	path: "/schedule/",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainProgrammingIndexRoute = MainProgrammingIndexRouteImport.update({
-  id: '/programming/',
-  path: '/programming/',
-  getParentRoute: () => MainRoute,
+	id: "/programming/",
+	path: "/programming/",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainMovementsIndexRoute = MainMovementsIndexRouteImport.update({
-  id: '/movements/',
-  path: '/movements/',
-  getParentRoute: () => MainRoute,
+	id: "/movements/",
+	path: "/movements/",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainLogIndexRoute = MainLogIndexRouteImport.update({
-  id: '/log/',
-  path: '/log/',
-  getParentRoute: () => MainRoute,
+	id: "/log/",
+	path: "/log/",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainCalendarIndexRoute = MainCalendarIndexRouteImport.update({
-  id: '/calendar/',
-  path: '/calendar/',
-  getParentRoute: () => MainRoute,
+	id: "/calendar/",
+	path: "/calendar/",
+	getParentRoute: () => MainRoute,
 } as any)
 const CompeteCompeteIndexRoute = CompeteCompeteIndexRouteImport.update({
-  id: '/compete/',
-  path: '/compete/',
-  getParentRoute: () => CompeteRoute,
+	id: "/compete/",
+	path: "/compete/",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => AdminRoute,
+	id: "/admin/",
+	path: "/admin/",
+	getParentRoute: () => AdminRoute,
+} as any)
+const SsoGoogleCallbackRoute = SsoGoogleCallbackRouteImport.update({
+	id: "/callback",
+	path: "/callback",
+	getParentRoute: () => SsoGoogleRoute,
 } as any)
 const PostsPostIdDeepRoute = PostsPostIdDeepRouteImport.update({
-  id: '/posts_/$postId/deep',
-  path: '/posts/$postId/deep',
-  getParentRoute: () => rootRouteImport,
+	id: "/posts_/$postId/deep",
+	path: "/posts/$postId/deep",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
-  id: '/api/webhooks/stripe',
-  path: '/api/webhooks/stripe',
-  getParentRoute: () => rootRouteImport,
+	id: "/api/webhooks/stripe",
+	path: "/api/webhooks/stripe",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUsersUserIdRoute = ApiUsersUserIdRouteImport.update({
-  id: '/$userId',
-  path: '/$userId',
-  getParentRoute: () => ApiUsersRoute,
+	id: "/$userId",
+	path: "/$userId",
+	getParentRoute: () => ApiUsersRoute,
 } as any)
 const SettingsSettingsTeamsRoute = SettingsSettingsTeamsRouteImport.update({
-  id: '/settings/teams',
-  path: '/settings/teams',
-  getParentRoute: () => SettingsRoute,
+	id: "/settings/teams",
+	path: "/settings/teams",
+	getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsSettingsSecurityRoute =
-  SettingsSettingsSecurityRouteImport.update({
-    id: '/settings/security',
-    path: '/settings/security',
-    getParentRoute: () => SettingsRoute,
-  } as any)
+	SettingsSettingsSecurityRouteImport.update({
+		id: "/settings/security",
+		path: "/settings/security",
+		getParentRoute: () => SettingsRoute,
+	} as any)
 const SettingsSettingsProfileRoute = SettingsSettingsProfileRouteImport.update({
-  id: '/settings/profile',
-  path: '/settings/profile',
-  getParentRoute: () => SettingsRoute,
+	id: "/settings/profile",
+	path: "/settings/profile",
+	getParentRoute: () => SettingsRoute,
 } as any)
 const PathlessLayoutNestedLayoutRouteBRoute =
-  PathlessLayoutNestedLayoutRouteBRouteImport.update({
-    id: '/route-b',
-    path: '/route-b',
-    getParentRoute: () => PathlessLayoutNestedLayoutRoute,
-  } as any)
+	PathlessLayoutNestedLayoutRouteBRouteImport.update({
+		id: "/route-b",
+		path: "/route-b",
+		getParentRoute: () => PathlessLayoutNestedLayoutRoute,
+	} as any)
 const PathlessLayoutNestedLayoutRouteARoute =
-  PathlessLayoutNestedLayoutRouteARouteImport.update({
-    id: '/route-a',
-    path: '/route-a',
-    getParentRoute: () => PathlessLayoutNestedLayoutRoute,
-  } as any)
+	PathlessLayoutNestedLayoutRouteARouteImport.update({
+		id: "/route-a",
+		path: "/route-a",
+		getParentRoute: () => PathlessLayoutNestedLayoutRoute,
+	} as any)
 const MainWorkoutsNewRoute = MainWorkoutsNewRouteImport.update({
-  id: '/workouts/new',
-  path: '/workouts/new',
-  getParentRoute: () => MainRoute,
+	id: "/workouts/new",
+	path: "/workouts/new",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainWorkoutsIdRoute = MainWorkoutsIdRouteImport.update({
-  id: '/workouts/$id',
-  path: '/workouts/$id',
-  getParentRoute: () => MainRoute,
+	id: "/workouts/$id",
+	path: "/workouts/$id",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainProgrammingTrackIdRoute = MainProgrammingTrackIdRouteImport.update({
-  id: '/programming/$trackId',
-  path: '/programming/$trackId',
-  getParentRoute: () => MainRoute,
+	id: "/programming/$trackId",
+	path: "/programming/$trackId",
+	getParentRoute: () => MainRoute,
 } as any)
 const MainMovementsIdRoute = MainMovementsIdRouteImport.update({
-  id: '/movements/$id',
-  path: '/movements/$id',
-  getParentRoute: () => MainRoute,
+	id: "/movements/$id",
+	path: "/movements/$id",
+	getParentRoute: () => MainRoute,
 } as any)
 const CompeteCompeteAthleteRoute = CompeteCompeteAthleteRouteImport.update({
-  id: '/compete/athlete',
-  path: '/compete/athlete',
-  getParentRoute: () => CompeteRoute,
+	id: "/compete/athlete",
+	path: "/compete/athlete",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const CompeteCompeteSlugRoute = CompeteCompeteSlugRouteImport.update({
-  id: '/compete/$slug',
-  path: '/compete/$slug',
-  getParentRoute: () => CompeteRoute,
+	id: "/compete/$slug",
+	path: "/compete/$slug",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const AdminAdminUsersRoute = AdminAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => AdminRoute,
+	id: "/admin/users",
+	path: "/admin/users",
+	getParentRoute: () => AdminRoute,
 } as any)
 const AdminAdminTeamsRoute = AdminAdminTeamsRouteImport.update({
-  id: '/admin/teams',
-  path: '/admin/teams',
-  getParentRoute: () => AdminRoute,
+	id: "/admin/teams",
+	path: "/admin/teams",
+	getParentRoute: () => AdminRoute,
 } as any)
 const AdminAdminEntitlementsRoute = AdminAdminEntitlementsRouteImport.update({
-  id: '/admin/entitlements',
-  path: '/admin/entitlements',
-  getParentRoute: () => AdminRoute,
+	id: "/admin/entitlements",
+	path: "/admin/entitlements",
+	getParentRoute: () => AdminRoute,
 } as any)
 const CompeteCompeteOrganizerIndexRoute =
-  CompeteCompeteOrganizerIndexRouteImport.update({
-    id: '/compete/organizer/',
-    path: '/compete/organizer/',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerIndexRouteImport.update({
+		id: "/compete/organizer/",
+		path: "/compete/organizer/",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const MainWorkoutsIdEditRoute = MainWorkoutsIdEditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => MainWorkoutsIdRoute,
+	id: "/edit",
+	path: "/edit",
+	getParentRoute: () => MainWorkoutsIdRoute,
 } as any)
 const CompeteCompeteSlugTabsRoute = CompeteCompeteSlugTabsRouteImport.update({
-  id: '/tabs',
-  path: '/tabs',
-  getParentRoute: () => CompeteCompeteSlugRoute,
+	id: "/tabs",
+	path: "/tabs",
+	getParentRoute: () => CompeteCompeteSlugRoute,
 } as any)
 const CompeteCompeteSlugRegisterRoute =
-  CompeteCompeteSlugRegisterRouteImport.update({
-    id: '/register',
-    path: '/register',
-    getParentRoute: () => CompeteCompeteSlugRoute,
-  } as any)
+	CompeteCompeteSlugRegisterRouteImport.update({
+		id: "/register",
+		path: "/register",
+		getParentRoute: () => CompeteCompeteSlugRoute,
+	} as any)
 const AdminAdminTeamsScalingRoute = AdminAdminTeamsScalingRouteImport.update({
-  id: '/scaling',
-  path: '/scaling',
-  getParentRoute: () => AdminAdminTeamsRoute,
+	id: "/scaling",
+	path: "/scaling",
+	getParentRoute: () => AdminAdminTeamsRoute,
 } as any)
 const AdminAdminTeamsProgrammingRoute =
-  AdminAdminTeamsProgrammingRouteImport.update({
-    id: '/programming',
-    path: '/programming',
-    getParentRoute: () => AdminAdminTeamsRoute,
-  } as any)
+	AdminAdminTeamsProgrammingRouteImport.update({
+		id: "/programming",
+		path: "/programming",
+		getParentRoute: () => AdminAdminTeamsRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdIndexRoute =
-  CompeteCompeteOrganizerCompetitionIdIndexRouteImport.update({
-    id: '/compete/organizer/$competitionId/',
-    path: '/compete/organizer/$competitionId/',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdIndexRouteImport.update({
+		id: "/compete/organizer/$competitionId/",
+		path: "/compete/organizer/$competitionId/",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdWorkoutsRoute =
-  CompeteCompeteOrganizerCompetitionIdWorkoutsRouteImport.update({
-    id: '/compete/organizer/$competitionId/workouts',
-    path: '/compete/organizer/$competitionId/workouts',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdWorkoutsRouteImport.update({
+		id: "/compete/organizer/$competitionId/workouts",
+		path: "/compete/organizer/$competitionId/workouts",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdSponsorsRoute =
-  CompeteCompeteOrganizerCompetitionIdSponsorsRouteImport.update({
-    id: '/compete/organizer/$competitionId/sponsors',
-    path: '/compete/organizer/$competitionId/sponsors',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdSponsorsRouteImport.update({
+		id: "/compete/organizer/$competitionId/sponsors",
+		path: "/compete/organizer/$competitionId/sponsors",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdSettingsRoute =
-  CompeteCompeteOrganizerCompetitionIdSettingsRouteImport.update({
-    id: '/compete/organizer/$competitionId/settings',
-    path: '/compete/organizer/$competitionId/settings',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdSettingsRouteImport.update({
+		id: "/compete/organizer/$competitionId/settings",
+		path: "/compete/organizer/$competitionId/settings",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdScoresRoute =
-  CompeteCompeteOrganizerCompetitionIdScoresRouteImport.update({
-    id: '/compete/organizer/$competitionId/scores',
-    path: '/compete/organizer/$competitionId/scores',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdScoresRouteImport.update({
+		id: "/compete/organizer/$competitionId/scores",
+		path: "/compete/organizer/$competitionId/scores",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdHeatsRoute =
-  CompeteCompeteOrganizerCompetitionIdHeatsRouteImport.update({
-    id: '/compete/organizer/$competitionId/heats',
-    path: '/compete/organizer/$competitionId/heats',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdHeatsRouteImport.update({
+		id: "/compete/organizer/$competitionId/heats",
+		path: "/compete/organizer/$competitionId/heats",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteOrganizerCompetitionIdDivisionsRoute =
-  CompeteCompeteOrganizerCompetitionIdDivisionsRouteImport.update({
-    id: '/compete/organizer/$competitionId/divisions',
-    path: '/compete/organizer/$competitionId/divisions',
-    getParentRoute: () => CompeteRoute,
-  } as any)
+	CompeteCompeteOrganizerCompetitionIdDivisionsRouteImport.update({
+		id: "/compete/organizer/$competitionId/divisions",
+		path: "/compete/organizer/$competitionId/divisions",
+		getParentRoute: () => CompeteRoute,
+	} as any)
 const CompeteCompeteSlugTabsScheduleRoute =
-  CompeteCompeteSlugTabsScheduleRouteImport.update({
-    id: '/schedule',
-    path: '/schedule',
-    getParentRoute: () => CompeteCompeteSlugTabsRoute,
-  } as any)
+	CompeteCompeteSlugTabsScheduleRouteImport.update({
+		id: "/schedule",
+		path: "/schedule",
+		getParentRoute: () => CompeteCompeteSlugTabsRoute,
+	} as any)
 const CompeteCompeteSlugTabsLeaderboardRoute =
-  CompeteCompeteSlugTabsLeaderboardRouteImport.update({
-    id: '/leaderboard',
-    path: '/leaderboard',
-    getParentRoute: () => CompeteCompeteSlugTabsRoute,
-  } as any)
+	CompeteCompeteSlugTabsLeaderboardRouteImport.update({
+		id: "/leaderboard",
+		path: "/leaderboard",
+		getParentRoute: () => CompeteCompeteSlugTabsRoute,
+	} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/customScript.js': typeof CustomScriptDotjsRoute
-  '/deferred': typeof DeferredRoute
-  '/posts': typeof PostsRouteWithChildren
-  '/privacy': typeof PrivacyRoute
-  '/redirect': typeof RedirectRoute
-  '/terms': typeof TermsRoute
-  '/users': typeof UsersRouteWithChildren
-  '/forgot-password': typeof AuthForgotPasswordRoute
-  '/reset-password': typeof AuthResetPasswordRoute
-  '/sign-in': typeof AuthSignInRoute
-  '/sign-up': typeof AuthSignUpRoute
-  '/team-invite': typeof AuthTeamInviteRoute
-  '/verify-email': typeof AuthVerifyEmailRoute
-  '/api/chat': typeof ApiChatRoute
-  '/api/get-session': typeof ApiGetSessionRoute
-  '/api/og': typeof ApiOgRoute
-  '/api/og-competition': typeof ApiOgCompetitionRoute
-  '/api/stripe-connect-callback': typeof ApiStripeConnectCallbackRoute
-  '/api/upload': typeof ApiUploadRoute
-  '/api/users': typeof ApiUsersRouteWithChildren
-  '/api/workouts-search': typeof ApiWorkoutsSearchRoute
-  '/posts/$postId': typeof PostsPostIdRoute
-  '/users/$userId': typeof UsersUserIdRoute
-  '/posts/': typeof PostsIndexRoute
-  '/users/': typeof UsersIndexRoute
-  '/admin/entitlements': typeof AdminAdminEntitlementsRoute
-  '/admin/teams': typeof AdminAdminTeamsRouteWithChildren
-  '/admin/users': typeof AdminAdminUsersRoute
-  '/compete/$slug': typeof CompeteCompeteSlugRouteWithChildren
-  '/compete/athlete': typeof CompeteCompeteAthleteRoute
-  '/movements/$id': typeof MainMovementsIdRoute
-  '/programming/$trackId': typeof MainProgrammingTrackIdRoute
-  '/workouts/$id': typeof MainWorkoutsIdRouteWithChildren
-  '/workouts/new': typeof MainWorkoutsNewRoute
-  '/route-a': typeof PathlessLayoutNestedLayoutRouteARoute
-  '/route-b': typeof PathlessLayoutNestedLayoutRouteBRoute
-  '/settings/profile': typeof SettingsSettingsProfileRoute
-  '/settings/security': typeof SettingsSettingsSecurityRoute
-  '/settings/teams': typeof SettingsSettingsTeamsRoute
-  '/api/users/$userId': typeof ApiUsersUserIdRoute
-  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
-  '/posts/$postId/deep': typeof PostsPostIdDeepRoute
-  '/admin': typeof AdminAdminIndexRoute
-  '/compete': typeof CompeteCompeteIndexRoute
-  '/calendar': typeof MainCalendarIndexRoute
-  '/log': typeof MainLogIndexRoute
-  '/movements': typeof MainMovementsIndexRoute
-  '/programming': typeof MainProgrammingIndexRoute
-  '/schedule': typeof MainScheduleIndexRoute
-  '/workouts': typeof MainWorkoutsIndexRoute
-  '/settings': typeof SettingsSettingsIndexRoute
-  '/admin/teams/programming': typeof AdminAdminTeamsProgrammingRoute
-  '/admin/teams/scaling': typeof AdminAdminTeamsScalingRoute
-  '/compete/$slug/register': typeof CompeteCompeteSlugRegisterRoute
-  '/compete/$slug/tabs': typeof CompeteCompeteSlugTabsRouteWithChildren
-  '/workouts/$id/edit': typeof MainWorkoutsIdEditRoute
-  '/compete/organizer': typeof CompeteCompeteOrganizerIndexRoute
-  '/compete/$slug/tabs/leaderboard': typeof CompeteCompeteSlugTabsLeaderboardRoute
-  '/compete/$slug/tabs/schedule': typeof CompeteCompeteSlugTabsScheduleRoute
-  '/compete/organizer/$competitionId/divisions': typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
-  '/compete/organizer/$competitionId/heats': typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
-  '/compete/organizer/$competitionId/scores': typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
-  '/compete/organizer/$competitionId/settings': typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
-  '/compete/organizer/$competitionId/sponsors': typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
-  '/compete/organizer/$competitionId/workouts': typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
-  '/compete/organizer/$competitionId': typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
+	"/": typeof IndexRoute
+	"/customScript.js": typeof CustomScriptDotjsRoute
+	"/deferred": typeof DeferredRoute
+	"/posts": typeof PostsRouteWithChildren
+	"/privacy": typeof PrivacyRoute
+	"/redirect": typeof RedirectRoute
+	"/terms": typeof TermsRoute
+	"/users": typeof UsersRouteWithChildren
+	"/forgot-password": typeof AuthForgotPasswordRoute
+	"/reset-password": typeof AuthResetPasswordRoute
+	"/sign-in": typeof AuthSignInRoute
+	"/sign-up": typeof AuthSignUpRoute
+	"/team-invite": typeof AuthTeamInviteRoute
+	"/verify-email": typeof AuthVerifyEmailRoute
+	"/api/chat": typeof ApiChatRoute
+	"/api/get-session": typeof ApiGetSessionRoute
+	"/api/og": typeof ApiOgRoute
+	"/api/og-competition": typeof ApiOgCompetitionRoute
+	"/api/stripe-connect-callback": typeof ApiStripeConnectCallbackRoute
+	"/api/upload": typeof ApiUploadRoute
+	"/api/users": typeof ApiUsersRouteWithChildren
+	"/api/workouts-search": typeof ApiWorkoutsSearchRoute
+	"/posts/$postId": typeof PostsPostIdRoute
+	"/sso/google": typeof SsoGoogleRouteWithChildren
+	"/users/$userId": typeof UsersUserIdRoute
+	"/posts/": typeof PostsIndexRoute
+	"/users/": typeof UsersIndexRoute
+	"/admin/entitlements": typeof AdminAdminEntitlementsRoute
+	"/admin/teams": typeof AdminAdminTeamsRouteWithChildren
+	"/admin/users": typeof AdminAdminUsersRoute
+	"/compete/$slug": typeof CompeteCompeteSlugRouteWithChildren
+	"/compete/athlete": typeof CompeteCompeteAthleteRoute
+	"/movements/$id": typeof MainMovementsIdRoute
+	"/programming/$trackId": typeof MainProgrammingTrackIdRoute
+	"/workouts/$id": typeof MainWorkoutsIdRouteWithChildren
+	"/workouts/new": typeof MainWorkoutsNewRoute
+	"/route-a": typeof PathlessLayoutNestedLayoutRouteARoute
+	"/route-b": typeof PathlessLayoutNestedLayoutRouteBRoute
+	"/settings/profile": typeof SettingsSettingsProfileRoute
+	"/settings/security": typeof SettingsSettingsSecurityRoute
+	"/settings/teams": typeof SettingsSettingsTeamsRoute
+	"/api/users/$userId": typeof ApiUsersUserIdRoute
+	"/api/webhooks/stripe": typeof ApiWebhooksStripeRoute
+	"/posts/$postId/deep": typeof PostsPostIdDeepRoute
+	"/sso/google/callback": typeof SsoGoogleCallbackRoute
+	"/admin": typeof AdminAdminIndexRoute
+	"/compete": typeof CompeteCompeteIndexRoute
+	"/calendar": typeof MainCalendarIndexRoute
+	"/log": typeof MainLogIndexRoute
+	"/movements": typeof MainMovementsIndexRoute
+	"/programming": typeof MainProgrammingIndexRoute
+	"/schedule": typeof MainScheduleIndexRoute
+	"/workouts": typeof MainWorkoutsIndexRoute
+	"/settings": typeof SettingsSettingsIndexRoute
+	"/admin/teams/programming": typeof AdminAdminTeamsProgrammingRoute
+	"/admin/teams/scaling": typeof AdminAdminTeamsScalingRoute
+	"/compete/$slug/register": typeof CompeteCompeteSlugRegisterRoute
+	"/compete/$slug/tabs": typeof CompeteCompeteSlugTabsRouteWithChildren
+	"/workouts/$id/edit": typeof MainWorkoutsIdEditRoute
+	"/compete/organizer": typeof CompeteCompeteOrganizerIndexRoute
+	"/compete/$slug/tabs/leaderboard": typeof CompeteCompeteSlugTabsLeaderboardRoute
+	"/compete/$slug/tabs/schedule": typeof CompeteCompeteSlugTabsScheduleRoute
+	"/compete/organizer/$competitionId/divisions": typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
+	"/compete/organizer/$competitionId/heats": typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
+	"/compete/organizer/$competitionId/scores": typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
+	"/compete/organizer/$competitionId/settings": typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
+	"/compete/organizer/$competitionId/sponsors": typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
+	"/compete/organizer/$competitionId/workouts": typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
+	"/compete/organizer/$competitionId": typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/customScript.js': typeof CustomScriptDotjsRoute
-  '/deferred': typeof DeferredRoute
-  '/privacy': typeof PrivacyRoute
-  '/redirect': typeof RedirectRoute
-  '/terms': typeof TermsRoute
-  '/forgot-password': typeof AuthForgotPasswordRoute
-  '/reset-password': typeof AuthResetPasswordRoute
-  '/sign-in': typeof AuthSignInRoute
-  '/sign-up': typeof AuthSignUpRoute
-  '/team-invite': typeof AuthTeamInviteRoute
-  '/verify-email': typeof AuthVerifyEmailRoute
-  '/api/chat': typeof ApiChatRoute
-  '/api/get-session': typeof ApiGetSessionRoute
-  '/api/og': typeof ApiOgRoute
-  '/api/og-competition': typeof ApiOgCompetitionRoute
-  '/api/stripe-connect-callback': typeof ApiStripeConnectCallbackRoute
-  '/api/upload': typeof ApiUploadRoute
-  '/api/users': typeof ApiUsersRouteWithChildren
-  '/api/workouts-search': typeof ApiWorkoutsSearchRoute
-  '/posts/$postId': typeof PostsPostIdRoute
-  '/users/$userId': typeof UsersUserIdRoute
-  '/posts': typeof PostsIndexRoute
-  '/users': typeof UsersIndexRoute
-  '/admin/entitlements': typeof AdminAdminEntitlementsRoute
-  '/admin/teams': typeof AdminAdminTeamsRouteWithChildren
-  '/admin/users': typeof AdminAdminUsersRoute
-  '/compete/$slug': typeof CompeteCompeteSlugRouteWithChildren
-  '/compete/athlete': typeof CompeteCompeteAthleteRoute
-  '/movements/$id': typeof MainMovementsIdRoute
-  '/programming/$trackId': typeof MainProgrammingTrackIdRoute
-  '/workouts/$id': typeof MainWorkoutsIdRouteWithChildren
-  '/workouts/new': typeof MainWorkoutsNewRoute
-  '/route-a': typeof PathlessLayoutNestedLayoutRouteARoute
-  '/route-b': typeof PathlessLayoutNestedLayoutRouteBRoute
-  '/settings/profile': typeof SettingsSettingsProfileRoute
-  '/settings/security': typeof SettingsSettingsSecurityRoute
-  '/settings/teams': typeof SettingsSettingsTeamsRoute
-  '/api/users/$userId': typeof ApiUsersUserIdRoute
-  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
-  '/posts/$postId/deep': typeof PostsPostIdDeepRoute
-  '/admin': typeof AdminAdminIndexRoute
-  '/compete': typeof CompeteCompeteIndexRoute
-  '/calendar': typeof MainCalendarIndexRoute
-  '/log': typeof MainLogIndexRoute
-  '/movements': typeof MainMovementsIndexRoute
-  '/programming': typeof MainProgrammingIndexRoute
-  '/schedule': typeof MainScheduleIndexRoute
-  '/workouts': typeof MainWorkoutsIndexRoute
-  '/settings': typeof SettingsSettingsIndexRoute
-  '/admin/teams/programming': typeof AdminAdminTeamsProgrammingRoute
-  '/admin/teams/scaling': typeof AdminAdminTeamsScalingRoute
-  '/compete/$slug/register': typeof CompeteCompeteSlugRegisterRoute
-  '/compete/$slug/tabs': typeof CompeteCompeteSlugTabsRouteWithChildren
-  '/workouts/$id/edit': typeof MainWorkoutsIdEditRoute
-  '/compete/organizer': typeof CompeteCompeteOrganizerIndexRoute
-  '/compete/$slug/tabs/leaderboard': typeof CompeteCompeteSlugTabsLeaderboardRoute
-  '/compete/$slug/tabs/schedule': typeof CompeteCompeteSlugTabsScheduleRoute
-  '/compete/organizer/$competitionId/divisions': typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
-  '/compete/organizer/$competitionId/heats': typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
-  '/compete/organizer/$competitionId/scores': typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
-  '/compete/organizer/$competitionId/settings': typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
-  '/compete/organizer/$competitionId/sponsors': typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
-  '/compete/organizer/$competitionId/workouts': typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
-  '/compete/organizer/$competitionId': typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
+	"/": typeof IndexRoute
+	"/customScript.js": typeof CustomScriptDotjsRoute
+	"/deferred": typeof DeferredRoute
+	"/privacy": typeof PrivacyRoute
+	"/redirect": typeof RedirectRoute
+	"/terms": typeof TermsRoute
+	"/forgot-password": typeof AuthForgotPasswordRoute
+	"/reset-password": typeof AuthResetPasswordRoute
+	"/sign-in": typeof AuthSignInRoute
+	"/sign-up": typeof AuthSignUpRoute
+	"/team-invite": typeof AuthTeamInviteRoute
+	"/verify-email": typeof AuthVerifyEmailRoute
+	"/api/chat": typeof ApiChatRoute
+	"/api/get-session": typeof ApiGetSessionRoute
+	"/api/og": typeof ApiOgRoute
+	"/api/og-competition": typeof ApiOgCompetitionRoute
+	"/api/stripe-connect-callback": typeof ApiStripeConnectCallbackRoute
+	"/api/upload": typeof ApiUploadRoute
+	"/api/users": typeof ApiUsersRouteWithChildren
+	"/api/workouts-search": typeof ApiWorkoutsSearchRoute
+	"/posts/$postId": typeof PostsPostIdRoute
+	"/sso/google": typeof SsoGoogleRouteWithChildren
+	"/users/$userId": typeof UsersUserIdRoute
+	"/posts": typeof PostsIndexRoute
+	"/users": typeof UsersIndexRoute
+	"/admin/entitlements": typeof AdminAdminEntitlementsRoute
+	"/admin/teams": typeof AdminAdminTeamsRouteWithChildren
+	"/admin/users": typeof AdminAdminUsersRoute
+	"/compete/$slug": typeof CompeteCompeteSlugRouteWithChildren
+	"/compete/athlete": typeof CompeteCompeteAthleteRoute
+	"/movements/$id": typeof MainMovementsIdRoute
+	"/programming/$trackId": typeof MainProgrammingTrackIdRoute
+	"/workouts/$id": typeof MainWorkoutsIdRouteWithChildren
+	"/workouts/new": typeof MainWorkoutsNewRoute
+	"/route-a": typeof PathlessLayoutNestedLayoutRouteARoute
+	"/route-b": typeof PathlessLayoutNestedLayoutRouteBRoute
+	"/settings/profile": typeof SettingsSettingsProfileRoute
+	"/settings/security": typeof SettingsSettingsSecurityRoute
+	"/settings/teams": typeof SettingsSettingsTeamsRoute
+	"/api/users/$userId": typeof ApiUsersUserIdRoute
+	"/api/webhooks/stripe": typeof ApiWebhooksStripeRoute
+	"/posts/$postId/deep": typeof PostsPostIdDeepRoute
+	"/sso/google/callback": typeof SsoGoogleCallbackRoute
+	"/admin": typeof AdminAdminIndexRoute
+	"/compete": typeof CompeteCompeteIndexRoute
+	"/calendar": typeof MainCalendarIndexRoute
+	"/log": typeof MainLogIndexRoute
+	"/movements": typeof MainMovementsIndexRoute
+	"/programming": typeof MainProgrammingIndexRoute
+	"/schedule": typeof MainScheduleIndexRoute
+	"/workouts": typeof MainWorkoutsIndexRoute
+	"/settings": typeof SettingsSettingsIndexRoute
+	"/admin/teams/programming": typeof AdminAdminTeamsProgrammingRoute
+	"/admin/teams/scaling": typeof AdminAdminTeamsScalingRoute
+	"/compete/$slug/register": typeof CompeteCompeteSlugRegisterRoute
+	"/compete/$slug/tabs": typeof CompeteCompeteSlugTabsRouteWithChildren
+	"/workouts/$id/edit": typeof MainWorkoutsIdEditRoute
+	"/compete/organizer": typeof CompeteCompeteOrganizerIndexRoute
+	"/compete/$slug/tabs/leaderboard": typeof CompeteCompeteSlugTabsLeaderboardRoute
+	"/compete/$slug/tabs/schedule": typeof CompeteCompeteSlugTabsScheduleRoute
+	"/compete/organizer/$competitionId/divisions": typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
+	"/compete/organizer/$competitionId/heats": typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
+	"/compete/organizer/$competitionId/scores": typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
+	"/compete/organizer/$competitionId/settings": typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
+	"/compete/organizer/$competitionId/sponsors": typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
+	"/compete/organizer/$competitionId/workouts": typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
+	"/compete/organizer/$competitionId": typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/_admin': typeof AdminRouteWithChildren
-  '/_auth': typeof AuthRouteWithChildren
-  '/_compete': typeof CompeteRouteWithChildren
-  '/_main': typeof MainRouteWithChildren
-  '/_pathlessLayout': typeof PathlessLayoutRouteWithChildren
-  '/_settings': typeof SettingsRouteWithChildren
-  '/customScript.js': typeof CustomScriptDotjsRoute
-  '/deferred': typeof DeferredRoute
-  '/posts': typeof PostsRouteWithChildren
-  '/privacy': typeof PrivacyRoute
-  '/redirect': typeof RedirectRoute
-  '/terms': typeof TermsRoute
-  '/users': typeof UsersRouteWithChildren
-  '/_auth/forgot-password': typeof AuthForgotPasswordRoute
-  '/_auth/reset-password': typeof AuthResetPasswordRoute
-  '/_auth/sign-in': typeof AuthSignInRoute
-  '/_auth/sign-up': typeof AuthSignUpRoute
-  '/_auth/team-invite': typeof AuthTeamInviteRoute
-  '/_auth/verify-email': typeof AuthVerifyEmailRoute
-  '/_pathlessLayout/_nested-layout': typeof PathlessLayoutNestedLayoutRouteWithChildren
-  '/api/chat': typeof ApiChatRoute
-  '/api/get-session': typeof ApiGetSessionRoute
-  '/api/og': typeof ApiOgRoute
-  '/api/og-competition': typeof ApiOgCompetitionRoute
-  '/api/stripe-connect-callback': typeof ApiStripeConnectCallbackRoute
-  '/api/upload': typeof ApiUploadRoute
-  '/api/users': typeof ApiUsersRouteWithChildren
-  '/api/workouts-search': typeof ApiWorkoutsSearchRoute
-  '/posts/$postId': typeof PostsPostIdRoute
-  '/users/$userId': typeof UsersUserIdRoute
-  '/posts/': typeof PostsIndexRoute
-  '/users/': typeof UsersIndexRoute
-  '/_admin/admin/entitlements': typeof AdminAdminEntitlementsRoute
-  '/_admin/admin/teams': typeof AdminAdminTeamsRouteWithChildren
-  '/_admin/admin/users': typeof AdminAdminUsersRoute
-  '/_compete/compete/$slug': typeof CompeteCompeteSlugRouteWithChildren
-  '/_compete/compete/athlete': typeof CompeteCompeteAthleteRoute
-  '/_main/movements/$id': typeof MainMovementsIdRoute
-  '/_main/programming/$trackId': typeof MainProgrammingTrackIdRoute
-  '/_main/workouts/$id': typeof MainWorkoutsIdRouteWithChildren
-  '/_main/workouts/new': typeof MainWorkoutsNewRoute
-  '/_pathlessLayout/_nested-layout/route-a': typeof PathlessLayoutNestedLayoutRouteARoute
-  '/_pathlessLayout/_nested-layout/route-b': typeof PathlessLayoutNestedLayoutRouteBRoute
-  '/_settings/settings/profile': typeof SettingsSettingsProfileRoute
-  '/_settings/settings/security': typeof SettingsSettingsSecurityRoute
-  '/_settings/settings/teams': typeof SettingsSettingsTeamsRoute
-  '/api/users/$userId': typeof ApiUsersUserIdRoute
-  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
-  '/posts_/$postId/deep': typeof PostsPostIdDeepRoute
-  '/_admin/admin/': typeof AdminAdminIndexRoute
-  '/_compete/compete/': typeof CompeteCompeteIndexRoute
-  '/_main/calendar/': typeof MainCalendarIndexRoute
-  '/_main/log/': typeof MainLogIndexRoute
-  '/_main/movements/': typeof MainMovementsIndexRoute
-  '/_main/programming/': typeof MainProgrammingIndexRoute
-  '/_main/schedule/': typeof MainScheduleIndexRoute
-  '/_main/workouts/': typeof MainWorkoutsIndexRoute
-  '/_settings/settings/': typeof SettingsSettingsIndexRoute
-  '/_admin/admin/teams/programming': typeof AdminAdminTeamsProgrammingRoute
-  '/_admin/admin/teams/scaling': typeof AdminAdminTeamsScalingRoute
-  '/_compete/compete/$slug/register': typeof CompeteCompeteSlugRegisterRoute
-  '/_compete/compete/$slug/tabs': typeof CompeteCompeteSlugTabsRouteWithChildren
-  '/_main/workouts/$id/edit': typeof MainWorkoutsIdEditRoute
-  '/_compete/compete/organizer/': typeof CompeteCompeteOrganizerIndexRoute
-  '/_compete/compete/$slug/tabs/leaderboard': typeof CompeteCompeteSlugTabsLeaderboardRoute
-  '/_compete/compete/$slug/tabs/schedule': typeof CompeteCompeteSlugTabsScheduleRoute
-  '/_compete/compete/organizer/$competitionId/divisions': typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
-  '/_compete/compete/organizer/$competitionId/heats': typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
-  '/_compete/compete/organizer/$competitionId/scores': typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
-  '/_compete/compete/organizer/$competitionId/settings': typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
-  '/_compete/compete/organizer/$competitionId/sponsors': typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
-  '/_compete/compete/organizer/$competitionId/workouts': typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
-  '/_compete/compete/organizer/$competitionId/': typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
+	__root__: typeof rootRouteImport
+	"/": typeof IndexRoute
+	"/_admin": typeof AdminRouteWithChildren
+	"/_auth": typeof AuthRouteWithChildren
+	"/_compete": typeof CompeteRouteWithChildren
+	"/_main": typeof MainRouteWithChildren
+	"/_pathlessLayout": typeof PathlessLayoutRouteWithChildren
+	"/_settings": typeof SettingsRouteWithChildren
+	"/customScript.js": typeof CustomScriptDotjsRoute
+	"/deferred": typeof DeferredRoute
+	"/posts": typeof PostsRouteWithChildren
+	"/privacy": typeof PrivacyRoute
+	"/redirect": typeof RedirectRoute
+	"/terms": typeof TermsRoute
+	"/users": typeof UsersRouteWithChildren
+	"/_auth/forgot-password": typeof AuthForgotPasswordRoute
+	"/_auth/reset-password": typeof AuthResetPasswordRoute
+	"/_auth/sign-in": typeof AuthSignInRoute
+	"/_auth/sign-up": typeof AuthSignUpRoute
+	"/_auth/team-invite": typeof AuthTeamInviteRoute
+	"/_auth/verify-email": typeof AuthVerifyEmailRoute
+	"/_pathlessLayout/_nested-layout": typeof PathlessLayoutNestedLayoutRouteWithChildren
+	"/api/chat": typeof ApiChatRoute
+	"/api/get-session": typeof ApiGetSessionRoute
+	"/api/og": typeof ApiOgRoute
+	"/api/og-competition": typeof ApiOgCompetitionRoute
+	"/api/stripe-connect-callback": typeof ApiStripeConnectCallbackRoute
+	"/api/upload": typeof ApiUploadRoute
+	"/api/users": typeof ApiUsersRouteWithChildren
+	"/api/workouts-search": typeof ApiWorkoutsSearchRoute
+	"/posts/$postId": typeof PostsPostIdRoute
+	"/sso/google": typeof SsoGoogleRouteWithChildren
+	"/users/$userId": typeof UsersUserIdRoute
+	"/posts/": typeof PostsIndexRoute
+	"/users/": typeof UsersIndexRoute
+	"/_admin/admin/entitlements": typeof AdminAdminEntitlementsRoute
+	"/_admin/admin/teams": typeof AdminAdminTeamsRouteWithChildren
+	"/_admin/admin/users": typeof AdminAdminUsersRoute
+	"/_compete/compete/$slug": typeof CompeteCompeteSlugRouteWithChildren
+	"/_compete/compete/athlete": typeof CompeteCompeteAthleteRoute
+	"/_main/movements/$id": typeof MainMovementsIdRoute
+	"/_main/programming/$trackId": typeof MainProgrammingTrackIdRoute
+	"/_main/workouts/$id": typeof MainWorkoutsIdRouteWithChildren
+	"/_main/workouts/new": typeof MainWorkoutsNewRoute
+	"/_pathlessLayout/_nested-layout/route-a": typeof PathlessLayoutNestedLayoutRouteARoute
+	"/_pathlessLayout/_nested-layout/route-b": typeof PathlessLayoutNestedLayoutRouteBRoute
+	"/_settings/settings/profile": typeof SettingsSettingsProfileRoute
+	"/_settings/settings/security": typeof SettingsSettingsSecurityRoute
+	"/_settings/settings/teams": typeof SettingsSettingsTeamsRoute
+	"/api/users/$userId": typeof ApiUsersUserIdRoute
+	"/api/webhooks/stripe": typeof ApiWebhooksStripeRoute
+	"/posts_/$postId/deep": typeof PostsPostIdDeepRoute
+	"/sso/google/callback": typeof SsoGoogleCallbackRoute
+	"/_admin/admin/": typeof AdminAdminIndexRoute
+	"/_compete/compete/": typeof CompeteCompeteIndexRoute
+	"/_main/calendar/": typeof MainCalendarIndexRoute
+	"/_main/log/": typeof MainLogIndexRoute
+	"/_main/movements/": typeof MainMovementsIndexRoute
+	"/_main/programming/": typeof MainProgrammingIndexRoute
+	"/_main/schedule/": typeof MainScheduleIndexRoute
+	"/_main/workouts/": typeof MainWorkoutsIndexRoute
+	"/_settings/settings/": typeof SettingsSettingsIndexRoute
+	"/_admin/admin/teams/programming": typeof AdminAdminTeamsProgrammingRoute
+	"/_admin/admin/teams/scaling": typeof AdminAdminTeamsScalingRoute
+	"/_compete/compete/$slug/register": typeof CompeteCompeteSlugRegisterRoute
+	"/_compete/compete/$slug/tabs": typeof CompeteCompeteSlugTabsRouteWithChildren
+	"/_main/workouts/$id/edit": typeof MainWorkoutsIdEditRoute
+	"/_compete/compete/organizer/": typeof CompeteCompeteOrganizerIndexRoute
+	"/_compete/compete/$slug/tabs/leaderboard": typeof CompeteCompeteSlugTabsLeaderboardRoute
+	"/_compete/compete/$slug/tabs/schedule": typeof CompeteCompeteSlugTabsScheduleRoute
+	"/_compete/compete/organizer/$competitionId/divisions": typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
+	"/_compete/compete/organizer/$competitionId/heats": typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
+	"/_compete/compete/organizer/$competitionId/scores": typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
+	"/_compete/compete/organizer/$competitionId/settings": typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
+	"/_compete/compete/organizer/$competitionId/sponsors": typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
+	"/_compete/compete/organizer/$competitionId/workouts": typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
+	"/_compete/compete/organizer/$competitionId/": typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/customScript.js'
-    | '/deferred'
-    | '/posts'
-    | '/privacy'
-    | '/redirect'
-    | '/terms'
-    | '/users'
-    | '/forgot-password'
-    | '/reset-password'
-    | '/sign-in'
-    | '/sign-up'
-    | '/team-invite'
-    | '/verify-email'
-    | '/api/chat'
-    | '/api/get-session'
-    | '/api/og'
-    | '/api/og-competition'
-    | '/api/stripe-connect-callback'
-    | '/api/upload'
-    | '/api/users'
-    | '/api/workouts-search'
-    | '/posts/$postId'
-    | '/users/$userId'
-    | '/posts/'
-    | '/users/'
-    | '/admin/entitlements'
-    | '/admin/teams'
-    | '/admin/users'
-    | '/compete/$slug'
-    | '/compete/athlete'
-    | '/movements/$id'
-    | '/programming/$trackId'
-    | '/workouts/$id'
-    | '/workouts/new'
-    | '/route-a'
-    | '/route-b'
-    | '/settings/profile'
-    | '/settings/security'
-    | '/settings/teams'
-    | '/api/users/$userId'
-    | '/api/webhooks/stripe'
-    | '/posts/$postId/deep'
-    | '/admin'
-    | '/compete'
-    | '/calendar'
-    | '/log'
-    | '/movements'
-    | '/programming'
-    | '/schedule'
-    | '/workouts'
-    | '/settings'
-    | '/admin/teams/programming'
-    | '/admin/teams/scaling'
-    | '/compete/$slug/register'
-    | '/compete/$slug/tabs'
-    | '/workouts/$id/edit'
-    | '/compete/organizer'
-    | '/compete/$slug/tabs/leaderboard'
-    | '/compete/$slug/tabs/schedule'
-    | '/compete/organizer/$competitionId/divisions'
-    | '/compete/organizer/$competitionId/heats'
-    | '/compete/organizer/$competitionId/scores'
-    | '/compete/organizer/$competitionId/settings'
-    | '/compete/organizer/$competitionId/sponsors'
-    | '/compete/organizer/$competitionId/workouts'
-    | '/compete/organizer/$competitionId'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/customScript.js'
-    | '/deferred'
-    | '/privacy'
-    | '/redirect'
-    | '/terms'
-    | '/forgot-password'
-    | '/reset-password'
-    | '/sign-in'
-    | '/sign-up'
-    | '/team-invite'
-    | '/verify-email'
-    | '/api/chat'
-    | '/api/get-session'
-    | '/api/og'
-    | '/api/og-competition'
-    | '/api/stripe-connect-callback'
-    | '/api/upload'
-    | '/api/users'
-    | '/api/workouts-search'
-    | '/posts/$postId'
-    | '/users/$userId'
-    | '/posts'
-    | '/users'
-    | '/admin/entitlements'
-    | '/admin/teams'
-    | '/admin/users'
-    | '/compete/$slug'
-    | '/compete/athlete'
-    | '/movements/$id'
-    | '/programming/$trackId'
-    | '/workouts/$id'
-    | '/workouts/new'
-    | '/route-a'
-    | '/route-b'
-    | '/settings/profile'
-    | '/settings/security'
-    | '/settings/teams'
-    | '/api/users/$userId'
-    | '/api/webhooks/stripe'
-    | '/posts/$postId/deep'
-    | '/admin'
-    | '/compete'
-    | '/calendar'
-    | '/log'
-    | '/movements'
-    | '/programming'
-    | '/schedule'
-    | '/workouts'
-    | '/settings'
-    | '/admin/teams/programming'
-    | '/admin/teams/scaling'
-    | '/compete/$slug/register'
-    | '/compete/$slug/tabs'
-    | '/workouts/$id/edit'
-    | '/compete/organizer'
-    | '/compete/$slug/tabs/leaderboard'
-    | '/compete/$slug/tabs/schedule'
-    | '/compete/organizer/$competitionId/divisions'
-    | '/compete/organizer/$competitionId/heats'
-    | '/compete/organizer/$competitionId/scores'
-    | '/compete/organizer/$competitionId/settings'
-    | '/compete/organizer/$competitionId/sponsors'
-    | '/compete/organizer/$competitionId/workouts'
-    | '/compete/organizer/$competitionId'
-  id:
-    | '__root__'
-    | '/'
-    | '/_admin'
-    | '/_auth'
-    | '/_compete'
-    | '/_main'
-    | '/_pathlessLayout'
-    | '/_settings'
-    | '/customScript.js'
-    | '/deferred'
-    | '/posts'
-    | '/privacy'
-    | '/redirect'
-    | '/terms'
-    | '/users'
-    | '/_auth/forgot-password'
-    | '/_auth/reset-password'
-    | '/_auth/sign-in'
-    | '/_auth/sign-up'
-    | '/_auth/team-invite'
-    | '/_auth/verify-email'
-    | '/_pathlessLayout/_nested-layout'
-    | '/api/chat'
-    | '/api/get-session'
-    | '/api/og'
-    | '/api/og-competition'
-    | '/api/stripe-connect-callback'
-    | '/api/upload'
-    | '/api/users'
-    | '/api/workouts-search'
-    | '/posts/$postId'
-    | '/users/$userId'
-    | '/posts/'
-    | '/users/'
-    | '/_admin/admin/entitlements'
-    | '/_admin/admin/teams'
-    | '/_admin/admin/users'
-    | '/_compete/compete/$slug'
-    | '/_compete/compete/athlete'
-    | '/_main/movements/$id'
-    | '/_main/programming/$trackId'
-    | '/_main/workouts/$id'
-    | '/_main/workouts/new'
-    | '/_pathlessLayout/_nested-layout/route-a'
-    | '/_pathlessLayout/_nested-layout/route-b'
-    | '/_settings/settings/profile'
-    | '/_settings/settings/security'
-    | '/_settings/settings/teams'
-    | '/api/users/$userId'
-    | '/api/webhooks/stripe'
-    | '/posts_/$postId/deep'
-    | '/_admin/admin/'
-    | '/_compete/compete/'
-    | '/_main/calendar/'
-    | '/_main/log/'
-    | '/_main/movements/'
-    | '/_main/programming/'
-    | '/_main/schedule/'
-    | '/_main/workouts/'
-    | '/_settings/settings/'
-    | '/_admin/admin/teams/programming'
-    | '/_admin/admin/teams/scaling'
-    | '/_compete/compete/$slug/register'
-    | '/_compete/compete/$slug/tabs'
-    | '/_main/workouts/$id/edit'
-    | '/_compete/compete/organizer/'
-    | '/_compete/compete/$slug/tabs/leaderboard'
-    | '/_compete/compete/$slug/tabs/schedule'
-    | '/_compete/compete/organizer/$competitionId/divisions'
-    | '/_compete/compete/organizer/$competitionId/heats'
-    | '/_compete/compete/organizer/$competitionId/scores'
-    | '/_compete/compete/organizer/$competitionId/settings'
-    | '/_compete/compete/organizer/$competitionId/sponsors'
-    | '/_compete/compete/organizer/$competitionId/workouts'
-    | '/_compete/compete/organizer/$competitionId/'
-  fileRoutesById: FileRoutesById
+	fileRoutesByFullPath: FileRoutesByFullPath
+	fullPaths:
+		| "/"
+		| "/customScript.js"
+		| "/deferred"
+		| "/posts"
+		| "/privacy"
+		| "/redirect"
+		| "/terms"
+		| "/users"
+		| "/forgot-password"
+		| "/reset-password"
+		| "/sign-in"
+		| "/sign-up"
+		| "/team-invite"
+		| "/verify-email"
+		| "/api/chat"
+		| "/api/get-session"
+		| "/api/og"
+		| "/api/og-competition"
+		| "/api/stripe-connect-callback"
+		| "/api/upload"
+		| "/api/users"
+		| "/api/workouts-search"
+		| "/posts/$postId"
+		| "/sso/google"
+		| "/users/$userId"
+		| "/posts/"
+		| "/users/"
+		| "/admin/entitlements"
+		| "/admin/teams"
+		| "/admin/users"
+		| "/compete/$slug"
+		| "/compete/athlete"
+		| "/movements/$id"
+		| "/programming/$trackId"
+		| "/workouts/$id"
+		| "/workouts/new"
+		| "/route-a"
+		| "/route-b"
+		| "/settings/profile"
+		| "/settings/security"
+		| "/settings/teams"
+		| "/api/users/$userId"
+		| "/api/webhooks/stripe"
+		| "/posts/$postId/deep"
+		| "/sso/google/callback"
+		| "/admin"
+		| "/compete"
+		| "/calendar"
+		| "/log"
+		| "/movements"
+		| "/programming"
+		| "/schedule"
+		| "/workouts"
+		| "/settings"
+		| "/admin/teams/programming"
+		| "/admin/teams/scaling"
+		| "/compete/$slug/register"
+		| "/compete/$slug/tabs"
+		| "/workouts/$id/edit"
+		| "/compete/organizer"
+		| "/compete/$slug/tabs/leaderboard"
+		| "/compete/$slug/tabs/schedule"
+		| "/compete/organizer/$competitionId/divisions"
+		| "/compete/organizer/$competitionId/heats"
+		| "/compete/organizer/$competitionId/scores"
+		| "/compete/organizer/$competitionId/settings"
+		| "/compete/organizer/$competitionId/sponsors"
+		| "/compete/organizer/$competitionId/workouts"
+		| "/compete/organizer/$competitionId"
+	fileRoutesByTo: FileRoutesByTo
+	to:
+		| "/"
+		| "/customScript.js"
+		| "/deferred"
+		| "/privacy"
+		| "/redirect"
+		| "/terms"
+		| "/forgot-password"
+		| "/reset-password"
+		| "/sign-in"
+		| "/sign-up"
+		| "/team-invite"
+		| "/verify-email"
+		| "/api/chat"
+		| "/api/get-session"
+		| "/api/og"
+		| "/api/og-competition"
+		| "/api/stripe-connect-callback"
+		| "/api/upload"
+		| "/api/users"
+		| "/api/workouts-search"
+		| "/posts/$postId"
+		| "/sso/google"
+		| "/users/$userId"
+		| "/posts"
+		| "/users"
+		| "/admin/entitlements"
+		| "/admin/teams"
+		| "/admin/users"
+		| "/compete/$slug"
+		| "/compete/athlete"
+		| "/movements/$id"
+		| "/programming/$trackId"
+		| "/workouts/$id"
+		| "/workouts/new"
+		| "/route-a"
+		| "/route-b"
+		| "/settings/profile"
+		| "/settings/security"
+		| "/settings/teams"
+		| "/api/users/$userId"
+		| "/api/webhooks/stripe"
+		| "/posts/$postId/deep"
+		| "/sso/google/callback"
+		| "/admin"
+		| "/compete"
+		| "/calendar"
+		| "/log"
+		| "/movements"
+		| "/programming"
+		| "/schedule"
+		| "/workouts"
+		| "/settings"
+		| "/admin/teams/programming"
+		| "/admin/teams/scaling"
+		| "/compete/$slug/register"
+		| "/compete/$slug/tabs"
+		| "/workouts/$id/edit"
+		| "/compete/organizer"
+		| "/compete/$slug/tabs/leaderboard"
+		| "/compete/$slug/tabs/schedule"
+		| "/compete/organizer/$competitionId/divisions"
+		| "/compete/organizer/$competitionId/heats"
+		| "/compete/organizer/$competitionId/scores"
+		| "/compete/organizer/$competitionId/settings"
+		| "/compete/organizer/$competitionId/sponsors"
+		| "/compete/organizer/$competitionId/workouts"
+		| "/compete/organizer/$competitionId"
+	id:
+		| "__root__"
+		| "/"
+		| "/_admin"
+		| "/_auth"
+		| "/_compete"
+		| "/_main"
+		| "/_pathlessLayout"
+		| "/_settings"
+		| "/customScript.js"
+		| "/deferred"
+		| "/posts"
+		| "/privacy"
+		| "/redirect"
+		| "/terms"
+		| "/users"
+		| "/_auth/forgot-password"
+		| "/_auth/reset-password"
+		| "/_auth/sign-in"
+		| "/_auth/sign-up"
+		| "/_auth/team-invite"
+		| "/_auth/verify-email"
+		| "/_pathlessLayout/_nested-layout"
+		| "/api/chat"
+		| "/api/get-session"
+		| "/api/og"
+		| "/api/og-competition"
+		| "/api/stripe-connect-callback"
+		| "/api/upload"
+		| "/api/users"
+		| "/api/workouts-search"
+		| "/posts/$postId"
+		| "/sso/google"
+		| "/users/$userId"
+		| "/posts/"
+		| "/users/"
+		| "/_admin/admin/entitlements"
+		| "/_admin/admin/teams"
+		| "/_admin/admin/users"
+		| "/_compete/compete/$slug"
+		| "/_compete/compete/athlete"
+		| "/_main/movements/$id"
+		| "/_main/programming/$trackId"
+		| "/_main/workouts/$id"
+		| "/_main/workouts/new"
+		| "/_pathlessLayout/_nested-layout/route-a"
+		| "/_pathlessLayout/_nested-layout/route-b"
+		| "/_settings/settings/profile"
+		| "/_settings/settings/security"
+		| "/_settings/settings/teams"
+		| "/api/users/$userId"
+		| "/api/webhooks/stripe"
+		| "/posts_/$postId/deep"
+		| "/sso/google/callback"
+		| "/_admin/admin/"
+		| "/_compete/compete/"
+		| "/_main/calendar/"
+		| "/_main/log/"
+		| "/_main/movements/"
+		| "/_main/programming/"
+		| "/_main/schedule/"
+		| "/_main/workouts/"
+		| "/_settings/settings/"
+		| "/_admin/admin/teams/programming"
+		| "/_admin/admin/teams/scaling"
+		| "/_compete/compete/$slug/register"
+		| "/_compete/compete/$slug/tabs"
+		| "/_main/workouts/$id/edit"
+		| "/_compete/compete/organizer/"
+		| "/_compete/compete/$slug/tabs/leaderboard"
+		| "/_compete/compete/$slug/tabs/schedule"
+		| "/_compete/compete/organizer/$competitionId/divisions"
+		| "/_compete/compete/organizer/$competitionId/heats"
+		| "/_compete/compete/organizer/$competitionId/scores"
+		| "/_compete/compete/organizer/$competitionId/settings"
+		| "/_compete/compete/organizer/$competitionId/sponsors"
+		| "/_compete/compete/organizer/$competitionId/workouts"
+		| "/_compete/compete/organizer/$competitionId/"
+	fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRouteWithChildren
-  AuthRoute: typeof AuthRouteWithChildren
-  CompeteRoute: typeof CompeteRouteWithChildren
-  MainRoute: typeof MainRouteWithChildren
-  PathlessLayoutRoute: typeof PathlessLayoutRouteWithChildren
-  SettingsRoute: typeof SettingsRouteWithChildren
-  CustomScriptDotjsRoute: typeof CustomScriptDotjsRoute
-  DeferredRoute: typeof DeferredRoute
-  PostsRoute: typeof PostsRouteWithChildren
-  PrivacyRoute: typeof PrivacyRoute
-  RedirectRoute: typeof RedirectRoute
-  TermsRoute: typeof TermsRoute
-  UsersRoute: typeof UsersRouteWithChildren
-  ApiChatRoute: typeof ApiChatRoute
-  ApiGetSessionRoute: typeof ApiGetSessionRoute
-  ApiOgRoute: typeof ApiOgRoute
-  ApiOgCompetitionRoute: typeof ApiOgCompetitionRoute
-  ApiStripeConnectCallbackRoute: typeof ApiStripeConnectCallbackRoute
-  ApiUploadRoute: typeof ApiUploadRoute
-  ApiUsersRoute: typeof ApiUsersRouteWithChildren
-  ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
-  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
-  PostsPostIdDeepRoute: typeof PostsPostIdDeepRoute
+	IndexRoute: typeof IndexRoute
+	AdminRoute: typeof AdminRouteWithChildren
+	AuthRoute: typeof AuthRouteWithChildren
+	CompeteRoute: typeof CompeteRouteWithChildren
+	MainRoute: typeof MainRouteWithChildren
+	PathlessLayoutRoute: typeof PathlessLayoutRouteWithChildren
+	SettingsRoute: typeof SettingsRouteWithChildren
+	CustomScriptDotjsRoute: typeof CustomScriptDotjsRoute
+	DeferredRoute: typeof DeferredRoute
+	PostsRoute: typeof PostsRouteWithChildren
+	PrivacyRoute: typeof PrivacyRoute
+	RedirectRoute: typeof RedirectRoute
+	TermsRoute: typeof TermsRoute
+	UsersRoute: typeof UsersRouteWithChildren
+	ApiChatRoute: typeof ApiChatRoute
+	ApiGetSessionRoute: typeof ApiGetSessionRoute
+	ApiOgRoute: typeof ApiOgRoute
+	ApiOgCompetitionRoute: typeof ApiOgCompetitionRoute
+	ApiStripeConnectCallbackRoute: typeof ApiStripeConnectCallbackRoute
+	ApiUploadRoute: typeof ApiUploadRoute
+	ApiUsersRoute: typeof ApiUsersRouteWithChildren
+	ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
+	SsoGoogleRoute: typeof SsoGoogleRouteWithChildren
+	ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
+	PostsPostIdDeepRoute: typeof PostsPostIdDeepRoute
 }
 
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/users': {
-      id: '/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof UsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/redirect': {
-      id: '/redirect'
-      path: '/redirect'
-      fullPath: '/redirect'
-      preLoaderRoute: typeof RedirectRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/posts': {
-      id: '/posts'
-      path: '/posts'
-      fullPath: '/posts'
-      preLoaderRoute: typeof PostsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/deferred': {
-      id: '/deferred'
-      path: '/deferred'
-      fullPath: '/deferred'
-      preLoaderRoute: typeof DeferredRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/customScript.js': {
-      id: '/customScript.js'
-      path: '/customScript.js'
-      fullPath: '/customScript.js'
-      preLoaderRoute: typeof CustomScriptDotjsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_settings': {
-      id: '/_settings'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_pathlessLayout': {
-      id: '/_pathlessLayout'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof PathlessLayoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_main': {
-      id: '/_main'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof MainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_compete': {
-      id: '/_compete'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof CompeteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_auth': {
-      id: '/_auth'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_admin': {
-      id: '/_admin'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/users/': {
-      id: '/users/'
-      path: '/'
-      fullPath: '/users/'
-      preLoaderRoute: typeof UsersIndexRouteImport
-      parentRoute: typeof UsersRoute
-    }
-    '/posts/': {
-      id: '/posts/'
-      path: '/'
-      fullPath: '/posts/'
-      preLoaderRoute: typeof PostsIndexRouteImport
-      parentRoute: typeof PostsRoute
-    }
-    '/users/$userId': {
-      id: '/users/$userId'
-      path: '/$userId'
-      fullPath: '/users/$userId'
-      preLoaderRoute: typeof UsersUserIdRouteImport
-      parentRoute: typeof UsersRoute
-    }
-    '/posts/$postId': {
-      id: '/posts/$postId'
-      path: '/$postId'
-      fullPath: '/posts/$postId'
-      preLoaderRoute: typeof PostsPostIdRouteImport
-      parentRoute: typeof PostsRoute
-    }
-    '/api/workouts-search': {
-      id: '/api/workouts-search'
-      path: '/api/workouts-search'
-      fullPath: '/api/workouts-search'
-      preLoaderRoute: typeof ApiWorkoutsSearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/users': {
-      id: '/api/users'
-      path: '/api/users'
-      fullPath: '/api/users'
-      preLoaderRoute: typeof ApiUsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/upload': {
-      id: '/api/upload'
-      path: '/api/upload'
-      fullPath: '/api/upload'
-      preLoaderRoute: typeof ApiUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/stripe-connect-callback': {
-      id: '/api/stripe-connect-callback'
-      path: '/api/stripe-connect-callback'
-      fullPath: '/api/stripe-connect-callback'
-      preLoaderRoute: typeof ApiStripeConnectCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/og-competition': {
-      id: '/api/og-competition'
-      path: '/api/og-competition'
-      fullPath: '/api/og-competition'
-      preLoaderRoute: typeof ApiOgCompetitionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/og': {
-      id: '/api/og'
-      path: '/api/og'
-      fullPath: '/api/og'
-      preLoaderRoute: typeof ApiOgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/get-session': {
-      id: '/api/get-session'
-      path: '/api/get-session'
-      fullPath: '/api/get-session'
-      preLoaderRoute: typeof ApiGetSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_pathlessLayout/_nested-layout': {
-      id: '/_pathlessLayout/_nested-layout'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof PathlessLayoutNestedLayoutRouteImport
-      parentRoute: typeof PathlessLayoutRoute
-    }
-    '/_auth/verify-email': {
-      id: '/_auth/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof AuthVerifyEmailRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/team-invite': {
-      id: '/_auth/team-invite'
-      path: '/team-invite'
-      fullPath: '/team-invite'
-      preLoaderRoute: typeof AuthTeamInviteRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/sign-up': {
-      id: '/_auth/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof AuthSignUpRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/sign-in': {
-      id: '/_auth/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof AuthSignInRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/reset-password': {
-      id: '/_auth/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/forgot-password': {
-      id: '/_auth/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_settings/settings/': {
-      id: '/_settings/settings/'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsSettingsIndexRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/_main/workouts/': {
-      id: '/_main/workouts/'
-      path: '/workouts'
-      fullPath: '/workouts'
-      preLoaderRoute: typeof MainWorkoutsIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/schedule/': {
-      id: '/_main/schedule/'
-      path: '/schedule'
-      fullPath: '/schedule'
-      preLoaderRoute: typeof MainScheduleIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/programming/': {
-      id: '/_main/programming/'
-      path: '/programming'
-      fullPath: '/programming'
-      preLoaderRoute: typeof MainProgrammingIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/movements/': {
-      id: '/_main/movements/'
-      path: '/movements'
-      fullPath: '/movements'
-      preLoaderRoute: typeof MainMovementsIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/log/': {
-      id: '/_main/log/'
-      path: '/log'
-      fullPath: '/log'
-      preLoaderRoute: typeof MainLogIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/calendar/': {
-      id: '/_main/calendar/'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof MainCalendarIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_compete/compete/': {
-      id: '/_compete/compete/'
-      path: '/compete'
-      fullPath: '/compete'
-      preLoaderRoute: typeof CompeteCompeteIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_admin/admin/': {
-      id: '/_admin/admin/'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminAdminIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/posts_/$postId/deep': {
-      id: '/posts_/$postId/deep'
-      path: '/posts/$postId/deep'
-      fullPath: '/posts/$postId/deep'
-      preLoaderRoute: typeof PostsPostIdDeepRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/webhooks/stripe': {
-      id: '/api/webhooks/stripe'
-      path: '/api/webhooks/stripe'
-      fullPath: '/api/webhooks/stripe'
-      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/users/$userId': {
-      id: '/api/users/$userId'
-      path: '/$userId'
-      fullPath: '/api/users/$userId'
-      preLoaderRoute: typeof ApiUsersUserIdRouteImport
-      parentRoute: typeof ApiUsersRoute
-    }
-    '/_settings/settings/teams': {
-      id: '/_settings/settings/teams'
-      path: '/settings/teams'
-      fullPath: '/settings/teams'
-      preLoaderRoute: typeof SettingsSettingsTeamsRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/_settings/settings/security': {
-      id: '/_settings/settings/security'
-      path: '/settings/security'
-      fullPath: '/settings/security'
-      preLoaderRoute: typeof SettingsSettingsSecurityRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/_settings/settings/profile': {
-      id: '/_settings/settings/profile'
-      path: '/settings/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof SettingsSettingsProfileRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/_pathlessLayout/_nested-layout/route-b': {
-      id: '/_pathlessLayout/_nested-layout/route-b'
-      path: '/route-b'
-      fullPath: '/route-b'
-      preLoaderRoute: typeof PathlessLayoutNestedLayoutRouteBRouteImport
-      parentRoute: typeof PathlessLayoutNestedLayoutRoute
-    }
-    '/_pathlessLayout/_nested-layout/route-a': {
-      id: '/_pathlessLayout/_nested-layout/route-a'
-      path: '/route-a'
-      fullPath: '/route-a'
-      preLoaderRoute: typeof PathlessLayoutNestedLayoutRouteARouteImport
-      parentRoute: typeof PathlessLayoutNestedLayoutRoute
-    }
-    '/_main/workouts/new': {
-      id: '/_main/workouts/new'
-      path: '/workouts/new'
-      fullPath: '/workouts/new'
-      preLoaderRoute: typeof MainWorkoutsNewRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/workouts/$id': {
-      id: '/_main/workouts/$id'
-      path: '/workouts/$id'
-      fullPath: '/workouts/$id'
-      preLoaderRoute: typeof MainWorkoutsIdRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/programming/$trackId': {
-      id: '/_main/programming/$trackId'
-      path: '/programming/$trackId'
-      fullPath: '/programming/$trackId'
-      preLoaderRoute: typeof MainProgrammingTrackIdRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/movements/$id': {
-      id: '/_main/movements/$id'
-      path: '/movements/$id'
-      fullPath: '/movements/$id'
-      preLoaderRoute: typeof MainMovementsIdRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_compete/compete/athlete': {
-      id: '/_compete/compete/athlete'
-      path: '/compete/athlete'
-      fullPath: '/compete/athlete'
-      preLoaderRoute: typeof CompeteCompeteAthleteRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/$slug': {
-      id: '/_compete/compete/$slug'
-      path: '/compete/$slug'
-      fullPath: '/compete/$slug'
-      preLoaderRoute: typeof CompeteCompeteSlugRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_admin/admin/users': {
-      id: '/_admin/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminAdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/_admin/admin/teams': {
-      id: '/_admin/admin/teams'
-      path: '/admin/teams'
-      fullPath: '/admin/teams'
-      preLoaderRoute: typeof AdminAdminTeamsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/_admin/admin/entitlements': {
-      id: '/_admin/admin/entitlements'
-      path: '/admin/entitlements'
-      fullPath: '/admin/entitlements'
-      preLoaderRoute: typeof AdminAdminEntitlementsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/_compete/compete/organizer/': {
-      id: '/_compete/compete/organizer/'
-      path: '/compete/organizer'
-      fullPath: '/compete/organizer'
-      preLoaderRoute: typeof CompeteCompeteOrganizerIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_main/workouts/$id/edit': {
-      id: '/_main/workouts/$id/edit'
-      path: '/edit'
-      fullPath: '/workouts/$id/edit'
-      preLoaderRoute: typeof MainWorkoutsIdEditRouteImport
-      parentRoute: typeof MainWorkoutsIdRoute
-    }
-    '/_compete/compete/$slug/tabs': {
-      id: '/_compete/compete/$slug/tabs'
-      path: '/tabs'
-      fullPath: '/compete/$slug/tabs'
-      preLoaderRoute: typeof CompeteCompeteSlugTabsRouteImport
-      parentRoute: typeof CompeteCompeteSlugRoute
-    }
-    '/_compete/compete/$slug/register': {
-      id: '/_compete/compete/$slug/register'
-      path: '/register'
-      fullPath: '/compete/$slug/register'
-      preLoaderRoute: typeof CompeteCompeteSlugRegisterRouteImport
-      parentRoute: typeof CompeteCompeteSlugRoute
-    }
-    '/_admin/admin/teams/scaling': {
-      id: '/_admin/admin/teams/scaling'
-      path: '/scaling'
-      fullPath: '/admin/teams/scaling'
-      preLoaderRoute: typeof AdminAdminTeamsScalingRouteImport
-      parentRoute: typeof AdminAdminTeamsRoute
-    }
-    '/_admin/admin/teams/programming': {
-      id: '/_admin/admin/teams/programming'
-      path: '/programming'
-      fullPath: '/admin/teams/programming'
-      preLoaderRoute: typeof AdminAdminTeamsProgrammingRouteImport
-      parentRoute: typeof AdminAdminTeamsRoute
-    }
-    '/_compete/compete/organizer/$competitionId/': {
-      id: '/_compete/compete/organizer/$competitionId/'
-      path: '/compete/organizer/$competitionId'
-      fullPath: '/compete/organizer/$competitionId'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/organizer/$competitionId/workouts': {
-      id: '/_compete/compete/organizer/$competitionId/workouts'
-      path: '/compete/organizer/$competitionId/workouts'
-      fullPath: '/compete/organizer/$competitionId/workouts'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/organizer/$competitionId/sponsors': {
-      id: '/_compete/compete/organizer/$competitionId/sponsors'
-      path: '/compete/organizer/$competitionId/sponsors'
-      fullPath: '/compete/organizer/$competitionId/sponsors'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdSponsorsRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/organizer/$competitionId/settings': {
-      id: '/_compete/compete/organizer/$competitionId/settings'
-      path: '/compete/organizer/$competitionId/settings'
-      fullPath: '/compete/organizer/$competitionId/settings'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdSettingsRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/organizer/$competitionId/scores': {
-      id: '/_compete/compete/organizer/$competitionId/scores'
-      path: '/compete/organizer/$competitionId/scores'
-      fullPath: '/compete/organizer/$competitionId/scores'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdScoresRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/organizer/$competitionId/heats': {
-      id: '/_compete/compete/organizer/$competitionId/heats'
-      path: '/compete/organizer/$competitionId/heats'
-      fullPath: '/compete/organizer/$competitionId/heats'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdHeatsRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/organizer/$competitionId/divisions': {
-      id: '/_compete/compete/organizer/$competitionId/divisions'
-      path: '/compete/organizer/$competitionId/divisions'
-      fullPath: '/compete/organizer/$competitionId/divisions'
-      preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdDivisionsRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_compete/compete/$slug/tabs/schedule': {
-      id: '/_compete/compete/$slug/tabs/schedule'
-      path: '/schedule'
-      fullPath: '/compete/$slug/tabs/schedule'
-      preLoaderRoute: typeof CompeteCompeteSlugTabsScheduleRouteImport
-      parentRoute: typeof CompeteCompeteSlugTabsRoute
-    }
-    '/_compete/compete/$slug/tabs/leaderboard': {
-      id: '/_compete/compete/$slug/tabs/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/compete/$slug/tabs/leaderboard'
-      preLoaderRoute: typeof CompeteCompeteSlugTabsLeaderboardRouteImport
-      parentRoute: typeof CompeteCompeteSlugTabsRoute
-    }
-  }
+declare module "@tanstack/react-router" {
+	interface FileRoutesByPath {
+		"/users": {
+			id: "/users"
+			path: "/users"
+			fullPath: "/users"
+			preLoaderRoute: typeof UsersRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/terms": {
+			id: "/terms"
+			path: "/terms"
+			fullPath: "/terms"
+			preLoaderRoute: typeof TermsRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/redirect": {
+			id: "/redirect"
+			path: "/redirect"
+			fullPath: "/redirect"
+			preLoaderRoute: typeof RedirectRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/privacy": {
+			id: "/privacy"
+			path: "/privacy"
+			fullPath: "/privacy"
+			preLoaderRoute: typeof PrivacyRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/posts": {
+			id: "/posts"
+			path: "/posts"
+			fullPath: "/posts"
+			preLoaderRoute: typeof PostsRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/deferred": {
+			id: "/deferred"
+			path: "/deferred"
+			fullPath: "/deferred"
+			preLoaderRoute: typeof DeferredRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/customScript.js": {
+			id: "/customScript.js"
+			path: "/customScript.js"
+			fullPath: "/customScript.js"
+			preLoaderRoute: typeof CustomScriptDotjsRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_settings": {
+			id: "/_settings"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof SettingsRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_pathlessLayout": {
+			id: "/_pathlessLayout"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof PathlessLayoutRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_main": {
+			id: "/_main"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof MainRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_compete": {
+			id: "/_compete"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof CompeteRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_auth": {
+			id: "/_auth"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof AuthRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_admin": {
+			id: "/_admin"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof AdminRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/": {
+			id: "/"
+			path: "/"
+			fullPath: "/"
+			preLoaderRoute: typeof IndexRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/users/": {
+			id: "/users/"
+			path: "/"
+			fullPath: "/users/"
+			preLoaderRoute: typeof UsersIndexRouteImport
+			parentRoute: typeof UsersRoute
+		}
+		"/posts/": {
+			id: "/posts/"
+			path: "/"
+			fullPath: "/posts/"
+			preLoaderRoute: typeof PostsIndexRouteImport
+			parentRoute: typeof PostsRoute
+		}
+		"/users/$userId": {
+			id: "/users/$userId"
+			path: "/$userId"
+			fullPath: "/users/$userId"
+			preLoaderRoute: typeof UsersUserIdRouteImport
+			parentRoute: typeof UsersRoute
+		}
+		"/sso/google": {
+			id: "/sso/google"
+			path: "/sso/google"
+			fullPath: "/sso/google"
+			preLoaderRoute: typeof SsoGoogleRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/posts/$postId": {
+			id: "/posts/$postId"
+			path: "/$postId"
+			fullPath: "/posts/$postId"
+			preLoaderRoute: typeof PostsPostIdRouteImport
+			parentRoute: typeof PostsRoute
+		}
+		"/api/workouts-search": {
+			id: "/api/workouts-search"
+			path: "/api/workouts-search"
+			fullPath: "/api/workouts-search"
+			preLoaderRoute: typeof ApiWorkoutsSearchRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/users": {
+			id: "/api/users"
+			path: "/api/users"
+			fullPath: "/api/users"
+			preLoaderRoute: typeof ApiUsersRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/upload": {
+			id: "/api/upload"
+			path: "/api/upload"
+			fullPath: "/api/upload"
+			preLoaderRoute: typeof ApiUploadRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/stripe-connect-callback": {
+			id: "/api/stripe-connect-callback"
+			path: "/api/stripe-connect-callback"
+			fullPath: "/api/stripe-connect-callback"
+			preLoaderRoute: typeof ApiStripeConnectCallbackRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/og-competition": {
+			id: "/api/og-competition"
+			path: "/api/og-competition"
+			fullPath: "/api/og-competition"
+			preLoaderRoute: typeof ApiOgCompetitionRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/og": {
+			id: "/api/og"
+			path: "/api/og"
+			fullPath: "/api/og"
+			preLoaderRoute: typeof ApiOgRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/get-session": {
+			id: "/api/get-session"
+			path: "/api/get-session"
+			fullPath: "/api/get-session"
+			preLoaderRoute: typeof ApiGetSessionRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/chat": {
+			id: "/api/chat"
+			path: "/api/chat"
+			fullPath: "/api/chat"
+			preLoaderRoute: typeof ApiChatRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_pathlessLayout/_nested-layout": {
+			id: "/_pathlessLayout/_nested-layout"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof PathlessLayoutNestedLayoutRouteImport
+			parentRoute: typeof PathlessLayoutRoute
+		}
+		"/_auth/verify-email": {
+			id: "/_auth/verify-email"
+			path: "/verify-email"
+			fullPath: "/verify-email"
+			preLoaderRoute: typeof AuthVerifyEmailRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/team-invite": {
+			id: "/_auth/team-invite"
+			path: "/team-invite"
+			fullPath: "/team-invite"
+			preLoaderRoute: typeof AuthTeamInviteRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/sign-up": {
+			id: "/_auth/sign-up"
+			path: "/sign-up"
+			fullPath: "/sign-up"
+			preLoaderRoute: typeof AuthSignUpRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/sign-in": {
+			id: "/_auth/sign-in"
+			path: "/sign-in"
+			fullPath: "/sign-in"
+			preLoaderRoute: typeof AuthSignInRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/reset-password": {
+			id: "/_auth/reset-password"
+			path: "/reset-password"
+			fullPath: "/reset-password"
+			preLoaderRoute: typeof AuthResetPasswordRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/forgot-password": {
+			id: "/_auth/forgot-password"
+			path: "/forgot-password"
+			fullPath: "/forgot-password"
+			preLoaderRoute: typeof AuthForgotPasswordRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_settings/settings/": {
+			id: "/_settings/settings/"
+			path: "/settings"
+			fullPath: "/settings"
+			preLoaderRoute: typeof SettingsSettingsIndexRouteImport
+			parentRoute: typeof SettingsRoute
+		}
+		"/_main/workouts/": {
+			id: "/_main/workouts/"
+			path: "/workouts"
+			fullPath: "/workouts"
+			preLoaderRoute: typeof MainWorkoutsIndexRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/schedule/": {
+			id: "/_main/schedule/"
+			path: "/schedule"
+			fullPath: "/schedule"
+			preLoaderRoute: typeof MainScheduleIndexRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/programming/": {
+			id: "/_main/programming/"
+			path: "/programming"
+			fullPath: "/programming"
+			preLoaderRoute: typeof MainProgrammingIndexRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/movements/": {
+			id: "/_main/movements/"
+			path: "/movements"
+			fullPath: "/movements"
+			preLoaderRoute: typeof MainMovementsIndexRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/log/": {
+			id: "/_main/log/"
+			path: "/log"
+			fullPath: "/log"
+			preLoaderRoute: typeof MainLogIndexRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/calendar/": {
+			id: "/_main/calendar/"
+			path: "/calendar"
+			fullPath: "/calendar"
+			preLoaderRoute: typeof MainCalendarIndexRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_compete/compete/": {
+			id: "/_compete/compete/"
+			path: "/compete"
+			fullPath: "/compete"
+			preLoaderRoute: typeof CompeteCompeteIndexRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_admin/admin/": {
+			id: "/_admin/admin/"
+			path: "/admin"
+			fullPath: "/admin"
+			preLoaderRoute: typeof AdminAdminIndexRouteImport
+			parentRoute: typeof AdminRoute
+		}
+		"/sso/google/callback": {
+			id: "/sso/google/callback"
+			path: "/callback"
+			fullPath: "/sso/google/callback"
+			preLoaderRoute: typeof SsoGoogleCallbackRouteImport
+			parentRoute: typeof SsoGoogleRoute
+		}
+		"/posts_/$postId/deep": {
+			id: "/posts_/$postId/deep"
+			path: "/posts/$postId/deep"
+			fullPath: "/posts/$postId/deep"
+			preLoaderRoute: typeof PostsPostIdDeepRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/webhooks/stripe": {
+			id: "/api/webhooks/stripe"
+			path: "/api/webhooks/stripe"
+			fullPath: "/api/webhooks/stripe"
+			preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/api/users/$userId": {
+			id: "/api/users/$userId"
+			path: "/$userId"
+			fullPath: "/api/users/$userId"
+			preLoaderRoute: typeof ApiUsersUserIdRouteImport
+			parentRoute: typeof ApiUsersRoute
+		}
+		"/_settings/settings/teams": {
+			id: "/_settings/settings/teams"
+			path: "/settings/teams"
+			fullPath: "/settings/teams"
+			preLoaderRoute: typeof SettingsSettingsTeamsRouteImport
+			parentRoute: typeof SettingsRoute
+		}
+		"/_settings/settings/security": {
+			id: "/_settings/settings/security"
+			path: "/settings/security"
+			fullPath: "/settings/security"
+			preLoaderRoute: typeof SettingsSettingsSecurityRouteImport
+			parentRoute: typeof SettingsRoute
+		}
+		"/_settings/settings/profile": {
+			id: "/_settings/settings/profile"
+			path: "/settings/profile"
+			fullPath: "/settings/profile"
+			preLoaderRoute: typeof SettingsSettingsProfileRouteImport
+			parentRoute: typeof SettingsRoute
+		}
+		"/_pathlessLayout/_nested-layout/route-b": {
+			id: "/_pathlessLayout/_nested-layout/route-b"
+			path: "/route-b"
+			fullPath: "/route-b"
+			preLoaderRoute: typeof PathlessLayoutNestedLayoutRouteBRouteImport
+			parentRoute: typeof PathlessLayoutNestedLayoutRoute
+		}
+		"/_pathlessLayout/_nested-layout/route-a": {
+			id: "/_pathlessLayout/_nested-layout/route-a"
+			path: "/route-a"
+			fullPath: "/route-a"
+			preLoaderRoute: typeof PathlessLayoutNestedLayoutRouteARouteImport
+			parentRoute: typeof PathlessLayoutNestedLayoutRoute
+		}
+		"/_main/workouts/new": {
+			id: "/_main/workouts/new"
+			path: "/workouts/new"
+			fullPath: "/workouts/new"
+			preLoaderRoute: typeof MainWorkoutsNewRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/workouts/$id": {
+			id: "/_main/workouts/$id"
+			path: "/workouts/$id"
+			fullPath: "/workouts/$id"
+			preLoaderRoute: typeof MainWorkoutsIdRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/programming/$trackId": {
+			id: "/_main/programming/$trackId"
+			path: "/programming/$trackId"
+			fullPath: "/programming/$trackId"
+			preLoaderRoute: typeof MainProgrammingTrackIdRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_main/movements/$id": {
+			id: "/_main/movements/$id"
+			path: "/movements/$id"
+			fullPath: "/movements/$id"
+			preLoaderRoute: typeof MainMovementsIdRouteImport
+			parentRoute: typeof MainRoute
+		}
+		"/_compete/compete/athlete": {
+			id: "/_compete/compete/athlete"
+			path: "/compete/athlete"
+			fullPath: "/compete/athlete"
+			preLoaderRoute: typeof CompeteCompeteAthleteRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/$slug": {
+			id: "/_compete/compete/$slug"
+			path: "/compete/$slug"
+			fullPath: "/compete/$slug"
+			preLoaderRoute: typeof CompeteCompeteSlugRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_admin/admin/users": {
+			id: "/_admin/admin/users"
+			path: "/admin/users"
+			fullPath: "/admin/users"
+			preLoaderRoute: typeof AdminAdminUsersRouteImport
+			parentRoute: typeof AdminRoute
+		}
+		"/_admin/admin/teams": {
+			id: "/_admin/admin/teams"
+			path: "/admin/teams"
+			fullPath: "/admin/teams"
+			preLoaderRoute: typeof AdminAdminTeamsRouteImport
+			parentRoute: typeof AdminRoute
+		}
+		"/_admin/admin/entitlements": {
+			id: "/_admin/admin/entitlements"
+			path: "/admin/entitlements"
+			fullPath: "/admin/entitlements"
+			preLoaderRoute: typeof AdminAdminEntitlementsRouteImport
+			parentRoute: typeof AdminRoute
+		}
+		"/_compete/compete/organizer/": {
+			id: "/_compete/compete/organizer/"
+			path: "/compete/organizer"
+			fullPath: "/compete/organizer"
+			preLoaderRoute: typeof CompeteCompeteOrganizerIndexRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_main/workouts/$id/edit": {
+			id: "/_main/workouts/$id/edit"
+			path: "/edit"
+			fullPath: "/workouts/$id/edit"
+			preLoaderRoute: typeof MainWorkoutsIdEditRouteImport
+			parentRoute: typeof MainWorkoutsIdRoute
+		}
+		"/_compete/compete/$slug/tabs": {
+			id: "/_compete/compete/$slug/tabs"
+			path: "/tabs"
+			fullPath: "/compete/$slug/tabs"
+			preLoaderRoute: typeof CompeteCompeteSlugTabsRouteImport
+			parentRoute: typeof CompeteCompeteSlugRoute
+		}
+		"/_compete/compete/$slug/register": {
+			id: "/_compete/compete/$slug/register"
+			path: "/register"
+			fullPath: "/compete/$slug/register"
+			preLoaderRoute: typeof CompeteCompeteSlugRegisterRouteImport
+			parentRoute: typeof CompeteCompeteSlugRoute
+		}
+		"/_admin/admin/teams/scaling": {
+			id: "/_admin/admin/teams/scaling"
+			path: "/scaling"
+			fullPath: "/admin/teams/scaling"
+			preLoaderRoute: typeof AdminAdminTeamsScalingRouteImport
+			parentRoute: typeof AdminAdminTeamsRoute
+		}
+		"/_admin/admin/teams/programming": {
+			id: "/_admin/admin/teams/programming"
+			path: "/programming"
+			fullPath: "/admin/teams/programming"
+			preLoaderRoute: typeof AdminAdminTeamsProgrammingRouteImport
+			parentRoute: typeof AdminAdminTeamsRoute
+		}
+		"/_compete/compete/organizer/$competitionId/": {
+			id: "/_compete/compete/organizer/$competitionId/"
+			path: "/compete/organizer/$competitionId"
+			fullPath: "/compete/organizer/$competitionId"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdIndexRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/organizer/$competitionId/workouts": {
+			id: "/_compete/compete/organizer/$competitionId/workouts"
+			path: "/compete/organizer/$competitionId/workouts"
+			fullPath: "/compete/organizer/$competitionId/workouts"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/organizer/$competitionId/sponsors": {
+			id: "/_compete/compete/organizer/$competitionId/sponsors"
+			path: "/compete/organizer/$competitionId/sponsors"
+			fullPath: "/compete/organizer/$competitionId/sponsors"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdSponsorsRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/organizer/$competitionId/settings": {
+			id: "/_compete/compete/organizer/$competitionId/settings"
+			path: "/compete/organizer/$competitionId/settings"
+			fullPath: "/compete/organizer/$competitionId/settings"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdSettingsRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/organizer/$competitionId/scores": {
+			id: "/_compete/compete/organizer/$competitionId/scores"
+			path: "/compete/organizer/$competitionId/scores"
+			fullPath: "/compete/organizer/$competitionId/scores"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdScoresRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/organizer/$competitionId/heats": {
+			id: "/_compete/compete/organizer/$competitionId/heats"
+			path: "/compete/organizer/$competitionId/heats"
+			fullPath: "/compete/organizer/$competitionId/heats"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdHeatsRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/organizer/$competitionId/divisions": {
+			id: "/_compete/compete/organizer/$competitionId/divisions"
+			path: "/compete/organizer/$competitionId/divisions"
+			fullPath: "/compete/organizer/$competitionId/divisions"
+			preLoaderRoute: typeof CompeteCompeteOrganizerCompetitionIdDivisionsRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_compete/compete/$slug/tabs/schedule": {
+			id: "/_compete/compete/$slug/tabs/schedule"
+			path: "/schedule"
+			fullPath: "/compete/$slug/tabs/schedule"
+			preLoaderRoute: typeof CompeteCompeteSlugTabsScheduleRouteImport
+			parentRoute: typeof CompeteCompeteSlugTabsRoute
+		}
+		"/_compete/compete/$slug/tabs/leaderboard": {
+			id: "/_compete/compete/$slug/tabs/leaderboard"
+			path: "/leaderboard"
+			fullPath: "/compete/$slug/tabs/leaderboard"
+			preLoaderRoute: typeof CompeteCompeteSlugTabsLeaderboardRouteImport
+			parentRoute: typeof CompeteCompeteSlugTabsRoute
+		}
+	}
 }
 
 interface AdminAdminTeamsRouteChildren {
-  AdminAdminTeamsProgrammingRoute: typeof AdminAdminTeamsProgrammingRoute
-  AdminAdminTeamsScalingRoute: typeof AdminAdminTeamsScalingRoute
+	AdminAdminTeamsProgrammingRoute: typeof AdminAdminTeamsProgrammingRoute
+	AdminAdminTeamsScalingRoute: typeof AdminAdminTeamsScalingRoute
 }
 
 const AdminAdminTeamsRouteChildren: AdminAdminTeamsRouteChildren = {
-  AdminAdminTeamsProgrammingRoute: AdminAdminTeamsProgrammingRoute,
-  AdminAdminTeamsScalingRoute: AdminAdminTeamsScalingRoute,
+	AdminAdminTeamsProgrammingRoute: AdminAdminTeamsProgrammingRoute,
+	AdminAdminTeamsScalingRoute: AdminAdminTeamsScalingRoute,
 }
 
 const AdminAdminTeamsRouteWithChildren = AdminAdminTeamsRoute._addFileChildren(
-  AdminAdminTeamsRouteChildren,
+	AdminAdminTeamsRouteChildren,
 )
 
 interface AdminRouteChildren {
-  AdminAdminEntitlementsRoute: typeof AdminAdminEntitlementsRoute
-  AdminAdminTeamsRoute: typeof AdminAdminTeamsRouteWithChildren
-  AdminAdminUsersRoute: typeof AdminAdminUsersRoute
-  AdminAdminIndexRoute: typeof AdminAdminIndexRoute
+	AdminAdminEntitlementsRoute: typeof AdminAdminEntitlementsRoute
+	AdminAdminTeamsRoute: typeof AdminAdminTeamsRouteWithChildren
+	AdminAdminUsersRoute: typeof AdminAdminUsersRoute
+	AdminAdminIndexRoute: typeof AdminAdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminAdminEntitlementsRoute: AdminAdminEntitlementsRoute,
-  AdminAdminTeamsRoute: AdminAdminTeamsRouteWithChildren,
-  AdminAdminUsersRoute: AdminAdminUsersRoute,
-  AdminAdminIndexRoute: AdminAdminIndexRoute,
+	AdminAdminEntitlementsRoute: AdminAdminEntitlementsRoute,
+	AdminAdminTeamsRoute: AdminAdminTeamsRouteWithChildren,
+	AdminAdminUsersRoute: AdminAdminUsersRoute,
+	AdminAdminIndexRoute: AdminAdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AuthRouteChildren {
-  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
-  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
-  AuthSignInRoute: typeof AuthSignInRoute
-  AuthSignUpRoute: typeof AuthSignUpRoute
-  AuthTeamInviteRoute: typeof AuthTeamInviteRoute
-  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
+	AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+	AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+	AuthSignInRoute: typeof AuthSignInRoute
+	AuthSignUpRoute: typeof AuthSignUpRoute
+	AuthTeamInviteRoute: typeof AuthTeamInviteRoute
+	AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
-  AuthResetPasswordRoute: AuthResetPasswordRoute,
-  AuthSignInRoute: AuthSignInRoute,
-  AuthSignUpRoute: AuthSignUpRoute,
-  AuthTeamInviteRoute: AuthTeamInviteRoute,
-  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
+	AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+	AuthResetPasswordRoute: AuthResetPasswordRoute,
+	AuthSignInRoute: AuthSignInRoute,
+	AuthSignUpRoute: AuthSignUpRoute,
+	AuthTeamInviteRoute: AuthTeamInviteRoute,
+	AuthVerifyEmailRoute: AuthVerifyEmailRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface CompeteCompeteSlugTabsRouteChildren {
-  CompeteCompeteSlugTabsLeaderboardRoute: typeof CompeteCompeteSlugTabsLeaderboardRoute
-  CompeteCompeteSlugTabsScheduleRoute: typeof CompeteCompeteSlugTabsScheduleRoute
+	CompeteCompeteSlugTabsLeaderboardRoute: typeof CompeteCompeteSlugTabsLeaderboardRoute
+	CompeteCompeteSlugTabsScheduleRoute: typeof CompeteCompeteSlugTabsScheduleRoute
 }
 
 const CompeteCompeteSlugTabsRouteChildren: CompeteCompeteSlugTabsRouteChildren =
-  {
-    CompeteCompeteSlugTabsLeaderboardRoute:
-      CompeteCompeteSlugTabsLeaderboardRoute,
-    CompeteCompeteSlugTabsScheduleRoute: CompeteCompeteSlugTabsScheduleRoute,
-  }
+	{
+		CompeteCompeteSlugTabsLeaderboardRoute:
+			CompeteCompeteSlugTabsLeaderboardRoute,
+		CompeteCompeteSlugTabsScheduleRoute: CompeteCompeteSlugTabsScheduleRoute,
+	}
 
 const CompeteCompeteSlugTabsRouteWithChildren =
-  CompeteCompeteSlugTabsRoute._addFileChildren(
-    CompeteCompeteSlugTabsRouteChildren,
-  )
+	CompeteCompeteSlugTabsRoute._addFileChildren(
+		CompeteCompeteSlugTabsRouteChildren,
+	)
 
 interface CompeteCompeteSlugRouteChildren {
-  CompeteCompeteSlugRegisterRoute: typeof CompeteCompeteSlugRegisterRoute
-  CompeteCompeteSlugTabsRoute: typeof CompeteCompeteSlugTabsRouteWithChildren
+	CompeteCompeteSlugRegisterRoute: typeof CompeteCompeteSlugRegisterRoute
+	CompeteCompeteSlugTabsRoute: typeof CompeteCompeteSlugTabsRouteWithChildren
 }
 
 const CompeteCompeteSlugRouteChildren: CompeteCompeteSlugRouteChildren = {
-  CompeteCompeteSlugRegisterRoute: CompeteCompeteSlugRegisterRoute,
-  CompeteCompeteSlugTabsRoute: CompeteCompeteSlugTabsRouteWithChildren,
+	CompeteCompeteSlugRegisterRoute: CompeteCompeteSlugRegisterRoute,
+	CompeteCompeteSlugTabsRoute: CompeteCompeteSlugTabsRouteWithChildren,
 }
 
 const CompeteCompeteSlugRouteWithChildren =
-  CompeteCompeteSlugRoute._addFileChildren(CompeteCompeteSlugRouteChildren)
+	CompeteCompeteSlugRoute._addFileChildren(CompeteCompeteSlugRouteChildren)
 
 interface CompeteRouteChildren {
-  CompeteCompeteSlugRoute: typeof CompeteCompeteSlugRouteWithChildren
-  CompeteCompeteAthleteRoute: typeof CompeteCompeteAthleteRoute
-  CompeteCompeteIndexRoute: typeof CompeteCompeteIndexRoute
-  CompeteCompeteOrganizerIndexRoute: typeof CompeteCompeteOrganizerIndexRoute
-  CompeteCompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
-  CompeteCompeteOrganizerCompetitionIdHeatsRoute: typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
-  CompeteCompeteOrganizerCompetitionIdScoresRoute: typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
-  CompeteCompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
-  CompeteCompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
-  CompeteCompeteOrganizerCompetitionIdWorkoutsRoute: typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
-  CompeteCompeteOrganizerCompetitionIdIndexRoute: typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
+	CompeteCompeteSlugRoute: typeof CompeteCompeteSlugRouteWithChildren
+	CompeteCompeteAthleteRoute: typeof CompeteCompeteAthleteRoute
+	CompeteCompeteIndexRoute: typeof CompeteCompeteIndexRoute
+	CompeteCompeteOrganizerIndexRoute: typeof CompeteCompeteOrganizerIndexRoute
+	CompeteCompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteCompeteOrganizerCompetitionIdDivisionsRoute
+	CompeteCompeteOrganizerCompetitionIdHeatsRoute: typeof CompeteCompeteOrganizerCompetitionIdHeatsRoute
+	CompeteCompeteOrganizerCompetitionIdScoresRoute: typeof CompeteCompeteOrganizerCompetitionIdScoresRoute
+	CompeteCompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteCompeteOrganizerCompetitionIdSettingsRoute
+	CompeteCompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteCompeteOrganizerCompetitionIdSponsorsRoute
+	CompeteCompeteOrganizerCompetitionIdWorkoutsRoute: typeof CompeteCompeteOrganizerCompetitionIdWorkoutsRoute
+	CompeteCompeteOrganizerCompetitionIdIndexRoute: typeof CompeteCompeteOrganizerCompetitionIdIndexRoute
 }
 
 const CompeteRouteChildren: CompeteRouteChildren = {
-  CompeteCompeteSlugRoute: CompeteCompeteSlugRouteWithChildren,
-  CompeteCompeteAthleteRoute: CompeteCompeteAthleteRoute,
-  CompeteCompeteIndexRoute: CompeteCompeteIndexRoute,
-  CompeteCompeteOrganizerIndexRoute: CompeteCompeteOrganizerIndexRoute,
-  CompeteCompeteOrganizerCompetitionIdDivisionsRoute:
-    CompeteCompeteOrganizerCompetitionIdDivisionsRoute,
-  CompeteCompeteOrganizerCompetitionIdHeatsRoute:
-    CompeteCompeteOrganizerCompetitionIdHeatsRoute,
-  CompeteCompeteOrganizerCompetitionIdScoresRoute:
-    CompeteCompeteOrganizerCompetitionIdScoresRoute,
-  CompeteCompeteOrganizerCompetitionIdSettingsRoute:
-    CompeteCompeteOrganizerCompetitionIdSettingsRoute,
-  CompeteCompeteOrganizerCompetitionIdSponsorsRoute:
-    CompeteCompeteOrganizerCompetitionIdSponsorsRoute,
-  CompeteCompeteOrganizerCompetitionIdWorkoutsRoute:
-    CompeteCompeteOrganizerCompetitionIdWorkoutsRoute,
-  CompeteCompeteOrganizerCompetitionIdIndexRoute:
-    CompeteCompeteOrganizerCompetitionIdIndexRoute,
+	CompeteCompeteSlugRoute: CompeteCompeteSlugRouteWithChildren,
+	CompeteCompeteAthleteRoute: CompeteCompeteAthleteRoute,
+	CompeteCompeteIndexRoute: CompeteCompeteIndexRoute,
+	CompeteCompeteOrganizerIndexRoute: CompeteCompeteOrganizerIndexRoute,
+	CompeteCompeteOrganizerCompetitionIdDivisionsRoute:
+		CompeteCompeteOrganizerCompetitionIdDivisionsRoute,
+	CompeteCompeteOrganizerCompetitionIdHeatsRoute:
+		CompeteCompeteOrganizerCompetitionIdHeatsRoute,
+	CompeteCompeteOrganizerCompetitionIdScoresRoute:
+		CompeteCompeteOrganizerCompetitionIdScoresRoute,
+	CompeteCompeteOrganizerCompetitionIdSettingsRoute:
+		CompeteCompeteOrganizerCompetitionIdSettingsRoute,
+	CompeteCompeteOrganizerCompetitionIdSponsorsRoute:
+		CompeteCompeteOrganizerCompetitionIdSponsorsRoute,
+	CompeteCompeteOrganizerCompetitionIdWorkoutsRoute:
+		CompeteCompeteOrganizerCompetitionIdWorkoutsRoute,
+	CompeteCompeteOrganizerCompetitionIdIndexRoute:
+		CompeteCompeteOrganizerCompetitionIdIndexRoute,
 }
 
 const CompeteRouteWithChildren =
-  CompeteRoute._addFileChildren(CompeteRouteChildren)
+	CompeteRoute._addFileChildren(CompeteRouteChildren)
 
 interface MainWorkoutsIdRouteChildren {
-  MainWorkoutsIdEditRoute: typeof MainWorkoutsIdEditRoute
+	MainWorkoutsIdEditRoute: typeof MainWorkoutsIdEditRoute
 }
 
 const MainWorkoutsIdRouteChildren: MainWorkoutsIdRouteChildren = {
-  MainWorkoutsIdEditRoute: MainWorkoutsIdEditRoute,
+	MainWorkoutsIdEditRoute: MainWorkoutsIdEditRoute,
 }
 
 const MainWorkoutsIdRouteWithChildren = MainWorkoutsIdRoute._addFileChildren(
-  MainWorkoutsIdRouteChildren,
+	MainWorkoutsIdRouteChildren,
 )
 
 interface MainRouteChildren {
-  MainMovementsIdRoute: typeof MainMovementsIdRoute
-  MainProgrammingTrackIdRoute: typeof MainProgrammingTrackIdRoute
-  MainWorkoutsIdRoute: typeof MainWorkoutsIdRouteWithChildren
-  MainWorkoutsNewRoute: typeof MainWorkoutsNewRoute
-  MainCalendarIndexRoute: typeof MainCalendarIndexRoute
-  MainLogIndexRoute: typeof MainLogIndexRoute
-  MainMovementsIndexRoute: typeof MainMovementsIndexRoute
-  MainProgrammingIndexRoute: typeof MainProgrammingIndexRoute
-  MainScheduleIndexRoute: typeof MainScheduleIndexRoute
-  MainWorkoutsIndexRoute: typeof MainWorkoutsIndexRoute
+	MainMovementsIdRoute: typeof MainMovementsIdRoute
+	MainProgrammingTrackIdRoute: typeof MainProgrammingTrackIdRoute
+	MainWorkoutsIdRoute: typeof MainWorkoutsIdRouteWithChildren
+	MainWorkoutsNewRoute: typeof MainWorkoutsNewRoute
+	MainCalendarIndexRoute: typeof MainCalendarIndexRoute
+	MainLogIndexRoute: typeof MainLogIndexRoute
+	MainMovementsIndexRoute: typeof MainMovementsIndexRoute
+	MainProgrammingIndexRoute: typeof MainProgrammingIndexRoute
+	MainScheduleIndexRoute: typeof MainScheduleIndexRoute
+	MainWorkoutsIndexRoute: typeof MainWorkoutsIndexRoute
 }
 
 const MainRouteChildren: MainRouteChildren = {
-  MainMovementsIdRoute: MainMovementsIdRoute,
-  MainProgrammingTrackIdRoute: MainProgrammingTrackIdRoute,
-  MainWorkoutsIdRoute: MainWorkoutsIdRouteWithChildren,
-  MainWorkoutsNewRoute: MainWorkoutsNewRoute,
-  MainCalendarIndexRoute: MainCalendarIndexRoute,
-  MainLogIndexRoute: MainLogIndexRoute,
-  MainMovementsIndexRoute: MainMovementsIndexRoute,
-  MainProgrammingIndexRoute: MainProgrammingIndexRoute,
-  MainScheduleIndexRoute: MainScheduleIndexRoute,
-  MainWorkoutsIndexRoute: MainWorkoutsIndexRoute,
+	MainMovementsIdRoute: MainMovementsIdRoute,
+	MainProgrammingTrackIdRoute: MainProgrammingTrackIdRoute,
+	MainWorkoutsIdRoute: MainWorkoutsIdRouteWithChildren,
+	MainWorkoutsNewRoute: MainWorkoutsNewRoute,
+	MainCalendarIndexRoute: MainCalendarIndexRoute,
+	MainLogIndexRoute: MainLogIndexRoute,
+	MainMovementsIndexRoute: MainMovementsIndexRoute,
+	MainProgrammingIndexRoute: MainProgrammingIndexRoute,
+	MainScheduleIndexRoute: MainScheduleIndexRoute,
+	MainWorkoutsIndexRoute: MainWorkoutsIndexRoute,
 }
 
 const MainRouteWithChildren = MainRoute._addFileChildren(MainRouteChildren)
 
 interface PathlessLayoutNestedLayoutRouteChildren {
-  PathlessLayoutNestedLayoutRouteARoute: typeof PathlessLayoutNestedLayoutRouteARoute
-  PathlessLayoutNestedLayoutRouteBRoute: typeof PathlessLayoutNestedLayoutRouteBRoute
+	PathlessLayoutNestedLayoutRouteARoute: typeof PathlessLayoutNestedLayoutRouteARoute
+	PathlessLayoutNestedLayoutRouteBRoute: typeof PathlessLayoutNestedLayoutRouteBRoute
 }
 
 const PathlessLayoutNestedLayoutRouteChildren: PathlessLayoutNestedLayoutRouteChildren =
-  {
-    PathlessLayoutNestedLayoutRouteARoute:
-      PathlessLayoutNestedLayoutRouteARoute,
-    PathlessLayoutNestedLayoutRouteBRoute:
-      PathlessLayoutNestedLayoutRouteBRoute,
-  }
+	{
+		PathlessLayoutNestedLayoutRouteARoute:
+			PathlessLayoutNestedLayoutRouteARoute,
+		PathlessLayoutNestedLayoutRouteBRoute:
+			PathlessLayoutNestedLayoutRouteBRoute,
+	}
 
 const PathlessLayoutNestedLayoutRouteWithChildren =
-  PathlessLayoutNestedLayoutRoute._addFileChildren(
-    PathlessLayoutNestedLayoutRouteChildren,
-  )
+	PathlessLayoutNestedLayoutRoute._addFileChildren(
+		PathlessLayoutNestedLayoutRouteChildren,
+	)
 
 interface PathlessLayoutRouteChildren {
-  PathlessLayoutNestedLayoutRoute: typeof PathlessLayoutNestedLayoutRouteWithChildren
+	PathlessLayoutNestedLayoutRoute: typeof PathlessLayoutNestedLayoutRouteWithChildren
 }
 
 const PathlessLayoutRouteChildren: PathlessLayoutRouteChildren = {
-  PathlessLayoutNestedLayoutRoute: PathlessLayoutNestedLayoutRouteWithChildren,
+	PathlessLayoutNestedLayoutRoute: PathlessLayoutNestedLayoutRouteWithChildren,
 }
 
 const PathlessLayoutRouteWithChildren = PathlessLayoutRoute._addFileChildren(
-  PathlessLayoutRouteChildren,
+	PathlessLayoutRouteChildren,
 )
 
 interface SettingsRouteChildren {
-  SettingsSettingsProfileRoute: typeof SettingsSettingsProfileRoute
-  SettingsSettingsSecurityRoute: typeof SettingsSettingsSecurityRoute
-  SettingsSettingsTeamsRoute: typeof SettingsSettingsTeamsRoute
-  SettingsSettingsIndexRoute: typeof SettingsSettingsIndexRoute
+	SettingsSettingsProfileRoute: typeof SettingsSettingsProfileRoute
+	SettingsSettingsSecurityRoute: typeof SettingsSettingsSecurityRoute
+	SettingsSettingsTeamsRoute: typeof SettingsSettingsTeamsRoute
+	SettingsSettingsIndexRoute: typeof SettingsSettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsSettingsProfileRoute: SettingsSettingsProfileRoute,
-  SettingsSettingsSecurityRoute: SettingsSettingsSecurityRoute,
-  SettingsSettingsTeamsRoute: SettingsSettingsTeamsRoute,
-  SettingsSettingsIndexRoute: SettingsSettingsIndexRoute,
+	SettingsSettingsProfileRoute: SettingsSettingsProfileRoute,
+	SettingsSettingsSecurityRoute: SettingsSettingsSecurityRoute,
+	SettingsSettingsTeamsRoute: SettingsSettingsTeamsRoute,
+	SettingsSettingsIndexRoute: SettingsSettingsIndexRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
-  SettingsRouteChildren,
+	SettingsRouteChildren,
 )
 
 interface PostsRouteChildren {
-  PostsPostIdRoute: typeof PostsPostIdRoute
-  PostsIndexRoute: typeof PostsIndexRoute
+	PostsPostIdRoute: typeof PostsPostIdRoute
+	PostsIndexRoute: typeof PostsIndexRoute
 }
 
 const PostsRouteChildren: PostsRouteChildren = {
-  PostsPostIdRoute: PostsPostIdRoute,
-  PostsIndexRoute: PostsIndexRoute,
+	PostsPostIdRoute: PostsPostIdRoute,
+	PostsIndexRoute: PostsIndexRoute,
 }
 
 const PostsRouteWithChildren = PostsRoute._addFileChildren(PostsRouteChildren)
 
 interface UsersRouteChildren {
-  UsersUserIdRoute: typeof UsersUserIdRoute
-  UsersIndexRoute: typeof UsersIndexRoute
+	UsersUserIdRoute: typeof UsersUserIdRoute
+	UsersIndexRoute: typeof UsersIndexRoute
 }
 
 const UsersRouteChildren: UsersRouteChildren = {
-  UsersUserIdRoute: UsersUserIdRoute,
-  UsersIndexRoute: UsersIndexRoute,
+	UsersUserIdRoute: UsersUserIdRoute,
+	UsersIndexRoute: UsersIndexRoute,
 }
 
 const UsersRouteWithChildren = UsersRoute._addFileChildren(UsersRouteChildren)
 
 interface ApiUsersRouteChildren {
-  ApiUsersUserIdRoute: typeof ApiUsersUserIdRoute
+	ApiUsersUserIdRoute: typeof ApiUsersUserIdRoute
 }
 
 const ApiUsersRouteChildren: ApiUsersRouteChildren = {
-  ApiUsersUserIdRoute: ApiUsersUserIdRoute,
+	ApiUsersUserIdRoute: ApiUsersUserIdRoute,
 }
 
 const ApiUsersRouteWithChildren = ApiUsersRoute._addFileChildren(
-  ApiUsersRouteChildren,
+	ApiUsersRouteChildren,
+)
+
+interface SsoGoogleRouteChildren {
+	SsoGoogleCallbackRoute: typeof SsoGoogleCallbackRoute
+}
+
+const SsoGoogleRouteChildren: SsoGoogleRouteChildren = {
+	SsoGoogleCallbackRoute: SsoGoogleCallbackRoute,
+}
+
+const SsoGoogleRouteWithChildren = SsoGoogleRoute._addFileChildren(
+	SsoGoogleRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
-  AuthRoute: AuthRouteWithChildren,
-  CompeteRoute: CompeteRouteWithChildren,
-  MainRoute: MainRouteWithChildren,
-  PathlessLayoutRoute: PathlessLayoutRouteWithChildren,
-  SettingsRoute: SettingsRouteWithChildren,
-  CustomScriptDotjsRoute: CustomScriptDotjsRoute,
-  DeferredRoute: DeferredRoute,
-  PostsRoute: PostsRouteWithChildren,
-  PrivacyRoute: PrivacyRoute,
-  RedirectRoute: RedirectRoute,
-  TermsRoute: TermsRoute,
-  UsersRoute: UsersRouteWithChildren,
-  ApiChatRoute: ApiChatRoute,
-  ApiGetSessionRoute: ApiGetSessionRoute,
-  ApiOgRoute: ApiOgRoute,
-  ApiOgCompetitionRoute: ApiOgCompetitionRoute,
-  ApiStripeConnectCallbackRoute: ApiStripeConnectCallbackRoute,
-  ApiUploadRoute: ApiUploadRoute,
-  ApiUsersRoute: ApiUsersRouteWithChildren,
-  ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
-  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
-  PostsPostIdDeepRoute: PostsPostIdDeepRoute,
+	IndexRoute: IndexRoute,
+	AdminRoute: AdminRouteWithChildren,
+	AuthRoute: AuthRouteWithChildren,
+	CompeteRoute: CompeteRouteWithChildren,
+	MainRoute: MainRouteWithChildren,
+	PathlessLayoutRoute: PathlessLayoutRouteWithChildren,
+	SettingsRoute: SettingsRouteWithChildren,
+	CustomScriptDotjsRoute: CustomScriptDotjsRoute,
+	DeferredRoute: DeferredRoute,
+	PostsRoute: PostsRouteWithChildren,
+	PrivacyRoute: PrivacyRoute,
+	RedirectRoute: RedirectRoute,
+	TermsRoute: TermsRoute,
+	UsersRoute: UsersRouteWithChildren,
+	ApiChatRoute: ApiChatRoute,
+	ApiGetSessionRoute: ApiGetSessionRoute,
+	ApiOgRoute: ApiOgRoute,
+	ApiOgCompetitionRoute: ApiOgCompetitionRoute,
+	ApiStripeConnectCallbackRoute: ApiStripeConnectCallbackRoute,
+	ApiUploadRoute: ApiUploadRoute,
+	ApiUsersRoute: ApiUsersRouteWithChildren,
+	ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
+	SsoGoogleRoute: SsoGoogleRouteWithChildren,
+	ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
+	PostsPostIdDeepRoute: PostsPostIdDeepRoute,
 }
 export const routeTree = rootRouteImport
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+	._addFileChildren(rootRouteChildren)
+	._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
+import type { getRouter } from "./router.tsx"
+import type { createStart } from "@tanstack/react-start"
+declare module "@tanstack/react-start" {
+	interface Register {
+		ssr: true
+		router: Awaited<ReturnType<typeof getRouter>>
+	}
 }

@@ -1,20 +1,26 @@
-import { Suspense } from 'react'
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { getCompetitionFn, getCompetitionRegistrationsFn, getCompetitionWorkoutsFn } from '~/server-functions/competitions'
-import { getSessionFromCookie } from '~/utils/auth.server'
-import { getCompetitionRevenueStatsFn } from '~/server-functions/commerce'
-import { getHeatsForCompetitionFn } from '~/server-functions/competition-heats'
-import { OrganizerBreadcrumb } from '~/components/compete/organizer/organizer-breadcrumb'
-import { CompetitionHeader } from '~/components/compete/organizer/competition-header'
-import { CompetitionTabs } from '~/components/compete/organizer/competition-tabs'
-import { OrganizerDashboardContent } from '~/components/compete/organizer/organizer-dashboard-content'
-import { OrganizerDashboardSkeleton } from '~/components/compete/organizer/organizer-dashboard-skeleton'
+import { Suspense } from "react"
+import { createFileRoute, notFound } from "@tanstack/react-router"
+import {
+	getCompetitionFn,
+	getCompetitionRegistrationsFn,
+	getCompetitionWorkoutsFn,
+} from "~/server-functions/competitions"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import { getCompetitionRevenueStatsFn } from "~/server-functions/commerce"
+import { getHeatsForCompetitionFn } from "~/server-functions/competition-heats"
+import { OrganizerBreadcrumb } from "~/components/compete/organizer/organizer-breadcrumb"
+import { CompetitionHeader } from "~/components/compete/organizer/competition-header"
+import { CompetitionTabs } from "~/components/compete/organizer/competition-tabs"
+import { OrganizerDashboardContent } from "~/components/compete/organizer/organizer-dashboard-content"
+import { OrganizerDashboardSkeleton } from "~/components/compete/organizer/organizer-dashboard-skeleton"
 
-export const Route = createFileRoute('/_compete/compete/organizer/$competitionId/')({
+export const Route = createFileRoute(
+	"/_compete/compete/organizer/$competitionId/",
+)({
 	beforeLoad: async () => {
 		const session = await getSessionFromCookie()
 		if (!session) {
-			throw new Error('Unauthorized')
+			throw new Error("Unauthorized")
 		}
 	},
 	loader: async ({ params }) => {
@@ -29,16 +35,23 @@ export const Route = createFileRoute('/_compete/compete/organizer/$competitionId
 		const competition = compResult.data
 
 		// Parallel fetch: registrations, revenue stats, workouts, and heats
-		const [registrationsResult, revenueResult, workoutsResult, heatsResult] = await Promise.all([
-			getCompetitionRegistrationsFn({ data: { competitionId: competition.id } }),
-			getCompetitionRevenueStatsFn({ data: { competitionId: competition.id } }),
-			getCompetitionWorkoutsFn({ data: { competitionId: competition.id } }),
-			getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
-		])
+		const [registrationsResult, revenueResult, workoutsResult, heatsResult] =
+			await Promise.all([
+				getCompetitionRegistrationsFn({
+					data: { competitionId: competition.id },
+				}),
+				getCompetitionRevenueStatsFn({
+					data: { competitionId: competition.id },
+				}),
+				getCompetitionWorkoutsFn({ data: { competitionId: competition.id } }),
+				getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
+			])
 
 		return {
 			competition,
-			registrations: registrationsResult.success ? registrationsResult.data : [],
+			registrations: registrationsResult.success
+				? registrationsResult.data
+				: [],
 			revenueStats: revenueResult.success ? revenueResult.data : null,
 			workouts: workoutsResult.success ? workoutsResult.data : [],
 			heats: heatsResult.success ? heatsResult.data : [],
@@ -48,12 +61,16 @@ export const Route = createFileRoute('/_compete/compete/organizer/$competitionId
 })
 
 function OrganizerCompetitionComponent() {
-	const { competition, registrations, revenueStats, workouts, heats } = Route.useLoaderData()
+	const { competition, registrations, revenueStats, workouts, heats } =
+		Route.useLoaderData()
 
 	const breadcrumbSegments = competition.groupId
 		? [
-				{ label: 'Series', href: '/compete/organizer/series' },
-				{ label: 'View Series', href: `/compete/organizer/series/${competition.groupId}` },
+				{ label: "Series", href: "/compete/organizer/series" },
+				{
+					label: "View Series",
+					href: `/compete/organizer/series/${competition.groupId}`,
+				},
 				{ label: competition.name },
 			]
 		: [{ label: competition.name }]
