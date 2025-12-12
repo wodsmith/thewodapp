@@ -21,7 +21,7 @@ import {
 	getRegistrationFee,
 	buildFeeConfig,
 	type FeeBreakdown,
-} from "@/server/commerce"
+} from "@/server/commerce/index.server"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth.server"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
