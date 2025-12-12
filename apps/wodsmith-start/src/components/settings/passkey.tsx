@@ -12,7 +12,7 @@ interface PasskeyProps {
 	onRemove?: (id: string) => void
 }
 
-export function Passkey({ passkeys = [], onAdd, onRemove }: PasskeyProps) {
+export function PasskeysList({ passkeys = [], onAdd, onRemove }: PasskeyProps) {
 	return (
 		<div className="space-y-4">
 			<div className="flex justify-between items-center">
@@ -52,3 +52,6 @@ export function Passkey({ passkeys = [], onAdd, onRemove }: PasskeyProps) {
 		</div>
 	)
 }
+
+// Alias for backwards compatibility
+export const Passkey = PasskeysList

@@ -57,7 +57,7 @@ export interface MainNavProps {
 	missingProfileFields?: AthleteProfileMissingFields | null
 }
 
-export default function MainNav({
+export function MainNav({
 	session,
 	activeTeamId,
 	pendingInvitations = [],
@@ -173,3 +173,5 @@ export default function MainNav({
 		</header>
 	)
 }
+
+export default MainNav
