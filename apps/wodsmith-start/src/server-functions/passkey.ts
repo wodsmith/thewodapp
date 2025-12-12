@@ -8,59 +8,12 @@ import { createServerFn } from "@tanstack/react-start"
  */
 
 /**
- * Start passkey registration process
+ * Generate authentication options for passkey login
+ * Creates a challenge for the authenticator to sign
  */
-export const $startPasskeyRegistration = createServerFn({
-	method: "POST",
-}).handler(
-	async ({
-		data,
-	}: {
-		data: { email: string; firstName: string; lastName: string }
-	}) => {
-		// TODO: Implement WebAuthn registration start
-		console.log("Passkey registration started for:", data.email)
-		return {
-			success: false,
-			error: "Passkey registration not yet implemented",
-			options: null,
-		}
-	}
-)
-
-/**
- * Verify passkey registration
- */
-export const $verifyPasskeyRegistration = createServerFn({
-	method: "POST",
-}).handler(
-	async ({
-		data,
-	}: {
-		data: {
-			email: string
-			credential: unknown
-			first_name: string
-			last_name: string
-		}
-	}) => {
-		// TODO: Implement WebAuthn registration verification
-		console.log("Passkey verification for:", data.email)
-		return {
-			success: false,
-			error: "Passkey verification not yet implemented",
-		}
-	}
-)
-
-/**
- * Start passkey authentication
- */
-export const $startPasskeyAuth = createServerFn({
-	method: "POST",
-}).handler(async ({ data }: { data: { email: string } }) => {
-	// TODO: Implement WebAuthn authentication start
-	console.log("Passkey auth started for:", data.email)
+export const generateAuthenticationOptionsAction = createServerFn("POST", async (input: { email: string }) => {
+	// TODO: Implement WebAuthn authentication options generation
+	console.log("Authentication options requested for:", input.email)
 	return {
 		success: false,
 		error: "Passkey authentication not yet implemented",
@@ -70,14 +23,40 @@ export const $startPasskeyAuth = createServerFn({
 
 /**
  * Verify passkey authentication
+ * Verifies the signed challenge and creates session
  */
-export const $verifyPasskeyAuth = createServerFn({
-	method: "POST",
-}).handler(async ({ data }: { data: { email: string; credential: unknown } }) => {
+export const verifyAuthenticationAction = createServerFn("POST", async (input: { email: string; credential: unknown }) => {
 	// TODO: Implement WebAuthn authentication verification
-	console.log("Passkey auth verification for:", data.email)
+	console.log("Passkey auth verification for:", input.email)
 	return {
 		success: false,
 		error: "Passkey authentication not yet implemented",
+	}
+})
+
+/**
+ * Start passkey registration process
+ * Generates challenge for credential creation
+ */
+export const startPasskeyRegistrationAction = createServerFn("POST", async (input: { email: string; firstName: string; lastName: string }) => {
+	// TODO: Implement WebAuthn registration start
+	console.log("Passkey registration started for:", input.email)
+	return {
+		success: false,
+		error: "Passkey registration not yet implemented",
+		options: null,
+	}
+})
+
+/**
+ * Complete passkey registration
+ * Verifies credential and stores it for user
+ */
+export const completePasskeyRegistrationAction = createServerFn("POST", async (input: { email: string; credential: unknown; firstName: string; lastName: string }) => {
+	// TODO: Implement WebAuthn registration verification
+	console.log("Passkey registration completed for:", input.email)
+	return {
+		success: false,
+		error: "Passkey registration not yet implemented",
 	}
 })
