@@ -1,7 +1,7 @@
 "use client"
 
-import { Link } from "@tanstack/react-router"
-import { CreditCard, ExternalLink, AlertCircle } from "lucide-react"
+import { AlertCircle, CreditCard } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { Button } from "~/components/ui/button"
 import {
 	Card,
@@ -10,7 +10,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "~/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 
 interface Props {
 	teamSlug: string
@@ -44,18 +43,17 @@ export function StripeConnectionRequired({ teamSlug, competitionName }: Props) {
 						directly from athlete registrations.
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="flex flex-col items-center gap-4">
-					<Button asChild>
-						<Link to="/settings/teams/$teamSlug/payouts" params={{ teamSlug }}>
-							Set Up Payouts
-							<ExternalLink className="ml-2 h-4 w-4" />
-						</Link>
-					</Button>
-					<p className="text-xs text-center text-muted-foreground max-w-md">
-						You'll be able to set registration fees after connecting Stripe.
-						Free registrations work without a Stripe connection.
-					</p>
-				</CardContent>
+			<CardContent className="flex flex-col items-center gap-4">
+				<Button asChild>
+					<a href={`/settings/teams/${teamSlug}`}>
+						Go to Team Settings
+					</a>
+				</Button>
+				<p className="text-xs text-center text-muted-foreground max-w-md">
+					You'll be able to set registration fees after connecting Stripe.
+					Free registrations work without a Stripe connection.
+				</p>
+			</CardContent>
 			</Card>
 		</div>
 	)

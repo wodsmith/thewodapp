@@ -101,36 +101,10 @@ export function OrganizerCompetitionForm({
 	scalingGroups,
 	defaultGroupId,
 }: OrganizerCompetitionFormProps) {
-	const router = useRouter()
+	const navigate = useNavigate()
+	const [isCreating, setIsCreating] = useState(false)
 
-	const { mutate: createCompetition, isPending } = useServerFnMutation({
-		fn: createCompetitionFn,
-		onError: (error) => {
-			toast.error(error.message || "Failed to create competition")
-			posthog.capture("competition_created_failed", {
-				error_message: error.message,
-				organizing_team_id: form.getValues("teamId"),
-			})
-		},
-		onSuccess: (result) => {
-			toast.success("Competition created successfully")
-			const competitionData = result?.data
-			posthog.capture("competition_created", {
-				competition_id: competitionData?.id,
-				competition_name: form.getValues("name"),
-				competition_slug: form.getValues("slug"),
-				organizing_team_id: form.getValues("teamId"),
-				has_series: !!form.getValues("groupId"),
-				has_divisions: !!form.getValues("scalingGroupId"),
-				series_id: form.getValues("groupId"),
-			})
-			if (result?.data?.id) {
-				router.navigate({ to: `/compete/organizer/${result.data.id}` })
-			} else {
-				router.navigate({ to: "/compete/organizer" })
-			}
-		},
-	})
+	const createCompetitionMutation = useServerFnMutation(createCompetitionFn)
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -160,7 +134,7 @@ export function OrganizerCompetitionForm({
 		form.setValue("slug", slug)
 	}
 
-	function onSubmit(data: FormValues) {
+	async function onSubmit(data: FormValues) {
 		// Build competition settings
 		const settings: CompetitionSettings = {}
 		if (data.scalingGroupId) {
@@ -169,8 +143,9 @@ export function OrganizerCompetitionForm({
 			}
 		}
 
-		createCompetition({
-			data: {
+		try {
+			setIsCreating(true)
+			const result = await createCompetitionMutation.mutateAsync({
 				organizingTeamId: data.teamId,
 				name: data.name,
 				slug: data.slug,
@@ -186,12 +161,37 @@ export function OrganizerCompetitionForm({
 				groupId: data.groupId || undefined,
 				settings:
 					Object.keys(settings).length > 0 ? JSON.stringify(settings) : undefined,
-			},
-		})
+			})
+
+			toast.success("Competition created successfully")
+			posthog.capture("competition_created", {
+				competition_id: result?.id,
+				competition_name: form.getValues("name"),
+				competition_slug: form.getValues("slug"),
+				organizing_team_id: form.getValues("teamId"),
+				has_series: !!form.getValues("groupId"),
+				has_divisions: !!form.getValues("scalingGroupId"),
+				series_id: form.getValues("groupId"),
+			})
+			if (result?.id) {
+				navigate({ to: `/compete/organizer/${result.id}` })
+			} else {
+				navigate({ to: "/compete/organizer" })
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Failed to create competition"
+			toast.error(message)
+			posthog.capture("competition_created_failed", {
+				error_message: message,
+				organizing_team_id: form.getValues("teamId"),
+			})
+		} finally {
+			setIsCreating(false)
+		}
 	}
 
 	const handleCancel = () => {
-		router.navigate({ to: "/compete/organizer" })
+		navigate({ to: "/compete/organizer" })
 	}
 
 	return (
@@ -434,14 +434,14 @@ export function OrganizerCompetitionForm({
 				/>
 
 				<div className="flex gap-4">
-					<Button type="submit" disabled={isPending}>
-						{isPending ? "Creating..." : "Create Competition"}
+					<Button type="submit" disabled={isCreating}>
+						{isCreating ? "Creating..." : "Create Competition"}
 					</Button>
 					<Button
 						type="button"
 						variant="outline"
 						onClick={handleCancel}
-						disabled={isPending}
+						disabled={isCreating}
 					>
 						Cancel
 					</Button>

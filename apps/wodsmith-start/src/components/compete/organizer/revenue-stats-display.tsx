@@ -1,13 +1,13 @@
 "use client"
 
-import { Link } from "@tanstack/react-router"
 import {
+	AlertCircle,
+	CreditCard,
 	DollarSign,
 	TrendingUp,
-	CreditCard,
 	Users,
-	AlertCircle,
 } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import {
 	Card,
 	CardContent,
@@ -23,7 +23,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "~/components/ui/table"
-import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import type { CompetitionRevenueStats } from "~/server/commerce/index.server"
 
 interface RevenueStatsDisplayProps {
@@ -54,7 +53,10 @@ export function RevenueStatsDisplay({
 		<div className="space-y-6">
 			{/* Stripe Connection Warning */}
 			{stripeStatus && !stripeStatus.isConnected && (
-				<Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+				<Alert
+					variant="default"
+					className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+				>
 					<AlertCircle className="h-4 w-4 text-yellow-600" />
 					<AlertTitle>Payouts Not Set Up</AlertTitle>
 					<AlertDescription>

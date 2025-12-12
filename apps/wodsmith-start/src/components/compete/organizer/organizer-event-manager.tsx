@@ -105,17 +105,15 @@ export function OrganizerEventManager({
 	}) => {
 		try {
 			await createEvent({
-				data: {
-					competitionId,
-					organizingTeamId,
-					name: data.name,
-					scheme: data.scheme,
-					scoreType: data.scoreType,
-					description: data.description,
-					roundsToScore: data.roundsToScore,
-					tiebreakScheme: data.tiebreakScheme,
-					movementIds: data.movementIds,
-				},
+				competitionId,
+				organizingTeamId,
+				name: data.name,
+				scheme: data.scheme,
+				scoreType: data.scoreType,
+				description: data.description,
+				roundsToScore: data.roundsToScore,
+				tiebreakScheme: data.tiebreakScheme,
+				movementIds: data.movementIds,
 			})
 
 			toast.success(`Created "${data.name}"`)
@@ -147,16 +145,14 @@ export function OrganizerEventManager({
 		try {
 			// Create as a remix of the existing workout
 			await createEvent({
-				data: {
-					competitionId,
-					organizingTeamId,
-					name: workout.name,
-					scheme: workout.scheme,
-					scoreType: workout.scoreType || undefined,
-					description: workout.description || undefined,
-					sourceWorkoutId: workout.id, // Mark as remix
-					movementIds: workout.movements.map((m) => m.id),
-				},
+				competitionId,
+				organizingTeamId,
+				name: workout.name,
+				scheme: workout.scheme,
+				scoreType: workout.scoreType || undefined,
+				description: workout.description || undefined,
+				sourceWorkoutId: workout.id, // Mark as remix
+				movementIds: workout.movements.map((m) => m.id),
 			})
 
 			toast.success(`Added "${workout.name}" as a remix`)
@@ -186,10 +182,8 @@ export function OrganizerEventManager({
 
 		try {
 			await removeWorkout({
-				data: {
-					trackWorkoutId,
-					organizingTeamId,
-				},
+				trackWorkoutId,
+				organizingTeamId,
 			})
 
 			toast.success("Event removed")
@@ -227,11 +221,9 @@ export function OrganizerEventManager({
 
 			try {
 				await reorderEvents({
-					data: {
-						competitionId,
-						organizingTeamId,
-						updates,
-					},
+					competitionId,
+					organizingTeamId,
+					updates,
 				})
 			} catch (error) {
 				toast.error(

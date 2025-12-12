@@ -169,24 +169,22 @@ export function EventDetailsForm({
 		try {
 			// Single consolidated save operation
 			await saveEvent({
-				data: {
-					trackWorkoutId: event.id,
-					workoutId: event.workoutId,
-					organizingTeamId,
-					name: data.name,
-					description: data.description,
-					scheme: data.scheme,
-					scoreType: data.scoreType,
-					roundsToScore: data.roundsToScore,
-					tiebreakScheme: data.tiebreakScheme,
-					timeCap: data.timeCap,
-					movementIds: data.selectedMovements,
-					pointsMultiplier: data.pointsMultiplier,
-					notes: data.notes || null,
-					divisionDescriptions:
-						divisionDescriptions.length > 0 ? divisionDescriptions : undefined,
-					sponsorId: data.sponsorId,
-				},
+				trackWorkoutId: event.id,
+				workoutId: event.workoutId,
+				organizingTeamId,
+				name: data.name,
+				description: data.description,
+				scheme: data.scheme,
+				scoreType: data.scoreType,
+				roundsToScore: data.roundsToScore,
+				tiebreakScheme: data.tiebreakScheme,
+				timeCap: data.timeCap,
+				movementIds: data.selectedMovements,
+				pointsMultiplier: data.pointsMultiplier,
+				notes: data.notes || null,
+				divisionDescriptions:
+					divisionDescriptions.length > 0 ? divisionDescriptions : undefined,
+				sponsorId: data.sponsorId,
 			})
 
 			toast.success("Event updated")

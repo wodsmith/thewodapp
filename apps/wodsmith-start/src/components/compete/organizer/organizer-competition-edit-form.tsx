@@ -1,7 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -95,24 +95,16 @@ export function OrganizerCompetitionEditForm({
 	groups,
 	scalingGroups,
 }: OrganizerCompetitionEditFormProps) {
-	const router = useRouter()
+	const navigate = useNavigate()
 	const [profileImageUrl, setProfileImageUrl] = useState<string | null>(
 		competition.profileImageUrl ?? null,
 	)
 	const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(
 		competition.bannerImageUrl ?? null,
 	)
+	const [isUpdating, setIsUpdating] = useState(false)
 
-	const { mutate: updateCompetition, isPending } = useServerFnMutation({
-		fn: updateCompetitionFn,
-		onError: (error) => {
-			toast.error(error.message || "Failed to update competition")
-		},
-		onSuccess: () => {
-			toast.success("Competition updated successfully")
-			router.navigate({ to: `/compete/organizer/${competition.id}` })
-		},
-	})
+	const updateCompetitionMutation = useServerFnMutation(updateCompetitionFn)
 
 	// Parse existing settings to get scalingGroupId
 	const existingSettings = parseCompetitionSettings(competition.settings)
@@ -150,7 +142,7 @@ export function OrganizerCompetitionEditForm({
 		form.setValue("slug", slug)
 	}
 
-	function onSubmit(data: FormValues) {
+	async function onSubmit(data: FormValues) {
 		// Build competition settings
 		const settings: CompetitionSettings = {}
 		if (data.scalingGroupId) {
@@ -159,8 +151,9 @@ export function OrganizerCompetitionEditForm({
 			}
 		}
 
-		updateCompetition({
-			data: {
+		try {
+			setIsUpdating(true)
+			await updateCompetitionMutation.mutateAsync({
 				competitionId: competition.id,
 				organizingTeamId: competition.organizingTeamId,
 				name: data.name,
@@ -180,12 +173,20 @@ export function OrganizerCompetitionEditForm({
 				visibility: data.visibility,
 				profileImageUrl,
 				bannerImageUrl,
-			},
-		})
+			})
+
+			toast.success("Competition updated successfully")
+			navigate({ to: `/compete/organizer/${competition.id}` })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Failed to update competition"
+			toast.error(message)
+		} finally {
+			setIsUpdating(false)
+		}
 	}
 
 	const handleCancel = () => {
-		router.navigate({ to: `/compete/organizer/${competition.id}` })
+		navigate({ to: `/compete/organizer/${competition.id}` })
 	}
 
 	return (
@@ -469,14 +470,14 @@ export function OrganizerCompetitionEditForm({
 				/>
 
 				<div className="flex gap-4">
-					<Button type="submit" disabled={isPending}>
-						{isPending ? "Saving..." : "Save Changes"}
+					<Button type="submit" disabled={isUpdating}>
+						{isUpdating ? "Saving..." : "Save Changes"}
 					</Button>
 					<Button
 						type="button"
 						variant="outline"
 						onClick={handleCancel}
-						disabled={isPending}
+						disabled={isUpdating}
 					>
 						Cancel
 					</Button>

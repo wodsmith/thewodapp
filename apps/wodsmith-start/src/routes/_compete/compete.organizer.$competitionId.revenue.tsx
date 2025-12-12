@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router"
 import { getCompetitionFn } from "~/server-functions/competitions"
 import { getCompetitionRevenueStatsFn } from "~/server-functions/commerce"
 import { getSessionFromCookie } from "~/utils/auth.server"
-import { getTeamFromDatabase } from "~/server/teams.server"
+import { getTeamById } from "~/server/teams"
 import { RevenueStatsDisplay } from "~/components/compete/organizer/revenue-stats-display"
 
 export const Route = createFileRoute(
@@ -26,7 +26,7 @@ export const Route = createFileRoute(
 		const competition = competitionResult.data
 
 		// Get organizing team's Stripe connection status
-		const organizingTeam = await getTeamFromDatabase(
+		const organizingTeam = await getTeamById(
 			competition.organizingTeamId,
 		)
 		const isStripeConnected =

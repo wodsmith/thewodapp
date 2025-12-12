@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import { DollarSign, Loader2, User, Users } from "lucide-react"
+import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, DollarSign, Users, User } from "lucide-react"
+import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import {
 	Card,
@@ -12,16 +13,22 @@ import {
 	CardHeader,
 	CardTitle,
 } from "~/components/ui/card"
+import { Checkbox } from "~/components/ui/checkbox"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
-import { Checkbox } from "~/components/ui/checkbox"
-import { Badge } from "~/components/ui/badge"
+import { useServerFnMutation } from "~/hooks/use-server-fn"
 import {
 	updateCompetitionFeeConfigFn,
 	updateDivisionFeeFn,
 } from "~/server-functions/commerce"
-import { useServerFnMutation } from "@tanstack/react-start"
-import { PLATFORM_DEFAULTS } from "~/server/commerce/index.server"
+
+/**
+ * Default platform fee configuration
+ */
+const PLATFORM_DEFAULTS = {
+	platformPercentageBasisPoints: 250, // 2.5%
+	platformFixedCents: 200, // $2.00
+}
 
 interface Props {
 	competition: {

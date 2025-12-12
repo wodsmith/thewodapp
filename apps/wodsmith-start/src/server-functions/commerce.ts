@@ -4,25 +4,25 @@ import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "~/db/index.server"
 import {
-	commercePurchaseTable,
+	COMMERCE_PAYMENT_STATUS,
+	COMMERCE_PRODUCT_TYPE,
+	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
-	competitionsTable,
+	commercePurchaseTable,
 	competitionDivisionsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 	scalingLevelsTable,
-	teamTable,
-	COMMERCE_PURCHASE_STATUS,
-	COMMERCE_PRODUCT_TYPE,
-	COMMERCE_PAYMENT_STATUS,
 	TEAM_PERMISSIONS,
+	teamTable,
 } from "~/db/schema.server"
-import {
-	calculateCompetitionFees,
-	getRegistrationFee,
-	buildFeeConfig,
-	type FeeBreakdown,
-} from "~/server/commerce/index.server"
 import { getStripe } from "~/lib/stripe"
+import {
+	buildFeeConfig,
+	calculateCompetitionFees,
+	type FeeBreakdown,
+	getRegistrationFee,
+} from "~/server/commerce/index.server"
 import { requireVerifiedEmail } from "~/utils/auth.server"
 import { RATE_LIMITS, withRateLimit } from "~/utils/with-rate-limit"
 

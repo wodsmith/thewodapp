@@ -27,7 +27,7 @@ export const Route = createFileRoute(
 		const competition = competitionResult.data
 
 		// Get organizing team Stripe status
-		const organizingTeam = await getTeamFromDatabase(
+		const organizingTeam = await getTeamById(
 			competition.organizingTeamId,
 		)
 		const isStripeConnected =
