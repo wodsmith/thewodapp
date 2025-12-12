@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm"
 import ms from "ms"
 import { ZSAError } from "@repo/zsa"
 import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
-import { getDb } from "@/db"
+import { getDb } from "@/db/index.server"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
@@ -15,7 +15,7 @@ import {
 } from "@/db/schema"
 import type { SessionValidationResult } from "@/types"
 import isProd from "@/utils/is-prod"
-import { addFreeMonthlyCreditsIfNeeded } from "./credits"
+import { addFreeMonthlyCreditsIfNeeded } from "./credits.server"
 import {
 	type CreateKVSessionParams,
 	CURRENT_SESSION_VERSION,
@@ -24,7 +24,7 @@ import {
 	getKVSession,
 	type KVSession,
 	updateKVSession,
-} from "./kv-session"
+} from "./kv-session.server"
 import { getInitials } from "./name-initials"
 
 const getSessionLength = () => {

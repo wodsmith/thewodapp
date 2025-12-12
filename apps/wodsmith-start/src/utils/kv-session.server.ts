@@ -1,8 +1,8 @@
 import { env } from "cloudflare:workers"
 import { headers } from "vinxi/http"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
-import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
-import { getIP } from "./get-IP"
+import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth.server"
+import { getIP } from "./get-IP.server"
 
 const SESSION_PREFIX = "session:"
 
@@ -362,7 +362,7 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
 export async function invalidateTeamMembersSessions(
 	teamId: string,
 ): Promise<void> {
-	const { getDb } = await import("@/db")
+	const { getDb } = await import("@/db/index.server")
 	const { teamMembershipTable } = await import("@/db/schema")
 	const { eq } = await import("drizzle-orm")
 

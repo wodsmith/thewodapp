@@ -25,7 +25,7 @@ import {
 import { Input } from '~/components/ui/input'
 import { Spinner } from '~/components/ui/spinner'
 import SeparatorWithText from '~/components/separator-with-text'
-import SSOButtons from '../_components/sso-buttons'
+import SSOButtons from '~/components/auth/sso-buttons'
 import { signUpSchema, type SignUpSchema } from '~/schemas/signup.schema'
 import {
 	passkeyEmailSchema,

@@ -17,7 +17,7 @@ import {
 } from '~/components/ui/form'
 import { Input } from '~/components/ui/input'
 import SeparatorWithText from '~/components/separator-with-text'
-import SSOButtons from '../_components/sso-buttons'
+import SSOButtons from '~/components/auth/sso-buttons'
 import { signInSchema, type SignInSchema } from '~/schemas/signin.schema'
 import { signInAction } from '~/server-functions/auth'
 import {

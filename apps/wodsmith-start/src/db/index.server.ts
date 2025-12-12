@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
 import { drizzle } from "drizzle-orm/d1"
 
-import * as schema from "./schema"
+import * as schema from "./schema.server"
 
 // TanStack Start pattern: use env from cloudflare:workers
 // D1 binding is named "DB"
