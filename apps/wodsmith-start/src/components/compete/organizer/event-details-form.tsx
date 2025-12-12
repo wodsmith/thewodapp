@@ -155,9 +155,9 @@ export function EventDetailsForm({
 		}
 	}
 
-	const { mutate: saveEvent, isPending: isSaving } = useServerFnMutation({
-		fn: saveCompetitionEventFn,
-	})
+	const { mutate: saveEvent, isPending: isSaving } = useServerFnMutation(
+		saveCompetitionEventFn,
+	)
 
 	const onSubmit = async (data: CompetitionEventSchema) => {
 		// Build division descriptions array

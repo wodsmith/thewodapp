@@ -1,12 +1,13 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import posthog from "posthog-js"
 import { useServerFnMutation } from "@tanstack/react-start"
+import { useState } from "react"
 import { createCompetitionFn } from "~/server-functions/competitions"
 import { Button } from "~/components/ui/button"
 import {

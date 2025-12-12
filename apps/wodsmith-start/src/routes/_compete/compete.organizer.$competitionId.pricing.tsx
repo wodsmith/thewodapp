@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router"
 import { getCompetitionFn } from "~/server-functions/competitions"
 import { getCompetitionDivisionFeesFn } from "~/server-functions/commerce"
 import { getSessionFromCookie } from "~/utils/auth.server"
-import { getTeamFromDatabase } from "~/server/teams.server"
+import { getTeamById } from "~/server/teams"
 import { PricingSettingsForm } from "~/components/compete/organizer/pricing-settings-form"
 import { StripeConnectionRequired } from "~/components/compete/organizer/stripe-connection-required"
 

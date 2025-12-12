@@ -75,19 +75,18 @@ export function OrganizerEventManager({
 		})
 	}, [initialEvents])
 
-	const { mutate: createEvent, isPending: isCreating } = useServerFnMutation({
-		fn: createCompetitionEventFn,
-	})
+	const { mutate: createEvent, isPending: isCreating } =
+		useServerFnMutation(createCompetitionEventFn)
 
 	const [isAdding, setIsAdding] = useState(false)
 
-	const { mutate: removeWorkout } = useServerFnMutation({
-		fn: removeWorkoutFromCompetitionFn,
-	})
+	const { mutate: removeWorkout } = useServerFnMutation(
+		removeWorkoutFromCompetitionFn,
+	)
 
-	const { mutate: reorderEvents } = useServerFnMutation({
-		fn: reorderCompetitionEventsFn,
-	})
+	const { mutate: reorderEvents } = useServerFnMutation(
+		reorderCompetitionEventsFn,
+	)
 
 	// Sort events by trackOrder
 	const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
