@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { GENDER_ENUM } from "@/db/schemas/users"
+import { GENDER_ENUM } from "~/db/schemas/users"
 
 export const userSettingsSchema = z.object({
 	firstName: z.string().min(2, {

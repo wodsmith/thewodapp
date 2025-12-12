@@ -8,11 +8,11 @@ import {
 	getScalingGroupWithLevelsAction,
 	getWorkoutScalingDescriptionsAction,
 	updateWorkoutScalingDescriptionsAction,
-} from "@/actions/scaling-actions"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "~/actions/scaling-actions"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
+import { Label } from "~/components/ui/label"
+import { Textarea } from "~/components/ui/textarea"
 
 interface WorkoutScalingDescriptionsEditorProps {
 	workoutId: string

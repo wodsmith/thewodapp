@@ -6,9 +6,9 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import type { ScalingLevel, WorkoutScalingDescription } from "@/db/schema"
+} from "~/components/ui/dialog"
+import { ScrollArea } from "~/components/ui/scroll-area"
+import type { ScalingLevel, WorkoutScalingDescription } from "~/db/schema"
 import {
 	type DescriptionMapping,
 	ScalingMigrationMapper,

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start/server"
 import { z } from "zod"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
 import {
 	createScalingGroup as createScalingGroupServer,
 	deleteScalingGroup as deleteScalingGroupServer,
@@ -8,15 +8,15 @@ import {
 	listScalingGroups,
 	setTeamDefaultScalingGroup,
 	updateScalingGroup as updateScalingGroupServer,
-} from "@/server/scaling-groups"
+} from "~/server/scaling-groups"
 import {
 	createScalingLevel as createScalingLevelServer,
 	getWorkoutScalingDescriptionsWithLevels,
 	reorderScalingLevels as reorderScalingLevelsServer,
 	upsertWorkoutScalingDescriptions,
-} from "@/server/scaling-levels"
-import { getSessionFromCookie } from "@/utils/auth.server"
-import { hasTeamPermission } from "@/utils/team-auth.server"
+} from "~/server/scaling-levels"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import { hasTeamPermission } from "~/utils/team-auth.server"
 
 /**
  * Get all scaling groups for a team
@@ -425,7 +425,7 @@ export const updateScalingLevelFn = createServerFn({ method: "POST" })
 				throw new Error("Cannot edit scaling groups in this team")
 			}
 
-			const { updateScalingLevel } = await import("@/server/scaling-levels")
+			const { updateScalingLevel } = await import("~/server/scaling-levels")
 			const level = await updateScalingLevel({
 				teamId: data.teamId,
 				scalingLevelId: data.scalingLevelId,
@@ -472,7 +472,7 @@ export const deleteScalingLevelFn = createServerFn({ method: "POST" })
 				throw new Error("Cannot edit scaling groups in this team")
 			}
 
-			const { deleteScalingLevel } = await import("@/server/scaling-levels")
+			const { deleteScalingLevel } = await import("~/server/scaling-levels")
 			const result = await deleteScalingLevel({
 				teamId: data.teamId,
 				scalingLevelId: data.scalingLevelId,

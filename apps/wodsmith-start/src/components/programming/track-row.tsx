@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "~/components/ui/badge"
 import { SubscribeButton } from "./subscribe-button"
 
 interface PublicProgrammingTrack {

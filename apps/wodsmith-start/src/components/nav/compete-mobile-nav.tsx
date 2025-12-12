@@ -5,16 +5,16 @@ import { Bell, Menu, Settings, User } from "lucide-react"
 // TODO: Import Image from appropriate location
 import { Link } from "@tanstack/react-router"
 import { useState } from "react"
-import LogoutButton from "@/components/nav/logout-button"
-import { Button } from "@/components/ui/button"
+import LogoutButton from "~/components/nav/logout-button"
+import { Button } from "~/components/ui/button"
 import {
 	Sheet,
 	SheetContent,
 	SheetTitle,
 	SheetTrigger,
-} from "@/components/ui/sheet"
-import type { AthleteProfileMissingFields } from "@/server/user"
-import type { SessionValidationResult } from "@/types"
+} from "~/components/ui/sheet"
+import type { AthleteProfileMissingFields } from "~/server/user"
+import type { SessionValidationResult } from "~/types"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
 interface PendingInvitation {

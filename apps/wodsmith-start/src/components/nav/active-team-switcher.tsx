@@ -12,10 +12,10 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { setActiveTeamAction } from "@/actions/team-actions"
-import { cn } from "@/utils/cn"
+} from "~/components/ui/dropdown-menu"
+import { Button } from "~/components/ui/button"
+import { setActiveTeamAction } from "~/actions/team-actions"
+import { cn } from "~/utils/cn"
 
 interface Team {
 	id: string

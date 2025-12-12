@@ -2,13 +2,13 @@
 
 import { QueryClientProvider } from "@tanstack/react-query"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
-import { ThemeProvider as NextThemesProvider } from "next-themes"
 import type React from "react"
 import { useEffect } from "react"
-import { queryClient } from "@/utils/queryClient"
-import { useConfigStore } from "@/state/config"
-import { useSessionStore } from "@/state/session"
-import type { SessionValidationResult } from "@/types"
+
+import { ThemeProvider } from "~/components/theme-provider"
+import { useSessionStore } from "~/state/session"
+import type { SessionValidationResult } from "~/types"
+import { queryClient } from "~/utils/queryClient"
 
 interface SessionHydrationProps {
 	initialSession?: SessionValidationResult
@@ -60,12 +60,12 @@ export function Providers({
 }: ProvidersProps) {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<NextThemesProvider attribute="class" defaultTheme="dark" enableSystem>
+			<ThemeProvider defaultTheme="dark">
 				<SessionHydration initialSession={initialSession}>
 					{children}
 					{isDev && <TanStackRouterDevtools />}
 				</SessionHydration>
-			</NextThemesProvider>
+			</ThemeProvider>
 		</QueryClientProvider>
 	)
 }

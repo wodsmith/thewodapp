@@ -1,5 +1,3 @@
-import "server-only"
-
 import { SeverityNumber } from "@opentelemetry/api-logs"
 
 /**

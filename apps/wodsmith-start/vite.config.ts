@@ -8,6 +8,13 @@ export default defineConfig({
 	server: {
 		port: 3000,
 	},
+	resolve: {
+		alias: {
+			// Alias vinxi/http to a browser-safe stub in client builds
+			// The actual vinxi/http is only used in server-side code
+			"vinxi/http": "./src/lib/vinxi-http-stub.ts",
+		},
+	},
 	build: {
 		rollupOptions: {
 			// Cloudflare Workers-only module specifier. It must not be bundled into the browser build.

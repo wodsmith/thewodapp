@@ -7,16 +7,16 @@ import {
 	CREDITS_EXPIRATION_YEARS,
 	CREDIT_PACKAGES,
 	MAX_TRANSACTIONS_PER_PAGE,
-} from "@/constants"
-import { getDb } from "@/db/index.server"
+} from "~/constants"
+import { getDb } from "~/db/index.server"
 import {
 	creditTransactionTable,
 	userTable,
 	CREDIT_TRANSACTION_TYPE,
-} from "@/db/schema.server"
-import { getStripe } from "@/lib/stripe"
-import { requireVerifiedEmail } from "@/utils/auth.server"
-import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
+} from "~/db/schema.server"
+import { getStripe } from "~/lib/stripe"
+import { requireVerifiedEmail } from "~/utils/auth.server"
+import { RATE_LIMITS, withRateLimit } from "~/utils/with-rate-limit"
 
 /**
  * Get credit package by ID
@@ -451,7 +451,7 @@ export const calculateRegistrationFeeFn = createServerFn({ method: "POST" })
 	.handler(async ({ data: input }) => {
 		try {
 			const { getRegistrationFee } = await import(
-				"@/server/commerce/fee-calculator.server"
+				"~/server/commerce/fee-calculator.server"
 			)
 
 			const feeCents = await getRegistrationFee(

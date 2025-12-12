@@ -5,9 +5,9 @@ import { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { inviteUserAction } from "@/actions/team-membership-actions"
-import { checkCanInviteMemberAction } from "@/actions/entitlements-actions"
-import { Button } from "@/components/ui/button"
+import { inviteUserAction } from "~/actions/team-membership-actions"
+import { checkCanInviteMemberAction } from "~/actions/entitlements-actions"
+import { Button } from "~/components/ui/button"
 import {
 	Dialog,
 	DialogClose,
@@ -15,7 +15,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog"
+} from "~/components/ui/dialog"
 import {
 	Form,
 	FormControl,
@@ -23,12 +23,12 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+} from "~/components/ui/form"
+import { Input } from "~/components/ui/input"
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert"
 import { AlertCircle, Crown, Info } from "lucide-react"
 import { Link } from "@tanstack/react-router"
-import type { LimitCheckResult } from "@/server/entitlements-checks"
+import type { LimitCheckResult } from "~/server/entitlements-checks"
 
 // Define the form schema with validation
 const formSchema = z.object({

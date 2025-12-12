@@ -2,7 +2,7 @@
 
 import { BoltIcon, CheckIcon, TrophyIcon } from "@heroicons/react/24/outline"
 import posthog from "posthog-js"
-import { Button } from "@/components/ui/button"
+import { Button } from "~/components/ui/button"
 
 const Pricing = () => {
 	const plans = [

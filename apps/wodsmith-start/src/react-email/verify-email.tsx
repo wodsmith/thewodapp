@@ -11,7 +11,7 @@ import {
 import {
 	EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
 	SITE_DOMAIN,
-} from "@/constants"
+} from "~/constants"
 
 interface VerifyEmailProps {
 	verificationLink?: string

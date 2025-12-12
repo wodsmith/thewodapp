@@ -17,20 +17,20 @@ import {
 	ChevronsRight,
 } from "lucide-react"
 import * as React from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from "~/components/ui/button"
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "~/components/ui/dropdown-menu"
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
+} from "~/components/ui/select"
 import {
 	Table,
 	TableBody,
@@ -38,7 +38,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table"
+} from "~/components/ui/table"
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[]

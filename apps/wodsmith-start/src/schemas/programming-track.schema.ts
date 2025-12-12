@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
+import { PROGRAMMING_TRACK_TYPE } from "~/db/schemas/programming"
 
 export const createProgrammingTrackSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),

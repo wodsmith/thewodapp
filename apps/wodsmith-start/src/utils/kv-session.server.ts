@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers"
 import { headers } from "vinxi/http"
-import { MAX_SESSIONS_PER_USER } from "@/constants"
-import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth.server"
+import { MAX_SESSIONS_PER_USER } from "~/constants"
+import { getUserFromDB, getUserTeamsWithPermissions } from "~/utils/auth.server"
 import { getIP } from "./get-IP.server"
 
 const SESSION_PREFIX = "session:"
@@ -112,7 +112,7 @@ export async function createKVSession({
 	}
 
 	// Load user's active entitlements
-	const { getUserEntitlements } = await import("@/server/entitlements")
+	const { getUserEntitlements } = await import("~/server/entitlements.server")
 	const entitlements = await getUserEntitlements(userId)
 
 	const session: KVSession = {
@@ -220,7 +220,7 @@ export async function updateKVSession(
 	const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
 
 	// Load user's active entitlements
-	const { getUserEntitlements } = await import("@/server/entitlements")
+	const { getUserEntitlements } = await import("~/server/entitlements.server")
 	const entitlements = await getUserEntitlements(userId)
 
 	const updatedSession: KVSession = {
@@ -307,7 +307,7 @@ export async function updateAllSessionsOfUser(userId: string) {
 	const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
 
 	// Load user's active entitlements
-	const { getUserEntitlements } = await import("@/server/entitlements")
+	const { getUserEntitlements } = await import("~/server/entitlements.server")
 	const entitlements = await getUserEntitlements(userId)
 
 	for (const sessionObj of sessions) {
@@ -362,8 +362,8 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
 export async function invalidateTeamMembersSessions(
 	teamId: string,
 ): Promise<void> {
-	const { getDb } = await import("@/db/index.server")
-	const { teamMembershipTable } = await import("@/db/schema")
+	const { getDb } = await import("~/db/index.server")
+	const { teamMembershipTable } = await import("~/db/schema")
 	const { eq } = await import("drizzle-orm")
 
 	const db = getDb()

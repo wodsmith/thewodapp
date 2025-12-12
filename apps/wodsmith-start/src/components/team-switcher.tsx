@@ -4,7 +4,7 @@ import { Building2, ChevronsUpDown, Plus } from "lucide-react"
 import { Link, useRouter } from "@tanstack/react-router"
 import * as React from "react"
 import { toast } from "sonner"
-import { useServerFnWithState } from "@/hooks/use-server-fn"
+import { useServerFnWithState } from "~/hooks/use-server-fn"
 import { setActiveTeamFn } from "~/server-functions/team"
 import {
 	DropdownMenu,
@@ -14,13 +14,13 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuShortcut,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "~/components/ui/dropdown-menu"
 import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	useSidebar,
-} from "@/components/ui/sidebar"
+} from "~/components/ui/sidebar"
 
 export function TeamSwitcher({
 	teams,

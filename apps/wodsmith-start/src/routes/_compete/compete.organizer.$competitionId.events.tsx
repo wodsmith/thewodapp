@@ -1,6 +1,10 @@
 import { createFileRoute, notFound } from "@tanstack/react-router"
-import { getCompetitionFn, getCompetitionWorkoutsFn } from "~/server-functions/competitions"
 import { getSessionFromCookie } from "~/utils/auth.server"
+import { getCompetitionFn, getCompetitionWorkoutsFn } from "~/server-functions/competitions"
+import { getDivisionsFn } from "~/server-functions/divisions"
+import { getMovementsFn } from "~/server-functions/movements"
+import { getSponsorsFn } from "~/server-functions/sponsors"
+import { OrganizerEventManager } from "~/components/compete/organizer/organizer-event-manager"
 
 export const Route = createFileRoute(
 	"/_compete/compete/organizer/$competitionId/events",
@@ -22,33 +26,62 @@ export const Route = createFileRoute(
 
 		const competition = competitionResult.data
 
-		// TODO: Parallel fetch events, divisions, movements, and sponsors
-		const eventsResult = await getCompetitionWorkoutsFn({
-			data: { competitionId: competition.id },
-		})
+		// Fetch all required data in parallel
+		const [eventsResult, divisionsResult, movementsResult, sponsorsResult] =
+			await Promise.all([
+				getCompetitionWorkoutsFn({
+					data: { competitionId: competition.id },
+				}),
+				getDivisionsFn({
+					data: { competitionId: competition.id },
+				}),
+				getMovementsFn({
+					data: { teamId: competition.organizingTeamId },
+				}),
+				getSponsorsFn({
+					data: { competitionId: competition.id },
+				}),
+			])
 
 		return {
 			competition,
 			events: eventsResult.success ? eventsResult.data : [],
-			divisionsData: { divisions: [] },
-			movements: [],
-			sponsors: { groups: [], ungroupedSponsors: [] },
+			divisions: divisionsResult.success ? divisionsResult.data : [],
+			movements: movementsResult.success ? movementsResult.data : [],
+			sponsors: sponsorsResult.success ? sponsorsResult.data : [],
+			divisionDescriptionsByWorkout: {}, // TODO: Fetch division descriptions
 		}
 	},
 	component: EventsManagementComponent,
 })
 
 function EventsManagementComponent() {
-	const { competition, events } = Route.useLoaderData()
+	const {
+		competition,
+		events,
+		divisions,
+		movements,
+		sponsors,
+		divisionDescriptionsByWorkout,
+	} = Route.useLoaderData()
 
 	return (
 		<div className="container mx-auto px-4 py-8">
 			<h1 className="text-3xl font-bold mb-4">Events - {competition.name}</h1>
 			<p className="text-muted-foreground mb-6">
-				Manage {events.length} event{events.length !== 1 ? "s" : ""} in this competition
+				Manage {events.length} event{events.length !== 1 ? "s" : ""} in this
+				competition
 			</p>
 
-			{/* TODO: Render OrganizerEventManager component */}
+			<OrganizerEventManager
+				competitionId={competition.id}
+				organizingTeamId={competition.organizingTeamId}
+				events={events}
+				movements={movements}
+				divisions={divisions}
+				divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
+				sponsors={sponsors}
+			/>
 		</div>
 	)
 }

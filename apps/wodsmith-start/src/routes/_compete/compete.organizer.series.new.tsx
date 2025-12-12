@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { OrganizerSeriesForm } from "~/components/compete/organizer/organizer-series-form"
+import { getUserOrganizingTeamsFn } from "~/server-functions/competitions"
 import { getSessionFromCookie } from "~/utils/auth.server"
 
 export const Route = createFileRoute("/_compete/compete/organizer/series/new")({
@@ -9,20 +11,20 @@ export const Route = createFileRoute("/_compete/compete/organizer/series/new")({
 		}
 	},
 	loader: async () => {
-		// TODO: Implement loader with:
-		// - getUserOrganizingTeamsFn()
-		// - getActiveTeamFromCookie() for team selection
+		const teamsResult = await getUserOrganizingTeamsFn()
+		const teams = teamsResult.data || []
+		const activeTeamId = teams[0]?.id || ""
 
 		return {
-			organizingTeams: [],
-			activeTeamId: null,
+			organizingTeams: teams,
+			activeTeamId,
 		}
 	},
 	component: NewSeriesComponent,
 })
 
 function NewSeriesComponent() {
-	const _data = Route.useLoaderData()
+	const { organizingTeams, activeTeamId } = Route.useLoaderData()
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -32,7 +34,12 @@ function NewSeriesComponent() {
 					Organize related competitions into a series
 				</p>
 
-				{/* TODO: Render OrganizerSeriesForm component */}
+				<div className="mt-8">
+					<OrganizerSeriesForm
+						teams={organizingTeams}
+						selectedTeamId={activeTeamId}
+					/>
+				</div>
 			</div>
 		</div>
 	)

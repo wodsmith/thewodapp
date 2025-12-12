@@ -1,16 +1,17 @@
 "use client"
 
 import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
 import type * as React from "react"
 
-import { Button } from "@/components/ui/button"
+import { useTheme } from "~/components/theme-provider"
+
+import { Button } from "~/components/ui/button"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "~/components/ui/dropdown-menu"
 
 interface ThemeSwitchProps {
 	children?: React.ReactNode

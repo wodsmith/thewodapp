@@ -2,8 +2,8 @@
 
 import { Building2 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
-import { Badge } from "@/components/ui/badge"
-import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
+import { Badge } from "~/components/ui/badge"
+import type { ProgrammingTrackWithTeamSubscriptions } from "~/server/programming-multi-team"
 import { EnhancedSubscribeButton } from "./enhanced-subscribe-button"
 
 interface EnhancedTrackRowProps {

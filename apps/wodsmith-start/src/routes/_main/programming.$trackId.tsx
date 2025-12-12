@@ -4,7 +4,7 @@ import { Building2, Users } from "lucide-react"
 import {
 	getProgrammingTrackByIdFn,
 	getTrackSubscribedTeamsFn,
-} from "@/server-functions/programming"
+} from "~/server-functions/programming"
 import { PaginatedTrackWorkouts } from "~/components/programming/paginated-track-workouts"
 import { EnhancedSubscribeButton } from "~/components/programming/enhanced-subscribe-button"
 import { TrackDetailTeamSelector } from "~/components/programming/track-detail-team-selector"

@@ -9,13 +9,13 @@ import {
 } from "lucide-react"
 import type { ComponentProps } from "react"
 import { createContext, memo, useContext } from "react"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "~/components/ui/badge"
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { cn } from "@/lib/utils"
+} from "~/components/ui/collapsible"
+import { cn } from "~/lib/utils"
 
 type ChainOfThoughtContextValue = {
 	isOpen: boolean

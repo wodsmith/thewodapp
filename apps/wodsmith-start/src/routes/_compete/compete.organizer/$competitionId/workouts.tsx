@@ -3,7 +3,7 @@ import {
 	getCompetitionFn,
 	getCompetitionWorkoutsFn,
 } from "~/server-functions/competitions"
-import { listScalingGroupsFn } from "~/server-functions/competition-divisions"
+import { listScalingGroupsFn } from "~/server-functions/divisions"
 import { OrganizerWorkoutsManager } from "~/components/compete/organizer/organizer-workouts-manager"
 import { getSessionFromCookie } from "~/utils/auth.server"
 

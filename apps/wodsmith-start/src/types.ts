@@ -1,4 +1,4 @@
-import type { Set as DBSet, Movement, Result, Tag, Workout } from "@/db/schema"
+import type { Set as DBSet, Movement, Result, Tag, Workout } from "~/db/schema"
 import type { KVSession } from "./utils/kv-session"
 
 export type SessionValidationResult = KVSession | null
@@ -101,4 +101,4 @@ export interface SessionWithMeta extends KVSession {
 }
 
 // Re-export common types for convenience
-export type { Movement, Tag, Workout } from "@/db/schema"
+export type { Movement, Tag, Workout } from "~/db/schema"

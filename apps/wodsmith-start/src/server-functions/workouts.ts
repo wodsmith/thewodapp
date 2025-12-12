@@ -1,17 +1,17 @@
 import { createServerFn } from "@tanstack/react-start/server"
 import { z } from "zod"
 import { createId } from "@paralleldrive/cuid2"
-import type { LeaderboardEntry } from "@/server/leaderboard"
+import type { LeaderboardEntry } from "~/server/leaderboard"
 import {
 	getScheduledWorkoutsForTeam,
 	getWorkoutResultForScheduledInstance,
 	getWorkoutResultsForScheduledInstances,
-} from "@/server/scheduling-service"
-import { getUserTeams } from "@/server/teams"
+} from "~/server/scheduling-service"
+import { getUserTeams } from "~/server/teams"
 import {
 	getResultSetsById,
 	getWorkoutResultsWithScalingForUser,
-} from "@/server/workout-results"
+} from "~/server/workout-results"
 import {
 	createProgrammingTrackWorkoutRemix,
 	createWorkout,
@@ -22,20 +22,20 @@ import {
 	getUserWorkoutsCount,
 	getWorkoutById,
 	updateWorkout,
-} from "@/server/workouts"
-import { requireVerifiedEmail } from "@/utils/auth.server"
+} from "~/server/workouts"
+import { requireVerifiedEmail } from "~/utils/auth.server"
 import {
 	hasTeamPermission,
 	isTeamMember,
 	requireTeamMembership,
 	requireTeamPermission,
-} from "@/utils/team-auth.server"
+} from "~/utils/team-auth.server"
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,
-} from "@/utils/workout-permissions"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { logDebug, logError } from "@/lib/logging/posthog-otel-logger"
+} from "~/utils/workout-permissions"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
+import { logDebug, logError } from "~/lib/logging/posthog-otel-logger"
 
 const createWorkoutRemixSchema = z.object({
 	sourceWorkoutId: z.string().min(1, "Source workout ID is required"),
@@ -225,13 +225,13 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
 	.validator(createWorkoutSchema)
 	.handler(async ({ data }) => {
 		try {
-			const { findOrCreateTag } = await import("@/server/tags")
-			const { addWorkoutToTrack } = await import("@/server/programming-tracks")
+			const { findOrCreateTag } = await import("~/server/tags")
+			const { addWorkoutToTrack } = await import("~/server/programming-tracks")
 			const { scheduleStandaloneWorkoutForTeam } = await import(
-				"@/server/scheduling-service"
+				"~/server/scheduling-service"
 			)
 			const { upsertWorkoutScalingDescriptions } = await import(
-				"@/server/scaling-levels"
+				"~/server/scaling-levels"
 			)
 
 			let finalTagIds = [...data.tagIds]
@@ -281,7 +281,7 @@ export const createWorkoutFn = createServerFn({ method: "POST" })
 
 				if (trackWorkoutId) {
 					const { scheduleWorkoutForTeam } = await import(
-						"@/server/scheduling-service"
+						"~/server/scheduling-service"
 					)
 					await scheduleWorkoutForTeam({
 						teamId: data.teamId,
@@ -708,7 +708,7 @@ export const getTeamLeaderboardsFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		try {
 			const { getLeaderboardForScheduledWorkout } = await import(
-				"@/server/leaderboard"
+				"~/server/leaderboard"
 			)
 
 			const leaderboards: Record<string, LeaderboardEntry[]> = {}

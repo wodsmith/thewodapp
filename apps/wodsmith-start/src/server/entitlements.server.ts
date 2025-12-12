@@ -8,7 +8,7 @@ import { and, eq, gt, isNull, or, sql } from "drizzle-orm"
 import type {
 	Entitlement,
 	PlanEntitlements,
-} from "@/db/schemas/entitlements.server"
+} from "~/db/schemas/entitlements.server"
 import {
 	entitlementTable,
 	featureTable,
@@ -20,15 +20,15 @@ import {
 	teamFeatureEntitlementTable,
 	teamLimitEntitlementTable,
 	teamUsageTable,
-} from "@/db/schemas/entitlements.server"
-import { programmingTracksTable } from "@/db/schemas/programming.server"
+} from "~/db/schemas/entitlements.server"
+import { programmingTracksTable } from "~/db/schemas/programming.server"
 import {
 	SYSTEM_ROLES_ENUM,
 	teamMembershipTable,
 	teamTable,
-} from "@/db/schemas/teams.server"
-import { getDb } from "@/db/index.server"
-import { FEATURES, LIMITS } from "@/constants"
+} from "~/db/schemas/teams.server"
+import { getDb } from "~/db/index.server"
+import { FEATURES, LIMITS } from "~/constants"
 
 // ============================================================================
 // TEAM-LEVEL ENTITLEMENT CHECKING (Snapshot-Based)
@@ -554,7 +554,7 @@ export async function createEntitlement({
 	}
 
 	// Invalidate user's sessions to refresh entitlements
-	const { invalidateUserSessions } = await import("@/utils/kv-session.server")
+	const { invalidateUserSessions } = await import("~/utils/kv-session.server")
 	await invalidateUserSessions(userId)
 
 	return entitlement
@@ -580,7 +580,7 @@ export async function revokeEntitlement(entitlementId: string): Promise<void> {
 		.where(eq(entitlementTable.id, entitlementId))
 
 	// Invalidate user's sessions to refresh entitlements
-	const { invalidateUserSessions } = await import("@/utils/kv-session.server")
+	const { invalidateUserSessions } = await import("~/utils/kv-session.server")
 	await invalidateUserSessions(entitlement.userId)
 }
 
@@ -616,7 +616,7 @@ export async function revokeEntitlementsBySource(
 		)
 
 	// Invalidate affected users' sessions in parallel
-	const { invalidateUserSessions } = await import("@/utils/kv-session.server")
+	const { invalidateUserSessions } = await import("~/utils/kv-session.server")
 	const uniqueUserIds = [...new Set(affectedEntitlements.map((e) => e.userId))]
 	await Promise.all(
 		uniqueUserIds.map((userId) => invalidateUserSessions(userId)),

@@ -3,14 +3,14 @@ import { createServerFn } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
 import { getDb } from "~/db/index.server"
 import { teamTable } from "~/db/schema.server"
-import { getClassCatalogByTeam, getSkillsByTeam } from "~/actions/gym-setup-actions.server"
-import { getTeamAction } from "~/actions/team-actions.server"
 import { PageHeader } from "~/components/page-header"
-import Classes from "./_components/Classes"
+import Classes from "./-components/Classes"
 
-const getClassesPageData = createServerFn(
-	{ method: "GET" },
-	async (teamId: string) => {
+// TODO: Implement full data fetching - currently using placeholder data
+// Need to create: gym-setup-actions.server, team-actions.server
+
+const getClassesPageData = createServerFn({ method: "GET" }).handler(
+	async ({ data: teamId }: { data: string }) => {
 		const db = getDb()
 
 		const team = await db.query.teamTable.findFirst({
@@ -21,32 +21,19 @@ const getClassesPageData = createServerFn(
 			throw new Error("Team not found")
 		}
 
-		const [[classesResult], [skillsResult], [teamResult]] = await Promise.all([
-			getClassCatalogByTeam({ teamId }),
-			getSkillsByTeam({ teamId }),
-			getTeamAction({ teamId }),
-		])
-
-		if (
-			!classesResult?.success ||
-			!skillsResult?.success ||
-			!teamResult?.success
-		) {
-			throw new Error("Failed to load classes data")
-		}
-
+		// Placeholder data until actions are migrated
 		return {
 			team,
-			classes: classesResult.data ?? [],
-			availableSkills: skillsResult.data ?? [],
-			teamData: teamResult.data,
+			classes: [],
+			availableSkills: [],
+			teamData: { slug: team.slug },
 		}
 	}
 )
 
 export const Route = createFileRoute("/_admin/admin/teams/$teamId/classes")({
 	loader: async ({ params }) => {
-		return getClassesPageData(params.teamId)
+		return getClassesPageData({ data: params.teamId })
 	},
 	component: ClassesPage,
 })

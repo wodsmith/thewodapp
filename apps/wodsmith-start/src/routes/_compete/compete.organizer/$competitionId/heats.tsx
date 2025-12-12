@@ -3,7 +3,7 @@ import {
 	getCompetitionFn,
 	getCompetitionWorkoutsFn,
 } from "~/server-functions/competitions"
-import { getHeatsForCompetitionFn } from "~/server-functions/competition-heats"
+import { getHeatsForCompetitionFn } from "~/server-functions/heats"
 import { OrganizerHeatsManager } from "~/components/compete/organizer/organizer-heats-manager"
 import { getSessionFromCookie } from "~/utils/auth.server"
 

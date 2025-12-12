@@ -1,44 +1,73 @@
+"use client"
+
+/**
+ * Main Navigation Component
+ * TODO: Data should be loaded in route loader and passed as props
+ */
+
 import { User } from "lucide-react"
-// TODO: Import Image from appropriate location
 import { Link } from "@tanstack/react-router"
-import LogoutButton from "@/components/nav/logout-button"
-import MobileNav from "@/components/nav/mobile-nav"
-import { ActiveTeamSwitcher } from "@/components/nav/active-team-switcher"
-import { NotificationBell } from "@/components/nav/notification-bell"
-import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
-import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
-import {
-	type AthleteProfileMissingFields,
-	getAthleteProfileMissingFields,
-} from "@/server/user"
-import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
+import LogoutButton from "~/components/nav/logout-button"
+import MobileNav from "~/components/nav/mobile-nav"
+import { ActiveTeamSwitcher } from "~/components/nav/active-team-switcher"
+import { NotificationBell } from "~/components/nav/notification-bell"
+import { DarkModeToggle } from "~/components/ui/dark-mode-toggle"
+import type { AthleteProfileMissingFields } from "~/server/user"
+import type { Session, Team } from "~/db/schema"
 
-export default async function MainNav() {
-	const session = await getSessionFromCookie()
-	const activeTeamId = await getActiveTeamFromCookie()
+// Placeholder Image component until proper one is implemented
+function Image({
+	src,
+	alt,
+	width,
+	height,
+	className,
+}: {
+	src: string
+	alt: string
+	width: number
+	height: number
+	className?: string
+}) {
+	return (
+		<img
+			src={src}
+			alt={alt}
+			width={width}
+			height={height}
+			className={className}
+		/>
+	)
+}
 
-	let pendingInvitations: Awaited<
-		ReturnType<typeof getPendingInvitationsForCurrentUser>
-	> = []
-	let missingProfileFields: AthleteProfileMissingFields | null = null
-	if (session?.user) {
-		try {
-			const [invitations, missing] = await Promise.all([
-				getPendingInvitationsForCurrentUser(),
-				getAthleteProfileMissingFields(session.userId),
-			])
-			pendingInvitations = invitations
-			missingProfileFields = missing
-		} catch {
-			// User not authenticated, no invitations
-		}
-	}
+interface PendingInvitation {
+	id: string
+	teamId: string
+	teamName: string
+}
 
+export interface MainNavProps {
+	session?: {
+		user?: { id: string; email: string }
+		userId: string
+		teams?: Team[]
+	} | null
+	activeTeamId?: string | null
+	pendingInvitations?: PendingInvitation[]
+	missingProfileFields?: AthleteProfileMissingFields | null
+}
+
+export default function MainNav({
+	session,
+	activeTeamId,
+	pendingInvitations = [],
+	missingProfileFields = null,
+}: MainNavProps) {
 	return (
 		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
 			<div className="container mx-auto flex items-center justify-between">
 				<Link
-					href={session?.user ? "/workouts" : "/"}
+					to={session?.user ? "/workouts" : "/"}
 					className="flex items-center gap-2"
 				>
 					<Image
@@ -63,26 +92,26 @@ export default async function MainNav() {
 					{session?.user ? (
 						<>
 							<Link
-								href="/workouts"
+								to="/workouts"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Workouts
 							</Link>
 
 							<Link
-								href="/log"
+								to="/log"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Log
 							</Link>
 							<Link
-								href="/teams"
+								to="/teams"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Team
 							</Link>
 							<Link
-								href="/compete"
+								to="/compete"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Compete
@@ -99,7 +128,7 @@ export default async function MainNav() {
 								/>
 							)}
 							<Link
-								href="/settings/profile"
+								to="/settings/profile"
 								className="font-bold text-foreground dark:text-dark-foreground"
 							>
 								<User className="h-5 w-5" />
@@ -114,21 +143,21 @@ export default async function MainNav() {
 					) : (
 						<div className="flex items-center gap-2">
 							<Link
-								href="/compete"
+								to="/compete"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Compete
 							</Link>
 							<Link
-								href="/calculator"
+								to="/calculator"
 								className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
 							>
 								Calculator
 							</Link>
-							<Link href="/sign-in" className="btn-outline">
+							<Link to="/sign-in" className="btn-outline">
 								Login
 							</Link>
-							<Link href="/sign-up" className="btn">
+							<Link to="/sign-up" className="btn">
 								Sign Up
 							</Link>
 							<DarkModeToggle />

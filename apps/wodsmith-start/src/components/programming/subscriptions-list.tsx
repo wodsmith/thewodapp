@@ -7,12 +7,12 @@ import { toast } from "sonner"
 import {
 	setDefaultTrackAction,
 	unsubscribeFromTrackAction,
-} from "@/actions/programming-actions"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { useSessionStore } from "@/state/session"
+} from "~/actions/programming-actions"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
+import { useSessionStore } from "~/state/session"
 
 interface Subscription {
 	id: string

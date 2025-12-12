@@ -8,8 +8,8 @@ import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { cn } from "@/lib/utils"
+} from "~/components/ui/collapsible"
+import { cn } from "~/lib/utils"
 import { Response } from "./response"
 
 type ReasoningContextValue = {

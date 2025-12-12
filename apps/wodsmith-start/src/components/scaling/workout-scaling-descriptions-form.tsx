@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 
-import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { getScalingGroupWithLevelsAction } from "~/actions/scaling-actions"
+import { Badge } from "~/components/ui/badge"
+import { Label } from "~/components/ui/label"
+import { Textarea } from "~/components/ui/textarea"
 
 interface WorkoutScalingDescriptionsFormProps {
 	scalingGroupId: string | null

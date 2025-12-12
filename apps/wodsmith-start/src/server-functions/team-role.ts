@@ -5,7 +5,7 @@ import {
 	deleteTeamRole,
 	getTeamRoles,
 	updateTeamRole,
-} from "@/server/team-roles"
+} from "~/server/team-roles"
 
 // Create role schema
 const createRoleSchema = z.object({

@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { cn } from "@/lib/utils"
-import { getDefinedScalingLevels } from "@/utils/scaling-utils"
+import { Badge } from "~/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs"
+import { cn } from "~/lib/utils"
+import { getDefinedScalingLevels } from "~/utils/scaling-utils"
 
 interface ScalingLevel {
 	id: string

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { getPublicTracksWithTeamSubscriptionsFn } from "@/server-functions/programming"
+import { getPublicTracksWithTeamSubscriptionsFn } from "~/server-functions/programming"
 import { ProgrammingTracksClient } from "~/components/programming/programming-tracks-client"
 import { getDefaultTeamContextFn } from "~/server-functions/teams-context"
 

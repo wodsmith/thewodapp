@@ -2,26 +2,26 @@
 
 import { Plus, Search, X } from "lucide-react"
 import { useMemo, useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "~/components/ui/dialog"
+import { Input } from "~/components/ui/input"
+import { Label } from "~/components/ui/label"
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
-import type { Movement } from "@/db/schema"
-import { MOVEMENT_TYPE_VALUES } from "@/db/schemas/workouts"
+} from "~/components/ui/select"
+import type { Movement } from "~/db/schema"
+import { MOVEMENT_TYPE_VALUES } from "~/db/schemas/workouts"
 
 // Flexible movement type that can accept partial Movement data
 type MovementData = Pick<Movement, "id" | "name" | "type">

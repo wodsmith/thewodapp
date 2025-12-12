@@ -1,9 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Plus } from "lucide-react"
+import { OrganizerSeriesList } from "~/components/compete/organizer/organizer-series-list"
 import { Button } from "~/components/ui/button"
+import {
+	getCompetitionGroupsFn,
+	getUserOrganizingTeamsFn,
+} from "~/server-functions/competitions"
 import { getSessionFromCookie } from "~/utils/auth.server"
 
-export const Route = createFileRoute("/_compete/compete/organizer/series/")({
+export const Route = createFileRoute("/_compete/compete/organizer/series")({
 	beforeLoad: async () => {
 		const session = await getSessionFromCookie()
 		if (!session) {
@@ -11,22 +16,35 @@ export const Route = createFileRoute("/_compete/compete/organizer/series/")({
 		}
 	},
 	loader: async () => {
-		// TODO: Implement loader with:
-		// - getUserOrganizingTeamsFn()
-		// - getCompetitionGroupsFn() for fetching series
-		// - getActiveTeamFromCookie() for team selection
+		const teams = await getUserOrganizingTeamsFn()
+		if (!teams.data || teams.data.length === 0) {
+			return {
+				organizingTeams: [],
+				activeTeamId: null,
+				groups: [],
+			}
+		}
+
+		const activeTeamId = teams.data[0].id
+		const groupsResult = await getCompetitionGroupsFn({
+			organizingTeamId: activeTeamId,
+		})
 
 		return {
-			organizingTeams: [],
-			activeTeamId: null,
-			groups: [],
+			organizingTeams: teams.data,
+			activeTeamId,
+			groups: groupsResult.data || [],
 		}
 	},
 	component: SeriesComponent,
 })
 
 function SeriesComponent() {
-	const _data = Route.useLoaderData()
+	const { organizingTeams, activeTeamId, groups } = Route.useLoaderData()
+
+	const handleRefresh = async () => {
+		await Route.instance.invalidate()
+	}
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -48,8 +66,13 @@ function SeriesComponent() {
 					</div>
 				</div>
 
-				{/* TODO: Render TeamFilter if multiple teams exist */}
-				{/* TODO: Render OrganizerSeriesList with groups data */}
+				{activeTeamId && (
+					<OrganizerSeriesList
+						groups={groups}
+						teamId={activeTeamId}
+						onDelete={handleRefresh}
+					/>
+				)}
 			</div>
 		</div>
 	)

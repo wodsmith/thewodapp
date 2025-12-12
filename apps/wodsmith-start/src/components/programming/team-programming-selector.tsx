@@ -1,15 +1,15 @@
 "use client"
 
 import { Building2, ChevronsUpDown } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "~/components/ui/button"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { useSessionStore } from "@/state/session"
+} from "~/components/ui/dropdown-menu"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
+import { useSessionStore } from "~/state/session"
 
 interface TeamOption {
 	id: string

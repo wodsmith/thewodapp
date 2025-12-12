@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import type { ProgrammingTrackWithTeamSubscriptions } from "@/server/programming-multi-team"
+import type { ProgrammingTrackWithTeamSubscriptions } from "~/server/programming-multi-team"
 import { EnhancedTrackList } from "./enhanced-track-list"
 
 interface ProgrammingTracksClientProps {

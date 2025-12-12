@@ -1,8 +1,8 @@
 "use client"
 
 import { Building2, ChevronsUpDown, Filter } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -10,8 +10,8 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useTeamContext } from "@/state/team-context"
+} from "~/components/ui/dropdown-menu"
+import { useTeamContext } from "~/state/team-context"
 
 interface Team {
 	id: string

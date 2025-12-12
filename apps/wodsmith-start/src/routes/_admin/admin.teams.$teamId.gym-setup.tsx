@@ -3,14 +3,14 @@ import { createServerFn } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
 import { getDb } from "~/db/index.server"
 import { teamTable } from "~/db/schema.server"
-import { getLocationsByTeam, getSkillsByTeam } from "~/actions/gym-setup-actions.server"
-import { getTeamAction } from "~/actions/team-actions.server"
 import { PageHeader } from "~/components/page-header"
-import GymSetup from "./_components/GymSetup"
+import GymSetup from "./-components/GymSetup"
 
-const getGymSetupPageData = createServerFn(
-	{ method: "GET" },
-	async (teamId: string) => {
+// TODO: Implement full data fetching - currently using placeholder data
+// Need to create: gym-setup-actions.server, team-actions.server
+
+const getGymSetupPageData = createServerFn({ method: "GET" }).handler(
+	async ({ data: teamId }: { data: string }) => {
 		const db = getDb()
 
 		const team = await db.query.teamTable.findFirst({
@@ -21,28 +21,19 @@ const getGymSetupPageData = createServerFn(
 			throw new Error("Team not found")
 		}
 
-		const [[locationsRes], [skillsRes], [teamRes]] = await Promise.all([
-			getLocationsByTeam({ teamId }),
-			getSkillsByTeam({ teamId }),
-			getTeamAction({ teamId }),
-		])
-
-		if (!locationsRes?.success || !skillsRes?.success || !teamRes?.success) {
-			throw new Error("Failed to load gym setup data")
-		}
-
+		// Placeholder data until actions are migrated
 		return {
 			team,
-			locations: locationsRes.data,
-			skills: skillsRes.data,
-			teamData: teamRes.data,
+			locations: [],
+			skills: [],
+			teamData: team,
 		}
 	}
 )
 
 export const Route = createFileRoute("/_admin/admin/teams/$teamId/gym-setup")({
 	loader: async ({ params }) => {
-		return getGymSetupPageData(params.teamId)
+		return getGymSetupPageData({ data: params.teamId })
 	},
 	component: GymSetupPage,
 })

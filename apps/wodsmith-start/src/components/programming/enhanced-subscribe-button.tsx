@@ -7,10 +7,10 @@ import { toast } from "sonner"
 import {
 	subscribeToTrackAction,
 	unsubscribeFromTrackAction,
-} from "@/actions/programming-actions"
-import { Button } from "@/components/ui/button"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { useSessionStore } from "@/state/session"
+} from "~/actions/programming-actions"
+import { Button } from "~/components/ui/button"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
+import { useSessionStore } from "~/state/session"
 
 interface EnhancedSubscribeButtonProps {
 	trackId: string

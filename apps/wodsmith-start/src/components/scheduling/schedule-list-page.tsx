@@ -1,13 +1,17 @@
-import { getGeneratedSchedulesForTeam } from "@/server/ai/scheduler"
+/**
+ * Schedule List Page (Stub)
+ * TODO: Convert to TanStack Start loader pattern
+ * The original RSC pattern needs to use route loaders instead
+ */
 import { ScheduleDisplay } from "./schedule-display"
+import type { GeneratedSchedule } from "~/server/ai/scheduler"
 
 interface ScheduleListPageProps {
 	teamId: string
+	schedules?: GeneratedSchedule[]
 }
 
-export async function ScheduleListPage({ teamId }: ScheduleListPageProps) {
-	const schedules = await getGeneratedSchedulesForTeam(teamId)
-
+export function ScheduleListPage({ schedules = [] }: ScheduleListPageProps) {
 	if (schedules.length === 0) {
 		return (
 			<div className="mx-auto max-w-4xl space-y-6">

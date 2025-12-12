@@ -1,5 +1,5 @@
-import { getDb } from "@/db/index.server"
-import { teamTable, type User } from "@/db/schema.server"
+import { getDb } from "~/db/index.server"
+import { teamTable, type User } from "~/db/schema.server"
 
 /**
  * Create a personal team for a new user.

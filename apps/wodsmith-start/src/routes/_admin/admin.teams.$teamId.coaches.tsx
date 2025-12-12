@@ -3,16 +3,14 @@ import { createServerFn } from "@tanstack/react-router"
 import { eq } from "drizzle-orm"
 import { getDb } from "~/db/index.server"
 import { teamTable } from "~/db/schema.server"
-import { getCoachesByTeam } from "~/actions/coach-actions.server"
-import { getSkillsByTeam } from "~/actions/gym-setup-actions.server"
-import { getTeamAction } from "~/actions/team-actions.server"
-import { getTeamMembersAction } from "~/actions/team-membership-actions.server"
 import { PageHeader } from "~/components/page-header"
-import Coaches from "./_components/Coaches"
+import Coaches from "./-components/Coaches"
 
-const getCoachesPageData = createServerFn(
-	{ method: "GET" },
-	async (teamId: string) => {
+// TODO: Implement full data fetching - currently using placeholder data
+// Need to create: coach-actions.server, gym-setup-actions.server, team-actions.server, team-membership-actions.server
+
+const getCoachesPageData = createServerFn({ method: "GET" }).handler(
+	async ({ data: teamId }: { data: string }) => {
 		const db = getDb()
 
 		const team = await db.query.teamTable.findFirst({
@@ -23,36 +21,20 @@ const getCoachesPageData = createServerFn(
 			throw new Error("Team not found")
 		}
 
-		const [[coachesResult], [teamMembersResult], [teamResult], [skillsResult]] =
-			await Promise.all([
-				getCoachesByTeam({ teamId }),
-				getTeamMembersAction({ teamId }),
-				getTeamAction({ teamId }),
-				getSkillsByTeam({ teamId }),
-			])
-
-		if (
-			!coachesResult?.success ||
-			!teamMembersResult?.success ||
-			!teamResult?.success ||
-			!skillsResult?.success
-		) {
-			throw new Error("Failed to load coaches data")
-		}
-
+		// Placeholder data until actions are migrated
 		return {
 			team,
-			coaches: coachesResult.data ?? [],
-			teamMembers: teamMembersResult.data ?? [],
-			teamData: teamResult.data,
-			availableSkills: skillsResult.data ?? [],
+			coaches: [],
+			teamMembers: [],
+			teamData: { slug: team.slug },
+			availableSkills: [],
 		}
 	}
 )
 
 export const Route = createFileRoute("/_admin/admin/teams/$teamId/coaches")({
 	loader: async ({ params }) => {
-		return getCoachesPageData(params.teamId)
+		return getCoachesPageData({ data: params.teamId })
 	},
 	component: CoachesPage,
 })

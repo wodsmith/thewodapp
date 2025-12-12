@@ -175,8 +175,8 @@ export async function requireTeamPermission(
 export async function canHostCompetitions(teamId: string): Promise<boolean> {
 	try {
 		// Import dynamically to avoid circular dependencies
-		const { hasFeature } = await import("@/server/entitlements")
-		const { FEATURES } = await import("@/config/features")
+		const { hasFeature } = await import("~/server/entitlements.server")
+		const { FEATURES } = await import("~/config/features")
 
 		return await hasFeature(teamId, FEATURES.HOST_COMPETITIONS)
 	} catch {
@@ -212,8 +212,8 @@ export async function requireCompetitionHostingAccess(teamId: string) {
  * @returns boolean - true if team type is 'competition_event'
  */
 export async function isCompetitionEventTeam(teamId: string): Promise<boolean> {
-	const { getDb } = await import("@/db/index.server")
-	const { teamTable } = await import("@/db/schema")
+	const { getDb } = await import("~/db/index.server")
+	const { teamTable } = await import("~/db/schema.server")
 	const { eq } = await import("drizzle-orm")
 
 	const db = getDb()
@@ -234,8 +234,8 @@ export async function isCompetitionEventTeam(teamId: string): Promise<boolean> {
 export async function getParentOrganizationId(
 	competitionTeamId: string,
 ): Promise<string | null> {
-	const { getDb } = await import("@/db/index.server")
-	const { teamTable } = await import("@/db/schema")
+	const { getDb } = await import("~/db/index.server")
+	const { teamTable } = await import("~/db/schema.server")
 	const { eq } = await import("drizzle-orm")
 
 	const db = getDb()

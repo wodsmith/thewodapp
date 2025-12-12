@@ -3,7 +3,7 @@ export type {
 	WorkoutScheme,
 	ScoreType,
 	TiebreakScheme,
-} from "@/db/schemas/workouts"
+} from "~/db/schemas/workouts"
 
 /**
  * Feature flags for the entitlement system

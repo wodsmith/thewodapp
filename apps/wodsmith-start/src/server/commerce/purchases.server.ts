@@ -1,12 +1,12 @@
 import "server-only"
 import { desc, eq } from "drizzle-orm"
-import { getDb } from "@/db/index.server"
+import { getDb } from "~/db/index.server"
 import {
 	commercePurchaseTable,
 	commerceProductTable,
 	competitionsTable,
-} from "@/db/schema.server"
-import { getStripe } from "@/lib/stripe"
+} from "~/db/schema.server"
+import { getStripe } from "~/lib/stripe"
 
 export type PurchaseWithDetails = {
 	id: string

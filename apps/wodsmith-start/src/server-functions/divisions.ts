@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
 import {
 	addCompetitionDivision,
 	deleteCompetitionDivision,
@@ -9,9 +9,9 @@ import {
 	reorderCompetitionDivisions,
 	updateCompetitionDivision,
 	updateCompetitionDivisionDescription,
-} from "@/server/competition-divisions"
-import { getSessionFromCookie } from "@/utils/auth.server"
-import { hasTeamPermission } from "@/utils/team-auth.server"
+} from "~/server/competition-divisions"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import { hasTeamPermission } from "~/utils/team-auth.server"
 
 /**
  * Initialize divisions for a competition from a template or with defaults

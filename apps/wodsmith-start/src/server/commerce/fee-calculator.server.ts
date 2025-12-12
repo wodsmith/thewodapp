@@ -1,13 +1,13 @@
 import "server-only"
 import { and, eq } from "drizzle-orm"
-import { getDb } from "@/db/index.server"
+import { getDb } from "~/db/index.server"
 import {
 	competitionsTable,
 	competitionDivisionsTable,
 	scalingLevelsTable,
 	commercePurchaseTable,
 	COMMERCE_PURCHASE_STATUS,
-} from "@/db/schema.server"
+} from "~/db/schema.server"
 
 /**
  * Fee configuration for calculating competition fees

@@ -3,17 +3,17 @@ import { init } from "@paralleldrive/cuid2"
 import { getCookie, setCookie, deleteCookie } from "vinxi/http"
 import { eq } from "drizzle-orm"
 import ms from "ms"
-import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
-import { getDb } from "@/db/index.server"
+import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "~/constants"
+import { getDb } from "~/db/index.server"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	teamMembershipTable,
 	userTable,
-} from "@/db/schema"
-import type { SessionValidationResult } from "@/types"
-import isProd from "@/utils/is-prod"
+} from "~/db/schema"
+import type { SessionValidationResult } from "~/types"
+import isProd from "~/utils/is-prod"
 import { addFreeMonthlyCreditsIfNeeded } from "./credits.server"
 import {
 	type CreateKVSessionParams,
@@ -139,7 +139,7 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 	// Fetch plans for all teams in parallel
 	const teamIds = userTeamMemberships.map((m) => m.teamId)
-	const { getTeamPlan } = await import("@/server/entitlements")
+	const { getTeamPlan } = await import("~/server/entitlements.server")
 	const teamPlansPromises = teamIds.map((teamId) => getTeamPlan(teamId))
 	const teamPlans = await Promise.all(teamPlansPromises)
 	const planMap = new Map(teamPlans.map((plan, i) => [teamIds[i], plan]))
@@ -413,7 +413,7 @@ export async function getActiveOrPersonalTeamId(
 
 	// If no active team cookie, get personal team
 	if (!activeTeamId || !session?.teams) {
-		const { getUserPersonalTeamId } = await import("@/server/user")
+		const { getUserPersonalTeamId } = await import("~/server/user.server")
 		return getUserPersonalTeamId(userId)
 	}
 
@@ -422,7 +422,7 @@ export async function getActiveOrPersonalTeamId(
 
 	if (!isValidTeam) {
 		// Active team is invalid, fall back to personal team
-		const { getUserPersonalTeamId } = await import("@/server/user")
+		const { getUserPersonalTeamId } = await import("~/server/user.server")
 		return getUserPersonalTeamId(userId)
 	}
 

@@ -1,19 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
-import { headers } from "vinxi/http"
 
 export const Route = createFileRoute("/")({
 	loader: () => getData(),
 	component: Home,
 })
 
-const getData = createServerFn().handler(async () => {
-	const headersList = await headers()
-	const userAgent = headersList.get("user-agent") ?? "unknown"
-
+const getData = createServerFn().handler(() => {
 	return {
-		message: `Running in ${userAgent}`,
+		message: `Running in ${navigator.userAgent}`,
 		myVar: env.MY_VAR,
 	}
 })

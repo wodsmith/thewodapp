@@ -17,10 +17,10 @@ import {
 	generateScheduleAction,
 	getAvailableCoachesForClassAction,
 	updateScheduledClassAction,
-} from "@/actions/generate-schedule-actions"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+} from "~/actions/generate-schedule-actions"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
+import { Card, CardContent } from "~/components/ui/card"
 import {
 	Dialog,
 	DialogContent,
@@ -28,15 +28,15 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+} from "~/components/ui/dialog"
+import { Label } from "~/components/ui/label"
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
+} from "~/components/ui/select"
 
 interface ScheduleGeneratorProps {
 	teamId: string

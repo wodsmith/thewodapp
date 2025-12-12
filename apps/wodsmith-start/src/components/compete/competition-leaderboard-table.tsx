@@ -21,16 +21,16 @@ import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+} from "~/components/ui/collapsible"
+import { cn } from "~/lib/utils"
+import { Button } from "~/components/ui/button"
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
+} from "~/components/ui/select"
 import {
 	Table,
 	TableBody,
@@ -38,12 +38,12 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table"
+} from "~/components/ui/table"
 import type {
 	CompetitionLeaderboardEntry,
 	TeamMemberInfo,
-} from "@/server/competition-leaderboard"
-import { getSortDirection } from "@/lib/scoring"
+} from "~/server/competition-leaderboard"
+import { getSortDirection } from "~/lib/scoring"
 
 interface CompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]

@@ -1,10 +1,10 @@
 "use client"
 
 import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
 import * as React from "react"
 
-import { Button } from "@/components/ui/button"
+import { useTheme } from "~/components/theme-provider"
+import { Button } from "~/components/ui/button"
 
 export function DarkModeToggle() {
 	const { setTheme, theme } = useTheme()

@@ -4,9 +4,9 @@ import { AlertCircle } from "lucide-react"
 import { parseAsInteger, useQueryState } from "nuqs"
 import { useEffect, useState } from "react"
 
-import { getPaginatedTrackWorkoutsAction } from "@/actions/programming-track-workouts-actions"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { PaginationWithUrl } from "@/components/ui/pagination"
+import { getPaginatedTrackWorkoutsAction } from "~/actions/programming-track-workouts-actions"
+import { Alert, AlertDescription } from "~/components/ui/alert"
+import { PaginationWithUrl } from "~/components/ui/pagination"
 import { TrackWorkoutRow, TrackWorkoutRowSkeleton } from "./track-workout-row"
 
 interface PaginatedTrackWorkoutsProps {

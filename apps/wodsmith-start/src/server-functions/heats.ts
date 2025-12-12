@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { requireTeamPermission } from "@/utils/team-auth.server"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
+import { requireTeamPermission } from "~/utils/team-auth.server"
 import {
 	assignToHeat,
 	bulkAssignToHeat,
@@ -19,7 +19,7 @@ import {
 	updateAssignment,
 	updateHeat,
 	updateVenue,
-} from "@/server/competition-heats"
+} from "~/server/competition-heats"
 
 /* -------------------------------------------------------------------------- */
 /*                              Schemas                                        */
@@ -491,7 +491,7 @@ export const moveAssignmentFn = createServerFn({ method: "POST" })
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 			)
 
-			const { getAssignment } = await import("@/server/competition-heats")
+			const { getAssignment } = await import("~/server/competition-heats")
 			const currentAssignment = await getAssignment(input.assignmentId)
 
 			if (!currentAssignment) {

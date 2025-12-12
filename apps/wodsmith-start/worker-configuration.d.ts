@@ -3,16 +3,16 @@
 // Runtime types generated with workerd@1.20251210.0 2025-03-01 global_fetch_strictly_public,nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-		KV: KVNamespace
-		EMAIL_FROM: "zacjones93@gmail.com"
-		EMAIL_FROM_NAME: "Zac from WODsmith"
-		EMAIL_REPLY_TO: "zacjones93@gmail.com"
-		NEXT_PUBLIC_APP_URL: "https://wodsmith.com"
-		R2_PUBLIC_URL: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev"
-		R2_BUCKET: R2Bucket
-		wodsmith_uploads_dev: R2Bucket
-		DB: D1Database
-		STAGING_D1: D1Database
+		KV: KVNamespace;
+		EMAIL_FROM: "zacjones93@gmail.com";
+		EMAIL_FROM_NAME: "Zac from WODsmith";
+		EMAIL_REPLY_TO: "zacjones93@gmail.com";
+		NEXT_PUBLIC_APP_URL: "https://wodsmith.com";
+		R2_PUBLIC_URL: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev";
+		R2_BUCKET: R2Bucket;
+		wodsmith_uploads_dev: R2Bucket;
+		DB: D1Database;
+		STAGING_D1: D1Database;
 	}
 }
 interface Env extends Cloudflare.Env {}

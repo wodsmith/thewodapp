@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
-import { getDb } from "@/db/index.server"
-import { teamTable, TEAM_PERMISSIONS } from "@/db/schema.server"
+import { getDb } from "~/db/index.server"
+import { teamTable, TEAM_PERMISSIONS } from "~/db/schema.server"
 import {
 	createExpressAccount,
 	createExpressAccountLink,
@@ -11,10 +11,10 @@ import {
 	getStripeDashboardLink,
 	getAccountBalance,
 	type AccountBalance,
-} from "@/server/stripe-connect/accounts.server"
-import { requireVerifiedEmail } from "@/utils/auth.server"
-import { hasTeamPermission, hasTeamMembership } from "@/utils/team-auth.server"
-import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
+} from "~/server/stripe-connect/accounts.server"
+import { requireVerifiedEmail } from "~/utils/auth.server"
+import { hasTeamPermission, hasTeamMembership } from "~/utils/team-auth.server"
+import { RATE_LIMITS, withRateLimit } from "~/utils/with-rate-limit"
 
 /**
  * Start Express account onboarding

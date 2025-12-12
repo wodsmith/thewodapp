@@ -9,16 +9,16 @@ import {
 } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import type * as React from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
 import {
 	HoverCard,
 	HoverCardContent,
 	HoverCardTrigger,
-} from "@/components/ui/hover-card"
-import { ListItem } from "@/components/ui/list-item"
-import { cn } from "@/lib/utils"
-import type { Movement, Tag, Workout } from "@/types"
+} from "~/components/ui/hover-card"
+import { ListItem } from "~/components/ui/list-item"
+import { cn } from "~/lib/utils"
+import type { Movement, Tag, Workout } from "~/types"
 
 // Helper function to remove empty lines from markdown text
 function removeEmptyLines(text: string): string {

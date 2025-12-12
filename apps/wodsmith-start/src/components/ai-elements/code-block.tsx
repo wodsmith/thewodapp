@@ -8,8 +8,8 @@ import {
 	oneDark,
 	oneLight,
 } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "~/components/ui/button"
+import { cn } from "~/lib/utils"
 
 type CodeBlockContextType = {
 	code: string

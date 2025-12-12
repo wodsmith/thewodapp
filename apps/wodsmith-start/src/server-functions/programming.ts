@@ -1,14 +1,14 @@
 import { createServerFn } from "@tanstack/react-start/server"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db/index.server"
+import { getDb } from "~/db/index.server"
 import {
 	programmingTracksTable,
 	teamProgrammingTracksTable,
-} from "@/db/schemas/programming"
-import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
-import { getSessionFromCookie } from "@/utils/auth.server"
-import { requireTeamPermission } from "@/utils/team-auth.server"
+} from "~/db/schemas/programming"
+import { TEAM_PERMISSIONS, teamTable } from "~/db/schemas/teams"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import { requireTeamPermission } from "~/utils/team-auth.server"
 
 // Subscribe to track schema
 const subscribeToTrackSchema = z.object({

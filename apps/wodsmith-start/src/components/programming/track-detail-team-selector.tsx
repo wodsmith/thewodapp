@@ -2,8 +2,8 @@
 
 import { Building2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { useTeamContext } from "@/state/team-context"
+import { Badge } from "~/components/ui/badge"
+import { useTeamContext } from "~/state/team-context"
 
 interface Team {
 	id: string

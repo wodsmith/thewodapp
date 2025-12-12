@@ -1,7 +1,7 @@
 "use client"
 
 import { LogOut } from "lucide-react"
-import useSignOut from "@/hooks/useSignOut"
+import useSignOut from "~/hooks/useSignOut"
 
 export default function LogoutButton() {
 	const { signOut } = useSignOut("/compete")

@@ -2,8 +2,8 @@
 
 import { ArrowRightIcon } from "@heroicons/react/24/outline"
 import { Link } from "@tanstack/react-router"
-import { Button } from "@/components/ui/button"
-import { useSessionStore } from "@/state/session"
+import { Button } from "~/components/ui/button"
+import { useSessionStore } from "~/state/session"
 
 export function MissionHero() {
 	const session = useSessionStore((state) => state.session)

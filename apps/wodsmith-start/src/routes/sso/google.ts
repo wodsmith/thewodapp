@@ -5,10 +5,10 @@ import {
 	GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME,
 	GOOGLE_OAUTH_STATE_COOKIE_NAME,
 	REDIRECT_AFTER_SIGN_IN,
-} from "@/constants"
-import { getGoogleSSOClient, isGoogleSSOEnabled } from "@/lib/sso/google-sso"
-import { getSessionFromCookie } from "@/utils/auth.server"
-import isProd from "@/utils/is-prod"
+} from "~/constants"
+import { getGoogleSSOClient, isGoogleSSOEnabled } from "~/lib/sso/google-sso"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import isProd from "~/utils/is-prod"
 
 const getCookieOptions = () => ({
 	path: "/" as const,

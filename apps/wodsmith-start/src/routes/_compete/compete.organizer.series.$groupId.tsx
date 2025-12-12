@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { Plus } from "lucide-react"
+import { OrganizerSeriesActions } from "~/components/compete/organizer/organizer-series-actions"
 import { Button } from "~/components/ui/button"
 import {
 	Card,
@@ -8,6 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "~/components/ui/card"
+import { getCompetitionGroupFn } from "~/server-functions/competitions"
 import { getSessionFromCookie } from "~/utils/auth.server"
 
 export const Route = createFileRoute("/_compete/compete/organizer/series/$groupId")({
@@ -18,17 +20,19 @@ export const Route = createFileRoute("/_compete/compete/organizer/series/$groupI
 		}
 	},
 	loader: async ({ params }) => {
-		// TODO: Implement loader with:
-		// - getCompetitionGroupFn({ groupId })
-		// - getCompetitionsForOrganizerFn() to filter by series
-
 		if (!params.groupId) {
 			throw notFound()
 		}
 
+		const groupResult = await getCompetitionGroupFn({ groupId: params.groupId })
+
+		if (!groupResult.data) {
+			throw notFound()
+		}
+
 		return {
-			group: { id: params.groupId, name: "", slug: "", description: null, organizingTeamId: "" },
-			seriesCompetitions: [],
+			group: groupResult.data,
+			seriesCompetitions: [], // TODO: Implement getCompetitionsForOrganizerFn to filter by series
 		}
 	},
 	component: SeriesDetailComponent,
@@ -51,13 +55,20 @@ function SeriesDetailComponent() {
 							)}
 						</div>
 						<div className="flex items-center gap-2">
-							<Link to="/compete/organizer/new" search={{ groupId: group.id }}>
+							<Link
+								to="/compete/organizer/new"
+								search={{ groupId: group.id }}
+							>
 								<Button>
 									<Plus className="h-4 w-4 mr-2" />
 									Add Competition
 								</Button>
 							</Link>
-							{/* TODO: Render OrganizerSeriesActions */}
+							<OrganizerSeriesActions
+								groupId={group.id}
+								organizingTeamId={group.organizingTeamId}
+								competitionCount={seriesCompetitions.length}
+							/>
 						</div>
 					</div>
 				</div>

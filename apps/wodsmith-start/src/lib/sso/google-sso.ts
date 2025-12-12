@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers"
 import { Google } from "arctic"
-import { SITE_URL } from "@/constants"
+import { SITE_URL } from "~/constants"
 
 /**
  * Get the Google OAuth client instance.

@@ -1,12 +1,12 @@
 import { and, asc, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm"
-import { CREDIT_PACKAGES, FREE_MONTHLY_CREDITS } from "@/constants"
-import { getDb } from "@/db/index.server"
+import { CREDIT_PACKAGES, FREE_MONTHLY_CREDITS } from "~/constants"
+import { getDb } from "~/db/index.server"
 import {
 	CREDIT_TRANSACTION_TYPE,
 	creditTransactionTable,
 	purchasedItemsTable,
 	userTable,
-} from "@/db/schema"
+} from "~/db/schema"
 import { type KVSession, updateAllSessionsOfUser } from "./kv-session.server"
 
 export type CreditPackage = (typeof CREDIT_PACKAGES)[number]

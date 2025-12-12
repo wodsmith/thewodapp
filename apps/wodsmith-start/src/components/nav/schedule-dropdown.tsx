@@ -2,7 +2,7 @@
 
 import { Calendar } from "lucide-react"
 import { Link } from "@tanstack/react-router"
-import type { SessionValidationResult } from "@/types"
+import type { SessionValidationResult } from "~/types"
 
 interface ScheduleDropdownProps {
 	session: SessionValidationResult

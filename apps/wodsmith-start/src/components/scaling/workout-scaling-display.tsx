@@ -1,9 +1,9 @@
 "use client"
 
 import { useMemo } from "react"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { getDefinedScalingLevels } from "@/utils/scaling-utils"
+import { Badge } from "~/components/ui/badge"
+import { cn } from "~/lib/utils"
+import { getDefinedScalingLevels } from "~/utils/scaling-utils"
 
 interface ScalingLevel {
 	id: string

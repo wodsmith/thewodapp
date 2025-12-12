@@ -1,4 +1,4 @@
-import { HeartIcon } from "@heroicons/react/24/outline"
+import { Heart } from "lucide-react"
 import ThemeSwitch from "./theme-switch"
 
 export const Footer = () => {
@@ -141,7 +141,7 @@ export const Footer = () => {
 				<div className="border-t border-white/20 pt-8">
 					<div className="flex flex-col md:flex-row justify-between items-center">
 						<p className="font-sans text-white/80 mb-4 md:mb-0">
-							Made with <HeartIcon className="inline text-primary size-4" /> by
+							Made with <Heart className="inline text-primary size-4" /> by
 							athletes, for athletes
 						</p>
 						<p className="font-sans text-white/80">

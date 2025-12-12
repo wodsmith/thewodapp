@@ -2,15 +2,15 @@
 
 import { AlertCircle } from "lucide-react"
 import type { ReactElement } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { ProgrammingTrack, ScalingGroup, Workout } from "@/db/schema"
+} from "~/components/ui/tooltip"
+import type { ProgrammingTrack, ScalingGroup, Workout } from "~/db/schema"
 
 interface ScalingMismatchIndicatorProps {
 	workout: Pick<Workout, "id" | "name" | "scalingGroupId">

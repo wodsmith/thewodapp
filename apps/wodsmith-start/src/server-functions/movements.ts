@@ -1,13 +1,13 @@
 import { createServerFn } from "@tanstack/react-start/server"
 import { z } from "zod"
-import { getDb } from "@/db/index.server"
-import { MOVEMENT_TYPE_VALUES } from "@/db/schema.server"
+import { getDb } from "~/db/index.server"
+import { MOVEMENT_TYPE_VALUES } from "~/db/schema.server"
 import {
 	createMovement,
 	getAllMovements,
 	getMovementById,
 	getWorkoutsByMovementId,
-} from "@/server/movements"
+} from "~/server/movements"
 
 export const getAllMovementsFn = createServerFn({ method: "POST" })
 	.validator(z.object({}))

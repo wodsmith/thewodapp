@@ -7,8 +7,8 @@ import {
 	TrophyIcon,
 } from "@heroicons/react/24/outline"
 import { Link } from "@tanstack/react-router"
-import { Button } from "@/components/ui/button"
-import { useSessionStore } from "@/state/session"
+import { Button } from "~/components/ui/button"
+import { useSessionStore } from "~/state/session"
 
 const athleteFeatures = [
 	"Log any workout type (For Time, AMRAP, EMOM, max lifts)",

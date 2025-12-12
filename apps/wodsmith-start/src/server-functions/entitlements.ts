@@ -1,15 +1,15 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { FEATURES, LIMITS } from "@/constants"
-import { requireTeamPermission } from "@/utils/team-auth.server"
+import { FEATURES, LIMITS } from "~/constants"
+import { requireTeamPermission } from "~/utils/team-auth.server"
 import {
 	checkCanUseAI,
 	checkCanInviteMember,
 	checkCanCreateProgrammingTrack,
-} from "@/server/entitlements-checks.server"
-import { grantTeamFeature, hasFeature } from "@/server/entitlements.server"
-import type { TeamMembership } from "@/db/schemas/teams.server"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams.server"
+} from "~/server/entitlements-checks.server"
+import { grantTeamFeature, hasFeature } from "~/server/entitlements.server"
+import type { TeamMembership } from "~/db/schemas/teams.server"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams.server"
 
 /* -------------------------------------------------------------------------- */
 /*                        Entitlements Schemas                                */

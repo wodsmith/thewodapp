@@ -4,7 +4,7 @@ import {
 	getActiveOrPersonalTeamId,
 	deleteSessionTokenCookie,
 	deleteActiveTeamCookie,
-} from "@/utils/auth.server"
+} from "~/utils/auth.server"
 
 /**
  * Get current user session

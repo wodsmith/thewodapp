@@ -5,11 +5,11 @@
  */
 
 import { and, count, eq } from "drizzle-orm"
-import { getDb } from "@/db/index.server"
-import { teamUsageTable } from "@/db/schemas/entitlements.server"
-import { programmingTracksTable } from "@/db/schemas/programming.server"
-import { teamMembershipTable } from "@/db/schemas/teams.server"
-import { FEATURES, LIMITS } from "@/constants"
+import { getDb } from "~/db/index.server"
+import { teamUsageTable } from "~/db/schemas/entitlements.server"
+import { programmingTracksTable } from "~/db/schemas/programming.server"
+import { teamMembershipTable } from "~/db/schemas/teams.server"
+import { FEATURES, LIMITS } from "~/constants"
 import { getTeamLimit, getTeamPlan, hasFeature } from "./entitlements.server"
 
 export interface LimitCheckResult {

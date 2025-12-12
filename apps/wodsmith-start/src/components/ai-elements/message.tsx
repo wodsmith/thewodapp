@@ -1,8 +1,8 @@
 import type { UIMessage } from "ai"
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ComponentProps, HTMLAttributes } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar"
+import { cn } from "~/lib/utils"
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 	from: UIMessage["role"]

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS } from "~/db/schemas/teams"
 import {
 	assignWorkoutSponsorSchema,
 	createSponsorGroupSchema,
@@ -11,7 +11,7 @@ import {
 	reorderSponsorsSchema,
 	updateSponsorGroupSchema,
 	updateSponsorSchema,
-} from "@/schemas/sponsors.schema"
+} from "~/schemas/sponsors.schema"
 import {
 	assignWorkoutSponsor,
 	createSponsor,
@@ -26,10 +26,10 @@ import {
 	reorderSponsors,
 	updateSponsor,
 	updateSponsorGroup,
-} from "@/server/sponsors"
-import { getCompetition } from "@/server/competitions"
-import { getSessionFromCookie } from "@/utils/auth.server"
-import { hasTeamPermission } from "@/utils/team-auth.server"
+} from "~/server/sponsors"
+import { getCompetition } from "~/server/competitions"
+import { getSessionFromCookie } from "~/utils/auth.server"
+import { hasTeamPermission } from "~/utils/team-auth.server"
 
 /* -------------------------------------------------------------------------- */
 /*                           Query Functions                                   */

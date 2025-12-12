@@ -11,8 +11,8 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import type { ProgrammingTrack, Workout } from "@/db/schema"
+} from "~/components/ui/alert-dialog"
+import type { ProgrammingTrack, Workout } from "~/db/schema"
 
 interface AlignScalingDialogProps {
 	open: boolean

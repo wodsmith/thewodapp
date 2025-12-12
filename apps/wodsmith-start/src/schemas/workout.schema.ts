@@ -3,7 +3,7 @@ import {
 	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
-} from "@/db/schemas/workouts"
+} from "~/db/schemas/workouts"
 
 /**
  * Base workout fields schema - shared between create workout form and competition event form

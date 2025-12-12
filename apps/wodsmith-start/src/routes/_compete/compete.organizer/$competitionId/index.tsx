@@ -7,7 +7,7 @@ import {
 } from "~/server-functions/competitions"
 import { getSessionFromCookie } from "~/utils/auth.server"
 import { getCompetitionRevenueStatsFn } from "~/server-functions/commerce"
-import { getHeatsForCompetitionFn } from "~/server-functions/competition-heats"
+import { getHeatsForCompetitionFn } from "~/server-functions/heats"
 import { OrganizerBreadcrumb } from "~/components/compete/organizer/organizer-breadcrumb"
 import { CompetitionHeader } from "~/components/compete/organizer/competition-header"
 import { CompetitionTabs } from "~/components/compete/organizer/competition-tabs"

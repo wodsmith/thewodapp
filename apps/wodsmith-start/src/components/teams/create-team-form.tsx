@@ -7,8 +7,8 @@ import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { createTeamAction } from "@/actions/team-actions"
-import { Button } from "@/components/ui/button"
+import { createTeamAction } from "~/actions/team-actions"
+import { Button } from "~/components/ui/button"
 import {
 	Form,
 	FormControl,
@@ -17,9 +17,9 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+} from "~/components/ui/form"
+import { Input } from "~/components/ui/input"
+import { Textarea } from "~/components/ui/textarea"
 
 const formSchema = z.object({
 	name: z

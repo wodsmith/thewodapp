@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router"
-import { getCompetitionFn } from "~/server-functions/competitions"
+import { OrganizerCompetitionEditForm } from "~/components/compete/organizer/organizer-competition-edit-form"
+import { getCompetitionFn, getCompetitionGroupsFn } from "~/server-functions/competitions"
 import { getScalingGroupsFn } from "~/server-functions/scaling"
 import { getSessionFromCookie } from "~/utils/auth.server"
 
@@ -23,21 +24,26 @@ export const Route = createFileRoute(
 
 		const competition = competitionResult.data
 
-		// TODO: Fetch groups and scaling groups for the organizing team
-		const groupsResult = { success: true, data: [] }
-		const scalingGroupsResult = { success: true, data: [] }
+		// Fetch groups and scaling groups for the organizing team
+		const groupsResult = await getCompetitionGroupsFn({
+			data: { organizingTeamId: competition.organizingTeamId },
+		})
+
+		const scalingGroupsResult = await getScalingGroupsFn({
+			data: { teamId: competition.organizingTeamId },
+		})
 
 		return {
 			competition,
-			groups: groupsResult.success ? groupsResult.data : [],
-			scalingGroups: scalingGroupsResult.success ? scalingGroupsResult.data : [],
+			groups: groupsResult.data ?? [],
+			scalingGroups: scalingGroupsResult.data ?? [],
 		}
 	},
 	component: EditCompetitionComponent,
 })
 
 function EditCompetitionComponent() {
-	const { competition } = Route.useLoaderData()
+	const { competition, groups, scalingGroups } = Route.useLoaderData()
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -47,7 +53,13 @@ function EditCompetitionComponent() {
 					Update competition details for {competition.name}
 				</p>
 
-				{/* TODO: Render OrganizerCompetitionEditForm component */}
+				<div className="mt-8">
+					<OrganizerCompetitionEditForm
+						competition={competition}
+						groups={groups}
+						scalingGroups={scalingGroups}
+					/>
+				</div>
 			</div>
 		</div>
 	)

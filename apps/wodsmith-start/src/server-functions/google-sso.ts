@@ -6,12 +6,12 @@ import { deleteCookie, getCookie } from "vinxi/http"
 import {
 	GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME,
 	GOOGLE_OAUTH_STATE_COOKIE_NAME,
-} from "@/constants"
-import { getDb } from "@/db/index.server"
-import { userTable } from "@/db/schema.server"
-import { getGoogleSSOClient } from "@/lib/sso/google-sso"
-import { canSignUp, createAndStoreSession } from "@/utils/auth.server"
-import { getIP } from "@/utils/get-IP.server"
+} from "~/constants"
+import { getDb } from "~/db/index.server"
+import { userTable } from "~/db/schema.server"
+import { getGoogleSSOClient } from "~/lib/sso/google-sso"
+import { canSignUp, createAndStoreSession } from "~/utils/auth.server"
+import { getIP } from "~/utils/get-IP.server"
 
 interface GoogleSSOResponse {
 	/** Issuer - Example: https://accounts.google.com */
@@ -153,7 +153,7 @@ export async function handleGoogleOAuthCallback(code: string, state: string) {
 			// Create personal team for new user
 			try {
 				const { createPersonalTeamForUser } = await import(
-					"@/server/user.server"
+					"~/server/user.server"
 				)
 				await createPersonalTeamForUser(newUser)
 			} catch (error) {

@@ -1,14 +1,14 @@
 import { createServerFn } from "@tanstack/react-start/server"
 import { z } from "zod"
-import type { Workout } from "@/db/schema.server"
+import type { Workout } from "~/db/schema.server"
 import {
 	getLogsByUser,
 	getResultById,
 	getResultSetsById,
 	submitLogForm,
 	updateResult,
-} from "@/server/logs"
-import type { ResultSetInput } from "@/types"
+} from "~/server/logs"
+import type { ResultSetInput } from "~/types"
 
 /**
  * Get logs by user ID
@@ -248,7 +248,7 @@ async function updateResultForm(
 	const timeCappedEntries = parseTimeCappedEntries(formData)
 
 	const { parseTimeScoreToSeconds, formatSecondsToTime } = await import(
-		"@/lib/utils"
+		"~/lib/utils"
 	)
 	const { fromZonedTime } = await import("date-fns-tz")
 
@@ -347,7 +347,7 @@ async function updateResultForm(
 	let finalWodScoreSummary = ""
 	const hasTimeCappedRounds = timeCappedEntries.some((capped) => capped)
 
-	const { getDefaultScoreType, aggregateScores } = await import("@/server/logs")
+	const { getDefaultScoreType, aggregateScores } = await import("~/server/logs")
 
 	const effectiveScoreType =
 		workout.scoreType || getDefaultScoreType(workout.scheme)
@@ -418,7 +418,7 @@ async function updateResultForm(
 	let asRx = explicitAsRx
 
 	if (!scalingLevelId || asRx === undefined) {
-		const { mapLegacyScaleToScalingLevel } = await import("@/server/logs")
+		const { mapLegacyScaleToScalingLevel } = await import("~/server/logs")
 
 		const mapped = await mapLegacyScaleToScalingLevel({
 			workoutId: selectedWorkoutId,

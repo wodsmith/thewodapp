@@ -3,7 +3,7 @@ import {
 	getCompetitionFn,
 	getCompetitionWorkoutsFn,
 } from "~/server-functions/competitions"
-import { getCompetitionScoresFn } from "~/server-functions/competition-scores"
+import { getCompetitionScoresFn } from "~/server-functions/scores"
 import { OrganizerScoresManager } from "~/components/compete/organizer/organizer-scores-manager"
 import { getSessionFromCookie } from "~/utils/auth.server"
 

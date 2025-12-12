@@ -31,22 +31,22 @@ import {
 	useRef,
 	useState,
 } from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from "~/components/ui/button"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "~/components/ui/dropdown-menu"
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
+} from "~/components/ui/select"
+import { Textarea } from "~/components/ui/textarea"
+import { cn } from "~/lib/utils"
 
 type AttachmentsContext = {
 	files: (FileUIPart & { id: string })[]

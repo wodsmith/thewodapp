@@ -1,6 +1,9 @@
 import { createFileRoute, notFound } from "@tanstack/react-router"
 import { getCompetitionFn } from "~/server-functions/competitions"
+import { getCompetitionRevenueStatsFn } from "~/server-functions/commerce"
 import { getSessionFromCookie } from "~/utils/auth.server"
+import { getTeamFromDatabase } from "~/server/teams.server"
+import { RevenueStatsDisplay } from "~/components/compete/organizer/revenue-stats-display"
 
 export const Route = createFileRoute(
 	"/_compete/compete/organizer/$competitionId/revenue",
@@ -22,20 +25,32 @@ export const Route = createFileRoute(
 
 		const competition = competitionResult.data
 
-		// TODO: Get organizing team's Stripe connection status
-		// TODO: Fetch revenue stats from getCompetitionRevenueStatsFn
+		// Get organizing team's Stripe connection status
+		const organizingTeam = await getTeamFromDatabase(
+			competition.organizingTeamId,
+		)
+		const isStripeConnected =
+			organizingTeam?.stripeAccountStatus === "VERIFIED"
+
+		// Fetch revenue stats
+		const statsResult = await getCompetitionRevenueStatsFn({
+			data: { competitionId: competition.id },
+		})
 
 		return {
 			competition,
-			stats: null,
-			stripeStatus: undefined,
+			stats: statsResult,
+			stripeStatus: {
+				isConnected: isStripeConnected,
+				teamSlug: organizingTeam?.slug || "",
+			},
 		}
 	},
 	component: RevenueComponent,
 })
 
 function RevenueComponent() {
-	const { competition } = Route.useLoaderData()
+	const { competition, stats, stripeStatus } = Route.useLoaderData()
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -44,7 +59,7 @@ function RevenueComponent() {
 				Revenue statistics for {competition.name}
 			</p>
 
-			{/* TODO: Render RevenueStatsDisplay component */}
+			<RevenueStatsDisplay stats={stats} stripeStatus={stripeStatus} />
 		</div>
 	)
 }

@@ -4,8 +4,8 @@ import { TrashIcon } from "lucide-react"
 import { useRouter } from "@tanstack/react-router"
 import { useRef, useTransition } from "react"
 import { toast } from "sonner"
-import { removeTeamMemberAction } from "@/actions/team-membership-actions"
-import { Button } from "@/components/ui/button"
+import { removeTeamMemberAction } from "~/actions/team-membership-actions"
+import { Button } from "~/components/ui/button"
 import {
 	Dialog,
 	DialogClose,
@@ -15,13 +15,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog"
+} from "~/components/ui/dialog"
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "~/components/ui/tooltip"
 
 interface RemoveMemberButtonProps {
 	teamId: string

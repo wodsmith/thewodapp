@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { handleGoogleOAuthCallback } from "@/server-functions/google-sso"
-import { REDIRECT_AFTER_SIGN_IN, SITE_URL } from "@/constants"
-import { getSessionFromCookie } from "@/utils/auth.server"
+import { handleGoogleOAuthCallback } from "~/server-functions/google-sso"
+import { REDIRECT_AFTER_SIGN_IN, SITE_URL } from "~/constants"
+import { getSessionFromCookie } from "~/utils/auth.server"
 
 export const Route = createFileRoute("/sso/google/callback")({
 	server: {

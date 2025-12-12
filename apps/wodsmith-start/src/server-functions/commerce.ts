@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
-import { getDb } from "@/db/index.server"
+import { getDb } from "~/db/index.server"
 import {
 	commercePurchaseTable,
 	commerceProductTable,
@@ -15,16 +15,16 @@ import {
 	COMMERCE_PRODUCT_TYPE,
 	COMMERCE_PAYMENT_STATUS,
 	TEAM_PERMISSIONS,
-} from "@/db/schema.server"
+} from "~/db/schema.server"
 import {
 	calculateCompetitionFees,
 	getRegistrationFee,
 	buildFeeConfig,
 	type FeeBreakdown,
-} from "@/server/commerce/index.server"
-import { getStripe } from "@/lib/stripe"
-import { requireVerifiedEmail } from "@/utils/auth.server"
-import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
+} from "~/server/commerce/index.server"
+import { getStripe } from "~/lib/stripe"
+import { requireVerifiedEmail } from "~/utils/auth.server"
+import { RATE_LIMITS, withRateLimit } from "~/utils/with-rate-limit"
 
 /**
  * Input type for initiating a registration payment
@@ -158,7 +158,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 
 			// 6. FREE DIVISION - create registration directly
 			if (registrationFeeCents === 0) {
-				const { registerForCompetition } = await import("@/server/competitions")
+				const { registerForCompetition } = await import("~/server/competitions")
 				const result = await registerForCompetition({
 					competitionId: input.competitionId,
 					userId,
@@ -438,7 +438,7 @@ export const updateCompetitionFeeConfigFn = createServerFn({ method: "POST" })
 			})
 			if (!competition) throw new Error("Competition not found")
 
-			const { requireTeamPermission } = await import("@/utils/team-auth.server")
+			const { requireTeamPermission } = await import("~/utils/team-auth.server")
 			await requireTeamPermission(
 				competition.organizingTeamId,
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
@@ -483,7 +483,7 @@ export const updateDivisionFeeFn = createServerFn({ method: "POST" })
 			})
 			if (!competition) throw new Error("Competition not found")
 
-			const { requireTeamPermission } = await import("@/utils/team-auth.server")
+			const { requireTeamPermission } = await import("~/utils/team-auth.server")
 			await requireTeamPermission(
 				competition.organizingTeamId,
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
@@ -522,4 +522,26 @@ export const updateDivisionFeeFn = createServerFn({ method: "POST" })
 
 			return { success: true }
 		}, RATE_LIMITS.SETTINGS)
+	})
+
+/**
+ * Get revenue stats for a competition
+ */
+export const getCompetitionRevenueStatsFn = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			competitionId: z.string(),
+		}),
+	)
+	.handler(async ({ data: input }) => {
+		try {
+			const { getCompetitionRevenueStats } = await import(
+				"~/server/commerce/index.server"
+			)
+			const stats = await getCompetitionRevenueStats(input.competitionId)
+			return stats
+		} catch (error) {
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get revenue stats")
+		}
 	})
