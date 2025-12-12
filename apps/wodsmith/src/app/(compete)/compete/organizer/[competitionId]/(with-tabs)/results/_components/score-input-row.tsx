@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseScore, parseTieBreakScore, type ParseResult } from "@/utils/score-parser-new"
+import {
+	aggregateValues,
+	getDefaultScoreType,
+	decodeScore,
+} from "@/lib/scoring"
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
@@ -137,6 +142,18 @@ export function ScoreInputRow({
 	}
 
 	const [roundScores, setRoundScores] = useState(initializeRoundScores)
+	// Parse results for each round (for multi-round preview)
+	const [roundParseResults, setRoundParseResults] = useState<
+		Array<ParseResult | null>
+	>(() => {
+		// Initialize parse results for existing scores
+		return initializeRoundScores().map((rs) => {
+			if (rs.score.trim()) {
+				return parseScore(rs.score, workoutScheme, timeCap, tiebreakScheme)
+			}
+			return null
+		})
+	})
 	const [inputValue, setInputValue] = useState(
 		value?.score ||
 			(isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
@@ -216,6 +233,48 @@ export function ScoreInputRow({
 			updated[roundIndex] = { ...currentRound, score: newValue }
 			return updated
 		})
+
+		// Parse and store result for preview
+		setRoundParseResults((prev) => {
+			const updated = [...prev]
+			if (newValue.trim()) {
+				updated[roundIndex] = parseScore(
+					newValue,
+					workoutScheme,
+					timeCap,
+					tiebreakScheme,
+				)
+			} else {
+				updated[roundIndex] = null
+			}
+			return updated
+		})
+	}
+
+	// Calculate aggregate score from valid round parse results
+	const getAggregateScore = (): { value: number | null; formatted: string } => {
+		const validValues = roundParseResults
+			.filter((r): r is ParseResult => r?.isValid === true && r.rawValue !== null)
+			.map((r) => r.rawValue as number)
+
+		if (validValues.length === 0) {
+			return { value: null, formatted: "" }
+		}
+
+		const scoreType = getDefaultScoreType(workoutScheme)
+		const aggregated = aggregateValues(validValues, scoreType)
+
+		if (aggregated === null) {
+			return { value: null, formatted: "" }
+		}
+
+		// Format the aggregated value based on scheme
+		// For time schemes, rawValue is in seconds, need to convert to ms for decodeScore
+		const isTimeScheme = workoutScheme === "time" || workoutScheme === "time-with-cap"
+		const encodedValue = isTimeScheme ? aggregated * 1000 : aggregated
+		const formatted = decodeScore(encodedValue, workoutScheme)
+
+		return { value: aggregated, formatted }
 	}
 
 	// Handle tiebreak input change with parsing
@@ -539,36 +598,79 @@ export function ScoreInputRow({
 				) : isMultiRound ? (
 					/* Multi-Round Scoring */
 					<div className="space-y-2">
-						{roundScores.map((roundScore, roundIndex) => (
-							<div
-								key={`round-${roundIndex}`}
-								className="flex items-center gap-2"
-							>
-								<span className="text-xs text-muted-foreground w-10 shrink-0">
-									R{roundIndex + 1}:
-								</span>
-								<Input
-									ref={(el) => {
-										if (el) roundInputRefs.current.set(roundIndex, el)
-									}}
-									value={roundScore.score}
-									onChange={(e) =>
-										handleRoundScoreChange(roundIndex, e.target.value)
-									}
-									onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
-									onBlur={() => handleBlur("round")}
-							placeholder={
-								workoutScheme === "time" ||
-								workoutScheme === "time-with-cap"
-									? "90 (secs) or 1:30"
-									: workoutScheme === "rounds-reps"
-										? "5+12 or 5.12"
-										: "Score"
+						{roundScores.map((roundScore, roundIndex) => {
+							const roundResult = roundParseResults[roundIndex]
+							return (
+								<div
+									key={`round-${roundIndex}`}
+									className="flex items-center gap-2"
+								>
+									<span className="text-xs text-muted-foreground w-10 shrink-0">
+										R{roundIndex + 1}:
+									</span>
+									<Input
+										ref={(el) => {
+											if (el) roundInputRefs.current.set(roundIndex, el)
+										}}
+										value={roundScore.score}
+										onChange={(e) =>
+											handleRoundScoreChange(roundIndex, e.target.value)
+										}
+										onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
+										onBlur={() => handleBlur("round")}
+										placeholder={
+											workoutScheme === "time" ||
+											workoutScheme === "time-with-cap"
+												? "90 (secs) or 1:30"
+												: workoutScheme === "rounds-reps"
+													? "5+12 or 5.12"
+													: "Score"
+										}
+										className={cn(
+											"h-8 text-sm font-mono flex-1",
+											roundResult?.error &&
+												!roundResult?.isValid &&
+												"border-destructive focus:ring-destructive",
+										)}
+									/>
+									{/* Preview to the right of input */}
+									{roundResult?.isValid && (
+										<span className="text-xs text-muted-foreground w-20 shrink-0">
+											{roundResult.formatted}
+										</span>
+									)}
+									{roundResult?.error && !roundResult?.isValid && (
+										<span className="text-xs text-destructive w-20 shrink-0 truncate" title={roundResult.error}>
+											Invalid
+										</span>
+									)}
+								</div>
+							)
+						})}
+						{/* Aggregate score below all rounds */}
+						{(() => {
+							const aggregate = getAggregateScore()
+							const validCount = roundParseResults.filter(
+								(r) => r?.isValid && r?.rawValue !== null,
+							).length
+							const scoreType = getDefaultScoreType(workoutScheme)
+							if (validCount > 0 && aggregate.formatted) {
+								return (
+									<div className="flex items-center gap-2 pt-1 border-t border-dashed">
+										<span className="text-xs font-medium text-muted-foreground w-10 shrink-0">
+											{scoreType === "min" ? "Best:" : scoreType === "max" ? "Best:" : scoreType === "sum" ? "Total:" : "Avg:"}
+										</span>
+										<span className="text-sm font-mono font-medium">
+											{aggregate.formatted}
+										</span>
+										<span className="text-xs text-muted-foreground">
+											({validCount}/{numRounds} rounds)
+										</span>
+									</div>
+								)
 							}
-									className="h-8 text-sm font-mono flex-1"
-								/>
-							</div>
-						))}
+							return null
+						})()}
 					</div>
 				) : (
 					/* Default: Single score input for all schemes */
