@@ -10,7 +10,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("CAP", "time-with-cap", 600) // 10:00 cap
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("cap")
-			expect(result.rawValue).toBe(600) // Time cap in seconds
+			expect(result.rawValue).toBe(600_000) // Time cap in milliseconds
 			expect(result.formatted).toBe("CAP (10:00)")
 		})
 
@@ -18,7 +18,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("cap", "time-with-cap", 600)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("cap")
-			expect(result.rawValue).toBe(600)
+			expect(result.rawValue).toBe(600_000) // milliseconds
 		})
 
 		it("should accept 'c' shorthand for CAP", () => {
@@ -74,7 +74,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("754", "time-with-cap", 900)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
-			expect(result.rawValue).toBe(754)
+			expect(result.rawValue).toBe(754_000) // milliseconds
 		})
 
 		it("should accept time score under cap with colon format", () => {
@@ -82,7 +82,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("12:34", "time-with-cap", 900)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
-			expect(result.rawValue).toBe(754)
+			expect(result.rawValue).toBe(754_000) // milliseconds
 		})
 	})
 
@@ -92,7 +92,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("600", "time-with-cap", 600)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("cap")
-			expect(result.rawValue).toBe(600)
+			expect(result.rawValue).toBe(600_000) // milliseconds
 			expect(result.formatted).toBe("CAP (10:00)")
 		})
 
@@ -109,14 +109,14 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("2000", "time", undefined)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
-			expect(result.rawValue).toBe(2000) // 2000 seconds
+			expect(result.rawValue).toBe(2_000_000) // 2000 seconds in milliseconds
 		})
 
 		it("should accept formatted time for regular time scheme", () => {
 			const result = parseScore("20:00", "time", undefined)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
-			expect(result.rawValue).toBe(1200) // 20:00 = 1200 seconds
+			expect(result.rawValue).toBe(1_200_000) // 20:00 = 1200 seconds in milliseconds
 		})
 
 		it("should not validate against cap for regular time scheme", () => {
@@ -158,10 +158,11 @@ describe("parseScore time cap validation", () => {
 		})
 
 		it("should handle time cap of 0 (edge case)", () => {
-			// This shouldn't happen in practice, but let's ensure it doesn't crash
+			// A time cap of 0 doesn't make practical sense, treated as no cap
 			const result = parseScore("cap", "time-with-cap", 0)
 			expect(result.isValid).toBe(true)
-			expect(result.rawValue).toBe(0)
+			expect(result.rawValue).toBe(null) // 0 is treated as "no cap"
+			expect(result.formatted).toBe("CAP")
 		})
 
 		it("should accept time just under cap", () => {
@@ -169,7 +170,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("599", "time-with-cap", 600)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
-			expect(result.rawValue).toBe(599)
+			expect(result.rawValue).toBe(599_000) // milliseconds
 		})
 
 		it("should accept time just under cap with colon format", () => {
@@ -177,7 +178,7 @@ describe("parseScore time cap validation", () => {
 			const result = parseScore("9:59", "time-with-cap", 600)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
-			expect(result.rawValue).toBe(599)
+			expect(result.rawValue).toBe(599_000) // milliseconds
 		})
 
 		it("should accept time 1 second over cap as invalid", () => {
@@ -194,14 +195,14 @@ describe("parseTieBreakScore", () => {
 		// Plain number is interpreted as seconds
 		const result = parseTieBreakScore("90", "time")
 		expect(result.isValid).toBe(true)
-		expect(result.rawValue).toBe(90) // 90 seconds = 1:30
+		expect(result.rawValue).toBe(90_000) // 90 seconds in milliseconds
 		expect(result.formatted).toBe("1:30")
 	})
 
 	it("should parse time tiebreak with colon format", () => {
 		const result = parseTieBreakScore("8:30", "time")
 		expect(result.isValid).toBe(true)
-		expect(result.rawValue).toBe(510) // 8:30 = 510 seconds
+		expect(result.rawValue).toBe(510_000) // 8:30 = 510 seconds in milliseconds
 	})
 
 	it("should parse reps tiebreak", () => {
@@ -213,5 +214,47 @@ describe("parseTieBreakScore", () => {
 	it("should handle empty input", () => {
 		const result = parseTieBreakScore("", "time")
 		expect(result.isValid).toBe(false)
+	})
+})
+
+describe("parseScore load scheme", () => {
+	it("should parse load score", () => {
+		const result = parseScore("225", "load")
+		expect(result.isValid).toBe(true)
+		expect(result.formatted).toBe("225")
+		// 225 lbs in grams (225 * 453.592)
+		expect(result.rawValue).toBe(Math.round(225 * 453.592))
+	})
+
+	it("should parse fractional load score", () => {
+		const result = parseScore("225.5", "load")
+		expect(result.isValid).toBe(true)
+		// 225.5 lbs in grams
+		expect(result.rawValue).toBe(Math.round(225.5 * 453.592))
+	})
+})
+
+describe("parseScore reps scheme", () => {
+	it("should parse reps score", () => {
+		const result = parseScore("150", "reps")
+		expect(result.isValid).toBe(true)
+		expect(result.rawValue).toBe(150)
+		expect(result.formatted).toBe("150")
+	})
+})
+
+describe("parseScore rounds-reps scheme", () => {
+	it("should parse rounds+reps format", () => {
+		const result = parseScore("5+12", "rounds-reps")
+		expect(result.isValid).toBe(true)
+		// 5 rounds + 12 reps = 5 * 100000 + 12 = 500012
+		expect(result.rawValue).toBe(500012)
+	})
+
+	it("should parse plain rounds (complete rounds)", () => {
+		const result = parseScore("5", "rounds-reps")
+		expect(result.isValid).toBe(true)
+		// 5 rounds + 0 reps = 5 * 100000 = 500000
+		expect(result.rawValue).toBe(500000)
 	})
 })

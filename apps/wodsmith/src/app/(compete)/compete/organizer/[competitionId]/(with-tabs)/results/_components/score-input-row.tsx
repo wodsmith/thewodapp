@@ -285,12 +285,9 @@ export function ScoreInputRow({
 			return { value: null, formatted: "" }
 		}
 
-		// Format the aggregated value based on scheme
-		// For time schemes, rawValue is in seconds, need to convert to ms for decodeScore
-		const isTimeScheme =
-			workoutScheme === "time" || workoutScheme === "time-with-cap"
-		const encodedValue = isTimeScheme ? aggregated * 1000 : aggregated
-		const formatted = decodeScore(encodedValue, workoutScheme)
+		// Format the aggregated value - rawValue is already in new encoding
+		// (ms for time, grams for load, etc.)
+		const formatted = decodeScore(aggregated, workoutScheme)
 
 		return { value: aggregated, formatted }
 	}

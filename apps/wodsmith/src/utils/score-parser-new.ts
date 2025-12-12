@@ -1,10 +1,12 @@
 /**
- * Score Parser (New Library Adapter)
+ * Score Parser
  *
- * LEGACY ADAPTER: This maintains backward compatibility by returning legacy-encoded
- * values while internally using the new @/lib/scoring library.
- *
- * This file will eventually replace score-parser.ts
+ * Uses the @/lib/scoring library for parsing and returns values in new encoding:
+ * - Time: milliseconds
+ * - Load: grams
+ * - Distance: millimeters
+ * - Rounds+Reps: rounds * 100000 + reps
+ * - Count-based (reps, calories, points): raw integer
  */
 
 import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
@@ -12,11 +14,11 @@ import {
 	parseScore as libParseScore,
 	parseTiebreak as libParseTiebreak,
 } from "@/lib/scoring"
-import { convertNewToLegacy } from "./score-adapter"
 
 export interface ParseResult {
 	formatted: string
-	rawValue: number | null // Seconds for time, reps for AMRAP, lbs for load, etc. (LEGACY ENCODING)
+	/** Encoded value using new encoding (ms for time, grams for load, etc.) */
+	rawValue: number | null
 	isValid: boolean
 	needsTieBreak: boolean
 	scoreStatus: "scored" | "dns" | "dnf" | "cap" | null
@@ -93,10 +95,12 @@ export function parseScore(
 		}
 
 		const formatted = timeCap ? `CAP (${formatTime(timeCap)})` : "CAP"
+		// timeCap is in seconds, rawValue should be in milliseconds (new encoding)
+		const rawValueMs = timeCap ? timeCap * 1000 : null
 
 		return {
 			formatted,
-			rawValue: timeCap ?? null,
+			rawValue: rawValueMs,
 			isValid: true,
 			needsTieBreak: tiebreakScheme != null, // Need tie-break if workout has one configured
 			scoreStatus: "cap",
@@ -107,7 +111,7 @@ export function parseScore(
 	// For time-based schemes, use "seconds" precision so plain numbers are treated as seconds
 	// e.g., "90" → "1:30" instead of "0:90" (invalid) or being interpreted as MM:SS
 	const result = libParseScore(input, scheme, {
-		unit: "lbs", // Default to lbs for legacy compatibility
+		unit: "lbs", // Default to lbs for load scheme
 		timePrecision: "seconds", // Plain numbers are seconds for time-based schemes
 	})
 
@@ -122,21 +126,20 @@ export function parseScore(
 		}
 	}
 
-	// Convert new encoding to legacy encoding
-	const legacyValue =
-		result.encoded !== null ? convertNewToLegacy(result.encoded, scheme) : null
-
 	// For time-with-cap scheme, validate against time cap
+	// Note: timeCap is in seconds, result.encoded is in milliseconds
 	if (
 		scheme === "time-with-cap" &&
 		timeCap !== undefined &&
-		legacyValue !== null
+		result.encoded !== null
 	) {
+		const timeCapMs = timeCap * 1000
+
 		// If time equals cap exactly, treat as CAP
-		if (legacyValue === timeCap) {
+		if (result.encoded === timeCapMs) {
 			return {
 				formatted: `CAP (${formatTime(timeCap)})`,
-				rawValue: timeCap,
+				rawValue: timeCapMs,
 				isValid: true,
 				needsTieBreak: tiebreakScheme != null,
 				scoreStatus: "cap",
@@ -144,7 +147,7 @@ export function parseScore(
 		}
 
 		// If time exceeds cap, reject it
-		if (legacyValue > timeCap) {
+		if (result.encoded > timeCapMs) {
 			return {
 				formatted: result.formatted,
 				rawValue: null,
@@ -158,7 +161,7 @@ export function parseScore(
 
 	return {
 		formatted: result.formatted,
-		rawValue: legacyValue,
+		rawValue: result.encoded,
 		isValid: true,
 		needsTieBreak: tiebreakScheme != null,
 		scoreStatus: "scored",
@@ -207,14 +210,9 @@ export function parseTieBreakScore(
 		}
 	}
 
-	// Convert to legacy encoding
-	const scheme: WorkoutScheme = tiebreakScheme === "time" ? "time" : "reps"
-	const legacyValue =
-		result.encoded !== null ? convertNewToLegacy(result.encoded, scheme) : null
-
 	return {
 		formatted: result.formatted,
-		rawValue: legacyValue,
+		rawValue: result.encoded,
 		isValid: true,
 		needsTieBreak: false,
 		scoreStatus: "scored",
