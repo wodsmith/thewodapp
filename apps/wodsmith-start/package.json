@@ -9,7 +9,17 @@
     "preview": "vite preview",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "postinstall": "pnpm run cf-typegen"
+    "postinstall": "pnpm run cf-typegen",
+    "lint": "biome lint .",
+    "format": "biome format --write . --no-errors-on-unmatched .",
+    "check": "biome check .",
+    "type-check": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "db:migrate:dev": "wrangler d1 migrations apply wodsmith-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply wodsmith-db --remote",
+    "db:seed": "bash ./scripts/seed-all.sh",
+    "email:dev": "email dev -d src/react-email -p 3001"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -59,13 +69,17 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.0.6",
     "@cloudflare/vite-plugin": "^1.13.7",
+    "@react-email/components": "0.0.32",
     "@tailwindcss/postcss": "^4.1.15",
     "@types/node": "^22.5.4",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.6.0",
+    "drizzle-kit": "^0.30.6",
     "postcss": "^8.5.1",
+    "react-email": "3.0.6",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",

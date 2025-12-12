@@ -1,10 +1,61 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tanstack-start-app",
-  "compatibility_date": "2025-09-24",
-  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "317fb84f366ea1ab038ca90000953697",
+  "name": "wodsmith-start",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "minify": true,
+  "observability": {
+    "enabled": true
+  },
+  "placement": {
+    "mode": "smart"
+  },
   "main": "@tanstack/react-start/server-entry",
   "vars": {
-    "MY_VAR": "Hello from Cloudflare",
+    "EMAIL_FROM": "zacjones93@gmail.com",
+    "EMAIL_FROM_NAME": "Zac from WODsmith",
+    "EMAIL_REPLY_TO": "zacjones93@gmail.com",
+    "NEXT_PUBLIC_APP_URL": "https://wodsmith.com",
+    "R2_PUBLIC_URL": "https://pub-14c651314867492fa9637e830cc729a3.r2.dev"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wodsmith-db",
+      "database_id": "931185e9-99e5-48f0-bf70-d03ca5936f2d",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "STAGING_D1",
+      "database_name": "wodsmith-db-staging",
+      "database_id": "e1e200c5-1671-455f-b40d-855b155cac48",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "e7a18a19d2cb4afbaf02be597cbecb35"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "wodsmith-uploads"
+    },
+    {
+      "bucket_name": "wodsmith-uploads-dev",
+      "binding": "wodsmith_uploads_dev"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "wodsmith.com",
+      "custom_domain": true
+    }
+  ]
 }

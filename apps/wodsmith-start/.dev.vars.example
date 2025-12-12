@@ -1,0 +1,20 @@
+# Load .env.development* files when running `wrangler dev`
+# These are secrets that should NOT be committed to version control
+
+# Google OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Email Service
+RESEND_API_KEY=
+BREVO_API_KEY=
+
+# Stripe
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+# AI
+OPENAI_API_KEY=
+
+# Turnstile (bot protection)
+TURNSTILE_SECRET_KEY=
