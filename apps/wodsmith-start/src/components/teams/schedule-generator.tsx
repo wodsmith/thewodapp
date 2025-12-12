@@ -81,7 +81,8 @@ export function ScheduleGenerator({
 	locationId,
 }: ScheduleGeneratorProps) {
 	const [isGenerating, setIsGenerating] = useState(false)
-	const [isPending, startTransition] = useTransition()	const [currentWeek, _setCurrentWeek] = useState(new Date())
+	const [isPending, startTransition] = useTransition()
+	const [currentWeek, _setCurrentWeek] = useState(new Date())
 	const [_showTimeSlotManager, _setShowTimeSlotManager] = useState(false)
 	const [viewMode, setViewMode] = useState<"grid" | "master">("grid")
 	const [selectedSlot, setSelectedSlot] = useState<ScheduledClass | null>(null)
