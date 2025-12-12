@@ -1,27 +1,27 @@
 import {
+	type KeyboardEvent,
+	type MutableRefObject,
 	useEffect,
 	useRef,
 	useState,
-	type KeyboardEvent,
-	type MutableRefObject,
 } from "react"
-import {
-	parseScore,
-	parseTieBreakScore,
-	type ParseResult,
-} from "@/utils/score-parser-new"
-import {
-	aggregateValues,
-	decodeScore,
-	getDefaultScoreType,
-} from "@/lib/scoring"
 import type {
 	ScoreStatus,
 	ScoreType,
 	TiebreakScheme,
 	WorkoutScheme,
 } from "@/db/schema"
+import {
+	aggregateValues,
+	decodeScore,
+	getDefaultScoreType,
+} from "@/lib/scoring"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
+import {
+	type ParseResult,
+	parseScore,
+	parseTieBreakScore,
+} from "@/utils/score-parser-new"
 
 export interface ScoreEntryData {
 	score: string
@@ -35,6 +35,12 @@ export interface ScoreEntryData {
 	roundScores?: Array<{
 		score: string
 	}>
+}
+
+interface RoundScoreState {
+	roundNumber: number
+	score: string
+	timeCapped?: boolean
 }
 
 export interface UseScoreRowStateArgs {
@@ -61,7 +67,11 @@ export interface UseScoreRowStateResult {
 	// state
 	inputValue: string
 	setInputValue: (v: string) => void
-	roundScores: Array<{ roundNumber: number; score: string; timeCapped?: boolean }>
+	roundScores: Array<{
+		roundNumber: number
+		score: string
+		timeCapped?: boolean
+	}>
 	tieBreakValue: string
 	setTieBreakValue: (v: string) => void
 	secondaryValue: string
@@ -124,6 +134,12 @@ export function useScoreRowState({
 	const roundInputRefs = useRef<Map<number, HTMLInputElement>>(new Map())
 	const tieBreakInputRef = useRef<HTMLInputElement>(null)
 	const secondaryInputRef = useRef<HTMLInputElement>(null)
+	/**
+	 * When we submit via Enter/Tab and immediately move focus, the browser fires blur on the
+	 * previous input. Our blur handler also submits, causing a duplicate save. This flag
+	 * skips exactly one blur-driven submit after a keyboard-driven submit+navigation.
+	 */
+	const shouldSkipNextBlurSubmitRef = useRef(false)
 
 	const computeInitialRoundScores = (): Array<{
 		roundNumber: number
@@ -158,7 +174,11 @@ export function useScoreRowState({
 								scoreStr = String(set.score)
 							}
 						}
-						return { roundNumber: index + 1, score: scoreStr, timeCapped: false }
+						return {
+							roundNumber: index + 1,
+							score: scoreStr,
+							timeCapped: false,
+						}
 					}
 					return { roundNumber: index + 1, score: "", timeCapped: false }
 				})
@@ -182,42 +202,50 @@ export function useScoreRowState({
 
 		return Array(numRounds)
 			.fill(null)
-			.map((_, index) => ({ roundNumber: index + 1, score: "", timeCapped: false }))
+			.map((_, index) => ({
+				roundNumber: index + 1,
+				score: "",
+				timeCapped: false,
+			}))
 	}
 
 	// Keep initial round scores stable (strict parity: only initialized on mount)
-	const initialRoundScoresRef = useRef<
-		Array<{ roundNumber: number; score: string; timeCapped?: boolean }> | null
-	>(null)
-	if (initialRoundScoresRef.current === null) {
-		initialRoundScoresRef.current = computeInitialRoundScores()
+	const initialRoundScoresRef = useRef<Array<RoundScoreState> | undefined>(
+		undefined,
+	)
+	let initialRoundScores = initialRoundScoresRef.current
+	if (!initialRoundScores) {
+		initialRoundScores = computeInitialRoundScores()
+		initialRoundScoresRef.current = initialRoundScores
 	}
 
-	const [roundScores, setRoundScores] = useState(() => initialRoundScoresRef.current!)
-	const [roundParseResults, setRoundParseResults] = useState<Array<ParseResult | null>>(
-		() =>
-			initialRoundScoresRef.current!.map((rs) => {
-				if (rs.score.trim()) {
-					return parseScore(rs.score, workoutScheme, timeCap, tiebreakScheme)
-				}
-				return null
-			}),
+	const [roundScores, setRoundScores] = useState(() => initialRoundScores)
+	const [roundParseResults, setRoundParseResults] = useState<
+		Array<ParseResult | null>
+	>(() =>
+		initialRoundScores.map((rs) => {
+			if (rs.score.trim())
+				return parseScore(rs.score, workoutScheme, timeCap, tiebreakScheme)
+			return null
+		}),
 	)
 	const [inputValue, setInputValue] = useState(
-		value?.score || (isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
+		value?.score ||
+			(isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
 	)
 	const [tieBreakValue, setTieBreakValue] = useState(
 		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
 	)
-	const [tieBreakParseResult, setTieBreakParseResult] = useState<ParseResult | null>(() => {
-		if (!tiebreakScheme) return null
-		const initialTieBreak =
-			value?.tieBreakScore || athlete.existingResult?.tieBreakScore || ""
-		if (initialTieBreak.trim()) {
-			return parseTieBreakScore(initialTieBreak, tiebreakScheme)
-		}
-		return null
-	})
+	const [tieBreakParseResult, setTieBreakParseResult] =
+		useState<ParseResult | null>(() => {
+			if (!tiebreakScheme) return null
+			const initialTieBreak =
+				value?.tieBreakScore || athlete.existingResult?.tieBreakScore || ""
+			if (initialTieBreak.trim()) {
+				return parseTieBreakScore(initialTieBreak, tiebreakScheme)
+			}
+			return null
+		})
 	const [secondaryValue, setSecondaryValue] = useState(
 		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
 	)
@@ -271,7 +299,12 @@ export function useScoreRowState({
 		setRoundParseResults((prev) => {
 			const updated = [...prev]
 			if (newValue.trim()) {
-				updated[roundIndex] = parseScore(newValue, workoutScheme, timeCap, tiebreakScheme)
+				updated[roundIndex] = parseScore(
+					newValue,
+					workoutScheme,
+					timeCap,
+					tiebreakScheme,
+				)
 			} else {
 				updated[roundIndex] = null
 			}
@@ -283,7 +316,9 @@ export function useScoreRowState({
 
 	const getAggregateScore = (): { value: number | null; formatted: string } => {
 		const validValues = roundParseResults
-			.filter((r): r is ParseResult => r?.isValid === true && r.rawValue !== null)
+			.filter(
+				(r): r is ParseResult => r?.isValid === true && r.rawValue !== null,
+			)
 			.map((r) => r.rawValue as number)
 		if (validValues.length === 0) return { value: null, formatted: "" }
 
@@ -359,15 +394,26 @@ export function useScoreRowState({
 
 	const handleBlur = (field: "score" | "tieBreak" | "secondary" | "round") => {
 		setTimeout(() => {
+			if (shouldSkipNextBlurSubmitRef.current) {
+				shouldSkipNextBlurSubmitRef.current = false
+				return
+			}
+
 			const activeEl = document.activeElement
 			const isMovingToRelatedField =
 				activeEl === scoreInputRef.current ||
 				activeEl === tieBreakInputRef.current ||
 				activeEl === secondaryInputRef.current ||
-				Array.from(roundInputRefs.current.values()).includes(activeEl as HTMLInputElement)
+				Array.from(roundInputRefs.current.values()).includes(
+					activeEl as HTMLInputElement,
+				)
 
 			if (!isMovingToRelatedField) {
-				if (field === "tieBreak" && tieBreakValue.trim() && !isTieBreakValid()) {
+				if (
+					field === "tieBreak" &&
+					tieBreakValue.trim() &&
+					!isTieBreakValid()
+				) {
 					setShowTieBreakWarning(true)
 					return
 				}
@@ -398,6 +444,7 @@ export function useScoreRowState({
 							return
 						}
 						submitScore()
+						shouldSkipNextBlurSubmitRef.current = true
 						onTabNext()
 					}
 				} else {
@@ -412,6 +459,7 @@ export function useScoreRowState({
 							return
 						}
 						submitScore()
+						shouldSkipNextBlurSubmitRef.current = true
 						onTabNext()
 					}
 				}
@@ -425,6 +473,7 @@ export function useScoreRowState({
 						return
 					}
 					submitScore()
+					shouldSkipNextBlurSubmitRef.current = true
 					onTabNext()
 				}
 			} else {
@@ -433,6 +482,7 @@ export function useScoreRowState({
 					return
 				}
 				submitScore()
+				shouldSkipNextBlurSubmitRef.current = true
 				onTabNext()
 			}
 		}
@@ -443,6 +493,7 @@ export function useScoreRowState({
 			if (field === "tieBreak" && showTieBreakWarning) {
 				setShowTieBreakWarning(false)
 				submitScore(false, true)
+				shouldSkipNextBlurSubmitRef.current = true
 				onTabNext()
 				return
 			}
@@ -450,6 +501,7 @@ export function useScoreRowState({
 			if (showWarning) {
 				setShowWarning(false)
 				submitScore(true)
+				shouldSkipNextBlurSubmitRef.current = true
 				onTabNext()
 				return
 			}
@@ -462,6 +514,7 @@ export function useScoreRowState({
 
 			if (isMultiRound || isPassFail || parseResult?.isValid) {
 				submitScore()
+				shouldSkipNextBlurSubmitRef.current = true
 				onTabNext()
 			}
 		}
@@ -470,12 +523,14 @@ export function useScoreRowState({
 	const handleConfirmWarning = () => {
 		setShowWarning(false)
 		submitScore(true)
+		shouldSkipNextBlurSubmitRef.current = true
 		onTabNext()
 	}
 
 	const handleConfirmTieBreakWarning = () => {
 		setShowTieBreakWarning(false)
 		submitScore(false, true)
+		shouldSkipNextBlurSubmitRef.current = true
 		onTabNext()
 	}
 
@@ -516,5 +571,3 @@ export function useScoreRowState({
 		getAggregateScore,
 	}
 }
-
-

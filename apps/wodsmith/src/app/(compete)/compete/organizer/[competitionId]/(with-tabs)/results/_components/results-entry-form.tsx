@@ -1,12 +1,22 @@
 "use client"
 
-import { useState, useRef, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { intervalToDuration } from "date-fns"
-import posthog from "posthog-js"
-import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
+import { intervalToDuration } from "date-fns"
+import { Filter, HelpCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
+import { useCallback, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
+import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
 	Select,
 	SelectContent,
@@ -14,27 +24,17 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Filter, HelpCircle } from "lucide-react"
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
 import type {
-	EventScoreEntryData,
 	EventScoreEntryAthlete,
+	EventScoreEntryData,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
+import { HeatScoreGroup } from "./heat-score-group"
 import {
-	ScoreInputRow,
 	type ScoreEntryData,
+	ScoreInputRow,
 	type ScoreInputRowHandle,
 } from "./score-input-row"
-import { HeatScoreGroup } from "./heat-score-group"
 
 interface ResultsEntryFormProps {
 	competitionId: string
@@ -71,6 +71,7 @@ export function ResultsEntryForm({
 	)
 	const [focusedIndex, setFocusedIndex] = useState(0)
 	const rowRefs = useRef<Map<string, ScoreInputRowHandle>>(new Map())
+	const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
 	// Check if we have heats to display
 	const hasHeats = heats.length > 0
@@ -134,48 +135,58 @@ export function ResultsEntryForm({
 			// This preserves milliseconds for time-based workouts (e.g., "2:01.567")
 			const scoreToSend = data.score
 
-			const [result] = await saveScore({
-				competitionId,
-				organizingTeamId,
-				trackWorkoutId: event.id,
-				workoutId: event.workout.id,
-				registrationId: athlete.registrationId,
-				userId: athlete.userId,
-				divisionId: athlete.divisionId,
-				score: scoreToSend,
-				scoreStatus: data.scoreStatus,
-				tieBreakScore: data.tieBreakScore,
-				secondaryScore: data.secondaryScore,
-				roundScores: data.roundScores,
-				workout: {
-					scheme: event.workout.scheme,
-					scoreType: event.workout.scoreType,
-					repsPerRound: event.workout.repsPerRound,
-					roundsToScore: event.workout.roundsToScore,
-					timeCap: event.workout.timeCap,
-					tiebreakScheme: event.workout.tiebreakScheme,
-				},
-			})
+			// Serialize saves to avoid client-side concurrency hangs when saving fast.
+			saveQueueRef.current = saveQueueRef.current
+				.then(async () => {
+					let result: unknown
+					try {
+						;[result] = await saveScore({
+							competitionId,
+							organizingTeamId,
+							trackWorkoutId: event.id,
+							workoutId: event.workout.id,
+							registrationId: athlete.registrationId,
+							userId: athlete.userId,
+							divisionId: athlete.divisionId,
+							score: scoreToSend,
+							scoreStatus: data.scoreStatus,
+							tieBreakScore: data.tieBreakScore,
+							secondaryScore: data.secondaryScore,
+							roundScores: data.roundScores,
+							workout: {
+								scheme: event.workout.scheme,
+								scoreType: event.workout.scoreType,
+								repsPerRound: event.workout.repsPerRound,
+								roundsToScore: event.workout.roundsToScore,
+								timeCap: event.workout.timeCap,
+								tiebreakScheme: event.workout.tiebreakScheme,
+							},
+						})
+					} catch {
+						toast.error("Failed to save score")
+					} finally {
+						setSavingIds((prev) => {
+							const next = new Set(prev)
+							next.delete(athlete.registrationId)
+							return next
+						})
+					}
 
-			setSavingIds((prev) => {
-				const next = new Set(prev)
-				next.delete(athlete.registrationId)
-				return next
-			})
-
-			if (result) {
-				setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
-				posthog.capture("competition_score_saved", {
-					competition_id: competitionId,
-					event_id: event.id,
-					event_name: event.workout.name,
-					division_id: athlete.divisionId,
-					registration_id: athlete.registrationId,
+					if (result) {
+						setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+						posthog.capture("competition_score_saved", {
+							competition_id: competitionId,
+							event_id: event.id,
+							event_name: event.workout.name,
+							division_id: athlete.divisionId,
+							registration_id: athlete.registrationId,
+						})
+						const displayName =
+							athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+						toast.success(`Score saved for ${displayName}`)
+					}
 				})
-				const displayName =
-					athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
-				toast.success(`Score saved for ${displayName}`)
-			}
+				.catch(() => {})
 		},
 		[
 			competitionId,
