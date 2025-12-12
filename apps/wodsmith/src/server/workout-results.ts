@@ -3,13 +3,14 @@ import "server-only"
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
-	results,
+	scoresTable,
+	scoreRoundsTable,
 	scalingGroupsTable,
 	scalingLevelsTable,
-	sets,
 	workoutScalingDescriptionsTable,
 } from "@/db/schema"
-import type { ResultSet, WorkoutResult } from "@/types"
+import type { ResultSet, WorkoutResult, ScoreWithScaling } from "@/types"
+import { decodeScore } from "@/lib/scoring"
 import { ScalingQueryMonitor } from "@/utils/query-monitor"
 import {
 	logError,
@@ -419,15 +420,11 @@ export async function getWorkoutResultsByWorkoutAndUser(
 	try {
 		const workoutResultsData = await db
 			.select()
-			.from(results)
+			.from(scoresTable)
 			.where(
-				and(
-					eq(results.workoutId, workoutId),
-					eq(results.userId, userId),
-					eq(results.type, "wod"),
-				),
+				and(eq(scoresTable.workoutId, workoutId), eq(scoresTable.userId, userId)),
 			)
-			.orderBy(results.date)
+			.orderBy(scoresTable.recordedAt)
 		logInfo({
 			message: "[workout-results] Results fetched",
 			attributes: { workoutId, userId, count: workoutResultsData.length },
@@ -444,7 +441,7 @@ export async function getWorkoutResultsByWorkoutAndUser(
 }
 
 /**
- * Get result sets by result ID
+ * Get result sets by result ID (scoreId in new schema)
  */
 export async function getResultSetsById(
 	resultId: string,
@@ -457,9 +454,9 @@ export async function getResultSetsById(
 	try {
 		const setDetails = await db
 			.select()
-			.from(sets)
-			.where(eq(sets.resultId, resultId))
-			.orderBy(sets.setNumber)
+			.from(scoreRoundsTable)
+			.where(eq(scoreRoundsTable.scoreId, resultId))
+			.orderBy(scoreRoundsTable.roundNumber)
 		logInfo({
 			message: "[workout-results] Sets fetched",
 			attributes: { resultId, count: setDetails.length },
@@ -504,17 +501,16 @@ export async function getWorkoutResultForScheduledInstance(
 	try {
 		const workoutResults = await db
 			.select()
-			.from(results)
+			.from(scoresTable)
 			.where(
 				and(
-					eq(results.scheduledWorkoutInstanceId, scheduledInstanceId),
-					eq(results.userId, userId),
-					eq(results.type, "wod"),
-					gte(results.date, startOfDay),
-					lte(results.date, endOfDay),
+					eq(scoresTable.scheduledWorkoutInstanceId, scheduledInstanceId),
+					eq(scoresTable.userId, userId),
+					gte(scoresTable.recordedAt, startOfDay),
+					lte(scoresTable.recordedAt, endOfDay),
 				),
 			)
-			.orderBy(results.date)
+			.orderBy(scoresTable.recordedAt)
 			.limit(1)
 
 		if (workoutResults.length > 0) {
@@ -590,16 +586,7 @@ export async function getWorkoutResultsWithScaling({
 	workoutId: string
 	teamId?: string
 	userId?: string
-}): Promise<
-	Array<
-		WorkoutResult & {
-			scalingLabel?: string
-			scalingPosition?: number
-			scalingGroupTitle?: string
-			scalingDescription?: string
-		}
-	>
-> {
+}): Promise<ScoreWithScaling[]> {
 	const db = getDb()
 	logInfo({
 		message: "[workout-results] Fetching results with scaling",
@@ -608,40 +595,38 @@ export async function getWorkoutResultsWithScaling({
 	try {
 		const query = db
 			.select({
-				id: results.id,
-				userId: results.userId,
-				date: results.date,
-				workoutId: results.workoutId,
-				type: results.type,
-				notes: results.notes,
-				scale: results.scale,
-				scalingLevelId: results.scalingLevelId,
-				asRx: results.asRx,
+				id: scoresTable.id,
+				userId: scoresTable.userId,
+				teamId: scoresTable.teamId,
+				workoutId: scoresTable.workoutId,
+				competitionEventId: scoresTable.competitionEventId,
+				scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
+				scheme: scoresTable.scheme,
+				scoreType: scoresTable.scoreType,
+				scoreValue: scoresTable.scoreValue,
+				tiebreakScheme: scoresTable.tiebreakScheme,
+				tiebreakValue: scoresTable.tiebreakValue,
+				timeCapMs: scoresTable.timeCapMs,
+				secondaryValue: scoresTable.secondaryValue,
+				status: scoresTable.status,
+				statusOrder: scoresTable.statusOrder,
+				sortKey: scoresTable.sortKey,
+				scalingLevelId: scoresTable.scalingLevelId,
+				asRx: scoresTable.asRx,
+				notes: scoresTable.notes,
+				recordedAt: scoresTable.recordedAt,
+				createdAt: scoresTable.createdAt,
+				updatedAt: scoresTable.updatedAt,
+				updateCounter: scoresTable.updateCounter,
 				scalingLabel: scalingLevelsTable.label,
 				scalingPosition: scalingLevelsTable.position,
 				scalingGroupTitle: scalingGroupsTable.title,
 				scalingDescription: workoutScalingDescriptionsTable.description,
-				wodScore: results.wodScore,
-				setCount: results.setCount,
-				distance: results.distance,
-				time: results.time,
-				createdAt: results.createdAt,
-				updatedAt: results.updatedAt,
-				updateCounter: results.updateCounter,
-				programmingTrackId: results.programmingTrackId,
-				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
-				// Competition-specific fields
-				competitionEventId: results.competitionEventId,
-				competitionRegistrationId: results.competitionRegistrationId,
-				scoreStatus: results.scoreStatus,
-				tieBreakScore: results.tieBreakScore,
-				secondaryScore: results.secondaryScore,
-				enteredBy: results.enteredBy,
 			})
-			.from(results)
+			.from(scoresTable)
 			.leftJoin(
 				scalingLevelsTable,
-				eq(results.scalingLevelId, scalingLevelsTable.id),
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
 			)
 			.leftJoin(
 				scalingGroupsTable,
@@ -650,26 +635,23 @@ export async function getWorkoutResultsWithScaling({
 			.leftJoin(
 				workoutScalingDescriptionsTable,
 				and(
-					eq(workoutScalingDescriptionsTable.workoutId, results.workoutId),
+					eq(workoutScalingDescriptionsTable.workoutId, scoresTable.workoutId),
 					eq(
 						workoutScalingDescriptionsTable.scalingLevelId,
-						results.scalingLevelId,
+						scoresTable.scalingLevelId,
 					),
 				),
 			)
 
-		const conditions = [
-			eq(results.workoutId, workoutId),
-			eq(results.type, "wod"),
-		]
+		const conditions = [eq(scoresTable.workoutId, workoutId)]
 
 		if (userId) {
-			conditions.push(eq(results.userId, userId))
+			conditions.push(eq(scoresTable.userId, userId))
 		}
 
 		const workoutResultsData = await query
 			.where(and(...conditions))
-			.orderBy(asc(scalingLevelsTable.position), desc(results.wodScore))
+			.orderBy(asc(scalingLevelsTable.position), desc(scoresTable.sortKey))
 
 		logInfo({
 			message: "[workout-results] Results with scaling fetched",
@@ -716,7 +698,7 @@ export function formatResultWithScaling(
 	position: number
 	isRx: boolean
 } {
-	const displayLabel = result.scalingLabel || result.scale || "Unknown"
+	const displayLabel = result.scalingLabel || "Unknown"
 	const position = result.scalingPosition ?? 999
 	const isRx = result.asRx || false
 
@@ -742,13 +724,7 @@ export async function getWorkoutLeaderboard({
 		scalingLabel: string
 		scalingPosition: number
 		scalingGroupTitle?: string
-		results: Array<
-			WorkoutResult & {
-				userName?: string
-				userAvatar?: string
-				scalingDescription?: string
-			}
-		>
+		results: Array<ScoreWithScaling>
 	}>
 > {
 	const db = getDb()
@@ -762,44 +738,41 @@ export async function getWorkoutLeaderboard({
 
 		const leaderboardData = await db
 			.select({
-				id: results.id,
-				userId: results.userId,
-				userFirstName: userTable.firstName,
-				userLastName: userTable.lastName,
+				id: scoresTable.id,
+				userId: scoresTable.userId,
+				teamId: scoresTable.teamId,
+				workoutId: scoresTable.workoutId,
+				competitionEventId: scoresTable.competitionEventId,
+				scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
+				scheme: scoresTable.scheme,
+				scoreType: scoresTable.scoreType,
+				scoreValue: scoresTable.scoreValue,
+				tiebreakScheme: scoresTable.tiebreakScheme,
+				tiebreakValue: scoresTable.tiebreakValue,
+				timeCapMs: scoresTable.timeCapMs,
+				secondaryValue: scoresTable.secondaryValue,
+				status: scoresTable.status,
+				statusOrder: scoresTable.statusOrder,
+				sortKey: scoresTable.sortKey,
+				scalingLevelId: scoresTable.scalingLevelId,
+				asRx: scoresTable.asRx,
+				notes: scoresTable.notes,
+				recordedAt: scoresTable.recordedAt,
+				createdAt: scoresTable.createdAt,
+				updatedAt: scoresTable.updatedAt,
+				updateCounter: scoresTable.updateCounter,
+				userName: userTable.firstName,
 				userAvatar: userTable.avatar,
-				date: results.date,
-				workoutId: results.workoutId,
-				type: results.type,
-				notes: results.notes,
-				scale: results.scale,
-				scalingLevelId: results.scalingLevelId,
-				asRx: results.asRx,
 				scalingLabel: scalingLevelsTable.label,
 				scalingPosition: scalingLevelsTable.position,
 				scalingGroupTitle: scalingGroupsTable.title,
 				scalingDescription: workoutScalingDescriptionsTable.description,
-				wodScore: results.wodScore,
-				setCount: results.setCount,
-				distance: results.distance,
-				time: results.time,
-				createdAt: results.createdAt,
-				updatedAt: results.updatedAt,
-				updateCounter: results.updateCounter,
-				programmingTrackId: results.programmingTrackId,
-				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
-				// Competition-specific fields
-				competitionEventId: results.competitionEventId,
-				competitionRegistrationId: results.competitionRegistrationId,
-				scoreStatus: results.scoreStatus,
-				tieBreakScore: results.tieBreakScore,
-				secondaryScore: results.secondaryScore,
-				enteredBy: results.enteredBy,
 			})
-			.from(results)
-			.leftJoin(userTable, eq(results.userId, userTable.id))
+			.from(scoresTable)
+			.leftJoin(userTable, eq(scoresTable.userId, userTable.id))
 			.leftJoin(
 				scalingLevelsTable,
-				eq(results.scalingLevelId, scalingLevelsTable.id),
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
 			)
 			.leftJoin(
 				scalingGroupsTable,
@@ -808,15 +781,15 @@ export async function getWorkoutLeaderboard({
 			.leftJoin(
 				workoutScalingDescriptionsTable,
 				and(
-					eq(workoutScalingDescriptionsTable.workoutId, results.workoutId),
+					eq(workoutScalingDescriptionsTable.workoutId, scoresTable.workoutId),
 					eq(
 						workoutScalingDescriptionsTable.scalingLevelId,
-						results.scalingLevelId,
+						scoresTable.scalingLevelId,
 					),
 				),
 			)
-			.where(and(eq(results.workoutId, workoutId), eq(results.type, "wod")))
-			.orderBy(asc(scalingLevelsTable.position), desc(results.wodScore))
+			.where(eq(scoresTable.workoutId, workoutId))
+			.orderBy(asc(scalingLevelsTable.position), desc(scoresTable.sortKey))
 
 		const groupedResults = new Map<
 			string,
@@ -824,13 +797,13 @@ export async function getWorkoutLeaderboard({
 				scalingLabel: string
 				scalingPosition: number
 				scalingGroupTitle?: string
-				results: Array<WorkoutResult>
+				results: Array<ScoreWithScaling>
 			}
 		>()
 
 		for (const result of leaderboardData) {
-			const scalingKey = result.scalingLevelId || result.scale || "unknown"
-			const scalingLabel = result.scalingLabel || result.scale || "Unknown"
+			const scalingKey = result.scalingLevelId || "unknown"
+			const scalingLabel = result.scalingLabel || "Unknown"
 			const scalingPosition = result.scalingPosition ?? 999
 
 			if (!groupedResults.has(scalingKey)) {
@@ -844,7 +817,15 @@ export async function getWorkoutLeaderboard({
 
 			const group = groupedResults.get(scalingKey)
 			if (group) {
-				group.results.push(result)
+				group.results.push({
+					...result,
+					scalingLabel: result.scalingLabel || undefined,
+					scalingPosition: result.scalingPosition ?? undefined,
+					scalingGroupTitle: result.scalingGroupTitle || undefined,
+					scalingDescription: result.scalingDescription || undefined,
+					userName: result.userName || undefined,
+					userAvatar: result.userAvatar || undefined,
+				})
 			}
 		}
 
@@ -924,13 +905,12 @@ export async function getWorkoutResultsForScheduledInstances(
 
 			const dayResults = await db
 				.select()
-				.from(results)
+				.from(scoresTable)
 				.where(
 					and(
-						eq(results.userId, userId),
-						eq(results.type, "wod"),
-						gte(results.date, startOfDay),
-						lte(results.date, endOfDay),
+						eq(scoresTable.userId, userId),
+						gte(scoresTable.recordedAt, startOfDay),
+						lte(scoresTable.recordedAt, endOfDay),
 					),
 				)
 
