@@ -499,3 +499,27 @@ export const assignWorkoutSponsorFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to assign workout sponsor")
 		}
 	})
+
+/* -------------------------------------------------------------------------- */
+/*                         Public Sponsor Functions                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get sponsors for a competition (public)
+ */
+export const getSponsorsFn = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			competitionId: z.string().min(1, "Competition ID is required"),
+		}),
+	)
+	.handler(async ({ data: input }) => {
+		try {
+			const result = await getCompetitionSponsors(input.competitionId)
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get sponsors:", error)
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get sponsors")
+		}
+	})

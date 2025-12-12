@@ -209,3 +209,24 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to delete competition score")
 		}
 	})
+
+/* -------------------------------------------------------------------------- */
+/*                       Public Score Query Functions                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get all scores for a competition
+ */
+export const getCompetitionScoresFn = createServerFn({ method: "POST" })
+	.validator(z.object({ competitionId: z.string().min(1) }))
+	.handler(async ({ data: input }) => {
+		try {
+			// TODO: Implement getting all scores for a competition
+			// This should return scores organized by athlete and event
+			return { success: true, data: [] }
+		} catch (error) {
+			console.error("Failed to get competition scores:", error)
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get competition scores")
+		}
+	})

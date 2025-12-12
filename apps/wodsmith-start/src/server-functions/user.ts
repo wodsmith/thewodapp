@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
+import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { getDb } from "~/db/index.server"
 import { userTable } from "~/db/schema.server"
@@ -29,3 +30,28 @@ export const getUserFn = createServerFn("GET", async () => {
 		throw error
 	}
 })
+
+/* -------------------------------------------------------------------------- */
+/*                         Public User Profile Functions                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get an athlete's public profile data
+ */
+export const getAthleteProfileFn = createServerFn({ method: "POST" })
+	.validator(z.object({ userId: z.string().min(1, "User ID is required") }))
+	.handler(async ({ data: input }) => {
+		try {
+			const user = await getUserFromDB(input.userId)
+
+			if (!user) {
+				throw new Error("Athlete not found")
+			}
+
+			return { success: true, data: user }
+		} catch (error) {
+			console.error("Failed to get athlete profile:", error)
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get athlete profile")
+		}
+	})

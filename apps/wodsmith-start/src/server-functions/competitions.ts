@@ -1078,3 +1078,52 @@ export const updateDivisionDescriptionsFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to update division descriptions")
 		}
 	})
+
+/* -------------------------------------------------------------------------- */
+/*                         Public Competition Functions                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get all public competitions (for athletes)
+ */
+export const getPublicCompetitionsFn = createServerFn({ method: "POST" })
+	.validator(z.object({}))
+	.handler(async () => {
+		try {
+			const competitions = await getPublicCompetitions()
+			return { success: true, data: competitions }
+		} catch (error) {
+			logError({
+				message: "[getPublicCompetitionsFn] Failed to get public competitions",
+				error,
+			})
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get competitions")
+		}
+	})
+
+/**
+ * Get all competitions for an organizer
+ */
+export const getCompetitionsForOrganizerFn = createServerFn({ method: "POST" })
+	.validator(z.object({ teamId: z.string().min(1, "Team ID is required") }))
+	.handler(async ({ data: input }) => {
+		try {
+			await requireTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+			)
+
+			const competitions = await getCompetitions(input.teamId)
+			return { success: true, data: competitions }
+		} catch (error) {
+			logError({
+				message:
+					"[getCompetitionsForOrganizerFn] Failed to get organizer competitions",
+				error,
+				attributes: { teamId: input.teamId },
+			})
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get competitions")
+		}
+	})

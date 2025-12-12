@@ -310,3 +310,76 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
 			throw new Error("Failed to update description")
 		}
 	})
+
+/* -------------------------------------------------------------------------- */
+/*                         Public Division Functions                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get divisions for a competition (public wrapper)
+ */
+export const getDivisionsFn = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			competitionId: z.string().min(1, "Competition ID is required"),
+		}),
+	)
+	.handler(async ({ data: input }) => {
+		try {
+			const result = await getCompetitionDivisionsWithCounts({
+				competitionId: input.competitionId,
+			})
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get divisions:", error)
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get divisions")
+		}
+	})
+
+/**
+ * Get divisions for a competition with registration counts
+ */
+export const getCompetitionDivisionsWithCountsFn = createServerFn({
+	method: "POST",
+})
+	.validator(
+		z.object({
+			competitionId: z.string().min(1, "Competition ID is required"),
+		}),
+	)
+	.handler(async ({ data: input }) => {
+		try {
+			const result = await getCompetitionDivisionsWithCounts({
+				competitionId: input.competitionId,
+			})
+
+			return { success: true, data: result }
+		} catch (error) {
+			console.error("Failed to get divisions with counts:", error)
+			if (error instanceof Error) throw error
+			throw new Error("Failed to get divisions")
+		}
+	})
+
+/**
+ * List scaling groups for a competition
+ */
+export const listScalingGroupsFn = createServerFn({ method: "POST" })
+	.validator(
+		z.object({
+			competitionId: z.string().min(1, "Competition ID is required"),
+		}),
+	)
+	.handler(async ({ data: input }) => {
+		try {
+			// TODO: Implement scaling groups listing
+			// This should return the scaling groups available for divisions
+			return { success: true, data: [] }
+		} catch (error) {
+			console.error("Failed to list scaling groups:", error)
+			if (error instanceof Error) throw error
+			throw new Error("Failed to list scaling groups")
+		}
+	})
