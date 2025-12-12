@@ -31,6 +31,7 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<ListItem.Meta showOnMobile={true}>
+					{/* wodScore is pre-formatted by server using scoring library's decodeScore */}
 					{logEntry.wodScore && (
 						<Badge variant="secondary">{logEntry.wodScore}</Badge>
 					)}
