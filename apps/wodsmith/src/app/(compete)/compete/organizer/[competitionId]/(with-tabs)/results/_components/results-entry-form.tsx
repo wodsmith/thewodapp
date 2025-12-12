@@ -31,7 +31,6 @@ import type {
 } from "@/server/competition-scores"
 import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 import { HeatScoreGroup } from "./heat-score-group"
-import { isTimeBasedScheme } from "@/lib/scoring"
 
 interface ResultsEntryFormProps {
 	competitionId: string

@@ -57,21 +57,29 @@ describe("parseScore time cap validation", () => {
 	describe("time exceeds cap validation", () => {
 		it("should reject time score that exceeds cap", () => {
 			// 10:00 cap (600 seconds), user enters 10:30 (630 seconds)
-			const result = parseScore("1030", "time-with-cap", 600)
+			const result = parseScore("10:30", "time-with-cap", 600)
 			expect(result.isValid).toBe(false)
 			expect(result.error).toBe("Time cannot exceed cap of 10:00")
 		})
 
 		it("should reject time score that significantly exceeds cap", () => {
 			// 15:00 cap (900 seconds), user enters 20:00 (1200 seconds)
-			const result = parseScore("2000", "time-with-cap", 900)
+			const result = parseScore("20:00", "time-with-cap", 900)
 			expect(result.isValid).toBe(false)
 			expect(result.error).toBe("Time cannot exceed cap of 15:00")
 		})
 
 		it("should accept time score under cap", () => {
+			// 15:00 cap (900 seconds), user enters 754 seconds (12:34)
+			const result = parseScore("754", "time-with-cap", 900)
+			expect(result.isValid).toBe(true)
+			expect(result.scoreStatus).toBe("scored")
+			expect(result.rawValue).toBe(754)
+		})
+
+		it("should accept time score under cap with colon format", () => {
 			// 15:00 cap (900 seconds), user enters 12:34 (754 seconds)
-			const result = parseScore("1234", "time-with-cap", 900)
+			const result = parseScore("12:34", "time-with-cap", 900)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
 			expect(result.rawValue).toBe(754)
@@ -79,9 +87,9 @@ describe("parseScore time cap validation", () => {
 	})
 
 	describe("time equals cap (auto-CAP)", () => {
-		it("should treat time equal to cap as CAP", () => {
-			// 10:00 cap (600 seconds), user enters exactly 10:00
-			const result = parseScore("1000", "time-with-cap", 600)
+		it("should treat time equal to cap as CAP (seconds input)", () => {
+			// 10:00 cap (600 seconds), user enters exactly 600 seconds
+			const result = parseScore("600", "time-with-cap", 600)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("cap")
 			expect(result.rawValue).toBe(600)
@@ -96,8 +104,16 @@ describe("parseScore time cap validation", () => {
 	})
 
 	describe("regular time scheme (no cap validation)", () => {
-		it("should accept any time for regular time scheme without cap", () => {
+		it("should accept any time for regular time scheme without cap (seconds input)", () => {
+			// Plain number is interpreted as seconds: 2000 seconds = 33:20
 			const result = parseScore("2000", "time", undefined)
+			expect(result.isValid).toBe(true)
+			expect(result.scoreStatus).toBe("scored")
+			expect(result.rawValue).toBe(2000) // 2000 seconds
+		})
+
+		it("should accept formatted time for regular time scheme", () => {
+			const result = parseScore("20:00", "time", undefined)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
 			expect(result.rawValue).toBe(1200) // 20:00 = 1200 seconds
@@ -149,16 +165,24 @@ describe("parseScore time cap validation", () => {
 		})
 
 		it("should accept time just under cap", () => {
+			// 10:00 cap (600 seconds), user enters 599 seconds (9:59)
+			const result = parseScore("599", "time-with-cap", 600)
+			expect(result.isValid).toBe(true)
+			expect(result.scoreStatus).toBe("scored")
+			expect(result.rawValue).toBe(599)
+		})
+
+		it("should accept time just under cap with colon format", () => {
 			// 10:00 cap (600 seconds), user enters 9:59 (599 seconds)
-			const result = parseScore("959", "time-with-cap", 600)
+			const result = parseScore("9:59", "time-with-cap", 600)
 			expect(result.isValid).toBe(true)
 			expect(result.scoreStatus).toBe("scored")
 			expect(result.rawValue).toBe(599)
 		})
 
 		it("should accept time 1 second over cap as invalid", () => {
-			// 10:00 cap (600 seconds), user enters 10:01 (601 seconds)
-			const result = parseScore("1001", "time-with-cap", 600)
+			// 10:00 cap (600 seconds), user enters 601 seconds (10:01)
+			const result = parseScore("601", "time-with-cap", 600)
 			expect(result.isValid).toBe(false)
 			expect(result.error).toBe("Time cannot exceed cap of 10:00")
 		})
@@ -166,8 +190,16 @@ describe("parseScore time cap validation", () => {
 })
 
 describe("parseTieBreakScore", () => {
-	it("should parse time tiebreak", () => {
-		const result = parseTieBreakScore("830", "time")
+	it("should parse time tiebreak (plain number as seconds)", () => {
+		// Plain number is interpreted as seconds
+		const result = parseTieBreakScore("90", "time")
+		expect(result.isValid).toBe(true)
+		expect(result.rawValue).toBe(90) // 90 seconds = 1:30
+		expect(result.formatted).toBe("1:30")
+	})
+
+	it("should parse time tiebreak with colon format", () => {
+		const result = parseTieBreakScore("8:30", "time")
 		expect(result.isValid).toBe(true)
 		expect(result.rawValue).toBe(510) // 8:30 = 510 seconds
 	})

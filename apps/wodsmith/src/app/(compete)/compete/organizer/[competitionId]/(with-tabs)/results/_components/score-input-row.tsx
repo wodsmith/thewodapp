@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { parseScore, type ParseResult } from "@/utils/score-parser-new"
+import { parseScore, parseTieBreakScore, type ParseResult } from "@/utils/score-parser-new"
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
@@ -144,10 +144,21 @@ export function ScoreInputRow({
 	const [tieBreakValue, setTieBreakValue] = useState(
 		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
 	)
+	const [tieBreakParseResult, setTieBreakParseResult] =
+		useState<ParseResult | null>(() => {
+			if (!tiebreakScheme) return null
+			const initialTieBreak =
+				value?.tieBreakScore || athlete.existingResult?.tieBreakScore || ""
+			if (initialTieBreak.trim()) {
+				return parseTieBreakScore(initialTieBreak, tiebreakScheme)
+			}
+			return null
+		})
 	const [secondaryValue, setSecondaryValue] = useState(
 		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
 	)
 	const [showWarning, setShowWarning] = useState(false)
+	const [showTieBreakWarning, setShowTieBreakWarning] = useState(false)
 	const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
 		if (isMultiRound || isPassFail) return null
 		const initialScore = value?.score || athlete.existingResult?.wodScore || ""
@@ -207,6 +218,27 @@ export function ScoreInputRow({
 		})
 	}
 
+	// Handle tiebreak input change with parsing
+	const handleTieBreakChange = (newValue: string) => {
+		setTieBreakValue(newValue)
+		// Clear warning when user edits
+		setShowTieBreakWarning(false)
+
+		if (!tiebreakScheme || !newValue.trim()) {
+			setTieBreakParseResult(null)
+			return
+		}
+
+		const result = parseTieBreakScore(newValue, tiebreakScheme)
+		setTieBreakParseResult(result)
+	}
+
+	// Check if tiebreak is valid (empty is valid, non-empty must parse correctly)
+	const isTieBreakValid = (): boolean => {
+		if (!tieBreakValue.trim()) return true // Empty is valid
+		return tieBreakParseResult?.isValid ?? false
+	}
+
 	// Build the final score string for storage
 	const buildScoreString = (): string => {
 		if (isMultiRound) {
@@ -221,8 +253,14 @@ export function ScoreInputRow({
 	}
 
 	// Submit the score
-	const submitScore = (force = false) => {
+	const submitScore = (force = false, forceTieBreak = false) => {
 		if (!isMultiRound && !isPassFail && !force && !parseResult?.isValid) return
+
+		// Check tiebreak validity - if non-empty and invalid, block save unless forced
+		if (!forceTieBreak && tieBreakValue.trim() && !isTieBreakValid()) {
+			setShowTieBreakWarning(true)
+			return
+		}
 
 		const existing = athlete.existingResult
 		const finalScore = buildScoreString()
@@ -259,7 +297,7 @@ export function ScoreInputRow({
 	}
 
 	// Handle blur - save when user leaves the field
-	const handleBlur = (_field: "score" | "tieBreak" | "secondary" | "round") => {
+	const handleBlur = (field: "score" | "tieBreak" | "secondary" | "round") => {
 		setTimeout(() => {
 			const activeEl = document.activeElement
 			const isMovingToRelatedField =
@@ -271,6 +309,11 @@ export function ScoreInputRow({
 				)
 
 			if (!isMovingToRelatedField) {
+				// If leaving tiebreak field with invalid input, show warning instead of saving
+				if (field === "tieBreak" && tieBreakValue.trim() && !isTieBreakValid()) {
+					setShowTieBreakWarning(true)
+					return
+				}
 				submitScore()
 			}
 		}, 0)
@@ -294,6 +337,12 @@ export function ScoreInputRow({
 					} else if (showTiebreak && !tieBreakValue) {
 						tieBreakInputRef.current?.focus()
 					} else {
+						// Check tiebreak validity before proceeding
+						if (tieBreakValue.trim() && !isTieBreakValid()) {
+							setShowTieBreakWarning(true)
+							tieBreakInputRef.current?.focus()
+							return
+						}
 						submitScore()
 						onTabNext()
 					}
@@ -304,6 +353,12 @@ export function ScoreInputRow({
 					} else if (showTiebreak && !tieBreakValue) {
 						tieBreakInputRef.current?.focus()
 					} else {
+						// Check tiebreak validity before proceeding
+						if (tieBreakValue.trim() && !isTieBreakValid()) {
+							setShowTieBreakWarning(true)
+							tieBreakInputRef.current?.focus()
+							return
+						}
 						submitScore()
 						onTabNext()
 					}
@@ -312,10 +367,22 @@ export function ScoreInputRow({
 				if (showTiebreak && !tieBreakValue) {
 					tieBreakInputRef.current?.focus()
 				} else {
+					// Check tiebreak validity before proceeding
+					if (tieBreakValue.trim() && !isTieBreakValid()) {
+						setShowTieBreakWarning(true)
+						tieBreakInputRef.current?.focus()
+						return
+					}
 					submitScore()
 					onTabNext()
 				}
 			} else {
+				// field === "tieBreak"
+				// If tiebreak is invalid, show warning and stay
+				if (tieBreakValue.trim() && !isTieBreakValid()) {
+					setShowTieBreakWarning(true)
+					return
+				}
 				submitScore()
 				onTabNext()
 			}
@@ -324,11 +391,30 @@ export function ScoreInputRow({
 		if (e.key === "Enter") {
 			e.preventDefault()
 
+			// Handle tiebreak warning confirmation
+			if (field === "tieBreak" && showTieBreakWarning) {
+				setShowTieBreakWarning(false)
+				submitScore(false, true) // Force tiebreak save
+				onTabNext()
+				return
+			}
+
+			// Handle main score warning confirmation
 			if (showWarning) {
 				setShowWarning(false)
 				submitScore(true)
 				onTabNext()
-			} else if (isMultiRound || isPassFail || parseResult?.isValid) {
+				return
+			}
+
+			// Check tiebreak validity before proceeding
+			if (tieBreakValue.trim() && !isTieBreakValid()) {
+				setShowTieBreakWarning(true)
+				tieBreakInputRef.current?.focus()
+				return
+			}
+
+			if (isMultiRound || isPassFail || parseResult?.isValid) {
 				submitScore()
 				onTabNext()
 			}
@@ -339,6 +425,13 @@ export function ScoreInputRow({
 	const handleConfirmWarning = () => {
 		setShowWarning(false)
 		submitScore(true)
+		onTabNext()
+	}
+
+	// Handle tiebreak warning confirmation
+	const handleConfirmTieBreakWarning = () => {
+		setShowTieBreakWarning(false)
+		submitScore(false, true) // Force tiebreak save
 		onTabNext()
 	}
 
@@ -464,14 +557,14 @@ export function ScoreInputRow({
 									}
 									onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
 									onBlur={() => handleBlur("round")}
-									placeholder={
-										workoutScheme === "time" ||
-										workoutScheme === "time-with-cap"
-											? "2:34.567 or 2.34.567"
-											: workoutScheme === "rounds-reps"
-												? "5+12 or 5.12"
-												: "Score"
-									}
+							placeholder={
+								workoutScheme === "time" ||
+								workoutScheme === "time-with-cap"
+									? "90 (secs) or 1:30"
+									: workoutScheme === "rounds-reps"
+										? "5+12 or 5.12"
+										: "Score"
+							}
 									className="h-8 text-sm font-mono flex-1"
 								/>
 							</div>
@@ -486,13 +579,13 @@ export function ScoreInputRow({
 							onChange={(e) => handleInputChange(e.target.value)}
 							onKeyDown={(e) => handleKeyDown(e, "score")}
 							onBlur={() => handleBlur("score")}
-							placeholder={
-								workoutScheme === "time" || workoutScheme === "time-with-cap"
-									? "2:34.567 or 2.34.567"
-									: workoutScheme === "rounds-reps"
-										? "5+12 or 5.12"
-										: "Enter score..."
-							}
+						placeholder={
+							workoutScheme === "time" || workoutScheme === "time-with-cap"
+								? "90 (secs) or 1:30"
+								: workoutScheme === "rounds-reps"
+									? "5+12 or 5.12"
+									: "Enter score..."
+						}
 							className={cn(
 								"h-10 text-base font-mono",
 								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
@@ -571,16 +664,67 @@ export function ScoreInputRow({
 
 			{/* Tie-Break Input */}
 			{showTiebreak && (
-				<div>
+				<div className="space-y-2">
 					<Input
 						ref={tieBreakInputRef}
 						value={tieBreakValue}
-						onChange={(e) => setTieBreakValue(e.target.value)}
+						onChange={(e) => handleTieBreakChange(e.target.value)}
 						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
 						onBlur={() => handleBlur("tieBreak")}
-						placeholder={tiebreakScheme === "time" ? "Time..." : "Reps..."}
-						className="h-10 text-base font-mono"
+						placeholder={
+							tiebreakScheme === "time"
+								? "90 (secs) or 1:30"
+								: "e.g., 150 reps"
+						}
+						className={cn(
+							"h-10 text-base font-mono",
+							(showTieBreakWarning ||
+								(tieBreakParseResult?.error &&
+									!tieBreakParseResult?.isValid)) &&
+								"border-yellow-400 focus:ring-yellow-400",
+						)}
 					/>
+					{tieBreakParseResult?.isValid && !showTieBreakWarning && (
+						<div className="mt-1 text-xs text-muted-foreground">
+							Preview: {tieBreakParseResult.formatted}
+						</div>
+					)}
+					{tieBreakParseResult?.error && !showTieBreakWarning && (
+						<div className="mt-1 text-xs text-destructive">
+							{tieBreakParseResult.error}
+						</div>
+					)}
+
+					{/* Tiebreak Warning Message */}
+					{showTieBreakWarning && tieBreakParseResult?.error && (
+						<div className="flex items-start gap-2 rounded-md bg-yellow-100 dark:bg-yellow-900/30 p-2 text-sm">
+							<AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
+							<div className="flex-1">
+								<p className="font-medium text-yellow-800 dark:text-yellow-200">
+									{tieBreakParseResult.error}
+								</p>
+								<div className="mt-2 flex gap-2">
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={handleConfirmTieBreakWarning}
+									>
+										Save Anyway
+									</Button>
+									<Button
+										size="sm"
+										variant="ghost"
+										onClick={() => {
+											setShowTieBreakWarning(false)
+											tieBreakInputRef.current?.focus()
+										}}
+									>
+										Edit
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
 				</div>
 			)}
 

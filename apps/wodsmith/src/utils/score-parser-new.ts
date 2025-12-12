@@ -28,8 +28,12 @@ export interface ParseResult {
 /**
  * Smart score parser that handles all workout schemes
  *
+ * For time-based schemes, plain numbers without delimiters are treated as seconds.
+ * For example, "90" → "1:30" (90 seconds = 1 minute 30 seconds).
+ *
  * Examples:
- * - "1234" → "12:34" (time/time-with-cap)
+ * - "90" → "1:30" (time/time-with-cap - 90 seconds)
+ * - "1:30" → "1:30" (time/time-with-cap - standard format)
  * - "150" → "150 reps" (reps/rounds-reps)
  * - "225" → "225 lbs" (load)
  * - "cap" or "c" → "CAP" (time-with-cap only)
@@ -100,8 +104,11 @@ export function parseScore(
 	}
 
 	// Use new library to parse
+	// For time-based schemes, use "seconds" precision so plain numbers are treated as seconds
+	// e.g., "90" → "1:30" instead of "0:90" (invalid) or being interpreted as MM:SS
 	const result = libParseScore(input, scheme, {
 		unit: "lbs", // Default to lbs for legacy compatibility
+		timePrecision: "seconds", // Plain numbers are seconds for time-based schemes
 	})
 
 	if (!result.isValid) {
@@ -161,7 +168,10 @@ export function parseScore(
 }
 
 /**
- * Parse a tie-break score based on the tie-break scheme
+ * Parse a tie-break score based on the tie-break scheme.
+ * 
+ * For time-based tiebreaks, plain numbers without delimiters are treated as seconds.
+ * For example, "90" → "1:30" (90 seconds = 1 minute 30 seconds).
  */
 export function parseTieBreakScore(
 	input: string,
@@ -180,7 +190,11 @@ export function parseTieBreakScore(
 	}
 
 	// Use new library to parse tiebreak
-	const result = libParseTiebreak(input, tiebreakScheme)
+	// For time tiebreaks, use "seconds" precision so plain numbers are treated as seconds
+	// e.g., "90" → "1:30" instead of "0:90" (invalid) or being interpreted as MM:SS
+	const result = libParseTiebreak(input, tiebreakScheme, {
+		timePrecision: "seconds",
+	})
 
 	if (!result.isValid) {
 		return {
