@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { parseScore, type ParseResult } from "@/utils/score-parser-new"
+import { parseScore, parseTieBreakScore, type ParseResult } from "@/utils/score-parser-new"
 import type {
 	WorkoutScheme,
 	TiebreakScheme,
@@ -144,6 +144,16 @@ export function ScoreInputRow({
 	const [tieBreakValue, setTieBreakValue] = useState(
 		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
 	)
+	const [tieBreakParseResult, setTieBreakParseResult] =
+		useState<ParseResult | null>(() => {
+			if (!tiebreakScheme) return null
+			const initialTieBreak =
+				value?.tieBreakScore || athlete.existingResult?.tieBreakScore || ""
+			if (initialTieBreak.trim()) {
+				return parseTieBreakScore(initialTieBreak, tiebreakScheme)
+			}
+			return null
+		})
 	const [secondaryValue, setSecondaryValue] = useState(
 		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
 	)
@@ -205,6 +215,19 @@ export function ScoreInputRow({
 			updated[roundIndex] = { ...currentRound, score: newValue }
 			return updated
 		})
+	}
+
+	// Handle tiebreak input change with parsing
+	const handleTieBreakChange = (newValue: string) => {
+		setTieBreakValue(newValue)
+
+		if (!tiebreakScheme || !newValue.trim()) {
+			setTieBreakParseResult(null)
+			return
+		}
+
+		const result = parseTieBreakScore(newValue, tiebreakScheme)
+		setTieBreakParseResult(result)
 	}
 
 	// Build the final score string for storage
@@ -464,14 +487,14 @@ export function ScoreInputRow({
 									}
 									onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
 									onBlur={() => handleBlur("round")}
-									placeholder={
-										workoutScheme === "time" ||
-										workoutScheme === "time-with-cap"
-											? "2:34.567 or 2.34.567"
-											: workoutScheme === "rounds-reps"
-												? "5+12 or 5.12"
-												: "Score"
-									}
+							placeholder={
+								workoutScheme === "time" ||
+								workoutScheme === "time-with-cap"
+									? "90 (secs) or 1:30"
+									: workoutScheme === "rounds-reps"
+										? "5+12 or 5.12"
+										: "Score"
+							}
 									className="h-8 text-sm font-mono flex-1"
 								/>
 							</div>
@@ -486,13 +509,13 @@ export function ScoreInputRow({
 							onChange={(e) => handleInputChange(e.target.value)}
 							onKeyDown={(e) => handleKeyDown(e, "score")}
 							onBlur={() => handleBlur("score")}
-							placeholder={
-								workoutScheme === "time" || workoutScheme === "time-with-cap"
-									? "2:34.567 or 2.34.567"
-									: workoutScheme === "rounds-reps"
-										? "5+12 or 5.12"
-										: "Enter score..."
-							}
+						placeholder={
+							workoutScheme === "time" || workoutScheme === "time-with-cap"
+								? "90 (secs) or 1:30"
+								: workoutScheme === "rounds-reps"
+									? "5+12 or 5.12"
+									: "Enter score..."
+						}
 							className={cn(
 								"h-10 text-base font-mono",
 								isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
@@ -575,12 +598,31 @@ export function ScoreInputRow({
 					<Input
 						ref={tieBreakInputRef}
 						value={tieBreakValue}
-						onChange={(e) => setTieBreakValue(e.target.value)}
+						onChange={(e) => handleTieBreakChange(e.target.value)}
 						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
 						onBlur={() => handleBlur("tieBreak")}
-						placeholder={tiebreakScheme === "time" ? "Time..." : "Reps..."}
-						className="h-10 text-base font-mono"
+						placeholder={
+							tiebreakScheme === "time"
+								? "90 (secs) or 1:30"
+								: "e.g., 150 reps"
+						}
+						className={cn(
+							"h-10 text-base font-mono",
+							tieBreakParseResult?.error &&
+								!tieBreakParseResult?.isValid &&
+								"border-destructive focus:ring-destructive",
+						)}
 					/>
+					{tieBreakParseResult?.isValid && (
+						<div className="mt-1 text-xs text-muted-foreground">
+							Preview: {tieBreakParseResult.formatted}
+						</div>
+					)}
+					{tieBreakParseResult?.error && (
+						<div className="mt-1 text-xs text-destructive">
+							{tieBreakParseResult.error}
+						</div>
+					)}
 				</div>
 			)}
 
