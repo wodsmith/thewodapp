@@ -1,8 +1,8 @@
 "use server"
 
 import { decodeIdToken, type OAuth2Tokens } from "arctic"
-import { getCookie, deleteCookie } from "vinxi/http"
 import { eq } from "drizzle-orm"
+import { deleteCookie, getCookie } from "vinxi/http"
 import {
 	GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME,
 	GOOGLE_OAUTH_STATE_COOKIE_NAME,
