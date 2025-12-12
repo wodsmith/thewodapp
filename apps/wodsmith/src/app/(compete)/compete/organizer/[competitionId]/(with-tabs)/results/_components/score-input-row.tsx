@@ -1,45 +1,22 @@
 "use client"
 
-import { useState, useRef, useEffect, type KeyboardEvent } from "react"
+import { forwardRef, useImperativeHandle } from "react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-	parseScore,
-	parseTieBreakScore,
-	type ParseResult,
-} from "@/utils/score-parser-new"
-import {
-	aggregateValues,
-	getDefaultScoreType,
-	decodeScore,
-} from "@/lib/scoring"
-import type {
-	WorkoutScheme,
-	TiebreakScheme,
-	ScoreStatus,
-	ScoreType,
-} from "@/db/schema"
+import type { WorkoutScheme, TiebreakScheme, ScoreType } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
+import {
+	useScoreRowState,
+	type ScoreEntryData,
+} from "./score-input-row/use-score-row-state"
+
+export type { ScoreEntryData } from "./score-input-row/use-score-row-state"
 
 // Secondary score for time-capped workouts is always reps
 const SECONDARY_PLACEHOLDER = "e.g., 150 reps"
-
-export interface ScoreEntryData {
-	score: string
-	scoreStatus: ScoreStatus
-	tieBreakScore: string | null
-	secondaryScore: string | null
-	formattedScore: string
-	/** Parsed numeric value (seconds for time, reps for AMRAP, etc.) */
-	rawValue?: number | null
-	// Multi-round support: array of scores when roundsToScore > 1
-	roundScores?: Array<{
-		score: string
-	}>
-}
 
 interface ScoreInputRowProps {
 	athlete: EventScoreEntryAthlete
@@ -61,457 +38,90 @@ interface ScoreInputRowProps {
 	laneNumber?: number
 }
 
-export function ScoreInputRow({
-	athlete,
-	workoutScheme,
-	scoreType: scoreTypeProp,
-	tiebreakScheme,
-	showTiebreak = false,
-	timeCap,
-	roundsToScore = 1,
-	value,
-	isSaving,
-	isSaved,
-	onChange,
-	onTabNext,
-	autoFocus,
-	laneNumber,
-}: ScoreInputRowProps) {
-	const numRounds = roundsToScore || 1
-	const isPassFail = workoutScheme === "pass-fail"
-	const isTimeCapped = workoutScheme === "time-with-cap"
-	const isMultiRound = numRounds > 1
-	const isRoundsReps = workoutScheme === "rounds-reps"
+export interface ScoreInputRowHandle {
+	focusPrimary: () => void
+}
 
-	// Initialize round scores state
-	const initializeRoundScores = (): Array<{
-		score: string
-		timeCapped?: boolean
-	}> => {
-		if (value?.roundScores && value.roundScores.length === numRounds) {
-			return value.roundScores.map((rs) => ({
-				score: rs.score,
-				timeCapped: false,
-			}))
-		}
-		// Use existing sets data for multi-round
-		const existingSets = athlete.existingResult?.sets
-		if (existingSets && existingSets.length > 0 && isMultiRound) {
-			const isTimeScheme =
-				workoutScheme === "time" || workoutScheme === "time-with-cap"
-			return Array(numRounds)
-				.fill(null)
-				.map((_, index) => {
-					const set = existingSets.find((s) => s.setNumber === index + 1)
-					if (set) {
-						// For rounds-reps, format as "rounds+reps" or "rounds.reps"
-						let scoreStr = ""
-						if (isRoundsReps && set.score !== null) {
-							const reps = set.reps ?? 0
-							scoreStr = `${set.score}+${reps}`
-						} else if (set.score !== null) {
-							// For time schemes, format seconds as time (e.g., 90 -> "1:30")
-							if (isTimeScheme) {
-								// set.score is in seconds, convert to ms for decodeScore
-								scoreStr = decodeScore(set.score * 1000, workoutScheme)
-							} else {
-								scoreStr = String(set.score)
-							}
-						}
-						return {
-							score: scoreStr,
-							timeCapped: false,
-						}
-					}
-					return {
-						score: "",
-						timeCapped: false,
-					}
-				})
-		}
-		// Fallback: Try to parse existing result wodScore as JSON (legacy format)
-		const existingScore = athlete.existingResult?.wodScore
-		if (existingScore && isMultiRound) {
-			try {
-				const parsed = JSON.parse(existingScore)
-				if (Array.isArray(parsed) && parsed.length === numRounds) {
-					return parsed.map((s: string | { score: string }) => {
-						if (typeof s === "string") {
-							return { score: s, timeCapped: false }
-						}
-						return { score: s.score, timeCapped: false }
-					})
+export const ScoreInputRow = forwardRef<
+	ScoreInputRowHandle,
+	ScoreInputRowProps
+>(function ScoreInputRow(
+	{
+		athlete,
+		workoutScheme,
+		scoreType: scoreTypeProp,
+		tiebreakScheme,
+		showTiebreak = false,
+		timeCap,
+		roundsToScore = 1,
+		value,
+		isSaving,
+		isSaved,
+		onChange,
+		onTabNext,
+		autoFocus,
+		laneNumber,
+	},
+	ref,
+) {
+	const {
+		scoreInputRef,
+		roundInputRefs,
+		tieBreakInputRef,
+		secondaryInputRef,
+		inputValue,
+		setInputValue,
+		roundScores,
+		tieBreakValue,
+		secondaryValue,
+		setSecondaryValue,
+		showWarning,
+		setShowWarning,
+		showTieBreakWarning,
+		setShowTieBreakWarning,
+		numRounds,
+		isPassFail,
+		isMultiRound,
+		showSecondaryInput,
+		parseResult,
+		roundParseResults,
+		tieBreakParseResult,
+		effectiveScoreType,
+		handleInputChange,
+		handleRoundScoreChange,
+		handleTieBreakChange,
+		handleBlur,
+		handleKeyDown,
+		handleConfirmWarning,
+		handleConfirmTieBreakWarning,
+		getAggregateScore,
+	} = useScoreRowState({
+		athlete,
+		workoutScheme,
+		scoreType: scoreTypeProp,
+		tiebreakScheme,
+		showTiebreak,
+		timeCap,
+		roundsToScore,
+		value,
+		autoFocus,
+		onChange,
+		onTabNext,
+	})
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			focusPrimary: () => {
+				if (isMultiRound) {
+					roundInputRefs.current.get(0)?.focus()
+					return
 				}
-			} catch {
-				// Not JSON, fall through to default
-			}
-		}
-		return Array(numRounds)
-			.fill(null)
-			.map(() => ({
-				score: "",
-				timeCapped: false,
-			}))
-	}
-
-	const [roundScores, setRoundScores] = useState(initializeRoundScores)
-	// Parse results for each round (for multi-round preview)
-	const [roundParseResults, setRoundParseResults] = useState<
-		Array<ParseResult | null>
-	>(() => {
-		// Initialize parse results for existing scores
-		return initializeRoundScores().map((rs) => {
-			if (rs.score.trim()) {
-				return parseScore(rs.score, workoutScheme, timeCap, tiebreakScheme)
-			}
-			return null
-		})
-	})
-	const [inputValue, setInputValue] = useState(
-		value?.score ||
-			(isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
-	)
-	const [tieBreakValue, setTieBreakValue] = useState(
-		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
-	)
-	const [tieBreakParseResult, setTieBreakParseResult] =
-		useState<ParseResult | null>(() => {
-			if (!tiebreakScheme) return null
-			const initialTieBreak =
-				value?.tieBreakScore || athlete.existingResult?.tieBreakScore || ""
-			if (initialTieBreak.trim()) {
-				return parseTieBreakScore(initialTieBreak, tiebreakScheme)
-			}
-			return null
-		})
-	const [secondaryValue, setSecondaryValue] = useState(
-		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
-	)
-	const [showWarning, setShowWarning] = useState(false)
-	const [showTieBreakWarning, setShowTieBreakWarning] = useState(false)
-	const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
-		if (isMultiRound || isPassFail) return null
-		const initialScore = value?.score || athlete.existingResult?.wodScore || ""
-		if (initialScore.trim()) {
-			return parseScore(initialScore, workoutScheme, timeCap, tiebreakScheme)
-		}
-		return null
-	})
-
-	const scoreInputRef = useRef<HTMLInputElement>(null)
-	const roundInputRefs = useRef<Map<number, HTMLInputElement>>(new Map())
-	const tieBreakInputRef = useRef<HTMLInputElement>(null)
-	const secondaryInputRef = useRef<HTMLInputElement>(null)
-
-	// Check if CAP was entered (for single-round time-capped workouts)
-	const isCapped =
-		parseResult?.scoreStatus === "cap" || inputValue.toUpperCase() === "CAP"
-	// When capped, always show secondary input for reps (secondary scheme is always reps)
-	const showSecondaryInput = isTimeCapped && isCapped && !isMultiRound
-
-	// Auto-focus on mount
-	useEffect(() => {
-		if (autoFocus) {
-			if (isMultiRound) {
-				roundInputRefs.current.get(0)?.focus()
-			} else {
 				scoreInputRef.current?.focus()
-			}
-		}
-	}, [autoFocus, isMultiRound])
-
-	// Parse input as user types (for single-round non-pass-fail)
-	const handleInputChange = (newValue: string) => {
-		setInputValue(newValue)
-
-		if (!newValue.trim()) {
-			setParseResult(null)
-			return
-		}
-
-		const result = parseScore(newValue, workoutScheme, timeCap, tiebreakScheme)
-		setParseResult(result)
-
-		if (result.error && !result.isValid) {
-			setShowWarning(true)
-		}
-	}
-
-	// Handle round score change (for multi-round)
-	const handleRoundScoreChange = (roundIndex: number, newValue: string) => {
-		setRoundScores((prev) => {
-			const updated = [...prev]
-			const currentRound = updated[roundIndex]
-			if (!currentRound) return prev
-			updated[roundIndex] = { ...currentRound, score: newValue }
-			return updated
-		})
-
-		// Parse and store result for preview
-		setRoundParseResults((prev) => {
-			const updated = [...prev]
-			if (newValue.trim()) {
-				updated[roundIndex] = parseScore(
-					newValue,
-					workoutScheme,
-					timeCap,
-					tiebreakScheme,
-				)
-			} else {
-				updated[roundIndex] = null
-			}
-			return updated
-		})
-	}
-
-	// Calculate aggregate score from valid round parse results
-	// Use the configured scoreType prop, or fall back to the default for the scheme
-	const effectiveScoreType = scoreTypeProp ?? getDefaultScoreType(workoutScheme)
-
-	const getAggregateScore = (): { value: number | null; formatted: string } => {
-		const validValues = roundParseResults
-			.filter(
-				(r): r is ParseResult => r?.isValid === true && r.rawValue !== null,
-			)
-			.map((r) => r.rawValue as number)
-
-		if (validValues.length === 0) {
-			return { value: null, formatted: "" }
-		}
-
-		const aggregated = aggregateValues(validValues, effectiveScoreType)
-
-		if (aggregated === null) {
-			return { value: null, formatted: "" }
-		}
-
-		// Format the aggregated value - rawValue is already in new encoding
-		// (ms for time, grams for load, etc.)
-		const formatted = decodeScore(aggregated, workoutScheme)
-
-		return { value: aggregated, formatted }
-	}
-
-	// Handle tiebreak input change with parsing
-	const handleTieBreakChange = (newValue: string) => {
-		setTieBreakValue(newValue)
-		// Clear warning when user edits
-		setShowTieBreakWarning(false)
-
-		if (!tiebreakScheme || !newValue.trim()) {
-			setTieBreakParseResult(null)
-			return
-		}
-
-		const result = parseTieBreakScore(newValue, tiebreakScheme)
-		setTieBreakParseResult(result)
-	}
-
-	// Check if tiebreak is valid (empty is valid, non-empty must parse correctly)
-	const isTieBreakValid = (): boolean => {
-		if (!tieBreakValue.trim()) return true // Empty is valid
-		return tieBreakParseResult?.isValid ?? false
-	}
-
-	// Build the final score string for storage
-	const buildScoreString = (): string => {
-		if (isMultiRound) {
-			// Store as JSON array for multi-round
-			return JSON.stringify(
-				roundScores.map((rs) => ({
-					score: rs.score,
-				})),
-			)
-		}
-		return inputValue
-	}
-
-	// Submit the score
-	const submitScore = (force = false, forceTieBreak = false) => {
-		if (!isMultiRound && !isPassFail && !force && !parseResult?.isValid) return
-
-		// Check tiebreak validity - if non-empty and invalid, block save unless forced
-		if (!forceTieBreak && tieBreakValue.trim() && !isTieBreakValid()) {
-			setShowTieBreakWarning(true)
-			return
-		}
-
-		const existing = athlete.existingResult
-		const finalScore = buildScoreString()
-		const newScoreStatus = parseResult?.scoreStatus || "scored"
-		const newTieBreak = tieBreakValue || null
-		const newSecondary = showSecondaryInput ? secondaryValue || null : null
-
-		// Don't save if nothing has changed (for single-round)
-		if (
-			!isMultiRound &&
-			existing &&
-			finalScore === (existing.wodScore || "") &&
-			newScoreStatus === (existing.scoreStatus || "scored") &&
-			newTieBreak === (existing.tieBreakScore || null) &&
-			newSecondary === (existing.secondaryScore || null)
-		) {
-			return
-		}
-
-		onChange({
-			score: finalScore,
-			scoreStatus: newScoreStatus,
-			tieBreakScore: newTieBreak,
-			secondaryScore: newSecondary,
-			formattedScore: parseResult?.formatted || finalScore,
-			rawValue: parseResult?.rawValue,
-			// Pass roundScores for multi-round
-			roundScores: isMultiRound
-				? roundScores.map((rs) => ({
-						score: rs.score,
-					}))
-				: undefined,
-		})
-	}
-
-	// Handle blur - save when user leaves the field
-	const handleBlur = (field: "score" | "tieBreak" | "secondary" | "round") => {
-		setTimeout(() => {
-			const activeEl = document.activeElement
-			const isMovingToRelatedField =
-				activeEl === scoreInputRef.current ||
-				activeEl === tieBreakInputRef.current ||
-				activeEl === secondaryInputRef.current ||
-				Array.from(roundInputRefs.current.values()).includes(
-					activeEl as HTMLInputElement,
-				)
-
-			if (!isMovingToRelatedField) {
-				// If leaving tiebreak field with invalid input, show warning instead of saving
-				if (
-					field === "tieBreak" &&
-					tieBreakValue.trim() &&
-					!isTieBreakValid()
-				) {
-					setShowTieBreakWarning(true)
-					return
-				}
-				submitScore()
-			}
-		}, 0)
-	}
-
-	// Handle keyboard navigation
-	const handleKeyDown = (
-		e: KeyboardEvent<HTMLInputElement>,
-		field: "score" | "tieBreak" | "secondary",
-		roundIndex?: number,
-	) => {
-		if (e.key === "Tab" && !e.shiftKey) {
-			e.preventDefault()
-
-			if (field === "score") {
-				if (isMultiRound && roundIndex !== undefined) {
-					// Move to next round input or tie-break or next row
-					const nextRoundIndex = roundIndex + 1
-					if (nextRoundIndex < numRounds) {
-						roundInputRefs.current.get(nextRoundIndex)?.focus()
-					} else if (showTiebreak && !tieBreakValue) {
-						tieBreakInputRef.current?.focus()
-					} else {
-						// Check tiebreak validity before proceeding
-						if (tieBreakValue.trim() && !isTieBreakValid()) {
-							setShowTieBreakWarning(true)
-							tieBreakInputRef.current?.focus()
-							return
-						}
-						submitScore()
-						onTabNext()
-					}
-				} else {
-					// Single round logic
-					if (showSecondaryInput && !secondaryValue) {
-						secondaryInputRef.current?.focus()
-					} else if (showTiebreak && !tieBreakValue) {
-						tieBreakInputRef.current?.focus()
-					} else {
-						// Check tiebreak validity before proceeding
-						if (tieBreakValue.trim() && !isTieBreakValid()) {
-							setShowTieBreakWarning(true)
-							tieBreakInputRef.current?.focus()
-							return
-						}
-						submitScore()
-						onTabNext()
-					}
-				}
-			} else if (field === "secondary") {
-				if (showTiebreak && !tieBreakValue) {
-					tieBreakInputRef.current?.focus()
-				} else {
-					// Check tiebreak validity before proceeding
-					if (tieBreakValue.trim() && !isTieBreakValid()) {
-						setShowTieBreakWarning(true)
-						tieBreakInputRef.current?.focus()
-						return
-					}
-					submitScore()
-					onTabNext()
-				}
-			} else {
-				// field === "tieBreak"
-				// If tiebreak is invalid, show warning and stay
-				if (tieBreakValue.trim() && !isTieBreakValid()) {
-					setShowTieBreakWarning(true)
-					return
-				}
-				submitScore()
-				onTabNext()
-			}
-		}
-
-		if (e.key === "Enter") {
-			e.preventDefault()
-
-			// Handle tiebreak warning confirmation
-			if (field === "tieBreak" && showTieBreakWarning) {
-				setShowTieBreakWarning(false)
-				submitScore(false, true) // Force tiebreak save
-				onTabNext()
-				return
-			}
-
-			// Handle main score warning confirmation
-			if (showWarning) {
-				setShowWarning(false)
-				submitScore(true)
-				onTabNext()
-				return
-			}
-
-			// Check tiebreak validity before proceeding
-			if (tieBreakValue.trim() && !isTieBreakValid()) {
-				setShowTieBreakWarning(true)
-				tieBreakInputRef.current?.focus()
-				return
-			}
-
-			if (isMultiRound || isPassFail || parseResult?.isValid) {
-				submitScore()
-				onTabNext()
-			}
-		}
-	}
-
-	// Handle warning confirmation
-	const handleConfirmWarning = () => {
-		setShowWarning(false)
-		submitScore(true)
-		onTabNext()
-	}
-
-	// Handle tiebreak warning confirmation
-	const handleConfirmTieBreakWarning = () => {
-		setShowTieBreakWarning(false)
-		submitScore(false, true) // Force tiebreak save
-		onTabNext()
-	}
+			},
+		}),
+		[isMultiRound, roundInputRefs, scoreInputRef],
+	)
 
 	// Determine status display
 	const hasExistingResult = !!athlete.existingResult
@@ -617,15 +227,16 @@ export function ScoreInputRow({
 				) : isMultiRound ? (
 					/* Multi-Round Scoring */
 					<div className="space-y-2">
-						{roundScores.map((roundScore, roundIndex) => {
+						{roundScores.map((roundScore) => {
+							const roundIndex = roundScore.roundNumber - 1
 							const roundResult = roundParseResults[roundIndex]
 							return (
 								<div
-									key={`round-${roundIndex}`}
+									key={roundScore.roundNumber}
 									className="flex items-center gap-2"
 								>
 									<span className="text-xs text-muted-foreground w-10 shrink-0">
-										R{roundIndex + 1}:
+										R{roundScore.roundNumber}:
 									</span>
 									<Input
 										ref={(el) => {
@@ -901,4 +512,4 @@ export function ScoreInputRow({
 			</div>
 		</div>
 	)
-}
+})

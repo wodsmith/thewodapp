@@ -14,11 +14,12 @@ import type {
 	EventScoreEntryAthlete,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
-import type {
-	WorkoutScheme,
-	TiebreakScheme,
-} from "@/db/schema"
-import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
+import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
+import {
+	ScoreInputRow,
+	type ScoreEntryData,
+	type ScoreInputRowHandle,
+} from "./score-input-row"
 
 interface HeatScoreGroupProps {
 	heat: HeatScoreGroupType
@@ -43,7 +44,7 @@ interface HeatScoreGroupProps {
 	/** Tab to next athlete - called with global index */
 	onTabNext: (globalIndex: number) => void
 	/** Row refs for focus management */
-	rowRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
+	rowRefs: React.MutableRefObject<Map<string, ScoreInputRowHandle>>
 	/** Starting global index for this heat's athletes */
 	startIndex: number
 	/** Whether this group should be initially open */
@@ -72,6 +73,7 @@ export function HeatScoreGroup({
 
 	// Get athletes for this heat in lane order
 	const heatAthletes = heat.assignments
+		.slice()
 		.sort((a, b) => a.laneNumber - b.laneNumber)
 		.map((assignment) => ({
 			...assignment,
@@ -166,19 +168,21 @@ export function HeatScoreGroup({
 				) : (
 					<div>
 						{heatAthletes.map((item, index) => (
-							<div
-								key={item.registrationId}
-								ref={(el) => {
-									if (el) {
-										rowRefs.current.set(item.registrationId, el)
-									}
-								}}
-							>
+							<div key={item.registrationId}>
 								<ScoreInputRow
+									ref={(handle) => {
+										if (handle) {
+											rowRefs.current.set(item.registrationId, handle)
+										} else {
+											rowRefs.current.delete(item.registrationId)
+										}
+									}}
 									athlete={item.athlete}
 									laneNumber={item.laneNumber}
 									workoutScheme={workoutScheme}
-									scoreType={scoreType as import("@/db/schema").ScoreType | undefined}
+									scoreType={
+										scoreType as import("@/db/schema").ScoreType | undefined
+									}
 									tiebreakScheme={tiebreakScheme}
 									timeCap={timeCap}
 									roundsToScore={roundsToScore}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { intervalToDuration } from "date-fns"
 import posthog from "posthog-js"
@@ -29,7 +29,11 @@ import type {
 	EventScoreEntryAthlete,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
-import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
+import {
+	ScoreInputRow,
+	type ScoreEntryData,
+	type ScoreInputRowHandle,
+} from "./score-input-row"
 import { HeatScoreGroup } from "./heat-score-group"
 
 interface ResultsEntryFormProps {
@@ -66,33 +70,43 @@ export function ResultsEntryForm({
 		),
 	)
 	const [focusedIndex, setFocusedIndex] = useState(0)
-	const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+	const rowRefs = useRef<Map<string, ScoreInputRowHandle>>(new Map())
 
 	// Check if we have heats to display
 	const hasHeats = heats.length > 0
 
 	// Create athlete map for quick lookup by registrationId
-	const athleteMap = new Map(athletes.map((a) => [a.registrationId, a]))
+	const athleteMap = useMemo(
+		() => new Map(athletes.map((a) => [a.registrationId, a])),
+		[athletes],
+	)
 
 	// Get unassigned athletes
-	const unassignedAthletes = athletes.filter((a) =>
-		unassignedRegistrationIds.includes(a.registrationId),
+	const unassignedAthleteIdSet = useMemo(
+		() => new Set(unassignedRegistrationIds),
+		[unassignedRegistrationIds],
+	)
+	const unassignedAthletes = useMemo(
+		() => athletes.filter((a) => unassignedAthleteIdSet.has(a.registrationId)),
+		[athletes, unassignedAthleteIdSet],
 	)
 
 	// Build a flat list of all athletes in heat order for focus navigation
-	const allAthletesInOrder = hasHeats
-		? [
-				// Athletes in heats (ordered by heat, then lane)
-				...heats.flatMap((heat) =>
-					heat.assignments
-						.sort((a, b) => a.laneNumber - b.laneNumber)
-						.map((assignment) => athleteMap.get(assignment.registrationId))
-						.filter((a): a is EventScoreEntryAthlete => a !== undefined),
-				),
-				// Unassigned athletes
-				...unassignedAthletes,
-			]
-		: athletes
+	const allAthletesInOrder = useMemo(() => {
+		if (!hasHeats) return athletes
+		return [
+			// Athletes in heats (ordered by heat, then lane)
+			...heats.flatMap((heat) =>
+				heat.assignments
+					.slice()
+					.sort((a, b) => a.laneNumber - b.laneNumber)
+					.map((assignment) => athleteMap.get(assignment.registrationId))
+					.filter((a): a is EventScoreEntryAthlete => a !== undefined),
+			),
+			// Unassigned athletes
+			...unassignedAthletes,
+		]
+	}, [athleteMap, athletes, hasHeats, heats, unassignedAthletes])
 
 	const { execute: saveScore } = useServerAction(saveCompetitionScoreAction, {
 		onError: (error) => {
@@ -189,9 +203,7 @@ export function ResultsEntryForm({
 			// Focus the next row's input
 			const nextAthlete = athleteList[nextIndex]
 			if (nextAthlete) {
-				const rowEl = rowRefs.current.get(nextAthlete.registrationId)
-				const input = rowEl?.querySelector("input")
-				input?.focus()
+				rowRefs.current.get(nextAthlete.registrationId)?.focusPrimary()
 			}
 		},
 		[athletes, hasHeats, allAthletesInOrder],
@@ -222,7 +234,7 @@ export function ResultsEntryForm({
 	const totalCount = athletes.length
 
 	// Get score format examples based on workout scheme
-	const getScoreExamples = () => {
+	const scoreExamples = useMemo(() => {
 		const numRounds = event.workout.roundsToScore ?? 1
 		const isMultiRound = numRounds > 1
 
@@ -286,15 +298,13 @@ export function ResultsEntryForm({
 					examples: ["100", "3:45", "5+12"],
 				}
 		}
-	}
-
-	const scoreExamples = getScoreExamples()
+	}, [event.workout.roundsToScore, event.workout.scheme])
 	const isTimeCapped = event.workout.scheme === "time-with-cap"
 	const hasTiebreak = !!event.workout.tiebreakScheme
 	const timeCap = event.workout.timeCap
 
 	// Format time cap for display (seconds to MM:SS or H:MM:SS)
-	const formatTimeCap = (seconds: number): string => {
+	const formatTimeCap = useCallback((seconds: number): string => {
 		const duration = intervalToDuration({ start: 0, end: seconds * 1000 })
 		const hours = duration.hours ?? 0
 		const mins = duration.minutes ?? 0
@@ -304,7 +314,7 @@ export function ResultsEntryForm({
 			return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
 		}
 		return `${mins}:${secs.toString().padStart(2, "0")}`
-	}
+	}, [])
 
 	return (
 		<div className="space-y-4">
@@ -511,15 +521,18 @@ export function ResultsEntryForm({
 												(a) => a.registrationId === athlete.registrationId,
 											)
 											return (
-												<div
-													key={athlete.registrationId}
-													ref={(el) => {
-														if (el) {
-															rowRefs.current.set(athlete.registrationId, el)
-														}
-													}}
-												>
+												<div key={athlete.registrationId}>
 													<ScoreInputRow
+														ref={(handle) => {
+															if (handle) {
+																rowRefs.current.set(
+																	athlete.registrationId,
+																	handle,
+																)
+															} else {
+																rowRefs.current.delete(athlete.registrationId)
+															}
+														}}
 														athlete={athlete}
 														workoutScheme={event.workout.scheme}
 														tiebreakScheme={event.workout.tiebreakScheme}
@@ -544,15 +557,15 @@ export function ResultsEntryForm({
 						) : (
 							/* Flat layout (no heats) */
 							athletes.map((athlete, index) => (
-								<div
-									key={athlete.registrationId}
-									ref={(el) => {
-										if (el) {
-											rowRefs.current.set(athlete.registrationId, el)
-										}
-									}}
-								>
+								<div key={athlete.registrationId}>
 									<ScoreInputRow
+										ref={(handle) => {
+											if (handle) {
+												rowRefs.current.set(athlete.registrationId, handle)
+											} else {
+												rowRefs.current.delete(athlete.registrationId)
+											}
+										}}
 										athlete={athlete}
 										workoutScheme={event.workout.scheme}
 										tiebreakScheme={event.workout.tiebreakScheme}
