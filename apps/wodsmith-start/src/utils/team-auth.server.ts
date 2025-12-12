@@ -1,5 +1,5 @@
 import { ZSAError } from "@repo/zsa"
-import { requireVerifiedEmail } from "./auth"
+import { requireVerifiedEmail } from "./auth.server"
 
 // Get the current user's teams
 export async function getUserTeams() {
@@ -227,7 +227,7 @@ export async function requireCompetitionHostingAccess(teamId: string) {
 export async function isCompetitionEventTeam(
 	teamId: string,
 ): Promise<boolean> {
-	const { getDb } = await import("@/db")
+	const { getDb } = await import("@/db/index.server")
 	const { teamTable } = await import("@/db/schema")
 	const { eq } = await import("drizzle-orm")
 
@@ -249,7 +249,7 @@ export async function isCompetitionEventTeam(
 export async function getParentOrganizationId(
 	competitionTeamId: string,
 ): Promise<string | null> {
-	const { getDb } = await import("@/db")
+	const { getDb } = await import("@/db/index.server")
 	const { teamTable } = await import("@/db/schema")
 	const { eq } = await import("drizzle-orm")
 
