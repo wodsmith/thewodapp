@@ -10,8 +10,8 @@ import {
 	updateCompetitionDivision,
 	updateCompetitionDivisionDescription,
 } from "@/server/competition-divisions"
-import { getSessionFromCookie } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
+import { getSessionFromCookie } from "@/utils/auth.server"
+import { hasTeamPermission } from "@/utils/team-auth.server"
 
 /**
  * Initialize divisions for a competition from a template or with defaults

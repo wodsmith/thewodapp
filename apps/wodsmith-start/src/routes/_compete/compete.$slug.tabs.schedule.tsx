@@ -3,7 +3,7 @@ import { notFound } from '@tanstack/react-router'
 import { SchedulePageContent } from '~/components/compete/schedule/schedule-page-content'
 import { getCompetitionFn, getCompetitionWorkoutsFn } from '~/server-functions/competitions'
 import { getHeatsForCompetitionFn } from '~/server-functions/heats'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/$slug/tabs/schedule')({
   loader: async ({ params }) => {

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
-import { getDb } from "@/db"
+import { getDb } from "@/db/index.server"
 import {
 	commercePurchaseTable,
 	commerceProductTable,
@@ -15,7 +15,7 @@ import {
 	COMMERCE_PRODUCT_TYPE,
 	COMMERCE_PAYMENT_STATUS,
 	TEAM_PERMISSIONS,
-} from "@/db/schema"
+} from "@/db/schema.server"
 import {
 	calculateCompetitionFees,
 	getRegistrationFee,
@@ -23,7 +23,7 @@ import {
 	type FeeBreakdown,
 } from "@/server/commerce"
 import { getStripe } from "@/lib/stripe"
-import { requireVerifiedEmail } from "@/utils/auth"
+import { requireVerifiedEmail } from "@/utils/auth.server"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 
 /**
@@ -434,7 +434,7 @@ export const updateCompetitionFeeConfigFn = createServerFn({ method: "POST" })
 			})
 			if (!competition) throw new Error("Competition not found")
 
-			const { requireTeamPermission } = await import("@/utils/team-auth")
+			const { requireTeamPermission } = await import("@/utils/team-auth.server")
 			await requireTeamPermission(
 				competition.organizingTeamId,
 				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
@@ -456,34 +456,34 @@ export const updateCompetitionFeeConfigFn = createServerFn({ method: "POST" })
 		}, RATE_LIMITS.SETTINGS)
 	})
 
-/**
- * Update or remove a division-specific fee
- */
-export const updateDivisionFeeFn = createServerFn({ method: "POST" })
-	.validator(
-		z.object({
-			competitionId: z.string(),
-			divisionId: z.string(),
-			feeCents: z.number().nullable(),
-		}),
-	)
-	.handler(async ({ data: input }) => {
-		return withRateLimit(async () => {
-			const session = await requireVerifiedEmail()
-			if (!session) throw new Error("Unauthorized")
+	/**
+	 * Update or remove a division-specific fee
+	 */
+	export const updateDivisionFeeFn = createServerFn({ method: "POST" })
+		.validator(
+			z.object({
+				competitionId: z.string(),
+				divisionId: z.string(),
+				feeCents: z.number().nullable(),
+			}),
+		)
+		.handler(async ({ data: input }) => {
+			return withRateLimit(async () => {
+				const session = await requireVerifiedEmail()
+				if (!session) throw new Error("Unauthorized")
 
-			const db = getDb()
+				const db = getDb()
 
-			const competition = await db.query.competitionsTable.findFirst({
-				where: eq(competitionsTable.id, input.competitionId),
-			})
-			if (!competition) throw new Error("Competition not found")
+				const competition = await db.query.competitionsTable.findFirst({
+					where: eq(competitionsTable.id, input.competitionId),
+				})
+				if (!competition) throw new Error("Competition not found")
 
-			const { requireTeamPermission } = await import("@/utils/team-auth")
-			await requireTeamPermission(
-				competition.organizingTeamId,
-				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-			)
+				const { requireTeamPermission } = await import("@/utils/team-auth.server")
+				await requireTeamPermission(
+					competition.organizingTeamId,
+					TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+				)
 
 			if (input.feeCents === null) {
 				await db

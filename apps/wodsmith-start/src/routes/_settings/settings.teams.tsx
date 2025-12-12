@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import type { Team } from '~/db/schema'
+import type { Team } from '~/db/schema.server'
 import { getUserTeamsAction } from '~/server-functions/team'
 
 export const Route = createFileRoute('/_settings/settings/teams')({

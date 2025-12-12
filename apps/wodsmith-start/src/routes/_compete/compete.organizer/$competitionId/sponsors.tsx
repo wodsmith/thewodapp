@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { getCompetitionFn } from '~/server-functions/competitions'
 import { getCompetitionSponsorsFn } from '~/server-functions/sponsors'
 import { OrganizerSponsorsManager } from '~/components/compete/organizer/organizer-sponsors-manager'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/organizer/$competitionId/sponsors')({
 	beforeLoad: async () => {

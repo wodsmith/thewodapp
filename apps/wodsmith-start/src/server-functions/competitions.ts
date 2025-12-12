@@ -56,8 +56,8 @@ import {
 	updateCompetitionWorkout,
 	updateWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
-import { getSessionFromCookie } from "@/utils/auth"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { getSessionFromCookie } from "@/utils/auth.server"
+import { requireTeamPermission } from "@/utils/team-auth.server"
 
 /* -------------------------------------------------------------------------- */
 /*                        Competition Group Functions                         */

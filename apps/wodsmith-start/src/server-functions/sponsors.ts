@@ -28,8 +28,8 @@ import {
 	updateSponsorGroup,
 } from "@/server/sponsors"
 import { getCompetition } from "@/server/competitions"
-import { getSessionFromCookie } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
+import { getSessionFromCookie } from "@/utils/auth.server"
+import { hasTeamPermission } from "@/utils/team-auth.server"
 
 /* -------------------------------------------------------------------------- */
 /*                           Query Functions                                   */

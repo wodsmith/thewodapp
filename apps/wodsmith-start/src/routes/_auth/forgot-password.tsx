@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useTransition } from 'react'
+import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
-import { useServerAction } from '@repo/zsa-react'
 import { Button } from '~/components/ui/button'
 import { Captcha } from '~/components/captcha'
 import {
@@ -37,6 +38,8 @@ function ForgotPasswordPage() {
 	const navigate = useNavigate()
 	const { session } = useSessionStore()
 	const { isTurnstileEnabled } = useConfigStore()
+	const [isPending, startTransition] = useTransition()
+	const [isSuccess, setIsSuccess] = React.useState(false)
 
 	const form = useForm<ForgotPasswordSchema>({
 		resolver: zodResolver(forgotPasswordSchema),
@@ -44,25 +47,20 @@ function ForgotPasswordPage() {
 
 	const captchaToken = useWatch({ control: form.control, name: 'captchaToken' })
 
-	const { execute: sendResetLink, isSuccess } = useServerAction(
-		forgotPasswordAction,
-		{
-			onError: (error) => {
-				toast.dismiss()
-				toast.error(error.err?.message)
-			},
-			onStart: () => {
-				toast.loading('Sending reset instructions...')
-			},
-			onSuccess: () => {
+	const onSubmit = (data: ForgotPasswordSchema) => {
+		toast.loading('Sending reset instructions...')
+		startTransition(async () => {
+			try {
+				await forgotPasswordAction(data)
 				toast.dismiss()
 				toast.success('Reset instructions sent')
-			},
-		},
-	)
-
-	const onSubmit = (data: ForgotPasswordSchema) => {
-		sendResetLink(data)
+				setIsSuccess(true)
+			} catch (error) {
+				toast.dismiss()
+				const message = error instanceof Error ? error.message : 'Failed to send reset instructions'
+				toast.error(message)
+			}
+		})
 	}
 
 	if (isSuccess) {
@@ -134,7 +132,7 @@ function ForgotPasswordPage() {
 
 								<Button
 									type="submit"
-									disabled={Boolean(isTurnstileEnabled && !captchaToken)}
+									disabled={isPending || Boolean(isTurnstileEnabled && !captchaToken)}
 								>
 									Send Reset Instructions
 								</Button>

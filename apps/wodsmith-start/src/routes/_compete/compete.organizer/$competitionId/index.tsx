@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { getCompetitionFn, getCompetitionRegistrationsFn, getCompetitionWorkoutsFn } from '~/server-functions/competitions'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 import { getCompetitionRevenueStatsFn } from '~/server-functions/commerce'
 import { getHeatsForCompetitionFn } from '~/server-functions/competition-heats'
 import { OrganizerBreadcrumb } from '~/components/compete/organizer/organizer-breadcrumb'

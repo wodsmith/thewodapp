@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
-import { getDb } from "@/db"
-import { userTable } from "@/db/schema"
-import { getUserFromDB, requireVerifiedEmail } from "@/utils/auth"
+import { getDb } from "@/db/index.server"
+import { userTable } from "@/db/schema.server"
+import { getUserFromDB, requireVerifiedEmail } from "@/utils/auth.server"
 
 /**
  * Get the current user's profile data

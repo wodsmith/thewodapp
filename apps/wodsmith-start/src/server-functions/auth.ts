@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { getSessionFromCookie, getActiveOrPersonalTeamId, deleteSessionTokenCookie, deleteActiveTeamCookie } from "@/utils/auth"
+import { getSessionFromCookie, getActiveOrPersonalTeamId, deleteSessionTokenCookie, deleteActiveTeamCookie } from "@/utils/auth.server"
 
 /**
  * Get current user session

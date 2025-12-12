@@ -7,7 +7,7 @@ import { ScheduleSkeleton } from '~/components/compete/schedule-skeleton'
 import { WorkoutsContent } from '~/components/compete/workouts-content'
 import { WorkoutsSkeleton } from '~/components/compete/workouts-skeleton'
 import { getCompetitionFn } from '~/server-functions/competitions'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/$slug')({
   loader: async ({ params }) => {

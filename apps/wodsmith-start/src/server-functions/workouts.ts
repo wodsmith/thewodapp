@@ -23,13 +23,13 @@ import {
 	getWorkoutById,
 	updateWorkout,
 } from '@/server/workouts'
-import { requireVerifiedEmail } from '@/utils/auth'
+import { requireVerifiedEmail } from '@/utils/auth.server'
 import {
 	hasTeamPermission,
 	isTeamMember,
 	requireTeamMembership,
 	requireTeamPermission,
-} from '@/utils/team-auth'
+} from '@/utils/team-auth.server'
 import {
 	canUserEditWorkout,
 	shouldCreateRemix,

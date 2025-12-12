@@ -3,7 +3,7 @@ import { notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { RegistrationForm } from '~/components/compete/registration-form'
 import { getCompetitionFn } from '~/server-functions/competitions'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/$slug/register')({
   loader: async ({ params }) => {

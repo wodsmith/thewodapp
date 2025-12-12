@@ -1,12 +1,11 @@
 import { createFileRoute, redirect, useSearch } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { startAuthentication } from '@simplewebauthn/browser'
 import { KeyIcon } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { useServerAction } from '@repo/zsa-react'
 import { Button } from '~/components/ui/button'
 import {
 	Form,
@@ -44,75 +43,37 @@ function SignInPage() {
 		resolver: zodResolver(signInSchema),
 	})
 
-	const { execute: signIn } = useServerAction(signInAction, {
-		onError: (error) => {
-			toast.dismiss()
-			toast.error(error.err?.message)
-			posthog.capture('user_signed_in_failed', {
-				error_message: error.err?.message,
-				auth_method: 'email_password',
-			})
-		},
-		onStart: () => {
-			toast.loading('Signing you in...')
-		},
-		onSuccess: (result) => {
-			toast.dismiss()
-			toast.success('Signed in successfully')
-			const userId = result?.data?.userId
-			if (userId) {
-				posthog.identify(userId, {
-					email: form.getValues('email'),
-				})
-			}
-			posthog.capture('user_signed_in', {
-				auth_method: 'email_password',
-				user_id: userId,
-			})
-			window.location.href = redirectPath
-		},
-	})
-
-	const { execute: generateOptions } = useServerAction(
-		generateAuthenticationOptionsAction,
-		{
-			onError: (error) => {
-				toast.dismiss()
-				toast.error(error.err?.message || 'Failed to get authentication options')
-			},
-		},
-	)
-
-	const { execute: verifyAuthentication } = useServerAction(
-		verifyAuthenticationAction,
-		{
-			onError: (error) => {
-				toast.dismiss()
-				toast.error(error.err?.message || 'Authentication failed')
-				posthog.capture('user_signed_in_failed', {
-					error_message: error.err?.message,
-					auth_method: 'passkey',
-				})
-			},
-			onSuccess: (result) => {
-				toast.dismiss()
-				toast.success('Authentication successful')
-				if (result?.data?.userId) {
-					posthog.identify(result.data.userId)
-				}
-				posthog.capture('user_signed_in', {
-					auth_method: 'passkey',
-					user_id: result?.data?.userId,
-				})
-				window.location.href = redirectPath
-			},
-		},
-	)
-
+	const [isPending, startTransition] = useTransition()
 	const [isAuthenticating, setIsAuthenticating] = useState(false)
 
 	const onSubmit = (data: SignInSchema) => {
-		signIn(data)
+		toast.loading('Signing you in...')
+		startTransition(async () => {
+			try {
+				const result = await signInAction(data)
+				toast.dismiss()
+				toast.success('Signed in successfully')
+				const userId = result?.userId
+				if (userId) {
+					posthog.identify(userId, {
+						email: form.getValues('email'),
+					})
+				}
+				posthog.capture('user_signed_in', {
+					auth_method: 'email_password',
+					user_id: userId,
+				})
+				window.location.href = redirectPath
+			} catch (error) {
+				toast.dismiss()
+				const message = error instanceof Error ? error.message : 'Failed to sign in'
+				toast.error(message)
+				posthog.capture('user_signed_in_failed', {
+					error_message: message,
+					auth_method: 'email_password',
+				})
+			}
+		})
 	}
 
 	const handlePasskeyAuth = async () => {
@@ -120,7 +81,7 @@ function SignInPage() {
 			setIsAuthenticating(true)
 			toast.loading('Authenticating with passkey...')
 
-			const [options] = await generateOptions({})
+			const options = await generateAuthenticationOptionsAction({})
 
 			if (!options) {
 				throw new Error('Failed to get authentication options')
@@ -130,14 +91,31 @@ function SignInPage() {
 				optionsJSON: options,
 			})
 
-			await verifyAuthentication({
+			toast.dismiss()
+			toast.loading('Verifying passkey...')
+			const result = await verifyAuthenticationAction({
 				response: authenticationResponse,
 				challenge: options.challenge,
 			})
+			toast.dismiss()
+			toast.success('Authentication successful')
+			if (result?.userId) {
+				posthog.identify(result.userId)
+			}
+			posthog.capture('user_signed_in', {
+				auth_method: 'passkey',
+				user_id: result?.userId,
+			})
+			window.location.href = redirectPath
 		} catch (error) {
 			console.error('Passkey authentication error:', error)
 			toast.dismiss()
-			toast.error('Authentication failed')
+			const message = error instanceof Error ? error.message : 'Authentication failed'
+			toast.error(message)
+			posthog.capture('user_signed_in_failed', {
+				error_message: message,
+				auth_method: 'passkey',
+			})
 		} finally {
 			setIsAuthenticating(false)
 		}
@@ -195,6 +173,7 @@ function SignInPage() {
 										<Input
 											placeholder="EMAIL ADDRESS"
 											type="email"
+											disabled={isPending}
 											{...field}
 										/>
 									</FormControl>
@@ -209,14 +188,19 @@ function SignInPage() {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input type="password" placeholder="PASSWORD" {...field} />
+										<Input
+											type="password"
+											placeholder="PASSWORD"
+											disabled={isPending}
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
 							)}
 						/>
 
-						<Button type="submit" className="w-full">
+						<Button type="submit" disabled={isPending} className="w-full">
 							SIGN IN
 						</Button>
 					</form>

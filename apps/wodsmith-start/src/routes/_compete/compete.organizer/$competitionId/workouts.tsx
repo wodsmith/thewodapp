@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { getCompetitionFn, getCompetitionWorkoutsFn } from '~/server-functions/competitions'
 import { listScalingGroupsFn } from '~/server-functions/competition-divisions'
 import { OrganizerWorkoutsManager } from '~/components/compete/organizer/organizer-workouts-manager'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/organizer/$competitionId/workouts')({
 	beforeLoad: async () => {

@@ -3,7 +3,6 @@ import { init } from "@paralleldrive/cuid2"
 import { getCookie, setCookie, deleteCookie } from "vinxi/http"
 import { eq } from "drizzle-orm"
 import ms from "ms"
-import { ZSAError } from "@repo/zsa"
 import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
 import { getDb } from "@/db/index.server"
 import {
@@ -453,7 +452,7 @@ export async function requireVerifiedEmail() {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new Error("Not authenticated")
 	}
 
 	return session
@@ -465,7 +464,7 @@ export async function requireAdmin({
 	const session = await getSessionFromCookie()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new Error("Not authenticated")
 	}
 
 	if (session.user.role !== ROLES_ENUM.ADMIN) {
@@ -473,7 +472,7 @@ export async function requireAdmin({
 			return null
 		}
 
-		throw new ZSAError("FORBIDDEN", "Not authorized")
+		throw new Error("Not authorized")
 	}
 
 	return session
@@ -489,7 +488,7 @@ export async function requireAdminForTeam({
 	const session = await getSessionFromCookie()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new Error("Not authenticated")
 	}
 
 	const team = session?.teams?.find(
@@ -506,7 +505,7 @@ export async function requireAdminForTeam({
 			return null
 		}
 
-		throw new ZSAError("FORBIDDEN", "Not authorized")
+		throw new Error("Not authorized")
 	}
 
 	return session
@@ -583,7 +582,7 @@ async function checkWithMailcheck(email: string): Promise<ValidatorResult> {
  * Checks if an email is allowed for sign up by verifying it's not a disposable email
  * Uses multiple services in sequence for redundancy.
  *
- * @throws {ZSAError} If email is disposable or if all services fail
+ * @throws {Error} If email is disposable or if all services fail
  */
 export async function canSignUp({ email }: { email: string }): Promise<void> {
 	// Skip disposable email check in development
@@ -603,8 +602,7 @@ export async function canSignUp({ email }: { email: string }): Promise<void> {
 
 		// If we got a successful response and it's disposable, reject the signup
 		if (result.isDisposable) {
-			throw new ZSAError(
-				"PRECONDITION_FAILED",
+			throw new Error(
 				"Disposable email addresses are not allowed",
 			)
 		}
@@ -614,8 +612,7 @@ export async function canSignUp({ email }: { email: string }): Promise<void> {
 	}
 
 	// If all validators failed, we can't verify the email
-	throw new ZSAError(
-		"PRECONDITION_FAILED",
+	throw new Error(
 		"Unable to verify email address at this time. Please try again later.",
 	)
 }

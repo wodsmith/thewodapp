@@ -3,10 +3,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
 import { UAParser } from 'ua-parser-js'
-import { getDb } from '~/db'
-import type { PassKeyCredential, ParsedUserAgent } from '~/db/schema'
-import { passKeyCredentialTable } from '~/db/schema'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getDb } from '~/db/index.server'
+import type { PassKeyCredential, ParsedUserAgent } from '~/db/schema.server'
+import { passKeyCredentialTable } from '~/db/schema.server'
+import { getSessionFromCookie } from '~/utils/auth.server'
 import { PasskeysList } from '~/components/settings/passkey'
 
 export const Route = createFileRoute('/_settings/settings/security')({

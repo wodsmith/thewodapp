@@ -2,13 +2,13 @@ import { createServerFn } from '@tanstack/react-start/server'
 import { createId } from '@paralleldrive/cuid2'
 import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb } from '@/db'
+import { getDb } from '@/db/index.server'
 import {
 	scheduleTemplateClassesTable,
 	scheduleTemplateClassRequiredSkillsTable,
 	scheduleTemplatesTable,
 } from '@/db/schemas/scheduling'
-import { requireTeamMembership } from '@/utils/team-auth'
+import { requireTeamMembership } from '@/utils/team-auth.server'
 
 // Schemas for input validation
 const createScheduleTemplateSchema = z.object({

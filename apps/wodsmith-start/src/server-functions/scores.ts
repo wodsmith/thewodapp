@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { SCORE_STATUS_VALUES } from "@/db/schemas/workouts"
-import { requireTeamPermission } from "@/utils/team-auth"
-import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "@/utils/team-auth.server"
+import { getSessionFromCookie } from "@/utils/auth.server"
 import {
 	getEventScoreEntryData,
 	saveCompetitionScore,

@@ -432,6 +432,24 @@ importers:
 
   apps/wodsmith-start:
     dependencies:
+      '@hookform/resolvers':
+        specifier: ^3.10.0
+        version: 3.10.0(react-hook-form@7.56.4(react@19.2.1))
+      '@marsidev/react-turnstile':
+        specifier: ^1.1.0
+        version: 1.1.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@oslojs/encoding':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@paralleldrive/cuid2':
+        specifier: ^2.2.2
+        version: 2.2.2
+      '@radix-ui/react-label':
+        specifier: ^2.1.7
+        version: 2.1.7(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      '@radix-ui/react-slot':
+        specifier: ^1.2.3
+        version: 1.2.3(@types/react@19.2.7)(react@19.2.1)
       '@tanstack/react-router':
         specifier: ^1.141.1
         version: 1.141.1(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -441,12 +459,33 @@ importers:
       '@tanstack/react-start':
         specifier: ^1.141.1
         version: 1.141.1(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(vite@7.2.7(@types/node@22.19.2)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))(webpack@5.102.1)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.471.2
+        version: 0.471.2(react@19.2.1)
+      ms:
+        specifier: ^2.1.3
+        version: 2.1.3
       react:
         specifier: ^19.0.0
         version: 19.2.1
       react-dom:
         specifier: ^19.0.0
         version: 19.2.1(react@19.2.1)
+      react-hook-form:
+        specifier: ^7.56.4
+        version: 7.56.4(react@19.2.1)
+      sonner:
+        specifier: ^1.7.4
+        version: 1.7.4(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      tailwind-merge:
+        specifier: ^2.6.0
+        version: 2.6.0
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: ^1.13.7
@@ -19959,7 +19998,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 20.17.50
+      '@types/node': 22.19.2
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -22219,7 +22258,7 @@ snapshots:
 
   terser-webpack-plugin@5.3.14(esbuild@0.19.12)(webpack@5.102.1(esbuild@0.19.12)):
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
@@ -22230,7 +22269,7 @@ snapshots:
 
   terser-webpack-plugin@5.3.14(webpack@5.102.1):
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2

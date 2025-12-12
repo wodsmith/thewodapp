@@ -1,12 +1,11 @@
 import { createFileRoute, useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { startRegistration } from '@simplewebauthn/browser'
 import { KeyIcon } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
-import { useServerAction } from '@repo/zsa-react'
 import { Button } from '~/components/ui/button'
 import { Captcha } from '~/components/captcha'
 import {
@@ -56,6 +55,7 @@ function SignUpPage() {
 	const { isTurnstileEnabled } = useConfigStore()
 	const [isPasskeyModalOpen, setIsPasskeyModalOpen] = useState(false)
 	const [isRegistering, setIsRegistering] = useState(false)
+	const [isPending, startTransition] = useTransition()
 
 	const form = useForm<SignUpSchema>({
 		resolver: zodResolver(signUpSchema),
@@ -74,52 +74,47 @@ function SignUpPage() {
 		name: 'captchaToken',
 	})
 
-	const { execute: signUp } = useServerAction(signUpAction, {
-		onError: (error) => {
-			toast.dismiss()
-			toast.error(error.err?.message)
-			posthog.capture('user_signed_up_failed', {
-				error_message: error.err?.message,
-				auth_method: 'email_password',
-			})
-		},
-		onStart: () => {
-			toast.loading('Creating your account...')
-		},
-		onSuccess: (result) => {
-			toast.dismiss()
-			toast.success('Account created successfully')
-			const userId = result?.data?.userId
-			if (userId) {
-				posthog.identify(userId, {
-					email: form.getValues('email'),
-					first_name: form.getValues('firstName'),
-					last_name: form.getValues('lastName'),
+	const onSubmit = (data: SignUpSchema) => {
+		toast.loading('Creating your account...')
+		startTransition(async () => {
+			try {
+				const result = await signUpAction(data)
+				toast.dismiss()
+				toast.success('Account created successfully')
+				const userId = result?.userId
+				if (userId) {
+					posthog.identify(userId, {
+						email: form.getValues('email'),
+						first_name: form.getValues('firstName'),
+						last_name: form.getValues('lastName'),
+					})
+				}
+				posthog.capture('user_signed_up', {
+					auth_method: 'email_password',
+					user_id: userId,
+				})
+				window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
+			} catch (error) {
+				toast.dismiss()
+				const message = error instanceof Error ? error.message : 'Failed to create account'
+				toast.error(message)
+				posthog.capture('user_signed_up_failed', {
+					error_message: message,
+					auth_method: 'email_password',
 				})
 			}
-			posthog.capture('user_signed_up', {
-				auth_method: 'email_password',
-				user_id: userId,
-			})
-			window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
-		},
-	})
+		})
+	}
 
-	const { execute: startPasskeyRegistration } = useServerAction(
-		startPasskeyRegistrationAction,
-		{
-			onError: (error) => {
-				toast.dismiss()
-				toast.error(error.err?.message)
-				setIsRegistering(false)
-			},
-			onStart: () => {
-				toast.loading('Starting passkey registration...')
-				setIsRegistering(true)
-			},
-			onSuccess: async (response) => {
-				toast.dismiss()
-				if (!response?.data?.optionsJSON) {
+	const onPasskeySubmit = (data: PasskeyEmailSchema) => {
+		toast.loading('Starting passkey registration...')
+		setIsRegistering(true)
+		startTransition(async () => {
+			try {
+				const response = await startPasskeyRegistrationAction(data)
+				
+				if (!response?.optionsJSON) {
+					toast.dismiss()
 					toast.error('Failed to start passkey registration')
 					setIsRegistering(false)
 					return
@@ -127,57 +122,44 @@ function SignUpPage() {
 
 				try {
 					const attResp = await startRegistration({
-						optionsJSON: response.data.optionsJSON,
+						optionsJSON: response.optionsJSON,
 						useAutoRegister: true,
 					})
-					await completePasskeyRegistration({ response: attResp })
+					toast.dismiss()
+					toast.loading('Completing passkey registration...')
+					const result = await completePasskeyRegistrationAction({ response: attResp })
+					toast.dismiss()
+					toast.success('Account created successfully')
+					const userId = result?.userId
+					if (userId) {
+						posthog.identify(userId, {
+							email: passkeyForm.getValues('email'),
+							first_name: passkeyForm.getValues('firstName'),
+							last_name: passkeyForm.getValues('lastName'),
+						})
+					}
+					posthog.capture('user_signed_up', {
+						auth_method: 'passkey',
+						user_id: userId,
+					})
+					window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
 				} catch (error: unknown) {
 					console.error('Failed to register passkey:', error)
+					toast.dismiss()
 					toast.error('Failed to register passkey')
 					setIsRegistering(false)
 				}
-			},
-		},
-	)
-
-	const { execute: completePasskeyRegistration } = useServerAction(
-		completePasskeyRegistrationAction,
-		{
-			onError: (error) => {
+			} catch (error) {
 				toast.dismiss()
-				toast.error(error.err?.message)
+				const message = error instanceof Error ? error.message : 'Failed to start passkey registration'
+				toast.error(message)
 				setIsRegistering(false)
 				posthog.capture('user_signed_up_failed', {
-					error_message: error.err?.message,
+					error_message: message,
 					auth_method: 'passkey',
 				})
-			},
-			onSuccess: (result) => {
-				toast.dismiss()
-				toast.success('Account created successfully')
-				const userId = result?.data?.userId
-				if (userId) {
-					posthog.identify(userId, {
-						email: passkeyForm.getValues('email'),
-						first_name: passkeyForm.getValues('firstName'),
-						last_name: passkeyForm.getValues('lastName'),
-					})
-				}
-				posthog.capture('user_signed_up', {
-					auth_method: 'passkey',
-					user_id: userId,
-				})
-				window.location.href = redirectPath || REDIRECT_AFTER_SIGN_IN
-			},
-		},
-	)
-
-	const onSubmit = (data: SignUpSchema) => {
-		signUp(data)
-	}
-
-	const onPasskeySubmit = (data: PasskeyEmailSchema) => {
-		startPasskeyRegistration(data)
+			}
+		})
 	}
 
 	return (
@@ -228,6 +210,7 @@ function SignUpPage() {
 										<Input
 											type="email"
 											placeholder="EMAIL ADDRESS"
+											disabled={isPending}
 											{...field}
 										/>
 									</FormControl>
@@ -242,7 +225,11 @@ function SignUpPage() {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input placeholder="FIRST NAME" {...field} />
+										<Input
+											placeholder="FIRST NAME"
+											disabled={isPending}
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -255,7 +242,11 @@ function SignUpPage() {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input placeholder="LAST NAME" {...field} />
+										<Input
+											placeholder="LAST NAME"
+											disabled={isPending}
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -268,7 +259,12 @@ function SignUpPage() {
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-										<Input type="password" placeholder="PASSWORD" {...field} />
+										<Input
+											type="password"
+											placeholder="PASSWORD"
+											disabled={isPending}
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -285,7 +281,7 @@ function SignUpPage() {
 
 							<Button
 								type="submit"
-								disabled={Boolean(isTurnstileEnabled && !captchaToken)}
+								disabled={isPending || Boolean(isTurnstileEnabled && !captchaToken)}
 							>
 								CREATE ACCOUNT
 							</Button>
@@ -334,7 +330,7 @@ function SignUpPage() {
 											<Input
 												type="email"
 												placeholder="EMAIL ADDRESS"
-												disabled={isRegistering}
+												disabled={isRegistering || isPending}
 												{...field}
 											/>
 										</FormControl>
@@ -350,7 +346,7 @@ function SignUpPage() {
 										<FormControl>
 											<Input
 												placeholder="FIRST NAME"
-												disabled={isRegistering}
+												disabled={isRegistering || isPending}
 												{...field}
 											/>
 										</FormControl>
@@ -366,7 +362,7 @@ function SignUpPage() {
 										<FormControl>
 											<Input
 												placeholder="LAST NAME"
-												disabled={isRegistering}
+												disabled={isRegistering || isPending}
 												{...field}
 											/>
 										</FormControl>
@@ -388,10 +384,11 @@ function SignUpPage() {
 									type="submit"
 									disabled={
 										isRegistering ||
+										isPending ||
 										Boolean(isTurnstileEnabled && !passkeyCaptchaToken)
 									}
 								>
-									{isRegistering ? (
+									{isRegistering || isPending ? (
 										<>
 											<Spinner className="mr-2 h-4 w-4" />
 											REGISTERING...

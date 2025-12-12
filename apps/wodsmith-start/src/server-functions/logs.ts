@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import type { Workout } from '@/db/schema'
+import type { Workout } from '@/db/schema.server'
 import {
 	getLogsByUser,
 	getResultById,

@@ -1,4 +1,3 @@
-import { ZSAError } from "@repo/zsa"
 import { requireVerifiedEmail } from "./auth.server"
 
 // Get the current user's teams
@@ -107,13 +106,13 @@ export async function requireTeamMembership(teamId: string) {
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new Error("Not authenticated")
 	}
 
 	const isMember = await isTeamMember(teamId)
 
 	if (!isMember) {
-		throw new ZSAError("FORBIDDEN", "You are not a member of this team")
+		throw new Error("You are not a member of this team")
 	}
 
 	return session
@@ -128,14 +127,13 @@ export async function requireTeamRole(
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new Error("Not authenticated")
 	}
 
 	const hasRole = await hasTeamRole(teamId, roleId, isSystemRole)
 
 	if (!hasRole) {
-		throw new ZSAError(
-			"FORBIDDEN",
+		throw new Error(
 			"You don't have the required role in this team",
 		)
 	}
@@ -156,14 +154,13 @@ export async function requireTeamPermission(
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new Error("Not authenticated")
 	}
 
 	const hasPermission = await hasTeamPermission(teamId, permission)
 
 	if (!hasPermission) {
-		throw new ZSAError(
-			"FORBIDDEN",
+		throw new Error(
 			"You don't have the required permission in this team",
 		)
 	}
@@ -198,19 +195,18 @@ export async function canHostCompetitions(
 
 /**
  * Require that a team has competition hosting access
- * Throws ZSAError if team cannot host competitions
+ * Throws Error if team cannot host competitions
  *
  * @param teamId - The team ID to check
  * @returns Session - The current session if authorized
- * @throws ZSAError if team doesn't have competition hosting feature
+ * @throws Error if team doesn't have competition hosting feature
  */
 export async function requireCompetitionHostingAccess(teamId: string) {
 	const session = await requireTeamMembership(teamId)
 	const canHost = await canHostCompetitions(teamId)
 
 	if (!canHost) {
-		throw new ZSAError(
-			"FORBIDDEN",
+		throw new Error(
 			"This team does not have access to host competitions. Please upgrade your plan.",
 		)
 	}

@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { MainNav } from '~/components/nav/main-nav'
 import { SettingsBreadcrumbs } from '~/components/settings/settings-breadcrumbs'
 import { SettingsSidebar } from '~/components/settings/settings-sidebar'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_settings')({
 	beforeLoad: async () => {

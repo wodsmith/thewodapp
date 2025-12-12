@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useTransition } from 'react'
+import * as React from 'react'
 import { toast } from 'sonner'
-import { useServerAction } from '@repo/zsa-react'
 import { Button } from '~/components/ui/button'
 import {
 	Card,
@@ -29,54 +29,50 @@ function TeamInvitePage() {
 	const navigate = useNavigate()
 	const { token } = useSearch({ from: '/_auth/team-invite' })
 	const hasCalledAcceptInvite = useRef(false)
-
-	const {
-		execute: handleAcceptInvite,
-		isPending,
-		error,
-	} = useServerAction(acceptTeamInviteAction, {
-		onError: ({ err }) => {
-			toast.dismiss()
-			toast.error(err.message || 'Failed to accept team invitation')
-		},
-		onStart: () => {
-			toast.loading('Processing your invitation...')
-		},
-		onSuccess: (data) => {
-			toast.dismiss()
-			toast.success("You've successfully joined the team!")
-
-			// Redirect to the team dashboard, with fallback to general dashboard
-			setTimeout(() => {
-				if (data && typeof data === 'object' && 'teamSlug' in data) {
-					navigate({ to: `/settings/teams/${data.teamSlug}` })
-				} else if (
-					data &&
-					typeof data === 'object' &&
-					data.data &&
-					'teamSlug' in data.data
-				) {
-					navigate({ to: `/settings/teams/${data.data.teamSlug}` })
-				} else {
-					// Fallback to dashboard if teamSlug is not found
-					navigate({ to: '/settings' })
-				}
-			}, 500)
-		},
-	})
+	const [isPending, startTransition] = useTransition()
+	const [error, setError] = React.useState<Error | null>(null)
 
 	useEffect(() => {
 		if (token && !hasCalledAcceptInvite.current) {
 			const result = teamInviteSchema.safeParse({ token })
 			if (result.success) {
 				hasCalledAcceptInvite.current = true
-				handleAcceptInvite(result.data)
+				toast.loading('Processing your invitation...')
+				startTransition(async () => {
+					try {
+						const data = await acceptTeamInviteAction(result.data)
+						toast.dismiss()
+						toast.success("You've successfully joined the team!")
+
+						// Redirect to the team dashboard, with fallback to general dashboard
+						setTimeout(() => {
+							if (data && typeof data === 'object' && 'teamSlug' in data) {
+								navigate({ to: `/settings/teams/${data.teamSlug}` })
+							} else if (
+								data &&
+								typeof data === 'object' &&
+								data.data &&
+								'teamSlug' in data.data
+							) {
+								navigate({ to: `/settings/teams/${data.data.teamSlug}` })
+							} else {
+								// Fallback to dashboard if teamSlug is not found
+								navigate({ to: '/settings' })
+							}
+						}, 500)
+					} catch (error) {
+						toast.dismiss()
+						const err = error instanceof Error ? error : new Error('Failed to accept team invitation')
+						setError(err)
+						toast.error(err.message || 'Failed to accept team invitation')
+					}
+				})
 			} else {
 				toast.error('Invalid invitation token')
 				navigate({ to: '/sign-in' })
 			}
 		}
-	}, [token, handleAcceptInvite, navigate])
+	}, [token, navigate])
 
 	if (isPending) {
 		return (

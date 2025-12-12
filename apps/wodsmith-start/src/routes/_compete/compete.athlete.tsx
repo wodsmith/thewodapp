@@ -8,7 +8,7 @@ import { BenchmarkStats } from '~/components/compete/athlete/benchmark-stats'
 import { CompetitiveHistory } from '~/components/compete/athlete/competitive-history'
 import { SponsorsSocial } from '~/components/compete/athlete/sponsors-social'
 import { getAthleteProfileFn } from '~/server-functions/user'
-import { getSessionFromCookie } from '~/utils/auth'
+import { getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/athlete')({
   loader: async () => {

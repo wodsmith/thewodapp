@@ -15,8 +15,8 @@ import {
 	reorderScalingLevels as reorderScalingLevelsServer,
 	upsertWorkoutScalingDescriptions,
 } from '@/server/scaling-levels'
-import { getSessionFromCookie } from '@/utils/auth'
-import { hasTeamPermission } from '@/utils/team-auth'
+import { getSessionFromCookie } from '@/utils/auth.server'
+import { hasTeamPermission } from '@/utils/team-auth.server'
 
 /**
  * Get all scaling groups for a team

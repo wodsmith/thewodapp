@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
-import { getDb } from '~/db'
-import { teamTable } from '~/db/schema'
+import { getDb } from '~/db/index.server'
+import { teamTable } from '~/db/schema.server'
 import Link from '~/components/link'
 import { Button } from '~/components/ui/button'
 import {

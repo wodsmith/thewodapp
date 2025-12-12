@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getDb } from '~/db'
-import { userTable } from '~/db/schema'
+import { getDb } from '~/db/index.server'
+import { userTable } from '~/db/schema.server'
 import {
 	Card,
 	CardContent,

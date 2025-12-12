@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useTransition } from 'react'
+import * as React from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { useServerAction } from '@repo/zsa-react'
 import { Button } from '~/components/ui/button'
 import {
 	Card,
@@ -38,6 +38,8 @@ interface ResetPasswordSearch {
 function ResetPasswordPage() {
 	const navigate = useNavigate()
 	const { token } = useSearch({ from: '/_auth/reset-password' })
+	const [isPending, startTransition] = useTransition()
+	const [isSuccess, setIsSuccess] = React.useState(false)
 
 	const form = useForm<ResetPasswordSchema>({
 		resolver: zodResolver(resetPasswordSchema),
@@ -54,25 +56,20 @@ function ResetPasswordPage() {
 		}
 	}, [token, form.setValue])
 
-	const { execute: resetPassword, isSuccess } = useServerAction(
-		resetPasswordAction,
-		{
-			onError: (error) => {
-				toast.dismiss()
-				toast.error(error.err?.message)
-			},
-			onStart: () => {
-				toast.loading('Resetting password...')
-			},
-			onSuccess: () => {
+	const onSubmit = (data: ResetPasswordSchema) => {
+		toast.loading('Resetting password...')
+		startTransition(async () => {
+			try {
+				await resetPasswordAction(data)
 				toast.dismiss()
 				toast.success('Password reset successfully')
-			},
-		},
-	)
-
-	const onSubmit = (data: ResetPasswordSchema) => {
-		resetPassword(data)
+				setIsSuccess(true)
+			} catch (error) {
+				toast.dismiss()
+				const message = error instanceof Error ? error.message : 'Failed to reset password'
+				toast.error(message)
+			}
+		})
 	}
 
 	if (isSuccess) {
@@ -117,7 +114,7 @@ function ResetPasswordPage() {
 									<FormItem>
 										<FormLabel>New Password</FormLabel>
 										<FormControl>
-											<Input type="password" {...field} />
+											<Input type="password" disabled={isPending} {...field} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -130,13 +127,13 @@ function ResetPasswordPage() {
 									<FormItem>
 										<FormLabel>Confirm Password</FormLabel>
 										<FormControl>
-											<Input type="password" {...field} />
+											<Input type="password" disabled={isPending} {...field} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
 								)}
 							/>
-							<Button type="submit" className="w-full">
+							<Button type="submit" disabled={isPending} className="w-full">
 								Reset Password
 							</Button>
 						</form>

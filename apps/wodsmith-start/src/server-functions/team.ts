@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { createTeam, deleteTeam, getOwnedTeams, getTeam, getUserTeams, updateTeam } from "@/server/teams"
 import { acceptTeamInvitation } from "@/server/team-members"
-import { requireVerifiedEmail, setActiveTeamCookie } from "@/utils/auth"
-import { TEAM_PERMISSIONS } from "@/db/schema"
+import { requireVerifiedEmail, setActiveTeamCookie } from "@/utils/auth.server"
+import { TEAM_PERMISSIONS } from "@/db/schema.server"
 
 // Update team schema
 const updateTeamSchema = z.object({

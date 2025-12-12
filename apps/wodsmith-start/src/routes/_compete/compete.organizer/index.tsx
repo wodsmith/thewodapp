@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { OrganizerCompetitionsList } from '~/components/compete/organizer/organizer-competitions-list'
 import { TeamFilter } from '~/components/compete/organizer/team-filter'
 import { getCompetitionsForOrganizerFn, getCompetitionGroupsFn, getUserOrganizingTeamsFn } from '~/server-functions/competitions'
-import { getActiveTeamFromCookie, getSessionFromCookie } from '~/utils/auth'
+import { getActiveTeamFromCookie, getSessionFromCookie } from '~/utils/auth.server'
 
 export const Route = createFileRoute('/_compete/compete/organizer/')({
 	beforeLoad: async () => {

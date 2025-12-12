@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { getDb } from '@/db'
-import { MOVEMENT_TYPE_VALUES } from '@/db/schema'
+import { getDb } from '@/db/index.server'
+import { MOVEMENT_TYPE_VALUES } from '@/db/schema.server'
 import {
 	createMovement,
 	getAllMovements,

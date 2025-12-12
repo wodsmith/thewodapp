@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireTeamPermission } from "@/utils/team-auth.server"
 import {
 	assignToHeat,
 	bulkAssignToHeat,
