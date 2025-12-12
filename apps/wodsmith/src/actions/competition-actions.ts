@@ -482,6 +482,17 @@ export const registerForCompetitionAction = createServerAction()
 
 			const result = await registerForCompetition(input)
 
+			// Send registration confirmation email (free registration via direct action)
+			const { notifyRegistrationConfirmed } = await import(
+				"@/server/notifications"
+			)
+			await notifyRegistrationConfirmed({
+				userId: input.userId,
+				registrationId: result.registrationId,
+				competitionId: input.competitionId,
+				isPaid: false,
+			})
+
 			// Revalidate competition pages
 			revalidatePath(`/compete/${input.competitionId}`)
 			revalidatePath("/compete/my-events")

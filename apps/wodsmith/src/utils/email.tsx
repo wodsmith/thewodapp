@@ -2,10 +2,128 @@ import "server-only"
 
 import { render } from "@react-email/render"
 import { SITE_DOMAIN, SITE_URL } from "@/constants"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { ResetPasswordEmail } from "@/react-email/reset-password"
 import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
 import isProd from "./is-prod"
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface SendEmailOptions {
+	to: string | string[]
+	subject: string
+	template: React.ReactElement
+	tags?: { name: string; value: string }[]
+	replyTo?: string
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const isTestMode = process.env.EMAIL_TEST_MODE === "true"
+const shouldSendEmail = isProd || isTestMode
+
+// ============================================================================
+// Generic Email Sender
+// ============================================================================
+
+/**
+ * Generic email sender using Resend
+ * - In production: sends via Resend API
+ * - In development: logs to console (unless EMAIL_TEST_MODE=true)
+ * - All email events are logged to PostHog
+ */
+export async function sendEmail({
+	to,
+	subject,
+	template,
+	tags = [],
+	replyTo,
+}: SendEmailOptions): Promise<void> {
+	const recipients = Array.isArray(to) ? to : [to]
+	const emailType = tags.find((t) => t.name === "type")?.value ?? "unknown"
+
+	if (!shouldSendEmail) {
+		console.warn(
+			`\n[Email Preview] To: ${recipients.join(", ")}\nSubject: ${subject}\nType: ${emailType}\n`,
+		)
+		logInfo({
+			message: "[Email] Skipped (dev mode)",
+			attributes: { to: recipients.join(","), subject, emailType },
+		})
+		return
+	}
+
+	if (!process.env.RESEND_API_KEY) {
+		logError({
+			message: "[Email] RESEND_API_KEY not configured",
+			attributes: { to: recipients.join(","), subject, emailType },
+		})
+		return
+	}
+
+	// Default email sender config (fallback for development)
+	// Uses mail.wodsmith.com subdomain which is verified in Resend
+	const emailFrom = process.env.EMAIL_FROM || "team@mail.wodsmith.com"
+	const emailFromName = process.env.EMAIL_FROM_NAME || "WODsmith"
+	const emailReplyTo = process.env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
+
+	try {
+		const html = await render(template)
+
+		const response = await fetch("https://api.resend.com/emails", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				from: `${emailFromName} <${emailFrom}>`,
+				to: recipients,
+				subject,
+				html,
+				reply_to: replyTo ?? emailReplyTo,
+				tags,
+			}),
+		})
+
+		if (!response.ok) {
+			const error = await response.json()
+			throw new Error(`Resend API error: ${JSON.stringify(error)}`)
+		}
+
+		const result = (await response.json()) as { id: string }
+
+		logInfo({
+			message: "[Email] Sent successfully",
+			attributes: {
+				to: recipients.join(","),
+				subject,
+				emailType,
+				resendId: result.id,
+			},
+		})
+	} catch (err) {
+		logError({
+			message: "[Email] Failed to send",
+			error: err,
+			attributes: {
+				to: recipients.join(","),
+				subject,
+				emailType,
+			},
+		})
+		// Don't re-throw - email failures shouldn't break primary actions
+	}
+}
+
+// ============================================================================
+// Legacy Support (Brevo)
+// ============================================================================
 
 interface BrevoEmailOptions {
 	to: { email: string; name?: string }[]
@@ -144,6 +262,10 @@ async function sendBrevoEmail({
 	return response.json()
 }
 
+// ============================================================================
+// Existing Email Functions (using legacy multi-provider approach)
+// ============================================================================
+
 export async function sendPasswordResetEmail({
 	email,
 	resetToken,
@@ -245,7 +367,7 @@ export async function sendTeamInvitationEmail({
 	teamName: string
 	inviterName: string
 }) {
-	const inviteUrl = `${SITE_URL}/team-invite?token=${invitationToken}`
+	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
 	if (!isProd) {
 		console.warn("\n\n\nTeam invitation url: ", inviteUrl)

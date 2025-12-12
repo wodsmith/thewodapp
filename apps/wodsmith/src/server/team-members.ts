@@ -512,21 +512,17 @@ export async function inviteUserToTeamInternal({
 		expiresAt,
 	})
 
-	// TODO: Send competition team invite email
+	// Send competition team invite email
 	if (competitionContext) {
-		const acceptUrl = `${
-			process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-		}/compete/invite/${token}`
-		const { logInfo } = await import("@/lib/logging/posthog-otel-logger")
-		logInfo({
-			message: "[team-members] Competition team invite created",
-			attributes: {
-				to: email,
-				teamName: competitionContext.teamName,
-				competitionSlug: competitionContext.competitionSlug,
-				divisionName: competitionContext.divisionName,
-				acceptUrl,
-			},
+		const { notifyCompetitionTeamInvite } = await import(
+			"@/server/notifications"
+		)
+		await notifyCompetitionTeamInvite({
+			recipientEmail: email,
+			inviteToken: token,
+			competitionTeamId: teamId,
+			competitionId: competitionContext.competitionId,
+			invitedByUserId: invitedBy,
 		})
 	}
 
@@ -645,7 +641,9 @@ export async function acceptTeamInvitation(token: string) {
 	}
 
 	// Handle competition_team type - also add user to competition_event team
-	const { TEAM_TYPE_ENUM } = await import("@/db/schema")
+	const { TEAM_TYPE_ENUM, competitionRegistrationsTable } = await import(
+		"@/db/schema"
+	)
 	if (
 		team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
 		team.competitionMetadata
@@ -665,6 +663,27 @@ export async function acceptTeamInvitation(token: string) {
 						session.user.email,
 						session.userId,
 					)
+				}
+
+				// Send teammate joined notification to captain
+				const registration =
+					await db.query.competitionRegistrationsTable.findFirst({
+						where: eq(
+							competitionRegistrationsTable.athleteTeamId,
+							invitation.teamId,
+						),
+					})
+
+				if (registration?.captainUserId) {
+					const { notifyTeammateJoined } = await import(
+						"@/server/notifications"
+					)
+					await notifyTeammateJoined({
+						captainUserId: registration.captainUserId,
+						newTeammateUserId: session.userId,
+						competitionTeamId: invitation.teamId,
+						competitionId: metadata.competitionId,
+					})
 				}
 			}
 		} catch {
