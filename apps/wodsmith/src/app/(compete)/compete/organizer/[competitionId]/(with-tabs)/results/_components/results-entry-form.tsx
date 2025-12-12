@@ -36,6 +36,19 @@ import {
 	type ScoreInputRowHandle,
 } from "./score-input-row"
 
+function getErrorMessage(error: unknown): string | undefined {
+	if (error && typeof error === "object" && "err" in error) {
+		const maybeErr = (error as { err?: unknown }).err
+		if (maybeErr && typeof maybeErr === "object" && "message" in maybeErr) {
+			const maybeMessage = (maybeErr as { message?: unknown }).message
+			if (typeof maybeMessage === "string") return maybeMessage
+		}
+	}
+
+	if (error instanceof Error) return error.message
+	return undefined
+}
+
 interface ResultsEntryFormProps {
 	competitionId: string
 	organizingTeamId: string
@@ -112,11 +125,6 @@ export function ResultsEntryForm({
 	const { execute: saveScore } = useServerAction(saveCompetitionScoreAction, {
 		onError: (error) => {
 			toast.error(error.err?.message || "Failed to save score")
-			posthog.capture("competition_score_saved_failed", {
-				competition_id: competitionId,
-				event_id: event.id,
-				error_message: error.err?.message,
-			})
 		},
 	})
 
@@ -138,9 +146,8 @@ export function ResultsEntryForm({
 			// Serialize saves to avoid client-side concurrency hangs when saving fast.
 			saveQueueRef.current = saveQueueRef.current
 				.then(async () => {
-					let result: unknown
 					try {
-						;[result] = await saveScore({
+						const [result, error] = await saveScore({
 							competitionId,
 							organizingTeamId,
 							trackWorkoutId: event.id,
@@ -162,28 +169,64 @@ export function ResultsEntryForm({
 								tiebreakScheme: event.workout.tiebreakScheme,
 							},
 						})
-					} catch {
-						toast.error("Failed to save score")
+
+						if (error) {
+							posthog.capture("competition_score_saved_failed", {
+								competition_id: competitionId,
+								organizing_team_id: organizingTeamId,
+								track_workout_id: event.id,
+								workout_id: event.workout.id,
+								division_id: athlete.divisionId,
+								registration_id: athlete.registrationId,
+								user_id: athlete.userId,
+								score: scoreToSend,
+								score_status: data.scoreStatus,
+								tie_break_score: data.tieBreakScore,
+								secondary_score: data.secondaryScore,
+								round_scores: data.roundScores,
+								error_message: getErrorMessage(error),
+							})
+							return
+						}
+
+						if (result) {
+							setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+							posthog.capture("competition_score_saved", {
+								competition_id: competitionId,
+								organizing_team_id: organizingTeamId,
+								track_workout_id: event.id,
+								workout_id: event.workout.id,
+								division_id: athlete.divisionId,
+								registration_id: athlete.registrationId,
+								user_id: athlete.userId,
+							})
+							const displayName =
+								athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+							toast.success(`Score saved for ${displayName}`)
+						}
+					} catch (error) {
+						posthog.capture("competition_score_saved_failed", {
+							competition_id: competitionId,
+							organizing_team_id: organizingTeamId,
+							track_workout_id: event.id,
+							workout_id: event.workout.id,
+							division_id: athlete.divisionId,
+							registration_id: athlete.registrationId,
+							user_id: athlete.userId,
+							score: scoreToSend,
+							score_status: data.scoreStatus,
+							tie_break_score: data.tieBreakScore,
+							secondary_score: data.secondaryScore,
+							round_scores: data.roundScores,
+							error_message: getErrorMessage(error),
+						})
+						toast.error(getErrorMessage(error) || "Failed to save score")
 					} finally {
 						setSavingIds((prev) => {
 							const next = new Set(prev)
 							next.delete(athlete.registrationId)
 							return next
 						})
-					}
-
-					if (result) {
-						setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
-						posthog.capture("competition_score_saved", {
-							competition_id: competitionId,
-							event_id: event.id,
-							event_name: event.workout.name,
-							division_id: athlete.divisionId,
-							registration_id: athlete.registrationId,
-						})
-						const displayName =
-							athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
-						toast.success(`Score saved for ${displayName}`)
 					}
 				})
 				.catch(() => {})
@@ -199,7 +242,6 @@ export function ResultsEntryForm({
 			event.workout.roundsToScore,
 			event.workout.timeCap,
 			event.workout.tiebreakScheme,
-			event.workout.name,
 			saveScore,
 		],
 	)
