@@ -37,11 +37,13 @@ import type {
 import { SetDetails } from "./set-details"
 import { WorkoutScheduleHistory } from "./workout-schedule-history"
 
-// Define a new type for results with their sets and scaling labels
+// Define a new type for scores with their rounds and scaling labels
 export type WorkoutResultWithSets = WorkoutResult & {
 	sets: ResultSet[] | null
 	scalingLevelLabel?: string
 	scalingLevelPosition?: number
+	/** Decoded score for display */
+	displayScore?: string
 }
 
 export default function WorkoutDetailClient({
@@ -349,24 +351,24 @@ export default function WorkoutDetailClient({
 										<div className="mb-2 flex items-center justify-between">
 											<div>
 												<p className="font-bold text-foreground text-lg dark:text-dark-foreground">
-													{formatDate(result.date)}
+													{formatDate(result.recordedAt)}
 												</p>
-												{result.wodScore && (
+												{result.displayScore && (
 													<p className="mb-1 text-foreground text-xl dark:text-dark-foreground">
-														{result.wodScore}
+														{result.displayScore}
 													</p>
 												)}
 											</div>
 											<div className="flex items-center gap-2">
-												{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
+												{/* Display scaling label with Rx indicator */}
 												{result.scalingLevelLabel ? (
 													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
 														{result.scalingLevelLabel}
 														{result.asRx ? " (Rx)" : " (Scaled)"}
 													</span>
-												) : result.scale ? (
+												) : result.asRx ? (
 													<span className="bg-gray-200 px-2 py-1 font-bold text-black text-xs uppercase dark:bg-dark-muted dark:text-dark-foreground">
-														{result.scale}
+														Rx
 													</span>
 												) : null}
 												<Button
@@ -405,7 +407,10 @@ export default function WorkoutDetailClient({
 													</div>
 												}
 											>
-												<SetDetails sets={result.sets} />
+												<SetDetails
+													sets={result.sets}
+													workoutScheme={workout.scheme as any}
+												/>
 											</Suspense>
 										)}
 								</div>

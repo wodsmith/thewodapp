@@ -36,11 +36,11 @@ export default function MovementDetailClient({
 							const mostRecentResult =
 								resultsForWorkout.length > 0
 									? resultsForWorkout
-											.filter((result) => result.date)
+											.filter((result) => result.recordedAt)
 											.sort(
 												(a, b) =>
-													new Date(b.date).getTime() -
-													new Date(a.date).getTime(),
+													new Date(b.recordedAt).getTime() -
+													new Date(a.recordedAt).getTime(),
 											)[0]
 									: undefined
 

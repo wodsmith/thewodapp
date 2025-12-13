@@ -124,8 +124,8 @@ export default async function WorkoutDetailPage({
 			id: r.id,
 			scalingLevelId: r.scalingLevelId,
 			scalingLevelLabel: r.scalingLabel,
-			scale: r.scale,
 			asRx: r.asRx,
+			displayScore: r.displayScore,
 		})),
 	)
 

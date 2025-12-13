@@ -16,7 +16,6 @@ import {
 	decodeScore,
 	getDefaultScoreType,
 } from "@/lib/scoring"
-import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 import {
 	type ParseResult,
 	parseScore,
@@ -43,8 +42,22 @@ interface RoundScoreState {
 	timeCapped?: boolean
 }
 
+export interface ScoreInputSubject {
+	existingResult: {
+		wodScore: string | null
+		scoreStatus: ScoreStatus | null
+		tieBreakScore: string | null
+		secondaryScore: string | null
+		sets: Array<{
+			setNumber: number
+			score: number | null
+			reps: number | null
+		}>
+	} | null
+}
+
 export interface UseScoreRowStateArgs {
-	athlete: EventScoreEntryAthlete
+	subject: ScoreInputSubject
 	workoutScheme: WorkoutScheme
 	scoreType?: ScoreType | null
 	tiebreakScheme: TiebreakScheme | null
@@ -112,7 +125,7 @@ export interface UseScoreRowStateResult {
 }
 
 export function useScoreRowState({
-	athlete,
+	subject,
 	workoutScheme,
 	scoreType: scoreTypeProp,
 	tiebreakScheme,
@@ -154,7 +167,7 @@ export function useScoreRowState({
 			}))
 		}
 
-		const existingSets = athlete.existingResult?.sets
+		const existingSets = subject.existingResult?.sets
 		if (existingSets && existingSets.length > 0 && isMultiRound) {
 			const isTimeScheme =
 				workoutScheme === "time" || workoutScheme === "time-with-cap"
@@ -184,7 +197,7 @@ export function useScoreRowState({
 				})
 		}
 
-		const existingScore = athlete.existingResult?.wodScore
+		const existingScore = subject.existingResult?.wodScore
 		if (existingScore && isMultiRound) {
 			try {
 				const parsed = JSON.parse(existingScore)
@@ -231,29 +244,29 @@ export function useScoreRowState({
 	)
 	const [inputValue, setInputValue] = useState(
 		value?.score ||
-			(isMultiRound ? "" : athlete.existingResult?.wodScore || ""),
+			(isMultiRound ? "" : subject.existingResult?.wodScore || ""),
 	)
 	const [tieBreakValue, setTieBreakValue] = useState(
-		value?.tieBreakScore || athlete.existingResult?.tieBreakScore || "",
+		value?.tieBreakScore || subject.existingResult?.tieBreakScore || "",
 	)
 	const [tieBreakParseResult, setTieBreakParseResult] =
 		useState<ParseResult | null>(() => {
 			if (!tiebreakScheme) return null
 			const initialTieBreak =
-				value?.tieBreakScore || athlete.existingResult?.tieBreakScore || ""
+				value?.tieBreakScore || subject.existingResult?.tieBreakScore || ""
 			if (initialTieBreak.trim()) {
 				return parseTieBreakScore(initialTieBreak, tiebreakScheme)
 			}
 			return null
 		})
 	const [secondaryValue, setSecondaryValue] = useState(
-		value?.secondaryScore || athlete.existingResult?.secondaryScore || "",
+		value?.secondaryScore || subject.existingResult?.secondaryScore || "",
 	)
 	const [showWarning, setShowWarning] = useState(false)
 	const [showTieBreakWarning, setShowTieBreakWarning] = useState(false)
 	const [parseResult, setParseResult] = useState<ParseResult | null>(() => {
 		if (isMultiRound || isPassFail) return null
-		const initialScore = value?.score || athlete.existingResult?.wodScore || ""
+		const initialScore = value?.score || subject.existingResult?.wodScore || ""
 		if (initialScore.trim()) {
 			return parseScore(initialScore, workoutScheme, timeCap, tiebreakScheme)
 		}
@@ -362,7 +375,7 @@ export function useScoreRowState({
 			return
 		}
 
-		const existing = athlete.existingResult
+		const existing = subject.existingResult
 		const finalScore = buildScoreString()
 		const newScoreStatus = parseResult?.scoreStatus || "scored"
 		const newTieBreak = tieBreakValue || null

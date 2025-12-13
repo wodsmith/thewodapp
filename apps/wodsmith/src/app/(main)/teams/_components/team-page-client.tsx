@@ -9,7 +9,7 @@ import {
 } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Result } from "@/db/schema"
+import type { Score } from "@/db/schema"
 import { SYSTEM_ROLES_ENUM } from "@/db/schemas/teams"
 import type { LeaderboardEntry } from "@/server/leaderboard"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
@@ -47,7 +47,7 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>("daily")
 	const [selectedDate, setSelectedDate] = useState(new Date())
 	const [workoutsWithResults, setWorkoutsWithResults] = useState<
-		Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>
+		Array<ScheduledWorkoutInstanceWithDetails & { result?: Score | null }>
 	>([])
 	const [leaderboards, setLeaderboards] = useState<
 		Record<string, LeaderboardEntry[]>
@@ -134,7 +134,7 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 		},
 		{} as Record<
 			string,
-			Array<ScheduledWorkoutInstanceWithDetails & { result?: Result | null }>
+			Array<ScheduledWorkoutInstanceWithDetails & { result?: Score | null }>
 		>,
 	)
 
@@ -217,9 +217,9 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 																<p className="text-sm font-semibold mb-2 text-green-600 dark:text-green-400">
 																	✓ Completed
 																</p>
-																{workout.result.wodScore && (
+																{workout.result.scoreValue !== null && (
 																	<p className="text-lg font-bold">
-																		Score: {workout.result.wodScore}
+																		Score: {workout.result.scoreValue}
 																	</p>
 																)}
 															</div>
@@ -278,9 +278,9 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 																			<p className="text-sm font-semibold mb-1 text-green-600 dark:text-green-400">
 																				✓ Completed
 																			</p>
-																			{workout.result.wodScore && (
+																			{workout.result.scoreValue !== null && (
 																				<p className="text-base font-bold">
-																					Score: {workout.result.wodScore}
+																					Score: {workout.result.scoreValue}
 																				</p>
 																			)}
 																		</div>

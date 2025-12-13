@@ -4,6 +4,7 @@ import { ClockIcon, PencilIcon } from "@heroicons/react/24/outline"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import type { TrackWorkout, Workout } from "@/db/schema"
+import { decodeScore } from "@/lib/scoring"
 import type { WorkoutResult } from "@/types"
 
 type WorkoutWithMovements = Workout & {
@@ -12,7 +13,7 @@ type WorkoutWithMovements = Workout & {
 
 interface WorkoutInstance {
 	id: string
-	result?: WorkoutResult
+	result?: WorkoutResult & { displayScore?: string }
 	classTimes?: string | null
 	teamSpecificNotes?: string | null
 	scalingGuidanceForDay?: string | null
@@ -32,6 +33,13 @@ export function WeeklyWorkoutCard({
 	index,
 }: WeeklyWorkoutCardProps) {
 	const result = instance.result
+
+	// Decode score if displayScore is not already present
+	const displayScore =
+		result?.displayScore ??
+		(result?.scoreValue !== null && result?.scoreValue !== undefined && result?.scheme
+			? decodeScore(result.scoreValue, result.scheme)
+			: undefined)
 
 	return (
 		<div
@@ -84,11 +92,11 @@ export function WeeklyWorkoutCard({
 									<div className="flex items-center">
 										<div className="flex items-center gap-2">
 											<span className="text-sm font-semibold text-green-700 dark:text-green-300">
-												✓ {result.wodScore || "Completed"}
+												✓ {displayScore || "Completed"}
 											</span>
-											{result.scale && (
+											{result.asRx && (
 												<span className="px-1.5 py-0.5 text-xs font-medium bg-green-600 text-white w-fit">
-													{result.scale.toUpperCase()}
+													RX
 												</span>
 											)}
 										</div>

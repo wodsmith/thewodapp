@@ -46,12 +46,11 @@ export function getScalingDisplayInfo(
 		}
 	}
 
-	// Priority 3: Fall back to deprecated scale field
-	if (logEntry.scale) {
-		const label = logEntry.scale.toUpperCase()
+	// Priority 3: Use asRx flag as fallback
+	if (logEntry.asRx) {
 		return {
-			label,
-			variant: getVariantForLegacyScale(logEntry.scale),
+			label: "Rx",
+			variant: "default",
 			showScaledSuffix: false,
 		}
 	}

@@ -67,11 +67,10 @@ function SchemeIcon({
 
 type ResultSummary = {
 	id: string
-	date: Date
-	wodScore: string | null
-	scale: string | null
-	scalingLevelLabel?: string
-	scalingLevelPosition?: number
+	recordedAt: Date
+	displayScore?: string
+	scalingLabel?: string
+	scalingPosition?: number
 	asRx?: boolean
 }
 
@@ -239,27 +238,17 @@ export default function WorkoutRowCard({
 					<div className="flex flex-col gap-2 items-end w-full">
 						{displayResult && (
 							<div className="flex items-center gap-2 text-sm">
-								<span className="font-semibold">{displayResult.wodScore}</span>
-								{/* Display custom scaling label if available, otherwise fall back to legacy scale */}
-								{displayResult.scalingLevelLabel ? (
+								<span className="font-semibold">{displayResult.displayScore}</span>
+								{/* Display custom scaling label if available */}
+								{displayResult.scalingLabel ? (
 									<Badge variant={displayResult.asRx ? "default" : "secondary"}>
-										{displayResult.scalingLevelLabel}
+										{displayResult.scalingLabel}
 										{displayResult.asRx ? " (Rx)" : " (Scaled)"}
 									</Badge>
-								) : displayResult.scale ? (
-									(() => {
-										const badgeVariant: "rx" | "rx+" | "scaled" | "secondary" =
-											displayResult.scale === "rx" ||
-											displayResult.scale === "rx+" ||
-											displayResult.scale === "scaled"
-												? (displayResult.scale as "rx" | "rx+" | "scaled")
-												: "secondary"
-										return (
-											<Badge variant={badgeVariant}>
-												{displayResult.scale.toUpperCase()}
-											</Badge>
-										)
-									})()
+								) : displayResult.asRx !== undefined ? (
+									<Badge variant={displayResult.asRx ? "default" : "secondary"}>
+										{displayResult.asRx ? "Rx" : "Scaled"}
+									</Badge>
 								) : null}
 							</div>
 						)}
