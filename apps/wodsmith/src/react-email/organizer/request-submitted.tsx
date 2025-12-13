@@ -92,9 +92,8 @@ const container = {
 	border: "1px solid #f0f0f0",
 	borderRadius: "5px",
 	boxShadow: "0 5px 10px rgba(20,50,70,.2)",
-	marginTop: "20px",
 	maxWidth: "600px",
-	margin: "0 auto",
+	margin: "20px auto 0",
 	padding: "40px",
 }
 

@@ -52,9 +52,7 @@ export const approveOrganizerRequestAction = createServerAction()
 	.input(approveRequestSchema)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) {
-			throw new ZSAError("FORBIDDEN", "Admin access required")
-		}
+		if (!admin) throw new ZSAError("FORBIDDEN", "Admin access required")
 
 		try {
 			const result = await approveOrganizerRequest({
@@ -98,9 +96,7 @@ export const rejectOrganizerRequestAction = createServerAction()
 	.input(rejectRequestSchema)
 	.handler(async ({ input }) => {
 		const admin = await requireAdmin()
-		if (!admin) {
-			throw new ZSAError("FORBIDDEN", "Admin access required")
-		}
+		if (!admin) throw new ZSAError("FORBIDDEN", "Admin access required")
 
 		try {
 			const result = await rejectOrganizerRequest({

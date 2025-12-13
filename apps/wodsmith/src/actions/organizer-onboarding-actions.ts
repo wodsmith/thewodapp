@@ -132,6 +132,18 @@ export const getOrganizerRequestStatusAction = createServerAction()
 				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
 			}
 
+			// Verify user has permission to access this team's data
+			const hasPermission = await hasTeamPermission(
+				input.teamId,
+				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+			)
+			if (!hasPermission) {
+				throw new ZSAError(
+					"FORBIDDEN",
+					"You don't have permission to access this team",
+				)
+			}
+
 			const request = await getOrganizerRequest(input.teamId)
 			const isPending = await hasPendingOrganizerRequest(input.teamId)
 			const isApproved = await isApprovedOrganizer(input.teamId)

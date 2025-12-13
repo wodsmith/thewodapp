@@ -151,15 +151,6 @@ export async function getAllOrganizerRequests({
 } = {}): Promise<OrganizerRequestWithDetails[]> {
 	const db = getDb()
 
-	// Alias for reviewer user join
-	const reviewerTable = db.$with("reviewer").as(
-		db.select({
-			id: userTable.id,
-			firstName: userTable.firstName,
-			lastName: userTable.lastName,
-		}).from(userTable)
-	)
-
 	const requests = await db
 		.select({
 			id: organizerRequestTable.id,

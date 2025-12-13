@@ -112,7 +112,11 @@ export default async function PayoutsPage({
 	}
 
 	// Determine back link - returnTo param or default to organizer dashboard
-	const backHref = returnTo || "/compete/organizer"
+	// Only allow relative paths to prevent open redirect attacks
+	const backHref =
+		returnTo?.startsWith("/") && !returnTo.startsWith("//")
+			? returnTo
+			: "/compete/organizer"
 
 	return (
 		<div className="container mx-auto px-4 py-8 max-w-3xl">

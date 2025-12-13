@@ -58,13 +58,22 @@ export function OrganizerRequestsTable({
 		{
 			onSuccess: ({ data }) => {
 				toast.success("Request approved successfully")
-				setRequests((prev) =>
-					prev.map((r) =>
-						r.id === selectedRequest?.id
-							? { ...r, status: "approved" as const, reviewedAt: new Date() }
-							: r,
-					),
-				)
+				// Update local state with data from server response for complete info
+				if (data?.data) {
+					setRequests((prev) =>
+						prev.map((r) =>
+							r.id === selectedRequest?.id
+								? {
+										...r,
+										status: data.data.status,
+										reviewedAt: data.data.reviewedAt,
+										reviewedBy: data.data.reviewedBy,
+										adminNotes: data.data.adminNotes,
+									}
+								: r,
+						),
+					)
+				}
 				closeDialog()
 			},
 			onError: (error) => {
@@ -76,15 +85,24 @@ export function OrganizerRequestsTable({
 	const { execute: reject, isPending: isRejecting } = useServerAction(
 		rejectOrganizerRequestAction,
 		{
-			onSuccess: () => {
+			onSuccess: ({ data }) => {
 				toast.success("Request rejected")
-				setRequests((prev) =>
-					prev.map((r) =>
-						r.id === selectedRequest?.id
-							? { ...r, status: "rejected" as const, reviewedAt: new Date() }
-							: r,
-					),
-				)
+				// Update local state with data from server response for complete info
+				if (data?.data) {
+					setRequests((prev) =>
+						prev.map((r) =>
+							r.id === selectedRequest?.id
+								? {
+										...r,
+										status: data.data.status,
+										reviewedAt: data.data.reviewedAt,
+										reviewedBy: data.data.reviewedBy,
+										adminNotes: data.data.adminNotes,
+									}
+								: r,
+						),
+					)
+				}
 				closeDialog()
 			},
 			onError: (error) => {

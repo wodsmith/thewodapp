@@ -96,6 +96,7 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 					await submitRequest({
 						teamId: result.data.data.teamId,
 						reason: form.getValues("reason"),
+						captchaToken: form.getValues("captchaToken"),
 					})
 				}
 			},
