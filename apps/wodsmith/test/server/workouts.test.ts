@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest"
 import { requireVerifiedEmail } from "@/utils/auth"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { workouts, workoutTags, workoutMovements } from "@/db/schema"
 import type { SessionWithMeta } from "@/types"
 
@@ -10,7 +10,7 @@ vi.mock("@/utils/auth", () => ({
 }))
 
 vi.mock("@/db", () => ({
-  getDd: vi.fn(),
+  getDb: vi.fn(),
 }))
 
 vi.mock("@/db/schema", () => ({
@@ -107,7 +107,7 @@ describe("workouts server functions", () => {
 
     // Setup default mocks
     vi.mocked(requireVerifiedEmail).mockResolvedValue(mockSession)
-    vi.mocked(getDd).mockReturnValue({
+    vi.mocked(getDb).mockReturnValue({
       query: {
         workouts: {
           findFirst: vi.fn(),
