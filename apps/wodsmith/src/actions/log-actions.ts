@@ -6,10 +6,11 @@ import { createServerAction, ZSAError } from "@repo/zsa"
 import type { Workout } from "@/db/schema"
 import {
 	getLogsByUser,
-	getResultById,
-	getResultSetsById,
+	getScoreById,
+	getScoreRoundsById,
 	submitLogForm,
-	updateResult,
+	updateScore,
+	type WorkoutScoreInfo,
 } from "@/server/logs"
 import type { ResultSetInput } from "@/types"
 
@@ -34,22 +35,22 @@ export const getLogsByUserAction = createServerAction()
 	})
 
 /**
- * Get result sets by result ID
+ * Get score rounds by score ID
  */
-export const getResultSetsByIdAction = createServerAction()
-	.input(z.object({ resultId: z.string().min(1, "Result ID is required") }))
+export const getScoreRoundsByIdAction = createServerAction()
+	.input(z.object({ scoreId: z.string().min(1, "Score ID is required") }))
 	.handler(async ({ input }) => {
 		try {
-			const sets = await getResultSetsById(input.resultId)
-			return { success: true, data: sets }
+			const rounds = await getScoreRoundsById(input.scoreId)
+			return { success: true, data: rounds }
 		} catch (error) {
-			console.error("Failed to get result sets:", error)
+			console.error("Failed to get score rounds:", error)
 
 			if (error instanceof ZSAError) {
 				throw error
 			}
 
-			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get result sets")
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get score rounds")
 		}
 	})
 
@@ -144,25 +145,25 @@ export const submitLogFormAction = createServerAction()
 	})
 
 /**
- * Get a single result by ID
+ * Get a single score by ID
  */
-export const getResultByIdAction = createServerAction()
-	.input(z.object({ resultId: z.string().min(1, "Result ID is required") }))
+export const getScoreByIdAction = createServerAction()
+	.input(z.object({ scoreId: z.string().min(1, "Score ID is required") }))
 	.handler(async ({ input }) => {
 		try {
-			const result = await getResultById(input.resultId)
-			if (!result) {
-				throw new ZSAError("NOT_FOUND", "Result not found")
+			const score = await getScoreById(input.scoreId)
+			if (!score) {
+				throw new ZSAError("NOT_FOUND", "Score not found")
 			}
-			return { success: true, data: result }
+			return { success: true, data: score }
 		} catch (error) {
-			console.error("Failed to get result by ID:", error)
+			console.error("Failed to get score by ID:", error)
 
 			if (error instanceof ZSAError) {
 				throw error
 			}
 
-			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get result")
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to get score")
 		}
 	})
 
@@ -496,20 +497,29 @@ async function updateResultForm(
 		}
 	}
 
-	// Update the result
-	await updateResult({
-		resultId,
+	// Build workoutInfo for score encoding
+	const workoutInfo = {
+		scheme: workout.scheme,
+		scoreType: workout.scoreType,
+		repsPerRound: workout.repsPerRound,
+		roundsToScore: workout.roundsToScore,
+		timeCap: workout.timeCap,
+		tiebreakScheme: workout.tiebreakScheme,
+	}
+
+	// Update the score
+	await updateScore({
+		scoreId: resultId, // resultId is actually the scoreId now
 		userId,
 		workoutId: selectedWorkoutId,
 		date: timestamp,
 		scalingLevelId,
 		asRx,
-		wodScore: finalWodScoreSummary,
 		notes: notesValue,
 		setsData: setsForDb,
-		type: "wod",
 		scheduledWorkoutInstanceId: scheduledInstanceId,
-		programmingTrackId: programmingTrackId,
+		workoutInfo,
+		hasTimeCappedRounds,
 	})
 
 	// Revalidate all pages that display workout results

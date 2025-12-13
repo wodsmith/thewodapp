@@ -544,14 +544,7 @@ export async function getWorkoutResultForScheduledInstance(
 export async function getWorkoutResultsWithScalingForUser(
 	workoutId: string,
 	userId: string,
-): Promise<
-	Array<
-		WorkoutResult & {
-			scalingLabel?: string
-			scalingPosition?: number
-		}
-	>
-> {
+): Promise<ScoreWithScaling[]> {
 	const result = await getWorkoutResultsWithScaling({
 		workoutId,
 		teamId: "", // Not needed for user-specific query
@@ -662,13 +655,21 @@ export async function getWorkoutResultsWithScaling({
 				count: workoutResultsData.length,
 			},
 		})
-		return workoutResultsData.map((result) => ({
-			...result,
-			scalingLabel: result.scalingLabel || undefined,
-			scalingPosition: result.scalingPosition ?? undefined,
-			scalingGroupTitle: result.scalingGroupTitle || undefined,
-			scalingDescription: result.scalingDescription || undefined,
-		}))
+		return workoutResultsData.map((result) => {
+			// Decode scoreValue to display string
+			let displayScore: string | undefined
+			if (result.scoreValue !== null && result.scheme) {
+				displayScore = decodeScore(result.scoreValue, result.scheme)
+			}
+			return {
+				...result,
+				displayScore,
+				scalingLabel: result.scalingLabel || undefined,
+				scalingPosition: result.scalingPosition ?? undefined,
+				scalingGroupTitle: result.scalingGroupTitle || undefined,
+				scalingDescription: result.scalingDescription || undefined,
+			}
+		})
 	} catch (error) {
 		logError({
 			message: "[workout-results] Error fetching results with scaling",

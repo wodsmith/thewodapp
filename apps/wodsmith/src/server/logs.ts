@@ -7,10 +7,8 @@ import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
 	programmingTracksTable,
-	results,
 	scalingGroupsTable,
 	scalingLevelsTable,
-	sets,
 	workouts,
 	scoresTable,
 	scoreRoundsTable,
@@ -29,7 +27,6 @@ import {
 	computeSortKey,
 	encodeRoundsRepsFromParts,
 } from "@/lib/scoring"
-import { convertNewToLegacy } from "@/utils/score-adapter"
 import { getActiveOrPersonalTeamId } from "@/utils/auth"
 import type {
 	ResultSet,
@@ -43,44 +40,6 @@ import {
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
-
-// ============================================================================
-// ENCODING MIGRATION NOTES - Phase 4
-// ============================================================================
-//
-// This file contains the core score processing logic used by both:
-// - submitLogForm (user workout logs)
-// - saveCompetitionScore (competition scores)
-//
-// CURRENT STATE (Phase 3):
-// - Scores are stored in results + sets tables with LEGACY encoding:
-//   * Time: seconds (not milliseconds)
-//   * Rounds+Reps: rounds * 1000 + reps (not rounds * 100000 + reps)
-//   * Load: lbs (not grams)
-//   * Distance: meters/feet (not millimeters)
-//
-// FUTURE STATE (Phase 4):
-// - Dual-write to new scores + score_rounds tables with NEW encoding:
-//   * Time: milliseconds
-//   * Rounds+Reps: rounds * 100000 + reps
-//   * Load: grams
-//   * Distance: millimeters
-// - Use encodeScore() and encodeRounds() from @/lib/scoring
-// - Populate sortKey column using computeSortKey()
-//
-// KEY FUNCTIONS TO UPDATE IN PHASE 4:
-// - processScoresToSetsAndWodScore(): Add encoding logic
-// - addLog(): Dual-write to scores table
-// - updateLog(): Update scores table
-//
-// COMPLEXITY NOTES:
-// - This file is 1100+ lines with complex score processing logic
-// - Handles multiple workout schemes (time, rounds-reps, load, etc.)
-// - Aggregation logic (min, max, sum, average, first, last)
-// - Time-capped results need special handling
-// - Must maintain backward compatibility during migration
-//
-// ============================================================================
 
 /* -------------------------------------------------------------------------- */
 /*                         Shared Score Processing Types                       */
@@ -162,12 +121,6 @@ export function aggregateScores(
 /**
  * Process normalized score entries into sets and generate wodScore
  * This is the shared core logic used by both submitLogForm and saveCompetitionScore
- *
- * TODO Phase 4: Add new encoding logic
- * - Call encodeScore() to generate new-format encoded values
- * - Store both legacy (for results+sets) and new (for scores) encodings
- * - Generate sortKey using computeSortKey()
- * - Return additional fields for scores table insertion
  */
 export function processScoresToSetsAndWodScore(
 	scoreEntries: NormalizedScoreEntry[],
@@ -237,15 +190,12 @@ export function processScoresToSetsAndWodScore(
 				// Parse using scoring library (returns milliseconds in new encoding)
 				const parseResult = libParseScore(scoreStr, workout.scheme as WorkoutScheme)
 				if (parseResult.isValid && parseResult.encoded !== null) {
-					// Convert from new encoding (milliseconds) to legacy (seconds) for database
-					const timeInSeconds = convertNewToLegacy(
-						parseResult.encoded,
-						workout.scheme as WorkoutScheme,
-					)
-					totalSecondsForWodScore += timeInSeconds
+					// Store time in milliseconds (new encoding)
+					const timeInMs = parseResult.encoded
+					totalSecondsForWodScore += timeInMs / 1000 // For wodScore display string
 					setsForDb.push({
 						setNumber,
-						time: timeInSeconds,
+						time: timeInMs,
 						reps: null,
 						weight: null,
 						status: null,
@@ -658,7 +608,7 @@ export async function mapLegacyScaleToScalingLevel({
 }
 
 /**
- * Get all logs by user ID with workout names and scaling level details
+ * Get all logs (scores) by user ID with workout names and scaling level details
  */
 export async function getLogsByUser(
 	userId: string,
@@ -672,45 +622,50 @@ export async function getLogsByUser(
 	try {
 		const logs = await db
 			.select({
-				id: results.id,
-				userId: results.userId,
-				date: results.date,
-				workoutId: results.workoutId,
-				type: results.type,
-				notes: results.notes,
-				scale: results.scale,
-				scalingLevelId: results.scalingLevelId,
-				asRx: results.asRx,
+				id: scoresTable.id,
+				userId: scoresTable.userId,
+				date: scoresTable.recordedAt,
+				workoutId: scoresTable.workoutId,
+				notes: scoresTable.notes,
+				scalingLevelId: scoresTable.scalingLevelId,
+				asRx: scoresTable.asRx,
 				scalingLevelLabel: scalingLevelsTable.label,
 				scalingLevelPosition: scalingLevelsTable.position,
-				wodScore: results.wodScore,
-				setCount: results.setCount,
-				distance: results.distance,
-				time: results.time,
-				createdAt: results.createdAt,
-				updatedAt: results.updatedAt,
-				updateCounter: results.updateCounter,
+				scoreValue: scoresTable.scoreValue,
+				scheme: scoresTable.scheme,
+				status: scoresTable.status,
+				createdAt: scoresTable.createdAt,
+				updatedAt: scoresTable.updatedAt,
 				workoutName: workouts.name,
 			})
-			.from(results)
-			.leftJoin(workouts, eq(results.workoutId, workouts.id))
+			.from(scoresTable)
+			.leftJoin(workouts, eq(scoresTable.workoutId, workouts.id))
 			.leftJoin(
 				scalingLevelsTable,
-				eq(results.scalingLevelId, scalingLevelsTable.id),
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
 			)
-			.where(eq(results.userId, userId))
-			.orderBy(desc(results.date))
+			.where(eq(scoresTable.userId, userId))
+			.orderBy(desc(scoresTable.recordedAt))
 
 		logInfo({
 			message: "[getLogsByUser] Fetched logs for user",
 			attributes: { userId, count: logs.length },
 		})
-		return logs.map((log) => ({
-			...log,
-			workoutName: log.workoutName || undefined,
-			scalingLevelLabel: log.scalingLevelLabel || undefined,
-			scalingLevelPosition: log.scalingLevelPosition ?? undefined,
-		})) as WorkoutResultWithWorkoutName[]
+		// Decode scoreValue to formatted string for display
+		return logs.map((log) => {
+			let displayScore: string | undefined
+			if (log.scoreValue !== null && log.scheme) {
+				const decoded = decodeScore(log.scoreValue, log.scheme as WorkoutScheme)
+				displayScore = decoded.display
+			}
+			return {
+				...log,
+				displayScore,
+				workoutName: log.workoutName || undefined,
+				scalingLevelLabel: log.scalingLevelLabel || undefined,
+				scalingLevelPosition: log.scalingLevelPosition ?? undefined,
+			}
+		}) as WorkoutResultWithWorkoutName[]
 	} catch (error) {
 		logError({
 			message: "[getLogsByUser] Error fetching logs for user",
@@ -724,8 +679,7 @@ export async function getLogsByUser(
 /**
  * Add a new log entry with sets
  *
- * Phase 4: Dual-writes to both legacy (results+sets) and new (scores+score_rounds) tables.
- * The new scores table uses proper encoding (milliseconds for time, grams for load, etc.)
+ * Writes to scores and score_rounds tables with proper encoding (milliseconds for time, etc.)
  */
 export async function addLog({
 	userId,
@@ -797,144 +751,88 @@ export async function addLog({
 		return { success: false, error: "Database connection failed" }
 	}
 
-	const resultId = `result_${createId()}`
 	const scoreId = createScoreId()
 
 	try {
-		// ========================================
-		// 1. Insert into legacy results table
-		// ========================================
-		const insertData = {
-			id: resultId,
-			userId,
-			workoutId,
-			date: new Date(date),
-			type,
-			scale: null, // legacy field deprecated
-			scalingLevelId,
-			asRx,
-			wodScore,
-			notes: notes || null,
-			setCount: setsData.length || null,
-			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
-			programmingTrackId: programmingTrackId || null,
+		// Require workoutInfo for proper score encoding
+		if (!workoutInfo) {
+			logError({
+				message: "[addLog] workoutInfo is required for score encoding",
+				attributes: { userId, workoutId },
+			})
+			return { success: false, error: "Workout info required for logging" }
 		}
 
-		const insertResult = await db.insert(results).values(insertData).returning()
+		// ========================================
+		// Insert into scores table
+		// ========================================
+		const newScoreData = prepareNewScoreData(
+			setsData,
+			workoutInfo,
+			hasTimeCappedRounds,
+		)
+
+		const scoreInsertData = {
+			id: scoreId,
+			userId,
+			teamId,
+			workoutId,
+			scheme: workoutInfo.scheme as WorkoutScheme,
+			scoreType: (workoutInfo.scoreType || getDefaultScoreType(workoutInfo.scheme)) as ScoreType,
+			scoreValue: newScoreData.scoreValue,
+			status: newScoreData.status,
+			statusOrder: newScoreData.statusOrder,
+			sortKey: newScoreData.sortKey,
+			scalingLevelId,
+			asRx,
+			notes: notes || null,
+			recordedAt: new Date(date),
+			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
+			timeCapMs: workoutInfo.timeCap ? workoutInfo.timeCap * 1000 : null,
+		}
+
+		await db.insert(scoresTable).values(scoreInsertData)
 		logInfo({
-			message: "[addLog] Legacy result inserted",
-			attributes: { resultId, insertCount: insertResult.length },
+			message: "[addLog] Score inserted",
+			attributes: {
+				scoreId,
+				scoreValue: newScoreData.scoreValue,
+				status: newScoreData.status,
+				sortKey: newScoreData.sortKey,
+			},
 		})
 
 		// ========================================
-		// 2. Insert into legacy sets table
+		// Insert score rounds if multi-round
 		// ========================================
-		if (setsData.length > 0) {
-			const setsToInsert = setsData.map((set) => ({
-				id: `set_${createId()}`,
-				resultId,
-				setNumber: set.setNumber,
-				reps: set.reps || null,
-				weight: set.weight || null,
-				distance: set.distance || null,
-				time: set.time || null,
-				score: set.score || null,
-				status: set.status || null,
+		if (newScoreData.roundValues.length > 1) {
+			const roundsToInsert = newScoreData.roundValues.map((value, idx) => ({
+				id: createScoreRoundId(),
+				scoreId,
+				roundNumber: idx + 1,
+				value,
 			}))
 
-			const setsInsertResult = await db
-				.insert(sets)
-				.values(setsToInsert)
-				.returning()
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
 			logInfo({
-				message: "[addLog] Legacy sets inserted",
+				message: "[addLog] Score rounds inserted",
 				attributes: {
-					resultId,
-					insertedSets: setsToInsert.length,
-					returned: setsInsertResult.length,
+					scoreId,
+					roundCount: roundsToInsert.length,
 				},
 			})
 		}
 
-		// ========================================
-		// 3. Insert into new scores table (dual-write)
-		// ========================================
-		if (workoutInfo && type === "wod") {
-			try {
-				const newScoreData = prepareNewScoreData(
-					setsData,
-					workoutInfo,
-					hasTimeCappedRounds,
-				)
-
-				const scoreInsertData = {
-					id: scoreId,
-					userId,
-					teamId,
-					workoutId,
-					scheme: workoutInfo.scheme as WorkoutScheme,
-					scoreType: (workoutInfo.scoreType || getDefaultScoreType(workoutInfo.scheme)) as ScoreType,
-					scoreValue: newScoreData.scoreValue,
-					status: newScoreData.status,
-					statusOrder: newScoreData.statusOrder,
-					sortKey: newScoreData.sortKey,
-					scalingLevelId,
-					asRx,
-					notes: notes || null,
-					recordedAt: new Date(date),
-					scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
-					timeCapMs: workoutInfo.timeCap ? workoutInfo.timeCap * 1000 : null,
-				}
-
-				await db.insert(scoresTable).values(scoreInsertData)
-				logInfo({
-					message: "[addLog] New score inserted",
-					attributes: {
-						scoreId,
-						scoreValue: newScoreData.scoreValue,
-						status: newScoreData.status,
-						sortKey: newScoreData.sortKey,
-					},
-				})
-
-				// Insert score rounds if multi-round
-				if (newScoreData.roundValues.length > 1) {
-					const roundsToInsert = newScoreData.roundValues.map((value, idx) => ({
-						id: createScoreRoundId(),
-						scoreId,
-						roundNumber: idx + 1,
-						value,
-					}))
-
-					await db.insert(scoreRoundsTable).values(roundsToInsert)
-					logInfo({
-						message: "[addLog] Score rounds inserted",
-						attributes: {
-							scoreId,
-							roundCount: roundsToInsert.length,
-						},
-					})
-				}
-			} catch (scoreError) {
-				// Log but don't fail - legacy tables are source of truth during migration
-				logError({
-					message: "[addLog] Failed to insert into new scores table (non-fatal)",
-					error: scoreError,
-					attributes: { scoreId, workoutId, userId },
-				})
-			}
-		}
-
 		logInfo({
 			message: "[addLog] Success",
-			attributes: { resultId, scoreId, workoutId, userId },
+			attributes: { scoreId, workoutId, userId },
 		})
-		return { success: true, resultId, scoreId }
+		return { success: true, scoreId }
 	} catch (error) {
 		logError({
 			message: "[addLog] Error adding log",
 			error,
-			attributes: { userId, workoutId, resultId },
+			attributes: { userId, workoutId, scoreId },
 		})
 		if (error instanceof Error) {
 			return { success: false, error: error.message }
@@ -944,145 +842,133 @@ export async function addLog({
 }
 
 /**
- * Get result sets by result ID
+ * Get score rounds by score ID
  */
-export async function getResultSetsById(
-	resultId: string,
+export async function getScoreRoundsById(
+	scoreId: string,
 ): Promise<ResultSet[]> {
 	const db = getDb()
 	logInfo({
-		message: "[getResultSetsById] Fetching sets",
-		attributes: { resultId },
+		message: "[getScoreRoundsById] Fetching rounds",
+		attributes: { scoreId },
 	})
 
 	try {
-		const setDetails = await db
+		const rounds = await db
 			.select()
-			.from(sets)
-			.where(eq(sets.resultId, resultId))
-			.orderBy(sets.setNumber)
+			.from(scoreRoundsTable)
+			.where(eq(scoreRoundsTable.scoreId, scoreId))
+			.orderBy(scoreRoundsTable.roundNumber)
 
 		logInfo({
-			message: "[getResultSetsById] Found sets",
-			attributes: { resultId, count: setDetails.length },
+			message: "[getScoreRoundsById] Found rounds",
+			attributes: { scoreId, count: rounds.length },
 		})
-		return setDetails
+		return rounds
 	} catch (error) {
 		logError({
-			message: "[getResultSetsById] Error fetching sets",
+			message: "[getScoreRoundsById] Error fetching rounds",
 			error,
-			attributes: { resultId },
+			attributes: { scoreId },
 		})
 		return []
 	}
 }
 
 /**
- * Get a single result by ID with workout details and scaling level
+ * Get a single score by ID with workout details and scaling level
  */
-export async function getResultById(resultId: string) {
+export async function getScoreById(scoreId: string) {
 	const db = getDb()
 	logInfo({
-		message: "[getResultById] Fetching result",
-		attributes: { resultId },
+		message: "[getScoreById] Fetching score",
+		attributes: { scoreId },
 	})
 
 	try {
-		const [result] = await db
+		const [score] = await db
 			.select({
-				id: results.id,
-				userId: results.userId,
-				date: results.date,
-				workoutId: results.workoutId,
-				type: results.type,
-				notes: results.notes,
-				scale: results.scale,
-				scalingLevelId: results.scalingLevelId,
-				asRx: results.asRx,
+				id: scoresTable.id,
+				userId: scoresTable.userId,
+				date: scoresTable.recordedAt,
+				workoutId: scoresTable.workoutId,
+				notes: scoresTable.notes,
+				scalingLevelId: scoresTable.scalingLevelId,
+				asRx: scoresTable.asRx,
 				scalingLevelLabel: scalingLevelsTable.label,
 				scalingLevelPosition: scalingLevelsTable.position,
-				wodScore: results.wodScore,
-				setCount: results.setCount,
-				distance: results.distance,
-				time: results.time,
-				createdAt: results.createdAt,
-				updatedAt: results.updatedAt,
-				updateCounter: results.updateCounter,
-				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
-				programmingTrackId: results.programmingTrackId,
+				scoreValue: scoresTable.scoreValue,
+				scheme: scoresTable.scheme,
+				scoreType: scoresTable.scoreType,
+				status: scoresTable.status,
+				sortKey: scoresTable.sortKey,
+				createdAt: scoresTable.createdAt,
+				updatedAt: scoresTable.updatedAt,
+				scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
 				workoutName: workouts.name,
 				workoutScheme: workouts.scheme,
 				workoutRepsPerRound: workouts.repsPerRound,
 				workoutRoundsToScore: workouts.roundsToScore,
 			})
-			.from(results)
-			.leftJoin(workouts, eq(results.workoutId, workouts.id))
+			.from(scoresTable)
+			.leftJoin(workouts, eq(scoresTable.workoutId, workouts.id))
 			.leftJoin(
 				scalingLevelsTable,
-				eq(results.scalingLevelId, scalingLevelsTable.id),
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
 			)
-			.where(eq(results.id, resultId))
+			.where(eq(scoresTable.id, scoreId))
 			.limit(1)
 
-		if (!result) {
+		if (!score) {
 			logWarning({
-				message: "[getResultById] No result found",
-				attributes: { resultId },
+				message: "[getScoreById] No score found",
+				attributes: { scoreId },
 			})
 			return null
 		}
 
 		logInfo({
-			message: "[getResultById] Found result",
-			attributes: { resultId, workoutId: result.workoutId },
+			message: "[getScoreById] Found score",
+			attributes: { scoreId, workoutId: score.workoutId },
 		})
-		return result
+		return score
 	} catch (error) {
 		logError({
-			message: "[getResultById] Error fetching result",
+			message: "[getScoreById] Error fetching score",
 			error,
-			attributes: { resultId },
+			attributes: { scoreId },
 		})
 		return null
 	}
 }
 
 /**
- * Update an existing result with sets
- *
- * TODO Phase 4: Add dual-write to scores table
- * Currently only updates the legacy results+sets tables.
- * The new scores table doesn't have a direct link to results, so we would need to:
- * 1. Look up the score by (userId, workoutId, recordedAt) to find matching score
- * 2. Update or delete/recreate the score record
- * This is deferred until we establish a migration strategy.
+ * Update an existing score with rounds
  */
-export async function updateResult({
-	resultId,
+export async function updateScore({
+	scoreId,
 	userId,
 	workoutId,
 	date,
 	scalingLevelId,
 	asRx,
-	wodScore,
 	notes,
 	setsData,
-	type,
 	scheduledWorkoutInstanceId,
-	programmingTrackId,
+	workoutInfo,
+	hasTimeCappedRounds,
 }: {
-	resultId: string
+	scoreId: string
 	userId: string
 	workoutId: string
 	date: number
 	scalingLevelId: string
 	asRx: boolean
-	wodScore: string
 	notes: string
 	setsData: ResultSetInput[]
-	type: "wod" | "strength" | "monostructural"
 	scheduledWorkoutInstanceId?: string | null
-	programmingTrackId?: string | null
+	workoutInfo: WorkoutScoreInfo
+	hasTimeCappedRounds?: boolean
 }): Promise<void> {
 	const session = await requireVerifiedEmail()
 	if (!session) {
@@ -1092,63 +978,67 @@ export async function updateResult({
 	const db = getDb()
 
 	logInfo({
-		message: "[updateResult] Updating result",
-		attributes: { resultId, userId, workoutId, setsCount: setsData.length },
+		message: "[updateScore] Updating score",
+		attributes: { scoreId, userId, workoutId, setsCount: setsData.length },
 	})
 
 	try {
-		// Update the main result
+		// Prepare new score data from sets
+		const newScoreData = prepareNewScoreData(
+			setsData,
+			workoutInfo,
+			hasTimeCappedRounds ?? false,
+		)
+
+		// Update the main score
 		await db
-			.update(results)
+			.update(scoresTable)
 			.set({
 				workoutId,
-				date: new Date(date),
-				type,
-				scale: null,
+				recordedAt: new Date(date),
+				scheme: workoutInfo.scheme as WorkoutScheme,
+				scoreType: (workoutInfo.scoreType || getDefaultScoreType(workoutInfo.scheme)) as ScoreType,
+				scoreValue: newScoreData.scoreValue,
+				status: newScoreData.status,
+				statusOrder: newScoreData.statusOrder,
+				sortKey: newScoreData.sortKey,
 				scalingLevelId,
 				asRx,
-				wodScore,
 				notes: notes || null,
-				setCount: setsData.length || null,
 				scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
-				programmingTrackId: programmingTrackId || null,
+				timeCapMs: workoutInfo.timeCap ? workoutInfo.timeCap * 1000 : null,
 				updatedAt: new Date(),
 			})
-			.where(eq(results.id, resultId))
+			.where(eq(scoresTable.id, scoreId))
 
-		// Delete existing sets
-		await db.delete(sets).where(eq(sets.resultId, resultId))
+		// Delete existing rounds
+		await db.delete(scoreRoundsTable).where(eq(scoreRoundsTable.scoreId, scoreId))
 
-		// Insert new sets if any
-		if (setsData.length > 0) {
-			const setsToInsert = setsData.map((set) => ({
-				id: `set_${createId()}`,
-				resultId,
-				setNumber: set.setNumber,
-				reps: set.reps || null,
-				weight: set.weight || null,
-				distance: set.distance || null,
-				time: set.time || null,
-				score: set.score || null,
-				status: set.status || null,
+		// Insert new rounds if multi-round
+		if (newScoreData.roundValues.length > 1) {
+			const roundsToInsert = newScoreData.roundValues.map((value, idx) => ({
+				id: createScoreRoundId(),
+				scoreId,
+				roundNumber: idx + 1,
+				value,
 			}))
 
-			await db.insert(sets).values(setsToInsert)
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
 			logInfo({
-				message: "[updateResult] Inserted replacement sets",
-				attributes: { resultId, insertedSets: setsToInsert.length },
+				message: "[updateScore] Inserted replacement rounds",
+				attributes: { scoreId, insertedRounds: roundsToInsert.length },
 			})
 		}
 
 		logInfo({
-			message: "[updateResult] Success",
-			attributes: { resultId, workoutId, userId },
+			message: "[updateScore] Success",
+			attributes: { scoreId, workoutId, userId },
 		})
 	} catch (error) {
 		logError({
-			message: "[updateResult] Error updating result",
+			message: "[updateScore] Error updating score",
 			error,
-			attributes: { resultId, workoutId, userId },
+			attributes: { scoreId, workoutId, userId },
 		})
 		throw error
 	}
@@ -1469,3 +1359,15 @@ export async function submitLogForm(
 		programmingTrackId,
 	)
 }
+
+// ============================================================================
+// Backward Compatibility Aliases
+// These aliases maintain compatibility with code that uses the old function names.
+// They should be removed once all callers are updated.
+// ============================================================================
+
+/** @deprecated Use getScoreById instead */
+export const getResultById = getScoreById
+
+/** @deprecated Use getScoreRoundsById instead */
+export const getResultSetsById = getScoreRoundsById

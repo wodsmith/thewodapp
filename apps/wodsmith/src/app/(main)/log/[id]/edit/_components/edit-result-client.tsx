@@ -40,14 +40,14 @@ interface EditResultClientProps {
 		userId: string
 		date: Date | null
 		workoutId: string | null
-		type: "wod" | "strength" | "monostructural" | null
 		notes: string | null
-		scale: "rx" | "scaled" | "rx+" | null
-		scalingLevelId?: string | null
-		asRx?: boolean | null
-		wodScore: string | null
+		scalingLevelId: string | null
+		asRx: boolean
+		scoreValue: number | null
+		scheme: string
+		scoreType: string
+		status: string | null
 		scheduledWorkoutInstanceId: string | null
-		programmingTrackId: string | null
 		workoutScheme: string | null
 		workoutRepsPerRound: number | null
 		workoutRoundsToScore: number | null
@@ -256,7 +256,8 @@ export default function EditResultClient({
 	const router = useRouter()
 	const prevSelectedWorkoutIdRef = useRef<string | null | undefined>(undefined)
 
-	// Parse existing scores from sets using the scoring library
+	// Parse existing scores from score_rounds using the scoring library
+	// score_rounds uses: value (encoded score), secondaryValue (reps if capped), status
 	const parseExistingScores = (): string[][] => {
 		const numRounds = workout.roundsToScore || 1
 		const hasRepsPerRound = !!workout.repsPerRound
@@ -266,44 +267,31 @@ export default function EditResultClient({
 			.fill(null)
 			.map(() => Array(expectedPartsPerScore).fill(""))
 
-		// Use sets data to decode scores properly with the scoring library
-		sets.forEach((set, index) => {
+		// Sort sets by roundNumber to ensure correct order
+		const sortedSets = [...sets].sort((a, b) => a.roundNumber - b.roundNumber)
+
+		sortedSets.forEach((round, index) => {
 			if (index < numRounds && scores[index]) {
-				if (hasRepsPerRound && set.reps !== null && workout.repsPerRound) {
-					// For rounds+reps with repsPerRound configured, calculate from total reps
-					const rounds = Math.floor(set.reps / workout.repsPerRound)
-					const reps = set.reps % workout.repsPerRound
-					scores[index][0] = rounds.toString()
-					scores[index][1] = reps.toString()
-				} else if (
-					workout.scheme === "rounds-reps" &&
-					set.score !== null &&
-					set.reps !== null
-				) {
-					// For rounds+reps without repsPerRound, score=rounds, reps=extra reps
-					// Display as "rounds+reps" format
-					scores[index][0] = `${set.score}+${set.reps}`
-				} else if (set.time !== null && workout.scheme) {
-					// Use decodeScore for time-based schemes
-					const decoded = decodeScore(set.time * 1000, workout.scheme) // Convert seconds to ms
-					scores[index][0] = decoded
-				} else if (set.score !== null && workout.scheme) {
-					// Use decodeScore for other schemes (reps, load, etc.)
-					// Note: Don't use decodeScore for rounds-reps as set.score is just the rounds number
-					if (workout.scheme !== "rounds-reps") {
-						const decoded = decodeScore(set.score, workout.scheme)
-						scores[index][0] = decoded
+				const isTimeCapped = round.status === "cap"
+
+				if (isTimeCapped && round.secondaryValue !== null) {
+					// Time capped - show reps completed from secondaryValue
+					scores[index][0] = round.secondaryValue.toString()
+				} else if (round.value !== null && workout.scheme) {
+					// Decode the encoded value using the scoring library
+					const decoded = decodeScore(round.value, workout.scheme)
+
+					if (hasRepsPerRound && workout.repsPerRound) {
+						// For rounds+reps with repsPerRound, extract rounds and reps from decoded
+						// The value is encoded as rounds*100000+reps
+						const totalReps = round.value
+						const rounds = Math.floor(totalReps / workout.repsPerRound)
+						const reps = totalReps % workout.repsPerRound
+						scores[index][0] = rounds.toString()
+						scores[index][1] = reps.toString()
 					} else {
-						// Fallback for rounds-reps when reps is null
-						scores[index][0] = `${set.score}+0`
+						scores[index][0] = decoded
 					}
-				} else if (
-					workout.scheme === "time-with-cap" &&
-					set.reps !== null &&
-					set.time === null
-				) {
-					// Time capped - show reps completed
-					scores[index][0] = set.reps.toString()
 				}
 			}
 		})
@@ -311,16 +299,19 @@ export default function EditResultClient({
 		return scores
 	}
 
-	// Parse existing time capped status from sets
+	// Parse existing time capped status from score_rounds
 	const parseExistingTimeCapped = (): boolean[] => {
 		const numRounds = workout.roundsToScore || 1
 		const timeCapped: boolean[] = Array(numRounds).fill(false)
 
 		if (workout.scheme === "time-with-cap") {
-			sets.forEach((set, index) => {
+			// Sort sets by roundNumber to ensure correct order
+			const sortedSets = [...sets].sort((a, b) => a.roundNumber - b.roundNumber)
+
+			sortedSets.forEach((round, index) => {
 				if (index < numRounds) {
-					// If set has reps but no time, it was time capped
-					timeCapped[index] = set.reps !== null && set.time === null
+					// Check if status is "cap" to determine if time capped
+					timeCapped[index] = round.status === "cap"
 				}
 			})
 		}
@@ -335,7 +326,7 @@ export default function EditResultClient({
 			date: result.date
 				? getLocalDateKey(result.date)
 				: getLocalDateKey(new Date()),
-			scale: result.scale || "rx",
+			scale: result.asRx ? "rx" : "scaled", // Map asRx to legacy scale for form
 			scalingLevelId: result.scalingLevelId || undefined,
 			asRx: result.asRx || false,
 			scores: parseExistingScores(),
@@ -369,9 +360,6 @@ export default function EditResultClient({
 		// Add the IDs if they exist
 		if (result.scheduledWorkoutInstanceId) {
 			formData.append("scheduledInstanceId", result.scheduledWorkoutInstanceId)
-		}
-		if (result.programmingTrackId) {
-			formData.append("programmingTrackId", result.programmingTrackId)
 		}
 
 		// Append scores
@@ -658,7 +646,7 @@ export default function EditResultClient({
 								<ScalingSelector
 									workoutId={workout.id}
 									workoutScalingGroupId={workout.scalingGroupId}
-									programmingTrackId={result.programmingTrackId}
+									programmingTrackId={null}
 									trackScalingGroupId={null}
 									teamId={teamId}
 									value={form.watch("scalingLevelId")}

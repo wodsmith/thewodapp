@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import {
-	getResultByIdAction,
-	getResultSetsByIdAction,
+	getScoreByIdAction,
+	getScoreRoundsByIdAction,
 	updateResultAction,
 } from "@/actions/log-actions"
 import { getWorkoutByIdAction } from "@/actions/workout-actions"
@@ -52,9 +52,9 @@ export default async function EditResultPage({
 		redirect("/sign-in")
 	}
 
-	// Get the result by ID
-	const [resultData, resultError] = await getResultByIdAction({
-		resultId: myParams.id,
+	// Get the score by ID
+	const [resultData, resultError] = await getScoreByIdAction({
+		scoreId: myParams.id,
 	})
 
 	if (resultError || !resultData?.success || !resultData.data) {
@@ -104,9 +104,9 @@ export default async function EditResultPage({
 		teamId = workout.teamId || ""
 	}
 
-	// Get the result sets
-	const [setsData] = await getResultSetsByIdAction({
-		resultId: myParams.id,
+	// Get the score rounds
+	const [setsData] = await getScoreRoundsByIdAction({
+		scoreId: myParams.id,
 	})
 
 	const sets = setsData?.success ? setsData.data : []

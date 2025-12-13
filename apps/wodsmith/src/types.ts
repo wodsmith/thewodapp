@@ -1,13 +1,34 @@
-import type { Set as DBSet, Movement, Result, Tag, Workout } from "@/db/schema"
+import type { Set as DBSet, Movement, Result, Score, ScoreRound, Tag, Workout } from "@/db/schema"
 import type { KVSession } from "./utils/kv-session"
 
 export type SessionValidationResult = KVSession | null
 
-// Workout related types
-export type WorkoutResult = Result
-export type ResultSet = DBSet
+// Workout related types - using new scores tables
+export type WorkoutResult = Score
+export type ResultSet = ScoreRound
 
-export type WorkoutResultWithWorkoutName = Result & {
+// Legacy type aliases for backward compatibility during migration
+export type LegacyResult = Result
+export type LegacySet = DBSet
+
+/**
+ * Score with workout name and scaling info for display
+ */
+export type WorkoutResultWithWorkoutName = {
+	id: string
+	userId: string
+	date: Date
+	workoutId: string
+	notes: string | null
+	scalingLevelId: string | null
+	asRx: boolean
+	scoreValue: number | null
+	scheme: string
+	status: string
+	createdAt: Date
+	updatedAt: Date
+	/** Decoded score for display (e.g., "3:45", "5+12", "150 lbs") */
+	displayScore?: string
 	workoutName?: string
 	scalingLevelLabel?: string
 	scalingLevelPosition?: number
@@ -98,6 +119,19 @@ export interface SessionWithMeta extends KVSession {
 	createdAt: number
 	userAgent?: string | null
 	parsedUserAgent?: ParsedUserAgent
+}
+
+/**
+ * Score with scaling information for leaderboard queries
+ */
+export type ScoreWithScaling = WorkoutResult & {
+	displayScore?: string
+	scalingLabel?: string
+	scalingPosition?: number
+	scalingGroupTitle?: string
+	scalingDescription?: string
+	userName?: string
+	userAvatar?: string
 }
 
 // Re-export common types for convenience
