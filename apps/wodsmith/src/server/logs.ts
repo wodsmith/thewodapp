@@ -1,5 +1,4 @@
 import "server-only"
-import { createId } from "@paralleldrive/cuid2"
 import { fromZonedTime } from "date-fns-tz"
 import { asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
@@ -26,7 +25,10 @@ import {
 	encodeTimeFromSeconds,
 	computeSortKey,
 	encodeRoundsRepsFromParts,
+	GRAMS_PER_UNIT,
+	MM_PER_UNIT,
 } from "@/lib/scoring"
+import { parseScore as parseScoreInput } from "@/utils/score-parser-new"
 import { getActiveOrPersonalTeamId } from "@/utils/auth"
 import type {
 	ResultSet,
@@ -188,7 +190,10 @@ export function processScoresToSetsAndWodScore(
 			} else {
 				// Regular time score
 				// Parse using scoring library (returns milliseconds in new encoding)
-				const parseResult = libParseScore(scoreStr, workout.scheme as WorkoutScheme)
+				const parseResult = libParseScore(
+					scoreStr,
+					workout.scheme as WorkoutScheme,
+				)
 				if (parseResult.isValid && parseResult.encoded !== null) {
 					// Store time in milliseconds (new encoding)
 					const timeInMs = parseResult.encoded
@@ -375,9 +380,9 @@ export function encodeSetForNewTable(
 		case "time":
 		case "time-with-cap":
 		case "emom":
-			// Legacy stores seconds, new table needs milliseconds
+			// ResultSetInput.time is stored as milliseconds (new encoding)
 			if (set.time !== null && set.time !== undefined) {
-				return set.time * 1000
+				return set.time
 			}
 			return null
 
@@ -395,19 +400,30 @@ export function encodeSetForNewTable(
 			// Legacy stores lbs, new table stores grams
 			// Note: For now, assume lbs and convert to grams
 			if (set.weight !== null && set.weight !== undefined) {
-				return Math.round(set.weight * 453.592)
+				return Math.round(set.weight * GRAMS_PER_UNIT.lbs)
 			}
 			if (set.score !== null && set.score !== undefined) {
-				return Math.round(set.score * 453.592)
+				return Math.round(set.score * GRAMS_PER_UNIT.lbs)
 			}
 			return null
 
 		case "meters":
-		case "feet":
-			// Legacy stores meters/feet, new table stores millimeters
+			// Legacy stores meters, new table stores millimeters
 			if (set.distance !== null && set.distance !== undefined) {
-				// Assume meters, convert to mm
-				return Math.round(set.distance * 1000)
+				return Math.round(set.distance * MM_PER_UNIT.m)
+			}
+			if (set.score !== null && set.score !== undefined) {
+				return Math.round(set.score * MM_PER_UNIT.m)
+			}
+			return null
+
+		case "feet":
+			// Legacy stores feet, new table stores millimeters
+			if (set.distance !== null && set.distance !== undefined) {
+				return Math.round(set.distance * MM_PER_UNIT.ft)
+			}
+			if (set.score !== null && set.score !== undefined) {
+				return Math.round(set.score * MM_PER_UNIT.ft)
 			}
 			return null
 
@@ -427,7 +443,8 @@ export function encodeSetForNewTable(
 			// 1 = pass, 0 = fail
 			if (set.status === "pass") return 1
 			if (set.status === "fail") return 0
-			if (set.score !== null && set.score !== undefined) return set.score > 0 ? 1 : 0
+			if (set.score !== null && set.score !== undefined)
+				return set.score > 0 ? 1 : 0
 			return null
 
 		default:
@@ -632,6 +649,7 @@ export async function getLogsByUser(
 				scalingLevelLabel: scalingLevelsTable.label,
 				scalingLevelPosition: scalingLevelsTable.position,
 				scoreValue: scoresTable.scoreValue,
+				secondaryValue: scoresTable.secondaryValue,
 				scheme: scoresTable.scheme,
 				status: scoresTable.status,
 				createdAt: scoresTable.createdAt,
@@ -654,9 +672,24 @@ export async function getLogsByUser(
 		// Decode scoreValue to formatted string for display
 		return logs.map((log) => {
 			let displayScore: string | undefined
-			if (log.scoreValue !== null && log.scheme) {
-				const decoded = decodeScore(log.scoreValue, log.scheme as WorkoutScheme)
-				displayScore = decoded.display
+			if (log.scheme) {
+				if (log.status === "cap" && log.scheme === "time-with-cap") {
+					const timeStr =
+						log.scoreValue !== null
+							? decodeScore(log.scoreValue, log.scheme as WorkoutScheme)
+							: ""
+					displayScore =
+						log.secondaryValue !== null
+							? `CAP (${timeStr}) - ${log.secondaryValue} reps`
+							: `CAP (${timeStr})`
+				} else if (log.status === "withdrawn") {
+					displayScore = "WITHDRAWN"
+				} else if (log.scoreValue !== null) {
+					displayScore = decodeScore(
+						log.scoreValue,
+						log.scheme as WorkoutScheme,
+					)
+				}
 			}
 			return {
 				...log,
@@ -696,6 +729,9 @@ export async function addLog({
 	programmingTrackId,
 	workoutInfo,
 	hasTimeCappedRounds = false,
+	statusOverride,
+	scoreValueOverride,
+	secondaryValue,
 }: {
 	userId: string
 	teamId: string
@@ -711,7 +747,17 @@ export async function addLog({
 	programmingTrackId?: string | null
 	workoutInfo?: WorkoutScoreInfo // Required for new scores table encoding
 	hasTimeCappedRounds?: boolean
-}): Promise<{ success: boolean; resultId?: string; scoreId?: string; error?: string }> {
+	statusOverride?: ScoreStatusNew
+	/** Override the computed primary encoded scoreValue (new encoding). */
+	scoreValueOverride?: number | null
+	/** Reps completed at cap (time-with-cap CAP). */
+	secondaryValue?: number | null
+}): Promise<{
+	success: boolean
+	resultId?: string
+	scoreId?: string
+	error?: string
+}> {
 	logInfo({
 		message: "[addLog] Start",
 		attributes: {
@@ -766,26 +812,62 @@ export async function addLog({
 		// ========================================
 		// Insert into scores table
 		// ========================================
-		const newScoreData = prepareNewScoreData(
+		const baseScoreData = prepareNewScoreData(
 			setsData,
 			workoutInfo,
 			hasTimeCappedRounds,
 		)
+		logInfo({
+			message: "[addLog] Prepared score aggregation",
+			attributes: {
+				scoreId,
+				workoutId,
+				userId,
+				scheme: workoutInfo.scheme,
+				scoreType: workoutInfo.scoreType ?? null,
+				roundsCount: baseScoreData.roundValues.length,
+				scoreValue: baseScoreData.scoreValue,
+				roundValuesPreview: baseScoreData.roundValues.slice(0, 5),
+			},
+		})
+
+		const status: ScoreStatusNew = statusOverride ?? baseScoreData.status
+		const statusOrder = STATUS_ORDER[status]
+		const scoreType = (workoutInfo.scoreType ||
+			getDefaultScoreType(workoutInfo.scheme)) as ScoreType
+		const scheme = workoutInfo.scheme as WorkoutScheme
+
+		const scoreValue =
+			scoreValueOverride !== undefined
+				? scoreValueOverride
+				: baseScoreData.scoreValue
+
+		// Compute sortKey. We always compute it when status != scored or a value exists.
+		const sortKey =
+			scoreValue !== null || status !== "scored"
+				? computeSortKey({
+						value: scoreValue,
+						status,
+						scheme,
+						scoreType,
+					}).toString()
+				: null
 
 		const scoreInsertData = {
 			id: scoreId,
 			userId,
 			teamId,
 			workoutId,
-			scheme: workoutInfo.scheme as WorkoutScheme,
-			scoreType: (workoutInfo.scoreType || getDefaultScoreType(workoutInfo.scheme)) as ScoreType,
-			scoreValue: newScoreData.scoreValue,
-			status: newScoreData.status,
-			statusOrder: newScoreData.statusOrder,
-			sortKey: newScoreData.sortKey,
+			scheme,
+			scoreType,
+			scoreValue,
+			status,
+			statusOrder,
+			sortKey,
 			scalingLevelId,
 			asRx,
 			notes: notes || null,
+			secondaryValue: secondaryValue ?? null,
 			recordedAt: new Date(date),
 			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
 			timeCapMs: workoutInfo.timeCap ? workoutInfo.timeCap * 1000 : null,
@@ -796,17 +878,17 @@ export async function addLog({
 			message: "[addLog] Score inserted",
 			attributes: {
 				scoreId,
-				scoreValue: newScoreData.scoreValue,
-				status: newScoreData.status,
-				sortKey: newScoreData.sortKey,
+				scoreValue,
+				status,
+				sortKey,
 			},
 		})
 
 		// ========================================
 		// Insert score rounds if multi-round
 		// ========================================
-		if (newScoreData.roundValues.length > 1) {
-			const roundsToInsert = newScoreData.roundValues.map((value, idx) => ({
+		if (baseScoreData.roundValues.length > 1) {
+			const roundsToInsert = baseScoreData.roundValues.map((value, idx) => ({
 				id: createScoreRoundId(),
 				scoreId,
 				roundNumber: idx + 1,
@@ -898,6 +980,7 @@ export async function getScoreById(scoreId: string) {
 				scalingLevelLabel: scalingLevelsTable.label,
 				scalingLevelPosition: scalingLevelsTable.position,
 				scoreValue: scoresTable.scoreValue,
+				secondaryValue: scoresTable.secondaryValue,
 				scheme: scoresTable.scheme,
 				scoreType: scoresTable.scoreType,
 				status: scoresTable.status,
@@ -957,6 +1040,9 @@ export async function updateScore({
 	scheduledWorkoutInstanceId,
 	workoutInfo,
 	hasTimeCappedRounds,
+	statusOverride,
+	scoreValueOverride,
+	secondaryValue,
 }: {
 	scoreId: string
 	userId: string
@@ -969,6 +1055,9 @@ export async function updateScore({
 	scheduledWorkoutInstanceId?: string | null
 	workoutInfo: WorkoutScoreInfo
 	hasTimeCappedRounds?: boolean
+	statusOverride?: ScoreStatusNew
+	scoreValueOverride?: number | null
+	secondaryValue?: number | null
 }): Promise<void> {
 	const session = await requireVerifiedEmail()
 	if (!session) {
@@ -984,11 +1073,30 @@ export async function updateScore({
 
 	try {
 		// Prepare new score data from sets
-		const newScoreData = prepareNewScoreData(
+		const baseScoreData = prepareNewScoreData(
 			setsData,
 			workoutInfo,
 			hasTimeCappedRounds ?? false,
 		)
+
+		const status: ScoreStatusNew = statusOverride ?? baseScoreData.status
+		const statusOrder = STATUS_ORDER[status]
+		const scoreType = (workoutInfo.scoreType ||
+			getDefaultScoreType(workoutInfo.scheme)) as ScoreType
+		const scheme = workoutInfo.scheme as WorkoutScheme
+		const scoreValue =
+			scoreValueOverride !== undefined
+				? scoreValueOverride
+				: baseScoreData.scoreValue
+		const sortKey =
+			scoreValue !== null || status !== "scored"
+				? computeSortKey({
+						value: scoreValue,
+						status,
+						scheme,
+						scoreType,
+					}).toString()
+				: null
 
 		// Update the main score
 		await db
@@ -996,15 +1104,16 @@ export async function updateScore({
 			.set({
 				workoutId,
 				recordedAt: new Date(date),
-				scheme: workoutInfo.scheme as WorkoutScheme,
-				scoreType: (workoutInfo.scoreType || getDefaultScoreType(workoutInfo.scheme)) as ScoreType,
-				scoreValue: newScoreData.scoreValue,
-				status: newScoreData.status,
-				statusOrder: newScoreData.statusOrder,
-				sortKey: newScoreData.sortKey,
+				scheme,
+				scoreType,
+				scoreValue,
+				status,
+				statusOrder,
+				sortKey,
 				scalingLevelId,
 				asRx,
 				notes: notes || null,
+				secondaryValue: secondaryValue ?? null,
 				scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
 				timeCapMs: workoutInfo.timeCap ? workoutInfo.timeCap * 1000 : null,
 				updatedAt: new Date(),
@@ -1012,11 +1121,13 @@ export async function updateScore({
 			.where(eq(scoresTable.id, scoreId))
 
 		// Delete existing rounds
-		await db.delete(scoreRoundsTable).where(eq(scoreRoundsTable.scoreId, scoreId))
+		await db
+			.delete(scoreRoundsTable)
+			.where(eq(scoreRoundsTable.scoreId, scoreId))
 
 		// Insert new rounds if multi-round
-		if (newScoreData.roundValues.length > 1) {
-			const roundsToInsert = newScoreData.roundValues.map((value, idx) => ({
+		if (baseScoreData.roundValues.length > 1) {
+			const roundsToInsert = baseScoreData.roundValues.map((value, idx) => ({
 				id: createScoreRoundId(),
 				scoreId,
 				roundNumber: idx + 1,
@@ -1042,6 +1153,531 @@ export async function updateScore({
 		})
 		throw error
 	}
+}
+
+export interface SavePersonalLogScoreInput {
+	selectedWorkoutId: string
+	date: string
+	notes?: string
+	scalingLevelId?: string | null
+	asRx?: boolean | null
+	/** Legacy scale fallback when scalingLevelId/asRx not provided */
+	scale?: "rx" | "scaled" | "rx+"
+	/** Single-round input */
+	score?: string
+	/** Multi-round inputs */
+	roundScores?: Array<{ score: string }>
+	/** For time-with-cap CAP: reps achieved at cap */
+	secondaryScore?: string | null
+	scheduledInstanceId?: string | null
+	programmingTrackId?: string | null
+}
+
+function mapParseStatusToScoreStatusNew(
+	status: "scored" | "dns" | "dnf" | "cap" | null,
+): ScoreStatusNew {
+	if (status === "cap") return "cap"
+	if (status === "dns" || status === "dnf") return "withdrawn"
+	return "scored"
+}
+
+export async function savePersonalLogScore(
+	input: SavePersonalLogScoreInput,
+): Promise<{ scoreId: string }> {
+	const session = await requireVerifiedEmail()
+	if (!session?.userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const db = getDb()
+
+	const [workout] = await db
+		.select({
+			id: workouts.id,
+			scheme: workouts.scheme,
+			scoreType: workouts.scoreType,
+			repsPerRound: workouts.repsPerRound,
+			roundsToScore: workouts.roundsToScore,
+			timeCap: workouts.timeCap,
+			tiebreakScheme: workouts.tiebreakScheme,
+		})
+		.from(workouts)
+		.where(eq(workouts.id, input.selectedWorkoutId))
+		.limit(1)
+
+	if (!workout) {
+		throw new ZSAError("NOT_FOUND", "Selected workout not found")
+	}
+
+	const headerList = await headers()
+	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
+	const dateInTargetTz = fromZonedTime(`${input.date}T00:00:00`, timezone)
+	const timestamp = dateInTargetTz.getTime()
+
+	const teamId = await getActiveOrPersonalTeamId(session.userId)
+
+	const workoutInfo: WorkoutScoreInfo = {
+		scheme: workout.scheme as WorkoutScheme,
+		scoreType: (workout.scoreType as ScoreType | null) ?? null,
+		repsPerRound: workout.repsPerRound ?? null,
+		roundsToScore: workout.roundsToScore ?? null,
+		timeCap: workout.timeCap ?? null,
+		tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme | null) ?? null,
+	}
+
+	// Scaling: prefer explicit new fields
+	let scalingLevelId = input.scalingLevelId ?? null
+	let asRx = input.asRx ?? null
+
+	if (!scalingLevelId || asRx === null) {
+		const mapped = await mapLegacyScaleToScalingLevel({
+			workoutId: workout.id,
+			programmingTrackId: input.programmingTrackId,
+			scale: input.scale ?? "rx",
+		})
+		if (!scalingLevelId) scalingLevelId = mapped.scalingLevelId
+		if (asRx === null) asRx = mapped.asRx
+	}
+
+	if (!scalingLevelId || asRx === null) {
+		throw new ZSAError("ERROR", "Scaling selection is required")
+	}
+
+	// FK safety: ensure scalingLevelId exists, else fall back to legacy mapping.
+	{
+		const [level] = await db
+			.select({ id: scalingLevelsTable.id })
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, scalingLevelId))
+			.limit(1)
+
+		if (!level) {
+			logWarning({
+				message:
+					"[savePersonalLogScore] scalingLevelId missing in DB; remapping from legacy scale",
+				attributes: {
+					userId: session.userId,
+					workoutId: workout.id,
+					scalingLevelId,
+					asRx,
+					programmingTrackId: input.programmingTrackId ?? null,
+				},
+			})
+
+			const fallbackScale: "rx" | "scaled" | "rx+" =
+				input.scale ?? (asRx ? "rx" : "scaled")
+			const remapped = await mapLegacyScaleToScalingLevel({
+				workoutId: workout.id,
+				programmingTrackId: input.programmingTrackId,
+				scale: fallbackScale,
+			})
+			scalingLevelId = remapped.scalingLevelId
+			asRx = remapped.asRx
+		}
+	}
+
+	const roundsToScore = workout.roundsToScore ?? 1
+	const isMultiRound = roundsToScore > 1
+
+	// Multi-round
+	if (isMultiRound) {
+		const roundScores = input.roundScores ?? []
+		const hasAtLeastOne = roundScores.some((r) => r.score.trim() !== "")
+		if (!hasAtLeastOne) {
+			throw new ZSAError("ERROR", "At least one score is required")
+		}
+
+		const normalizedEntries = roundScores.map((r) => ({
+			score: r.score,
+			timeCapped: false,
+		}))
+
+		// Disallow CAP/DNS/DNF in multi-round until we support per-round status/secondary
+		for (const r of roundScores) {
+			const parsed = parseScoreInput(
+				r.score,
+				workoutInfo.scheme as WorkoutScheme,
+				workoutInfo.timeCap ?? undefined,
+				workoutInfo.tiebreakScheme ?? undefined,
+			)
+			if (parsed.scoreStatus && parsed.scoreStatus !== "scored") {
+				throw new ZSAError(
+					"ERROR",
+					"CAP/DNS/DNF is not supported for multi-round personal logs",
+				)
+			}
+		}
+
+		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+			normalizedEntries,
+			workoutInfo,
+		)
+
+		const result = await addLog({
+			userId: session.userId,
+			teamId,
+			workoutId: workout.id,
+			date: timestamp,
+			scalingLevelId,
+			asRx,
+			wodScore,
+			notes: input.notes ?? "",
+			setsData: setsForDb,
+			type: "wod",
+			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+			programmingTrackId: input.programmingTrackId ?? null,
+			workoutInfo,
+			hasTimeCappedRounds: false,
+		})
+
+		if (!result.success || !result.scoreId) {
+			throw new ZSAError("ERROR", result.error || "Failed to save log")
+		}
+		return { scoreId: result.scoreId }
+	}
+
+	// Single-round
+	const rawScore = (input.score ?? "").trim()
+	if (!rawScore) {
+		throw new ZSAError("ERROR", "Score is required")
+	}
+
+	const parsed = parseScoreInput(
+		rawScore,
+		workoutInfo.scheme as WorkoutScheme,
+		workoutInfo.timeCap ?? undefined,
+		workoutInfo.tiebreakScheme ?? undefined,
+	)
+	if (!parsed.isValid) {
+		throw new ZSAError("ERROR", parsed.error || "Invalid score")
+	}
+
+	const status = mapParseStatusToScoreStatusNew(parsed.scoreStatus)
+
+	// CAP handling for time-with-cap workouts: store scoreValue=timeCapMs, secondaryValue=reps
+	if (status === "cap") {
+		if (workoutInfo.scheme !== "time-with-cap") {
+			throw new ZSAError(
+				"ERROR",
+				"CAP is only supported for time-with-cap workouts",
+			)
+		}
+		if (!workoutInfo.timeCap) {
+			throw new ZSAError("ERROR", "Workout has no time cap configured")
+		}
+		const repsStr = (input.secondaryScore ?? "").trim()
+		const reps = Number.parseInt(repsStr, 10)
+		if (!repsStr || Number.isNaN(reps) || reps < 0) {
+			throw new ZSAError("ERROR", "Reps at cap is required for CAP scores")
+		}
+
+		const timeCapMs = workoutInfo.timeCap * 1000
+
+		const result = await addLog({
+			userId: session.userId,
+			teamId,
+			workoutId: workout.id,
+			date: timestamp,
+			scalingLevelId,
+			asRx,
+			wodScore: parsed.formatted,
+			notes: input.notes ?? "",
+			setsData: [],
+			type: "wod",
+			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+			programmingTrackId: input.programmingTrackId ?? null,
+			workoutInfo,
+			hasTimeCappedRounds: false,
+			statusOverride: "cap",
+			scoreValueOverride: timeCapMs,
+			secondaryValue: reps,
+		})
+
+		if (!result.success || !result.scoreId) {
+			throw new ZSAError("ERROR", result.error || "Failed to save log")
+		}
+		return { scoreId: result.scoreId }
+	}
+
+	// Normal scored / withdrawn single-round: store as a single-entry set
+	const normalizedEntries = [{ score: rawScore, timeCapped: false }]
+	const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+		normalizedEntries,
+		workoutInfo,
+	)
+
+	const result = await addLog({
+		userId: session.userId,
+		teamId,
+		workoutId: workout.id,
+		date: timestamp,
+		scalingLevelId,
+		asRx,
+		wodScore,
+		notes: input.notes ?? "",
+		setsData: setsForDb,
+		type: "wod",
+		scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+		programmingTrackId: input.programmingTrackId ?? null,
+		workoutInfo,
+		hasTimeCappedRounds: false,
+		statusOverride: status === "withdrawn" ? "withdrawn" : undefined,
+		scoreValueOverride: status === "withdrawn" ? null : undefined,
+	})
+
+	if (!result.success || !result.scoreId) {
+		throw new ZSAError("ERROR", result.error || "Failed to save log")
+	}
+
+	return { scoreId: result.scoreId }
+}
+
+export async function updatePersonalLogScore(input: {
+	scoreId: string
+	selectedWorkoutId: string
+	date: string
+	notes?: string
+	scalingLevelId?: string | null
+	asRx?: boolean | null
+	scale?: "rx" | "scaled" | "rx+"
+	score?: string
+	roundScores?: Array<{ score: string }>
+	secondaryScore?: string | null
+	scheduledInstanceId?: string | null
+	programmingTrackId?: string | null
+}): Promise<void> {
+	const session = await requireVerifiedEmail()
+	if (!session?.userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const db = getDb()
+
+	// Ensure ownership
+	const [existing] = await db
+		.select({ userId: scoresTable.userId })
+		.from(scoresTable)
+		.where(eq(scoresTable.id, input.scoreId))
+		.limit(1)
+	if (!existing) {
+		throw new ZSAError("NOT_FOUND", "Score not found")
+	}
+	if (existing.userId !== session.userId) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authorized to edit this score")
+	}
+
+	// Reuse save logic by loading the workout and then calling updateScore
+	const [workout] = await db
+		.select({
+			id: workouts.id,
+			scheme: workouts.scheme,
+			scoreType: workouts.scoreType,
+			repsPerRound: workouts.repsPerRound,
+			roundsToScore: workouts.roundsToScore,
+			timeCap: workouts.timeCap,
+			tiebreakScheme: workouts.tiebreakScheme,
+		})
+		.from(workouts)
+		.where(eq(workouts.id, input.selectedWorkoutId))
+		.limit(1)
+
+	if (!workout) {
+		throw new ZSAError("NOT_FOUND", "Selected workout not found")
+	}
+
+	const headerList = await headers()
+	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
+	const dateInTargetTz = fromZonedTime(`${input.date}T00:00:00`, timezone)
+	const timestamp = dateInTargetTz.getTime()
+
+	const workoutInfo: WorkoutScoreInfo = {
+		scheme: workout.scheme as WorkoutScheme,
+		scoreType: (workout.scoreType as ScoreType | null) ?? null,
+		repsPerRound: workout.repsPerRound ?? null,
+		roundsToScore: workout.roundsToScore ?? null,
+		timeCap: workout.timeCap ?? null,
+		tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme | null) ?? null,
+	}
+
+	let scalingLevelId = input.scalingLevelId ?? null
+	let asRx = input.asRx ?? null
+
+	if (!scalingLevelId || asRx === null) {
+		const mapped = await mapLegacyScaleToScalingLevel({
+			workoutId: workout.id,
+			programmingTrackId: input.programmingTrackId,
+			scale: input.scale ?? "rx",
+		})
+		if (!scalingLevelId) scalingLevelId = mapped.scalingLevelId
+		if (asRx === null) asRx = mapped.asRx
+	}
+
+	if (!scalingLevelId || asRx === null) {
+		throw new ZSAError("ERROR", "Scaling selection is required")
+	}
+
+	// FK safety: ensure scalingLevelId exists, else fall back to legacy mapping.
+	{
+		const [level] = await db
+			.select({ id: scalingLevelsTable.id })
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, scalingLevelId))
+			.limit(1)
+
+		if (!level) {
+			logWarning({
+				message:
+					"[updatePersonalLogScore] scalingLevelId missing in DB; remapping from legacy scale",
+				attributes: {
+					userId: session.userId,
+					scoreId: input.scoreId,
+					workoutId: workout.id,
+					scalingLevelId,
+					asRx,
+					programmingTrackId: input.programmingTrackId ?? null,
+				},
+			})
+
+			const fallbackScale: "rx" | "scaled" | "rx+" =
+				input.scale ?? (asRx ? "rx" : "scaled")
+			const remapped = await mapLegacyScaleToScalingLevel({
+				workoutId: workout.id,
+				programmingTrackId: input.programmingTrackId,
+				scale: fallbackScale,
+			})
+			scalingLevelId = remapped.scalingLevelId
+			asRx = remapped.asRx
+		}
+	}
+
+	const roundsToScore = workout.roundsToScore ?? 1
+	const isMultiRound = roundsToScore > 1
+
+	if (isMultiRound) {
+		const roundScores = input.roundScores ?? []
+		const hasAtLeastOne = roundScores.some((r) => r.score.trim() !== "")
+		if (!hasAtLeastOne) {
+			throw new ZSAError("ERROR", "At least one score is required")
+		}
+		for (const r of roundScores) {
+			const p = parseScoreInput(
+				r.score,
+				workoutInfo.scheme as WorkoutScheme,
+				workoutInfo.timeCap ?? undefined,
+				workoutInfo.tiebreakScheme ?? undefined,
+			)
+			if (p.scoreStatus && p.scoreStatus !== "scored") {
+				throw new ZSAError(
+					"ERROR",
+					"CAP/DNS/DNF is not supported for multi-round personal logs",
+				)
+			}
+		}
+
+		const normalizedEntries = roundScores.map((r) => ({
+			score: r.score,
+			timeCapped: false,
+		}))
+
+		const { setsForDb } = processScoresToSetsAndWodScore(
+			normalizedEntries,
+			workoutInfo,
+		)
+
+		await updateScore({
+			scoreId: input.scoreId,
+			userId: session.userId,
+			workoutId: workout.id,
+			date: timestamp,
+			scalingLevelId,
+			asRx,
+			notes: input.notes ?? "",
+			setsData: setsForDb,
+			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+			workoutInfo,
+			hasTimeCappedRounds: false,
+			statusOverride: "scored",
+			secondaryValue: null,
+		})
+		return
+	}
+
+	const rawScore = (input.score ?? "").trim()
+	if (!rawScore) {
+		throw new ZSAError("ERROR", "Score is required")
+	}
+
+	const parsed = parseScoreInput(
+		rawScore,
+		workoutInfo.scheme as WorkoutScheme,
+		workoutInfo.timeCap ?? undefined,
+		workoutInfo.tiebreakScheme ?? undefined,
+	)
+	if (!parsed.isValid) {
+		throw new ZSAError("ERROR", parsed.error || "Invalid score")
+	}
+
+	const status = mapParseStatusToScoreStatusNew(parsed.scoreStatus)
+
+	if (status === "cap") {
+		if (workoutInfo.scheme !== "time-with-cap") {
+			throw new ZSAError(
+				"ERROR",
+				"CAP is only supported for time-with-cap workouts",
+			)
+		}
+		if (!workoutInfo.timeCap) {
+			throw new ZSAError("ERROR", "Workout has no time cap configured")
+		}
+		const repsStr = (input.secondaryScore ?? "").trim()
+		const reps = Number.parseInt(repsStr, 10)
+		if (!repsStr || Number.isNaN(reps) || reps < 0) {
+			throw new ZSAError("ERROR", "Reps at cap is required for CAP scores")
+		}
+
+		const timeCapMs = workoutInfo.timeCap * 1000
+
+		await updateScore({
+			scoreId: input.scoreId,
+			userId: session.userId,
+			workoutId: workout.id,
+			date: timestamp,
+			scalingLevelId,
+			asRx,
+			notes: input.notes ?? "",
+			setsData: [],
+			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+			workoutInfo,
+			hasTimeCappedRounds: false,
+			statusOverride: "cap",
+			scoreValueOverride: timeCapMs,
+			secondaryValue: reps,
+		})
+		return
+	}
+
+	const normalizedEntries = [{ score: rawScore, timeCapped: false }]
+	const { setsForDb } = processScoresToSetsAndWodScore(
+		normalizedEntries,
+		workoutInfo,
+	)
+
+	await updateScore({
+		scoreId: input.scoreId,
+		userId: session.userId,
+		workoutId: workout.id,
+		date: timestamp,
+		scalingLevelId,
+		asRx,
+		notes: input.notes ?? "",
+		setsData: setsForDb,
+		scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+		workoutInfo,
+		hasTimeCappedRounds: false,
+		statusOverride: status,
+		scoreValueOverride: status === "withdrawn" ? null : undefined,
+		secondaryValue: null,
+	})
 }
 
 // Form submission logic moved from actions.ts
@@ -1239,7 +1875,11 @@ async function submitLogToDatabase(
 
 		logInfo({
 			message: "[submitLogToDatabase] Success",
-			attributes: { resultId: result.resultId, scoreId: result.scoreId, workoutId: selectedWorkoutId },
+			attributes: {
+				resultId: result.resultId,
+				scoreId: result.scoreId,
+				workoutId: selectedWorkoutId,
+			},
 		})
 		return { success: true, resultId: result.resultId, scoreId: result.scoreId }
 	} catch (error) {

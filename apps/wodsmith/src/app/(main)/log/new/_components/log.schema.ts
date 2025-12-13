@@ -12,8 +12,10 @@ export const logFormSchema = z.object({
 	// New scaling fields
 	scalingLevelId: z.string().optional(),
 	asRx: z.boolean().optional(),
-	scores: z.array(z.array(z.string())).optional(),
-	timeCapped: z.array(z.boolean()).optional(),
+	// Score input (captured separately from RHF in the new UI)
+	score: z.string().optional(),
+	roundScores: z.array(z.object({ score: z.string() })).optional(),
+	secondaryScore: z.string().nullable().optional(),
 	notes: z.string().optional(),
 	redirectUrl: z.string().optional(),
 })

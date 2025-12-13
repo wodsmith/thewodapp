@@ -1,46 +1,60 @@
-import { formatSecondsToTime } from "@/lib/utils"
+import type { WorkoutScheme } from "@/db/schema"
+import { decodeScore } from "@/lib/scoring"
 import type { ResultSet as WorkoutSet } from "@/types"
 
-export function SetDetails({ sets }: { sets: WorkoutSet[] | null }) {
+export function SetDetails({
+	sets,
+	workoutScheme,
+}: {
+	sets: WorkoutSet[] | null
+	workoutScheme: WorkoutScheme
+}) {
+	if (!sets || sets.length === 0) return null
+
 	return (
-		sets &&
-		sets.length > 0 && (
-			<div className="border-black border-t-2 p-4">
-				<h4 className="mb-2 font-bold text-sm uppercase tracking-wider">
-					Set Details
-				</h4>
-				<ul className="list-none space-y-1">
-					{sets.map((set, index) => {
-						const setInfo = []
-						if (set.reps) {
-							setInfo.push(`${set.reps} reps`)
+		<div className="border-black border-t-2 p-4">
+			<h4 className="mb-2 font-bold text-sm uppercase tracking-wider">
+				Set Details
+			</h4>
+			<ul className="list-none space-y-1">
+				{sets.map((set) => {
+					const scheme = (set.schemeOverride || workoutScheme) as WorkoutScheme
+					const valueStr = decodeScore(set.value, scheme)
+
+					const parts: string[] = []
+
+					if (set.status === "cap") {
+						if (
+							set.secondaryValue !== null &&
+							set.secondaryValue !== undefined
+						) {
+							parts.push(`CAP - ${set.secondaryValue} reps`)
+						} else {
+							parts.push("CAP")
 						}
-						if (set.weight !== null && set.weight !== undefined) {
-							setInfo.push(`@ ${set.weight}kg`)
-						}
-						if (set.distance) {
-							setInfo.push(`${set.distance}m`)
-						}
-						if (set.time) {
-							setInfo.push(formatSecondsToTime(set.time))
-						}
-						if (set.score) {
-							setInfo.push(`Score: ${set.score}`)
-						}
-						return (
-							<li key={set.id || index} className="flex font-mono text-xs">
-								<span className="w-16 shrink-0">Set {set.setNumber}:</span>
-								<span className="flex-1">{setInfo.join(" / ")}</span>
-								{set.notes && (
-									<span className="ml-2 text-neutral-500 italic">
-										({set.notes})
-									</span>
-								)}
-							</li>
-						)
-					})}
-				</ul>
-			</div>
-		)
+					} else if (set.status === "dq") {
+						parts.push("DQ")
+					} else if (set.status === "withdrawn") {
+						parts.push("WITHDRAWN")
+					}
+
+					parts.push(valueStr)
+
+					return (
+						<li key={set.id} className="flex font-mono text-xs">
+							<span className="w-16 shrink-0">Set {set.roundNumber}:</span>
+							<span className="flex-1">
+								{parts.filter(Boolean).join(" / ")}
+							</span>
+							{set.notes && (
+								<span className="ml-2 text-neutral-500 italic">
+									({set.notes})
+								</span>
+							)}
+						</li>
+					)
+				})}
+			</ul>
+		</div>
 	)
 }

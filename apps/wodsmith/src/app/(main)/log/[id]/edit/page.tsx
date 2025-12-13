@@ -3,10 +3,8 @@ import { notFound, redirect } from "next/navigation"
 import {
 	getScoreByIdAction,
 	getScoreRoundsByIdAction,
-	updateResultAction,
 } from "@/actions/log-actions"
 import { getWorkoutByIdAction } from "@/actions/workout-actions"
-import type { Workout } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 import EditResultClient from "./_components/edit-result-client"
 
@@ -111,27 +109,6 @@ export default async function EditResultPage({
 
 	const sets = setsData?.success ? setsData.data : []
 
-	async function updateResultServerAction(data: {
-		resultId: string
-		userId: string
-		workouts: Workout[]
-		formData: FormData
-	}) {
-		"use server"
-		const [result, error] = await updateResultAction(data)
-
-		if (error || !result?.success) {
-			console.error("[EditResultPage] Error updating result", error)
-			// Return error to client instead of throwing
-			return { error: error?.message || "Failed to update result" }
-		}
-
-		// Redirect happens outside of try-catch
-		// This will throw internally but that's expected behavior
-		const redirectUrl = mySearchParams.redirectUrl || "/log"
-		redirect(redirectUrl)
-	}
-
 	// Serialize the workout data to ensure it can cross the server/client boundary
 	const serializedWorkout = JSON.parse(JSON.stringify(workout))
 
@@ -140,10 +117,8 @@ export default async function EditResultPage({
 			result={result}
 			workout={serializedWorkout}
 			sets={sets}
-			userId={session.userId}
 			teamId={teamId}
 			redirectUrl={mySearchParams.redirectUrl || "/log"}
-			updateResultAction={updateResultServerAction}
 		/>
 	)
 }

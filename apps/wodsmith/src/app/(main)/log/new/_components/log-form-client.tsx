@@ -14,13 +14,15 @@ import {
 	type LogFormSchema,
 	logFormSchema,
 } from "@/app/(main)/log/new/_components/log.schema"
-import { useLogScoreState } from "@/app/(main)/log/_components/use-log-score-state"
+import {
+	ScoreInputFields,
+	type ScoreInputFieldsHandle,
+} from "@/app/(compete)/compete/organizer/[competitionId]/(with-tabs)/results/_components/score-input-row/score-input-fields"
 import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 import { ScalingSelector } from "@/components/scaling-selector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -35,11 +37,9 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import type { WorkoutWithTagsAndMovements } from "@/types"
 import { getLocalDateKey } from "@/utils/date-utils"
-import { cn } from "@/lib/utils"
 
 export default function LogFormClient({
 	workouts,
-	userId,
 	teamId,
 	selectedWorkoutId,
 	redirectUrl,
@@ -62,7 +62,6 @@ export default function LogFormClient({
 			time: number | null
 		}>
 	})[]
-	userId: string
 	teamId: string
 	selectedWorkoutId?: string
 	redirectUrl?: string
@@ -98,18 +97,19 @@ export default function LogFormClient({
 	const router = useRouter()
 	const pathname = usePathname()
 	const [searchQuery, setSearchQuery] = useState("")
-	const prevSelectedWorkoutIdRef = useRef<string | null | undefined>(undefined)
+	const scoreInputRef = useRef<ScoreInputFieldsHandle>(null)
 
 	const form = useForm<LogFormSchema>({
-		resolver: zodResolver(logFormSchema),
+		resolver: zodResolver(logFormSchema as any),
 		defaultValues: {
 			selectedWorkoutId: selectedWorkoutId || "",
 			date: getLocalDateKey(new Date()),
 			scale: "rx", // Legacy, kept for backward compatibility
 			scalingLevelId: undefined,
 			asRx: true,
-			scores: [],
-			timeCapped: [],
+			score: "",
+			secondaryScore: null,
+			roundScores: [],
 			notes: "",
 		},
 	})
@@ -138,10 +138,9 @@ export default function LogFormClient({
 			toast.success("Result logged successfully")
 			const currentWorkout = getSelectedWorkout()
 			const logResult = result?.data?.data
-			const logResultId = (logResult as { resultId?: string } | undefined)
-				?.resultId
+			const scoreId = (logResult as { scoreId?: string } | undefined)?.scoreId
 			posthog.capture("workout_result_logged", {
-				result_id: logResultId,
+				score_id: scoreId,
 				workout_id: form.getValues("selectedWorkoutId"),
 				workout_name: currentWorkout?.name,
 				workout_scheme: currentWorkout?.scheme,
@@ -174,15 +173,6 @@ export default function LogFormClient({
 		return workout
 	}
 
-	// Initialize scoring hook for the selected workout
-	const currentWorkout = getSelectedWorkout()
-	const scoreState = useLogScoreState({
-		workoutScheme: currentWorkout?.scheme || "reps",
-		timeCap: currentWorkout?.timeCap || undefined,
-		roundsToScore: currentWorkout?.roundsToScore || 1,
-		tiebreakScheme: currentWorkout?.tiebreakScheme || null,
-	})
-
 	// Effect to synchronize selectedWorkout with URL param
 	useEffect(() => {
 		const currentPropId = selectedWorkoutId || ""
@@ -190,80 +180,6 @@ export default function LogFormClient({
 			form.setValue("selectedWorkoutId", currentPropId)
 		}
 	}, [selectedWorkoutId, selectedWorkout, form])
-
-	// Update scores when selected workout changes
-	useEffect(() => {
-		if (!selectedWorkout) {
-			const currentScores = form.getValues("scores")
-			if (currentScores && currentScores.length !== 0) {
-				form.setValue("scores", [])
-			}
-			if (prevSelectedWorkoutIdRef.current !== null) {
-				prevSelectedWorkoutIdRef.current = null
-			}
-			return
-		}
-
-		const currentWorkoutData = workouts.find((w) => w.id === selectedWorkout)
-		const numRoundsForInputs = currentWorkoutData?.roundsToScore || 1
-		const hasRepsPerRound = !!currentWorkoutData?.repsPerRound
-		const expectedPartsPerScore = hasRepsPerRound ? 2 : 1
-
-		const workoutIdContextChanged =
-			prevSelectedWorkoutIdRef.current !== selectedWorkout
-		const currentScores = form.getValues("scores")
-		const scoresNeedRestructure =
-			!currentScores ||
-			currentScores.length !== numRoundsForInputs ||
-			currentScores.some(
-				(parts: string[]) => parts.length !== expectedPartsPerScore,
-			)
-
-		if (workoutIdContextChanged || scoresNeedRestructure) {
-			const newInitialScores = Array(numRoundsForInputs)
-				.fill(null)
-				.map(() => Array(expectedPartsPerScore).fill(""))
-			form.setValue("scores", newInitialScores)
-			// Initialize timeCapped array for time-with-cap workouts
-			const newTimeCapped = Array(numRoundsForInputs).fill(false)
-			form.setValue("timeCapped", newTimeCapped)
-			prevSelectedWorkoutIdRef.current = selectedWorkout
-		}
-	}, [selectedWorkout, workouts, form])
-
-	const handleScoreChange = (
-		roundIndex: number,
-		partIndex: number,
-		value: string,
-	) => {
-		const currentScores = form.getValues("scores") || []
-		const newScores = currentScores.map((parts: string[], rIndex: number) => {
-			if (rIndex === roundIndex) {
-				const newParts = [...parts]
-				newParts[partIndex] = value
-				return newParts
-			}
-			return parts
-		})
-		form.setValue("scores", newScores)
-	}
-
-	const handleTimeCappedChange = (roundIndex: number, value: boolean) => {
-		const currentTimeCapped = form.getValues("timeCapped") || []
-		const newTimeCapped = [...currentTimeCapped]
-		newTimeCapped[roundIndex] = value
-		form.setValue("timeCapped", newTimeCapped)
-
-		// Clear the score when toggling time cap status
-		const currentScores = form.getValues("scores") || []
-		const newScores = currentScores.map((parts: string[], rIndex: number) => {
-			if (rIndex === roundIndex) {
-				return [""] // Reset to empty string
-			}
-			return parts
-		})
-		form.setValue("scores", newScores)
-	}
 
 	const handleWorkoutSelection = (workoutId: string) => {
 		form.setValue("selectedWorkoutId", workoutId)
@@ -280,61 +196,24 @@ export default function LogFormClient({
 			return
 		}
 
-		console.log(data)
-
-		// Convert form data to FormData for the server action
-		const formData = new FormData()
-		formData.set("selectedWorkoutId", data.selectedWorkoutId)
-		formData.set("date", data.date)
-		// Include both legacy and new scaling fields
-		if (data.scalingLevelId) {
-			formData.set("scalingLevelId", data.scalingLevelId)
-			formData.set("asRx", String(data.asRx || false))
-			// Set legacy scale based on asRx for backward compatibility
-			formData.set("scale", data.asRx ? "rx" : "scaled")
-		} else if (data.scale) {
-			formData.set("scale", data.scale)
+		const scorePayload = scoreInputRef.current?.getValue()
+		if (!scorePayload) {
+			toast.error("Score input is not ready. Please refresh and try again.")
+			return
 		}
-		formData.set("notes", data.notes || "")
-
-		// Add scores to formData
-		if (data.scores) {
-			data.scores.forEach((scoreParts: string[], roundIndex: number) => {
-				scoreParts.forEach((partValue: string, partIndex: number) => {
-					formData.append(
-						`scores[${roundIndex}][${partIndex}]`,
-						partValue || "",
-					)
-				})
-			})
-		}
-
-		// Add timeCapped data to formData
-		if (data.timeCapped) {
-			data.timeCapped.forEach((isTimeCapped: boolean, roundIndex: number) => {
-				formData.append(`timeCapped[${roundIndex}]`, String(isTimeCapped))
-			})
-		}
-
-		// Add scheduledInstanceId and programmingTrackId if they exist
-		if (scheduledInstanceId) {
-			formData.set("scheduledInstanceId", scheduledInstanceId)
-		}
-		if (programmingTrackId) {
-			formData.set("programmingTrackId", programmingTrackId)
-		}
-
-		console.log("[LogFormClient] Submitting form with data:", {
-			userId,
-			workoutsCount: workouts.length,
-			formDataEntries: Array.from(formData.entries()),
-			selectedWorkout: workouts.find((w) => w.id === data.selectedWorkoutId),
-		})
 
 		await submitLogForm({
-			userId,
-			workouts,
-			formData,
+			selectedWorkoutId: data.selectedWorkoutId,
+			date: data.date,
+			notes: data.notes || "",
+			scalingLevelId: data.scalingLevelId ?? null,
+			asRx: data.asRx ?? null,
+			scale: data.scale,
+			score: scorePayload.score,
+			roundScores: scorePayload.roundScores,
+			secondaryScore: scorePayload.secondaryScore,
+			scheduledInstanceId: scheduledInstanceId ?? null,
+			programmingTrackId: programmingTrackId ?? null,
 		})
 	}
 
@@ -523,279 +402,21 @@ export default function LogFormClient({
 												{/* Score */}
 												<div className="space-y-2">
 													<Label>Score</Label>
-													{(() => {
-														const currentWorkoutDetails = getSelectedWorkout()
-														const isPassFail =
-															currentWorkoutDetails?.scheme === "pass-fail"
-														const totalRounds =
-															currentWorkoutDetails?.roundsToScore || 1
-														const isTimeWithCap =
-															currentWorkoutDetails?.scheme === "time-with-cap"
-
-														if (isPassFail) {
-															// Pass-fail: single input for rounds passed
-															const inputValue = form.watch("scores")?.[0]?.[0] || ""
-															return (
-																<div className="space-y-2">
-																	<Input
-																		type="number"
-																		placeholder={`Rounds passed (max ${totalRounds})`}
-																		value={inputValue}
-																		onChange={(e) => {
-																			const value = e.target.value
-																			const numValue = parseInt(value, 10)
-
-																			// Validate that input doesn't exceed total rounds
-																			if (
-																				value !== "" &&
-																				(Number.isNaN(numValue) ||
-																					numValue > totalRounds ||
-																					numValue < 0)
-																			) {
-																				return // Don't update if invalid
-																			}
-
-																			handleScoreChange(0, 0, value)
-																		}}
-																		min="0"
-																		max={totalRounds}
-																	/>
-																	<p className="text-sm text-muted-foreground">
-																		Enter the number of rounds you passed out of{" "}
-																		{totalRounds} total rounds
-																	</p>
-																</div>
-															)
+													<ScoreInputFields
+														key={selectedWorkout}
+														ref={scoreInputRef}
+														workoutScheme={
+															(getSelectedWorkout()?.scheme as unknown as any) || "reps"
 														}
-
-														// Multi-round scoring
-														if (scoreState.isMultiRound) {
-															return (
-																<div className="space-y-3">
-																	{scoreState.roundScores.map((_, roundIndex) => {
-																		const roundResult =
-																			scoreState.roundParseResults[roundIndex]
-																		const currentScore =
-																			form.watch("scores")?.[roundIndex]?.[0] || ""
-
-																		return (
-																			<div
-																				key={`score-${selectedWorkout || "default"}-${roundIndex}`}
-																				className="space-y-2"
-																			>
-																				<Label className="text-sm text-muted-foreground">
-																					Round {roundIndex + 1} Score
-																				</Label>
-
-																				{/* Time Cap Checkbox for time-with-cap workouts */}
-																				{isTimeWithCap && (
-																					<div className="flex items-center space-x-2">
-																						<Checkbox
-																							id={`timeCapped-${roundIndex}`}
-																							checked={
-																								form.watch("timeCapped")?.[roundIndex] ||
-																								false
-																							}
-																							onCheckedChange={(checked) =>
-																								handleTimeCappedChange(
-																									roundIndex,
-																									!!checked,
-																								)
-																							}
-																						/>
-																						<Label
-																							htmlFor={`timeCapped-${roundIndex}`}
-																							className="text-sm font-normal"
-																						>
-																							Time capped
-																						</Label>
-																					</div>
-																				)}
-
-																				<Input
-																					type="text"
-																					placeholder={
-																						currentWorkoutDetails?.scheme ===
-																							"time" ||
-																						currentWorkoutDetails?.scheme ===
-																							"time-with-cap"
-																							? "90 (secs) or 1:30 (DNS/DNF/CAP)"
-																							: currentWorkoutDetails?.scheme ===
-																									"rounds-reps"
-																								? "5+12 or 5.12"
-																								: "Enter score..."
-																					}
-																					value={currentScore}
-																					onChange={(e) => {
-																						const value = e.target.value
-																						handleScoreChange(roundIndex, 0, value)
-																						scoreState.handleRoundScoreChange(
-																							roundIndex,
-																							value,
-																						)
-																					}}
-																					className={cn(
-																						"font-mono",
-																						roundResult?.error &&
-																							!roundResult?.isValid &&
-																							"border-destructive focus:ring-destructive",
-																					)}
-																				/>
-
-																				{/* Preview below input */}
-																				{roundResult?.isValid && (
-																					<div className="text-xs text-muted-foreground">
-																						Preview: {roundResult.formatted}
-																					</div>
-																				)}
-
-																				{/* Error message */}
-																				{roundResult?.error &&
-																					!roundResult?.isValid && (
-																						<div className="text-xs text-destructive">
-																							{roundResult.error}
-																						</div>
-																					)}
-																			</div>
-																		)
-																	})}
-																</div>
-															)
+														scoreType={getSelectedWorkout()?.scoreType as any}
+														tiebreakScheme={
+															(getSelectedWorkout()?.tiebreakScheme as any) || null
 														}
-
-														// Single round scoring
-														const hasRepsPerRound =
-															!!currentWorkoutDetails?.repsPerRound
-														const repsPerRoundValue =
-															currentWorkoutDetails?.repsPerRound
-														const timeCappedArray = form.watch("timeCapped") || []
-														const isTimeCapped = timeCappedArray[0] || false
-														const scoreParts = form.watch("scores")?.[0] || [""]
-
-														if (hasRepsPerRound) {
-															// Rounds+Reps input
-															return (
-																<div className="space-y-2">
-																	<div className="flex items-center gap-2">
-																		<Input
-																			type="number"
-																			placeholder="Rounds"
-																			value={scoreParts[0] || ""}
-																			onChange={(e) =>
-																				handleScoreChange(0, 0, e.target.value)
-																			}
-																			min="0"
-																		/>
-																		<span className="text-muted-foreground">+</span>
-																		<Input
-																			type="number"
-																			placeholder={
-																				repsPerRoundValue
-																					? `Reps (max ${repsPerRoundValue - 1})`
-																					: "Reps"
-																			}
-																			value={scoreParts[1] || ""}
-																			onChange={(e) =>
-																				handleScoreChange(0, 1, e.target.value)
-																			}
-																			min="0"
-																			max={
-																				repsPerRoundValue
-																					? repsPerRoundValue - 1
-																					: undefined
-																			}
-																		/>
-																	</div>
-																</div>
-															)
-														}
-
-														// Single score input with validation
-														return (
-															<div className="space-y-2">
-																{/* Time Cap Checkbox for time-with-cap workouts */}
-																{isTimeWithCap && (
-																	<div className="flex items-center space-x-2">
-																		<Checkbox
-																			id="timeCapped-0"
-																			checked={isTimeCapped}
-																			onCheckedChange={(checked) =>
-																				handleTimeCappedChange(0, !!checked)
-																			}
-																		/>
-																		<Label
-																			htmlFor="timeCapped-0"
-																			className="text-sm font-normal"
-																		>
-																			Time capped
-																		</Label>
-																	</div>
-																)}
-
-																<Input
-																	type={
-																		currentWorkoutDetails?.scheme === "time" ||
-																		currentWorkoutDetails?.scheme === "time-with-cap" ||
-																		currentWorkoutDetails?.scheme === "rounds-reps"
-																			? "text"
-																			: "number"
-																	}
-																	placeholder={
-																		currentWorkoutDetails?.scheme === "time" ||
-																		(isTimeWithCap && !isTimeCapped)
-																			? "90 (secs) or 1:30 (DNS/DNF/CAP)"
-																			: isTimeWithCap && isTimeCapped
-																				? "Reps completed"
-																				: currentWorkoutDetails?.scheme ===
-																						"rounds-reps"
-																					? "5+12 or 5.12"
-																					: "Enter score..."
-																	}
-																	value={scoreParts[0] || ""}
-																	onChange={(e) => {
-																		const value = e.target.value
-																		handleScoreChange(0, 0, value)
-																		scoreState.handleInputChange(value)
-																	}}
-																	min={
-																		currentWorkoutDetails?.scheme !== "time" &&
-																		currentWorkoutDetails?.scheme !== "time-with-cap" &&
-																		currentWorkoutDetails?.scheme !== "rounds-reps"
-																			? "0"
-																			: undefined
-																	}
-																	className={cn(
-																		"font-mono",
-																		scoreState.parseResult?.error &&
-																			!scoreState.parseResult?.isValid &&
-																			"border-destructive focus:ring-destructive",
-																	)}
-																/>
-
-																{/* Preview below input */}
-																{scoreState.parseResult?.isValid && (
-																	<div className="text-xs text-muted-foreground">
-																		Preview: {scoreState.parseResult.formatted}
-																	</div>
-																)}
-
-																{/* Warning message */}
-																{scoreState.parseResult?.warning && (
-																	<div className="text-xs text-amber-600 dark:text-amber-400">
-																		{scoreState.parseResult.warning}
-																	</div>
-																)}
-
-																{/* Error message */}
-																{scoreState.parseResult?.error &&
-																	!scoreState.parseResult?.isValid && (
-																		<div className="text-xs text-destructive">
-																			{scoreState.parseResult.error}
-																		</div>
-																	)}
-															</div>
-														)
-													})()}
+														showTiebreak={false}
+														timeCap={getSelectedWorkout()?.timeCap || undefined}
+														roundsToScore={getSelectedWorkout()?.roundsToScore || 1}
+														autoFocus
+													/>
 												</div>
 
 												{/* Notes */}

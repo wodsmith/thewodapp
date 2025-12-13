@@ -407,7 +407,10 @@ export default function WorkoutDetailClient({
 													</div>
 												}
 											>
-												<SetDetails sets={result.sets} />
+												<SetDetails
+													sets={result.sets}
+													workoutScheme={workout.scheme as any}
+												/>
 											</Suspense>
 										)}
 								</div>

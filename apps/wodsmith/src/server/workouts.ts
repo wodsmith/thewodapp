@@ -20,7 +20,6 @@ import { getDb } from "@/db"
 import type { Workout } from "@/db/schema"
 import {
 	movements,
-	results,
 	scheduledWorkoutInstancesTable,
 	scoresTable,
 	tags,
@@ -36,7 +35,7 @@ import {
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
-import { decodeScore } from "@/lib/scoring"
+import { computeSortKey, decodeScore } from "@/lib/scoring"
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
@@ -162,8 +161,11 @@ async function fetchTodaysScoresByWorkoutId(
 					id: scoresTable.id,
 					workoutId: scoresTable.workoutId,
 					recordedAt: scoresTable.recordedAt,
+					scoreType: scoresTable.scoreType,
 					scoreValue: scoresTable.scoreValue,
 					scheme: scoresTable.scheme,
+					status: scoresTable.status,
+					secondaryValue: scoresTable.secondaryValue,
 					asRx: scoresTable.asRx,
 					scalingLabel: scalingLevelsTable.label,
 					scalingPosition: scalingLevelsTable.position,
@@ -185,6 +187,7 @@ async function fetchTodaysScoresByWorkoutId(
 	)
 
 	const scoresByWorkoutId = new Map<string, Array<TodaysScoreSummary>>()
+	const sortKeysByScoreId = new Map<string, bigint>()
 
 	for (const score of todaysScores) {
 		if (score.workoutId) {
@@ -196,10 +199,34 @@ async function fetchTodaysScoresByWorkoutId(
 
 			// Decode the score value to display string
 			let displayScore: string | undefined
-			if (score.scoreValue !== null && score.scheme) {
-				const decoded = decodeScore(score.scoreValue, score.scheme)
-				displayScore = decoded
+			if (score.scheme) {
+				if (score.status === "cap" && score.scheme === "time-with-cap") {
+					const timeStr =
+						score.scoreValue !== null
+							? decodeScore(score.scoreValue, score.scheme)
+							: ""
+					displayScore =
+						score.secondaryValue !== null && score.secondaryValue !== undefined
+							? `CAP (${timeStr}) - ${score.secondaryValue} reps`
+							: `CAP (${timeStr})`
+				} else if (score.status === "withdrawn") {
+					displayScore = "WITHDRAWN"
+				} else if (score.scoreValue !== null) {
+					displayScore = decodeScore(score.scoreValue, score.scheme)
+				}
 			}
+
+			// Compute a best-first sort key using the scoring library.
+			// Lower sortKey is always better (direction is normalized inside computeSortKey).
+			sortKeysByScoreId.set(
+				score.id,
+				computeSortKey({
+					value: score.scoreValue,
+					status: score.status,
+					scheme: score.scheme,
+					scoreType: score.scoreType,
+				}),
+			)
 
 			scoresByWorkoutId.get(workoutId)?.push({
 				id: score.id,
@@ -210,6 +237,18 @@ async function fetchTodaysScoresByWorkoutId(
 				asRx: score.asRx,
 			})
 		}
+	}
+
+	// Sort so `resultsToday[0]` is the best score (fastest for time, max for reps, etc.)
+	for (const [workoutId, items] of scoresByWorkoutId.entries()) {
+		items.sort((a, b) => {
+			const aKey = sortKeysByScoreId.get(a.id)
+			const bKey = sortKeysByScoreId.get(b.id)
+			if (aKey === undefined || bKey === undefined) return 0
+			if (aKey === bKey) return 0
+			return aKey < bKey ? -1 : 1
+		})
+		scoresByWorkoutId.set(workoutId, items)
 	}
 
 	return scoresByWorkoutId

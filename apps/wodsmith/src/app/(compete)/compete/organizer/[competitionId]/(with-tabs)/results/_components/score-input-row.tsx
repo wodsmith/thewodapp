@@ -96,7 +96,7 @@ export const ScoreInputRow = forwardRef<
 		handleConfirmTieBreakWarning,
 		getAggregateScore,
 	} = useScoreRowState({
-		athlete,
+		subject: athlete,
 		workoutScheme,
 		scoreType: scoreTypeProp,
 		tiebreakScheme,
