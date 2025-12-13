@@ -1,9 +1,10 @@
 import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Plus } from "lucide-react"
+import { CreditCard, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups, getCompetitions } from "@/server/competitions"
+import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { OrganizerCompetitionsList } from "./_components/organizer-competitions-list"
 import { TeamFilter } from "./_components/team-filter"
@@ -25,13 +26,29 @@ export default async function OrganizerDashboard({
 }: OrganizerDashboardProps) {
 	const { teamId: selectedTeamId, groupId } = await searchParams
 	const organizingTeams = await getUserOrganizingTeams()
+	const activeTeamFromCookie = await getActiveTeamFromCookie()
 
-	// Use selected team or first team as default
-	const activeTeamId = selectedTeamId || organizingTeams[0]?.id
+	// Priority: URL param > active team cookie (if valid organizing team)
+	let activeTeamId: string | undefined = selectedTeamId
+	if (!activeTeamId && activeTeamFromCookie) {
+		if (organizingTeams.some((t) => t.id === activeTeamFromCookie)) {
+			activeTeamId = activeTeamFromCookie
+		}
+	}
+
+	// If no active team selected but there are organizing teams, use the first one
+	if (!activeTeamId && organizingTeams.length > 0) {
+		activeTeamId = organizingTeams[0]?.id
+	}
 
 	if (!activeTeamId) {
-		return null // Layout handles no access case
+		// No organizing teams at all - layout handles no access case
+		return null
 	}
+
+	// Get the active team's slug for the payout settings link
+	const activeTeam = organizingTeams.find((t) => t.id === activeTeamId)
+	const activeTeamSlug = activeTeam?.slug
 
 	// Fetch competitions for the active team
 	const [allCompetitions, groups] = await Promise.all([
@@ -56,8 +73,20 @@ export default async function OrganizerDashboard({
 						</p>
 					</div>
 					<div className="flex flex-col sm:flex-row gap-2">
+						{activeTeamSlug && (
+							<Link
+								href={`/compete/organizer/settings/payouts/${activeTeamSlug}`}
+							>
+								<Button variant="outline" className="w-full sm:w-auto">
+									<CreditCard className="h-4 w-4 mr-2" />
+									Payout Settings
+								</Button>
+							</Link>
+						)}
 						<Link href="/compete/organizer/series">
-							<Button variant="outline" className="w-full sm:w-auto">Manage Series</Button>
+							<Button variant="outline" className="w-full sm:w-auto">
+								Manage Series
+							</Button>
 						</Link>
 						<Link href="/compete/organizer/new">
 							<Button className="w-full sm:w-auto">
@@ -70,10 +99,7 @@ export default async function OrganizerDashboard({
 
 				{/* Team Filter (only show if multiple teams) */}
 				{organizingTeams.length > 1 && (
-					<TeamFilter
-						teams={organizingTeams}
-						selectedTeamId={activeTeamId}
-					/>
+					<TeamFilter teams={organizingTeams} selectedTeamId={activeTeamId} />
 				)}
 
 				{/* Competitions List */}

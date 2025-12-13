@@ -12,6 +12,9 @@ import {
 	scalingLevelsTable,
 	sets,
 	workouts,
+	type WorkoutScheme,
+	type ScoreType,
+	type TiebreakScheme,
 } from "@/db/schema"
 import { formatSecondsToTime, parseTimeScoreToSeconds } from "@/lib/utils"
 import type {
@@ -21,6 +24,365 @@ import type {
 	WorkoutResultWithWorkoutName,
 } from "@/types"
 import { requireVerifiedEmail } from "@/utils/auth"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
+
+// ============================================================================
+// ENCODING MIGRATION NOTES - Phase 4
+// ============================================================================
+//
+// This file contains the core score processing logic used by both:
+// - submitLogForm (user workout logs)
+// - saveCompetitionScore (competition scores)
+//
+// CURRENT STATE (Phase 3):
+// - Scores are stored in results + sets tables with LEGACY encoding:
+//   * Time: seconds (not milliseconds)
+//   * Rounds+Reps: rounds * 1000 + reps (not rounds * 100000 + reps)
+//   * Load: lbs (not grams)
+//   * Distance: meters/feet (not millimeters)
+//
+// FUTURE STATE (Phase 4):
+// - Dual-write to new scores + score_rounds tables with NEW encoding:
+//   * Time: milliseconds
+//   * Rounds+Reps: rounds * 100000 + reps
+//   * Load: grams
+//   * Distance: millimeters
+// - Use encodeScore() and encodeRounds() from @/lib/scoring
+// - Populate sortKey column using computeSortKey()
+//
+// KEY FUNCTIONS TO UPDATE IN PHASE 4:
+// - processScoresToSetsAndWodScore(): Add encoding logic
+// - addLog(): Dual-write to scores table
+// - updateLog(): Update scores table
+//
+// COMPLEXITY NOTES:
+// - This file is 1100+ lines with complex score processing logic
+// - Handles multiple workout schemes (time, rounds-reps, load, etc.)
+// - Aggregation logic (min, max, sum, average, first, last)
+// - Time-capped results need special handling
+// - Must maintain backward compatibility during migration
+//
+// ============================================================================
+
+/* -------------------------------------------------------------------------- */
+/*                         Shared Score Processing Types                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Minimal workout info needed for score processing
+ * Used by both submitLogForm and saveCompetitionScore
+ */
+export interface WorkoutScoreInfo {
+	scheme: WorkoutScheme
+	scoreType: ScoreType | null
+	repsPerRound: number | null
+	roundsToScore: number | null
+	timeCap: number | null
+	tiebreakScheme?: TiebreakScheme | null
+}
+
+/**
+ * Normalized score entry format
+ * Can represent scores from FormData or from direct input
+ */
+export interface NormalizedScoreEntry {
+	/** The raw score string (e.g., "3:45", "150", "5+12") */
+	score: string
+	/** For rounds+reps: [rounds, reps] */
+	parts?: [string, string]
+	/** Whether this round hit the time cap */
+	timeCapped?: boolean
+}
+
+/**
+ * Output from processing score entries
+ */
+export interface ProcessedScoresResult {
+	setsForDb: ResultSetInput[]
+	totalSecondsForWodScore: number
+	wodScore: string
+	error?: string
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Shared Score Processing Functions                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get default scoreType for a scheme
+ */
+export function getDefaultScoreType(
+	scheme: WorkoutScheme | Workout["scheme"],
+): string {
+	const defaults: Record<string, string> = {
+		time: "min",
+		"time-with-cap": "min",
+		"pass-fail": "first",
+		"rounds-reps": "max",
+		reps: "max",
+		emom: "max",
+		load: "max",
+		calories: "max",
+		meters: "max",
+		feet: "max",
+		points: "max",
+	}
+	return defaults[scheme] || "max"
+}
+
+/**
+ * Apply score aggregation based on scoreType
+ */
+export function aggregateScores(
+	values: number[],
+	scoreType: string,
+): number | null {
+	if (values.length === 0) return null
+
+	switch (scoreType) {
+		case "min":
+			return Math.min(...values)
+		case "max":
+			return Math.max(...values)
+		case "sum":
+			return values.reduce((sum, v) => sum + v, 0)
+		case "average":
+			return values.reduce((sum, v) => sum + v, 0) / values.length
+		case "first":
+			return values[0] ?? null
+		case "last":
+			return values[values.length - 1] ?? null
+		default:
+			return null
+	}
+}
+
+/**
+ * Process normalized score entries into sets and generate wodScore
+ * This is the shared core logic used by both submitLogForm and saveCompetitionScore
+ *
+ * TODO Phase 4: Add new encoding logic
+ * - Call encodeScore() to generate new-format encoded values
+ * - Store both legacy (for results+sets) and new (for scores) encodings
+ * - Generate sortKey using computeSortKey()
+ * - Return additional fields for scores table insertion
+ */
+export function processScoresToSetsAndWodScore(
+	scoreEntries: NormalizedScoreEntry[],
+	workout: WorkoutScoreInfo,
+): ProcessedScoresResult {
+	const setsForDb: ResultSetInput[] = []
+	let totalSecondsForWodScore = 0
+
+	const isRoundsAndRepsWorkout =
+		workout.scheme === "rounds-reps" ||
+		(!!workout.repsPerRound && workout.repsPerRound > 0)
+	const isTimeBasedWodScore =
+		workout.scheme === "time" || workout.scheme === "time-with-cap"
+
+	// Process each score entry into a set
+	for (let k = 0; k < scoreEntries.length; k++) {
+		const entry = scoreEntries[k]
+		if (!entry) continue
+		const setNumber = k + 1
+
+		if (isRoundsAndRepsWorkout) {
+			// Rounds + Reps format - store original values for display
+			// score = rounds completed, reps = extra reps
+			const roundsStr = entry.parts?.[0] || entry.score.split("+")[0] || "0"
+			const repsStr = entry.parts?.[1] || entry.score.split("+")[1] || "0"
+
+			const roundsCompleted = parseInt(roundsStr.trim(), 10)
+			const repsCompleted = parseInt(repsStr.trim(), 10)
+
+			if (Number.isNaN(roundsCompleted)) {
+				continue // Skip invalid entries
+			}
+
+			setsForDb.push({
+				setNumber,
+				score: roundsCompleted,
+				reps: Number.isNaN(repsCompleted) ? 0 : repsCompleted,
+				weight: null,
+				status: null,
+				distance: null,
+				time: null,
+			})
+		} else if (isTimeBasedWodScore) {
+			const isTimeCapped = entry.timeCapped || false
+			const scoreStr = entry.score
+
+			if (!scoreStr || scoreStr.trim() === "") {
+				continue // Skip empty entries
+			}
+
+			if (workout.scheme === "time-with-cap" && isTimeCapped) {
+				// Time capped - expecting reps
+				const repsCompleted = parseInt(scoreStr, 10)
+				if (!Number.isNaN(repsCompleted) && repsCompleted >= 0) {
+					setsForDb.push({
+						setNumber,
+						reps: repsCompleted,
+						time: null,
+						weight: null,
+						status: null,
+						distance: null,
+						score: null,
+					})
+				}
+			} else {
+				// Regular time score
+				const timeInSeconds = parseTimeScoreToSeconds(scoreStr)
+				if (timeInSeconds !== null) {
+					totalSecondsForWodScore += timeInSeconds
+					setsForDb.push({
+						setNumber,
+						time: timeInSeconds,
+						reps: null,
+						weight: null,
+						status: null,
+						distance: null,
+						score: null,
+					})
+				}
+			}
+		} else {
+			// For other schemes: reps, load, calories, meters, points, etc.
+			const scoreStr = entry.score
+			if (!scoreStr || scoreStr.trim() === "") {
+				continue // Skip empty entries
+			}
+
+			const numericScore = parseInt(scoreStr, 10)
+			if (!Number.isNaN(numericScore) && numericScore >= 0) {
+				setsForDb.push({
+					setNumber,
+					score: numericScore,
+					reps: null,
+					weight: null,
+					status: null,
+					distance: null,
+					time: null,
+				})
+			}
+		}
+	}
+
+	// Generate wodScore from the processed sets
+	const wodScore = generateWodScoreFromSets(
+		setsForDb,
+		workout,
+		isTimeBasedWodScore,
+		isRoundsAndRepsWorkout,
+		totalSecondsForWodScore,
+		scoreEntries,
+	)
+
+	return { setsForDb, totalSecondsForWodScore, wodScore }
+}
+
+/**
+ * Generate wodScore string from processed sets
+ * For rounds+reps: stores total reps
+ * For time: stores formatted time string
+ * For other schemes: stores the numeric value
+ */
+export function generateWodScoreFromSets(
+	setsForDb: ResultSetInput[],
+	workout: WorkoutScoreInfo,
+	isTimeBasedWodScore: boolean,
+	isRoundsAndRepsWorkout: boolean,
+	totalSecondsForWodScore: number,
+	scoreEntries: NormalizedScoreEntry[],
+): string {
+	const effectiveScoreType =
+		workout.scoreType || getDefaultScoreType(workout.scheme)
+	const roundsToScore = workout.roundsToScore || 1
+	const hasTimeCappedRounds = scoreEntries.some((e) => e.timeCapped)
+	const shouldAggregate = roundsToScore > 1 && !hasTimeCappedRounds
+
+	// Time-based workouts
+	if (isTimeBasedWodScore && !hasTimeCappedRounds) {
+		if (shouldAggregate) {
+			const timeValues = setsForDb
+				.map((set) => set.time)
+				.filter((t): t is number => t !== null && t !== undefined && t > 0)
+			const aggregated = aggregateScores(timeValues, effectiveScoreType)
+			return aggregated !== null ? formatSecondsToTime(aggregated) : ""
+		}
+		return totalSecondsForWodScore > 0
+			? formatSecondsToTime(totalSecondsForWodScore)
+			: ""
+	}
+
+	// Rounds+reps workouts: wodScore is total reps
+	if (isRoundsAndRepsWorkout) {
+		const repsValues = setsForDb
+			.map((set) => set.reps)
+			.filter((r): r is number => r !== null && r !== undefined)
+
+		if (shouldAggregate && repsValues.length > 1) {
+			const aggregated = aggregateScores(repsValues, effectiveScoreType)
+			return aggregated !== null ? aggregated.toString() : ""
+		}
+		// Single round: return total reps
+		if (repsValues.length > 0) {
+			return repsValues[0]?.toString() ?? ""
+		}
+		return ""
+	}
+
+	// Other schemes with aggregation
+	if (shouldAggregate) {
+		const scoreValues = setsForDb
+			.map((set) => set.reps || set.score || 0)
+			.filter((s): s is number => s !== null && s > 0)
+		const aggregated = aggregateScores(scoreValues, effectiveScoreType)
+		return aggregated !== null ? aggregated.toString() : ""
+	}
+
+	// Single round non-time, non-rounds+reps: use the score directly
+	if (setsForDb.length > 0) {
+		const firstSet = setsForDb[0]
+		if (firstSet?.score !== null && firstSet?.score !== undefined) {
+			return firstSet.score.toString()
+		}
+		if (firstSet?.reps !== null && firstSet?.reps !== undefined) {
+			return firstSet.reps.toString()
+		}
+	}
+
+	// Fallback: join raw scores
+	return scoreEntries
+		.map((e) => e.score)
+		.filter((s) => s && s.trim() !== "")
+		.join(", ")
+}
+
+/**
+ * Convert FormData parsed score entries to normalized format
+ */
+export function normalizeScoreEntries(
+	parsedScoreEntries: Array<{ parts: string[] }>,
+	timeCappedEntries: boolean[] = [],
+): NormalizedScoreEntry[] {
+	return parsedScoreEntries.map((entry, index) => {
+		const parts = entry.parts
+		const hasTwoParts = parts.length >= 2
+
+		return {
+			score: hasTwoParts
+				? `${parts[0] || "0"}+${parts[1] || "0"}`
+				: parts[0] || "",
+			parts: hasTwoParts ? [parts[0] || "0", parts[1] || "0"] : undefined,
+			timeCapped: timeCappedEntries[index] || false,
+		}
+	})
+}
 // Map legacy scale enum to { scalingLevelId, asRx } using available scaling group context
 export async function mapLegacyScaleToScalingLevel({
 	workoutId,
@@ -111,7 +473,10 @@ export async function getLogsByUser(
 	userId: string,
 ): Promise<WorkoutResultWithWorkoutName[]> {
 	const db = getDb()
-	console.log(`[getLogsByUser] Fetching logs for userId: ${userId}`)
+	logInfo({
+		message: "[getLogsByUser] Fetching logs for user",
+		attributes: { userId },
+	})
 
 	try {
 		const logs = await db
@@ -145,9 +510,10 @@ export async function getLogsByUser(
 			.where(eq(results.userId, userId))
 			.orderBy(desc(results.date))
 
-		console.log(
-			`[getLogsByUser] Found ${logs.length} logs for userId: ${userId}`,
-		)
+		logInfo({
+			message: "[getLogsByUser] Fetched logs for user",
+			attributes: { userId, count: logs.length },
+		})
 		return logs.map((log) => ({
 			...log,
 			workoutName: log.workoutName || undefined,
@@ -155,16 +521,24 @@ export async function getLogsByUser(
 			scalingLevelPosition: log.scalingLevelPosition ?? undefined,
 		})) as WorkoutResultWithWorkoutName[]
 	} catch (error) {
-		console.error(
-			`[getLogsByUser] Error fetching logs for userId ${userId}:`,
+		logError({
+			message: "[getLogsByUser] Error fetching logs for user",
 			error,
-		)
+			attributes: { userId },
+		})
 		return []
 	}
 }
 
 /**
  * Add a new log entry with sets
+ *
+ * TODO Phase 4: Dual-write to scores table
+ * - Encode wodScore using encodeScore()
+ * - Encode round-by-round data using encodeRounds()
+ * - Compute sortKey using computeSortKey()
+ * - Insert into scores and score_rounds tables
+ * - Keep results+sets writes for backward compatibility during migration
  */
 export async function addLog({
 	userId,
@@ -191,39 +565,44 @@ export async function addLog({
 	scheduledWorkoutInstanceId?: string | null
 	programmingTrackId?: string | null
 }): Promise<{ success: boolean; resultId?: string; error?: string }> {
-	console.log("[addLog] START - Input parameters:", {
-		userId,
-		workoutId,
-		date,
-		scalingLevelId,
-		asRx,
-		wodScore,
-		notes,
-		setsDataLength: setsData.length,
-		setsData,
-		type,
-		scheduledWorkoutInstanceId,
-		programmingTrackId,
+	logInfo({
+		message: "[addLog] Start",
+		attributes: {
+			userId,
+			workoutId,
+			date,
+			scalingLevelId,
+			asRx,
+			wodScore,
+			notesPresent: Boolean(notes),
+			setsCount: setsData.length,
+			type,
+			scheduledWorkoutInstanceId,
+			programmingTrackId,
+		},
 	})
 
 	const session = await requireVerifiedEmail()
 	if (!session) {
-		console.error("[addLog] No session found - not authenticated")
+		logError({
+			message: "[addLog] No session found - not authenticated",
+			attributes: { userId, workoutId },
+		})
 		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
 	}
-	console.log("[addLog] Session verified for user:", session.user.id)
 
 	let db: ReturnType<typeof getDb>
 	try {
 		db = getDb()
-		console.log("[addLog] Database connection obtained successfully")
 	} catch (error) {
-		console.error("[addLog] Failed to get database connection:", error)
+		logError({
+			message: "[addLog] Failed to get database connection",
+			error,
+		})
 		return { success: false, error: "Database connection failed" }
 	}
 
 	const resultId = `result_${createId()}`
-	console.log("[addLog] Generated resultId:", resultId)
 
 	try {
 		const insertData = {
@@ -241,21 +620,13 @@ export async function addLog({
 			scheduledWorkoutInstanceId: scheduledWorkoutInstanceId || null,
 			programmingTrackId: programmingTrackId || null,
 		}
-		console.log("[addLog] Attempting to insert result with data:", insertData)
-
-		// Special logging for the problematic workout
-		if (workoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
-			console.log("[addLog] SAWTOOTH WORKOUT INSERT - Full details:", {
-				insertData,
-				setsData,
-				dateObject: new Date(date),
-				dateTimestamp: date,
-			})
-		}
 
 		// Insert the main result - using timestamp mode for date field
 		const insertResult = await db.insert(results).values(insertData).returning()
-		console.log("[addLog] Result insert successful, returned:", insertResult)
+		logInfo({
+			message: "[addLog] Result inserted",
+			attributes: { resultId, insertCount: insertResult.length },
+		})
 
 		// Insert sets if any
 		if (setsData.length > 0) {
@@ -270,26 +641,31 @@ export async function addLog({
 				score: set.score || null,
 				status: set.status || null,
 			}))
-			console.log("[addLog] Attempting to insert sets:", setsToInsert)
 
 			const setsInsertResult = await db
 				.insert(sets)
 				.values(setsToInsert)
 				.returning()
-			console.log(
-				`[addLog] Added ${setsToInsert.length} sets for resultId: ${resultId}`,
-				setsInsertResult,
-			)
+			logInfo({
+				message: "[addLog] Inserted sets for result",
+				attributes: {
+					resultId,
+					insertedSets: setsToInsert.length,
+					returned: setsInsertResult.length,
+				},
+			})
 		}
 
-		console.log(`[addLog] SUCCESS - Added log with resultId: ${resultId}`)
+		logInfo({
+			message: "[addLog] Success",
+			attributes: { resultId, workoutId, userId },
+		})
 		return { success: true, resultId }
 	} catch (error) {
-		console.error(`[addLog] ERROR adding log for userId ${userId}:`, error)
-		console.error("[addLog] Error details:", {
-			name: error instanceof Error ? error.name : "Unknown",
-			message: error instanceof Error ? error.message : String(error),
-			stack: error instanceof Error ? error.stack : "No stack trace",
+		logError({
+			message: "[addLog] Error adding log",
+			error,
+			attributes: { userId, workoutId, resultId },
 		})
 		if (error instanceof Error) {
 			return { success: false, error: error.message }
@@ -305,7 +681,10 @@ export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
 	const db = getDb()
-	console.log(`[getResultSetsById] Fetching sets for resultId: ${resultId}`)
+	logInfo({
+		message: "[getResultSetsById] Fetching sets",
+		attributes: { resultId },
+	})
 
 	try {
 		const setDetails = await db
@@ -314,15 +693,17 @@ export async function getResultSetsById(
 			.where(eq(sets.resultId, resultId))
 			.orderBy(sets.setNumber)
 
-		console.log(
-			`[getResultSetsById] Found ${setDetails.length} sets for resultId ${resultId}`,
-		)
+		logInfo({
+			message: "[getResultSetsById] Found sets",
+			attributes: { resultId, count: setDetails.length },
+		})
 		return setDetails
 	} catch (error) {
-		console.error(
-			`[getResultSetsById] Error fetching sets for resultId ${resultId}:`,
+		logError({
+			message: "[getResultSetsById] Error fetching sets",
 			error,
-		)
+			attributes: { resultId },
+		})
 		return []
 	}
 }
@@ -332,7 +713,10 @@ export async function getResultSetsById(
  */
 export async function getResultById(resultId: string) {
 	const db = getDb()
-	console.log(`[getResultById] Fetching result with id: ${resultId}`)
+	logInfo({
+		message: "[getResultById] Fetching result",
+		attributes: { resultId },
+	})
 
 	try {
 		const [result] = await db
@@ -372,17 +756,24 @@ export async function getResultById(resultId: string) {
 			.limit(1)
 
 		if (!result) {
-			console.log(`[getResultById] No result found with id: ${resultId}`)
+			logWarning({
+				message: "[getResultById] No result found",
+				attributes: { resultId },
+			})
 			return null
 		}
 
-		console.log(`[getResultById] Found result for id: ${resultId}`)
+		logInfo({
+			message: "[getResultById] Found result",
+			attributes: { resultId, workoutId: result.workoutId },
+		})
 		return result
 	} catch (error) {
-		console.error(
-			`[getResultById] Error fetching result with id ${resultId}:`,
+		logError({
+			message: "[getResultById] Error fetching result",
 			error,
-		)
+			attributes: { resultId },
+		})
 		return null
 	}
 }
@@ -424,9 +815,10 @@ export async function updateResult({
 
 	const db = getDb()
 
-	console.log(
-		`[updateResult] Updating result with id: ${resultId}, userId: ${userId}, workoutId: ${workoutId}`,
-	)
+	logInfo({
+		message: "[updateResult] Updating result",
+		attributes: { resultId, userId, workoutId, setsCount: setsData.length },
+	})
 
 	try {
 		// Update the main result
@@ -466,19 +858,22 @@ export async function updateResult({
 			}))
 
 			await db.insert(sets).values(setsToInsert)
-			console.log(
-				`[updateResult] Updated ${setsToInsert.length} sets for resultId: ${resultId}`,
-			)
+			logInfo({
+				message: "[updateResult] Inserted replacement sets",
+				attributes: { resultId, insertedSets: setsToInsert.length },
+			})
 		}
 
-		console.log(
-			`[updateResult] Successfully updated result with id: ${resultId}`,
-		)
+		logInfo({
+			message: "[updateResult] Success",
+			attributes: { resultId, workoutId, userId },
+		})
 	} catch (error) {
-		console.error(
-			`[updateResult] Error updating result with id ${resultId}:`,
+		logError({
+			message: "[updateResult] Error updating result",
 			error,
-		)
+			attributes: { resultId, workoutId, userId },
+		})
 		throw error
 	}
 }
@@ -560,210 +955,16 @@ function validateParsedScores(
 	if (parsedScoreEntries.length === 0 || !atLeastOneScorePartFilled) {
 		if (workoutScheme !== undefined) {
 			// N/A scheme might not require scores
-			console.error(
-				"[Action] No valid score parts provided for a workout that expects scores.",
-			)
+			logWarning({
+				message:
+					"[submitLogForm] No valid score parts provided for a workout that expects scores",
+			})
 			return {
 				error: "At least one score input is required and must not be empty.",
 			}
 		}
 	}
 	return undefined // Explicitly return undefined if no error
-}
-
-interface ProcessedScoresOutput {
-	setsForDb: ResultSetInput[]
-	totalSecondsForWodScore: number
-	error?: { error: string }
-}
-
-function processScoreEntries(
-	parsedScoreEntries: Array<{ parts: string[] }>,
-	workout: Workout,
-	isTimeBasedWodScore: boolean,
-	isRoundsAndRepsWorkout: boolean,
-	atLeastOneScorePartFilled: boolean, // Added to resolve linter issues and use in logic
-	timeCappedEntries: boolean[] = [],
-): ProcessedScoresOutput {
-	const setsForDb: ResultSetInput[] = []
-	let totalSecondsForWodScore = 0
-
-	for (let k = 0; k < parsedScoreEntries.length; k++) {
-		const entry = parsedScoreEntries[k]
-		if (!entry) continue
-		const setNumber = k + 1 // Set numbers are 1-indexed
-		const scoreParts = entry.parts
-
-		if (isRoundsAndRepsWorkout) {
-			// Expects two parts: scoreParts[0] = rounds, scoreParts[1] = reps
-			if (scoreParts.length < 2 && (scoreParts[0]?.trim() ?? "") === "") {
-				if (scoreParts.every((p) => (p?.trim() ?? "") === "")) continue // Skip fully empty entries
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: { error: `For round ${setNumber}, rounds input is required.` },
-				}
-			}
-
-			const roundsStr = scoreParts[0] || "0"
-			const repsStr = scoreParts[1] || "0"
-
-			const roundsCompleted = Number.parseInt(roundsStr, 10)
-			const repsCompleted = Number.parseInt(repsStr, 10)
-
-			if (
-				Number.isNaN(roundsCompleted) ||
-				(scoreParts[1] !== undefined && Number.isNaN(repsCompleted))
-			) {
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: {
-						error: `Invalid number for rounds or reps for set ${setNumber}. Rounds: '${roundsStr}', Reps: '${repsStr}'.`,
-					},
-				}
-			}
-			if (roundsCompleted < 0 || repsCompleted < 0) {
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: {
-						error: `Rounds and reps for set ${setNumber} cannot be negative.`,
-					},
-				}
-			}
-			if (workout.repsPerRound === undefined)
-				throw new Error("repsPerRound is required")
-			const totalReps =
-				roundsCompleted * (workout.repsPerRound ?? 0) + repsCompleted
-
-			setsForDb.push({
-				setNumber,
-				reps: totalReps,
-				score: null,
-				weight: null,
-				status: null,
-				distance: null,
-				time: null,
-			})
-		} else if (
-			workout.scheme === "time" ||
-			workout.scheme === "time-with-cap"
-		) {
-			const isTimeCapped = timeCappedEntries[k] || false
-			const scoreStr = scoreParts[0]
-
-			if (scoreStr === undefined || scoreStr.trim() === "") {
-				if (parsedScoreEntries.length === 1 && !atLeastOneScorePartFilled) {
-					// This case is handled by validateParsedScores
-				} else if (scoreParts.every((p) => p.trim() === "")) {
-					continue // Skip if this specific score entry is completely empty
-				}
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: {
-						error: `${
-							isTimeCapped ? "Reps" : "Time"
-						} input for set ${setNumber} is missing.`,
-					},
-				}
-			}
-
-			if (workout.scheme === "time-with-cap" && isTimeCapped) {
-				// Time capped - expecting reps
-				const repsCompleted = Number.parseInt(scoreStr, 10)
-				if (Number.isNaN(repsCompleted) || repsCompleted < 0) {
-					return {
-						setsForDb: [],
-						totalSecondsForWodScore: 0,
-						error: {
-							error: `Invalid reps value for set ${setNumber}: '${scoreStr}'. Please enter a valid number of reps.`,
-						},
-					}
-				}
-				setsForDb.push({
-					setNumber,
-					reps: repsCompleted,
-					time: null,
-					weight: null,
-					status: null,
-					distance: null,
-					score: null,
-				})
-			} else {
-				// Not time capped or regular time workout - expecting time
-				const timeInSeconds = parseTimeScoreToSeconds(scoreStr)
-				if (timeInSeconds === null) {
-					return {
-						setsForDb: [],
-						totalSecondsForWodScore: 0,
-						error: {
-							error: `Invalid time format for set ${setNumber}: '${scoreStr}'. Please use MM:SS or total seconds.`,
-						},
-					}
-				}
-				if (isTimeBasedWodScore) {
-					totalSecondsForWodScore += timeInSeconds
-				}
-				setsForDb.push({
-					setNumber,
-					time: timeInSeconds,
-					reps: null,
-					weight: null,
-					status: null,
-					distance: null,
-					score: null,
-				})
-			}
-		} else {
-			// For schemes like 'reps', 'load', 'points'
-			const scoreStr = scoreParts[0]
-			if (scoreStr === undefined || scoreStr.trim() === "") {
-				if (parsedScoreEntries.length === 1 && !atLeastOneScorePartFilled) {
-					// Handled by validateParsedScores
-				} else if (scoreParts.every((p) => p.trim() === "")) {
-					continue // Skip if this specific score entry is completely empty
-				}
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: {
-						error: `Score input for set ${setNumber} is missing for scheme '${workout.scheme}'.`,
-					},
-				}
-			}
-			const numericScore = Number.parseInt(scoreStr, 10)
-			if (Number.isNaN(numericScore)) {
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: {
-						error: `Score for set ${setNumber} ('${scoreStr}') must be a valid number for scheme '${workout.scheme}'.`,
-					},
-				}
-			}
-			if (numericScore < 0) {
-				return {
-					setsForDb: [],
-					totalSecondsForWodScore: 0,
-					error: {
-						error: `Score for set ${setNumber} ('${numericScore}') cannot be negative.`,
-					},
-				}
-			}
-			setsForDb.push({
-				setNumber,
-				score: numericScore,
-				reps: null,
-				weight: null,
-				status: null,
-				distance: null,
-				time: null,
-			})
-		}
-	}
-	return { setsForDb, totalSecondsForWodScore }
 }
 
 function validateProcessedSets(
@@ -776,9 +977,10 @@ function validateProcessedSets(
 		workoutScheme !== undefined &&
 		atLeastOneScorePartFilled
 	) {
-		console.error(
-			"[Action] All provided score entries resulted in no valid sets to save, but some input was detected.",
-		)
+		logWarning({
+			message:
+				"[submitLogForm] Score entries produced no valid sets despite input",
+		})
 		return {
 			error:
 				"Valid score information is required. Please check your inputs for each round/set.",
@@ -789,168 +991,15 @@ function validateProcessedSets(
 		workoutScheme !== undefined &&
 		!atLeastOneScorePartFilled
 	) {
-		console.error(
-			"[Action] No score entries provided or all were empty, and workout expects scores.",
-		)
+		logWarning({
+			message:
+				"[submitLogForm] No score entries provided for workout that expects scores",
+		})
 		return {
 			error: "At least one score input is required and must not be empty.",
 		}
 	}
 	return undefined
-}
-
-/**
- * Get default scoreType for a scheme
- */
-export function getDefaultScoreType(scheme: Workout["scheme"]): string {
-	const defaults: Record<string, string> = {
-		time: "min", // Lower time is better
-		"time-with-cap": "min", // Lower time is better
-		"pass-fail": "first", // First attempt matters
-		"rounds-reps": "max", // Higher rounds+reps is better
-		reps: "max", // Higher reps is better
-		emom: "max", // Higher reps/score in EMOM is better
-		load: "max", // Higher load is better
-		calories: "max", // Higher calories is better
-		meters: "max", // Higher distance is better
-		feet: "max", // Higher distance is better
-		points: "max", // Higher points is better
-	}
-	return defaults[scheme] || "max"
-}
-
-/**
- * Apply score aggregation based on scoreType
- */
-export function aggregateScores(
-	values: number[],
-	scoreType: string,
-): number | null {
-	if (values.length === 0) return null
-
-	switch (scoreType) {
-		case "min":
-			return Math.min(...values)
-		case "max":
-			return Math.max(...values)
-		case "sum":
-			return values.reduce((sum, v) => sum + v, 0)
-		case "average":
-			return values.reduce((sum, v) => sum + v, 0) / values.length
-		case "first":
-			return values[0] ?? null
-		case "last":
-			return values[values.length - 1] ?? null
-		default:
-			return null
-	}
-}
-
-function generateWodScoreSummary(
-	isTimeBasedWodScore: boolean,
-	totalSecondsForWodScore: number,
-	parsedScoreEntries: Array<{ parts: string[] }>,
-	isRoundsAndRepsWorkout: boolean,
-	workoutScheme: Workout["scheme"],
-	setsForDb: ResultSetInput[], // Added to check conditions for time-based summary
-	atLeastOneScorePartFilled: boolean, // Added for conditional logic
-	timeCappedEntries: boolean[] = [],
-	scoreType: string | null = null,
-	roundsToScore = 1,
-): string {
-	let finalWodScoreSummary = ""
-	// Check if any rounds are time capped - if so, use descriptive format instead of time-only format
-	const hasTimeCappedRounds = timeCappedEntries.some((capped) => capped)
-
-	// Always use scoreType (with fallback to default) for multiple rounds
-	const effectiveScoreType = scoreType || getDefaultScoreType(workoutScheme)
-	const shouldAggregate = roundsToScore > 1 && !hasTimeCappedRounds
-
-	if (isTimeBasedWodScore && !hasTimeCappedRounds) {
-		if (shouldAggregate) {
-			// Aggregate time values based on scoreType
-			const timeValues = setsForDb
-				.map((set) => set.time)
-				.filter((t): t is number => t !== null && t !== undefined && t > 0)
-
-			const aggregated = aggregateScores(timeValues, effectiveScoreType)
-			finalWodScoreSummary =
-				aggregated !== null ? formatSecondsToTime(aggregated) : ""
-		} else {
-			finalWodScoreSummary = formatSecondsToTime(totalSecondsForWodScore)
-		}
-		if (
-			totalSecondsForWodScore === 0 &&
-			setsForDb.some((set) => set?.time && set.time > 0)
-		) {
-			// This means valid times were logged, but somehow total is still 0. Should not happen.
-		} else if (
-			totalSecondsForWodScore === 0 &&
-			parsedScoreEntries.length > 0 &&
-			!atLeastOneScorePartFilled
-		) {
-			// No score parts filled, an error should have been caught earlier
-			// For safety, can return empty or specific string like "No Score"
-			finalWodScoreSummary = "" // Or "No Score"
-		} else if (
-			totalSecondsForWodScore === 0 &&
-			setsForDb.length === 0 &&
-			atLeastOneScorePartFilled
-		) {
-			// some input, but no valid sets. Error should be caught.
-			// For safety, can return empty or specific string like "No Score"
-			finalWodScoreSummary = "" // Or "No Score"
-		}
-	} else if (shouldAggregate && !isRoundsAndRepsWorkout) {
-		// Aggregate non-time scores based on scoreType
-		const scoreValues = setsForDb
-			.map((set) => set.reps || set.score || 0)
-			.filter((s): s is number => s !== null && s > 0)
-
-		const aggregated = aggregateScores(scoreValues, effectiveScoreType)
-		finalWodScoreSummary = aggregated !== null ? aggregated.toString() : ""
-	} else {
-		const scoreSummaries: string[] = []
-		for (let k = 0; k < parsedScoreEntries.length; k++) {
-			const entry = parsedScoreEntries[k]
-			if (!entry) continue
-			const scoreParts = entry.parts
-
-			if (isRoundsAndRepsWorkout) {
-				const roundsStr = scoreParts[0] || "0"
-				const repsStr = scoreParts[1] || "0"
-				if (
-					roundsStr === "0" &&
-					repsStr === "0" &&
-					scoreParts.every((p) => p.trim() === "")
-				) {
-					// Potentially skip
-				} else {
-					scoreSummaries.push(`${roundsStr} + ${repsStr}`)
-				}
-			} else if (
-				workoutScheme === "time" ||
-				workoutScheme === "time-with-cap"
-			) {
-				const isTimeCapped = timeCappedEntries[k] || false
-				const scoreStr = scoreParts[0]
-				if (scoreStr && scoreStr.trim() !== "") {
-					if (workoutScheme === "time-with-cap" && isTimeCapped) {
-						scoreSummaries.push(`${scoreStr} reps (time capped)`)
-					} else {
-						scoreSummaries.push(scoreStr)
-					}
-				}
-			} else {
-				const scoreStr = scoreParts[0]
-				if (scoreStr && scoreStr.trim() !== "") {
-					scoreSummaries.push(scoreStr)
-				}
-			}
-		}
-		finalWodScoreSummary = scoreSummaries.join(", ")
-	}
-	return finalWodScoreSummary
 }
 
 async function submitLogToDatabase(
@@ -965,25 +1014,25 @@ async function submitLogToDatabase(
 	scheduledInstanceId?: string | null,
 	programmingTrackId?: string | null,
 ) {
-	console.log("[Action] Submitting log with sets:", {
-		userId,
-		selectedWorkoutId,
-		date: dateStr,
-		scale: scaleValue,
-		wodScoreSummary: finalWodScoreSummary,
-		notes: notesValue,
-		sets: setsForDb,
+	logInfo({
+		message: "[submitLogToDatabase] Start",
+		attributes: {
+			userId,
+			workoutId: selectedWorkoutId,
+			date: dateStr,
+			timezone,
+			scale: scaleValue,
+			wodScoreSummary: finalWodScoreSummary,
+			notesPresent: Boolean(notesValue),
+			setsCount: setsForDb.length,
+			scheduledInstanceId,
+			programmingTrackId,
+		},
 	})
-
-	console.log("[Action] Date in timezone:", new Date(dateStr).getTime())
 
 	try {
 		const dateInTargetTz = fromZonedTime(`${dateStr}T00:00:00`, timezone)
 		const timestamp = dateInTargetTz.getTime()
-
-		console.log(
-			`[Action] Original date string: ${dateStr}, Target Timezone: ${timezone}, Timestamp: ${timestamp}`,
-		)
 
 		// Map legacy scale to new scaling fields
 		const { scalingLevelId, asRx } = await mapLegacyScaleToScalingLevel({
@@ -1007,17 +1056,24 @@ async function submitLogToDatabase(
 		})
 
 		if (!result.success) {
-			console.error("[Action] Failed to add log:", result.error)
+			logError({
+				message: "[submitLogToDatabase] Failed to add log",
+				attributes: { userId, workoutId: selectedWorkoutId },
+			})
 			return { error: result.error || "Failed to save log" }
 		}
 
-		console.log(
-			"[Action] Successfully added log with resultId:",
-			result.resultId,
-		)
+		logInfo({
+			message: "[submitLogToDatabase] Success",
+			attributes: { resultId: result.resultId, workoutId: selectedWorkoutId },
+		})
 		return { success: true, resultId: result.resultId }
 	} catch (error) {
-		console.error("[Action] Failed to add log with sets:", error)
+		logError({
+			message: "[submitLogToDatabase] Error saving log",
+			error,
+			attributes: { userId, workoutId: selectedWorkoutId },
+		})
 		return {
 			error: `Failed to save log: ${
 				error instanceof Error ? error.message : String(error)
@@ -1031,10 +1087,12 @@ export async function submitLogForm(
 	workouts: Workout[],
 	formData: FormData,
 ) {
-	console.log("[submitLogForm] START with params:", {
-		userId,
-		workoutsCount: workouts.length,
-		workoutIds: workouts.map((w) => w.id),
+	logInfo({
+		message: "[submitLogForm] Start",
+		attributes: {
+			userId,
+			workoutsCount: workouts.length,
+		},
 	})
 
 	const headerList = await headers()
@@ -1048,59 +1106,26 @@ export async function submitLogForm(
 		programmingTrackId,
 	} = parseBasicFormData(formData)
 
-	console.log("[submitLogForm] Parsed form data:", {
-		selectedWorkoutId,
-		dateStr,
-		scaleValue,
-		notesValue,
-		scheduledInstanceId,
-		programmingTrackId,
-	})
-
 	if (!selectedWorkoutId) {
-		console.error("[submitLogForm] No workout selected")
+		logError({
+			message: "[submitLogForm] No workout selected",
+			attributes: { userId },
+		})
 		return { error: "No workout selected. Please select a workout." }
 	}
 
 	const workout = workouts.find((w) => w.id === selectedWorkoutId)
-	console.log("[submitLogForm] Found workout:", {
-		id: workout?.id,
-		name: workout?.name,
-		scheme: workout?.scheme,
-		repsPerRound: workout?.repsPerRound,
-		roundsToScore: workout?.roundsToScore,
-	})
 
 	if (!workout) {
-		console.error(
-			"[submitLogForm] Workout not found for ID:",
-			selectedWorkoutId,
-		)
-		console.error(
-			"[submitLogForm] Available workout IDs:",
-			workouts.map((w) => w.id),
-		)
-		return { error: "Selected workout not found. Please try again." }
-	}
-
-	// Special logging for the problematic workout
-	if (selectedWorkoutId === "workout_pwtf9kdcxqp157lgttav7ia7") {
-		console.log("[submitLogForm] SAWTOOTH WORKOUT - Full details:", {
-			workout,
-			formDataEntries: Array.from(formData.entries()),
+		logError({
+			message: "[submitLogForm] Workout not found for ID",
+			attributes: { selectedWorkoutId, userId },
 		})
+		return { error: "Selected workout not found. Please try again." }
 	}
 
 	const parsedScoreEntries = parseScoreEntries(formData)
 	const timeCappedEntries = parseTimeCappedEntries(formData)
-	console.log(
-		"[Action] Parsed Score Entries:",
-		JSON.stringify(parsedScoreEntries),
-	)
-	console.log(
-		"[Action] Parsed Time Capped Entries:",
-		JSON.stringify(timeCappedEntries),
-	)
 
 	const validationError = validateParsedScores(
 		parsedScoreEntries,
@@ -1114,26 +1139,24 @@ export async function submitLogForm(
 		entry.parts.some((part) => part.trim() !== ""),
 	)
 
-	const isRoundsAndRepsWorkout =
-		!!workout.repsPerRound && workout.repsPerRound > 0
-
-	const isTimeBasedWodScore =
-		workout.scheme === "time" || workout.scheme === "time-with-cap"
-
-	const processResult = processScoreEntries(
+	// Convert to normalized format and process using shared function
+	const normalizedEntries = normalizeScoreEntries(
 		parsedScoreEntries,
-		workout,
-		isTimeBasedWodScore,
-		isRoundsAndRepsWorkout,
-		atLeastOneScorePartFilled,
 		timeCappedEntries,
 	)
 
-	if (processResult.error) {
-		return { error: processResult.error.error }
+	const workoutInfo: WorkoutScoreInfo = {
+		scheme: workout.scheme as WorkoutScheme,
+		scoreType: workout.scoreType as ScoreType | null,
+		repsPerRound: workout.repsPerRound ?? null,
+		roundsToScore: workout.roundsToScore ?? null,
+		timeCap: workout.timeCap ?? null,
 	}
 
-	const { setsForDb, totalSecondsForWodScore } = processResult
+	const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+		normalizedEntries,
+		workoutInfo,
+	)
 
 	const processedSetsValidationError = validateProcessedSets(
 		setsForDb,
@@ -1144,26 +1167,13 @@ export async function submitLogForm(
 		return processedSetsValidationError
 	}
 
-	const finalWodScoreSummary = generateWodScoreSummary(
-		isTimeBasedWodScore,
-		totalSecondsForWodScore,
-		parsedScoreEntries,
-		isRoundsAndRepsWorkout,
-		workout.scheme,
-		setsForDb,
-		atLeastOneScorePartFilled,
-		timeCappedEntries,
-		workout.scoreType,
-		workout.roundsToScore || 1,
-	)
-
 	return submitLogToDatabase(
 		userId,
 		selectedWorkoutId,
 		dateStr,
 		timezone,
 		scaleValue,
-		finalWodScoreSummary,
+		wodScore,
 		notesValue,
 		setsForDb,
 		scheduledInstanceId,

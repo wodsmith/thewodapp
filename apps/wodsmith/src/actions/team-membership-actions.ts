@@ -2,6 +2,8 @@
 
 import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { logError } from "@/lib/logging/posthog-otel-logger"
+import { getPostHogClient } from "@/lib/posthog-server"
 import {
 	acceptTeamInvitation,
 	cancelTeamInvitation,
@@ -12,6 +14,7 @@ import {
 	removeTeamMember,
 	updateTeamMemberRole,
 } from "@/server/team-members"
+import { getSessionFromCookie } from "@/utils/auth"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 
 // Invite user schema
@@ -56,9 +59,29 @@ export const inviteUserAction = createServerAction()
 		return withRateLimit(async () => {
 			try {
 				const result = await inviteUserToTeam(input)
+
+				// Track team invite event server-side
+				const session = await getSessionFromCookie()
+				if (session?.userId) {
+					const posthog = getPostHogClient()
+					posthog.capture({
+						distinctId: session.userId,
+						event: "team_invite_sent",
+						properties: {
+							team_id: input.teamId,
+							role_id: input.roleId,
+							is_system_role: input.isSystemRole,
+						},
+					})
+				}
+
 				return { success: true, data: result }
 			} catch (error) {
-				console.error("Failed to invite user:", error)
+				logError({
+					message: "[inviteUserAction] Failed to invite user",
+					error,
+					attributes: { teamId: input.teamId, roleId: input.roleId },
+				})
 
 				if (error instanceof ZSAError) {
 					throw error
@@ -79,7 +102,11 @@ export const getTeamMembersAction = createServerAction()
 			const members = await getTeamMembers(input.teamId)
 			return { success: true, data: members }
 		} catch (error) {
-			console.error("Failed to get team members:", error)
+			logError({
+				message: "[getTeamMembersAction] Failed to get team members",
+				error,
+				attributes: { teamId: input.teamId },
+			})
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -99,7 +126,15 @@ export const updateMemberRoleAction = createServerAction()
 			await updateTeamMemberRole(input)
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to update member role:", error)
+			logError({
+				message: "[updateMemberRoleAction] Failed to update member role",
+				error,
+				attributes: {
+					teamId: input.teamId,
+					userId: input.userId,
+					roleId: input.roleId,
+				},
+			})
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -122,7 +157,11 @@ export const removeTeamMemberAction = createServerAction()
 			await removeTeamMember(input)
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to remove team member:", error)
+			logError({
+				message: "[removeTeamMemberAction] Failed to remove team member",
+				error,
+				attributes: { teamId: input.teamId, userId: input.userId },
+			})
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -145,7 +184,11 @@ export const getTeamInvitationsAction = createServerAction()
 			const invitations = await getTeamInvitations(input.teamId)
 			return { success: true, data: invitations }
 		} catch (error) {
-			console.error("Failed to get team invitations:", error)
+			logError({
+				message: "[getTeamInvitationsAction] Failed to get team invitations",
+				error,
+				attributes: { teamId: input.teamId },
+			})
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -168,7 +211,11 @@ export const cancelInvitationAction = createServerAction()
 			await cancelTeamInvitation(input.invitationId)
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to cancel invitation:", error)
+			logError({
+				message: "[cancelInvitationAction] Failed to cancel invitation",
+				error,
+				attributes: { invitationId: input.invitationId },
+			})
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -188,7 +235,11 @@ export const acceptInvitationAction = createServerAction()
 			const result = await acceptTeamInvitation(input.token)
 			return { success: true, data: result }
 		} catch (error) {
-			console.error("Failed to accept invitation:", error)
+			logError({
+				message: "[acceptInvitationAction] Failed to accept invitation",
+				error,
+				attributes: { tokenPrefix: input.token.substring(0, 8) },
+			})
 
 			if (error instanceof ZSAError) {
 				throw error
@@ -207,7 +258,11 @@ export const getPendingInvitationsForCurrentUserAction =
 			const invitations = await getPendingInvitationsForCurrentUser()
 			return { success: true, data: invitations }
 		} catch (error) {
-			console.error("Failed to get pending team invitations:", error)
+			logError({
+				message:
+					"[getPendingInvitationsForCurrentUserAction] Failed to get pending team invitations",
+				error,
+			})
 
 			if (error instanceof ZSAError) {
 				throw error

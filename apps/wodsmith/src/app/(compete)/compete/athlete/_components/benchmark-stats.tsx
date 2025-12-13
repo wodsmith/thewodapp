@@ -5,14 +5,19 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { formatLiftWeight, type AthleteProfileData } from "@/utils/athlete-profile"
+import {
+	formatLiftWeight,
+	type AthleteProfileData,
+} from "@/utils/athlete-profile"
 
 type BenchmarkStatsProps = {
 	athleteProfile: AthleteProfileData | null
 }
 
 function formatConditioningValue(
-	value: { time?: string; reps?: string; rounds?: string; date?: string } | undefined,
+	value:
+		| { time?: string; reps?: string; rounds?: string; date?: string }
+		| undefined,
 ): React.ReactNode {
 	if (!value || (!value.time && !value.reps && !value.rounds)) {
 		return <span className="text-muted-foreground">Not recorded</span>
@@ -33,9 +38,7 @@ function formatConditioningValue(
 }
 
 function formatStrengthValue(
-	lift:
-		| { weight?: number; unit?: "kg" | "lbs"; date?: string }
-		| undefined,
+	lift: { weight?: number; unit?: "kg" | "lbs"; date?: string } | undefined,
 	preferredUnits: "imperial" | "metric",
 ): React.ReactNode {
 	if (!lift || !lift.weight) {

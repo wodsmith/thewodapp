@@ -122,6 +122,7 @@ export async function GET(request: Request) {
 						marginTop: "40px",
 					}}
 				>
+					{/* biome-ignore lint/performance/noImgElement: OG image route can't use Next Image */}
 					<img
 						alt={SITE_NAME}
 						height={60}
@@ -161,11 +162,18 @@ export async function GET(request: Request) {
 			},
 		)
 	} catch (e: unknown) {
-		if (typeof e === "object" && e !== null && "message" in e) {
-			console.log(`${(e as { message: string }).message}`)
-		} else {
-			console.log("Unknown error", e)
-		}
+		const message =
+			typeof e === "object" && e !== null && "message" in e
+				? (e as { message: string }).message
+				: "Unknown error"
+		const errorPayload =
+			typeof e === "object" && e !== null ? JSON.stringify(e) : String(e)
+		const { logError } = await import("@/lib/logging/posthog-otel-logger")
+		logError({
+			message: "[api/og] Failed to generate image",
+			error: e,
+			attributes: { message, errorPayload },
+		})
 		return new Response("Failed to generate the image", {
 			status: 500,
 		})

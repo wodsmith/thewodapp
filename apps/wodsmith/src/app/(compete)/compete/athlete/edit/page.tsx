@@ -23,6 +23,8 @@ export default async function AthleteEditPage() {
 		where: eq(userTable.id, session.userId),
 		columns: {
 			athleteProfile: true,
+			gender: true,
+			dateOfBirth: true,
 		},
 	})
 
@@ -30,8 +32,16 @@ export default async function AthleteEditPage() {
 		redirect("/sign-in?redirect=/compete/athlete/edit")
 	}
 
-	// Parse athlete profile JSON
-	const athleteProfile = parseAthleteProfile(user.athleteProfile)
+	// Parse athlete profile JSON and merge with direct column fields
+	const parsed = parseAthleteProfile(user.athleteProfile)
+	const athleteProfile = {
+		...parsed,
+		preferredUnits: parsed?.preferredUnits ?? "imperial",
+		gender: user.gender ?? undefined,
+		dateOfBirth: user.dateOfBirth
+			? user.dateOfBirth.toISOString().split("T")[0]
+			: undefined,
+	}
 
 	// Get notable metcon results as suggestions
 	const notableMetconSuggestions = await getUserNotableMetconResults(

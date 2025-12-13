@@ -2,9 +2,7 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, not } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
-import {
-	MAX_TEAMS_JOINED_PER_USER,
-} from "@/constants"
+import { MAX_TEAMS_JOINED_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
@@ -306,9 +304,15 @@ export async function getUserTeams() {
 	// since it's just retrieving teams, but we use the constant here to show that
 	// we're aware of the limit in the system
 	if (userTeams.length > MAX_TEAMS_JOINED_PER_USER) {
-		console.warn(
-			`User ${session.userId} has exceeded the maximum teams limit: ${userTeams.length}/${MAX_TEAMS_JOINED_PER_USER}`,
-		)
+		const { logWarning } = await import("@/lib/logging/posthog-otel-logger")
+		logWarning({
+			message: "[teams] User exceeded maximum teams limit",
+			attributes: {
+				userId: session.userId,
+				count: userTeams.length,
+				max: MAX_TEAMS_JOINED_PER_USER,
+			},
+		})
 	}
 
 	// Filter out competition-related teams (competition_event and competition_team)

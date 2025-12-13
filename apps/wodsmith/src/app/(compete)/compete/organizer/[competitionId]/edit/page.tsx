@@ -1,11 +1,10 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { ZSAError } from "@repo/zsa"
-import { TEAM_PERMISSIONS } from "@/db/schema"
+import { LIMITS } from "@/config/limits"
+import { getTeamLimit } from "@/server/entitlements"
 import { getCompetition, getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
-import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { OrganizerCompetitionEditForm } from "./_components/organizer-competition-edit-form"
 
@@ -38,34 +37,22 @@ export default async function EditCompetitionPage({
 }: EditCompetitionPageProps) {
 	const { competitionId } = await params
 
-	// Get competition
+	// Get competition (parent layout already validated access)
 	const competition = await getCompetition(competitionId)
 
 	if (!competition) {
 		notFound()
 	}
 
-	// Check if user has permission on the organizing team
-	try {
-		await requireTeamPermission(
-			competition.organizingTeamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
-	} catch (error) {
-		if (
-			error instanceof ZSAError &&
-			(error.code === "NOT_AUTHORIZED" || error.code === "FORBIDDEN")
-		) {
-			notFound()
-		}
-		throw error
-	}
-
-	// Fetch groups and scaling groups for the organizing team
-	const [groups, scalingGroups] = await Promise.all([
+	// Fetch groups, scaling groups, and check pending status for the organizing team
+	const [groups, scalingGroups, publishLimit] = await Promise.all([
 		getCompetitionGroups(competition.organizingTeamId),
 		listScalingGroups({ teamId: competition.organizingTeamId }),
+		getTeamLimit(competition.organizingTeamId, LIMITS.MAX_PUBLISHED_COMPETITIONS),
 	])
+
+	// Team is pending approval if they have the feature but limit is 0
+	const isPendingApproval = publishLimit === 0
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -74,7 +61,10 @@ export default async function EditCompetitionPage({
 				<div className="mb-8">
 					<OrganizerBreadcrumb
 						segments={[
-							{ label: competition.name, href: `/compete/organizer/${competition.id}` },
+							{
+								label: competition.name,
+								href: `/compete/organizer/${competition.id}`,
+							},
 							{ label: "Edit" },
 						]}
 					/>
@@ -89,6 +79,7 @@ export default async function EditCompetitionPage({
 					competition={competition}
 					groups={groups}
 					scalingGroups={scalingGroups}
+					isPendingApproval={isPendingApproval}
 				/>
 			</div>
 		</div>

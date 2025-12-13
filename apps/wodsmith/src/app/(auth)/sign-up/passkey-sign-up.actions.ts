@@ -218,7 +218,7 @@ export const completePasskeyRegistrationAction = createServerAction()
 			cookieStore.delete(PASSKEY_CHALLENGE_COOKIE_NAME)
 			cookieStore.delete(PASSKEY_USER_ID_COOKIE_NAME)
 
-			return { success: true }
+			return { success: true, userId }
 		} catch (error) {
 			console.error("Failed to register passkey:", error)
 			throw new ZSAError("PRECONDITION_FAILED", "Failed to register passkey")

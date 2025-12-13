@@ -1,6 +1,15 @@
 "use client"
 
-import { Calendar, ExternalLink, Filter, MoreHorizontal, Pencil, Plus, Trash2, Trophy } from "lucide-react"
+import {
+	Calendar,
+	ExternalLink,
+	Filter,
+	MoreHorizontal,
+	Pencil,
+	Plus,
+	Trash2,
+	Trophy,
+} from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
@@ -39,6 +48,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import type { Competition, CompetitionGroup } from "@/db/schema"
+import { formatUTCDateFull } from "@/utils/date-utils"
 import { deleteCompetitionAction } from "@/actions/competition-actions"
 
 interface OrganizerCompetitionsListProps {
@@ -88,14 +98,6 @@ export function OrganizerCompetitionsList({
 		router.push(`/compete/organizer?${params.toString()}`)
 	}
 
-	const formatDate = (date: Date) => {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}).format(new Date(date))
-	}
-
 	return (
 		<>
 			<div className="flex flex-col gap-4">
@@ -127,9 +129,12 @@ export function OrganizerCompetitionsList({
 						<CardContent className="pt-6">
 							<div className="text-center py-12">
 								<Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-								<h3 className="text-lg font-medium mb-2">No competitions yet</h3>
+								<h3 className="text-lg font-medium mb-2">
+									No competitions yet
+								</h3>
 								<p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-									Create your first competition to start managing registrations, divisions, and more.
+									Create your first competition to start managing registrations,
+									divisions, and more.
 								</p>
 								<Link href="/compete/organizer/new">
 									<Button>
@@ -152,9 +157,7 @@ export function OrganizerCompetitionsList({
 								<CardHeader>
 									<div className="flex items-start justify-between">
 										<div className="flex-1 min-w-0">
-											<Link
-												href={`/compete/organizer/${competition.id}`}
-											>
+											<Link href={`/compete/organizer/${competition.id}`}>
 												<CardTitle className="truncate hover:underline">
 													{competition.name}
 												</CardTitle>
@@ -162,8 +165,8 @@ export function OrganizerCompetitionsList({
 											<CardDescription className="mt-1 flex items-center gap-1">
 												<Calendar className="h-3 w-3" />
 												<span>
-													{formatDate(competition.startDate)} -{" "}
-													{formatDate(competition.endDate)}
+													{formatUTCDateFull(competition.startDate)} -{" "}
+													{formatUTCDateFull(competition.endDate)}
 												</span>
 											</CardDescription>
 											{competition.groupId && (
@@ -175,7 +178,10 @@ export function OrganizerCompetitionsList({
 											)}
 										</div>
 										<DropdownMenu>
-											<DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+											<DropdownMenuTrigger
+												asChild
+												onClick={(e) => e.preventDefault()}
+											>
 												<Button variant="ghost" size="sm">
 													<MoreHorizontal className="h-4 w-4" />
 												</Button>
@@ -189,9 +195,7 @@ export function OrganizerCompetitionsList({
 												</DropdownMenuItem>
 												<DropdownMenuSeparator />
 												<DropdownMenuItem asChild>
-													<Link
-														href={`/compete/organizer/${competition.id}`}
-													>
+													<Link href={`/compete/organizer/${competition.id}`}>
 														<Pencil className="h-4 w-4 mr-2" />
 														Manage
 													</Link>

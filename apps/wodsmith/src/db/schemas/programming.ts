@@ -13,6 +13,8 @@ import {
 	createScheduledWorkoutInstanceId,
 	createTrackWorkoutId,
 } from "./common"
+import { competitionsTable } from "./competitions"
+import { sponsorsTable } from "./sponsors"
 import { teamTable } from "./teams"
 import { workouts } from "./workouts"
 
@@ -42,11 +44,16 @@ export const programmingTracksTable = sqliteTable(
 		ownerTeamId: text().references(() => teamTable.id),
 		scalingGroupId: text(), // Optional scaling group for all workouts in this track
 		isPublic: integer().default(0).notNull(),
+		// Competition association - null for regular tracks, set for competition event tracks
+		competitionId: text().references(() => competitionsTable.id, {
+			onDelete: "cascade",
+		}),
 	},
 	(table) => [
 		index("programming_track_type_idx").on(table.type),
 		index("programming_track_owner_idx").on(table.ownerTeamId),
 		index("programming_track_scaling_idx").on(table.scalingGroupId),
+		index("programming_track_competition_idx").on(table.competitionId),
 	],
 )
 
@@ -90,19 +97,34 @@ export const trackWorkoutsTable = sqliteTable(
 		workoutId: text()
 			.notNull()
 			.references(() => workouts.id),
-		dayNumber: integer().notNull(),
-		weekNumber: integer(),
+		// Unified ordering field (1, 2, 3...) - renamed from dayNumber for competition support
+		trackOrder: integer().notNull(),
 		notes: text({ length: 1000 }),
+		// Points multiplier for competitions (100 = 1x, 200 = 2x for finals, etc.)
+		pointsMultiplier: integer().default(100),
+		// Heat assignment visibility: draft = hidden from athletes, published = visible
+		heatStatus: text({ length: 20 })
+			.$type<"draft" | "published">()
+			.default("draft"),
+		// Event visibility: draft = hidden from public, published = visible for marketing
+		eventStatus: text({ length: 20 })
+			.$type<"draft" | "published">()
+			.default("draft"),
+		// Presenting sponsor for this event ("Presented by X")
+		sponsorId: text().references(() => sponsorsTable.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
-		index("track_workout_day_idx").on(table.dayNumber),
+		index("track_workout_order_idx").on(table.trackOrder),
 		index("track_workout_workoutid_idx").on(table.workoutId),
 		index("track_workout_unique_idx").on(
 			table.trackId,
 			table.workoutId,
-			table.dayNumber,
+			table.trackOrder,
 		),
+		index("track_workout_sponsor_idx").on(table.sponsorId),
 	],
 )
 
@@ -140,6 +162,10 @@ export const programmingTracksRelations = relations(
 			fields: [programmingTracksTable.ownerTeamId],
 			references: [teamTable.id],
 		}),
+		competition: one(competitionsTable, {
+			fields: [programmingTracksTable.competitionId],
+			references: [competitionsTable.id],
+		}),
 		teamProgrammingTracks: many(teamProgrammingTracksTable),
 		trackWorkouts: many(trackWorkoutsTable),
 	}),
@@ -169,6 +195,10 @@ export const trackWorkoutsRelations = relations(
 		workout: one(workouts, {
 			fields: [trackWorkoutsTable.workoutId],
 			references: [workouts.id],
+		}),
+		sponsor: one(sponsorsTable, {
+			fields: [trackWorkoutsTable.sponsorId],
+			references: [sponsorsTable.id],
 		}),
 		scheduledInstances: many(scheduledWorkoutInstancesTable),
 	}),
@@ -201,3 +231,19 @@ export type TrackWorkout = InferSelectModel<typeof trackWorkoutsTable>
 export type ScheduledWorkoutInstance = InferSelectModel<
 	typeof scheduledWorkoutInstancesTable
 >
+
+// Heat status constants
+export const HEAT_STATUS = {
+	DRAFT: "draft",
+	PUBLISHED: "published",
+} as const
+
+export type HeatStatus = (typeof HEAT_STATUS)[keyof typeof HEAT_STATUS]
+
+// Event status constants
+export const EVENT_STATUS = {
+	DRAFT: "draft",
+	PUBLISHED: "published",
+} as const
+
+export type EventStatus = (typeof EVENT_STATUS)[keyof typeof EVENT_STATUS]

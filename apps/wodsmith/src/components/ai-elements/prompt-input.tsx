@@ -90,6 +90,7 @@ export function PromptInputAttachment({
 			{...props}
 		>
 			{data.mediaType?.startsWith("image/") && data.url ? (
+				// biome-ignore lint/performance/noImgElement: blob URL preview not supported by Next Image
 				<img
 					alt={data.filename || "attachment"}
 					className="size-full rounded-md object-cover"

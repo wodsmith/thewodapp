@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
+import { logError } from "@/lib/logging/posthog-otel-logger"
 import { signInSchema } from "@/schemas/signin.schema"
 import { createAndStoreSession } from "@/utils/auth"
 import { verifyPassword } from "@/utils/password-hasher"
@@ -50,9 +51,13 @@ export const signInAction = createServerAction()
 				// Create session
 				await createAndStoreSession(user.id, "password")
 
-				return { success: true }
+				return { success: true, userId: user.id }
 			} catch (error) {
-				console.error(error)
+				logError({
+					message: "[signInAction] Sign-in failed",
+					error,
+					// Note: Not logging email to avoid PII in logs
+				})
 
 				if (error instanceof ZSAError) {
 					throw error

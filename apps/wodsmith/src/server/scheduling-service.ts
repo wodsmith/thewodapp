@@ -13,6 +13,7 @@ import {
 	workoutMovements,
 	workouts,
 } from "@/db/schema"
+import { autochunk } from "@/utils/batch-query"
 
 /* -------------------------------------------------------------------------- */
 /*                             Data Type Helpers                               */
@@ -180,22 +181,26 @@ export async function getScheduledWorkoutsForTeam(
 		(w) => w.id,
 	)
 
-	// Fetch movements for all resolved workouts
+	// Fetch movements for all resolved workouts (batched)
 	const movementsByWorkoutId = new Map<
 		string,
 		Array<{ id: string; name: string; type: string }>
 	>()
 	if (resolvedWorkoutIds.length > 0) {
-		const workoutMovementsData = await db
-			.select({
-				workoutId: workoutMovements.workoutId,
-				movementId: movements.id,
-				movementName: movements.name,
-				movementType: movements.type,
-			})
-			.from(workoutMovements)
-			.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-			.where(inArray(workoutMovements.workoutId, resolvedWorkoutIds))
+		const workoutMovementsData = await autochunk(
+			{ items: resolvedWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						workoutId: workoutMovements.workoutId,
+						movementId: movements.id,
+						movementName: movements.name,
+						movementType: movements.type,
+					})
+					.from(workoutMovements)
+					.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+					.where(inArray(workoutMovements.workoutId, chunk)),
+		)
 
 		for (const item of workoutMovementsData) {
 			if (!movementsByWorkoutId.has(item?.workoutId || "")) {

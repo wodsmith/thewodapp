@@ -7,6 +7,10 @@ import { ActiveTeamSwitcher } from "@/components/nav/active-team-switcher"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
+import {
+	type AthleteProfileMissingFields,
+	getAthleteProfileMissingFields,
+} from "@/server/user"
 import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
 
 export default async function MainNav() {
@@ -16,9 +20,15 @@ export default async function MainNav() {
 	let pendingInvitations: Awaited<
 		ReturnType<typeof getPendingInvitationsForCurrentUser>
 	> = []
+	let missingProfileFields: AthleteProfileMissingFields | null = null
 	if (session?.user) {
 		try {
-			pendingInvitations = await getPendingInvitationsForCurrentUser()
+			const [invitations, missing] = await Promise.all([
+				getPendingInvitationsForCurrentUser(),
+				getAthleteProfileMissingFields(session.userId),
+			])
+			pendingInvitations = invitations
+			missingProfileFields = missing
 		} catch {
 			// User not authenticated, no invitations
 		}
@@ -83,7 +93,7 @@ export default async function MainNav() {
 									teams={session.teams.filter(
 										(team) =>
 											team.type !== "competition_event" &&
-											team.type !== "competition_team"
+											team.type !== "competition_team",
 									)}
 									activeTeamId={activeTeamId}
 								/>
@@ -94,7 +104,10 @@ export default async function MainNav() {
 							>
 								<User className="h-5 w-5" />
 							</Link>
-							<NotificationBell invitations={pendingInvitations} />
+							<NotificationBell
+								invitations={pendingInvitations}
+								missingProfileFields={missingProfileFields}
+							/>
 							<DarkModeToggle />
 							<LogoutButton />
 						</>
@@ -122,7 +135,11 @@ export default async function MainNav() {
 						</div>
 					)}
 				</nav>
-				<MobileNav session={session} invitations={pendingInvitations} />
+				<MobileNav
+					session={session}
+					invitations={pendingInvitations}
+					missingProfileFields={missingProfileFields}
+				/>
 			</div>
 		</header>
 	)

@@ -141,7 +141,7 @@ export function TrackWorkoutManagement({
 						beforeReorder: state.map((tw, i) => ({
 							index: i,
 							id: tw.id,
-							dayNumber: tw.dayNumber,
+							trackOrder: tw.trackOrder,
 						})),
 					})
 
@@ -156,7 +156,7 @@ export function TrackWorkoutManagement({
 						reorderedState.map((tw, i) => ({
 							index: i,
 							id: tw.id,
-							dayNumber: tw.dayNumber,
+							trackOrder: tw.trackOrder,
 						})),
 					)
 
@@ -173,7 +173,7 @@ export function TrackWorkoutManagement({
 
 	// Get the sorted list of workouts for consistent indexing
 	const sortedTrackWorkouts = useMemo(
-		() => optimisticTrackWorkouts.sort((a, b) => b.dayNumber - a.dayNumber),
+		() => optimisticTrackWorkouts.sort((a, b) => b.trackOrder - a.trackOrder),
 		[optimisticTrackWorkouts],
 	)
 
@@ -194,7 +194,7 @@ export function TrackWorkoutManagement({
 				currentWorkouts: sortedTrackWorkouts.map((tw, i) => ({
 					index: i,
 					id: tw.id,
-					dayNumber: tw.dayNumber,
+					trackOrder: tw.trackOrder,
 				})),
 			})
 
@@ -235,16 +235,16 @@ export function TrackWorkoutManagement({
 					reorderedList.map((tw, i) => ({
 						index: i,
 						id: tw.id,
-						oldDayNumber: tw.dayNumber,
+						oldDayNumber: tw.trackOrder,
 						newDayNumber: reorderedList.length - i,
 					})),
 				)
 
-				// Create updates array with trackWorkoutId and new dayNumber
-				// Since we're sorting by dayNumber descending, we need to reverse the logic
+				// Create updates array with trackWorkoutId and new trackOrder
+				// Since we're sorting by trackOrder descending, we need to reverse the logic
 				const updates = reorderedList.map((trackWorkout, index) => ({
 					trackWorkoutId: trackWorkout.id,
-					dayNumber: reorderedList.length - index, // Reverse order for descending sort
+					trackOrder: reorderedList.length - index, // Reverse order for descending sort
 				}))
 
 				console.log("DEBUG: [Reorder] Prepared updates array:", updates)
@@ -255,8 +255,8 @@ export function TrackWorkoutManagement({
 						update.trackWorkoutId &&
 						typeof update.trackWorkoutId === "string" &&
 						update.trackWorkoutId.length > 0 &&
-						typeof update.dayNumber === "number" &&
-						update.dayNumber >= 1
+						typeof update.trackOrder === "number" &&
+						update.trackOrder >= 1
 
 					if (!isValid) {
 						console.error("DEBUG: [Reorder] Invalid update object:", update)
@@ -422,13 +422,13 @@ export function TrackWorkoutManagement({
 
 		try {
 			const startingDayNumber =
-				Math.max(...optimisticTrackWorkouts.map((tw) => tw.dayNumber), 0) + 1
+				Math.max(...optimisticTrackWorkouts.map((tw) => tw.trackOrder), 0) + 1
 
 			// Add workouts sequentially with auto-incrementing day numbers
 			for (let i = 0; i < workoutIds.length; i++) {
 				const workoutId = workoutIds[i]
 				if (!workoutId) continue
-				const dayNumber = startingDayNumber + i
+				const trackOrder = startingDayNumber + i
 
 				// Optimistic update wrapped in startTransition
 				startTransition(() => {
@@ -436,9 +436,12 @@ export function TrackWorkoutManagement({
 						id: `temp_${Date.now()}_${i}`,
 						trackId,
 						workoutId,
-						dayNumber,
-						weekNumber: null,
+						trackOrder,
 						notes: null,
+						pointsMultiplier: 100,
+						heatStatus: null, // Not used for regular programming tracks
+						eventStatus: null, // Not used for regular programming tracks
+						sponsorId: null, // Not used for regular programming tracks
 						updateCounter: null,
 						createdAt: new Date(), // Temporary UI object
 						updatedAt: new Date(), // Temporary UI object
@@ -453,7 +456,7 @@ export function TrackWorkoutManagement({
 					teamId,
 					trackId,
 					workoutId,
-					dayNumber,
+					trackOrder,
 				})
 
 				if (error || !result?.success) {
@@ -464,7 +467,7 @@ export function TrackWorkoutManagement({
 				}
 
 				console.log(
-					`INFO: [UI] Successfully added workout ${workoutId} to track at day ${dayNumber}`,
+					`INFO: [UI] Successfully added workout ${workoutId} to track at day ${trackOrder}`,
 				)
 			}
 
@@ -488,9 +491,9 @@ export function TrackWorkoutManagement({
 	const _handleUpdateWorkout = async (
 		trackWorkoutId: string,
 		updates: {
-			dayNumber?: number
-			weekNumber?: number
+			trackOrder?: number
 			notes?: string
+			pointsMultiplier?: number
 		},
 	) => {
 		console.log(
@@ -752,7 +755,7 @@ export function TrackWorkoutManagement({
 					onAddWorkoutsAction={handleAddWorkouts}
 					teamId={teamId}
 					trackId={trackId}
-					existingDays={optimisticTrackWorkouts.map((tw) => tw.dayNumber)}
+					existingDays={optimisticTrackWorkouts.map((tw) => tw.trackOrder)}
 					existingWorkoutIds={optimisticTrackWorkouts.map((tw) => tw.workoutId)}
 					userWorkouts={userWorkouts}
 					movements={movements}

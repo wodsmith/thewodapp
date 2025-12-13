@@ -8,6 +8,9 @@ interface CloudflareEnv {
 	BREVO_API_KEY?: string
 	GOOGLE_CLIENT_ID?: string
 	GOOGLE_CLIENT_SECRET?: string
+	// R2 Storage
+	R2_BUCKET: R2Bucket
+	R2_PUBLIC_URL: string
 }
 
 declare global {

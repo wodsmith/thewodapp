@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -63,9 +64,20 @@ export function OrganizerSeriesForm({
 		{
 			onError: (error) => {
 				toast.error(error.err?.message || "Failed to create series")
+				posthog.capture("competition_series_created_failed", {
+					error_message: error.err?.message,
+					organizing_team_id: form.getValues("teamId"),
+				})
 			},
-			onSuccess: () => {
+			onSuccess: (result) => {
 				toast.success("Series created successfully")
+				const seriesData = result?.data?.data
+				posthog.capture("competition_series_created", {
+					series_id: seriesData?.groupId,
+					series_name: form.getValues("name"),
+					series_slug: form.getValues("slug"),
+					organizing_team_id: form.getValues("teamId"),
+				})
 				router.push("/compete/organizer/series")
 				router.refresh()
 			},
@@ -110,36 +122,36 @@ export function OrganizerSeriesForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-				{/* Team selector (only if multiple teams) */}
-				{teams.length > 1 && (
-					<FormField
-						control={form.control}
-						name="teamId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Organizing Team</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select team" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{teams.map((team) => (
+				{/* Team selector (only show gym teams) */}
+				<FormField
+					control={form.control}
+					name="teamId"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Organizing Team</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select team" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{teams
+										.filter((team) => team.type === "gym")
+										.map((team) => (
 											<SelectItem key={team.id} value={team.id}>
 												{team.name}
 											</SelectItem>
 										))}
-									</SelectContent>
-								</Select>
-								<FormDescription>
-									The team that will organize this series
-								</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								The team that will organize this series
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}
@@ -177,7 +189,8 @@ export function OrganizerSeriesForm({
 								<Input placeholder="e.g., 2026-throwdown-series" {...field} />
 							</FormControl>
 							<FormDescription>
-								URL-friendly identifier (unique per team, lowercase, hyphens only)
+								URL-friendly identifier (unique per team, lowercase, hyphens
+								only)
 							</FormDescription>
 							<FormMessage />
 						</FormItem>

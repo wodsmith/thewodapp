@@ -489,7 +489,10 @@ export const createScalingLevelAction = createServerAction()
 			)
 
 			if (!canEdit) {
-				throw new ZSAError("FORBIDDEN", "Cannot edit scaling groups in this team")
+				throw new ZSAError(
+					"FORBIDDEN",
+					"Cannot edit scaling groups in this team",
+				)
 			}
 
 			const level = await createScalingLevelServer({
@@ -510,7 +513,10 @@ export const createScalingLevelAction = createServerAction()
 				throw error
 			}
 
-			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to create scaling level")
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to create scaling level",
+			)
 		}
 	})
 
@@ -539,7 +545,10 @@ export const updateScalingLevelAction = createServerAction()
 			)
 
 			if (!canEdit) {
-				throw new ZSAError("FORBIDDEN", "Cannot edit scaling groups in this team")
+				throw new ZSAError(
+					"FORBIDDEN",
+					"Cannot edit scaling groups in this team",
+				)
 			}
 
 			const { updateScalingLevel } = await import("@/server/scaling-levels")
@@ -566,7 +575,10 @@ export const updateScalingLevelAction = createServerAction()
 				throw error
 			}
 
-			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to update scaling level")
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update scaling level",
+			)
 		}
 	})
 
@@ -593,7 +605,10 @@ export const deleteScalingLevelAction = createServerAction()
 			)
 
 			if (!canEdit) {
-				throw new ZSAError("FORBIDDEN", "Cannot edit scaling groups in this team")
+				throw new ZSAError(
+					"FORBIDDEN",
+					"Cannot edit scaling groups in this team",
+				)
 			}
 
 			const { deleteScalingLevel } = await import("@/server/scaling-levels")
@@ -603,7 +618,10 @@ export const deleteScalingLevelAction = createServerAction()
 			})
 
 			if (!result.success) {
-				throw new ZSAError("INTERNAL_SERVER_ERROR", result.error || "Failed to delete")
+				throw new ZSAError(
+					"INTERNAL_SERVER_ERROR",
+					result.error || "Failed to delete",
+				)
 			}
 
 			revalidatePath("/admin/teams/competitions")
@@ -616,7 +634,10 @@ export const deleteScalingLevelAction = createServerAction()
 				throw error
 			}
 
-			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to delete scaling level")
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to delete scaling level",
+			)
 		}
 	})
 

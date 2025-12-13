@@ -119,7 +119,8 @@ export async function checkCanCreateProgrammingTrack(
 
 	const currentCount = trackCount[0]?.value || 0
 	const isUnlimited = maxTracks === -1
-	const canCreate = hasFeatureAccess && (isUnlimited || currentCount < maxTracks)
+	const canCreate =
+		hasFeatureAccess && (isUnlimited || currentCount < maxTracks)
 
 	let message: string | undefined
 	if (!hasFeatureAccess) {
@@ -153,15 +154,16 @@ export async function checkCanCreateProgrammingTrack(
  */
 export async function checkCanUseAI(
 	teamId: string,
-): Promise<
-	LimitCheckResult & { hasFeature: boolean; remaining?: number }
-> {
+): Promise<LimitCheckResult & { hasFeature: boolean; remaining?: number }> {
 	const db = getDb()
 
 	// Get team's plan and check feature/limit (with overrides)
 	const teamPlan = await getTeamPlan(teamId)
 	const maxMessages = await getTeamLimit(teamId, LIMITS.AI_MESSAGES_PER_MONTH)
-	const hasFeatureAccess = await hasFeature(teamId, FEATURES.AI_WORKOUT_GENERATION)
+	const hasFeatureAccess = await hasFeature(
+		teamId,
+		FEATURES.AI_WORKOUT_GENERATION,
+	)
 	const planName = teamPlan.name
 
 	// Ensure maxMessages is defined in database
@@ -185,8 +187,11 @@ export async function checkCanUseAI(
 
 	const currentCount = usage?.currentValue || 0
 	const isUnlimited = maxMessages === -1
-	const remaining = isUnlimited ? undefined : Math.max(0, maxMessages - currentCount)
-	const canCreate = hasFeatureAccess && (isUnlimited || currentCount < maxMessages)
+	const remaining = isUnlimited
+		? undefined
+		: Math.max(0, maxMessages - currentCount)
+	const canCreate =
+		hasFeatureAccess && (isUnlimited || currentCount < maxMessages)
 
 	let message: string | undefined
 	if (!hasFeatureAccess) {

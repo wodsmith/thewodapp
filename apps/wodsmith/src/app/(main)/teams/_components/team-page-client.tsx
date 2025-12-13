@@ -113,7 +113,14 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 		}
 
 		fetchData()
-	}, [viewMode, selectedDate, team.id, userId, fetchWorkouts, fetchLeaderboards])
+	}, [
+		viewMode,
+		selectedDate,
+		team.id,
+		userId,
+		fetchWorkouts,
+		fetchLeaderboards,
+	])
 
 	// Group workouts by date for weekly view
 	const workoutsByDate = workoutsWithResults.reduce(

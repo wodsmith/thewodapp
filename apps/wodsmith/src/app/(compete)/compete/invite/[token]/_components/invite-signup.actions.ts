@@ -103,13 +103,18 @@ export const inviteSignUpAction = createServerAction()
 					.where(eq(teamInvitationTable.id, invitation.id))
 
 				// Also update pendingTeammates in competition registration if this is a competition team
-				if (team?.type === TEAM_TYPE_ENUM.COMPETITION_TEAM && team.competitionMetadata) {
+				if (
+					team?.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
+					team.competitionMetadata
+				) {
 					try {
 						const metadata = JSON.parse(team.competitionMetadata) as {
 							competitionId?: string
 						}
 						if (metadata.competitionId) {
-							const { competitionRegistrationsTable } = await import("@/db/schema")
+							const { competitionRegistrationsTable } = await import(
+								"@/db/schema"
+							)
 
 							// Find registration with this team
 							const registration =
@@ -124,7 +129,9 @@ export const inviteSignUpAction = createServerAction()
 								})
 
 							if (registration?.pendingTeammates) {
-								const pending = JSON.parse(registration.pendingTeammates) as Array<{
+								const pending = JSON.parse(
+									registration.pendingTeammates,
+								) as Array<{
 									email: string
 									firstName?: string
 									lastName?: string
@@ -227,16 +234,26 @@ export const inviteSignUpAction = createServerAction()
 			// Handle competition_team type - also add user to competition_event team
 			let competitionSlug: string | undefined
 
-			if (team?.type === TEAM_TYPE_ENUM.COMPETITION_TEAM && team.competitionMetadata) {
+			if (
+				team?.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
+				team.competitionMetadata
+			) {
 				try {
 					const metadata = JSON.parse(team.competitionMetadata) as {
 						competitionId?: string
 					}
 					if (metadata.competitionId) {
-						const { addToCompetitionEventTeam, clearPendingTeammate, getCompetition } =
-							await import("@/server/competitions")
+						const {
+							addToCompetitionEventTeam,
+							clearPendingTeammate,
+							getCompetition,
+						} = await import("@/server/competitions")
 						await addToCompetitionEventTeam(user.id, metadata.competitionId)
-						await clearPendingTeammate(metadata.competitionId, user.email, user.id)
+						await clearPendingTeammate(
+							metadata.competitionId,
+							user.email,
+							user.id,
+						)
 
 						// Get competition slug for redirect
 						const competition = await getCompetition(metadata.competitionId)

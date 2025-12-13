@@ -2,21 +2,26 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
+import { autochunk, autochunkFirst } from "@/utils/batch-query"
 import {
 	type Competition,
 	type CompetitionGroup,
 	type Team,
 	competitionGroupsTable,
 	competitionsTable,
+	programmingTracksTable,
+	PROGRAMMING_TRACK_TYPE,
 } from "@/db/schema"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 
 // Competition with organizing team relation for public display
 export type CompetitionWithOrganizingTeam = Competition & {
 	organizingTeam: Team | null
 	group: CompetitionGroup | null
 }
-import { requireFeature } from "./entitlements"
+import { getTeamLimit, requireFeature } from "./entitlements"
 import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 
 /* -------------------------------------------------------------------------- */
 /*                           Competition Helper Functions                      */
@@ -105,7 +110,8 @@ export async function clearPendingTeammate(
 					pendingTeammates: string | null
 					metadata?: string | null
 				} = {
-					pendingTeammates: updatedPending.length > 0 ? JSON.stringify(updatedPending) : null,
+					pendingTeammates:
+						updatedPending.length > 0 ? JSON.stringify(updatedPending) : null,
 				}
 
 				// Migrate teammate's affiliate to metadata.affiliates
@@ -121,7 +127,8 @@ export async function clearPendingTeammate(
 					if (!metadata.affiliates || typeof metadata.affiliates !== "object") {
 						metadata.affiliates = {}
 					}
-					(metadata.affiliates as Record<string, string>)[teammateUserId] = teammate.affiliateName
+					;(metadata.affiliates as Record<string, string>)[teammateUserId] =
+						teammate.affiliateName
 					updateData.metadata = JSON.stringify(metadata)
 				}
 
@@ -131,8 +138,7 @@ export async function clearPendingTeammate(
 					.where(eq(competitionRegistrationsTable.id, reg.id))
 				break
 			}
-		} catch {
-		}
+		} catch {}
 	}
 }
 
@@ -194,9 +200,7 @@ export async function createCompetitionGroup(params: {
  */
 export async function getCompetitionGroups(
 	teamId: string,
-): Promise<
-	Array<CompetitionGroup & { competitionCount: number }>
-> {
+): Promise<Array<CompetitionGroup & { competitionCount: number }>> {
 	const db = getDb()
 
 	// Query groups with competition counts
@@ -362,6 +366,7 @@ export async function createCompetition(params: {
 	registrationOpensAt?: Date
 	registrationClosesAt?: Date
 	groupId?: string
+	settings?: string
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
 	const db = getDb()
 
@@ -442,26 +447,140 @@ export async function createCompetition(params: {
 	const competitionTeamId = competitionTeam.id
 
 	// Step 2: Insert competition record
-	const result = await db
-		.insert(competitionsTable)
-		.values({
-			id: `comp_${createId()}`,
-			organizingTeamId: params.organizingTeamId,
-			competitionTeamId,
-			groupId: params.groupId,
-			name: params.name,
-			slug: params.slug,
-			description: params.description,
-			startDate: params.startDate,
-			endDate: params.endDate,
-			registrationOpensAt: params.registrationOpensAt,
-			registrationClosesAt: params.registrationClosesAt,
-		})
-		.returning()
+	let competition: typeof competitionsTable.$inferSelect | undefined
+	try {
+		const result = await db
+			.insert(competitionsTable)
+			.values({
+				id: `comp_${createId()}`,
+				organizingTeamId: params.organizingTeamId,
+				competitionTeamId,
+				groupId: params.groupId,
+				name: params.name,
+				slug: params.slug,
+				description: params.description,
+				startDate: params.startDate,
+				endDate: params.endDate,
+				registrationOpensAt: params.registrationOpensAt,
+				registrationClosesAt: params.registrationClosesAt,
+				settings: params.settings,
+			})
+			.returning()
 
-	const [competition] = Array.isArray(result) ? result : []
+		const [inserted] = Array.isArray(result) ? result : []
+		if (!inserted) {
+			throw new Error("Competition insert returned no result")
+		}
+		competition = inserted
+	} catch (competitionError) {
+		// Log the failure
+		logError({
+			message: "[createCompetition] Failed to create competition record",
+			error: competitionError,
+			attributes: {
+				competitionTeamId,
+				competitionName: params.name,
+			},
+		})
+
+		// Compensating cleanup: delete the competition team created in Step 1
+		try {
+			await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
+			logInfo({
+				message: "[createCompetition] Cleaned up competition team",
+				attributes: { competitionTeamId },
+			})
+		} catch (cleanupError) {
+			logError({
+				message:
+					"[createCompetition] Failed to clean up competition team during rollback",
+				error: cleanupError,
+				attributes: { competitionTeamId },
+			})
+		}
+
+		throw new Error(
+			`Failed to create competition: ${competitionError instanceof Error ? competitionError.message : String(competitionError)}`,
+		)
+	}
+
+	// Step 3: Auto-create programming track for competition events
+	// TypeScript guard - competition is guaranteed to be defined here (we throw in catch above)
 	if (!competition) {
-		throw new Error("Failed to create competition")
+		throw new Error(
+			"Competition not defined after insert - this should not happen",
+		)
+	}
+
+	try {
+		const trackResult = await db
+			.insert(programmingTracksTable)
+			.values({
+				name: `${params.name} - Events`,
+				description: `Competition events for ${params.name}`,
+				type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
+				ownerTeamId: competitionTeamId,
+				competitionId: competition.id,
+				isPublic: 0, // Competition events are not public by default
+			})
+			.returning()
+
+		const [track] = Array.isArray(trackResult) ? trackResult : []
+		if (!track) {
+			throw new Error("Programming track insert returned no result")
+		}
+	} catch (trackError) {
+		// Log the failure with details
+		logError({
+			message:
+				"[createCompetition] Failed to create programming track for competition",
+			error: trackError,
+			attributes: {
+				competitionId: competition.id,
+				competitionTeamId,
+				competitionName: params.name,
+			},
+		})
+
+		// Compensating cleanup: delete the competition and competition team
+		// Delete competition first (has FK to competitionTeam)
+		try {
+			await db
+				.delete(competitionsTable)
+				.where(eq(competitionsTable.id, competition.id))
+			logInfo({
+				message: "[createCompetition] Cleaned up competition",
+				attributes: { competitionId: competition.id },
+			})
+		} catch (cleanupError) {
+			logError({
+				message:
+					"[createCompetition] Failed to clean up competition during rollback",
+				error: cleanupError,
+				attributes: { competitionId: competition.id },
+			})
+		}
+
+		// Delete competition team
+		try {
+			const { teamTable } = await import("@/db/schema")
+			await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
+			logInfo({
+				message: "[createCompetition] Cleaned up competition team",
+				attributes: { competitionTeamId },
+			})
+		} catch (cleanupError) {
+			logError({
+				message:
+					"[createCompetition] Failed to clean up competition team during rollback",
+				error: cleanupError,
+				attributes: { competitionTeamId },
+			})
+		}
+
+		throw new Error(
+			`Failed to create programming track for competition: ${trackError instanceof Error ? trackError.message : String(trackError)}`,
+		)
 	}
 
 	return {
@@ -473,6 +592,7 @@ export async function createCompetition(params: {
 /**
  * Get all public competitions for browsing
  * Returns competitions ordered by startDate for public /compete page
+ * Only returns published competitions with visibility = 'public'
  */
 export async function getPublicCompetitions(): Promise<
 	CompetitionWithOrganizingTeam[]
@@ -480,6 +600,10 @@ export async function getPublicCompetitions(): Promise<
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
+		where: and(
+			eq(competitionsTable.visibility, "public"),
+			eq(competitionsTable.status, "published"),
+		),
 		with: {
 			organizingTeam: true,
 			group: true,
@@ -487,7 +611,7 @@ export async function getPublicCompetitions(): Promise<
 		orderBy: (table, { asc }) => [asc(table.startDate)],
 	})
 
-	return competitions as CompetitionWithOrganizingTeam[]
+	return competitions as Array<CompetitionWithOrganizingTeam>
 }
 
 /**
@@ -499,9 +623,15 @@ export async function getPublicCompetitions(): Promise<
  * - Order by startDate DESC
  * - Return competitions with full details
  */
-export async function getCompetitions(
-	teamId: string,
-): Promise<Array<Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }>> {
+export async function getCompetitions(teamId: string): Promise<
+	Array<
+		Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+		}
+	>
+> {
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
@@ -514,22 +644,39 @@ export async function getCompetitions(
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
 
-	return competitions
+	return competitions as Array<
+		Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+		}
+	>
 }
 
 /**
  * Get all public competitions (for competition discovery page)
  *
  * Phase 2 Implementation:
- * - Query all competitions
+ * - Query all published competitions with visibility = 'public'
  * - Include organizing team and group data
  * - Order by startDate DESC (upcoming first)
  * - Return competitions with full details
  */
-export async function getAllPublicCompetitions(): Promise<Array<Competition & { organizingTeam: Partial<Team> | null; group: CompetitionGroup | null }>> {
+export async function getAllPublicCompetitions(): Promise<
+	Array<
+		Competition & {
+			organizingTeam: Partial<Team> | null
+			group: CompetitionGroup | null
+		}
+	>
+> {
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
+		where: and(
+			eq(competitionsTable.visibility, "public"),
+			eq(competitionsTable.status, "published"),
+		),
 		with: {
 			organizingTeam: {
 				columns: {
@@ -544,7 +691,12 @@ export async function getAllPublicCompetitions(): Promise<Array<Competition & { 
 		orderBy: (table, { desc }) => [desc(table.startDate)],
 	})
 
-	return competitions
+	return competitions as Array<
+		Competition & {
+			organizingTeam: Partial<Team> | null
+			group: CompetitionGroup | null
+		}
+	>
 }
 
 /**
@@ -556,9 +708,14 @@ export async function getAllPublicCompetitions(): Promise<Array<Competition & { 
  * - Include registration count
  * - Return full competition details
  */
-export async function getCompetition(
-	idOrSlug: string,
-): Promise<(Competition & { organizingTeam: Team | null; competitionTeam: Team | null; group: CompetitionGroup | null }) | null> {
+export async function getCompetition(idOrSlug: string): Promise<
+	| (Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+	  })
+	| null
+> {
 	const db = getDb()
 
 	const competition = await db.query.competitionsTable.findFirst({
@@ -573,7 +730,13 @@ export async function getCompetition(
 		},
 	})
 
-	return competition ?? null
+	return (competition ?? null) as
+		| (Competition & {
+				organizingTeam: Team | null
+				competitionTeam: Team | null
+				group: CompetitionGroup | null
+		  })
+		| null
 }
 
 /**
@@ -597,6 +760,10 @@ export async function updateCompetition(
 		registrationClosesAt: Date | null
 		groupId: string | null
 		settings: string | null
+		visibility: "public" | "private"
+		status: "draft" | "published"
+		profileImageUrl: string | null
+		bannerImageUrl: string | null
 	}>,
 ): Promise<Competition> {
 	const db = getDb()
@@ -621,7 +788,10 @@ export async function updateCompetition(
 	}
 
 	// If groupId is being changed, validate it belongs to organizing team
-	if (updates.groupId !== undefined && updates.groupId !== existingCompetition.groupId) {
+	if (
+		updates.groupId !== undefined &&
+		updates.groupId !== existingCompetition.groupId
+	) {
 		if (updates.groupId) {
 			const group = await getCompetitionGroup(updates.groupId)
 			if (!group) {
@@ -635,6 +805,43 @@ export async function updateCompetition(
 		}
 	}
 
+	// Check publish limit when changing status to published
+	if (
+		updates.status === "published" &&
+		existingCompetition.status !== "published"
+	) {
+		const limit = await getTeamLimit(
+			existingCompetition.organizingTeamId,
+			LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		)
+		if (limit === 0) {
+			throw new Error(
+				"Your organizer application is pending approval. You can create draft competitions while you wait.",
+			)
+		}
+		// If limit > 0, count published competitions and check
+		if (limit > 0) {
+			const publishedCount = await db
+				.select({ count: count() })
+				.from(competitionsTable)
+				.where(
+					and(
+						eq(
+							competitionsTable.organizingTeamId,
+							existingCompetition.organizingTeamId,
+						),
+						eq(competitionsTable.status, "published"),
+					),
+				)
+
+			if ((publishedCount[0]?.count ?? 0) >= limit) {
+				throw new Error(
+					`You have reached your limit of ${limit} published competitions. Please upgrade to publish more.`,
+				)
+			}
+		}
+	}
+
 	// Build update data
 	const updateData: Partial<typeof competitionsTable.$inferInsert> = {
 		updatedAt: new Date(),
@@ -642,13 +849,23 @@ export async function updateCompetition(
 
 	if (updates.name !== undefined) updateData.name = updates.name
 	if (updates.slug !== undefined) updateData.slug = updates.slug
-	if (updates.description !== undefined) updateData.description = updates.description
+	if (updates.description !== undefined)
+		updateData.description = updates.description
 	if (updates.startDate !== undefined) updateData.startDate = updates.startDate
 	if (updates.endDate !== undefined) updateData.endDate = updates.endDate
-	if (updates.registrationOpensAt !== undefined) updateData.registrationOpensAt = updates.registrationOpensAt
-	if (updates.registrationClosesAt !== undefined) updateData.registrationClosesAt = updates.registrationClosesAt
+	if (updates.registrationOpensAt !== undefined)
+		updateData.registrationOpensAt = updates.registrationOpensAt
+	if (updates.registrationClosesAt !== undefined)
+		updateData.registrationClosesAt = updates.registrationClosesAt
 	if (updates.groupId !== undefined) updateData.groupId = updates.groupId
 	if (updates.settings !== undefined) updateData.settings = updates.settings
+	if (updates.visibility !== undefined)
+		updateData.visibility = updates.visibility
+	if (updates.status !== undefined) updateData.status = updates.status
+	if (updates.profileImageUrl !== undefined)
+		updateData.profileImageUrl = updates.profileImageUrl
+	if (updates.bannerImageUrl !== undefined)
+		updateData.bannerImageUrl = updates.bannerImageUrl
 
 	const result = await db
 		.update(competitionsTable)
@@ -713,7 +930,6 @@ export async function deleteCompetition(
 	return { success: true }
 }
 
-
 /**
  * Register an athlete for a competition
  *
@@ -740,7 +956,11 @@ export async function registerForCompetition(params: {
 		lastName?: string
 		affiliateName?: string
 	}>
-}): Promise<{ registrationId: string; teamMemberId: string; athleteTeamId: string | null }> {
+}): Promise<{
+	registrationId: string
+	teamMemberId: string
+	athleteTeamId: string | null
+}> {
 	const db = getDb()
 	const {
 		competitionRegistrationsTable,
@@ -760,10 +980,16 @@ export async function registerForCompetition(params: {
 
 	// 2. Check registration window
 	const now = new Date()
-	if (competition.registrationOpensAt && new Date(competition.registrationOpensAt) > now) {
+	if (
+		competition.registrationOpensAt &&
+		new Date(competition.registrationOpensAt) > now
+	) {
 		throw new Error("Registration has not opened yet")
 	}
-	if (competition.registrationClosesAt && new Date(competition.registrationClosesAt) < now) {
+	if (
+		competition.registrationClosesAt &&
+		new Date(competition.registrationClosesAt) < now
+	) {
 		throw new Error("Registration has closed")
 	}
 
@@ -776,15 +1002,10 @@ export async function registerForCompetition(params: {
 		throw new Error("User not found")
 	}
 
-	// 4. Validate user profile is complete (gender and dateOfBirth required)
-	if (!user.gender) {
-		throw new Error("Please complete your profile by adding your gender before registering")
-	}
-	if (!user.dateOfBirth) {
-		throw new Error("Please complete your profile by adding your date of birth before registering")
-	}
+	// Profile validation removed - users can complete profile after registration
+	// The nav bar will show a notification prompting them to complete their profile
 
-	// 5. Validate division belongs to competition's scaling group
+	// 4. Validate division belongs to competition's scaling group
 	const settings = parseCompetitionSettings(competition.settings)
 	if (!settings?.divisions?.scalingGroupId) {
 		throw new Error("This competition does not have divisions configured")
@@ -810,18 +1031,22 @@ export async function registerForCompetition(params: {
 		if (!params.teamName?.trim()) {
 			throw new Error("Team name is required for team divisions")
 		}
-		if (!params.teammates || params.teammates.length !== division.teamSize - 1) {
+		if (
+			!params.teammates ||
+			params.teammates.length !== division.teamSize - 1
+		) {
 			throw new Error(`Team requires ${division.teamSize - 1} teammate(s)`)
 		}
 	}
 
 	// 8. Check for duplicate registration (will be caught by unique constraint, but check anyway for better error message)
-	const existingRegistration = await db.query.competitionRegistrationsTable.findFirst({
-		where: and(
-			eq(competitionRegistrationsTable.eventId, params.competitionId),
-			eq(competitionRegistrationsTable.userId, params.userId),
-		),
-	})
+	const existingRegistration =
+		await db.query.competitionRegistrationsTable.findFirst({
+			where: and(
+				eq(competitionRegistrationsTable.eventId, params.competitionId),
+				eq(competitionRegistrationsTable.userId, params.userId),
+			),
+		})
 
 	if (existingRegistration) {
 		throw new Error("You are already registered for this competition")
@@ -836,15 +1061,18 @@ export async function registerForCompetition(params: {
 			})
 
 			if (teammateUser) {
-				const teammateReg = await db.query.competitionRegistrationsTable.findFirst({
-					where: and(
-						eq(competitionRegistrationsTable.eventId, params.competitionId),
-						eq(competitionRegistrationsTable.userId, teammateUser.id),
-					),
-				})
+				const teammateReg =
+					await db.query.competitionRegistrationsTable.findFirst({
+						where: and(
+							eq(competitionRegistrationsTable.eventId, params.competitionId),
+							eq(competitionRegistrationsTable.userId, teammateUser.id),
+						),
+					})
 
 				if (teammateReg) {
-					throw new Error(`${teammate.email} is already registered for this competition`)
+					throw new Error(
+						`${teammate.email} is already registered for this competition`,
+					)
 				}
 			}
 
@@ -883,10 +1111,11 @@ export async function registerForCompetition(params: {
 		}
 
 		// Create competition_team for athlete squad
+		const teamName = params.teamName ?? "Unknown Team"
 		const newAthleteTeam = await db
 			.insert(teamTable)
 			.values({
-				name: params.teamName!,
+				name: teamName,
 				slug: teamSlug,
 				type: TEAM_TYPE_ENUM.COMPETITION_TEAM,
 				parentOrganizationId: competition.competitionTeamId, // Parent is the event team
@@ -899,7 +1128,9 @@ export async function registerForCompetition(params: {
 			})
 			.returning()
 
-		const athleteTeam = Array.isArray(newAthleteTeam) ? newAthleteTeam[0] : undefined
+		const athleteTeam = Array.isArray(newAthleteTeam)
+			? newAthleteTeam[0]
+			: undefined
 		if (!athleteTeam) {
 			throw new Error("Failed to create athlete team")
 		}
@@ -930,20 +1161,25 @@ export async function registerForCompetition(params: {
 		})
 		.returning()
 
-	const teamMember = Array.isArray(teamMembershipResult) ? teamMembershipResult[0] : undefined
+	const teamMember = Array.isArray(teamMembershipResult)
+		? teamMembershipResult[0]
+		: undefined
 	if (!teamMember) {
 		throw new Error("Failed to create team membership")
 	}
 
 	// 12. Store pending teammates as JSON for team registrations
-	const pendingTeammatesJson = isTeamDivision && params.teammates
-		? JSON.stringify(params.teammates.map(t => ({
-				email: t.email.toLowerCase(),
-				firstName: t.firstName ?? null,
-				lastName: t.lastName ?? null,
-				affiliateName: t.affiliateName ?? null,
-			})))
-		: null
+	const pendingTeammatesJson =
+		isTeamDivision && params.teammates
+			? JSON.stringify(
+					params.teammates.map((t) => ({
+						email: t.email.toLowerCase(),
+						firstName: t.firstName ?? null,
+						lastName: t.lastName ?? null,
+						affiliateName: t.affiliateName ?? null,
+					})),
+				)
+			: null
 
 	// 13. Create metadata JSON with captain's affiliate info (using new per-user format)
 	const metadataJson = params.affiliateName
@@ -969,7 +1205,9 @@ export async function registerForCompetition(params: {
 		})
 		.returning()
 
-	const registration = Array.isArray(registrationResult) ? registrationResult[0] : undefined
+	const registration = Array.isArray(registrationResult)
+		? registrationResult[0]
+		: undefined
 	if (!registration) {
 		throw new Error("Failed to create registration")
 	}
@@ -988,14 +1226,22 @@ export async function registerForCompetition(params: {
 				competitionContext: {
 					competitionId: params.competitionId,
 					competitionSlug: competition.slug,
-					teamName: params.teamName!,
+					teamName: params.teamName ?? "Unknown Team",
 					divisionName: division.label,
 				},
 			})
 		}
 	}
 
-	// 16. Update all user sessions to include new team
+	// 16. Update user's affiliate profile if not already set
+	if (params.affiliateName && !user.affiliateName) {
+		await db
+			.update(userTable)
+			.set({ affiliateName: params.affiliateName })
+			.where(eq(userTable.id, params.userId))
+	}
+
+	// 17. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
 	return {
@@ -1029,7 +1275,7 @@ export async function acceptTeamInvite(params: {
  */
 export async function getTeammateInvite(inviteToken: string) {
 	const db = getDb()
-	const { teamInvitationTable, teamTable, TEAM_TYPE_ENUM } = await import("@/db/schema")
+	const { teamInvitationTable, TEAM_TYPE_ENUM } = await import("@/db/schema")
 
 	// Find the invitation by token
 	const invitation = await db.query.teamInvitationTable.findFirst({
@@ -1043,7 +1289,9 @@ export async function getTeammateInvite(inviteToken: string) {
 		return null
 	}
 
-	const team = Array.isArray(invitation.team) ? invitation.team[0] : invitation.team
+	const team = Array.isArray(invitation.team)
+		? invitation.team[0]
+		: invitation.team
 
 	// Check if this is a competition team invite
 	if (team?.type !== TEAM_TYPE_ENUM.COMPETITION_TEAM) {
@@ -1082,16 +1330,21 @@ export async function getTeammateInvite(inviteToken: string) {
 	// Get the captain info from the registration
 	let captain = null
 	if (competitionContext.competitionId) {
-		const { competitionRegistrationsTable, userTable } = await import("@/db/schema")
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: and(
-				eq(competitionRegistrationsTable.eventId, competitionContext.competitionId),
-				eq(competitionRegistrationsTable.athleteTeamId, team.id),
-			),
-			with: {
-				captain: true,
+		const { competitionRegistrationsTable } = await import("@/db/schema")
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(
+						competitionRegistrationsTable.eventId,
+						competitionContext.competitionId,
+					),
+					eq(competitionRegistrationsTable.athleteTeamId, team.id),
+				),
+				with: {
+					captain: true,
+				},
 			},
-		})
+		)
 
 		if (registration) {
 			const captainUser = Array.isArray(registration.captain)
@@ -1146,7 +1399,9 @@ export async function updateRegistrationAffiliate(params: {
 	affiliateName: string | null
 }): Promise<{ success: boolean }> {
 	const db = getDb()
-	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import(
+		"@/db/schema"
+	)
 
 	// Get the registration
 	const registration = await db.query.competitionRegistrationsTable.findFirst({
@@ -1208,7 +1463,8 @@ export async function updateRegistrationAffiliate(params: {
 	await db
 		.update(competitionRegistrationsTable)
 		.set({
-			metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+			metadata:
+				Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
 			updatedAt: new Date(),
 		})
 		.where(eq(competitionRegistrationsTable.id, params.registrationId))
@@ -1336,7 +1592,9 @@ export async function getCompetitionRegistrations(
 	]
 
 	if (divisionId) {
-		whereConditions.push(eq(competitionRegistrationsTable.divisionId, divisionId))
+		whereConditions.push(
+			eq(competitionRegistrationsTable.divisionId, divisionId),
+		)
 	}
 
 	const registrations = await db.query.competitionRegistrationsTable.findMany({
@@ -1393,31 +1651,34 @@ export async function getUserCompetitionRegistration(
 	userId: string,
 ) {
 	const db = getDb()
-	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import(
+		"@/db/schema"
+	)
 
 	// First check if user is the captain/direct registrant
-	const directRegistration = await db.query.competitionRegistrationsTable.findFirst({
-		where: and(
-			eq(competitionRegistrationsTable.eventId, competitionId),
-			eq(competitionRegistrationsTable.userId, userId),
-		),
-		with: {
-			division: true,
-			teamMember: true,
-			user: {
-				columns: {
-					id: true,
-					firstName: true,
-					lastName: true,
-					email: true,
-					avatar: true,
-					gender: true,
-					dateOfBirth: true,
+	const directRegistration =
+		await db.query.competitionRegistrationsTable.findFirst({
+			where: and(
+				eq(competitionRegistrationsTable.eventId, competitionId),
+				eq(competitionRegistrationsTable.userId, userId),
+			),
+			with: {
+				division: true,
+				teamMember: true,
+				user: {
+					columns: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						avatar: true,
+						gender: true,
+						dateOfBirth: true,
+					},
 				},
+				athleteTeam: true,
 			},
-			athleteTeam: true,
-		},
-	})
+		})
 
 	if (directRegistration) {
 		return directRegistration
@@ -1439,31 +1700,35 @@ export async function getUserCompetitionRegistration(
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
-	// Find registration where athleteTeamId is one of user's teams
-	const teamRegistration = await db.query.competitionRegistrationsTable.findFirst({
-		where: and(
-			eq(competitionRegistrationsTable.eventId, competitionId),
-			inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-		),
-		with: {
-			division: true,
-			teamMember: true,
-			user: {
-				columns: {
-					id: true,
-					firstName: true,
-					lastName: true,
-					email: true,
-					avatar: true,
-					gender: true,
-					dateOfBirth: true,
+	// Find registration where athleteTeamId is one of user's teams (batched to avoid SQL variable limit)
+	const teamRegistration = await autochunkFirst(
+		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for competitionId
+		async (chunk) =>
+			db.query.competitionRegistrationsTable.findFirst({
+				where: and(
+					eq(competitionRegistrationsTable.eventId, competitionId),
+					inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+				),
+				with: {
+					division: true,
+					teamMember: true,
+					user: {
+						columns: {
+							id: true,
+							firstName: true,
+							lastName: true,
+							email: true,
+							avatar: true,
+							gender: true,
+							dateOfBirth: true,
+						},
+					},
+					athleteTeam: true,
 				},
-			},
-			athleteTeam: true,
-		},
-	})
+			}),
+	)
 
-	return teamRegistration ?? null
+	return teamRegistration
 }
 
 /**
@@ -1474,20 +1739,23 @@ export async function getUserUpcomingRegisteredCompetitions(
 	userId: string,
 ): Promise<CompetitionWithOrganizingTeam[]> {
 	const db = getDb()
-	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import(
+		"@/db/schema"
+	)
 
 	// Get direct registrations (user is captain)
-	const directRegistrations = await db.query.competitionRegistrationsTable.findMany({
-		where: eq(competitionRegistrationsTable.userId, userId),
-		with: {
-			competition: {
-				with: {
-					organizingTeam: true,
-					group: true,
+	const directRegistrations =
+		await db.query.competitionRegistrationsTable.findMany({
+			where: eq(competitionRegistrationsTable.userId, userId),
+			with: {
+				competition: {
+					with: {
+						organizingTeam: true,
+						group: true,
+					},
 				},
 			},
-		},
-	})
+		})
 
 	// Get team registrations (user is teammate)
 	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
@@ -1499,21 +1767,23 @@ export async function getUserUpcomingRegisteredCompetitions(
 	})
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
-	let teamRegistrations: typeof directRegistrations = []
 
-	if (userTeamIds.length > 0) {
-		teamRegistrations = await db.query.competitionRegistrationsTable.findMany({
-			where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-			with: {
-				competition: {
-					with: {
-						organizingTeam: true,
-						group: true,
+	// Get team registrations (batched to avoid SQL variable limit)
+	const teamRegistrations = await autochunk(
+		{ items: userTeamIds },
+		async (chunk) =>
+			db.query.competitionRegistrationsTable.findMany({
+				where: inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+				with: {
+					competition: {
+						with: {
+							organizingTeam: true,
+							group: true,
+						},
 					},
 				},
-			},
-		})
-	}
+			}),
+	)
 
 	// Combine and deduplicate by competition ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]
@@ -1548,7 +1818,9 @@ export async function cancelCompetitionRegistration(
 	userId: string,
 ): Promise<{ success: boolean; competitionId: string }> {
 	const db = getDb()
-	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import(
+		"@/db/schema"
+	)
 	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
 
 	// 1. Get the registration to verify it exists
@@ -1588,7 +1860,9 @@ export async function cancelCompetitionRegistration(
  */
 export async function getUserCompetitionHistory(userId: string) {
 	const db = getDb()
-	const { competitionRegistrationsTable, teamMembershipTable } = await import("@/db/schema")
+	const { competitionRegistrationsTable, teamMembershipTable } = await import(
+		"@/db/schema"
+	)
 
 	// Get direct registrations (user is captain)
 	const directRegistrations =
@@ -1616,23 +1890,25 @@ export async function getUserCompetitionHistory(userId: string) {
 	})
 
 	const userTeamIds = userTeamMemberships.map((m) => m.teamId)
-	let teamRegistrations: typeof directRegistrations = []
 
-	if (userTeamIds.length > 0) {
-		teamRegistrations = await db.query.competitionRegistrationsTable.findMany({
-			where: inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-			with: {
-				competition: {
-					with: {
-						organizingTeam: true,
+	// Get team registrations (batched to avoid SQL variable limit)
+	const teamRegistrations = await autochunk(
+		{ items: userTeamIds },
+		async (chunk) =>
+			db.query.competitionRegistrationsTable.findMany({
+				where: inArray(competitionRegistrationsTable.athleteTeamId, chunk),
+				with: {
+					competition: {
+						with: {
+							organizingTeam: true,
+						},
 					},
+					division: true,
+					athleteTeam: true,
 				},
-				division: true,
-				athleteTeam: true,
-			},
-			orderBy: (table, { desc }) => [desc(table.registeredAt)],
-		})
-	}
+				orderBy: (table, { desc }) => [desc(table.registeredAt)],
+			}),
+	)
 
 	// Combine and deduplicate by registration ID
 	const allRegistrations = [...directRegistrations, ...teamRegistrations]
@@ -1650,5 +1926,9 @@ export async function getUserCompetitionHistory(userId: string) {
 		return bDate - aDate
 	})
 
-	return uniqueRegistrations
+	return uniqueRegistrations as Array<
+		(typeof directRegistrations)[0] & {
+			competition: CompetitionWithOrganizingTeam
+		}
+	>
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest"
 import { getTeamSpecificWorkoutAction } from "@/actions/workout-actions"
 
-// Mock the auth utility - include both teams for isolation test
+// Mock the auth utility - user belongs to both teams for isolation testing
 vi.mock("@/utils/auth", () => ({
 	requireVerifiedEmail: vi.fn(() =>
 		Promise.resolve({

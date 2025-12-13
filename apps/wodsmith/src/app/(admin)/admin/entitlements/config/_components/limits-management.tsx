@@ -28,8 +28,11 @@ export function LimitsManagement() {
 	const [selectedLimit, setSelectedLimit] = useState<Limit | null>(null)
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-	const { execute: fetchLimits, data: limitsData, isPending } =
-		useServerAction(getAllLimitsAction)
+	const {
+		execute: fetchLimits,
+		data: limitsData,
+		isPending,
+	} = useServerAction(getAllLimitsAction)
 
 	useEffect(() => {
 		fetchLimits()

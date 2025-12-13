@@ -15,18 +15,28 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { getTeamLimit, hasFeature } from "@/server/entitlements"
+import { LIMITS } from "@/config/limits"
+import { getAccountBalance, type AccountBalance } from "@/server/stripe-connect"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"
+import { EnableCompetitionOrganizing } from "./_components/enable-competition-organizing"
+import { TeamEntitlements } from "./_components/team-entitlements"
 import { TeamInvitations } from "./_components/team-invitations"
 import { TeamMemberCard } from "./_components/team-members"
-import { TeamEntitlements } from "./_components/team-entitlements"
 
 interface TeamPageProps {
 	params: Promise<{
 		teamSlug: string
+	}>
+	searchParams: Promise<{
+		stripe_connected?: string
+		stripe_refresh?: string
+		stripe_error?: string
 	}>
 }
 
@@ -51,8 +61,12 @@ export async function generateMetadata({ params }: TeamPageProps) {
 	}
 }
 
-export default async function TeamDashboardPage({ params }: TeamPageProps) {
+export default async function TeamDashboardPage({
+	params,
+	searchParams,
+}: TeamPageProps) {
 	const { teamSlug } = await params
+	const { stripe_connected, stripe_refresh, stripe_error } = await searchParams
 	const db = getDb()
 
 	// Find the team by slug
@@ -103,6 +117,40 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 		team.id,
 		TEAM_PERMISSIONS.REMOVE_MEMBERS,
 	)
+	const canManageProgramming = await hasTeamPermission(
+		team.id,
+		TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+	)
+
+	// Check if competition organizing is enabled and organizer status
+	const hasCompetitionOrganizing = await hasFeature(
+		team.id,
+		FEATURES.HOST_COMPETITIONS,
+	)
+	const publishLimit = await getTeamLimit(team.id, LIMITS.MAX_PUBLISHED_COMPETITIONS)
+
+	// Determine organizer status based on feature and limit
+	let organizerStatus: "not_applied" | "pending" | "approved" = "not_applied"
+	if (hasCompetitionOrganizing) {
+		if (publishLimit === 0) {
+			organizerStatus = "pending"
+		} else if (publishLimit === -1 || publishLimit > 0) {
+			organizerStatus = "approved"
+		}
+	}
+
+	// Fetch Stripe balance if connected
+	let stripeBalance: AccountBalance | null = null
+	if (
+		team.stripeConnectedAccountId &&
+		team.stripeAccountStatus === "VERIFIED"
+	) {
+		try {
+			stripeBalance = await getAccountBalance(team.stripeConnectedAccountId)
+		} catch {
+			// Silently fail - balance display is a convenience feature
+		}
+	}
 
 	// Fetch team members
 	const teamMembers = await getTeamMembers(team.id)
@@ -129,7 +177,7 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 
 					{team.avatarUrl ? (
 						<div className="h-16 w-16 border-2 border-primary overflow-hidden shadow-[2px_2px_0px_0px] shadow-primary">
-							{/* eslint-disable-next-line @next/next/no-img-element */}
+							{/* biome-ignore lint/performance/noImgElement: external URL avatar, Next Image not suitable */}
 							<img
 								src={team.avatarUrl || ""}
 								alt={`${team.name} avatar`}
@@ -300,9 +348,29 @@ export default async function TeamDashboardPage({ params }: TeamPageProps) {
 					)}
 				</div>
 
+				{/* Competition Organizing */}
+				{canManageProgramming && (
+					<div className="col-span-3">
+						<h2 className="text-2xl font-bold mb-4">Competition Organizing</h2>
+						<EnableCompetitionOrganizing
+							teamId={team.id}
+							teamSlug={team.slug}
+							isEnabled={hasCompetitionOrganizing}
+							organizerStatus={organizerStatus}
+							stripeAccountStatus={team.stripeAccountStatus}
+							stripeAccountType={team.stripeAccountType}
+							stripeOnboardingCompletedAt={team.stripeOnboardingCompletedAt}
+							balance={stripeBalance}
+							showConnectedMessage={stripe_connected === "true"}
+							showRefreshMessage={stripe_refresh === "true"}
+							stripeError={stripe_error}
+						/>
+					</div>
+				)}
+
 				{/* Team Entitlements */}
 				<div className="col-span-3">
-					<h2 className="text-2xl font-bold mb-4">Plan & Entitlements</h2>
+					<h2 className="text-2xl font-bold mb-4">Plans & Enabled Features</h2>
 					<TeamEntitlements teamId={team.id} />
 				</div>
 			</div>

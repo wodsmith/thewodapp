@@ -89,7 +89,10 @@ export function AddFeatureDialog({
 				<div className="space-y-4">
 					<div className="space-y-2">
 						<Label htmlFor="feature">Feature *</Label>
-						<Select value={selectedFeatureId} onValueChange={setSelectedFeatureId}>
+						<Select
+							value={selectedFeatureId}
+							onValueChange={setSelectedFeatureId}
+						>
 							<SelectTrigger>
 								<SelectValue placeholder="Select a feature..." />
 							</SelectTrigger>

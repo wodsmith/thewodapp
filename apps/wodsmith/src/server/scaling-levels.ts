@@ -12,6 +12,7 @@ import {
 	workouts,
 } from "@/db/schema"
 import { createWorkoutRemix } from "@/server/workouts"
+import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 export interface CreateScalingLevelInput {
@@ -283,18 +284,21 @@ export async function getWorkoutScalingDescriptions({
 }) {
 	const db = getDb()
 	if (scalingLevelIds.length === 0) return []
-	const rows = await db
-		.select()
-		.from(workoutScalingDescriptionsTable)
-		.where(
-			and(
-				eq(workoutScalingDescriptionsTable.workoutId, workoutId),
-				inArray(
-					workoutScalingDescriptionsTable.scalingLevelId,
-					scalingLevelIds,
+
+	// Batched query to avoid SQL variable limit
+	const rows = await autochunk(
+		{ items: scalingLevelIds, otherParametersCount: 1 }, // +1 for workoutId
+		async (chunk) =>
+			db
+				.select()
+				.from(workoutScalingDescriptionsTable)
+				.where(
+					and(
+						eq(workoutScalingDescriptionsTable.workoutId, workoutId),
+						inArray(workoutScalingDescriptionsTable.scalingLevelId, chunk),
+					),
 				),
-			),
-		)
+	)
 	return rows
 }
 

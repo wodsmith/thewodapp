@@ -77,7 +77,8 @@ export const TEAM_PERMISSIONS = {
 	// Scaling group permissions
 	MANAGE_SCALING_GROUPS: "manage_scaling_groups",
 
-	// Add more as needed
+	// Competition permissions
+	MANAGE_COMPETITIONS: "manage_competitions",
 } as const
 
 // Team table - using self-reference pattern for parent organization
@@ -113,15 +114,18 @@ export const teamTable = sqliteTable(
 		personalTeamOwnerId: text().references(() => userTable.id),
 		// Competition platform fields
 		// Team type: gym (default), competition_event, or personal
-		type: text({ length: 50 })
-			.$type<TeamType>()
-			.default("gym")
-			.notNull(),
+		type: text({ length: 50 }).$type<TeamType>().default("gym").notNull(),
 		// For competition_event teams, the parent organizing gym/team
 		// Self-reference handled by Drizzle
 		parentOrganizationId: text(),
 		// JSON metadata for competition-specific settings
 		competitionMetadata: text({ length: 10000 }),
+
+		// Stripe Connect fields (Phase 2 prep for organizer payouts)
+		stripeConnectedAccountId: text(), // Stripe account ID (acct_xxx)
+		stripeAccountStatus: text({ length: 20 }), // NOT_CONNECTED | PENDING | VERIFIED
+		stripeAccountType: text({ length: 20 }), // 'express' | 'standard' | null
+		stripeOnboardingCompletedAt: integer({ mode: "timestamp" }),
 	},
 	(table) => [
 		index("team_slug_idx").on(table.slug),

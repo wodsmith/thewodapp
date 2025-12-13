@@ -198,7 +198,25 @@ INSERT OR IGNORE INTO user (id, firstName, lastName, email, emailVerified, passw
 ('usr_athlete_mike', 'Mike', 'Johnson', 'mike@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1988-09-12'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_sarah', 'Sarah', 'Williams', 'sarah@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1993-02-28'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
 ('usr_athlete_chris', 'Chris', 'Brown', 'chris@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1991-06-17'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('usr_athlete_emma', 'Emma', 'Davis', 'emma@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-12-05'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+('usr_athlete_emma', 'Emma', 'Davis', 'emma@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-12-05'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Additional RX Division Athletes (10 total)
+('usr_athlete_alex', 'Alex', 'Turner', 'alex.turner@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1994-03-15'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_ryan', 'Ryan', 'Mitchell', 'ryan.mitchell@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1992-07-22'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_marcus', 'Marcus', 'Reed', 'marcus.reed@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1990-11-08'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_tyler', 'Tyler', 'Brooks', 'tyler.brooks@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1995-01-30'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_jordan', 'Jordan', 'Hayes', 'jordan.hayes@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1993-09-12'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_nathan', 'Nathan', 'Cole', 'nathan.cole@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1991-05-25'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_derek', 'Derek', 'Foster', 'derek.foster@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1989-12-03'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_brandon', 'Brandon', 'West', 'brandon.west@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'male', strftime('%s', '1996-08-17'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Additional Scaled Division Athletes (10 total)
+('usr_athlete_megan', 'Megan', 'Parker', 'megan.parker@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1996-04-20'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_ashley', 'Ashley', 'Morgan', 'ashley.morgan@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1998-02-14'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_brittany', 'Brittany', 'Taylor', 'brittany.taylor@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1994-10-05'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_stephanie', 'Stephanie', 'Clark', 'stephanie.clark@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1993-06-28'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_lauren', 'Lauren', 'Adams', 'lauren.adams@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1997-01-11'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_nicole', 'Nicole', 'Roberts', 'nicole.roberts@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1995-08-19'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_amanda', 'Amanda', 'Nelson', 'amanda.nelson@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1992-12-07'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('usr_athlete_kaitlyn', 'Kaitlyn', 'Hill', 'kaitlyn.hill@athlete.com', 1750194531, '8057bcf2b7ac55f82aa8d4d9e19a92f2:6151dccae7ea01138ea27feada39fa1337437c82d9d050723b5d35b679799983', 'user', 0, 'female', strftime('%s', '1999-03-24'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed teams table (with different plans for testing)
 -- type: 'gym' (default), 'competition_event', or 'personal'
@@ -251,7 +269,25 @@ INSERT OR IGNORE INTO team_membership (id, teamId, userId, roleId, isSystemRole,
 ('tmem_sarah_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_sarah', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
 ('tmem_chris_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_chris', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
 ('tmem_emma_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_emma', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
-('tmem_john_winter_throwdown', 'team_winter_throwdown_2025', 'usr_demo3member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
+('tmem_john_winter_throwdown', 'team_winter_throwdown_2025', 'usr_demo3member', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+-- Additional RX Division Athletes
+('tmem_alex_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_alex', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_ryan_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_ryan', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_marcus_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_marcus', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_tyler_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_tyler', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_jordan_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_jordan', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_nathan_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_nathan', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_derek_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_derek', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_brandon_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_brandon', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+-- Additional Scaled Division Athletes
+('tmem_megan_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_megan', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_ashley_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_ashley', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_brittany_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_brittany', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_stephanie_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_stephanie', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_lauren_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_lauren', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_nicole_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_nicole', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_amanda_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_amanda', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1),
+('tmem_kaitlyn_winter_throwdown', 'team_winter_throwdown_2025', 'usr_athlete_kaitlyn', 'member', 1, strftime('%s', 'now'), strftime('%s', 'now'), strftime('%s', 'now'), 0, 1);
 
 -- Affiliates (gyms that athletes can select when registering)
 INSERT OR IGNORE INTO affiliates (id, name, location, verificationStatus, ownerTeamId, createdAt, updatedAt, updateCounter) VALUES
@@ -276,19 +312,21 @@ INSERT OR IGNORE INTO scaling_levels (id, scalingGroupId, label, position, teamS
 
 -- Competitions - Winter Throwdown 2025
 -- Registration opens 30 days before, closes 7 days before the event
-INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, settings, createdAt, updatedAt, updateCounter) VALUES
+-- defaultRegistrationFeeCents: 7500 = $75.00
+INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, groupId, slug, name, description, startDate, endDate, registrationOpensAt, registrationClosesAt, settings, defaultRegistrationFeeCents, createdAt, updatedAt, updateCounter) VALUES
 ('comp_winter_throwdown_2025',
  'team_cokkpu1klwo0ulfhl1iwzpvnbox1',
  'team_winter_throwdown_2025',
  'cgrp_box1_throwdowns_2025',
  'winter-throwdown-2025',
  'Winter Throwdown 2025',
- 'Kick off the new year with CrossFit Box One''s signature winter competition! Three challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with RX, RX Male Partner (teams of 2), Scaled, Masters 40+, and Teen divisions.',
+ 'Kick off the new year with CrossFit Box One''s signature winter competition! Four challenging workouts testing your strength, endurance, and mental toughness. Open to all skill levels with RX, RX Male Partner (teams of 2), Scaled, Masters 40+, and Teen divisions.',
  strftime('%s', datetime('now', '+14 days', 'start of day', '+8 hours')),
  strftime('%s', datetime('now', '+14 days', 'start of day', '+18 hours')),
  strftime('%s', 'now'),
  strftime('%s', datetime('now', '+7 days', '+23 hours', '+59 minutes')),
  '{"divisions": {"scalingGroupId": "sgrp_winter_throwdown_2025"}}',
+ 7500,
  strftime('%s', 'now'),
  strftime('%s', 'now'),
  0);
@@ -296,20 +334,42 @@ INSERT OR IGNORE INTO competitions (id, organizingTeamId, competitionTeamId, gro
 -- Competition Registrations
 -- Athletes registered for Winter Throwdown 2025
 -- divisionId references scaling_levels for competition divisions
-INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMemberId, divisionId, registeredAt, createdAt, updatedAt, updateCounter) VALUES
--- Mike Johnson - RX division
-('creg_mike_winter', 'comp_winter_throwdown_2025', 'usr_athlete_mike', 'tmem_mike_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 10:30:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Sarah Williams - RX division
-('creg_sarah_winter', 'comp_winter_throwdown_2025', 'usr_athlete_sarah', 'tmem_sarah_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 14:15:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Chris Brown - Masters 40+ division
-('creg_chris_winter', 'comp_winter_throwdown_2025', 'usr_athlete_chris', 'tmem_chris_winter_throwdown', 'slvl_winter_masters_40', strftime('%s', '2024-12-28 09:00:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- Emma Davis - Scaled division
-('creg_emma_winter', 'comp_winter_throwdown_2025', 'usr_athlete_emma', 'tmem_emma_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-29 16:45:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
--- John Doe (existing gym member) - Scaled division
-('creg_john_winter', 'comp_winter_throwdown_2025', 'usr_demo3member', 'tmem_john_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-30 11:20:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+-- paymentStatus: PAID for seeded athletes
+INSERT OR IGNORE INTO competition_registrations (id, eventId, userId, teamMemberId, divisionId, registeredAt, paymentStatus, paidAt, createdAt, updatedAt, updateCounter) VALUES
+-- RX Division Athletes (10 total)
+('creg_mike_winter', 'comp_winter_throwdown_2025', 'usr_athlete_mike', 'tmem_mike_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 10:30:00'), 'PAID', strftime('%s', '2024-12-27 10:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_sarah_winter', 'comp_winter_throwdown_2025', 'usr_athlete_sarah', 'tmem_sarah_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 14:15:00'), 'PAID', strftime('%s', '2024-12-27 14:16:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_alex_winter', 'comp_winter_throwdown_2025', 'usr_athlete_alex', 'tmem_alex_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-27 15:30:00'), 'PAID', strftime('%s', '2024-12-27 15:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_ryan_winter', 'comp_winter_throwdown_2025', 'usr_athlete_ryan', 'tmem_ryan_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-28 08:00:00'), 'PAID', strftime('%s', '2024-12-28 08:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_marcus_winter', 'comp_winter_throwdown_2025', 'usr_athlete_marcus', 'tmem_marcus_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-28 09:45:00'), 'PAID', strftime('%s', '2024-12-28 09:46:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_tyler_winter', 'comp_winter_throwdown_2025', 'usr_athlete_tyler', 'tmem_tyler_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-28 11:30:00'), 'PAID', strftime('%s', '2024-12-28 11:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_jordan_winter', 'comp_winter_throwdown_2025', 'usr_athlete_jordan', 'tmem_jordan_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-28 14:00:00'), 'PAID', strftime('%s', '2024-12-28 14:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_nathan_winter', 'comp_winter_throwdown_2025', 'usr_athlete_nathan', 'tmem_nathan_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-29 10:00:00'), 'PAID', strftime('%s', '2024-12-29 10:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_derek_winter', 'comp_winter_throwdown_2025', 'usr_athlete_derek', 'tmem_derek_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-29 12:30:00'), 'PAID', strftime('%s', '2024-12-29 12:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_brandon_winter', 'comp_winter_throwdown_2025', 'usr_athlete_brandon', 'tmem_brandon_winter_throwdown', 'slvl_winter_rx', strftime('%s', '2024-12-29 15:00:00'), 'PAID', strftime('%s', '2024-12-29 15:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Scaled Division Athletes (10 total)
+('creg_emma_winter', 'comp_winter_throwdown_2025', 'usr_athlete_emma', 'tmem_emma_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-29 16:45:00'), 'PAID', strftime('%s', '2024-12-29 16:46:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_john_winter', 'comp_winter_throwdown_2025', 'usr_demo3member', 'tmem_john_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-30 11:20:00'), 'PAID', strftime('%s', '2024-12-30 11:21:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_megan_winter', 'comp_winter_throwdown_2025', 'usr_athlete_megan', 'tmem_megan_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-30 13:00:00'), 'PAID', strftime('%s', '2024-12-30 13:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_ashley_winter', 'comp_winter_throwdown_2025', 'usr_athlete_ashley', 'tmem_ashley_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-30 14:30:00'), 'PAID', strftime('%s', '2024-12-30 14:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_brittany_winter', 'comp_winter_throwdown_2025', 'usr_athlete_brittany', 'tmem_brittany_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-31 09:00:00'), 'PAID', strftime('%s', '2024-12-31 09:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_stephanie_winter', 'comp_winter_throwdown_2025', 'usr_athlete_stephanie', 'tmem_stephanie_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-31 10:30:00'), 'PAID', strftime('%s', '2024-12-31 10:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_lauren_winter', 'comp_winter_throwdown_2025', 'usr_athlete_lauren', 'tmem_lauren_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-31 12:00:00'), 'PAID', strftime('%s', '2024-12-31 12:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_nicole_winter', 'comp_winter_throwdown_2025', 'usr_athlete_nicole', 'tmem_nicole_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-31 14:00:00'), 'PAID', strftime('%s', '2024-12-31 14:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_amanda_winter', 'comp_winter_throwdown_2025', 'usr_athlete_amanda', 'tmem_amanda_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-31 15:30:00'), 'PAID', strftime('%s', '2024-12-31 15:31:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('creg_kaitlyn_winter', 'comp_winter_throwdown_2025', 'usr_athlete_kaitlyn', 'tmem_kaitlyn_winter_throwdown', 'slvl_winter_scaled', strftime('%s', '2024-12-31 17:00:00'), 'PAID', strftime('%s', '2024-12-31 17:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Masters 40+ division
+('creg_chris_winter', 'comp_winter_throwdown_2025', 'usr_athlete_chris', 'tmem_chris_winter_throwdown', 'slvl_winter_masters_40', strftime('%s', '2024-12-28 09:00:00'), 'PAID', strftime('%s', '2024-12-28 09:01:00'), strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competition Programming Track for Winter Throwdown 2025
+-- Creates the track that holds competition events (workouts)
+-- NOTE: Competition events (track_workout) are inserted AFTER workouts table is populated below
+INSERT OR IGNORE INTO programming_track (id, name, description, type, ownerTeamId, scalingGroupId, isPublic, competitionId, createdAt, updatedAt, updateCounter) VALUES
+('track_winter_throwdown_2025', 'Winter Throwdown 2025 - Events', 'Competition events for Winter Throwdown 2025', 'team_owned', 'team_winter_throwdown_2025', 'sgrp_winter_throwdown_2025', 0, 'comp_winter_throwdown_2025', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- ============================================
 -- END COMPETITION PLATFORM SEED DATA
+-- (Competition events added after workouts below)
 -- ============================================
 
 -- Create team subscriptions (different plans for testing)
@@ -1012,35 +1072,81 @@ INSERT INTO workout_movements (id, workout_id, movement_id, createdAt, updatedAt
 ('wm_nicole_pullup', 'wod_nicole', 'mov_pullup', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Add all workouts to the Girls programming track
-INSERT INTO track_workout (id, trackId, workoutId, dayNumber, weekNumber, notes, createdAt, updatedAt, updateCounter) VALUES 
-('trwk_girls_amanda', 'ptrk_girls', 'wod_amanda', 1, 1, 'Classic benchmark - muscle-ups and squat snatches', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_angie', 'ptrk_girls', 'wod_angie', 2, 1, 'High volume bodyweight movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_annie', 'ptrk_girls', 'wod_annie', 3, 1, 'Double-unders and sit-ups descending ladder', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_barbara', 'ptrk_girls', 'wod_barbara', 4, 1, 'Time with rest - stay unbroken', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_candy', 'ptrk_girls', 'wod_candy', 5, 1, 'High volume upper body work', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_chelsea', 'ptrk_girls', 'wod_chelsea', 6, 1, 'EMOM format - maintain consistency', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_cindy', 'ptrk_girls', 'wod_cindy', 7, 1, 'Classic AMRAP - pace yourself', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_diane', 'ptrk_girls', 'wod_diane', 8, 2, 'Heavy deadlifts and handstand push-ups', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_elizabeth', 'ptrk_girls', 'wod_elizabeth', 9, 2, 'Squat cleans and ring dips', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_eva', 'ptrk_girls', 'wod_eva', 10, 2, 'Long chipper - pace management critical', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_fran', 'ptrk_girls', 'wod_fran', 11, 2, 'The classic sprint - fast and light', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_grace', 'ptrk_girls', 'wod_grace', 12, 2, 'Pure strength endurance - 30 clean and jerks', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_gwen', 'ptrk_girls', 'wod_gwen', 13, 2, 'Load-based scoring - find your max unbroken weight', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_helen', 'ptrk_girls', 'wod_helen', 14, 2, 'Running and upper body combo', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_hope', 'ptrk_girls', 'wod_hope', 15, 3, 'Points-based scoring across 5 stations', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_isabel', 'ptrk_girls', 'wod_isabel', 16, 3, '30 snatches - technical and demanding', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_jackie', 'ptrk_girls', 'wod_jackie', 17, 3, 'Chipper format - row, thrusters, pull-ups', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_karen', 'ptrk_girls', 'wod_karen', 18, 3, 'Simple but brutal - just wall balls', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_kelly', 'ptrk_girls', 'wod_kelly', 19, 3, 'Mixed modal endurance workout', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_linda', 'ptrk_girls', 'wod_linda', 20, 3, 'Strength ladder based on bodyweight percentages', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_lynne', 'ptrk_girls', 'wod_lynne', 21, 3, 'Upper body strength endurance test', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_maggie', 'ptrk_girls', 'wod_maggie', 22, 4, 'Advanced gymnastic movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_marguerita', 'ptrk_girls', 'wod_marguerita', 23, 4, 'High volume mixed movements', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_mary', 'ptrk_girls', 'wod_mary', 24, 4, 'Advanced gymnastic AMRAP', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_megan', 'ptrk_girls', 'wod_megan', 25, 4, 'Fast couplet with skill component', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_nancy', 'ptrk_girls', 'wod_nancy', 26, 4, 'Running with overhead squats', strftime('%s', 'now'), strftime('%s', 'now'), 0),
-('trwk_girls_nicole', 'ptrk_girls', 'wod_nicole', 27, 4, 'Run and max pull-ups format', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+INSERT INTO track_workout (id, trackId, workoutId, trackOrder, notes, heatStatus, createdAt, updatedAt, updateCounter) VALUES
+('trwk_girls_amanda', 'ptrk_girls', 'wod_amanda', 1, 'Classic benchmark - muscle-ups and squat snatches', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_angie', 'ptrk_girls', 'wod_angie', 2, 'High volume bodyweight movements', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_annie', 'ptrk_girls', 'wod_annie', 3, 'Double-unders and sit-ups descending ladder', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_barbara', 'ptrk_girls', 'wod_barbara', 4, 'Time with rest - stay unbroken', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_candy', 'ptrk_girls', 'wod_candy', 5, 'High volume upper body work', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_chelsea', 'ptrk_girls', 'wod_chelsea', 6, 'EMOM format - maintain consistency', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_cindy', 'ptrk_girls', 'wod_cindy', 7, 'Classic AMRAP - pace yourself', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_diane', 'ptrk_girls', 'wod_diane', 8, 'Heavy deadlifts and handstand push-ups', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_elizabeth', 'ptrk_girls', 'wod_elizabeth', 9, 'Squat cleans and ring dips', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_eva', 'ptrk_girls', 'wod_eva', 10, 'Long chipper - pace management critical', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_fran', 'ptrk_girls', 'wod_fran', 11, 'The classic sprint - fast and light', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_grace', 'ptrk_girls', 'wod_grace', 12, 'Pure strength endurance - 30 clean and jerks', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_gwen', 'ptrk_girls', 'wod_gwen', 13, 'Load-based scoring - find your max unbroken weight', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_helen', 'ptrk_girls', 'wod_helen', 14, 'Running and upper body combo', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_hope', 'ptrk_girls', 'wod_hope', 15, 'Points-based scoring across 5 stations', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_isabel', 'ptrk_girls', 'wod_isabel', 16, '30 snatches - technical and demanding', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_jackie', 'ptrk_girls', 'wod_jackie', 17, 'Chipper format - row, thrusters, pull-ups', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_karen', 'ptrk_girls', 'wod_karen', 18, 'Simple but brutal - just wall balls', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_kelly', 'ptrk_girls', 'wod_kelly', 19, 'Mixed modal endurance workout', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_linda', 'ptrk_girls', 'wod_linda', 20, 'Strength ladder based on bodyweight percentages', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_lynne', 'ptrk_girls', 'wod_lynne', 21, 'Upper body strength endurance test', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_maggie', 'ptrk_girls', 'wod_maggie', 22, 'Advanced gymnastic movements', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_marguerita', 'ptrk_girls', 'wod_marguerita', 23, 'High volume mixed movements', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_mary', 'ptrk_girls', 'wod_mary', 24, 'Advanced gymnastic AMRAP', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_megan', 'ptrk_girls', 'wod_megan', 25, 'Fast couplet with skill component', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_nancy', 'ptrk_girls', 'wod_nancy', 26, 'Running with overhead squats', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0),
+('trwk_girls_nicole', 'ptrk_girls', 'wod_nicole', 27, 'Run and max pull-ups format', NULL, strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
+-- Remixed workouts for Winter Throwdown 2025 competition
+-- These are copies of the benchmark workouts, owned by the organizing team
+INSERT OR IGNORE INTO workouts (id, name, description, scheme, scope, team_id, rounds_to_score, source_workout_id, createdAt, updatedAt, updateCounter) VALUES
+-- Fran (remixed for competition)
+('wod_winter_fran', 'Fran', 'For time:
+
+21-15-9 reps
+• Thrusters (95/75lb)
+• Pull-ups
+
+Target: 5 minutes', 'time', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_fran', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Grace (remixed for competition)
+('wod_winter_grace', 'Grace', 'For time:
+• 30 Clean-and-Jerks (135/95lb)
+
+Target: 8 minutes', 'time', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_grace', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Cindy (remixed for competition)
+('wod_winter_cindy', 'Cindy', 'AMRAP 20 minutes:
+• 5 pull-ups
+• 10 push-ups
+• 15 air squats
+
+Target: 12 rounds', 'rounds-reps', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_cindy', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Linda (remixed for competition)
+('wod_winter_linda', 'Linda', 'For time:
+
+10-9-8-7-6-5-4-3-2-1 reps
+• Deadlift (1.5 BW)
+• Bench Press (BW)
+• Clean (0.75 BW)
+
+Target: 30 minutes', 'time', 'private', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 1, 'wod_linda', strftime('%s', 'now'), strftime('%s', 'now'), 0);
+
+-- Competition Events for Winter Throwdown 2025 (4 workouts: 2 short, 1 medium, 1 long)
+-- Using remixed benchmark workouts owned by the organizing team
+-- trackOrder determines the event order in the competition
+-- heatStatus: 'draft' (assignments hidden from athletes) or 'published' (assignments visible)
+INSERT OR IGNORE INTO track_workout (id, trackId, workoutId, trackOrder, notes, pointsMultiplier, heatStatus, createdAt, updatedAt, updateCounter) VALUES
+-- Event 1: Fran (short ~5 min) - Classic sprint workout
+('tw_winter_event1_fran', 'track_winter_throwdown_2025', 'wod_winter_fran', 1, 'Event 1: Fran - A classic benchmark testing barbell cycling and gymnastics under fatigue. Fast and furious!', 100, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 2: Grace (short ~8 min) - Olympic lifting under fatigue
+('tw_winter_event2_grace', 'track_winter_throwdown_2025', 'wod_winter_grace', 2, 'Event 2: Grace - 30 clean and jerks for time. Test your barbell cycling and mental fortitude.', 100, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 3: Cindy (medium 20 min) - Bodyweight AMRAP
+('tw_winter_event3_cindy', 'track_winter_throwdown_2025', 'wod_winter_cindy', 3, 'Event 3: Cindy - 20 minute AMRAP of pull-ups, push-ups, and squats. Pace yourself!', 100, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0),
+-- Event 4: Linda (long ~30 min) - Heavy barbell chipper, final event with 1.5x points
+('tw_winter_event4_linda', 'track_winter_throwdown_2025', 'wod_winter_linda', 4, 'Event 4: Linda (Finals) - The ultimate test with deadlifts, bench press, and cleans. 1.5x points!', 150, 'draft', strftime('%s', 'now'), strftime('%s', 'now'), 0);
 
 -- Seed some sample results
 INSERT OR IGNORE INTO results (id, user_id, date, workout_id, type, wod_score, scale, notes, createdAt, updatedAt, updateCounter) VALUES 

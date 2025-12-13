@@ -26,16 +26,20 @@ competitionId: text().references(() => competitionsTable.id, { onDelete: "cascad
 - Enables querying tracks by competition
 - Auto-cleanup when competition deleted
 
-### 2. Add competition columns to `trackWorkoutsTable`
+### 2. Refactor `trackWorkoutsTable` columns
 
 ```typescript
 // In src/db/schemas/programming.ts - trackWorkoutsTable
-eventOrder: integer(),              // Event 1, 2, 3... (display order)
-pointsMultiplier: integer().default(100), // Points for 1st place in this event
+// RENAME: dayNumber → trackOrder
+trackOrder: integer().notNull(),    // Display order (1, 2, 3...)
+// DROP: weekNumber (no longer needed)
+// ADD: pointsMultiplier for weighted events
+pointsMultiplier: integer().default(100),
 ```
 
-- `eventOrder` determines competition event sequence (can differ from `dayNumber`)
-- `pointsMultiplier` sets max points for this event (1st place gets this, descending from there)
+- **Rename** `dayNumber` to `trackOrder` - unified ordering for both regular tracks and competitions
+- **Drop** `weekNumber` - not needed, simplifies the model
+- **Add** `pointsMultiplier` - allows weighted events (e.g., finals worth 2x)
 
 ### 3. Add competition context to `results` table (optional)
 
@@ -55,16 +59,33 @@ export interface CompetitionSettings {
   divisions?: {
     scalingGroupId: string
   }
-  track?: {
-    trackId: string  // Auto-created track ID
-  }
-  scoring?: {
-    type: 'points'
-    pointsDecrement: number  // Points decrease per place (default: 5)
-    basePoints: number       // Points for 1st place default (default: 100)
-  }
+  scoring?: ScoringSettings
 }
+
+// Scoring configuration - three types available (1st place always = 100 points)
+export type ScoringSettings =
+  | {
+      type: 'winner_takes_more'
+      // Points: 100, 85, 75, 67, 60, 54... (decreasing increments favor top finishers)
+    }
+  | {
+      type: 'even_spread'
+      // Points distributed linearly: for 5 athletes → 100, 75, 50, 25, 0
+    }
+  | {
+      type: 'fixed_step'
+      step: number  // Default: 5
+      // Points: 100, 95, 90, 85... (fixed decrement per place)
+    }
 ```
+
+**Scoring Type Examples (5 athletes):**
+
+| Type | Formula | Points |
+|------|---------|--------|
+| `winner_takes_more` | Decreasing increments | 100, 85, 75, 67, 60 |
+| `even_spread` | `100 - (place-1) * (100 / (count-1))` | 100, 75, 50, 25, 0 |
+| `fixed_step` (step=5) | `100 - (place-1) * step` | 100, 95, 90, 85, 80 |
 
 ---
 
@@ -73,10 +94,15 @@ export interface CompetitionSettings {
 ### Phase 3.1: Schema & Migration
 
 1. **Update `programmingTracksTable`** - Add `competitionId` column with FK to competitions
-2. **Update `trackWorkoutsTable`** - Add `eventOrder`, `pointsMultiplier` columns
-3. **Update relations** - Add competition → track relation
-4. **Export from schema** - Update `src/db/schema.ts`
-5. **Generate migration**: `pnpm db:generate add_competition_track_support`
+2. **Refactor `trackWorkoutsTable`**:
+   - Rename `dayNumber` → `trackOrder`
+   - Drop `weekNumber` column
+   - Add `pointsMultiplier` column
+3. **Update indexes** - Rename `track_workout_day_idx` to `track_workout_order_idx`
+4. **Update relations** - Add competition → track relation
+5. **Update all usages** - Find/replace `dayNumber` → `trackOrder` throughout codebase
+6. **Export from schema** - Update `src/db/schema.ts`
+7. **Generate migration**: `pnpm db:generate refactor_track_workouts`
 
 ### Phase 3.2: Auto-Create Track on Competition Creation
 
@@ -84,7 +110,7 @@ Extend `createCompetition()` in `src/server/competitions.ts`:
 
 ```typescript
 // After creating competition and competition team:
-const competitionTrack = await db.insert(programmingTracksTable).values({
+await db.insert(programmingTracksTable).values({
   name: `${params.name} - Events`,
   description: `Competition events for ${params.name}`,
   type: "team_owned",
@@ -92,15 +118,8 @@ const competitionTrack = await db.insert(programmingTracksTable).values({
   competitionId: competition.id,
   scalingGroupId: settings?.divisions?.scalingGroupId,
   isPublic: false,
-}).returning()
-
-// Store trackId in competition settings
-await db.update(competitionsTable)
-  .set({ settings: stringifyCompetitionSettings({
-    ...settings,
-    track: { trackId: competitionTrack[0].id }
-  })})
-  .where(eq(competitionsTable.id, competition.id))
+})
+// Track can be queried via: WHERE competitionId = competition.id
 ```
 
 ### Phase 3.3: Competition Workout CRUD
@@ -111,7 +130,7 @@ Create `src/server/competition-workouts.ts`:
 export async function addWorkoutToCompetition(params: {
   competitionId: string
   workoutId: string
-  eventOrder: number
+  trackOrder: number
   pointsMultiplier?: number
   notes?: string
 })
@@ -120,7 +139,7 @@ export async function getCompetitionWorkouts(competitionId: string)
 
 export async function updateCompetitionWorkout(params: {
   trackWorkoutId: string
-  eventOrder?: number
+  trackOrder?: number
   pointsMultiplier?: number
   notes?: string
 })
@@ -129,7 +148,7 @@ export async function removeWorkoutFromCompetition(trackWorkoutId: string)
 
 export async function reorderCompetitionEvents(
   competitionId: string,
-  updates: { trackWorkoutId: string; eventOrder: number }[]
+  updates: { trackWorkoutId: string; trackOrder: number }[]
 )
 ```
 
@@ -148,7 +167,7 @@ export interface CompetitionLeaderboardEntry {
   overallRank: number
   eventResults: Array<{
     trackWorkoutId: string
-    eventOrder: number
+    trackOrder: number
     eventName: string
     rank: number
     points: number
@@ -171,8 +190,11 @@ export async function getEventLeaderboard(params: {
 
 **Points Calculation Logic**:
 1. For each event, rank athletes within their division by score
-2. 1st place gets `pointsMultiplier` points (default 100)
-3. Each subsequent place loses `pointsDecrement` (default 5): 100, 95, 90, 85...
+2. Apply scoring based on competition's `scoring.type`:
+   - **winner_takes_more**: `[100, 85, 75, 67, 60, 54, 49, 45, 41, 38, 35, 32, 30, 28, 26, 24, 22, 20, ...]`
+   - **even_spread**: `100 - (place - 1) * (100 / (athleteCount - 1))`
+   - **fixed_step**: `100 - (place - 1) * step`
+3. Multiply event points by `pointsMultiplier / 100` if set (allows weighted events, e.g., 200 = 2x points)
 4. Sum all event points for overall standings
 5. Tie-breaker: count of 1st places, then 2nd places, etc.
 
@@ -194,19 +216,24 @@ export const getEventLeaderboardAction = publicAction(...)
 
 ### Phase 3.6: UI Components
 
-#### Admin UI
-- **Event Manager**: `src/app/(admin)/admin/teams/[teamId]/competitions/[competitionId]/events/`
+#### Organizer UI
+- **Event Manager**: `src/app/(compete)/compete/organizer/[competitionId]/events/`
   - List events with drag-to-reorder
   - Add workout modal (search existing workouts)
   - Edit event settings (points multiplier, notes)
   - Remove event
 
 #### Public UI
-- **Competition Detail**: Extend `src/app/(compete)/compete/[slug]/page.tsx`
-  - Add "Events" tab showing workouts with division descriptions
+- **Competition Detail Page**: `src/app/(compete)/compete/[slug]/page.tsx`
+  - Events section on main details page (summary view of workouts)
   - Show schedule if dates set
 
-- **Leaderboard**: `src/app/(compete)/compete/[slug]/leaderboard/page.tsx`
+- **Events Tab**: `src/app/(compete)/compete/[slug]/events/page.tsx`
+  - Full list of competition events/workouts
+  - Division-specific descriptions for each workout
+  - Event order and details
+
+- **Leaderboard Tab**: `src/app/(compete)/compete/[slug]/leaderboard/page.tsx`
   - Division tabs/selector
   - Overall standings table (rank, athlete, total points, per-event breakdown)
   - Click event column to see event leaderboard detail
@@ -233,7 +260,7 @@ When displaying workout for a division, join to get division-specific descriptio
 
 ## Results Flow
 
-1. Admin adds workout to competition → Creates `trackWorkoutsTable` entry with `eventOrder`
+1. Admin adds workout to competition → Creates `trackWorkoutsTable` entry with `trackOrder`
 2. Athlete performs workout → Logs result in `results` table with `scheduledWorkoutInstanceId`
 3. Leaderboard query:
    - Get competition track → Get track workouts
@@ -260,7 +287,7 @@ No current schema changes needed - purely additive when implemented.
 
 | File | Changes |
 |------|---------|
-| `src/db/schemas/programming.ts` | Add `competitionId`, `eventOrder`, `pointsMultiplier` |
+| `src/db/schemas/programming.ts` | Add `competitionId`, rename `dayNumber`→`trackOrder`, drop `weekNumber`, add `pointsMultiplier` |
 | `src/db/schemas/competitions.ts` | Add relations to programming track |
 | `src/db/schema.ts` | Update exports |
 | `src/types/competitions.ts` | Extend `CompetitionSettings` |

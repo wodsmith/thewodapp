@@ -1,5 +1,6 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
+import { ZSAError } from "@repo/zsa"
 import {
 	and,
 	asc,
@@ -15,7 +16,6 @@ import {
 	type SQL,
 	sql,
 } from "drizzle-orm"
-import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import type { Workout } from "@/db/schema"
 import {
@@ -34,15 +34,17 @@ import {
 	scalingLevelsTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
 } from "@/server/programming"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
 import { isTeamMember } from "@/utils/team-auth"
 
 /**
- * Helper function to fetch tags by workout IDs
+ * Helper function to fetch tags by workout IDs (batched)
  */
 async function fetchTagsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -50,15 +52,19 @@ async function fetchTagsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutTagsData = await db
-		.select({
-			workoutId: workoutTags.workoutId,
-			tagId: tags.id,
-			tagName: tags.name,
-		})
-		.from(workoutTags)
-		.innerJoin(tags, eq(workoutTags.tagId, tags.id))
-		.where(inArray(workoutTags.workoutId, workoutIds))
+	const workoutTagsData = await autochunk(
+		{ items: workoutIds },
+		async (chunk) =>
+			db
+				.select({
+					workoutId: workoutTags.workoutId,
+					tagId: tags.id,
+					tagName: tags.name,
+				})
+				.from(workoutTags)
+				.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+				.where(inArray(workoutTags.workoutId, chunk)),
+	)
 
 	const tagsByWorkoutId = new Map<string, Array<{ id: string; name: string }>>()
 
@@ -76,7 +82,7 @@ async function fetchTagsByWorkoutId(
 }
 
 /**
- * Helper function to fetch movements by workout IDs
+ * Helper function to fetch movements by workout IDs (batched)
  */
 async function fetchMovementsByWorkoutId(
 	db: ReturnType<typeof getDb>,
@@ -84,16 +90,20 @@ async function fetchMovementsByWorkoutId(
 ): Promise<Map<string, Array<{ id: string; name: string; type: string }>>> {
 	if (workoutIds.length === 0) return new Map()
 
-	const workoutMovementsData = await db
-		.select({
-			workoutId: workoutMovements.workoutId,
-			movementId: movements.id,
-			movementName: movements.name,
-			movementType: movements.type,
-		})
-		.from(workoutMovements)
-		.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-		.where(inArray(workoutMovements.workoutId, workoutIds))
+	const workoutMovementsData = await autochunk(
+		{ items: workoutIds },
+		async (chunk) =>
+			db
+				.select({
+					workoutId: workoutMovements.workoutId,
+					movementId: movements.id,
+					movementName: movements.name,
+					movementType: movements.type,
+				})
+				.from(workoutMovements)
+				.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+				.where(inArray(workoutMovements.workoutId, chunk)),
+	)
 
 	const movementsByWorkoutId = new Map<
 		string,
@@ -115,32 +125,37 @@ async function fetchMovementsByWorkoutId(
 }
 
 /**
- * Helper function to fetch today's results by workout IDs
+ * Helper function to fetch today's results by workout IDs (batched)
  */
 async function fetchTodaysResultsByWorkoutId(
 	db: ReturnType<typeof getDb>,
 	userId: string,
 	workoutIds: string[],
-): Promise<Map<string, Array<(typeof todaysResults)[0]>>> {
-	if (workoutIds.length === 0) return new Map()
+) {
+	if (workoutIds.length === 0)
+		return new Map<string, Array<typeof results.$inferSelect>>()
 
 	const today = new Date()
 	today.setHours(0, 0, 0, 0)
 	const tomorrow = new Date(today)
 	tomorrow.setDate(tomorrow.getDate() + 1)
 
-	const todaysResults = await db
-		.select()
-		.from(results)
-		.where(
-			and(
-				eq(results.userId, userId),
-				isNotNull(results.workoutId),
-				inArray(results.workoutId, workoutIds),
-				gte(results.date, today),
-				lt(results.date, tomorrow),
-			),
-		)
+	const todaysResults = await autochunk(
+		{ items: workoutIds, otherParametersCount: 4 }, // +4 for userId, isNotNull, gte, lt
+		async (chunk) =>
+			db
+				.select()
+				.from(results)
+				.where(
+					and(
+						eq(results.userId, userId),
+						isNotNull(results.workoutId),
+						inArray(results.workoutId, chunk),
+						gte(results.date, today),
+						lt(results.date, tomorrow),
+					),
+				),
+	)
 
 	const resultsByWorkoutId = new Map<string, Array<(typeof todaysResults)[0]>>()
 
@@ -194,7 +209,10 @@ export async function getUserWorkoutsCount({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	const teamOrPublicCondition = or(
+		inArray(workouts.teamId, teamIds),
+		eq(workouts.scope, "public"),
+	)
 	if (teamOrPublicCondition) {
 		conditions.push(teamOrPublicCondition)
 	}
@@ -331,7 +349,10 @@ export async function getUserWorkouts({
 	// Base condition: team-owned or public workouts
 	// Support multiple team IDs by converting single teamId to array
 	const teamIds = Array.isArray(teamId) ? teamId : [teamId]
-	const teamOrPublicCondition = or(inArray(workouts.teamId, teamIds), eq(workouts.scope, "public"))
+	const teamOrPublicCondition = or(
+		inArray(workouts.teamId, teamIds),
+		eq(workouts.scope, "public"),
+	)
 	if (teamOrPublicCondition) {
 		conditions.push(teamOrPublicCondition)
 	}
@@ -385,7 +406,7 @@ export async function getUserWorkouts({
 			roundsToScore: workouts.roundsToScore,
 			sugarId: workouts.sugarId,
 			tiebreakScheme: workouts.tiebreakScheme,
-			secondaryScheme: workouts.secondaryScheme,
+			timeCap: workouts.timeCap,
 			sourceWorkoutId: workouts.sourceWorkoutId,
 			sourceTrackId: workouts.sourceTrackId,
 			createdAt: workouts.createdAt,
@@ -441,47 +462,57 @@ export async function getUserWorkouts({
 		{ id: string; name: string; teamId: string | null }
 	>()
 	if (sourceWorkoutIds.length > 0) {
-		const sourceWorkouts = await db
-			.select({
-				id: workouts.id,
-				name: workouts.name,
-				teamId: workouts.teamId,
-			})
-			.from(workouts)
-			.where(inArray(workouts.id, sourceWorkoutIds))
+		const sourceWorkouts = await autochunk(
+			{ items: sourceWorkoutIds },
+			async (chunk) =>
+				db
+					.select({
+						id: workouts.id,
+						name: workouts.name,
+						teamId: workouts.teamId,
+					})
+					.from(workouts)
+					.where(inArray(workouts.id, chunk)),
+		)
 
 		sourceWorkoutsMap = new Map(sourceWorkouts.map((w) => [w.id, w]))
 	}
 
-	// Fetch team names for source workouts
+	// Fetch team names for source workouts (batched)
 	const sourceTeamIds = Array.from(sourceWorkoutsMap.values())
 		.map((w) => w.teamId)
 		.filter((id): id is string => id !== null)
 
 	let teamsMap = new Map<string, { name: string }>()
 	if (sourceTeamIds.length > 0) {
-		const teams = await db
-			.select({ id: teamTable.id, name: teamTable.name })
-			.from(teamTable)
-			.where(inArray(teamTable.id, sourceTeamIds))
+		const teams = await autochunk({ items: sourceTeamIds }, async (chunk) =>
+			db
+				.select({ id: teamTable.id, name: teamTable.name })
+				.from(teamTable)
+				.where(inArray(teamTable.id, chunk)),
+		)
 
 		teamsMap = new Map(teams.map((t) => [t.id, { name: t.name }]))
 	}
 
-	// Fetch remix counts for all workouts
-	const remixCounts = await db
-		.select({
-			sourceWorkoutId: workouts.sourceWorkoutId,
-			count: count(),
-		})
-		.from(workouts)
-		.where(
-			and(
-				isNotNull(workouts.sourceWorkoutId),
-				inArray(workouts.sourceWorkoutId, workoutIds),
-			),
-		)
-		.groupBy(workouts.sourceWorkoutId)
+	// Fetch remix counts for all workouts (batched)
+	const remixCounts = await autochunk(
+		{ items: workoutIds, otherParametersCount: 1 }, // +1 for isNotNull
+		async (chunk) =>
+			db
+				.select({
+					sourceWorkoutId: workouts.sourceWorkoutId,
+					count: count(),
+				})
+				.from(workouts)
+				.where(
+					and(
+						isNotNull(workouts.sourceWorkoutId),
+						inArray(workouts.sourceWorkoutId, chunk),
+					),
+				)
+				.groupBy(workouts.sourceWorkoutId),
+	)
 
 	const remixCountsMap = new Map(
 		remixCounts.map((rc) => [rc.sourceWorkoutId, rc.count]),
@@ -547,7 +578,6 @@ export async function createWorkout({
 				roundsToScore: workout.roundsToScore,
 				sugarId: workout.sugarId,
 				tiebreakScheme: workout.tiebreakScheme,
-				secondaryScheme: workout.secondaryScheme,
 				scalingGroupId: workout.scalingGroupId,
 				teamId,
 				// Let database defaults handle timestamps
@@ -580,7 +610,10 @@ export async function createWorkout({
 
 		return newWorkout
 	} catch (error) {
-		console.error("Failed to create workout:", error)
+		logError({
+			message: "[createWorkout] Failed to create workout",
+			error,
+		})
 		// Re-throw with a more specific error message
 		if (error instanceof Error && error.message.includes("ECONNRESET")) {
 			throw new Error("Database connection error. Please try again.")
@@ -588,7 +621,6 @@ export async function createWorkout({
 		throw error
 	}
 }
-
 
 /**
  * Get a single workout by ID with its tags and movements, including remix information
@@ -940,18 +972,16 @@ export async function createWorkoutRemix({
 
 	// Check if user can view the source workout
 	// User can view if: it's public OR they belong to the workout's team OR they're subscribed to the programming track
-	console.log("🔍 Permission Debug - createWorkoutRemix:", {
-		sourceWorkoutId,
-		teamId,
-		sourceWorkout: {
-			id: sourceWorkout.id,
-			scope: sourceWorkout.scope,
-			teamId: sourceWorkout.teamId,
+	logInfo({
+		message: "[createWorkoutRemix] Permission check start",
+		attributes: {
+			sourceWorkoutId,
+			targetTeamId: teamId,
+			sourceScope: sourceWorkout.scope,
+			sourceTeamId: sourceWorkout.teamId,
 			sourceTrackId: sourceWorkout.sourceTrackId,
-		},
-		session: {
 			userId: session.user?.id,
-			teams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
+			userTeams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
 		},
 	})
 
@@ -960,50 +990,55 @@ export async function createWorkoutRemix({
 		sourceWorkout.teamId === teamId ||
 		session.teams?.some((team) => team.id === sourceWorkout.teamId)
 
-	console.log("🔍 Initial permission check:", {
-		isPublic: sourceWorkout.scope === "public",
-		isOwnedByTeam: sourceWorkout.teamId === teamId,
-		isInUserTeams: session.teams?.some(
-			(team) => team.id === sourceWorkout.teamId,
-		),
-		canViewSource,
+	logInfo({
+		message: "[createWorkoutRemix] Initial permission check",
+		attributes: {
+			isPublic: sourceWorkout.scope === "public",
+			isOwnedByTeam: sourceWorkout.teamId === teamId,
+			isInUserTeams: session.teams?.some(
+				(team) => team.id === sourceWorkout.teamId,
+			),
+			canViewSource,
+		},
 	})
 
 	// If not already allowed, check if this workout is in any programming track the team is subscribed to
 	if (!canViewSource) {
 		// First try the sourceTrackId approach if available
 		if (sourceWorkout.sourceTrackId) {
-			console.log("🔍 Checking programming track subscription:", {
-				teamId,
-				sourceTrackId: sourceWorkout.sourceTrackId,
-			})
-
 			canViewSource = await isTeamSubscribedToProgrammingTrack(
 				teamId,
 				sourceWorkout.sourceTrackId,
 			)
 
-			console.log("🔍 Programming track subscription result:", {
-				canViewSource,
+			logInfo({
+				message: "[createWorkoutRemix] Source track subscription result",
+				attributes: {
+					canViewSource,
+					sourceTrackId: sourceWorkout.sourceTrackId,
+					teamId,
+				},
 			})
 		}
 
 		// If still not allowed, check if this workout exists in any subscribed programming track
 		if (!canViewSource) {
-			console.log(
-				"🔍 Checking if workout is in any subscribed programming track",
-			)
-
 			canViewSource = await isWorkoutInTeamSubscribedTrack(
 				teamId,
 				sourceWorkout.id,
 			)
 
-			console.log("🔍 Workout in subscribed track result:", { canViewSource })
+			logInfo({
+				message: "[createWorkoutRemix] Workout in subscribed track result",
+				attributes: { canViewSource, teamId, workoutId: sourceWorkout.id },
+			})
 		}
 	}
 
-	console.log("🔍 Final permission result:", { canViewSource })
+	logInfo({
+		message: "[createWorkoutRemix] Final permission result",
+		attributes: { canViewSource, teamId, sourceWorkoutId },
+	})
 
 	if (!canViewSource) {
 		throw new ZSAError(
@@ -1031,7 +1066,6 @@ export async function createWorkoutRemix({
 			roundsToScore: sourceWorkout.roundsToScore,
 			sugarId: sourceWorkout.sugarId,
 			tiebreakScheme: sourceWorkout.tiebreakScheme,
-			secondaryScheme: sourceWorkout.secondaryScheme,
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
 			// Let database defaults handle timestamps
@@ -1107,19 +1141,17 @@ export async function createProgrammingTrackWorkoutRemix({
 
 	// Check if user can view the source workout
 	// User can view if: it's public OR they belong to the workout's team OR they're subscribed to the programming track
-	console.log("🔍 Permission Debug - createProgrammingTrackWorkoutRemix:", {
-		sourceWorkoutId,
-		sourceTrackId,
-		teamId,
-		sourceWorkout: {
-			id: sourceWorkout.id,
-			scope: sourceWorkout.scope,
-			teamId: sourceWorkout.teamId,
-			sourceTrackId: sourceWorkout.sourceTrackId,
-		},
-		session: {
+	logInfo({
+		message: "[createProgrammingTrackWorkoutRemix] Permission check start",
+		attributes: {
+			sourceWorkoutId,
+			sourceTrackId,
+			teamId,
+			sourceScope: sourceWorkout.scope,
+			sourceTeamId: sourceWorkout.teamId,
+			sourceWorkoutTrackId: sourceWorkout.sourceTrackId,
 			userId: session.user?.id,
-			teams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
+			userTeams: session.teams?.map((t) => ({ id: t.id, name: t.name })),
 		},
 	})
 
@@ -1128,46 +1160,49 @@ export async function createProgrammingTrackWorkoutRemix({
 		sourceWorkout.teamId === teamId ||
 		session.teams?.some((team) => team.id === sourceWorkout.teamId)
 
-	console.log("🔍 Initial permission check (Programming Track):", {
-		isPublic: sourceWorkout.scope === "public",
-		isOwnedByTeam: sourceWorkout.teamId === teamId,
-		isInUserTeams: session.teams?.some(
-			(team) => team.id === sourceWorkout.teamId,
-		),
-		canViewSource,
+	logInfo({
+		message: "[createProgrammingTrackWorkoutRemix] Initial permission check",
+		attributes: {
+			isPublic: sourceWorkout.scope === "public",
+			isOwnedByTeam: sourceWorkout.teamId === teamId,
+			isInUserTeams: session.teams?.some(
+				(team) => team.id === sourceWorkout.teamId,
+			),
+			canViewSource,
+		},
 	})
 
 	// If not already allowed, check programming track subscription
 	if (!canViewSource) {
-		console.log("🔍 Checking programming track subscription:", {
-			teamId,
-			sourceTrackId,
-		})
-
 		canViewSource = await isTeamSubscribedToProgrammingTrack(
 			teamId,
 			sourceTrackId,
 		)
 
-		console.log("🔍 Programming track subscription result:", { canViewSource })
+		logInfo({
+			message:
+				"[createProgrammingTrackWorkoutRemix] Source track subscription result",
+			attributes: { canViewSource, teamId, sourceTrackId },
+		})
 
 		// If still not allowed, check if this workout exists in any subscribed programming track
 		if (!canViewSource) {
-			console.log(
-				"🔍 Checking if workout is in any subscribed programming track",
-			)
-
 			canViewSource = await isWorkoutInTeamSubscribedTrack(
 				teamId,
 				sourceWorkout.id,
 			)
 
-			console.log("🔍 Workout in subscribed track result:", { canViewSource })
+			logInfo({
+				message:
+					"[createProgrammingTrackWorkoutRemix] Workout in subscribed track result",
+				attributes: { canViewSource, teamId, workoutId: sourceWorkout.id },
+			})
 		}
 	}
 
-	console.log("🔍 Final permission result (Programming Track):", {
-		canViewSource,
+	logInfo({
+		message: "[createProgrammingTrackWorkoutRemix] Final permission result",
+		attributes: { canViewSource, teamId, sourceWorkoutId, sourceTrackId },
 	})
 
 	if (!canViewSource) {
@@ -1196,7 +1231,6 @@ export async function createProgrammingTrackWorkoutRemix({
 			roundsToScore: sourceWorkout.roundsToScore,
 			sugarId: sourceWorkout.sugarId,
 			tiebreakScheme: sourceWorkout.tiebreakScheme,
-			secondaryScheme: sourceWorkout.secondaryScheme,
 			teamId,
 			sourceWorkoutId, // Reference to the original workout
 			sourceTrackId, // Reference to the original programming track
@@ -1423,17 +1457,21 @@ export async function getWorkoutScheduleHistory(
 		relatedWorkoutIds.push(workout[0].sourceWorkoutId)
 	}
 
-	// Find all remixes of this workout (or remixes of the original if this is a remix)
+	// Find all remixes of this workout (or remixes of the original if this is a remix) - batched
 	const baseWorkoutId = workout[0].sourceWorkoutId || workoutId
-	const remixes = await db
-		.select({ id: workouts.id })
-		.from(workouts)
-		.where(
-			and(
-				eq(workouts.sourceWorkoutId, baseWorkoutId),
-				inArray(workouts.teamId, userTeamIds),
-			),
-		)
+	const remixes = await autochunk(
+		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for sourceWorkoutId
+		async (chunk) =>
+			db
+				.select({ id: workouts.id })
+				.from(workouts)
+				.where(
+					and(
+						eq(workouts.sourceWorkoutId, baseWorkoutId),
+						inArray(workouts.teamId, chunk),
+					),
+				),
+	)
 
 	for (const remix of remixes) {
 		if (!relatedWorkoutIds.includes(remix.id)) {
@@ -1441,33 +1479,41 @@ export async function getWorkoutScheduleHistory(
 		}
 	}
 
-	// Get all scheduled instances for these workouts, filtered by user's teams
-	const scheduleHistory = await db
-		.select({
-			id: scheduledWorkoutInstancesTable.id,
-			scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
-			teamId: scheduledWorkoutInstancesTable.teamId,
-			teamName: teamTable.name,
-			workoutId: scheduledWorkoutInstancesTable.workoutId,
-			workoutName: workouts.name,
-		})
-		.from(scheduledWorkoutInstancesTable)
-		.innerJoin(
-			teamTable,
-			eq(scheduledWorkoutInstancesTable.teamId, teamTable.id),
-		)
-		.innerJoin(
-			workouts,
-			eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
-		)
-		.where(
-			and(
-				isNotNull(scheduledWorkoutInstancesTable.workoutId),
-				inArray(scheduledWorkoutInstancesTable.workoutId, relatedWorkoutIds),
-				inArray(scheduledWorkoutInstancesTable.teamId, userTeamIds),
-			),
-		)
-		.orderBy(desc(scheduledWorkoutInstancesTable.scheduledDate))
+	// Get all scheduled instances for these workouts, filtered by user's teams (batched)
+	// Note: We batch on userTeamIds which is potentially larger, assuming relatedWorkoutIds is small
+	const scheduleHistory = await autochunk(
+		{ items: userTeamIds, otherParametersCount: 1 + relatedWorkoutIds.length }, // +1 for isNotNull
+		async (chunk) =>
+			db
+				.select({
+					id: scheduledWorkoutInstancesTable.id,
+					scheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+					teamId: scheduledWorkoutInstancesTable.teamId,
+					teamName: teamTable.name,
+					workoutId: scheduledWorkoutInstancesTable.workoutId,
+					workoutName: workouts.name,
+				})
+				.from(scheduledWorkoutInstancesTable)
+				.innerJoin(
+					teamTable,
+					eq(scheduledWorkoutInstancesTable.teamId, teamTable.id),
+				)
+				.innerJoin(
+					workouts,
+					eq(scheduledWorkoutInstancesTable.workoutId, workouts.id),
+				)
+				.where(
+					and(
+						isNotNull(scheduledWorkoutInstancesTable.workoutId),
+						inArray(
+							scheduledWorkoutInstancesTable.workoutId,
+							relatedWorkoutIds,
+						),
+						inArray(scheduledWorkoutInstancesTable.teamId, chunk),
+					),
+				)
+				.orderBy(desc(scheduledWorkoutInstancesTable.scheduledDate)),
+	)
 
 	return scheduleHistory
 		.filter((row) => row.workoutId !== null)

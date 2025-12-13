@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/collapsible"
 import { ListItem } from "@/components/ui/list-item"
 import type { CompetitionWithOrganizingTeam } from "@/server/competitions"
+import { formatUTCDateFull, formatUTCDateShort } from "@/utils/date-utils"
 import { cn } from "@/lib/utils"
 
 type CompetitionStatus =
@@ -19,6 +20,7 @@ type CompetitionStatus =
 	| "active"
 	| "coming-soon"
 	| "registration-closed"
+	| "past"
 
 interface CompetitionRowProps {
 	competition: CompetitionWithOrganizingTeam
@@ -32,21 +34,6 @@ export function CompetitionRow({
 	isAuthenticated,
 }: CompetitionRowProps) {
 	const [isOpen, setIsOpen] = useState(false)
-
-	const formatDate = (date: Date) => {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-		}).format(new Date(date))
-	}
-
-	const formatFullDate = (date: Date) => {
-		return new Intl.DateTimeFormat("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		}).format(new Date(date))
-	}
 
 	const getStatusBadge = () => {
 		switch (status) {
@@ -72,6 +59,12 @@ export function CompetitionRow({
 				return (
 					<Badge variant="secondary" className="shrink-0">
 						Soon
+					</Badge>
+				)
+			case "past":
+				return (
+					<Badge variant="outline" className="shrink-0 text-muted-foreground">
+						Past
 					</Badge>
 				)
 		}
@@ -110,16 +103,16 @@ export function CompetitionRow({
 		const now = new Date()
 
 		if (status === "coming-soon" && regOpens && regOpens > now) {
-			return `Register: ${formatDate(regOpens)}`
+			return `Register: ${formatUTCDateShort(regOpens)}`
 		}
 		if (status === "registration-open" && regOpens && regCloses) {
-			return `Register: ${formatDate(regOpens)} - ${formatDate(regCloses)}`
+			return `Register: ${formatUTCDateShort(regOpens)} - ${formatUTCDateShort(regCloses)}`
 		}
 		if (status === "registration-closed" && regCloses) {
-			return `Closed: ${formatDate(regCloses)}`
+			return `Closed: ${formatUTCDateShort(regCloses)}`
 		}
 		if (regCloses && regCloses > now) {
-			return `Register by ${formatDate(regCloses)}`
+			return `Register by ${formatUTCDateShort(regCloses)}`
 		}
 		return null
 	}
@@ -154,8 +147,8 @@ export function CompetitionRow({
 						<div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground ml-auto shrink-0">
 							<span className="flex items-center gap-1">
 								<CalendarIcon className="h-3.5 w-3.5" />
-								Event: {formatDate(competition.startDate)} -{" "}
-								{formatDate(competition.endDate)}
+								Event: {formatUTCDateShort(competition.startDate)} -{" "}
+								{formatUTCDateShort(competition.endDate)}
 							</span>
 							{competition.organizingTeam && (
 								<span className="flex items-center gap-1">
@@ -173,13 +166,15 @@ export function CompetitionRow({
 						)}
 						<span className="flex items-center gap-1">
 							<CalendarIcon className="h-3 w-3" />
-							Event: {formatDate(competition.startDate)} -{" "}
-							{formatDate(competition.endDate)}
+							Event: {formatUTCDateShort(competition.startDate)} -{" "}
+							{formatUTCDateShort(competition.endDate)}
 						</span>
 						{competition.organizingTeam && (
 							<span className="flex items-center gap-1 truncate">
 								<MapPinIcon className="h-3 w-3 shrink-0" />
-								<span className="truncate">{competition.organizingTeam.name}</span>
+								<span className="truncate">
+									{competition.organizingTeam.name}
+								</span>
 							</span>
 						)}
 					</div>
@@ -218,29 +213,37 @@ export function CompetitionRow({
 					)}
 
 					{/* Registration info */}
-					{status === "registration-open" && competition.registrationClosesAt && (
-						<p className="text-sm">
-							<span className="text-muted-foreground">Registration closes: </span>
-							<span className="font-medium">
-								{formatFullDate(competition.registrationClosesAt)}
-							</span>
-						</p>
-					)}
+					{status === "registration-open" &&
+						competition.registrationClosesAt && (
+							<p className="text-sm">
+								<span className="text-muted-foreground">
+									Registration closes:{" "}
+								</span>
+								<span className="font-medium">
+									{formatUTCDateFull(competition.registrationClosesAt)}
+								</span>
+							</p>
+						)}
 
-					{status === "registration-closed" && competition.registrationClosesAt && (
-						<p className="text-sm">
-							<span className="text-muted-foreground">Registration closed: </span>
-							<span className="font-medium">
-								{formatFullDate(competition.registrationClosesAt)}
-							</span>
-						</p>
-					)}
+					{status === "registration-closed" &&
+						competition.registrationClosesAt && (
+							<p className="text-sm">
+								<span className="text-muted-foreground">
+									Registration closed:{" "}
+								</span>
+								<span className="font-medium">
+									{formatUTCDateFull(competition.registrationClosesAt)}
+								</span>
+							</p>
+						)}
 
 					{status === "coming-soon" && competition.registrationOpensAt && (
 						<p className="text-sm">
-							<span className="text-muted-foreground">Registration opens: </span>
+							<span className="text-muted-foreground">
+								Registration opens:{" "}
+							</span>
 							<span className="font-medium">
-								{formatFullDate(competition.registrationOpensAt)}
+								{formatUTCDateFull(competition.registrationOpensAt)}
 							</span>
 						</p>
 					)}
