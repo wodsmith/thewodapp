@@ -1,4 +1,4 @@
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import {
 	programmingTracksTable,
 	teamProgrammingTracksTable,
@@ -14,10 +14,10 @@ import { beforeEach, describe, expect, it } from "vitest"
 
 describe("getTeamTracks functionality", () => {
 	let testTeamId: string
-	let db: ReturnType<typeof getDd>
+	let db: ReturnType<typeof getDb>
 
 	beforeEach(async () => {
-		db = getDd()
+		db = getDb()
 
 		// Get or create a test team
 		const existingTeams = await db.select().from(teamTable).limit(1)

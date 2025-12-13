@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest"
 import { canUserEditWorkout, shouldCreateRemix, getWorkoutPermissions } from "@/utils/workout-permissions"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { eq } from "drizzle-orm"
 import { workouts } from "@/db/schema"
 import type { KVSession } from "@/utils/kv-session"
@@ -19,7 +19,7 @@ vi.mock("@/utils/team-auth", () => ({
 const mockFindFirst = vi.fn()
 
 vi.mock("@/db", () => ({
-  getDd: vi.fn(() => ({
+  getDb: vi.fn(() => ({
     query: {
       workouts: {
         findFirst: mockFindFirst,

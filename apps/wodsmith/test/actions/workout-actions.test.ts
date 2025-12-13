@@ -1,5 +1,5 @@
 import { createWorkoutAction, createWorkoutRemixAction, updateWorkoutAction } from "@/actions/workout-actions"
-import { getDd } from "@/db"
+import { getDb } from "@/db"
 import { teamTable, workouts } from "@/db/schema"
 import { beforeAll, expect, test, describe, it, vi, beforeEach, afterEach } from "vitest"
 import { requireVerifiedEmail } from "@/utils/auth"
