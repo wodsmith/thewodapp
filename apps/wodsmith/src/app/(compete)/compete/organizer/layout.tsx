@@ -51,18 +51,18 @@ export default async function OrganizerLayout({
 	}
 
 	// Banner is rendered in sidebar-inset for competition routes to respect sidebar.
+	// Only show banner in parent layout for specific non-competition routes.
 	const hasPendingTeam = await getHasPendingOrganizingTeam()
-	const organizerSubroute = pathname
-		.replace(/^\/compete\/organizer\/?/, "")
-		.split("/")[0]
-	const isCompetitionRoute =
-		Boolean(organizerSubroute) &&
-		organizerSubroute !== "onboard" &&
-		organizerSubroute !== "series"
+	const showBannerInLayout =
+		pathname === "/compete/organizer" ||
+		pathname.startsWith("/compete/organizer/onboard") ||
+		pathname.startsWith("/compete/organizer/series") ||
+		pathname.startsWith("/compete/organizer/new") ||
+		pathname.startsWith("/compete/organizer/settings")
 
 	return (
 		<>
-			{hasPendingTeam && !isCompetitionRoute && (
+			{hasPendingTeam && showBannerInLayout && (
 				<PendingOrganizerBanner variant="page-container" />
 			)}
 			{children}
