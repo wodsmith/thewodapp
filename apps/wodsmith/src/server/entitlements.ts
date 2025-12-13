@@ -23,10 +23,7 @@ import {
 	teamUsageTable,
 } from "../db/schema"
 import { getDb } from "@/db"
-import {
-	logInfo,
-	logWarning,
-} from "@/lib/logging/posthog-otel-logger"
+import { logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
 import { FEATURES } from "../config/features"
 import { LIMITS } from "../config/limits"
 

@@ -63,20 +63,7 @@ export type ScoreType = (typeof SCORE_TYPE_VALUES)[number]
 export const TIEBREAK_SCHEME_VALUES = ["time", "reps"] as const
 export type TiebreakScheme = (typeof TIEBREAK_SCHEME_VALUES)[number]
 
-// Secondary scheme values (same as workout scheme minus time-with-cap)
-export const SECONDARY_SCHEME_VALUES = [
-	"time",
-	"pass-fail",
-	"rounds-reps",
-	"reps",
-	"emom",
-	"load",
-	"calories",
-	"meters",
-	"feet",
-	"points",
-] as const
-export type SecondaryScheme = (typeof SECONDARY_SCHEME_VALUES)[number]
+// Note: Secondary scheme values removed - when time-capped, score is always reps
 
 // Movements table
 export const movements = sqliteTable("movements", {
@@ -122,9 +109,7 @@ export const workouts = sqliteTable(
 		sugarId: text("sugar_id"),
 		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
 		timeCap: integer("time_cap"), // Time cap in seconds (for time-with-cap workouts)
-		secondaryScheme: text("secondary_scheme", {
-			enum: SECONDARY_SCHEME_VALUES,
-		}),
+		// Note: secondaryScheme removed - when capped, score is always reps
 		sourceTrackId: text("source_track_id").references(
 			() => programmingTracksTable.id,
 			{

@@ -67,18 +67,18 @@ function PasskeyAuthenticationButton({
 					auth_method: "passkey",
 				})
 			},
-		onSuccess: (result) => {
-			toast.dismiss()
-			toast.success("Authentication successful")
-			if (result?.data?.userId) {
-				posthog.identify(result.data.userId)
-			}
-			posthog.capture("user_signed_in", {
-				auth_method: "passkey",
-				user_id: result?.data?.userId,
-			})
-			window.location.href = redirectPath
-		},
+			onSuccess: (result) => {
+				toast.dismiss()
+				toast.success("Authentication successful")
+				if (result?.data?.userId) {
+					posthog.identify(result.data.userId)
+				}
+				posthog.capture("user_signed_in", {
+					auth_method: "passkey",
+					user_id: result?.data?.userId,
+				})
+				window.location.href = redirectPath
+			},
 		},
 	)
 

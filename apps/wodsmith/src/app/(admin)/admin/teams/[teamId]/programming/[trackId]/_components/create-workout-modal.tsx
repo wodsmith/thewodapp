@@ -136,7 +136,6 @@ export function CreateWorkoutModal({
 					roundsToScore: data.roundsToScore || null,
 					sugarId: null,
 					tiebreakScheme: null,
-					secondaryScheme: null,
 				},
 				tagIds: data.selectedTags,
 				movementIds: data.selectedMovements,

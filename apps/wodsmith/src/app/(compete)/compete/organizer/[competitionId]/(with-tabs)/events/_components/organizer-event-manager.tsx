@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import type { Movement, Sponsor } from "@/db/schema"
 import type {
 	ScoreType,
-	SecondaryScheme,
 	TiebreakScheme,
 	WorkoutScheme,
 } from "@/db/schemas/workouts"
@@ -102,9 +101,7 @@ export function OrganizerEventManager({
 		scoreType?: ScoreType
 		description?: string
 		roundsToScore?: number
-		repsPerRound?: number
 		tiebreakScheme?: TiebreakScheme
-		secondaryScheme?: SecondaryScheme
 		movementIds?: string[]
 	}) => {
 		const [result, error] = await createEvent({
@@ -115,9 +112,7 @@ export function OrganizerEventManager({
 			scoreType: data.scoreType,
 			description: data.description,
 			roundsToScore: data.roundsToScore,
-			repsPerRound: data.repsPerRound,
 			tiebreakScheme: data.tiebreakScheme,
-			secondaryScheme: data.secondaryScheme,
 			movementIds: data.movementIds,
 		})
 
@@ -131,7 +126,7 @@ export function OrganizerEventManager({
 			toast.success(`Created "${data.name}"`)
 			posthog.capture("competition_event_created", {
 				competition_id: competitionId,
-					event_id: result.data.trackWorkoutId,
+				event_id: result.data.trackWorkoutId,
 				event_name: data.name,
 				workout_scheme: data.scheme,
 				is_remix: false,

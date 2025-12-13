@@ -16,7 +16,10 @@ const tabs = [
 	{ label: "Leaderboard", href: "/leaderboard" },
 ]
 
-export function CompetitionTabs({ slug, registerButton }: CompetitionTabsProps) {
+export function CompetitionTabs({
+	slug,
+	registerButton,
+}: CompetitionTabsProps) {
 	const pathname = usePathname()
 	const basePath = `/compete/${slug}`
 

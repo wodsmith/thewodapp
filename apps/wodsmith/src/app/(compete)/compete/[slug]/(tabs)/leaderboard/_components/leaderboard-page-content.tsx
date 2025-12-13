@@ -124,8 +124,8 @@ export function LeaderboardPageContent({
 					<BarChart3 className="h-4 w-4" />
 					<AlertTitle>Leaderboard not yet available</AlertTitle>
 					<AlertDescription>
-						Results and rankings will appear here once athletes start
-						submitting scores.
+						Results and rankings will appear here once athletes start submitting
+						scores.
 					</AlertDescription>
 				</Alert>
 			</div>

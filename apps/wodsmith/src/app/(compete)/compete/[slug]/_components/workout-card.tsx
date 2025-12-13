@@ -20,7 +20,6 @@ interface WorkoutCardProps {
 	description: string | null
 	scoreType: string | null
 	roundsToScore: number | null
-	repsPerRound: number | null
 	pointsMultiplier: number | null
 	notes: string | null
 	movements?: Array<{ id: string; name: string }>
@@ -37,7 +36,6 @@ export function WorkoutCard({
 	description,
 	scoreType,
 	roundsToScore,
-	repsPerRound,
 	pointsMultiplier,
 	notes,
 	movements,
@@ -197,11 +195,6 @@ export function WorkoutCard({
 					{roundsToScore && (
 						<div>
 							<strong>Rounds to Score:</strong> {roundsToScore}
-						</div>
-					)}
-					{repsPerRound && (
-						<div>
-							<strong>Reps/Round:</strong> {repsPerRound}
 						</div>
 					)}
 				</div>

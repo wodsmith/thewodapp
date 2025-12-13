@@ -51,15 +51,16 @@ describe("decodeTimeToSeconds", () => {
 })
 
 describe("decodeRoundsReps", () => {
-	it("should decode to rounds+reps format", () => {
-		expect(decodeRoundsReps(500012)).toBe("5+12")
-		expect(decodeRoundsReps(1000000)).toBe("10+0")
-		expect(decodeRoundsReps(45)).toBe("0+45")
+	it("should decode to rounds+reps format with zero padding", () => {
+		expect(decodeRoundsReps(500012)).toBe("05+12")
+		expect(decodeRoundsReps(1000000)).toBe("10+00")
+		expect(decodeRoundsReps(45)).toBe("00+45")
+		expect(decodeRoundsReps(2000001)).toBe("20+01")
 	})
 
 	it("should use compact format when enabled", () => {
 		expect(decodeRoundsReps(1000000, { compact: true })).toBe("10")
-		expect(decodeRoundsReps(500012, { compact: true })).toBe("5+12") // Still shows reps
+		expect(decodeRoundsReps(500012, { compact: true })).toBe("05+12") // Still shows reps
 	})
 })
 
@@ -115,7 +116,7 @@ describe("decodeScore", () => {
 	})
 
 	it("should decode rounds-reps scores", () => {
-		expect(decodeScore(500012, "rounds-reps")).toBe("5+12")
+		expect(decodeScore(500012, "rounds-reps")).toBe("05+12")
 	})
 
 	it("should decode load scores", () => {
@@ -138,6 +139,28 @@ describe("decodeScore", () => {
 	it("should decode pass-fail scores", () => {
 		expect(decodeScore(1, "pass-fail")).toBe("Pass")
 		expect(decodeScore(0, "pass-fail")).toBe("Fail")
+	})
+
+	it("should show milliseconds with compact=false", () => {
+		// With compact=false, should always show milliseconds
+		expect(decodeScore(120000, "time", { compact: false })).toBe("2:00.000")
+		expect(decodeScore(120567, "time", { compact: false })).toBe("2:00.567")
+		expect(decodeScore(754000, "time", { compact: false })).toBe("12:34.000")
+		expect(decodeScore(754567, "time", { compact: false })).toBe("12:34.567")
+	})
+
+	it("should hide .000 with compact=true", () => {
+		// With compact=true, should hide .000 but show non-zero ms
+		expect(decodeScore(120000, "time", { compact: true })).toBe("2:00")
+		expect(decodeScore(120567, "time", { compact: true })).toBe("2:00.567")
+		expect(decodeScore(754000, "time", { compact: true })).toBe("12:34")
+		expect(decodeScore(754567, "time", { compact: true })).toBe("12:34.567")
+	})
+
+	it("should hide .000 by default (no options)", () => {
+		// Default behavior: hide .000 but show non-zero ms
+		expect(decodeScore(120000, "time")).toBe("2:00")
+		expect(decodeScore(120567, "time")).toBe("2:00.567")
 	})
 })
 

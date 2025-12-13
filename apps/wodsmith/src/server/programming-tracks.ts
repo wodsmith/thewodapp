@@ -3,10 +3,7 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, max, notExists, or } from "drizzle-orm"
 import { getDb } from "@/db"
-import {
-	logError,
-	logInfo,
-} from "@/lib/logging/posthog-otel-logger"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,

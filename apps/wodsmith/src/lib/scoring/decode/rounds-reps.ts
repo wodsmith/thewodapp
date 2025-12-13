@@ -13,9 +13,9 @@ export interface DecodeRoundsRepsOptions {
  * Decode an encoded rounds+reps integer to a display string.
  *
  * @example
- * decodeRoundsReps(500012)  // → "5+12"
- * decodeRoundsReps(1000000) // → "10+0" or "10" if compact
- * decodeRoundsReps(45)      // → "0+45"
+ * decodeRoundsReps(500012)  // → "05+12"
+ * decodeRoundsReps(1000000) // → "10+00" or "10" if compact
+ * decodeRoundsReps(45)      // → "00+45"
  */
 export function decodeRoundsReps(
 	encoded: number,
@@ -28,7 +28,11 @@ export function decodeRoundsReps(
 		return rounds.toString()
 	}
 
-	return `${rounds}+${reps}`
+	// Pad single digits with leading zero for uniform display
+	const roundsStr = rounds.toString().padStart(2, "0")
+	const repsStr = reps.toString().padStart(2, "0")
+
+	return `${roundsStr}+${repsStr}`
 }
 
 /**

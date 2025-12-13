@@ -14,8 +14,12 @@ import type {
 	EventScoreEntryAthlete,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
-import type { WorkoutScheme, TiebreakScheme, SecondaryScheme } from "@/db/schema"
-import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
+import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
+import {
+	ScoreInputRow,
+	type ScoreEntryData,
+	type ScoreInputRowHandle,
+} from "./score-input-row"
 
 interface HeatScoreGroupProps {
 	heat: HeatScoreGroupType
@@ -23,11 +27,11 @@ interface HeatScoreGroupProps {
 	athleteMap: Map<string, EventScoreEntryAthlete>
 	/** Workout config for score input */
 	workoutScheme: WorkoutScheme
+	/** Score aggregation type */
+	scoreType?: string | null
 	tiebreakScheme: TiebreakScheme | null
-	secondaryScheme: SecondaryScheme | null
 	timeCap?: number
 	roundsToScore: number
-	repsPerRound?: number | null
 	showTiebreak: boolean
 	/** Current score values by registrationId */
 	scores: Record<string, ScoreEntryData>
@@ -40,7 +44,7 @@ interface HeatScoreGroupProps {
 	/** Tab to next athlete - called with global index */
 	onTabNext: (globalIndex: number) => void
 	/** Row refs for focus management */
-	rowRefs: React.MutableRefObject<Map<string, HTMLDivElement>>
+	rowRefs: React.MutableRefObject<Map<string, ScoreInputRowHandle>>
 	/** Starting global index for this heat's athletes */
 	startIndex: number
 	/** Whether this group should be initially open */
@@ -51,11 +55,10 @@ export function HeatScoreGroup({
 	heat,
 	athleteMap,
 	workoutScheme,
+	scoreType,
 	tiebreakScheme,
-	secondaryScheme,
 	timeCap,
 	roundsToScore,
-	repsPerRound,
 	showTiebreak,
 	scores,
 	savingIds,
@@ -70,6 +73,7 @@ export function HeatScoreGroup({
 
 	// Get athletes for this heat in lane order
 	const heatAthletes = heat.assignments
+		.slice()
 		.sort((a, b) => a.laneNumber - b.laneNumber)
 		.map((assignment) => ({
 			...assignment,
@@ -164,23 +168,24 @@ export function HeatScoreGroup({
 				) : (
 					<div>
 						{heatAthletes.map((item, index) => (
-							<div
-								key={item.registrationId}
-								ref={(el) => {
-									if (el) {
-										rowRefs.current.set(item.registrationId, el)
-									}
-								}}
-							>
+							<div key={item.registrationId}>
 								<ScoreInputRow
+									ref={(handle) => {
+										if (handle) {
+											rowRefs.current.set(item.registrationId, handle)
+										} else {
+											rowRefs.current.delete(item.registrationId)
+										}
+									}}
 									athlete={item.athlete}
 									laneNumber={item.laneNumber}
 									workoutScheme={workoutScheme}
+									scoreType={
+										scoreType as import("@/db/schema").ScoreType | undefined
+									}
 									tiebreakScheme={tiebreakScheme}
-									secondaryScheme={secondaryScheme}
 									timeCap={timeCap}
 									roundsToScore={roundsToScore}
-									repsPerRound={repsPerRound}
 									showTiebreak={showTiebreak}
 									value={scores[item.registrationId]}
 									isSaving={savingIds.has(item.registrationId)}

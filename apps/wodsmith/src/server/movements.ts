@@ -1,10 +1,7 @@
 import "server-only"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import {
-	logError,
-	logInfo,
-} from "@/lib/logging/posthog-otel-logger"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { z } from "zod"
 import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
@@ -207,9 +204,9 @@ export async function createMovement(
 		revalidatePath("/movements")
 		revalidatePath("/") // Revalidate home page if it lists movements or related data
 		logInfo({
-		message: "[movement] Revalidated movement paths",
-		attributes: { paths: ["/movements", "/"] },
-	})
+			message: "[movement] Revalidated movement paths",
+			attributes: { paths: ["/movements", "/"] },
+		})
 
 		// Return the created movement or its ID, could be useful for the client
 		// For now, the action in page.tsx doesn't expect a return value for redirection

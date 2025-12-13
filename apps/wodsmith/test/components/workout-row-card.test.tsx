@@ -65,7 +65,6 @@ describe.skip("WorkoutRowCard", () => {
 		roundsToScore: 5,
 		sugarId: null,
 		tiebreakScheme: null,
-		secondaryScheme: null,
 		teamId: "team-123",
 		sourceWorkoutId: null,
 		sourceTrackId: null,

@@ -160,7 +160,10 @@ export function HeatScheduleManager({
 	async function handleHeatStatusChange({
 		eventId,
 		newStatus,
-	}: { eventId: string; newStatus: HeatStatus }) {
+	}: {
+		eventId: string
+		newStatus: HeatStatus
+	}) {
 		const event = localEvents.find((e) => e.id === eventId)
 		if (!event || event.heatStatus === newStatus) return
 

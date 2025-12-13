@@ -11,6 +11,7 @@ CREATE TABLE `score_rounds` (
 	FOREIGN KEY (`score_id`) REFERENCES `scores`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `idx_score_rounds_score` ON `score_rounds` (`score_id`,`round_number`);--> statement-breakpoint
 CREATE UNIQUE INDEX `idx_score_rounds_unique` ON `score_rounds` (`score_id`,`round_number`);--> statement-breakpoint
 CREATE TABLE `scores` (
 	`createdAt` integer NOT NULL,
@@ -28,7 +29,6 @@ CREATE TABLE `scores` (
 	`tiebreak_scheme` text,
 	`tiebreak_value` integer,
 	`time_cap_ms` integer,
-	`secondary_scheme` text,
 	`secondary_value` integer,
 	`status` text DEFAULT 'scored' NOT NULL,
 	`status_order` integer DEFAULT 0 NOT NULL,
@@ -46,4 +46,6 @@ CREATE TABLE `scores` (
 CREATE INDEX `idx_scores_user` ON `scores` (`user_id`,`recorded_at`);--> statement-breakpoint
 CREATE INDEX `idx_scores_workout` ON `scores` (`workout_id`,`team_id`,`status_order`,`sort_key`);--> statement-breakpoint
 CREATE INDEX `idx_scores_competition` ON `scores` (`competition_event_id`,`status_order`,`sort_key`);--> statement-breakpoint
-CREATE INDEX `idx_scores_scheduled` ON `scores` (`scheduled_workout_instance_id`);
+CREATE INDEX `idx_scores_scheduled` ON `scores` (`scheduled_workout_instance_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);--> statement-breakpoint
+ALTER TABLE `workouts` DROP COLUMN `secondary_scheme`;
