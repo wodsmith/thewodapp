@@ -10,7 +10,7 @@ export default async function AdminLayout({
 		<div className="sm:h-screen">
 			<MainNav />
 			<div className="flex flex-col">
-				<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+				<div className="mx-auto w-full max-w-7xl flex flex-1 flex-col gap-4 p-4 pt-0">
 					<AdminLayoutWrapper>{children}</AdminLayoutWrapper>
 				</div>
 			</div>
