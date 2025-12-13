@@ -95,6 +95,14 @@ export const LIMIT_SEED_DATA = [
 		unit: "messages",
 		resetPeriod: "monthly" as const,
 	},
+	{
+		key: LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		name: "Published Competitions",
+		description:
+			"Maximum public competitions (0: pending approval, -1: unlimited)",
+		unit: "competitions",
+		resetPeriod: "never" as const,
+	},
 ]
 
 // Plan seed data

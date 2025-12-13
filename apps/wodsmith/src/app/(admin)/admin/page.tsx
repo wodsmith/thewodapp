@@ -49,6 +49,9 @@ export default function AdminPage() {
 							<Button asChild variant="outline">
 								<Link href="/admin/entitlements">Entitlements</Link>
 							</Button>
+							<Button asChild variant="outline">
+								<Link href="/admin/organizer-requests">Organizer Requests</Link>
+							</Button>
 							<Button variant="outline">View Reports</Button>
 							<Button variant="outline">System Settings</Button>
 						</div>

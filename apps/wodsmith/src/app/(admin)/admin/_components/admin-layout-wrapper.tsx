@@ -13,7 +13,9 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
 	const isSiteWideAdminPage =
 		pathname === "/admin" ||
 		pathname === "/admin/entitlements" ||
-		pathname.startsWith("/admin/entitlements/")
+		pathname.startsWith("/admin/entitlements/") ||
+		pathname === "/admin/organizer-requests" ||
+		pathname.startsWith("/admin/organizer-requests/")
 
 	if (isSiteWideAdminPage) {
 		// Site-wide admin pages don't need sidebar

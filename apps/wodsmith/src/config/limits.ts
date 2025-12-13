@@ -20,6 +20,9 @@ export const LIMITS = {
 
 	// AI usage limits (PRIORITY - Coming Soon)
 	AI_MESSAGES_PER_MONTH: "ai_messages_per_month", // Free: 10-20, Paid: 200+
+
+	// Competition organizing limits
+	MAX_PUBLISHED_COMPETITIONS: "max_published_competitions", // 0: pending approval, -1: unlimited
 } as const
 
 export type LimitKey = (typeof LIMITS)[keyof typeof LIMITS]

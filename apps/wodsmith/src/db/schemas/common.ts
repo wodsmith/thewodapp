@@ -76,3 +76,6 @@ export const createCompetitionHeatAssignmentId = () => `chasgn_${createId()}`
 // Sponsor ID generators
 export const createSponsorGroupId = () => `spgrp_${createId()}`
 export const createSponsorId = () => `spnsr_${createId()}`
+
+// Organizer request ID generators
+export const createOrganizerRequestId = () => `oreq_${createId()}`

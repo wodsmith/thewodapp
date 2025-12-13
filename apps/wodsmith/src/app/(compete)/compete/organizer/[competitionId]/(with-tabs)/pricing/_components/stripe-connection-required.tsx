@@ -1,7 +1,9 @@
 "use client"
 
+import { AlertCircle, CreditCard, ExternalLink } from "lucide-react"
 import Link from "next/link"
-import { CreditCard, ExternalLink, AlertCircle } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -10,7 +12,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 interface Props {
 	teamSlug: string
@@ -18,6 +19,10 @@ interface Props {
 }
 
 export function StripeConnectionRequired({ teamSlug, competitionName }: Props) {
+	const pathname = usePathname()
+	// Build the payouts URL with returnTo so user comes back here after setup
+	const payoutsUrl = `/compete/organizer/settings/payouts/${teamSlug}?returnTo=${encodeURIComponent(pathname)}`
+
 	return (
 		<div className="space-y-6">
 			<Alert>
@@ -43,7 +48,7 @@ export function StripeConnectionRequired({ teamSlug, competitionName }: Props) {
 				</CardHeader>
 				<CardContent className="flex flex-col items-center gap-4">
 					<Button asChild>
-						<Link href={`/settings/teams/${teamSlug}/payouts`}>
+						<Link href={payoutsUrl}>
 							Set Up Payouts
 							<ExternalLink className="ml-2 h-4 w-4" />
 						</Link>

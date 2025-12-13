@@ -102,6 +102,11 @@ export const competitionsTable = sqliteTable(
 			.$type<"public" | "private">()
 			.default("public")
 			.notNull(),
+		// Status: draft = only visible to organizers, published = visible based on visibility setting
+		status: text({ length: 15 })
+			.$type<"draft" | "published">()
+			.default("draft")
+			.notNull(),
 		// Competition branding images
 		profileImageUrl: text({ length: 600 }),
 		bannerImageUrl: text({ length: 600 }),

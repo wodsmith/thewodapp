@@ -151,6 +151,7 @@ export const updateCompetitionSchema = z
 			.nullable()
 			.optional(),
 		visibility: z.enum(["public", "private"]).optional(),
+		status: z.enum(["draft", "published"]).optional(),
 		profileImageUrl: z.string().max(600).nullable().optional(),
 		bannerImageUrl: z.string().max(600).nullable().optional(),
 	})

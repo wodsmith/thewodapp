@@ -19,8 +19,9 @@ export type CompetitionWithOrganizingTeam = Competition & {
 	organizingTeam: Team | null
 	group: CompetitionGroup | null
 }
-import { requireFeature } from "./entitlements"
+import { getTeamLimit, requireFeature } from "./entitlements"
 import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 
 /* -------------------------------------------------------------------------- */
 /*                           Competition Helper Functions                      */
@@ -591,7 +592,7 @@ export async function createCompetition(params: {
 /**
  * Get all public competitions for browsing
  * Returns competitions ordered by startDate for public /compete page
- * Only returns competitions with visibility = 'public'
+ * Only returns published competitions with visibility = 'public'
  */
 export async function getPublicCompetitions(): Promise<
 	CompetitionWithOrganizingTeam[]
@@ -599,7 +600,10 @@ export async function getPublicCompetitions(): Promise<
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
-		where: eq(competitionsTable.visibility, "public"),
+		where: and(
+			eq(competitionsTable.visibility, "public"),
+			eq(competitionsTable.status, "published"),
+		),
 		with: {
 			organizingTeam: true,
 			group: true,
@@ -653,7 +657,7 @@ export async function getCompetitions(teamId: string): Promise<
  * Get all public competitions (for competition discovery page)
  *
  * Phase 2 Implementation:
- * - Query all competitions with visibility = 'public'
+ * - Query all published competitions with visibility = 'public'
  * - Include organizing team and group data
  * - Order by startDate DESC (upcoming first)
  * - Return competitions with full details
@@ -669,7 +673,10 @@ export async function getAllPublicCompetitions(): Promise<
 	const db = getDb()
 
 	const competitions = await db.query.competitionsTable.findMany({
-		where: eq(competitionsTable.visibility, "public"),
+		where: and(
+			eq(competitionsTable.visibility, "public"),
+			eq(competitionsTable.status, "published"),
+		),
 		with: {
 			organizingTeam: {
 				columns: {
@@ -754,6 +761,7 @@ export async function updateCompetition(
 		groupId: string | null
 		settings: string | null
 		visibility: "public" | "private"
+		status: "draft" | "published"
 		profileImageUrl: string | null
 		bannerImageUrl: string | null
 	}>,
@@ -797,6 +805,43 @@ export async function updateCompetition(
 		}
 	}
 
+	// Check publish limit when changing status to published
+	if (
+		updates.status === "published" &&
+		existingCompetition.status !== "published"
+	) {
+		const limit = await getTeamLimit(
+			existingCompetition.organizingTeamId,
+			LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		)
+		if (limit === 0) {
+			throw new Error(
+				"Your organizer application is pending approval. You can create draft competitions while you wait.",
+			)
+		}
+		// If limit > 0, count published competitions and check
+		if (limit > 0) {
+			const publishedCount = await db
+				.select({ count: count() })
+				.from(competitionsTable)
+				.where(
+					and(
+						eq(
+							competitionsTable.organizingTeamId,
+							existingCompetition.organizingTeamId,
+						),
+						eq(competitionsTable.status, "published"),
+					),
+				)
+
+			if ((publishedCount[0]?.count ?? 0) >= limit) {
+				throw new Error(
+					`You have reached your limit of ${limit} published competitions. Please upgrade to publish more.`,
+				)
+			}
+		}
+	}
+
 	// Build update data
 	const updateData: Partial<typeof competitionsTable.$inferInsert> = {
 		updatedAt: new Date(),
@@ -816,6 +861,7 @@ export async function updateCompetition(
 	if (updates.settings !== undefined) updateData.settings = updates.settings
 	if (updates.visibility !== undefined)
 		updateData.visibility = updates.visibility
+	if (updates.status !== undefined) updateData.status = updates.status
 	if (updates.profileImageUrl !== undefined)
 		updateData.profileImageUrl = updates.profileImageUrl
 	if (updates.bannerImageUrl !== undefined)

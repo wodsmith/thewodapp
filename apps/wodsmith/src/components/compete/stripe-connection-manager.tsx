@@ -1,28 +1,27 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import {
-	Trophy,
-	CheckCircle,
-	Loader2,
+	AlertCircle,
+	CheckCircle2,
+	Clock,
 	CreditCard,
 	ExternalLink,
+	Loader2,
 	Unlink,
 	Wallet,
-	Clock,
-	CheckCircle2,
-	AlertCircle,
 } from "lucide-react"
-import { useServerAction } from "@repo/zsa-react"
-import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+	disconnectStripeAccount,
+	getStripeConnectionStatus,
+	getStripeDashboardUrl,
+	initiateExpressOnboarding,
+	initiateStandardOAuth,
+	refreshOnboardingLink,
+} from "@/actions/stripe-connect.action"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -34,24 +33,19 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { enableCompetitionOrganizingAction } from "@/actions/entitlements-actions"
+import { Button } from "@/components/ui/button"
 import {
-	initiateExpressOnboarding,
-	initiateStandardOAuth,
-	refreshOnboardingLink,
-	getStripeDashboardUrl,
-	disconnectStripeAccount,
-	getStripeConnectionStatus,
-} from "@/actions/stripe-connect.action"
-import { toast } from "sonner"
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import type { AccountBalance } from "@/server/stripe-connect"
 
-interface EnableCompetitionOrganizingProps {
+interface StripeConnectionManagerProps {
 	teamId: string
 	teamSlug: string
-	isEnabled: boolean
-	organizerStatus: "not_applied" | "pending" | "approved"
 	stripeAccountStatus: string | null
 	stripeAccountType: string | null
 	stripeOnboardingCompletedAt: Date | null
@@ -68,11 +62,9 @@ function formatCurrency(amountCents: number, currency: string): string {
 	}).format(amountCents / 100)
 }
 
-export function EnableCompetitionOrganizing({
+export function StripeConnectionManager({
 	teamId,
-	teamSlug,
-	isEnabled,
-	organizerStatus,
+	teamSlug: _teamSlug,
 	stripeAccountStatus,
 	stripeAccountType,
 	stripeOnboardingCompletedAt,
@@ -80,37 +72,13 @@ export function EnableCompetitionOrganizing({
 	showConnectedMessage,
 	showRefreshMessage,
 	stripeError,
-}: EnableCompetitionOrganizingProps) {
+}: StripeConnectionManagerProps) {
 	const router = useRouter()
-	const [enabled, setEnabled] = useState(isEnabled)
 	const [isLoading, setIsLoading] = useState<string | null>(null)
 
 	const isStripeConnected = stripeAccountStatus === "VERIFIED"
 	const isStripePending = stripeAccountStatus === "PENDING"
 	const isStripeNotConnected = !stripeAccountStatus
-
-	const { execute, isPending } = useServerAction(
-		enableCompetitionOrganizingAction,
-		{
-			onSuccess: () => {
-				setEnabled(true)
-				toast.success("Competition organizing enabled!")
-				router.refresh()
-			},
-			onError: ({ err }) => {
-				toast.error(err.message || "Failed to enable competition organizing")
-			},
-		}
-	)
-
-	const handleEnable = () => {
-		execute({ teamId })
-	}
-
-	// Redirect to onboard page if not applied
-	const handleApply = () => {
-		router.push("/compete/organizer/onboard")
-	}
 
 	const handleExpressOnboarding = async () => {
 		setIsLoading("express")
@@ -121,7 +89,7 @@ export function EnableCompetitionOrganizing({
 			}
 		} catch (err) {
 			toast.error(
-				err instanceof Error ? err.message : "Failed to start onboarding"
+				err instanceof Error ? err.message : "Failed to start onboarding",
 			)
 			setIsLoading(null)
 		}
@@ -148,9 +116,7 @@ export function EnableCompetitionOrganizing({
 				window.location.href = result.onboardingUrl
 			}
 		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to refresh link"
-			)
+			toast.error(err instanceof Error ? err.message : "Failed to refresh link")
 			setIsLoading(null)
 		}
 	}
@@ -164,7 +130,7 @@ export function EnableCompetitionOrganizing({
 			}
 		} catch (err) {
 			toast.error(
-				err instanceof Error ? err.message : "Failed to get dashboard link"
+				err instanceof Error ? err.message : "Failed to get dashboard link",
 			)
 		} finally {
 			setIsLoading(null)
@@ -184,113 +150,28 @@ export function EnableCompetitionOrganizing({
 		}
 	}
 
-	// Not applied state - direct to onboard page
-	if (organizerStatus === "not_applied") {
-		return (
-			<Card>
-				<CardHeader>
-					<div className="flex items-center gap-3">
-						<Trophy className="h-6 w-6 text-muted-foreground" />
-						<div>
-							<CardTitle className="text-lg">Competition Organizing</CardTitle>
-							<CardDescription>
-								Apply to host competitions on WODsmith
-							</CardDescription>
-						</div>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<p className="text-sm text-muted-foreground">
-						Competition organizing allows you to:
-					</p>
-					<ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-						<li>Create and publish competitions</li>
-						<li>Manage athlete registrations</li>
-						<li>Set up divisions and events</li>
-						<li>Accept payments for entry fees</li>
-					</ul>
-					<Button onClick={handleApply}>
-						Apply to Become an Organizer
-					</Button>
-				</CardContent>
-			</Card>
-		)
-	}
-
-	// Pending approval state
-	if (organizerStatus === "pending") {
-		return (
-			<Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
-				<CardHeader>
-					<div className="flex items-center gap-3">
-						<Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-						<div>
-							<CardTitle className="text-lg">Application Pending</CardTitle>
-							<CardDescription>
-								Your organizer application is under review
-							</CardDescription>
-						</div>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<p className="text-sm text-muted-foreground">
-						While your application is being reviewed, you can create draft
-						competitions to get familiar with the platform. Draft competitions
-						won't be visible until you publish them after approval.
-					</p>
-					<Button asChild variant="outline">
-						<a href="/compete/organizer">Create Draft Competition</a>
-					</Button>
-				</CardContent>
-			</Card>
-		)
-	}
-
-	// Legacy fallback: if not enabled but has approved status, use old enable logic
-	if (!enabled) {
-		return (
-			<Card>
-				<CardHeader>
-					<div className="flex items-center gap-3">
-						<Trophy className="h-6 w-6 text-muted-foreground" />
-						<div>
-							<CardTitle className="text-lg">Competition Organizing</CardTitle>
-							<CardDescription>
-								Enable this team to create and manage CrossFit competitions
-							</CardDescription>
-						</div>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<p className="text-sm text-muted-foreground">
-						Competition organizing allows you to:
-					</p>
-					<ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-						<li>Create and publish competitions</li>
-						<li>Manage athlete registrations</li>
-						<li>Set up divisions and events</li>
-						<li>Accept payments for entry fees</li>
-					</ul>
-					<Button onClick={handleEnable} disabled={isPending}>
-						{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						Enable Competition Organizing
-					</Button>
-				</CardContent>
-			</Card>
-		)
-	}
-
-	// Enabled state - show competition organizing + payouts
 	return (
 		<div className="space-y-4">
-			{/* Success/Error Messages for Stripe */}
-			{showConnectedMessage && (
+			{/* Success message - only show if actually verified */}
+			{showConnectedMessage && isStripeConnected && (
 				<Alert>
 					<CheckCircle2 className="h-4 w-4" />
 					<AlertTitle>Stripe Connected!</AlertTitle>
 					<AlertDescription>
 						Your Stripe account is now connected. You can accept paid
 						registrations for your competitions.
+					</AlertDescription>
+				</Alert>
+			)}
+
+			{/* Pending message - show when returned from Stripe but not yet verified */}
+			{showConnectedMessage && isStripePending && (
+				<Alert>
+					<AlertCircle className="h-4 w-4" />
+					<AlertTitle>Almost Done!</AlertTitle>
+					<AlertDescription>
+						Your Stripe account is connected but still being verified. Complete
+						the remaining steps below to start receiving payouts.
 					</AlertDescription>
 				</Alert>
 			)}
@@ -317,28 +198,6 @@ export function EnableCompetitionOrganizing({
 					</AlertDescription>
 				</Alert>
 			)}
-
-			{/* Competition Organizing Enabled Card */}
-			<Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
-				<CardHeader>
-					<div className="flex items-center gap-3">
-						<CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-						<div>
-							<CardTitle className="text-lg">
-								Competition Organizing Enabled
-							</CardTitle>
-							<CardDescription>
-								This team can create and manage competitions
-							</CardDescription>
-						</div>
-					</div>
-				</CardHeader>
-				<CardContent>
-					<Button asChild variant="outline">
-						<a href="/compete/organizer">Go to Organizer Dashboard</a>
-					</Button>
-				</CardContent>
-			</Card>
 
 			{/* Stripe Balance Cards (when connected) */}
 			{isStripeConnected && balance && (
@@ -485,25 +344,46 @@ export function EnableCompetitionOrganizing({
 								: "Your Stripe account is connected but needs to complete verification in Stripe Dashboard."}
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-3">
+					<CardContent className="space-y-4">
 						{stripeAccountType === "express" ? (
-							<Button
-								onClick={handleRefreshLink}
-								disabled={isLoading === "refresh"}
-							>
-								{isLoading === "refresh" ? (
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								) : (
-									<ExternalLink className="mr-2 h-4 w-4" />
-								)}
-								Continue Setup
-							</Button>
+							<div className="space-y-4">
+								<Button
+									onClick={handleRefreshLink}
+									disabled={isLoading === "refresh"}
+								>
+									{isLoading === "refresh" ? (
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									) : (
+										<ExternalLink className="mr-2 h-4 w-4" />
+									)}
+									Continue Setup
+								</Button>
+
+								{/* Helpful hints about common requirements */}
+								<div className="rounded-md border border-muted bg-muted/30 p-3 space-y-2">
+									<p className="text-sm font-medium">
+										Common information Stripe needs:
+									</p>
+									<ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+										<li>Last 4 digits of SSN (under Personal details)</li>
+										<li>Date of birth (under Personal details)</li>
+										<li>Business address verification</li>
+									</ul>
+									<p className="text-xs text-muted-foreground">
+										Click "Continue Setup" and look for the{" "}
+										<span className="font-medium">Personal details</span> section
+										to add any missing information.
+									</p>
+								</div>
+							</div>
 						) : (
 							<div className="space-y-3">
 								<div className="flex flex-col sm:flex-row gap-3">
 									<Button
 										variant="outline"
-										onClick={() => window.open("https://dashboard.stripe.com", "_blank")}
+										onClick={() =>
+											window.open("https://dashboard.stripe.com", "_blank")
+										}
 									>
 										<ExternalLink className="mr-2 h-4 w-4" />
 										Open Stripe Dashboard
@@ -513,14 +393,16 @@ export function EnableCompetitionOrganizing({
 										onClick={async () => {
 											setIsLoading("check")
 											try {
-												const result = await getStripeConnectionStatus({ teamId })
+												const result = await getStripeConnectionStatus({
+													teamId,
+												})
 												if (result.isConnected) {
 													toast.success("Account verified!")
 													router.refresh()
 												} else {
 													toast.info("Account still pending verification")
 												}
-											} catch (err) {
+											} catch (_err) {
 												toast.error("Failed to check status")
 											} finally {
 												setIsLoading(null)
@@ -537,7 +419,8 @@ export function EnableCompetitionOrganizing({
 									</Button>
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Complete any pending requirements in your Stripe Dashboard, then click "Check Status".
+									Complete any pending requirements in your Stripe Dashboard,
+									then click "Check Status".
 								</p>
 							</div>
 						)}
@@ -563,7 +446,9 @@ export function EnableCompetitionOrganizing({
 							{/* Express Account Option */}
 							<Card className="border-2">
 								<CardHeader className="pb-2">
-									<CardTitle className="text-base">Create New Account</CardTitle>
+									<CardTitle className="text-base">
+										Create New Account
+									</CardTitle>
 									<CardDescription className="text-sm">
 										Quick 5-10 minute setup with Stripe Express
 									</CardDescription>
