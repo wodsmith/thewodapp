@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { eq } from "drizzle-orm"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
 	getCompetition,
@@ -134,7 +135,8 @@ export default async function RegistrationSuccessPage({
 	}
 
 	// Get the base URL for invite links
-	const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+	const { env } = getCloudflareContext()
+	const baseUrl = env.NEXT_PUBLIC_APP_URL
 
 	if (!registration) {
 		// Payment may still be processing (webhook hasn't completed yet)

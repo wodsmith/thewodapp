@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { handleOAuthCallback } from "@/server/stripe-connect"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 
@@ -8,7 +9,8 @@ export async function GET(request: NextRequest) {
 	const error = request.nextUrl.searchParams.get("error")
 	const errorDescription = request.nextUrl.searchParams.get("error_description")
 
-	const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+	const { env } = getCloudflareContext()
+	const appUrl = env.NEXT_PUBLIC_APP_URL
 
 	// Handle OAuth errors
 	if (error) {
