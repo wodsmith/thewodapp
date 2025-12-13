@@ -1244,6 +1244,11 @@ export async function registerForCompetition(params: {
 	// 17. Update all user sessions to include new team
 	await updateAllSessionsOfUser(params.userId)
 
+	// NOTE: Notification is NOT sent here - callers are responsible for calling
+	// notifyRegistrationConfirmed() with appropriate isPaid/amountPaidCents values.
+	// - Free registrations: caller sends with isPaid: false
+	// - Paid registrations: Stripe webhook sends with isPaid: true after payment
+
 	return {
 		registrationId: registration.id,
 		teamMemberId: teamMember.id,

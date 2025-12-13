@@ -8,280 +8,167 @@ import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
 import isProd from "./is-prod"
 
+// ============================================================================
+// PII Redaction Utilities
+// ============================================================================
+
 /**
- * Mask email for logging - redacts PII while preserving debuggability
- * e.g., "user@example.com" -> "u***@e***.com"
+ * Masks an email address for logging purposes.
+ * Shows first 2 chars + domain, hides everything else.
+ * e.g., "john.doe@example.com" -> "jo***@example.com"
  */
 function maskEmail(email: string): string {
-	const [local, domain] = email.split("@")
-	if (!domain) return "***@***"
-	const [domainName, ...tld] = domain.split(".")
-	const maskedLocal = local ? `${local[0]}***` : "***"
-	const maskedDomain = domainName ? `${domainName[0]}***` : "***"
-	return `${maskedLocal}@${maskedDomain}.${tld.join(".") || "***"}`
+	const atIndex = email.indexOf("@")
+	if (atIndex <= 0) return "***"
+
+	const localPart = email.slice(0, atIndex)
+	const domain = email.slice(atIndex)
+
+	// Show first 2 chars of local part (or 1 if very short), mask the rest
+	const visibleChars = Math.min(2, localPart.length)
+	const maskedLocal = `${localPart.slice(0, visibleChars)}***`
+
+	return maskedLocal + domain
 }
 
 /**
- * Mask multiple emails for logging
+ * Masks multiple email addresses for safe logging.
  */
-function maskEmails(emails: string[]): string[] {
-	return emails.map(maskEmail)
+function maskEmails(emails: string[]): string {
+	return emails.map(maskEmail).join(",")
 }
 
-interface BrevoEmailOptions {
-	to: { email: string; name?: string }[]
-	subject: string
-	replyTo?: string
-	htmlContent: string
-	textContent?: string
-	templateId?: number
-	params?: Record<string, string>
-	tags?: string[]
-}
+// ============================================================================
+// Types
+// ============================================================================
 
-interface ResendEmailOptions {
-	to: string[]
+export interface SendEmailOptions {
+	to: string | string[]
 	subject: string
-	html: string
-	from?: string
-	replyTo?: string
-	text?: string
+	template: React.ReactElement
 	tags?: { name: string; value: string }[]
+	replyTo?: string
 }
 
-type EmailProvider = "resend" | "brevo" | null
+// ============================================================================
+// Configuration
+// ============================================================================
 
-async function getEmailProvider(): Promise<EmailProvider> {
-	if (process.env.RESEND_API_KEY) {
-		return "resend"
-	}
+const isTestMode = process.env.EMAIL_TEST_MODE === "true"
+const shouldSendEmail = isProd || isTestMode
 
-	if (process.env.BREVO_API_KEY) {
-		return "brevo"
-	}
+// ============================================================================
+// Generic Email Sender
+// ============================================================================
 
-	return null
-}
-
-async function sendResendEmail({
+/**
+ * Generic email sender using Resend
+ * - In production: sends via Resend API
+ * - In development: logs to console (unless EMAIL_TEST_MODE=true)
+ * - All email events are logged to PostHog
+ */
+export async function sendEmail({
 	to,
 	subject,
-	html,
-	from,
-	replyTo: originalReplyTo,
-	text,
-	tags,
-}: ResendEmailOptions): Promise<boolean> {
-	const emailType = tags?.find((t) => t.name === "type")?.value ?? "unknown"
+	template,
+	tags = [],
+	replyTo,
+}: SendEmailOptions): Promise<void> {
+	const recipients = Array.isArray(to) ? to : [to]
+	const emailType = tags.find((t) => t.name === "type")?.value ?? "unknown"
 
-	if (!isProd) {
+	if (!shouldSendEmail) {
+		console.warn(
+			`\n[Email Preview] To: ${recipients.join(", ")}\nSubject: ${subject}\nType: ${emailType}\n`,
+		)
 		logInfo({
-			message: "Email send skipped (test mode)",
+			message: "[Email] Skipped (dev mode)",
 			attributes: {
-				provider: "resend",
-				emailType,
-				recipientCount: to.length,
+				recipientCount: recipients.length,
 				subject,
+				emailType,
 			},
 		})
-		return true
+		return
 	}
 
 	if (!process.env.RESEND_API_KEY) {
 		logError({
-			message: "Email send failed: RESEND_API_KEY not configured",
+			message: "[Email] RESEND_API_KEY not configured",
 			attributes: {
-				provider: "resend",
-				emailType,
-				recipientCount: to.length,
-				maskedRecipients: maskEmails(to),
+				recipientCount: recipients.length,
 				subject,
+				emailType,
 			},
 		})
-		return false
+		return
 	}
 
-	const replyTo = originalReplyTo ?? process.env.EMAIL_REPLY_TO
+	// Default email sender config (fallback for development)
+	// Uses mail.wodsmith.com subdomain which is verified in Resend
+	const emailFrom = process.env.EMAIL_FROM || "team@mail.wodsmith.com"
+	const emailFromName = process.env.EMAIL_FROM_NAME || "WODsmith"
+	const emailReplyTo = process.env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
 
 	try {
+		const html = await render(template)
+
 		const response = await fetch("https://api.resend.com/emails", {
 			method: "POST",
 			headers: {
 				Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
 				"Content-Type": "application/json",
-			} as const,
+			},
 			body: JSON.stringify({
-				from:
-					from ?? `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM}>`,
-				to,
+				from: `${emailFromName} <${emailFrom}>`,
+				to: recipients,
 				subject,
 				html,
-				text,
-				...(replyTo ? { reply_to: replyTo } : {}),
+				reply_to: replyTo ?? emailReplyTo,
 				tags,
 			}),
 		})
 
 		if (!response.ok) {
 			const error = await response.json()
-			logError({
-				message: "Email send failed via Resend",
-				attributes: {
-					provider: "resend",
-					emailType,
-					recipientCount: to.length,
-					maskedRecipients: maskEmails(to),
-					subject,
-					statusCode: response.status,
-					errorResponse: JSON.stringify(error),
-				},
-			})
-			return false
+			throw new Error(`Resend API error: ${JSON.stringify(error)}`)
 		}
 
+		const result = (await response.json()) as { id: string }
+
 		logInfo({
-			message: "Email sent successfully",
+			message: "[Email] Sent successfully",
 			attributes: {
-				provider: "resend",
-				emailType,
-				recipientCount: to.length,
-				maskedRecipients: maskEmails(to),
+				recipientCount: recipients.length,
+				recipientMasked: maskEmails(recipients),
 				subject,
+				emailType,
+				resendId: result.id,
 			},
 		})
-		return true
-	} catch (error) {
+	} catch (err) {
 		logError({
-			message: "Email send failed via Resend",
+			message: "[Email] Failed to send",
+			error: err,
 			attributes: {
-				provider: "resend",
-				emailType,
-				recipientCount: to.length,
-				maskedRecipients: maskEmails(to),
+				recipientCount: recipients.length,
+				recipientMasked: maskEmails(recipients),
 				subject,
+				emailType,
 			},
-			error,
 		})
-		return false
+		// Don't re-throw - email failures shouldn't break primary actions
 	}
 }
 
-async function sendBrevoEmail({
-	to,
-	subject,
-	replyTo: originalReplyTo,
-	htmlContent,
-	textContent,
-	templateId,
-	params,
-	tags,
-}: BrevoEmailOptions): Promise<boolean> {
-	const emailType = tags?.[0] ?? "unknown"
-	const emails = to.map((r) => r.email)
+// ============================================================================
+// Email Template Functions (delegates to sendEmail)
+// ============================================================================
 
-	if (!isProd) {
-		logInfo({
-			message: "Email send skipped (test mode)",
-			attributes: {
-				provider: "brevo",
-				emailType,
-				recipientCount: to.length,
-				subject,
-			},
-		})
-		return true
-	}
-
-	if (!process.env.BREVO_API_KEY) {
-		logError({
-			message: "Email send failed: BREVO_API_KEY not configured",
-			attributes: {
-				provider: "brevo",
-				emailType,
-				recipientCount: to.length,
-				maskedRecipients: maskEmails(emails),
-				subject,
-			},
-		})
-		return false
-	}
-
-	const replyTo = originalReplyTo ?? process.env.EMAIL_REPLY_TO
-
-	try {
-		const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-			method: "POST",
-			headers: {
-				accept: "application/json",
-				"content-type": "application/json",
-				"api-key": process.env.BREVO_API_KEY,
-			} as const,
-			body: JSON.stringify({
-				sender: {
-					name: process.env.EMAIL_FROM_NAME,
-					email: process.env.EMAIL_FROM,
-				},
-				to,
-				htmlContent,
-				textContent,
-				subject,
-				templateId,
-				params,
-				tags,
-				...(replyTo
-					? {
-							replyTo: {
-								email: replyTo,
-							},
-						}
-					: {}),
-			}),
-		})
-
-		if (!response.ok) {
-			const error = await response.json()
-			logError({
-				message: "Email send failed via Brevo",
-				attributes: {
-					provider: "brevo",
-					emailType,
-					recipientCount: to.length,
-					maskedRecipients: maskEmails(emails),
-					subject,
-					statusCode: response.status,
-					errorResponse: JSON.stringify(error),
-				},
-			})
-			return false
-		}
-
-		logInfo({
-			message: "Email sent successfully",
-			attributes: {
-				provider: "brevo",
-				emailType,
-				recipientCount: to.length,
-				maskedRecipients: maskEmails(emails),
-				subject,
-			},
-		})
-		return true
-	} catch (error) {
-		logError({
-			message: "Email send failed via Brevo",
-			attributes: {
-				provider: "brevo",
-				emailType,
-				recipientCount: to.length,
-				maskedRecipients: maskEmails(emails),
-				subject,
-			},
-			error,
-		})
-		return false
-	}
-}
-
+/**
+ * Sends a password reset email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
 export async function sendPasswordResetEmail({
 	email,
 	resetToken,
@@ -290,53 +177,26 @@ export async function sendPasswordResetEmail({
 	email: string
 	resetToken: string
 	username: string
-}): Promise<boolean> {
+}): Promise<void> {
 	const resetUrl = `${SITE_URL}/reset-password?token=${resetToken}`
 
-	if (!isProd) {
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
 		console.warn("\n\n\nPassword reset url: ", resetUrl)
-		logInfo({
-			message: "Password reset email skipped (test mode)",
-			attributes: {
-				emailType: "password-reset",
-				maskedRecipient: maskEmail(email),
-			},
-		})
-		return true
 	}
 
-	const html = await render(
-		ResetPasswordEmail({ resetLink: resetUrl, username }),
-	)
-	const provider = await getEmailProvider()
-
-	if (!provider) {
-		logError({
-			message: "Email send failed: No email provider configured",
-			attributes: {
-				emailType: "password-reset",
-				maskedRecipient: maskEmail(email),
-			},
-		})
-		return false
-	}
-
-	if (provider === "resend") {
-		return sendResendEmail({
-			to: [email],
-			subject: `Reset your password for ${SITE_DOMAIN}`,
-			html,
-			tags: [{ name: "type", value: "password-reset" }],
-		})
-	}
-	return sendBrevoEmail({
-		to: [{ email, name: username }],
+	await sendEmail({
+		to: email,
 		subject: `Reset your password for ${SITE_DOMAIN}`,
-		htmlContent: html,
-		tags: ["password-reset"],
+		template: ResetPasswordEmail({ resetLink: resetUrl, username }),
+		tags: [{ name: "type", value: "password-reset" }],
 	})
 }
 
+/**
+ * Sends an email verification email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
 export async function sendVerificationEmail({
 	email,
 	verificationToken,
@@ -345,53 +205,26 @@ export async function sendVerificationEmail({
 	email: string
 	verificationToken: string
 	username: string
-}): Promise<boolean> {
+}): Promise<void> {
 	const verificationUrl = `${SITE_URL}/verify-email?token=${verificationToken}`
 
-	if (!isProd) {
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
 		console.warn("\n\n\nVerification url: ", verificationUrl)
-		logInfo({
-			message: "Verification email skipped (test mode)",
-			attributes: {
-				emailType: "email-verification",
-				maskedRecipient: maskEmail(email),
-			},
-		})
-		return true
 	}
 
-	const html = await render(
-		VerifyEmail({ verificationLink: verificationUrl, username }),
-	)
-	const provider = await getEmailProvider()
-
-	if (!provider) {
-		logError({
-			message: "Email send failed: No email provider configured",
-			attributes: {
-				emailType: "email-verification",
-				maskedRecipient: maskEmail(email),
-			},
-		})
-		return false
-	}
-
-	if (provider === "resend") {
-		return sendResendEmail({
-			to: [email],
-			subject: `Verify your email for ${SITE_DOMAIN}`,
-			html,
-			tags: [{ name: "type", value: "email-verification" }],
-		})
-	}
-	return sendBrevoEmail({
-		to: [{ email, name: username }],
+	await sendEmail({
+		to: email,
 		subject: `Verify your email for ${SITE_DOMAIN}`,
-		htmlContent: html,
-		tags: ["email-verification"],
+		template: VerifyEmail({ verificationLink: verificationUrl, username }),
+		tags: [{ name: "type", value: "email-verification" }],
 	})
 }
 
+/**
+ * Sends a team invitation email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
 export async function sendTeamInvitationEmail({
 	email,
 	invitationToken,
@@ -402,57 +235,23 @@ export async function sendTeamInvitationEmail({
 	invitationToken: string
 	teamName: string
 	inviterName: string
-}): Promise<boolean> {
-	const inviteUrl = `${SITE_URL}/team-invite?token=${invitationToken}`
+}): Promise<void> {
+	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
-	if (!isProd) {
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
 		console.warn("\n\n\nTeam invitation url: ", inviteUrl)
-		logInfo({
-			message: "Team invitation email skipped (test mode)",
-			attributes: {
-				emailType: "team-invitation",
-				maskedRecipient: maskEmail(email),
-				teamName,
-			},
-		})
-		return true
 	}
 
-	const html = await render(
-		TeamInviteEmail({
+	await sendEmail({
+		to: email,
+		subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
+		template: TeamInviteEmail({
 			inviteLink: inviteUrl,
 			recipientEmail: email,
 			teamName,
 			inviterName,
 		}),
-	)
-
-	const provider = await getEmailProvider()
-
-	if (!provider) {
-		logError({
-			message: "Email send failed: No email provider configured",
-			attributes: {
-				emailType: "team-invitation",
-				maskedRecipient: maskEmail(email),
-				teamName,
-			},
-		})
-		return false
-	}
-
-	if (provider === "resend") {
-		return sendResendEmail({
-			to: [email],
-			subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-			html,
-			tags: [{ name: "type", value: "team-invitation" }],
-		})
-	}
-	return sendBrevoEmail({
-		to: [{ email }],
-		subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-		htmlContent: html,
-		tags: ["team-invitation"],
+		tags: [{ name: "type", value: "team-invitation" }],
 	})
 }

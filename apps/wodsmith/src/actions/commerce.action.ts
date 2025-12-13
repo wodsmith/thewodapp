@@ -162,6 +162,17 @@ export async function initiateRegistrationPayment(
 				.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
 				.where(eq(competitionRegistrationsTable.id, result.registrationId))
 
+			// Send registration confirmation email for free registration
+			const { notifyRegistrationConfirmed } = await import(
+				"@/server/notifications"
+			)
+			await notifyRegistrationConfirmed({
+				userId,
+				registrationId: result.registrationId,
+				competitionId: input.competitionId,
+				isPaid: false,
+			})
+
 			return {
 				purchaseId: null,
 				checkoutUrl: null,
