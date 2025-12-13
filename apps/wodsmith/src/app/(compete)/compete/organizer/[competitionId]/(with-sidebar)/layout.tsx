@@ -4,9 +4,11 @@ import { notFound } from "next/navigation"
 import { getDb } from "@/db"
 import { competitionGroupsTable } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
+import { getHasPendingOrganizingTeam } from "@/server/organizer-pending"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { CompetitionHeader } from "../_components/competition-header"
 import { CompetitionSidebar } from "../_components/competition-sidebar"
+import { PendingOrganizerBanner } from "../../_components/pending-organizer-banner"
 
 interface CompetitionSidebarLayoutProps {
 	children: React.ReactNode
@@ -45,31 +47,36 @@ export default async function CompetitionSidebarLayout({
 			]
 		: [{ label: competition.name }]
 
+	const hasPendingTeam = await getHasPendingOrganizingTeam()
+
 	return (
-		<CompetitionSidebar competitionId={competition.id}>
-			<div className="flex flex-1 flex-col gap-6 p-6">
-				{/* Breadcrumb */}
-				<OrganizerBreadcrumb segments={breadcrumbSegments} />
+		<div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] overflow-x-hidden">
+			<CompetitionSidebar competitionId={competition.id}>
+				{hasPendingTeam && <PendingOrganizerBanner variant="sidebar-inset" />}
+				<div className="flex flex-1 flex-col gap-6 p-6">
+					{/* Breadcrumb */}
+					<OrganizerBreadcrumb segments={breadcrumbSegments} />
 
-				{/* Competition Header */}
-				<CompetitionHeader
-					competition={{
-						id: competition.id,
-						name: competition.name,
-						slug: competition.slug,
-						description: competition.description,
-						startDate: competition.startDate,
-						endDate: competition.endDate,
-						registrationOpensAt: competition.registrationOpensAt,
-						registrationClosesAt: competition.registrationClosesAt,
-						visibility: competition.visibility,
-						status: competition.status,
-					}}
-				/>
+					{/* Competition Header */}
+					<CompetitionHeader
+						competition={{
+							id: competition.id,
+							name: competition.name,
+							slug: competition.slug,
+							description: competition.description,
+							startDate: competition.startDate,
+							endDate: competition.endDate,
+							registrationOpensAt: competition.registrationOpensAt,
+							registrationClosesAt: competition.registrationClosesAt,
+							visibility: competition.visibility,
+							status: competition.status,
+						}}
+					/>
 
-				{/* Page Content */}
-				{children}
-			</div>
-		</CompetitionSidebar>
+					{/* Page Content */}
+					{children}
+				</div>
+			</CompetitionSidebar>
+		</div>
 	)
 }

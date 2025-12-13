@@ -1,7 +1,7 @@
 import { User } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import LogoutButton from "@/components/nav/logout-button"
+import { CompeteNavBrand } from "@/components/nav/compete-nav-brand"
 import CompeteMobileNav from "@/components/nav/compete-mobile-nav"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle"
@@ -38,30 +38,9 @@ export default async function CompeteNav() {
 
 	return (
 		<header className="border-black border-b-2 bg-background p-4 dark:border-dark-border dark:bg-dark-background">
-			<div className="container mx-auto flex items-center justify-between">
-				<Link href="/compete" className="flex items-center gap-2">
-					<Image
-						src="/wodsmith-logo-no-text.png"
-						alt="wodsmith compete"
-						width={32}
-						height={32}
-						className="dark:hidden"
-					/>
-					<Image
-						src="/wodsmith-logo-no-text.png"
-						alt="wodsmith compete"
-						width={32}
-						height={32}
-						className="hidden dark:block"
-					/>
-					<h1 className="text-2xl text-foreground dark:text-dark-foreground">
-						<span className="font-black uppercase">wod</span>smith{" "}
-						<span className="font-medium dark:text-amber-500 text-amber-600">
-							Compete
-						</span>
-					</h1>
-				</Link>
-				<nav className="hidden items-center gap-4 md:flex">
+			<div className="container mx-auto flex items-center">
+				<CompeteNavBrand />
+				<nav className="ml-auto hidden items-center gap-4 md:flex">
 					{session?.user ? (
 						<>
 							<Link
@@ -113,12 +92,14 @@ export default async function CompeteNav() {
 						</div>
 					)}
 				</nav>
-				<CompeteMobileNav
-					session={session}
-					invitations={pendingInvitations}
-					canOrganize={canOrganize}
-					missingProfileFields={missingProfileFields}
-				/>
+				<div className="ml-auto md:hidden">
+					<CompeteMobileNav
+						session={session}
+						invitations={pendingInvitations}
+						canOrganize={canOrganize}
+						missingProfileFields={missingProfileFields}
+					/>
+				</div>
 			</div>
 		</header>
 	)

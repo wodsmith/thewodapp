@@ -3,12 +3,11 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { ClockIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
-import { LIMITS } from "@/config/limits"
-import { getTeamLimit } from "@/server/entitlements"
+import { getHasPendingOrganizingTeam } from "@/server/organizer-pending"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
+import { PendingOrganizerBanner } from "./_components/pending-organizer-banner"
 
 export const metadata: Metadata = {
 	title: "Organizer Dashboard - Compete",
@@ -51,29 +50,20 @@ export default async function OrganizerLayout({
 		)
 	}
 
-	// Check if any organizing team is pending approval (limit = 0)
-	const teamLimits = await Promise.all(
-		organizingTeams.map(async (team) => ({
-			team,
-			limit: await getTeamLimit(team.id, LIMITS.MAX_PUBLISHED_COMPETITIONS),
-		})),
-	)
-
-	const hasPendingTeam = teamLimits.some((t) => t.limit === 0)
+	// Banner is rendered in sidebar-inset for competition routes to respect sidebar.
+	const hasPendingTeam = await getHasPendingOrganizingTeam()
+	const organizerSubroute = pathname
+		.replace(/^\/compete\/organizer\/?/, "")
+		.split("/")[0]
+	const isCompetitionRoute =
+		Boolean(organizerSubroute) &&
+		organizerSubroute !== "onboard" &&
+		organizerSubroute !== "series"
 
 	return (
 		<>
-			{hasPendingTeam && (
-				<div className="border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
-					<div className="container mx-auto flex items-center gap-3 px-4 py-3">
-						<ClockIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-						<p className="text-sm text-amber-800 dark:text-amber-200">
-							<strong>Application pending:</strong> You can create draft
-							competitions while your application is being reviewed. Drafts
-							won't be visible until published after approval.
-						</p>
-					</div>
-				</div>
+			{hasPendingTeam && !isCompetitionRoute && (
+				<PendingOrganizerBanner variant="page-container" />
 			)}
 			{children}
 		</>

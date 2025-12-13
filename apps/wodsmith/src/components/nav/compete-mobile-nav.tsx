@@ -4,6 +4,7 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Bell, Menu, Settings, User } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useState } from "react"
 import LogoutButton from "@/components/nav/logout-button"
 import { Button } from "@/components/ui/button"
@@ -48,6 +49,11 @@ function formatMissingFields(
 	return `Add ${fields.slice(0, -1).join(", ")} & ${fields[fields.length - 1]}`
 }
 
+function shouldHideBrand(pathname: string) {
+	const segments = pathname.split("/").filter(Boolean)
+	return segments[0] === "compete" && segments[1] === "organizer" && segments.length >= 3
+}
+
 export default function CompeteMobileNav({
 	session,
 	invitations = [],
@@ -55,6 +61,7 @@ export default function CompeteMobileNav({
 	missingProfileFields = null,
 }: CompeteMobileNavProps) {
 	const [open, setOpen] = useState(false)
+	const pathname = usePathname()
 	const isProfileIncomplete =
 		missingProfileFields &&
 		(missingProfileFields.gender ||
@@ -82,30 +89,32 @@ export default function CompeteMobileNav({
 					<SheetTitle>Navigation Menu</SheetTitle>
 				</VisuallyHidden>
 				<nav className="grid gap-6 font-medium text-lg">
-					<Link
-						href="/compete"
-						className="mb-4 flex items-center gap-2 font-semibold text-lg"
-						onClick={handleLinkClick}
-					>
-						<Image
-							src="/wodsmith-logo-no-text.png"
-							alt="wodsmith compete"
-							width={32}
-							height={32}
-							className="dark:hidden"
-						/>
-						<Image
-							src="/wodsmith-logo-no-text.png"
-							alt="wodsmith compete"
-							width={32}
-							height={32}
-							className="hidden dark:block"
-						/>
-						<span className="text-2xl text-foreground dark:text-dark-foreground">
-							<span className="font-black uppercase">WOD</span>smith{" "}
-							<span className="font-medium text-muted-foreground">Compete</span>
-						</span>
-					</Link>
+					{!shouldHideBrand(pathname) && (
+						<Link
+							href="/compete"
+							className="mb-4 flex items-center gap-2 font-semibold text-lg"
+							onClick={handleLinkClick}
+						>
+							<Image
+								src="/wodsmith-logo-no-text.png"
+								alt="wodsmith compete"
+								width={32}
+								height={32}
+								className="dark:hidden"
+							/>
+							<Image
+								src="/wodsmith-logo-no-text.png"
+								alt="wodsmith compete"
+								width={32}
+								height={32}
+								className="hidden dark:block"
+							/>
+							<span className="text-2xl text-foreground dark:text-dark-foreground">
+								<span className="font-black uppercase">WOD</span>smith{" "}
+								<span className="font-medium text-muted-foreground">Compete</span>
+							</span>
+						</Link>
+					)}
 					{session?.user ? (
 						<>
 							<Link

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -14,6 +15,7 @@ import {
 	Users,
 	Layers,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
 	Sidebar,
 	SidebarContent,
@@ -26,10 +28,12 @@ import {
 	SidebarMenuItem,
 	SidebarProvider,
 	SidebarInset,
+	SidebarRail,
 	SidebarTrigger,
+	useSidebar,
 } from "@/components/ui/sidebar"
+import { CompeteSidebarBrand } from "@/components/brand/compete-sidebar-brand"
 import { cn } from "@/lib/utils"
-import { Separator } from "@/components/ui/separator"
 
 interface CompetitionSidebarProps {
 	competitionId: string
@@ -121,6 +125,38 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	)
 }
 
+function CompetitionSidebarHeader() {
+	const { state, toggleSidebar } = useSidebar()
+
+	return (
+		<SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2">
+			{state === "collapsed" ? (
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-8 w-8"
+					onClick={toggleSidebar}
+				>
+					<Image
+						src="/wodsmith-logo-no-text.png"
+						alt=""
+						width={24}
+						height={24}
+						className="size-6"
+					/>
+					<span className="sr-only">Expand sidebar</span>
+				</Button>
+			) : (
+				<>
+					<SidebarTrigger className="-ml-1" />
+					<CompeteSidebarBrand className="flex-1" />
+				</>
+			)}
+		</SidebarHeader>
+	)
+}
+
 export function CompetitionSidebar({ competitionId, children }: CompetitionSidebarProps) {
 	const pathname = usePathname()
 	const basePath = `/compete/organizer/${competitionId}`
@@ -136,14 +172,9 @@ export function CompetitionSidebar({ competitionId, children }: CompetitionSideb
 
 	return (
 		<SidebarProvider>
-			<Sidebar variant="inset" collapsible="icon">
-				<SidebarHeader className="h-14 flex-row items-center border-b px-4">
-					<SidebarTrigger className="-ml-1" />
-					<Separator orientation="vertical" className="mx-2 h-4" />
-					<span className="font-semibold text-sm truncate group-data-[collapsible=icon]:hidden">
-						Competition
-					</span>
-				</SidebarHeader>
+			<Sidebar variant="sidebar" collapsible="icon">
+				<CompetitionSidebarHeader />
+				<SidebarRail />
 				<SidebarContent>
 					{/* Overview - standalone at top */}
 					<SidebarGroup>
