@@ -1,5 +1,7 @@
+import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,6 +11,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { requireAdmin } from "@/utils/auth"
 import { AdminStats } from "./_components/admin-stats"
 
 export const metadata: Metadata = {
@@ -16,7 +19,11 @@ export const metadata: Metadata = {
 	description: "Manage all users",
 }
 
-export default function AdminPage() {
+export default async function AdminPage() {
+	const session = await requireAdmin({ doNotThrowError: true })
+	if (!session) {
+		notFound()
+	}
 	return (
 		<div className="max-w-3xl">
 			<PageHeader items={[{ href: "/admin", label: "Admin" }]} />

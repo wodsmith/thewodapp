@@ -1,5 +1,8 @@
+import "server-only"
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
+import { requireAdmin } from "@/utils/auth"
 import { EntitlementsManagementClient } from "./_components/entitlements-management-client"
 
 export const metadata: Metadata = {
@@ -8,8 +11,10 @@ export const metadata: Metadata = {
 }
 
 export default async function EntitlementsManagementPage() {
-	// Note: Admin check is done in each server action
-	// The page itself doesn't need to check since all actions require admin
+	const session = await requireAdmin({ doNotThrowError: true })
+	if (!session) {
+		notFound()
+	}
 
 	return (
 		<>

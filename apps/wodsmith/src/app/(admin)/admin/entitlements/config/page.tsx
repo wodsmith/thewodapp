@@ -1,5 +1,8 @@
+import "server-only"
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
+import { requireAdmin } from "@/utils/auth"
 import { ConfigManagementClient } from "./_components/config-management-client"
 
 export const metadata: Metadata = {
@@ -8,6 +11,11 @@ export const metadata: Metadata = {
 }
 
 export default async function EntitlementsConfigPage() {
+	const session = await requireAdmin({ doNotThrowError: true })
+	if (!session) {
+		notFound()
+	}
+
 	return (
 		<>
 			<PageHeader

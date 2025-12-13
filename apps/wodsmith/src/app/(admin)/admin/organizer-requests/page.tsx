@@ -1,5 +1,6 @@
 import "server-only"
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { requireAdmin } from "@/utils/auth"
 import { getAllOrganizerRequests } from "@/server/organizer-onboarding"
@@ -11,7 +12,10 @@ export const metadata: Metadata = {
 }
 
 export default async function OrganizerRequestsPage() {
-	await requireAdmin()
+	const session = await requireAdmin({ doNotThrowError: true })
+	if (!session) {
+		notFound()
+	}
 
 	const requests = await getAllOrganizerRequests({ statusFilter: "all" })
 
