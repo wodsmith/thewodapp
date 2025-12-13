@@ -2,6 +2,7 @@
 
 import "server-only"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { getPostHogClient } from "@/lib/posthog-server"
 import { teamInviteSchema } from "@/schemas/team-invite.schema"
 import { acceptTeamInvitation } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -23,6 +24,20 @@ export const acceptTeamInviteAction = createServerAction()
 
 			try {
 				const result = await acceptTeamInvitation(input.token)
+
+				// Track team invite accepted event server-side
+				if (session?.userId) {
+					const posthog = getPostHogClient()
+					posthog.capture({
+						distinctId: session.userId,
+						event: "team_invite_accepted",
+						properties: {
+							team_id: result.teamId,
+							team_name: result.teamName,
+						},
+					})
+				}
+
 				return result
 			} catch (error) {
 				console.error("Error accepting team invitation:", error)

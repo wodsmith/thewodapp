@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Competition, CompetitionGroup, Team } from "@/db/schema"
+import { formatUTCDateRange } from "@/utils/date-utils"
 
 interface CompetitionHeroProps {
 	competition: Competition & {
@@ -14,39 +15,42 @@ interface CompetitionHeroProps {
 	canManage?: boolean
 }
 
-function formatDateRange(startDate: Date | number, endDate: Date | number): string {
-	const start = typeof startDate === "number" ? new Date(startDate) : startDate
-	const end = typeof endDate === "number" ? new Date(endDate) : endDate
+export function CompetitionHero({
+	competition,
+	registrationCount,
+	canManage = false,
+}: CompetitionHeroProps) {
+	// Use competition profile image, fall back to organizing team avatar
+	const profileImage =
+		competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
-	const startMonth = start.toLocaleDateString("en-US", { month: "long" })
-	const startDay = start.getDate()
-	const endDay = end.getDate()
-	const startYear = start.getFullYear()
-	const endYear = end.getFullYear()
-
-	// Same month
-	if (start.getMonth() === end.getMonth() && startYear === endYear) {
-		return `${startMonth} ${startDay}-${endDay}, ${startYear}`
-	}
-
-	// Different months
-	const endMonth = end.toLocaleDateString("en-US", { month: "long" })
-	if (startYear === endYear) {
-		return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`
-	}
-	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
-}
-
-export function CompetitionHero({ competition, registrationCount, canManage = false }: CompetitionHeroProps) {
 	return (
-		<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-			<div className="container mx-auto px-4 py-8 md:py-12">
+		<div className="relative text-white overflow-hidden">
+			{/* Banner Image or Gradient Background */}
+			{competition.bannerImageUrl ? (
+				<>
+					<Image
+						src={competition.bannerImageUrl}
+						alt=""
+						fill
+						className="object-cover"
+						unoptimized
+						priority
+					/>
+					{/* Overlay for text readability */}
+					<div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/60 to-slate-900/40" />
+				</>
+			) : (
+				<div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800" />
+			)}
+
+			<div className="container relative mx-auto px-4 py-8 md:py-12">
 				<div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
-					{/* Event Logo Placeholder */}
-					<div className="hidden md:flex h-36 w-36 shrink-0 items-center justify-center rounded-xl bg-slate-700/50 border border-slate-600 overflow-hidden">
-						{competition.organizingTeam?.avatarUrl ? (
+					{/* Event Logo */}
+					<div className="hidden md:flex h-36 w-36 shrink-0 items-center justify-center rounded-xl bg-slate-700/50 border border-slate-600 overflow-hidden backdrop-blur-sm">
+						{profileImage ? (
 							<Image
-								src={competition.organizingTeam.avatarUrl}
+								src={profileImage}
 								alt={competition.name}
 								width={144}
 								height={144}
@@ -65,7 +69,9 @@ export function CompetitionHero({ competition, registrationCount, canManage = fa
 						<div className="flex items-start justify-between gap-4">
 							<div className="space-y-1">
 								{competition.group && (
-									<p className="text-sm text-teal-400">{competition.group.name}</p>
+									<p className="text-sm text-teal-400">
+										{competition.group.name}
+									</p>
 								)}
 								<h1 className="text-3xl font-bold md:text-4xl lg:text-5xl">
 									{competition.name}
@@ -73,7 +79,10 @@ export function CompetitionHero({ competition, registrationCount, canManage = fa
 								<div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-slate-300">
 									<span className="flex items-center gap-1.5">
 										<Calendar className="h-4 w-4" />
-										{formatDateRange(competition.startDate, competition.endDate)}
+										{formatUTCDateRange(
+											competition.startDate,
+											competition.endDate,
+										)}
 									</span>
 									<span className="flex items-center gap-1.5">
 										<MapPin className="h-4 w-4" />
@@ -107,7 +116,10 @@ export function CompetitionHero({ competition, registrationCount, canManage = fa
 
 						{/* Quick Stats */}
 						<div className="flex flex-wrap gap-2">
-							<Badge variant="secondary" className="bg-slate-700/50 text-slate-200 hover:bg-slate-700">
+							<Badge
+								variant="secondary"
+								className="bg-slate-700/50 text-slate-200 hover:bg-slate-700"
+							>
 								<Users className="mr-1 h-3 w-3" />
 								{registrationCount} Athletes
 							</Badge>

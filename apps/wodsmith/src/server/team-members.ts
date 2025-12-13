@@ -439,7 +439,12 @@ export async function inviteUserToTeamInternal({
 		teamName: string
 		divisionName: string
 	}
-}): Promise<{ userJoined: boolean; userId?: string; invitationSent: boolean; token?: string }> {
+}): Promise<{
+	userJoined: boolean
+	userId?: string
+	invitationSent: boolean
+	token?: string
+}> {
 	const db = getDb()
 
 	// Check if user already exists
@@ -458,7 +463,11 @@ export async function inviteUserToTeamInternal({
 
 		if (existingMembership) {
 			// User is already a member - return success without inserting
-			return { userJoined: true, userId: existingUser.id, invitationSent: false }
+			return {
+				userJoined: true,
+				userId: existingUser.id,
+				invitationSent: false,
+			}
 		}
 
 		// User exists but not a member - add directly to team
@@ -475,8 +484,13 @@ export async function inviteUserToTeamInternal({
 
 		// Also add to competition_event team if this is a competition team
 		if (competitionContext) {
-			const { addToCompetitionEventTeam } = await import("@/server/competitions")
-			await addToCompetitionEventTeam(existingUser.id, competitionContext.competitionId)
+			const { addToCompetitionEventTeam } = await import(
+				"@/server/competitions"
+			)
+			await addToCompetitionEventTeam(
+				existingUser.id,
+				competitionContext.competitionId,
+			)
 		}
 
 		await updateAllSessionsOfUser(existingUser.id)
@@ -500,14 +514,20 @@ export async function inviteUserToTeamInternal({
 
 	// TODO: Send competition team invite email
 	if (competitionContext) {
-		console.log(
-			`\n📧 Competition Team Invite:\n` +
-				`  To: ${email}\n` +
-				`  Team: ${competitionContext.teamName}\n` +
-				`  Competition: ${competitionContext.competitionSlug}\n` +
-				`  Division: ${competitionContext.divisionName}\n` +
-				`  Accept URL: ${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/compete/invite/${token}\n`,
-		)
+		const acceptUrl = `${
+			process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+		}/compete/invite/${token}`
+		const { logInfo } = await import("@/lib/logging/posthog-otel-logger")
+		logInfo({
+			message: "[team-members] Competition team invite created",
+			attributes: {
+				to: email,
+				teamName: competitionContext.teamName,
+				competitionSlug: competitionContext.competitionSlug,
+				divisionName: competitionContext.divisionName,
+				acceptUrl,
+			},
+		})
 	}
 
 	return { userJoined: false, invitationSent: true, token }
@@ -626,17 +646,25 @@ export async function acceptTeamInvitation(token: string) {
 
 	// Handle competition_team type - also add user to competition_event team
 	const { TEAM_TYPE_ENUM } = await import("@/db/schema")
-	if (team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM && team.competitionMetadata) {
+	if (
+		team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
+		team.competitionMetadata
+	) {
 		try {
-			const metadata = JSON.parse(team.competitionMetadata) as { competitionId?: string }
+			const metadata = JSON.parse(team.competitionMetadata) as {
+				competitionId?: string
+			}
 			if (metadata.competitionId) {
-				const { addToCompetitionEventTeam, clearPendingTeammate } = await import(
-					"@/server/competitions"
-				)
+				const { addToCompetitionEventTeam, clearPendingTeammate } =
+					await import("@/server/competitions")
 				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
 				// Clear from pendingTeammates on the registration and migrate affiliate
 				if (session.user.email) {
-					await clearPendingTeammate(metadata.competitionId, session.user.email, session.userId)
+					await clearPendingTeammate(
+						metadata.competitionId,
+						session.user.email,
+						session.userId,
+					)
 				}
 			}
 		} catch {
@@ -648,6 +676,7 @@ export async function acceptTeamInvitation(token: string) {
 		success: true,
 		teamId: invitation.teamId,
 		teamSlug: team.slug,
+		teamName: team.name,
 	}
 }
 

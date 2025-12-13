@@ -11,6 +11,11 @@ import {
 } from "@/db/schema"
 import type { ResultSet, WorkoutResult } from "@/types"
 import { ScalingQueryMonitor } from "@/utils/query-monitor"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 
 // Multi-tier cache system for scaling data
 type CachedScalingLevel = {
@@ -108,7 +113,11 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 				return kvCached as CachedScalingGroup
 			}
 		} catch (error) {
-			console.warn("KV cache read failed:", error)
+			logWarning({
+				message: "[workout-results] KV cache read failed",
+				error,
+				attributes: { cacheKey },
+			})
 		}
 	}
 
@@ -172,7 +181,11 @@ async function getCachedScalingGroup(scalingGroupId: string) {
 				expirationTtl: CACHE_TTL.KV_EDGE,
 			})
 		} catch (error) {
-			console.warn("KV cache write failed:", error)
+			logWarning({
+				message: "[workout-results] KV cache write failed",
+				error,
+				attributes: { cacheKey },
+			})
 		}
 	}
 
@@ -283,7 +296,11 @@ export function clearScalingGroupCache(scalingGroupId?: string) {
 			kvBinding
 				.delete(`scaling-group:${scalingGroupId}`)
 				.catch((error: unknown) => {
-					console.warn("KV cache delete failed:", error)
+					logWarning({
+						message: "[workout-results] KV cache delete failed",
+						error,
+						attributes: { scalingGroupId },
+					})
 				})
 		}
 	} else {
@@ -395,9 +412,10 @@ export async function getWorkoutResultsByWorkoutAndUser(
 	userId: string,
 ): Promise<WorkoutResult[]> {
 	const db = getDb()
-	console.log(
-		`Fetching workout results for workoutId: ${workoutId}, userId: ${userId}`,
-	)
+	logInfo({
+		message: "[workout-results] Fetching results for workout/user",
+		attributes: { workoutId, userId },
+	})
 	try {
 		const workoutResultsData = await db
 			.select()
@@ -410,10 +428,17 @@ export async function getWorkoutResultsByWorkoutAndUser(
 				),
 			)
 			.orderBy(results.date)
-		console.log(`Found ${workoutResultsData.length} results.`)
+		logInfo({
+			message: "[workout-results] Results fetched",
+			attributes: { workoutId, userId, count: workoutResultsData.length },
+		})
 		return workoutResultsData
 	} catch (error) {
-		console.error("Error fetching workout results:", error)
+		logError({
+			message: "[workout-results] Error fetching results",
+			error,
+			attributes: { workoutId, userId },
+		})
 		return []
 	}
 }
@@ -425,17 +450,27 @@ export async function getResultSetsById(
 	resultId: string,
 ): Promise<ResultSet[]> {
 	const db = getDb()
-	console.log(`Fetching sets for resultId: ${resultId}`)
+	logInfo({
+		message: "[workout-results] Fetching sets for result",
+		attributes: { resultId },
+	})
 	try {
 		const setDetails = await db
 			.select()
 			.from(sets)
 			.where(eq(sets.resultId, resultId))
 			.orderBy(sets.setNumber)
-		console.log(`Found ${setDetails.length} sets for resultId ${resultId}.`)
+		logInfo({
+			message: "[workout-results] Sets fetched",
+			attributes: { resultId, count: setDetails.length },
+		})
 		return setDetails
 	} catch (error) {
-		console.error(`Error fetching sets for resultId ${resultId}:`, error)
+		logError({
+			message: "[workout-results] Error fetching sets",
+			error,
+			attributes: { resultId },
+		})
 		return []
 	}
 }
@@ -457,9 +492,14 @@ export async function getWorkoutResultForScheduledInstance(
 	const endOfDay = new Date(date)
 	endOfDay.setHours(23, 59, 59, 999)
 
-	console.log(
-		`Fetching workout result for scheduledInstanceId: ${scheduledInstanceId}, userId: ${userId}, date: ${date.toISOString()}`,
-	)
+	logInfo({
+		message: "[workout-results] Fetching result for scheduled instance",
+		attributes: {
+			scheduledInstanceId,
+			userId,
+			date: date.toISOString(),
+		},
+	})
 
 	try {
 		const workoutResults = await db
@@ -480,17 +520,24 @@ export async function getWorkoutResultForScheduledInstance(
 		if (workoutResults.length > 0) {
 			const result = workoutResults[0]
 			if (!result) return null
-			console.log(`Found result for scheduled instance ${scheduledInstanceId}`)
+			logInfo({
+				message: "[workout-results] Found scheduled instance result",
+				attributes: { scheduledInstanceId, resultId: result.id },
+			})
 			return result
 		}
 
-		console.log(`No result found for scheduled instance ${scheduledInstanceId}`)
+		logInfo({
+			message: "[workout-results] No result for scheduled instance",
+			attributes: { scheduledInstanceId },
+		})
 		return null
 	} catch (error) {
-		console.error(
-			"Error fetching workout result for scheduled instance:",
+		logError({
+			message: "[workout-results] Error fetching scheduled instance result",
 			error,
-		)
+			attributes: { scheduledInstanceId, userId },
+		})
 		return null
 	}
 }
@@ -520,15 +567,14 @@ export async function getWorkoutResultsWithScalingForUser(
 		scalingLevelPosition: r.scalingPosition,
 	}))
 
-	console.log(
-		"[getWorkoutResultsWithScalingForUser] Mapped results:",
-		mappedResults.map((r) => ({
-			id: r.id,
-			scalingLevelId: r.scalingLevelId,
-			scalingLevelLabel: r.scalingLevelLabel,
-			scale: r.scale,
-		})),
-	)
+	logInfo({
+		message: "[workout-results] Mapped results with scaling for user",
+		attributes: {
+			workoutId,
+			userId,
+			count: mappedResults.length,
+		},
+	})
 
 	return mappedResults
 }
@@ -555,11 +601,10 @@ export async function getWorkoutResultsWithScaling({
 	>
 > {
 	const db = getDb()
-	console.log(
-		`Fetching workout results with scaling for workoutId: ${workoutId}, teamId: ${teamId}${
-			userId ? `, userId: ${userId}` : ""
-		}`,
-	)
+	logInfo({
+		message: "[workout-results] Fetching results with scaling",
+		attributes: { workoutId, teamId, userId },
+	})
 	try {
 		const query = db
 			.select({
@@ -585,6 +630,13 @@ export async function getWorkoutResultsWithScaling({
 				updateCounter: results.updateCounter,
 				programmingTrackId: results.programmingTrackId,
 				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
+				// Competition-specific fields
+				competitionEventId: results.competitionEventId,
+				competitionRegistrationId: results.competitionRegistrationId,
+				scoreStatus: results.scoreStatus,
+				tieBreakScore: results.tieBreakScore,
+				secondaryScore: results.secondaryScore,
+				enteredBy: results.enteredBy,
 			})
 			.from(results)
 			.leftJoin(
@@ -619,20 +671,15 @@ export async function getWorkoutResultsWithScaling({
 			.where(and(...conditions))
 			.orderBy(asc(scalingLevelsTable.position), desc(results.wodScore))
 
-		console.log(
-			`Found ${workoutResultsData.length} results with scaling information.`,
-		)
-		console.log(
-			"[getWorkoutResultsWithScaling] Sample result:",
-			workoutResultsData[0]
-				? {
-						id: workoutResultsData[0].id,
-						scalingLevelId: workoutResultsData[0].scalingLevelId,
-						scalingLabel: workoutResultsData[0].scalingLabel,
-						scale: workoutResultsData[0].scale,
-					}
-				: "No results",
-		)
+		logInfo({
+			message: "[workout-results] Results with scaling fetched",
+			attributes: {
+				workoutId,
+				teamId,
+				userId,
+				count: workoutResultsData.length,
+			},
+		})
 		return workoutResultsData.map((result) => ({
 			...result,
 			scalingLabel: result.scalingLabel || undefined,
@@ -641,7 +688,11 @@ export async function getWorkoutResultsWithScaling({
 			scalingDescription: result.scalingDescription || undefined,
 		}))
 	} catch (error) {
-		console.error("Error fetching workout results with scaling:", error)
+		logError({
+			message: "[workout-results] Error fetching results with scaling",
+			error,
+			attributes: { workoutId, teamId, userId },
+		})
 		return []
 	}
 }
@@ -701,9 +752,10 @@ export async function getWorkoutLeaderboard({
 	}>
 > {
 	const db = getDb()
-	console.log(
-		`Fetching leaderboard for workoutId: ${workoutId}, teamId: ${teamId}`,
-	)
+	logInfo({
+		message: "[workout-results] Fetching leaderboard",
+		attributes: { workoutId, teamId },
+	})
 
 	try {
 		const { userTable } = await import("@/db/schema")
@@ -735,6 +787,13 @@ export async function getWorkoutLeaderboard({
 				updateCounter: results.updateCounter,
 				programmingTrackId: results.programmingTrackId,
 				scheduledWorkoutInstanceId: results.scheduledWorkoutInstanceId,
+				// Competition-specific fields
+				competitionEventId: results.competitionEventId,
+				competitionRegistrationId: results.competitionRegistrationId,
+				scoreStatus: results.scoreStatus,
+				tieBreakScore: results.tieBreakScore,
+				secondaryScore: results.secondaryScore,
+				enteredBy: results.enteredBy,
 			})
 			.from(results)
 			.leftJoin(userTable, eq(results.userId, userTable.id))
@@ -793,12 +852,22 @@ export async function getWorkoutLeaderboard({
 			(a, b) => a.scalingPosition - b.scalingPosition,
 		)
 
-		console.log(
-			`Leaderboard has ${leaderboardData.length} results in ${sortedGroups.length} scaling groups`,
-		)
+		logInfo({
+			message: "[workout-results] Leaderboard prepared",
+			attributes: {
+				workoutId,
+				teamId,
+				results: leaderboardData.length,
+				scalingGroups: sortedGroups.length,
+			},
+		})
 		return sortedGroups
 	} catch (error) {
-		console.error("Error fetching workout leaderboard:", error)
+		logError({
+			message: "[workout-results] Error fetching leaderboard",
+			error,
+			attributes: { workoutId, teamId },
+		})
 		return []
 	}
 }
@@ -818,9 +887,13 @@ export async function getWorkoutResultsForScheduledInstances(
 		return resultsMap
 	}
 
-	console.log(
-		`Fetching workout results for ${scheduledInstances.length} scheduled instances for user ${userId}`,
-	)
+	logInfo({
+		message: "[workout-results] Fetching results for scheduled instances",
+		attributes: {
+			instances: scheduledInstances.length,
+			userId,
+		},
+	})
 
 	try {
 		// Group instances by date for efficient querying
@@ -882,17 +955,21 @@ export async function getWorkoutResultsForScheduledInstances(
 			}
 		}
 
-		console.log(
-			`Found ${Object.keys(resultsMap).length} results out of ${
-				scheduledInstances.length
-			} instances`,
-		)
+		logInfo({
+			message: "[workout-results] Results fetched for scheduled instances",
+			attributes: {
+				found: Object.keys(resultsMap).length,
+				requested: scheduledInstances.length,
+				userId,
+			},
+		})
 		return resultsMap
 	} catch (error) {
-		console.error(
-			"Error fetching workout results for scheduled instances:",
+		logError({
+			message: "[workout-results] Error fetching scheduled instance results",
 			error,
-		)
+			attributes: { userId, instances: scheduledInstances.length },
+		})
 		return resultsMap
 	}
 }

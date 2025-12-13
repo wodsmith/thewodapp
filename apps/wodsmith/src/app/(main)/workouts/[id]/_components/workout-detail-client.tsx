@@ -15,7 +15,8 @@ import {
 import type { Route } from "next"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { Suspense } from "react"
+import posthog from "posthog-js"
+import { Suspense, useEffect, useRef } from "react"
 import { MovementsList } from "@/components/movements-list"
 import { WorkoutScalingDisplay } from "@/components/scaling/workout-scaling-display"
 import { Badge } from "@/components/ui/badge"
@@ -83,6 +84,20 @@ export default function WorkoutDetailClient({
 }) {
 	const searchParams = useSearchParams()
 	const redirectUrl = searchParams.get("redirectUrl")
+	const hasTrackedView = useRef(false)
+
+	// Track workout view on mount (only once per component lifecycle)
+	useEffect(() => {
+		if (workout && !hasTrackedView.current) {
+			hasTrackedView.current = true
+			posthog.capture("workout_viewed", {
+				workout_id: workoutId,
+				workout_name: workout.name,
+				workout_scheme: workout.scheme,
+				is_remixed: !!sourceWorkout,
+			})
+		}
+	}, [workout, workoutId, sourceWorkout])
 
 	if (!workout) return <div>Loading...</div>
 
@@ -145,9 +160,7 @@ export default function WorkoutDetailClient({
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
 								<BreadcrumbLink asChild>
-									<Link href="/admin/teams">
-										Team
-									</Link>
+									<Link href="/admin/teams">Team</Link>
 								</BreadcrumbLink>
 							</BreadcrumbItem>
 							<BreadcrumbSeparator />

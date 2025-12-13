@@ -1,4 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest"
+import { canUserEditWorkout, shouldCreateRemix, getWorkoutPermissions } from "@/utils/workout-permissions"
+import { requireVerifiedEmail } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
+import { getDb } from "@/db"
+import { eq } from "drizzle-orm"
+import { workouts } from "@/db/schema"
 import type { KVSession } from "@/utils/kv-session"
 
 // Mock the dependencies
@@ -20,7 +26,6 @@ vi.mock("@/db", () => ({
       },
     },
   })),
-  setTestDb: vi.fn(),
 }))
 
 vi.mock("@/db/schema", () => ({
@@ -33,11 +38,6 @@ vi.mock("@/db/schema", () => ({
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
 }))
-
-// Import after mocks
-import { canUserEditWorkout, shouldCreateRemix, getWorkoutPermissions } from "@/utils/workout-permissions"
-import { requireVerifiedEmail } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
 
 describe("workout-permissions", () => {
   const mockSession: KVSession = {
@@ -173,13 +173,13 @@ describe("workout-permissions", () => {
       expect(hasTeamPermission).toHaveBeenCalledWith("team-123", "edit_components")
     })
 
-    // TODO: Review - test expects remixes can't be edited, but implementation allows it
-    it.skip("should return false if workout is already a remix", async () => {
+    it("should return true if workout is a remix in user's own team", async () => {
+      // Users can edit any workout in their team, including remixes
       mockFindFirst.mockResolvedValue(mockRemixWorkout)
 
       const result = await canUserEditWorkout("workout-456")
 
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 
@@ -234,13 +234,13 @@ describe("workout-permissions", () => {
       expect(hasTeamPermission).toHaveBeenCalledWith("team-123", "edit_components")
     })
 
-    // TODO: Review - test expects remixes trigger remix creation, but implementation doesn't
-    it.skip("should return true if workout is already a remix", async () => {
+    it("should return false if workout is a remix in user's own team (can edit directly)", async () => {
+      // Users can edit remixes in their own team, so no need to create another remix
       mockFindFirst.mockResolvedValue(mockRemixWorkout)
 
       const result = await shouldCreateRemix("workout-456")
 
-      expect(result).toBe(true)
+      expect(result).toBe(false)
     })
 
     it("should return false if user can edit directly", async () => {
@@ -267,17 +267,17 @@ describe("workout-permissions", () => {
       })
     })
 
-    // TODO: Review - test expects remixes return different permissions
-    it.skip("should return remix permissions for non-editable workout", async () => {
+    it("should return edit permissions for remix in user's own team", async () => {
+      // Remixes in user's own team can be edited directly
       mockFindFirst.mockResolvedValue(mockRemixWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(true)
 
       const result = await getWorkoutPermissions("workout-456")
 
       expect(result).toEqual({
-        canEdit: false,
-        canRemix: true,
-        reason: "User should create a remix instead of editing directly",
+        canEdit: true,
+        canRemix: false,
+        reason: "User has direct edit permissions for this workout",
       })
     })
 

@@ -1,7 +1,14 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Check, ChevronsUpDown, Search, Building2, ShieldCheck, ShieldQuestion } from "lucide-react"
+import {
+	Check,
+	ChevronsUpDown,
+	Search,
+	Building2,
+	ShieldCheck,
+	ShieldQuestion,
+} from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,7 +35,11 @@ type Props = {
 	disabled?: boolean
 }
 
-function VerificationBadge({ status }: { status: Affiliate["verificationStatus"] }) {
+function VerificationBadge({
+	status,
+}: {
+	status: Affiliate["verificationStatus"]
+}) {
 	switch (status) {
 		case "verified":
 			return (
@@ -66,15 +77,18 @@ export function AffiliateCombobox({
 	const [isLoading, setIsLoading] = useState(false)
 	const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
-	const { execute: searchAffiliates } = useServerAction(searchAffiliatesAction, {
-		onSuccess: (result) => {
-			setAffiliates(result.data as Affiliate[])
-			setIsLoading(false)
+	const { execute: searchAffiliates } = useServerAction(
+		searchAffiliatesAction,
+		{
+			onSuccess: (result) => {
+				setAffiliates(result.data as Affiliate[])
+				setIsLoading(false)
+			},
+			onError: () => {
+				setIsLoading(false)
+			},
 		},
-		onError: () => {
-			setIsLoading(false)
-		},
-	})
+	)
 
 	// Load initial affiliates when dropdown opens
 	useEffect(() => {
@@ -119,7 +133,13 @@ export function AffiliateCombobox({
 	const exactMatch = affiliates.find(
 		(a) => a.name.toLowerCase() === searchQuery.toLowerCase(),
 	)
-	const showAddNew = searchQuery.trim().length > 0 && !exactMatch
+	const showAddNew =
+		searchQuery.trim().length > 0 &&
+		!exactMatch &&
+		searchQuery.toLowerCase() !== "independent"
+
+	// "Independent" option for athletes not affiliated with a gym
+	const INDEPENDENT_OPTION = "Independent"
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -136,7 +156,10 @@ export function AffiliateCombobox({
 					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+			<PopoverContent
+				className="w-[--radix-popover-trigger-width] p-0"
+				align="start"
+			>
 				<div className="flex items-center border-b px-3 py-2">
 					<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
 					<Input
@@ -151,12 +174,36 @@ export function AffiliateCombobox({
 						<div className="py-6 text-center text-sm text-muted-foreground">
 							Loading...
 						</div>
-					) : affiliates.length === 0 && !searchQuery ? (
-						<div className="py-6 text-center text-sm text-muted-foreground">
-							No affiliates found. Type to add a new one.
-						</div>
 					) : (
 						<div className="p-1">
+							{/* Independent option - always visible at the top */}
+							{(!searchQuery ||
+								INDEPENDENT_OPTION.toLowerCase().includes(
+									searchQuery.toLowerCase(),
+								)) && (
+								<button
+									type="button"
+									onClick={() => handleSelect(INDEPENDENT_OPTION)}
+									className={cn(
+										"relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground border-b mb-1",
+										value === INDEPENDENT_OPTION && "bg-accent",
+									)}
+								>
+									<Check
+										className={cn(
+											"mr-2 h-4 w-4",
+											value === INDEPENDENT_OPTION
+												? "opacity-100"
+												: "opacity-0",
+										)}
+									/>
+									<span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>
+									<Badge variant="outline" className="text-xs">
+										No gym affiliation
+									</Badge>
+								</button>
+							)}
+
 							{/* Option to add custom affiliate */}
 							{showAddNew && (
 								<button
@@ -167,7 +214,9 @@ export function AffiliateCombobox({
 									<span className="flex-1 text-left">
 										Add "<span className="font-medium">{searchQuery}</span>"
 									</span>
-									<Badge variant="secondary" className="text-xs">New</Badge>
+									<Badge variant="secondary" className="text-xs">
+										New
+									</Badge>
 								</button>
 							)}
 

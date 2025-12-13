@@ -112,7 +112,7 @@ export function WorkoutSelectionList({
 				teamId,
 				trackId,
 				workoutId: workout.id,
-				dayNumber: 1, // Add to day 1 by default
+				trackOrder: 1, // Add to day 1 by default
 				notes: "Created via workout creation modal",
 			})
 

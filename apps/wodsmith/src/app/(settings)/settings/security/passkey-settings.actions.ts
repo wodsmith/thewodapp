@@ -195,6 +195,6 @@ export const verifyAuthenticationAction = createServerAction()
 				"passkey",
 				input.response.id,
 			)
-			return { success: true }
+			return { success: true, userId: credential.userId }
 		}, RATE_LIMITS.SIGN_IN)
 	})

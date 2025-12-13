@@ -5,7 +5,13 @@ import { Pencil, X, Check, Loader2 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import { AffiliateCombobox } from "@/app/(compete)/compete/[slug]/register/_components/affiliate-combobox"
 import { updateRegistrationAffiliateAction } from "@/actions/competition-actions"
 
@@ -16,19 +22,27 @@ type Props = {
 	canEdit: boolean
 }
 
-export function AffiliateEditor({ registrationId, userId, currentAffiliate, canEdit }: Props) {
+export function AffiliateEditor({
+	registrationId,
+	userId,
+	currentAffiliate,
+	canEdit,
+}: Props) {
 	const [isEditing, setIsEditing] = useState(false)
 	const [value, setValue] = useState(currentAffiliate || "")
 
-	const { execute, isPending } = useServerAction(updateRegistrationAffiliateAction, {
-		onSuccess: () => {
-			toast.success("Affiliate updated!")
-			setIsEditing(false)
+	const { execute, isPending } = useServerAction(
+		updateRegistrationAffiliateAction,
+		{
+			onSuccess: () => {
+				toast.success("Affiliate updated!")
+				setIsEditing(false)
+			},
+			onError: ({ err }) => {
+				toast.error(err?.message || "Failed to update affiliate")
+			},
 		},
-		onError: ({ err }) => {
-			toast.error(err?.message || "Failed to update affiliate")
-		},
-	})
+	)
 
 	const handleSave = () => {
 		execute({
@@ -52,9 +66,7 @@ export function AffiliateEditor({ registrationId, userId, currentAffiliate, canE
 					<span>🏠</span>
 					My Affiliate
 				</CardTitle>
-				<CardDescription>
-					Your gym or affiliate
-				</CardDescription>
+				<CardDescription>Your gym or affiliate</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{isEditing ? (
@@ -66,11 +78,7 @@ export function AffiliateEditor({ registrationId, userId, currentAffiliate, canE
 							disabled={isPending}
 						/>
 						<div className="flex items-center gap-2">
-							<Button
-								size="sm"
-								onClick={handleSave}
-								disabled={isPending}
-							>
+							<Button size="sm" onClick={handleSave} disabled={isPending}>
 								{isPending ? (
 									<Loader2 className="w-4 h-4 mr-1 animate-spin" />
 								) : (

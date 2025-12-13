@@ -200,21 +200,19 @@ export const canHostCompetitions = cache(
  * @returns Session - The current session if authorized
  * @throws ZSAError if team doesn't have competition hosting feature
  */
-export const requireCompetitionHostingAccess = cache(
-	async (teamId: string) => {
-		const session = await requireTeamMembership(teamId)
-		const canHost = await canHostCompetitions(teamId)
+export const requireCompetitionHostingAccess = cache(async (teamId: string) => {
+	const session = await requireTeamMembership(teamId)
+	const canHost = await canHostCompetitions(teamId)
 
-		if (!canHost) {
-			throw new ZSAError(
-				"FORBIDDEN",
-				"This team does not have access to host competitions. Please upgrade your plan.",
-			)
-		}
+	if (!canHost) {
+		throw new ZSAError(
+			"FORBIDDEN",
+			"This team does not have access to host competitions. Please upgrade your plan.",
+		)
+	}
 
-		return session
-	},
-)
+	return session
+})
 
 /**
  * Check if a team is a competition event team

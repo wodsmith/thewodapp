@@ -4,6 +4,11 @@ import { and, eq } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
 import { getDefaultProgrammingTracks } from "@/config/programming-tracks"
 import { getDb } from "@/db"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 import type { User } from "@/db/schema"
 import {
 	programmingTracksTable,
@@ -86,17 +91,25 @@ export async function createPersonalTeamForUser(
 			}))
 
 			await db.insert(teamProgrammingTracksTable).values(subscriptions)
-			console.log(
-				`Auto-subscribed personal team ${personalTeam.id} to ${existingTracks.length} programming tracks`,
-			)
+			logInfo({
+				message: "[user] Auto-subscribed personal team to tracks",
+				attributes: {
+					personalTeamId: personalTeam.id,
+					tracks: existingTracks.length,
+				},
+			})
 		} else {
-			console.warn(
-				"Default programming tracks not found. Skipping auto-subscription.",
-			)
+			logWarning({
+				message:
+					"[user] Default programming tracks not found. Skipping auto-subscription.",
+			})
 		}
 	} catch (error) {
 		// Log error but don't fail the user creation
-		console.error("Failed to auto-subscribe to programming tracks:", error)
+		logError({
+			message: "[user] Failed to auto-subscribe to programming tracks",
+			error,
+		})
 	}
 
 	return { teamId: personalTeam.id }
@@ -162,7 +175,7 @@ export async function getUserGymAffiliation(userId: string) {
 export async function getUserNotableMetconResults(userId: string) {
 	const db = getDb()
 	const { results, workouts } = await import("@/db/schema")
-	const { inArray, sql } = await import("drizzle-orm")
+	const { inArray } = await import("drizzle-orm")
 
 	const notableMetconNames = ["Fran", "Grace", "Helen", "Diane", "Murph"]
 
@@ -219,3 +232,49 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 	return !!user
 }
 
+export interface AthleteProfileMissingFields {
+	gender: boolean
+	dateOfBirth: boolean
+	affiliateName: boolean
+}
+
+/**
+ * Get which fields are missing from a user's athlete profile
+ * @param userId - The user's ID
+ * @returns Promise<AthleteProfileMissingFields | null> - Object with missing field flags, null if user not found
+ */
+export async function getAthleteProfileMissingFields(
+	userId: string,
+): Promise<AthleteProfileMissingFields | null> {
+	const db = getDb()
+
+	const user = await db.query.userTable.findFirst({
+		where: eq(userTable.id, userId),
+		columns: { gender: true, dateOfBirth: true, affiliateName: true },
+	})
+
+	if (!user) {
+		return null
+	}
+
+	return {
+		gender: !user.gender,
+		dateOfBirth: !user.dateOfBirth,
+		affiliateName: !user.affiliateName,
+	}
+}
+
+/**
+ * Check if a user's athlete profile is complete (has gender, date of birth, and affiliate)
+ * @param userId - The user's ID
+ * @returns Promise<boolean> - True if profile is complete
+ */
+export async function isAthleteProfileComplete(
+	userId: string,
+): Promise<boolean> {
+	const missing = await getAthleteProfileMissingFields(userId)
+	if (!missing) {
+		return false
+	}
+	return !missing.gender && !missing.dateOfBirth && !missing.affiliateName
+}

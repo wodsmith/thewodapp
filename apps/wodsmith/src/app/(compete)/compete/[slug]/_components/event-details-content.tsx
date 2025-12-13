@@ -1,23 +1,76 @@
-import { HelpCircle, Calendar, DollarSign, Dumbbell, Trophy, Users } from "lucide-react"
+"use client"
+
+import {
+	Calendar,
+	ChevronDown,
+	DollarSign,
+	ExternalLink,
+	HelpCircle,
+	Trophy,
+	Users,
+} from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
-import type { Competition, CompetitionGroup, Team, ScalingLevel } from "@/db/schema"
+import type {
+	Competition,
+	CompetitionGroup,
+	Sponsor,
+	SponsorGroup,
+	Team,
+} from "@/db/schema"
+
+interface DivisionWithDetails {
+	id: string
+	label: string
+	description: string | null
+	registrationCount: number
+	feeCents: number
+	teamSize: number
+}
+
+interface SponsorGroupWithSponsors extends SponsorGroup {
+	sponsors: Sponsor[]
+}
+
+interface SponsorsData {
+	groups: SponsorGroupWithSponsors[]
+	ungroupedSponsors: Sponsor[]
+}
 
 interface EventDetailsContentProps {
 	competition: Competition & {
 		organizingTeam: Team | null
 		group: CompetitionGroup | null
 	}
-	divisions?: ScalingLevel[]
+	divisions?: DivisionWithDetails[]
+	sponsors?: SponsorsData
+	workoutsContent?: React.ReactNode
+	scheduleContent?: React.ReactNode
 }
 
-function formatDateShort(date: Date | number): string {
-	const d = typeof date === "number" ? new Date(date) : date
-	return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+function formatPrice(cents: number): string {
+	if (cents === 0) return "Free"
+	return `$${(cents / 100).toFixed(0)}`
 }
 
-export function EventDetailsContent({ competition, divisions }: EventDetailsContentProps) {
+export function EventDetailsContent({
+	competition,
+	divisions,
+	sponsors,
+	workoutsContent,
+	scheduleContent,
+}: EventDetailsContentProps) {
 	const hasDivisions = divisions && divisions.length > 0
+	const hasSponsors =
+		sponsors &&
+		(sponsors.groups.length > 0 || sponsors.ungroupedSponsors.length > 0)
 
 	return (
 		<div className="space-y-8">
@@ -38,6 +91,57 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 				)}
 			</section>
 
+			{/* Sponsors Section - only show if there are sponsors */}
+			{hasSponsors && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<Trophy className="h-5 w-5 text-muted-foreground" />
+						<h2 className="text-xl font-semibold">Sponsors</h2>
+					</div>
+					<Separator className="mb-4" />
+					<div className="space-y-8">
+						{/* Grouped sponsors */}
+						{sponsors.groups.map((group) => {
+							const isFeatured = group.sponsors.length === 1
+							return (
+								<div key={group.id}>
+									<h3 className="text-lg font-medium mb-4">{group.name}</h3>
+									<div
+										className={`grid gap-4 ${
+											isFeatured
+												? "grid-cols-1 max-w-sm"
+												: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+										}`}
+									>
+										{group.sponsors.map((sponsor) => (
+											<SponsorCard
+												key={sponsor.id}
+												sponsor={sponsor}
+												featured={isFeatured}
+											/>
+										))}
+									</div>
+								</div>
+							)
+						})}
+
+						{/* Ungrouped sponsors */}
+						{sponsors.ungroupedSponsors.length > 0 && (
+							<div>
+								{sponsors.groups.length > 0 && (
+									<h3 className="text-lg font-medium mb-4">Partners</h3>
+								)}
+								<div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+									{sponsors.ungroupedSponsors.map((sponsor) => (
+										<SponsorCard key={sponsor.id} sponsor={sponsor} />
+									))}
+								</div>
+							</div>
+						)}
+					</div>
+				</section>
+			)}
+
 			{/* Divisions Section */}
 			<section>
 				<div className="flex items-center gap-2 mb-4">
@@ -47,13 +151,56 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 				<Separator className="mb-4" />
 				{hasDivisions ? (
 					<div className="space-y-3">
-						{divisions.map((division) => (
-							<Card key={division.id}>
-								<CardHeader className="py-3 px-4">
-									<CardTitle className="text-base">{division.label}</CardTitle>
-								</CardHeader>
-							</Card>
-						))}
+						{divisions.map((division) => {
+							const priceLabel = formatPrice(division.feeCents)
+							const hasDescription = !!division.description
+							const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
+
+							return (
+								<Collapsible key={division.id}>
+									<Card>
+										<CollapsibleTrigger asChild>
+											<CardHeader
+												className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
+											>
+												<div className="flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<CardTitle className="text-base">
+															{division.label}{" "}
+															<span className="font-normal text-muted-foreground">
+																{division.teamSize === 1
+																	? "(Indy)"
+																	: `(Teams of ${division.teamSize})`}
+															</span>
+														</CardTitle>
+														<span className="text-xs text-muted-foreground">
+															({division.registrationCount} {athleteLabel})
+														</span>
+														{hasDescription && (
+															<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+														)}
+													</div>
+													<span
+														className={`text-sm font-medium ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
+													>
+														{priceLabel}
+													</span>
+												</div>
+											</CardHeader>
+										</CollapsibleTrigger>
+										{hasDescription && (
+											<CollapsibleContent>
+												<CardContent className="pt-0 pb-4 px-4">
+													<p className="text-sm text-muted-foreground whitespace-pre-wrap">
+														{division.description}
+													</p>
+												</CardContent>
+											</CollapsibleContent>
+										)}
+									</Card>
+								</Collapsible>
+							)
+						})}
 					</div>
 				) : (
 					<Card className="border-dashed">
@@ -73,36 +220,11 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 					<h2 className="text-xl font-semibold">Schedule</h2>
 				</div>
 				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							Detailed schedule coming soon.
-						</p>
-						<p className="text-sm text-muted-foreground mt-2">
-							Competition dates: {formatDateShort(competition.startDate)}
-							{competition.startDate !== competition.endDate && (
-								<> - {formatDateShort(competition.endDate)}</>
-							)}
-						</p>
-					</CardContent>
-				</Card>
+				{scheduleContent}
 			</section>
 
 			{/* Workouts Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Dumbbell className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Workouts</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							Workouts will be announced closer to the event.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
+			{workoutsContent}
 
 			{/* Entry & Prizes */}
 			<section>
@@ -135,22 +257,70 @@ export function EventDetailsContent({ competition, divisions }: EventDetailsCont
 					</CardContent>
 				</Card>
 			</section>
-
-			{/* Sponsors Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<Trophy className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Sponsors</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							Sponsor information coming soon.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
 		</div>
 	)
+}
+
+// Helper component for sponsor display
+function SponsorCard({
+	sponsor,
+	featured = false,
+}: {
+	sponsor: Sponsor
+	featured?: boolean
+}) {
+	const content = (
+		<Card
+			className={`group transition-colors ${sponsor.website ? "hover:border-primary/50" : ""} ${featured ? "p-6" : ""}`}
+		>
+			<CardContent
+				className={`flex flex-col items-center justify-center text-center ${featured ? "py-8" : "p-4"}`}
+			>
+				{sponsor.logoUrl ? (
+					<div
+						className={`relative w-full ${featured ? "h-24 md:h-32" : "h-16"}`}
+					>
+						<Image
+							src={sponsor.logoUrl}
+							alt={sponsor.name}
+							fill
+							className="object-contain"
+						/>
+					</div>
+				) : (
+					<p className={`font-semibold ${featured ? "text-xl" : "text-base"}`}>
+						{sponsor.name}
+					</p>
+				)}
+				{sponsor.logoUrl && (
+					<p
+						className={`mt-2 font-medium text-muted-foreground ${featured ? "text-base" : "text-sm"}`}
+					>
+						{sponsor.name}
+					</p>
+				)}
+				{sponsor.website && (
+					<span className="mt-2 text-xs text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+						<ExternalLink className="h-3 w-3" />
+						Visit Website
+					</span>
+				)}
+			</CardContent>
+		</Card>
+	)
+
+	if (sponsor.website) {
+		return (
+			<Link
+				href={sponsor.website}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="block"
+			>
+				{content}
+			</Link>
+		)
+	}
+
+	return content
 }

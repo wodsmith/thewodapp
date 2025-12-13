@@ -13,6 +13,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet"
+import type { AthleteProfileMissingFields } from "@/server/user"
 import type { SessionValidationResult } from "@/types"
 import { DarkModeToggle } from "../ui/dark-mode-toggle"
 
@@ -29,14 +30,35 @@ interface PendingInvitation {
 interface MobileNavProps {
 	session: SessionValidationResult | null
 	invitations?: PendingInvitation[]
+	missingProfileFields?: AthleteProfileMissingFields | null
+}
+
+function formatMissingFields(
+	missing: AthleteProfileMissingFields | null | undefined,
+): string {
+	if (!missing) return ""
+	const fields: string[] = []
+	if (missing.gender) fields.push("gender")
+	if (missing.dateOfBirth) fields.push("date of birth")
+	if (missing.affiliateName) fields.push("affiliate")
+	if (fields.length === 0) return ""
+	if (fields.length === 1) return `Add ${fields[0]}`
+	if (fields.length === 2) return `Add ${fields[0]} & ${fields[1]}`
+	return `Add ${fields.slice(0, -1).join(", ")} & ${fields[fields.length - 1]}`
 }
 
 export default function MobileNav({
 	session,
 	invitations = [],
+	missingProfileFields = null,
 }: MobileNavProps) {
 	const [open, setOpen] = useState(false)
-	const hasNotifications = invitations.length > 0
+	const isProfileIncomplete =
+		missingProfileFields &&
+		(missingProfileFields.gender ||
+			missingProfileFields.dateOfBirth ||
+			missingProfileFields.affiliateName)
+	const hasNotifications = invitations.length > 0 || isProfileIncomplete
 
 	// Filter teams where the user is an owner
 	const ownedTeams =
@@ -49,11 +71,7 @@ export default function MobileNav({
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
-				<Button
-					variant="outline"
-					size="icon"
-					className="relative md:hidden"
-				>
+				<Button variant="outline" size="icon" className="relative md:hidden">
 					<Menu className="h-6 w-6" />
 					{hasNotifications && (
 						<span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500" />
@@ -135,6 +153,22 @@ export default function MobileNav({
 									<p className="font-bold text-muted-foreground text-sm uppercase">
 										Notifications
 									</p>
+									{isProfileIncomplete && (
+										<Link
+											href="/compete/athlete/edit"
+											className="flex items-center gap-2 hover:text-primary"
+											onClick={handleLinkClick}
+										>
+											<User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+											<div className="flex flex-col">
+												<span>Complete Your Profile</span>
+												<span className="text-muted-foreground text-sm">
+													{formatMissingFields(missingProfileFields)}
+												</span>
+											</div>
+											<span className="ml-auto h-2 w-2 rounded-full bg-red-500" />
+										</Link>
+									)}
 									{invitations.map((invitation) => (
 										<Link
 											key={invitation.id}

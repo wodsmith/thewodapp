@@ -1,11 +1,12 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { useServerAction } from "@repo/zsa-react"
 import { createCompetitionAction } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { CompetitionGroup, ScalingGroup } from "@/db/schema"
 import type { CompetitionSettings } from "@/types/competitions"
+import { parseDateInputAsUTC } from "@/utils/date-utils"
 import type { OrganizingTeam } from "@/utils/get-user-organizing-teams"
 
 const formSchema = z
@@ -100,10 +102,28 @@ export function OrganizerCompetitionForm({
 		{
 			onError: (error) => {
 				toast.error(error.err?.message || "Failed to create competition")
+				posthog.capture("competition_created_failed", {
+					error_message: error.err?.message,
+					organizing_team_id: form.getValues("teamId"),
+				})
 			},
-			onSuccess: () => {
+			onSuccess: (result) => {
 				toast.success("Competition created successfully")
-				router.push("/compete/organizer")
+				const competitionData = result?.data?.data
+				posthog.capture("competition_created", {
+					competition_id: competitionData?.competitionId,
+					competition_name: form.getValues("name"),
+					competition_slug: form.getValues("slug"),
+					organizing_team_id: form.getValues("teamId"),
+					has_series: !!form.getValues("groupId"),
+					has_divisions: !!form.getValues("scalingGroupId"),
+					series_id: form.getValues("groupId"),
+				})
+				if (result?.data?.data?.competitionId) {
+					router.push(`/compete/organizer/${result.data.data.competitionId}`)
+				} else {
+					router.push("/compete/organizer")
+				}
 				router.refresh()
 			},
 		},
@@ -150,14 +170,14 @@ export function OrganizerCompetitionForm({
 			organizingTeamId: data.teamId,
 			name: data.name,
 			slug: data.slug,
-			startDate: new Date(data.startDate),
-			endDate: new Date(data.endDate),
+			startDate: parseDateInputAsUTC(data.startDate),
+			endDate: parseDateInputAsUTC(data.endDate),
 			description: data.description,
 			registrationOpensAt: data.registrationOpensAt
-				? new Date(data.registrationOpensAt)
+				? parseDateInputAsUTC(data.registrationOpensAt)
 				: undefined,
 			registrationClosesAt: data.registrationClosesAt
-				? new Date(data.registrationClosesAt)
+				? parseDateInputAsUTC(data.registrationClosesAt)
 				: undefined,
 			groupId: data.groupId || undefined,
 			settings:
@@ -172,36 +192,36 @@ export function OrganizerCompetitionForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-				{/* Team selector (only if multiple teams) */}
-				{teams.length > 1 && (
-					<FormField
-						control={form.control}
-						name="teamId"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Organizing Team</FormLabel>
-								<Select onValueChange={field.onChange} value={field.value}>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select team" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{teams.map((team) => (
+				{/* Team selector (only show gym teams) */}
+				<FormField
+					control={form.control}
+					name="teamId"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Organizing Team</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select team" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{teams
+										.filter((team) => team.type === "gym")
+										.map((team) => (
 											<SelectItem key={team.id} value={team.id}>
 												{team.name}
 											</SelectItem>
 										))}
-									</SelectContent>
-								</Select>
-								<FormDescription>
-									The team that will organize this competition
-								</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								The team that will organize this competition
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}
@@ -312,8 +332,9 @@ export function OrganizerCompetitionForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select a scaling group to use as competition divisions. Athletes
-									will choose their division when registering.
+									Select from divisions to use that you've used in the past as a
+									starting point. Athletes will choose their division when
+									registering. Leave blank to start from scratch.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
@@ -331,9 +352,7 @@ export function OrganizerCompetitionForm({
 								<FormControl>
 									<Input type="date" {...field} />
 								</FormControl>
-								<FormDescription>
-									When the competition begins
-								</FormDescription>
+								<FormDescription>When the competition begins</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -365,9 +384,7 @@ export function OrganizerCompetitionForm({
 								<FormControl>
 									<Input type="date" {...field} value={field.value || ""} />
 								</FormControl>
-								<FormDescription>
-									When registration opens
-								</FormDescription>
+								<FormDescription>When registration opens</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
@@ -382,9 +399,7 @@ export function OrganizerCompetitionForm({
 								<FormControl>
 									<Input type="date" {...field} value={field.value || ""} />
 								</FormControl>
-								<FormDescription>
-									When registration closes
-								</FormDescription>
+								<FormDescription>When registration closes</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}

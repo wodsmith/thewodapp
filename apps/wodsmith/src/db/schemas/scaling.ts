@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core"
 import {
 	commonColumns,
 	createScalingGroupId,
@@ -84,7 +90,7 @@ export const workoutScalingDescriptionsTable = sqliteTable(
 	},
 	(table) => [
 		index("workout_scaling_desc_workout_idx").on(table.workoutId),
-		index("workout_scaling_desc_lookup_idx").on(
+		uniqueIndex("workout_scaling_desc_unique_idx").on(
 			table.workoutId,
 			table.scalingLevelId,
 		),

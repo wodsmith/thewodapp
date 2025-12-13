@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -17,7 +18,9 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
+import { ImageUpload } from "@/components/ui/image-upload"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
 	Select,
 	SelectContent,
@@ -31,6 +34,7 @@ import {
 	type CompetitionSettings,
 	parseCompetitionSettings,
 } from "@/types/competitions"
+import { formatDateInputFromUTC, parseDateInputAsUTC } from "@/utils/date-utils"
 
 const formSchema = z
 	.object({
@@ -53,6 +57,8 @@ const formSchema = z
 		registrationClosesAt: z.string().optional(),
 		groupId: z.string().nullable().optional(),
 		scalingGroupId: z.string().nullable().optional(),
+		visibility: z.enum(["public", "private"]).default("public"),
+		status: z.enum(["draft", "published"]).default("draft"),
 	})
 	.refine(
 		(data) => {
@@ -83,14 +89,22 @@ interface OrganizerCompetitionEditFormProps {
 	competition: Competition
 	groups: Array<CompetitionGroup & { competitionCount: number }>
 	scalingGroups: ScalingGroup[]
+	isPendingApproval?: boolean
 }
 
 export function OrganizerCompetitionEditForm({
 	competition,
 	groups,
 	scalingGroups,
+	isPendingApproval = false,
 }: OrganizerCompetitionEditFormProps) {
 	const router = useRouter()
+	const [profileImageUrl, setProfileImageUrl] = useState<string | null>(
+		competition.profileImageUrl ?? null,
+	)
+	const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(
+		competition.bannerImageUrl ?? null,
+	)
 
 	const { execute: updateCompetition, isPending } = useServerAction(
 		updateCompetitionAction,
@@ -106,16 +120,6 @@ export function OrganizerCompetitionEditForm({
 		},
 	)
 
-	// Helper to format Date to YYYY-MM-DD for date inputs
-	const formatDateForInput = (date: Date | null | undefined) => {
-		if (!date) return ""
-		const d = new Date(date)
-		const year = d.getFullYear()
-		const month = String(d.getMonth() + 1).padStart(2, "0")
-		const day = String(d.getDate()).padStart(2, "0")
-		return `${year}-${month}-${day}`
-	}
-
 	// Parse existing settings to get scalingGroupId
 	const existingSettings = parseCompetitionSettings(competition.settings)
 	const existingScalingGroupId = existingSettings?.divisions?.scalingGroupId
@@ -125,15 +129,19 @@ export function OrganizerCompetitionEditForm({
 		defaultValues: {
 			name: competition.name,
 			slug: competition.slug,
-			startDate: formatDateForInput(competition.startDate),
-			endDate: formatDateForInput(competition.endDate),
+			startDate: formatDateInputFromUTC(competition.startDate),
+			endDate: formatDateInputFromUTC(competition.endDate),
 			description: competition.description || "",
-			registrationOpensAt: formatDateForInput(competition.registrationOpensAt),
-			registrationClosesAt: formatDateForInput(
+			registrationOpensAt: formatDateInputFromUTC(
+				competition.registrationOpensAt,
+			),
+			registrationClosesAt: formatDateInputFromUTC(
 				competition.registrationClosesAt,
 			),
 			groupId: competition.groupId ?? undefined,
 			scalingGroupId: existingScalingGroupId ?? undefined,
+			visibility: competition.visibility ?? "public",
+			status: competition.status ?? "draft",
 		},
 	})
 
@@ -163,18 +171,22 @@ export function OrganizerCompetitionEditForm({
 			organizingTeamId: competition.organizingTeamId,
 			name: data.name,
 			slug: data.slug,
-			startDate: new Date(data.startDate),
-			endDate: new Date(data.endDate),
+			startDate: parseDateInputAsUTC(data.startDate),
+			endDate: parseDateInputAsUTC(data.endDate),
 			description: data.description || null,
 			registrationOpensAt: data.registrationOpensAt
-				? new Date(data.registrationOpensAt)
+				? parseDateInputAsUTC(data.registrationOpensAt)
 				: null,
 			registrationClosesAt: data.registrationClosesAt
-				? new Date(data.registrationClosesAt)
+				? parseDateInputAsUTC(data.registrationClosesAt)
 				: null,
 			groupId: data.groupId,
 			settings:
 				Object.keys(settings).length > 0 ? JSON.stringify(settings) : null,
+			visibility: data.visibility,
+			status: data.status,
+			profileImageUrl,
+			bannerImageUrl,
 		})
 	}
 
@@ -228,6 +240,40 @@ export function OrganizerCompetitionEditForm({
 						</FormItem>
 					)}
 				/>
+
+				<div className="grid gap-6 md:grid-cols-2">
+					<div className="space-y-2">
+						<Label>Profile Image</Label>
+						<ImageUpload
+							purpose="competition-profile"
+							entityId={competition.id}
+							value={profileImageUrl ?? undefined}
+							onChange={setProfileImageUrl}
+							maxSizeMb={5}
+							aspectRatio="1/1"
+							recommendedDimensions={{ width: 400, height: 400 }}
+						/>
+						<p className="text-sm text-muted-foreground">
+							Your competition logo or profile picture
+						</p>
+					</div>
+
+					<div className="space-y-2">
+						<Label>Banner Image</Label>
+						<ImageUpload
+							purpose="competition-banner"
+							entityId={competition.id}
+							value={bannerImageUrl ?? undefined}
+							onChange={setBannerImageUrl}
+							maxSizeMb={5}
+							aspectRatio="3/1"
+							recommendedDimensions={{ width: 1200, height: 400 }}
+						/>
+						<p className="text-sm text-muted-foreground">
+							Hero banner displayed at the top of your competition page
+						</p>
+					</div>
+				</div>
 
 				{groups.length > 0 && (
 					<FormField
@@ -302,8 +348,9 @@ export function OrganizerCompetitionEditForm({
 									</SelectContent>
 								</Select>
 								<FormDescription>
-									Select a scaling group to use as competition divisions. Athletes
-									will choose their division when registering.
+									Select divisions to use as competition divisions that you've
+									used in the past. Athletes will choose their division when
+									registering.
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
@@ -389,7 +436,77 @@ export function OrganizerCompetitionEditForm({
 									rows={4}
 								/>
 							</FormControl>
-							<FormDescription>Provide details about the competition</FormDescription>
+							<FormDescription>
+								Provide details about the competition
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="status"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Status</FormLabel>
+							<Select
+								onValueChange={field.onChange}
+								value={field.value}
+								disabled={isPendingApproval && field.value === "draft"}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select status" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="draft">Draft - Not visible to athletes</SelectItem>
+									<SelectItem value="published" disabled={isPendingApproval}>
+										Published - Visible to athletes
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							{isPendingApproval ? (
+								<FormDescription className="text-amber-600 dark:text-amber-400">
+									Publishing is disabled while your organizer application is
+									pending approval
+								</FormDescription>
+							) : (
+								<FormDescription>
+									Draft competitions are only visible to organizers
+								</FormDescription>
+							)}
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="visibility"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Visibility</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select visibility" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="public">
+										Public - Listed on /compete page
+									</SelectItem>
+									<SelectItem value="private">
+										Private - Unlisted, accessible via direct URL
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								Private competitions are not listed publicly but can be accessed
+								via direct URL
+							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}

@@ -3,6 +3,7 @@ import "server-only"
 import { and, count, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+	competitionDivisionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
 	scalingGroupsTable,
@@ -136,7 +137,7 @@ export async function initializeCompetitionDivisions({
 }
 
 /**
- * Get divisions for a competition with registration counts
+ * Get divisions for a competition with registration counts and descriptions
  */
 export async function getCompetitionDivisionsWithCounts({
 	competitionId,
@@ -149,6 +150,8 @@ export async function getCompetitionDivisionsWithCounts({
 		label: string
 		position: number
 		registrationCount: number
+		description: string | null
+		feeCents: number | null
 	}>
 }> {
 	const db = getDb()
@@ -170,15 +173,24 @@ export async function getCompetitionDivisionsWithCounts({
 		return { scalingGroupId: null, divisions: [] }
 	}
 
-	// Get divisions with registration counts
+	// Get divisions with registration counts and descriptions
 	const divisions = await db
 		.select({
 			id: scalingLevelsTable.id,
 			label: scalingLevelsTable.label,
 			position: scalingLevelsTable.position,
+			description: competitionDivisionsTable.description,
+			feeCents: competitionDivisionsTable.feeCents,
 			registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 		})
 		.from(scalingLevelsTable)
+		.leftJoin(
+			competitionDivisionsTable,
+			and(
+				eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+				eq(competitionDivisionsTable.competitionId, competitionId),
+			),
+		)
 		.leftJoin(
 			competitionRegistrationsTable,
 			and(
@@ -187,10 +199,21 @@ export async function getCompetitionDivisionsWithCounts({
 			),
 		)
 		.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
-		.groupBy(scalingLevelsTable.id)
+		.groupBy(
+			scalingLevelsTable.id,
+			competitionDivisionsTable.description,
+			competitionDivisionsTable.feeCents,
+		)
 		.orderBy(scalingLevelsTable.position)
 
-	return { scalingGroupId, divisions }
+	return {
+		scalingGroupId,
+		divisions: divisions.map((d) => ({
+			...d,
+			description: d.description ?? null,
+			feeCents: d.feeCents ?? null,
+		})),
+	}
 }
 
 /**
@@ -426,6 +449,63 @@ export async function updateCompetitionDivision({
 }
 
 /**
+ * Update a division description (stored in competition_divisions table)
+ */
+export async function updateCompetitionDivisionDescription({
+	competitionId,
+	teamId,
+	divisionId,
+	description,
+}: {
+	competitionId: string
+	teamId: string
+	divisionId: string
+	description: string | null
+}): Promise<void> {
+	const db = getDb()
+	await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+
+	const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
+		competitionId,
+		teamId,
+	})
+
+	// Verify division belongs to this group
+	const [division] = await db
+		.select()
+		.from(scalingLevelsTable)
+		.where(eq(scalingLevelsTable.id, divisionId))
+
+	if (!division || division.scalingGroupId !== scalingGroupId) {
+		throw new Error("Division not found in this competition")
+	}
+
+	// Check if division config exists
+	const existing = await db.query.competitionDivisionsTable.findFirst({
+		where: and(
+			eq(competitionDivisionsTable.competitionId, competitionId),
+			eq(competitionDivisionsTable.divisionId, divisionId),
+		),
+	})
+
+	if (existing) {
+		// Update existing
+		await db
+			.update(competitionDivisionsTable)
+			.set({ description, updatedAt: new Date() })
+			.where(eq(competitionDivisionsTable.id, existing.id))
+	} else {
+		// Insert new (with default fee of 0)
+		await db.insert(competitionDivisionsTable).values({
+			competitionId,
+			divisionId,
+			feeCents: 0,
+			description,
+		})
+	}
+}
+
+/**
  * Delete a division from a competition
  * Blocked if athletes are registered in this division
  */
@@ -520,4 +600,84 @@ export async function reorderCompetitionDivisions({
 				),
 			)
 	}
+}
+
+/**
+ * Get divisions for public competition display
+ * Returns divisions with descriptions and registration counts
+ * Used by competition details page
+ */
+export async function getPublicCompetitionDivisions(
+	competitionId: string,
+): Promise<
+	Array<{
+		id: string
+		label: string
+		description: string | null
+		registrationCount: number
+		feeCents: number
+		teamSize: number
+	}>
+> {
+	const db = getDb()
+
+	// Get competition with settings
+	const [competition] = await db
+		.select()
+		.from(competitionsTable)
+		.where(eq(competitionsTable.id, competitionId))
+
+	if (!competition) {
+		return []
+	}
+
+	const settings = parseCompetitionSettings(competition.settings)
+	const scalingGroupId = settings?.divisions?.scalingGroupId
+
+	if (!scalingGroupId) {
+		return []
+	}
+
+	// Get divisions with descriptions and registration counts
+	const divisions = await db
+		.select({
+			id: scalingLevelsTable.id,
+			label: scalingLevelsTable.label,
+			teamSize: scalingLevelsTable.teamSize,
+			description: competitionDivisionsTable.description,
+			feeCents: competitionDivisionsTable.feeCents,
+			registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
+		})
+		.from(scalingLevelsTable)
+		.leftJoin(
+			competitionDivisionsTable,
+			and(
+				eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+				eq(competitionDivisionsTable.competitionId, competitionId),
+			),
+		)
+		.leftJoin(
+			competitionRegistrationsTable,
+			and(
+				eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+				eq(competitionRegistrationsTable.eventId, competitionId),
+			),
+		)
+		.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+		.groupBy(
+			scalingLevelsTable.id,
+			competitionDivisionsTable.description,
+			competitionDivisionsTable.feeCents,
+		)
+		.orderBy(scalingLevelsTable.position)
+
+	// Apply default fee if no division-specific fee exists
+	return divisions.map((d) => ({
+		id: d.id,
+		label: d.label,
+		description: d.description ?? null,
+		registrationCount: d.registrationCount,
+		feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
+		teamSize: d.teamSize,
+	}))
 }

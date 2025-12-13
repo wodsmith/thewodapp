@@ -267,6 +267,153 @@
       "when": 1764283120986,
       "tag": "0037_team-registration-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1764390000000,
+      "tag": "0038_add_competition_track_support",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1764396196351,
+      "tag": "0039_add-commerce-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1764480000000,
+      "tag": "0040_add-competition-visibility-divisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1764566400000,
+      "tag": "0041_add-pass-platform-fees-to-customer",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1764652800000,
+      "tag": "0042_add-heat-scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1764739200000,
+      "tag": "0043_add-venue-transition-time",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1764825600000,
+      "tag": "0044_add-heat-duration",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1764912000000,
+      "tag": "0045_add-heat-status",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1764998400000,
+      "tag": "0046_add-event-status",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1733169600000,
+      "tag": "0047_add-competition-images",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1733169600001,
+      "tag": "0048_add_secondary_score",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1733169600002,
+      "tag": "0049_add_competition_result_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1733313600000,
+      "tag": "0050_add-unique-workout-scaling-desc",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1733400000000,
+      "tag": "0051_add-sponsors-system",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1765170694320,
+      "tag": "0052_add-affiliate-to-user",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1765300273507,
+      "tag": "0053_add-stripe-account-type",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1765411794589,
+      "tag": "0054_create_scores_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1765408465245,
+      "tag": "0055_add-organizer-requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1765408892523,
+      "tag": "0056_add-competition-status",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1765408465245,
+      "tag": "0055_add-organizer-requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1765408892523,
+      "tag": "0056_add-competition-status",
+      "breakpoints": true
     }
   ]
 }

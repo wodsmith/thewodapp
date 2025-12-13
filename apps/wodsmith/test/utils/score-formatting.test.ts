@@ -20,7 +20,8 @@ describe("score-formatting", () => {
 				expect(formatScore(90, "time")).toBe("1:30")
 				expect(formatScore(125, "time")).toBe("2:05")
 				expect(formatScore(0, "time")).toBe("0:00")
-				expect(formatScore(3661, "time")).toBe("61:01")
+				// Times over 60 minutes show as H:MM:SS
+				expect(formatScore(3661, "time")).toBe("1:01:01")
 			})
 		})
 
@@ -52,15 +53,16 @@ describe("score-formatting", () => {
 
 		describe("rounds-reps scheme", () => {
 			it("formats whole rounds", () => {
-				expect(formatScore(5, "rounds-reps")).toBe("5")
-				expect(formatScore(10, "rounds-reps")).toBe("10")
+				// New library uses zero-padded format: RR+rr
+				expect(formatScore(5, "rounds-reps")).toBe("05+00")
+				expect(formatScore(10, "rounds-reps")).toBe("10+00")
 			})
 
 			it("formats rounds with reps", () => {
 				// 5.5 represents 5 rounds + 50 reps (0.5 * 100)
-				expect(formatScore(5.5, "rounds-reps")).toBe("5+50")
+				expect(formatScore(5.5, "rounds-reps")).toBe("05+50")
 				// 3.25 represents 3 rounds + 25 reps
-				expect(formatScore(3.25, "rounds-reps")).toBe("3+25")
+				expect(formatScore(3.25, "rounds-reps")).toBe("03+25")
 			})
 		})
 
@@ -101,9 +103,10 @@ describe("score-formatting", () => {
 		})
 
 		describe("pass-fail scheme", () => {
-			it("formats passes with passes suffix", () => {
-				expect(formatScore(3, "pass-fail")).toBe("3 passes")
-				expect(formatScore(5, "pass-fail")).toBe("5 passes")
+			it("formats pass/fail status", () => {
+				// New library treats pass-fail as binary: 1=Pass, 0=Fail
+				expect(formatScore(1, "pass-fail")).toBe("Pass")
+				expect(formatScore(0, "pass-fail")).toBe("Fail")
 			})
 		})
 
@@ -214,11 +217,13 @@ describe("score-formatting", () => {
 
 		describe("rounds-reps scheme", () => {
 			it("uses max by default", () => {
+				// rounds-reps uses score field for rounds and reps field for reps
+				// Combined as rounds + reps/100 (legacy fractional format)
 				const sets = [
-					createSet({ reps: 100 }),
-					createSet({ reps: 150 }),
+					createSet({ score: 1, reps: 0 }), // 1 round + 0 reps = 1.0
+					createSet({ score: 1, reps: 50 }), // 1 round + 50 reps = 1.5
 				]
-				expect(calculateAggregatedScore(sets, "rounds-reps", null)).toEqual([150, false])
+				expect(calculateAggregatedScore(sets, "rounds-reps", null)).toEqual([1.5, false])
 			})
 		})
 
@@ -372,8 +377,9 @@ describe("score-formatting", () => {
 			expect(getDefaultScoreType("points")).toBe("max")
 		})
 
-		it("returns max for unknown schemes", () => {
-			expect(getDefaultScoreType("unknown-scheme")).toBe("max")
+		it("returns undefined for unknown schemes", () => {
+			// Library returns undefined for unknown schemes
+			expect(getDefaultScoreType("unknown-scheme")).toBeUndefined()
 		})
 	})
 

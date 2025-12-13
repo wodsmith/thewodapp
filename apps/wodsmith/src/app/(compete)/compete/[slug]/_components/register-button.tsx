@@ -22,7 +22,10 @@ export function RegisterButton({
 }: RegisterButtonProps) {
 	if (isRegistered) {
 		return (
-			<Badge variant="default" className="bg-green-600 hover:bg-green-600 gap-1">
+			<Badge
+				variant="default"
+				className="bg-green-600 hover:bg-green-600 gap-1"
+			>
 				<CheckCircle2 className="h-3 w-3" />
 				Registered
 			</Badge>
@@ -49,9 +52,7 @@ export function RegisterButton({
 		if (isLoggedIn) {
 			return (
 				<Button asChild size="sm" className="bg-teal-600 hover:bg-teal-500">
-					<Link href={`/compete/${slug}/register`}>
-						Register →
-					</Link>
+					<Link href={`/compete/${slug}/register`}>Register →</Link>
 				</Button>
 			)
 		}

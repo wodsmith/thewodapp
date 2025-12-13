@@ -21,6 +21,7 @@ import {
 	teamEntitlementOverrideTable,
 	teamTable,
 } from "@/db/schema"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import { requireAdmin } from "@/utils/auth"
 import { invalidateTeamMembersSessions } from "@/utils/kv-session"
 import { PAGE_SIZE_OPTIONS } from "../admin-constants"
@@ -156,9 +157,17 @@ export const updateTeamPlanAction = createServerAction()
 		// Invalidate all team members' sessions to refresh plan data
 		await invalidateTeamMembersSessions(input.teamId)
 
-		console.log(
-			`[Admin] ${admin.user.email} changed team ${team.name} plan to ${plan.name}${input.reason ? `: ${input.reason}` : ""}`,
-		)
+		logInfo({
+			message: "[Admin] Team plan updated",
+			attributes: {
+				adminUserId: admin.userId,
+				teamId: input.teamId,
+				teamName: team.name,
+				planId: input.planId,
+				planName: plan.name,
+				reason: input.reason ?? "",
+			},
+		})
 
 		return {
 			success: true,
@@ -209,9 +218,18 @@ export const addEntitlementOverrideAction = createServerAction()
 		// Invalidate all team members' sessions to refresh entitlements
 		await invalidateTeamMembersSessions(input.teamId)
 
-		console.log(
-			`[Admin] ${admin.user.email} added ${input.type} override for team ${team.name}: ${input.key}=${input.value} (${input.reason})`,
-		)
+		logInfo({
+			message: "[Admin] Entitlement override added",
+			attributes: {
+				adminUserId: admin.userId,
+				teamId: input.teamId,
+				teamName: team.name,
+				type: input.type,
+				key: input.key,
+				value: input.value,
+				reason: input.reason,
+			},
+		})
 
 		return {
 			success: true,
@@ -265,9 +283,16 @@ export const removeEntitlementOverrideAction = createServerAction()
 		// Invalidate all team members' sessions
 		await invalidateTeamMembersSessions(override.teamId)
 
-		console.log(
-			`[Admin] ${admin.user.email} removed ${override.type} override: ${override.key}`,
-		)
+		logInfo({
+			message: "[Admin] Entitlement override removed",
+			attributes: {
+				adminUserId: admin.userId,
+				overrideId: input.overrideId,
+				type: override.type,
+				key: override.key,
+				teamId: override.teamId,
+			},
+		})
 
 		return {
 			success: true,
@@ -318,7 +343,10 @@ export const getAllFeaturesAction = createServerAction().handler(async () => {
 	const db = getDb()
 
 	const features = await db.query.featureTable.findMany({
-		orderBy: (features, { asc }) => [asc(features.category), asc(features.name)],
+		orderBy: (features, { asc }) => [
+			asc(features.category),
+			asc(features.name),
+		],
 	})
 
 	return { success: true, data: features }
@@ -355,9 +383,15 @@ export const createFeatureAction = createServerAction()
 			isActive: 1,
 		})
 
-		console.log(
-			`[Admin] ${admin.user.email} created feature: ${input.name} (${input.key})`,
-		)
+		logInfo({
+			message: "[Admin] Feature created",
+			attributes: {
+				adminUserId: admin.userId,
+				featureKey: input.key,
+				featureName: input.name,
+				category: input.category,
+			},
+		})
 
 		return { success: true, message: "Feature created successfully" }
 	})
@@ -399,7 +433,15 @@ export const updateFeatureAction = createServerAction()
 			})
 			.where(eq(featureTable.id, id))
 
-		console.log(`[Admin] ${admin.user.email} updated feature: ${id}`)
+		logInfo({
+			message: "[Admin] Feature updated",
+			attributes: {
+				adminUserId: admin.userId,
+				featureId: id,
+				featureName: input.name,
+				isActive: String(input.isActive),
+			},
+		})
 
 		return { success: true, message: "Feature updated successfully" }
 	})
@@ -447,9 +489,16 @@ export const createLimitAction = createServerAction()
 			isActive: 1,
 		})
 
-		console.log(
-			`[Admin] ${admin.user.email} created limit: ${input.name} (${input.key})`,
-		)
+		logInfo({
+			message: "[Admin] Limit created",
+			attributes: {
+				adminUserId: admin.userId,
+				limitKey: input.key,
+				limitName: input.name,
+				unit: input.unit,
+				resetPeriod: input.resetPeriod,
+			},
+		})
 
 		return { success: true, message: "Limit created successfully" }
 	})
@@ -474,7 +523,7 @@ export const updateLimitAction = createServerAction()
 
 		const db = getDb()
 
-		const { id, ...updateData} = input
+		const { id, ...updateData } = input
 
 		await db
 			.update(limitTable)
@@ -484,7 +533,15 @@ export const updateLimitAction = createServerAction()
 			})
 			.where(eq(limitTable.id, id))
 
-		console.log(`[Admin] ${admin.user.email} updated limit: ${id}`)
+		logInfo({
+			message: "[Admin] Limit updated",
+			attributes: {
+				adminUserId: admin.userId,
+				limitId: id,
+				limitName: input.name,
+				isActive: String(input.isActive),
+			},
+		})
 
 		return { success: true, message: "Limit updated successfully" }
 	})
@@ -559,9 +616,14 @@ export const assignFeatureToPlanAction = createServerAction()
 			featureId: input.featureId,
 		})
 
-		console.log(
-			`[Admin] ${admin.user.email} assigned feature ${input.featureId} to plan ${input.planId}`,
-		)
+		logInfo({
+			message: "[Admin] Feature assigned to plan",
+			attributes: {
+				adminUserId: admin.userId,
+				planId: input.planId,
+				featureId: input.featureId,
+			},
+		})
 
 		return { success: true, message: "Feature assigned to plan" }
 	})
@@ -581,9 +643,13 @@ export const removeFeatureFromPlanAction = createServerAction()
 			.delete(planFeatureTable)
 			.where(eq(planFeatureTable.id, input.planFeatureId))
 
-		console.log(
-			`[Admin] ${admin.user.email} removed plan feature ${input.planFeatureId}`,
-		)
+		logInfo({
+			message: "[Admin] Feature removed from plan",
+			attributes: {
+				adminUserId: admin.userId,
+				planFeatureId: input.planFeatureId,
+			},
+		})
 
 		return { success: true, message: "Feature removed from plan" }
 	})
@@ -623,9 +689,15 @@ export const assignLimitToPlanAction = createServerAction()
 			value: input.value,
 		})
 
-		console.log(
-			`[Admin] ${admin.user.email} assigned limit ${input.limitId} to plan ${input.planId} with value ${input.value}`,
-		)
+		logInfo({
+			message: "[Admin] Limit assigned to plan",
+			attributes: {
+				adminUserId: admin.userId,
+				planId: input.planId,
+				limitId: input.limitId,
+				value: input.value,
+			},
+		})
 
 		return { success: true, message: "Limit assigned to plan" }
 	})
@@ -651,9 +723,14 @@ export const updatePlanLimitValueAction = createServerAction()
 			.set({ value: input.value })
 			.where(eq(planLimitTable.id, input.planLimitId))
 
-		console.log(
-			`[Admin] ${admin.user.email} updated plan limit ${input.planLimitId} to ${input.value}`,
-		)
+		logInfo({
+			message: "[Admin] Plan limit value updated",
+			attributes: {
+				adminUserId: admin.userId,
+				planLimitId: input.planLimitId,
+				newValue: input.value,
+			},
+		})
 
 		return { success: true, message: "Limit value updated" }
 	})
@@ -673,9 +750,13 @@ export const removeLimitFromPlanAction = createServerAction()
 			.delete(planLimitTable)
 			.where(eq(planLimitTable.id, input.planLimitId))
 
-		console.log(
-			`[Admin] ${admin.user.email} removed plan limit ${input.planLimitId}`,
-		)
+		logInfo({
+			message: "[Admin] Limit removed from plan",
+			attributes: {
+				adminUserId: admin.userId,
+				planLimitId: input.planLimitId,
+			},
+		})
 
 		return { success: true, message: "Limit removed from plan" }
 	})

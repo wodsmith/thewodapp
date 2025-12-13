@@ -1,0 +1,191 @@
+[
+	{
+		"eventName": "user_signed_up",
+		"eventDescription": "User successfully creates a new account (via email/password, passkey, or SSO)",
+		"filePath": "src/app/(auth)/sign-up/sign-up.client.tsx",
+		"properties": ["user_id", "method"]
+	},
+	{
+		"eventName": "user_signed_in",
+		"eventDescription": "User successfully signs in (via email/password, passkey, or SSO)",
+		"filePath": "src/app/(auth)/sign-in/sign-in.client.tsx",
+		"properties": ["user_id", "method"]
+	},
+	{
+		"eventName": "workout_result_logged",
+		"eventDescription": "User logs a workout result - key conversion event for engagement",
+		"filePath": "src/app/(main)/log/new/_components/log-form-client.tsx",
+		"properties": ["result_id", "workout_id"]
+	},
+	{
+		"eventName": "workout_created",
+		"eventDescription": "User creates a new workout - indicates power user engagement",
+		"filePath": "src/app/(main)/workouts/new/_components/create-workout-client.tsx"
+	},
+	{
+		"eventName": "team_created",
+		"eventDescription": "User creates a new team - key conversion/growth event",
+		"filePath": "src/components/teams/create-team-form.tsx"
+	},
+	{
+		"eventName": "team_invite_sent",
+		"eventDescription": "User invites someone to a team - viral growth event",
+		"filePath": "src/actions/team-membership-actions.ts"
+	},
+	{
+		"eventName": "team_invite_accepted",
+		"eventDescription": "User accepts a team invitation - conversion from invite",
+		"filePath": "src/app/(auth)/team-invite/team-invite.action.ts"
+	},
+	{
+		"eventName": "pricing_plan_clicked",
+		"eventDescription": "User clicks on a pricing plan CTA - conversion funnel event",
+		"filePath": "src/components/landing/pricing.tsx"
+	},
+	{
+		"eventName": "movement_created",
+		"eventDescription": "User creates a new movement - power user engagement",
+		"filePath": "src/app/(main)/movements/new/_components/create-movement-form.tsx",
+		"properties": ["movement_id"]
+	},
+	{
+		"eventName": "track_unsubscribed",
+		"eventDescription": "User unsubscribes from programming track",
+		"filePath": "src/components/programming/subscriptions-list.tsx",
+		"properties": ["track_id", "track_name"]
+	},
+	{
+		"eventName": "workout_viewed",
+		"eventDescription": "User views workout details - top of funnel for logging results",
+		"filePath": "src/app/(main)/workouts/[id]/page.tsx"
+	},
+	{
+		"eventName": "sso_auth_initiated",
+		"eventDescription": "User initiates SSO authentication (Google)",
+		"filePath": "src/app/(auth)/_components/sso-buttons.tsx"
+	},
+	{
+		"eventName": "competition_registration_started",
+		"eventDescription": "User starts filling out competition registration form",
+		"filePath": "src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx",
+		"properties": ["competition_id", "competition_name"]
+	},
+	{
+		"eventName": "competition_registration_completed",
+		"eventDescription": "User successfully completes competition registration (free competition)",
+		"filePath": "src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx",
+		"properties": [
+			"competition_id",
+			"competition_name",
+			"registration_id",
+			"division_name"
+		]
+	},
+	{
+		"eventName": "competition_registration_payment_started",
+		"eventDescription": "User proceeds to payment for paid competition registration",
+		"filePath": "src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx",
+		"properties": [
+			"competition_id",
+			"competition_name",
+			"registration_id",
+			"division_name"
+		]
+	},
+	{
+		"eventName": "competition_registration_failed",
+		"eventDescription": "Competition registration failed due to an error",
+		"filePath": "src/app/(compete)/compete/[slug]/register/_components/registration-form.tsx",
+		"properties": ["competition_id", "competition_name", "error"]
+	},
+	{
+		"eventName": "competition_created",
+		"eventDescription": "Organizer creates a new competition",
+		"filePath": "src/app/(compete)/compete/organizer/new/_components/organizer-competition-form.tsx",
+		"properties": ["competition_id", "competition_name"]
+	},
+	{
+		"eventName": "competition_created_failed",
+		"eventDescription": "Competition creation failed due to an error",
+		"filePath": "src/app/(compete)/compete/organizer/new/_components/organizer-competition-form.tsx",
+		"properties": ["error"]
+	},
+	{
+		"eventName": "competition_series_created",
+		"eventDescription": "Organizer creates a new competition series",
+		"filePath": "src/app/(compete)/compete/organizer/series/new/_components/organizer-series-form.tsx",
+		"properties": ["series_id", "series_name"]
+	},
+	{
+		"eventName": "competition_series_created_failed",
+		"eventDescription": "Competition series creation failed due to an error",
+		"filePath": "src/app/(compete)/compete/organizer/series/new/_components/organizer-series-form.tsx",
+		"properties": ["error"]
+	},
+	{
+		"eventName": "competition_viewed",
+		"eventDescription": "User views a competition page - top of funnel for registration",
+		"filePath": "src/app/(compete)/compete/[slug]/_components/competition-view-tracker.tsx",
+		"properties": ["competition_id", "competition_name"]
+	},
+	{
+		"eventName": "competition_event_created",
+		"eventDescription": "Organizer creates a new event within a competition",
+		"filePath": "src/app/(compete)/compete/organizer/[competitionId]/(with-tabs)/events/_components/organizer-event-manager.tsx",
+		"properties": ["competition_id", "event_id", "event_name", "is_remix"]
+	},
+	{
+		"eventName": "competition_event_created_failed",
+		"eventDescription": "Competition event creation failed due to an error",
+		"filePath": "src/app/(compete)/compete/organizer/[competitionId]/(with-tabs)/events/_components/organizer-event-manager.tsx",
+		"properties": ["competition_id", "error"]
+	},
+	{
+		"eventName": "competition_score_saved",
+		"eventDescription": "Organizer saves a score for a competition participant",
+		"filePath": "src/app/(compete)/compete/organizer/[competitionId]/results/_components/results-entry-form.tsx",
+		"properties": ["competition_id", "event_id", "registration_id"]
+	},
+	{
+		"eventName": "competition_score_saved_failed",
+		"eventDescription": "Competition score save failed due to an error",
+		"filePath": "src/app/(compete)/compete/organizer/[competitionId]/results/_components/results-entry-form.tsx",
+		"properties": ["competition_id", "event_id", "error"]
+	},
+	{
+		"eventName": "competition_deleted",
+		"eventDescription": "Organizer deletes a competition",
+		"filePath": "src/app/(compete)/compete/organizer/[competitionId]/(with-tabs)/danger-zone/_components/delete-competition-form.tsx",
+		"properties": ["competition_id"]
+	},
+	{
+		"eventName": "competition_deleted_failed",
+		"eventDescription": "Competition deletion failed due to an error",
+		"filePath": "src/app/(compete)/compete/organizer/[competitionId]/(with-tabs)/danger-zone/_components/delete-competition-form.tsx",
+		"properties": ["competition_id", "error"]
+	},
+	{
+		"eventName": "competition_team_invite_accepted",
+		"eventDescription": "User accepts an invitation to join a competition team",
+		"filePath": "src/app/(compete)/compete/invite/[token]/_components/accept-invite-button.tsx",
+		"properties": ["team_name", "competition_id"]
+	},
+	{
+		"eventName": "competition_team_invite_accepted_failed",
+		"eventDescription": "Competition team invite acceptance failed due to an error",
+		"filePath": "src/app/(compete)/compete/invite/[token]/_components/accept-invite-button.tsx",
+		"properties": ["team_name", "competition_id", "error"]
+	},
+	{
+		"eventName": "athlete_profile_updated",
+		"eventDescription": "User updates their athlete profile for competitions",
+		"filePath": "src/app/(compete)/compete/athlete/_components/athlete-profile-form.tsx",
+		"properties": ["athlete_id"]
+	},
+	{
+		"eventName": "athlete_profile_updated_failed",
+		"eventDescription": "Athlete profile update failed due to an error",
+		"filePath": "src/app/(compete)/compete/athlete/_components/athlete-profile-form.tsx",
+		"properties": ["error"]
+	}
+]

@@ -23,6 +23,7 @@ import {
 	teamUsageTable,
 } from "../db/schema"
 import { getDb } from "@/db"
+import { logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
 import { FEATURES } from "../config/features"
 import { LIMITS } from "../config/limits"
 
@@ -89,7 +90,10 @@ export async function snapshotAllTeams(): Promise<{
 		try {
 			const hasSnapshot = await teamHasSnapshot(team.id)
 			if (hasSnapshot) {
-				console.log(`[Snapshot] Team ${team.id} already has snapshot, skipping`)
+				logInfo({
+					message: "[entitlements] Team already has snapshot, skipping",
+					attributes: { teamId: team.id },
+				})
 				success++
 				continue
 			}
@@ -193,9 +197,16 @@ export async function snapshotPlanEntitlements(
 		)
 	}
 
-	console.log(
-		`[Entitlements] Snapshotted plan "${plan.name}" entitlements to team ${teamId}: ${plan.planFeatures.length} features, ${plan.planLimits.length} limits`,
-	)
+	logInfo({
+		message: "[entitlements] Snapshotted plan to team",
+		attributes: {
+			teamId,
+			planId,
+			planName: plan.name,
+			features: plan.planFeatures.length,
+			limits: plan.planLimits.length,
+		},
+	})
 }
 
 /**
@@ -225,7 +236,9 @@ export async function getTeamPlan(teamId: string): Promise<{
 	})
 
 	if (!plan) {
-		throw new Error(`Plan ${planId} not found in database. Run seed script first.`)
+		throw new Error(
+			`Plan ${planId} not found in database. Run seed script first.`,
+		)
 	}
 
 	// Query team's SNAPSHOTTED features (not the plan's current features)
@@ -256,10 +269,7 @@ export async function getTeamPlan(teamId: string): Promise<{
 			value: teamLimitEntitlementTable.value,
 		})
 		.from(teamLimitEntitlementTable)
-		.innerJoin(
-			limitTable,
-			eq(teamLimitEntitlementTable.limitId, limitTable.id),
-		)
+		.innerJoin(limitTable, eq(teamLimitEntitlementTable.limitId, limitTable.id))
 		.where(
 			and(
 				eq(teamLimitEntitlementTable.teamId, teamId),
@@ -276,9 +286,11 @@ export async function getTeamPlan(teamId: string): Promise<{
 	let entitlements: PlanEntitlements
 
 	if (teamFeatures.length === 0 && teamLimitsRaw.length === 0) {
-		console.warn(
-			`[Entitlements] Team ${teamId} has no snapshotted entitlements, falling back to plan definition. Consider running snapshotPlanEntitlements().`,
-		)
+		logWarning({
+			message:
+				"[entitlements] Team missing snapshotted entitlements, falling back to plan definition",
+			attributes: { teamId, planId: plan.id },
+		})
 
 		// Query plan's current features and limits as fallback
 		const planFeatures = await db
@@ -300,13 +312,17 @@ export async function getTeamPlan(teamId: string): Promise<{
 
 		entitlements = {
 			features: planFeatures.map((f) => f.featureKey),
-			limits: Object.fromEntries(planLimitsRaw.map((l) => [l.limitKey, l.value])),
+			limits: Object.fromEntries(
+				planLimitsRaw.map((l) => [l.limitKey, l.value]),
+			),
 		}
 	} else {
 		// Build entitlements object from snapshots
 		entitlements = {
 			features: teamFeatures.map((f) => f.featureKey),
-			limits: Object.fromEntries(teamLimitsRaw.map((l) => [l.limitKey, l.value])),
+			limits: Object.fromEntries(
+				teamLimitsRaw.map((l) => [l.limitKey, l.value]),
+			),
 		}
 	}
 
@@ -620,7 +636,9 @@ export async function revokeEntitlementsBySource(
 	// Invalidate affected users' sessions in parallel
 	const { invalidateUserSessions } = await import("@/utils/kv-session")
 	const uniqueUserIds = [...new Set(affectedEntitlements.map((e) => e.userId))]
-	await Promise.all(uniqueUserIds.map((userId) => invalidateUserSessions(userId)))
+	await Promise.all(
+		uniqueUserIds.map((userId) => invalidateUserSessions(userId)),
+	)
 }
 
 /**
@@ -755,10 +773,7 @@ export async function getTeamEntitlementSnapshot(teamId: string) {
 			createdAt: teamLimitEntitlementTable.createdAt,
 		})
 		.from(teamLimitEntitlementTable)
-		.innerJoin(
-			limitTable,
-			eq(teamLimitEntitlementTable.limitId, limitTable.id),
-		)
+		.innerJoin(limitTable, eq(teamLimitEntitlementTable.limitId, limitTable.id))
 		.where(
 			and(
 				eq(teamLimitEntitlementTable.teamId, teamId),
@@ -950,7 +965,10 @@ export async function getPlanById(planId: string) {
  * Get team's limit for a specific resource
  * Checks overrides first, then snapshotted entitlements, then add-ons
  */
-export async function getTeamLimit(teamId: string, limitKey: string): Promise<number> {
+export async function getTeamLimit(
+	teamId: string,
+	limitKey: string,
+): Promise<number> {
 	// 1. Check for manual override first
 	const override = await getLimitOverride(teamId, limitKey)
 	if (override !== null) {
@@ -1078,6 +1096,157 @@ async function getAddonLimitModifier(
 	// to the specified limit from active add-ons
 
 	return 0
+}
+
+// ============================================================================
+// GRANT TEAM FEATURE ENTITLEMENTS
+// ============================================================================
+
+/**
+ * Grant a feature to a team as an override
+ * This adds a new active feature entitlement to the team
+ *
+ * @param teamId - Team to grant feature to
+ * @param featureKey - Feature key to grant (e.g., "host_competitions")
+ * @param source - Source of the grant (default: "override")
+ */
+export async function grantTeamFeature(
+	teamId: string,
+	featureKey: string,
+	source: "plan" | "addon" | "override" = "override",
+): Promise<void> {
+	const db = getDb()
+
+	// 1. Get the feature by key
+	const feature = await db.query.featureTable.findFirst({
+		where: eq(featureTable.key, featureKey),
+	})
+
+	if (!feature) {
+		throw new Error(`Feature "${featureKey}" not found`)
+	}
+
+	// 2. Check if team already has this feature
+	const existingEntitlement =
+		await db.query.teamFeatureEntitlementTable.findFirst({
+			where: and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.featureId, feature.id),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+			),
+		})
+
+	if (existingEntitlement) {
+		// Already has the feature, nothing to do
+		return
+	}
+
+	// 3. Insert new feature entitlement
+	await db.insert(teamFeatureEntitlementTable).values({
+		teamId,
+		featureId: feature.id,
+		source,
+		isActive: 1,
+	})
+
+	logInfo({
+		message: "[entitlements] Granted feature to team",
+		attributes: { teamId, featureKey },
+	})
+}
+
+/**
+ * Revoke a feature from a team
+ * This soft-deletes the feature entitlement
+ *
+ * @param teamId - Team to revoke feature from
+ * @param featureKey - Feature key to revoke
+ */
+export async function revokeTeamFeature(
+	teamId: string,
+	featureKey: string,
+): Promise<void> {
+	const db = getDb()
+
+	// 1. Get the feature by key
+	const feature = await db.query.featureTable.findFirst({
+		where: eq(featureTable.key, featureKey),
+	})
+
+	if (!feature) {
+		throw new Error(`Feature "${featureKey}" not found`)
+	}
+
+	// 2. Soft-delete the feature entitlement
+	await db
+		.update(teamFeatureEntitlementTable)
+		.set({ isActive: 0 })
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.featureId, feature.id),
+				eq(teamFeatureEntitlementTable.isActive, 1),
+			),
+		)
+
+	logInfo({
+		message: "[entitlements] Revoked feature from team",
+		attributes: { teamId, featureKey },
+	})
+}
+
+/**
+ * Set a limit override for a team
+ * This creates or updates an override in the team_entitlement_override table
+ *
+ * @param teamId - Team to set limit override for
+ * @param limitKey - Limit key (e.g., "max_published_competitions")
+ * @param value - Limit value (-1 for unlimited, 0 for none, or positive number)
+ * @param reason - Optional reason for the override
+ */
+export async function setTeamLimitOverride(
+	teamId: string,
+	limitKey: string,
+	value: number,
+	reason?: string,
+): Promise<void> {
+	const db = getDb()
+
+	// Check if override already exists
+	const existingOverride = await db.query.teamEntitlementOverrideTable.findFirst(
+		{
+			where: and(
+				eq(teamEntitlementOverrideTable.teamId, teamId),
+				eq(teamEntitlementOverrideTable.type, "limit"),
+				eq(teamEntitlementOverrideTable.key, limitKey),
+			),
+		},
+	)
+
+	if (existingOverride) {
+		// Update existing override
+		await db
+			.update(teamEntitlementOverrideTable)
+			.set({
+				value: value.toString(),
+				reason: reason ?? existingOverride.reason,
+			})
+			.where(eq(teamEntitlementOverrideTable.id, existingOverride.id))
+	} else {
+		// Create new override
+		await db.insert(teamEntitlementOverrideTable).values({
+			teamId,
+			type: "limit",
+			key: limitKey,
+			value: value.toString(),
+			reason,
+		})
+	}
+
+	logInfo({
+		message: "[entitlements] Set limit override for team",
+		attributes: { teamId, limitKey, value },
+	})
 }
 
 // ============================================================================

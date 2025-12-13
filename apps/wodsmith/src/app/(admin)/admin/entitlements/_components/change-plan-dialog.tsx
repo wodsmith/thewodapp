@@ -84,8 +84,8 @@ export function ChangePlanDialog({
 					<DialogHeader>
 						<DialogTitle>Change Team Plan</DialogTitle>
 						<DialogDescription>
-							Select a new plan for this team. This will immediately update their
-							entitlements and limits.
+							Select a new plan for this team. This will immediately update
+							their entitlements and limits.
 						</DialogDescription>
 					</DialogHeader>
 

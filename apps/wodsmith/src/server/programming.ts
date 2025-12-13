@@ -1,6 +1,7 @@
 import "server-only"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "@/db"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -12,8 +13,10 @@ import {
 import { teamTable } from "@/db/schemas/teams"
 import { type Workout, workouts } from "@/db/schemas/workouts"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
+import { autochunk } from "@/utils/batch-query"
 
 interface PublicProgrammingTrack extends ProgrammingTrack {
+	competitionId: string | null
 	ownerTeam: {
 		id: string
 		name: string
@@ -35,6 +38,7 @@ export async function getPublicProgrammingTracks(): Promise<
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -63,6 +67,7 @@ export async function getTeamProgrammingTracks(
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -103,6 +108,7 @@ export async function getProgrammingTrackById(
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -173,7 +179,7 @@ export async function getPaginatedTrackWorkouts(
 		.from(trackWorkoutsTable)
 		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
 		.where(eq(trackWorkoutsTable.trackId, trackId))
-		.orderBy(desc(trackWorkoutsTable.dayNumber))
+		.orderBy(desc(trackWorkoutsTable.trackOrder))
 		.limit(validPageSize)
 		.offset(offset)
 
@@ -243,75 +249,84 @@ export async function detectExternalProgrammingTrackWorkouts(
 
 	const db = getDb()
 
-	// Get scheduled workout instances with track workouts and programming tracks
-	const rows = await db
-		.select({
-			// Scheduled workout instance fields
-			instanceId: scheduledWorkoutInstancesTable.id,
-			instanceTeamId: scheduledWorkoutInstancesTable.teamId,
-			instanceTrackWorkoutId: scheduledWorkoutInstancesTable.trackWorkoutId,
-			instanceScheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
-			instanceTeamSpecificNotes:
-				scheduledWorkoutInstancesTable.teamSpecificNotes,
-			instanceScalingGuidanceForDay:
-				scheduledWorkoutInstancesTable.scalingGuidanceForDay,
-			instanceClassTimes: scheduledWorkoutInstancesTable.classTimes,
-			instanceCreatedAt: scheduledWorkoutInstancesTable.createdAt,
-			instanceUpdatedAt: scheduledWorkoutInstancesTable.updatedAt,
-			instanceUpdateCounter: scheduledWorkoutInstancesTable.updateCounter,
+	// Get scheduled workout instances with track workouts and programming tracks (batched)
+	const rows = await autochunk(
+		{ items: scheduledWorkoutIds, otherParametersCount: 1 }, // +1 for teamId
+		async (chunk) =>
+			db
+				.select({
+					// Scheduled workout instance fields
+					instanceId: scheduledWorkoutInstancesTable.id,
+					instanceTeamId: scheduledWorkoutInstancesTable.teamId,
+					instanceTrackWorkoutId: scheduledWorkoutInstancesTable.trackWorkoutId,
+					instanceScheduledDate: scheduledWorkoutInstancesTable.scheduledDate,
+					instanceTeamSpecificNotes:
+						scheduledWorkoutInstancesTable.teamSpecificNotes,
+					instanceScalingGuidanceForDay:
+						scheduledWorkoutInstancesTable.scalingGuidanceForDay,
+					instanceClassTimes: scheduledWorkoutInstancesTable.classTimes,
+					instanceCreatedAt: scheduledWorkoutInstancesTable.createdAt,
+					instanceUpdatedAt: scheduledWorkoutInstancesTable.updatedAt,
+					instanceUpdateCounter: scheduledWorkoutInstancesTable.updateCounter,
 
-			// Track workout fields
-			trackWorkoutId: trackWorkoutsTable.id,
-			trackWorkoutTrackId: trackWorkoutsTable.trackId,
-			trackWorkoutWorkoutId: trackWorkoutsTable.workoutId,
-			trackWorkoutDayNumber: trackWorkoutsTable.dayNumber,
-			trackWorkoutWeekNumber: trackWorkoutsTable.weekNumber,
-			trackWorkoutNotes: trackWorkoutsTable.notes,
-			trackWorkoutCreatedAt: trackWorkoutsTable.createdAt,
-			trackWorkoutUpdatedAt: trackWorkoutsTable.updatedAt,
-			trackWorkoutUpdateCounter: trackWorkoutsTable.updateCounter,
+					// Track workout fields
+					trackWorkoutId: trackWorkoutsTable.id,
+					trackWorkoutTrackId: trackWorkoutsTable.trackId,
+					trackWorkoutWorkoutId: trackWorkoutsTable.workoutId,
+					trackWorkoutTrackOrder: trackWorkoutsTable.trackOrder,
+					trackWorkoutPointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+					trackWorkoutHeatStatus: trackWorkoutsTable.heatStatus,
+					trackWorkoutEventStatus: trackWorkoutsTable.eventStatus,
+					trackWorkoutNotes: trackWorkoutsTable.notes,
+					trackWorkoutCreatedAt: trackWorkoutsTable.createdAt,
+					trackWorkoutUpdatedAt: trackWorkoutsTable.updatedAt,
+					trackWorkoutUpdateCounter: trackWorkoutsTable.updateCounter,
 
-			// Workout fields
-			workoutId: workouts.id,
-			workoutName: workouts.name,
-			workoutDescription: workouts.description,
-			workoutScheme: workouts.scheme,
-			workoutScope: workouts.scope,
-			workoutTeamId: workouts.teamId,
-			workoutScalingGroupId: workouts.scalingGroupId,
-			workoutCreatedAt: workouts.createdAt,
-			workoutUpdatedAt: workouts.updatedAt,
-			workoutUpdateCounter: workouts.updateCounter,
-			workoutSourceWorkoutId: workouts.sourceWorkoutId,
-			workoutSourceTrackId: workouts.sourceTrackId,
+					// Workout fields
+					workoutId: workouts.id,
+					workoutName: workouts.name,
+					workoutDescription: workouts.description,
+					workoutScheme: workouts.scheme,
+					workoutScope: workouts.scope,
+					workoutTeamId: workouts.teamId,
+					workoutScalingGroupId: workouts.scalingGroupId,
+					workoutCreatedAt: workouts.createdAt,
+					workoutUpdatedAt: workouts.updatedAt,
+					workoutUpdateCounter: workouts.updateCounter,
+					workoutSourceWorkoutId: workouts.sourceWorkoutId,
+					workoutSourceTrackId: workouts.sourceTrackId,
 
-			// Programming track fields
-			trackId: programmingTracksTable.id,
-			trackName: programmingTracksTable.name,
-			trackDescription: programmingTracksTable.description,
-			trackType: programmingTracksTable.type,
-			trackOwnerTeamId: programmingTracksTable.ownerTeamId,
-			trackIsPublic: programmingTracksTable.isPublic,
-			trackCreatedAt: programmingTracksTable.createdAt,
-			trackUpdatedAt: programmingTracksTable.updatedAt,
-			trackUpdateCounter: programmingTracksTable.updateCounter,
-		})
-		.from(scheduledWorkoutInstancesTable)
-		.leftJoin(
-			trackWorkoutsTable,
-			eq(trackWorkoutsTable.id, scheduledWorkoutInstancesTable.trackWorkoutId),
-		)
-		.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
-		.leftJoin(
-			programmingTracksTable,
-			eq(programmingTracksTable.id, trackWorkoutsTable.trackId),
-		)
-		.where(
-			and(
-				inArray(scheduledWorkoutInstancesTable.id, scheduledWorkoutIds),
-				eq(scheduledWorkoutInstancesTable.teamId, teamId),
-			),
-		)
+					// Programming track fields
+					trackId: programmingTracksTable.id,
+					trackName: programmingTracksTable.name,
+					trackDescription: programmingTracksTable.description,
+					trackType: programmingTracksTable.type,
+					trackOwnerTeamId: programmingTracksTable.ownerTeamId,
+					trackIsPublic: programmingTracksTable.isPublic,
+					trackCreatedAt: programmingTracksTable.createdAt,
+					trackUpdatedAt: programmingTracksTable.updatedAt,
+					trackUpdateCounter: programmingTracksTable.updateCounter,
+				})
+				.from(scheduledWorkoutInstancesTable)
+				.leftJoin(
+					trackWorkoutsTable,
+					eq(
+						trackWorkoutsTable.id,
+						scheduledWorkoutInstancesTable.trackWorkoutId,
+					),
+				)
+				.leftJoin(workouts, eq(workouts.id, trackWorkoutsTable.workoutId))
+				.leftJoin(
+					programmingTracksTable,
+					eq(programmingTracksTable.id, trackWorkoutsTable.trackId),
+				)
+				.where(
+					and(
+						inArray(scheduledWorkoutInstancesTable.id, chunk),
+						eq(scheduledWorkoutInstancesTable.teamId, teamId),
+					),
+				),
+	)
 
 	return rows.map((row) => {
 		// Build scheduled workout instance
@@ -332,8 +347,11 @@ export async function detectExternalProgrammingTrackWorkouts(
 						id: row.trackWorkoutId,
 						trackId: row.trackWorkoutTrackId as string,
 						workoutId: row.trackWorkoutWorkoutId as string,
-						dayNumber: (row.trackWorkoutDayNumber ?? 0) as number,
-						weekNumber: row.trackWorkoutWeekNumber,
+						trackOrder: (row.trackWorkoutTrackOrder ?? 0) as number,
+						pointsMultiplier: row.trackWorkoutPointsMultiplier,
+						heatStatus: row.trackWorkoutHeatStatus,
+						eventStatus: row.trackWorkoutEventStatus,
+						sponsorId: null, // Not included in this query
 						notes: row.trackWorkoutNotes,
 						createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
 						updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,
@@ -358,7 +376,7 @@ export async function detectExternalProgrammingTrackWorkouts(
 									roundsToScore: null,
 									sugarId: null,
 									tiebreakScheme: null,
-									secondaryScheme: null,
+									timeCap: null,
 								}
 							: undefined,
 					}
@@ -392,7 +410,10 @@ export async function isTeamSubscribedToProgrammingTrack(
 	teamId: string,
 	trackId: string,
 ): Promise<boolean> {
-	console.log("🔍 Checking team subscription:", { teamId, trackId })
+	logInfo({
+		message: "[programming] Checking team subscription",
+		attributes: { teamId, trackId },
+	})
 
 	const db = getDb()
 	const result = await db
@@ -407,9 +428,9 @@ export async function isTeamSubscribedToProgrammingTrack(
 		)
 		.limit(1)
 
-	console.log("🔍 Subscription query result:", {
-		result,
-		isSubscribed: result.length > 0,
+	logInfo({
+		message: "[programming] Subscription query result",
+		attributes: { teamId, trackId, isSubscribed: result.length > 0 },
 	})
 	return result.length > 0
 }
@@ -418,9 +439,9 @@ export async function isWorkoutInTeamSubscribedTrack(
 	teamId: string,
 	workoutId: string,
 ): Promise<boolean> {
-	console.log("🔍 Checking if workout is in team subscribed track:", {
-		teamId,
-		workoutId,
+	logInfo({
+		message: "[programming] Checking workout in subscribed track",
+		attributes: { teamId, workoutId },
 	})
 
 	const db = getDb()
@@ -442,9 +463,9 @@ export async function isWorkoutInTeamSubscribedTrack(
 		)
 		.limit(1)
 
-	console.log("🔍 Workout in subscribed track query result:", {
-		result,
-		isInSubscribedTrack: result.length > 0,
+	logInfo({
+		message: "[programming] Workout in subscribed track result",
+		attributes: { teamId, workoutId, isInSubscribedTrack: result.length > 0 },
 	})
 	return result.length > 0
 }
@@ -467,27 +488,36 @@ export async function getUserProgrammingTracks(userTeamIds: string[]): Promise<
 	}
 
 	const db = getDb()
-	const tracks = await db
-		.select({
-			trackId: programmingTracksTable.id,
-			trackName: programmingTracksTable.name,
-			trackDescription: programmingTracksTable.description,
-			subscribedTeamId: teamTable.id,
-			subscribedTeamName: teamTable.name,
-		})
-		.from(teamProgrammingTracksTable)
-		.innerJoin(
-			programmingTracksTable,
-			eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
-		)
-		.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
-		.where(
-			and(
-				inArray(teamProgrammingTracksTable.teamId, userTeamIds),
-				eq(teamProgrammingTracksTable.isActive, 1),
-			),
-		)
-		.orderBy(programmingTracksTable.name)
+
+	// Batched query to avoid SQL variable limit
+	const tracks = await autochunk(
+		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for isActive
+		async (chunk) =>
+			db
+				.select({
+					trackId: programmingTracksTable.id,
+					trackName: programmingTracksTable.name,
+					trackDescription: programmingTracksTable.description,
+					subscribedTeamId: teamTable.id,
+					subscribedTeamName: teamTable.name,
+				})
+				.from(teamProgrammingTracksTable)
+				.innerJoin(
+					programmingTracksTable,
+					eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
+				)
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
+				.where(
+					and(
+						inArray(teamProgrammingTracksTable.teamId, chunk),
+						eq(teamProgrammingTracksTable.isActive, 1),
+					),
+				)
+				.orderBy(programmingTracksTable.name),
+	)
 
 	// Deduplicate tracks by ID while preserving team info
 	const uniqueTracks = new Map<

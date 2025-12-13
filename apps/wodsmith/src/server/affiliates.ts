@@ -33,7 +33,10 @@ export async function findOrCreateAffiliate(name: string): Promise<string> {
 	}
 
 	// Create new affiliate
-	const result = await db.insert(affiliatesTable).values({ name: normalized }).returning()
+	const result = await db
+		.insert(affiliatesTable)
+		.values({ name: normalized })
+		.returning()
 
 	const [created] = Array.isArray(result) ? result : []
 	if (!created) {

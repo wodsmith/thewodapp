@@ -1,9 +1,11 @@
 import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups } from "@/server/competitions"
+import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
 import { OrganizerSeriesList } from "./_components/organizer-series-list"
@@ -20,17 +22,26 @@ interface SeriesPageProps {
 	}>
 }
 
-export default async function SeriesPage({
-	searchParams,
-}: SeriesPageProps) {
+export default async function SeriesPage({ searchParams }: SeriesPageProps) {
 	const { teamId: selectedTeamId } = await searchParams
 	const organizingTeams = await getUserOrganizingTeams()
+	const activeTeamFromCookie = await getActiveTeamFromCookie()
 
-	// Use selected team or first team as default
-	const activeTeamId = selectedTeamId || organizingTeams[0]?.id
-
+	// Priority: URL param > active team cookie (if valid organizing team)
+	let activeTeamId: string | undefined = selectedTeamId
+	if (!activeTeamId && activeTeamFromCookie) {
+		if (organizingTeams.some((t) => t.id === activeTeamFromCookie)) {
+			activeTeamId = activeTeamFromCookie
+		}
+	}
 	if (!activeTeamId) {
-		return null // Layout handles no access case
+		const gymTeams = organizingTeams.filter((team) => team.type === "gym")
+		const firstTeam = gymTeams[0]
+		if (firstTeam) {
+			activeTeamId = firstTeam.id
+		} else {
+			redirect("/compete/organizer")
+		}
 	}
 
 	// Fetch series for the active team
@@ -60,17 +71,11 @@ export default async function SeriesPage({
 
 				{/* Team Filter (only show if multiple teams) */}
 				{organizingTeams.length > 1 && (
-					<TeamFilter
-						teams={organizingTeams}
-						selectedTeamId={activeTeamId}
-					/>
+					<TeamFilter teams={organizingTeams} selectedTeamId={activeTeamId} />
 				)}
 
 				{/* Series List */}
-				<OrganizerSeriesList
-					groups={groups}
-					teamId={activeTeamId}
-				/>
+				<OrganizerSeriesList groups={groups} teamId={activeTeamId} />
 			</div>
 		</div>
 	)

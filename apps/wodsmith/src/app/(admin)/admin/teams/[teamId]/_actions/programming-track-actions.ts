@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { createServerAction } from "@repo/zsa"
 import { getDb } from "@/db"
 import { scalingGroupsTable, TEAM_PERMISSIONS } from "@/db/schema"
+import { logDebug, logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	addWorkoutToTrackSchema,
 	createProgrammingTrackSchema,
@@ -52,16 +53,22 @@ export const createProgrammingTrackAction = createServerAction()
 				scalingGroupId,
 			})
 
-			console.log(
-				`INFO: [ProgrammingTrack] Created track: ${name} for team: ${teamId} by user: creating-user`,
-			)
+			logInfo({
+				message: "[ProgrammingTrack] Created track",
+				attributes: { trackName: name, teamId, trackId: track.id },
+			})
 
 			// Revalidate the programming page
 			revalidatePath("/admin/teams/programming")
 
 			return { success: true, data: track }
 		} catch (error) {
-			console.error("Failed to create programming track:", error)
+			logError({
+				message:
+					"[createProgrammingTrackAction] Failed to create programming track",
+				error,
+				attributes: { teamId, name },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to create programming track: ${error.message}`)
 			}
@@ -89,16 +96,22 @@ export const deleteProgrammingTrackAction = createServerAction()
 
 			await deleteProgrammingTrack(trackId)
 
-			console.log(
-				`INFO: [ProgrammingTrack] Deleted track: ${trackId} for team: ${teamId}`,
-			)
+			logInfo({
+				message: "[ProgrammingTrack] Deleted track",
+				attributes: { trackId, teamId },
+			})
 
 			// Revalidate the programming page
 			revalidatePath("/admin/teams/programming")
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to delete programming track:", error)
+			logError({
+				message:
+					"[deleteProgrammingTrackAction] Failed to delete programming track",
+				error,
+				attributes: { trackId, teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to delete programming track: ${error.message}`)
 			}
@@ -162,11 +175,14 @@ export const updateProgrammingTrackAction = createServerAction()
 
 			const track = await updateProgrammingTrack(trackId, updateData)
 
-			console.log(
-				`INFO: [ProgrammingTrack] Updated track: ${trackId} for team: ${teamId} - fields updated: ${Object.keys(
-					updateData,
-				).join(", ")}`,
-			)
+			logInfo({
+				message: "[ProgrammingTrack] Updated track",
+				attributes: {
+					trackId,
+					teamId,
+					fieldsUpdated: Object.keys(updateData).join(", "),
+				},
+			})
 
 			// Revalidate the programming page and track page
 			revalidatePath("/admin/teams/programming")
@@ -174,7 +190,12 @@ export const updateProgrammingTrackAction = createServerAction()
 
 			return { success: true, data: track }
 		} catch (error) {
-			console.error("Failed to update programming track:", error)
+			logError({
+				message:
+					"[updateProgrammingTrackAction] Failed to update programming track",
+				error,
+				attributes: { trackId, teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to update programming track: ${error.message}`)
 			}
@@ -196,13 +217,18 @@ export const getTeamTracksAction = createServerAction()
 
 			const tracks = await getTeamTracks(teamId)
 
-			console.log(
-				`INFO: [ProgrammingTrack] Retrieved ${tracks.length} programming tracks for teamId '${teamId}'`,
-			)
+			logDebug({
+				message: "[ProgrammingTrack] Retrieved tracks",
+				attributes: { teamId, trackCount: tracks.length },
+			})
 
 			return { success: true, data: tracks }
 		} catch (error) {
-			console.error("Failed to get team tracks:", error)
+			logError({
+				message: "[getTeamTracksAction] Failed to get team tracks",
+				error,
+				attributes: { teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to get team tracks: ${error.message}`)
 			}
@@ -216,7 +242,8 @@ export const getTeamTracksAction = createServerAction()
 export const addWorkoutToTrackAction = createServerAction()
 	.input(addWorkoutToTrackSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, workoutId, dayNumber, weekNumber, notes } = input
+		const { teamId, trackId, workoutId, trackOrder, notes, pointsMultiplier } =
+			input
 
 		try {
 			// Check permissions
@@ -231,21 +258,26 @@ export const addWorkoutToTrackAction = createServerAction()
 			const trackWorkout = await addWorkoutToTrack({
 				trackId,
 				workoutId,
-				dayNumber,
-				weekNumber,
+				trackOrder,
 				notes,
+				pointsMultiplier,
 			})
 
-			console.log(
-				`INFO: [TrackWorkout] Added workout: ${workoutId} to track: ${trackId} at day: ${dayNumber}`,
-			)
+			logInfo({
+				message: "[TrackWorkout] Added workout to track",
+				attributes: { workoutId, trackId, trackOrder: trackOrder ?? 0 },
+			})
 
 			// Revalidate the track workout page
 			revalidatePath("/admin/teams/programming")
 
 			return { success: true, data: trackWorkout }
 		} catch (error) {
-			console.error("Failed to add workout to track:", error)
+			logError({
+				message: "[addWorkoutToTrackAction] Failed to add workout to track",
+				error,
+				attributes: { trackId, workoutId, teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to add workout to track: ${error.message}`)
 			}
@@ -273,16 +305,22 @@ export const removeWorkoutFromTrackAction = createServerAction()
 
 			await removeWorkoutFromTrack(trackWorkoutId)
 
-			console.log(
-				`INFO: [TrackWorkout] Removed workout from track: ${trackId}, trackWorkoutId: ${trackWorkoutId}`,
-			)
+			logInfo({
+				message: "[TrackWorkout] Removed workout from track",
+				attributes: { trackId, trackWorkoutId },
+			})
 
 			// Revalidate the track workout page
 			revalidatePath("/admin/teams/programming")
 
 			return { success: true }
 		} catch (error) {
-			console.error("Failed to remove workout from track:", error)
+			logError({
+				message:
+					"[removeWorkoutFromTrackAction] Failed to remove workout from track",
+				error,
+				attributes: { trackId, trackWorkoutId, teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to remove workout from track: ${error.message}`)
 			}
@@ -296,8 +334,14 @@ export const removeWorkoutFromTrackAction = createServerAction()
 export const updateTrackWorkoutAction = createServerAction()
 	.input(updateTrackWorkoutSchema)
 	.handler(async ({ input }) => {
-		const { teamId, trackId, trackWorkoutId, dayNumber, weekNumber, notes } =
-			input
+		const {
+			teamId,
+			trackId,
+			trackWorkoutId,
+			trackOrder,
+			notes,
+			pointsMultiplier,
+		} = input
 
 		try {
 			// Check permissions
@@ -311,21 +355,26 @@ export const updateTrackWorkoutAction = createServerAction()
 
 			const trackWorkout = await updateTrackWorkout({
 				trackWorkoutId,
-				dayNumber,
-				weekNumber,
+				trackOrder,
 				notes,
+				pointsMultiplier,
 			})
 
-			console.log(
-				`INFO: [TrackWorkout] Updated track workout: ${trackWorkoutId} in track: ${trackId}`,
-			)
+			logInfo({
+				message: "[TrackWorkout] Updated track workout",
+				attributes: { trackWorkoutId, trackId },
+			})
 
 			// Revalidate the track workout page
 			revalidatePath("/admin/teams/programming")
 
 			return { success: true, data: trackWorkout }
 		} catch (error) {
-			console.error("Failed to update track workout:", error)
+			logError({
+				message: "[updateTrackWorkoutAction] Failed to update track workout",
+				error,
+				attributes: { trackWorkoutId, trackId, teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to update track workout: ${error.message}`)
 			}
@@ -353,13 +402,18 @@ export const getTrackWorkoutsAction = createServerAction()
 
 			const trackWorkouts = await getWorkoutsForTrack(trackId, teamId)
 
-			console.log(
-				`INFO: [TrackWorkout] Retrieved ${trackWorkouts.length} workouts for track: ${trackId} team: ${teamId}`,
-			)
+			logDebug({
+				message: "[TrackWorkout] Retrieved workouts for track",
+				attributes: { trackId, teamId, workoutCount: trackWorkouts.length },
+			})
 
 			return { success: true, data: trackWorkouts }
 		} catch (error) {
-			console.error("Failed to get track workouts:", error)
+			logError({
+				message: "[getTrackWorkoutsAction] Failed to get track workouts",
+				error,
+				attributes: { trackId, teamId },
+			})
 			if (error instanceof Error) {
 				throw new Error(`Failed to get track workouts: ${error.message}`)
 			}
@@ -368,22 +422,21 @@ export const getTrackWorkoutsAction = createServerAction()
 	})
 
 /**
- * Reorder track workouts by updating their day numbers in bulk.
+ * Reorder track workouts by updating their track order in bulk.
  */
 export const reorderTrackWorkoutsAction = createServerAction()
 	.input(reorderTrackWorkoutsSchema)
 	.handler(async ({ input }) => {
-		console.log("DEBUG: [ReorderAction] Starting with input:", input)
 		const { teamId, trackId, updates } = input
 
+		logDebug({
+			message: "[ReorderAction] Starting",
+			attributes: { teamId, trackId, updatesCount: updates.length },
+		})
+
 		try {
-			console.log(
-				"DEBUG: [ReorderAction] Checking permissions for teamId:",
-				teamId,
-			)
 			// Check permissions
 			await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
-			console.log("DEBUG: [ReorderAction] Permission check passed")
 
 			// Check if team owns the track (only owners can reorder)
 			const isOwner = await isTrackOwner(teamId, trackId)
@@ -391,34 +444,24 @@ export const reorderTrackWorkoutsAction = createServerAction()
 				throw new Error("Only track owners can reorder track workouts")
 			}
 
-			console.log("DEBUG: [ReorderAction] Calling reorderTrackWorkouts with:", {
-				trackId,
-				updatesCount: updates.length,
-			})
 			// Perform the reorder operation
 			const updateCount = await reorderTrackWorkouts(trackId, updates)
-			console.log(
-				"DEBUG: [ReorderAction] Reorder completed with updateCount:",
-				updateCount,
-			)
 
-			console.log(
-				`INFO: [ProgrammingTracks] Successfully reordered ${updateCount} track workouts in transaction for track: ${trackId}`,
-			)
+			logInfo({
+				message: "[ProgrammingTracks] Successfully reordered track workouts",
+				attributes: { trackId, updateCount },
+			})
 
 			// Revalidate the track page to reflect the new order
 			revalidatePath(`/admin/teams/programming/${trackId}`)
 
 			return { success: true, updateCount }
 		} catch (error) {
-			console.error(
-				`ERROR: [ProgrammingTracks] Failed to reorder track workouts for track: ${trackId}`,
+			logError({
+				message:
+					"[reorderTrackWorkoutsAction] Failed to reorder track workouts",
 				error,
-			)
-			console.error("ERROR: [ReorderAction] Error details:", {
-				message: error instanceof Error ? error.message : "Unknown error",
-				stack: error instanceof Error ? error.stack : undefined,
-				error,
+				attributes: { trackId, teamId, updatesCount: updates.length },
 			})
 
 			// Preserve the original error message when possible

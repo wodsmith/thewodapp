@@ -266,7 +266,10 @@ export function ProgrammingTrackCreateDialog({
 								<FormItem>
 									<FormLabel>Description (Optional)</FormLabel>
 									<FormControl>
-										<Textarea placeholder="Enter track description" {...field} />
+										<Textarea
+											placeholder="Enter track description"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -289,7 +292,9 @@ export function ProgrammingTrackCreateDialog({
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											<SelectItem value={PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED}>
+											<SelectItem
+												value={PROGRAMMING_TRACK_TYPE.SELF_PROGRAMMED}
+											>
 												Self-programmed
 											</SelectItem>
 											<SelectItem value={PROGRAMMING_TRACK_TYPE.TEAM_OWNED}>
@@ -324,7 +329,9 @@ export function ProgrammingTrackCreateDialog({
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											<SelectItem value="none">None (Use team default)</SelectItem>
+											<SelectItem value="none">
+												None (Use team default)
+											</SelectItem>
 											{scalingGroups.map((group) => (
 												<SelectItem key={group.id} value={group.id}>
 													{group.title}

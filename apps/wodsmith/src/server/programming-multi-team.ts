@@ -7,6 +7,7 @@ import {
 	teamProgrammingTracksTable,
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
+import { autochunk } from "@/utils/batch-query"
 
 /**
  * Enhanced programming track type that includes subscription information for multiple teams
@@ -47,6 +48,7 @@ export async function getPublicTracksWithTeamSubscriptions(
 			ownerTeamId: programmingTracksTable.ownerTeamId,
 			isPublic: programmingTracksTable.isPublic,
 			scalingGroupId: programmingTracksTable.scalingGroupId,
+			competitionId: programmingTracksTable.competitionId,
 			createdAt: programmingTracksTable.createdAt,
 			updatedAt: programmingTracksTable.updatedAt,
 			updateCounter: programmingTracksTable.updateCounter,
@@ -56,29 +58,30 @@ export async function getPublicTracksWithTeamSubscriptions(
 		.leftJoin(teamTable, eq(programmingTracksTable.ownerTeamId, teamTable.id))
 		.where(eq(programmingTracksTable.isPublic, 1))
 
-	// Get all subscriptions for user's teams
-	const subscriptions =
-		userTeamIds.length > 0
-			? await db
-					.select({
-						trackId: teamProgrammingTracksTable.trackId,
-						teamId: teamProgrammingTracksTable.teamId,
-						teamName: teamTable.name,
-						subscribedAt: teamProgrammingTracksTable.subscribedAt,
-						isActive: teamProgrammingTracksTable.isActive,
-					})
-					.from(teamProgrammingTracksTable)
-					.innerJoin(
-						teamTable,
-						eq(teamProgrammingTracksTable.teamId, teamTable.id),
-					)
-					.where(
-						and(
-							inArray(teamProgrammingTracksTable.teamId, userTeamIds),
-							eq(teamProgrammingTracksTable.isActive, 1),
-						),
-					)
-			: []
+	// Get all subscriptions for user's teams (batched to avoid SQL variable limit)
+	const subscriptions = await autochunk(
+		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for isActive
+		async (chunk) =>
+			db
+				.select({
+					trackId: teamProgrammingTracksTable.trackId,
+					teamId: teamProgrammingTracksTable.teamId,
+					teamName: teamTable.name,
+					subscribedAt: teamProgrammingTracksTable.subscribedAt,
+					isActive: teamProgrammingTracksTable.isActive,
+				})
+				.from(teamProgrammingTracksTable)
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
+				.where(
+					and(
+						inArray(teamProgrammingTracksTable.teamId, chunk),
+						eq(teamProgrammingTracksTable.isActive, 1),
+					),
+				),
+	)
 
 	// Create a map of track subscriptions grouped by trackId
 	const subscriptionsByTrack = new Map<
@@ -191,21 +194,30 @@ export async function getTrackSubscribedTeams(
 	}
 
 	const db = getDb()
-	const subscriptions = await db
-		.select({
-			teamId: teamProgrammingTracksTable.teamId,
-			teamName: teamTable.name,
-			subscribedAt: teamProgrammingTracksTable.subscribedAt,
-		})
-		.from(teamProgrammingTracksTable)
-		.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
-		.where(
-			and(
-				eq(teamProgrammingTracksTable.trackId, trackId),
-				inArray(teamProgrammingTracksTable.teamId, userTeamIds),
-				eq(teamProgrammingTracksTable.isActive, 1),
-			),
-		)
+
+	// Batched query to avoid SQL variable limit
+	const subscriptions = await autochunk(
+		{ items: userTeamIds, otherParametersCount: 2 }, // +2 for trackId and isActive
+		async (chunk) =>
+			db
+				.select({
+					teamId: teamProgrammingTracksTable.teamId,
+					teamName: teamTable.name,
+					subscribedAt: teamProgrammingTracksTable.subscribedAt,
+				})
+				.from(teamProgrammingTracksTable)
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
+				.where(
+					and(
+						eq(teamProgrammingTracksTable.trackId, trackId),
+						inArray(teamProgrammingTracksTable.teamId, chunk),
+						eq(teamProgrammingTracksTable.isActive, 1),
+					),
+				),
+	)
 
 	return subscriptions
 }
@@ -233,28 +245,37 @@ export async function getSubscriptionsByTeam(userTeamIds: string[]): Promise<
 	}
 
 	const db = getDb()
-	const subscriptions = await db
-		.select({
-			teamId: teamProgrammingTracksTable.teamId,
-			teamName: teamTable.name,
-			trackId: programmingTracksTable.id,
-			trackName: programmingTracksTable.name,
-			trackDescription: programmingTracksTable.description,
-			subscribedAt: teamProgrammingTracksTable.subscribedAt,
-		})
-		.from(teamProgrammingTracksTable)
-		.innerJoin(
-			programmingTracksTable,
-			eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
-		)
-		.innerJoin(teamTable, eq(teamProgrammingTracksTable.teamId, teamTable.id))
-		.where(
-			and(
-				inArray(teamProgrammingTracksTable.teamId, userTeamIds),
-				eq(teamProgrammingTracksTable.isActive, 1),
-			),
-		)
-		.orderBy(teamTable.name, programmingTracksTable.name)
+
+	// Batched query to avoid SQL variable limit
+	const subscriptions = await autochunk(
+		{ items: userTeamIds, otherParametersCount: 1 }, // +1 for isActive
+		async (chunk) =>
+			db
+				.select({
+					teamId: teamProgrammingTracksTable.teamId,
+					teamName: teamTable.name,
+					trackId: programmingTracksTable.id,
+					trackName: programmingTracksTable.name,
+					trackDescription: programmingTracksTable.description,
+					subscribedAt: teamProgrammingTracksTable.subscribedAt,
+				})
+				.from(teamProgrammingTracksTable)
+				.innerJoin(
+					programmingTracksTable,
+					eq(teamProgrammingTracksTable.trackId, programmingTracksTable.id),
+				)
+				.innerJoin(
+					teamTable,
+					eq(teamProgrammingTracksTable.teamId, teamTable.id),
+				)
+				.where(
+					and(
+						inArray(teamProgrammingTracksTable.teamId, chunk),
+						eq(teamProgrammingTracksTable.isActive, 1),
+					),
+				)
+				.orderBy(teamTable.name, programmingTracksTable.name),
+	)
 
 	const result = new Map<
 		string,

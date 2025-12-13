@@ -6,11 +6,24 @@ import {
 	integer,
 	sqliteTable,
 	text,
+	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
 import { commonColumns } from "./common"
-import { programmingTracksTable } from "./programming"
+import { competitionRegistrationsTable } from "./competitions"
+import { programmingTracksTable, trackWorkoutsTable } from "./programming"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
+
+// Score status for competition results
+export const SCORE_STATUS_VALUES = [
+	"scored",
+	"dns",
+	"dnf",
+	"cap",
+	"dq",
+	"withdrawn",
+] as const
+export type ScoreStatus = (typeof SCORE_STATUS_VALUES)[number]
 
 // Movement types
 export const MOVEMENT_TYPE_VALUES = [
@@ -18,6 +31,39 @@ export const MOVEMENT_TYPE_VALUES = [
 	"gymnastic",
 	"monostructural",
 ] as const
+
+// Workout scheme values - source of truth for all workout scheme enums
+export const WORKOUT_SCHEME_VALUES = [
+	"time",
+	"time-with-cap",
+	"pass-fail",
+	"rounds-reps",
+	"reps",
+	"emom",
+	"load",
+	"calories",
+	"meters",
+	"feet",
+	"points",
+] as const
+export type WorkoutScheme = (typeof WORKOUT_SCHEME_VALUES)[number]
+
+// Score type values
+export const SCORE_TYPE_VALUES = [
+	"min",
+	"max",
+	"sum",
+	"average",
+	"first",
+	"last",
+] as const
+export type ScoreType = (typeof SCORE_TYPE_VALUES)[number]
+
+// Tiebreak scheme values
+export const TIEBREAK_SCHEME_VALUES = ["time", "reps"] as const
+export type TiebreakScheme = (typeof TIEBREAK_SCHEME_VALUES)[number]
+
+// Note: Secondary scheme values removed - when time-capped, score is always reps
 
 // Movements table
 export const movements = sqliteTable("movements", {
@@ -50,22 +96,10 @@ export const workouts = sqliteTable(
 			.default("private")
 			.notNull(),
 		scheme: text("scheme", {
-			enum: [
-				"time",
-				"time-with-cap",
-				"pass-fail",
-				"rounds-reps",
-				"reps",
-				"emom",
-				"load",
-				"calories",
-				"meters",
-				"feet",
-				"points",
-			],
+			enum: WORKOUT_SCHEME_VALUES,
 		}).notNull(),
 		scoreType: text("score_type", {
-			enum: ["min", "max", "sum", "average", "first", "last"],
+			enum: SCORE_TYPE_VALUES,
 		}),
 		repsPerRound: integer("reps_per_round"),
 		roundsToScore: integer("rounds_to_score").default(1),
@@ -73,21 +107,9 @@ export const workouts = sqliteTable(
 			onDelete: "set null",
 		}),
 		sugarId: text("sugar_id"),
-		tiebreakScheme: text("tiebreak_scheme", { enum: ["time", "reps"] }),
-		secondaryScheme: text("secondary_scheme", {
-			enum: [
-				"time",
-				"pass-fail",
-				"rounds-reps",
-				"reps",
-				"emom",
-				"load",
-				"calories",
-				"meters",
-				"feet",
-				"points",
-			],
-		}),
+		tiebreakScheme: text("tiebreak_scheme", { enum: TIEBREAK_SCHEME_VALUES }),
+		timeCap: integer("time_cap"), // Time cap in seconds (for time-with-cap workouts)
+		// Note: secondaryScheme removed - when capped, score is always reps
 		sourceTrackId: text("source_track_id").references(
 			() => programmingTracksTable.id,
 			{
@@ -177,6 +199,22 @@ export const results = sqliteTable(
 		// Monostructural specific results
 		distance: integer("distance"),
 		time: integer("time"),
+
+		// Competition-specific fields
+		competitionEventId: text("competition_event_id").references(
+			() => trackWorkoutsTable.id,
+			{ onDelete: "set null" },
+		), // References trackWorkoutsTable.id
+		competitionRegistrationId: text("competition_registration_id").references(
+			() => competitionRegistrationsTable.id,
+			{ onDelete: "set null" },
+		), // References competitionRegistrationsTable.id
+		scoreStatus: text("score_status", { enum: SCORE_STATUS_VALUES }), // DNS, DNF, CAP, etc.
+		tieBreakScore: text("tie_break_score"), // Raw tie-break value (e.g., "120" for reps or seconds)
+		secondaryScore: text("secondary_score"), // For time-capped workouts: score achieved when capped (e.g., rounds+reps)
+		enteredBy: text("entered_by").references(() => userTable.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("results_scaling_level_idx").on(table.scalingLevelId),
@@ -192,6 +230,16 @@ export const results = sqliteTable(
 		index("results_user_idx").on(table.userId),
 		index("results_date_idx").on(table.date),
 		index("results_workout_idx").on(table.workoutId),
+		// Competition queries: find all results for a competition event by division
+		index("results_competition_event_idx").on(
+			table.competitionEventId,
+			table.scalingLevelId,
+		),
+		// Unique constraint: one result per user per competition event
+		uniqueIndex("results_competition_unique_idx").on(
+			table.competitionEventId,
+			table.userId,
+		),
 	],
 )
 

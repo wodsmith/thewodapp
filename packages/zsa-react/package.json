@@ -33,7 +33,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@typescript/native-preview": "catalog:",
-    "@types/react": "^19.0.12",
+    "@types/react": "catalog:",
     "react": "catalog:",
     "tsup": "^8.0.2",
     "typescript": "latest",

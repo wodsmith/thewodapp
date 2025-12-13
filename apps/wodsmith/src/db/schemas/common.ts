@@ -59,5 +59,23 @@ export const createTeamLimitEntitlementId = () => `tlent_${createId()}`
 export const createCompetitionGroupId = () => `cgrp_${createId()}`
 export const createCompetitionId = () => `comp_${createId()}`
 export const createCompetitionRegistrationId = () => `creg_${createId()}`
-export const createCompetitionRegistrationTeammateId = () => `crmt_${createId()}`
+export const createCompetitionRegistrationTeammateId = () =>
+	`crmt_${createId()}`
 export const createAffiliateId = () => `aff_${createId()}`
+
+// Commerce ID generators
+export const createCommerceProductId = () => `cprod_${createId()}`
+export const createCommercePurchaseId = () => `cpur_${createId()}`
+export const createCompetitionDivisionFeeId = () => `cdfee_${createId()}`
+
+// Competition heat scheduling ID generators
+export const createCompetitionVenueId = () => `cvenue_${createId()}`
+export const createCompetitionHeatId = () => `cheat_${createId()}`
+export const createCompetitionHeatAssignmentId = () => `chasgn_${createId()}`
+
+// Sponsor ID generators
+export const createSponsorGroupId = () => `spgrp_${createId()}`
+export const createSponsorId = () => `spnsr_${createId()}`
+
+// Organizer request ID generators
+export const createOrganizerRequestId = () => `oreq_${createId()}`

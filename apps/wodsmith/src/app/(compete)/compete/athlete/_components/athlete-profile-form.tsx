@@ -2,12 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { useEffect, useState } from "react"
-import { useFieldArray, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import type * as z from "zod"
 import { useServerAction } from "@repo/zsa-react"
-import { Trash2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -42,6 +42,7 @@ import {
 	lbsToKg,
 	type AthleteProfileData,
 } from "@/utils/athlete-profile"
+import { GENDER_ENUM } from "@/db/schemas/users"
 
 type NotableMetconSuggestion = {
 	workoutId: string
@@ -66,7 +67,7 @@ type AthleteProfileFormProps = {
 export function AthleteProfileForm({
 	initialData,
 	notableMetconSuggestions = [],
-	strengthLiftSuggestions = [],
+	strengthLiftSuggestions: _strengthLiftSuggestions = [],
 }: AthleteProfileFormProps) {
 	const router = useRouter()
 	const [localFeet, setLocalFeet] = useState<string>("")
@@ -79,6 +80,9 @@ export function AthleteProfileForm({
 			onError: (error) => {
 				toast.dismiss()
 				toast.error(error.err?.message || "Failed to update profile")
+				posthog.capture("athlete_profile_updated_failed", {
+					error_message: error.err?.message,
+				})
 			},
 			onStart: () => {
 				toast.loading("Saving profile...")
@@ -86,6 +90,25 @@ export function AthleteProfileForm({
 			onSuccess: () => {
 				toast.dismiss()
 				toast.success("Profile updated successfully")
+				posthog.capture("athlete_profile_updated", {
+					has_physical_stats: !!(
+						form.getValues("heightCm") || form.getValues("weightKg")
+					),
+					has_conditioning_times: !!(
+						form.getValues("conditioning.fran.time") ||
+						form.getValues("conditioning.grace.time") ||
+						form.getValues("conditioning.helen.time")
+					),
+					has_strength_lifts: !!(
+						form.getValues("strength.backSquat.weight") ||
+						form.getValues("strength.deadlift.weight") ||
+						form.getValues("strength.snatch.weight")
+					),
+					has_social_links: !!(
+						form.getValues("social.instagram") ||
+						form.getValues("social.facebook")
+					),
+				})
 				router.push("/compete/athlete")
 				router.refresh()
 			},
@@ -102,11 +125,8 @@ export function AthleteProfileForm({
 
 	const preferredUnits = form.watch("preferredUnits")
 
-	// Field array for sponsors
-	const { fields, append, remove } = useFieldArray({
-		control: form.control,
-		name: "sponsors",
-	})
+	// Note: Sponsors are now managed in the sponsors table via separate UI
+	// See: getUserSponsorsAction, createSponsorAction, etc.
 
 	// Helper to find suggestion for a metcon
 	const getSuggestion = (metconName: string) => {
@@ -166,7 +186,9 @@ export function AthleteProfileForm({
 		}
 
 		if (syncedCount > 0) {
-			toast.success(`Synced ${syncedCount} metcon times from your logged workouts`)
+			toast.success(
+				`Synced ${syncedCount} metcon times from your logged workouts`,
+			)
 		} else {
 			toast.info("No logged metcon results found to sync")
 		}
@@ -202,7 +224,9 @@ export function AthleteProfileForm({
 		}
 	}, [initialData, form])
 
-	async function onSubmit(values: z.infer<typeof athleteProfileExtendedSchema>) {
+	async function onSubmit(
+		values: z.infer<typeof athleteProfileExtendedSchema>,
+	) {
 		await execute(values)
 	}
 
@@ -263,13 +287,73 @@ export function AthleteProfileForm({
 										</SelectContent>
 									</Select>
 									<FormDescription>
-										This affects how weights and heights are displayed throughout
-										your profile
+										This affects how weights and heights are displayed
+										throughout your profile
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
 						/>
+					</CardContent>
+				</Card>
+
+				{/* Basic Info */}
+				<Card>
+					<CardHeader>
+						<CardTitle>Basic Info</CardTitle>
+						<CardDescription>
+							Required for competition registration and division placement
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="grid gap-6 sm:grid-cols-2">
+							<FormField
+								control={form.control}
+								name="gender"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Gender</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select gender" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value={GENDER_ENUM.MALE}>Male</SelectItem>
+												<SelectItem value={GENDER_ENUM.FEMALE}>
+													Female
+												</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormDescription>
+											Used for competition division placement
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="dateOfBirth"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Date of Birth</FormLabel>
+										<FormControl>
+											<Input type="date" {...field} />
+										</FormControl>
+										<FormDescription>
+											Used for age division placement
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 					</CardContent>
 				</Card>
 
@@ -342,7 +426,9 @@ export function AthleteProfileForm({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value ? Number(e.target.value) : undefined,
+																e.target.value
+																	? Number(e.target.value)
+																	: undefined,
 															)
 														}
 														value={field.value || ""}
@@ -676,7 +762,9 @@ export function AthleteProfileForm({
 													</Button>
 												)}
 											</div>
-											<FormDescription>Format: MM:SS or HH:MM:SS</FormDescription>
+											<FormDescription>
+												Format: MM:SS or HH:MM:SS
+											</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)
@@ -904,7 +992,16 @@ export function AthleteProfileForm({
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						{(["backSquat", "deadlift", "benchPress", "press", "snatch", "cleanAndJerk"] as const).map((lift) => {
+						{(
+							[
+								"backSquat",
+								"deadlift",
+								"benchPress",
+								"press",
+								"snatch",
+								"cleanAndJerk",
+							] as const
+						).map((lift) => {
 							const liftKey = lift
 							return (
 								<div key={lift} className="grid gap-4 sm:grid-cols-3">
@@ -923,7 +1020,9 @@ export function AthleteProfileForm({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value ? Number(e.target.value) : undefined,
+																e.target.value
+																	? Number(e.target.value)
+																	: undefined,
 															)
 														}
 														value={field.value || ""}
@@ -1026,7 +1125,10 @@ export function AthleteProfileForm({
 								<FormItem>
 									<FormLabel>Twitter/X</FormLabel>
 									<FormControl>
-										<Input placeholder="https://twitter.com/yourhandle" {...field} />
+										<Input
+											placeholder="https://twitter.com/yourhandle"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -1040,7 +1142,10 @@ export function AthleteProfileForm({
 								<FormItem>
 									<FormLabel>TikTok</FormLabel>
 									<FormControl>
-										<Input placeholder="https://tiktok.com/@yourhandle" {...field} />
+										<Input
+											placeholder="https://tiktok.com/@yourhandle"
+											{...field}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -1049,101 +1154,8 @@ export function AthleteProfileForm({
 					</CardContent>
 				</Card>
 
-				{/* Sponsors */}
-				<Card>
-					<CardHeader>
-						<div className="flex items-start justify-between">
-							<div>
-								<CardTitle>Sponsors</CardTitle>
-								<CardDescription>
-									Add brands and partners that support you
-								</CardDescription>
-							</div>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => append({ name: "", logoUrl: "", website: "" })}
-							>
-								<Plus className="mr-2 h-4 w-4" />
-								Add Sponsor
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{fields.length === 0 ? (
-							<p className="text-muted-foreground text-sm">
-								No sponsors added yet. Click "Add Sponsor" to get started.
-							</p>
-						) : (
-							fields.map((field, index) => (
-								<div key={field.id} className="border-muted space-y-4 rounded-lg border p-4">
-									<div className="flex items-center justify-between">
-										<h4 className="font-semibold">Sponsor {index + 1}</h4>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={() => remove(index)}
-										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
-									</div>
-
-									<div className="grid gap-4 sm:grid-cols-2">
-										<FormField
-											control={form.control}
-											name={`sponsors.${index}.name`}
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Sponsor Name</FormLabel>
-													<FormControl>
-														<Input placeholder="Nike" {...field} />
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name={`sponsors.${index}.logoUrl`}
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Logo URL (optional)</FormLabel>
-													<FormControl>
-														<Input
-															placeholder="https://example.com/logo.png"
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</div>
-
-									<FormField
-										control={form.control}
-										name={`sponsors.${index}.website`}
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>Website (optional)</FormLabel>
-												<FormControl>
-													<Input
-														placeholder="https://example.com"
-														{...field}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-								</div>
-							))
-						)}
-					</CardContent>
-				</Card>
+				{/* Note: Sponsors section removed - now managed via separate sponsors UI */}
+				{/* TODO: Add link to sponsor management page when built */}
 
 				{/* Form Actions */}
 				<div className="flex justify-end gap-4">
