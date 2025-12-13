@@ -64,13 +64,7 @@ const getNavigation = (basePath: string): { overview: NavItem; groups: NavGroup[
 			items: [
 				{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
 				{ label: "Events", href: `${basePath}/events`, icon: Trophy },
-			],
-		},
-		{
-			label: "Participants",
-			items: [
-				{ label: "Athletes", href: `${basePath}/athletes`, icon: Users },
-				{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
+				{ label: "Registrations", href: `${basePath}/athletes`, icon: Users },
 			],
 		},
 		{
@@ -85,6 +79,7 @@ const getNavigation = (basePath: string): { overview: NavItem; groups: NavGroup[
 			items: [
 				{ label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
 				{ label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
+				{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
 			],
 		},
 		{
