@@ -1,5 +1,12 @@
 import Link from "next/link"
-import { Calendar, ExternalLink, Eye, EyeOff, Pencil, UserPlus } from "lucide-react"
+import {
+	Calendar,
+	ExternalLink,
+	Eye,
+	EyeOff,
+	Pencil,
+	UserPlus,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatUTCDateFull } from "@/utils/date-utils"
@@ -15,6 +22,7 @@ interface CompetitionHeaderProps {
 		registrationOpensAt: Date | null
 		registrationClosesAt: Date | null
 		visibility: "public" | "private"
+		status: "draft" | "published"
 	}
 }
 
@@ -59,6 +67,15 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 				<h1 className="text-3xl font-bold">{competition.name}</h1>
 				<div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-muted-foreground text-sm">
 					<div className="flex items-center gap-2">
+						{competition.status === "draft" ? (
+							<Badge variant="secondary" className="shrink-0">
+								Draft
+							</Badge>
+						) : (
+							<Badge variant="default" className="shrink-0 bg-green-600">
+								Published
+							</Badge>
+						)}
 						{competition.visibility === "private" ? (
 							<Badge variant="secondary" className="shrink-0">
 								<EyeOff className="h-3 w-3 mr-1" />

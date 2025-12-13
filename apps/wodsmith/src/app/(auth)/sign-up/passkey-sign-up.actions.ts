@@ -214,11 +214,11 @@ export const completePasskeyRegistrationAction = createServerAction()
 				expiresAt: new Date(session.expiresAt),
 			})
 
-		// Clean up cookies
-		cookieStore.delete(PASSKEY_CHALLENGE_COOKIE_NAME)
-		cookieStore.delete(PASSKEY_USER_ID_COOKIE_NAME)
+			// Clean up cookies
+			cookieStore.delete(PASSKEY_CHALLENGE_COOKIE_NAME)
+			cookieStore.delete(PASSKEY_USER_ID_COOKIE_NAME)
 
-		return { success: true, userId }
+			return { success: true, userId }
 		} catch (error) {
 			console.error("Failed to register passkey:", error)
 			throw new ZSAError("PRECONDITION_FAILED", "Failed to register passkey")

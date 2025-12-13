@@ -28,14 +28,12 @@ import {
 } from "@/components/ui/select"
 import {
 	SCORE_TYPES,
-	SECONDARY_SCHEMES,
 	TIEBREAK_SCHEMES,
 	WORKOUT_SCHEMES,
 } from "@/constants"
 import type { Movement } from "@/db/schema"
 import type {
 	ScoreType,
-	SecondaryScheme,
 	TiebreakScheme,
 	WorkoutScheme,
 } from "@/db/schemas/workouts"
@@ -68,9 +66,7 @@ interface CreateEventDialogProps {
 		scoreType?: ScoreType
 		description?: string
 		roundsToScore?: number
-		repsPerRound?: number
 		tiebreakScheme?: TiebreakScheme
-		secondaryScheme?: SecondaryScheme
 		movementIds?: string[]
 	}) => Promise<void>
 	isCreating?: boolean
@@ -91,14 +87,8 @@ export function CreateEventDialog({
 	const [roundsToScore, setRoundsToScore] = useState<number | undefined>(
 		undefined,
 	)
-	const [repsPerRound, setRepsPerRound] = useState<number | undefined>(
-		undefined,
-	)
 	const [tiebreakScheme, setTiebreakScheme] = useState<
 		TiebreakScheme | undefined
-	>(undefined)
-	const [secondaryScheme, setSecondaryScheme] = useState<
-		SecondaryScheme | undefined
 	>(undefined)
 	const [selectedMovements, setSelectedMovements] = useState<string[]>([])
 	const [showAdvanced, setShowAdvanced] = useState(false)
@@ -119,9 +109,7 @@ export function CreateEventDialog({
 			scoreType,
 			description: description.trim() || undefined,
 			roundsToScore,
-			repsPerRound,
 			tiebreakScheme,
-			secondaryScheme,
 			movementIds: selectedMovements.length > 0 ? selectedMovements : undefined,
 		})
 
@@ -135,9 +123,7 @@ export function CreateEventDialog({
 		setScoreType("min" as ScoreType)
 		setDescription("")
 		setRoundsToScore(undefined)
-		setRepsPerRound(undefined)
 		setTiebreakScheme(undefined)
-		setSecondaryScheme(undefined)
 		setSelectedMovements([])
 		setShowAdvanced(false)
 	}
@@ -222,102 +208,52 @@ export function CreateEventDialog({
 							</div>
 						)}
 
-						<div className="grid grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="roundsToScore">
-									Rounds to Score{" "}
-									<span className="text-muted-foreground">(optional)</span>
-								</Label>
-								<Input
-									id="roundsToScore"
-									type="number"
-									placeholder="e.g., 4"
-									value={roundsToScore ?? ""}
-									onChange={(e) =>
-										setRoundsToScore(
-											e.target.value
-												? Number.parseInt(e.target.value)
-												: undefined,
-										)
-									}
-									min="1"
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="repsPerRound">
-									Reps per Round{" "}
-									<span className="text-muted-foreground">(optional)</span>
-								</Label>
-								<Input
-									id="repsPerRound"
-									type="number"
-									placeholder="e.g., 10"
-									value={repsPerRound ?? ""}
-									onChange={(e) =>
-										setRepsPerRound(
-											e.target.value
-												? Number.parseInt(e.target.value)
-												: undefined,
-										)
-									}
-									min="1"
-								/>
-							</div>
+						<div className="space-y-2">
+							<Label htmlFor="roundsToScore">
+								Rounds to Score{" "}
+								<span className="text-muted-foreground">(optional)</span>
+							</Label>
+							<Input
+								id="roundsToScore"
+								type="number"
+								placeholder="e.g., 4"
+								value={roundsToScore ?? ""}
+								onChange={(e) =>
+									setRoundsToScore(
+										e.target.value
+											? Number.parseInt(e.target.value)
+											: undefined,
+									)
+								}
+								min="1"
+							/>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="tiebreakScheme">
-									Tiebreak Scheme{" "}
-									<span className="text-muted-foreground">(optional)</span>
-								</Label>
-								<Select
-									value={tiebreakScheme ?? "none"}
-									onValueChange={(v) =>
-										setTiebreakScheme(
-											v === "none" ? undefined : (v as TiebreakScheme),
-										)
-									}
-								>
-									<SelectTrigger id="tiebreakScheme">
-										<SelectValue placeholder="None" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="none">None</SelectItem>
-										{TIEBREAK_SCHEMES.map((s) => (
-											<SelectItem key={s.value} value={s.value}>
-												{s.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="secondaryScheme">
-									Secondary Scheme{" "}
-									<span className="text-muted-foreground">(optional)</span>
-								</Label>
-								<Select
-									value={secondaryScheme ?? "none"}
-									onValueChange={(v) =>
-										setSecondaryScheme(
-											v === "none" ? undefined : (v as SecondaryScheme),
-										)
-									}
-								>
-									<SelectTrigger id="secondaryScheme">
-										<SelectValue placeholder="None" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="none">None</SelectItem>
-										{SECONDARY_SCHEMES.map((s) => (
-											<SelectItem key={s.value} value={s.value}>
-												{s.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
+						<div className="space-y-2">
+							<Label htmlFor="tiebreakScheme">
+								Tiebreak Scheme{" "}
+								<span className="text-muted-foreground">(optional)</span>
+							</Label>
+							<Select
+								value={tiebreakScheme ?? "none"}
+								onValueChange={(v) =>
+									setTiebreakScheme(
+										v === "none" ? undefined : (v as TiebreakScheme),
+									)
+								}
+							>
+								<SelectTrigger id="tiebreakScheme">
+									<SelectValue placeholder="None" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None</SelectItem>
+									{TIEBREAK_SCHEMES.map((s) => (
+										<SelectItem key={s.value} value={s.value}>
+											{s.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 
 						{/* Movements - Collapsible */}

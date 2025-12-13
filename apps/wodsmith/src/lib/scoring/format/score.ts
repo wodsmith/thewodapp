@@ -21,7 +21,7 @@ import { formatStatus, isSpecialStatus } from "./status"
  *   scoreType: "min",
  *   value: null,
  *   status: "cap",
- *   timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 142 }
+ *   timeCap: { ms: 900000, secondaryValue: 142 }
  * })
  * // → "CAP (142 reps)"
  *
@@ -57,16 +57,12 @@ function formatSpecialStatus(
 
 	switch (score.status) {
 		case "cap": {
-			// For capped results, show the secondary score (usually reps)
+			// For capped results, show the secondary score (always reps)
 			if (score.timeCap?.secondaryValue !== undefined) {
-				const secondaryFormatted = decodeScore(
-					score.timeCap.secondaryValue,
-					score.timeCap.secondaryScheme,
-					{ ...options, includeUnit: true },
-				)
+				const repsFormatted = `${score.timeCap.secondaryValue} reps`
 				return showStatus
-					? `${statusPrefix} (${secondaryFormatted})`
-					: secondaryFormatted
+					? `${statusPrefix} (${repsFormatted})`
+					: repsFormatted
 			}
 			return statusPrefix || "CAP"
 		}
@@ -92,7 +88,10 @@ function formatSpecialStatus(
  * formatScoreCompact({ scheme: "time", value: 754000, ... })
  * // → "12:34" (no milliseconds shown)
  */
-export function formatScoreCompact(score: Score, options?: FormatOptions): string {
+export function formatScoreCompact(
+	score: Score,
+	options?: FormatOptions,
+): string {
 	return formatScore(score, { ...options, compact: true })
 }
 
@@ -118,7 +117,7 @@ export function formatRounds(
 ): string[] {
 	return rounds.map((round) => {
 		const effectiveScheme = round.schemeOverride ?? scheme
-		
+
 		// Handle rounds with special status
 		if (round.status && isSpecialStatus(round.status)) {
 			const statusStr = formatStatus(round.status)

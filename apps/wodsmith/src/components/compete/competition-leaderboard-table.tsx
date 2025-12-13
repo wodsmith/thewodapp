@@ -8,9 +8,20 @@ import {
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table"
-import { ArrowDownNarrowWide, ArrowUpNarrowWide, Medal, Trophy, ArrowUpDown, ChevronDown } from "lucide-react"
-import { useMemo, useState } from "react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+	ArrowDownNarrowWide,
+	ArrowUpNarrowWide,
+	Medal,
+	Trophy,
+	ArrowUpDown,
+	ChevronDown,
+} from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,16 +39,24 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import type { CompetitionLeaderboardEntry, TeamMemberInfo } from "@/server/competition-leaderboard"
+import type {
+	CompetitionLeaderboardEntry,
+	TeamMemberInfo,
+} from "@/server/competition-leaderboard"
+import { getSortDirection } from "@/lib/scoring"
 
 interface CompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]
-	events: Array<{ id: string; name: string; trackOrder: number; scheme: string }>
+	events: Array<{
+		id: string
+		name: string
+		trackOrder: number
+		scheme: string
+	}>
 	selectedEventId: string | null // null = overall view
 }
 
-// Schemes where lower is better (time-based)
-const LOWER_IS_BETTER_SCHEMES = ["time", "time-with-cap", "emom"]
+// Note: Sort direction is now determined by getSortDirection() from @/lib/scoring
 
 function getRankIcon(rank: number) {
 	switch (rank) {
@@ -89,7 +108,14 @@ function EventResultCell({
 	return (
 		<div className="flex flex-col gap-0.5">
 			{/* Primary: Score value - medium weight for emphasis */}
-			<span className="font-medium tabular-nums">{result.formattedScore}</span>
+			<span className="font-medium tabular-nums">
+				{result.formattedScore}
+				{result.formattedTiebreak && (
+					<span className="text-muted-foreground font-normal ml-1">
+						(TB: {result.formattedTiebreak})
+					</span>
+				)}
+			</span>
 			{/* Secondary: Rank & points - lighter, smaller */}
 			<span className="text-xs text-muted-foreground tabular-nums">
 				<span className="font-medium">#{result.rank}</span>
@@ -104,7 +130,10 @@ function SortableHeader({
 	column,
 	children,
 }: {
-	column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: () => void }
+	column: {
+		getIsSorted: () => false | "asc" | "desc"
+		toggleSorting: () => void
+	}
 	children: React.ReactNode
 }) {
 	const sorted = column.getIsSorted()
@@ -127,7 +156,8 @@ function SortableHeader({
 
 /** Format member name with optional captain indicator */
 function formatMemberName(member: TeamMemberInfo): string {
-	const name = `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
+	const name =
+		`${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
 	return member.isCaptain ? `${name} (C)` : name
 }
 
@@ -155,7 +185,12 @@ function MobileLeaderboardRow({
 	events,
 }: {
 	entry: CompetitionLeaderboardEntry
-	events: Array<{ id: string; name: string; trackOrder: number; scheme: string }>
+	events: Array<{
+		id: string
+		name: string
+		trackOrder: number
+		scheme: string
+	}>
 }) {
 	const [isOpen, setIsOpen] = useState(false)
 	const icon = getRankIcon(entry.overallRank)
@@ -174,7 +209,12 @@ function MobileLeaderboardRow({
 					{/* Rank with icon */}
 					<div className="flex items-center gap-1.5 w-12 shrink-0">
 						{icon}
-						<span className={cn("tabular-nums", isPodium ? "font-bold" : "font-semibold")}>
+						<span
+							className={cn(
+								"tabular-nums",
+								isPodium ? "font-bold" : "font-semibold",
+							)}
+						>
 							{entry.overallRank}
 						</span>
 					</div>
@@ -190,15 +230,21 @@ function MobileLeaderboardRow({
 					<div className="flex-1 min-w-0 text-right">
 						{entry.isTeamDivision ? (
 							<>
-								<span className="font-medium truncate block">{entry.teamName || "Unknown Team"}</span>
+								<span className="font-medium truncate block">
+									{entry.teamName || "Unknown Team"}
+								</span>
 								{entry.teamMembers.length > 0 && (
 									<span className="text-[10px] text-muted-foreground truncate block">
-										{entry.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+										{entry.teamMembers
+											.map((m) => formatMemberName(m))
+											.join(", ")}
 									</span>
 								)}
 							</>
 						) : (
-							<span className="font-medium truncate block">{entry.athleteName}</span>
+							<span className="font-medium truncate block">
+								{entry.athleteName}
+							</span>
 						)}
 					</div>
 
@@ -225,9 +271,14 @@ function MobileLeaderboardRow({
 										{event.name}
 									</span>
 									{result && result.rank > 0 ? (
-										<div className="flex items-baseline gap-2">
+										<div className="flex flex-col gap-0.5">
 											<span className="font-medium tabular-nums">
 												{result.formattedScore}
+												{result.formattedTiebreak && (
+													<span className="text-muted-foreground font-normal ml-1">
+														(TB: {result.formattedTiebreak})
+													</span>
+												)}
 											</span>
 											<span className="text-xs text-muted-foreground tabular-nums">
 												#{result.rank} +{result.points}
@@ -254,6 +305,14 @@ export function CompetitionLeaderboardTable({
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
 	])
+
+	// Reset sorting when view changes between overall and single event
+	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
+	useEffect(() => {
+		setSorting([
+			{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
+		])
+	}, [selectedEventId])
 
 	// Transform data for single event view
 	const tableData = useMemo(() => {
@@ -299,7 +358,8 @@ export function CompetitionLeaderboardTable({
 						const result = row.eventResults.find(
 							(r) => r.trackWorkoutId === selectedEventId,
 						)
-						return result?.rank ?? 999
+						// No result or rank 0 sorts to bottom
+						return result?.rank && result.rank > 0 ? result.rank : 999
 					},
 					cell: ({ row }) => {
 						const result = row.original.eventResults.find(
@@ -334,7 +394,16 @@ export function CompetitionLeaderboardTable({
 						if (!result || result.rank === 0) {
 							return <span className="text-muted-foreground italic">—</span>
 						}
-						return <span className="font-medium tabular-nums">{result.formattedScore}</span>
+						return (
+							<span className="font-medium tabular-nums">
+								{result.formattedScore}
+								{result.formattedTiebreak && (
+									<span className="text-muted-foreground font-normal ml-1">
+										(TB: {result.formattedTiebreak})
+									</span>
+								)}
+							</span>
+						)
 					},
 				},
 			]
@@ -383,8 +452,8 @@ export function CompetitionLeaderboardTable({
 					const result = row.eventResults.find(
 						(r) => r.trackWorkoutId === event.id,
 					)
-					// Use rank for sorting, with 999 for no result (sorts to bottom)
-					return result?.rank ?? 999
+					// No result or rank 0 sorts to bottom
+					return result?.rank && result.rank > 0 ? result.rank : 999
 				},
 				cell: ({ row }) => {
 					const result = row.original.eventResults.find(
@@ -420,21 +489,30 @@ export function CompetitionLeaderboardTable({
 			const selectedEvent = events.find((e) => e.id === selectedEventId)
 			options.push({ id: "eventRank", label: "Rank" })
 			options.push({ id: "athlete", label: "Athlete" })
-			options.push({ id: "score", label: "Score", scheme: selectedEvent?.scheme })
+			options.push({
+				id: "score",
+				label: "Score",
+				scheme: selectedEvent?.scheme,
+			})
 		} else {
 			// Overall view - rank (by points) is the primary sort
 			options.push({ id: "overallRank", label: "Rank" })
 			options.push({ id: "athlete", label: "Athlete" })
 			// Add event columns with their schemes
 			for (const event of events) {
-				options.push({ id: `event-${event.id}`, label: event.name, scheme: event.scheme })
+				options.push({
+					id: `event-${event.id}`,
+					label: event.name,
+					scheme: event.scheme,
+				})
 			}
 		}
 
 		return options
 	}, [selectedEventId, events])
 
-	const currentSortId = sorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
+	const currentSortId =
+		sorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
 	const currentSortDesc = sorting[0]?.desc ?? false
 
 	const handleSortChange = (columnId: string) => {
@@ -454,8 +532,9 @@ export function CompetitionLeaderboardTable({
 			} else if (columnId === "score" || columnId.startsWith("event-")) {
 				// Score/Event: check scheme - time-based is ascending (lower is better)
 				const option = sortOptions.find((o) => o.id === columnId)
-				if (option?.scheme && LOWER_IS_BETTER_SCHEMES.includes(option.scheme)) {
-					defaultDesc = false // Lower time is better, so ascending shows best first
+				if (option?.scheme) {
+					const sortDirection = getSortDirection(option.scheme as any)
+					defaultDesc = sortDirection === "desc" // desc = higher is better
 				}
 			}
 
@@ -555,7 +634,10 @@ export function CompetitionLeaderboardTable({
 								<TableRow key={row.id} className="table-row">
 									{row.getVisibleCells().map((cell) => (
 										<TableCell key={cell.id} className="table-cell">
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext(),
+											)}
 										</TableCell>
 									))}
 								</TableRow>

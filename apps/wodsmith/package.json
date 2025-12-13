@@ -161,6 +161,7 @@
 		"@types/react-dom": "^19.2.3",
 		"@types/react-syntax-highlighter": "^15.5.13",
 		"@typescript/native-preview": "catalog:",
+		"@vitejs/plugin-react": "^5.1.2",
 		"better-sqlite3": "^11.10.0",
 		"drizzle-kit": "^0.30.6",
 		"eslint": "^9.29.0",

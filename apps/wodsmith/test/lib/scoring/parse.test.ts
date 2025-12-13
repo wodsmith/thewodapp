@@ -62,6 +62,34 @@ describe("parseTime", () => {
 			expect(result.encoded).toBe(45500)
 			expect(result.formatted).toBe("0:45.500")
 		})
+
+		it("should parse period-delimited MM.SS.ms format", () => {
+			const result = parseTime("12.34.567")
+			expect(result.isValid).toBe(true)
+			expect(result.encoded).toBe(754567)
+			expect(result.formatted).toBe("12:34.567")
+		})
+
+		it("should parse period-delimited H.MM.SS.ms format", () => {
+			const result = parseTime("1.02.34.567")
+			expect(result.isValid).toBe(true)
+			expect(result.encoded).toBe(3754567) // 1:02:34.567
+			expect(result.formatted).toBe("1:02:34.567")
+		})
+
+		it("should parse period-delimited MM.SS format (no ms)", () => {
+			const result = parseTime("12.34.000")
+			expect(result.isValid).toBe(true)
+			expect(result.encoded).toBe(754000)
+			expect(result.formatted).toBe("12:34") // .000 is hidden by default
+		})
+
+		it("should parse period-delimited with single digit minutes", () => {
+			const result = parseTime("2.30.100")
+			expect(result.isValid).toBe(true)
+			expect(result.encoded).toBe(150100) // 2:30.100
+			expect(result.formatted).toBe("2:30.100")
+		})
 	})
 
 	describe("explicit precision", () => {
@@ -114,14 +142,28 @@ describe("parseScore", () => {
 			const result = parseScore("5+12", "rounds-reps")
 			expect(result.isValid).toBe(true)
 			expect(result.encoded).toBe(500012)
-			expect(result.formatted).toBe("5+12")
+			expect(result.formatted).toBe("05+12")
+		})
+
+		it("should parse period-delimited rounds.reps format", () => {
+			const result = parseScore("5.12", "rounds-reps")
+			expect(result.isValid).toBe(true)
+			expect(result.encoded).toBe(500012)
+			expect(result.formatted).toBe("05+12")
+		})
+
+		it("should parse period-delimited with larger reps", () => {
+			const result = parseScore("3.150", "rounds-reps")
+			expect(result.isValid).toBe(true)
+			expect(result.encoded).toBe(300150)
+			expect(result.formatted).toBe("03+150")
 		})
 
 		it("should parse complete rounds", () => {
 			const result = parseScore("10", "rounds-reps")
 			expect(result.isValid).toBe(true)
 			expect(result.encoded).toBe(1000000)
-			expect(result.formatted).toBe("10+0")
+			expect(result.formatted).toBe("10+00")
 		})
 
 		it("should handle complete rounds with warning in non-strict mode", () => {

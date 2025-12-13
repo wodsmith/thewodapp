@@ -26,7 +26,7 @@ function maskEmail(email: string): string {
 
 	// Show first 2 chars of local part (or 1 if very short), mask the rest
 	const visibleChars = Math.min(2, localPart.length)
-	const maskedLocal = localPart.slice(0, visibleChars) + "***"
+	const maskedLocal = `${localPart.slice(0, visibleChars)}***`
 
 	return maskedLocal + domain
 }

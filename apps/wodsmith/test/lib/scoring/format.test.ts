@@ -55,7 +55,7 @@ describe("formatScore", () => {
 			value: 500012,
 			status: "scored",
 		}
-		expect(formatScore(score)).toBe("5+12")
+		expect(formatScore(score)).toBe("05+12")
 	})
 
 	it("should format load scores with unit", () => {
@@ -76,7 +76,6 @@ describe("formatScore", () => {
 			status: "cap",
 			timeCap: {
 				ms: 900000,
-				secondaryScheme: "reps",
 				secondaryValue: 142,
 			},
 		}
@@ -91,7 +90,6 @@ describe("formatScore", () => {
 			status: "cap",
 			timeCap: {
 				ms: 900000,
-				secondaryScheme: "reps",
 				secondaryValue: 142,
 			},
 		}
@@ -195,7 +193,7 @@ describe("formatScoreWithTiebreak", () => {
 				value: 510000, // 8:30
 			},
 		}
-		expect(formatScoreWithTiebreak(score)).toBe("5+12 (TB: 8:30)")
+		expect(formatScoreWithTiebreak(score)).toBe("05+12 (TB: 8:30)")
 	})
 
 	it("should format score with reps tiebreak", () => {

@@ -1,13 +1,15 @@
 "use client"
 
-import Link from "next/link"
 import {
+	AlertCircle,
+	CreditCard,
 	DollarSign,
 	TrendingUp,
-	CreditCard,
 	Users,
-	AlertCircle,
 } from "lucide-react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	Card,
 	CardContent,
@@ -23,7 +25,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { CompetitionRevenueStats } from "@/server/commerce"
 
 interface RevenueStatsDisplayProps {
@@ -42,21 +43,27 @@ export function RevenueStatsDisplay({
 	stats,
 	stripeStatus,
 }: RevenueStatsDisplayProps) {
+	const pathname = usePathname()
 	const hasRevenue = stats.purchaseCount > 0
+
+	// Build payouts URL with returnTo so user comes back here after setup
+	const payoutsUrl = stripeStatus
+		? `/compete/organizer/settings/payouts/${stripeStatus.teamSlug}?returnTo=${encodeURIComponent(pathname)}`
+		: ""
 
 	return (
 		<div className="space-y-6">
 			{/* Stripe Connection Warning */}
 			{stripeStatus && !stripeStatus.isConnected && (
-				<Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+				<Alert
+					variant="default"
+					className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+				>
 					<AlertCircle className="h-4 w-4 text-yellow-600" />
 					<AlertTitle>Payouts Not Set Up</AlertTitle>
 					<AlertDescription>
 						Connect your Stripe account to receive payouts for registrations.{" "}
-						<Link
-							href={`/settings/teams/${stripeStatus.teamSlug}/payouts`}
-							className="font-medium underline"
-						>
+						<Link href={payoutsUrl} className="font-medium underline">
 							Set up payouts &rarr;
 						</Link>
 					</AlertDescription>

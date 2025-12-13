@@ -103,7 +103,6 @@ export async function WorkoutsContent({
 								description={event.workout.description}
 								scoreType={event.workout.scoreType}
 								roundsToScore={event.workout.roundsToScore}
-								repsPerRound={event.workout.repsPerRound}
 								pointsMultiplier={event.pointsMultiplier}
 								notes={event.notes}
 								movements={event.workout.movements}

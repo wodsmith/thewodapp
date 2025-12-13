@@ -7,7 +7,7 @@ import type { ScoreType, SortDirection, WorkoutScheme } from "../types"
 
 /**
  * Get the sort direction for a workout scheme.
- * 
+ *
  * Some schemes are "lower is better" (time), others are "higher is better" (reps).
  * The scoreType can override the default direction.
  *

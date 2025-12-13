@@ -1,12 +1,22 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { intervalToDuration } from "date-fns"
-import posthog from "posthog-js"
-import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
+import { intervalToDuration } from "date-fns"
+import { Filter, HelpCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
+import { useCallback, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
+import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
 	Select,
 	SelectContent,
@@ -14,23 +24,30 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Filter, HelpCircle } from "lucide-react"
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { saveCompetitionScoreAction } from "@/actions/competition-score-actions"
 import type {
-	EventScoreEntryData,
 	EventScoreEntryAthlete,
+	EventScoreEntryData,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
-import { ScoreInputRow, type ScoreEntryData } from "./score-input-row"
 import { HeatScoreGroup } from "./heat-score-group"
+import {
+	type ScoreEntryData,
+	ScoreInputRow,
+	type ScoreInputRowHandle,
+} from "./score-input-row"
+
+function getErrorMessage(error: unknown): string | undefined {
+	if (error && typeof error === "object" && "err" in error) {
+		const maybeErr = (error as { err?: unknown }).err
+		if (maybeErr && typeof maybeErr === "object" && "message" in maybeErr) {
+			const maybeMessage = (maybeErr as { message?: unknown }).message
+			if (typeof maybeMessage === "string") return maybeMessage
+		}
+	}
+
+	if (error instanceof Error) return error.message
+	return undefined
+}
 
 interface ResultsEntryFormProps {
 	competitionId: string
@@ -66,42 +83,48 @@ export function ResultsEntryForm({
 		),
 	)
 	const [focusedIndex, setFocusedIndex] = useState(0)
-	const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+	const rowRefs = useRef<Map<string, ScoreInputRowHandle>>(new Map())
+	const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
 	// Check if we have heats to display
 	const hasHeats = heats.length > 0
 
 	// Create athlete map for quick lookup by registrationId
-	const athleteMap = new Map(athletes.map((a) => [a.registrationId, a]))
+	const athleteMap = useMemo(
+		() => new Map(athletes.map((a) => [a.registrationId, a])),
+		[athletes],
+	)
 
 	// Get unassigned athletes
-	const unassignedAthletes = athletes.filter((a) =>
-		unassignedRegistrationIds.includes(a.registrationId),
+	const unassignedAthleteIdSet = useMemo(
+		() => new Set(unassignedRegistrationIds),
+		[unassignedRegistrationIds],
+	)
+	const unassignedAthletes = useMemo(
+		() => athletes.filter((a) => unassignedAthleteIdSet.has(a.registrationId)),
+		[athletes, unassignedAthleteIdSet],
 	)
 
 	// Build a flat list of all athletes in heat order for focus navigation
-	const allAthletesInOrder = hasHeats
-		? [
-				// Athletes in heats (ordered by heat, then lane)
-				...heats.flatMap((heat) =>
-					heat.assignments
-						.sort((a, b) => a.laneNumber - b.laneNumber)
-						.map((assignment) => athleteMap.get(assignment.registrationId))
-						.filter((a): a is EventScoreEntryAthlete => a !== undefined),
-				),
-				// Unassigned athletes
-				...unassignedAthletes,
-			]
-		: athletes
+	const allAthletesInOrder = useMemo(() => {
+		if (!hasHeats) return athletes
+		return [
+			// Athletes in heats (ordered by heat, then lane)
+			...heats.flatMap((heat) =>
+				heat.assignments
+					.slice()
+					.sort((a, b) => a.laneNumber - b.laneNumber)
+					.map((assignment) => athleteMap.get(assignment.registrationId))
+					.filter((a): a is EventScoreEntryAthlete => a !== undefined),
+			),
+			// Unassigned athletes
+			...unassignedAthletes,
+		]
+	}, [athleteMap, athletes, hasHeats, heats, unassignedAthletes])
 
 	const { execute: saveScore } = useServerAction(saveCompetitionScoreAction, {
 		onError: (error) => {
 			toast.error(error.err?.message || "Failed to save score")
-			posthog.capture("competition_score_saved_failed", {
-				competition_id: competitionId,
-				event_id: event.id,
-				error_message: error.err?.message,
-			})
 		},
 	})
 
@@ -116,56 +139,97 @@ export function ResultsEntryForm({
 			// Auto-save
 			setSavingIds((prev) => new Set(prev).add(athlete.registrationId))
 
-			// For time-based scores, convert the raw value (seconds) to string for server
-			// The UI displays "10:00" but we need to send "600" (seconds) to the server
-			const isTimeBasedScheme =
-				event.workout.scheme === "time" ||
-				event.workout.scheme === "time-with-cap"
-			const scoreToSend =
-				isTimeBasedScheme && data.rawValue != null
-					? String(data.rawValue)
-					: data.score
+			// Send the original score string directly - the server will encode it properly
+			// This preserves milliseconds for time-based workouts (e.g., "2:01.567")
+			const scoreToSend = data.score
 
-			const [result] = await saveScore({
-				competitionId,
-				organizingTeamId,
-				trackWorkoutId: event.id,
-				workoutId: event.workout.id,
-				registrationId: athlete.registrationId,
-				userId: athlete.userId,
-				divisionId: athlete.divisionId,
-				score: scoreToSend,
-				scoreStatus: data.scoreStatus,
-				tieBreakScore: data.tieBreakScore,
-				secondaryScore: data.secondaryScore,
-				roundScores: data.roundScores,
-				workout: {
-					scheme: event.workout.scheme,
-					scoreType: event.workout.scoreType,
-					repsPerRound: event.workout.repsPerRound,
-					roundsToScore: event.workout.roundsToScore,
-					timeCap: event.workout.timeCap,
-				},
-			})
+			// Serialize saves to avoid client-side concurrency hangs when saving fast.
+			saveQueueRef.current = saveQueueRef.current
+				.then(async () => {
+					try {
+						const [result, error] = await saveScore({
+							competitionId,
+							organizingTeamId,
+							trackWorkoutId: event.id,
+							workoutId: event.workout.id,
+							registrationId: athlete.registrationId,
+							userId: athlete.userId,
+							divisionId: athlete.divisionId,
+							score: scoreToSend,
+							scoreStatus: data.scoreStatus,
+							tieBreakScore: data.tieBreakScore,
+							secondaryScore: data.secondaryScore,
+							roundScores: data.roundScores,
+							workout: {
+								scheme: event.workout.scheme,
+								scoreType: event.workout.scoreType,
+								repsPerRound: event.workout.repsPerRound,
+								roundsToScore: event.workout.roundsToScore,
+								timeCap: event.workout.timeCap,
+								tiebreakScheme: event.workout.tiebreakScheme,
+							},
+						})
 
-			setSavingIds((prev) => {
-				const next = new Set(prev)
-				next.delete(athlete.registrationId)
-				return next
-			})
+						if (error) {
+							posthog.capture("competition_score_saved_failed", {
+								competition_id: competitionId,
+								organizing_team_id: organizingTeamId,
+								track_workout_id: event.id,
+								workout_id: event.workout.id,
+								division_id: athlete.divisionId,
+								registration_id: athlete.registrationId,
+								user_id: athlete.userId,
+								score: scoreToSend,
+								score_status: data.scoreStatus,
+								tie_break_score: data.tieBreakScore,
+								secondary_score: data.secondaryScore,
+								round_scores: data.roundScores,
+								error_message: getErrorMessage(error),
+							})
+							return
+						}
 
-		if (result) {
-			setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
-			posthog.capture("competition_score_saved", {
-				competition_id: competitionId,
-				event_id: event.id,
-				event_name: event.workout.name,
-				division_id: athlete.divisionId,
-				registration_id: athlete.registrationId,
-			})
-			const displayName = athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
-			toast.success(`Score saved for ${displayName}`)
-		}
+						if (result) {
+							setSavedIds((prev) => new Set(prev).add(athlete.registrationId))
+							posthog.capture("competition_score_saved", {
+								competition_id: competitionId,
+								organizing_team_id: organizingTeamId,
+								track_workout_id: event.id,
+								workout_id: event.workout.id,
+								division_id: athlete.divisionId,
+								registration_id: athlete.registrationId,
+								user_id: athlete.userId,
+							})
+							const displayName =
+								athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+							toast.success(`Score saved for ${displayName}`)
+						}
+					} catch (error) {
+						posthog.capture("competition_score_saved_failed", {
+							competition_id: competitionId,
+							organizing_team_id: organizingTeamId,
+							track_workout_id: event.id,
+							workout_id: event.workout.id,
+							division_id: athlete.divisionId,
+							registration_id: athlete.registrationId,
+							user_id: athlete.userId,
+							score: scoreToSend,
+							score_status: data.scoreStatus,
+							tie_break_score: data.tieBreakScore,
+							secondary_score: data.secondaryScore,
+							round_scores: data.roundScores,
+							error_message: getErrorMessage(error),
+						})
+						toast.error(getErrorMessage(error) || "Failed to save score")
+					} finally {
+						setSavingIds((prev) => {
+							const next = new Set(prev)
+							next.delete(athlete.registrationId)
+							return next
+						})
+					}
+				})
+				.catch(() => {})
 		},
 		[
 			competitionId,
@@ -177,7 +241,7 @@ export function ResultsEntryForm({
 			event.workout.repsPerRound,
 			event.workout.roundsToScore,
 			event.workout.timeCap,
-			event.workout.name,
+			event.workout.tiebreakScheme,
 			saveScore,
 		],
 	)
@@ -192,9 +256,7 @@ export function ResultsEntryForm({
 			// Focus the next row's input
 			const nextAthlete = athleteList[nextIndex]
 			if (nextAthlete) {
-				const rowEl = rowRefs.current.get(nextAthlete.registrationId)
-				const input = rowEl?.querySelector("input")
-				input?.focus()
+				rowRefs.current.get(nextAthlete.registrationId)?.focusPrimary()
 			}
 		},
 		[athletes, hasHeats, allAthletesInOrder],
@@ -225,7 +287,7 @@ export function ResultsEntryForm({
 	const totalCount = athletes.length
 
 	// Get score format examples based on workout scheme
-	const getScoreExamples = () => {
+	const scoreExamples = useMemo(() => {
 		const numRounds = event.workout.roundsToScore ?? 1
 		const isMultiRound = numRounds > 1
 
@@ -289,15 +351,13 @@ export function ResultsEntryForm({
 					examples: ["100", "3:45", "5+12"],
 				}
 		}
-	}
-
-	const scoreExamples = getScoreExamples()
+	}, [event.workout.roundsToScore, event.workout.scheme])
 	const isTimeCapped = event.workout.scheme === "time-with-cap"
 	const hasTiebreak = !!event.workout.tiebreakScheme
 	const timeCap = event.workout.timeCap
 
 	// Format time cap for display (seconds to MM:SS or H:MM:SS)
-	const formatTimeCap = (seconds: number): string => {
+	const formatTimeCap = useCallback((seconds: number): string => {
 		const duration = intervalToDuration({ start: 0, end: seconds * 1000 })
 		const hours = duration.hours ?? 0
 		const mins = duration.minutes ?? 0
@@ -307,7 +367,7 @@ export function ResultsEntryForm({
 			return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
 		}
 		return `${mins}:${secs.toString().padStart(2, "0")}`
-	}
+	}, [])
 
 	return (
 		<div className="space-y-4">
@@ -469,12 +529,11 @@ export function ResultsEntryForm({
 							<>
 								{heats.map((heat) => {
 									// Calculate starting index for this heat
-									const startIndex = allAthletesInOrder.findIndex(
-										(a) =>
-											heat.assignments.some(
-												(assignment) =>
-													assignment.registrationId === a.registrationId,
-											),
+									const startIndex = allAthletesInOrder.findIndex((a) =>
+										heat.assignments.some(
+											(assignment) =>
+												assignment.registrationId === a.registrationId,
+										),
 									)
 									return (
 										<HeatScoreGroup
@@ -483,10 +542,9 @@ export function ResultsEntryForm({
 											athleteMap={athleteMap}
 											workoutScheme={event.workout.scheme}
 											tiebreakScheme={event.workout.tiebreakScheme}
-											secondaryScheme={event.workout.secondaryScheme}
 											timeCap={timeCap ?? undefined}
 											roundsToScore={event.workout.roundsToScore ?? 1}
-											repsPerRound={event.workout.repsPerRound}
+											scoreType={event.workout.scoreType}
 											showTiebreak={hasTiebreak}
 											scores={scores}
 											savingIds={savingIds}
@@ -516,22 +574,24 @@ export function ResultsEntryForm({
 												(a) => a.registrationId === athlete.registrationId,
 											)
 											return (
-												<div
-													key={athlete.registrationId}
-													ref={(el) => {
-														if (el) {
-															rowRefs.current.set(athlete.registrationId, el)
-														}
-													}}
-												>
+												<div key={athlete.registrationId}>
 													<ScoreInputRow
+														ref={(handle) => {
+															if (handle) {
+																rowRefs.current.set(
+																	athlete.registrationId,
+																	handle,
+																)
+															} else {
+																rowRefs.current.delete(athlete.registrationId)
+															}
+														}}
 														athlete={athlete}
 														workoutScheme={event.workout.scheme}
 														tiebreakScheme={event.workout.tiebreakScheme}
-														secondaryScheme={event.workout.secondaryScheme}
 														timeCap={timeCap ?? undefined}
 														roundsToScore={event.workout.roundsToScore ?? 1}
-														repsPerRound={event.workout.repsPerRound}
+														scoreType={event.workout.scoreType}
 														showTiebreak={hasTiebreak}
 														value={scores[athlete.registrationId]}
 														isSaving={savingIds.has(athlete.registrationId)}
@@ -550,22 +610,21 @@ export function ResultsEntryForm({
 						) : (
 							/* Flat layout (no heats) */
 							athletes.map((athlete, index) => (
-								<div
-									key={athlete.registrationId}
-									ref={(el) => {
-										if (el) {
-											rowRefs.current.set(athlete.registrationId, el)
-										}
-									}}
-								>
+								<div key={athlete.registrationId}>
 									<ScoreInputRow
+										ref={(handle) => {
+											if (handle) {
+												rowRefs.current.set(athlete.registrationId, handle)
+											} else {
+												rowRefs.current.delete(athlete.registrationId)
+											}
+										}}
 										athlete={athlete}
 										workoutScheme={event.workout.scheme}
 										tiebreakScheme={event.workout.tiebreakScheme}
-										secondaryScheme={event.workout.secondaryScheme}
 										timeCap={timeCap ?? undefined}
 										roundsToScore={event.workout.roundsToScore ?? 1}
-										repsPerRound={event.workout.repsPerRound}
+										scoreType={event.workout.scoreType}
 										showTiebreak={hasTiebreak}
 										value={scores[athlete.registrationId]}
 										isSaving={savingIds.has(athlete.registrationId)}

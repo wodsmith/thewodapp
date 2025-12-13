@@ -9,7 +9,7 @@ const mockDb = {
 }
 
 vi.mock("@/db", () => ({
-	getDd: vi.fn(() => mockDb),
+	getDb: vi.fn(() => mockDb),
 }))
 
 describe("Team-Specific Workout Resolution", () => {

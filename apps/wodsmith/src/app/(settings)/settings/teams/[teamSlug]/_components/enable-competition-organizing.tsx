@@ -51,6 +51,7 @@ interface EnableCompetitionOrganizingProps {
 	teamId: string
 	teamSlug: string
 	isEnabled: boolean
+	organizerStatus: "not_applied" | "pending" | "approved"
 	stripeAccountStatus: string | null
 	stripeAccountType: string | null
 	stripeOnboardingCompletedAt: Date | null
@@ -71,6 +72,7 @@ export function EnableCompetitionOrganizing({
 	teamId,
 	teamSlug,
 	isEnabled,
+	organizerStatus,
 	stripeAccountStatus,
 	stripeAccountType,
 	stripeOnboardingCompletedAt,
@@ -103,6 +105,11 @@ export function EnableCompetitionOrganizing({
 
 	const handleEnable = () => {
 		execute({ teamId })
+	}
+
+	// Redirect to onboard page if not applied
+	const handleApply = () => {
+		router.push("/compete/organizer/onboard")
 	}
 
 	const handleExpressOnboarding = async () => {
@@ -177,7 +184,69 @@ export function EnableCompetitionOrganizing({
 		}
 	}
 
-	// Not enabled state
+	// Not applied state - direct to onboard page
+	if (organizerStatus === "not_applied") {
+		return (
+			<Card>
+				<CardHeader>
+					<div className="flex items-center gap-3">
+						<Trophy className="h-6 w-6 text-muted-foreground" />
+						<div>
+							<CardTitle className="text-lg">Competition Organizing</CardTitle>
+							<CardDescription>
+								Apply to host competitions on WODsmith
+							</CardDescription>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<p className="text-sm text-muted-foreground">
+						Competition organizing allows you to:
+					</p>
+					<ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+						<li>Create and publish competitions</li>
+						<li>Manage athlete registrations</li>
+						<li>Set up divisions and events</li>
+						<li>Accept payments for entry fees</li>
+					</ul>
+					<Button onClick={handleApply}>
+						Apply to Become an Organizer
+					</Button>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	// Pending approval state
+	if (organizerStatus === "pending") {
+		return (
+			<Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+				<CardHeader>
+					<div className="flex items-center gap-3">
+						<Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+						<div>
+							<CardTitle className="text-lg">Application Pending</CardTitle>
+							<CardDescription>
+								Your organizer application is under review
+							</CardDescription>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<p className="text-sm text-muted-foreground">
+						While your application is being reviewed, you can create draft
+						competitions to get familiar with the platform. Draft competitions
+						won't be visible until you publish them after approval.
+					</p>
+					<Button asChild variant="outline">
+						<a href="/compete/organizer">Create Draft Competition</a>
+					</Button>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	// Legacy fallback: if not enabled but has approved status, use old enable logic
 	if (!enabled) {
 		return (
 			<Card>

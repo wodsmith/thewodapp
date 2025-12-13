@@ -175,6 +175,7 @@ export {
 	computeSortKeyWithDirection,
 	extractFromSortKey,
 	statusFromOrder,
+	sortKeyToString,
 	compareScores,
 	createComparator,
 	sortScores,

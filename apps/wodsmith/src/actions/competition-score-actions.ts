@@ -15,6 +15,14 @@ import {
 } from "@/server/competition-scores"
 import type { WorkoutScoreInfo } from "@/server/logs"
 
+// TODO Phase 4: Migration to scores table
+// These actions currently save to results + sets tables (legacy encoding).
+// After Phase 4:
+// 1. Update saveCompetitionScore to dual-write to both tables
+// 2. Use encodeScore() for new encoding
+// 3. Populate sortKey column
+// 4. Eventually migrate to scores table exclusively
+
 /* -------------------------------------------------------------------------- */
 /*                        Competition Score Schemas                           */
 /* -------------------------------------------------------------------------- */
@@ -39,6 +47,7 @@ const workoutInfoSchema = z.object({
 	repsPerRound: z.number().nullable(),
 	roundsToScore: z.number().nullable(),
 	timeCap: z.number().nullable(),
+	tiebreakScheme: z.string().nullable().optional(),
 })
 
 const saveCompetitionScoreSchema = z.object({

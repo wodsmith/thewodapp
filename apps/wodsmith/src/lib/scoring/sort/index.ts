@@ -14,6 +14,7 @@ export {
 	computeSortKeyWithDirection,
 	extractFromSortKey,
 	statusFromOrder,
+	sortKeyToString,
 } from "./sort-key"
 
 export {
