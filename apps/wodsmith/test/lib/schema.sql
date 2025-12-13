@@ -1,3 +1,19 @@
+Error: ENOENT: no such file or directory, scandir '/home/user/thewodapp/apps/wodsmith/.wrangler/state/v3/d1'
+    at read (node:fs:1488:35)
+    at readdirSyncRecursive (node:fs:1506:5)
+    at Object.readdirSync (node:fs:1580:12)
+    at getLocalD1DB (/home/user/thewodapp/apps/wodsmith/drizzle.config.ts:9:5)
+    at Object.<anonymous> (/home/user/thewodapp/apps/wodsmith/drizzle.config.ts:40:11)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Module._compile (/home/user/thewodapp/node_modules/.pnpm/drizzle-kit@0.30.6/node_modules/drizzle-kit/bin.cjs:14147:30)
+    at node:internal/modules/cjs/loader:1839:10
+    at Object.newLoader [as .ts] (/home/user/thewodapp/node_modules/.pnpm/drizzle-kit@0.30.6/node_modules/drizzle-kit/bin.cjs:14151:13)
+    at Module.load (node:internal/modules/cjs/loader:1441:32) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/home/user/thewodapp/apps/wodsmith/.wrangler/state/v3/d1'
+}
 CREATE TABLE `affiliates` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -49,6 +65,60 @@ CREATE TABLE `purchased_item` (
 CREATE INDEX `purchased_item_user_id_idx` ON `purchased_item` (`userId`);
 CREATE INDEX `purchased_item_type_idx` ON `purchased_item` (`itemType`);
 CREATE INDEX `purchased_item_user_item_idx` ON `purchased_item` (`userId`,`itemType`,`itemId`);
+CREATE TABLE `commerce_product` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text(255) NOT NULL,
+	`type` text(50) NOT NULL,
+	`resourceId` text NOT NULL,
+	`priceCents` integer NOT NULL
+);
+
+CREATE UNIQUE INDEX `commerce_product_resource_idx` ON `commerce_product` (`type`,`resourceId`);
+CREATE TABLE `commerce_purchase` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`userId` text NOT NULL,
+	`productId` text NOT NULL,
+	`status` text(20) NOT NULL,
+	`competitionId` text,
+	`divisionId` text,
+	`totalCents` integer NOT NULL,
+	`platformFeeCents` integer NOT NULL,
+	`stripeFeeCents` integer NOT NULL,
+	`organizerNetCents` integer NOT NULL,
+	`stripeCheckoutSessionId` text,
+	`stripePaymentIntentId` text,
+	`metadata` text(10000),
+	`completedAt` integer,
+	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`productId`) REFERENCES `commerce_product`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `commerce_purchase_user_idx` ON `commerce_purchase` (`userId`);
+CREATE INDEX `commerce_purchase_product_idx` ON `commerce_purchase` (`productId`);
+CREATE INDEX `commerce_purchase_status_idx` ON `commerce_purchase` (`status`);
+CREATE INDEX `commerce_purchase_stripe_session_idx` ON `commerce_purchase` (`stripeCheckoutSessionId`);
+CREATE INDEX `commerce_purchase_competition_idx` ON `commerce_purchase` (`competitionId`);
+CREATE TABLE `competition_divisions` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`competitionId` text NOT NULL,
+	`divisionId` text NOT NULL,
+	`feeCents` integer NOT NULL,
+	`description` text(2000),
+	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`divisionId`) REFERENCES `scaling_levels`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `competition_divisions_unique_idx` ON `competition_divisions` (`competitionId`,`divisionId`);
+CREATE INDEX `competition_divisions_competition_idx` ON `competition_divisions` (`competitionId`);
 CREATE TABLE `competition_groups` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -62,6 +132,43 @@ CREATE TABLE `competition_groups` (
 );
 
 CREATE UNIQUE INDEX `competition_groups_org_slug_idx` ON `competition_groups` (`organizingTeamId`,`slug`);
+CREATE TABLE `competition_heat_assignments` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`heatId` text NOT NULL,
+	`registrationId` text NOT NULL,
+	`laneNumber` integer NOT NULL,
+	FOREIGN KEY (`heatId`) REFERENCES `competition_heats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`registrationId`) REFERENCES `competition_registrations`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `competition_heat_assignments_heat_idx` ON `competition_heat_assignments` (`heatId`);
+CREATE UNIQUE INDEX `competition_heat_assignments_reg_idx` ON `competition_heat_assignments` (`heatId`,`registrationId`);
+CREATE UNIQUE INDEX `competition_heat_assignments_lane_idx` ON `competition_heat_assignments` (`heatId`,`laneNumber`);
+CREATE TABLE `competition_heats` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`competitionId` text NOT NULL,
+	`trackWorkoutId` text NOT NULL,
+	`venueId` text,
+	`heatNumber` integer NOT NULL,
+	`scheduledTime` integer,
+	`durationMinutes` integer,
+	`divisionId` text,
+	`notes` text(500),
+	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`venueId`) REFERENCES `competition_venues`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`divisionId`) REFERENCES `scaling_levels`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `competition_heats_competition_idx` ON `competition_heats` (`competitionId`);
+CREATE INDEX `competition_heats_workout_idx` ON `competition_heats` (`trackWorkoutId`);
+CREATE INDEX `competition_heats_time_idx` ON `competition_heats` (`scheduledTime`);
+CREATE UNIQUE INDEX `competition_heats_workout_number_idx` ON `competition_heats` (`trackWorkoutId`,`heatNumber`);
 CREATE TABLE `competition_registrations` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -77,6 +184,9 @@ CREATE TABLE `competition_registrations` (
 	`athleteTeamId` text,
 	`pendingTeammates` text(5000),
 	`metadata` text(10000),
+	`commercePurchaseId` text,
+	`paymentStatus` text(20),
+	`paidAt` integer,
 	FOREIGN KEY (`eventId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`teamMemberId`) REFERENCES `team_membership`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -91,6 +201,22 @@ CREATE INDEX `competition_registrations_event_idx` ON `competition_registrations
 CREATE INDEX `competition_registrations_division_idx` ON `competition_registrations` (`divisionId`);
 CREATE INDEX `competition_registrations_captain_idx` ON `competition_registrations` (`captainUserId`);
 CREATE INDEX `competition_registrations_athlete_team_idx` ON `competition_registrations` (`athleteTeamId`);
+CREATE INDEX `competition_registrations_purchase_idx` ON `competition_registrations` (`commercePurchaseId`);
+CREATE TABLE `competition_venues` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`competitionId` text NOT NULL,
+	`name` text(100) NOT NULL,
+	`laneCount` integer DEFAULT 3 NOT NULL,
+	`transitionMinutes` integer DEFAULT 3 NOT NULL,
+	`sortOrder` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `competition_venues_competition_idx` ON `competition_venues` (`competitionId`);
+CREATE INDEX `competition_venues_sort_idx` ON `competition_venues` (`competitionId`,`sortOrder`);
 CREATE TABLE `competitions` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -107,6 +233,15 @@ CREATE TABLE `competitions` (
 	`registrationOpensAt` integer,
 	`registrationClosesAt` integer,
 	`settings` text(10000),
+	`defaultRegistrationFeeCents` integer DEFAULT 0,
+	`platformFeePercentage` integer,
+	`platformFeeFixed` integer,
+	`passStripeFeesToCustomer` integer DEFAULT false,
+	`passPlatformFeesToCustomer` integer DEFAULT true,
+	`visibility` text(10) DEFAULT 'public' NOT NULL,
+	`status` text(15) DEFAULT 'draft' NOT NULL,
+	`profileImageUrl` text(600),
+	`bannerImageUrl` text(600),
 	FOREIGN KEY (`organizingTeamId`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`competitionTeamId`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`groupId`) REFERENCES `competition_groups`(`id`) ON UPDATE no action ON DELETE set null
@@ -333,6 +468,26 @@ CREATE TABLE `team_usage` (
 CREATE INDEX `team_usage_team_id_idx` ON `team_usage` (`teamId`);
 CREATE INDEX `team_usage_limit_key_idx` ON `team_usage` (`limitKey`);
 CREATE INDEX `team_usage_unique_idx` ON `team_usage` (`teamId`,`limitKey`,`periodStart`);
+CREATE TABLE `organizer_request` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`teamId` text NOT NULL,
+	`userId` text NOT NULL,
+	`reason` text(2000) NOT NULL,
+	`status` text(20) DEFAULT 'pending' NOT NULL,
+	`adminNotes` text(2000),
+	`reviewedBy` text,
+	`reviewedAt` integer,
+	FOREIGN KEY (`teamId`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`reviewedBy`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
+);
+
+CREATE INDEX `organizer_request_team_idx` ON `organizer_request` (`teamId`);
+CREATE INDEX `organizer_request_user_idx` ON `organizer_request` (`userId`);
+CREATE INDEX `organizer_request_status_idx` ON `organizer_request` (`status`);
 CREATE TABLE `programming_track` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -344,12 +499,15 @@ CREATE TABLE `programming_track` (
 	`ownerTeamId` text,
 	`scalingGroupId` text,
 	`isPublic` integer DEFAULT 0 NOT NULL,
-	FOREIGN KEY (`ownerTeamId`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE no action
+	`competitionId` text,
+	FOREIGN KEY (`ownerTeamId`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade
 );
 
 CREATE INDEX `programming_track_type_idx` ON `programming_track` (`type`);
 CREATE INDEX `programming_track_owner_idx` ON `programming_track` (`ownerTeamId`);
 CREATE INDEX `programming_track_scaling_idx` ON `programming_track` (`scalingGroupId`);
+CREATE INDEX `programming_track_competition_idx` ON `programming_track` (`competitionId`);
 CREATE TABLE `scheduled_workout_instance` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -393,17 +551,22 @@ CREATE TABLE `track_workout` (
 	`id` text PRIMARY KEY NOT NULL,
 	`trackId` text NOT NULL,
 	`workoutId` text NOT NULL,
-	`dayNumber` integer NOT NULL,
-	`weekNumber` integer,
+	`trackOrder` integer NOT NULL,
 	`notes` text(1000),
+	`pointsMultiplier` integer DEFAULT 100,
+	`heatStatus` text(20) DEFAULT 'draft',
+	`eventStatus` text(20) DEFAULT 'draft',
+	`sponsorId` text,
 	FOREIGN KEY (`trackId`) REFERENCES `programming_track`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`sponsorId`) REFERENCES `sponsors`(`id`) ON UPDATE no action ON DELETE set null
 );
 
 CREATE INDEX `track_workout_track_idx` ON `track_workout` (`trackId`);
-CREATE INDEX `track_workout_day_idx` ON `track_workout` (`dayNumber`);
+CREATE INDEX `track_workout_order_idx` ON `track_workout` (`trackOrder`);
 CREATE INDEX `track_workout_workoutid_idx` ON `track_workout` (`workoutId`);
-CREATE INDEX `track_workout_unique_idx` ON `track_workout` (`trackId`,`workoutId`,`dayNumber`);
+CREATE INDEX `track_workout_unique_idx` ON `track_workout` (`trackId`,`workoutId`,`trackOrder`);
+CREATE INDEX `track_workout_sponsor_idx` ON `track_workout` (`sponsorId`);
 CREATE TABLE `scaling_groups` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -447,7 +610,7 @@ CREATE TABLE `workout_scaling_descriptions` (
 );
 
 CREATE INDEX `workout_scaling_desc_workout_idx` ON `workout_scaling_descriptions` (`workoutId`);
-CREATE INDEX `workout_scaling_desc_lookup_idx` ON `workout_scaling_descriptions` (`workoutId`,`scalingLevelId`);
+CREATE UNIQUE INDEX `workout_scaling_desc_unique_idx` ON `workout_scaling_descriptions` (`workoutId`,`scalingLevelId`);
 CREATE TABLE `class_catalog` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -603,6 +766,91 @@ CREATE TABLE `skills` (
 	FOREIGN KEY (`team_id`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE no action
 );
 
+CREATE TABLE `score_rounds` (
+	`id` text PRIMARY KEY NOT NULL,
+	`score_id` text NOT NULL,
+	`round_number` integer NOT NULL,
+	`value` integer NOT NULL,
+	`scheme_override` text,
+	`status` text,
+	`secondary_value` integer,
+	`notes` text,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`score_id`) REFERENCES `scores`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_score_rounds_score` ON `score_rounds` (`score_id`,`round_number`);
+CREATE UNIQUE INDEX `idx_score_rounds_unique` ON `score_rounds` (`score_id`,`round_number`);
+CREATE TABLE `scores` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`team_id` text NOT NULL,
+	`workout_id` text NOT NULL,
+	`competition_event_id` text,
+	`scheduled_workout_instance_id` text,
+	`scheme` text NOT NULL,
+	`score_type` text DEFAULT 'max' NOT NULL,
+	`score_value` integer,
+	`tiebreak_scheme` text,
+	`tiebreak_value` integer,
+	`time_cap_ms` integer,
+	`secondary_value` integer,
+	`status` text DEFAULT 'scored' NOT NULL,
+	`status_order` integer DEFAULT 0 NOT NULL,
+	`sort_key` text,
+	`scaling_level_id` text,
+	`as_rx` integer DEFAULT false NOT NULL,
+	`notes` text,
+	`recorded_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`team_id`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`workout_id`) REFERENCES `workouts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`scaling_level_id`) REFERENCES `scaling_levels`(`id`) ON UPDATE no action ON DELETE no action
+);
+
+CREATE INDEX `idx_scores_user` ON `scores` (`user_id`,`recorded_at`);
+CREATE INDEX `idx_scores_workout` ON `scores` (`workout_id`,`team_id`,`status_order`,`sort_key`);
+CREATE INDEX `idx_scores_competition` ON `scores` (`competition_event_id`,`status_order`,`sort_key`);
+CREATE INDEX `idx_scores_scheduled` ON `scores` (`scheduled_workout_instance_id`);
+CREATE UNIQUE INDEX `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);
+CREATE TABLE `sponsor_groups` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`competitionId` text NOT NULL,
+	`name` text(100) NOT NULL,
+	`displayOrder` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `sponsor_groups_competition_idx` ON `sponsor_groups` (`competitionId`);
+CREATE INDEX `sponsor_groups_order_idx` ON `sponsor_groups` (`competitionId`,`displayOrder`);
+CREATE TABLE `sponsors` (
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	`updateCounter` integer DEFAULT 0,
+	`id` text PRIMARY KEY NOT NULL,
+	`competitionId` text,
+	`userId` text,
+	`groupId` text,
+	`name` text(255) NOT NULL,
+	`logoUrl` text(600),
+	`website` text(600),
+	`displayOrder` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`groupId`) REFERENCES `sponsor_groups`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `sponsors_competition_idx` ON `sponsors` (`competitionId`);
+CREATE INDEX `sponsors_user_idx` ON `sponsors` (`userId`);
+CREATE INDEX `sponsors_group_idx` ON `sponsors` (`groupId`);
+CREATE INDEX `sponsors_competition_order_idx` ON `sponsors` (`competitionId`,`groupId`,`displayOrder`);
+CREATE INDEX `sponsors_user_order_idx` ON `sponsors` (`userId`,`displayOrder`);
 CREATE TABLE `team_invitation` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -686,6 +934,10 @@ CREATE TABLE `team` (
 	`type` text(50) DEFAULT 'gym' NOT NULL,
 	`parentOrganizationId` text,
 	`competitionMetadata` text(10000),
+	`stripeConnectedAccountId` text,
+	`stripeAccountStatus` text(20),
+	`stripeAccountType` text(20),
+	`stripeOnboardingCompletedAt` integer,
 	FOREIGN KEY (`personalTeamOwnerId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`parentOrganizationId`) REFERENCES `team`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -733,6 +985,7 @@ CREATE TABLE `user` (
 	`lastCreditRefreshAt` integer,
 	`gender` text,
 	`dateOfBirth` integer,
+	`affiliateName` text(255),
 	`athleteProfile` text(10000)
 );
 
@@ -770,8 +1023,17 @@ CREATE TABLE `results` (
 	`set_count` integer,
 	`distance` integer,
 	`time` integer,
+	`competition_event_id` text,
+	`competition_registration_id` text,
+	`score_status` text,
+	`tie_break_score` text,
+	`secondary_score` text,
+	`entered_by` text,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`workout_id`) REFERENCES `workouts`(`id`) ON UPDATE no action ON DELETE set null
+	FOREIGN KEY (`workout_id`) REFERENCES `workouts`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`competition_event_id`) REFERENCES `track_workout`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`competition_registration_id`) REFERENCES `competition_registrations`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`entered_by`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE set null
 );
 
 CREATE INDEX `results_scaling_level_idx` ON `results` (`scaling_level_id`);
@@ -780,6 +1042,8 @@ CREATE INDEX `results_leaderboard_idx` ON `results` (`workout_id`,`scaling_level
 CREATE INDEX `results_user_idx` ON `results` (`user_id`);
 CREATE INDEX `results_date_idx` ON `results` (`date`);
 CREATE INDEX `results_workout_idx` ON `results` (`workout_id`);
+CREATE INDEX `results_competition_event_idx` ON `results` (`competition_event_id`,`scaling_level_id`);
+CREATE UNIQUE INDEX `results_competition_unique_idx` ON `results` (`competition_event_id`,`user_id`);
 CREATE TABLE `sets` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
@@ -843,7 +1107,7 @@ CREATE TABLE `workouts` (
 	`team_id` text,
 	`sugar_id` text,
 	`tiebreak_scheme` text,
-	`secondary_scheme` text,
+	`time_cap` integer,
 	`source_track_id` text,
 	`source_workout_id` text,
 	`scaling_group_id` text,
