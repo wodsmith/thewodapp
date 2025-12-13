@@ -6,19 +6,19 @@ import { competitionGroupsTable } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { CompetitionHeader } from "../_components/competition-header"
-import { CompetitionTabs } from "../_components/competition-tabs"
+import { CompetitionSidebar } from "../_components/competition-sidebar"
 
-interface CompetitionTabsLayoutProps {
+interface CompetitionSidebarLayoutProps {
 	children: React.ReactNode
 	params: Promise<{
 		competitionId: string
 	}>
 }
 
-export default async function CompetitionTabsLayout({
+export default async function CompetitionSidebarLayout({
 	children,
 	params,
-}: CompetitionTabsLayoutProps) {
+}: CompetitionSidebarLayoutProps) {
 	const { competitionId } = await params
 	const db = getDb()
 
@@ -46,8 +46,8 @@ export default async function CompetitionTabsLayout({
 		: [{ label: competition.name }]
 
 	return (
-		<div className="container mx-auto px-4 py-8">
-			<div className="flex flex-col gap-6">
+		<CompetitionSidebar competitionId={competition.id}>
+			<div className="flex flex-1 flex-col gap-6 p-6">
 				{/* Breadcrumb */}
 				<OrganizerBreadcrumb segments={breadcrumbSegments} />
 
@@ -66,12 +66,9 @@ export default async function CompetitionTabsLayout({
 					}}
 				/>
 
-				{/* Navigation Tabs */}
-				<CompetitionTabs competitionId={competition.id} />
-
 				{/* Page Content */}
 				{children}
 			</div>
-		</div>
+		</CompetitionSidebar>
 	)
 }
