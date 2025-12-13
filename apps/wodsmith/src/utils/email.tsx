@@ -9,6 +9,36 @@ import { VerifyEmail } from "@/react-email/verify-email"
 import isProd from "./is-prod"
 
 // ============================================================================
+// PII Redaction Utilities
+// ============================================================================
+
+/**
+ * Masks an email address for logging purposes.
+ * Shows first 2 chars + domain, hides everything else.
+ * e.g., "john.doe@example.com" -> "jo***@example.com"
+ */
+function maskEmail(email: string): string {
+	const atIndex = email.indexOf("@")
+	if (atIndex <= 0) return "***"
+
+	const localPart = email.slice(0, atIndex)
+	const domain = email.slice(atIndex)
+
+	// Show first 2 chars of local part (or 1 if very short), mask the rest
+	const visibleChars = Math.min(2, localPart.length)
+	const maskedLocal = localPart.slice(0, visibleChars) + "***"
+
+	return maskedLocal + domain
+}
+
+/**
+ * Masks multiple email addresses for safe logging.
+ */
+function maskEmails(emails: string[]): string {
+	return emails.map(maskEmail).join(",")
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -53,7 +83,11 @@ export async function sendEmail({
 		)
 		logInfo({
 			message: "[Email] Skipped (dev mode)",
-			attributes: { to: recipients.join(","), subject, emailType },
+			attributes: {
+				recipientCount: recipients.length,
+				subject,
+				emailType,
+			},
 		})
 		return
 	}
@@ -61,7 +95,11 @@ export async function sendEmail({
 	if (!process.env.RESEND_API_KEY) {
 		logError({
 			message: "[Email] RESEND_API_KEY not configured",
-			attributes: { to: recipients.join(","), subject, emailType },
+			attributes: {
+				recipientCount: recipients.length,
+				subject,
+				emailType,
+			},
 		})
 		return
 	}
@@ -101,7 +139,8 @@ export async function sendEmail({
 		logInfo({
 			message: "[Email] Sent successfully",
 			attributes: {
-				to: recipients.join(","),
+				recipientCount: recipients.length,
+				recipientMasked: maskEmails(recipients),
 				subject,
 				emailType,
 				resendId: result.id,
@@ -112,7 +151,8 @@ export async function sendEmail({
 			message: "[Email] Failed to send",
 			error: err,
 			attributes: {
-				to: recipients.join(","),
+				recipientCount: recipients.length,
+				recipientMasked: maskEmails(recipients),
 				subject,
 				emailType,
 			},
@@ -122,150 +162,13 @@ export async function sendEmail({
 }
 
 // ============================================================================
-// Legacy Support (Brevo)
+// Email Template Functions (delegates to sendEmail)
 // ============================================================================
 
-interface BrevoEmailOptions {
-	to: { email: string; name?: string }[]
-	subject: string
-	replyTo?: string
-	htmlContent: string
-	textContent?: string
-	templateId?: number
-	params?: Record<string, string>
-	tags?: string[]
-}
-
-interface ResendEmailOptions {
-	to: string[]
-	subject: string
-	html: string
-	from?: string
-	replyTo?: string
-	text?: string
-	tags?: { name: string; value: string }[]
-}
-
-type EmailProvider = "resend" | "brevo" | null
-
-async function getEmailProvider(): Promise<EmailProvider> {
-	if (process.env.RESEND_API_KEY) {
-		return "resend"
-	}
-
-	if (process.env.BREVO_API_KEY) {
-		return "brevo"
-	}
-
-	return null
-}
-
-async function sendResendEmail({
-	to,
-	subject,
-	html,
-	from,
-	replyTo: originalReplyTo,
-	text,
-	tags,
-}: ResendEmailOptions) {
-	if (!isProd) {
-		return
-	}
-
-	if (!process.env.RESEND_API_KEY) {
-		throw new Error("RESEND_API_KEY is not set")
-	}
-
-	const replyTo = originalReplyTo ?? process.env.EMAIL_REPLY_TO
-
-	const response = await fetch("https://api.resend.com/emails", {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-			"Content-Type": "application/json",
-		} as const,
-		body: JSON.stringify({
-			from:
-				from ?? `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM}>`,
-			to,
-			subject,
-			html,
-			text,
-			...(replyTo ? { reply_to: replyTo } : {}),
-			tags,
-		}),
-	})
-
-	if (!response.ok) {
-		const error = await response.json()
-		throw new Error(`Failed to send email via Resend: ${JSON.stringify(error)}`)
-	}
-
-	return response.json()
-}
-
-async function sendBrevoEmail({
-	to,
-	subject,
-	replyTo: originalReplyTo,
-	htmlContent,
-	textContent,
-	templateId,
-	params,
-	tags,
-}: BrevoEmailOptions) {
-	if (!isProd) {
-		return
-	}
-
-	if (!process.env.BREVO_API_KEY) {
-		throw new Error("BREVO_API_KEY is not set")
-	}
-
-	const replyTo = originalReplyTo ?? process.env.EMAIL_REPLY_TO
-
-	const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-		method: "POST",
-		headers: {
-			accept: "application/json",
-			"content-type": "application/json",
-			"api-key": process.env.BREVO_API_KEY,
-		} as const,
-		body: JSON.stringify({
-			sender: {
-				name: process.env.EMAIL_FROM_NAME,
-				email: process.env.EMAIL_FROM,
-			},
-			to,
-			htmlContent,
-			textContent,
-			subject,
-			templateId,
-			params,
-			tags,
-			...(replyTo
-				? {
-						replyTo: {
-							email: replyTo,
-						},
-					}
-				: {}),
-		}),
-	})
-
-	if (!response.ok) {
-		const error = await response.json()
-		throw new Error(`Failed to send email via Brevo: ${JSON.stringify(error)}`)
-	}
-
-	return response.json()
-}
-
-// ============================================================================
-// Existing Email Functions (using legacy multi-provider approach)
-// ============================================================================
-
+/**
+ * Sends a password reset email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
 export async function sendPasswordResetEmail({
 	email,
 	resetToken,
@@ -274,43 +177,26 @@ export async function sendPasswordResetEmail({
 	email: string
 	resetToken: string
 	username: string
-}) {
+}): Promise<void> {
 	const resetUrl = `${SITE_URL}/reset-password?token=${resetToken}`
 
-	if (!isProd) {
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
 		console.warn("\n\n\nPassword reset url: ", resetUrl)
-
-		return
 	}
 
-	const html = await render(
-		ResetPasswordEmail({ resetLink: resetUrl, username }),
-	)
-	const provider = await getEmailProvider()
-
-	if (!provider && isProd) {
-		throw new Error(
-			"No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.",
-		)
-	}
-
-	if (provider === "resend") {
-		await sendResendEmail({
-			to: [email],
-			subject: `Reset your password for ${SITE_DOMAIN}`,
-			html,
-			tags: [{ name: "type", value: "password-reset" }],
-		})
-	} else {
-		await sendBrevoEmail({
-			to: [{ email, name: username }],
-			subject: `Reset your password for ${SITE_DOMAIN}`,
-			htmlContent: html,
-			tags: ["password-reset"],
-		})
-	}
+	await sendEmail({
+		to: email,
+		subject: `Reset your password for ${SITE_DOMAIN}`,
+		template: ResetPasswordEmail({ resetLink: resetUrl, username }),
+		tags: [{ name: "type", value: "password-reset" }],
+	})
 }
 
+/**
+ * Sends an email verification email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
 export async function sendVerificationEmail({
 	email,
 	verificationToken,
@@ -319,43 +205,26 @@ export async function sendVerificationEmail({
 	email: string
 	verificationToken: string
 	username: string
-}) {
+}): Promise<void> {
 	const verificationUrl = `${SITE_URL}/verify-email?token=${verificationToken}`
 
-	if (!isProd) {
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
 		console.warn("\n\n\nVerification url: ", verificationUrl)
-
-		return
 	}
 
-	const html = await render(
-		VerifyEmail({ verificationLink: verificationUrl, username }),
-	)
-	const provider = await getEmailProvider()
-
-	if (!provider && isProd) {
-		throw new Error(
-			"No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.",
-		)
-	}
-
-	if (provider === "resend") {
-		await sendResendEmail({
-			to: [email],
-			subject: `Verify your email for ${SITE_DOMAIN}`,
-			html,
-			tags: [{ name: "type", value: "email-verification" }],
-		})
-	} else {
-		await sendBrevoEmail({
-			to: [{ email, name: username }],
-			subject: `Verify your email for ${SITE_DOMAIN}`,
-			htmlContent: html,
-			tags: ["email-verification"],
-		})
-	}
+	await sendEmail({
+		to: email,
+		subject: `Verify your email for ${SITE_DOMAIN}`,
+		template: VerifyEmail({ verificationLink: verificationUrl, username }),
+		tags: [{ name: "type", value: "email-verification" }],
+	})
 }
 
+/**
+ * Sends a team invitation email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
 export async function sendTeamInvitationEmail({
 	email,
 	invitationToken,
@@ -366,44 +235,23 @@ export async function sendTeamInvitationEmail({
 	invitationToken: string
 	teamName: string
 	inviterName: string
-}) {
+}): Promise<void> {
 	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
-	if (!isProd) {
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
 		console.warn("\n\n\nTeam invitation url: ", inviteUrl)
-		return
 	}
 
-	const html = await render(
-		TeamInviteEmail({
+	await sendEmail({
+		to: email,
+		subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
+		template: TeamInviteEmail({
 			inviteLink: inviteUrl,
 			recipientEmail: email,
 			teamName,
 			inviterName,
 		}),
-	)
-
-	const provider = await getEmailProvider()
-
-	if (!provider && isProd) {
-		throw new Error(
-			"No email provider configured. Set either RESEND_API_KEY or BREVO_API_KEY in your environment.",
-		)
-	}
-
-	if (provider === "resend") {
-		await sendResendEmail({
-			to: [email],
-			subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-			html,
-			tags: [{ name: "type", value: "team-invitation" }],
-		})
-	} else {
-		await sendBrevoEmail({
-			to: [{ email }],
-			subject: `You've been invited to join a team on ${SITE_DOMAIN}`,
-			htmlContent: html,
-			tags: ["team-invitation"],
-		})
-	}
+		tags: [{ name: "type", value: "team-invitation" }],
+	})
 }
