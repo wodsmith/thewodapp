@@ -214,11 +214,13 @@ describe("score-formatting", () => {
 
 		describe("rounds-reps scheme", () => {
 			it("uses max by default", () => {
+				// For rounds-reps, score field is rounds and reps field is reps
+				// Combined as: score + reps/100 (e.g., 5 rounds + 12 reps = 5.12)
 				const sets = [
-					createSet({ reps: 100 }),
-					createSet({ reps: 150 }),
+					createSet({ score: 5, reps: 0 }),
+					createSet({ score: 5, reps: 50 }),
 				]
-				expect(calculateAggregatedScore(sets, "rounds-reps", null)).toEqual([150, false])
+				expect(calculateAggregatedScore(sets, "rounds-reps", null)).toEqual([5.5, false])
 			})
 		})
 

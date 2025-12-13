@@ -1,5 +1,6 @@
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import react from "@vitejs/plugin-react"
 import tsconfigPaths from "vite-tsconfig-paths"
 import { defineConfig } from "vitest/config"
 
@@ -12,7 +13,7 @@ export default defineConfig({
 		setupFiles: ["./test/setup.ts"],
 		include: ["./test/**/*.test.ts", "./test/**/*.test.tsx"],
 	},
-	plugins: [tsconfigPaths()],
+	plugins: [react(), tsconfigPaths()],
 	resolve: {
 		alias: {
 			"server-only": resolve(__dirname, "./test/__mocks__/server-only.js"),

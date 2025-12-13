@@ -108,7 +108,7 @@ describe("workouts server functions", () => {
 
     // Setup default mocks
     vi.mocked(requireVerifiedEmail).mockResolvedValue(mockSession)
-    vi.mocked(getDd).mockReturnValue({
+    vi.mocked(getDb).mockReturnValue({
       query: {
         workouts: {
           findFirst: vi.fn(),

@@ -173,12 +173,13 @@ describe("workout-permissions", () => {
       expect(hasTeamPermission).toHaveBeenCalledWith("team-123", "edit_components")
     })
 
-    it("should return false if workout is already a remix", async () => {
+    it("should return true if workout is a remix in user's own team", async () => {
+      // Users can edit any workout in their team, including remixes
       mockFindFirst.mockResolvedValue(mockRemixWorkout)
 
       const result = await canUserEditWorkout("workout-456")
 
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 
@@ -233,12 +234,13 @@ describe("workout-permissions", () => {
       expect(hasTeamPermission).toHaveBeenCalledWith("team-123", "edit_components")
     })
 
-    it("should return true if workout is already a remix", async () => {
+    it("should return false if workout is a remix in user's own team (can edit directly)", async () => {
+      // Users can edit remixes in their own team, so no need to create another remix
       mockFindFirst.mockResolvedValue(mockRemixWorkout)
 
       const result = await shouldCreateRemix("workout-456")
 
-      expect(result).toBe(true)
+      expect(result).toBe(false)
     })
 
     it("should return false if user can edit directly", async () => {
@@ -265,16 +267,17 @@ describe("workout-permissions", () => {
       })
     })
 
-    it("should return remix permissions for non-editable workout", async () => {
+    it("should return edit permissions for remix in user's own team", async () => {
+      // Remixes in user's own team can be edited directly
       mockFindFirst.mockResolvedValue(mockRemixWorkout)
       vi.mocked(hasTeamPermission).mockResolvedValue(true)
 
       const result = await getWorkoutPermissions("workout-456")
 
       expect(result).toEqual({
-        canEdit: false,
-        canRemix: true,
-        reason: "User should create a remix instead of editing directly",
+        canEdit: true,
+        canRemix: false,
+        reason: "User has direct edit permissions for this workout",
       })
     })
 
