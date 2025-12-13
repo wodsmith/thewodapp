@@ -486,5 +486,9 @@ Current Implementation:
 - [x] Added password reset flow with email verification
 - [x] Implemented React Email templates for transactional emails
 - [x] Added forgot password functionality with secure token handling
+- [x] Adjusted Compete organizer sidebar pages to use a full-bleed layout (no centered container gutter) for cleaner navigation
+- [x] Added WODsmith Compete branding to the collapsible organizer sidebar (icon-only when collapsed, wordmark when expanded)
+- [x] Hide duplicated WODsmith Compete branding in the Compete top nav / mobile menu only on organizer pages that render the collapsible sidebar
+- [x] Aligned the “Application pending” organizer banner with the organizer sidebar inset so it no longer ignores/overlaps the sidebar
 
 This plan will be regularly updated as the project progresses.
