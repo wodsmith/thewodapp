@@ -371,8 +371,8 @@ export function StripeConnectionManager({
 									</ul>
 									<p className="text-xs text-muted-foreground">
 										Click "Continue Setup" and look for the{" "}
-										<span className="font-medium">Personal details</span> section
-										to add any missing information.
+										<span className="font-medium">Personal details</span>{" "}
+										section to add any missing information.
 									</p>
 								</div>
 							</div>

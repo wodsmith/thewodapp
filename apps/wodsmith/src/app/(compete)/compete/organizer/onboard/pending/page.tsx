@@ -64,8 +64,10 @@ export default async function OrganizerOnboardPendingPage() {
 				<h1 className="mb-2 text-3xl font-bold">Application Under Review</h1>
 				<p className="mb-8 text-muted-foreground">
 					We're reviewing your application for{" "}
-					<span className="font-medium text-foreground">{pendingTeam.name}</span>.
-					You'll receive an email once we've made a decision.
+					<span className="font-medium text-foreground">
+						{pendingTeam.name}
+					</span>
+					. You'll receive an email once we've made a decision.
 				</p>
 
 				{/* Request Details */}

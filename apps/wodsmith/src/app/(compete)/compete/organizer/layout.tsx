@@ -43,7 +43,9 @@ export default async function OrganizerLayout({
 						You don't have permission to organize competitions yet.
 					</p>
 					<Button asChild>
-						<Link href="/compete/organizer/onboard">Apply to Become an Organizer</Link>
+						<Link href="/compete/organizer/onboard">
+							Apply to Become an Organizer
+						</Link>
 					</Button>
 				</div>
 			</div>

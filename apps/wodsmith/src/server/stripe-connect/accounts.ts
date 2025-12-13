@@ -1,10 +1,10 @@
 import "server-only"
-import { eq } from "drizzle-orm"
 import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { eq } from "drizzle-orm"
+import type Stripe from "stripe"
 import { getDb } from "@/db"
 import { teamTable } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
-import type Stripe from "stripe"
 
 function getAppUrl() {
 	const { env } = getCloudflareContext()
@@ -19,7 +19,7 @@ const STRIPE_CLIENT_ID = process.env.STRIPE_CLIENT_ID
 export async function createExpressAccount(
 	teamId: string,
 	email: string,
-	teamName: string
+	teamName: string,
 ): Promise<{ accountId: string; onboardingUrl: string }> {
 	const db = getDb()
 	const stripe = getStripe()
@@ -63,7 +63,7 @@ export async function createExpressAccount(
  */
 export async function createExpressAccountLink(
 	accountId: string,
-	teamId: string
+	teamId: string,
 ): Promise<{ url: string }> {
 	const stripe = getStripe()
 	const db = getDb()
@@ -90,16 +90,58 @@ export async function createExpressAccountLink(
 }
 
 /**
- * Get OAuth authorization URL for Standard account connection
+ * OAuth state payload structure for Stripe Connect
+ * Contains all necessary data for secure callback validation
  */
-export function getOAuthAuthorizeUrl(teamId: string, teamSlug: string): string {
+export interface StripeOAuthState {
+	teamId: string
+	teamSlug: string
+	userId: string
+	csrfToken: string
+}
+
+/**
+ * Parse and validate the OAuth state parameter
+ * Returns the decoded state payload
+ */
+export function parseOAuthState(state: string): StripeOAuthState {
+	try {
+		const decoded = JSON.parse(Buffer.from(state, "base64").toString("utf-8"))
+		// Validate required fields
+		if (
+			!decoded.teamId ||
+			!decoded.teamSlug ||
+			!decoded.userId ||
+			!decoded.csrfToken
+		) {
+			throw new Error("Missing required fields in OAuth state")
+		}
+		return decoded as StripeOAuthState
+	} catch {
+		throw new Error("Invalid OAuth state")
+	}
+}
+
+/**
+ * Get OAuth authorization URL for Standard account connection
+ *
+ * @param teamId - The team ID to connect the Stripe account to
+ * @param teamSlug - The team slug for redirect URL
+ * @param userId - The authenticated user's ID (for callback validation)
+ * @param csrfToken - CSRF token stored in cookie (for callback validation)
+ */
+export function getOAuthAuthorizeUrl(
+	teamId: string,
+	teamSlug: string,
+	userId: string,
+	csrfToken: string,
+): string {
 	if (!STRIPE_CLIENT_ID) {
 		throw new Error("STRIPE_CLIENT_ID environment variable not configured")
 	}
 
-	const state = Buffer.from(JSON.stringify({ teamId, teamSlug })).toString(
-		"base64"
-	)
+	const statePayload: StripeOAuthState = { teamId, teamSlug, userId, csrfToken }
+	const state = Buffer.from(JSON.stringify(statePayload)).toString("base64")
 	const appUrl = getAppUrl()
 	const redirectUri = `${appUrl}/api/stripe/connect/callback`
 
@@ -116,21 +158,25 @@ export function getOAuthAuthorizeUrl(teamId: string, teamSlug: string): string {
 
 /**
  * Handle OAuth callback - exchange code for account ID
+ *
+ * @param code - The authorization code from Stripe
+ * @param state - The state parameter containing teamId, teamSlug, userId, csrfToken
+ * @returns Object with teamId, teamSlug, accountId, and status
  */
 export async function handleOAuthCallback(
 	code: string,
-	state: string
-): Promise<{ teamId: string; teamSlug: string; accountId: string }> {
+	state: string,
+): Promise<{
+	teamId: string
+	teamSlug: string
+	accountId: string
+	status: "VERIFIED" | "PENDING"
+}> {
 	const stripe = getStripe()
 	const db = getDb()
 
-	// Decode state
-	let stateData: { teamId: string; teamSlug: string }
-	try {
-		stateData = JSON.parse(Buffer.from(state, "base64").toString("utf-8"))
-	} catch {
-		throw new Error("Invalid OAuth state")
-	}
+	// Decode state - now includes userId and csrfToken for security
+	const stateData = parseOAuthState(state)
 
 	// Exchange code for account ID
 	const response = await stripe.oauth.token({
@@ -147,6 +193,15 @@ export async function handleOAuthCallback(
 	const status =
 		account.charges_enabled && account.payouts_enabled ? "VERIFIED" : "PENDING"
 
+	console.log("[Stripe OAuth] Account status check:", {
+		accountId: response.stripe_user_id,
+		chargesEnabled: account.charges_enabled,
+		payoutsEnabled: account.payouts_enabled,
+		detailsSubmitted: account.details_submitted,
+		status,
+		teamId: stateData.teamId,
+	})
+
 	// Update team
 	await db
 		.update(teamTable)
@@ -162,6 +217,7 @@ export async function handleOAuthCallback(
 		teamId: stateData.teamId,
 		teamSlug: stateData.teamSlug,
 		accountId: response.stripe_user_id,
+		status,
 	}
 }
 
@@ -261,7 +317,7 @@ export async function disconnectAccount(teamId: string): Promise<void> {
  * Get Stripe Express dashboard login link
  */
 export async function getStripeDashboardLink(
-	accountId: string
+	accountId: string,
 ): Promise<string> {
 	const stripe = getStripe()
 	const loginLink = await stripe.accounts.createLoginLink(accountId)
@@ -288,7 +344,7 @@ export interface AccountBalance {
  * Get the balance for a connected account
  */
 export async function getAccountBalance(
-	accountId: string
+	accountId: string,
 ): Promise<AccountBalance> {
 	const stripe = getStripe()
 

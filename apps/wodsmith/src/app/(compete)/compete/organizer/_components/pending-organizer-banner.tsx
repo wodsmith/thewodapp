@@ -8,7 +8,9 @@ interface PendingOrganizerBannerProps {
 	variant: "page-container" | "sidebar-inset"
 }
 
-export function PendingOrganizerBanner({ variant }: PendingOrganizerBannerProps) {
+export function PendingOrganizerBanner({
+	variant,
+}: PendingOrganizerBannerProps) {
 	return (
 		<div className="border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
 			<div
@@ -33,5 +35,3 @@ export function PendingOrganizerBanner({ variant }: PendingOrganizerBannerProps)
 		</div>
 	)
 }
-
-

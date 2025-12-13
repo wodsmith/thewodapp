@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
 			case "account.application.deauthorized":
 				await handleAccountDeauthorized(
-					event.data.object as { id: string; account?: string }
+					event.data.object as { id: string; account?: string },
 				)
 				break
 
@@ -259,7 +259,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			logError({
 				message: "[Stripe Webhook] Failed to send confirmation email",
 				error: emailErr,
-				attributes: { purchaseId, competitionId, userId, registrationId: result.registrationId },
+				attributes: {
+					purchaseId,
+					competitionId,
+					userId,
+					registrationId: result.registrationId,
+				},
 			})
 			// Don't rethrow - registration and payment succeeded
 		}
@@ -350,10 +355,7 @@ async function handleAccountUpdated(account: Stripe.Account) {
 		updateData.stripeOnboardingCompletedAt = new Date()
 	}
 
-	await db
-		.update(teamTable)
-		.set(updateData)
-		.where(eq(teamTable.id, team.id))
+	await db.update(teamTable).set(updateData).where(eq(teamTable.id, team.id))
 
 	logInfo({
 		message: "[Stripe Webhook] Updated team Stripe status",

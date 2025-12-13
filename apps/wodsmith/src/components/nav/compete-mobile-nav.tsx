@@ -51,7 +51,11 @@ function formatMissingFields(
 
 function shouldHideBrand(pathname: string) {
 	const segments = pathname.split("/").filter(Boolean)
-	return segments[0] === "compete" && segments[1] === "organizer" && segments.length >= 3
+	return (
+		segments[0] === "compete" &&
+		segments[1] === "organizer" &&
+		segments.length >= 3
+	)
 }
 
 export default function CompeteMobileNav({
@@ -111,7 +115,9 @@ export default function CompeteMobileNav({
 							/>
 							<span className="text-2xl text-foreground dark:text-dark-foreground">
 								<span className="font-black uppercase">WOD</span>smith{" "}
-								<span className="font-medium text-muted-foreground">Compete</span>
+								<span className="font-medium text-muted-foreground">
+									Compete
+								</span>
 							</span>
 						</Link>
 					)}

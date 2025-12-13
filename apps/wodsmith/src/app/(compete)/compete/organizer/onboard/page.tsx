@@ -27,7 +27,8 @@ const features = [
 	{
 		icon: CalendarDaysIcon,
 		title: "Heat Scheduling",
-		description: "Organize heats across venues with lane assignments and timing",
+		description:
+			"Organize heats across venues with lane assignments and timing",
 	},
 	{
 		icon: ClipboardDocumentListIcon,
@@ -52,7 +53,8 @@ const features = [
 	{
 		icon: TrophyIcon,
 		title: "Public Competition Page",
-		description: "Professional event page with schedule, results, and registration",
+		description:
+			"Professional event page with schedule, results, and registration",
 	},
 ]
 
@@ -70,7 +72,8 @@ const steps = [
 	{
 		number: "3",
 		title: "Get Approved",
-		description: "Once approved, publish your competition and open registration",
+		description:
+			"Once approved, publish your competition and open registration",
 	},
 ]
 
@@ -127,8 +130,8 @@ export default async function OrganizerOnboardPage() {
 						Host Your Next Competition
 					</h1>
 					<p className="mt-4 text-lg text-muted-foreground">
-						Everything you need to run professional CrossFit competitions.
-						From registration to results, we've got you covered.
+						Everything you need to run professional CrossFit competitions. From
+						registration to results, we've got you covered.
 					</p>
 				</div>
 			</div>

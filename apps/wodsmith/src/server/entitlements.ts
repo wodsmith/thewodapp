@@ -1213,15 +1213,14 @@ export async function setTeamLimitOverride(
 	const db = getDb()
 
 	// Check if override already exists
-	const existingOverride = await db.query.teamEntitlementOverrideTable.findFirst(
-		{
+	const existingOverride =
+		await db.query.teamEntitlementOverrideTable.findFirst({
 			where: and(
 				eq(teamEntitlementOverrideTable.teamId, teamId),
 				eq(teamEntitlementOverrideTable.type, "limit"),
 				eq(teamEntitlementOverrideTable.key, limitKey),
 			),
-		},
-	)
+		})
 
 	if (existingOverride) {
 		// Update existing override

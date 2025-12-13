@@ -139,7 +139,7 @@ export async function initiateRegistrationPayment(
 			if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
 				throw new Error(
 					"This competition is temporarily unable to accept paid registrations. " +
-						"Please contact the organizer."
+						"Please contact the organizer.",
 				)
 			}
 		}

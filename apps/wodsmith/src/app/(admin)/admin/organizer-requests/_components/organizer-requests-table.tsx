@@ -288,7 +288,11 @@ export function OrganizerRequestsTable({
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={closeDialog} disabled={isPending}>
+						<Button
+							variant="outline"
+							onClick={closeDialog}
+							disabled={isPending}
+						>
 							Cancel
 						</Button>
 						<Button onClick={handleApprove} disabled={isPending}>
@@ -323,7 +327,11 @@ export function OrganizerRequestsTable({
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={closeDialog} disabled={isPending}>
+						<Button
+							variant="outline"
+							onClick={closeDialog}
+							disabled={isPending}
+						>
 							Cancel
 						</Button>
 						<Button

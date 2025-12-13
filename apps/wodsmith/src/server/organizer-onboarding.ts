@@ -181,8 +181,13 @@ export async function getAllOrganizerRequests({
 		.orderBy(desc(organizerRequestTable.createdAt))
 
 	// Fetch reviewer details separately for requests that have reviewedBy
-	const reviewerIds = [...new Set(requests.filter(r => r.reviewedBy).map(r => r.reviewedBy!))]
-	const reviewerMap = new Map<string, { id: string; firstName: string | null; lastName: string | null }>()
+	const reviewerIds = [
+		...new Set(requests.filter((r) => r.reviewedBy).map((r) => r.reviewedBy!)),
+	]
+	const reviewerMap = new Map<
+		string,
+		{ id: string; firstName: string | null; lastName: string | null }
+	>()
 
 	if (reviewerIds.length > 0) {
 		const { inArray } = await import("drizzle-orm")
@@ -222,7 +227,7 @@ export async function getAllOrganizerRequests({
 			lastName: r.userLastName,
 			email: r.userEmail,
 		},
-		reviewer: r.reviewedBy ? reviewerMap.get(r.reviewedBy) ?? null : null,
+		reviewer: r.reviewedBy ? (reviewerMap.get(r.reviewedBy) ?? null) : null,
 	}))
 }
 

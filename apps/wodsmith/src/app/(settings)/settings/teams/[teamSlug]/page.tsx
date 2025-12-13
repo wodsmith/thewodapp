@@ -127,7 +127,10 @@ export default async function TeamDashboardPage({
 		team.id,
 		FEATURES.HOST_COMPETITIONS,
 	)
-	const publishLimit = await getTeamLimit(team.id, LIMITS.MAX_PUBLISHED_COMPETITIONS)
+	const publishLimit = await getTeamLimit(
+		team.id,
+		LIMITS.MAX_PUBLISHED_COMPETITIONS,
+	)
 
 	// Determine organizer status based on feature and limit
 	let organizerStatus: "not_applied" | "pending" | "approved" = "not_applied"

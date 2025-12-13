@@ -173,10 +173,7 @@ export function OnboardForm({ teams }: OnboardFormProps) {
 							<FormItem>
 								<FormLabel>Team Name</FormLabel>
 								<FormControl>
-									<Input
-										placeholder="e.g., CrossFit Downtown"
-										{...field}
-									/>
+									<Input placeholder="e.g., CrossFit Downtown" {...field} />
 								</FormControl>
 								<FormDescription>
 									This will be your organizing team's name

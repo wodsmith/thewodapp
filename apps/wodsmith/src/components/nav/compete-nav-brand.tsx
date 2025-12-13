@@ -8,7 +8,11 @@ function shouldHideBrand(pathname: string) {
 	// Only hide the brand on organizer routes that have the collapsible sidebar:
 	// /compete/organizer/[competitionId]/**
 	const segments = pathname.split("/").filter(Boolean)
-	return segments[0] === "compete" && segments[1] === "organizer" && segments.length >= 3
+	return (
+		segments[0] === "compete" &&
+		segments[1] === "organizer" &&
+		segments.length >= 3
+	)
 }
 
 export function CompeteNavBrand() {
@@ -41,5 +45,3 @@ export function CompeteNavBrand() {
 		</Link>
 	)
 }
-
-

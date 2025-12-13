@@ -461,7 +461,9 @@ export function OrganizerCompetitionEditForm({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
-									<SelectItem value="draft">Draft - Not visible to athletes</SelectItem>
+									<SelectItem value="draft">
+										Draft - Not visible to athletes
+									</SelectItem>
 									<SelectItem value="published" disabled={isPendingApproval}>
 										Published - Visible to athletes
 									</SelectItem>

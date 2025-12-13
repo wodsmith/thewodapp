@@ -25,6 +25,7 @@ export const ACTIVE_TEAM_COOKIE_NAME = "active-team"
 export const GOOGLE_OAUTH_STATE_COOKIE_NAME = "google-oauth-state"
 export const GOOGLE_OAUTH_CODE_VERIFIER_COOKIE_NAME =
 	"google-oauth-code-verifier"
+export const STRIPE_OAUTH_STATE_COOKIE_NAME = "stripe-oauth-state"
 
 export const CREDIT_PACKAGES = [
 	{ id: "package-1", credits: 500, price: 5 },

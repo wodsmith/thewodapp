@@ -78,10 +78,16 @@ export default async function PayoutsPage({
 	// Verify user has permission on this team
 	await requireTeamPermission(team.id, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
 
-	// If account is pending, sync status from Stripe to check if it's now verified
+	// Sync status from Stripe in these cases:
+	// 1. Just returned from OAuth flow (stripe_connected=true) - always sync to get latest
+	// 2. Account exists but status is PENDING - check if it's now verified
 	let currentStatus = team.stripeAccountStatus
 	let currentOnboardingCompletedAt = team.stripeOnboardingCompletedAt
-	if (team.stripeConnectedAccountId && team.stripeAccountStatus === "PENDING") {
+	const shouldSyncStatus =
+		team.stripeConnectedAccountId &&
+		(stripe_connected === "true" || team.stripeAccountStatus === "PENDING")
+
+	if (shouldSyncStatus) {
 		try {
 			await syncAccountStatus(team.id)
 			// Re-fetch the updated status

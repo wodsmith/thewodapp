@@ -29,5 +29,3 @@ export async function getHasPendingOrganizingTeam(): Promise<boolean> {
 
 	return hasPendingTeam
 }
-
-

@@ -76,7 +76,8 @@ OrganizerRequestApprovedEmail.PreviewProps = {
 	teamName: "CrossFit Downtown",
 	recipientName: "John",
 	dashboardLink: "https://wodsmith.com/compete/organizer",
-	adminNotes: "Welcome to WODsmith Compete! Looking forward to seeing your events.",
+	adminNotes:
+		"Welcome to WODsmith Compete! Looking forward to seeing your events.",
 } as OrganizerRequestApprovedEmailProps
 
 export default OrganizerRequestApprovedEmail

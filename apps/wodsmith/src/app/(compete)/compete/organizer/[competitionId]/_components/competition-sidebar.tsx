@@ -52,7 +52,9 @@ interface NavGroup {
 	items: NavItem[]
 }
 
-const getNavigation = (basePath: string): { overview: NavItem; groups: NavGroup[] } => ({
+const getNavigation = (
+	basePath: string,
+): { overview: NavItem; groups: NavGroup[] } => ({
 	overview: {
 		label: "Overview",
 		href: basePath,
@@ -107,12 +109,16 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 				isActive={isActive}
 				tooltip={item.label}
 				className={cn(
-					isDestructive && !isActive && "text-destructive/80 hover:text-destructive hover:bg-destructive/10",
+					isDestructive &&
+						!isActive &&
+						"text-destructive/80 hover:text-destructive hover:bg-destructive/10",
 					isDestructive && isActive && "bg-destructive/10 text-destructive",
 				)}
 			>
 				<Link href={item.href}>
-					<Icon className={cn("h-4 w-4", isDestructive && "text-destructive")} />
+					<Icon
+						className={cn("h-4 w-4", isDestructive && "text-destructive")}
+					/>
 					<span>{item.label}</span>
 				</Link>
 			</SidebarMenuButton>
@@ -152,7 +158,10 @@ function CompetitionSidebarHeader() {
 	)
 }
 
-export function CompetitionSidebar({ competitionId, children }: CompetitionSidebarProps) {
+export function CompetitionSidebar({
+	competitionId,
+	children,
+}: CompetitionSidebarProps) {
 	const pathname = usePathname()
 	const basePath = `/compete/organizer/${competitionId}`
 	const navigation = getNavigation(basePath)

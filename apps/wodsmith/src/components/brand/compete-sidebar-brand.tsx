@@ -34,5 +34,3 @@ export function CompeteSidebarBrand({ className }: CompeteSidebarBrandProps) {
 		</Link>
 	)
 }
-
-

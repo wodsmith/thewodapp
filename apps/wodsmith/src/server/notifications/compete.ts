@@ -67,7 +67,8 @@ export async function notifyRegistrationConfirmed(params: {
 
 		if (!competition) {
 			logError({
-				message: "[Email] Cannot send registration confirmation - no competition",
+				message:
+					"[Email] Cannot send registration confirmation - no competition",
 				attributes: { competitionId, registrationId },
 			})
 			return
@@ -82,7 +83,8 @@ export async function notifyRegistrationConfirmed(params: {
 
 		if (!registration) {
 			logError({
-				message: "[Email] Cannot send registration confirmation - no registration",
+				message:
+					"[Email] Cannot send registration confirmation - no registration",
 				attributes: { registrationId },
 			})
 			return
@@ -189,9 +191,7 @@ export async function notifyCompetitionTeamInvite(params: {
 			where: eq(userTable.id, invitedByUserId),
 		})
 
-		const captainName = captain
-			? getAthleteName(captain)
-			: "Team Captain"
+		const captainName = captain ? getAthleteName(captain) : "Team Captain"
 
 		// Fetch athlete team
 		const athleteTeam = await db.query.teamTable.findFirst({
@@ -203,7 +203,10 @@ export async function notifyCompetitionTeamInvite(params: {
 		// Fetch registration to get division
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
-				where: eq(competitionRegistrationsTable.athleteTeamId, competitionTeamId),
+				where: eq(
+					competitionRegistrationsTable.athleteTeamId,
+					competitionTeamId,
+				),
 			},
 		)
 
@@ -425,7 +428,10 @@ export async function notifyTeammateJoined(params: {
 		// Fetch registration to get division and max team size
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
-				where: eq(competitionRegistrationsTable.athleteTeamId, competitionTeamId),
+				where: eq(
+					competitionRegistrationsTable.athleteTeamId,
+					competitionTeamId,
+				),
 			},
 		)
 

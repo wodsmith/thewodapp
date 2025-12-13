@@ -48,7 +48,10 @@ export default async function EditCompetitionPage({
 	const [groups, scalingGroups, publishLimit] = await Promise.all([
 		getCompetitionGroups(competition.organizingTeamId),
 		listScalingGroups({ teamId: competition.organizingTeamId }),
-		getTeamLimit(competition.organizingTeamId, LIMITS.MAX_PUBLISHED_COMPETITIONS),
+		getTeamLimit(
+			competition.organizingTeamId,
+			LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		),
 	])
 
 	// Team is pending approval if they have the feature but limit is 0
