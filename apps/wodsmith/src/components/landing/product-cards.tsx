@@ -29,7 +29,10 @@ export function ProductCards() {
 	const isLoggedIn = !!session?.user
 
 	return (
-		<section id="products" className="border-y border-border bg-secondary py-20">
+		<section
+			id="products"
+			className="border-y border-border bg-secondary py-20"
+		>
 			<div className="container mx-auto px-4">
 				{/* Section header */}
 				<div className="mx-auto mb-16 max-w-3xl text-center">
@@ -143,7 +146,7 @@ export function ProductCards() {
 								size="lg"
 								asChild
 							>
-								<Link href="/compete/organizer">
+								<Link href="/compete/organizer/onboard">
 									Host Your Competition
 									<ArrowRightIcon className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
 								</Link>

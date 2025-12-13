@@ -86,7 +86,6 @@ export default function BaseLayout({
 					expand
 					duration={7000}
 				/>
-				
 			</body>
 		</html>
 	)

@@ -281,7 +281,9 @@ export function logError(params: LogParams) {
  * Debug logging - only emitted in development, never sent to PostHog.
  * Use this for temporary debugging statements.
  */
-export function logDebug(params: Omit<LogParams, "severityNumber" | "severityText">) {
+export function logDebug(
+	params: Omit<LogParams, "severityNumber" | "severityText">,
+) {
 	if (process.env.NODE_ENV === "development") {
 		const logData = params.attributes ? { ...params.attributes } : {}
 		if (params.error) {

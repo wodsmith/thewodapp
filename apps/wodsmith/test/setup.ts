@@ -20,27 +20,55 @@ const mockD1Client = {
 }
 
 // Mock the db object that is null in test environment
-const mockDb = {
-	select: vi.fn().mockReturnThis(),
-	from: vi.fn().mockReturnThis(),
-	leftJoin: vi.fn().mockReturnThis(),
-	innerJoin: vi.fn().mockReturnThis(),
-	where: vi.fn().mockReturnThis(),
-	limit: vi.fn().mockImplementation(() => Promise.resolve([])),
-	orderBy: vi.fn().mockReturnThis(),
-	offset: vi.fn().mockImplementation(() => Promise.resolve([])),
-	insert: vi.fn().mockReturnThis(),
-	values: vi.fn().mockReturnThis(),
-	returning: vi.fn().mockResolvedValue([{ id: "test_id", name: "Test" }]),
-	delete: vi.fn().mockResolvedValue({ changes: 0 }),
-	update: vi.fn().mockReturnThis(),
-	set: vi.fn().mockReturnThis(),
-	get: vi.fn().mockResolvedValue(null),
+// The mockDb needs to be thenable so that when you await the query chain, it returns an array
+const createChainableMock = () => {
+	const mock: Record<string, unknown> = {
+		// Make it thenable so await works at any point in the chain
+		then: (resolve: (value: unknown[]) => void) => {
+			resolve([])
+			return Promise.resolve([])
+		},
+		// Query chain methods
+		select: vi.fn(() => createChainableMock()),
+		from: vi.fn(() => createChainableMock()),
+		leftJoin: vi.fn(() => createChainableMock()),
+		innerJoin: vi.fn(() => createChainableMock()),
+		where: vi.fn(() => createChainableMock()),
+		limit: vi.fn(() => createChainableMock()),
+		orderBy: vi.fn(() => createChainableMock()),
+		offset: vi.fn(() => createChainableMock()),
+		groupBy: vi.fn(() => createChainableMock()),
+		// Insert/update chain
+		insert: vi.fn(() => createChainableMock()),
+		values: vi.fn(() => createChainableMock()),
+		returning: vi.fn().mockResolvedValue([{ id: "test_id", name: "Test" }]),
+		onConflictDoUpdate: vi.fn(() => createChainableMock()),
+		// Update chain
+		update: vi.fn(() => createChainableMock()),
+		set: vi.fn(() => createChainableMock()),
+		// Delete
+		delete: vi.fn().mockResolvedValue({ changes: 0 }),
+		// Other methods
+		get: vi.fn().mockResolvedValue(null),
+		// Query API (drizzle relational queries)
+		query: {
+			workouts: { findFirst: vi.fn().mockResolvedValue(null) },
+			organizerRequestTable: { findFirst: vi.fn().mockResolvedValue(null) },
+			teamTable: { findFirst: vi.fn().mockResolvedValue(null) },
+			teamMembershipTable: { findFirst: vi.fn().mockResolvedValue(null) },
+			planTable: { findFirst: vi.fn().mockResolvedValue(null) },
+			featureTable: { findFirst: vi.fn().mockResolvedValue(null) },
+			limitTable: { findFirst: vi.fn().mockResolvedValue(null) },
+		},
+	}
+	return mock
 }
+
+const mockDb = createChainableMock()
 
 vi.mock("@/db", () => ({
 	db: null,
-	getDd: vi.fn(() => mockDb),
+	getDb: vi.fn(() => mockDb),
 }))
 
 vi.mock("@opennextjs/cloudflare", () => ({

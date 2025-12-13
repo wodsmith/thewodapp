@@ -26,15 +26,15 @@ export function MissionHero() {
 
 				{/* Headline */}
 				<h1 className="mb-6 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
-					Tools Built for{" "}
-					<br className="hidden md:block" />
+					Tools Built for <br className="hidden md:block" />
 					<span className="text-primary">Functional Fitness</span>
 				</h1>
 
 				{/* Subheadline */}
 				<p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl text-balance">
-					Log your workouts. Follow your gym's programming. Run your competitions.
-					WODsmith helps you track and organize the work you put in.
+					Log your workouts. Follow your gym's programming. Run your
+					competitions. WODsmith helps you track and organize the work you put
+					in.
 				</p>
 
 				{/* CTAs */}

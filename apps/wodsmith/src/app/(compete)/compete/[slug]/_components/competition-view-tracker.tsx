@@ -35,7 +35,13 @@ export function CompetitionViewTracker({
 				is_organizer: isOrganizer,
 			})
 		}
-	}, [competitionId, competitionSlug, competitionName, isRegistered, isOrganizer])
+	}, [
+		competitionId,
+		competitionSlug,
+		competitionName,
+		isRegistered,
+		isOrganizer,
+	])
 
 	return null
 }

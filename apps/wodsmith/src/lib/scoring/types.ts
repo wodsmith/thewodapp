@@ -82,9 +82,7 @@ export interface Score {
 	timeCap?: {
 		/** Time cap in milliseconds */
 		ms: number
-		/** Scheme for secondary score (usually 'reps') */
-		secondaryScheme: WorkoutScheme
-		/** Secondary value (e.g., reps completed when capped) */
+		/** Reps completed when capped */
 		secondaryValue: number
 	}
 
@@ -208,7 +206,7 @@ export interface ScoreRecord {
 	tiebreakValue: number | null
 
 	timeCapMs: number | null
-	secondaryScheme: WorkoutScheme | null
+	// Note: secondaryScheme removed - when capped, score is always reps
 	secondaryValue: number | null
 
 	status: ScoreStatus

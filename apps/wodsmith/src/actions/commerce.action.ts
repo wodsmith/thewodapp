@@ -1,6 +1,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
@@ -258,7 +259,8 @@ export async function initiateRegistrationPayment(
 		})
 
 		// 11. Create Stripe Checkout Session
-		const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+		const { env } = getCloudflareContext()
+		const appUrl = env.NEXT_PUBLIC_APP_URL
 		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",
 			payment_method_types: ["card"],

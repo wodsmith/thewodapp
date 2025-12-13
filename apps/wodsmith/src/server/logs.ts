@@ -14,6 +14,7 @@ import {
 	workouts,
 	type WorkoutScheme,
 	type ScoreType,
+	type TiebreakScheme,
 } from "@/db/schema"
 import { formatSecondsToTime, parseTimeScoreToSeconds } from "@/lib/utils"
 import type {
@@ -29,6 +30,44 @@ import {
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
 
+// ============================================================================
+// ENCODING MIGRATION NOTES - Phase 4
+// ============================================================================
+//
+// This file contains the core score processing logic used by both:
+// - submitLogForm (user workout logs)
+// - saveCompetitionScore (competition scores)
+//
+// CURRENT STATE (Phase 3):
+// - Scores are stored in results + sets tables with LEGACY encoding:
+//   * Time: seconds (not milliseconds)
+//   * Rounds+Reps: rounds * 1000 + reps (not rounds * 100000 + reps)
+//   * Load: lbs (not grams)
+//   * Distance: meters/feet (not millimeters)
+//
+// FUTURE STATE (Phase 4):
+// - Dual-write to new scores + score_rounds tables with NEW encoding:
+//   * Time: milliseconds
+//   * Rounds+Reps: rounds * 100000 + reps
+//   * Load: grams
+//   * Distance: millimeters
+// - Use encodeScore() and encodeRounds() from @/lib/scoring
+// - Populate sortKey column using computeSortKey()
+//
+// KEY FUNCTIONS TO UPDATE IN PHASE 4:
+// - processScoresToSetsAndWodScore(): Add encoding logic
+// - addLog(): Dual-write to scores table
+// - updateLog(): Update scores table
+//
+// COMPLEXITY NOTES:
+// - This file is 1100+ lines with complex score processing logic
+// - Handles multiple workout schemes (time, rounds-reps, load, etc.)
+// - Aggregation logic (min, max, sum, average, first, last)
+// - Time-capped results need special handling
+// - Must maintain backward compatibility during migration
+//
+// ============================================================================
+
 /* -------------------------------------------------------------------------- */
 /*                         Shared Score Processing Types                       */
 /* -------------------------------------------------------------------------- */
@@ -43,6 +82,7 @@ export interface WorkoutScoreInfo {
 	repsPerRound: number | null
 	roundsToScore: number | null
 	timeCap: number | null
+	tiebreakScheme?: TiebreakScheme | null
 }
 
 /**
@@ -124,6 +164,12 @@ export function aggregateScores(
 /**
  * Process normalized score entries into sets and generate wodScore
  * This is the shared core logic used by both submitLogForm and saveCompetitionScore
+ *
+ * TODO Phase 4: Add new encoding logic
+ * - Call encodeScore() to generate new-format encoded values
+ * - Store both legacy (for results+sets) and new (for scores) encodings
+ * - Generate sortKey using computeSortKey()
+ * - Return additional fields for scores table insertion
  */
 export function processScoresToSetsAndWodScore(
 	scoreEntries: NormalizedScoreEntry[],
@@ -486,6 +532,13 @@ export async function getLogsByUser(
 
 /**
  * Add a new log entry with sets
+ *
+ * TODO Phase 4: Dual-write to scores table
+ * - Encode wodScore using encodeScore()
+ * - Encode round-by-round data using encodeRounds()
+ * - Compute sortKey using computeSortKey()
+ * - Insert into scores and score_rounds tables
+ * - Keep results+sets writes for backward compatibility during migration
  */
 export async function addLog({
 	userId,

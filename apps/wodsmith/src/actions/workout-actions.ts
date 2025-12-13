@@ -103,20 +103,6 @@ const createWorkoutSchema = z.object({
 			)
 			.nullable()
 			.optional(), // Add scaling group support
-		secondaryScheme: z
-			.enum([
-				"time",
-				"pass-fail",
-				"rounds-reps",
-				"reps",
-				"emom",
-				"load",
-				"calories",
-				"meters",
-				"feet",
-				"points",
-			])
-			.nullable(),
 		timeCap: z.number().int().min(1).nullable().optional(),
 	}),
 	tagIds: z.array(z.string()).default([]),
@@ -184,7 +170,10 @@ export const createWorkoutRemixAction = createServerAction()
 			logError({
 				message: "[createWorkoutRemixAction] Failed to create workout remix",
 				error,
-				attributes: { sourceWorkoutId: input.sourceWorkoutId, teamId: input.teamId },
+				attributes: {
+					sourceWorkoutId: input.sourceWorkoutId,
+					teamId: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -239,9 +228,14 @@ export const createProgrammingTrackWorkoutRemixAction = createServerAction()
 			}
 		} catch (error) {
 			logError({
-				message: "[createProgrammingTrackWorkoutRemixAction] Failed to create programming track workout remix",
+				message:
+					"[createProgrammingTrackWorkoutRemixAction] Failed to create programming track workout remix",
 				error,
-				attributes: { sourceWorkoutId: input.sourceWorkoutId, sourceTrackId: input.sourceTrackId, teamId: input.teamId },
+				attributes: {
+					sourceWorkoutId: input.sourceWorkoutId,
+					sourceTrackId: input.sourceTrackId,
+					teamId: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -355,7 +349,11 @@ export const createWorkoutAction = createServerAction()
 
 			logDebug({
 				message: "[createWorkoutAction] Created workout",
-				attributes: { workoutId: workout.id, workoutName: workout.name, teamId: input.teamId },
+				attributes: {
+					workoutId: workout.id,
+					workoutName: workout.name,
+					teamId: input.teamId,
+				},
 			})
 
 			return { success: true, data: workout }
@@ -498,7 +496,9 @@ export const getUserWorkoutsAction = createServerAction()
 			logDebug({
 				message: "[getUserWorkoutsAction] called",
 				attributes: {
-					teamId: Array.isArray(input.teamId) ? input.teamId.join(",") : input.teamId,
+					teamId: Array.isArray(input.teamId)
+						? input.teamId.join(",")
+						: input.teamId,
 					filters: JSON.stringify(filters),
 					limit: input.pageSize,
 					offset,
@@ -537,7 +537,11 @@ export const getUserWorkoutsAction = createServerAction()
 			logError({
 				message: "[getUserWorkoutsAction] Failed to get user workouts",
 				error,
-				attributes: { teamId: Array.isArray(input.teamId) ? input.teamId.join(",") : input.teamId },
+				attributes: {
+					teamId: Array.isArray(input.teamId)
+						? input.teamId.join(",")
+						: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -596,7 +600,8 @@ export const getWorkoutResultsByWorkoutAndUserAction = createServerAction()
 			return { success: true, data: results }
 		} catch (error) {
 			logError({
-				message: "[getWorkoutResultsByWorkoutAndUserAction] Failed to get workout results",
+				message:
+					"[getWorkoutResultsByWorkoutAndUserAction] Failed to get workout results",
 				error,
 				attributes: { workoutId: input.workoutId },
 			})
@@ -1009,9 +1014,14 @@ export const alignWorkoutScalingWithTrackAction = createServerAction()
 			}
 		} catch (error) {
 			logError({
-				message: "[alignWorkoutScalingWithTrackAction] Failed to align workout scaling with track",
+				message:
+					"[alignWorkoutScalingWithTrackAction] Failed to align workout scaling with track",
 				error,
-				attributes: { workoutId: input.workoutId, trackId: input.trackId, teamId: input.teamId },
+				attributes: {
+					workoutId: input.workoutId,
+					trackId: input.trackId,
+					teamId: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1048,9 +1058,14 @@ export const getScheduledTeamWorkoutsAction = createServerAction()
 			return { success: true, data: scheduledWorkouts }
 		} catch (error) {
 			logError({
-				message: "[getScheduledTeamWorkoutsAction] Failed to get scheduled team workouts",
+				message:
+					"[getScheduledTeamWorkoutsAction] Failed to get scheduled team workouts",
 				error,
-				attributes: { teamId: input.teamId, startDate: input.startDate, endDate: input.endDate },
+				attributes: {
+					teamId: input.teamId,
+					startDate: input.startDate,
+					endDate: input.endDate,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1109,9 +1124,15 @@ export const getScheduledTeamWorkoutsWithResultsAction = createServerAction()
 			return { success: true, data: workoutsWithResults }
 		} catch (error) {
 			logError({
-				message: "[getScheduledTeamWorkoutsWithResultsAction] Failed to get scheduled team workouts with results",
+				message:
+					"[getScheduledTeamWorkoutsWithResultsAction] Failed to get scheduled team workouts with results",
 				error,
-				attributes: { teamId: input.teamId, userId: input.userId, startDate: input.startDate, endDate: input.endDate },
+				attributes: {
+					teamId: input.teamId,
+					userId: input.userId,
+					startDate: input.startDate,
+					endDate: input.endDate,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1154,9 +1175,13 @@ export const getScheduledWorkoutResultAction = createServerAction()
 			return { success: true, data: result }
 		} catch (error) {
 			logError({
-				message: "[getScheduledWorkoutResultAction] Failed to get scheduled workout result",
+				message:
+					"[getScheduledWorkoutResultAction] Failed to get scheduled workout result",
 				error,
-				attributes: { scheduledInstanceId: input.scheduledInstanceId, date: input.date },
+				attributes: {
+					scheduledInstanceId: input.scheduledInstanceId,
+					date: input.date,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1237,9 +1262,13 @@ export const getTeamSpecificWorkoutAction = createServerAction()
 			}
 		} catch (error) {
 			logError({
-				message: "[getTeamSpecificWorkoutAction] Failed to get team-specific workout",
+				message:
+					"[getTeamSpecificWorkoutAction] Failed to get team-specific workout",
 				error,
-				attributes: { originalWorkoutId: input.originalWorkoutId, teamId: input.teamId },
+				attributes: {
+					originalWorkoutId: input.originalWorkoutId,
+					teamId: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1313,9 +1342,14 @@ export const migrateScalingDescriptionsAction = createServerAction()
 			}
 		} catch (error) {
 			logError({
-				message: "[migrateScalingDescriptionsAction] Failed to migrate scaling descriptions",
+				message:
+					"[migrateScalingDescriptionsAction] Failed to migrate scaling descriptions",
 				error,
-				attributes: { originalWorkoutId: input.originalWorkoutId, remixedWorkoutId: input.remixedWorkoutId, teamId: input.teamId },
+				attributes: {
+					originalWorkoutId: input.originalWorkoutId,
+					remixedWorkoutId: input.remixedWorkoutId,
+					teamId: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1432,9 +1466,14 @@ export const enhancedAlignWorkoutScalingWithTrackAction = createServerAction()
 			}
 		} catch (error) {
 			logError({
-				message: "[enhancedAlignWorkoutScalingWithTrackAction] Failed to check workout scaling alignment",
+				message:
+					"[enhancedAlignWorkoutScalingWithTrackAction] Failed to check workout scaling alignment",
 				error,
-				attributes: { workoutId: input.workoutId, trackId: input.trackId, teamId: input.teamId },
+				attributes: {
+					workoutId: input.workoutId,
+					trackId: input.trackId,
+					teamId: input.teamId,
+				},
 			})
 
 			if (error instanceof ZSAError) {
@@ -1672,9 +1711,14 @@ export const completeWorkoutRemixWithScalingMigrationAction =
 				}
 			} catch (error) {
 				logError({
-					message: "[completeWorkoutRemixWithScalingMigrationAction] Failed to complete workout remix with scaling migration",
+					message:
+						"[completeWorkoutRemixWithScalingMigrationAction] Failed to complete workout remix with scaling migration",
 					error,
-					attributes: { workoutId: input.workoutId, trackId: input.trackId, teamId: input.teamId },
+					attributes: {
+						workoutId: input.workoutId,
+						trackId: input.trackId,
+						teamId: input.teamId,
+					},
 				})
 
 				if (error instanceof ZSAError) {
@@ -1722,9 +1766,13 @@ export const getTeamLeaderboardsAction = createServerAction()
 			}
 		} catch (error) {
 			logError({
-				message: "[getTeamLeaderboardsAction] Failed to fetch team leaderboards",
+				message:
+					"[getTeamLeaderboardsAction] Failed to fetch team leaderboards",
 				error,
-				attributes: { teamId: input.teamId, instanceCount: input.scheduledWorkoutInstanceIds.length },
+				attributes: {
+					teamId: input.teamId,
+					instanceCount: input.scheduledWorkoutInstanceIds.length,
+				},
 			})
 
 			if (error instanceof ZSAError) {

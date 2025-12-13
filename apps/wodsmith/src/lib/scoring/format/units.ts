@@ -83,7 +83,7 @@ export function formatNumber(value: number, maxDecimals: number = 0): string {
 	}
 
 	const rounded = Number(value.toFixed(maxDecimals))
-	
+
 	// Check if we actually need decimals
 	if (rounded === Math.floor(rounded)) {
 		return Math.floor(rounded).toString()

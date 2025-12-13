@@ -32,7 +32,6 @@ describe("Time Cap Scenarios", () => {
 				status: "scored",
 				timeCap: {
 					ms: 900000, // 15:00 cap
-					secondaryScheme: "reps",
 					secondaryValue: 0,
 				},
 			}
@@ -49,7 +48,6 @@ describe("Time Cap Scenarios", () => {
 				status: "cap",
 				timeCap: {
 					ms: 900000, // 15:00 cap
-					secondaryScheme: "reps",
 					secondaryValue: 142,
 				},
 			}
@@ -64,27 +62,13 @@ describe("Time Cap Scenarios", () => {
 				status: "cap",
 				timeCap: {
 					ms: 900000,
-					secondaryScheme: "reps",
 					secondaryValue: 142,
 				},
 			}
 			expect(formatScore(score, { showStatus: false })).toBe("142 reps")
 		})
 
-		it("should format capped score with rounds+reps secondary", () => {
-			const score: Score = {
-				scheme: "time-with-cap",
-				scoreType: "min",
-				value: null,
-				status: "cap",
-				timeCap: {
-					ms: 1200000, // 20:00 cap
-					secondaryScheme: "rounds-reps",
-					secondaryValue: 500012, // 5+12
-				},
-			}
-			expect(formatScore(score)).toBe("CAP (5+12)")
-		})
+		// Note: Secondary scheme is now always reps for time-capped workouts
 	})
 
 	describe("Sorting finished vs capped athletes", () => {
@@ -96,7 +80,7 @@ describe("Time Cap Scenarios", () => {
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 150 },
+					timeCap: { ms: 900000, secondaryValue: 150 },
 				},
 				// Finished in 12:00
 				{
@@ -133,21 +117,21 @@ describe("Time Cap Scenarios", () => {
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 100 },
+					timeCap: { ms: 900000, secondaryValue: 100 },
 				},
 				{
 					scheme: "time-with-cap",
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 150 },
+					timeCap: { ms: 900000, secondaryValue: 150 },
 				},
 				{
 					scheme: "time-with-cap",
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 125 },
+					timeCap: { ms: 900000, secondaryValue: 125 },
 				},
 			]
 
@@ -167,7 +151,7 @@ describe("Time Cap Scenarios", () => {
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 200 },
+					timeCap: { ms: 900000, secondaryValue: 200 },
 				},
 				// Finished slowly (14:59)
 				{
@@ -182,7 +166,7 @@ describe("Time Cap Scenarios", () => {
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 50 },
+					timeCap: { ms: 900000, secondaryValue: 50 },
 				},
 				// Finished fast (8:30)
 				{
@@ -232,7 +216,7 @@ describe("Tiebreak Scenarios", () => {
 					value: 510000, // 8:30
 				},
 			}
-			expect(formatScoreWithTiebreak(score)).toBe("5+12 (TB: 8:30)")
+			expect(formatScoreWithTiebreak(score)).toBe("05+12 (TB: 8:30)")
 		})
 
 		it("should sort by tiebreak when primary scores are equal", () => {
@@ -404,7 +388,7 @@ describe("Complex Sorting Scenarios", () => {
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 180 },
+					timeCap: { ms: 900000, secondaryValue: 180 },
 				},
 				// Athlete D: DQ
 				{
@@ -433,7 +417,7 @@ describe("Complex Sorting Scenarios", () => {
 					scoreType: "min",
 					value: null,
 					status: "cap",
-					timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 150 },
+					timeCap: { ms: 900000, secondaryValue: 150 },
 				},
 			]
 
@@ -653,6 +637,6 @@ describe("Millisecond precision in time caps and tiebreaks", () => {
 		}
 
 		const formatted = formatScoreWithTiebreak(score)
-		expect(formatted).toBe("5+12 (TB: 8:30.567)")
+		expect(formatted).toBe("05+12 (TB: 8:30.567)")
 	})
 })

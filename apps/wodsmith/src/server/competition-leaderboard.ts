@@ -5,9 +5,8 @@ import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
-	results,
 	scalingLevelsTable,
-	sets,
+	scoresTable,
 	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
@@ -16,12 +15,14 @@ import {
 import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { autochunk } from "@/utils/batch-query"
+import { getCompetitionTrack } from "./competition-workouts"
 import {
-	calculateAggregatedScore,
 	formatScore,
 	getDefaultScoreType,
-} from "@/utils/score-formatting"
-import { getCompetitionTrack } from "./competition-workouts"
+	decodeScore,
+	getSortDirection,
+} from "@/lib/scoring"
+import type { WorkoutScheme } from "@/db/schema"
 
 export interface TeamMemberInfo {
 	userId: string
@@ -51,6 +52,8 @@ export interface CompetitionLeaderboardEntry {
 		points: number
 		rawScore: string | null
 		formattedScore: string
+		/** Formatted tiebreak value if present (e.g., "8:30.123" or "150") */
+		formattedTiebreak: string | null
 	}>
 }
 
@@ -65,6 +68,46 @@ export interface EventLeaderboardEntry {
 	rawScore: string | null
 	formattedScore: string
 	isTimeCapped: boolean
+}
+
+/**
+ * Fetch scores from new scores table (sortKey-optimized)
+ */
+async function fetchScoresFromNewTable(params: {
+	trackWorkoutIds: string[]
+	userIds: string[]
+}) {
+	const db = getDb()
+
+	// Query new scores table with efficient sortKey ordering
+	const scores = await autochunk(
+		{ items: params.trackWorkoutIds, otherParametersCount: 1 },
+		async (chunk) =>
+			db
+				.select({
+					id: scoresTable.id,
+					userId: scoresTable.userId,
+					competitionEventId: scoresTable.competitionEventId,
+					scheme: scoresTable.scheme,
+					scoreValue: scoresTable.scoreValue,
+					tiebreakScheme: scoresTable.tiebreakScheme,
+					tiebreakValue: scoresTable.tiebreakValue,
+					status: scoresTable.status,
+					statusOrder: scoresTable.statusOrder,
+					sortKey: scoresTable.sortKey,
+					secondaryValue: scoresTable.secondaryValue,
+					timeCapMs: scoresTable.timeCapMs,
+				})
+				.from(scoresTable)
+				.where(
+					and(
+						inArray(scoresTable.competitionEventId, chunk),
+						inArray(scoresTable.userId, params.userIds),
+					),
+				),
+	)
+
+	return scores
 }
 
 /**
@@ -186,27 +229,33 @@ export async function getCompetitionLeaderboard(params: {
 	// Get team members for team registrations
 	// First, collect all athleteTeamIds from team registrations
 	const athleteTeamIds = filteredRegistrations
-		.filter((r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1)
+		.filter(
+			(r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1,
+		)
 		.map((r) => r.registration.athleteTeamId as string)
 
 	// Fetch all team memberships for these teams in one query
-	const allTeamMemberships = athleteTeamIds.length > 0
-		? await autochunk({ items: athleteTeamIds }, async (chunk) =>
-				db
-					.select({
-						membership: teamMembershipTable,
-						user: userTable,
-					})
-					.from(teamMembershipTable)
-					.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-					.where(inArray(teamMembershipTable.teamId, chunk)),
-			)
-		: []
+	const allTeamMemberships =
+		athleteTeamIds.length > 0
+			? await autochunk({ items: athleteTeamIds }, async (chunk) =>
+					db
+						.select({
+							membership: teamMembershipTable,
+							user: userTable,
+						})
+						.from(teamMembershipTable)
+						.innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+						.where(inArray(teamMembershipTable.teamId, chunk)),
+				)
+			: []
 
 	// Group memberships by teamId
 	const membershipsByTeamId = new Map<
 		string,
-		Array<{ membership: typeof allTeamMemberships[number]["membership"]; user: typeof allTeamMemberships[number]["user"] }>
+		Array<{
+			membership: (typeof allTeamMemberships)[number]["membership"]
+			user: (typeof allTeamMemberships)[number]["user"]
+		}>
 	>()
 	for (const m of allTeamMemberships) {
 		const teamId = m.membership.teamId
@@ -215,35 +264,11 @@ export async function getCompetitionLeaderboard(params: {
 		membershipsByTeamId.set(teamId, existing)
 	}
 
-	// Get all results for competition events (by competitionEventId = trackWorkout.id)
+	// Get all scores for competition events from new scores table
 	const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
-	const allResults = await autochunk(
-		{ items: trackWorkoutIds, otherParametersCount: 1 }, // +1 for type
-		async (chunk) =>
-			db
-				.select()
-				.from(results)
-				.where(
-					and(
-						inArray(results.competitionEventId, chunk),
-						eq(results.type, "wod"),
-					),
-				),
-	)
+	const userIds = filteredRegistrations.map((r) => r.user.id)
 
-	// Get all sets for results (batched)
-	const resultIds = allResults.map((r) => r.id)
-	const allSets = await autochunk({ items: resultIds }, async (chunk) =>
-		db.select().from(sets).where(inArray(sets.resultId, chunk)),
-	)
-
-	// Group sets by result ID
-	const setsByResultId = new Map<string, (typeof allSets)[number][]>()
-	for (const set of allSets) {
-		const existing = setsByResultId.get(set.resultId) || []
-		existing.push(set)
-		setsByResultId.set(set.resultId, existing)
-	}
+	const allScores = await fetchScoresFromNewTable({ trackWorkoutIds, userIds })
 
 	// Build leaderboard entries
 	const leaderboardMap = new Map<string, CompetitionLeaderboardEntry>()
@@ -286,69 +311,68 @@ export async function getCompetitionLeaderboard(params: {
 
 	// Process each event
 	for (const trackWorkout of trackWorkouts) {
-		// Get results for this event, grouped by division
-		const eventResultsByDivision = new Map<string, typeof allResults>()
+		// Get scores for this event, grouped by division
+		const eventScoresByDivision = new Map<string, typeof allScores>()
 
-		for (const result of allResults) {
-			if (result.competitionEventId !== trackWorkout.id) continue
+		for (const score of allScores) {
+			if (score.competitionEventId !== trackWorkout.id) continue
 
 			const registration = filteredRegistrations.find(
-				(r) => r.user.id === result.userId,
+				(r) => r.user.id === score.userId,
 			)
 			if (!registration) continue
 
 			const divisionId = registration.registration.divisionId || "open"
-			const existing = eventResultsByDivision.get(divisionId) || []
-			existing.push(result)
-			eventResultsByDivision.set(divisionId, existing)
+			const existing = eventScoresByDivision.get(divisionId) || []
+			existing.push(score)
+			eventScoresByDivision.set(divisionId, existing)
 		}
 
-		// Rank athletes within each division
-		for (const [_divisionId, divisionResults] of eventResultsByDivision) {
-			// Calculate scores and sort
-			const scoredResults = divisionResults.map((result) => {
-				const resultSets = setsByResultId.get(result.id) || []
-				const [aggregatedScore, isTimeCapped] = calculateAggregatedScore(
-					resultSets,
-					trackWorkout.workout.scheme,
-					trackWorkout.workout.scoreType,
-				)
+		// Rank athletes within each division using sortKey
+		for (const [_divisionId, divisionScores] of eventScoresByDivision) {
+			// Sort by sortKey, then by secondary value (for capped scores), then by tiebreak
+			const sortedScores = divisionScores.sort((a, b) => {
+				// Primary sort: sortKey (status + normalized score)
+				if (!a.sortKey || !b.sortKey) return 0
+				const sortKeyCompare = a.sortKey.localeCompare(b.sortKey)
+				if (sortKeyCompare !== 0) return sortKeyCompare
 
-				return {
-					result,
-					aggregatedScore,
-					isTimeCapped,
-				}
-			})
-
-			// Sort by score
-			const scoreType =
-				trackWorkout.workout.scoreType ||
-				getDefaultScoreType(trackWorkout.workout.scheme)
-			const lowerIsBetter = scoreType === "min"
-
-			scoredResults.sort((a, b) => {
-				if (a.aggregatedScore === null && b.aggregatedScore === null) return 0
-				if (a.aggregatedScore === null) return 1
-				if (b.aggregatedScore === null) return -1
-
-				// Time-capped results sort after non-time-capped
-				if (a.isTimeCapped !== b.isTimeCapped) {
-					return a.isTimeCapped ? 1 : -1
+				// Secondary sort for capped scores: by secondaryValue (reps completed)
+				// Higher reps = better, so sort descending
+				if (a.status === "cap" && b.status === "cap") {
+					const aSecondary = a.secondaryValue ?? 0
+					const bSecondary = b.secondaryValue ?? 0
+					if (aSecondary !== bSecondary) {
+						return bSecondary - aSecondary // Higher is better (descending)
+					}
 				}
 
-				return lowerIsBetter
-					? a.aggregatedScore - b.aggregatedScore
-					: b.aggregatedScore - a.aggregatedScore
+				// Tertiary sort: tiebreak value (if both have tiebreak)
+				if (
+					a.tiebreakValue !== null &&
+					b.tiebreakValue !== null &&
+					a.tiebreakScheme
+				) {
+					const tiebreakDirection = getSortDirection(
+						a.tiebreakScheme as WorkoutScheme,
+					)
+					// For "asc" (time tiebreak): lower is better
+					// For "desc" (reps tiebreak): higher is better
+					if (tiebreakDirection === "asc") {
+						return a.tiebreakValue - b.tiebreakValue
+					}
+					return b.tiebreakValue - a.tiebreakValue
+				}
+
+				return 0
 			})
 
-			// Assign ranks and calculate points
-			const athleteCount = scoredResults.length
+			const athleteCount = sortedScores.length
 
-			for (let i = 0; i < scoredResults.length; i++) {
-				const scoredResult = scoredResults[i]
-				if (!scoredResult) continue
-				const { result, aggregatedScore, isTimeCapped } = scoredResult
+			for (let i = 0; i < sortedScores.length; i++) {
+				const score = sortedScores[i]
+
+				if (!score) continue
 				const rank = i + 1
 				const basePoints = calculatePoints(
 					rank,
@@ -360,18 +384,53 @@ export async function getCompetitionLeaderboard(params: {
 
 				// Find registration for this user
 				const registration = filteredRegistrations.find(
-					(r) => r.user.id === result.userId,
+					(r) => r.user.id === score.userId,
 				)
 				if (!registration) continue
 
 				const entry = leaderboardMap.get(registration.registration.id)
 				if (!entry) continue
 
-				const formattedScore = formatScore(
-					aggregatedScore,
-					trackWorkout.workout.scheme,
-					isTimeCapped,
-				)
+				// Format score using new encoding
+				const scoreType =
+					trackWorkout.workout.scoreType ||
+					getDefaultScoreType(trackWorkout.workout.scheme)
+
+				// Build Score object for formatting
+				const scoreObj: Parameters<typeof formatScore>[0] = {
+					scheme: score.scheme,
+					scoreType,
+					value: score.scoreValue ?? 0,
+					status: score.status,
+				}
+
+				// Add tiebreak if present (for any scheme that has tiebreak configured)
+				if (score.tiebreakValue !== null && score.tiebreakScheme) {
+					scoreObj.tiebreak = {
+						scheme: score.tiebreakScheme,
+						value: score.tiebreakValue,
+					}
+				}
+
+				// Add time cap if present (secondary is always reps)
+				if (score.timeCapMs && score.secondaryValue !== null) {
+					scoreObj.timeCap = {
+						ms: score.timeCapMs,
+						secondaryValue: score.secondaryValue,
+					}
+				}
+
+				const formattedScore = formatScore(scoreObj, { compact: false })
+
+				// Format tiebreak separately for display
+				let formattedTiebreak: string | null = null
+				if (score.tiebreakValue !== null && score.tiebreakScheme) {
+					formattedTiebreak = decodeScore(
+						score.tiebreakValue,
+						score.tiebreakScheme as WorkoutScheme,
+						{ compact: false },
+					)
+				}
 
 				entry.eventResults.push({
 					trackWorkoutId: trackWorkout.id,
@@ -380,8 +439,9 @@ export async function getCompetitionLeaderboard(params: {
 					scheme: trackWorkout.workout.scheme,
 					rank,
 					points,
-					rawScore: result.wodScore,
+					rawScore: String(score.scoreValue ?? ""),
 					formattedScore,
+					formattedTiebreak,
 				})
 
 				entry.totalPoints += points
@@ -403,6 +463,7 @@ export async function getCompetitionLeaderboard(params: {
 					points: 0,
 					rawScore: null,
 					formattedScore: "N/A",
+					formattedTiebreak: null,
 				})
 			}
 		}

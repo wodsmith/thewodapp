@@ -5,11 +5,7 @@ import { revalidatePath } from "next/cache"
 import { createServerAction } from "@repo/zsa"
 import { getDb } from "@/db"
 import { scalingGroupsTable, TEAM_PERMISSIONS } from "@/db/schema"
-import {
-	logDebug,
-	logError,
-	logInfo,
-} from "@/lib/logging/posthog-otel-logger"
+import { logDebug, logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	addWorkoutToTrackSchema,
 	createProgrammingTrackSchema,
@@ -68,7 +64,8 @@ export const createProgrammingTrackAction = createServerAction()
 			return { success: true, data: track }
 		} catch (error) {
 			logError({
-				message: "[createProgrammingTrackAction] Failed to create programming track",
+				message:
+					"[createProgrammingTrackAction] Failed to create programming track",
 				error,
 				attributes: { teamId, name },
 			})
@@ -110,7 +107,8 @@ export const deleteProgrammingTrackAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[deleteProgrammingTrackAction] Failed to delete programming track",
+				message:
+					"[deleteProgrammingTrackAction] Failed to delete programming track",
 				error,
 				attributes: { trackId, teamId },
 			})
@@ -193,7 +191,8 @@ export const updateProgrammingTrackAction = createServerAction()
 			return { success: true, data: track }
 		} catch (error) {
 			logError({
-				message: "[updateProgrammingTrackAction] Failed to update programming track",
+				message:
+					"[updateProgrammingTrackAction] Failed to update programming track",
 				error,
 				attributes: { trackId, teamId },
 			})
@@ -317,7 +316,8 @@ export const removeWorkoutFromTrackAction = createServerAction()
 			return { success: true }
 		} catch (error) {
 			logError({
-				message: "[removeWorkoutFromTrackAction] Failed to remove workout from track",
+				message:
+					"[removeWorkoutFromTrackAction] Failed to remove workout from track",
 				error,
 				attributes: { trackId, trackWorkoutId, teamId },
 			})
@@ -458,7 +458,8 @@ export const reorderTrackWorkoutsAction = createServerAction()
 			return { success: true, updateCount }
 		} catch (error) {
 			logError({
-				message: "[reorderTrackWorkoutsAction] Failed to reorder track workouts",
+				message:
+					"[reorderTrackWorkoutsAction] Failed to reorder track workouts",
 				error,
 				attributes: { trackId, teamId, updatesCount: updates.length },
 			})

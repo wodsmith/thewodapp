@@ -45,6 +45,22 @@ describe("encodeTime", () => {
 		expect(encodeTime("120:30")).toBe(7230000) // 120 min 30 sec
 	})
 
+	it("should encode period-delimited MM.SS.ms format", () => {
+		expect(encodeTime("2.32.123")).toBe(152123) // 2:32.123
+		expect(encodeTime("12.34.567")).toBe(754567) // 12:34.567
+		expect(encodeTime("2.30.100")).toBe(150100) // 2:30.100
+		expect(encodeTime("12.34.000")).toBe(754000) // 12:34.000
+	})
+
+	it("should encode period-delimited H.MM.SS.ms format", () => {
+		expect(encodeTime("1.02.34.567")).toBe(3754567) // 1:02:34.567
+	})
+
+	it("should handle decimal seconds (single period)", () => {
+		expect(encodeTime("45.5")).toBe(45500) // 45.5 seconds
+		expect(encodeTime("90.123")).toBe(90123) // 90.123 seconds
+	})
+
 	it("should return null for invalid input", () => {
 		expect(encodeTime("")).toBeNull()
 		expect(encodeTime("abc")).toBeNull()
@@ -66,6 +82,13 @@ describe("encodeRoundsReps", () => {
 		expect(encodeRoundsReps("5+12")).toBe(500012)
 		expect(encodeRoundsReps("10+0")).toBe(1000000)
 		expect(encodeRoundsReps("0+45")).toBe(45)
+	})
+
+	it("should encode period-delimited rounds.reps format", () => {
+		expect(encodeRoundsReps("5.12")).toBe(500012)
+		expect(encodeRoundsReps("20.1")).toBe(2000001)
+		expect(encodeRoundsReps("10.0")).toBe(1000000)
+		expect(encodeRoundsReps("0.45")).toBe(45)
 	})
 
 	it("should encode complete rounds (no +)", () => {

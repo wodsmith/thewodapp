@@ -1,9 +1,15 @@
 import "server-only"
 import { eq } from "drizzle-orm"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { getDb } from "@/db"
 import { teamTable } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
 import type Stripe from "stripe"
+
+function getAppUrl() {
+	const { env } = getCloudflareContext()
+	return env.NEXT_PUBLIC_APP_URL
+}
 
 const STRIPE_CLIENT_ID = process.env.STRIPE_CLIENT_ID
 
@@ -72,10 +78,11 @@ export async function createExpressAccountLink(
 		throw new Error("Team not found")
 	}
 
+	const appUrl = getAppUrl()
 	const accountLink = await stripe.accountLinks.create({
 		account: accountId,
-		refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/teams/${team.slug}?stripe_refresh=true`,
-		return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/teams/${team.slug}?stripe_connected=true`,
+		refresh_url: `${appUrl}/compete/organizer/settings/payouts/${team.slug}?stripe_refresh=true`,
+		return_url: `${appUrl}/compete/organizer/settings/payouts/${team.slug}?stripe_connected=true`,
 		type: "account_onboarding",
 	})
 
@@ -93,7 +100,8 @@ export function getOAuthAuthorizeUrl(teamId: string, teamSlug: string): string {
 	const state = Buffer.from(JSON.stringify({ teamId, teamSlug })).toString(
 		"base64"
 	)
-	const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`
+	const appUrl = getAppUrl()
+	const redirectUri = `${appUrl}/api/stripe/connect/callback`
 
 	const params = new URLSearchParams({
 		client_id: STRIPE_CLIENT_ID,

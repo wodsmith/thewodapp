@@ -8,6 +8,7 @@ import {
 	isLowerBetter,
 	sortScores,
 	findRank,
+	sortKeyToString,
 	type Score,
 } from "@/lib/scoring"
 
@@ -199,14 +200,14 @@ describe("compareScores", () => {
 			scoreType: "min",
 			value: null,
 			status: "cap",
-			timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 150 },
+			timeCap: { ms: 900000, secondaryValue: 150 },
 		}
 		const fewerReps: Score = {
 			scheme: "time-with-cap",
 			scoreType: "min",
 			value: null,
 			status: "cap",
-			timeCap: { ms: 900000, secondaryScheme: "reps", secondaryValue: 100 },
+			timeCap: { ms: 900000, secondaryValue: 100 },
 		}
 		expect(compareScores(moreReps, fewerReps)).toBeLessThan(0)
 	})
@@ -281,5 +282,87 @@ describe("findRank", () => {
 
 		const rank = findRank(targetScore, scores)
 		expect(rank).toBe(2) // Second place (after 510000)
+	})
+})
+
+describe("sortKeyToString", () => {
+	it("should zero-pad sortKey to 19 digits", () => {
+		const sortKey = 510000n
+		const str = sortKeyToString(sortKey)
+		expect(str).toBe("0000000000000510000")
+		expect(str.length).toBe(19)
+	})
+
+	it("should handle large sort keys", () => {
+		const sortKey = 1152921504606846975n // Status 1 << 60 + MAX_VALUE
+		const str = sortKeyToString(sortKey)
+		expect(str).toBe("1152921504606846975")
+		expect(str.length).toBe(19)
+	})
+
+	it("should maintain lexicographic ordering for time-based scores", () => {
+		// Time scheme: lower is better (asc)
+		const faster: Score = {
+			scheme: "time",
+			scoreType: "min",
+			value: 510000, // 8:30
+			status: "scored",
+		}
+		const slower: Score = {
+			scheme: "time",
+			scoreType: "min",
+			value: 720000, // 12:00
+			status: "scored",
+		}
+
+		const fasterKey = sortKeyToString(computeSortKey(faster))
+		const slowerKey = sortKeyToString(computeSortKey(slower))
+
+		// Lexicographic comparison should match numeric comparison
+		expect(fasterKey < slowerKey).toBe(true)
+	})
+
+	it("should maintain lexicographic ordering for reps-based scores", () => {
+		// Reps scheme: higher is better (desc)
+		const moreReps: Score = {
+			scheme: "reps",
+			scoreType: "max",
+			value: 150,
+			status: "scored",
+		}
+		const fewerReps: Score = {
+			scheme: "reps",
+			scoreType: "max",
+			value: 100,
+			status: "scored",
+		}
+
+		const moreKey = sortKeyToString(computeSortKey(moreReps))
+		const fewerKey = sortKeyToString(computeSortKey(fewerReps))
+
+		// Lexicographic comparison should match numeric comparison
+		// (more reps gets lower sort key = better position)
+		expect(moreKey < fewerKey).toBe(true)
+	})
+
+	it("should maintain status ordering in string form", () => {
+		const scored: Score = {
+			scheme: "time",
+			scoreType: "min",
+			value: 900000, // Slower time
+			status: "scored",
+		}
+		const capped: Score = {
+			scheme: "time",
+			scoreType: "min",
+			value: 500000, // Would be faster, but capped
+			status: "cap",
+		}
+
+		const scoredKey = sortKeyToString(computeSortKey(scored))
+		const cappedKey = sortKeyToString(computeSortKey(capped))
+
+		// Scored should always sort before capped
+		expect(scoredKey < cappedKey).toBe(true)
 	})
 })
