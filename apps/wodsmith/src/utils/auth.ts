@@ -358,7 +358,10 @@ export async function setSessionTokenCookie({
 	const cookieStore = await cookies()
 	cookieStore.set(SESSION_COOKIE_NAME, encodeSessionCookie(userId, token), {
 		httpOnly: true,
-		sameSite: isProd ? "strict" : "lax",
+		// Use "lax" instead of "strict" to allow cookies on cross-site redirects (OAuth flows)
+		// Lax still provides CSRF protection (blocks embedded form submissions from other sites)
+		// but allows cookies on top-level navigations like OAuth callbacks from Stripe/Google
+		sameSite: "lax",
 		secure: isProd,
 		expires: expiresAt,
 		path: "/",
@@ -393,7 +396,8 @@ export async function setActiveTeamCookie(teamId: string): Promise<void> {
 	const cookieStore = await cookies()
 	cookieStore.set(ACTIVE_TEAM_COOKIE_NAME, teamId, {
 		httpOnly: true,
-		sameSite: isProd ? "strict" : "lax",
+		// Use "lax" for consistency with session cookie (allows OAuth redirects)
+		sameSite: "lax",
 		secure: isProd,
 		expires: new Date(Date.now() + getSessionLength()),
 		path: "/",

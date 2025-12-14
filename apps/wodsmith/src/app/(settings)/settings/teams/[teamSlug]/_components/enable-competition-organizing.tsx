@@ -130,11 +130,19 @@ export function EnableCompetitionOrganizing({
 	const handleStandardOAuth = async () => {
 		setIsLoading("standard")
 		try {
+			console.log("[Stripe OAuth] Initiating Standard OAuth for team:", teamId)
 			const result = await initiateStandardOAuth({ teamId })
+			console.log("[Stripe OAuth] Result:", result)
 			if (result.authorizationUrl) {
+				console.log("[Stripe OAuth] Redirecting to:", result.authorizationUrl)
 				window.location.href = result.authorizationUrl
+			} else {
+				console.error("[Stripe OAuth] No authorization URL returned")
+				toast.error("Failed to get Stripe authorization URL")
+				setIsLoading(null)
 			}
 		} catch (err) {
+			console.error("[Stripe OAuth] Error:", err)
 			toast.error(err instanceof Error ? err.message : "Failed to start OAuth")
 			setIsLoading(null)
 		}

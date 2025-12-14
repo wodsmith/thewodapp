@@ -141,6 +141,16 @@ export async function initiateStandardOAuth(input: { teamId: string }) {
 			session.userId,
 			csrfState,
 		)
+
+		logInfo({
+			message: "[Stripe OAuth] Generated authorization URL",
+			attributes: {
+				teamId: team.id,
+				hasUrl: !!authorizationUrl,
+				urlLength: authorizationUrl?.length ?? 0,
+			},
+		})
+
 		return { authorizationUrl }
 	}, RATE_LIMITS.SETTINGS)
 }
