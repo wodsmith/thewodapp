@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { getDb } from "@/db"
 import { competitionGroupsTable } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
-import { getHasPendingOrganizingTeam } from "@/server/organizer-pending"
+import { isTeamPendingOrganizer } from "@/server/organizer-pending"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
 import { CompetitionHeader } from "../_components/competition-header"
 import { CompetitionSidebar } from "../_components/competition-sidebar"
@@ -47,12 +47,15 @@ export default async function CompetitionSidebarLayout({
 			]
 		: [{ label: competition.name }]
 
-	const hasPendingTeam = await getHasPendingOrganizingTeam()
+	// Check if the specific organizing team has pending status (not all teams)
+	const isOrganizerPending = await isTeamPendingOrganizer(
+		competition.organizingTeamId,
+	)
 
 	return (
 		<div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] overflow-x-hidden">
 			<CompetitionSidebar competitionId={competition.id}>
-				{hasPendingTeam && <PendingOrganizerBanner variant="sidebar-inset" />}
+				{isOrganizerPending && <PendingOrganizerBanner variant="sidebar-inset" />}
 				<div className="flex flex-1 flex-col gap-6 p-6">
 					{/* Breadcrumb */}
 					<OrganizerBreadcrumb segments={breadcrumbSegments} />

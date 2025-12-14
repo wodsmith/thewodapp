@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
+import { useServerAction } from "@repo/zsa-react"
 import {
 	Select,
 	SelectContent,
@@ -8,6 +9,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { setActiveTeamAction } from "@/actions/team-actions"
 import type { OrganizingTeam } from "@/utils/get-user-organizing-teams"
 
 interface TeamFilterProps {
@@ -18,8 +20,13 @@ interface TeamFilterProps {
 export function TeamFilter({ teams, selectedTeamId }: TeamFilterProps) {
 	const router = useRouter()
 	const searchParams = useSearchParams()
+	const { execute: setActiveTeam } = useServerAction(setActiveTeamAction)
 
-	const handleTeamChange = (teamId: string) => {
+	const handleTeamChange = async (teamId: string) => {
+		// Set the active team in session cookie so downstream components
+		// (like competition pages) use the correct team context for payouts, limits, etc.
+		await setActiveTeam({ teamId })
+
 		const params = new URLSearchParams(searchParams.toString())
 		params.set("teamId", teamId)
 		// Reset group filter when changing teams
