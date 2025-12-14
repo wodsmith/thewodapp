@@ -4,8 +4,8 @@ import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { getHasPendingOrganizingTeam } from "@/server/organizer-pending"
-import { getSessionFromCookie } from "@/utils/auth"
+import { isTeamPendingOrganizer } from "@/server/organizer-pending"
+import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { PendingOrganizerBanner } from "./_components/pending-organizer-banner"
 
@@ -52,9 +52,25 @@ export default async function OrganizerLayout({
 		)
 	}
 
+	// Determine active team ID using same logic as page.tsx
+	// Priority: active team cookie (if valid organizing team) > first organizing team
+	const activeTeamFromCookie = await getActiveTeamFromCookie()
+	let activeTeamId: string | undefined
+	if (
+		activeTeamFromCookie &&
+		organizingTeams.some((t) => t.id === activeTeamFromCookie)
+	) {
+		activeTeamId = activeTeamFromCookie
+	} else if (organizingTeams.length > 0) {
+		activeTeamId = organizingTeams[0]?.id
+	}
+
 	// Banner is rendered in sidebar-inset for competition routes to respect sidebar.
 	// Only show banner in parent layout for specific non-competition routes.
-	const hasPendingTeam = await getHasPendingOrganizingTeam()
+	// Check if the ACTIVE team is pending (not any team the user has access to)
+	const hasPendingTeam = activeTeamId
+		? await isTeamPendingOrganizer(activeTeamId)
+		: false
 	const showBannerInLayout =
 		pathname === "/compete/organizer" ||
 		pathname.startsWith("/compete/organizer/onboard") ||
