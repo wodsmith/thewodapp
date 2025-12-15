@@ -14,10 +14,15 @@ import {
 	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
-import { GripVertical, Trash2, Users } from "lucide-react"
+import { ChevronDown, GripVertical, Trash2, Users } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -62,6 +67,7 @@ export function OrganizerDivisionItem({
 	const [localLabel, setLocalLabel] = useState(label)
 	const labelRef = useRef(label)
 	const [localDescription, setLocalDescription] = useState(description ?? "")
+	const [isExpanded, setIsExpanded] = useState(false)
 
 	// Sync local state when prop changes (e.g., after server update)
 	useEffect(() => {
@@ -182,77 +188,93 @@ export function OrganizerDivisionItem({
 	return (
 		<div ref={ref} className="relative">
 			{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
-			<div
-				className={`border rounded-lg bg-background ${isDragging ? "opacity-50" : ""}`}
-			>
-				<div className="flex items-center gap-2 p-3">
-					<button
-						ref={dragHandleRef}
-						type="button"
-						className="cursor-grab active:cursor-grabbing"
-						aria-label="Drag to reorder"
-					>
-						<GripVertical className="h-4 w-4 text-muted-foreground" />
-					</button>
-					<span className="text-sm font-mono text-muted-foreground w-8">
-						#{index + 1}
-					</span>
-					<Input
-						value={localLabel}
-						onChange={(e) => setLocalLabel(e.target.value)}
-						onBlur={() => {
-							if (localLabel !== label) {
-								onLabelSave(localLabel)
-							}
-						}}
-						placeholder="Enter division name"
-						className="flex-1"
-					/>
-					<Badge variant="secondary" className="flex items-center gap-1">
-						<Users className="h-3 w-3" />
-						{registrationCount}
-					</Badge>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span>
-									<Button
-										type="button"
-										size="sm"
-										variant="ghost"
-										onClick={onRemove}
-										disabled={!canDelete}
-									>
-										<Trash2 className="h-4 w-4" />
-									</Button>
-								</span>
-							</TooltipTrigger>
-							{!canDelete && (
-								<TooltipContent>
-									{isOnly
-										? "Competition must have at least one division"
-										: `Cannot delete: ${registrationCount} athlete${registrationCount > 1 ? "s" : ""} registered`}
-								</TooltipContent>
-							)}
-						</Tooltip>
-					</TooltipProvider>
+			<Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+				<div
+					className={`border rounded-lg bg-background ${isDragging ? "opacity-50" : ""}`}
+				>
+					<div className="flex items-center gap-2 p-3">
+						<button
+							ref={dragHandleRef}
+							type="button"
+							className="cursor-grab active:cursor-grabbing"
+							aria-label="Drag to reorder"
+						>
+							<GripVertical className="h-4 w-4 text-muted-foreground" />
+						</button>
+						<span className="text-sm font-mono text-muted-foreground w-8">
+							#{index + 1}
+						</span>
+						<Input
+							value={localLabel}
+							onChange={(e) => setLocalLabel(e.target.value)}
+							onBlur={() => {
+								if (localLabel !== label) {
+									onLabelSave(localLabel)
+								}
+							}}
+							placeholder="Enter division name"
+							className="flex-1"
+						/>
+						<Badge variant="secondary" className="flex items-center gap-1">
+							<Users className="h-3 w-3" />
+							{registrationCount}
+						</Badge>
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span>
+										<Button
+											type="button"
+											size="sm"
+											variant="ghost"
+											onClick={onRemove}
+											disabled={!canDelete}
+										>
+											<Trash2 className="h-4 w-4" />
+										</Button>
+									</span>
+								</TooltipTrigger>
+								{!canDelete && (
+									<TooltipContent>
+										{isOnly
+											? "Competition must have at least one division"
+											: `Cannot delete: ${registrationCount} athlete${registrationCount > 1 ? "s" : ""} registered`}
+									</TooltipContent>
+								)}
+							</Tooltip>
+						</TooltipProvider>
+						<CollapsibleTrigger asChild>
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								aria-label={isExpanded ? "Collapse division details" : "Expand division details"}
+							>
+								<ChevronDown
+									className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+								/>
+							</Button>
+						</CollapsibleTrigger>
+					</div>
+					<CollapsibleContent>
+						<div className="px-3 pb-3 pl-14">
+							<Textarea
+								value={localDescription}
+								onChange={(e) => setLocalDescription(e.target.value)}
+								onBlur={() => {
+									const newDesc = localDescription.trim() || null
+									if (newDesc !== description) {
+										onDescriptionSave(newDesc)
+									}
+								}}
+								placeholder="Description (optional) - Describe who this division is for"
+								className="text-sm"
+								rows={2}
+							/>
+						</div>
+					</CollapsibleContent>
 				</div>
-				<div className="px-3 pb-3 pl-14">
-					<Textarea
-						value={localDescription}
-						onChange={(e) => setLocalDescription(e.target.value)}
-						onBlur={() => {
-							const newDesc = localDescription.trim() || null
-							if (newDesc !== description) {
-								onDescriptionSave(newDesc)
-							}
-						}}
-						placeholder="Description (optional) - Describe who this division is for"
-						className="text-sm"
-						rows={2}
-					/>
-				</div>
-			</div>
+			</Collapsible>
 		</div>
 	)
 }
