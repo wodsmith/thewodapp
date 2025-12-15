@@ -4,10 +4,8 @@ import Link from "next/link"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { isTeamPendingOrganizer } from "@/server/organizer-pending"
-import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
+import { getSessionFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
-import { PendingOrganizerBanner } from "./_components/pending-organizer-banner"
 
 export const metadata: Metadata = {
   title: "Organizer Dashboard - Compete",
@@ -52,42 +50,8 @@ export default async function OrganizerLayout({
     )
   }
 
-  // Determine active team ID using same logic as page.tsx
-  // Priority: active team cookie (if valid organizing team) > first organizing team
-  const activeTeamFromCookie = await getActiveTeamFromCookie()
-  let activeTeamId: string | undefined
-  if (
-    activeTeamFromCookie &&
-    organizingTeams.some((t) => t.id === activeTeamFromCookie)
-  ) {
-    activeTeamId = activeTeamFromCookie
-  } else if (organizingTeams.length > 0) {
-    activeTeamId = organizingTeams[0]?.id
-  }
-
-  // Banner is rendered in sidebar-inset for competition routes to respect sidebar.
-  // Only show banner in parent layout for specific non-competition routes.
-  // Check if the ACTIVE team is pending (not any team the user has access to)
-  const hasPendingTeam = activeTeamId
-    ? await isTeamPendingOrganizer(activeTeamId)
-    : false
-  const showBannerInLayout =
-    pathname === "/compete/organizer" ||
-    pathname === "/compete/organizer/onboard" ||
-    pathname.startsWith("/compete/organizer/onboard/") ||
-    pathname === "/compete/organizer/series" ||
-    pathname.startsWith("/compete/organizer/series/") ||
-    pathname === "/compete/organizer/new" ||
-    pathname.startsWith("/compete/organizer/new/") ||
-    pathname === "/compete/organizer/settings" ||
-    pathname.startsWith("/compete/organizer/settings/")
-
-  return (
-    <>
-      {hasPendingTeam && showBannerInLayout && (
-        <PendingOrganizerBanner variant="page-container" />
-      )}
-      {children}
-    </>
-  )
+  // Note: PendingOrganizerBanner is rendered by child layouts/pages that need it:
+  // - Competition pages: [competitionId]/(with-sidebar)/layout.tsx
+  // - Other pages render it directly in their page components
+  return <>{children}</>
 }
