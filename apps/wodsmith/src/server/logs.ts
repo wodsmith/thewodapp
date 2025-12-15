@@ -670,13 +670,16 @@ export async function getLogsByUser(
 			attributes: { userId, count: logs.length },
 		})
 		// Decode scoreValue to formatted string for display
+		// Include units for load/distance schemes so users see "225 lbs" not just "225"
 		return logs.map((log) => {
 			let displayScore: string | undefined
 			if (log.scheme) {
 				if (log.status === "cap" && log.scheme === "time-with-cap") {
 					const timeStr =
 						log.scoreValue !== null
-							? decodeScore(log.scoreValue, log.scheme as WorkoutScheme)
+							? decodeScore(log.scoreValue, log.scheme as WorkoutScheme, {
+									includeUnit: true,
+								})
 							: ""
 					displayScore =
 						log.secondaryValue !== null
@@ -688,6 +691,7 @@ export async function getLogsByUser(
 					displayScore = decodeScore(
 						log.scoreValue,
 						log.scheme as WorkoutScheme,
+						{ includeUnit: true },
 					)
 				}
 			}

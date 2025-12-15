@@ -657,9 +657,12 @@ export async function getWorkoutResultsWithScaling({
 		})
 		return workoutResultsData.map((result) => {
 			// Decode scoreValue to display string
+			// Include units for load/distance schemes so users see "225 lbs" not just "225"
 			let displayScore: string | undefined
 			if (result.scoreValue !== null && result.scheme) {
-				displayScore = decodeScore(result.scoreValue, result.scheme)
+				displayScore = decodeScore(result.scoreValue, result.scheme, {
+					includeUnit: true,
+				})
 			}
 			return {
 				...result,

@@ -198,12 +198,13 @@ async function fetchTodaysScoresByWorkoutId(
 			}
 
 			// Decode the score value to display string
+			// Include units for load/distance schemes so users see "225 lbs" not just "225"
 			let displayScore: string | undefined
 			if (score.scheme) {
 				if (score.status === "cap" && score.scheme === "time-with-cap") {
 					const timeStr =
 						score.scoreValue !== null
-							? decodeScore(score.scoreValue, score.scheme)
+							? decodeScore(score.scoreValue, score.scheme, { includeUnit: true })
 							: ""
 					displayScore =
 						score.secondaryValue !== null && score.secondaryValue !== undefined
@@ -212,7 +213,9 @@ async function fetchTodaysScoresByWorkoutId(
 				} else if (score.status === "withdrawn") {
 					displayScore = "WITHDRAWN"
 				} else if (score.scoreValue !== null) {
-					displayScore = decodeScore(score.scoreValue, score.scheme)
+					displayScore = decodeScore(score.scoreValue, score.scheme, {
+						includeUnit: true,
+					})
 				}
 			}
 

@@ -19,7 +19,8 @@ export function SetDetails({
 			<ul className="list-none space-y-1">
 				{sets.map((set) => {
 					const scheme = (set.schemeOverride || workoutScheme) as WorkoutScheme
-					const valueStr = decodeScore(set.value, scheme)
+					// Include units for load/distance schemes so users see "225 lbs" not just "225"
+					const valueStr = decodeScore(set.value, scheme, { includeUnit: true })
 
 					const parts: string[] = []
 
