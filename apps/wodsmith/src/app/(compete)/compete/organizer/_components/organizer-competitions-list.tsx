@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { toast } from "sonner"
 import { useServerAction } from "@repo/zsa-react"
 import {
@@ -25,13 +25,11 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
 } from "@/components/ui/card"
 import {
 	DropdownMenu,
@@ -58,6 +56,8 @@ interface OrganizerCompetitionsListProps {
 	currentGroupId?: string
 }
 
+type StatusFilter = "all" | "current" | "past"
+
 export function OrganizerCompetitionsList({
 	competitions,
 	groups,
@@ -69,6 +69,7 @@ export function OrganizerCompetitionsList({
 	const [deleteCompetitionId, setDeleteCompetitionId] = useState<string | null>(
 		null,
 	)
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
 
 	const { execute: deleteCompetition, isPending: isDeleting } = useServerAction(
 		deleteCompetitionAction,
@@ -98,32 +99,80 @@ export function OrganizerCompetitionsList({
 		router.push(`/compete/organizer?${params.toString()}`)
 	}
 
+	// Filter and sort competitions
+	const filteredAndSortedCompetitions = useMemo(() => {
+		const isCurrentCompetition = (endDate: Date) => {
+			const today = new Date()
+			today.setHours(0, 0, 0, 0)
+			const normalizedEndDate = new Date(endDate)
+			normalizedEndDate.setHours(0, 0, 0, 0)
+			return normalizedEndDate >= today
+		}
+
+		let filtered = [...competitions]
+
+		// Apply status filter
+		if (statusFilter === "current") {
+			filtered = filtered.filter((c) => isCurrentCompetition(c.endDate))
+		} else if (statusFilter === "past") {
+			filtered = filtered.filter((c) => !isCurrentCompetition(c.endDate))
+		}
+
+		// Sort by createdAt descending (most recent first)
+		filtered.sort(
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+		)
+
+		return filtered
+	}, [competitions, statusFilter])
+
 	return (
 		<>
-			<div className="flex flex-col gap-4">
-				{/* Group filter */}
-				{groups.length > 0 && (
-					<div className="flex items-center gap-2">
-						<Filter className="h-4 w-4 text-muted-foreground" />
-						<Select
-							value={currentGroupId || "all"}
-							onValueChange={handleGroupFilter}
-						>
-							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="Filter by series" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Competitions</SelectItem>
-								{groups.map((group) => (
-									<SelectItem key={group.id} value={group.id}>
-										{group.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+			<div className="flex flex-col gap-6">
+				{/* Filters section */}
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					{/* Status filter tabs */}
+					<div className="flex gap-2">
+						{(["all", "current", "past"] as const).map((filter) => (
+							<Button
+								key={filter}
+								variant={statusFilter === filter ? "default" : "outline"}
+								size="sm"
+								onClick={() => setStatusFilter(filter)}
+								className="capitalize"
+							>
+								{filter === "all" && "All"}
+								{filter === "current" && "Current"}
+								{filter === "past" && "Past"}
+							</Button>
+						))}
 					</div>
-				)}
 
+					{/* Series filter */}
+					{groups.length > 0 && (
+						<div className="flex items-center gap-2">
+							<Filter className="h-4 w-4 text-muted-foreground" />
+							<Select
+								value={currentGroupId || "all"}
+								onValueChange={handleGroupFilter}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="Filter by series" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Competitions</SelectItem>
+									{groups.map((group) => (
+										<SelectItem key={group.id} value={group.id}>
+											{group.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
+				</div>
+
+				{/* Empty state */}
 				{competitions.length === 0 && (
 					<Card>
 						<CardContent className="pt-6">
@@ -147,42 +196,58 @@ export function OrganizerCompetitionsList({
 					</Card>
 				)}
 
-				{competitions.length > 0 && (
-					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-						{competitions.map((competition) => (
-							<Card
-								key={competition.id}
-								className="hover:bg-accent/50 transition-colors"
-							>
-								<CardHeader>
-									<div className="flex items-start justify-between">
-										<div className="flex-1 min-w-0">
+				{/* Linear list of competitions */}
+				{filteredAndSortedCompetitions.length > 0 && (
+					<div className="space-y-2">
+						{filteredAndSortedCompetitions.map((competition) => {
+							const seriesName = groups.find((g) => g.id === competition.groupId)
+								?.name
+							const isCurrent = (() => {
+								const today = new Date()
+								today.setHours(0, 0, 0, 0)
+								const normalizedEndDate = new Date(competition.endDate)
+								normalizedEndDate.setHours(0, 0, 0, 0)
+								return normalizedEndDate >= today
+							})()
+
+							return (
+								<div
+									key={competition.id}
+									className="group flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 hover:bg-accent transition-colors"
+								>
+									<div className="flex-1 min-w-0">
+										<div className="flex flex-col gap-1">
 											<Link href={`/compete/organizer/${competition.id}`}>
-												<CardTitle className="truncate hover:underline">
+												<h3 className="font-medium text-sm text-foreground hover:underline truncate">
 													{competition.name}
-												</CardTitle>
+												</h3>
 											</Link>
-											<CardDescription className="mt-1 flex items-center gap-1">
-												<Calendar className="h-3 w-3" />
-												<span>
-													{formatUTCDateFull(competition.startDate)} -{" "}
-													{formatUTCDateFull(competition.endDate)}
-												</span>
-											</CardDescription>
-											{competition.groupId && (
-												<CardDescription className="mt-1">
-													Series:{" "}
-													{groups.find((g) => g.id === competition.groupId)
-														?.name || "Unknown"}
-												</CardDescription>
-											)}
+											<div className="flex flex-wrap items-center gap-2">
+												<div className="flex items-center gap-1 text-xs text-muted-foreground">
+													<Calendar className="h-3 w-3" />
+													<span>
+														{formatUTCDateFull(competition.startDate)} -{" "}
+														{formatUTCDateFull(competition.endDate)}
+													</span>
+												</div>
+												{seriesName && (
+													<Badge variant="secondary" className="text-xs">
+														{seriesName}
+													</Badge>
+												)}
+											</div>
 										</div>
+									</div>
+
+									{/* Actions dropdown */}
+									<div className="ml-4 flex-shrink-0">
 										<DropdownMenu>
-											<DropdownMenuTrigger
-												asChild
-												onClick={(e) => e.preventDefault()}
-											>
-												<Button variant="ghost" size="sm">
+											<DropdownMenuTrigger asChild>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="opacity-0 group-hover:opacity-100 transition-opacity"
+												>
 													<MoreHorizontal className="h-4 w-4" />
 												</Button>
 											</DropdownMenuTrigger>
@@ -219,16 +284,20 @@ export function OrganizerCompetitionsList({
 											</DropdownMenuContent>
 										</DropdownMenu>
 									</div>
-								</CardHeader>
-								{competition.description && (
-									<CardContent>
-										<p className="text-sm text-muted-foreground line-clamp-2">
-											{competition.description}
-										</p>
-									</CardContent>
-								)}
-							</Card>
-						))}
+								</div>
+							)
+						})}
+					</div>
+				)}
+
+				{/* No results for filter state */}
+				{competitions.length > 0 && filteredAndSortedCompetitions.length === 0 && (
+					<div className="text-center py-8">
+						<Trophy className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+						<p className="text-sm text-muted-foreground">
+							No {statusFilter === "current" ? "current" : statusFilter === "past" ? "past" : ""}{" "}
+							competitions found
+						</p>
 					</div>
 				)}
 			</div>

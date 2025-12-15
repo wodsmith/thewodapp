@@ -172,7 +172,7 @@ export function parseScore(
 
 /**
  * Parse a tie-break score based on the tie-break scheme.
- * 
+ *
  * For time-based tiebreaks, plain numbers without delimiters are treated as seconds.
  * For example, "90" → "1:30" (90 seconds = 1 minute 30 seconds).
  */

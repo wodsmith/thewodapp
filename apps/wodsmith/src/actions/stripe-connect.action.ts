@@ -1,21 +1,26 @@
 "use server"
 
 import { eq } from "drizzle-orm"
+import ms from "ms"
+import { cookies } from "next/headers"
+import { STRIPE_OAUTH_STATE_COOKIE_NAME } from "@/constants"
 import { getDb } from "@/db"
-import { teamTable, TEAM_PERMISSIONS } from "@/db/schema"
-import { requireVerifiedEmail } from "@/utils/auth"
-import { requireTeamPermission, requireTeamMembership } from "@/utils/team-auth"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
+	type AccountBalance,
 	createExpressAccount,
 	createExpressAccountLink,
-	getOAuthAuthorizeUrl,
-	syncAccountStatus,
 	disconnectAccount,
-	getStripeDashboardLink,
 	getAccountBalance,
-	type AccountBalance,
+	getOAuthAuthorizeUrl,
+	getStripeDashboardLink,
+	syncAccountStatus,
 } from "@/server/stripe-connect"
-import { withRateLimit, RATE_LIMITS } from "@/utils/with-rate-limit"
+import { requireVerifiedEmail } from "@/utils/auth"
+import isProd from "@/utils/is-prod"
+import { requireTeamMembership, requireTeamPermission } from "@/utils/team-auth"
+import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 
 /**
  * Start Express account onboarding
@@ -26,7 +31,10 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
@@ -48,7 +56,7 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 		if (team.stripeConnectedAccountId) {
 			const link = await createExpressAccountLink(
 				team.stripeConnectedAccountId,
-				team.id
+				team.id,
 			)
 			return { onboardingUrl: link.url }
 		}
@@ -57,7 +65,7 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 		const result = await createExpressAccount(
 			team.id,
 			session.user.email ?? "",
-			team.name
+			team.name,
 		)
 
 		return { onboardingUrl: result.onboardingUrl }
@@ -65,15 +73,34 @@ export async function initiateExpressOnboarding(input: { teamId: string }) {
 }
 
 /**
+ * Generate a random state token for CSRF protection
+ */
+function generateOAuthState(): string {
+	const array = new Uint8Array(32)
+	crypto.getRandomValues(array)
+	return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	)
+}
+
+/**
  * Start Standard account OAuth flow
  * Returns OAuth authorization URL
+ *
+ * Security: Stores a CSRF state token in a cookie and includes userId in the
+ * state parameter. The callback validates both to prevent:
+ * 1. CSRF attacks (state token must match cookie)
+ * 2. Unauthorized team modifications (userId must match session)
  */
 export async function initiateStandardOAuth(input: { teamId: string }) {
 	return withRateLimit(async () => {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
@@ -85,7 +112,45 @@ export async function initiateStandardOAuth(input: { teamId: string }) {
 			throw new Error("Team not found")
 		}
 
-		const authorizationUrl = getOAuthAuthorizeUrl(team.id, team.slug)
+		// Generate CSRF state token
+		const csrfState = generateOAuthState()
+
+		// Store CSRF state in a cookie for validation on callback
+		const cookieStore = await cookies()
+		cookieStore.set(STRIPE_OAUTH_STATE_COOKIE_NAME, csrfState, {
+			path: "/",
+			httpOnly: true,
+			secure: isProd,
+			maxAge: Math.floor(ms("10 minutes") / 1000),
+			sameSite: "lax", // Must be "lax" for OAuth redirects to work
+		})
+
+		logInfo({
+			message: "[Stripe OAuth] Initiating Standard OAuth flow",
+			attributes: {
+				teamId: team.id,
+				teamSlug: team.slug,
+				userId: session.userId,
+			},
+		})
+
+		// Include userId in state for authorization validation on callback
+		const authorizationUrl = getOAuthAuthorizeUrl(
+			team.id,
+			team.slug,
+			session.userId,
+			csrfState,
+		)
+
+		logInfo({
+			message: "[Stripe OAuth] Generated authorization URL",
+			attributes: {
+				teamId: team.id,
+				hasUrl: !!authorizationUrl,
+				urlLength: authorizationUrl?.length ?? 0,
+			},
+		})
+
 		return { authorizationUrl }
 	}, RATE_LIMITS.SETTINGS)
 }
@@ -98,7 +163,10 @@ export async function refreshOnboardingLink(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		const db = getDb()
 		const team = await db.query.teamTable.findFirst({
@@ -120,7 +188,7 @@ export async function refreshOnboardingLink(input: { teamId: string }) {
 
 		const link = await createExpressAccountLink(
 			team.stripeConnectedAccountId,
-			team.id
+			team.id,
 		)
 
 		return { onboardingUrl: link.url }
@@ -151,7 +219,10 @@ export async function getStripeConnectionStatus(input: { teamId: string }) {
 		}
 
 		// If pending, sync status from Stripe
-		if (team.stripeConnectedAccountId && team.stripeAccountStatus === "PENDING") {
+		if (
+			team.stripeConnectedAccountId &&
+			team.stripeAccountStatus === "PENDING"
+		) {
 			await syncAccountStatus(input.teamId)
 			// Re-fetch after sync
 			const updated = await db.query.teamTable.findFirst({
@@ -225,7 +296,10 @@ export async function disconnectStripeAccount(input: { teamId: string }) {
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
-		await requireTeamPermission(input.teamId, TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS)
+		await requireTeamPermission(
+			input.teamId,
+			TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		)
 
 		await disconnectAccount(input.teamId)
 

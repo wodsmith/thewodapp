@@ -35,11 +35,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import {
-	SCORE_TYPES,
-	TIEBREAK_SCHEMES,
-	WORKOUT_SCHEMES,
-} from "@/constants"
+import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
 import type { Movement, Sponsor } from "@/db/schema"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import {

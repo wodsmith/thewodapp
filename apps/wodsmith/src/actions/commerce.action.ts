@@ -1,6 +1,7 @@
 "use server"
 
 import { and, eq } from "drizzle-orm"
+import { getCloudflareContext } from "@opennextjs/cloudflare"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
@@ -138,7 +139,7 @@ export async function initiateRegistrationPayment(
 			if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
 				throw new Error(
 					"This competition is temporarily unable to accept paid registrations. " +
-						"Please contact the organizer."
+						"Please contact the organizer.",
 				)
 			}
 		}
@@ -160,6 +161,17 @@ export async function initiateRegistrationPayment(
 				.update(competitionRegistrationsTable)
 				.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
 				.where(eq(competitionRegistrationsTable.id, result.registrationId))
+
+			// Send registration confirmation email for free registration
+			const { notifyRegistrationConfirmed } = await import(
+				"@/server/notifications"
+			)
+			await notifyRegistrationConfirmed({
+				userId,
+				registrationId: result.registrationId,
+				competitionId: input.competitionId,
+				isPaid: false,
+			})
 
 			return {
 				purchaseId: null,
@@ -247,7 +259,8 @@ export async function initiateRegistrationPayment(
 		})
 
 		// 11. Create Stripe Checkout Session
-		const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+		const { env } = getCloudflareContext()
+		const appUrl = env.NEXT_PUBLIC_APP_URL
 		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",
 			payment_method_types: ["card"],

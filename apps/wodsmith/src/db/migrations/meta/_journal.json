@@ -386,6 +386,34 @@
       "when": 1765411794589,
       "tag": "0054_create_scores_table",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1765408465245,
+      "tag": "0055_add-organizer-requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1765408892523,
+      "tag": "0056_add-competition-status",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1765408465245,
+      "tag": "0055_add-organizer-requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1765408892523,
+      "tag": "0056_add-competition-status",
+      "breakpoints": true
     }
   ]
 }

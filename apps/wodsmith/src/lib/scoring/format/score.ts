@@ -60,9 +60,7 @@ function formatSpecialStatus(
 			// For capped results, show the secondary score (always reps)
 			if (score.timeCap?.secondaryValue !== undefined) {
 				const repsFormatted = `${score.timeCap.secondaryValue} reps`
-				return showStatus
-					? `${statusPrefix} (${repsFormatted})`
-					: repsFormatted
+				return showStatus ? `${statusPrefix} (${repsFormatted})` : repsFormatted
 			}
 			return statusPrefix || "CAP"
 		}

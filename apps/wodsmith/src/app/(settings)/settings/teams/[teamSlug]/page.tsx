@@ -18,7 +18,8 @@ import {
 import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
-import { hasFeature } from "@/server/entitlements"
+import { getTeamLimit, hasFeature } from "@/server/entitlements"
+import { LIMITS } from "@/config/limits"
 import { getAccountBalance, type AccountBalance } from "@/server/stripe-connect"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -121,11 +122,25 @@ export default async function TeamDashboardPage({
 		TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 	)
 
-	// Check if competition organizing is enabled
+	// Check if competition organizing is enabled and organizer status
 	const hasCompetitionOrganizing = await hasFeature(
 		team.id,
 		FEATURES.HOST_COMPETITIONS,
 	)
+	const publishLimit = await getTeamLimit(
+		team.id,
+		LIMITS.MAX_PUBLISHED_COMPETITIONS,
+	)
+
+	// Determine organizer status based on feature and limit
+	let organizerStatus: "not_applied" | "pending" | "approved" = "not_applied"
+	if (hasCompetitionOrganizing) {
+		if (publishLimit === 0) {
+			organizerStatus = "pending"
+		} else if (publishLimit === -1 || publishLimit > 0) {
+			organizerStatus = "approved"
+		}
+	}
 
 	// Fetch Stripe balance if connected
 	let stripeBalance: AccountBalance | null = null
@@ -344,6 +359,7 @@ export default async function TeamDashboardPage({
 							teamId={team.id}
 							teamSlug={team.slug}
 							isEnabled={hasCompetitionOrganizing}
+							organizerStatus={organizerStatus}
 							stripeAccountStatus={team.stripeAccountStatus}
 							stripeAccountType={team.stripeAccountType}
 							stripeOnboardingCompletedAt={team.stripeOnboardingCompletedAt}

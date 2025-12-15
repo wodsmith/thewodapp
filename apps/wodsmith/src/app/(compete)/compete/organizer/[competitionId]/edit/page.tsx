@@ -1,6 +1,8 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { LIMITS } from "@/config/limits"
+import { getTeamLimit } from "@/server/entitlements"
 import { getCompetition, getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
@@ -42,11 +44,18 @@ export default async function EditCompetitionPage({
 		notFound()
 	}
 
-	// Fetch groups and scaling groups for the organizing team
-	const [groups, scalingGroups] = await Promise.all([
+	// Fetch groups, scaling groups, and check pending status for the organizing team
+	const [groups, scalingGroups, publishLimit] = await Promise.all([
 		getCompetitionGroups(competition.organizingTeamId),
 		listScalingGroups({ teamId: competition.organizingTeamId }),
+		getTeamLimit(
+			competition.organizingTeamId,
+			LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		),
 	])
+
+	// Team is pending approval if they have the feature but limit is 0
+	const isPendingApproval = publishLimit === 0
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -73,6 +82,7 @@ export default async function EditCompetitionPage({
 					competition={competition}
 					groups={groups}
 					scalingGroups={scalingGroups}
+					isPendingApproval={isPendingApproval}
 				/>
 			</div>
 		</div>

@@ -2,6 +2,7 @@ export {
 	createExpressAccount,
 	createExpressAccountLink,
 	getOAuthAuthorizeUrl,
+	parseOAuthState,
 	handleOAuthCallback,
 	getAccountStatus,
 	syncAccountStatus,
@@ -11,4 +12,5 @@ export {
 	getAccountBalance,
 	type AccountBalance,
 	type BalanceAmount,
+	type StripeOAuthState,
 } from "./accounts"

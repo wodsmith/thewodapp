@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
 			case "account.application.deauthorized":
 				await handleAccountDeauthorized(
-					event.data.object as { id: string; account?: string }
+					event.data.object as { id: string; account?: string },
 				)
 				break
 
@@ -242,7 +242,32 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 			},
 		})
 
-		// TODO: Send confirmation email
+		// Send registration confirmation email (paid path)
+		// Wrapped in separate try-catch so email failures don't affect purchase status
+		try {
+			const { notifyRegistrationConfirmed } = await import(
+				"@/server/notifications"
+			)
+			await notifyRegistrationConfirmed({
+				userId,
+				registrationId: result.registrationId,
+				competitionId,
+				isPaid: true,
+				amountPaidCents: session.amount_total ?? undefined,
+			})
+		} catch (emailErr) {
+			logError({
+				message: "[Stripe Webhook] Failed to send confirmation email",
+				error: emailErr,
+				attributes: {
+					purchaseId,
+					competitionId,
+					userId,
+					registrationId: result.registrationId,
+				},
+			})
+			// Don't rethrow - registration and payment succeeded
+		}
 	} catch (err) {
 		logError({
 			message: "[Stripe Webhook] Failed to create registration",
@@ -283,6 +308,20 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
 		message: "[Stripe Webhook] Checkout expired for purchase",
 		attributes: { purchaseId },
 	})
+
+	// Send payment expired notification if we have the required metadata
+	const userId = session.metadata?.userId
+	const competitionId = session.metadata?.competitionId
+	const divisionId = session.metadata?.divisionId
+
+	if (userId && competitionId && divisionId) {
+		const { notifyPaymentExpired } = await import("@/server/notifications")
+		await notifyPaymentExpired({
+			userId,
+			competitionId,
+			divisionId,
+		})
+	}
 }
 
 /**
@@ -316,10 +355,7 @@ async function handleAccountUpdated(account: Stripe.Account) {
 		updateData.stripeOnboardingCompletedAt = new Date()
 	}
 
-	await db
-		.update(teamTable)
-		.set(updateData)
-		.where(eq(teamTable.id, team.id))
+	await db.update(teamTable).set(updateData).where(eq(teamTable.id, team.id))
 
 	logInfo({
 		message: "[Stripe Webhook] Updated team Stripe status",

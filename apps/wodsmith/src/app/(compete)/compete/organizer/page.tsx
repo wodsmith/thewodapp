@@ -1,7 +1,7 @@
 import "server-only"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Plus } from "lucide-react"
+import { CreditCard, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups, getCompetitions } from "@/server/competitions"
 import { getActiveTeamFromCookie } from "@/utils/auth"
@@ -46,16 +46,25 @@ export default async function OrganizerDashboard({
 		return null
 	}
 
+	// Get the active team's slug for the payout settings link
+	const activeTeam = organizingTeams.find((t) => t.id === activeTeamId)
+	const activeTeamSlug = activeTeam?.slug
+
 	// Fetch competitions for the active team
 	const [allCompetitions, groups] = await Promise.all([
 		getCompetitions(activeTeamId),
 		getCompetitionGroups(activeTeamId),
 	])
 
+	// Sort by createdAt DESC (newest first)
+	const sortedCompetitions = [...allCompetitions].sort(
+		(a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+	)
+
 	// Filter by group if provided
 	const competitions = groupId
-		? allCompetitions.filter((c) => c.groupId === groupId)
-		: allCompetitions
+		? sortedCompetitions.filter((c) => c.groupId === groupId)
+		: sortedCompetitions
 
 	return (
 		<div className="container mx-auto px-4 py-8">
@@ -69,6 +78,16 @@ export default async function OrganizerDashboard({
 						</p>
 					</div>
 					<div className="flex flex-col sm:flex-row gap-2">
+						{activeTeamSlug && (
+							<Link
+								href={`/compete/organizer/settings/payouts/${activeTeamSlug}`}
+							>
+								<Button variant="outline" className="w-full sm:w-auto">
+									<CreditCard className="h-4 w-4 mr-2" />
+									Payout Settings
+								</Button>
+							</Link>
+						)}
 						<Link href="/compete/organizer/series">
 							<Button variant="outline" className="w-full sm:w-auto">
 								Manage Series

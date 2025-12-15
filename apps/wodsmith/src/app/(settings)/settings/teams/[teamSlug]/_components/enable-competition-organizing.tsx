@@ -51,6 +51,7 @@ interface EnableCompetitionOrganizingProps {
 	teamId: string
 	teamSlug: string
 	isEnabled: boolean
+	organizerStatus: "not_applied" | "pending" | "approved"
 	stripeAccountStatus: string | null
 	stripeAccountType: string | null
 	stripeOnboardingCompletedAt: Date | null
@@ -71,6 +72,7 @@ export function EnableCompetitionOrganizing({
 	teamId,
 	teamSlug,
 	isEnabled,
+	organizerStatus,
 	stripeAccountStatus,
 	stripeAccountType,
 	stripeOnboardingCompletedAt,
@@ -98,11 +100,16 @@ export function EnableCompetitionOrganizing({
 			onError: ({ err }) => {
 				toast.error(err.message || "Failed to enable competition organizing")
 			},
-		}
+		},
 	)
 
 	const handleEnable = () => {
 		execute({ teamId })
+	}
+
+	// Redirect to onboard page if not applied
+	const handleApply = () => {
+		router.push("/compete/organizer/onboard")
 	}
 
 	const handleExpressOnboarding = async () => {
@@ -114,7 +121,7 @@ export function EnableCompetitionOrganizing({
 			}
 		} catch (err) {
 			toast.error(
-				err instanceof Error ? err.message : "Failed to start onboarding"
+				err instanceof Error ? err.message : "Failed to start onboarding",
 			)
 			setIsLoading(null)
 		}
@@ -123,11 +130,19 @@ export function EnableCompetitionOrganizing({
 	const handleStandardOAuth = async () => {
 		setIsLoading("standard")
 		try {
+			console.log("[Stripe OAuth] Initiating Standard OAuth for team:", teamId)
 			const result = await initiateStandardOAuth({ teamId })
+			console.log("[Stripe OAuth] Result:", result)
 			if (result.authorizationUrl) {
+				console.log("[Stripe OAuth] Redirecting to:", result.authorizationUrl)
 				window.location.href = result.authorizationUrl
+			} else {
+				console.error("[Stripe OAuth] No authorization URL returned")
+				toast.error("Failed to get Stripe authorization URL")
+				setIsLoading(null)
 			}
 		} catch (err) {
+			console.error("[Stripe OAuth] Error:", err)
 			toast.error(err instanceof Error ? err.message : "Failed to start OAuth")
 			setIsLoading(null)
 		}
@@ -141,9 +156,7 @@ export function EnableCompetitionOrganizing({
 				window.location.href = result.onboardingUrl
 			}
 		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to refresh link"
-			)
+			toast.error(err instanceof Error ? err.message : "Failed to refresh link")
 			setIsLoading(null)
 		}
 	}
@@ -157,7 +170,7 @@ export function EnableCompetitionOrganizing({
 			}
 		} catch (err) {
 			toast.error(
-				err instanceof Error ? err.message : "Failed to get dashboard link"
+				err instanceof Error ? err.message : "Failed to get dashboard link",
 			)
 		} finally {
 			setIsLoading(null)
@@ -177,7 +190,67 @@ export function EnableCompetitionOrganizing({
 		}
 	}
 
-	// Not enabled state
+	// Not applied state - direct to onboard page
+	if (organizerStatus === "not_applied") {
+		return (
+			<Card>
+				<CardHeader>
+					<div className="flex items-center gap-3">
+						<Trophy className="h-6 w-6 text-muted-foreground" />
+						<div>
+							<CardTitle className="text-lg">Competition Organizing</CardTitle>
+							<CardDescription>
+								Apply to host competitions on WODsmith
+							</CardDescription>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<p className="text-sm text-muted-foreground">
+						Competition organizing allows you to:
+					</p>
+					<ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+						<li>Create and publish competitions</li>
+						<li>Manage athlete registrations</li>
+						<li>Set up divisions and events</li>
+						<li>Accept payments for entry fees</li>
+					</ul>
+					<Button onClick={handleApply}>Apply to Become an Organizer</Button>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	// Pending approval state
+	if (organizerStatus === "pending") {
+		return (
+			<Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+				<CardHeader>
+					<div className="flex items-center gap-3">
+						<Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+						<div>
+							<CardTitle className="text-lg">Application Pending</CardTitle>
+							<CardDescription>
+								Your organizer application is under review
+							</CardDescription>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<p className="text-sm text-muted-foreground">
+						While your application is being reviewed, you can create draft
+						competitions to get familiar with the platform. Draft competitions
+						won't be visible until you publish them after approval.
+					</p>
+					<Button asChild variant="outline">
+						<a href="/compete/organizer">Create Draft Competition</a>
+					</Button>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	// Legacy fallback: if not enabled but has approved status, use old enable logic
 	if (!enabled) {
 		return (
 			<Card>
@@ -434,7 +507,9 @@ export function EnableCompetitionOrganizing({
 								<div className="flex flex-col sm:flex-row gap-3">
 									<Button
 										variant="outline"
-										onClick={() => window.open("https://dashboard.stripe.com", "_blank")}
+										onClick={() =>
+											window.open("https://dashboard.stripe.com", "_blank")
+										}
 									>
 										<ExternalLink className="mr-2 h-4 w-4" />
 										Open Stripe Dashboard
@@ -444,7 +519,9 @@ export function EnableCompetitionOrganizing({
 										onClick={async () => {
 											setIsLoading("check")
 											try {
-												const result = await getStripeConnectionStatus({ teamId })
+												const result = await getStripeConnectionStatus({
+													teamId,
+												})
 												if (result.isConnected) {
 													toast.success("Account verified!")
 													router.refresh()
@@ -468,7 +545,8 @@ export function EnableCompetitionOrganizing({
 									</Button>
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Complete any pending requirements in your Stripe Dashboard, then click "Check Status".
+									Complete any pending requirements in your Stripe Dashboard,
+									then click "Check Status".
 								</p>
 							</div>
 						)}
@@ -494,7 +572,9 @@ export function EnableCompetitionOrganizing({
 							{/* Express Account Option */}
 							<Card className="border-2">
 								<CardHeader className="pb-2">
-									<CardTitle className="text-base">Create New Account</CardTitle>
+									<CardTitle className="text-base">
+										Create New Account
+									</CardTitle>
 									<CardDescription className="text-sm">
 										Quick 5-10 minute setup with Stripe Express
 									</CardDescription>

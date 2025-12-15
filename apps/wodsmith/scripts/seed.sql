@@ -23,6 +23,7 @@ DELETE FROM competition_registrations;
 DELETE FROM competitions;
 DELETE FROM competition_groups;
 DELETE FROM affiliates;
+DELETE FROM organizer_request;
 DELETE FROM team_invitation;
 DELETE FROM team_membership;
 DELETE FROM team_role;
@@ -81,7 +82,8 @@ VALUES
   ('lmt_max_members_per_team', 'max_members_per_team', 'Team Members', 'Maximum members per team', 'members', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('lmt_max_admins', 'max_admins', 'Admins', 'Number of admin users per team', 'admins', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
   ('lmt_max_programming_tracks', 'max_programming_tracks', 'Programming Tracks', 'Number of programming tracks per team', 'tracks', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-  ('lmt_ai_messages_per_month', 'ai_messages_per_month', 'AI Messages', 'AI-powered messages per month', 'messages', 'monthly', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+  ('lmt_ai_messages_per_month', 'ai_messages_per_month', 'AI Messages', 'AI-powered messages per month', 'messages', 'monthly', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+  ('lmt_max_published_competitions', 'max_published_competitions', 'Published Competitions', 'Maximum public competitions (0: pending approval, -1: unlimited)', 'competitions', 'never', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Insert plans (Free, Pro, Enterprise)
 -- Note: entitlements field is deprecated, features/limits are now stored in junction tables
@@ -463,6 +465,21 @@ INSERT OR IGNORE INTO team_limit_entitlement (id, teamId, limitId, value, source
 INSERT OR IGNORE INTO team_usage (id, teamId, limitKey, currentValue, periodStart, periodEnd, createdAt, updatedAt, updateCounter) VALUES
 ('tusage_box1_ai', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'ai_messages_per_month', 0, strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
 ('tusage_hgh_ai', 'team_homeymgym', 'ai_messages_per_month', 0, strftime('%s', 'now'), strftime('%s', datetime('now', '+1 month')), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+
+-- ============================================
+-- ORGANIZER ONBOARDING SEED DATA
+-- CrossFit Box One has an approved organizer application
+-- ============================================
+
+-- Approved organizer request for CrossFit Box One
+-- Submitted by admin user (usr_demo1admin) and approved by system admin
+INSERT OR IGNORE INTO organizer_request (id, teamId, userId, reason, status, adminNotes, reviewedBy, reviewedAt, createdAt, updatedAt, updateCounter) VALUES
+('oreq_box1_approved', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'usr_demo1admin', 'CrossFit Box One wants to host local community competitions and throwdowns for our members and the greater fitness community.', 'approved', 'Approved - established CrossFit gym with good track record', 'usr_demo1admin', strftime('%s', 'now'), strftime('%s', datetime('now', '-7 days')), strftime('%s', 'now'), 0);
+
+-- Team entitlement override for unlimited published competitions
+-- This is set when an organizer request is approved (value -1 = unlimited)
+INSERT OR IGNORE INTO team_entitlement_override (id, teamId, type, key, value, reason, expiresAt, createdBy, createdAt, updatedAt, updateCounter) VALUES
+('teo_box1_competitions', 'team_cokkpu1klwo0ulfhl1iwzpvnbox1', 'limit', 'max_published_competitions', '-1', 'Organizer request approved', NULL, 'usr_demo1admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- Create Girls programming track
 INSERT INTO programming_track (id, name, description, type, ownerTeamId, isPublic, createdAt, updatedAt, updateCounter) VALUES 

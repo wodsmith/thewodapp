@@ -58,6 +58,7 @@ const formSchema = z
 		groupId: z.string().nullable().optional(),
 		scalingGroupId: z.string().nullable().optional(),
 		visibility: z.enum(["public", "private"]).default("public"),
+		status: z.enum(["draft", "published"]).default("draft"),
 	})
 	.refine(
 		(data) => {
@@ -88,12 +89,14 @@ interface OrganizerCompetitionEditFormProps {
 	competition: Competition
 	groups: Array<CompetitionGroup & { competitionCount: number }>
 	scalingGroups: ScalingGroup[]
+	isPendingApproval?: boolean
 }
 
 export function OrganizerCompetitionEditForm({
 	competition,
 	groups,
 	scalingGroups,
+	isPendingApproval = false,
 }: OrganizerCompetitionEditFormProps) {
 	const router = useRouter()
 	const [profileImageUrl, setProfileImageUrl] = useState<string | null>(
@@ -138,6 +141,7 @@ export function OrganizerCompetitionEditForm({
 			groupId: competition.groupId ?? undefined,
 			scalingGroupId: existingScalingGroupId ?? undefined,
 			visibility: competition.visibility ?? "public",
+			status: competition.status ?? "draft",
 		},
 	})
 
@@ -180,6 +184,7 @@ export function OrganizerCompetitionEditForm({
 			settings:
 				Object.keys(settings).length > 0 ? JSON.stringify(settings) : null,
 			visibility: data.visibility,
+			status: data.status,
 			profileImageUrl,
 			bannerImageUrl,
 		})
@@ -434,6 +439,46 @@ export function OrganizerCompetitionEditForm({
 							<FormDescription>
 								Provide details about the competition
 							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="status"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Status</FormLabel>
+							<Select
+								onValueChange={field.onChange}
+								value={field.value}
+								disabled={isPendingApproval && field.value === "draft"}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select status" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="draft">
+										Draft - Not visible to athletes
+									</SelectItem>
+									<SelectItem value="published" disabled={isPendingApproval}>
+										Published - Visible to athletes
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							{isPendingApproval ? (
+								<FormDescription className="text-amber-600 dark:text-amber-400">
+									Publishing is disabled while your organizer application is
+									pending approval
+								</FormDescription>
+							) : (
+								<FormDescription>
+									Draft competitions are only visible to organizers
+								</FormDescription>
+							)}
 							<FormMessage />
 						</FormItem>
 					)}
