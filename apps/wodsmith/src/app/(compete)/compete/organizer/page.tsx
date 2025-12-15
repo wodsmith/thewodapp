@@ -56,10 +56,15 @@ export default async function OrganizerDashboard({
 		getCompetitionGroups(activeTeamId),
 	])
 
+	// Sort by createdAt DESC (newest first)
+	const sortedCompetitions = [...allCompetitions].sort(
+		(a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+	)
+
 	// Filter by group if provided
 	const competitions = groupId
-		? allCompetitions.filter((c) => c.groupId === groupId)
-		: allCompetitions
+		? sortedCompetitions.filter((c) => c.groupId === groupId)
+		: sortedCompetitions
 
 	return (
 		<div className="container mx-auto px-4 py-8">
