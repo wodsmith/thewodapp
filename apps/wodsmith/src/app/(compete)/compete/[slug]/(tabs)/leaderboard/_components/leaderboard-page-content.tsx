@@ -2,6 +2,7 @@
 
 import { useServerAction } from "@repo/zsa-react"
 import { BarChart3 } from "lucide-react"
+import { parseAsString, useQueryState } from "nuqs"
 import { useEffect, useMemo, useState } from "react"
 import { getCompetitionLeaderboardAction } from "@/actions/competition-actions"
 import { CompetitionLeaderboardTable } from "@/components/compete/competition-leaderboard-table"
@@ -27,9 +28,14 @@ export function LeaderboardPageContent({
 }: LeaderboardPageContentProps) {
 	// Default to first division if available
 	const defaultDivision = divisions?.[0]?.id ?? ""
-	const [selectedDivision, setSelectedDivision] =
-		useState<string>(defaultDivision)
-	const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+
+	// URL state for shareable leaderboard views
+	const [selectedDivision, setSelectedDivision] = useQueryState(
+		"division",
+		parseAsString.withDefault(defaultDivision),
+	)
+	const [selectedEventId, setSelectedEventId] = useQueryState("event", parseAsString)
+
 	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
 		[],
 	)
@@ -44,13 +50,6 @@ export function LeaderboardPageContent({
 			},
 		},
 	)
-
-	// Update selected division when divisions change
-	useEffect(() => {
-		if (divisions && divisions.length > 0 && !selectedDivision) {
-			setSelectedDivision(divisions[0]?.id ?? "")
-		}
-	}, [divisions, selectedDivision])
 
 	// Fetch leaderboard when division changes
 	useEffect(() => {
