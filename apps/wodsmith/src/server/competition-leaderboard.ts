@@ -477,7 +477,7 @@ export async function getCompetitionLeaderboard(params: {
 					}
 				}
 
-				const formattedScore = formatScore(scoreObj, { compact: false })
+				const formattedScore = formatScore(scoreObj, { compact: true })
 
 				// Format tiebreak separately for display
 				let formattedTiebreak: string | null = null
@@ -485,7 +485,7 @@ export async function getCompetitionLeaderboard(params: {
 					formattedTiebreak = decodeScore(
 						score.tiebreakValue,
 						score.tiebreakScheme as WorkoutScheme,
-						{ compact: false },
+						{ compact: true },
 					)
 				}
 
