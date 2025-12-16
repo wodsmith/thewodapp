@@ -111,6 +111,40 @@ async function fetchScoresFromNewTable(params: {
 }
 
 /**
+ * Check if two scores are equal for tie-breaking purposes
+ * Scores are equal if sortKey, secondaryValue (for caps), and tiebreakValue all match
+ */
+function areScoresEqual(
+	a: {
+		sortKey: string | null
+		status: string | null
+		secondaryValue: number | null
+		tiebreakValue: number | null
+	},
+	b: {
+		sortKey: string | null
+		status: string | null
+		secondaryValue: number | null
+		tiebreakValue: number | null
+	},
+): boolean {
+	// Primary: sortKey must match
+	if (a.sortKey !== b.sortKey) return false
+
+	// Secondary: for capped scores, secondaryValue must match
+	if (a.status === "cap" && b.status === "cap") {
+		if (a.secondaryValue !== b.secondaryValue) return false
+	}
+
+	// Tertiary: if both have tiebreak values, those must match too
+	if (a.tiebreakValue !== null && b.tiebreakValue !== null) {
+		if (a.tiebreakValue !== b.tiebreakValue) return false
+	}
+
+	return true
+}
+
+/**
  * Calculate points based on scoring type
  */
 function calculatePoints(
@@ -367,20 +401,43 @@ export async function getCompetitionLeaderboard(params: {
 				return 0
 			})
 
-			const athleteCount = sortedScores.length
+		const athleteCount = sortedScores.length
 
-			for (let i = 0; i < sortedScores.length; i++) {
-				const score = sortedScores[i]
+		// Track ranking state for tie detection
+		let lastScore: (typeof sortedScores)[0] | null = null
+		let lastRank = 1
+		let lastPoints = 0
 
-				if (!score) continue
-				const rank = i + 1
+		for (let i = 0; i < sortedScores.length; i++) {
+			const score = sortedScores[i]
+
+			if (!score) continue
+
+			let rank: number
+			let points: number
+
+			// Check if this score ties with the previous
+			if (lastScore && areScoresEqual(score, lastScore)) {
+				// Tie - use same rank and points as previous
+				rank = lastRank
+				points = lastPoints
+			} else {
+				// Not a tie - use current position as rank (standard 1224 ranking)
+				rank = i + 1
 				const basePoints = calculatePoints(
 					rank,
 					athleteCount,
 					settings?.scoring,
 				)
 				const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
-				const points = Math.round(basePoints * multiplier)
+				points = Math.round(basePoints * multiplier)
+
+				// Update for next iteration
+				lastRank = rank
+				lastPoints = points
+			}
+
+			lastScore = score
 
 				// Find registration for this user
 				const registration = filteredRegistrations.find(
@@ -500,12 +557,35 @@ export async function getCompetitionLeaderboard(params: {
 			const bSeconds = b.eventResults.filter((er) => er.rank === 2).length
 			return bSeconds - aSeconds
 		})
-		// Assign ranks
+		// Assign ranks with tie detection
 		for (let i = 0; i < entries.length; i++) {
 			const entry = entries[i]
-			if (entry) {
-				entry.overallRank = i + 1
+			if (!entry) continue
+
+			// Check for tie with previous entry
+			if (i > 0) {
+				const prev = entries[i - 1]
+				if (prev && entry.totalPoints === prev.totalPoints) {
+					// Check tiebreaker counts too
+					const entryFirsts = entry.eventResults.filter((er) => er.rank === 1)
+						.length
+					const prevFirsts = prev.eventResults.filter((er) => er.rank === 1)
+						.length
+					const entrySeconds = entry.eventResults.filter((er) => er.rank === 2)
+						.length
+					const prevSeconds = prev.eventResults.filter((er) => er.rank === 2)
+						.length
+
+					if (entryFirsts === prevFirsts && entrySeconds === prevSeconds) {
+						// True tie - use same rank as previous
+						entry.overallRank = prev.overallRank
+						continue
+					}
+				}
 			}
+
+			// Not a tie - assign current position (standard 1224 ranking)
+			entry.overallRank = i + 1
 		}
 	}
 

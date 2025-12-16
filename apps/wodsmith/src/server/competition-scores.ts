@@ -37,7 +37,6 @@ import {
 	decodeScore,
 	sortKeyToString,
 	getDefaultScoreType,
-	encodeRoundsReps,
 } from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
 import { convertLegacyToNew } from "@/utils/score-adapter"
@@ -665,7 +664,6 @@ export async function saveCompetitionScore(params: {
 		},
 	})
 
-	let finalWodScore = params.score
 	let setsToInsert: Array<{
 		id: string
 		resultId: string
@@ -685,12 +683,10 @@ export async function saveCompetitionScore(params: {
 		const normalizedEntries = convertToNormalizedEntries(params.roundScores)
 
 		// Use shared processing function from logs.ts
-		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+		const { setsForDb } = processScoresToSetsAndWodScore(
 			normalizedEntries,
 			params.workout,
 		)
-
-		finalWodScore = wodScore
 
 		// Prepare sets for insertion (resultId will be set below)
 		setsToInsert = setsForDb.map((set, index) => ({
@@ -706,14 +702,6 @@ export async function saveCompetitionScore(params: {
 		}))
 	} else if (params.roundScores && params.roundScores.length > 0) {
 		// Fallback: no workout info, use simple formatting (legacy behavior)
-		const formattedRounds = params.roundScores.map((round) => {
-			if (round.parts) {
-				return `${round.parts[0] || "0"}+${round.parts[1] || "0"}`
-			}
-			return round.score || "0"
-		})
-		finalWodScore = formattedRounds.join(", ")
-
 		// Simple sets without proper processing
 		setsToInsert = params.roundScores.map((round, index) => {
 			const scoreNum = parseInt(round.parts ? round.parts[0] : round.score, 10)
@@ -736,12 +724,10 @@ export async function saveCompetitionScore(params: {
 			{ score: params.score, parts: undefined, timeCapped: false },
 		]
 
-		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+		const { setsForDb } = processScoresToSetsAndWodScore(
 			normalizedEntries,
 			params.workout,
 		)
-
-		finalWodScore = wodScore
 
 		setsToInsert = setsForDb.map((set, index) => ({
 			id: `set_${createId()}`,
@@ -777,7 +763,7 @@ export async function saveCompetitionScore(params: {
 			const roundInputs = params.roundScores.map((rs) => ({ raw: rs.score }))
 			const result = encodeRounds(roundInputs, scheme, scoreType)
 			encodedValue = result.aggregated
-		} else if (params.score && params.score.trim()) {
+		} else if (params.score?.trim()) {
 			// Single score: encode directly
 			encodedValue = encodeScore(params.score, scheme)
 		}

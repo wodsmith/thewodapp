@@ -407,34 +407,40 @@ export async function getWorkoutScalingInfo({
 
 /**
  * Get workout results by workout ID and user ID
+ * SECURITY: Filters by teamId to prevent cross-team data access
  */
 export async function getWorkoutResultsByWorkoutAndUser(
 	workoutId: string,
 	userId: string,
+	teamId: string,
 ): Promise<WorkoutResult[]> {
 	const db = getDb()
 	logInfo({
-		message: "[workout-results] Fetching results for workout/user",
-		attributes: { workoutId, userId },
+		message: "[workout-results] Fetching results for workout/user with team filter",
+		attributes: { workoutId, userId, teamId },
 	})
 	try {
 		const workoutResultsData = await db
 			.select()
 			.from(scoresTable)
 			.where(
-				and(eq(scoresTable.workoutId, workoutId), eq(scoresTable.userId, userId)),
+				and(
+					eq(scoresTable.workoutId, workoutId),
+					eq(scoresTable.userId, userId),
+					eq(scoresTable.teamId, teamId),
+				),
 			)
 			.orderBy(scoresTable.recordedAt)
 		logInfo({
-			message: "[workout-results] Results fetched",
-			attributes: { workoutId, userId, count: workoutResultsData.length },
+			message: "[workout-results] Results fetched with team filter (security fix applied)",
+			attributes: { workoutId, userId, teamId, count: workoutResultsData.length },
 		})
 		return workoutResultsData
 	} catch (error) {
 		logError({
 			message: "[workout-results] Error fetching results",
 			error,
-			attributes: { workoutId, userId },
+			attributes: { workoutId, userId, teamId },
 		})
 		return []
 	}

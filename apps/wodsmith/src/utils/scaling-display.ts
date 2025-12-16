@@ -103,7 +103,7 @@ function getVariantForLabel(label: string, asRx: boolean): BadgeVariant {
 /**
  * Determines the badge variant for legacy scale field
  */
-function getVariantForLegacyScale(
+function _getVariantForLegacyScale(
 	scale: "rx" | "scaled" | "rx+" | null,
 ): BadgeVariant {
 	switch (scale) {

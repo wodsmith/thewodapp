@@ -9,9 +9,7 @@
 import type { Set as DBSet, WorkoutScheme } from "@/db/schema"
 import {
 	decodeScore as libDecodeScore,
-	formatScore as libFormatScore,
 	getDefaultScoreType as libGetDefaultScoreType,
-	type Score,
 } from "@/lib/scoring"
 import {
 	convertLegacyToNew,

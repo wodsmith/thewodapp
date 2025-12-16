@@ -1215,10 +1215,19 @@ export async function getScoreRoundsById(
  * Get a single score by ID with workout details and scaling level
  */
 export async function getScoreById(scoreId: string) {
+	const session = await requireVerifiedEmail()
+	if (!session) {
+		logError({
+			message: "[getScoreById] Unauthorized - no session",
+			attributes: { scoreId },
+		})
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
 	const db = getDb()
 	logInfo({
 		message: "[getScoreById] Fetching score",
-		attributes: { scoreId },
+		attributes: { scoreId, userId: session.userId },
 	})
 
 	try {
@@ -1226,6 +1235,7 @@ export async function getScoreById(scoreId: string) {
 			.select({
 				id: scoresTable.id,
 				userId: scoresTable.userId,
+				teamId: scoresTable.teamId,
 				date: scoresTable.recordedAt,
 				workoutId: scoresTable.workoutId,
 				notes: scoresTable.notes,
@@ -1264,12 +1274,41 @@ export async function getScoreById(scoreId: string) {
 			return null
 		}
 
+		// Authorization check: verify user owns the score OR user has access to the team
+		const isOwner = score.userId === session.userId
+		const hasTeamAccess = session.teams?.some(
+			(team) => team.id === score.teamId,
+		)
+
+		if (!isOwner && !hasTeamAccess) {
+			logError({
+				message: "[getScoreById] Unauthorized access attempt",
+				attributes: {
+					scoreId,
+					userId: session.userId,
+					scoreUserId: score.userId,
+					scoreTeamId: score.teamId,
+					userTeams: session.teams?.map((t) => t.id) || [],
+				},
+			})
+			throw new ZSAError("NOT_AUTHORIZED", "Not authorized to access this score")
+		}
+
 		logInfo({
-			message: "[getScoreById] Found score",
-			attributes: { scoreId, workoutId: score.workoutId },
+			message: "[getScoreById] Found score - authorization verified",
+			attributes: {
+				scoreId,
+				workoutId: score.workoutId,
+				userId: session.userId,
+				isOwner,
+				hasTeamAccess,
+			},
 		})
 		return score
 	} catch (error) {
+		if (error instanceof ZSAError) {
+			throw error
+		}
 		logError({
 			message: "[getScoreById] Error fetching score",
 			error,
@@ -1352,7 +1391,34 @@ export async function updateScore({
 					}).toString()
 				: null
 
-		// Update the main score
+		// Fetch old round IDs before making changes
+		// We'll delete these specific IDs after inserting new rounds to avoid race condition
+		const oldRounds = await db
+			.select({ id: scoreRoundsTable.id })
+			.from(scoreRoundsTable)
+			.where(eq(scoreRoundsTable.scoreId, scoreId))
+
+		const oldRoundIds = oldRounds.map((r) => r.id)
+
+		// Insert new rounds first (if multi-round)
+		// This ordering avoids a race condition where reads see a score with no rounds
+		// D1 doesn't support transactions, so insert-then-delete ensures data completeness
+		if (baseScoreData.roundValues.length > 1) {
+			const roundsToInsert = baseScoreData.roundValues.map((value, idx) => ({
+				id: createScoreRoundId(),
+				scoreId,
+				roundNumber: idx + 1,
+				value,
+			}))
+
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
+			logInfo({
+				message: "[updateScore] Inserted new rounds",
+				attributes: { scoreId, insertedRounds: roundsToInsert.length },
+			})
+		}
+
+		// Update the main score after new rounds are in place
 		await db
 			.update(scoresTable)
 			.set({
@@ -1374,24 +1440,15 @@ export async function updateScore({
 			})
 			.where(eq(scoresTable.id, scoreId))
 
-		// Delete existing rounds
-		await db
-			.delete(scoreRoundsTable)
-			.where(eq(scoreRoundsTable.scoreId, scoreId))
-
-		// Insert new rounds if multi-round
-		if (baseScoreData.roundValues.length > 1) {
-			const roundsToInsert = baseScoreData.roundValues.map((value, idx) => ({
-				id: createScoreRoundId(),
-				scoreId,
-				roundNumber: idx + 1,
-				value,
-			}))
-
-			await db.insert(scoreRoundsTable).values(roundsToInsert)
+		// Delete old rounds last using their specific IDs
+		// This avoids deleting the new rounds we just inserted
+		if (oldRoundIds.length > 0) {
+			for (const oldId of oldRoundIds) {
+				await db.delete(scoreRoundsTable).where(eq(scoreRoundsTable.id, oldId))
+			}
 			logInfo({
-				message: "[updateScore] Inserted replacement rounds",
-				attributes: { scoreId, insertedRounds: roundsToInsert.length },
+				message: "[updateScore] Deleted old rounds",
+				attributes: { scoreId, deletedRounds: oldRoundIds.length },
 			})
 		}
 
@@ -1478,7 +1535,34 @@ export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
 				? computeSortKey({ value: scoreValue, status, scheme, scoreType }).toString()
 				: null
 
-		// Update the main score
+		// Fetch old round IDs before making changes
+		// We'll delete these specific IDs after inserting new rounds to avoid race condition
+		const oldRounds = await db
+			.select({ id: scoreRoundsTable.id })
+			.from(scoreRoundsTable)
+			.where(eq(scoreRoundsTable.scoreId, input.scoreId))
+
+		const oldRoundIds = oldRounds.map((r) => r.id)
+
+		// Insert new rounds first (always, even for single round)
+		// This ordering avoids a race condition where reads see a score with no rounds
+		// D1 doesn't support transactions, so insert-then-delete ensures data completeness
+		if (processed.roundValues.length > 0) {
+			const roundsToInsert = processed.roundValues.map((value, idx) => ({
+				id: createScoreRoundId(),
+				scoreId: input.scoreId,
+				roundNumber: idx + 1,
+				value,
+			}))
+
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
+			logInfo({
+				message: "[updateScoreV2] Inserted new rounds",
+				attributes: { scoreId: input.scoreId, insertedRounds: roundsToInsert.length },
+			})
+		}
+
+		// Update the main score after new rounds are in place
 		await db
 			.update(scoresTable)
 			.set({
@@ -1502,24 +1586,17 @@ export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
 			})
 			.where(eq(scoresTable.id, input.scoreId))
 
-		// Delete existing rounds
-		await db
-			.delete(scoreRoundsTable)
-			.where(eq(scoreRoundsTable.scoreId, input.scoreId))
-
-		// Insert new rounds (always, even for single round)
-		if (processed.roundValues.length > 0) {
-			const roundsToInsert = processed.roundValues.map((value, idx) => ({
-				id: createScoreRoundId(),
-				scoreId: input.scoreId,
-				roundNumber: idx + 1,
-				value,
-			}))
-
-			await db.insert(scoreRoundsTable).values(roundsToInsert)
+		// Delete old rounds last using their specific IDs
+		// This avoids deleting the new rounds we just inserted
+		if (oldRoundIds.length > 0) {
+			for (const oldId of oldRoundIds) {
+				await db
+					.delete(scoreRoundsTable)
+					.where(eq(scoreRoundsTable.id, oldId))
+			}
 			logInfo({
-				message: "[updateScoreV2] Inserted replacement rounds",
-				attributes: { scoreId: input.scoreId, insertedRounds: roundsToInsert.length },
+				message: "[updateScoreV2] Deleted old rounds",
+				attributes: { scoreId: input.scoreId, deletedRounds: oldRoundIds.length },
 			})
 		}
 
