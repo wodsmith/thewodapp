@@ -1,15 +1,13 @@
 /**
  * Migration Script: results+sets → scores+score_rounds
  *
- * This script backfills the new scores table from the legacy results+sets tables.
+ * This script generates SQL to backfill the new scores table from the legacy results+sets tables.
+ * Run the output SQL in the Drizzle Studio console for production.
  *
  * Usage:
- *   pnpm tsx scripts/migrate-results-to-scores.ts [--dry-run] [--limit=N] [--competition-only]
+ *   pnpm tsx scripts/migrate-results-to-scores.ts > migration.sql
  *
- * Options:
- *   --dry-run          Show what would be migrated without writing to DB
- *   --limit=N          Only migrate N results (for testing)
- *   --competition-only Only migrate competition scores (competitionEventId not null)
+ * Then copy/paste the SQL into Drizzle Studio's SQL console.
  *
  * What it does:
  * 1. Reads results + sets from legacy tables
@@ -19,521 +17,341 @@
  *    - Load: lbs → grams (*453.592)
  *    - Distance: meters/feet → millimeters
  * 3. Computes sortKey for efficient leaderboard queries
- * 4. Inserts into scores + score_rounds tables
+ * 4. Generates INSERT statements for scores + score_rounds tables
  */
 
-import { db } from "@/db"
-import { results, sets } from "@/db/schema"
-import { scoresTable, scoreRoundsTable } from "@/db/schemas/scores"
-import { workouts } from "@/db/schemas/workouts"
-import type { WorkoutScheme } from "@/db/schema"
-import {
-	computeSortKey,
-	sortKeyToString,
-	type Score,
-	type ScoreStatus,
-	type ScoreType,
-} from "@/lib/scoring"
-import {
-	convertLegacyToNew,
-	convertLegacyFractionalRoundsReps,
-} from "@/utils/score-adapter"
-import { eq, isNotNull, sql } from "drizzle-orm"
+// SQL generation script - outputs SQL to stdout
+// Run with: pnpm tsx scripts/migrate-results-to-scores.ts
 
-interface MigrationOptions {
-	dryRun: boolean
-	limit?: number
-	competitionOnly: boolean
-}
+const sql = `
+-- Migration: results+sets → scores+score_rounds
+-- Generated for Drizzle Studio console execution
+-- Only 101 results in prod, so this is a single batch
 
-interface LegacyResult {
-	id: string
-	userId: string
-	date: Date
-	workoutId: string | null
-	notes: string | null
-	scalingLevelId: string | null
-	asRx: boolean
-	wodScore: string | null
-	competitionEventId: string | null
-	competitionRegistrationId: string | null
-	scoreStatus: string | null
-	tieBreakScore: string | null
-	secondaryScore: string | null
-	enteredBy: string | null
-	scheduledWorkoutInstanceId: string | null
-	sets: Array<{
-		id: string
-		setNumber: number
-		reps: number | null
-		weight: number | null
-		time: number | null
-		score: number | null
-		distance: number | null
-		status: string | null
-		notes: string | null
-	}>
-	workout: {
-		id: string
-		scheme: WorkoutScheme
-		scoreType: ScoreType | null
-		tiebreakScheme: string | null
-		timeCap: number | null
-		teamId: string
-	} | null
-}
+-- Step 1: Insert into scores table from results
+-- Using INSERT OR REPLACE to handle re-runs safely
+INSERT OR REPLACE INTO scores (
+  id,
+  user_id,
+  team_id,
+  workout_id,
+  competition_event_id,
+  scheduled_workout_instance_id,
+  scheme,
+  score_type,
+  score_value,
+  tiebreak_scheme,
+  tiebreak_value,
+  time_cap_ms,
+  secondary_value,
+  status,
+  status_order,
+  sort_key,
+  scaling_level_id,
+  as_rx,
+  notes,
+  recorded_at,
+  createdAt,
+  updatedAt
+)
+SELECT
+  'score_' || substr(r.id, 1, 24) as id,
+  r.user_id,
+  w.team_id,
+  r.workout_id,
+  r.competition_event_id,
+  r.scheduled_workout_instance_id,
+  w.scheme,
+  COALESCE(w.score_type, 'max') as score_type,
+  -- Convert score_value based on scheme
+  CASE w.scheme
+    -- Time schemes: seconds → milliseconds
+    WHEN 'time' THEN (
+      SELECT CAST(s.time * 1000 AS INTEGER)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    WHEN 'time-with-cap' THEN (
+      SELECT CAST(s.time * 1000 AS INTEGER)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    WHEN 'emom' THEN (
+      SELECT CAST(s.time * 1000 AS INTEGER)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    -- Rounds+Reps: If reps column has value, use it directly (total reps)
+    -- If only score column has value, treat it as total reps (legacy stored total reps in score)
+    WHEN 'rounds-reps' THEN (
+      SELECT CASE
+        WHEN s.reps IS NOT NULL THEN s.reps
+        ELSE COALESCE(s.score, 0)
+      END
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    -- Reps/Calories/Points: direct value
+    WHEN 'reps' THEN (
+      SELECT COALESCE(s.reps, s.score)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    WHEN 'calories' THEN (
+      SELECT COALESCE(s.reps, s.score)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    WHEN 'points' THEN (
+      SELECT COALESCE(s.reps, s.score)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    -- Load: lbs → grams (multiply by 453.592)
+    WHEN 'load' THEN (
+      SELECT CAST(COALESCE(s.weight, s.score) * 453.592 AS INTEGER)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    -- Distance: meters → mm (*1000), feet → mm (*304.8)
+    WHEN 'meters' THEN (
+      SELECT CAST(COALESCE(s.distance, s.score) * 1000 AS INTEGER)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    WHEN 'feet' THEN (
+      SELECT CAST(COALESCE(s.distance, s.score) * 304.8 AS INTEGER)
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    -- Pass/Fail: 1 for pass, 0 for fail
+    WHEN 'pass-fail' THEN (
+      SELECT CASE WHEN s.status = 'pass' THEN 1 ELSE 0 END
+      FROM sets s
+      WHERE s.result_id = r.id
+      ORDER BY s.set_number
+      LIMIT 1
+    )
+    ELSE NULL
+  END as score_value,
+  -- Tiebreak scheme from workout
+  w.tiebreak_scheme,
+  -- Tiebreak value: parse from tie_break_score
+  CASE
+    WHEN r.tie_break_score IS NULL THEN NULL
+    WHEN w.tiebreak_scheme = 'time' AND r.tie_break_score LIKE '%:%' THEN
+      -- Parse MM:SS format to milliseconds
+      CAST(
+        (CAST(substr(r.tie_break_score, 1, instr(r.tie_break_score, ':') - 1) AS INTEGER) * 60 +
+         CAST(substr(r.tie_break_score, instr(r.tie_break_score, ':') + 1) AS INTEGER)) * 1000
+        AS INTEGER
+      )
+    WHEN w.tiebreak_scheme = 'time' THEN
+      -- Numeric seconds to milliseconds
+      CAST(CAST(r.tie_break_score AS INTEGER) * 1000 AS INTEGER)
+    WHEN w.tiebreak_scheme = 'reps' THEN
+      CAST(r.tie_break_score AS INTEGER)
+    ELSE NULL
+  END as tiebreak_value,
+  -- Time cap in milliseconds
+  CASE WHEN w.time_cap IS NOT NULL THEN w.time_cap * 1000 ELSE NULL END as time_cap_ms,
+  -- Secondary value (reps when capped)
+  CASE WHEN r.secondary_score IS NOT NULL THEN CAST(r.secondary_score AS INTEGER) ELSE NULL END as secondary_value,
+  -- Status conversion
+  CASE LOWER(r.score_status)
+    WHEN 'cap' THEN 'cap'
+    WHEN 'dq' THEN 'dq'
+    WHEN 'dns' THEN 'withdrawn'
+    WHEN 'dnf' THEN 'withdrawn'
+    ELSE 'scored'
+  END as status,
+  -- Status order for sorting
+  CASE LOWER(r.score_status)
+    WHEN 'cap' THEN 1
+    WHEN 'dq' THEN 2
+    WHEN 'dns' THEN 3
+    WHEN 'dnf' THEN 3
+    ELSE 0
+  END as status_order,
+  -- Sort key computation
+  -- Format: status_order (1 digit) + normalized_score (15 digits, zero-padded)
+  -- For "lower is better" (time): use score directly
+  -- For "higher is better" (reps, rounds-reps, load, etc): use MAX_VALUE - score
+  CASE
+    WHEN w.scheme IN ('time', 'time-with-cap', 'emom') THEN
+      -- Lower is better: status_order + score
+      printf('%01d%015d',
+        CASE LOWER(r.score_status)
+          WHEN 'cap' THEN 1
+          WHEN 'dq' THEN 2
+          WHEN 'dns' THEN 3
+          WHEN 'dnf' THEN 3
+          ELSE 0
+        END,
+        COALESCE((
+          SELECT CAST(s.time * 1000 AS INTEGER)
+          FROM sets s
+          WHERE s.result_id = r.id
+          ORDER BY s.set_number
+          LIMIT 1
+        ), 999999999999999)
+      )
+    WHEN w.scheme IN ('rounds-reps', 'reps', 'calories', 'points', 'load', 'meters', 'feet') THEN
+      -- Higher is better: status_order + (MAX - score)
+      printf('%01d%015d',
+        CASE LOWER(r.score_status)
+          WHEN 'cap' THEN 1
+          WHEN 'dq' THEN 2
+          WHEN 'dns' THEN 3
+          WHEN 'dnf' THEN 3
+          ELSE 0
+        END,
+        999999999999999 - COALESCE(
+          CASE w.scheme
+            WHEN 'rounds-reps' THEN (
+              SELECT CASE
+                WHEN s.reps IS NOT NULL THEN s.reps
+                ELSE COALESCE(s.score, 0)
+              END
+              FROM sets s
+              WHERE s.result_id = r.id
+              ORDER BY s.set_number
+              LIMIT 1
+            )
+            WHEN 'load' THEN (
+              SELECT CAST(COALESCE(s.weight, s.score) * 453.592 AS INTEGER)
+              FROM sets s
+              WHERE s.result_id = r.id
+              ORDER BY s.set_number
+              LIMIT 1
+            )
+            WHEN 'meters' THEN (
+              SELECT CAST(COALESCE(s.distance, s.score) * 1000 AS INTEGER)
+              FROM sets s
+              WHERE s.result_id = r.id
+              ORDER BY s.set_number
+              LIMIT 1
+            )
+            WHEN 'feet' THEN (
+              SELECT CAST(COALESCE(s.distance, s.score) * 304.8 AS INTEGER)
+              FROM sets s
+              WHERE s.result_id = r.id
+              ORDER BY s.set_number
+              LIMIT 1
+            )
+            ELSE (
+              SELECT COALESCE(s.reps, s.score, 0)
+              FROM sets s
+              WHERE s.result_id = r.id
+              ORDER BY s.set_number
+              LIMIT 1
+            )
+          END,
+          0
+        )
+      )
+    ELSE NULL
+  END as sort_key,
+  -- Only use scaling_level_id if it exists in scaling_levels table
+  CASE 
+    WHEN r.scaling_level_id IN (SELECT id FROM scaling_levels) THEN r.scaling_level_id
+    ELSE NULL
+  END as scaling_level_id,
+  r.as_rx,
+  r.notes,
+  r.date as recorded_at,
+  r.createdAt,
+  COALESCE(r.updatedAt, r.createdAt) as updatedAt
+FROM results r
+JOIN workouts w ON r.workout_id = w.id
+WHERE r.workout_id IS NOT NULL
+  AND w.team_id IS NOT NULL;
 
-async function parseArgs(): Promise<MigrationOptions> {
-	const args = process.argv.slice(2)
-	const options: MigrationOptions = {
-		dryRun: args.includes("--dry-run"),
-		competitionOnly: args.includes("--competition-only"),
-	}
+-- Step 2: Insert score_rounds for results with multiple sets
+-- This handles multi-round workouts like "3 rounds for time" or "10x3 Back Squat"
+INSERT OR REPLACE INTO score_rounds (
+  id,
+  score_id,
+  round_number,
+  value,
+  scheme_override,
+  status,
+  secondary_value,
+  notes,
+  created_at
+)
+SELECT
+  'scrd_' || substr(s.id, 1, 24) as id,
+  'score_' || substr(r.id, 1, 24) as score_id,
+  s.set_number as round_number,
+  -- Convert value based on scheme
+  CASE w.scheme
+    WHEN 'time' THEN CAST(s.time * 1000 AS INTEGER)
+    WHEN 'time-with-cap' THEN CAST(s.time * 1000 AS INTEGER)
+    WHEN 'emom' THEN CAST(s.time * 1000 AS INTEGER)
+    WHEN 'rounds-reps' THEN CASE WHEN s.reps IS NOT NULL THEN s.reps ELSE COALESCE(s.score, 0) END
+    WHEN 'reps' THEN COALESCE(s.reps, s.score)
+    WHEN 'calories' THEN COALESCE(s.reps, s.score)
+    WHEN 'points' THEN COALESCE(s.reps, s.score)
+    WHEN 'load' THEN CAST(COALESCE(s.weight, s.score) * 453.592 AS INTEGER)
+    WHEN 'meters' THEN CAST(COALESCE(s.distance, s.score) * 1000 AS INTEGER)
+    WHEN 'feet' THEN CAST(COALESCE(s.distance, s.score) * 304.8 AS INTEGER)
+    WHEN 'pass-fail' THEN CASE WHEN s.status = 'pass' THEN 1 ELSE 0 END
+    ELSE COALESCE(s.score, s.reps, 0)
+  END as value,
+  NULL as scheme_override,
+  NULL as status,
+  NULL as secondary_value,
+  s.notes,
+  s.createdAt as created_at
+FROM sets s
+JOIN results r ON s.result_id = r.id
+JOIN workouts w ON r.workout_id = w.id
+WHERE r.workout_id IS NOT NULL
+  AND w.team_id IS NOT NULL
+  -- Exclude sets where value would be NULL (NOT NULL constraint on score_rounds.value)
+  AND (
+    CASE w.scheme
+      WHEN 'time' THEN s.time IS NOT NULL
+      WHEN 'time-with-cap' THEN s.time IS NOT NULL
+      WHEN 'emom' THEN s.time IS NOT NULL
+      WHEN 'rounds-reps' THEN 1 -- Always has a value due to COALESCE
+      WHEN 'reps' THEN s.reps IS NOT NULL OR s.score IS NOT NULL
+      WHEN 'calories' THEN s.reps IS NOT NULL OR s.score IS NOT NULL
+      WHEN 'points' THEN s.reps IS NOT NULL OR s.score IS NOT NULL
+      WHEN 'load' THEN s.weight IS NOT NULL OR s.score IS NOT NULL
+      WHEN 'meters' THEN s.distance IS NOT NULL OR s.score IS NOT NULL
+      WHEN 'feet' THEN s.distance IS NOT NULL OR s.score IS NOT NULL
+      WHEN 'pass-fail' THEN 1 -- Always has a value (0 or 1)
+      ELSE s.score IS NOT NULL OR s.reps IS NOT NULL
+    END
+  );
 
-	const limitArg = args.find((arg) => arg.startsWith("--limit="))
-	if (limitArg) {
-		options.limit = Number.parseInt(limitArg.split("=")[1], 10)
-	}
+-- Verification queries (run these after to check the migration)
+-- SELECT COUNT(*) as total_scores FROM scores;
+-- SELECT COUNT(*) as total_rounds FROM score_rounds;
+-- SELECT scheme, COUNT(*) as count FROM scores GROUP BY scheme;
+-- SELECT status, COUNT(*) as count FROM scores GROUP BY status;
+`;
 
-	return options
-}
-
-/**
- * Convert legacy scoreStatus to new ScoreStatus
- */
-function convertScoreStatus(
-	legacyStatus: string | null,
-): ScoreStatus {
-	switch (legacyStatus?.toLowerCase()) {
-		case "cap":
-			return "cap"
-		case "dq":
-			return "dq"
-		case "dns":
-		case "dnf":
-			return "withdrawn"
-		default:
-			return "scored"
-	}
-}
-
-/**
- * Get status order for sorting
- */
-function getStatusOrder(status: ScoreStatus): number {
-	const statusOrder = { scored: 0, cap: 1, dq: 2, withdrawn: 3 }
-	return statusOrder[status]
-}
-
-/**
- * Parse legacy wodScore string and convert to new encoding
- */
-function parseAndConvertWodScore(
-	wodScore: string | null,
-	scheme: WorkoutScheme,
-	sets: LegacyResult["sets"],
-): { value: number | null; rounds: number[] } {
-	// For multi-set workouts, extract individual set values
-	const rounds: number[] = []
-
-	switch (scheme) {
-		case "time":
-		case "time-with-cap":
-		case "emom": {
-			// Time stored in sets.time as seconds
-			const timeValues = sets
-				.map((s) => s.time)
-				.filter((t): t is number => t !== null)
-
-			if (timeValues.length > 0) {
-				// Convert each to milliseconds
-				rounds.push(...timeValues.map((t) => t * 1000))
-				// Take min for aggregated value (best time)
-				return { value: Math.min(...rounds), rounds }
-			}
-			return { value: null, rounds: [] }
-		}
-
-		case "rounds-reps": {
-			// Stored as score=rounds, reps=reps in sets
-			for (const set of sets) {
-				if (set.score !== null || set.reps !== null) {
-					const rounds_legacy = set.score ?? 0
-					const reps = set.reps ?? 0
-					// Convert: rounds*1000+reps → rounds*100000+reps
-					const newEncoding = rounds_legacy * 100000 + reps
-					rounds.push(newEncoding)
-				}
-			}
-
-			if (rounds.length > 0) {
-				return { value: Math.max(...rounds), rounds }
-			}
-
-			// Fallback: parse wodScore if available
-			if (wodScore) {
-				// Try fractional format first (5.12 = 5+12)
-				if (wodScore.includes(".")) {
-					const fractional = Number.parseFloat(wodScore)
-					if (!Number.isNaN(fractional)) {
-						const newEncoding = convertLegacyFractionalRoundsReps(fractional)
-						return { value: newEncoding, rounds: [newEncoding] }
-					}
-				}
-			}
-
-			return { value: null, rounds: [] }
-		}
-
-		case "reps":
-		case "calories":
-		case "points": {
-			const repValues = sets
-				.map((s) => s.reps ?? s.score)
-				.filter((r): r is number => r !== null)
-
-			if (repValues.length > 0) {
-				rounds.push(...repValues)
-				return { value: Math.max(...repValues), rounds }
-			}
-			return { value: null, rounds: [] }
-		}
-
-		case "load": {
-			const loadValues = sets
-				.map((s) => s.weight)
-				.filter((w): w is number => w !== null)
-
-			if (loadValues.length > 0) {
-				// Convert lbs → grams
-				const gramsValues = loadValues.map((lbs) =>
-					Math.round(lbs * 453.592),
-				)
-				rounds.push(...gramsValues)
-				return { value: Math.max(...gramsValues), rounds }
-			}
-			return { value: null, rounds: [] }
-		}
-
-		case "meters":
-		case "feet": {
-			const distanceValues = sets
-				.map((s) => s.distance ?? s.score)
-				.filter((d): d is number => d !== null)
-
-			if (distanceValues.length > 0) {
-				// Convert to millimeters
-				const multiplier = scheme === "meters" ? 1000 : 304.8
-				const mmValues = distanceValues.map((d) => Math.round(d * multiplier))
-				rounds.push(...mmValues)
-				return { value: Math.max(...mmValues), rounds }
-			}
-			return { value: null, rounds: [] }
-		}
-
-		case "pass-fail": {
-			const statusValues = sets
-				.map((s) => (s.status === "pass" ? 1 : 0))
-				.filter((v) => v !== null)
-
-			if (statusValues.length > 0) {
-				rounds.push(...statusValues)
-				return { value: Math.max(...statusValues), rounds }
-			}
-			return { value: null, rounds: [] }
-		}
-
-		default:
-			return { value: null, rounds: [] }
-	}
-}
-
-/**
- * Parse tiebreak score
- * Handles both numeric strings ("120") and time-formatted strings ("2:00")
- */
-function parseTiebreak(
-	tieBreakScore: string | null,
-	tiebreakScheme: string | null,
-): { scheme: "time" | "reps" | null; value: number | null } {
-	if (!tieBreakScore || !tiebreakScheme) {
-		return { scheme: null, value: null }
-	}
-
-	if (tiebreakScheme === "time") {
-		// Handle both numeric (seconds) and formatted time (MM:SS or M:SS)
-		let seconds: number
-		if (tieBreakScore.includes(":")) {
-			const parts = tieBreakScore.split(":")
-			const mins = Number.parseInt(parts[0] ?? "0", 10)
-			const secs = Number.parseInt(parts[1] ?? "0", 10)
-			if (Number.isNaN(mins) || Number.isNaN(secs)) {
-				return { scheme: null, value: null }
-			}
-			seconds = mins * 60 + secs
-		} else {
-			seconds = Number.parseInt(tieBreakScore, 10)
-			if (Number.isNaN(seconds)) {
-				return { scheme: null, value: null }
-			}
-		}
-		// Convert seconds → milliseconds
-		return { scheme: "time", value: seconds * 1000 }
-	}
-
-	if (tiebreakScheme === "reps") {
-		const numValue = Number.parseInt(tieBreakScore, 10)
-		if (Number.isNaN(numValue)) {
-			return { scheme: null, value: null }
-		}
-		return { scheme: "reps", value: numValue }
-	}
-
-	return { scheme: null, value: null }
-}
-
-/**
- * Migrate a single result to the scores table
- */
-async function migrateResult(
-	result: LegacyResult,
-	options: MigrationOptions,
-): Promise<{ success: boolean; error?: string }> {
-	if (!result.workout) {
-		return {
-			success: false,
-			error: `Result ${result.id} has no associated workout`,
-		}
-	}
-
-	const { workout, sets: legacySets } = result
-
-	// Convert score
-	const { value, rounds } = parseAndConvertWodScore(
-		result.wodScore,
-		workout.scheme,
-		legacySets,
-	)
-
-	// Convert status
-	const status = convertScoreStatus(result.scoreStatus)
-	const statusOrder = getStatusOrder(status)
-
-	// Convert tiebreak
-	const tiebreak = parseTiebreak(result.tieBreakScore, workout.tiebreakScheme)
-
-	// Build Score object for sortKey computation
-	const scoreObj: Score = {
-		scheme: workout.scheme,
-		scoreType: workout.scoreType ?? "max",
-		value,
-		status,
-		...(tiebreak.scheme && tiebreak.value
-			? {
-					tiebreak: {
-						scheme: tiebreak.scheme,
-						value: tiebreak.value,
-					},
-				}
-			: {}),
-	}
-
-	// Compute sortKey
-	const sortKey = value !== null ? computeSortKey(scoreObj) : null
-
-	if (options.dryRun) {
-		console.log(`[DRY RUN] Would migrate result ${result.id}:`, {
-			userId: result.userId,
-			workoutId: result.workoutId,
-			scheme: workout.scheme,
-			legacyWodScore: result.wodScore,
-			newValue: value,
-			rounds: rounds.length,
-			status,
-			sortKey: sortKey ? sortKeyToString(sortKey) : null,
-		})
-		return { success: true }
-	}
-
-	try {
-		// Insert into scores table with upsert for competition scores
-		// (unique constraint on competition_event_id + user_id)
-		const scoreValues = {
-			userId: result.userId,
-			teamId: workout.teamId,
-			workoutId: result.workoutId!,
-			competitionEventId: result.competitionEventId,
-			scheduledWorkoutInstanceId: result.scheduledWorkoutInstanceId,
-			scheme: workout.scheme,
-			scoreType: workout.scoreType ?? "max",
-			scoreValue: value,
-			tiebreakScheme: tiebreak.scheme,
-			tiebreakValue: tiebreak.value,
-			timeCapMs: workout.timeCap ? workout.timeCap * 1000 : null,
-			// Note: secondaryScheme removed - secondary is always reps when time-capped
-			secondaryValue: result.secondaryScore
-				? Number.parseInt(result.secondaryScore, 10)
-				: null,
-			status,
-			statusOrder,
-			sortKey: sortKey ? sortKeyToString(sortKey) : null,
-			scalingLevelId: result.scalingLevelId,
-			asRx: result.asRx,
-			notes: result.notes,
-			recordedAt: result.date,
-		}
-
-		const [insertedScore] = await db
-			.insert(scoresTable)
-			.values(scoreValues)
-			.onConflictDoUpdate({
-				target: [scoresTable.competitionEventId, scoresTable.userId],
-				set: scoreValues,
-			})
-			.returning()
-
-		// Insert rounds if multiple sets
-		if (rounds.length > 1) {
-			// Delete existing rounds (for re-run scenarios)
-			await db
-				.delete(scoreRoundsTable)
-				.where(eq(scoreRoundsTable.scoreId, insertedScore.id))
-
-			// Insert new rounds
-			await db.insert(scoreRoundsTable).values(
-				rounds.map((value, index) => ({
-					scoreId: insertedScore.id,
-					roundNumber: index + 1,
-					value,
-					schemeOverride: null,
-					status: null,
-					secondaryValue: null,
-					notes: legacySets[index]?.notes ?? null,
-				})),
-			)
-		}
-
-		return { success: true }
-	} catch (error) {
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : String(error),
-		}
-	}
-}
-
-/**
- * Main migration function
- */
-async function main() {
-	const options = await parseArgs()
-
-	console.log("🚀 Starting migration: results+sets → scores")
-	console.log("Options:", options)
-	console.log("")
-
-	// Build query
-	let query = db
-		.select({
-			result: results,
-			workout: workouts,
-		})
-		.from(results)
-		.leftJoin(workouts, eq(results.workoutId, workouts.id))
-		.$dynamic()
-
-	// Filter to competition results only if requested
-	if (options.competitionOnly) {
-		query = query.where(isNotNull(results.competitionEventId))
-	}
-
-	// Apply limit if specified
-	if (options.limit) {
-		query = query.limit(options.limit)
-	}
-
-	// Fetch results
-	console.log("📥 Fetching results from database...")
-	const resultsWithWorkouts = await query
-
-	console.log(`Found ${resultsWithWorkouts.length} results to migrate\n`)
-
-	if (resultsWithWorkouts.length === 0) {
-		console.log("✅ No results to migrate")
-		return
-	}
-
-	// Fetch sets for each result
-	const resultsToMigrate: LegacyResult[] = []
-	for (const row of resultsWithWorkouts) {
-		const resultSets = await db
-			.select()
-			.from(sets)
-			.where(eq(sets.resultId, row.result.id))
-			.orderBy(sets.setNumber)
-
-		resultsToMigrate.push({
-			...row.result,
-			sets: resultSets,
-			workout: row.workout,
-		})
-	}
-
-	// Migrate each result
-	let successCount = 0
-	let errorCount = 0
-	const errors: Array<{ resultId: string; error: string }> = []
-
-	console.log("🔄 Migrating results...")
-	for (const result of resultsToMigrate) {
-		const { success, error } = await migrateResult(result, options)
-
-		if (success) {
-			successCount++
-		} else {
-			errorCount++
-			errors.push({ resultId: result.id, error: error ?? "Unknown error" })
-		}
-
-		// Progress indicator
-		if ((successCount + errorCount) % 100 === 0) {
-			console.log(
-				`Progress: ${successCount + errorCount}/${resultsToMigrate.length}`,
-			)
-		}
-	}
-
-	// Summary
-	console.log("\n" + "=".repeat(60))
-	console.log("📊 Migration Summary")
-	console.log("=".repeat(60))
-	console.log(`Total results:    ${resultsToMigrate.length}`)
-	console.log(`✅ Successful:    ${successCount}`)
-	console.log(`❌ Errors:        ${errorCount}`)
-	console.log("=".repeat(60))
-
-	if (errors.length > 0) {
-		console.log("\n❌ Errors encountered:")
-		for (const { resultId, error } of errors.slice(0, 10)) {
-			console.log(`  - Result ${resultId}: ${error}`)
-		}
-		if (errors.length > 10) {
-			console.log(`  ... and ${errors.length - 10} more`)
-		}
-	}
-
-	if (options.dryRun) {
-		console.log("\n💡 This was a dry run. No data was written to the database.")
-		console.log("   Run without --dry-run to perform the actual migration.")
-	}
-}
-
-main()
-	.then(() => {
-		console.log("\n✅ Migration complete")
-		process.exit(0)
-	})
-	.catch((error) => {
-		console.error("\n❌ Migration failed:", error)
-		process.exit(1)
-	})
+console.log(sql);

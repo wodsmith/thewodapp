@@ -20,8 +20,8 @@ import { getDb } from "@/db"
 import type { Workout } from "@/db/schema"
 import {
 	movements,
-	results,
 	scheduledWorkoutInstancesTable,
+	scoresTable,
 	tags,
 	teamMembershipTable,
 	teamTable,
@@ -35,6 +35,7 @@ import {
 	workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { computeSortKey, decodeScore } from "@/lib/scoring"
 import {
 	isTeamSubscribedToProgrammingTrack,
 	isWorkoutInTeamSubscribedTrack,
@@ -125,52 +126,135 @@ async function fetchMovementsByWorkoutId(
 }
 
 /**
- * Helper function to fetch today's results by workout IDs (batched)
+ * Result summary type for today's scores
  */
-async function fetchTodaysResultsByWorkoutId(
+type TodaysScoreSummary = {
+	id: string
+	recordedAt: Date
+	displayScore?: string
+	scalingLabel?: string
+	scalingPosition?: number
+	asRx?: boolean
+}
+
+/**
+ * Helper function to fetch today's scores by workout IDs (batched)
+ */
+async function fetchTodaysScoresByWorkoutId(
 	db: ReturnType<typeof getDb>,
 	userId: string,
 	workoutIds: string[],
 ) {
 	if (workoutIds.length === 0)
-		return new Map<string, Array<typeof results.$inferSelect>>()
+		return new Map<string, Array<TodaysScoreSummary>>()
 
 	const today = new Date()
 	today.setHours(0, 0, 0, 0)
 	const tomorrow = new Date(today)
 	tomorrow.setDate(tomorrow.getDate() + 1)
 
-	const todaysResults = await autochunk(
+	const todaysScores = await autochunk(
 		{ items: workoutIds, otherParametersCount: 4 }, // +4 for userId, isNotNull, gte, lt
 		async (chunk) =>
 			db
-				.select()
-				.from(results)
+				.select({
+					id: scoresTable.id,
+					workoutId: scoresTable.workoutId,
+					recordedAt: scoresTable.recordedAt,
+					scoreType: scoresTable.scoreType,
+					scoreValue: scoresTable.scoreValue,
+					scheme: scoresTable.scheme,
+					status: scoresTable.status,
+					secondaryValue: scoresTable.secondaryValue,
+					asRx: scoresTable.asRx,
+					scalingLabel: scalingLevelsTable.label,
+					scalingPosition: scalingLevelsTable.position,
+				})
+				.from(scoresTable)
+				.leftJoin(
+					scalingLevelsTable,
+					eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
+				)
 				.where(
 					and(
-						eq(results.userId, userId),
-						isNotNull(results.workoutId),
-						inArray(results.workoutId, chunk),
-						gte(results.date, today),
-						lt(results.date, tomorrow),
+						eq(scoresTable.userId, userId),
+						isNotNull(scoresTable.workoutId),
+						inArray(scoresTable.workoutId, chunk),
+						gte(scoresTable.recordedAt, today),
+						lt(scoresTable.recordedAt, tomorrow),
 					),
 				),
 	)
 
-	const resultsByWorkoutId = new Map<string, Array<(typeof todaysResults)[0]>>()
+	const scoresByWorkoutId = new Map<string, Array<TodaysScoreSummary>>()
+	const sortKeysByScoreId = new Map<string, bigint>()
 
-	for (const result of todaysResults) {
-		if (result.workoutId) {
-			const workoutId = result.workoutId
+	for (const score of todaysScores) {
+		if (score.workoutId) {
+			const workoutId = score.workoutId
 
-			if (!resultsByWorkoutId.has(workoutId)) {
-				resultsByWorkoutId.set(workoutId, [])
+			if (!scoresByWorkoutId.has(workoutId)) {
+				scoresByWorkoutId.set(workoutId, [])
 			}
-			resultsByWorkoutId.get(workoutId)?.push(result)
+
+			// Decode the score value to display string
+			// Include units for load/distance schemes so users see "225 lbs" not just "225"
+			let displayScore: string | undefined
+			if (score.scheme) {
+				if (score.status === "cap" && score.scheme === "time-with-cap") {
+					const timeStr =
+						score.scoreValue !== null
+							? decodeScore(score.scoreValue, score.scheme, { includeUnit: true })
+							: ""
+					displayScore =
+						score.secondaryValue !== null && score.secondaryValue !== undefined
+							? `CAP (${timeStr}) - ${score.secondaryValue} reps`
+							: `CAP (${timeStr})`
+				} else if (score.status === "withdrawn") {
+					displayScore = "WITHDRAWN"
+				} else if (score.scoreValue !== null) {
+					displayScore = decodeScore(score.scoreValue, score.scheme, {
+						includeUnit: true,
+					})
+				}
+			}
+
+			// Compute a best-first sort key using the scoring library.
+			// Lower sortKey is always better (direction is normalized inside computeSortKey).
+			sortKeysByScoreId.set(
+				score.id,
+				computeSortKey({
+					value: score.scoreValue,
+					status: score.status,
+					scheme: score.scheme,
+					scoreType: score.scoreType,
+				}),
+			)
+
+			scoresByWorkoutId.get(workoutId)?.push({
+				id: score.id,
+				recordedAt: score.recordedAt,
+				displayScore,
+				scalingLabel: score.scalingLabel || undefined,
+				scalingPosition: score.scalingPosition || undefined,
+				asRx: score.asRx,
+			})
 		}
 	}
 
-	return resultsByWorkoutId
+	// Sort so `resultsToday[0]` is the best score (fastest for time, max for reps, etc.)
+	for (const [workoutId, items] of scoresByWorkoutId.entries()) {
+		items.sort((a, b) => {
+			const aKey = sortKeysByScoreId.get(a.id)
+			const bKey = sortKeysByScoreId.get(b.id)
+			if (aKey === undefined || bKey === undefined) return 0
+			if (aKey === bKey) return 0
+			return aKey < bKey ? -1 : 1
+		})
+		scoresByWorkoutId.set(workoutId, items)
+	}
+
+	return scoresByWorkoutId
 }
 
 /**
@@ -308,19 +392,7 @@ export async function getUserWorkouts({
 		Workout & {
 			tags: Array<{ id: string; name: string }>
 			movements: Array<{ id: string; name: string; type: string }>
-			resultsToday: Array<{
-				id: string
-				userId: string
-				date: Date
-				workoutId: string | null
-				type: "wod" | "strength" | "monostructural"
-				notes: string | null
-				scale: string | null
-				wodScore: string | null
-				setCount: number | null
-				distance: number | null
-				time: number | null
-			}>
+			resultsToday: Array<TodaysScoreSummary>
 			// Optional remix information
 			sourceWorkout?: {
 				id: string
@@ -444,11 +516,11 @@ export async function getUserWorkouts({
 	const workoutIds = allWorkouts.map((w) => w.id)
 
 	// Fetch related data in parallel
-	const [tagsByWorkoutId, movementsByWorkoutId, resultsByWorkoutId] =
+	const [tagsByWorkoutId, movementsByWorkoutId, scoresByWorkoutId] =
 		await Promise.all([
 			fetchTagsByWorkoutId(db, workoutIds),
 			fetchMovementsByWorkoutId(db, workoutIds),
-			fetchTodaysResultsByWorkoutId(db, session.user.id, workoutIds),
+			fetchTodaysScoresByWorkoutId(db, session.user.id, workoutIds),
 		])
 
 	// Fetch remix information for workouts that have sourceWorkoutId
@@ -531,7 +603,7 @@ export async function getUserWorkouts({
 			...w,
 			tags: tagsByWorkoutId.get(w.id) || [],
 			movements: movementsByWorkoutId.get(w.id) || [],
-			resultsToday: resultsByWorkoutId.get(w.id) || [],
+			resultsToday: scoresByWorkoutId.get(w.id) || [],
 			sourceWorkout: sourceWorkoutData
 				? {
 						id: sourceWorkoutData.id,

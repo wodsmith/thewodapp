@@ -31,12 +31,9 @@ export function LogRowCard({ logEntry }: LogRowCardProps) {
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
 				<ListItem.Meta showOnMobile={true}>
-					{logEntry.wodScore && (
-						<Badge variant="secondary">{logEntry.wodScore}</Badge>
-					)}
-					{logEntry.time && <Badge variant="outline">{logEntry.time}</Badge>}
-					{logEntry.setCount && logEntry.setCount > 1 && (
-						<Badge variant="outline">Sets: {logEntry.setCount}</Badge>
+					{/* displayScore is pre-formatted by server using scoring library's decodeScore */}
+					{logEntry.displayScore && (
+						<Badge variant="secondary">{logEntry.displayScore}</Badge>
 					)}
 					{/* Display scaling information */}
 					{scalingInfo && (

@@ -37,7 +37,6 @@ import {
 	decodeScore,
 	sortKeyToString,
 	getDefaultScoreType,
-	encodeRoundsReps,
 } from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
 import { convertLegacyToNew } from "@/utils/score-adapter"
@@ -89,44 +88,6 @@ function mapToNewStatus(
 		default:
 			return "scored"
 	}
-}
-
-/**
- * Convert legacy set data to encoded value for new scores table.
- * Uses the first set's score/reps for the primary value.
- */
-function convertSetsToEncodedValue(
-	setsData: Array<{
-		score: number | null
-		reps: number | null
-		time: number | null
-	}>,
-	scheme: WorkoutScheme,
-): number | null {
-	if (setsData.length === 0) return null
-
-	const firstSet = setsData[0]
-	if (!firstSet) return null
-
-	// For rounds-reps, use score (rounds) and reps
-	if (scheme === "rounds-reps") {
-		const rounds = firstSet.score ?? 0
-		const reps = firstSet.reps ?? 0
-		// Legacy: rounds * 1000 + reps
-		const legacyValue = rounds * 1000 + reps
-		return convertLegacyToNew(legacyValue, scheme)
-	}
-
-	// For time-based schemes, use time in seconds (legacy format)
-	if (scheme === "time" || scheme === "time-with-cap" || scheme === "emom") {
-		const timeInSeconds = firstSet.time ?? 0
-		return convertLegacyToNew(timeInSeconds, scheme)
-	}
-
-	// For other schemes, use score directly
-	const value = firstSet.score ?? null
-	if (value === null) return null
-	return convertLegacyToNew(value, scheme)
 }
 
 // ============================================================================
@@ -703,7 +664,6 @@ export async function saveCompetitionScore(params: {
 		},
 	})
 
-	let finalWodScore = params.score
 	let setsToInsert: Array<{
 		id: string
 		resultId: string
@@ -723,12 +683,10 @@ export async function saveCompetitionScore(params: {
 		const normalizedEntries = convertToNormalizedEntries(params.roundScores)
 
 		// Use shared processing function from logs.ts
-		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+		const { setsForDb } = processScoresToSetsAndWodScore(
 			normalizedEntries,
 			params.workout,
 		)
-
-		finalWodScore = wodScore
 
 		// Prepare sets for insertion (resultId will be set below)
 		setsToInsert = setsForDb.map((set, index) => ({
@@ -744,14 +702,6 @@ export async function saveCompetitionScore(params: {
 		}))
 	} else if (params.roundScores && params.roundScores.length > 0) {
 		// Fallback: no workout info, use simple formatting (legacy behavior)
-		const formattedRounds = params.roundScores.map((round) => {
-			if (round.parts) {
-				return `${round.parts[0] || "0"}+${round.parts[1] || "0"}`
-			}
-			return round.score || "0"
-		})
-		finalWodScore = formattedRounds.join(", ")
-
 		// Simple sets without proper processing
 		setsToInsert = params.roundScores.map((round, index) => {
 			const scoreNum = parseInt(round.parts ? round.parts[0] : round.score, 10)
@@ -774,12 +724,10 @@ export async function saveCompetitionScore(params: {
 			{ score: params.score, parts: undefined, timeCapped: false },
 		]
 
-		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
+		const { setsForDb } = processScoresToSetsAndWodScore(
 			normalizedEntries,
 			params.workout,
 		)
-
-		finalWodScore = wodScore
 
 		setsToInsert = setsForDb.map((set, index) => ({
 			id: `set_${createId()}`,
@@ -815,7 +763,7 @@ export async function saveCompetitionScore(params: {
 			const roundInputs = params.roundScores.map((rs) => ({ raw: rs.score }))
 			const result = encodeRounds(roundInputs, scheme, scoreType)
 			encodedValue = result.aggregated
-		} else if (params.score && params.score.trim()) {
+		} else if (params.score?.trim()) {
 			// Single score: encode directly
 			encodedValue = encodeScore(params.score, scheme)
 		}
@@ -974,7 +922,9 @@ export async function saveCompetitionScore(params: {
 
 			// Convert and insert new rounds
 			const roundsToInsert = setsToInsert.map((set, index) => {
-				// Convert each round's value using the adapter
+				// Convert each round's value to new encoding
+				// NOTE: processScoresToSetsAndWodScore already stores time in milliseconds (new encoding)
+				// so we only need to convert non-time values using the adapter
 				let roundValue: number
 
 				if (scheme === "rounds-reps") {
@@ -987,8 +937,8 @@ export async function saveCompetitionScore(params: {
 					scheme === "time-with-cap" ||
 					scheme === "emom"
 				) {
-					const timeInSeconds = set.time ?? 0
-					roundValue = convertLegacyToNew(timeInSeconds, scheme)
+					// set.time is already in milliseconds (new encoding) from processScoresToSetsAndWodScore
+					roundValue = set.time ?? 0
 				} else {
 					const value = set.score ?? 0
 					roundValue = convertLegacyToNew(value, scheme)

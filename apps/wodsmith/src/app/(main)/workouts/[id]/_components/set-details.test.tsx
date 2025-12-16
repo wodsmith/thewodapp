@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { SetDetails } from "./set-details"
 
-vi.mock("@/lib/utils", () => ({
-	formatSecondsToTime: (s: number) => `formatted-${s}`,
+vi.mock("@/lib/scoring", () => ({
+	decodeScore: (value: number) => `decoded-${value}`,
 }))
 
 describe("SetDetails", () => {
@@ -15,59 +15,57 @@ describe("SetDetails", () => {
 	it("renders all set info with full data", () => {
 		const sets = [
 			{
-				id: "set1",
-				setNumber: 1,
-				reps: 10,
-				weight: 100,
-				distance: 200,
-				time: 60,
-				score: 5,
+				id: "scrd_1",
+				scoreId: "score_1",
+				roundNumber: 1,
+				value: 754567,
+				schemeOverride: null,
+				status: null,
+				secondaryValue: null,
 				notes: "Good set",
-				resultId: "result1",
-				status: "pass" as const,
 				createdAt: new Date("2024-01-01"),
 				updatedAt: new Date("2024-01-01"),
 				updateCounter: 0,
 			},
 		]
-		render(<SetDetails sets={sets} />)
+		render(<SetDetails sets={sets as any} workoutScheme={"time" as any} />)
 		expect(screen.getByText("Set 1:")).toBeInTheDocument()
-		expect(screen.getByText(/10 reps/)).toBeInTheDocument()
-		expect(screen.getByText(/@ 100kg/)).toBeInTheDocument()
-		expect(screen.getByText(/200m/)).toBeInTheDocument()
-		expect(screen.getByText(/formatted-60/)).toBeInTheDocument()
-		expect(screen.getByText(/Score: 5/)).toBeInTheDocument()
+		expect(screen.getByText(/decoded-754567/)).toBeInTheDocument()
 		expect(screen.getByText("(Good set)")).toBeInTheDocument()
 	})
 
-	it("renders with only reps and weight", () => {
+	it("renders CAP with secondary value", () => {
 		const sets = [
 			{
-				id: "set2",
-				setNumber: 2,
-				reps: 8,
-				weight: 80,
-				distance: null,
-				time: null,
-				score: null,
+				id: "scrd_2",
+				scoreId: "score_2",
+				roundNumber: 2,
+				value: 600000,
+				schemeOverride: null,
+				status: "cap",
+				secondaryValue: 150,
 				notes: null,
-				resultId: "result2",
-				status: null,
 				createdAt: new Date("2024-01-01"),
 				updatedAt: new Date("2024-01-01"),
 				updateCounter: 0,
 			},
 		]
-		render(<SetDetails sets={sets} />)
+		render(
+			<SetDetails sets={sets as any} workoutScheme={"time-with-cap" as any} />,
+		)
 		expect(screen.getByText("Set 2:")).toBeInTheDocument()
-		expect(screen.getByText(/8 reps/)).toBeInTheDocument()
-		expect(screen.getByText(/@ 80kg/)).toBeInTheDocument()
+		expect(screen.getByText(/CAP - 150 reps/)).toBeInTheDocument()
+		expect(screen.getByText(/decoded-600000/)).toBeInTheDocument()
 	})
 
 	it("renders nothing for null or empty sets", () => {
-		const { container: c1 } = render(<SetDetails sets={null} />)
+		const { container: c1 } = render(
+			<SetDetails sets={null} workoutScheme={"time" as any} />,
+		)
 		expect(c1.firstChild).toBeNull()
-		const { container: c2 } = render(<SetDetails sets={[]} />)
+		const { container: c2 } = render(
+			<SetDetails sets={[]} workoutScheme={"time" as any} />,
+		)
 		expect(c2.firstChild).toBeNull()
 	})
 })

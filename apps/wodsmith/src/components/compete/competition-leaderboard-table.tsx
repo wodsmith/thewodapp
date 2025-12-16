@@ -302,16 +302,19 @@ export function CompetitionLeaderboardTable({
 	events,
 	selectedEventId,
 }: CompetitionLeaderboardTableProps) {
+	// Compute the correct default sort column based on view mode
+	const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
+	
 	const [sorting, setSorting] = useState<SortingState>([
-		{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
+		{ id: defaultSortColumn, desc: false },
 	])
 
 	// Reset sorting when view changes between overall and single event
 	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
 	useEffect(() => {
-		setSorting([
-			{ id: selectedEventId ? "eventRank" : "overallRank", desc: false },
-		])
+		// Ensure sorting column exists in current view
+		const validSortColumn = selectedEventId ? "eventRank" : "overallRank"
+		setSorting([{ id: validSortColumn, desc: false }])
 	}, [selectedEventId])
 
 	// Transform data for single event view
@@ -471,12 +474,27 @@ export function CompetitionLeaderboardTable({
 		return baseColumns
 	}, [events, selectedEventId, isTeamLeaderboard])
 
+	// Ensure sorting state only references columns that exist
+	// This prevents errors when switching between overall and single event views
+	const validatedSorting = useMemo<SortingState>(() => {
+		const columnIds = new Set(columns.map((c) => c.id).filter(Boolean))
+		const validSorting = sorting.filter((s) => columnIds.has(s.id))
+		
+		// If no valid sorting, use default for current view
+		if (validSorting.length === 0) {
+			const defaultColumn = selectedEventId ? "eventRank" : "overallRank"
+			return [{ id: defaultColumn, desc: false }]
+		}
+		
+		return validSorting
+	}, [sorting, columns, selectedEventId])
+
 	const table = useReactTable({
 		data: tableData,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
-		state: { sorting },
+		state: { sorting: validatedSorting },
 		onSortingChange: setSorting,
 	})
 
@@ -512,8 +530,8 @@ export function CompetitionLeaderboardTable({
 	}, [selectedEventId, events])
 
 	const currentSortId =
-		sorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
-	const currentSortDesc = sorting[0]?.desc ?? false
+		validatedSorting[0]?.id ?? (selectedEventId ? "eventRank" : "overallRank")
+	const currentSortDesc = validatedSorting[0]?.desc ?? false
 
 	const handleSortChange = (columnId: string) => {
 		// If clicking the same column, toggle direction
