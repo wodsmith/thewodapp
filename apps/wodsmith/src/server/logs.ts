@@ -24,7 +24,9 @@ import {
 	parseScore as libParseScore,
 	encodeTimeFromSeconds,
 	computeSortKey,
+	encodeRoundsReps,
 	encodeRoundsRepsFromParts,
+	extractRoundsReps,
 	GRAMS_PER_UNIT,
 	MM_PER_UNIT,
 } from "@/lib/scoring"
@@ -61,8 +63,36 @@ export interface WorkoutScoreInfo {
 }
 
 /**
- * Normalized score entry format
- * Can represent scores from FormData or from direct input
+ * Input for a single round/score entry
+ */
+export interface ScoreEntryInput {
+	/** The raw score string (e.g., "3:45", "150", "5+12") */
+	raw: string
+	/** Whether this round hit the time cap */
+	isCapped?: boolean
+}
+
+/**
+ * Output from processing score entries - ready for scores/score_rounds tables
+ */
+export interface ProcessedScoreResult {
+	/** Aggregated score value (encoded) */
+	scoreValue: number | null
+	/** Individual round values (encoded) */
+	roundValues: number[]
+	/** Score status */
+	status: ScoreStatusNew
+	/** Status order for sorting */
+	statusOrder: number
+	/** Computed sort key */
+	sortKey: string | null
+	/** Display string for the score */
+	displayScore: string
+}
+
+// Legacy types - kept for backward compatibility during migration
+/**
+ * @deprecated Use ScoreEntryInput instead
  */
 export interface NormalizedScoreEntry {
 	/** The raw score string (e.g., "3:45", "150", "5+12") */
@@ -74,7 +104,7 @@ export interface NormalizedScoreEntry {
 }
 
 /**
- * Output from processing score entries
+ * @deprecated Use ProcessedScoreResult instead
  */
 export interface ProcessedScoresResult {
 	setsForDb: ResultSetInput[]
@@ -144,22 +174,30 @@ export function processScoresToSetsAndWodScore(
 		const setNumber = k + 1
 
 		if (isRoundsAndRepsWorkout) {
-			// Rounds + Reps format - store original values for display
-			// score = rounds completed, reps = extra reps
-			const roundsStr = entry.parts?.[0] || entry.score.split("+")[0] || "0"
-			const repsStr = entry.parts?.[1] || entry.score.split("+")[1] || "0"
+			// Rounds + Reps format - use scoring library to parse
+			// Supports "5+12", "5.12", or plain "5" (complete rounds)
+			let rounds: number
+			let reps: number
 
-			const roundsCompleted = parseInt(roundsStr.trim(), 10)
-			const repsCompleted = parseInt(repsStr.trim(), 10)
-
-			if (Number.isNaN(roundsCompleted)) {
-				continue // Skip invalid entries
+			if (entry.parts?.[0] !== undefined && entry.parts?.[1] !== undefined) {
+				// Use pre-parsed parts if available
+				rounds = parseInt(entry.parts[0].trim(), 10)
+				reps = parseInt(entry.parts[1].trim(), 10)
+				if (Number.isNaN(rounds)) continue
+				if (Number.isNaN(reps)) reps = 0
+			} else {
+				// Use scoring library to encode, then extract rounds/reps
+				const encoded = encodeRoundsReps(entry.score)
+				if (encoded === null) continue
+				const extracted = extractRoundsReps(encoded)
+				rounds = extracted.rounds
+				reps = extracted.reps
 			}
 
 			setsForDb.push({
 				setNumber,
-				score: roundsCompleted,
-				reps: Number.isNaN(repsCompleted) ? 0 : repsCompleted,
+				score: rounds,
+				reps: reps,
 				weight: null,
 				status: null,
 				distance: null,
@@ -190,9 +228,11 @@ export function processScoresToSetsAndWodScore(
 			} else {
 				// Regular time score
 				// Parse using scoring library (returns milliseconds in new encoding)
+				// Use timePrecision: "seconds" so "60" → 60 seconds (1:00), not invalid "0:60"
 				const parseResult = libParseScore(
 					scoreStr,
 					workout.scheme as WorkoutScheme,
+					{ timePrecision: "seconds" },
 				)
 				if (parseResult.isValid && parseResult.encoded !== null) {
 					// Store time in milliseconds (new encoding)
@@ -362,6 +402,92 @@ const STATUS_ORDER: Record<ScoreStatusNew, number> = {
 	cap: 1,
 	dq: 2,
 	withdrawn: 3,
+}
+
+/* -------------------------------------------------------------------------- */
+/*                    New Direct Score Processing (v2)                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Process score entries directly to the new scores/score_rounds format.
+ * This is the clean replacement for processScoresToSetsAndWodScore + prepareNewScoreData.
+ *
+ * @param entries - Raw score entries from user input
+ * @param workout - Workout info for encoding
+ * @returns ProcessedScoreResult ready for database insertion
+ */
+export function processScoreEntries(
+	entries: ScoreEntryInput[],
+	workout: WorkoutScoreInfo,
+): ProcessedScoreResult {
+	const scheme = workout.scheme as WorkoutScheme
+	const scoreType = (workout.scoreType || getDefaultScoreType(scheme)) as ScoreType
+
+	// Encode each entry directly to the new format
+	const roundValues: number[] = []
+
+	for (const entry of entries) {
+		if (!entry.raw || entry.raw.trim() === "") continue
+
+		const encoded = encodeEntryValue(entry.raw, scheme)
+		if (encoded !== null) {
+			roundValues.push(encoded)
+		}
+	}
+
+	// Determine status
+	const hasCappedEntries = entries.some((e) => e.isCapped)
+	const status: ScoreStatusNew = hasCappedEntries ? "cap" : "scored"
+	const statusOrder = STATUS_ORDER[status]
+
+	// Aggregate to get primary score value
+	let scoreValue: number | null = null
+	if (roundValues.length === 1) {
+		scoreValue = roundValues[0] ?? null
+	} else if (roundValues.length > 1) {
+		scoreValue = aggregateValues(roundValues, scoreType)
+	}
+
+	// Compute sort key
+	let sortKey: string | null = null
+	if (scoreValue !== null || status !== "scored") {
+		const sortKeyBigInt = computeSortKey({
+			value: scoreValue,
+			status,
+			scheme,
+			scoreType,
+		})
+		sortKey = sortKeyBigInt.toString()
+	}
+
+	// Generate display string
+	const displayScore = scoreValue !== null
+		? decodeScore(scoreValue, scheme, { includeUnit: true })
+		: ""
+
+	return {
+		scoreValue,
+		roundValues,
+		status,
+		statusOrder,
+		sortKey,
+		displayScore,
+	}
+}
+
+/**
+ * Encode a single raw score entry to the new format.
+ * Uses the scoring library's parseScore for proper encoding.
+ *
+ * For time-based schemes, uses timePrecision: "seconds" so plain numbers
+ * like "60" are interpreted as 60 seconds (1:00), not as MM:SS format.
+ */
+function encodeEntryValue(raw: string, scheme: WorkoutScheme): number | null {
+	const parseResult = libParseScore(raw, scheme, { timePrecision: "seconds" })
+	if (parseResult.isValid && parseResult.encoded !== null) {
+		return parseResult.encoded
+	}
+	return null
 }
 
 /**
@@ -927,6 +1053,130 @@ export async function addLog({
 	}
 }
 
+/* -------------------------------------------------------------------------- */
+/*                         New Score API (v2)                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Input for adding a score using the new direct format
+ */
+export interface AddScoreInput {
+	userId: string
+	teamId: string
+	workoutId: string
+	/** Timestamp in milliseconds */
+	recordedAt: number
+	scalingLevelId: string
+	asRx: boolean
+	notes?: string
+	/** Raw score entries to process */
+	entries: ScoreEntryInput[]
+	/** Workout info for encoding */
+	workoutInfo: WorkoutScoreInfo
+	scheduledWorkoutInstanceId?: string | null
+	/** Override status (e.g., for withdrawn) */
+	statusOverride?: ScoreStatusNew
+	/** Override score value (e.g., for CAP with time cap value) */
+	scoreValueOverride?: number | null
+	/** Secondary value (e.g., reps at cap) */
+	secondaryValue?: number | null
+	/** Tiebreak value (already encoded) */
+	tiebreakValue?: number | null
+}
+
+/**
+ * Add a score using the new direct format.
+ * This is the clean v2 API that processes entries directly to scores/score_rounds.
+ */
+export async function addScore(input: AddScoreInput): Promise<{
+	success: boolean
+	scoreId?: string
+	error?: string
+}> {
+	const session = await requireVerifiedEmail()
+	if (!session) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const db = getDb()
+	const scoreId = createScoreId()
+
+	try {
+		const scheme = input.workoutInfo.scheme as WorkoutScheme
+		const scoreType = (input.workoutInfo.scoreType ||
+			getDefaultScoreType(scheme)) as ScoreType
+
+		// Process entries to get encoded values
+		const processed = processScoreEntries(input.entries, input.workoutInfo)
+
+		// Allow overrides
+		const status = input.statusOverride ?? processed.status
+		const statusOrder = STATUS_ORDER[status]
+		const scoreValue =
+			input.scoreValueOverride !== undefined
+				? input.scoreValueOverride
+				: processed.scoreValue
+
+		// Compute sort key
+		const sortKey =
+			scoreValue !== null || status !== "scored"
+				? computeSortKey({ value: scoreValue, status, scheme, scoreType }).toString()
+				: null
+
+		// Insert score
+		await db.insert(scoresTable).values({
+			id: scoreId,
+			userId: input.userId,
+			teamId: input.teamId,
+			workoutId: input.workoutId,
+			scheme,
+			scoreType,
+			scoreValue,
+			status,
+			statusOrder,
+			sortKey,
+			scalingLevelId: input.scalingLevelId,
+			asRx: input.asRx,
+			notes: input.notes || null,
+			secondaryValue: input.secondaryValue ?? null,
+			tiebreakValue: input.tiebreakValue ?? null,
+			tiebreakScheme: input.workoutInfo.tiebreakScheme ?? null,
+			recordedAt: new Date(input.recordedAt),
+			scheduledWorkoutInstanceId: input.scheduledWorkoutInstanceId || null,
+			timeCapMs: input.workoutInfo.timeCap ? input.workoutInfo.timeCap * 1000 : null,
+		})
+
+		// Insert score rounds (always, even for single round)
+		if (processed.roundValues.length > 0) {
+			const roundsToInsert = processed.roundValues.map((value, idx) => ({
+				id: createScoreRoundId(),
+				scoreId,
+				roundNumber: idx + 1,
+				value,
+			}))
+
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
+		}
+
+		logInfo({
+			message: "[addScore] Success",
+			attributes: { scoreId, workoutId: input.workoutId, userId: input.userId },
+		})
+
+		return { success: true, scoreId }
+	} catch (error) {
+		logError({
+			message: "[addScore] Error",
+			error,
+			attributes: { userId: input.userId, workoutId: input.workoutId, scoreId },
+		})
+		if (error instanceof Error) {
+			return { success: false, error: error.message }
+		}
+		return { success: false, error: "Failed to add score" }
+	}
+}
+
 /**
  * Get score rounds by score ID
  */
@@ -1159,6 +1409,134 @@ export async function updateScore({
 	}
 }
 
+/**
+ * Input for updating a score using the new direct format
+ */
+export interface UpdateScoreV2Input {
+	scoreId: string
+	workoutId: string
+	/** Timestamp in milliseconds */
+	recordedAt: number
+	scalingLevelId: string
+	asRx: boolean
+	notes?: string
+	/** Raw score entries to process */
+	entries: ScoreEntryInput[]
+	/** Workout info for encoding */
+	workoutInfo: WorkoutScoreInfo
+	scheduledWorkoutInstanceId?: string | null
+	/** Override status (e.g., for withdrawn) */
+	statusOverride?: ScoreStatusNew
+	/** Override score value (e.g., for CAP with time cap value) */
+	scoreValueOverride?: number | null
+	/** Secondary value (e.g., reps at cap) */
+	secondaryValue?: number | null
+	/** Tiebreak value (already encoded) */
+	tiebreakValue?: number | null
+}
+
+/**
+ * Update a score using the new direct format.
+ * This is the clean v2 API that processes entries directly to scores/score_rounds.
+ */
+export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
+	const session = await requireVerifiedEmail()
+	if (!session) {
+		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+	}
+
+	const db = getDb()
+
+	logInfo({
+		message: "[updateScoreV2] Updating score",
+		attributes: {
+			scoreId: input.scoreId,
+			workoutId: input.workoutId,
+			entriesCount: input.entries.length,
+		},
+	})
+
+	try {
+		const scheme = input.workoutInfo.scheme as WorkoutScheme
+		const scoreType = (input.workoutInfo.scoreType ||
+			getDefaultScoreType(scheme)) as ScoreType
+
+		// Process entries to get encoded values
+		const processed = processScoreEntries(input.entries, input.workoutInfo)
+
+		// Allow overrides
+		const status = input.statusOverride ?? processed.status
+		const statusOrder = STATUS_ORDER[status]
+		const scoreValue =
+			input.scoreValueOverride !== undefined
+				? input.scoreValueOverride
+				: processed.scoreValue
+
+		// Compute sort key
+		const sortKey =
+			scoreValue !== null || status !== "scored"
+				? computeSortKey({ value: scoreValue, status, scheme, scoreType }).toString()
+				: null
+
+		// Update the main score
+		await db
+			.update(scoresTable)
+			.set({
+				workoutId: input.workoutId,
+				recordedAt: new Date(input.recordedAt),
+				scheme,
+				scoreType,
+				scoreValue,
+				status,
+				statusOrder,
+				sortKey,
+				scalingLevelId: input.scalingLevelId,
+				asRx: input.asRx,
+				notes: input.notes || null,
+				secondaryValue: input.secondaryValue ?? null,
+				tiebreakValue: input.tiebreakValue ?? null,
+				tiebreakScheme: input.workoutInfo.tiebreakScheme ?? null,
+				scheduledWorkoutInstanceId: input.scheduledWorkoutInstanceId || null,
+				timeCapMs: input.workoutInfo.timeCap ? input.workoutInfo.timeCap * 1000 : null,
+				updatedAt: new Date(),
+			})
+			.where(eq(scoresTable.id, input.scoreId))
+
+		// Delete existing rounds
+		await db
+			.delete(scoreRoundsTable)
+			.where(eq(scoreRoundsTable.scoreId, input.scoreId))
+
+		// Insert new rounds (always, even for single round)
+		if (processed.roundValues.length > 0) {
+			const roundsToInsert = processed.roundValues.map((value, idx) => ({
+				id: createScoreRoundId(),
+				scoreId: input.scoreId,
+				roundNumber: idx + 1,
+				value,
+			}))
+
+			await db.insert(scoreRoundsTable).values(roundsToInsert)
+			logInfo({
+				message: "[updateScoreV2] Inserted replacement rounds",
+				attributes: { scoreId: input.scoreId, insertedRounds: roundsToInsert.length },
+			})
+		}
+
+		logInfo({
+			message: "[updateScoreV2] Success",
+			attributes: { scoreId: input.scoreId, workoutId: input.workoutId },
+		})
+	} catch (error) {
+		logError({
+			message: "[updateScoreV2] Error updating score",
+			error,
+			attributes: { scoreId: input.scoreId, workoutId: input.workoutId },
+		})
+		throw error
+	}
+}
+
 export interface SavePersonalLogScoreInput {
 	selectedWorkoutId: string
 	date: string
@@ -1283,18 +1661,15 @@ export async function savePersonalLogScore(
 	const roundsToScore = workout.roundsToScore ?? 1
 	const isMultiRound = roundsToScore > 1
 
-	// Multi-round
+	// Build entries array from input
+	let entries: ScoreEntryInput[] = []
+
 	if (isMultiRound) {
 		const roundScores = input.roundScores ?? []
 		const hasAtLeastOne = roundScores.some((r) => r.score.trim() !== "")
 		if (!hasAtLeastOne) {
 			throw new ZSAError("ERROR", "At least one score is required")
 		}
-
-		const normalizedEntries = roundScores.map((r) => ({
-			score: r.score,
-			timeCapped: false,
-		}))
 
 		// Disallow CAP/DNS/DNF in multi-round until we support per-round status/secondary
 		for (const r of roundScores) {
@@ -1312,121 +1687,106 @@ export async function savePersonalLogScore(
 			}
 		}
 
-		const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
-			normalizedEntries,
-			workoutInfo,
+		entries = roundScores.map((r) => ({ raw: r.score, isCapped: false }))
+	} else {
+		// Single-round
+		const rawScore = (input.score ?? "").trim()
+		if (!rawScore) {
+			throw new ZSAError("ERROR", "Score is required")
+		}
+
+		const parsed = parseScoreInput(
+			rawScore,
+			workoutInfo.scheme as WorkoutScheme,
+			workoutInfo.timeCap ?? undefined,
+			workoutInfo.tiebreakScheme ?? undefined,
 		)
-
-		const result = await addLog({
-			userId: session.userId,
-			teamId,
-			workoutId: workout.id,
-			date: timestamp,
-			scalingLevelId,
-			asRx,
-			wodScore,
-			notes: input.notes ?? "",
-			setsData: setsForDb,
-			type: "wod",
-			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
-			programmingTrackId: input.programmingTrackId ?? null,
-			workoutInfo,
-			hasTimeCappedRounds: false,
-		})
-
-		if (!result.success || !result.scoreId) {
-			throw new ZSAError("ERROR", result.error || "Failed to save log")
+		if (!parsed.isValid) {
+			throw new ZSAError("ERROR", parsed.error || "Invalid score")
 		}
-		return { scoreId: result.scoreId }
+
+		const status = mapParseStatusToScoreStatusNew(parsed.scoreStatus)
+
+		// CAP handling for time-with-cap workouts
+		if (status === "cap") {
+			if (workoutInfo.scheme !== "time-with-cap") {
+				throw new ZSAError(
+					"ERROR",
+					"CAP is only supported for time-with-cap workouts",
+				)
+			}
+			if (!workoutInfo.timeCap) {
+				throw new ZSAError("ERROR", "Workout has no time cap configured")
+			}
+			const repsStr = (input.secondaryScore ?? "").trim()
+			const reps = Number.parseInt(repsStr, 10)
+			if (!repsStr || Number.isNaN(reps) || reps < 0) {
+				throw new ZSAError("ERROR", "Reps at cap is required for CAP scores")
+			}
+
+			const timeCapMs = workoutInfo.timeCap * 1000
+
+			const result = await addScore({
+				userId: session.userId,
+				teamId,
+				workoutId: workout.id,
+				recordedAt: timestamp,
+				scalingLevelId,
+				asRx,
+				notes: input.notes,
+				entries: [], // No entries for CAP - we override the value
+				workoutInfo,
+				scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+				statusOverride: "cap",
+				scoreValueOverride: timeCapMs,
+				secondaryValue: reps,
+			})
+
+			if (!result.success || !result.scoreId) {
+				throw new ZSAError("ERROR", result.error || "Failed to save log")
+			}
+			return { scoreId: result.scoreId }
+		}
+
+		// Withdrawn status
+		if (status === "withdrawn") {
+			const result = await addScore({
+				userId: session.userId,
+				teamId,
+				workoutId: workout.id,
+				recordedAt: timestamp,
+				scalingLevelId,
+				asRx,
+				notes: input.notes,
+				entries: [],
+				workoutInfo,
+				scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+				statusOverride: "withdrawn",
+				scoreValueOverride: null,
+			})
+
+			if (!result.success || !result.scoreId) {
+				throw new ZSAError("ERROR", result.error || "Failed to save log")
+			}
+			return { scoreId: result.scoreId }
+		}
+
+		// Normal scored single-round
+		entries = [{ raw: rawScore, isCapped: false }]
 	}
 
-	// Single-round
-	const rawScore = (input.score ?? "").trim()
-	if (!rawScore) {
-		throw new ZSAError("ERROR", "Score is required")
-	}
-
-	const parsed = parseScoreInput(
-		rawScore,
-		workoutInfo.scheme as WorkoutScheme,
-		workoutInfo.timeCap ?? undefined,
-		workoutInfo.tiebreakScheme ?? undefined,
-	)
-	if (!parsed.isValid) {
-		throw new ZSAError("ERROR", parsed.error || "Invalid score")
-	}
-
-	const status = mapParseStatusToScoreStatusNew(parsed.scoreStatus)
-
-	// CAP handling for time-with-cap workouts: store scoreValue=timeCapMs, secondaryValue=reps
-	if (status === "cap") {
-		if (workoutInfo.scheme !== "time-with-cap") {
-			throw new ZSAError(
-				"ERROR",
-				"CAP is only supported for time-with-cap workouts",
-			)
-		}
-		if (!workoutInfo.timeCap) {
-			throw new ZSAError("ERROR", "Workout has no time cap configured")
-		}
-		const repsStr = (input.secondaryScore ?? "").trim()
-		const reps = Number.parseInt(repsStr, 10)
-		if (!repsStr || Number.isNaN(reps) || reps < 0) {
-			throw new ZSAError("ERROR", "Reps at cap is required for CAP scores")
-		}
-
-		const timeCapMs = workoutInfo.timeCap * 1000
-
-		const result = await addLog({
-			userId: session.userId,
-			teamId,
-			workoutId: workout.id,
-			date: timestamp,
-			scalingLevelId,
-			asRx,
-			wodScore: parsed.formatted,
-			notes: input.notes ?? "",
-			setsData: [],
-			type: "wod",
-			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
-			programmingTrackId: input.programmingTrackId ?? null,
-			workoutInfo,
-			hasTimeCappedRounds: false,
-			statusOverride: "cap",
-			scoreValueOverride: timeCapMs,
-			secondaryValue: reps,
-		})
-
-		if (!result.success || !result.scoreId) {
-			throw new ZSAError("ERROR", result.error || "Failed to save log")
-		}
-		return { scoreId: result.scoreId }
-	}
-
-	// Normal scored / withdrawn single-round: store as a single-entry set
-	const normalizedEntries = [{ score: rawScore, timeCapped: false }]
-	const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
-		normalizedEntries,
-		workoutInfo,
-	)
-
-	const result = await addLog({
+	// Use the new addScore API
+	const result = await addScore({
 		userId: session.userId,
 		teamId,
 		workoutId: workout.id,
-		date: timestamp,
+		recordedAt: timestamp,
 		scalingLevelId,
 		asRx,
-		wodScore,
-		notes: input.notes ?? "",
-		setsData: setsForDb,
-		type: "wod",
-		scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
-		programmingTrackId: input.programmingTrackId ?? null,
+		notes: input.notes,
+		entries,
 		workoutInfo,
-		hasTimeCappedRounds: false,
-		statusOverride: status === "withdrawn" ? "withdrawn" : undefined,
-		scoreValueOverride: status === "withdrawn" ? null : undefined,
+		scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
 	})
 
 	if (!result.success || !result.scoreId) {
@@ -1557,12 +1917,17 @@ export async function updatePersonalLogScore(input: {
 	const roundsToScore = workout.roundsToScore ?? 1
 	const isMultiRound = roundsToScore > 1
 
+	// Build entries array from input
+	let entries: ScoreEntryInput[] = []
+
 	if (isMultiRound) {
 		const roundScores = input.roundScores ?? []
 		const hasAtLeastOne = roundScores.some((r) => r.score.trim() !== "")
 		if (!hasAtLeastOne) {
 			throw new ZSAError("ERROR", "At least one score is required")
 		}
+
+		// Disallow CAP/DNS/DNF in multi-round until we support per-round status/secondary
 		for (const r of roundScores) {
 			const p = parseScoreInput(
 				r.score,
@@ -1578,430 +1943,96 @@ export async function updatePersonalLogScore(input: {
 			}
 		}
 
-		const normalizedEntries = roundScores.map((r) => ({
-			score: r.score,
-			timeCapped: false,
-		}))
+		entries = roundScores.map((r) => ({ raw: r.score, isCapped: false }))
+	} else {
+		// Single-round
+		const rawScore = (input.score ?? "").trim()
+		if (!rawScore) {
+			throw new ZSAError("ERROR", "Score is required")
+		}
 
-		const { setsForDb } = processScoresToSetsAndWodScore(
-			normalizedEntries,
-			workoutInfo,
+		const parsed = parseScoreInput(
+			rawScore,
+			workoutInfo.scheme as WorkoutScheme,
+			workoutInfo.timeCap ?? undefined,
+			workoutInfo.tiebreakScheme ?? undefined,
 		)
-
-		await updateScore({
-			scoreId: input.scoreId,
-			userId: session.userId,
-			workoutId: workout.id,
-			date: timestamp,
-			scalingLevelId,
-			asRx,
-			notes: input.notes ?? "",
-			setsData: setsForDb,
-			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
-			workoutInfo,
-			hasTimeCappedRounds: false,
-			statusOverride: "scored",
-			secondaryValue: null,
-		})
-		return
-	}
-
-	const rawScore = (input.score ?? "").trim()
-	if (!rawScore) {
-		throw new ZSAError("ERROR", "Score is required")
-	}
-
-	const parsed = parseScoreInput(
-		rawScore,
-		workoutInfo.scheme as WorkoutScheme,
-		workoutInfo.timeCap ?? undefined,
-		workoutInfo.tiebreakScheme ?? undefined,
-	)
-	if (!parsed.isValid) {
-		throw new ZSAError("ERROR", parsed.error || "Invalid score")
-	}
-
-	const status = mapParseStatusToScoreStatusNew(parsed.scoreStatus)
-
-	if (status === "cap") {
-		if (workoutInfo.scheme !== "time-with-cap") {
-			throw new ZSAError(
-				"ERROR",
-				"CAP is only supported for time-with-cap workouts",
-			)
-		}
-		if (!workoutInfo.timeCap) {
-			throw new ZSAError("ERROR", "Workout has no time cap configured")
-		}
-		const repsStr = (input.secondaryScore ?? "").trim()
-		const reps = Number.parseInt(repsStr, 10)
-		if (!repsStr || Number.isNaN(reps) || reps < 0) {
-			throw new ZSAError("ERROR", "Reps at cap is required for CAP scores")
+		if (!parsed.isValid) {
+			throw new ZSAError("ERROR", parsed.error || "Invalid score")
 		}
 
-		const timeCapMs = workoutInfo.timeCap * 1000
+		const status = mapParseStatusToScoreStatusNew(parsed.scoreStatus)
 
-		await updateScore({
-			scoreId: input.scoreId,
-			userId: session.userId,
-			workoutId: workout.id,
-			date: timestamp,
-			scalingLevelId,
-			asRx,
-			notes: input.notes ?? "",
-			setsData: [],
-			scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
-			workoutInfo,
-			hasTimeCappedRounds: false,
-			statusOverride: "cap",
-			scoreValueOverride: timeCapMs,
-			secondaryValue: reps,
-		})
-		return
+		// CAP handling for time-with-cap workouts
+		if (status === "cap") {
+			if (workoutInfo.scheme !== "time-with-cap") {
+				throw new ZSAError(
+					"ERROR",
+					"CAP is only supported for time-with-cap workouts",
+				)
+			}
+			if (!workoutInfo.timeCap) {
+				throw new ZSAError("ERROR", "Workout has no time cap configured")
+			}
+			const repsStr = (input.secondaryScore ?? "").trim()
+			const reps = Number.parseInt(repsStr, 10)
+			if (!repsStr || Number.isNaN(reps) || reps < 0) {
+				throw new ZSAError("ERROR", "Reps at cap is required for CAP scores")
+			}
+
+			const timeCapMs = workoutInfo.timeCap * 1000
+
+			await updateScoreV2({
+				scoreId: input.scoreId,
+				workoutId: workout.id,
+				recordedAt: timestamp,
+				scalingLevelId,
+				asRx,
+				notes: input.notes,
+				entries: [], // No entries for CAP - we override the value
+				workoutInfo,
+				scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+				statusOverride: "cap",
+				scoreValueOverride: timeCapMs,
+				secondaryValue: reps,
+			})
+			return
+		}
+
+		// Withdrawn status
+		if (status === "withdrawn") {
+			await updateScoreV2({
+				scoreId: input.scoreId,
+				workoutId: workout.id,
+				recordedAt: timestamp,
+				scalingLevelId,
+				asRx,
+				notes: input.notes,
+				entries: [],
+				workoutInfo,
+				scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
+				statusOverride: "withdrawn",
+				scoreValueOverride: null,
+			})
+			return
+		}
+
+		// Normal scored single-round
+		entries = [{ raw: rawScore, isCapped: false }]
 	}
 
-	const normalizedEntries = [{ score: rawScore, timeCapped: false }]
-	const { setsForDb } = processScoresToSetsAndWodScore(
-		normalizedEntries,
-		workoutInfo,
-	)
-
-	await updateScore({
+	// Use the new updateScoreV2 API
+	await updateScoreV2({
 		scoreId: input.scoreId,
-		userId: session.userId,
 		workoutId: workout.id,
-		date: timestamp,
+		recordedAt: timestamp,
 		scalingLevelId,
 		asRx,
-		notes: input.notes ?? "",
-		setsData: setsForDb,
+		notes: input.notes,
+		entries,
+		workoutInfo,
 		scheduledWorkoutInstanceId: input.scheduledInstanceId ?? null,
-		workoutInfo,
-		hasTimeCappedRounds: false,
-		statusOverride: status,
-		scoreValueOverride: status === "withdrawn" ? null : undefined,
-		secondaryValue: null,
 	})
-}
-
-// Form submission logic moved from actions.ts
-
-interface BasicFormData {
-	selectedWorkoutId: string | null
-	dateStr: string
-	scaleValue: "rx" | "scaled" | "rx+"
-	notesValue: string
-	redirectUrl: string | null
-	scheduledInstanceId: string | null
-	programmingTrackId: string | null
-}
-
-function parseBasicFormData(formData: FormData): BasicFormData {
-	const selectedWorkoutId = formData.get("selectedWorkoutId") as string | null
-	const dateStr = formData.get("date") as string
-	const scaleValue = formData.get("scale") as "rx" | "scaled" | "rx+"
-	const notesValue = formData.get("notes") as string
-	const redirectUrl = formData.get("redirectUrl") as string | null
-	const scheduledInstanceId = formData.get("scheduledInstanceId") as
-		| string
-		| null
-	const programmingTrackId = formData.get("programmingTrackId") as string | null
-	return {
-		selectedWorkoutId,
-		dateStr,
-		scaleValue,
-		notesValue,
-		redirectUrl,
-		scheduledInstanceId,
-		programmingTrackId,
-	}
-}
-
-function parseScoreEntries(formData: FormData): Array<{ parts: string[] }> {
-	const parsedScoreEntries: Array<{ parts: string[] }> = []
-	let roundIdx = 0
-	// Check for scores like scores[0][0], scores[0][1], scores[1][0] etc.
-	while (formData.has(`scores[${roundIdx}][0]`)) {
-		const parts: string[] = []
-		let partIdx = 0
-		while (formData.has(`scores[${roundIdx}][${partIdx}]`)) {
-			parts.push(
-				(formData.get(`scores[${roundIdx}][${partIdx}]`) as string) || "",
-			)
-			partIdx++
-		}
-		if (parts.length > 0) {
-			parsedScoreEntries.push({ parts })
-		}
-		roundIdx++
-	}
-	return parsedScoreEntries
-}
-
-function parseTimeCappedEntries(formData: FormData): boolean[] {
-	const timeCappedEntries: boolean[] = []
-	let roundIdx = 0
-	// Check for timeCapped like timeCapped[0], timeCapped[1], etc.
-	while (formData.has(`timeCapped[${roundIdx}]`)) {
-		const isTimeCapped = formData.get(`timeCapped[${roundIdx}]`) === "true"
-		timeCappedEntries.push(isTimeCapped)
-		roundIdx++
-	}
-	return timeCappedEntries
-}
-
-function validateParsedScores(
-	parsedScoreEntries: Array<{ parts: string[] }>,
-	workoutScheme: Workout["scheme"],
-): { error?: string } | undefined {
-	const atLeastOneScorePartFilled = parsedScoreEntries.some((entry) =>
-		entry.parts.some((part) => part.trim() !== ""),
-	)
-
-	if (parsedScoreEntries.length === 0 || !atLeastOneScorePartFilled) {
-		if (workoutScheme !== undefined) {
-			// N/A scheme might not require scores
-			logWarning({
-				message:
-					"[submitLogForm] No valid score parts provided for a workout that expects scores",
-			})
-			return {
-				error: "At least one score input is required and must not be empty.",
-			}
-		}
-	}
-	return undefined // Explicitly return undefined if no error
-}
-
-function validateProcessedSets(
-	setsForDb: ResultSetInput[],
-	workoutScheme: Workout["scheme"],
-	atLeastOneScorePartFilled: boolean,
-): { error?: string } | undefined {
-	if (
-		setsForDb.length === 0 &&
-		workoutScheme !== undefined &&
-		atLeastOneScorePartFilled
-	) {
-		logWarning({
-			message:
-				"[submitLogForm] Score entries produced no valid sets despite input",
-		})
-		return {
-			error:
-				"Valid score information is required. Please check your inputs for each round/set.",
-		}
-	}
-	if (
-		setsForDb.length === 0 &&
-		workoutScheme !== undefined &&
-		!atLeastOneScorePartFilled
-	) {
-		logWarning({
-			message:
-				"[submitLogForm] No score entries provided for workout that expects scores",
-		})
-		return {
-			error: "At least one score input is required and must not be empty.",
-		}
-	}
-	return undefined
-}
-
-async function submitLogToDatabase(
-	userId: string,
-	selectedWorkoutId: string,
-	dateStr: string,
-	timezone: string,
-	scaleValue: "rx" | "scaled" | "rx+",
-	finalWodScoreSummary: string,
-	notesValue: string,
-	setsForDb: ResultSetInput[],
-	workoutInfo: WorkoutScoreInfo,
-	hasTimeCappedRounds: boolean,
-	scheduledInstanceId?: string | null,
-	programmingTrackId?: string | null,
-) {
-	logInfo({
-		message: "[submitLogToDatabase] Start",
-		attributes: {
-			userId,
-			workoutId: selectedWorkoutId,
-			date: dateStr,
-			timezone,
-			scale: scaleValue,
-			wodScoreSummary: finalWodScoreSummary,
-			notesPresent: Boolean(notesValue),
-			setsCount: setsForDb.length,
-			scheduledInstanceId,
-			programmingTrackId,
-		},
-	})
-
-	try {
-		const dateInTargetTz = fromZonedTime(`${dateStr}T00:00:00`, timezone)
-		const timestamp = dateInTargetTz.getTime()
-
-		// Get user's active team for the new scores table
-		const teamId = await getActiveOrPersonalTeamId(userId)
-
-		// Map legacy scale to new scaling fields
-		const { scalingLevelId, asRx } = await mapLegacyScaleToScalingLevel({
-			workoutId: selectedWorkoutId,
-			programmingTrackId,
-			scale: scaleValue,
-		})
-
-		const result = await addLog({
-			userId,
-			teamId,
-			workoutId: selectedWorkoutId,
-			date: timestamp,
-			scalingLevelId,
-			asRx,
-			wodScore: finalWodScoreSummary,
-			notes: notesValue,
-			setsData: setsForDb,
-			type: "wod",
-			scheduledWorkoutInstanceId: scheduledInstanceId,
-			programmingTrackId: programmingTrackId,
-			workoutInfo,
-			hasTimeCappedRounds,
-		})
-
-		if (!result.success) {
-			logError({
-				message: "[submitLogToDatabase] Failed to add log",
-				attributes: { userId, workoutId: selectedWorkoutId },
-			})
-			return { error: result.error || "Failed to save log" }
-		}
-
-		logInfo({
-			message: "[submitLogToDatabase] Success",
-			attributes: {
-				resultId: result.resultId,
-				scoreId: result.scoreId,
-				workoutId: selectedWorkoutId,
-			},
-		})
-		return { success: true, resultId: result.resultId, scoreId: result.scoreId }
-	} catch (error) {
-		logError({
-			message: "[submitLogToDatabase] Error saving log",
-			error,
-			attributes: { userId, workoutId: selectedWorkoutId },
-		})
-		return {
-			error: `Failed to save log: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		}
-	}
-}
-
-export async function submitLogForm(
-	userId: string,
-	workouts: Workout[],
-	formData: FormData,
-) {
-	logInfo({
-		message: "[submitLogForm] Start",
-		attributes: {
-			userId,
-			workoutsCount: workouts.length,
-		},
-	})
-
-	const headerList = await headers()
-	const timezone = headerList.get("x-vercel-ip-timezone") ?? "America/Denver"
-	const {
-		selectedWorkoutId,
-		dateStr,
-		scaleValue,
-		notesValue,
-		scheduledInstanceId,
-		programmingTrackId,
-	} = parseBasicFormData(formData)
-
-	if (!selectedWorkoutId) {
-		logError({
-			message: "[submitLogForm] No workout selected",
-			attributes: { userId },
-		})
-		return { error: "No workout selected. Please select a workout." }
-	}
-
-	const workout = workouts.find((w) => w.id === selectedWorkoutId)
-
-	if (!workout) {
-		logError({
-			message: "[submitLogForm] Workout not found for ID",
-			attributes: { selectedWorkoutId, userId },
-		})
-		return { error: "Selected workout not found. Please try again." }
-	}
-
-	const parsedScoreEntries = parseScoreEntries(formData)
-	const timeCappedEntries = parseTimeCappedEntries(formData)
-
-	const validationError = validateParsedScores(
-		parsedScoreEntries,
-		workout.scheme,
-	)
-	if (validationError) {
-		return validationError
-	}
-
-	const atLeastOneScorePartFilled = parsedScoreEntries.some((entry) =>
-		entry.parts.some((part) => part.trim() !== ""),
-	)
-
-	// Convert to normalized format and process using shared function
-	const normalizedEntries = normalizeScoreEntries(
-		parsedScoreEntries,
-		timeCappedEntries,
-	)
-
-	const workoutInfo: WorkoutScoreInfo = {
-		scheme: workout.scheme as WorkoutScheme,
-		scoreType: workout.scoreType as ScoreType | null,
-		repsPerRound: workout.repsPerRound ?? null,
-		roundsToScore: workout.roundsToScore ?? null,
-		timeCap: workout.timeCap ?? null,
-	}
-
-	const { setsForDb, wodScore } = processScoresToSetsAndWodScore(
-		normalizedEntries,
-		workoutInfo,
-	)
-
-	const processedSetsValidationError = validateProcessedSets(
-		setsForDb,
-		workout.scheme,
-		atLeastOneScorePartFilled,
-	)
-	if (processedSetsValidationError) {
-		return processedSetsValidationError
-	}
-
-	// Check if any rounds are time-capped
-	const hasTimeCappedRounds = timeCappedEntries.some((capped) => capped)
-
-	return submitLogToDatabase(
-		userId,
-		selectedWorkoutId,
-		dateStr,
-		timezone,
-		scaleValue,
-		wodScore,
-		notesValue,
-		setsForDb,
-		workoutInfo,
-		hasTimeCappedRounds,
-		scheduledInstanceId,
-		programmingTrackId,
-	)
 }
 
 // ============================================================================

@@ -17,7 +17,7 @@ import {
 import {
 	ScoreInputFields,
 	type ScoreInputFieldsHandle,
-} from "@/app/(compete)/compete/organizer/[competitionId]/(with-tabs)/results/_components/score-input-row/score-input-fields"
+} from "@/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/_components/score-input-row/score-input-fields"
 import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 import { ScalingSelector } from "@/components/scaling-selector"
 import { Badge } from "@/components/ui/badge"
@@ -406,15 +406,19 @@ export default function LogFormClient({
 														key={selectedWorkout}
 														ref={scoreInputRef}
 														workoutScheme={
-															(getSelectedWorkout()?.scheme as unknown as any) || "reps"
+															(getSelectedWorkout()
+																?.scheme as unknown as any) || "reps"
 														}
 														scoreType={getSelectedWorkout()?.scoreType as any}
 														tiebreakScheme={
-															(getSelectedWorkout()?.tiebreakScheme as any) || null
+															(getSelectedWorkout()?.tiebreakScheme as any) ||
+															null
 														}
 														showTiebreak={false}
 														timeCap={getSelectedWorkout()?.timeCap || undefined}
-														roundsToScore={getSelectedWorkout()?.roundsToScore || 1}
+														roundsToScore={
+															getSelectedWorkout()?.roundsToScore || 1
+														}
 														autoFocus
 													/>
 												</div>

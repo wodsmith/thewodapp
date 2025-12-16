@@ -91,44 +91,6 @@ function mapToNewStatus(
 	}
 }
 
-/**
- * Convert legacy set data to encoded value for new scores table.
- * Uses the first set's score/reps for the primary value.
- */
-function convertSetsToEncodedValue(
-	setsData: Array<{
-		score: number | null
-		reps: number | null
-		time: number | null
-	}>,
-	scheme: WorkoutScheme,
-): number | null {
-	if (setsData.length === 0) return null
-
-	const firstSet = setsData[0]
-	if (!firstSet) return null
-
-	// For rounds-reps, use score (rounds) and reps
-	if (scheme === "rounds-reps") {
-		const rounds = firstSet.score ?? 0
-		const reps = firstSet.reps ?? 0
-		// Legacy: rounds * 1000 + reps
-		const legacyValue = rounds * 1000 + reps
-		return convertLegacyToNew(legacyValue, scheme)
-	}
-
-	// For time-based schemes, use time in seconds (legacy format)
-	if (scheme === "time" || scheme === "time-with-cap" || scheme === "emom") {
-		const timeInSeconds = firstSet.time ?? 0
-		return convertLegacyToNew(timeInSeconds, scheme)
-	}
-
-	// For other schemes, use score directly
-	const value = firstSet.score ?? null
-	if (value === null) return null
-	return convertLegacyToNew(value, scheme)
-}
-
 // ============================================================================
 // Heat-Based Score Entry Types
 // ============================================================================
@@ -974,7 +936,9 @@ export async function saveCompetitionScore(params: {
 
 			// Convert and insert new rounds
 			const roundsToInsert = setsToInsert.map((set, index) => {
-				// Convert each round's value using the adapter
+				// Convert each round's value to new encoding
+				// NOTE: processScoresToSetsAndWodScore already stores time in milliseconds (new encoding)
+				// so we only need to convert non-time values using the adapter
 				let roundValue: number
 
 				if (scheme === "rounds-reps") {
@@ -987,8 +951,8 @@ export async function saveCompetitionScore(params: {
 					scheme === "time-with-cap" ||
 					scheme === "emom"
 				) {
-					const timeInSeconds = set.time ?? 0
-					roundValue = convertLegacyToNew(timeInSeconds, scheme)
+					// set.time is already in milliseconds (new encoding) from processScoresToSetsAndWodScore
+					roundValue = set.time ?? 0
 				} else {
 					const value = set.score ?? 0
 					roundValue = convertLegacyToNew(value, scheme)

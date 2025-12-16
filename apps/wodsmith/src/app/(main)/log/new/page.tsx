@@ -348,7 +348,6 @@ export default async function LogNewResultPage({
 	return (
 		<LogFormClient
 			workouts={serializedWorkouts}
-			userId={session.user.id}
 			teamId={teamId}
 			selectedWorkoutId={mySearchParams?.workoutId}
 			redirectUrl={mySearchParams?.redirectUrl}
