@@ -7,8 +7,13 @@ import {
 	text,
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
-import { commonColumns, createHeatVolunteerId } from "./common"
-import { competitionHeatsTable } from "./competitions"
+import {
+	commonColumns,
+	createHeatVolunteerId,
+	createJudgeRotationId,
+} from "./common"
+import { competitionHeatsTable, competitionsTable } from "./competitions"
+import { trackWorkoutsTable } from "./programming"
 import { teamMembershipTable } from "./teams"
 
 // Volunteer role types
@@ -28,6 +33,16 @@ export const VOLUNTEER_ROLE_TYPES = {
 
 export type VolunteerRoleType =
 	(typeof VOLUNTEER_ROLE_TYPES)[keyof typeof VOLUNTEER_ROLE_TYPES]
+
+// Lane shift pattern for judge rotations
+export const LANE_SHIFT_PATTERN = {
+	STAY: "stay",
+	SHIFT_RIGHT: "shift_right",
+	SHIFT_LEFT: "shift_left",
+} as const
+
+export type LaneShiftPattern =
+	(typeof LANE_SHIFT_PATTERN)[keyof typeof LANE_SHIFT_PATTERN]
 
 // TypeScript interface for volunteer membership metadata
 // This gets stored as JSON in teamMembershipTable.metadata
@@ -74,6 +89,11 @@ export const competitionHeatVolunteersTable = sqliteTable(
 		membershipId: text()
 			.notNull()
 			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		// Optional reference to the rotation that generated this assignment
+		// (null for manually created assignments)
+		rotationId: text().references(() => competitionJudgeRotationsTable.id, {
+			onDelete: "set null",
+		}),
 		// Optional lane assignment (for lane judges)
 		laneNumber: integer(),
 		// Position/role for this specific heat (overrides default from metadata)
@@ -92,9 +112,62 @@ export const competitionHeatVolunteersTable = sqliteTable(
 	],
 )
 
+// Judge Rotations Table
+// Defines rotation patterns for judges across multiple heats
+export const competitionJudgeRotationsTable = sqliteTable(
+	"competition_judge_rotations",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createJudgeRotationId())
+			.notNull(),
+		// The competition this rotation belongs to
+		competitionId: text()
+			.notNull()
+			.references(() => competitionsTable.id, { onDelete: "cascade" }),
+		// The event/workout this rotation is for
+		trackWorkoutId: text()
+			.notNull()
+			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		// The judge (team membership with volunteer role)
+		membershipId: text()
+			.notNull()
+			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
+		// Starting heat number (1-indexed)
+		startingHeat: integer().notNull(),
+		// Starting lane number (1-indexed)
+		startingLane: integer().notNull(),
+		// How many consecutive heats they judge
+		heatsCount: integer().notNull(),
+		// Lane shift pattern ('stay', 'shift_right', 'shift_left')
+		laneShiftPattern: text({ length: 20 })
+			.$type<LaneShiftPattern>()
+			.notNull()
+			.default("stay"),
+		// Optional notes/instructions for this rotation
+		notes: text({ length: 500 }),
+	},
+	(table) => [
+		index("competition_judge_rotations_competition_idx").on(
+			table.competitionId,
+		),
+		index("competition_judge_rotations_workout_idx").on(table.trackWorkoutId),
+		index("competition_judge_rotations_membership_idx").on(table.membershipId),
+		// Composite index for efficient rotation lookups
+		index("competition_judge_rotations_event_heat_idx").on(
+			table.trackWorkoutId,
+			table.startingHeat,
+		),
+	],
+)
+
 // Type exports
 export type CompetitionHeatVolunteer = InferSelectModel<
 	typeof competitionHeatVolunteersTable
+>
+export type CompetitionJudgeRotation = InferSelectModel<
+	typeof competitionJudgeRotationsTable
 >
 
 // Relations
@@ -108,6 +181,10 @@ export const competitionHeatVolunteersRelations = relations(
 		membership: one(teamMembershipTable, {
 			fields: [competitionHeatVolunteersTable.membershipId],
 			references: [teamMembershipTable.id],
+		}),
+		rotation: one(competitionJudgeRotationsTable, {
+			fields: [competitionHeatVolunteersTable.rotationId],
+			references: [competitionJudgeRotationsTable.id],
 		}),
 	}),
 )
@@ -125,5 +202,41 @@ export const teamMembershipVolunteersReverseRelations = relations(
 	teamMembershipTable,
 	({ many }) => ({
 		volunteerAssignments: many(competitionHeatVolunteersTable),
+		judgeRotations: many(competitionJudgeRotationsTable),
+	}),
+)
+
+// Judge rotations relations
+export const competitionJudgeRotationsRelations = relations(
+	competitionJudgeRotationsTable,
+	({ one }) => ({
+		competition: one(competitionsTable, {
+			fields: [competitionJudgeRotationsTable.competitionId],
+			references: [competitionsTable.id],
+		}),
+		trackWorkout: one(trackWorkoutsTable, {
+			fields: [competitionJudgeRotationsTable.trackWorkoutId],
+			references: [trackWorkoutsTable.id],
+		}),
+		membership: one(teamMembershipTable, {
+			fields: [competitionJudgeRotationsTable.membershipId],
+			references: [teamMembershipTable.id],
+		}),
+	}),
+)
+
+// Reverse relation: competitions can have judge rotations
+export const competitionsJudgeRotationsReverseRelations = relations(
+	competitionsTable,
+	({ many }) => ({
+		judgeRotations: many(competitionJudgeRotationsTable),
+	}),
+)
+
+// Reverse relation: track workouts can have judge rotations
+export const trackWorkoutsJudgeRotationsReverseRelations = relations(
+	trackWorkoutsTable,
+	({ many }) => ({
+		judgeRotations: many(competitionJudgeRotationsTable),
 	}),
 )

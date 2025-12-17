@@ -110,6 +110,9 @@ export const competitionsTable = sqliteTable(
 		// Competition branding images
 		profileImageUrl: text({ length: 600 }),
 		bannerImageUrl: text({ length: 600 }),
+		// Judge rotation defaults
+		defaultHeatsPerRotation: integer().default(4),
+		defaultLaneShiftPattern: text({ length: 20 }).default("stay"),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
