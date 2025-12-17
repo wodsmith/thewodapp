@@ -366,6 +366,7 @@ export async function createVolunteerSignup({
 	signupEmail,
 	signupPhone,
 	availabilityNotes,
+	credentials,
 }: {
 	db: Db
 	competitionTeamId: string
@@ -373,6 +374,7 @@ export async function createVolunteerSignup({
 	signupEmail: string
 	signupPhone?: string
 	availabilityNotes?: string
+	credentials?: string
 }): Promise<TeamMembership> {
 	// Check for duplicate email sign-up
 	// Look for existing volunteer memberships with this email in metadata
@@ -452,7 +454,8 @@ export async function createVolunteerSignup({
 
 	// Create volunteer membership metadata
 	const metadata: VolunteerMembershipMetadata = {
-		volunteerRoleTypes: [], // Admin will assign specific roles after approval
+		volunteerRoleTypes: [], // Admin will assign roles after approval
+		credentials,
 		status: "pending",
 		signupEmail,
 		signupName,

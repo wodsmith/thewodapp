@@ -50,6 +50,7 @@ export function VolunteerSignupForm({
 			signupName: formData.get("name") as string,
 			signupEmail: formData.get("email") as string,
 			signupPhone: (formData.get("phone") as string) || undefined,
+			credentials: (formData.get("credentials") as string) || undefined,
 			availabilityNotes: (formData.get("availability") as string) || undefined,
 			// Honeypot field
 			website: (formData.get("website") as string) || undefined,
@@ -148,18 +149,28 @@ export function VolunteerSignupForm({
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="availability">Availability Notes</Label>
+						<Label htmlFor="credentials">Certifications / Credentials</Label>
 						<Textarea
-							id="availability"
-							name="availability"
-							placeholder="Let us know your availability, any experience, or roles you're interested in..."
-							rows={4}
+							id="credentials"
+							name="credentials"
+							placeholder="e.g., CrossFit L1 Judge, CrossFit L2, EMT, First Aid/CPR certified..."
+							rows={2}
 							disabled={isPending}
 						/>
 						<p className="text-sm text-muted-foreground">
-							Tell us about your schedule, experience, or what you'd like to
-							help with.
+							List any relevant certifications or judging credentials you hold
 						</p>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="availability">Additional Notes</Label>
+						<Textarea
+							id="availability"
+							name="availability"
+							placeholder="Anything else you'd like us to know about your availability, experience, or preferences..."
+							rows={3}
+							disabled={isPending}
+						/>
 					</div>
 
 					{error && (

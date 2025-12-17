@@ -290,6 +290,8 @@ const submitVolunteerSignupSchema = z.object({
 	signupEmail: z.string().email("Invalid email address"),
 	signupPhone: z.string().optional(),
 	availabilityNotes: z.string().optional(),
+	// Certifications/credentials (e.g., "CrossFit L1 Judge", "EMT")
+	credentials: z.string().optional(),
 	// Honeypot field for spam prevention
 	website: z.string().optional(),
 })
@@ -368,6 +370,7 @@ export const submitVolunteerSignupAction = createServerAction()
 				signupEmail: input.signupEmail,
 				signupPhone: input.signupPhone,
 				availabilityNotes: input.availabilityNotes,
+				credentials: input.credentials,
 			})
 
 			return { success: true, membershipId: membership.id }
