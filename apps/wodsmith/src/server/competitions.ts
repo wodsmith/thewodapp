@@ -1516,7 +1516,7 @@ export async function getTeamRoster(registrationId: string) {
 	}
 
 	// Get confirmed team members
-	const memberships = await db.query.teamMembershipTable.findMany({
+	const memberships = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
 		with: {
 			user: {
@@ -1529,7 +1529,22 @@ export async function getTeamRoster(registrationId: string) {
 				},
 			},
 		},
-	})
+	})) as unknown as Array<{
+		id: string
+		userId: string
+		teamId: string
+		roleId: string
+		isSystemRole: number
+		isActive: number
+		joinedAt: Date | null
+		user: {
+			id: string
+			firstName: string | null
+			lastName: string | null
+			email: string
+			avatar: string | null
+		} | null
+	}>
 
 	// Get pending invitations
 	const invitations = await db.query.teamInvitationTable.findMany({

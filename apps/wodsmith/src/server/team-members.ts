@@ -8,12 +8,22 @@ import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
+	type TeamMembership,
+	type User,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamRoleTable,
 	teamTable,
 	userTable,
 } from "@/db/schema"
+
+/** User fields included in team member queries */
+type MemberUser = Pick<User, "id" | "firstName" | "lastName" | "email" | "avatar">
+
+/** Membership with user relation included */
+type TeamMembershipWithUser = TeamMembership & {
+	user: MemberUser | null
+}
 import { canSignUp, getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
@@ -29,7 +39,7 @@ export async function getTeamMembers(teamId: string) {
 
 	const db = getDb()
 
-	const members = await db.query.teamMembershipTable.findMany({
+	const members = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.teamId, teamId),
 		with: {
 			user: {
@@ -42,7 +52,7 @@ export async function getTeamMembers(teamId: string) {
 				},
 			},
 		},
-	})
+	})) as TeamMembershipWithUser[]
 
 	// Get all team roles for this team (for custom roles)
 	const teamRoles = await db.query.teamRoleTable.findMany({

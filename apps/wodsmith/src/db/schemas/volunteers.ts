@@ -19,6 +19,11 @@ export const VOLUNTEER_ROLE_TYPES = {
 	MEDICAL: "medical",
 	CHECK_IN: "check_in",
 	STAFF: "staff",
+	SCOREKEEPER: "scorekeeper",
+	EMCEE: "emcee",
+	FLOOR_MANAGER: "floor_manager",
+	MEDIA: "media",
+	GENERAL: "general",
 } as const
 
 export type VolunteerRoleType =

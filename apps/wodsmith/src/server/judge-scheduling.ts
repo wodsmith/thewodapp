@@ -247,7 +247,7 @@ export async function assignJudgeToHeat(
 		heatId: string
 		membershipId: string
 		laneNumber: number
-		position?: string | null
+		position?: schema.VolunteerRoleType | null
 		instructions?: string | null
 	},
 ): Promise<CompetitionHeatVolunteer> {
@@ -283,8 +283,8 @@ export async function bulkAssignJudgesToHeat(
 		heatId: string
 		assignments: Array<{
 			membershipId: string
-			laneNumber: number
-			position?: string | null
+			laneNumber: number | null
+			position?: schema.VolunteerRoleType | null
 			instructions?: string | null
 		}>
 	},

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
 import {
 	assignJudgeToHeat,
 	bulkAssignJudgesToHeat,
@@ -42,13 +43,27 @@ const getJudgeHeatAssignmentsSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 })
 
+const volunteerRoleTypeSchema = z.enum([
+	VOLUNTEER_ROLE_TYPES.JUDGE,
+	VOLUNTEER_ROLE_TYPES.HEAD_JUDGE,
+	VOLUNTEER_ROLE_TYPES.EQUIPMENT,
+	VOLUNTEER_ROLE_TYPES.MEDICAL,
+	VOLUNTEER_ROLE_TYPES.CHECK_IN,
+	VOLUNTEER_ROLE_TYPES.STAFF,
+	VOLUNTEER_ROLE_TYPES.SCOREKEEPER,
+	VOLUNTEER_ROLE_TYPES.EMCEE,
+	VOLUNTEER_ROLE_TYPES.FLOOR_MANAGER,
+	VOLUNTEER_ROLE_TYPES.MEDIA,
+	VOLUNTEER_ROLE_TYPES.GENERAL,
+])
+
 const assignJudgeToHeatSchema = z.object({
 	heatId: heatIdSchema,
 	organizingTeamId: competitionTeamIdSchema,
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	membershipId: membershipIdSchema,
 	laneNumber: z.number().int().min(1),
-	position: z.string().nullable().optional(),
+	position: volunteerRoleTypeSchema.nullable().optional(),
 	instructions: z.string().nullable().optional(),
 })
 
@@ -60,7 +75,7 @@ const bulkAssignJudgesToHeatSchema = z.object({
 		z.object({
 			membershipId: membershipIdSchema,
 			laneNumber: z.number().int().min(1),
-			position: z.string().nullable().optional(),
+			position: volunteerRoleTypeSchema.nullable().optional(),
 			instructions: z.string().nullable().optional(),
 		}),
 	),

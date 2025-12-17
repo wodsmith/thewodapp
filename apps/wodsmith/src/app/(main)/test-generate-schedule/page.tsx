@@ -11,7 +11,9 @@ export default async function TestGenerateSchedulePage() {
 		return <div>Error</div>
 	}
 
-	const firstTeam = result.data[0]
+	// Filter out null teams
+	const teams = result.data.filter((t): t is NonNullable<typeof t> => t !== null)
+	const firstTeam = teams[0]
 	if (!firstTeam) {
 		return <div>No teams found</div>
 	}
@@ -45,11 +47,11 @@ export default async function TestGenerateSchedulePage() {
 		<div className="container mx-auto p-8">
 			<h1 className="text-2xl font-bold mb-6">Test Generate Schedule Action</h1>
 
-			<TestGenerateScheduleClient
-				teams={result.data}
-				templates={templatesResult || []}
-				defaultTeamId={firstTeam?.id || ""}
-			/>
+		<TestGenerateScheduleClient
+			teams={teams}
+			templates={templatesResult || []}
+			defaultTeamId={firstTeam?.id || ""}
+		/>
 		</div>
 	)
 }

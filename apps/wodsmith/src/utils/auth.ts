@@ -12,10 +12,17 @@ import { getDb } from "@/db"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
+	type Team,
 	TEAM_PERMISSIONS,
+	type TeamMembership,
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
+
+/** Membership with team relation included */
+type TeamMembershipWithTeam = TeamMembership & {
+	team: Team | null
+}
 import type { SessionValidationResult } from "@/types"
 import isProd from "@/utils/is-prod"
 import { addFreeMonthlyCreditsIfNeeded } from "./credits"
@@ -118,12 +125,12 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 	const db = getDb()
 
 	// Get user's team memberships
-	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+	const userTeamMemberships = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, userId),
 		with: {
 			team: true,
 		},
-	})
+	})) as TeamMembershipWithTeam[]
 
 	// Get all custom role IDs that need to be fetched
 	const customRoleIds = userTeamMemberships

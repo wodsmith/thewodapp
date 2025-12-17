@@ -28,7 +28,16 @@ import { VolunteerRow } from "./volunteer-row"
 interface VolunteerWithAccess {
 	id: string
 	userId: string
+	teamId: string
+	roleId: string
+	isSystemRole: number
+	isActive: number
 	metadata: string | null
+	joinedAt: Date | null
+	createdAt: Date
+	expiresAt: Date | null
+	invitedAt: Date | null
+	invitedBy: string | null
 	user: User | null
 	hasScoreAccess: boolean
 	status?: "pending" | "approved" | "rejected"

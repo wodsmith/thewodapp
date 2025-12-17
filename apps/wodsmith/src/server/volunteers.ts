@@ -9,13 +9,18 @@ import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type * as schema from "@/db/schema"
 
 type Db = DrizzleD1Database<typeof schema>
-import type { TeamMembership } from "@/db/schema"
+import type { TeamMembership, User } from "@/db/schema"
 import {
 	entitlementTable,
 	SYSTEM_ROLES_ENUM,
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
+
+/** Membership with user relation included for volunteer queries */
+export type TeamMembershipWithUser = TeamMembership & {
+	user: User | null
+}
 import type {
 	VolunteerMembershipMetadata,
 	VolunteerRoleType,
@@ -77,7 +82,7 @@ export function hasRoleType(
 export async function getCompetitionVolunteers(
 	db: Db,
 	competitionTeamId: string,
-) {
+): Promise<TeamMembershipWithUser[]> {
 	return db.query.teamMembershipTable.findMany({
 		where: and(
 			eq(teamMembershipTable.teamId, competitionTeamId),
@@ -88,7 +93,7 @@ export async function getCompetitionVolunteers(
 		with: {
 			user: true,
 		},
-	})
+	}) as unknown as Promise<TeamMembershipWithUser[]>
 }
 
 /**
@@ -238,7 +243,7 @@ export async function grantScoreAccess({
 	grantedBy,
 	expiresAt,
 }: {
-	db: DrizzleD1Database
+	db: Db
 	volunteerId: string // userId of the volunteer
 	competitionTeamId: string
 	competitionId: string

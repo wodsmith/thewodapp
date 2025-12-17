@@ -54,7 +54,7 @@ export default async function JudgeSchedulingPage({
 
 	// Parallel fetch: events, judges, heats
 	const [events, judges] = await Promise.all([
-		getCompetitionWorkouts(db, competition.id),
+		getCompetitionWorkouts(competition.id),
 		getJudgeVolunteers(db, competition.competitionTeamId),
 	])
 
