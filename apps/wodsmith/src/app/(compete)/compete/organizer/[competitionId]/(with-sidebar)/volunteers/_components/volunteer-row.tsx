@@ -1,6 +1,7 @@
 "use client"
 
 import { useServerAction } from "@repo/zsa-react"
+import { Check, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -9,9 +10,11 @@ import {
 	grantScoreAccessAction,
 	removeVolunteerRoleTypeAction,
 	revokeScoreAccessAction,
+	updateVolunteerMetadataAction,
 } from "@/actions/volunteer-actions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
 	DropdownMenu,
@@ -30,6 +33,7 @@ interface VolunteerWithAccess {
 	metadata: string | null
 	user: User | null
 	hasScoreAccess: boolean
+	status?: "pending" | "approved" | "rejected"
 }
 
 interface VolunteerRowProps {
@@ -59,17 +63,38 @@ const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
 }
 
 /**
- * Parse volunteer role types from metadata
+ * Parse volunteer metadata
  */
-function parseRoleTypes(metadata: string | null): VolunteerRoleType[] {
-	if (!metadata) return []
+function parseMetadata(metadata: string | null): {
+	roleTypes: VolunteerRoleType[]
+	status?: "pending" | "approved" | "rejected"
+	signupName?: string
+	signupEmail?: string
+	signupPhone?: string
+} {
+	if (!metadata)
+		return {
+			roleTypes: [],
+		}
 	try {
 		const parsed = JSON.parse(metadata) as {
 			volunteerRoleTypes?: VolunteerRoleType[]
+			status?: "pending" | "approved" | "rejected"
+			signupName?: string
+			signupEmail?: string
+			signupPhone?: string
 		}
-		return parsed.volunteerRoleTypes ?? []
+		return {
+			roleTypes: parsed.volunteerRoleTypes ?? [],
+			status: parsed.status,
+			signupName: parsed.signupName,
+			signupEmail: parsed.signupEmail,
+			signupPhone: parsed.signupPhone,
+		}
 	} catch {
-		return []
+		return {
+			roleTypes: [],
+		}
 	}
 }
 
@@ -94,11 +119,12 @@ export function VolunteerRow({
 	competitionTeamId,
 	organizingTeamId,
 }: VolunteerRowProps) {
-	const roleTypes = parseRoleTypes(volunteer.metadata)
+	const metadata = parseMetadata(volunteer.metadata)
 	const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
 	const [selectedRoles, setSelectedRoles] = useState<Set<VolunteerRoleType>>(
-		new Set(roleTypes),
+		new Set(metadata.roleTypes),
 	)
+	const [status, setStatus] = useState(metadata.status || "approved")
 
 	// Action hooks
 	const { execute: addRoleType, isPending: isAddingRole } = useServerAction(
@@ -150,6 +176,16 @@ export function VolunteerRow({
 			},
 		},
 	)
+
+	const { execute: updateMetadata, isPending: isUpdatingMetadata } =
+		useServerAction(updateVolunteerMetadataAction, {
+			onSuccess: () => {
+				// Toast handled in the specific action handlers
+			},
+			onError: (error) => {
+				toast.error(error.err?.message || "Failed to update volunteer")
+			},
+		})
 
 	const handleScoreAccessToggle = (checked: boolean) => {
 		if (!volunteer.user) return
@@ -205,7 +241,42 @@ export function VolunteerRow({
 		}
 	}
 
-	const isPending = isAddingRole || isRemovingRole || isGranting || isRevoking
+	const handleApprove = () => {
+		setStatus("approved")
+		updateMetadata({
+			membershipId: volunteer.id,
+			organizingTeamId,
+			competitionId,
+			metadata: { status: "approved" },
+		})
+		toast.success("Volunteer approved")
+	}
+
+	const handleReject = () => {
+		setStatus("rejected")
+		updateMetadata({
+			membershipId: volunteer.id,
+			organizingTeamId,
+			competitionId,
+			metadata: { status: "rejected" },
+		})
+		toast.success("Volunteer rejected")
+	}
+
+	const isPending =
+		isAddingRole ||
+		isRemovingRole ||
+		isGranting ||
+		isRevoking ||
+		isUpdatingMetadata
+
+	const isPendingVolunteer = status === "pending"
+	const displayName = volunteer.user
+		? `${volunteer.user.firstName ?? ""} ${volunteer.user.lastName ?? ""}`
+		: metadata.signupName || "Unknown"
+	const displayEmail = volunteer.user
+		? volunteer.user.email
+		: metadata.signupEmail || "—"
 
 	return (
 		<TableRow>
@@ -214,7 +285,7 @@ export function VolunteerRow({
 					<Avatar className="h-8 w-8">
 						<AvatarImage
 							src={volunteer.user?.avatar ?? undefined}
-							alt={`${volunteer.user?.firstName ?? ""} ${volunteer.user?.lastName ?? ""}`}
+							alt={displayName}
 						/>
 						<AvatarFallback className="text-xs">
 							{getInitials(
@@ -223,13 +294,18 @@ export function VolunteerRow({
 							)}
 						</AvatarFallback>
 					</Avatar>
-					<span className="font-medium">
-						{volunteer.user?.firstName ?? ""} {volunteer.user?.lastName ?? ""}
-					</span>
+					<div className="flex flex-col gap-1">
+						<span className="font-medium">{displayName}</span>
+						{isPendingVolunteer && (
+							<Badge variant="outline" className="w-fit text-xs">
+								Pending
+							</Badge>
+						)}
+					</div>
 				</div>
 			</TableCell>
 			<TableCell className="text-muted-foreground text-sm">
-				{volunteer.user?.email}
+				{displayEmail}
 			</TableCell>
 			<TableCell>
 				<div className="flex flex-wrap gap-1">
@@ -251,32 +327,50 @@ export function VolunteerRow({
 				/>
 			</TableCell>
 			<TableCell className="text-right">
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						className="rounded-md px-3 py-2 text-sm hover:bg-accent"
-						disabled={isPending}
-					>
-						Edit Roles
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Role Types</DropdownMenuLabel>
-						<DropdownMenuSeparator />
-						{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
-							(roleType) => (
-								<DropdownMenuCheckboxItem
-									key={roleType}
-									checked={selectedRoles.has(roleType)}
-									onCheckedChange={(checked) =>
-										handleRoleTypeToggle(roleType, checked)
-									}
-									disabled={isPending}
-								>
-									{ROLE_TYPE_LABELS[roleType]}
-								</DropdownMenuCheckboxItem>
-							),
-						)}
-					</DropdownMenuContent>
-				</DropdownMenu>
+				{isPendingVolunteer ? (
+					<div className="flex items-center justify-end gap-2">
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={handleReject}
+							disabled={isPending}
+						>
+							<X className="mr-1 h-4 w-4" />
+							Reject
+						</Button>
+						<Button size="sm" onClick={handleApprove} disabled={isPending}>
+							<Check className="mr-1 h-4 w-4" />
+							Approve
+						</Button>
+					</div>
+				) : (
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							className="rounded-md px-3 py-2 text-sm hover:bg-accent"
+							disabled={isPending}
+						>
+							Edit Roles
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuLabel>Role Types</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							{(Object.keys(ROLE_TYPE_LABELS) as VolunteerRoleType[]).map(
+								(roleType) => (
+									<DropdownMenuCheckboxItem
+										key={roleType}
+										checked={selectedRoles.has(roleType)}
+										onCheckedChange={(checked) =>
+											handleRoleTypeToggle(roleType, checked)
+										}
+										disabled={isPending}
+									>
+										{ROLE_TYPE_LABELS[roleType]}
+									</DropdownMenuCheckboxItem>
+								),
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				)}
 			</TableCell>
 		</TableRow>
 	)
