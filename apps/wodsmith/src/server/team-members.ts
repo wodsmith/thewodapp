@@ -18,7 +18,10 @@ import {
 } from "@/db/schema"
 
 /** User fields included in team member queries */
-type MemberUser = Pick<User, "id" | "firstName" | "lastName" | "email" | "avatar">
+type MemberUser = Pick<
+	User,
+	"id" | "firstName" | "lastName" | "email" | "avatar"
+>
 
 /** Membership with user relation included */
 type TeamMembershipWithUser = TeamMembership & {
