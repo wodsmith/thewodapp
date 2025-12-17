@@ -10,6 +10,7 @@ import {
 	ReceiptText,
 	Sparkles,
 	Trophy,
+	UserCheck,
 	Users,
 } from "lucide-react"
 import Image from "next/image"
@@ -73,6 +74,7 @@ const getNavigation = (
 			label: "Run Competition",
 			items: [
 				{ label: "Schedule", href: `${basePath}/schedule`, icon: Calendar },
+				{ label: "Volunteers", href: `${basePath}/volunteers`, icon: UserCheck },
 				{ label: "Results", href: `${basePath}/results`, icon: Medal },
 			],
 		},
