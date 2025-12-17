@@ -21,13 +21,13 @@ Volunteers are organized into **Volunteer Teams** - a new team type that reuses 
 ```
 Competition (e.g., "Mountain West Throwdown 2025")
 ├── Volunteer Team: "MWFC Judges"
-│   └── Members: Becky, Kevin, Matt, JT, Scott... (judge role)
+│   └── Members: Zara, Marcus, Priya, Theo, Ingrid... (judge role)
 ├── Volunteer Team: "MWFC Equipment Crew"  
-│   └── Members: Dustin, Trevor, Alex... (equipment role)
+│   └── Members: Kenji, Fatima, Dmitri... (equipment role)
 ├── Volunteer Team: "MWFC Staff"
-│   └── Members: Breana, Cynthia, Jamie... (staff role)
+│   └── Members: Aaliyah, Henrik, Mei... (staff role)
 └── Volunteer Team: "MWFC Medical"
-    └── Members: Austin, Cassidy, James... (medical role)
+    └── Members: Rashid, Yuki, Sven... (medical role)
 ```
 
 **For smaller competitions**, a single volunteer team works fine:
@@ -342,23 +342,23 @@ Unlike athletes (who compete once per event), judges typically work **multiple c
 │ │ │ ▼  Heat 1         9:00 AM  Main Floor  │ │ │ [All Credentials ▼]     │ │
 │ │ │    RX Division                         │ │ │                         │ │
 │ │ ├────────────────────────────────────────┤ │ │ ┌─ 4 selected ────────┐ │
-│ │ │ ⠿ L1  Kevin Martinez         L2  ✕    │ │ │ │ [Clear]             │ │
-│ │ │ ⠿ L2  Matt Johnson           L2  ✕    │ │ │ └─────────────────────┘ │
-│ │ │ ⠿ L3  Becky Thompson         L1  ✕    │ │ │                         │ │
-│ │ │ ⠿ L4  JT Williams            L1  ✕    │ │ │ L2 Certified (3)        │ │
+│ │ │ ⠿ L1  Marcus Chen            L2  ✕    │ │ │ │ [Clear]             │ │
+│ │ │ ⠿ L2  Priya Okonkwo          L2  ✕    │ │ │ └─────────────────────┘ │
+│ │ │ ⠿ L3  Zara Lindqvist         L1  ✕    │ │ │                         │ │
+│ │ │ ⠿ L4  Theo Nakamura          L1  ✕    │ │ │ L2 Certified (3)        │ │
 │ │ │                                        │ │ │ ┌─────────────────────┐ │
-│ │ │ [+ Assign Judge]                       │ │ │ │ ☐ ⠿ Sarah Chen  L2  │ │
-│ │ └────────────────────────────────────────┘ │ │ │ ☑ ⠿ Mike Davis  L2  │ │
-│ │                                             │ │ │ ☑ ⠿ Lisa Park   L2  │ │
+│ │ │ [+ Assign Judge]                       │ │ │ │ ☐ ⠿ Ingrid Patel L2 │ │
+│ │ └────────────────────────────────────────┘ │ │ │ ☑ ⠿ Kofi Müller  L2 │ │
+│ │                                             │ │ │ ☑ ⠿ Lena Obi     L2 │ │
 │ │ ┌─ Heat 2 ──────────────────── 4/4 ──────┐ │ │ └─────────────────────┘ │
 │ │ │ ▼  Heat 2         9:15 AM  Main Floor  │ │ │                         │ │
 │ │ │    RX Division                         │ │ │ L1 Certified (5)        │ │
 │ │ ├────────────────────────────────────────┤ │ │ ┌─────────────────────┐ │
-│ │ │ ⠿ L1  Scott Anderson         L1  ✕    │ │ │ │ ☑ ⠿ Tom Brown   L1  │ │
-│ │ │ ⠿ L2  Amy Wilson             L1  ✕    │ │ │ │ ☑ ⠿ Jane Smith  L1  │ │
-│ │ │ ⠿ L3  Chris Lee              L1  ✕    │ │ │ │ ☐ ⠿ Bob Jones   L1  │ │
-│ │ │ ⠿ L4  Dana Miller            L1  ✕    │ │ │ │ ☐ ⠿ Kim Taylor  L1  │ │
-│ │ │                                        │ │ │ │ ☐ ⠿ Pat Garcia  L1  │ │
+│ │ │ ⠿ L1  Olga Fernandez         L1  ✕    │ │ │ │ ☑ ⠿ Raj Novak   L1  │ │
+│ │ │ ⠿ L2  Hiroshi Kim            L1  ✕    │ │ │ │ ☑ ⠿ Nia Santos  L1  │ │
+│ │ │ ⠿ L3  Amara Johansson        L1  ✕    │ │ │ │ ☐ ⠿ Erik Diaz   L1  │ │
+│ │ │ ⠿ L4  Viktor Osei            L1  ✕    │ │ │ │ ☐ ⠿ Yara Petrov L1  │ │
+│ │ │                                        │ │ │ │ ☐ ⠿ Jin Larsson L1  │ │
 │ │ │ [+ Assign Judge]                       │ │ │ └─────────────────────┘ │
 │ │ └────────────────────────────────────────┘ │ │                         │ │
 │ │                                             │ │                         │ │
@@ -459,10 +459,10 @@ Since judges typically work multiple consecutive heats, the primary workflow hel
 │ ▼  Heat 3         9:30 AM  Main Floor  │
 │    Scaled Division                     │
 ├────────────────────────────────────────┤
-│ ⠿ L1  Kevin Martinez         L2  ✕    │
-│ ⠿ L2  Matt Johnson           L2  ✕    │
-│ ⠿ L3  Becky Thompson         L1  ✕    │
-│ ⠿ L4  JT Williams            L1  ✕    │
+│ ⠿ L1  Marcus Chen            L2  ✕    │
+│ ⠿ L2  Priya Okonkwo          L2  ✕    │
+│ ⠿ L3  Zara Lindqvist         L1  ✕    │
+│ ⠿ L4  Theo Nakamura          L1  ✕    │
 │                                        │
 │ [⋮ More Actions]                       │
 │ ┌──────────────────────────────────┐   │
@@ -620,26 +620,26 @@ export const competitionShiftAssignmentsTable = sqliteTable("competition_shift_a
 │ │ │ ▼  7:00 AM - 9:00 AM       Main Floor  │ │ │ [All Roles ▼]           │ │
 │ │ │    Equipment Crew                      │ │ │                         │ │
 │ │ ├────────────────────────────────────────┤ │ │ ┌─ 2 selected ────────┐ │
-│ │ │ ⠿ Dustin Martinez      Equipment  ✕   │ │ │ │ [Clear]             │ │
-│ │ │ ⠿ Trevor Johnson       Equipment  ✕   │ │ │ └─────────────────────┘ │
+│ │ │ ⠿ Kenji Adebayo        Equipment  ✕   │ │ │ │ [Clear]             │ │
+│ │ │ ⠿ Fatima Sørensen      Equipment  ✕   │ │ │ └─────────────────────┘ │
 │ │ │    [Empty slot]                   +   │ │ │                         │ │
 │ │ │                                        │ │ │ Equipment Crew (4)      │ │
 │ │ │ [+ Assign Volunteer]                   │ │ │ ┌─────────────────────┐ │
-│ │ └────────────────────────────────────────┘ │ │ │ ☐ ⠿ Alex Chen       │ │
-│ │                                             │ │ │ ☑ ⠿ Jordan Davis    │ │
-│ │ ┌─ Check-in ─────────────────── 4/4 ─────┐ │ │ │ ☑ ⠿ Casey Park      │ │
-│ │ │ ▶  8:00 AM - 12:00 PM     Front Desk   │ │ │ │ ☐ ⠿ Riley Kim       │ │
+│ │ └────────────────────────────────────────┘ │ │ │ ☐ ⠿ Dmitri Okafor   │ │
+│ │                                             │ │ │ ☑ ⠿ Aisha Bergman   │ │
+│ │ ┌─ Check-in ─────────────────── 4/4 ─────┐ │ │ │ ☑ ⠿ Tomás Nguyen    │ │
+│ │ │ ▶  8:00 AM - 12:00 PM     Front Desk   │ │ │ │ ☐ ⠿ Freya Tanaka    │ │
 │ │ │    Staff                               │ │ │ └─────────────────────┘ │
 │ │ │    4 assigned • Full ✓                 │ │ │                         │ │
 │ │ └────────────────────────────────────────┘ │ │ Staff (6)               │ │
 │ │                                             │ │ ┌─────────────────────┐ │
-│ │ ┌─ Event Transitions ────────── 3/6 ─────┐ │ │ │ ☐ ⠿ Morgan Lee      │ │
-│ │ │ ▼  9:00 AM - 3:00 PM       All Areas   │ │ │ │ ☐ ⠿ Taylor Swift    │ │
-│ │ │    Equipment Crew                      │ │ │ │ ☐ ⠿ Sam Wilson      │ │
-│ │ ├────────────────────────────────────────┤ │ │ │ ☐ ⠿ Jamie Brown     │ │
-│ │ │ ⠿ Alex Chen            Equipment  ✕   │ │ │ │ ☐ ⠿ Drew Garcia     │ │
-│ │ │ ⠿ Jordan Davis         Equipment  ✕   │ │ │ │ ☐ ⠿ Quinn Miller    │ │
-│ │ │ ⠿ Casey Park           Equipment  ✕   │ │ │ └─────────────────────┘ │
+│ │ ┌─ Event Transitions ────────── 3/6 ─────┐ │ │ │ ☐ ⠿ Suki Andersen   │ │
+│ │ │ ▼  9:00 AM - 3:00 PM       All Areas   │ │ │ │ ☐ ⠿ Emeka Holm      │ │
+│ │ │    Equipment Crew                      │ │ │ │ ☐ ⠿ Liam Oduya      │ │
+│ │ ├────────────────────────────────────────┤ │ │ │ ☐ ⠿ Rosa Kimura     │ │
+│ │ │ ⠿ Dmitri Okafor        Equipment  ✕   │ │ │ │ ☐ ⠿ Nils Mensah     │ │
+│ │ │ ⠿ Aisha Bergman        Equipment  ✕   │ │ │ │ ☐ ⠿ Hana Eriksson   │ │
+│ │ │ ⠿ Tomás Nguyen         Equipment  ✕   │ │ │ └─────────────────────┘ │
 │ │ │    [Empty slot]                   +   │ │ │                         │ │
 │ │ │    [Empty slot]                   +   │ │ │                         │ │
 │ │ │    [Empty slot]                   +   │ │ │                         │ │
