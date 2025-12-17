@@ -1,6 +1,6 @@
 import "server-only"
-import { notFound } from "next/navigation"
 import { ZSAError } from "@repo/zsa"
+import { notFound } from "next/navigation"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"

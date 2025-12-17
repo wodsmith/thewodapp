@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
 	assignWorkoutSponsorSchema,
@@ -14,6 +15,7 @@ import {
 	updateSponsorGroupSchema,
 	updateSponsorSchema,
 } from "@/schemas/sponsors.schema"
+import { getCompetition } from "@/server/competitions"
 import {
 	assignWorkoutSponsor,
 	createSponsor,
@@ -29,10 +31,8 @@ import {
 	updateSponsor,
 	updateSponsorGroup,
 } from "@/server/sponsors"
-import { getCompetition } from "@/server/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
-import { z } from "zod"
 
 /* -------------------------------------------------------------------------- */
 /*                           Query Actions                                     */

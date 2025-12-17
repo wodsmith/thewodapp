@@ -2,11 +2,11 @@
 import { and, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
 	competitionDivisionFeesTable,
 	competitionsTable,
 	scalingLevelsTable,
-	COMMERCE_PURCHASE_STATUS,
 } from "@/db/schema"
 
 /**

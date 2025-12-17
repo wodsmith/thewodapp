@@ -1,6 +1,6 @@
 import {
-	ChartBarIcon,
 	BoltIcon,
+	ChartBarIcon,
 	DevicePhoneMobileIcon,
 	UserGroupIcon,
 } from "@heroicons/react/24/outline"

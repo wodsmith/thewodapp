@@ -2,8 +2,8 @@
 import { desc, eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
-	commercePurchaseTable,
 	commerceProductTable,
+	commercePurchaseTable,
 	competitionsTable,
 } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"

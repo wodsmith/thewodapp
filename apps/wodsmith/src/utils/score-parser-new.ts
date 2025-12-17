@@ -9,7 +9,7 @@
  * - Count-based (reps, calories, points): raw integer
  */
 
-import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
+import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
 import {
 	parseScore as libParseScore,
 	parseTiebreak as libParseTiebreak,

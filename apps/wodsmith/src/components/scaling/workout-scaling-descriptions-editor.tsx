@@ -1,9 +1,9 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { AlertCircle, Save } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	getScalingGroupWithLevelsAction,
 	getWorkoutScalingDescriptionsAction,

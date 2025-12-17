@@ -1,16 +1,14 @@
 "use server"
 
 import {
-	Users,
-	Calendar,
-	Trophy,
 	AlertCircle,
+	Calendar,
 	LogIn,
+	Trophy,
 	UserPlus,
+	Users,
 } from "lucide-react"
-import { getSessionFromCookie } from "@/utils/auth"
-import { getTeammateInvite } from "@/server/competitions"
-import { checkEmailExists } from "@/server/user"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -18,7 +16,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { getTeammateInvite } from "@/server/competitions"
+import { checkEmailExists } from "@/server/user"
+import { getSessionFromCookie } from "@/utils/auth"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
 import { InviteSignUpForm } from "./_components/invite-signup-form"
 

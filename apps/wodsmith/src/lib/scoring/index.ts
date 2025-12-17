@@ -42,104 +42,89 @@
  * const sortKey = computeSortKey(score)
  */
 
-// ============ Types ============
-export type {
-	// Core types
-	WorkoutScheme,
-	ScoreStatus,
-	ScoreType,
-	TiebreakScheme,
-	SortDirection,
-	WeightUnit,
-	DistanceUnit,
-	// Score types
-	Score,
-	ScoreRound,
-	ScoreInput,
-	RoundInput,
-	// Result types
-	ParseResult,
-	ParseOptions,
-	FormatOptions,
-	EncodeOptions,
-	EncodeRoundsResult,
-	ValidationResult,
-	// Database types
-	ScoreRecord,
-	ScoreRoundRecord,
-} from "./types"
-
-// ============ Constants ============
+// ============ Aggregation ============
 export {
-	WORKOUT_SCHEMES,
-	SCORE_STATUSES,
-	SCORE_TYPES,
-	TIEBREAK_SCHEMES,
-	WEIGHT_UNITS,
-	DISTANCE_UNITS,
-} from "./types"
-
+	aggregateValues,
+	aggregateWithSummary,
+	// Note: getDefaultScoreType is exported from sort
+	// Note: isLowerBetter is exported from sort
+} from "./aggregate"
 export {
-	STATUS_ORDER,
-	ROUNDS_REPS_MULTIPLIER,
-	MAX_SCORE_VALUE,
-	GRAMS_PER_UNIT,
-	MM_PER_UNIT,
-	DEFAULT_SCORE_TYPES,
-	SCHEME_SORT_DIRECTIONS,
-	MS_PER_SECOND,
-	MS_PER_MINUTE,
-	MS_PER_HOUR,
-	TIME_BASED_SCHEMES,
-	LOAD_BASED_SCHEMES,
-	DISTANCE_BASED_SCHEMES,
 	COUNT_BASED_SCHEMES,
-	isTimeBasedScheme,
-	isLoadBasedScheme,
-	isDistanceBasedScheme,
+	DEFAULT_SCORE_TYPES,
+	DISTANCE_BASED_SCHEMES,
+	GRAMS_PER_UNIT,
 	isCountBasedScheme,
+	isDistanceBasedScheme,
+	isLoadBasedScheme,
+	isTimeBasedScheme,
+	LOAD_BASED_SCHEMES,
+	MAX_SCORE_VALUE,
+	MM_PER_UNIT,
+	MS_PER_HOUR,
+	MS_PER_MINUTE,
+	MS_PER_SECOND,
+	ROUNDS_REPS_MULTIPLIER,
+	SCHEME_SORT_DIRECTIONS,
+	STATUS_ORDER,
+	TIME_BASED_SCHEMES,
 } from "./constants"
-
-// ============ Encoding ============
-export {
-	encodeScore,
-	encodeRounds,
-	encodeNumericScore,
-	// Time encoding
-	encodeTime,
-	encodeTimeFromSeconds,
-	encodeTimeFromMs,
-	// Rounds+Reps encoding
-	encodeRoundsReps,
-	encodeRoundsRepsFromParts,
-	extractRoundsReps,
-	// Load encoding
-	encodeLoad,
-	encodeLoadFromNumber,
-	gramsToUnit,
-	// Distance encoding
-	encodeDistance,
-	encodeDistanceFromNumber,
-	mmToUnit,
-} from "./encode"
-
 // ============ Decoding ============
 export {
-	decodeScore,
-	decodeToNumber,
-	// Time decoding
-	decodeTime,
-	decodeTimeToSeconds,
-	// Rounds+Reps decoding
-	decodeRoundsReps,
-	// Note: extractRoundsReps is exported from encode
-	// Load decoding
-	decodeLoad,
 	// Note: gramsToUnit is exported from encode
 	// Distance decoding
 	decodeDistance,
+	// Note: extractRoundsReps is exported from encode
+	// Load decoding
+	decodeLoad,
+	// Rounds+Reps decoding
+	decodeRoundsReps,
+	decodeScore,
+	// Time decoding
+	decodeTime,
+	decodeTimeToSeconds,
+	decodeToNumber,
 	// Note: mmToUnit is exported from encode
 } from "./decode"
+
+// ============ Encoding ============
+export {
+	// Distance encoding
+	encodeDistance,
+	encodeDistanceFromNumber,
+	// Load encoding
+	encodeLoad,
+	encodeLoadFromNumber,
+	encodeNumericScore,
+	encodeRounds,
+	// Rounds+Reps encoding
+	encodeRoundsReps,
+	encodeRoundsRepsFromParts,
+	encodeScore,
+	// Time encoding
+	encodeTime,
+	encodeTimeFromMs,
+	encodeTimeFromSeconds,
+	extractRoundsReps,
+	gramsToUnit,
+	mmToUnit,
+} from "./encode"
+// ============ Formatting ============
+export {
+	convertDistance,
+	convertWeight,
+	formatNumber,
+	formatRounds,
+	formatScore,
+	formatScoreCompact,
+	formatScoreForList,
+	formatScoreWithTiebreak,
+	formatStatus,
+	formatStatusFull,
+	getDistanceUnitLabel,
+	getWeightUnitLabel,
+	isSpecialStatus,
+} from "./format"
 
 // ============ Parsing ============
 export {
@@ -148,54 +133,63 @@ export {
 	parseTime,
 	validateTimeInput,
 } from "./parse"
-
-// ============ Formatting ============
-export {
-	formatScore,
-	formatScoreCompact,
-	formatRounds,
-	formatScoreWithTiebreak,
-	formatScoreForList,
-	formatStatus,
-	formatStatusFull,
-	isSpecialStatus,
-	getWeightUnitLabel,
-	getDistanceUnitLabel,
-	convertWeight,
-	convertDistance,
-	formatNumber,
-} from "./format"
-
 // ============ Sorting ============
 export {
-	getSortDirection,
-	isLowerBetter,
-	getDefaultScoreType,
+	compareScores,
 	computeSortKey,
 	computeSortKeyWithDirection,
-	extractFromSortKey,
-	statusFromOrder,
-	sortKeyToString,
-	compareScores,
 	createComparator,
-	sortScores,
+	extractFromSortKey,
 	findRank,
+	getDefaultScoreType,
+	getSortDirection,
+	isLowerBetter,
+	sortKeyToString,
+	sortScores,
+	statusFromOrder,
 } from "./sort"
-
-// ============ Aggregation ============
+// ============ Types ============
+export type {
+	DistanceUnit,
+	EncodeOptions,
+	EncodeRoundsResult,
+	FormatOptions,
+	ParseOptions,
+	// Result types
+	ParseResult,
+	RoundInput,
+	// Score types
+	Score,
+	ScoreInput,
+	// Database types
+	ScoreRecord,
+	ScoreRound,
+	ScoreRoundRecord,
+	ScoreStatus,
+	ScoreType,
+	SortDirection,
+	TiebreakScheme,
+	ValidationResult,
+	WeightUnit,
+	// Core types
+	WorkoutScheme,
+} from "./types"
+// ============ Constants ============
 export {
-	aggregateValues,
-	aggregateWithSummary,
-	// Note: getDefaultScoreType is exported from sort
-	// Note: isLowerBetter is exported from sort
-} from "./aggregate"
+	DISTANCE_UNITS,
+	SCORE_STATUSES,
+	SCORE_TYPES,
+	TIEBREAK_SCHEMES,
+	WEIGHT_UNITS,
+	WORKOUT_SCHEMES,
+} from "./types"
 
 // ============ Validation ============
 export {
+	isOutlier,
+	validateDistance,
+	validateLoad,
+	validateRoundsReps,
 	validateScoreInput,
 	validateTime,
-	validateRoundsReps,
-	validateLoad,
-	validateDistance,
-	isOutlier,
 } from "./validate"

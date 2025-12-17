@@ -1,7 +1,7 @@
 "use server"
 import { createId } from "@paralleldrive/cuid2"
-import { z } from "zod"
 import { createServerAction } from "@repo/zsa"
+import { z } from "zod"
 import { getDb } from "@/db"
 import {
 	classCatalogTable,

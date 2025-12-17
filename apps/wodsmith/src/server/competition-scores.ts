@@ -1,45 +1,45 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, inArray } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
-import { autochunk } from "@/utils/batch-query"
 import {
 	competitionRegistrationsTable,
+	type ScoreStatus,
+	type ScoreType,
 	scalingLevelsTable,
-	scoresTable,
 	scoreRoundsTable,
+	scoresTable,
+	type TiebreakScheme,
 	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
-	type ScoreStatus,
 	type WorkoutScheme,
-	type ScoreType,
-	type TiebreakScheme,
 } from "@/db/schema"
 import {
-	processScoresToSetsAndWodScore,
-	type WorkoutScoreInfo,
-	type NormalizedScoreEntry,
-} from "@/server/logs"
-import { getSessionFromCookie } from "@/utils/auth"
-import {
+	logError,
 	logInfo,
 	logWarning,
-	logError,
 } from "@/lib/logging/posthog-otel-logger"
-import { getHeatsForWorkout } from "./competition-heats"
 import {
-	encodeScore,
-	encodeRounds,
 	computeSortKey,
 	decodeScore,
-	sortKeyToString,
+	encodeRounds,
+	encodeScore,
 	getDefaultScoreType,
+	sortKeyToString,
 } from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
+import {
+	type NormalizedScoreEntry,
+	processScoresToSetsAndWodScore,
+	type WorkoutScoreInfo,
+} from "@/server/logs"
+import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
 import { convertLegacyToNew } from "@/utils/score-adapter"
+import { getHeatsForWorkout } from "./competition-heats"
 
 // ============================================================================
 // Helper Functions

@@ -3,14 +3,14 @@ import "server-only"
 import { and, asc, eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+	competitionsTable,
+	programmingTracksTable,
 	type Sponsor,
 	type SponsorGroup,
 	sponsorGroupsTable,
 	sponsorsTable,
-	trackWorkoutsTable,
-	programmingTracksTable,
-	competitionsTable,
 	TEAM_PERMISSIONS,
+	trackWorkoutsTable,
 } from "@/db/schema"
 import { requireTeamPermission } from "@/utils/team-auth"
 

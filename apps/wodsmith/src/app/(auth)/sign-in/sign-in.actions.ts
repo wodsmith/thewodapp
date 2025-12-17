@@ -1,7 +1,7 @@
 "use server"
 
-import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { logError } from "@/lib/logging/posthog-otel-logger"

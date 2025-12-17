@@ -1,8 +1,8 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import { DataTable } from "@/components/data-table"
 import { Input } from "@/components/ui/input"
 import { getUsersAction } from "../../_actions/get-users.action"

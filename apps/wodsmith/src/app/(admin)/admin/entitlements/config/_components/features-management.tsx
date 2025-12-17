@@ -20,9 +20,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import type { Feature } from "@/db/schemas/entitlements"
 import { getAllFeaturesAction } from "../../../_actions/entitlement-admin-actions"
 import { FeatureDialog } from "./feature-dialog"
-import type { Feature } from "@/db/schemas/entitlements"
 
 export function FeaturesManagement() {
 	const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)

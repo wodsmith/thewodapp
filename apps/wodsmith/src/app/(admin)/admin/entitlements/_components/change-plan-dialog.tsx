@@ -15,8 +15,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
 import type { Plan } from "@/db/schema"
+import { useToast } from "@/hooks/use-toast"
 import { updateTeamPlanAction } from "../../_actions"
 
 interface ChangePlanDialogProps {

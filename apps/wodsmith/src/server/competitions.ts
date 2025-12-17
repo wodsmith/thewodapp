@@ -2,26 +2,27 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
-import { autochunk, autochunkFirst } from "@/utils/batch-query"
 import {
 	type Competition,
 	type CompetitionGroup,
-	type Team,
 	competitionGroupsTable,
 	competitionsTable,
-	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
+	programmingTracksTable,
+	type Team,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { autochunk, autochunkFirst } from "@/utils/batch-query"
 
 // Competition with organizing team relation for public display
 export type CompetitionWithOrganizingTeam = Competition & {
 	organizingTeam: Team | null
 	group: CompetitionGroup | null
 }
-import { getTeamLimit, requireFeature } from "./entitlements"
+
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
+import { getTeamLimit, requireFeature } from "./entitlements"
 
 /* -------------------------------------------------------------------------- */
 /*                           Competition Helper Functions                      */

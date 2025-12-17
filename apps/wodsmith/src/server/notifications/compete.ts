@@ -11,19 +11,19 @@ import {
 	userTable,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
-import { sendEmail } from "@/utils/email"
+import { PaymentExpiredEmail } from "@/react-email/compete/payment-expired"
 import { RegistrationConfirmationEmail } from "@/react-email/compete/registration-confirmation"
 import { CompetitionTeamInviteEmail } from "@/react-email/compete/team-invite"
-import { PaymentExpiredEmail } from "@/react-email/compete/payment-expired"
 import { TeammateJoinedEmail } from "@/react-email/compete/teammate-joined"
+import { sendEmail } from "@/utils/email"
 import {
+	buildInviteLink,
 	formatCents,
 	formatDate,
 	getAthleteName,
-	parsePendingTeammateCount,
-	isTeamComplete,
 	getTeammateJoinedSubject,
-	buildInviteLink,
+	isTeamComplete,
+	parsePendingTeammateCount,
 } from "./helpers"
 
 // ============================================================================

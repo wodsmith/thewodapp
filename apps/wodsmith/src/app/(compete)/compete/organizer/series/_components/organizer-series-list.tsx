@@ -1,11 +1,12 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { FolderOpen, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
+import { deleteCompetitionGroupAction } from "@/actions/competition-actions"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -33,7 +34,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { CompetitionGroup } from "@/db/schema"
-import { deleteCompetitionGroupAction } from "@/actions/competition-actions"
 
 interface OrganizerSeriesListProps {
 	groups: Array<CompetitionGroup & { competitionCount: number }>

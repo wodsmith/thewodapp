@@ -1,8 +1,8 @@
 "use server"
 
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import {
 	getLogsByUser,
 	getScoreById,

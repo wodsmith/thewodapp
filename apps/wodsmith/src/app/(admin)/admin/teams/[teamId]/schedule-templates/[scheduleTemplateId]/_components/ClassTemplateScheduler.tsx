@@ -1,10 +1,10 @@
 "use client"
+import type { inferServerActionReturnData } from "@repo/zsa"
+import { useServerAction } from "@repo/zsa-react"
 import { Copy, Plus, Trash2 } from "lucide-react"
 import type React from "react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import type { inferServerActionReturnData } from "@repo/zsa"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	bulkCreateScheduleTemplateClassesSimple,
 	deleteAllScheduleTemplateClassesForTemplate,

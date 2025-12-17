@@ -2,20 +2,20 @@ import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
+import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import {
 	getCompetition,
 	getCompetitionRegistrations,
 	getUserCompetitionRegistration,
 } from "@/server/competitions"
-import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { canOrganizeForTeam } from "@/utils/get-user-organizing-teams"
 import { CompetitionHero } from "../_components/competition-hero"
-import { CompetitionTabs } from "./_components/competition-tabs"
 import { CompetitionViewTracker } from "../_components/competition-view-tracker"
 import { RegisterButton } from "../_components/register-button"
 import { RegistrationSidebar } from "../_components/registration-sidebar"
+import { CompetitionTabs } from "./_components/competition-tabs"
 
 type Props = {
 	params: Promise<{ slug: string }>

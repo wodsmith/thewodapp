@@ -14,11 +14,11 @@ import { decodeLoad, gramsToUnit } from "./load"
 import { decodeRoundsReps } from "./rounds-reps"
 import { decodeTime, decodeTimeToSeconds } from "./time"
 
+export { decodeDistance, mmToUnit } from "./distance"
+export { decodeLoad, gramsToUnit } from "./load"
+export { decodeRoundsReps, extractRoundsReps } from "./rounds-reps"
 // Re-export individual decoders
 export { decodeTime, decodeTimeToSeconds } from "./time"
-export { decodeRoundsReps, extractRoundsReps } from "./rounds-reps"
-export { decodeLoad, gramsToUnit } from "./load"
-export { decodeDistance, mmToUnit } from "./distance"
 
 /**
  * Decode an encoded score to a display string based on the scheme.

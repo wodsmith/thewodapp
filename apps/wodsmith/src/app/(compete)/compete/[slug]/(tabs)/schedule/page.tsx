@@ -1,8 +1,8 @@
 import "server-only"
 import { notFound } from "next/navigation"
-import { getCompetition } from "@/server/competitions"
 import { getHeatsForCompetition } from "@/server/competition-heats"
 import { getPublishedCompetitionWorkouts } from "@/server/competition-workouts"
+import { getCompetition } from "@/server/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { SchedulePageContent } from "./_components/schedule-page-content"
 

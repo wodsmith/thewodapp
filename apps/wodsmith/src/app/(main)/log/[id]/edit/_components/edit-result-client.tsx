@@ -1,22 +1,22 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { ArrowLeft } from "lucide-react"
 import type { Route } from "next"
 import { useRouter } from "next/navigation"
 import { useMemo, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import { updateResultAction } from "@/actions/log-actions"
-import {
-	type LogFormSchema,
-	logFormSchema,
-} from "@/app/(main)/log/new/_components/log.schema"
 import {
 	ScoreInputFields,
 	type ScoreInputFieldsHandle,
 } from "@/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/_components/score-input-row/score-input-fields"
+import {
+	type LogFormSchema,
+	logFormSchema,
+} from "@/app/(main)/log/new/_components/log.schema"
 import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 import { ScalingSelector } from "@/components/scaling-selector"
 import { Button } from "@/components/ui/button"
@@ -33,8 +33,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { decodeScore, decodeToNumber } from "@/lib/scoring"
 import type { WorkoutScheme } from "@/db/schema"
+import { decodeScore, decodeToNumber } from "@/lib/scoring"
 import type { ResultSet, Workout } from "@/types"
 import { getLocalDateKey } from "@/utils/date-utils"
 

@@ -1,9 +1,9 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare"
 import { NextResponse } from "next/server"
-import { getSessionFromCookie } from "@/utils/auth"
-import { hasTeamPermission } from "@/utils/team-auth"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getCompetition } from "@/server/competitions"
+import { getSessionFromCookie } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 

@@ -1,19 +1,19 @@
 "use server"
 
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { SCORE_STATUS_VALUES } from "@/db/schemas/workouts"
-import { requireTeamPermission } from "@/utils/team-auth"
-import { getSessionFromCookie } from "@/utils/auth"
 import {
+	deleteCompetitionScore,
 	getEventScoreEntryData,
 	saveCompetitionScore,
 	saveCompetitionScores,
-	deleteCompetitionScore,
 } from "@/server/competition-scores"
 import type { WorkoutScoreInfo } from "@/server/logs"
+import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // TODO Phase 4: Migration to scores table
 // These actions currently save to results + sets tables (legacy encoding).

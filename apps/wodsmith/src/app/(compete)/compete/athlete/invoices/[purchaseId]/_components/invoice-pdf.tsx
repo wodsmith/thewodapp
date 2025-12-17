@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
 import type { InvoiceDetails } from "@/server/commerce"
 
 const styles = StyleSheet.create({

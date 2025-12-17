@@ -3,13 +3,13 @@ import "server-only"
 import { eq, inArray } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
 import {
-	VOLUNTEER_ROLE_TYPES,
 	type CompetitionHeatVolunteer,
-	type VolunteerMembershipMetadata,
-	competitionHeatVolunteersTable,
 	competitionHeatsTable,
+	competitionHeatVolunteersTable,
 	teamMembershipTable,
 	userTable,
+	VOLUNTEER_ROLE_TYPES,
+	type VolunteerMembershipMetadata,
 } from "@/db/schema"
 import { autochunk, chunk } from "@/utils/batch-query"
 

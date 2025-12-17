@@ -204,7 +204,9 @@ async function fetchTodaysScoresByWorkoutId(
 				if (score.status === "cap" && score.scheme === "time-with-cap") {
 					const timeStr =
 						score.scoreValue !== null
-							? decodeScore(score.scoreValue, score.scheme, { includeUnit: true })
+							? decodeScore(score.scoreValue, score.scheme, {
+									includeUnit: true,
+								})
 							: ""
 					displayScore =
 						score.secondaryValue !== null && score.secondaryValue !== undefined

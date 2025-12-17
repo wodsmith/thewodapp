@@ -1,9 +1,9 @@
 "use server"
 
 import { createId } from "@paralleldrive/cuid2"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { logDebug, logError } from "@/lib/logging/posthog-otel-logger"
 import type { LeaderboardEntry } from "@/server/leaderboard"

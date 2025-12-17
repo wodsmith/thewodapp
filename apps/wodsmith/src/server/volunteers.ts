@@ -4,12 +4,12 @@
  */
 import "server-only"
 
-import type { DrizzleD1Database } from "drizzle-orm/d1"
 import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
+import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type { TeamMembership } from "@/db/schema"
 import {
-	SYSTEM_ROLES_ENUM,
 	entitlementTable,
+	SYSTEM_ROLES_ENUM,
 	teamMembershipTable,
 } from "@/db/schema"
 import type {
@@ -326,17 +326,14 @@ export async function revokeScoreAccess(
 	// Use autochunk for safe batch deletion in case many entitlements
 	const entitlementIds = entitlements.map((e) => e.id)
 
-	await autochunk(
-		{ items: entitlementIds },
-		async (chunk) => {
-			await db
-				.update(entitlementTable)
-				.set({ deletedAt: new Date() })
-				.where(inArray(entitlementTable.id, chunk))
+	await autochunk({ items: entitlementIds }, async (chunk) => {
+		await db
+			.update(entitlementTable)
+			.set({ deletedAt: new Date() })
+			.where(inArray(entitlementTable.id, chunk))
 
-			return [] // autochunk expects array return
-		},
-	)
+		return [] // autochunk expects array return
+	})
 
 	// Invalidate user's sessions to refresh permissions
 	const { invalidateUserSessions } = await import("@/utils/kv-session")

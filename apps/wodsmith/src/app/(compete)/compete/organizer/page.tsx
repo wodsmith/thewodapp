@@ -1,7 +1,7 @@
 import "server-only"
+import { CreditCard, Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CreditCard, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups, getCompetitions } from "@/server/competitions"
 import { getActiveTeamFromCookie } from "@/utils/auth"

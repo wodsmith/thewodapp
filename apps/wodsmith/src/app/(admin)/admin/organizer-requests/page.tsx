@@ -2,8 +2,8 @@ import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
-import { requireAdmin } from "@/utils/auth"
 import { getAllOrganizerRequests } from "@/server/organizer-onboarding"
+import { requireAdmin } from "@/utils/auth"
 import { OrganizerRequestsTable } from "./_components/organizer-requests-table"
 
 export const metadata: Metadata = {

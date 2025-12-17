@@ -16,11 +16,11 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
 import { getTeamLimit, hasFeature } from "@/server/entitlements"
-import { LIMITS } from "@/config/limits"
-import { getAccountBalance, type AccountBalance } from "@/server/stripe-connect"
+import { type AccountBalance, getAccountBalance } from "@/server/stripe-connect"
 import { getTeamMembers } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamMembership, hasTeamPermission } from "@/utils/team-auth"

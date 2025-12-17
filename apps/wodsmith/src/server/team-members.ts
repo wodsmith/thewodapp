@@ -1,7 +1,8 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, isNull } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { and, count, eq, isNull } from "drizzle-orm"
+import { LIMITS } from "@/config/limits"
 import { MAX_TEAMS_JOINED_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import {
@@ -18,7 +19,6 @@ import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { requireLimit } from "./entitlements"
-import { LIMITS } from "@/config/limits"
 
 /**
  * Get all members of a team

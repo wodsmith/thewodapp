@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Loader2, User, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import posthog from "posthog-js"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useEffect, useState } from "react"
+import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import {
-	initiateRegistrationPayment,
 	getRegistrationFeeBreakdown,
+	initiateRegistrationPayment,
 } from "@/actions/commerce.action"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -28,6 +30,7 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 import {
 	Select,
 	SelectContent,
@@ -35,10 +38,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Users, User, Loader2 } from "lucide-react"
 import type { Competition, ScalingGroup, ScalingLevel, Team } from "@/db/schema"
 import { AffiliateCombobox } from "./affiliate-combobox"
 

@@ -1,7 +1,7 @@
 import "server-only"
 import { notFound } from "next/navigation"
-import { getCompetition } from "@/server/competitions"
 import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
+import { getCompetition } from "@/server/competitions"
 import { LeaderboardPageContent } from "./_components/leaderboard-page-content"
 
 type Props = {

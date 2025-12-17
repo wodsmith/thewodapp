@@ -1,9 +1,9 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import posthog from "posthog-js"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	setDefaultTrackAction,
 	unsubscribeFromTrackAction,

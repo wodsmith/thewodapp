@@ -1,7 +1,7 @@
 import type { InferUITools } from "ai"
-import { getWorkouts } from "./get-workouts"
-import { getTags } from "./get-tags"
 import { getMovements } from "./get-movements"
+import { getTags } from "./get-tags"
+import { getWorkouts } from "./get-workouts"
 
 interface Params {
 	teamId: string

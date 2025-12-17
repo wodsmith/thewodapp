@@ -164,12 +164,12 @@ export const teamMembershipTable = sqliteTable(
 		isSystemRole: integer().default(1).notNull(),
 		invitedBy: text().references(() => userTable.id),
 		invitedAt: integer({ mode: "timestamp" }),
-	joinedAt: integer({ mode: "timestamp" }),
-	expiresAt: integer({ mode: "timestamp" }),
-	isActive: integer().default(1).notNull(),
-	// JSON metadata for role-specific data (e.g., volunteer info)
-	metadata: text({ length: 5000 }),
-},
+		joinedAt: integer({ mode: "timestamp" }),
+		expiresAt: integer({ mode: "timestamp" }),
+		isActive: integer().default(1).notNull(),
+		// JSON metadata for role-specific data (e.g., volunteer info)
+		metadata: text({ length: 5000 }),
+	},
 	(table) => [
 		index("team_membership_team_id_idx").on(table.teamId),
 		index("team_membership_user_id_idx").on(table.userId),

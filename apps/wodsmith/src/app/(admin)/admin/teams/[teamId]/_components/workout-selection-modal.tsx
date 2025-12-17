@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useServerAction } from "@repo/zsa-react"
+import { useEffect, useState } from "react"
 import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import {
 	Drawer,

@@ -6,8 +6,8 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import {
-	formatLiftWeight,
 	type AthleteProfileData,
+	formatLiftWeight,
 } from "@/utils/athlete-profile"
 
 type BenchmarkStatsProps = {

@@ -2,9 +2,9 @@ import type { Route } from "next"
 
 // Re-export workout types from DB schema for type safety
 export type {
-	WorkoutScheme,
 	ScoreType,
 	TiebreakScheme,
+	WorkoutScheme,
 } from "@/db/schemas/workouts"
 
 export const SITE_NAME = "WODsmith"

@@ -1,7 +1,6 @@
 import "server-only"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "@/db"
-import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -12,6 +11,7 @@ import {
 } from "@/db/schemas/programming"
 import { teamTable } from "@/db/schemas/teams"
 import { type Workout, workouts } from "@/db/schemas/workouts"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import { autochunk } from "@/utils/batch-query"
 

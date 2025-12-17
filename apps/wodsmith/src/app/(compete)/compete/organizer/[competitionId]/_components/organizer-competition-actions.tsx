@@ -1,11 +1,12 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
+import { deleteCompetitionAction } from "@/actions/competition-actions"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -24,7 +25,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { deleteCompetitionAction } from "@/actions/competition-actions"
 
 interface OrganizerCompetitionActionsProps {
 	competitionId: string

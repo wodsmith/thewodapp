@@ -1,6 +1,8 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import type { inferServerActionReturnData } from "@repo/zsa"
+import { useServerAction } from "@repo/zsa-react"
 import { Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -8,8 +10,6 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import * as z from "zod"
-import type { inferServerActionReturnData } from "@repo/zsa"
-import { useServerAction } from "@repo/zsa-react"
 import type {
 	getClassCatalogByTeam,
 	getLocationsByTeam,

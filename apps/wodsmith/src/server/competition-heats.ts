@@ -4,6 +4,9 @@ import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	type CompetitionHeat,
+	type CompetitionHeatAssignment,
+	type CompetitionVenue,
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
@@ -11,9 +14,6 @@ import {
 	scalingLevelsTable,
 	trackWorkoutsTable,
 	userTable,
-	type CompetitionHeat,
-	type CompetitionHeatAssignment,
-	type CompetitionVenue,
 } from "@/db/schema"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 

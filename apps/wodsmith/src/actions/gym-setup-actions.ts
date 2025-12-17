@@ -1,7 +1,7 @@
 "use server"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { and, count, eq } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
 	createClassCatalogId,

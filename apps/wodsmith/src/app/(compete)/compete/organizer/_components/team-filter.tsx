@@ -1,7 +1,8 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
 import { useServerAction } from "@repo/zsa-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { setActiveTeamAction } from "@/actions/team-actions"
 import {
 	Select,
 	SelectContent,
@@ -9,7 +10,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { setActiveTeamAction } from "@/actions/team-actions"
 import type { OrganizingTeam } from "@/utils/get-user-organizing-teams"
 
 interface TeamFilterProps {

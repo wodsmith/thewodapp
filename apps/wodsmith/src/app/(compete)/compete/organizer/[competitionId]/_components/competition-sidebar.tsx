@@ -1,20 +1,21 @@
 "use client"
 
-import Image from "next/image"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
 import {
 	AlertTriangle,
 	Calendar,
 	DollarSign,
 	Home,
+	Layers,
 	Medal,
 	ReceiptText,
 	Sparkles,
 	Trophy,
 	Users,
-	Layers,
 } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { CompeteSidebarBrand } from "@/components/brand/compete-sidebar-brand"
 import { Button } from "@/components/ui/button"
 import {
 	Sidebar,
@@ -23,16 +24,15 @@ import {
 	SidebarGroupContent,
 	SidebarGroupLabel,
 	SidebarHeader,
+	SidebarInset,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
-	SidebarInset,
 	SidebarRail,
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar"
-import { CompeteSidebarBrand } from "@/components/brand/compete-sidebar-brand"
 import { cn } from "@/lib/utils"
 
 interface CompetitionSidebarProps {

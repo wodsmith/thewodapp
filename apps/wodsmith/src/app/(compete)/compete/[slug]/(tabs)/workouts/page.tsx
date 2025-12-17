@@ -3,12 +3,12 @@ import { Dumbbell } from "lucide-react"
 import { notFound } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { Sponsor } from "@/db/schema"
-import { getCompetition } from "@/server/competitions"
 import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import {
 	getPublishedCompetitionWorkouts,
 	getWorkoutDivisionDescriptions,
 } from "@/server/competition-workouts"
+import { getCompetition } from "@/server/competitions"
 import { getCompetitionSponsors } from "@/server/sponsors"
 import { WorkoutCard } from "../../_components/workout-card"
 

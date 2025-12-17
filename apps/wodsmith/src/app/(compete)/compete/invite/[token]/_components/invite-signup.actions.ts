@@ -1,17 +1,18 @@
 "use server"
 
-import { eq, and } from "drizzle-orm"
-import { redirect } from "next/navigation"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { and, eq } from "drizzle-orm"
+import { redirect } from "next/navigation"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-	userTable,
+	TEAM_TYPE_ENUM,
 	teamInvitationTable,
 	teamMembershipTable,
-	TEAM_TYPE_ENUM,
+	userTable,
 } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
+import { catchaSchema } from "@/schemas/catcha.schema"
 import { createPersonalTeamForUser } from "@/server/user"
 import {
 	canSignUp,
@@ -20,11 +21,10 @@ import {
 	setSessionTokenCookie,
 } from "@/utils/auth"
 import { getIP } from "@/utils/get-IP"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { hashPassword } from "@/utils/password-hasher"
 import { validateTurnstileToken } from "@/utils/validate-captcha"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
-import { catchaSchema } from "@/schemas/catcha.schema"
-import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
 const inviteSignUpSchema = z.object({
 	email: z.string().email(),

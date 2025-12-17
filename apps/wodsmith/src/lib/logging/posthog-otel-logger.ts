@@ -1,7 +1,7 @@
 import "server-only"
 
-import { SeverityNumber } from "@opentelemetry/api-logs"
 import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { SeverityNumber } from "@opentelemetry/api-logs"
 
 /**
  * PostHog OpenTelemetry Logger for Cloudflare Workers via OpenNext

@@ -1,8 +1,8 @@
 "use server"
 
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
@@ -132,7 +132,10 @@ export const getJudgeHeatAssignmentsAction = createServerAction()
 		try {
 			// Public read access - no permission check needed
 			const db = getDb()
-			const assignments = await getJudgeHeatAssignments(db, input.trackWorkoutId)
+			const assignments = await getJudgeHeatAssignments(
+				db,
+				input.trackWorkoutId,
+			)
 			return { success: true, data: assignments }
 		} catch (error) {
 			console.error("Failed to get judge heat assignments:", error)

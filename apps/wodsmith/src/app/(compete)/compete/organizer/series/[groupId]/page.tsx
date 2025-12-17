@@ -1,9 +1,9 @@
 import "server-only"
+import { ZSAError } from "@repo/zsa"
+import { Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ZSAError } from "@repo/zsa"
-import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -16,8 +16,8 @@ import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup, getCompetitions } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
-import { OrganizerSeriesActions } from "./_components/organizer-series-actions"
 import { OrganizerCompetitionsList } from "../../_components/organizer-competitions-list"
+import { OrganizerSeriesActions } from "./_components/organizer-series-actions"
 
 interface SeriesDetailPageProps {
 	params: Promise<{
