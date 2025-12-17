@@ -7,6 +7,7 @@ import { getDb } from "@/db"
 import { getHeatsForWorkout } from "@/server/competition-heats"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
+import { getRotationsForEvent } from "@/server/judge-rotations"
 import {
 	getJudgeHeatAssignments,
 	getJudgeVolunteers,
@@ -64,11 +65,13 @@ export default async function JudgeSchedulingPage({
 	)
 	const heats = allHeats.flat()
 
-	// Get judge assignments for all events
-	const allAssignments = await Promise.all(
-		events.map((event) => getJudgeHeatAssignments(db, event.id)),
-	)
+	// Get judge assignments and rotations for all events
+	const [allAssignments, allRotations] = await Promise.all([
+		Promise.all(events.map((event) => getJudgeHeatAssignments(db, event.id))),
+		Promise.all(events.map((event) => getRotationsForEvent(db, event.id))),
+	])
 	const judgeAssignments = allAssignments.flat()
+	const rotations = allRotations.flat()
 
 	return (
 		<JudgeSchedulingContainer
@@ -78,6 +81,7 @@ export default async function JudgeSchedulingPage({
 			heats={heats}
 			judges={judges}
 			judgeAssignments={judgeAssignments}
+			rotations={rotations}
 		/>
 	)
 }

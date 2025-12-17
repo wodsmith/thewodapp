@@ -10,8 +10,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { CompetitionJudgeRotation } from "@/db/schema"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
+import { calculateCoverage } from "@/server/judge-rotations"
 import type {
 	JudgeHeatAssignment,
 	JudgeVolunteerInfo,
@@ -20,6 +23,8 @@ import type {
 import { DraggableJudge } from "./draggable-judge"
 import { JudgeHeatCard } from "./judge-heat-card"
 import { JudgeOverview } from "./judge-overview"
+import { RotationOverview } from "./rotation-overview"
+import { RotationTimeline } from "./rotation-timeline"
 
 interface JudgeSchedulingContainerProps {
 	competitionId: string
@@ -28,6 +33,7 @@ interface JudgeSchedulingContainerProps {
 	heats: HeatWithAssignments[]
 	judges: JudgeVolunteerInfo[]
 	judgeAssignments: JudgeHeatAssignment[]
+	rotations: CompetitionJudgeRotation[]
 }
 
 /**
@@ -41,6 +47,7 @@ export function JudgeSchedulingContainer({
 	heats,
 	judges,
 	judgeAssignments: initialAssignments,
+	rotations: initialRotations,
 }: JudgeSchedulingContainerProps) {
 	const [selectedEventId, setSelectedEventId] = useState<string>(
 		events[0]?.id ?? "",
@@ -81,6 +88,38 @@ export function JudgeSchedulingContainer({
 		() => judges.filter((j) => !assignedJudgeIds.has(j.membershipId)),
 		[judges, assignedJudgeIds],
 	)
+
+	// Get rotations for selected event
+	const eventRotations = useMemo(
+		() => initialRotations.filter((r) => r.trackWorkoutId === selectedEventId),
+		[initialRotations, selectedEventId],
+	)
+
+	// Get selected event details
+	const selectedEvent = useMemo(
+		() => events.find((e) => e.id === selectedEventId),
+		[events, selectedEventId],
+	)
+
+	// Calculate rotation coverage for selected event
+	const rotationCoverage = useMemo(() => {
+		if (eventHeats.length === 0) {
+			return {
+				totalSlots: 0,
+				coveredSlots: 0,
+				coveragePercent: 0,
+				gaps: [],
+				overlaps: [],
+			}
+		}
+
+		const heatsData = eventHeats.map((h) => ({
+			heatNumber: h.heatNumber,
+			laneCount: h.venue?.laneCount ?? maxLanes,
+		}))
+
+		return calculateCoverage(eventRotations, heatsData)
+	}, [eventRotations, eventHeats, maxLanes])
 
 	// Handle multi-select toggle
 	function handleToggleSelect(membershipId: string, shiftKey: boolean) {
@@ -175,7 +214,7 @@ export function JudgeSchedulingContainer({
 				<div>
 					<h2 className="text-xl font-semibold">Judge Scheduling</h2>
 					<p className="text-muted-foreground text-sm">
-						Assign judges to heats by dragging or selecting
+						Manage judge assignments with manual or rotation-based scheduling
 					</p>
 				</div>
 				<Select value={selectedEventId} onValueChange={setSelectedEventId}>
@@ -193,12 +232,21 @@ export function JudgeSchedulingContainer({
 				</Select>
 			</div>
 
-			{/* Overview */}
-			<JudgeOverview
-				events={events}
-				heats={heats}
-				judgeAssignments={assignments}
-			/>
+			{/* Tabs for Manual vs Rotation View */}
+			<Tabs defaultValue="manual" className="w-full">
+				<TabsList className="grid w-full max-w-md grid-cols-2">
+					<TabsTrigger value="manual">Manual Assignment</TabsTrigger>
+					<TabsTrigger value="rotations">Rotations</TabsTrigger>
+				</TabsList>
+
+				{/* Manual Assignment Tab */}
+				<TabsContent value="manual" className="space-y-6">
+					{/* Overview */}
+					<JudgeOverview
+						events={events}
+						heats={heats}
+						judgeAssignments={assignments}
+					/>
 
 			{/* Main content: judges panel + heats */}
 			<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
@@ -283,6 +331,43 @@ export function JudgeSchedulingContainer({
 					)}
 				</div>
 			</div>
+				</TabsContent>
+
+				{/* Rotations Tab */}
+				<TabsContent value="rotations" className="space-y-6">
+					{/* Rotation Overview */}
+					<RotationOverview
+						rotations={eventRotations}
+						coverage={rotationCoverage}
+						eventName={selectedEvent?.workout.name ?? "Event"}
+					/>
+
+					{/* Rotation Timeline */}
+					{eventHeats.length > 0 ? (
+						<RotationTimeline
+							competitionId={competitionId}
+							teamId={organizingTeamId}
+							trackWorkoutId={selectedEventId}
+							eventName={selectedEvent?.workout.name ?? "Event"}
+							heatsCount={eventHeats.length}
+							laneCount={maxLanes}
+							availableJudges={judges}
+							initialRotations={eventRotations}
+						/>
+					) : (
+						<Card>
+							<CardContent className="py-8 text-center">
+								<p className="text-muted-foreground">
+									No heats scheduled for this event yet.
+								</p>
+								<p className="text-sm text-muted-foreground mt-2">
+									Create heats in the Schedule section before creating rotations.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+				</TabsContent>
+			</Tabs>
 		</div>
 	)
 }
