@@ -1,8 +1,9 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { CheckCircle2, Loader2 } from "lucide-react"
 import { useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
+import { submitVolunteerSignupAction } from "@/actions/volunteer-actions"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -14,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { submitVolunteerSignupAction } from "@/actions/volunteer-actions"
 
 interface VolunteerSignupFormProps {
 	competition: {

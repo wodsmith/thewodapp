@@ -12,8 +12,8 @@ import { getDb } from "@/db"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
-	type Team,
 	TEAM_PERMISSIONS,
+	type Team,
 	type TeamMembership,
 	teamMembershipTable,
 	userTable,
@@ -23,6 +23,7 @@ import {
 type TeamMembershipWithTeam = TeamMembership & {
 	team: Team | null
 }
+
 import type { SessionValidationResult } from "@/types"
 import isProd from "@/utils/is-prod"
 import { addFreeMonthlyCreditsIfNeeded } from "./credits"

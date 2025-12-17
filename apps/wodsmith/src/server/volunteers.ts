@@ -9,6 +9,7 @@ import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type * as schema from "@/db/schema"
 
 type Db = DrizzleD1Database<typeof schema>
+
 import type { TeamMembership, User } from "@/db/schema"
 import {
 	entitlementTable,
@@ -21,6 +22,7 @@ import {
 export type TeamMembershipWithUser = TeamMembership & {
 	user: User | null
 }
+
 import type {
 	VolunteerMembershipMetadata,
 	VolunteerRoleType,

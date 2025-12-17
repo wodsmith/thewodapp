@@ -9,11 +9,11 @@ import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	type TeamMembership,
-	type User,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamRoleTable,
 	teamTable,
+	type User,
 	userTable,
 } from "@/db/schema"
 
@@ -27,6 +27,7 @@ type MemberUser = Pick<
 type TeamMembershipWithUser = TeamMembership & {
 	user: MemberUser | null
 }
+
 import { canSignUp, getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"

@@ -2,31 +2,30 @@ import "server-only"
 
 import { and, eq } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type * as schema from "@/db/schema"
 import {
 	type CompetitionJudgeRotation,
-	LANE_SHIFT_PATTERN,
-	type LaneShiftPattern,
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
 	competitionVenuesTable,
+	LANE_SHIFT_PATTERN,
+	type LaneShiftPattern,
 } from "@/db/schema"
-import type * as schema from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { requireTeamPermission } from "@/utils/team-auth"
-
 // Import pure utility functions from shared module (can be used in client components)
 import {
 	calculateCoverage,
 	expandRotationToAssignments,
 } from "@/lib/judge-rotation-utils"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // Re-export pure utility functions and types from shared module
 export {
-	calculateCoverage,
-	expandRotationToAssignments,
 	type CoverageGap,
 	type CoverageOverlap,
 	type CoverageStats,
+	calculateCoverage,
+	expandRotationToAssignments,
 	type HeatInfo,
 	type HeatLaneAssignment,
 } from "@/lib/judge-rotation-utils"
