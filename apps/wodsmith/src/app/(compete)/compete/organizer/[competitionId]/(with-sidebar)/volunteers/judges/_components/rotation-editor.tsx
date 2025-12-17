@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useServerAction } from "@repo/zsa-react"
 import { Loader2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import {
@@ -34,24 +34,36 @@ import { Textarea } from "@/components/ui/textarea"
 import { type CompetitionJudgeRotation, LANE_SHIFT_PATTERN } from "@/db/schema"
 import type { JudgeVolunteerInfo } from "@/server/judge-scheduling"
 
-const rotationFormSchema = z.object({
-	membershipId: z.string().min(1, "Judge is required"),
-	startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
-	startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
-	heatsCount: z
-		.number()
-		.int()
-		.min(1, "Must cover at least 1 heat")
-		.max(8, "Maximum 8 heats per rotation"),
-	laneShiftPattern: z.enum([
-		LANE_SHIFT_PATTERN.STAY,
-		LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-		LANE_SHIFT_PATTERN.SHIFT_LEFT,
-	]),
-	notes: z.string().max(500, "Notes too long").optional(),
-})
+/**
+ * Creates a dynamic schema based on the actual number of heats in the competition.
+ * No arbitrary limits - judges can cover as many heats as the event has.
+ */
+function createRotationFormSchema(maxHeats: number) {
+	return z.object({
+		membershipId: z.string().min(1, "Judge is required"),
+		startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
+		startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
+		heatsCount: z
+			.number()
+			.int()
+			.min(1, "Must cover at least 1 heat")
+			.max(maxHeats, `Maximum ${maxHeats} heats available`),
+		laneShiftPattern: z.enum([
+			LANE_SHIFT_PATTERN.STAY,
+			LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+			LANE_SHIFT_PATTERN.SHIFT_LEFT,
+		]),
+		notes: z.string().max(500, "Notes too long").optional(),
+	})
+}
 
-type RotationFormValues = z.infer<typeof rotationFormSchema>
+type RotationFormValues = z.infer<ReturnType<typeof createRotationFormSchema>>
+
+/** Represents a cell that would be covered by a rotation */
+export interface PreviewCell {
+	heat: number
+	lane: number
+}
 
 interface RotationEditorProps {
 	competitionId: string
@@ -61,8 +73,14 @@ interface RotationEditorProps {
 	maxLanes: number
 	availableJudges: JudgeVolunteerInfo[]
 	rotation?: CompetitionJudgeRotation // For editing existing rotation
+	/** Initial heat to pre-populate (when clicking a cell) */
+	initialHeat?: number
+	/** Initial lane to pre-populate (when clicking a cell) */
+	initialLane?: number
 	onSuccess: () => void
 	onCancel: () => void
+	/** Called when form values change to show preview cells in the grid */
+	onPreviewChange?: (cells: PreviewCell[]) => void
 }
 
 /**
@@ -77,8 +95,11 @@ export function RotationEditor({
 	maxLanes,
 	availableJudges,
 	rotation,
+	initialHeat,
+	initialLane,
 	onSuccess,
 	onCancel,
+	onPreviewChange,
 }: RotationEditorProps) {
 	const isEditing = !!rotation
 	const [conflicts, setConflicts] = useState<string[]>([])
@@ -87,19 +108,64 @@ export function RotationEditor({
 	const updateRotation = useServerAction(updateJudgeRotationAction)
 	const validateRotation = useServerAction(validateRotationAction)
 
+	const rotationFormSchema = useMemo(
+		() => createRotationFormSchema(maxHeats),
+		[maxHeats],
+	)
+
 	const form = useForm<RotationFormValues>({
 		resolver: zodResolver(rotationFormSchema),
 		defaultValues: {
 			membershipId: rotation?.membershipId ?? "",
-			startingHeat: rotation?.startingHeat ?? 1,
-			startingLane: rotation?.startingLane ?? 1,
-			heatsCount: rotation?.heatsCount ?? 4,
+			startingHeat: rotation?.startingHeat ?? initialHeat ?? 1,
+			startingLane: rotation?.startingLane ?? initialLane ?? 1,
+			heatsCount: rotation?.heatsCount ?? Math.min(4, maxHeats),
 			laneShiftPattern: rotation?.laneShiftPattern ?? LANE_SHIFT_PATTERN.STAY,
 			notes: rotation?.notes ?? "",
 		},
 	})
 
 	const formValues = form.watch()
+
+	// Watch specific fields for preview calculation
+	const startingHeat = form.watch("startingHeat")
+	const startingLane = form.watch("startingLane")
+	const heatsCount = form.watch("heatsCount")
+	const laneShiftPattern = form.watch("laneShiftPattern")
+
+	// Emit preview cells when relevant fields change
+	useEffect(() => {
+		if (!onPreviewChange) return
+
+		const cells: PreviewCell[] = []
+
+		for (let i = 0; i < heatsCount; i++) {
+			const heat = startingHeat + i
+			if (heat > maxHeats) break
+
+			let lane: number
+			if (laneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+				lane = startingLane
+			} else if (laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT) {
+				lane = ((startingLane - 1 + i) % maxLanes) + 1
+			} else {
+				// shift_left
+				lane = ((startingLane - 1 - i + maxLanes * 100) % maxLanes) + 1
+			}
+
+			cells.push({ heat, lane })
+		}
+
+		onPreviewChange(cells)
+	}, [
+		startingHeat,
+		startingLane,
+		heatsCount,
+		laneShiftPattern,
+		maxHeats,
+		maxLanes,
+		onPreviewChange,
+	])
 
 	// Validate on form changes
 	useEffect(() => {
@@ -247,13 +313,13 @@ export function RotationEditor({
 								<Input
 									type="number"
 									min={1}
-									max={8}
+									max={maxHeats}
 									{...field}
 									onChange={(e) => field.onChange(Number(e.target.value))}
 								/>
 							</FormControl>
 							<FormDescription>
-								How many consecutive heats (1-8)
+								How many consecutive heats (1-{maxHeats})
 							</FormDescription>
 							<FormMessage />
 						</FormItem>
