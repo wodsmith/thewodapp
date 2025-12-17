@@ -83,12 +83,15 @@ export async function getCompetitionVolunteers(
 	db: Db,
 	competitionTeamId: string,
 ): Promise<TeamMembershipWithUser[]> {
+	// Note: We don't filter by isActive here because volunteer approval
+	// is tracked via metadata.status ("pending" | "approved" | "rejected").
+	// Public signups create memberships with isActive: 0, and the admin
+	// UI shows pending/approved tabs based on metadata.status.
 	return db.query.teamMembershipTable.findMany({
 		where: and(
 			eq(teamMembershipTable.teamId, competitionTeamId),
 			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
 			eq(teamMembershipTable.isSystemRole, 1),
-			eq(teamMembershipTable.isActive, 1),
 		),
 		with: {
 			user: true,
