@@ -5,8 +5,9 @@ import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { teamMembershipTable } from "@/db/schema"
+import { teamMembershipTable, userTable } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { inviteUserToTeam } from "@/server/team-members"
 import {
 	addVolunteerRoleType,
 	createVolunteerSignup,
@@ -15,7 +16,6 @@ import {
 	removeVolunteerRoleType,
 	revokeScoreAccess,
 } from "@/server/volunteers"
-import { inviteUserToTeam } from "@/server/team-members"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 /* -------------------------------------------------------------------------- */
@@ -232,23 +232,32 @@ export const updateVolunteerMetadataAction = createServerAction()
 
 			const db = getDb()
 
-			// Fetch current membership
+			// Fetch current membership with user relation
 			const membership = await db.query.teamMembershipTable.findFirst({
 				where: eq(teamMembershipTable.id, input.membershipId),
+				with: {
+					user: true,
+				},
 			})
 
 			if (!membership) {
 				throw new ZSAError("NOT_FOUND", "Membership not found")
 			}
 
-			// Merge metadata
+			// Parse current and new metadata
 			const currentMetadata = membership.metadata
-				? JSON.parse(membership.metadata)
+				? (JSON.parse(membership.metadata) as Record<string, unknown>)
 				: {}
+			const newMetadata = input.metadata as Record<string, unknown>
 			const updatedMetadata = {
 				...currentMetadata,
-				...input.metadata,
+				...newMetadata,
 			}
+
+			// Check if status is changing to "approved"
+			const wasApproved =
+				currentMetadata.status !== "approved" &&
+				newMetadata.status === "approved"
 
 			// Update membership
 			await db
@@ -260,6 +269,47 @@ export const updateVolunteerMetadataAction = createServerAction()
 				.where(eq(teamMembershipTable.id, input.membershipId))
 
 			revalidatePath(`/compete/organizer/${input.competitionId}/volunteers`)
+
+			// Send approval email if status changed to approved
+			if (wasApproved) {
+				// Get volunteer email - either from user account or signup metadata
+				let volunteerEmail: string | undefined
+				let volunteerName = "Volunteer"
+
+				// Try to get user info if membership has a userId
+				if (membership.userId) {
+					const user = await db.query.userTable.findFirst({
+						where: eq(userTable.id, membership.userId),
+					})
+					if (user) {
+						volunteerEmail = user.email ?? undefined
+						volunteerName = user.firstName || volunteerName
+					}
+				}
+
+				// Fall back to signup metadata if no user or no email
+				if (!volunteerEmail) {
+					volunteerEmail = currentMetadata.signupEmail as string | undefined
+					volunteerName =
+						(currentMetadata.signupName as string | undefined) || volunteerName
+				}
+
+				if (volunteerEmail) {
+					const { notifyVolunteerApproved } = await import(
+						"@/server/notifications/compete"
+					)
+					notifyVolunteerApproved({
+						volunteerEmail,
+						volunteerName,
+						competitionTeamId: membership.teamId,
+						roleTypes: updatedMetadata.volunteerRoleTypes as
+							| string[]
+							| undefined,
+					}).catch((err) => {
+						console.error("Failed to send volunteer approved email:", err)
+					})
+				}
+			}
 
 			return { success: true }
 		} catch (error) {
@@ -373,11 +423,75 @@ export const submitVolunteerSignupAction = createServerAction()
 				credentials: input.credentials,
 			})
 
+			// Send confirmation email (fire-and-forget, don't block on email delivery)
+			const { notifyVolunteerSignupReceived } = await import(
+				"@/server/notifications/compete"
+			)
+			notifyVolunteerSignupReceived({
+				volunteerEmail: input.signupEmail,
+				volunteerName: input.signupName,
+				competitionTeamId: input.competitionTeamId,
+			}).catch((err) => {
+				console.error("Failed to send volunteer signup email:", err)
+			})
+
 			return { success: true, membershipId: membership.id }
 		} catch (error) {
 			console.error("Failed to submit volunteer signup:", error)
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to submit volunteer signup")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                      Bulk Volunteer Role Assignment                         */
+/* -------------------------------------------------------------------------- */
+
+const bulkAssignVolunteerRoleSchema = z.object({
+	membershipIds: z
+		.array(membershipIdSchema)
+		.min(1, "Select at least one volunteer"),
+	organizingTeamId: competitionTeamIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	roleType: volunteerRoleTypeSchema,
+})
+
+/**
+ * Bulk assign a role type to multiple volunteers
+ */
+export const bulkAssignVolunteerRoleAction = createServerAction()
+	.input(bulkAssignVolunteerRoleSchema)
+	.handler(async ({ input }) => {
+		try {
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+			)
+
+			const db = getDb()
+
+			// Add role type to each volunteer (D1 doesn't support transactions)
+			const results = await Promise.allSettled(
+				input.membershipIds.map((membershipId) =>
+					addVolunteerRoleType(db, membershipId, input.roleType),
+				),
+			)
+
+			const succeeded = results.filter((r) => r.status === "fulfilled").length
+			const failed = results.filter((r) => r.status === "rejected").length
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/volunteers`)
+
+			return {
+				success: true,
+				succeeded,
+				failed,
+			}
+		} catch (error) {
+			console.error("Failed to bulk assign volunteer roles:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to assign roles")
 		}
 	})

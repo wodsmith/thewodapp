@@ -50,6 +50,8 @@ interface VolunteerRowProps {
 	competitionId: string
 	competitionTeamId: string
 	organizingTeamId: string
+	isSelected?: boolean
+	onToggleSelect?: (shiftKey: boolean) => void
 }
 
 type VolunteerRoleType =
@@ -120,13 +122,15 @@ function getInitials(
 }
 
 /**
- * Individual volunteer row component
+ * Individual volunteer row component with selection support
  */
 export function VolunteerRow({
 	volunteer,
 	competitionId,
 	competitionTeamId,
 	organizingTeamId,
+	isSelected = false,
+	onToggleSelect,
 }: VolunteerRowProps) {
 	const metadata = parseMetadata(volunteer.metadata)
 	const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
@@ -288,7 +292,18 @@ export function VolunteerRow({
 		: metadata.signupEmail || "—"
 
 	return (
-		<TableRow>
+		<TableRow className={isSelected ? "bg-muted/50" : undefined}>
+			<TableCell className="w-12">
+				<Checkbox
+					checked={isSelected}
+					onCheckedChange={() => {}}
+					onClick={(e) => {
+						e.stopPropagation()
+						onToggleSelect?.(e.shiftKey)
+					}}
+					aria-label={`Select ${displayName}`}
+				/>
+			</TableCell>
 			<TableCell>
 				<div className="flex items-center gap-3">
 					<Avatar className="h-8 w-8">
