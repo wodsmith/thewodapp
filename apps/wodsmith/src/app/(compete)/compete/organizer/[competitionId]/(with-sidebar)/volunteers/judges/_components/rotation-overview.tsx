@@ -5,7 +5,7 @@ import { useMemo } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import type { CompetitionJudgeRotation } from "@/db/schema"
-import type { CoverageStats } from "@/server/judge-rotations"
+import type { CoverageStats } from "@/lib/judge-rotation-utils"
 
 interface RotationOverviewProps {
 	rotations: CompetitionJudgeRotation[]

@@ -22,7 +22,7 @@ import {
 	type CoverageStats,
 	calculateCoverage,
 	expandRotationToAssignments,
-} from "@/server/judge-rotations"
+} from "@/lib/judge-rotation-utils"
 import type { JudgeVolunteerInfo } from "@/server/judge-scheduling"
 import { RotationBlock } from "./rotation-block"
 import { RotationEditor } from "./rotation-editor"

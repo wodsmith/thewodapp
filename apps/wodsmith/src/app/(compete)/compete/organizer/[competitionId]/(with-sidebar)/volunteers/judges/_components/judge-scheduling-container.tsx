@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { CompetitionJudgeRotation } from "@/db/schema"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
-import { calculateCoverage } from "@/server/judge-rotations"
+import { calculateCoverage } from "@/lib/judge-rotation-utils"
 import type {
 	JudgeHeatAssignment,
 	JudgeVolunteerInfo,
