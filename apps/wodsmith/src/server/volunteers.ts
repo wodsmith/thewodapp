@@ -410,7 +410,7 @@ export async function createVolunteerSignup({
 		}
 	}
 
-	// Also check if there's a registered user with this email already volunteering
+	// Check if there's a registered user with this email
 	const existingUser = await db.query.userTable.findFirst({
 		where: eq(userTable.email, signupEmail),
 	})
@@ -433,23 +433,30 @@ export async function createVolunteerSignup({
 		}
 	}
 
-	// Create a placeholder user for the volunteer
-	// They can claim this account later by signing up with the same email
-	const newUser = await db
-		.insert(userTable)
-		.values({
-			email: signupEmail,
-			firstName: signupName.split(" ")[0] || signupName,
-			lastName: signupName.split(" ").slice(1).join(" ") || undefined,
-			// No password - account is not activated
-			passwordHash: null,
-			emailVerified: null,
-		})
-		.returning()
+	// Use existing user or create a placeholder user for the volunteer
+	let user: NonNullable<typeof existingUser>
+	if (existingUser) {
+		// Use the existing user account
+		user = existingUser
+	} else {
+		// Create a placeholder user - they can claim this account later by signing up with the same email
+		const newUser = await db
+			.insert(userTable)
+			.values({
+				email: signupEmail,
+				firstName: signupName.split(" ")[0] || signupName,
+				lastName: signupName.split(" ").slice(1).join(" ") || undefined,
+				// No password - account is not activated
+				passwordHash: null,
+				emailVerified: null,
+			})
+			.returning()
 
-	const user = newUser[0]
-	if (!user) {
-		throw new Error("Failed to create placeholder user for volunteer signup")
+		const createdUser = newUser[0]
+		if (!createdUser) {
+			throw new Error("Failed to create placeholder user for volunteer signup")
+		}
+		user = createdUser
 	}
 
 	// Create volunteer membership metadata

@@ -9,6 +9,7 @@ import {
 	type CompetitionHeatVolunteer,
 	competitionHeatsTable,
 	competitionHeatVolunteersTable,
+	competitionVenuesTable,
 	teamMembershipTable,
 	userTable,
 	VOLUNTEER_ROLE_TYPES,
@@ -573,4 +574,120 @@ export async function clearHeatJudgeAssignments(
 	await db
 		.delete(competitionHeatVolunteersTable)
 		.where(eq(competitionHeatVolunteersTable.heatId, heatId))
+}
+
+// ============================================================================
+// 11. Judge Overview with Coverage Calculation
+// ============================================================================
+
+export interface JudgeOverview {
+	totalJudges: number
+	judgesRequired: number
+	coveragePercent: number
+	totalSlots: number
+	coveredSlots: number
+	gaps: number
+	overlaps: number
+}
+
+/**
+ * Calculate comprehensive judge overview for an event using rotation-based coverage.
+ * Returns actual coverage percentage based on heat/lane slots, not just judge count.
+ *
+ * @param db - Database instance
+ * @param trackWorkoutId - The event/workout ID
+ * @returns Overview statistics including real coverage metrics
+ */
+export async function getJudgeOverview(
+	db: Db,
+	trackWorkoutId: string,
+): Promise<JudgeOverview> {
+	// Import here to avoid circular dependency
+	const {
+		getRotationsForEvent,
+		calculateCoverage,
+	} = await import("./judge-rotations")
+
+	// Get all heats for the event with venue lane count
+	const heatsRaw = await db
+		.select({
+			heatNumber: competitionHeatsTable.heatNumber,
+			venueLaneCount: competitionVenuesTable.laneCount,
+		})
+		.from(competitionHeatsTable)
+		.leftJoin(
+			competitionVenuesTable,
+			eq(competitionHeatsTable.venueId, competitionVenuesTable.id),
+		)
+		.where(eq(competitionHeatsTable.trackWorkoutId, trackWorkoutId))
+
+	const heats = heatsRaw.map((h) => ({
+		heatNumber: h.heatNumber,
+		laneCount: h.venueLaneCount ?? 10, // Default to 10 lanes
+	}))
+
+	if (heats.length === 0) {
+		return {
+			totalJudges: 0,
+			judgesRequired: 0,
+			coveragePercent: 0,
+			totalSlots: 0,
+			coveredSlots: 0,
+			gaps: 0,
+			overlaps: 0,
+		}
+	}
+
+	// Get all rotations for the event
+	const rotations = await getRotationsForEvent(db, trackWorkoutId)
+
+	// Calculate coverage
+	const coverage = calculateCoverage(rotations, heats)
+
+	// Count unique judges
+	const uniqueJudges = new Set(rotations.map((r) => r.membershipId)).size
+
+	// Calculate required judges (ideally one per lane per heat)
+	const totalSlots = coverage.totalSlots
+
+	return {
+		totalJudges: uniqueJudges,
+		judgesRequired: totalSlots,
+		coveragePercent: coverage.coveragePercent,
+		totalSlots: coverage.totalSlots,
+		coveredSlots: coverage.coveredSlots,
+		gaps: coverage.gaps.length,
+		overlaps: coverage.overlaps.length,
+	}
+}
+
+/**
+ * Calculate the minimum number of unique judges required to achieve full coverage.
+ * Uses rotation patterns to determine optimal judge count.
+ *
+ * @param heats - All heats for the event
+ * @param rotationLength - Average number of heats per judge rotation (default: 3)
+ * @returns Estimated minimum judges needed
+ */
+export function calculateRequiredJudges(
+	heats: Array<{ heatNumber: number; laneCount: number }>,
+	rotationLength = 3,
+): number {
+	if (heats.length === 0) return 0
+
+	// Total slots that need coverage
+	const totalSlots = heats.reduce((sum, heat) => sum + heat.laneCount, 0)
+
+	// Average lanes per heat
+	const avgLanes =
+		heats.reduce((sum, heat) => sum + heat.laneCount, 0) / heats.length
+
+	// If each judge works rotationLength heats, they cover rotationLength slots
+	// We need enough judges to cover avgLanes at any given time
+	const judgesPerHeat = Math.ceil(avgLanes)
+
+	// Minimum judges needed (considering rotations)
+	const minJudges = Math.ceil(totalSlots / (rotationLength * avgLanes))
+
+	return Math.max(minJudges, judgesPerHeat)
 }
