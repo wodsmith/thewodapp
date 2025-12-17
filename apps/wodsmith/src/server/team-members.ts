@@ -222,20 +222,30 @@ export async function removeTeamMember({
 
 /**
  * Invite a user to join a team
+ *
+ * @param skipPermissionCheck - Skip the INVITE_MEMBERS permission check.
+ *   Use this when permission was already checked against a different team
+ *   (e.g., checking organizing team permissions for competition team invites)
  */
 export async function inviteUserToTeam({
 	teamId,
 	email,
 	roleId,
 	isSystemRole = true,
+	metadata,
+	skipPermissionCheck = false,
 }: {
 	teamId: string
 	email: string
 	roleId: string
 	isSystemRole?: boolean
+	metadata?: string
+	skipPermissionCheck?: boolean
 }) {
-	// Check if user has permission to invite members
-	await requireTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
+	// Check if user has permission to invite members (unless caller already checked)
+	if (!skipPermissionCheck) {
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
+	}
 
 	const session = await getSessionFromCookie()
 
@@ -326,6 +336,7 @@ export async function inviteUserToTeam({
 			invitedAt: new Date(),
 			joinedAt: new Date(),
 			isActive: 1,
+			metadata,
 		})
 
 		// Update the user's session to include this team
@@ -364,6 +375,7 @@ export async function inviteUserToTeam({
 				acceptedAt: null,
 				acceptedBy: null,
 				updatedAt: new Date(),
+				metadata,
 			})
 			.where(eq(teamInvitationTable.id, existingInvitation.id))
 
@@ -392,6 +404,7 @@ export async function inviteUserToTeam({
 			token,
 			invitedBy: session.userId,
 			expiresAt,
+			metadata,
 		})
 		.returning()
 
@@ -617,6 +630,7 @@ export async function acceptTeamInvitation(token: string) {
 			: new Date(),
 		joinedAt: new Date(),
 		isActive: 1,
+		metadata: invitation.metadata,
 	})
 
 	// Mark invitation as accepted

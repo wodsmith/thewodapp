@@ -230,6 +230,8 @@ export const teamInvitationTable = sqliteTable(
 		expiresAt: integer({ mode: "timestamp" }).notNull(),
 		acceptedAt: integer({ mode: "timestamp" }),
 		acceptedBy: text().references(() => userTable.id),
+		// Optional JSON metadata to transfer to membership on acceptance
+		metadata: text(),
 	},
 	(table) => [
 		index("team_invitation_team_id_idx").on(table.teamId),

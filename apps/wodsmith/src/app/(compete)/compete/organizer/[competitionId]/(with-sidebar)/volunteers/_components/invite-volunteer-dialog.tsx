@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import { inviteUserAction } from "@/actions/team-membership-actions"
+import { inviteVolunteerAction } from "@/actions/volunteer-actions"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -69,17 +69,23 @@ const ROLE_TYPE_OPTIONS: { value: VolunteerRoleType; label: string }[] = [
 ]
 
 interface InviteVolunteerDialogProps {
+	competitionId: string
 	competitionTeamId: string
+	organizingTeamId: string
 	open: boolean
 	onOpenChange: (open: boolean) => void
 }
 
 /**
  * Dialog for inviting new volunteers to a competition
- * Uses existing team invite flow with volunteer role assignment
+ *
+ * Checks permissions against the organizing team, then invites the user
+ * to the competition team with volunteer role and selected role types.
  */
 export function InviteVolunteerDialog({
+	competitionId,
 	competitionTeamId,
+	organizingTeamId,
 	open,
 	onOpenChange,
 }: InviteVolunteerDialogProps) {
@@ -91,7 +97,7 @@ export function InviteVolunteerDialog({
 		},
 	})
 
-	const { execute } = useServerAction(inviteUserAction, {
+	const { execute } = useServerAction(inviteVolunteerAction, {
 		onError: (error) => {
 			toast.dismiss()
 			toast.error(error.err?.message || "Failed to invite volunteer")
@@ -113,17 +119,12 @@ export function InviteVolunteerDialog({
 	})
 
 	const onSubmit = async (data: FormValues) => {
-		// Create metadata for volunteer role types
-		const metadata = {
-			volunteerRoleTypes: data.roleTypes,
-		}
-
 		execute({
-			teamId: competitionTeamId,
 			email: data.email,
-			roleId: "volunteer",
-			isSystemRole: true,
-			metadata: JSON.stringify(metadata),
+			competitionTeamId,
+			organizingTeamId,
+			competitionId,
+			roleTypes: data.roleTypes,
 		})
 	}
 

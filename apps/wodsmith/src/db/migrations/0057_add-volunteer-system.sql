@@ -1,4 +1,4 @@
-CREATE TABLE `competition_heat_volunteers` (
+CREATE TABLE IF NOT EXISTS `competition_heat_volunteers` (
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
 	`updateCounter` integer DEFAULT 0,
@@ -12,10 +12,10 @@ CREATE TABLE `competition_heat_volunteers` (
 	FOREIGN KEY (`membershipId`) REFERENCES `team_membership`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `competition_heat_volunteers_heat_idx` ON `competition_heat_volunteers` (`heatId`);--> statement-breakpoint
-CREATE INDEX `competition_heat_volunteers_membership_idx` ON `competition_heat_volunteers` (`membershipId`);--> statement-breakpoint
-CREATE UNIQUE INDEX `competition_heat_volunteers_unique_idx` ON `competition_heat_volunteers` (`heatId`,`membershipId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `competition_heat_volunteers_heat_idx` ON `competition_heat_volunteers` (`heatId`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `competition_heat_volunteers_membership_idx` ON `competition_heat_volunteers` (`membershipId`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `competition_heat_volunteers_unique_idx` ON `competition_heat_volunteers` (`heatId`,`membershipId`);--> statement-breakpoint
 ALTER TABLE `team_membership` ADD `metadata` text(5000);--> statement-breakpoint
-CREATE UNIQUE INDEX `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);--> statement-breakpoint
 ALTER TABLE `scores` DROP COLUMN `secondary_scheme`;--> statement-breakpoint
 ALTER TABLE `workouts` DROP COLUMN `secondary_scheme`;

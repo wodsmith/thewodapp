@@ -9,11 +9,13 @@ import { teamMembershipTable } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
 	addVolunteerRoleType,
+	createVolunteerSignup,
 	getCompetitionVolunteers,
 	grantScoreAccess,
 	removeVolunteerRoleType,
 	revokeScoreAccess,
 } from "@/server/volunteers"
+import { inviteUserToTeam } from "@/server/team-members"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 /* -------------------------------------------------------------------------- */
@@ -265,5 +267,114 @@ export const updateVolunteerMetadataAction = createServerAction()
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to update volunteer metadata")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                         Volunteer Invite Action                             */
+/* -------------------------------------------------------------------------- */
+
+const inviteVolunteerSchema = z.object({
+	email: z.string().email("Invalid email address"),
+	competitionTeamId: competitionTeamIdSchema,
+	organizingTeamId: competitionTeamIdSchema,
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	roleTypes: z
+		.array(volunteerRoleTypeSchema)
+		.min(1, "Select at least one role"),
+})
+
+const submitVolunteerSignupSchema = z.object({
+	competitionTeamId: competitionTeamIdSchema,
+	signupName: z.string().min(1, "Name is required"),
+	signupEmail: z.string().email("Invalid email address"),
+	signupPhone: z.string().optional(),
+	availabilityNotes: z.string().optional(),
+	// Honeypot field for spam prevention
+	website: z.string().optional(),
+})
+
+/**
+ * Invite a volunteer to a competition
+ *
+ * This action checks permissions against the ORGANIZING team (not the competition team),
+ * then invites the user to the COMPETITION team with the volunteer role.
+ *
+ * This is necessary because:
+ * - The organizer is a member of the organizing team
+ * - The competition team is a separate team for athletes/volunteers
+ * - The organizer needs to invite users to the competition team
+ */
+export const inviteVolunteerAction = createServerAction()
+	.input(inviteVolunteerSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Check permission against the ORGANIZING team (where the user has permissions)
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+			)
+
+			// Create metadata for volunteer role types
+			const metadata = {
+				volunteerRoleTypes: input.roleTypes,
+			}
+
+			// Invite user to the COMPETITION team with volunteer role
+			// We bypass the normal permission check in inviteUserToTeam by directly
+			// using the server function after our own permission check above
+			await inviteUserToTeam({
+				teamId: input.competitionTeamId,
+				email: input.email,
+				roleId: "volunteer",
+				isSystemRole: true,
+				metadata: JSON.stringify(metadata),
+				skipPermissionCheck: true, // We already checked against organizing team
+			})
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/volunteers`)
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to invite volunteer:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to invite volunteer")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                      Public Volunteer Signup Action                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Submit public volunteer signup form
+ * No authentication required - this is a public form for volunteer interest
+ */
+export const submitVolunteerSignupAction = createServerAction()
+	.input(submitVolunteerSignupSchema)
+	.handler(async ({ input }) => {
+		try {
+			// Honeypot check - if filled, silently succeed (bot detection)
+			if (input.website && input.website.trim() !== "") {
+				return { success: true }
+			}
+
+			const db = getDb()
+			const membership = await createVolunteerSignup({
+				db,
+				competitionTeamId: input.competitionTeamId,
+				signupName: input.signupName,
+				signupEmail: input.signupEmail,
+				signupPhone: input.signupPhone,
+				availabilityNotes: input.availabilityNotes,
+			})
+
+			return { success: true, membershipId: membership.id }
+		} catch (error) {
+			console.error("Failed to submit volunteer signup:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to submit volunteer signup")
 		}
 	})

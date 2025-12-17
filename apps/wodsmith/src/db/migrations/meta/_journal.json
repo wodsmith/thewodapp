@@ -421,6 +421,13 @@
       "when": 1765950512940,
       "tag": "0057_add-volunteer-system",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1765953336089,
+      "tag": "0058_add-invitation-metadata",
+      "breakpoints": true
     }
   ]
 }
