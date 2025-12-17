@@ -6,6 +6,9 @@ import "server-only"
 
 import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type * as schema from "@/db/schema"
+
+type Db = DrizzleD1Database<typeof schema>
 import type { TeamMembership } from "@/db/schema"
 import {
 	entitlementTable,
@@ -71,7 +74,7 @@ export function hasRoleType(
  * Get all team members with volunteer role for a competition team
  */
 export async function getCompetitionVolunteers(
-	db: DrizzleD1Database,
+	db: Db,
 	competitionTeamId: string,
 ) {
 	return db.query.teamMembershipTable.findMany({
@@ -92,7 +95,7 @@ export async function getCompetitionVolunteers(
  * Uses sql-batching for safe inArray queries
  */
 export async function getVolunteersByRoleType(
-	db: DrizzleD1Database,
+	db: Db,
 	competitionTeamId: string,
 	roleType: VolunteerRoleType,
 ) {
@@ -126,7 +129,7 @@ export async function getVolunteersByRoleType(
  * Idempotent - won't duplicate if already exists
  */
 export async function addVolunteerRoleType(
-	db: DrizzleD1Database,
+	db: Db,
 	membershipId: string,
 	roleType: VolunteerRoleType,
 ): Promise<void> {
@@ -177,7 +180,7 @@ export async function addVolunteerRoleType(
  * Remove a volunteer role type from a membership's metadata
  */
 export async function removeVolunteerRoleType(
-	db: DrizzleD1Database,
+	db: Db,
 	membershipId: string,
 	roleType: VolunteerRoleType,
 ): Promise<void> {
@@ -279,7 +282,7 @@ export async function grantScoreAccess({
  * Checks both volunteer membership and score input entitlement
  */
 export async function canInputScores(
-	db: DrizzleD1Database,
+	db: Db,
 	userId: string,
 	competitionTeamId: string,
 ): Promise<boolean> {
@@ -305,7 +308,7 @@ export async function canInputScores(
  * Soft deletes the entitlement to maintain audit trail
  */
 export async function revokeScoreAccess(
-	db: DrizzleD1Database,
+	db: Db,
 	userId: string,
 	competitionTeamId: string,
 ): Promise<void> {

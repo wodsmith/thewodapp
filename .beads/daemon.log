@@ -5790,3 +5790,40 @@ fatal: 'zac/og-image' is already checked out at '/Users/zacjones/Documents/02.Ar
 [2025-12-16 23:12:21] Starting auto-import...
 [2025-12-16 23:12:21] Skipping auto-import: JSONL content unchanged
 [2025-12-16 23:12:24] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:24] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:25] Import triggered by file change
+[2025-12-16 23:12:25] Starting auto-import...
+[2025-12-16 23:12:25] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:12:26] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:26] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:27] Import triggered by file change
+[2025-12-16 23:12:27] Starting auto-import...
+[2025-12-16 23:12:27] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:12:31] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:32] Import triggered by file change
+[2025-12-16 23:12:32] Starting auto-import...
+[2025-12-16 23:12:32] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:12:36] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:37] Import triggered by file change
+[2025-12-16 23:12:37] Starting auto-import...
+[2025-12-16 23:12:37] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:12:41] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:12:42] Import triggered by file change
+[2025-12-16 23:12:42] Starting auto-import...
+[2025-12-16 23:12:42] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:13:05] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:13:06] Import triggered by file change
+[2025-12-16 23:13:06] Starting auto-import...
+[2025-12-16 23:13:06] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:13:20] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:13:21] Import triggered by file change
+[2025-12-16 23:13:21] Starting auto-import...
+[2025-12-16 23:13:21] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:13:25] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:13:26] Import triggered by file change
+[2025-12-16 23:13:26] Starting auto-import...
+[2025-12-16 23:13:26] Skipping auto-import: JSONL content unchanged
+[2025-12-16 23:13:35] File change detected: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp/.beads/issues.jsonl (op: CHMOD)
+[2025-12-16 23:13:36] Import triggered by file change
+[2025-12-16 23:13:36] Starting auto-import...
+[2025-12-16 23:13:36] Skipping auto-import: JSONL content unchanged

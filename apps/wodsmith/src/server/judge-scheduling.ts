@@ -2,6 +2,9 @@ import "server-only"
 
 import { eq, inArray } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type * as schema from "@/db/schema"
+
+type Db = DrizzleD1Database<typeof schema>
 import {
 	type CompetitionHeatVolunteer,
 	competitionHeatsTable,
@@ -77,7 +80,7 @@ function isJudge(metadata: string | null): boolean {
  * Uses sql-batching pattern for fetching user details.
  */
 export async function getJudgeVolunteers(
-	db: DrizzleD1Database,
+	db: Db,
 	competitionTeamId: string,
 ): Promise<JudgeVolunteerInfo[]> {
 	// Get all memberships for the competition team
@@ -137,7 +140,7 @@ export async function getJudgeVolunteers(
  * Uses sql-batching pattern for fetching related data.
  */
 export async function getJudgeHeatAssignments(
-	db: DrizzleD1Database,
+	db: Db,
 	trackWorkoutId: string,
 ): Promise<JudgeHeatAssignment[]> {
 	// Get all heats for this event
@@ -239,7 +242,7 @@ export async function getJudgeHeatAssignments(
  * Assign a single judge to a heat lane.
  */
 export async function assignJudgeToHeat(
-	db: DrizzleD1Database,
+	db: Db,
 	params: {
 		heatId: string
 		membershipId: string
@@ -275,7 +278,7 @@ export async function assignJudgeToHeat(
  * Batches inserts to avoid D1 SQL variable limit.
  */
 export async function bulkAssignJudgesToHeat(
-	db: DrizzleD1Database,
+	db: Db,
 	params: {
 		heatId: string
 		assignments: Array<{
@@ -323,7 +326,7 @@ export async function bulkAssignJudgesToHeat(
  * Remove a judge assignment from a heat.
  */
 export async function removeJudgeFromHeat(
-	db: DrizzleD1Database,
+	db: Db,
 	assignmentId: string,
 ): Promise<void> {
 	await db
@@ -339,7 +342,7 @@ export async function removeJudgeFromHeat(
  * Move a judge assignment to a different heat and/or lane.
  */
 export async function moveJudgeAssignment(
-	db: DrizzleD1Database,
+	db: Db,
 	params: {
 		assignmentId: string
 		targetHeatId: string
@@ -365,7 +368,7 @@ export async function moveJudgeAssignment(
  * Returns conflict info if the judge is already assigned to a heat that overlaps in time.
  */
 export async function getJudgeConflicts(
-	db: DrizzleD1Database,
+	db: Db,
 	membershipId: string,
 	heatId: string,
 ): Promise<JudgeConflictInfo | null> {
@@ -451,7 +454,7 @@ export async function getJudgeConflicts(
  * Useful for copying from previous heat when judges work multiple heats.
  */
 export async function copyJudgeAssignmentsToHeat(
-	db: DrizzleD1Database,
+	db: Db,
 	params: {
 		sourceHeatId: string
 		targetHeatId: string
@@ -488,7 +491,7 @@ export async function copyJudgeAssignmentsToHeat(
  * Primary workflow for multi-heat judging where same judges work multiple consecutive heats.
  */
 export async function copyJudgeAssignmentsToRemainingHeats(
-	db: DrizzleD1Database,
+	db: Db,
 	params: {
 		sourceHeatId: string
 		trackWorkoutId: string
@@ -564,7 +567,7 @@ export async function copyJudgeAssignmentsToRemainingHeats(
  * Useful for clearing a heat before reassigning or when changing heat structure.
  */
 export async function clearHeatJudgeAssignments(
-	db: DrizzleD1Database,
+	db: Db,
 	heatId: string,
 ): Promise<void> {
 	await db
