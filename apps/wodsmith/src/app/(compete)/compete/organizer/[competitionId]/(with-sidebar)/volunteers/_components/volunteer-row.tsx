@@ -2,7 +2,7 @@
 
 import { useServerAction } from "@repo/zsa-react"
 import { Check, X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -138,6 +138,18 @@ export function VolunteerRow({
 		new Set(metadata.roleTypes),
 	)
 	const [status, setStatus] = useState(metadata.status || "approved")
+
+	// Sync local state when server data changes (e.g., after bulk role assignment)
+	// We use volunteer.metadata as the dependency since that's the serialized source of truth
+	const metadataString = volunteer.metadata
+	useEffect(() => {
+		const parsed = parseMetadata(metadataString)
+		setSelectedRoles(new Set(parsed.roleTypes))
+	}, [metadataString])
+
+	useEffect(() => {
+		setScoreAccess(volunteer.hasScoreAccess)
+	}, [volunteer.hasScoreAccess])
 
 	// Action hooks
 	const { execute: addRoleType, isPending: isAddingRole } = useServerAction(
