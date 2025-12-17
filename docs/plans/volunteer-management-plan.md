@@ -16,277 +16,499 @@ This schema follows patterns established in our entitlements system:
 
 ### Core Concept
 
-Volunteers are organized into **Volunteer Teams** - a new team type that reuses the existing team invite/membership infrastructure:
+Volunteers are members of the existing **competition_team** with a `volunteer` system role. Role types (judge, equipment, medical) are **organizational labels** stored in metadata - they help admins organize volunteers but don't gate permissions.
 
 ```
 Competition (e.g., "Mountain West Throwdown 2025")
-├── Volunteer Team: "MWFC Judges"
-│   └── Members: Zara, Marcus, Priya, Theo, Ingrid... (judge role)
-├── Volunteer Team: "MWFC Equipment Crew"  
-│   └── Members: Kenji, Fatima, Dmitri... (equipment role)
-├── Volunteer Team: "MWFC Staff"
-│   └── Members: Aaliyah, Henrik, Mei... (staff role)
-└── Volunteer Team: "MWFC Medical"
-    └── Members: Rashid, Yuki, Sven... (medical role)
+└── Competition Team (competition_team type, already exists per competition)
+    ├── Athletes: roleId="member" (existing flow)
+    └── Volunteers: roleId="volunteer" (system role) with volunteerRoleTypes[] in metadata
+        ├── Zara: volunteerRoleTypes=["judge"] + has score_access entitlement
+        ├── Marcus: volunteerRoleTypes=["head_judge"] + has score_access entitlement
+        ├── Kenji: volunteerRoleTypes=["judge", "equipment"] (no score access)
+        └── Rashid: volunteerRoleTypes=["medical"]
 ```
 
-**For smaller competitions**, a single volunteer team works fine:
-```
-Competition (e.g., "Valentine's Day Throwdown")
-└── Volunteer Team: "VDT Volunteers"
-    └── Members: All volunteers with different roles assigned via role_assignments
-```
+**Key points:**
+- Volunteers use the `volunteer` system role for base membership
+- `volunteerRoleTypes` is an **array** - a single volunteer can have multiple role labels
+- Role types are for **organization**, not permissions (all volunteers can do the same things)
+- **Score input access** is the only gated capability, controlled via entitlements
 
-### Why Teams?
+### Why Reuse competition_team?
 
-1. **Reuse invite flow** - `teamInvitationTable` already handles email invites with tokens
-2. **Reuse membership** - `teamMembershipTable` tracks who's on the team
-3. **Reuse roles** - `teamRoleTable` can define volunteer-specific roles (or use system roles)
-4. **Reuse permissions** - Existing permission system for who can manage volunteers
-5. **Team hierarchy** - `parentOrganizationId` links volunteer teams to the organizing gym
+1. **No schema changes** - `competition_team` already exists, linked to competitions via `competitionTeamId`
+2. **Reuse invite flow** - `teamInvitationTable` already handles email invites with tokens
+3. **Reuse membership** - `teamMembershipTable` tracks who's on the team
+4. **Permission system** - Existing `teamRoleTable` defines volunteer-specific roles with permissions
+5. **Single team per competition** - Simpler model, no need for multiple volunteer teams
+6. **Role-based access** - Volunteers get different permissions based on their custom role
 
-### New Team Type
+### New System Role: Volunteer
 
-Add to `TEAM_TYPE_ENUM` in `teams.ts`:
+Add to `SYSTEM_ROLES_ENUM` in `teams.ts`:
 
 ```typescript
-export const TEAM_TYPE_ENUM = {
-  GYM: "gym",
-  COMPETITION_EVENT: "competition_event",
-  COMPETITION_TEAM: "competition_team",
-  PERSONAL: "personal",
-  VOLUNTEER_TEAM: "volunteer_team", // NEW: For volunteer management
+export const SYSTEM_ROLES_ENUM = {
+  OWNER: "owner",
+  ADMIN: "admin",
+  CAPTAIN: "captain",    // Competition team captain
+  MEMBER: "member",
+  GUEST: "guest",
+  VOLUNTEER: "volunteer", // NEW: For competition volunteers
 } as const
 ```
 
-### Competition-Volunteer Team Link
+### Volunteer Role Types (Organizational Only)
+
+Role types are **labels for organizing volunteers**, not permission gates. For MVP, all volunteers have the same base access.
+
+| Role Type | Description |
+|-----------|-------------|
+| `judge` | Lane judge for competition heats |
+| `head_judge` | Lead judge coordinating other judges |
+| `equipment` | Equipment setup and transitions |
+| `medical` | Medical/first aid support |
+| `check_in` | Registration desk |
+| `staff` | General helper |
+
+**All volunteers can:**
+- View the competition schedule
+- View athlete info (names, divisions, heat assignments)
+- Get assigned to any heat or shift
+- View event details and judge notes
+
+### Score Input Access (Entitlement-Gated)
+
+The only gated capability is **score input**. This uses the existing entitlements system to grant specific volunteers the ability to input/edit scores.
 
 ```typescript
-// Link competitions to their volunteer teams
-export const competitionVolunteerTeamsTable = sqliteTable("competition_volunteer_teams", {
-  id: text().primaryKey().$defaultFn(() => createCompetitionVolunteerTeamId()).notNull(),
-  competitionId: text().notNull().references(() => competitionsTable.id, { onDelete: "cascade" }),
-  teamId: text().notNull().references(() => teamTable.id, { onDelete: "cascade" }),
-  // Optional: primary volunteer team for smaller comps with just one team
-  isPrimary: integer().default(0).notNull(),
-}, (table) => [
-  index("comp_vol_team_comp_idx").on(table.competitionId),
-  index("comp_vol_team_team_idx").on(table.teamId),
-]);
+// Grant score input access to a volunteer
+await createEntitlement({
+  userId: volunteerId,
+  teamId: competitionTeamId,
+  entitlementTypeId: "volunteer_score_access",
+  sourceType: "MANUAL",
+  sourceId: adminUserId,
+  metadata: {
+    competitionId: competition.id,
+    grantedBy: adminUserId,
+  },
+  expiresAt: competition.endDate, // Auto-revoke after competition
+});
+
+// Check when volunteer tries to input score
+const canInputScores = await hasEntitlement(
+  userId,
+  "volunteer_score_access",
+  competitionTeamId
+);
 ```
+
+**Why entitlements for score input?**
+1. **Audit trail** - Track who granted access and when
+2. **Auto-expiration** - Access can expire after competition ends
+3. **Granular control** - Not all judges need score input (some just count reps verbally)
+4. **Revocable** - Easy to revoke if needed
+5. **Existing infrastructure** - Reuses the proven entitlements system
+
+### Volunteer Membership Structure
+
+Volunteers use `teamMembershipTable` with:
+- `teamId` = competition's `competitionTeamId`
+- `roleId` = "volunteer" (system role) - grants base volunteer permissions
+- `isSystemRole` = 1
+- `volunteerRoleTypes` (plural) stored in membership metadata - supports multiple roles
+
+### Volunteer Role Types via Metadata
+
+The `teamMembershipTable` already has flexible fields we can leverage. We store volunteer role types as an **array** in the metadata field, allowing a single volunteer to have multiple roles:
+
+```typescript
+// teamMembershipTable already exists - we add a metadata field
+export const teamMembershipTable = sqliteTable("team_membership", {
+  // ... existing fields ...
+  
+  // NEW: JSON metadata for extensible membership properties
+  metadata: text({ length: 5000 }), // JSON: { volunteerRoleTypes: ["judge", "equipment"], ... }
+});
+
+// Volunteer role type values
+type VolunteerRoleType = "judge" | "head_judge" | "equipment" | "medical" | "check_in" | "staff";
+
+// TypeScript type for volunteer membership metadata
+interface VolunteerMembershipMetadata {
+  // Array of role types - volunteer can have multiple roles
+  volunteerRoleTypes: VolunteerRoleType[];
+  
+  // Credentials (freeform, whatever the organizer inputs)
+  credentials?: string[];           // ["L2", "CPR", "First Aid"]
+  
+  // Volunteer details
+  shirtSize?: string;               // "S", "M", "L", "XL"
+  availabilityNotes?: string;       // "Available 8am-2pm only"
+  emergencyContact?: {
+    name: string;
+    phone: string;
+  };
+}
+```
+
+**Example:** A volunteer who judges morning heats and helps with equipment in the afternoon:
+```json
+{
+  "volunteerRoleTypes": ["judge", "equipment"],
+  "credentials": ["L2"],
+  "shirtSize": "L",
+  "availabilityNotes": "Available all day"
+}
+```
+
+### Why Metadata?
+
+1. **No new tables** - Reuses existing `teamMembershipTable` structure
+2. **Multiple roles** - Array supports volunteers wearing multiple hats
+3. **Flexible** - Can add new volunteer-specific fields without migrations
+4. **Co-located** - All volunteer info is on the membership record
+5. **Queryable** - SQLite JSON functions allow filtering by role type
 
 ### Volunteer Flow
 
-1. **Organizer creates volunteer team(s)** for their competition
-   - Can create one team for small comps, or multiple for large comps (judges, equipment, etc.)
-   - Team type = `volunteer_team`, parentOrganizationId = organizing gym
-   
-2. **Organizer invites volunteers** using existing `inviteUserToTeam()` flow
+1. **Organizer invites volunteers** using existing `inviteUserToTeam()` flow
    - Sends email with token link
-   - Volunteer accepts invite, becomes team member
+   - Invitation uses `roleId` = "volunteer" (system role)
+   - `isSystemRole` = 1
    
-3. **Volunteer data stored on team membership**
-   - `teamMembershipTable` tracks the volunteer
-   - Additional volunteer-specific data (credentials, availability) stored in junction tables
+2. **Volunteer accepts invite and self-reports info**
+   - Invite acceptance form includes:
+     - Credentials (self-reported): "L2", "CPR", etc.
+     - Shirt size
+     - Availability notes
+     - Role preferences (what they'd like to help with)
+   - Creates `teamMembershipTable` entry with:
+     - `roleId` = "volunteer" (system role)
+     - `isSystemRole` = 1
+     - `metadata` = `{ volunteerRoleTypes: [], credentials: ["L2"], shirtSize: "L", ... }`
+   - Volunteer is now a member of the competition team
+   
+3. **Organizer reviews and assigns**
+   - Can edit any metadata (credentials, availability, etc.)
+   - Assigns `volunteerRoleTypes` based on volunteer preferences and needs
+   - Updates credentials, availability, etc. in metadata
+   - A volunteer can have multiple role types (e.g., `["judge", "equipment"]`)
+
+4. **Organizer grants score input access** (if needed)
+   - Uses entitlements system to grant `volunteer_score_access` to specific volunteers
+   - Typically granted to judges who will input scores, not all volunteers
+
+5. **Access checks**
+   - Volunteer access: Check if user has `volunteer` role on competition team
+   - Score input: Check if user has `volunteer_score_access` entitlement
+
+### Helper Functions
+
+```typescript
+// Get volunteer role types from membership metadata
+function getVolunteerRoleTypes(membership: TeamMembership): VolunteerRoleType[] {
+  if (!membership.metadata) return [];
+  const meta = JSON.parse(membership.metadata) as VolunteerMembershipMetadata;
+  return meta.volunteerRoleTypes ?? [];
+}
+
+// Check if membership is a volunteer (has volunteerRoleTypes in metadata)
+function isVolunteer(membership: TeamMembership): boolean {
+  return getVolunteerRoleTypes(membership).length > 0;
+}
+
+// Check if volunteer has a specific role type
+function hasRoleType(membership: TeamMembership, roleType: VolunteerRoleType): boolean {
+  return getVolunteerRoleTypes(membership).includes(roleType);
+}
+
+// Get all volunteers for a competition
+async function getCompetitionVolunteers(competitionTeamId: string) {
+  const memberships = await db.query.teamMembershipTable.findMany({
+    where: eq(teamMembershipTable.teamId, competitionTeamId),
+    with: { user: true },
+  });
+  
+  return memberships.filter(m => isVolunteer(m));
+}
+
+// Get volunteers by role type (includes volunteers with multiple roles)
+async function getVolunteersByRoleType(competitionTeamId: string, roleType: VolunteerRoleType) {
+  const volunteers = await getCompetitionVolunteers(competitionTeamId);
+  return volunteers.filter(v => hasRoleType(v, roleType));
+}
+
+// Get all volunteers who can judge (judge or head_judge role types)
+async function getJudgeVolunteers(competitionTeamId: string) {
+  const volunteers = await getCompetitionVolunteers(competitionTeamId);
+  return volunteers.filter(v => {
+    const roleTypes = getVolunteerRoleTypes(v);
+    return roleTypes.includes("judge") || roleTypes.includes("head_judge");
+  });
+}
+
+// Add a role type to a volunteer
+async function addVolunteerRoleType(membershipId: string, roleType: VolunteerRoleType) {
+  const membership = await db.query.teamMembershipTable.findFirst({
+    where: eq(teamMembershipTable.id, membershipId),
+  });
+  if (!membership) throw new Error("Membership not found");
+  
+  const meta = membership.metadata 
+    ? JSON.parse(membership.metadata) as VolunteerMembershipMetadata
+    : { volunteerRoleTypes: [] };
+  
+  if (!meta.volunteerRoleTypes.includes(roleType)) {
+    meta.volunteerRoleTypes.push(roleType);
+  }
+  
+  await db.update(teamMembershipTable)
+    .set({ metadata: JSON.stringify(meta) })
+    .where(eq(teamMembershipTable.id, membershipId));
+}
+
+// Remove a role type from a volunteer
+async function removeVolunteerRoleType(membershipId: string, roleType: VolunteerRoleType) {
+  const membership = await db.query.teamMembershipTable.findFirst({
+    where: eq(teamMembershipTable.id, membershipId),
+  });
+  if (!membership?.metadata) return;
+  
+  const meta = JSON.parse(membership.metadata) as VolunteerMembershipMetadata;
+  meta.volunteerRoleTypes = meta.volunteerRoleTypes.filter(r => r !== roleType);
+  
+  await db.update(teamMembershipTable)
+    .set({ metadata: JSON.stringify(meta) })
+    .where(eq(teamMembershipTable.id, membershipId));
+}
+
+// =============================================================================
+// SCORE INPUT ACCESS (Entitlement-based)
+// =============================================================================
+
+// Grant score input access to a volunteer
+async function grantScoreAccess(
+  volunteerId: string, 
+  competitionTeamId: string, 
+  competitionId: string,
+  grantedBy: string,
+  expiresAt?: Date
+) {
+  return createEntitlement({
+    userId: volunteerId,
+    teamId: competitionTeamId,
+    entitlementTypeId: "volunteer_score_access",
+    sourceType: "MANUAL",
+    sourceId: grantedBy,
+    metadata: {
+      competitionId,
+      grantedBy,
+    },
+    expiresAt,
+  });
+}
+
+// Check if volunteer can input scores
+async function canInputScores(userId: string, competitionTeamId: string): Promise<boolean> {
+  return hasEntitlement(userId, "volunteer_score_access", competitionTeamId);
+}
+
+// Revoke score input access
+async function revokeScoreAccess(userId: string, competitionTeamId: string) {
+  // Use soft delete via entitlements system
+  return revokeEntitlement(userId, "volunteer_score_access", competitionTeamId);
+}
+```
 
 ## Phase 1: Foundation (Roles & Volunteer Pool)
 **Goal:** Enable organizers to define volunteer roles and build a database of volunteers for their competition.
 
 ### 1.1 Database Schema
-New tables in `apps/wodsmith/src/db/schemas/volunteers.ts`:
+
+The volunteer system reuses existing infrastructure with minimal new tables:
+
+#### Existing Tables (Reused)
+- `teamTable` - Competition team already exists (`type: "competition_team"`)
+- `teamMembershipTable` - Volunteers are members with custom roles
+- `teamRoleTable` - Custom volunteer roles with permissions
+- `teamInvitationTable` - Invite flow for volunteers
+
+#### Schema Prerequisites (Must Be Added First)
+
+Before implementing volunteer management, the following schema changes are required:
+
+**1. Add `volunteer` to `SYSTEM_ROLES_ENUM`** (teams.ts)
+
+The `volunteer` system role does not currently exist in the codebase. Add it:
 
 ```typescript
-// =============================================================================
-// LOOKUP TABLES (Seeded Data)
-// =============================================================================
+// In src/db/schemas/teams.ts - update SYSTEM_ROLES_ENUM
+export const SYSTEM_ROLES_ENUM = {
+  OWNER: "owner",
+  ADMIN: "admin",
+  CAPTAIN: "captain",
+  MEMBER: "member",
+  GUEST: "guest",
+  VOLUNTEER: "volunteer", // ADD THIS
+} as const
+```
 
-// Credential types - seeded data like "L1", "L2", "Medical"
-// OR custom credentials defined by a competition
-export const competitionCredentialTypesTable = sqliteTable("competition_credential_types", {
-  id: text().primaryKey().$defaultFn(() => createCredentialTypeId()).notNull(),
-  // NULL = System/Global credential, Set = Custom competition credential
-  competitionId: text().references(() => competitionsTable.id, { onDelete: "cascade" }),
-  key: text({ length: 50 }).notNull(),    // "l1", "l2", "mygym_judge_cert"
-  name: text({ length: 100 }).notNull(),           // "CrossFit Level 1"
-  description: text({ length: 500 }),
-  level: integer().default(0),                      // For sorting (L2=2 > L1=1)
-  category: text({
-    enum: ["crossfit", "medical", "specialty", "custom"],
-  }).notNull(),
-  sortOrder: integer().default(0),
-}, (table) => [
-  index("cred_types_comp_idx").on(table.competitionId),
-  // System credentials must have unique keys
-  uniqueIndex("cred_type_system_key_idx").on(table.key).where(sql`competitionId IS NULL`),
-  // Custom credentials must have unique keys per competition
-  uniqueIndex("cred_type_comp_key_idx").on(table.competitionId, table.key).where(sql`competitionId IS NOT NULL`),
-]);
+**2. Add `metadata` field to `teamMembershipTable`** (teams.ts)
 
-// Role capability types - what a role can do
-// Replaces boolean flags like isJudge, isTeamLead
-export const VOLUNTEER_ROLE_CAPABILITIES = {
-  JUDGE: "judge",                    // Can be assigned to heats/lanes
-  TEAM_LEAD: "team_lead",           // Has leadership responsibilities  
-  MEDICAL_CERTIFIED: "medical",      // Has medical certification
-  EQUIPMENT_TRAINED: "equipment",    // Trained on equipment
-  ATHLETE_BRIEFING: "briefing",      // Can run athlete briefings
-} as const;
+The `teamMembershipTable` currently has no metadata field. Add it:
 
-// =============================================================================
-// CORE TABLES
-// =============================================================================
+```typescript
+// In src/db/schemas/teams.ts - add to teamMembershipTable
+metadata: text({ length: 5000 }), // JSON for extensible properties
+```
 
-// competition_volunteer_roles
-// Defines roles like "Judge", "Equipment", "Check-in"h
-export const competitionVolunteerRolesTable = sqliteTable("competition_volunteer_roles", {
-  id: text().primaryKey().$defaultFn(() => createCompetitionVolunteerRoleId()).notNull(),
-  competitionId: text().notNull().references(() => competitionsTable.id, { onDelete: "cascade" }),
-  name: text({ length: 100 }).notNull(), // "Judge", "Equipment Crew", "Head Judge"
-  description: text({ length: 500 }),
-  parentRoleId: text().references(() => competitionVolunteerRolesTable.id), // For hierarchy
-  sortOrder: integer().default(0),
-  // NOTE: No boolean flags - use capabilities junction table instead
-});
+Then run migration: `pnpm db:generate add-team-membership-metadata`
 
-// Junction: roles → capabilities (replaces isJudge, isTeamLead booleans)
-// A "Head Judge" role can have BOTH judge AND team_lead capabilities
-export const competitionVolunteerRoleCapabilitiesTable = sqliteTable("competition_volunteer_role_capabilities", {
-  id: text().primaryKey().$defaultFn(() => createRoleCapabilityId()).notNull(),
-  roleId: text().notNull().references(() => competitionVolunteerRolesTable.id, { onDelete: "cascade" }),
-  capability: text({
-    enum: ["judge", "team_lead", "medical", "equipment", "briefing"],
-  }).notNull(),
-}, (table) => [
-  index("vol_role_cap_role_idx").on(table.roleId),
-  index("vol_role_cap_unique_idx").on(table.roleId, table.capability),
-]);
+**3. Seed `volunteer_score_access` entitlement type**
 
-// competition_volunteers
-// The people helping out
-export const competitionVolunteersTable = sqliteTable("competition_volunteers", {
-  id: text().primaryKey().$defaultFn(() => createCompetitionVolunteerId()).notNull(),
-  competitionId: text().notNull().references(() => competitionsTable.id, { onDelete: "cascade" }),
-  userId: text().references(() => userTable.id, { onDelete: "set null" }), // Optional account link
-  email: text({ length: 255 }).notNull(),
-  firstName: text({ length: 100 }),
-  lastName: text({ length: 100 }),
-  status: text({
-    enum: ["pending", "approved", "rejected", "invited", "withdrawn"],
-  }).default("pending").notNull(),
-  shirtSize: text({ length: 10 }), // XS, S, M, L, XL, etc.
-  notes: text({ length: 1000 }),   // Internal organizer notes
-  availabilityNotes: text({ length: 500 }), // "8am-2pm only", "Hard out @ 4:30"
-  // NOTE: No credentials JSON - use credentials junction table instead
-});
+The entitlement type must be seeded before any score access grants, or FK constraints will fail.
 
-// Junction: volunteers → credentials (replaces credentials JSON field)
-export const competitionVolunteerCredentialsTable = sqliteTable("competition_volunteer_credentials", {
-  id: text().primaryKey().$defaultFn(() => createVolunteerCredentialId()).notNull(),
-  volunteerId: text().notNull().references(() => competitionVolunteersTable.id, { onDelete: "cascade" }),
-  credentialTypeId: text().notNull().references(() => competitionCredentialTypesTable.id, { onDelete: "cascade" }),
-  verifiedAt: integer({ mode: "timestamp" }),
-  verifiedBy: text().references(() => userTable.id),
-  expiresAt: integer({ mode: "timestamp" }), // Some certs expire
-}, (table) => [
-  index("vol_cred_vol_idx").on(table.volunteerId),
-  index("vol_cred_type_idx").on(table.credentialTypeId),
-]);
+Create `scripts/seed-volunteer-entitlements.ts`:
 
-// competition_volunteer_role_assignments
-// Which roles is this volunteer willing/approved to do?
-export const competitionVolunteerRoleAssignmentsTable = sqliteTable("competition_volunteer_role_assignments", {
-  id: text().primaryKey().$defaultFn(() => createRoleAssignmentId()).notNull(),
-  volunteerId: text().notNull().references(() => competitionVolunteersTable.id, { onDelete: "cascade" }),
-  roleId: text().notNull().references(() => competitionVolunteerRolesTable.id, { onDelete: "cascade" }),
-  // NOTE: No isApproved boolean - use status enum instead
-  status: text({
-    enum: ["pending", "approved", "rejected", "waitlisted"],
-  }).default("pending").notNull(),
-  statusChangedAt: integer({ mode: "timestamp" }),
-  statusChangedBy: text().references(() => userTable.id),
-}, (table) => [
-  index("vol_role_assign_vol_idx").on(table.volunteerId),
-  index("vol_role_assign_role_idx").on(table.roleId),
-]);
+```typescript
+import { db } from "@/db"
+import { entitlementTypeTable } from "@/db/schema"
+
+await db.insert(entitlementTypeTable).values({
+  id: "volunteer_score_access",
+  name: "Volunteer Score Access", 
+  description: "Allows volunteer to input and edit scores for a competition",
+  category: "competition",
+}).onConflictDoNothing()
+
+console.log("Seeded volunteer_score_access entitlement type")
+```
+
+Run: `pnpm tsx scripts/seed-volunteer-entitlements.ts`
+
+#### Additional Schema Updates
+
+For MVP, all volunteers have the same base access:
+- View competition schedule
+- View athlete info (names, divisions)
+- Get assigned to any activity (heats, shifts)
+
+The only gated capability is **score input**, which uses the entitlements system (see below).
+
+#### Volunteer Membership Metadata Schema
+
+```typescript
+// Volunteer role type values
+type VolunteerRoleType = "judge" | "head_judge" | "equipment" | "medical" | "check_in" | "staff";
+
+// TypeScript interface for volunteer membership metadata
+interface VolunteerMembershipMetadata {
+  // Role types for organization (ARRAY - can have multiple)
+  volunteerRoleTypes: VolunteerRoleType[];
+  
+  // Credentials - freeform strings, store whatever organizer inputs
+  credentials?: string[];           // ["L2", "CPR", "First Aid"]
+  
+  // Volunteer details
+  shirtSize?: string;               // "S", "M", "L", "XL"
+  availabilityNotes?: string;       // "Available 8am-2pm only"
+  dietaryRestrictions?: string;     // For volunteer meals
+  
+  // Emergency contact
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship?: string;
+  };
+  
+  // Organizer notes (not visible to volunteer)
+  internalNotes?: string;
+}
 ```
 
 ### 1.1.1 Helper Functions
 
 ```typescript
-// Get volunteer's highest credential level (computed, not stored)
-async function getVolunteerCredentialLevel(volunteerId: string): Promise<number> {
-  const credentials = await db.query.competitionVolunteerCredentialsTable.findMany({
-    where: eq(competitionVolunteerCredentialsTable.volunteerId, volunteerId),
-    with: { credentialType: true },
-  });
-  return Math.max(...credentials.map(c => c.credentialType.level), 0);
-}
-
-// Check if role has a capability (replaces role.isJudge checks)
-async function roleHasCapability(roleId: string, capability: string): Promise<boolean> {
-  const cap = await db.query.competitionVolunteerRoleCapabilitiesTable.findFirst({
+// Get all volunteers for a competition
+async function getCompetitionVolunteers(competitionTeamId: string) {
+  const memberships = await db.query.teamMembershipTable.findMany({
     where: and(
-      eq(competitionVolunteerRoleCapabilitiesTable.roleId, roleId),
-      eq(competitionVolunteerRoleCapabilitiesTable.capability, capability),
+      eq(teamMembershipTable.teamId, competitionTeamId),
+      eq(teamMembershipTable.roleId, "volunteer")
     ),
+    with: { user: true },
   });
-  return !!cap;
+  return memberships;
 }
 
-// Get all roles with judge capability (replaces WHERE isJudge = true)
-async function getJudgeRoles(competitionId: string) {
-  return db.query.competitionVolunteerRolesTable.findMany({
-    where: eq(competitionVolunteerRolesTable.competitionId, competitionId),
-    with: {
-      capabilities: {
-        where: eq(competitionVolunteerRoleCapabilitiesTable.capability, "judge"),
-      },
-    },
-  }).then(roles => roles.filter(r => r.capabilities.length > 0));
+// Get volunteers by role type
+async function getVolunteersByRoleType(competitionTeamId: string, roleType: string) {
+  const volunteers = await getCompetitionVolunteers(competitionTeamId);
+  return volunteers.filter(m => {
+    if (!m.metadata) return false;
+    const meta = JSON.parse(m.metadata) as VolunteerMembershipMetadata;
+    return meta.volunteerRoleTypes?.includes(roleType);
+  });
 }
 ```
 
 ### 1.2 Organizer UI (`/compete/organizer/[id]/volunteers`)
-- **Settings/Roles Tab**:
-    - CRUD interface for `Volunteer Roles`.
-    - Capability assignment (checkboxes for judge, team_lead, etc.).
-    - Toggle "Accepting Volunteers" status for the competition.
-- **Volunteers List**:
-    - Table view of `competition_volunteers`.
-    - Columns: Name, Email, Status, Assigned Roles, Credentials (from junction), Availability.
-    - Actions: Approve/Reject, Edit details, Assign Roles, Verify Credentials.
-    - "Invite Volunteer" button (modal to enter email).
-- **Credentials Management**:
-    - View/verify volunteer credentials.
-    - Filter volunteers by credential type/level.
 
-### 1.3 Public UI (`/compete/[slug]/volunteer`)
-- Simple registration form for volunteers.
-- Fields: Name, Email, Shirt Size, Credentials (multi-select from seeded types), Role Preferences, Availability Notes.
-- Links to existing User account if logged in.
+- **Volunteers List**:
+    - Table view of team memberships with `volunteerRoleTypes` in metadata.
+    - Columns: Name, Email, Role Types (badges), Credentials, Score Access (yes/no), Availability.
+    - Actions: Edit details, Add/Remove Role Types, Grant/Revoke Score Access.
+    - "Invite Volunteer" button (uses existing team invite flow).
+- **Score Access Toggle**:
+    - Quick toggle to grant/revoke `volunteer_score_access` entitlement.
+    - Shows who currently has score input access.
+- **Bulk Actions**:
+    - Grant score access to all judges.
+    - Filter by role type or credential.
+
+### 1.3 Volunteer Invite Acceptance Form
+
+When a volunteer clicks their invite link, they see a form to self-report their info:
+
+**Fields:**
+- Credentials (freeform text input or common suggestions): "L2", "L1", "CPR", "First Aid", etc.
+- Shirt size
+- Availability notes: "Available 8am-2pm only"
+- Role preferences: What they'd like to help with (judge, equipment, etc.)
+- Emergency contact (optional)
+
+This data is stored in the membership `metadata` when they accept the invite. Organizers can review and edit later.
 
 ## Phase 2: Heat Scheduling (The Core Requirement)
 **Goal:** Allow organizers to assign specific volunteers (primarily judges) to specific heats and lanes.
 
 ### 2.1 Database Schema
-Add to `volunteers.ts`:
+
+Add to `competitions.ts` (or new `volunteers.ts` file):
 
 ```typescript
 // competition_heat_volunteers
-// Assigns a volunteer to a specific heat execution
+// Assigns a volunteer (team member) to a specific heat execution
 export const competitionHeatVolunteersTable = sqliteTable("competition_heat_volunteers", {
   id: text().primaryKey().$defaultFn(() => createHeatVolunteerId()).notNull(),
   heatId: text().notNull().references(() => competitionHeatsTable.id, { onDelete: "cascade" }),
-  volunteerId: text().notNull().references(() => competitionVolunteersTable.id, { onDelete: "cascade" }),
-  roleId: text().notNull().references(() => competitionVolunteerRolesTable.id, { onDelete: "cascade" }),
+  // References the team membership (volunteer is a member of the competition team)
+  membershipId: text().notNull().references(() => teamMembershipTable.id, { onDelete: "cascade" }),
   laneNumber: integer(), // Nullable (Equipment crew might not need a lane)
   position: text({ length: 50 }), // Specific sub-position e.g. "Main Booth", "Floater"
   instructions: text({ length: 2000 }), // Event-specific instructions for this assignment
 }, (table) => [
   index("heat_vol_heat_idx").on(table.heatId),
-  index("heat_vol_vol_idx").on(table.volunteerId),
+  index("heat_vol_member_idx").on(table.membershipId),
+  // A volunteer can only be assigned once per heat
+  uniqueIndex("heat_vol_unique_idx").on(table.heatId, table.membershipId),
 ]);
 ```
+
+**Note:** We reference `teamMembershipTable.id` instead of a separate volunteers table. The volunteer's role (judge, equipment, etc.) is determined by their `roleId` on the membership record and `volunteerRoleType` in metadata.
 
 ### 2.2 Organizer UI: Judge Scheduling
 
@@ -494,9 +716,9 @@ Rather than guess, we provide simple copy tools and let organizers arrange manua
 
 | Aspect | Athlete Schedule | Judge Schedule |
 |--------|-----------------|----------------|
-| Data source | `registrations` | `volunteers` with `judge` capability |
-| Sidebar grouping | By division | By credential level |
-| Badge display | Registration date | Credential type (L1, L2) |
+| Data source | `registrations` | `teamMembership` with `volunteerRoleType: "judge"` in metadata |
+| Sidebar grouping | By division | By credential level (from membership metadata) |
+| Badge display | Registration date | Credential type (L1, L2 from metadata) |
 | Assignment pattern | Each athlete once per event | Same judges across multiple heats |
 | Availability | N/A (each athlete once) | Check for time conflicts across events |
 | Bulk actions | N/A | Copy from/to heats (primary workflow) |
@@ -506,23 +728,23 @@ Rather than guess, we provide simple copy tools and let organizers arrange manua
 
 **Server functions needed:**
 ```typescript
-// Get volunteers with judge capability for a competition
-getJudgeVolunteers(competitionId: string): Promise<JudgeVolunteer[]>
+// Get team members with judge role type for a competition
+getJudgeVolunteers(competitionTeamId: string): Promise<JudgeMembership[]>
 
 // Get judge assignments for all heats of an event
 getJudgeHeatAssignments(trackWorkoutId: string): Promise<JudgeHeatAssignment[]>
 
-// Assign judge to heat lane
+// Assign judge (team member) to heat lane
 assignJudgeToHeat(params: {
   heatId: string
-  volunteerId: string
+  membershipId: string  // Team membership ID
   laneNumber: number
 }): Promise<JudgeHeatAssignment>
 
 // Bulk assign judges to heat
 bulkAssignJudgesToHeat(params: {
   heatId: string
-  assignments: { volunteerId: string; laneNumber: number }[]
+  assignments: { membershipId: string; laneNumber: number }[]
 }): Promise<JudgeHeatAssignment[]>
 
 // Remove judge from heat
@@ -536,7 +758,7 @@ moveJudgeAssignment(params: {
 }): Promise<void>
 
 // Check for time conflicts
-getJudgeConflicts(volunteerId: string, heatId: string): Promise<ConflictInfo | null>
+getJudgeConflicts(membershipId: string, heatId: string): Promise<ConflictInfo | null>
 
 // === BULK COPY OPERATIONS (primary workflow for multi-heat judging) ===
 
@@ -569,7 +791,8 @@ export const competitionVolunteerShiftsTable = sqliteTable("competition_voluntee
   name: text({ length: 100 }).notNull(), // "Morning Check-in"
   startTime: integer({ mode: "timestamp" }).notNull(),
   endTime: integer({ mode: "timestamp" }).notNull(),
-  roleId: text().references(() => competitionVolunteerRolesTable.id, { onDelete: "set null" }),
+  // Optional: restrict shift to specific volunteer role types
+  requiredRoleType: text({ length: 50 }), // "equipment", "check_in", etc. (matches volunteerRoleType)
   capacity: integer(), // How many people needed?
   location: text({ length: 100 }), // e.g. "Front Desk", "Warm-up Area"
 }, (table) => [
@@ -580,14 +803,17 @@ export const competitionVolunteerShiftsTable = sqliteTable("competition_voluntee
 export const competitionShiftAssignmentsTable = sqliteTable("competition_shift_assignments", {
   id: text().primaryKey().$defaultFn(() => createShiftAssignmentId()).notNull(),
   shiftId: text().notNull().references(() => competitionVolunteerShiftsTable.id, { onDelete: "cascade" }),
-  volunteerId: text().notNull().references(() => competitionVolunteersTable.id, { onDelete: "cascade" }),
+  // References the team membership (volunteer)
+  membershipId: text().notNull().references(() => teamMembershipTable.id, { onDelete: "cascade" }),
   position: text({ length: 50 }), // Specific sub-position within the shift
   status: text({
     enum: ["assigned", "confirmed", "checked_in", "no_show"],
   }).default("assigned").notNull(),
 }, (table) => [
   index("shift_assign_shift_idx").on(table.shiftId),
-  index("shift_assign_vol_idx").on(table.volunteerId),
+  index("shift_assign_member_idx").on(table.membershipId),
+  // A volunteer can only be assigned once per shift
+  uniqueIndex("shift_assign_unique_idx").on(table.shiftId, table.membershipId),
 ]);
 ```
 
@@ -832,29 +1058,27 @@ getEventPrepMaterials(trackWorkoutId: string): Promise<{
 
 ## Schema Design Rationale
 
-### Why No Boolean Columns?
+### Why Role Types in Metadata (Not Permissions)?
 
-Following the entitlements system pattern, we avoid boolean columns because:
+For MVP, we use role types as organizational labels, not permission gates:
 
-1. **Extensibility**: Adding a new capability (e.g., "equipment_trained") requires no schema migration - just insert a row.
-2. **Composability**: A "Head Judge" role can have BOTH `judge` AND `team_lead` capabilities.
-3. **Queryability**: `WHERE capability = 'judge'` is clearer than `WHERE isJudge = 1`.
-4. **Consistency**: Matches the `plan_feature` junction pattern in entitlements.
+1. **Simplicity** - All volunteers can do the same things (view schedule, get assigned, etc.)
+2. **Flexibility** - Admins can assign anyone anywhere without permission conflicts
+3. **Single gated capability** - Only score input needs access control, handled via entitlements
+4. **Extensibility** - Can add fine-grained permissions later if needed
 
-### Why Normalize Credentials?
+### Why Store Credentials in Metadata?
 
-The original `credentials: text() // JSON: ["L1", "Medical"]` approach has problems:
+Credentials are freeform strings - just store whatever the organizer inputs:
 
-1. **No indexing**: Can't efficiently query "all L2 judges".
-2. **No validation**: Any string can be stored.
-3. **No metadata**: Can't track verification, expiration.
-4. **Redundant**: `credentialLevel` duplicates info in the JSON.
+```typescript
+credentials?: string[];  // ["L2", "CPR", "First Aid"]
+```
 
-The junction table approach:
-- Enables `JOIN` queries for filtering.
-- Enforces valid credential types via FK.
-- Tracks verification and expiration.
-- Computes `credentialLevel` from the data (no duplication).
+**Benefits:**
+1. **Simple** - No tables, no validation, no logic
+2. **Flexible** - Organizers enter whatever makes sense for their competition
+3. **Display only** - Used for filtering/display in the UI, not access control
 
 ## Phase 4: Judge Preparation Materials
 **Goal:** Provide judges with event-specific notes and score sheet previews to help them prepare before judging.
