@@ -423,6 +423,7 @@ export const competitionHeatsRelations = relations(
 			references: [scalingLevelsTable.id],
 		}),
 		assignments: many(competitionHeatAssignmentsTable),
+		// Note: volunteers relation defined in volunteers.ts to avoid circular dependency
 	}),
 )
 
