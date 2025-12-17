@@ -83,6 +83,7 @@ export default async function CompetitionVolunteersPage({
 
 			<VolunteersList
 				competitionId={competition.id}
+				competitionSlug={competition.slug}
 				competitionTeamId={competition.competitionTeamId}
 				organizingTeamId={competition.organizingTeamId}
 				volunteers={volunteersWithAccess}

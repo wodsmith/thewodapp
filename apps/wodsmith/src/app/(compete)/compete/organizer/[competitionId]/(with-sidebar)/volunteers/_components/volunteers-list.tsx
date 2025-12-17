@@ -1,7 +1,8 @@
 "use client"
 
-import { UserPlus } from "lucide-react"
+import { Check, Copy, UserPlus } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ interface VolunteerWithAccess {
 
 interface VolunteersListProps {
 	competitionId: string
+	competitionSlug: string
 	competitionTeamId: string
 	organizingTeamId: string
 	volunteers: VolunteerWithAccess[]
@@ -56,12 +58,30 @@ interface VolunteersListProps {
 
 export function VolunteersList({
 	competitionId,
+	competitionSlug,
 	competitionTeamId,
 	organizingTeamId,
 	volunteers,
 }: VolunteersListProps) {
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
+	const [copied, setCopied] = useState(false)
+
+	const signupUrl =
+		typeof window !== "undefined"
+			? `${window.location.origin}/compete/${competitionSlug}/volunteer`
+			: `/compete/${competitionSlug}/volunteer`
+
+	const copySignupLink = async () => {
+		try {
+			await navigator.clipboard.writeText(signupUrl)
+			setCopied(true)
+			toast.success("Signup link copied to clipboard")
+			setTimeout(() => setCopied(false), 2000)
+		} catch {
+			toast.error("Failed to copy link")
+		}
+	}
 
 	// Parse status from metadata
 	const getVolunteerStatus = (
@@ -103,10 +123,18 @@ export function VolunteersList({
 						No volunteers have been added to this competition yet.
 					</CardDescription>
 				</CardHeader>
-				<CardContent>
+				<CardContent className="flex gap-2">
 					<Button onClick={() => setInviteDialogOpen(true)}>
 						<UserPlus className="mr-2 h-4 w-4" />
 						Invite Volunteer
+					</Button>
+					<Button variant="outline" onClick={copySignupLink}>
+						{copied ? (
+							<Check className="mr-2 h-4 w-4" />
+						) : (
+							<Copy className="mr-2 h-4 w-4" />
+						)}
+						Copy Signup Link
 					</Button>
 					<InviteVolunteerDialog
 						competitionId={competitionId}
@@ -123,7 +151,15 @@ export function VolunteersList({
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Actions */}
-			<div className="flex items-center justify-end">
+			<div className="flex items-center justify-end gap-2">
+				<Button variant="outline" onClick={copySignupLink}>
+					{copied ? (
+						<Check className="mr-2 h-4 w-4" />
+					) : (
+						<Copy className="mr-2 h-4 w-4" />
+					)}
+					Copy Signup Link
+				</Button>
 				<Button onClick={() => setInviteDialogOpen(true)}>
 					<UserPlus className="mr-2 h-4 w-4" />
 					Invite Volunteer
