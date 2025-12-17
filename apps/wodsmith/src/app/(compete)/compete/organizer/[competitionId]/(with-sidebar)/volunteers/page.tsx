@@ -48,13 +48,20 @@ export default async function CompetitionVolunteersPage({
 	const db = getDb()
 
 	// Get all volunteers for this competition team
-	const volunteers = await getCompetitionVolunteers(db, competition.teamId)
+	const volunteers = await getCompetitionVolunteers(
+		db,
+		competition.competitionTeamId,
+	)
 
 	// For each volunteer, check if they have score access
 	const volunteersWithAccess = await Promise.all(
 		volunteers.map(async (volunteer) => {
 			const hasScoreAccess = volunteer.user
-				? await canInputScores(db, volunteer.user.id, competition.teamId)
+				? await canInputScores(
+						db,
+						volunteer.user.id,
+						competition.competitionTeamId,
+					)
 				: false
 
 			return {
@@ -76,8 +83,8 @@ export default async function CompetitionVolunteersPage({
 
 			<VolunteersList
 				competitionId={competition.id}
-				competitionTeamId={competition.teamId}
-				organizingTeamId={competition.createdByTeamId}
+				competitionTeamId={competition.competitionTeamId}
+				organizingTeamId={competition.organizingTeamId}
 				volunteers={volunteersWithAccess}
 			/>
 		</div>

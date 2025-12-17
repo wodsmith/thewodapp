@@ -4,7 +4,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { getDb } from "@/db"
-import { getHeatsWithAssignments } from "@/server/competition-heats"
+import { getHeatsForWorkout } from "@/server/competition-heats"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
 import {
@@ -55,12 +55,12 @@ export default async function JudgeSchedulingPage({
 	// Parallel fetch: events, judges, heats
 	const [events, judges] = await Promise.all([
 		getCompetitionWorkouts(db, competition.id),
-		getJudgeVolunteers(db, competition.teamId),
+		getJudgeVolunteers(db, competition.competitionTeamId),
 	])
 
 	// Get heats for all events
 	const allHeats = await Promise.all(
-		events.map((event) => getHeatsWithAssignments(event.id)),
+		events.map((event) => getHeatsForWorkout(event.id)),
 	)
 	const heats = allHeats.flat()
 
@@ -73,7 +73,7 @@ export default async function JudgeSchedulingPage({
 	return (
 		<JudgeSchedulingContainer
 			competitionId={competition.id}
-			organizingTeamId={competition.createdByTeamId}
+			organizingTeamId={competition.organizingTeamId}
 			events={events}
 			heats={heats}
 			judges={judges}
