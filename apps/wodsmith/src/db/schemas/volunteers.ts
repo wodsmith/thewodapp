@@ -43,6 +43,12 @@ export interface VolunteerMembershipMetadata {
 	}
 	// Internal notes for organizers only
 	internalNotes?: string
+	// Volunteer signup status - for unauthenticated sign-ups
+	status?: "pending" | "approved" | "rejected"
+	// Contact info from public sign-up form (for pending volunteers without user accounts)
+	signupEmail?: string
+	signupName?: string
+	signupPhone?: string
 }
 
 // Competition Heat Volunteers Table
