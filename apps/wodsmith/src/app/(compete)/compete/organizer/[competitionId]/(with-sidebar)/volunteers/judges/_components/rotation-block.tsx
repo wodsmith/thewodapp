@@ -52,7 +52,10 @@ export function RotationBlock({
 		}
 		if (rotation.laneShiftPattern === "shift_left") {
 			const endLane =
-				((rotation.startingLane - 1 - (rotation.heatsCount - 1) + laneCount * 100) %
+				((rotation.startingLane -
+					1 -
+					(rotation.heatsCount - 1) +
+					laneCount * 100) %
 					laneCount) +
 				1
 			return `L${rotation.startingLane}→${endLane}`

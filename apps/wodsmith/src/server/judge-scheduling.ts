@@ -603,10 +603,9 @@ export async function getJudgeOverview(
 	trackWorkoutId: string,
 ): Promise<JudgeOverview> {
 	// Import here to avoid circular dependency
-	const {
-		getRotationsForEvent,
-		calculateCoverage,
-	} = await import("./judge-rotations")
+	const { getRotationsForEvent, calculateCoverage } = await import(
+		"./judge-rotations"
+	)
 
 	// Get all heats for the event with venue lane count
 	const heatsRaw = await db

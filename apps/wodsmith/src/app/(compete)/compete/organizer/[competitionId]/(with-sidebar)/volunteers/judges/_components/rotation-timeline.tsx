@@ -112,7 +112,9 @@ export function RotationTimeline({
 		(membershipId: string) => {
 			const judge = availableJudges.find((j) => j.membershipId === membershipId)
 			if (!judge) return "Unknown Judge"
-			return `${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() || "Unknown"
+			return (
+				`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() || "Unknown"
+			)
 		},
 		[availableJudges],
 	)
@@ -186,44 +188,48 @@ export function RotationTimeline({
 								<div className="bg-muted border-r border-b flex items-center justify-center text-xs font-medium sticky left-0 z-20">
 									Lane
 								</div>
-								{Array.from({ length: heatsCount }, (_, i) => i + 1).map((heat) => (
-									<div
-										key={heat}
-										className="bg-muted border-r border-b last:border-r-0 flex items-center justify-center text-xs font-medium tabular-nums"
-									>
-										H{heat}
-									</div>
-								))}
+								{Array.from({ length: heatsCount }, (_, i) => i + 1).map(
+									(heat) => (
+										<div
+											key={heat}
+											className="bg-muted border-r border-b last:border-r-0 flex items-center justify-center text-xs font-medium tabular-nums"
+										>
+											H{heat}
+										</div>
+									),
+								)}
 
 								{/* Lane Rows */}
-								{Array.from({ length: laneCount }, (_, i) => i + 1).map((lane) => (
-									<>
-										{/* Lane Label */}
-										<div
-											key={`lane-${lane}`}
-											className="bg-muted border-r border-b flex items-center justify-center text-xs font-medium tabular-nums sticky left-0 z-10"
-										>
-											L{lane}
-										</div>
+								{Array.from({ length: laneCount }, (_, i) => i + 1).map(
+									(lane) => (
+										<>
+											{/* Lane Label */}
+											<div
+												key={`lane-${lane}`}
+												className="bg-muted border-r border-b flex items-center justify-center text-xs font-medium tabular-nums sticky left-0 z-10"
+											>
+												L{lane}
+											</div>
 
-										{/* Heat Cells for this lane */}
-										{Array.from({ length: heatsCount }, (_, i) => i + 1).map(
-											(heat) => {
-												const key = `${heat}:${lane}`
-												const status = coverageGrid.get(key) || "empty"
+											{/* Heat Cells for this lane */}
+											{Array.from({ length: heatsCount }, (_, i) => i + 1).map(
+												(heat) => {
+													const key = `${heat}:${lane}`
+													const status = coverageGrid.get(key) || "empty"
 
-												return (
-													<TimelineCell
-														key={key}
-														heat={heat}
-														lane={lane}
-														status={status}
-													/>
-												)
-											},
-										)}
-									</>
-								))}
+													return (
+														<TimelineCell
+															key={key}
+															heat={heat}
+															lane={lane}
+															status={status}
+														/>
+													)
+												},
+											)}
+										</>
+									),
+								)}
 
 								{/* Rotation Blocks Overlay */}
 								<div
@@ -287,7 +293,9 @@ export function RotationTimeline({
 				</div>
 				<div className="flex items-center gap-2">
 					<div className="h-4 w-4 rounded border bg-orange-100 dark:bg-orange-950" />
-					<span className="text-muted-foreground">Overlap (Multiple Judges)</span>
+					<span className="text-muted-foreground">
+						Overlap (Multiple Judges)
+					</span>
 				</div>
 			</div>
 

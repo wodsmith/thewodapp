@@ -277,9 +277,6 @@ export const validateRotationAction = createServerAction()
 				throw error
 			}
 
-			throw new ZSAError(
-				"INTERNAL_SERVER_ERROR",
-				"Failed to validate rotation",
-			)
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to validate rotation")
 		}
 	})

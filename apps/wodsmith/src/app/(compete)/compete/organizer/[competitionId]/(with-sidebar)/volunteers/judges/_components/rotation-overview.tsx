@@ -90,7 +90,9 @@ export function RotationOverview({
 			{hasGaps && (
 				<Alert variant="destructive">
 					<XCircle className="h-4 w-4" />
-					<AlertTitle>Missing Coverage ({coverage.gaps.length} slots)</AlertTitle>
+					<AlertTitle>
+						Missing Coverage ({coverage.gaps.length} slots)
+					</AlertTitle>
 					<AlertDescription>
 						<div className="mt-2 space-y-1 text-sm">
 							{Array.from(gapsByHeat.entries())

@@ -123,7 +123,9 @@ export default async function MySchedulePage({ params }: Props) {
 
 			// Calculate time window
 			let timeWindow: string | null = null
-			const startHeat = heats.find((h) => h.heatNumber === rotation.startingHeat)
+			const startHeat = heats.find(
+				(h) => h.heatNumber === rotation.startingHeat,
+			)
 			const endHeatNumber = rotation.startingHeat + rotation.heatsCount - 1
 			const endHeat = heats.find((h) => h.heatNumber === endHeatNumber)
 

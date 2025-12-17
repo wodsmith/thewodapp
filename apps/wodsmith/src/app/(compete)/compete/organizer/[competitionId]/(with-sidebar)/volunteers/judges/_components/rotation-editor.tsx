@@ -31,10 +31,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import {
-	type CompetitionJudgeRotation,
-	LANE_SHIFT_PATTERN,
-} from "@/db/schema"
+import { type CompetitionJudgeRotation, LANE_SHIFT_PATTERN } from "@/db/schema"
 import type { JudgeVolunteerInfo } from "@/server/judge-scheduling"
 
 const rotationFormSchema = z.object({
@@ -124,9 +121,7 @@ export function RotationEditor({
 
 			if (result?.data) {
 				setConflicts(
-					result.data.valid
-						? []
-						: result.data.conflicts.map((c) => c.message),
+					result.data.valid ? [] : result.data.conflicts.map((c) => c.message),
 				)
 			}
 		}, 500) // Debounce
@@ -181,7 +176,10 @@ export function RotationEditor({
 								</FormControl>
 								<SelectContent>
 									{availableJudges.map((judge) => (
-										<SelectItem key={judge.membershipId} value={judge.membershipId}>
+										<SelectItem
+											key={judge.membershipId}
+											value={judge.membershipId}
+										>
 											{`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() ||
 												"Unknown"}
 											{judge.credentials && ` (${judge.credentials})`}
@@ -327,11 +325,19 @@ export function RotationEditor({
 								{formValues.laneShiftPattern === LANE_SHIFT_PATTERN.STAY && (
 									<p>Starting and staying in lane {formValues.startingLane}</p>
 								)}
-								{formValues.laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
-									<p>Starting at lane {formValues.startingLane}, shifting right each heat</p>
+								{formValues.laneShiftPattern ===
+									LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
+									<p>
+										Starting at lane {formValues.startingLane}, shifting right
+										each heat
+									</p>
 								)}
-								{formValues.laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_LEFT && (
-									<p>Starting at lane {formValues.startingLane}, shifting left each heat</p>
+								{formValues.laneShiftPattern ===
+									LANE_SHIFT_PATTERN.SHIFT_LEFT && (
+									<p>
+										Starting at lane {formValues.startingLane}, shifting left
+										each heat
+									</p>
 								)}
 							</div>
 						</AlertDescription>
@@ -362,11 +368,14 @@ export function RotationEditor({
 					<Button
 						type="submit"
 						disabled={
-							(isEditing ? updateRotation.isPending : createRotation.isPending) ||
-							conflicts.length > 0
+							(isEditing
+								? updateRotation.isPending
+								: createRotation.isPending) || conflicts.length > 0
 						}
 					>
-						{(isEditing ? updateRotation.isPending : createRotation.isPending) && (
+						{(isEditing
+							? updateRotation.isPending
+							: createRotation.isPending) && (
 							<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 						)}
 						{isEditing ? "Update Rotation" : "Create Rotation"}

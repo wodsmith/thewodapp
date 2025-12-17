@@ -79,7 +79,10 @@ export async function createJudgeRotation(
 	params: CreateJudgeRotationParams,
 ): Promise<CompetitionJudgeRotation> {
 	// Permission check
-	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
 
 	const [rotation] = await db
 		.insert(competitionJudgeRotationsTable)
@@ -114,7 +117,10 @@ export async function updateJudgeRotation(
 	params: UpdateJudgeRotationParams,
 ): Promise<CompetitionJudgeRotation> {
 	// Permission check
-	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
 
 	const updateData: Partial<CompetitionJudgeRotation> = {
 		updatedAt: new Date(),
@@ -319,7 +325,10 @@ export async function validateRotationConflicts(
 		.from(competitionJudgeRotationsTable)
 		.where(
 			and(
-				eq(competitionJudgeRotationsTable.trackWorkoutId, rotation.trackWorkoutId),
+				eq(
+					competitionJudgeRotationsTable.trackWorkoutId,
+					rotation.trackWorkoutId,
+				),
 				eq(competitionJudgeRotationsTable.membershipId, rotation.membershipId),
 				// Exclude self if updating
 				...(rotation.id

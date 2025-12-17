@@ -248,89 +248,91 @@ export function JudgeSchedulingContainer({
 						judgeAssignments={assignments}
 					/>
 
-			{/* Main content: judges panel + heats */}
-			<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-				{/* Available Judges Panel */}
-				<Card className="lg:sticky lg:top-4 lg:self-start">
-					<CardContent className="p-4">
-						<div className="flex items-center justify-between mb-3">
-							<h3 className="font-medium text-sm">Available Judges</h3>
-							{selectedJudgeIds.size > 0 && (
-								<button
-									type="button"
-									onClick={clearSelection}
-									className="text-xs text-muted-foreground hover:text-foreground"
-								>
-									Clear ({selectedJudgeIds.size})
-								</button>
-							)}
-						</div>
-						{unassignedJudges.length === 0 ? (
-							<p className="text-sm text-muted-foreground py-4 text-center">
-								All judges assigned
-							</p>
-						) : (
-							<div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
-								{unassignedJudges.map((judge) => (
-									<DraggableJudge
-										key={judge.membershipId}
-										volunteer={judge}
-										isSelected={selectedJudgeIds.has(judge.membershipId)}
-										onToggleSelect={handleToggleSelect}
-										selectedIds={selectedJudgeIds}
-									/>
-								))}
-							</div>
-						)}
-						{judges.length === 0 && (
-							<p className="text-sm text-muted-foreground py-4 text-center">
-								No judges have been added yet. Add volunteers with the Judge
-								role type in the Volunteers tab.
-							</p>
-						)}
-					</CardContent>
-				</Card>
-
-				{/* Heats Grid */}
-				<div className="space-y-4">
-					{eventHeats.length === 0 ? (
-						<Card>
-							<CardContent className="py-8 text-center">
-								<p className="text-muted-foreground">
-									No heats scheduled for this event yet.
-								</p>
-								<p className="text-sm text-muted-foreground mt-2">
-									Create heats in the Schedule section first.
-								</p>
+					{/* Main content: judges panel + heats */}
+					<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+						{/* Available Judges Panel */}
+						<Card className="lg:sticky lg:top-4 lg:self-start">
+							<CardContent className="p-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="font-medium text-sm">Available Judges</h3>
+									{selectedJudgeIds.size > 0 && (
+										<button
+											type="button"
+											onClick={clearSelection}
+											className="text-xs text-muted-foreground hover:text-foreground"
+										>
+											Clear ({selectedJudgeIds.size})
+										</button>
+									)}
+								</div>
+								{unassignedJudges.length === 0 ? (
+									<p className="text-sm text-muted-foreground py-4 text-center">
+										All judges assigned
+									</p>
+								) : (
+									<div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
+										{unassignedJudges.map((judge) => (
+											<DraggableJudge
+												key={judge.membershipId}
+												volunteer={judge}
+												isSelected={selectedJudgeIds.has(judge.membershipId)}
+												onToggleSelect={handleToggleSelect}
+												selectedIds={selectedJudgeIds}
+											/>
+										))}
+									</div>
+								)}
+								{judges.length === 0 && (
+									<p className="text-sm text-muted-foreground py-4 text-center">
+										No judges have been added yet. Add volunteers with the Judge
+										role type in the Volunteers tab.
+									</p>
+								)}
 							</CardContent>
 						</Card>
-					) : (
-						eventHeats.map((heat) => (
-							<JudgeHeatCard
-								key={heat.id}
-								heat={heat}
-								competitionId={competitionId}
-								organizingTeamId={organizingTeamId}
-								unassignedVolunteers={unassignedJudges}
-								judgeAssignments={assignments.filter(
-									(a) => a.heatId === heat.id,
-								)}
-								maxLanes={maxLanes}
-								onDelete={() => {
-									// No-op: Heat deletion should be done in Schedule section
-									console.debug("Heat deletion is handled in Schedule section")
-								}}
-								onAssignmentChange={(newAssignments) =>
-									handleAssignmentChange(heat.id, newAssignments)
-								}
-								onMoveAssignment={handleMoveAssignment}
-								selectedJudgeIds={selectedJudgeIds}
-								onClearSelection={clearSelection}
-							/>
-						))
-					)}
-				</div>
-			</div>
+
+						{/* Heats Grid */}
+						<div className="space-y-4">
+							{eventHeats.length === 0 ? (
+								<Card>
+									<CardContent className="py-8 text-center">
+										<p className="text-muted-foreground">
+											No heats scheduled for this event yet.
+										</p>
+										<p className="text-sm text-muted-foreground mt-2">
+											Create heats in the Schedule section first.
+										</p>
+									</CardContent>
+								</Card>
+							) : (
+								eventHeats.map((heat) => (
+									<JudgeHeatCard
+										key={heat.id}
+										heat={heat}
+										competitionId={competitionId}
+										organizingTeamId={organizingTeamId}
+										unassignedVolunteers={unassignedJudges}
+										judgeAssignments={assignments.filter(
+											(a) => a.heatId === heat.id,
+										)}
+										maxLanes={maxLanes}
+										onDelete={() => {
+											// No-op: Heat deletion should be done in Schedule section
+											console.debug(
+												"Heat deletion is handled in Schedule section",
+											)
+										}}
+										onAssignmentChange={(newAssignments) =>
+											handleAssignmentChange(heat.id, newAssignments)
+										}
+										onMoveAssignment={handleMoveAssignment}
+										selectedJudgeIds={selectedJudgeIds}
+										onClearSelection={clearSelection}
+									/>
+								))
+							)}
+						</div>
+					</div>
 				</TabsContent>
 
 				{/* Rotations Tab */}
@@ -361,7 +363,8 @@ export function JudgeSchedulingContainer({
 									No heats scheduled for this event yet.
 								</p>
 								<p className="text-sm text-muted-foreground mt-2">
-									Create heats in the Schedule section before creating rotations.
+									Create heats in the Schedule section before creating
+									rotations.
 								</p>
 							</CardContent>
 						</Card>
