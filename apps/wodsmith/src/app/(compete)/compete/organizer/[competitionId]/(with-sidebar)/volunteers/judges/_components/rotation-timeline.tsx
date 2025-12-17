@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { CompetitionJudgeRotation } from "@/db/schema"
+import type { CompetitionJudgeRotation, LaneShiftPattern } from "@/db/schema"
 import {
 	type CoverageStats,
 	calculateCoverage,
@@ -36,6 +36,10 @@ interface RotationTimelineProps {
 	laneCount: number
 	availableJudges: JudgeVolunteerInfo[]
 	initialRotations: CompetitionJudgeRotation[]
+	/** Event-level lane shift pattern (with competition fallback already applied) */
+	eventLaneShiftPattern: LaneShiftPattern
+	/** Event-level default heats count (with competition fallback already applied) */
+	eventDefaultHeatsCount: number
 }
 
 /**
@@ -52,6 +56,8 @@ export function RotationTimeline({
 	laneCount,
 	availableJudges,
 	initialRotations,
+	eventLaneShiftPattern,
+	eventDefaultHeatsCount,
 }: RotationTimelineProps) {
 	const [rotations, setRotations] =
 		useState<CompetitionJudgeRotation[]>(initialRotations)
@@ -61,8 +67,13 @@ export function RotationTimeline({
 	const [selectedRotationId, setSelectedRotationId] = useState<string | null>(
 		null,
 	)
-	// Initial cell position when clicking on the grid
+	// Initial cell position when clicking on the grid (used when editor first opens)
 	const [initialCellPosition, setInitialCellPosition] = useState<{
+		heat: number
+		lane: number
+	} | null>(null)
+	// External position update for when user clicks a cell while editor is already open
+	const [externalPosition, setExternalPosition] = useState<{
 		heat: number
 		lane: number
 	} | null>(null)
@@ -152,7 +163,7 @@ export function RotationTimeline({
 	async function refreshRotations() {
 		const [result] = await getRotations.execute({ trackWorkoutId })
 		if (result?.data) {
-			setRotations(result.data)
+			setRotations(result.data.rotations)
 		}
 	}
 
@@ -165,11 +176,18 @@ export function RotationTimeline({
 	}
 
 	function handleCellClick(heat: number, lane: number) {
-		setEditingRotation(null)
-		setInitialCellPosition({ heat, lane })
-		setSelectedRotationId(null)
-		setEditingRotationCells(new Set())
-		setIsEditorOpen(true)
+		if (isEditorOpen) {
+			// Editor is already open - update external position to shift the rotation
+			setExternalPosition({ heat, lane })
+		} else {
+			// Editor is closed - open it with initial position
+			setEditingRotation(null)
+			setInitialCellPosition({ heat, lane })
+			setExternalPosition(null)
+			setSelectedRotationId(null)
+			setEditingRotationCells(new Set())
+			setIsEditorOpen(true)
+		}
 	}
 
 	function handleEditRotation(rotation: CompetitionJudgeRotation) {
@@ -200,6 +218,7 @@ export function RotationTimeline({
 		setIsEditorOpen(false)
 		setEditingRotation(null)
 		setInitialCellPosition(null)
+		setExternalPosition(null)
 		setPreviewCells([])
 		setEditingRotationCells(new Set())
 		refreshRotations()
@@ -209,6 +228,7 @@ export function RotationTimeline({
 		setIsEditorOpen(false)
 		setEditingRotation(null)
 		setInitialCellPosition(null)
+		setExternalPosition(null)
 		setPreviewCells([])
 		setEditingRotationCells(new Set())
 	}
@@ -277,6 +297,9 @@ export function RotationTimeline({
 								rotation={editingRotation ?? undefined}
 								initialHeat={initialCellPosition?.heat}
 								initialLane={initialCellPosition?.lane}
+								externalPosition={externalPosition}
+								eventLaneShiftPattern={eventLaneShiftPattern}
+								eventDefaultHeatsCount={eventDefaultHeatsCount}
 								onSuccess={handleEditorSuccess}
 								onCancel={handleEditorCancel}
 								onPreviewChange={setPreviewCells}
@@ -420,6 +443,12 @@ export function RotationTimeline({
 													const isPreview = previewCellSet.has(key)
 													// Check if this cell is part of the rotation being edited
 													const isEditingCell = editingRotationCells.has(key)
+													// Check if preview cell has a conflict (overlaps with existing assignment
+													// that isn't the rotation being edited)
+													const isPreviewConflict =
+														isPreview &&
+														cellData.status !== "empty" &&
+														!isEditingCell
 
 													return (
 														<TimelineCell
@@ -429,6 +458,7 @@ export function RotationTimeline({
 															status={cellData.status}
 															isHighlighted={isHighlighted}
 															isPreview={isPreview}
+															isPreviewConflict={isPreviewConflict}
 															isEditingCell={isEditingCell}
 															onClick={() => handleCellClick(heat, lane)}
 														/>
@@ -465,6 +495,10 @@ export function RotationTimeline({
 										<div className="h-4 w-4 rounded border bg-muted-foreground/30 border-dashed border-muted-foreground" />
 										<span className="text-muted-foreground">Preview</span>
 									</div>
+									<div className="flex items-center gap-2">
+										<div className="h-4 w-4 rounded border-dashed border-2 border-red-500 bg-red-500/40" />
+										<span className="text-muted-foreground">Conflict</span>
+									</div>
 									{editingRotation && (
 										<div className="flex items-center gap-2">
 											<div className="h-4 w-4 rounded border bg-background ring-2 ring-emerald-500" />
@@ -489,6 +523,8 @@ interface TimelineCellProps {
 	status: "empty" | "covered" | "overlap"
 	isHighlighted: boolean
 	isPreview: boolean
+	/** True if this preview cell conflicts with an existing assignment */
+	isPreviewConflict: boolean
 	/** True if this cell is part of the rotation currently being edited */
 	isEditingCell: boolean
 	onClick: () => void
@@ -500,6 +536,7 @@ function TimelineCell({
 	status,
 	isHighlighted,
 	isPreview,
+	isPreviewConflict,
 	isEditingCell,
 	onClick,
 }: TimelineCellProps) {
@@ -529,8 +566,11 @@ function TimelineCell({
 
 	// Determine background class based on status, highlight, preview, and editing state
 	let bgClass: string
-	if (isPreview) {
-		// New preview cells - dashed border with muted background
+	if (isPreviewConflict) {
+		// Preview cell that conflicts with existing assignment - RED
+		bgClass = "bg-red-500/40 border-dashed border-2 border-red-500"
+	} else if (isPreview) {
+		// Preview cells without conflict - gray dashed border
 		bgClass =
 			"bg-muted-foreground/20 border-dashed border-2 border-muted-foreground/50"
 	} else if (isEditingCell) {

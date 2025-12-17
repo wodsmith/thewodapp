@@ -31,7 +31,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { type CompetitionJudgeRotation, LANE_SHIFT_PATTERN } from "@/db/schema"
+import {
+	type CompetitionJudgeRotation,
+	LANE_SHIFT_PATTERN,
+	type LaneShiftPattern,
+} from "@/db/schema"
 import type { JudgeVolunteerInfo } from "@/server/judge-scheduling"
 
 /**
@@ -48,11 +52,6 @@ function createRotationFormSchema(maxHeats: number) {
 			.int()
 			.min(1, "Must cover at least 1 heat")
 			.max(maxHeats, `Maximum ${maxHeats} heats available`),
-		laneShiftPattern: z.enum([
-			LANE_SHIFT_PATTERN.STAY,
-			LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-			LANE_SHIFT_PATTERN.SHIFT_LEFT,
-		]),
 		notes: z.string().max(500, "Notes too long").optional(),
 	})
 }
@@ -77,6 +76,12 @@ interface RotationEditorProps {
 	initialHeat?: number
 	/** Initial lane to pre-populate (when clicking a cell) */
 	initialLane?: number
+	/** External position update (when user clicks a cell while editor is open) */
+	externalPosition?: { heat: number; lane: number } | null
+	/** Event-level lane shift pattern (read-only for this rotation) */
+	eventLaneShiftPattern: LaneShiftPattern
+	/** Default number of heats from event settings */
+	eventDefaultHeatsCount?: number
 	onSuccess: () => void
 	onCancel: () => void
 	/** Called when form values change to show preview cells in the grid */
@@ -97,6 +102,9 @@ export function RotationEditor({
 	rotation,
 	initialHeat,
 	initialLane,
+	externalPosition,
+	eventLaneShiftPattern,
+	eventDefaultHeatsCount,
 	onSuccess,
 	onCancel,
 	onPreviewChange,
@@ -119,8 +127,10 @@ export function RotationEditor({
 			membershipId: rotation?.membershipId ?? "",
 			startingHeat: rotation?.startingHeat ?? initialHeat ?? 1,
 			startingLane: rotation?.startingLane ?? initialLane ?? 1,
-			heatsCount: rotation?.heatsCount ?? Math.min(4, maxHeats),
-			laneShiftPattern: rotation?.laneShiftPattern ?? LANE_SHIFT_PATTERN.STAY,
+			heatsCount:
+				rotation?.heatsCount ??
+				eventDefaultHeatsCount ??
+				Math.min(4, maxHeats),
 			notes: rotation?.notes ?? "",
 		},
 	})
@@ -131,7 +141,6 @@ export function RotationEditor({
 	const startingHeat = form.watch("startingHeat")
 	const startingLane = form.watch("startingLane")
 	const heatsCount = form.watch("heatsCount")
-	const laneShiftPattern = form.watch("laneShiftPattern")
 
 	// Emit preview cells when relevant fields change
 	useEffect(() => {
@@ -144,9 +153,9 @@ export function RotationEditor({
 			if (heat > maxHeats) break
 
 			let lane: number
-			if (laneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
 				lane = startingLane
-			} else if (laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT) {
+			} else if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT) {
 				lane = ((startingLane - 1 + i) % maxLanes) + 1
 			} else {
 				// shift_left
@@ -157,15 +166,24 @@ export function RotationEditor({
 		}
 
 		onPreviewChange(cells)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		startingHeat,
 		startingLane,
 		heatsCount,
-		laneShiftPattern,
+		eventLaneShiftPattern,
 		maxHeats,
 		maxLanes,
 		onPreviewChange,
 	])
+
+	// Handle external position updates (click-to-shift)
+	useEffect(() => {
+		if (externalPosition) {
+			form.setValue("startingHeat", externalPosition.heat)
+			form.setValue("startingLane", externalPosition.lane)
+		}
+	}, [externalPosition, form])
 
 	// Validate on form changes
 	useEffect(() => {
@@ -181,7 +199,7 @@ export function RotationEditor({
 				startingHeat: formValues.startingHeat,
 				startingLane: formValues.startingLane,
 				heatsCount: formValues.heatsCount,
-				laneShiftPattern: formValues.laneShiftPattern,
+				laneShiftPattern: eventLaneShiftPattern,
 				rotationId: rotation?.id,
 			})
 
@@ -193,13 +211,14 @@ export function RotationEditor({
 		}, 500) // Debounce
 
 		return () => clearTimeout(timer)
-	}, [formValues, trackWorkoutId, rotation?.id, validateRotation])
+	}, [formValues, trackWorkoutId, rotation?.id, validateRotation, eventLaneShiftPattern])
 
 	async function onSubmit(values: RotationFormValues) {
 		if (isEditing) {
 			const [result] = await updateRotation.execute({
 				teamId,
 				rotationId: rotation.id,
+				laneShiftPattern: eventLaneShiftPattern,
 				...values,
 			})
 
@@ -211,6 +230,7 @@ export function RotationEditor({
 				teamId,
 				competitionId,
 				trackWorkoutId,
+				laneShiftPattern: eventLaneShiftPattern,
 				...values,
 			})
 
@@ -326,39 +346,6 @@ export function RotationEditor({
 					)}
 				/>
 
-				{/* Lane Shift Pattern */}
-				<FormField
-					control={form.control}
-					name="laneShiftPattern"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Lane Shift Pattern</FormLabel>
-							<Select onValueChange={field.onChange} value={field.value}>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									<SelectItem value={LANE_SHIFT_PATTERN.STAY}>
-										Stay - Same lane all heats
-									</SelectItem>
-									<SelectItem value={LANE_SHIFT_PATTERN.SHIFT_RIGHT}>
-										Shift Right - Move to next lane each heat
-									</SelectItem>
-									<SelectItem value={LANE_SHIFT_PATTERN.SHIFT_LEFT}>
-										Shift Left - Move to previous lane each heat
-									</SelectItem>
-								</SelectContent>
-							</Select>
-							<FormDescription>
-								How the judge moves between lanes across heats
-							</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
 				{/* Notes */}
 				<FormField
 					control={form.control}
@@ -388,23 +375,21 @@ export function RotationEditor({
 									will judge heats {formValues.startingHeat} through{" "}
 									{formValues.startingHeat + formValues.heatsCount - 1}
 								</p>
-								{formValues.laneShiftPattern === LANE_SHIFT_PATTERN.STAY && (
-									<p>Starting and staying in lane {formValues.startingLane}</p>
-								)}
-								{formValues.laneShiftPattern ===
-									LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
-									<p>
-										Starting at lane {formValues.startingLane}, shifting right
-										each heat
-									</p>
-								)}
-								{formValues.laneShiftPattern ===
-									LANE_SHIFT_PATTERN.SHIFT_LEFT && (
-									<p>
-										Starting at lane {formValues.startingLane}, shifting left
-										each heat
-									</p>
-								)}
+							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY && (
+								<p>Starting and staying in lane {formValues.startingLane}</p>
+							)}
+							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
+								<p>
+									Starting at lane {formValues.startingLane}, shifting right
+									each heat
+								</p>
+							)}
+							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_LEFT && (
+								<p>
+									Starting at lane {formValues.startingLane}, shifting left
+									each heat
+								</p>
+							)}
 							</div>
 						</AlertDescription>
 					</Alert>
