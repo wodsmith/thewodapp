@@ -8,6 +8,7 @@ import {
 	Layers,
 	Medal,
 	ReceiptText,
+	Settings,
 	Sparkles,
 	Trophy,
 	UserCheck,
@@ -93,6 +94,7 @@ const getNavigation = (
 		{
 			label: "Settings",
 			items: [
+				{ label: "Settings", href: `${basePath}/settings`, icon: Settings },
 				{
 					label: "Danger Zone",
 					href: `${basePath}/danger-zone`,
