@@ -14,6 +14,7 @@ import {
 	entitlementTable,
 	SYSTEM_ROLES_ENUM,
 	teamMembershipTable,
+	userTable,
 } from "@/db/schema"
 import type {
 	VolunteerMembershipMetadata,
@@ -341,4 +342,138 @@ export async function revokeScoreAccess(
 	// Invalidate user's sessions to refresh permissions
 	const { invalidateUserSessions } = await import("@/utils/kv-session")
 	await invalidateUserSessions(userId)
+}
+
+// ============================================================================
+// PUBLIC VOLUNTEER SIGN-UP
+// ============================================================================
+
+/**
+ * Create a pending volunteer sign-up from the public form
+ * No user account required - stores contact info in metadata for admin approval
+ *
+ * @throws Error if email is already signed up as a volunteer for this competition
+ */
+export async function createVolunteerSignup({
+	db,
+	competitionTeamId,
+	signupName,
+	signupEmail,
+	signupPhone,
+	availabilityNotes,
+}: {
+	db: Db
+	competitionTeamId: string
+	signupName: string
+	signupEmail: string
+	signupPhone?: string
+	availabilityNotes?: string
+}): Promise<TeamMembership> {
+	// Check for duplicate email sign-up
+	// Look for existing volunteer memberships with this email in metadata
+	const existingVolunteers = await db.query.teamMembershipTable.findMany({
+		where: and(
+			eq(teamMembershipTable.teamId, competitionTeamId),
+			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamMembershipTable.isSystemRole, 1),
+		),
+	})
+
+	// Check metadata for matching signup email
+	for (const volunteer of existingVolunteers) {
+		if (!volunteer.metadata) continue
+		try {
+			const metadata = JSON.parse(
+				volunteer.metadata,
+			) as VolunteerMembershipMetadata
+			if (metadata.signupEmail?.toLowerCase() === signupEmail.toLowerCase()) {
+				throw new Error(
+					"This email has already been used to sign up as a volunteer for this competition",
+				)
+			}
+		} catch (error) {
+			// If it's our duplicate error, re-throw it
+			if (
+				error instanceof Error &&
+				error.message.includes("already been used")
+			) {
+				throw error
+			}
+			// Otherwise ignore JSON parse errors and continue
+		}
+	}
+
+	// Also check if there's a registered user with this email already volunteering
+	const existingUser = await db.query.userTable.findFirst({
+		where: eq(userTable.email, signupEmail),
+	})
+
+	if (existingUser) {
+		// Check if this user is already a volunteer for this competition
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, competitionTeamId),
+				eq(teamMembershipTable.userId, existingUser.id),
+				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+				eq(teamMembershipTable.isSystemRole, 1),
+			),
+		})
+
+		if (existingMembership) {
+			throw new Error(
+				"An account with this email is already volunteering for this competition",
+			)
+		}
+	}
+
+	// Create a placeholder user for the volunteer
+	// They can claim this account later by signing up with the same email
+	const newUser = await db
+		.insert(userTable)
+		.values({
+			email: signupEmail,
+			firstName: signupName.split(" ")[0] || signupName,
+			lastName: signupName.split(" ").slice(1).join(" ") || undefined,
+			// No password - account is not activated
+			passwordHash: null,
+			emailVerified: null,
+		})
+		.returning()
+
+	const user = newUser[0]
+	if (!user) {
+		throw new Error("Failed to create placeholder user for volunteer signup")
+	}
+
+	// Create volunteer membership metadata
+	const metadata: VolunteerMembershipMetadata = {
+		volunteerRoleTypes: [], // Admin will assign specific roles after approval
+		status: "pending",
+		signupEmail,
+		signupName,
+		signupPhone,
+		availabilityNotes,
+	}
+
+	// Create the team membership with volunteer role
+	const newMembership = await db
+		.insert(teamMembershipTable)
+		.values({
+			teamId: competitionTeamId,
+			userId: user.id,
+			roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+			isSystemRole: 1,
+			isActive: 0, // Inactive until approved
+			metadata: JSON.stringify(metadata),
+			invitedAt: new Date(),
+			// joinedAt will be set when approved
+		})
+		.returning()
+
+	const membership = newMembership[0]
+	if (!membership) {
+		throw new Error("Failed to create volunteer membership")
+	}
+
+	return membership
 }
