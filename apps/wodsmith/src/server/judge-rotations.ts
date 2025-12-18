@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type * as schema from "@/db/schema"
 import {
@@ -355,6 +355,8 @@ export async function getRotationsForJudge(
  *
  * @param db - Database instance
  * @param rotation - The rotation to validate (can be partial for updates)
+ * @param options - Optional settings for validation
+ * @param options.excludeAllForMembership - If true, excludes ALL existing rotations for this membershipId (for batch replace)
  * @returns ValidationResult with conflicts and effective heats count
  */
 export async function validateRotationConflicts(
@@ -367,6 +369,9 @@ export async function validateRotationConflicts(
 		startingLane: number
 		heatsCount: number
 		laneShiftPattern: LaneShiftPattern
+	},
+	options?: {
+		excludeAllForMembership?: boolean
 	},
 ): Promise<ValidationResult> {
 	const conflicts: RotationConflict[] = []
@@ -461,60 +466,62 @@ export async function validateRotationConflicts(
 	}
 
 	// Check for double-booking with existing rotations
-	const existingRotations = await db
-		.select()
-		.from(competitionJudgeRotationsTable)
-		.where(
-			and(
-				eq(
-					competitionJudgeRotationsTable.trackWorkoutId,
-					rotation.trackWorkoutId,
+	// Skip this check entirely if we're doing a batch replace for this membership
+	// (all existing rotations for this member will be deleted anyway)
+	if (!options?.excludeAllForMembership) {
+		const existingRotations = await db
+			.select()
+			.from(competitionJudgeRotationsTable)
+			.where(
+				and(
+					eq(
+						competitionJudgeRotationsTable.trackWorkoutId,
+						rotation.trackWorkoutId,
+					),
+					eq(
+						competitionJudgeRotationsTable.membershipId,
+						rotation.membershipId,
+					),
+					// Exclude self if updating a single rotation
+					...(rotation.id
+						? [ne(competitionJudgeRotationsTable.id, rotation.id)]
+						: []),
 				),
-				eq(competitionJudgeRotationsTable.membershipId, rotation.membershipId),
-				// Exclude self if updating
-				...(rotation.id
-					? [eq(competitionJudgeRotationsTable.id, rotation.id)]
-					: []),
-			),
+			)
+
+		// Expand current rotation
+		const currentAssignments = expandRotationToAssignments(
+			{
+				...rotation,
+				id: rotation.id ?? "new",
+				competitionId: "", // Not needed for expansion
+				notes: null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: null,
+			},
+			heats,
 		)
 
-	// Expand current rotation
-	const currentAssignments = expandRotationToAssignments(
-		{
-			...rotation,
-			id: rotation.id ?? "new",
-			competitionId: "", // Not needed for expansion
-			notes: null,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			updateCounter: null,
-		},
-		heats,
-	)
+		// Expand existing rotations and check for overlaps
+		for (const existing of existingRotations) {
+			const existingAssignments = expandRotationToAssignments(existing, heats)
 
-	// Expand existing rotations and check for overlaps
-	for (const existing of existingRotations) {
-		if (rotation.id && existing.id === rotation.id) {
-			// Skip self when updating
-			continue
-		}
-
-		const existingAssignments = expandRotationToAssignments(existing, heats)
-
-		// Check for overlapping assignments
-		for (const current of currentAssignments) {
-			for (const exist of existingAssignments) {
-				if (
-					current.heatNumber === exist.heatNumber &&
-					current.laneNumber === exist.laneNumber
-				) {
-					conflicts.push({
-						rotationId: existing.id,
-						conflictType: "double_booking",
-						message: `Judge is already assigned to heat ${current.heatNumber}, lane ${current.laneNumber}`,
-						heatNumber: current.heatNumber,
-						laneNumber: current.laneNumber,
-					})
+			// Check for overlapping assignments
+			for (const current of currentAssignments) {
+				for (const exist of existingAssignments) {
+					if (
+						current.heatNumber === exist.heatNumber &&
+						current.laneNumber === exist.laneNumber
+					) {
+						conflicts.push({
+							rotationId: existing.id,
+							conflictType: "double_booking",
+							message: `Judge is already assigned to heat ${current.heatNumber}, lane ${current.laneNumber}`,
+							heatNumber: current.heatNumber,
+							laneNumber: current.laneNumber,
+						})
+					}
 				}
 			}
 		}

@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { z } from "zod"
+import { and, eq } from "drizzle-orm"
 import { getDb } from "@/db"
-import { LANE_SHIFT_PATTERN } from "@/db/schema"
+import { competitionJudgeRotationsTable, LANE_SHIFT_PATTERN } from "@/db/schema"
 import {
 	createJudgeRotation,
 	deleteJudgeRotation,
@@ -93,6 +94,56 @@ const updateEventDefaultsSchema = z.object({
 		])
 		.nullable()
 		.optional(),
+})
+
+const batchCreateRotationsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	trackWorkoutId: z.string().min(1, "Event ID is required"),
+	membershipId: z.string().min(1, "Judge ID is required"),
+	rotations: z
+		.array(
+			z.object({
+				startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
+				startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
+				heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
+				notes: z.string().max(500, "Notes too long").optional(),
+			}),
+		)
+		.min(1, "At least one rotation required"),
+	laneShiftPattern: z.enum([
+		LANE_SHIFT_PATTERN.STAY,
+		LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+		LANE_SHIFT_PATTERN.SHIFT_LEFT,
+	]),
+})
+
+const batchUpdateVolunteerRotationsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	trackWorkoutId: z.string().min(1, "Event ID is required"),
+	membershipId: z.string().min(1, "Judge ID is required"),
+	rotations: z
+		.array(
+			z.object({
+				startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
+				startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
+				heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
+				notes: z.string().max(500, "Notes too long").optional(),
+			}),
+		)
+		.min(1, "At least one rotation required"),
+	laneShiftPattern: z.enum([
+		LANE_SHIFT_PATTERN.STAY,
+		LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+		LANE_SHIFT_PATTERN.SHIFT_LEFT,
+	]),
+})
+
+const deleteVolunteerRotationsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	membershipId: z.string().min(1, "Judge ID is required"),
+	trackWorkoutId: z.string().min(1, "Event ID is required"),
 })
 
 // ============================================================================
@@ -329,6 +380,272 @@ export const updateEventDefaultsAction = createServerAction()
 			throw new ZSAError(
 				"INTERNAL_SERVER_ERROR",
 				"Failed to update event defaults",
+			)
+		}
+	})
+
+/**
+ * Batch create multiple rotations for the same volunteer.
+ * Validates ALL rotations before creating any (fail-fast).
+ * Checks for conflicts between new rotations and existing rotations.
+ */
+export const batchCreateRotationsAction = createServerAction()
+	.input(batchCreateRotationsSchema)
+	.handler(async ({ input }) => {
+		try {
+			const db = getDb()
+
+			// Validate all rotations first (fail-fast)
+			// Check both internal conflicts and conflicts with existing rotations
+			const validationPromises = input.rotations.map((rotation) =>
+				validateRotationConflicts(db, {
+					trackWorkoutId: input.trackWorkoutId,
+					membershipId: input.membershipId,
+					startingHeat: rotation.startingHeat,
+					startingLane: rotation.startingLane,
+					heatsCount: rotation.heatsCount,
+					laneShiftPattern: input.laneShiftPattern,
+				}),
+			)
+
+			const validationResults = await Promise.all(validationPromises)
+
+			// Collect all conflicts
+			const allConflicts = validationResults.flatMap((result) => result.conflicts)
+
+			if (allConflicts.length > 0) {
+				throw new ZSAError(
+					"CONFLICT",
+					`Rotations have conflicts: ${allConflicts.map((c) => c.message).join(", ")}`,
+				)
+			}
+
+			// Check for conflicts BETWEEN the new rotations being created
+			for (let i = 0; i < input.rotations.length; i++) {
+				for (let j = i + 1; j < input.rotations.length; j++) {
+					const rot1 = input.rotations[i]
+					const rot2 = input.rotations[j]
+
+					// Check if heat ranges overlap
+					const rot1End = rot1.startingHeat + rot1.heatsCount - 1
+					const rot2End = rot2.startingHeat + rot2.heatsCount - 1
+
+					if (
+						!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)
+					) {
+						// Ranges overlap - need to check lane assignments
+						// For simplicity, we'll flag this as a potential conflict
+						throw new ZSAError(
+							"CONFLICT",
+							`Rotations ${i + 1} and ${j + 1} have overlapping heat ranges and may conflict`,
+						)
+					}
+				}
+			}
+
+			// All validations passed - create rotations in sequence
+			const createdRotations = []
+
+			for (const rotation of input.rotations) {
+				const created = await createJudgeRotation(db, {
+					teamId: input.teamId,
+					competitionId: input.competitionId,
+					trackWorkoutId: input.trackWorkoutId,
+					membershipId: input.membershipId,
+					startingHeat: rotation.startingHeat,
+					startingLane: rotation.startingLane,
+					heatsCount: rotation.heatsCount,
+					laneShiftPattern: input.laneShiftPattern,
+					notes: rotation.notes,
+				})
+
+				createdRotations.push(created)
+			}
+
+			return {
+				success: true,
+				data: {
+					rotationIds: createdRotations.map((r) => r.id),
+					rotations: createdRotations,
+				},
+			}
+		} catch (error) {
+			console.error("Failed to batch create rotations:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to batch create rotations",
+			)
+		}
+	})
+
+/**
+ * Replace all rotations for a volunteer with a new set.
+ * Deletes existing rotations for this volunteer+event, then creates new ones.
+ * Validates ALL new rotations before making any changes (fail-fast).
+ */
+export const batchUpdateVolunteerRotationsAction = createServerAction()
+	.input(batchUpdateVolunteerRotationsSchema)
+	.handler(async ({ input }) => {
+		try {
+			const db = getDb()
+
+			// Validate all NEW rotations first (fail-fast)
+			// Pass excludeAllForMembership: true because we're replacing ALL rotations
+			// for this member, so we don't need to check conflicts with their existing rotations
+			const validationPromises = input.rotations.map((rotation) =>
+				validateRotationConflicts(
+					db,
+					{
+						trackWorkoutId: input.trackWorkoutId,
+						membershipId: input.membershipId,
+						startingHeat: rotation.startingHeat,
+						startingLane: rotation.startingLane,
+						heatsCount: rotation.heatsCount,
+						laneShiftPattern: input.laneShiftPattern,
+					},
+					{ excludeAllForMembership: true },
+				),
+			)
+
+			const validationResults = await Promise.all(validationPromises)
+
+			// Check for conflicts BETWEEN the new rotations being created
+			// (we still need to ensure the new rotations don't conflict with each other)
+			for (let i = 0; i < input.rotations.length; i++) {
+				for (let j = i + 1; j < input.rotations.length; j++) {
+					const rot1 = input.rotations[i]
+					const rot2 = input.rotations[j]
+
+					// Check if heat ranges overlap
+					const rot1End = rot1.startingHeat + rot1.heatsCount - 1
+					const rot2End = rot2.startingHeat + rot2.heatsCount - 1
+
+					if (
+						!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)
+					) {
+						// Ranges overlap - need to check lane assignments
+						throw new ZSAError(
+							"CONFLICT",
+							`Rotations ${i + 1} and ${j + 1} have overlapping heat ranges and may conflict`,
+						)
+					}
+				}
+			}
+
+			// Collect validation errors (invalid lanes, missing heats - NOT double-booking since we excluded that)
+			const allConflicts = validationResults.flatMap((result) => result.conflicts)
+
+			if (allConflicts.length > 0) {
+				throw new ZSAError(
+					"CONFLICT",
+					`Rotations have conflicts: ${allConflicts.map((c) => c.message).join(", ")}`,
+				)
+			}
+
+			// Delete existing rotations for this volunteer+event
+			const existingRotations = await db
+				.select()
+				.from(competitionJudgeRotationsTable)
+				.where(
+					and(
+						eq(competitionJudgeRotationsTable.trackWorkoutId, input.trackWorkoutId),
+						eq(competitionJudgeRotationsTable.membershipId, input.membershipId),
+					),
+				)
+
+			for (const existing of existingRotations) {
+				await deleteJudgeRotation(db, existing.id, input.teamId)
+			}
+
+			// Create new rotations in sequence
+			const createdRotations = []
+
+			for (const rotation of input.rotations) {
+				const created = await createJudgeRotation(db, {
+					teamId: input.teamId,
+					competitionId: input.competitionId,
+					trackWorkoutId: input.trackWorkoutId,
+					membershipId: input.membershipId,
+					startingHeat: rotation.startingHeat,
+					startingLane: rotation.startingLane,
+					heatsCount: rotation.heatsCount,
+					laneShiftPattern: input.laneShiftPattern,
+					notes: rotation.notes,
+				})
+
+				createdRotations.push(created)
+			}
+
+			return {
+				success: true,
+				data: {
+					rotationIds: createdRotations.map((r) => r.id),
+					rotations: createdRotations,
+				},
+			}
+		} catch (error) {
+			console.error("Failed to batch update volunteer rotations:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to batch update volunteer rotations",
+			)
+		}
+	})
+
+/**
+ * Delete all rotations for a specific volunteer in an event
+ */
+export const deleteVolunteerRotationsAction = createServerAction()
+	.input(deleteVolunteerRotationsSchema)
+	.handler(async ({ input }) => {
+		try {
+			const db = getDb()
+
+			// Delete all rotations for this volunteer in this event
+			const result = await db
+				.delete(competitionJudgeRotationsTable)
+				.where(
+					and(
+						eq(competitionJudgeRotationsTable.teamId, input.teamId),
+						eq(competitionJudgeRotationsTable.membershipId, input.membershipId),
+						eq(
+							competitionJudgeRotationsTable.trackWorkoutId,
+							input.trackWorkoutId,
+						),
+					),
+				)
+				.returning({ id: competitionJudgeRotationsTable.id })
+
+			// Revalidate the rotation list
+			revalidatePath(
+				`/compete/organizer/${input.teamId}/volunteers/judges`,
+				"page",
+			)
+
+			return {
+				success: true,
+				data: { deletedCount: result.length },
+			}
+		} catch (error) {
+			console.error("Failed to delete volunteer rotations:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to delete volunteer rotations",
 			)
 		}
 	})
