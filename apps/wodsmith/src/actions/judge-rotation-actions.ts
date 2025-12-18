@@ -29,11 +29,7 @@ const createRotationSchema = z.object({
 	startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
 	heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
 	laneShiftPattern: z
-		.enum([
-			LANE_SHIFT_PATTERN.STAY,
-			LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-			LANE_SHIFT_PATTERN.SHIFT_LEFT,
-		])
+		.enum([LANE_SHIFT_PATTERN.STAY, LANE_SHIFT_PATTERN.SHIFT_RIGHT])
 		.optional(),
 	notes: z.string().max(500, "Notes too long").optional(),
 })
@@ -45,11 +41,7 @@ const updateRotationSchema = z.object({
 	startingLane: z.number().int().min(1).optional(),
 	heatsCount: z.number().int().min(1).optional(),
 	laneShiftPattern: z
-		.enum([
-			LANE_SHIFT_PATTERN.STAY,
-			LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-			LANE_SHIFT_PATTERN.SHIFT_LEFT,
-		])
+		.enum([LANE_SHIFT_PATTERN.STAY, LANE_SHIFT_PATTERN.SHIFT_RIGHT])
 		.optional(),
 	notes: z.string().max(500).optional(),
 })
@@ -77,7 +69,6 @@ const validateRotationSchema = z.object({
 	laneShiftPattern: z.enum([
 		LANE_SHIFT_PATTERN.STAY,
 		LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-		LANE_SHIFT_PATTERN.SHIFT_LEFT,
 	]),
 	rotationId: z.string().optional(), // For update validation
 })
@@ -87,11 +78,7 @@ const updateEventDefaultsSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Event ID is required"),
 	defaultHeatsCount: z.number().int().min(1).nullable().optional(),
 	defaultLaneShiftPattern: z
-		.enum([
-			LANE_SHIFT_PATTERN.STAY,
-			LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-			LANE_SHIFT_PATTERN.SHIFT_LEFT,
-		])
+		.enum([LANE_SHIFT_PATTERN.STAY, LANE_SHIFT_PATTERN.SHIFT_RIGHT])
 		.nullable()
 		.optional(),
 })
@@ -114,7 +101,6 @@ const batchCreateRotationsSchema = z.object({
 	laneShiftPattern: z.enum([
 		LANE_SHIFT_PATTERN.STAY,
 		LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-		LANE_SHIFT_PATTERN.SHIFT_LEFT,
 	]),
 })
 
@@ -136,7 +122,6 @@ const batchUpdateVolunteerRotationsSchema = z.object({
 	laneShiftPattern: z.enum([
 		LANE_SHIFT_PATTERN.STAY,
 		LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-		LANE_SHIFT_PATTERN.SHIFT_LEFT,
 	]),
 })
 

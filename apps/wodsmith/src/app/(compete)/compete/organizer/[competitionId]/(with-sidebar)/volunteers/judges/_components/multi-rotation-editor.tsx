@@ -218,12 +218,9 @@ export function MultiRotationEditor({
 				let lane: number
 				if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
 					lane = rotation.startingLane
-				} else if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT) {
-					lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
 				} else {
-					// shift_left
-					lane =
-						((rotation.startingLane - 1 - i + maxLanes * 100) % maxLanes) + 1
+					// shift_right
+					lane = ((rotation.startingLane - 1 + i) % maxLanes) + 1
 				}
 
 				allCells.push({ heat, lane, blockIndex })
@@ -264,6 +261,18 @@ export function MultiRotationEditor({
 			{ shouldValidate: true },
 		)
 
+		// Clamp heatsCount so rotation doesn't extend beyond maxHeats
+		const currentHeatsCount =
+			form.getValues(`rotations.${activeBlockIndex}.heatsCount`) ?? 1
+		const maxAllowedHeats = maxHeats - externalPosition.heat + 1
+		if (currentHeatsCount > maxAllowedHeats) {
+			form.setValue(
+				`rotations.${activeBlockIndex}.heatsCount`,
+				Math.max(1, maxAllowedHeats),
+				{ shouldValidate: true },
+			)
+		}
+
 		// Track that we applied this timestamp
 		setLastAppliedTimestamp(timestamp)
 	}, [
@@ -272,6 +281,7 @@ export function MultiRotationEditor({
 		fields.length,
 		form,
 		lastAppliedTimestamp,
+		maxHeats,
 	])
 
 	async function onSubmit(values: MultiRotationFormValues) {
@@ -454,8 +464,15 @@ export function MultiRotationEditor({
 												Rotation {index + 1}
 												{rotation && (
 													<span className="text-muted-foreground text-sm ml-2">
-														Heats {rotation.startingHeat} -{" "}
-														{rotation.startingHeat + rotation.heatsCount - 1}
+														{(() => {
+															const endHeat = Math.min(
+																rotation.startingHeat + rotation.heatsCount - 1,
+																maxHeats,
+															)
+															return rotation.startingHeat === endHeat
+																? `Heat ${rotation.startingHeat}`
+																: `Heats ${rotation.startingHeat} - ${endHeat}`
+														})()}
 													</span>
 												)}
 											</span>
@@ -602,14 +619,7 @@ export function MultiRotationEditor({
 																LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
 																<p>
 																	Starting at lane {rotation.startingLane},
-																	shifting right each heat
-																</p>
-															)}
-															{eventLaneShiftPattern ===
-																LANE_SHIFT_PATTERN.SHIFT_LEFT && (
-																<p>
-																	Starting at lane {rotation.startingLane},
-																	shifting left each heat
+																	shifting lanes each heat
 																</p>
 															)}
 														</div>

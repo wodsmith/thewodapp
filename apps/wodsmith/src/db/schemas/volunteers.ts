@@ -40,7 +40,6 @@ export type VolunteerRoleType =
 export const LANE_SHIFT_PATTERN = {
 	STAY: "stay",
 	SHIFT_RIGHT: "shift_right",
-	SHIFT_LEFT: "shift_left",
 } as const
 
 export type LaneShiftPattern =
@@ -196,7 +195,7 @@ export const competitionJudgeRotationsTable = sqliteTable(
 		startingLane: integer().notNull(),
 		// How many consecutive heats they judge
 		heatsCount: integer().notNull(),
-		// Lane shift pattern ('stay', 'shift_right', 'shift_left')
+		// Lane shift pattern ('stay', 'shift_right')
 		laneShiftPattern: text({ length: 20 })
 			.$type<LaneShiftPattern>()
 			.notNull()

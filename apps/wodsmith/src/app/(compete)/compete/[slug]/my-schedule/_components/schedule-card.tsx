@@ -92,12 +92,7 @@ function formatLanePattern(rotation: CompetitionJudgeRotation): string {
 
 		case LANE_SHIFT_PATTERN.SHIFT_RIGHT: {
 			const endLane = startingLane + heatsCount - 1
-			return `Lanes ${startingLane}→${endLane} (shift right)`
-		}
-
-		case LANE_SHIFT_PATTERN.SHIFT_LEFT: {
-			const endLane = Math.max(1, startingLane - (heatsCount - 1))
-			return `Lanes ${startingLane}→${endLane} (shift left)`
+			return `Lanes ${startingLane}→${endLane} (shift)`
 		}
 
 		default:

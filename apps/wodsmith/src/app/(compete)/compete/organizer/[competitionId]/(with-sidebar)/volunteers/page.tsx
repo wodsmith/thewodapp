@@ -158,10 +158,8 @@ export default async function CompetitionVolunteersPage({
 				activeVersionMap={activeVersionMap}
 				competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
 				competitionDefaultPattern={
-					(competition.defaultLaneShiftPattern as
-						| "stay"
-						| "shift_right"
-						| "shift_left") ?? "shift_right"
+					(competition.defaultLaneShiftPattern as "stay" | "shift_right") ??
+					"shift_right"
 				}
 			/>
 		</div>

@@ -75,22 +75,15 @@ export function expandRotationToAssignments(
 		// Calculate lane based on shift pattern
 		let laneNumber = rotation.startingLane
 
-		switch (rotation.laneShiftPattern) {
-			case LANE_SHIFT_PATTERN.STAY:
-				laneNumber = rotation.startingLane
-				break
+	switch (rotation.laneShiftPattern) {
+		case LANE_SHIFT_PATTERN.STAY:
+			laneNumber = rotation.startingLane
+			break
 
-			case LANE_SHIFT_PATTERN.SHIFT_RIGHT:
-				laneNumber = ((rotation.startingLane - 1 + i) % heat.laneCount) + 1
-				break
-
-			case LANE_SHIFT_PATTERN.SHIFT_LEFT:
-				laneNumber =
-					((rotation.startingLane - 1 - i + heat.laneCount * 100) %
-						heat.laneCount) +
-					1
-				break
-		}
+		case LANE_SHIFT_PATTERN.SHIFT_RIGHT:
+			laneNumber = ((rotation.startingLane - 1 + i) % heat.laneCount) + 1
+			break
+	}
 
 		// Validate lane number
 		if (laneNumber < 1 || laneNumber > heat.laneCount) {

@@ -158,14 +158,12 @@ export function RotationEditor({
 			if (heat > maxHeats) break
 
 			let lane: number
-			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
-				lane = startingLane
-			} else if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT) {
-				lane = ((startingLane - 1 + i) % maxLanes) + 1
-			} else {
-				// shift_left
-				lane = ((startingLane - 1 - i + maxLanes * 100) % maxLanes) + 1
-			}
+		if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+			lane = startingLane
+		} else {
+			// shift_right
+			lane = ((startingLane - 1 + i) % maxLanes) + 1
+		}
 
 			cells.push({ heat, lane })
 		}
@@ -403,13 +401,7 @@ export function RotationEditor({
 							)}
 							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
 								<p>
-									Starting at lane {formValues.startingLane}, shifting right
-									each heat
-								</p>
-							)}
-							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_LEFT && (
-								<p>
-									Starting at lane {formValues.startingLane}, shifting left
+									Starting at lane {formValues.startingLane}, shifting lanes
 									each heat
 								</p>
 							)}

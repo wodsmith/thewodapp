@@ -147,11 +147,6 @@ function calculateLane(
 			// Move right (lane + 1), wrap around
 			return ((startingLane - 1 + heatIndex) % maxLanes) + 1
 
-		case LANE_SHIFT_PATTERN.SHIFT_LEFT:
-			// Move left (lane - 1), wrap around
-			// Add maxLanes * 100 to ensure positive result before modulo
-			return ((startingLane - 1 - heatIndex + maxLanes * 100) % maxLanes) + 1
-
 		default:
 			return startingLane
 	}

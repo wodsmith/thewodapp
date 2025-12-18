@@ -576,11 +576,8 @@ export function RotationTimeline({
 																			{rotation.startingLane}
 																			{rotation.laneShiftPattern ===
 																			"shift_right"
-																				? " → "
-																				: rotation.laneShiftPattern ===
-																						"shift_left"
-																					? " ← "
-																					: " (stay)"}
+																				? " (shift)"
+																				: " (stay)"}
 																		</span>
 																	</span>
 																</button>

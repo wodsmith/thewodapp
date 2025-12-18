@@ -38,13 +38,8 @@ const LANE_SHIFT_OPTIONS = [
 	},
 	{
 		value: LANE_SHIFT_PATTERN.SHIFT_RIGHT,
-		label: "Shift Right",
+		label: "Shift Lanes",
 		description: "Judges rotate one lane to the right after each heat",
-	},
-	{
-		value: LANE_SHIFT_PATTERN.SHIFT_LEFT,
-		label: "Shift Left",
-		description: "Judges rotate one lane to the left after each heat",
 	},
 ] as const
 

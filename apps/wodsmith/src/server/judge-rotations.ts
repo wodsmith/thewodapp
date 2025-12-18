@@ -434,13 +434,6 @@ export async function validateRotationConflicts(
 			case LANE_SHIFT_PATTERN.SHIFT_RIGHT:
 				laneNumber = ((rotation.startingLane - 1 + i) % heat.laneCount) + 1
 				break
-
-			case LANE_SHIFT_PATTERN.SHIFT_LEFT:
-				laneNumber =
-					((rotation.startingLane - 1 - i + heat.laneCount * 100) %
-						heat.laneCount) +
-					1
-				break
 		}
 
 		// Validate lane number
