@@ -26,6 +26,7 @@ interface EventDefaultsEditorProps {
 	trackWorkoutId: string
 	defaultHeatsCount: number | null
 	defaultLaneShiftPattern: LaneShiftPattern | null
+	minHeatBuffer: number | null
 	competitionDefaultHeats: number
 	competitionDefaultPattern: LaneShiftPattern
 }
@@ -53,6 +54,7 @@ export function EventDefaultsEditor({
 	trackWorkoutId,
 	defaultHeatsCount,
 	defaultLaneShiftPattern,
+	minHeatBuffer,
 	competitionDefaultHeats,
 	competitionDefaultPattern,
 }: EventDefaultsEditorProps) {
@@ -61,15 +63,22 @@ export function EventDefaultsEditor({
 	// Use event-specific value or fall back to competition default
 	const effectiveHeats = defaultHeatsCount ?? competitionDefaultHeats
 	const effectivePattern = defaultLaneShiftPattern ?? competitionDefaultPattern
+	const effectiveBuffer = minHeatBuffer ?? 2
 
 	// Local state for heats input (allows immediate UI feedback while debouncing)
 	const [localHeats, setLocalHeats] = useState(effectiveHeats)
+	const [localBuffer, setLocalBuffer] = useState(effectiveBuffer)
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const bufferDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	// Sync local state when props change (e.g., after revalidation or event switch)
 	useEffect(() => {
 		setLocalHeats(effectiveHeats)
 	}, [effectiveHeats])
+
+	useEffect(() => {
+		setLocalBuffer(effectiveBuffer)
+	}, [effectiveBuffer])
 
 	const saveHeats = async (newHeats: number) => {
 		setIsSubmitting(true)
@@ -78,6 +87,22 @@ export function EventDefaultsEditor({
 				teamId,
 				trackWorkoutId,
 				defaultHeatsCount: newHeats,
+			})
+			toast.success("Event defaults updated")
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to update")
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const saveBuffer = async (newBuffer: number) => {
+		setIsSubmitting(true)
+		try {
+			await updateEventDefaultsAction({
+				teamId,
+				trackWorkoutId,
+				minHeatBuffer: newBuffer,
 			})
 			toast.success("Event defaults updated")
 		} catch (err) {
@@ -105,11 +130,32 @@ export function EventDefaultsEditor({
 		}, DEBOUNCE_MS)
 	}
 
+	const handleBufferChange = (value: string) => {
+		const newBuffer = Number.parseInt(value, 10)
+		if (Number.isNaN(newBuffer) || newBuffer < 1 || newBuffer > 10) {
+			return
+		}
+
+		// Update local state immediately for responsive UI
+		setLocalBuffer(newBuffer)
+
+		// Debounce the save
+		if (bufferDebounceRef.current) {
+			clearTimeout(bufferDebounceRef.current)
+		}
+		bufferDebounceRef.current = setTimeout(() => {
+			saveBuffer(newBuffer)
+		}, DEBOUNCE_MS)
+	}
+
 	// Cleanup timeout on unmount
 	useEffect(() => {
 		return () => {
 			if (debounceRef.current) {
 				clearTimeout(debounceRef.current)
+			}
+			if (bufferDebounceRef.current) {
+				clearTimeout(bufferDebounceRef.current)
 			}
 		}
 	}, [])
@@ -195,6 +241,39 @@ export function EventDefaultsEditor({
 							? `Using competition default (${LANE_SHIFT_OPTIONS.find((opt) => opt.value === competitionDefaultPattern)?.label})`
 							: "Event-specific override"}
 					</p>
+				</div>
+
+				{/* Scheduling Rules */}
+				<div className="space-y-2 border-t pt-4">
+					<h3 className="text-sm font-medium">Scheduling Rules</h3>
+					<div className="space-y-2">
+						<Label htmlFor="minHeatBuffer" className="text-sm">
+							Heat buffer between rotations
+						</Label>
+						<div className="flex items-center gap-2">
+							<Input
+								id="minHeatBuffer"
+								type="number"
+								min={1}
+								max={10}
+								value={localBuffer}
+								onChange={(e) => handleBufferChange(e.target.value)}
+								disabled={isSubmitting}
+								className="max-w-[120px]"
+							/>
+							{isSubmitting && (
+								<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+							)}
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Minimum heats between judge rotations
+						</p>
+						<p className="text-xs text-muted-foreground">
+							{minHeatBuffer === null
+								? "Using default (2)"
+								: "Event-specific override"}
+						</p>
+					</div>
 				</div>
 			</CardContent>
 		</Card>

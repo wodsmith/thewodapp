@@ -110,6 +110,7 @@ export default async function CompetitionVolunteersPage({
 				result?.eventDefaults ?? {
 					defaultHeatsCount: null,
 					defaultLaneShiftPattern: null,
+					minHeatBuffer: null,
 				},
 			]
 		}),

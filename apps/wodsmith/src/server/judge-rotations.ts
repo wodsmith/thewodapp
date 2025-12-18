@@ -299,6 +299,7 @@ export async function getRotationsForEvent(
 	eventDefaults: {
 		defaultHeatsCount: number | null
 		defaultLaneShiftPattern: LaneShiftPattern | null
+		minHeatBuffer: number | null
 	}
 }> {
 	const rotations = await db
@@ -311,6 +312,7 @@ export async function getRotationsForEvent(
 		.select({
 			defaultHeatsCount: trackWorkoutsTable.defaultHeatsCount,
 			defaultLaneShiftPattern: trackWorkoutsTable.defaultLaneShiftPattern,
+			minHeatBuffer: trackWorkoutsTable.minHeatBuffer,
 		})
 		.from(trackWorkoutsTable)
 		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
@@ -321,6 +323,7 @@ export async function getRotationsForEvent(
 			defaultHeatsCount: event?.defaultHeatsCount ?? null,
 			defaultLaneShiftPattern:
 				(event?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
+			minHeatBuffer: event?.minHeatBuffer ?? null,
 		},
 	}
 }

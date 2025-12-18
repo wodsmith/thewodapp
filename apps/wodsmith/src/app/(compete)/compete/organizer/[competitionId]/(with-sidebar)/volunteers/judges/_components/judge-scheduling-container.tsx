@@ -41,6 +41,7 @@ import { RotationTimeline } from "./rotation-timeline"
 interface EventDefaults {
 	defaultHeatsCount: number | null
 	defaultLaneShiftPattern: LaneShiftPattern | null
+	minHeatBuffer: number | null
 }
 
 interface JudgeSchedulingContainerProps {
@@ -205,10 +206,12 @@ export function JudgeSchedulingContainer({
 				eventDefaults?.defaultHeatsCount ?? competitionDefaultHeats,
 			defaultLaneShiftPattern:
 				eventDefaults?.defaultLaneShiftPattern ?? competitionDefaultPattern,
+			minHeatBuffer: eventDefaults?.minHeatBuffer ?? 2,
 			// Raw values (null if not overridden at event level)
 			rawDefaultHeatsCount: eventDefaults?.defaultHeatsCount ?? null,
 			rawDefaultLaneShiftPattern:
 				eventDefaults?.defaultLaneShiftPattern ?? null,
+			rawMinHeatBuffer: eventDefaults?.minHeatBuffer ?? null,
 		}
 	}, [
 		selectedEventId,
@@ -531,6 +534,7 @@ export function JudgeSchedulingContainer({
 					defaultLaneShiftPattern={
 						selectedEventDefaults.rawDefaultLaneShiftPattern
 					}
+					minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
 					competitionDefaultHeats={competitionDefaultHeats}
 					competitionDefaultPattern={competitionDefaultPattern}
 				/>
