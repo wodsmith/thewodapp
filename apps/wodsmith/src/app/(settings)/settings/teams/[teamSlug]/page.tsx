@@ -357,7 +357,7 @@ export default async function TeamDashboardPage({
 						<h2 className="text-2xl font-bold mb-4">Competition Organizing</h2>
 						<EnableCompetitionOrganizing
 							teamId={team.id}
-							teamSlug={team.slug}
+							_teamSlug={team.slug}
 							isEnabled={hasCompetitionOrganizing}
 							organizerStatus={organizerStatus}
 							stripeAccountStatus={team.stripeAccountStatus}

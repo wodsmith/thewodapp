@@ -61,12 +61,17 @@ export interface UpdateEventRotationDefaultsParams {
 	trackWorkoutId: string
 	defaultHeatsCount?: number | null
 	defaultLaneShiftPattern?: LaneShiftPattern | null
+	minHeatBuffer?: number | null
 	teamId: string // For permission check
 }
 
 export interface RotationConflict {
 	rotationId: string
-	conflictType: "double_booking" | "invalid_lane" | "invalid_heat"
+	conflictType:
+		| "double_booking"
+		| "invalid_lane"
+		| "invalid_heat"
+		| "buffer_violation"
 	message: string
 	heatNumber?: number
 	laneNumber?: number
@@ -256,6 +261,7 @@ export async function updateEventRotationDefaults(
 	const updateData: {
 		defaultHeatsCount?: number | null
 		defaultLaneShiftPattern?: string | null
+		minHeatBuffer?: number | null
 		updatedAt: Date
 	} = {
 		updatedAt: new Date(),
@@ -266,6 +272,9 @@ export async function updateEventRotationDefaults(
 	}
 	if (params.defaultLaneShiftPattern !== undefined) {
 		updateData.defaultLaneShiftPattern = params.defaultLaneShiftPattern
+	}
+	if (params.minHeatBuffer !== undefined) {
+		updateData.minHeatBuffer = params.minHeatBuffer
 	}
 
 	await db
@@ -506,6 +515,66 @@ export async function validateRotationConflicts(
 							laneNumber: current.laneNumber,
 						})
 					}
+				}
+			}
+		}
+
+		// Get minHeatBuffer from event settings (default to 2)
+		const [eventSettings] = await db
+			.select({
+				minHeatBuffer: trackWorkoutsTable.minHeatBuffer,
+			})
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, rotation.trackWorkoutId))
+
+		const minHeatBuffer = eventSettings?.minHeatBuffer ?? 2
+
+		// Check for buffer violations
+		// A buffer violation occurs when a judge is assigned to a heat within the buffer zone
+		// of an existing rotation. The buffer applies in both directions:
+		// - After a rotation ends at heat N, heats N+1 through N+buffer are blocked
+		// - Before a rotation starts at heat M, heats M-buffer through M-1 are blocked
+		for (const existing of existingRotations) {
+			const existingAssignments = expandRotationToAssignments(existing, heats)
+
+			if (existingAssignments.length === 0) continue
+
+			// Get the range of the existing rotation
+			const existingHeatNumbers = existingAssignments.map((a) => a.heatNumber)
+			const existingStart = Math.min(...existingHeatNumbers)
+			const existingEnd = Math.max(...existingHeatNumbers)
+
+			// Calculate buffer zones
+			// Buffer zone after existing rotation: (existingEnd, existingEnd + minHeatBuffer]
+			const bufferAfterStart = existingEnd + 1
+			const bufferAfterEnd = existingEnd + minHeatBuffer
+
+			// Buffer zone before existing rotation: [existingStart - minHeatBuffer, existingStart)
+			const bufferBeforeStart = existingStart - minHeatBuffer
+			const bufferBeforeEnd = existingStart - 1
+
+			// Check if any heat in the current rotation falls within buffer zones
+			for (const current of currentAssignments) {
+				const { heatNumber } = current
+
+				// Check buffer zone after existing rotation
+				if (heatNumber >= bufferAfterStart && heatNumber <= bufferAfterEnd) {
+					conflicts.push({
+						rotationId: existing.id,
+						conflictType: "buffer_violation",
+						message: `Heat ${heatNumber} is within the buffer zone (needs ${minHeatBuffer} heat gap after rotation ending at heat ${existingEnd})`,
+						heatNumber,
+					})
+				}
+
+				// Check buffer zone before existing rotation
+				if (heatNumber >= bufferBeforeStart && heatNumber <= bufferBeforeEnd) {
+					conflicts.push({
+						rotationId: existing.id,
+						conflictType: "buffer_violation",
+						message: `Heat ${heatNumber} is within the buffer zone (needs ${minHeatBuffer} heat gap before rotation starting at heat ${existingStart})`,
+						heatNumber,
+					})
 				}
 			}
 		}

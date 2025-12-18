@@ -456,6 +456,13 @@
       "when": 1766012400000,
       "tag": "0062_judge-assignment-versioning",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1766093927607,
+      "tag": "0063_add-min-heat-buffer",
+      "breakpoints": true
     }
   ]
 }
