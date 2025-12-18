@@ -285,18 +285,21 @@ export function MultiRotationEditor({
 	])
 
 	async function onSubmit(values: MultiRotationFormValues) {
+		// Clamp heatsCount so rotations don't extend beyond maxHeats
+		const clampedRotations = values.rotations.map((r) => ({
+			startingHeat: r.startingHeat,
+			startingLane: r.startingLane,
+			heatsCount: Math.min(r.heatsCount, maxHeats - r.startingHeat + 1),
+			notes: r.notes,
+		}))
+
 		if (isEditing) {
 			const [result] = await batchUpdate.execute({
 				teamId,
 				competitionId,
 				trackWorkoutId,
 				membershipId: values.membershipId,
-				rotations: values.rotations.map((r) => ({
-					startingHeat: r.startingHeat,
-					startingLane: r.startingLane,
-					heatsCount: r.heatsCount,
-					notes: r.notes,
-				})),
+				rotations: clampedRotations,
 				laneShiftPattern: eventLaneShiftPattern,
 			})
 
@@ -309,12 +312,7 @@ export function MultiRotationEditor({
 				competitionId,
 				trackWorkoutId,
 				membershipId: values.membershipId,
-				rotations: values.rotations.map((r) => ({
-					startingHeat: r.startingHeat,
-					startingLane: r.startingLane,
-					heatsCount: r.heatsCount,
-					notes: r.notes,
-				})),
+				rotations: clampedRotations,
 				laneShiftPattern: eventLaneShiftPattern,
 			})
 

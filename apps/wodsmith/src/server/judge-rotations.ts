@@ -448,15 +448,10 @@ export async function validateRotationConflicts(
 		}
 	}
 
-	// If no heats exist in the requested range, that's still an error
-	if (effectiveHeatsCount === 0) {
-		conflicts.push({
-			rotationId: rotation.id ?? "new",
-			conflictType: "invalid_heat",
-			message: `Starting heat ${rotation.startingHeat} does not exist`,
-			heatNumber: rotation.startingHeat,
-		})
-	}
+	// If no heats exist in the requested range, that's a warning but not a blocking error
+	// The rotation can be created - it will just have no effective assignments until heats are created
+	// This allows creating rotations for future heats that haven't been scheduled yet
+	// NOTE: We don't push a conflict here - missing heats are handled gracefully
 
 	// Check for double-booking with existing rotations
 	// Skip this check entirely if we're doing a batch replace for this membership
@@ -497,20 +492,19 @@ export async function validateRotationConflicts(
 		)
 
 		// Expand existing rotations and check for overlaps
+		// A conflict is when the same judge is assigned to the same HEAT twice
+		// (same lane is fine - a judge can work multiple lanes, but not multiple heats simultaneously)
 		for (const existing of existingRotations) {
 			const existingAssignments = expandRotationToAssignments(existing, heats)
 
-			// Check for overlapping assignments
+			// Check for overlapping heats (lane doesn't matter for conflicts)
 			for (const current of currentAssignments) {
 				for (const exist of existingAssignments) {
-					if (
-						current.heatNumber === exist.heatNumber &&
-						current.laneNumber === exist.laneNumber
-					) {
+					if (current.heatNumber === exist.heatNumber) {
 						conflicts.push({
 							rotationId: existing.id,
 							conflictType: "double_booking",
-							message: `Judge is already assigned to heat ${current.heatNumber}, lane ${current.laneNumber}`,
+							message: `Judge is already assigned to heat ${current.heatNumber}`,
 							heatNumber: current.heatNumber,
 							laneNumber: current.laneNumber,
 						})
