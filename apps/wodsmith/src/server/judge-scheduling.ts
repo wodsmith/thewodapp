@@ -676,7 +676,7 @@ export async function getJudgeOverview(
 	}
 
 	// Get all rotations for the event
-	const rotations = await getRotationsForEvent(db, trackWorkoutId)
+	const { rotations } = await getRotationsForEvent(db, trackWorkoutId)
 
 	// Calculate coverage
 	const coverage = calculateCoverage(rotations, heats)
