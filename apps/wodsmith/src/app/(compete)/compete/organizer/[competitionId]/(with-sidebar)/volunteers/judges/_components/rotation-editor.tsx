@@ -31,6 +31,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 import {
 	type CompetitionJudgeRotation,
 	LANE_SHIFT_PATTERN,
@@ -110,6 +111,7 @@ export function RotationEditor({
 	onPreviewChange,
 }: RotationEditorProps) {
 	const isEditing = !!rotation
+	const { toast } = useToast()
 	const [conflicts, setConflicts] = useState<string[]>([])
 	const [truncationInfo, setTruncationInfo] = useState<{
 		effectiveHeatsCount: number
@@ -225,24 +227,42 @@ export function RotationEditor({
 
 	async function onSubmit(values: RotationFormValues) {
 		if (isEditing) {
-			const [result] = await updateRotation.execute({
+			const [result, error] = await updateRotation.execute({
 				teamId,
 				rotationId: rotation.id,
 				laneShiftPattern: eventLaneShiftPattern,
 				...values,
 			})
 
+			if (error) {
+				toast({
+					variant: "destructive",
+					title: "Failed to update rotation",
+					description: error.message,
+				})
+				return
+			}
+
 			if (result?.data) {
 				onSuccess()
 			}
 		} else {
-			const [result] = await createRotation.execute({
+			const [result, error] = await createRotation.execute({
 				teamId,
 				competitionId,
 				trackWorkoutId,
 				laneShiftPattern: eventLaneShiftPattern,
 				...values,
 			})
+
+			if (error) {
+				toast({
+					variant: "destructive",
+					title: "Failed to create rotation",
+					description: error.message,
+				})
+				return
+			}
 
 			if (result?.data) {
 				onSuccess()
