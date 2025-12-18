@@ -6,6 +6,7 @@ import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
+	programmingTracksTable,
 	type ScoreStatus,
 	type ScoreType,
 	scalingLevelsTable,
@@ -16,6 +17,7 @@ import {
 	trackWorkoutsTable,
 	userTable,
 	type WorkoutScheme,
+	workouts,
 } from "@/db/schema"
 import {
 	logError,
@@ -129,22 +131,24 @@ async function verifyTrackWorkoutOwnership(
 ): Promise<void> {
 	const db = getDb()
 
-	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
-		where: eq(trackWorkoutsTable.id, trackWorkoutId),
-		with: {
-			track: {
-				columns: {
-					ownerTeamId: true,
-				},
-			},
-		},
-	})
+	const [result] = await db
+		.select({
+			trackWorkoutId: trackWorkoutsTable.id,
+			ownerTeamId: programmingTracksTable.ownerTeamId,
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(
+			programmingTracksTable,
+			eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+		)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+		.limit(1)
 
-	if (!trackWorkout) {
+	if (!result) {
 		throw new ZSAError("NOT_FOUND", "Event not found")
 	}
 
-	if (trackWorkout.track?.ownerTeamId !== competitionTeamId) {
+	if (result.ownerTeamId !== competitionTeamId) {
 		throw new ZSAError(
 			"NOT_AUTHORIZED",
 			"Not authorized to access this competition event",
@@ -242,15 +246,46 @@ export async function getEventScoreEntryData(params: {
 	const db = getDb()
 
 	// Get the track workout (event) with workout details
-	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
-		where: eq(trackWorkoutsTable.id, params.trackWorkoutId),
-		with: {
-			workout: true,
-		},
-	})
+	const [result] = await db
+		.select({
+			trackWorkoutId: trackWorkoutsTable.id,
+			trackOrder: trackWorkoutsTable.trackOrder,
+			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+			workoutId: workouts.id,
+			workoutName: workouts.name,
+			workoutDescription: workouts.description,
+			workoutScheme: workouts.scheme,
+			workoutScoreType: workouts.scoreType,
+			workoutTiebreakScheme: workouts.tiebreakScheme,
+			workoutTimeCap: workouts.timeCap,
+			workoutRepsPerRound: workouts.repsPerRound,
+			workoutRoundsToScore: workouts.roundsToScore,
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+		.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+		.limit(1)
 
-	if (!trackWorkout || !trackWorkout.workout) {
+	if (!result) {
 		throw new ZSAError("NOT_FOUND", "Event not found")
+	}
+
+	// Restructure to match expected format
+	const trackWorkout = {
+		id: result.trackWorkoutId,
+		trackOrder: result.trackOrder,
+		pointsMultiplier: result.pointsMultiplier,
+		workout: {
+			id: result.workoutId,
+			name: result.workoutName,
+			description: result.workoutDescription,
+			scheme: result.workoutScheme as WorkoutScheme,
+			scoreType: result.workoutScoreType as ScoreType | null,
+			tiebreakScheme: result.workoutTiebreakScheme as TiebreakScheme | null,
+			timeCap: result.workoutTimeCap,
+			repsPerRound: result.workoutRepsPerRound,
+			roundsToScore: result.workoutRoundsToScore,
+		},
 	}
 
 	// Get all registrations for this competition
@@ -808,25 +843,26 @@ export async function saveCompetitionScore(params: {
 				: null
 
 		// Get teamId from competition context
-		const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
-			where: eq(trackWorkoutsTable.id, params.trackWorkoutId),
-			with: {
-				track: {
-					columns: {
-						ownerTeamId: true,
-					},
-				},
-			},
-		})
+		const [teamResult] = await db
+			.select({
+				ownerTeamId: programmingTracksTable.ownerTeamId,
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(
+				programmingTracksTable,
+				eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+			)
+			.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+			.limit(1)
 
-		if (!trackWorkout?.track?.ownerTeamId) {
+		if (!teamResult?.ownerTeamId) {
 			throw new ZSAError(
 				"ERROR",
 				"Could not determine team ownership for competition",
 			)
 		}
 
-		const teamId = trackWorkout.track.ownerTeamId
+		const teamId = teamResult.ownerTeamId
 
 		// Encode tiebreak if provided
 		let tiebreakValue: number | null = null

@@ -15,10 +15,7 @@ import {
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 // Import pure utility functions from shared module (can be used in client components)
-import {
-	calculateCoverage,
-	expandRotationToAssignments,
-} from "@/lib/judge-rotation-utils"
+import { expandRotationToAssignments } from "@/lib/judge-rotation-utils"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // Re-export pure utility functions and types from shared module

@@ -81,6 +81,7 @@ const updateEventDefaultsSchema = z.object({
 		.enum([LANE_SHIFT_PATTERN.STAY, LANE_SHIFT_PATTERN.SHIFT_RIGHT])
 		.nullable()
 		.optional(),
+	minHeatBuffer: z.number().int().min(1).max(10).nullable().optional(),
 })
 
 const batchCreateRotationsSchema = z.object({
@@ -411,6 +412,9 @@ export const batchCreateRotationsAction = createServerAction()
 					const rot1 = input.rotations[i]
 					const rot2 = input.rotations[j]
 
+					// Skip if either rotation is undefined (shouldn't happen with valid indices)
+					if (!rot1 || !rot2) continue
+
 					// Check if heat ranges overlap
 					const rot1End = rot1.startingHeat + rot1.heatsCount - 1
 					const rot2End = rot2.startingHeat + rot2.heatsCount - 1
@@ -506,6 +510,9 @@ export const batchUpdateVolunteerRotationsAction = createServerAction()
 					const rot1 = input.rotations[i]
 					const rot2 = input.rotations[j]
 
+					// Skip if either rotation is undefined (shouldn't happen with valid indices)
+					if (!rot1 || !rot2) continue
+
 					// Check if heat ranges overlap
 					const rot1End = rot1.startingHeat + rot1.heatsCount - 1
 					const rot2End = rot2.startingHeat + rot2.heatsCount - 1
@@ -597,11 +604,11 @@ export const deleteVolunteerRotationsAction = createServerAction()
 			const db = getDb()
 
 			// Delete all rotations for this volunteer in this event
+			// Note: No teamId filter needed - membershipId is team-specific
 			const result = await db
 				.delete(competitionJudgeRotationsTable)
 				.where(
 					and(
-						eq(competitionJudgeRotationsTable.teamId, input.teamId),
 						eq(competitionJudgeRotationsTable.membershipId, input.membershipId),
 						eq(
 							competitionJudgeRotationsTable.trackWorkoutId,

@@ -15,6 +15,7 @@ import {
 	scalingLevelsTable,
 	type TiebreakScheme,
 	tags,
+	type TrackWorkout,
 	trackWorkoutsTable,
 	type Workout,
 	type WorkoutScheme,
@@ -24,6 +25,9 @@ import {
 	workoutTags,
 } from "@/db/schema"
 import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
+
+// Type alias for TrackWorkout with workout relation included
+type TrackWorkoutWithWorkout = TrackWorkout & { workout: Workout }
 
 export interface DivisionDescription {
 	divisionId: string
@@ -349,12 +353,12 @@ export async function getCompetitionEvent(
 ): Promise<CompetitionWorkout | null> {
 	const db = getDb()
 
-	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
+	const trackWorkout = (await db.query.trackWorkoutsTable.findFirst({
 		where: eq(trackWorkoutsTable.id, trackWorkoutId),
 		with: {
 			workout: true,
 		},
-	})
+	})) as TrackWorkoutWithWorkout | undefined
 
 	if (!trackWorkout || !trackWorkout.workout) {
 		return null

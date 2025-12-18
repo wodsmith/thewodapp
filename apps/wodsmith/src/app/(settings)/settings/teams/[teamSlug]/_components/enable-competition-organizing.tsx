@@ -49,7 +49,7 @@ import type { AccountBalance } from "@/server/stripe-connect"
 
 interface EnableCompetitionOrganizingProps {
 	teamId: string
-	teamSlug: string
+	_teamSlug: string
 	isEnabled: boolean
 	organizerStatus: "not_applied" | "pending" | "approved"
 	stripeAccountStatus: string | null
@@ -70,7 +70,7 @@ function formatCurrency(amountCents: number, currency: string): string {
 
 export function EnableCompetitionOrganizing({
 	teamId,
-	teamSlug,
+	_teamSlug,
 	isEnabled,
 	organizerStatus,
 	stripeAccountStatus,
@@ -528,7 +528,7 @@ export function EnableCompetitionOrganizing({
 												} else {
 													toast.info("Account still pending verification")
 												}
-											} catch (err) {
+											} catch (_err) {
 												toast.error("Failed to check status")
 											} finally {
 												setIsLoading(null)

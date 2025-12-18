@@ -201,7 +201,7 @@ export function OrganizerCompetitionsList({
 							const seriesName = groups.find(
 								(g) => g.id === competition.groupId,
 							)?.name
-							const isCurrent = (() => {
+							const _isCurrent = (() => {
 								const today = new Date()
 								today.setHours(0, 0, 0, 0)
 								const normalizedEndDate = new Date(competition.endDate)

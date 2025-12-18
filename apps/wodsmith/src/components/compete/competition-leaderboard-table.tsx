@@ -310,7 +310,6 @@ export function CompetitionLeaderboardTable({
 	])
 
 	// Reset sorting when view changes between overall and single event
-	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
 	useEffect(() => {
 		// Ensure sorting column exists in current view
 		const validSortColumn = selectedEventId ? "eventRank" : "overallRank"

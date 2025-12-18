@@ -6,10 +6,14 @@ import {
 	LANE_SHIFT_PATTERN,
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
+	competitionsTable,
+	competitionVenuesTable,
 	type JudgeAssignmentVersion,
 	judgeAssignmentVersionsTable,
 	type JudgeHeatAssignment,
 	judgeHeatAssignmentsTable,
+	programmingTracksTable,
+	trackWorkoutsTable,
 } from "@/db/schema"
 import type * as schema from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
@@ -34,7 +38,7 @@ export interface RollbackToVersionParams {
 	teamId: string // For permission check
 }
 
-interface MaterializedAssignment {
+type MaterializedAssignment = Record<string, unknown> & {
 	heatId: string
 	membershipId: string
 	rotationId: string
@@ -225,29 +229,40 @@ export async function publishRotations(
 	// Permission check
 	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
 
-	// Get event info to find maxLanes
-	const event = await db.query.trackWorkoutsTable.findFirst({
-		where: eq(competitionHeatsTable.trackWorkoutId, params.trackWorkoutId),
-		with: {
-			competition: {
-				with: {
-					venues: true,
-				},
-			},
-		},
-	})
+	// Get event info to find maxLanes - using manual join to get competition venues
+	const result = await db
+		.select({
+			competitionId: programmingTracksTable.competitionId,
+			venues: competitionVenuesTable,
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(
+			programmingTracksTable,
+			eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+		)
+		.innerJoin(
+			competitionsTable,
+			eq(programmingTracksTable.competitionId, competitionsTable.id),
+		)
+		.innerJoin(
+			competitionVenuesTable,
+			eq(competitionsTable.id, competitionVenuesTable.competitionId),
+		)
+		.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
 
-	if (!event?.competition) {
+	if (result.length === 0) {
 		throw new Error("Event or competition not found")
 	}
 
 	// Find max lanes from venues
-	const maxLanes =
-		event.competition.venues.reduce((max, v) => Math.max(max, v.laneCount), 3) || 3
+	const maxLanes = result.reduce(
+		(max: number, row) => Math.max(max, row.venues.laneCount),
+		3,
+	)
 
 	// Get next version number
 	const versions = await getVersionHistory(db, params.trackWorkoutId)
-	const nextVersion = versions.length > 0 ? versions[0].version + 1 : 1
+	const nextVersion = versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
 
 	// Deactivate previous versions (no transactions in D1)
 	await db
@@ -283,9 +298,9 @@ export async function publishRotations(
 	// That's 7 params per row, plus id/createdAt/updatedAt/updateCounter (auto-generated)
 	// Total ~10 params per row, so batch size of 10 = ~100 params
 	if (materializedAssignments.length > 0) {
-		await autochunk(
+		await autochunk<MaterializedAssignment, JudgeHeatAssignment>(
 			{ items: materializedAssignments },
-			async (chunk) => {
+			async (chunk: MaterializedAssignment[]) => {
 				return db
 					.insert(judgeHeatAssignmentsTable)
 					.values(

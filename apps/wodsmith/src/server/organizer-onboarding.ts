@@ -182,7 +182,12 @@ export async function getAllOrganizerRequests({
 
 	// Fetch reviewer details separately for requests that have reviewedBy
 	const reviewerIds = [
-		...new Set(requests.filter((r) => r.reviewedBy).map((r) => r.reviewedBy!)),
+		...new Set(
+			requests
+				.filter((r) => r.reviewedBy)
+				.map((r) => r.reviewedBy)
+				.filter((id): id is string => id !== null),
+		),
 	]
 	const reviewerMap = new Map<
 		string,

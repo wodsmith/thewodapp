@@ -182,14 +182,16 @@ export function JudgeSchedulingContainer({
 
 			// Fetch assignments for the new version
 			const assignmentsResult = await executeGetAssignments({ versionId })
-			if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
-				setAssignments((prev) => {
-					// Remove old assignments for this event, add new ones
-					const eventHeatIds = new Set(eventHeats.map((h) => h.id))
-					const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
-					return [...withoutEvent, ...assignmentsResult[0].data]
-				})
-			}
+		if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
+			setAssignments((prev) => {
+				// Remove old assignments for this event, add new ones
+				const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+				const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+				// Type assertion needed because getAssignmentsForVersion returns raw DB structure
+				// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
+				return [...withoutEvent, ...(assignmentsResult[0].data as JudgeHeatAssignment[])]
+			})
+		}
 		} else {
 			toast.error("Failed to activate version")
 		}
@@ -290,7 +292,7 @@ export function JudgeSchedulingContainer({
 	// Handle cross-heat moves
 	function handleMoveAssignment(
 		assignmentId: string,
-		sourceHeatId: string,
+		_sourceHeatId: string,
 		targetHeatId: string,
 		targetLane: number,
 		assignment: JudgeHeatAssignment,
@@ -541,11 +543,11 @@ export function JudgeSchedulingContainer({
 					teamId={organizingTeamId}
 					trackWorkoutId={selectedEventId}
 					hasActiveVersion={!!eventActiveVersion}
-					nextVersionNumber={
-						eventVersionHistory.length > 0
-							? eventVersionHistory[0].version + 1
-							: 1
-					}
+				nextVersionNumber={
+					eventVersionHistory.length > 0
+						? (eventVersionHistory[0]?.version ?? 0) + 1
+						: 1
+				}
 				/>
 
 				{/* Rotation Timeline */}

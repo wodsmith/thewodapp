@@ -714,13 +714,13 @@ export function RotationTimeline({
 												: 1,
 											BLOCK_COLORS.length,
 										),
-									).map((color, idx) => (
-										<div key={idx} className="flex items-center gap-2">
+									).map((color) => (
+										<div key={color.bg} className="flex items-center gap-2">
 											<div
 												className={`h-4 w-4 rounded border-dashed border-2 ${color.bg} ${color.border}`}
 											/>
 											<span className="text-muted-foreground">
-												Block {idx + 1}
+												Block {BLOCK_COLORS.indexOf(color) + 1}
 											</span>
 										</div>
 									))}

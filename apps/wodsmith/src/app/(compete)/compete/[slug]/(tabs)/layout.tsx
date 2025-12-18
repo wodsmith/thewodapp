@@ -2,7 +2,6 @@ import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
-import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import {
 	getCompetition,
 	getCompetitionRegistrations,

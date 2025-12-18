@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Send } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
+import { useSessionStore } from "@/state/session"
 import { publishRotationsAction } from "@/actions/judge-assignment-actions"
 import {
 	AlertDialog,
@@ -49,14 +50,25 @@ export function PublishRotationsButton({
 	const [notes, setNotes] = useState("")
 	const [open, setOpen] = useState(false)
 	const { toast } = useToast()
+	const session = useSessionStore((state) => state.session)
 
 	const { execute: publishRotations, isPending } =
 		useServerAction(publishRotationsAction)
 
 	const handlePublish = async () => {
+		if (!session?.userId) {
+			toast({
+				title: "Authentication required",
+				description: "You must be logged in to publish rotations",
+				variant: "destructive",
+			})
+			return
+		}
+
 		const [data, err] = await publishRotations({
 			teamId,
 			trackWorkoutId,
+			publishedBy: session.userId,
 			notes: notes.trim() || undefined,
 		})
 
@@ -69,10 +81,10 @@ export function PublishRotationsButton({
 			return
 		}
 
-		if (data) {
+		if (data?.data) {
 			toast({
 				title: "Rotations published",
-				description: `Version ${data.version.version} created with ${data.version.assignmentCount} assignments`,
+				description: `Version ${data.data.version} created successfully`,
 			})
 			setOpen(false)
 			setNotes("")
