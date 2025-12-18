@@ -570,6 +570,7 @@ export function JudgeSchedulingContainer({
 							selectedEventDefaults.defaultLaneShiftPattern
 						}
 						eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
+						minHeatBuffer={selectedEventDefaults.minHeatBuffer}
 					/>
 				) : (
 					<Card>

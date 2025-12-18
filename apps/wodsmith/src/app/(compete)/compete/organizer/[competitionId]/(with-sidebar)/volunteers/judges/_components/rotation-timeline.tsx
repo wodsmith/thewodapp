@@ -40,6 +40,8 @@ interface RotationTimelineProps {
 	eventLaneShiftPattern: LaneShiftPattern
 	/** Event-level default heats count (with competition fallback already applied) */
 	eventDefaultHeatsCount: number
+	/** Minimum heat buffer between rotations for the same judge (default 2) */
+	minHeatBuffer: number
 }
 
 /**
@@ -58,6 +60,7 @@ export function RotationTimeline({
 	initialRotations,
 	eventLaneShiftPattern,
 	eventDefaultHeatsCount,
+	minHeatBuffer,
 }: RotationTimelineProps) {
 	const [rotations, setRotations] =
 		useState<CompetitionJudgeRotation[]>(initialRotations)
@@ -137,11 +140,14 @@ export function RotationTimeline({
 		return grouped
 	}, [rotations])
 
-	// Build coverage grid with rotation IDs for highlighting
+	// Build coverage grid with rotation IDs for highlighting and buffer zones
 	const coverageGrid = useMemo(() => {
 		const grid = new Map<
 			string,
-			{ status: "empty" | "covered" | "overlap"; rotationIds: string[] }
+			{
+				status: "empty" | "covered" | "overlap" | "buffer-blocked"
+				rotationIds: string[]
+			}
 		>()
 
 		// Initialize all slots as empty
@@ -170,8 +176,62 @@ export function RotationTimeline({
 			}
 		}
 
+		// When a volunteer is being edited/selected, mark buffer zones
+		if (editingVolunteerId) {
+			const volunteerRotations = rotationsByVolunteer.get(editingVolunteerId)
+			if (volunteerRotations) {
+				for (const rotation of volunteerRotations) {
+					const assignments = expandRotationToAssignments(rotation, heats)
+					if (assignments.length === 0) continue
+
+					// Get the heat range of this rotation
+					const heatNumbers = assignments.map((a) => a.heatNumber)
+					const rotationStart = Math.min(...heatNumbers)
+					const rotationEnd = Math.max(...heatNumbers)
+
+					// Calculate buffer zones
+					// Buffer after: (rotationEnd, rotationEnd + minHeatBuffer]
+					const bufferAfterEnd = rotationEnd + minHeatBuffer
+
+					// Buffer before: [rotationStart - minHeatBuffer, rotationStart)
+					const bufferBeforeStart = rotationStart - minHeatBuffer
+
+					// Mark buffer zone cells (all lanes in buffer heats)
+					for (let heat = bufferBeforeStart; heat <= bufferAfterEnd; heat++) {
+						// Skip heats within the rotation itself
+						if (heat >= rotationStart && heat <= rotationEnd) continue
+						// Skip heats outside valid range
+						if (heat < 1 || heat > heatsCount) continue
+
+						for (let lane = 1; lane <= laneCount; lane++) {
+							const key = `${heat}:${lane}`
+							const current = grid.get(key)
+							if (!current) continue
+
+							// Only mark as buffer-blocked if not already covered/overlapped
+							// (we want to show that existing assignments would be conflicts)
+							if (current.status === "empty") {
+								grid.set(key, {
+									status: "buffer-blocked",
+									rotationIds: current.rotationIds,
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+
 		return grid
-	}, [rotations, heats, heatsCount, laneCount])
+	}, [
+		rotations,
+		heats,
+		heatsCount,
+		laneCount,
+		editingVolunteerId,
+		rotationsByVolunteer,
+		minHeatBuffer,
+	])
 
 	// Build preview cell lookup for fast checking with block colors
 	const previewCellMap = useMemo(() => {
@@ -456,9 +516,9 @@ export function RotationTimeline({
 										const maxHeat = Math.max(...heatRanges.map((r) => r.end))
 
 										const isVolunteerSelected =
-										selectedVolunteerId === membershipId
+											selectedVolunteerId === membershipId
 
-									return (
+										return (
 											<div
 												key={membershipId}
 												className={`border rounded-lg transition-colors ${
@@ -650,7 +710,9 @@ export function RotationTimeline({
 													// Highlight if a specific rotation is selected OR if volunteer is selected
 													const isHighlighted =
 														(selectedRotationId !== null &&
-															cellData.rotationIds.includes(selectedRotationId)) ||
+															cellData.rotationIds.includes(
+																selectedRotationId,
+															)) ||
 														selectedVolunteerCells.has(key)
 													const previewBlockIndex = previewCellMap.get(key)
 													const isPreview = previewBlockIndex !== undefined
@@ -675,6 +737,7 @@ export function RotationTimeline({
 															blockColors={BLOCK_COLORS}
 															isPreviewConflict={isPreviewConflict}
 															isEditingCell={isEditingCell}
+															minHeatBuffer={minHeatBuffer}
 															onClick={() => handleCellClick(heat, lane)}
 														/>
 													)
@@ -729,12 +792,20 @@ export function RotationTimeline({
 										<span className="text-muted-foreground">Conflict</span>
 									</div>
 									{editingVolunteerId && (
-										<div className="flex items-center gap-2">
-											<div className="h-4 w-4 rounded border bg-background ring-2 ring-emerald-500" />
-											<span className="text-muted-foreground">
-												Current Assignment
-											</span>
-										</div>
+										<>
+											<div className="flex items-center gap-2">
+												<div className="h-4 w-4 rounded border bg-background ring-2 ring-emerald-500" />
+												<span className="text-muted-foreground">
+													Current Assignment
+												</span>
+											</div>
+											<div className="flex items-center gap-2">
+												<div className="h-4 w-4 rounded border-2 border-amber-500/40 bg-amber-500/20" />
+												<span className="text-muted-foreground">
+													Buffer Zone ({minHeatBuffer} heat gap)
+												</span>
+											</div>
+										</>
 									)}
 								</>
 							)}
@@ -749,7 +820,7 @@ export function RotationTimeline({
 interface TimelineCellProps {
 	heat: number
 	lane: number
-	status: "empty" | "covered" | "overlap"
+	status: "empty" | "covered" | "overlap" | "buffer-blocked"
 	isHighlighted: boolean
 	isPreview: boolean
 	/** Block index for preview cells (used for coloring) */
@@ -760,6 +831,8 @@ interface TimelineCellProps {
 	isPreviewConflict: boolean
 	/** True if this cell is part of the rotations currently being edited */
 	isEditingCell: boolean
+	/** Minimum heat buffer (for tooltip) */
+	minHeatBuffer: number
 	onClick: () => void
 }
 
@@ -773,6 +846,7 @@ function TimelineCell({
 	blockColors,
 	isPreviewConflict,
 	isEditingCell,
+	minHeatBuffer,
 	onClick,
 }: TimelineCellProps) {
 	const ref = useRef<HTMLButtonElement>(null)
@@ -801,9 +875,12 @@ function TimelineCell({
 
 	// Determine background class based on status, highlight, preview, and editing state
 	let bgClass: string
+	let title: string | undefined
+
 	if (isPreviewConflict) {
 		// Preview cell that conflicts with existing assignment - RED
 		bgClass = "bg-red-500/40 border-dashed border-2 border-red-500"
+		title = "Conflict: Heat already assigned"
 	} else if (isPreview && previewBlockIndex !== undefined) {
 		// Preview cells without conflict - use block-specific color
 		const colors = blockColors[previewBlockIndex % blockColors.length] ?? {
@@ -811,17 +888,26 @@ function TimelineCell({
 			border: "border-blue-500",
 		}
 		bgClass = `${colors.bg} border-dashed border-2 ${colors.border}`
+		title = `Preview: Block ${previewBlockIndex + 1}`
 	} else if (isEditingCell) {
 		// Cells currently covered by the rotations being edited - outline style (no fill)
 		bgClass = "bg-background ring-2 ring-inset ring-emerald-500"
+		title = "Current assignment"
 	} else if (isHighlighted) {
 		bgClass = "bg-primary/50 ring-2 ring-inset ring-primary"
+		title = "Selected rotation"
+	} else if (status === "buffer-blocked") {
+		// Buffer zone - amber with diagonal stripes pattern
+		bgClass = "bg-amber-500/20 border-amber-500/40 border-2"
+		title = `Buffer zone: Requires ${minHeatBuffer} heat gap between rotations`
 	} else if (status === "empty") {
 		bgClass = "bg-background hover:bg-muted/50"
 	} else if (status === "covered") {
 		bgClass = "bg-emerald-500/30"
+		title = "Covered"
 	} else {
 		bgClass = "bg-amber-500/30"
+		title = "Overlap: Multiple judges assigned"
 	}
 
 	return (
@@ -829,6 +915,7 @@ function TimelineCell({
 			ref={ref}
 			type="button"
 			onClick={onClick}
+			title={title}
 			className={`border-r border-b last:border-r-0 transition-colors cursor-pointer ${bgClass} ${
 				isDraggedOver ? "ring-2 ring-blue-500 ring-inset" : ""
 			}`}
