@@ -56,3 +56,7 @@ dist
 !.dev.vars.example
 !.env*example
 *.log
+
+# AI tools
+.opencode/
+.hive/
