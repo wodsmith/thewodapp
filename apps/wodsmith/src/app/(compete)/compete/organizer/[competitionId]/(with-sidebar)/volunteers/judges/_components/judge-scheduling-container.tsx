@@ -323,16 +323,21 @@ export function JudgeSchedulingContainer({
 
 	return (
 		<section className="space-y-8">
-			{/* Header with event selector */}
-			<div className="flex items-center justify-between gap-4">
-				<div>
-					<h2 className="text-xl font-semibold">Judging Schedule</h2>
-					<p className="text-muted-foreground text-sm">
-						Manage judge assignments with manual or rotation-based scheduling
-					</p>
-				</div>
+			{/* Header */}
+			<div>
+				<h2 className="text-xl font-semibold">Judging Schedule</h2>
+				<p className="text-muted-foreground text-sm">
+					Manage judge assignments with manual or rotation-based scheduling
+				</p>
+			</div>
+
+			{/* Event Selector - Prominent placement */}
+			<div className="flex items-center gap-3">
+				<label htmlFor="event-selector" className="text-sm font-medium">
+					Event:
+				</label>
 				<Select value={selectedEventId} onValueChange={setSelectedEventId}>
-					<SelectTrigger className="w-64">
+					<SelectTrigger id="event-selector" className="w-80">
 						<SelectValue placeholder="Select event" />
 					</SelectTrigger>
 					<SelectContent>
@@ -546,6 +551,7 @@ export function JudgeSchedulingContainer({
 				{/* Rotation Timeline */}
 				{eventHeats.length > 0 ? (
 					<RotationTimeline
+						key={selectedEventId}
 						competitionId={competitionId}
 						teamId={organizingTeamId}
 						trackWorkoutId={selectedEventId}

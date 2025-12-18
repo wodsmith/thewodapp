@@ -61,6 +61,20 @@ export function RotationTimeline({
 }: RotationTimelineProps) {
 	const [rotations, setRotations] =
 		useState<CompetitionJudgeRotation[]>(initialRotations)
+
+	// Sync rotations state when initialRotations prop changes (e.g., event switch)
+	useEffect(() => {
+		setRotations(initialRotations)
+		// Also reset UI state when switching events
+		setIsEditorOpen(false)
+		setEditingVolunteerId(null)
+		setSelectedRotationId(null)
+		setSelectedVolunteerId(null)
+		setExpandedVolunteers(new Set())
+		setPreviewCells([])
+		setEditingRotationCells(new Set())
+	}, [initialRotations])
+
 	const [isEditorOpen, setIsEditorOpen] = useState(false)
 	const [editingVolunteerId, setEditingVolunteerId] = useState<string | null>(
 		null,
