@@ -7,6 +7,10 @@ import { getDb } from "@/db"
 import { getHeatsForWorkout } from "@/server/competition-heats"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
+import {
+	getActiveVersion,
+	getVersionHistory,
+} from "@/server/judge-assignments"
 import { getRotationsForEvent } from "@/server/judge-rotations"
 import {
 	getJudgeHeatAssignments,
@@ -65,13 +69,37 @@ export default async function JudgeSchedulingPage({
 	)
 	const heats = allHeats.flat()
 
-	// Get judge assignments and rotations for all events
-	const [allAssignments, allRotations] = await Promise.all([
+	// Get judge assignments, rotations, and version data for all events
+	const [allAssignments, allRotationResults, allVersionHistory, allActiveVersions] = await Promise.all([
 		Promise.all(events.map((event) => getJudgeHeatAssignments(db, event.id))),
 		Promise.all(events.map((event) => getRotationsForEvent(db, event.id))),
+		Promise.all(events.map((event) => getVersionHistory(db, event.id))),
+		Promise.all(events.map((event) => getActiveVersion(db, event.id))),
 	])
 	const judgeAssignments = allAssignments.flat()
-	const rotations = allRotations.flat()
+	// Extract rotations from the new { rotations, eventDefaults } return type
+	const rotations = allRotationResults.flatMap((result) => result.rotations)
+	// Build event defaults map for each event
+	const eventDefaultsMap = new Map(
+		events.map((event, index) => {
+			const result = allRotationResults[index]
+			return [
+				event.id,
+				result?.eventDefaults ?? {
+					defaultHeatsCount: null,
+					defaultLaneShiftPattern: null,
+				},
+			]
+		}),
+	)
+	// Build version history map for each event
+	const versionHistoryMap = new Map(
+		events.map((event, index) => [event.id, allVersionHistory[index] ?? []]),
+	)
+	// Build active version map for each event
+	const activeVersionMap = new Map(
+		events.map((event, index) => [event.id, allActiveVersions[index] ?? null]),
+	)
 
 	return (
 		<JudgeSchedulingContainer
@@ -82,6 +110,16 @@ export default async function JudgeSchedulingPage({
 			judges={judges}
 			judgeAssignments={judgeAssignments}
 			rotations={rotations}
+			eventDefaultsMap={eventDefaultsMap}
+			versionHistoryMap={versionHistoryMap}
+			activeVersionMap={activeVersionMap}
+			competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
+			competitionDefaultPattern={
+				(competition.defaultLaneShiftPattern as
+					| "stay"
+					| "shift_right"
+					| "shift_left") ?? "shift_right"
+			}
 		/>
 	)
 }

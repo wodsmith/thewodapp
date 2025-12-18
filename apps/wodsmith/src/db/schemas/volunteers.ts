@@ -11,10 +11,12 @@ import {
 	commonColumns,
 	createHeatVolunteerId,
 	createJudgeRotationId,
+	createJudgeAssignmentVersionId,
 } from "./common"
 import { competitionHeatsTable, competitionsTable } from "./competitions"
 import { trackWorkoutsTable } from "./programming"
 import { teamMembershipTable } from "./teams"
+import { userTable } from "./users"
 
 // Volunteer role types
 export const VOLUNTEER_ROLE_TYPES = {
@@ -71,10 +73,55 @@ export interface VolunteerMembershipMetadata {
 	signupPhone?: string
 }
 
-// Competition Heat Volunteers Table
+// Judge Assignment Versions Table
+// Tracks published versions of judge assignments for each event
+export const judgeAssignmentVersionsTable = sqliteTable(
+	"judge_assignment_versions",
+	{
+		...commonColumns,
+		id: text()
+			.primaryKey()
+			.$defaultFn(() => createJudgeAssignmentVersionId())
+			.notNull(),
+		// The event/workout this version is for
+		trackWorkoutId: text()
+			.notNull()
+			.references(() => trackWorkoutsTable.id, { onDelete: "cascade" }),
+		// Version number (auto-increments per event)
+		version: integer().notNull(),
+		// When this version was published
+		publishedAt: integer({
+			mode: "timestamp",
+		})
+			.$defaultFn(() => new Date())
+			.notNull(),
+		// Who published this version (nullable for system-generated)
+		publishedBy: text().references(() => userTable.id, {
+			onDelete: "set null",
+		}),
+		// Optional notes about this version
+		notes: text({ length: 1000 }),
+		// Whether this is the currently active version for this event
+		isActive: integer({ mode: "boolean" }).notNull().default(false),
+	},
+	(table) => [
+		index("judge_assignment_versions_workout_idx").on(table.trackWorkoutId),
+		index("judge_assignment_versions_active_idx").on(
+			table.trackWorkoutId,
+			table.isActive,
+		),
+		// Ensure version numbers are unique per event
+		uniqueIndex("judge_assignment_versions_unique_idx").on(
+			table.trackWorkoutId,
+			table.version,
+		),
+	],
+)
+
+// Judge Heat Assignments Table (formerly Competition Heat Volunteers)
 // Maps volunteers (team memberships with volunteer role) to specific heats
-export const competitionHeatVolunteersTable = sqliteTable(
-	"competition_heat_volunteers",
+export const judgeHeatAssignmentsTable = sqliteTable(
+	"judge_heat_assignments",
 	{
 		...commonColumns,
 		id: text()
@@ -91,7 +138,13 @@ export const competitionHeatVolunteersTable = sqliteTable(
 			.references(() => teamMembershipTable.id, { onDelete: "cascade" }),
 		// Optional reference to the rotation that generated this assignment
 		// (null for manually created assignments)
+		// IMPORTANT: Keep this - it tracks which rotation generated an assignment
 		rotationId: text().references(() => competitionJudgeRotationsTable.id, {
+			onDelete: "set null",
+		}),
+		// Optional reference to the version this assignment belongs to
+		// (nullable for migration - assignments created before versioning)
+		versionId: text().references(() => judgeAssignmentVersionsTable.id, {
 			onDelete: "set null",
 		}),
 		// Optional lane assignment (for lane judges)
@@ -100,12 +153,15 @@ export const competitionHeatVolunteersTable = sqliteTable(
 		position: text({ length: 50 }).$type<VolunteerRoleType>(),
 		// Heat-specific instructions for this volunteer
 		instructions: text({ length: 500 }),
+		// Whether this assignment was manually overridden (not from rotation/version)
+		isManualOverride: integer({ mode: "boolean" }).notNull().default(false),
 	},
 	(table) => [
-		index("competition_heat_volunteers_heat_idx").on(table.heatId),
-		index("competition_heat_volunteers_membership_idx").on(table.membershipId),
+		index("judge_heat_assignments_heat_idx").on(table.heatId),
+		index("judge_heat_assignments_membership_idx").on(table.membershipId),
+		index("judge_heat_assignments_version_idx").on(table.versionId),
 		// Ensure a volunteer can only be assigned once per heat
-		uniqueIndex("competition_heat_volunteers_unique_idx").on(
+		uniqueIndex("judge_heat_assignments_unique_idx").on(
 			table.heatId,
 			table.membershipId,
 		),
@@ -163,45 +219,71 @@ export const competitionJudgeRotationsTable = sqliteTable(
 )
 
 // Type exports
-export type CompetitionHeatVolunteer = InferSelectModel<
-	typeof competitionHeatVolunteersTable
+export type JudgeAssignmentVersion = InferSelectModel<
+	typeof judgeAssignmentVersionsTable
+>
+export type JudgeHeatAssignment = InferSelectModel<
+	typeof judgeHeatAssignmentsTable
 >
 export type CompetitionJudgeRotation = InferSelectModel<
 	typeof competitionJudgeRotationsTable
 >
 
-// Relations
-export const competitionHeatVolunteersRelations = relations(
-	competitionHeatVolunteersTable,
+// Legacy type aliases for backward compatibility
+export type CompetitionHeatVolunteer = JudgeHeatAssignment
+
+// Relations for judge assignment versions
+export const judgeAssignmentVersionsRelations = relations(
+	judgeAssignmentVersionsTable,
+	({ one, many }) => ({
+		trackWorkout: one(trackWorkoutsTable, {
+			fields: [judgeAssignmentVersionsTable.trackWorkoutId],
+			references: [trackWorkoutsTable.id],
+		}),
+		publishedByUser: one(userTable, {
+			fields: [judgeAssignmentVersionsTable.publishedBy],
+			references: [userTable.id],
+		}),
+		assignments: many(judgeHeatAssignmentsTable),
+	}),
+)
+
+// Relations for judge heat assignments
+export const judgeHeatAssignmentsRelations = relations(
+	judgeHeatAssignmentsTable,
 	({ one }) => ({
 		heat: one(competitionHeatsTable, {
-			fields: [competitionHeatVolunteersTable.heatId],
+			fields: [judgeHeatAssignmentsTable.heatId],
 			references: [competitionHeatsTable.id],
 		}),
 		membership: one(teamMembershipTable, {
-			fields: [competitionHeatVolunteersTable.membershipId],
+			fields: [judgeHeatAssignmentsTable.membershipId],
 			references: [teamMembershipTable.id],
 		}),
 		rotation: one(competitionJudgeRotationsTable, {
-			fields: [competitionHeatVolunteersTable.rotationId],
+			fields: [judgeHeatAssignmentsTable.rotationId],
 			references: [competitionJudgeRotationsTable.id],
+		}),
+		version: one(judgeAssignmentVersionsTable, {
+			fields: [judgeHeatAssignmentsTable.versionId],
+			references: [judgeAssignmentVersionsTable.id],
 		}),
 	}),
 )
 
-// Reverse relation: heats can have many volunteers
-export const competitionHeatsVolunteersReverseRelations = relations(
+// Reverse relation: heats can have many judge assignments
+export const competitionHeatsJudgeAssignmentsReverseRelations = relations(
 	competitionHeatsTable,
 	({ many }) => ({
-		volunteers: many(competitionHeatVolunteersTable),
+		judgeAssignments: many(judgeHeatAssignmentsTable),
 	}),
 )
 
-// Reverse relation: team memberships can have volunteer assignments
-export const teamMembershipVolunteersReverseRelations = relations(
+// Reverse relation: team memberships can have judge assignments
+export const teamMembershipJudgeAssignmentsReverseRelations = relations(
 	teamMembershipTable,
 	({ many }) => ({
-		volunteerAssignments: many(competitionHeatVolunteersTable),
+		judgeAssignments: many(judgeHeatAssignmentsTable),
 		judgeRotations: many(competitionJudgeRotationsTable),
 	}),
 )
@@ -233,10 +315,11 @@ export const competitionsJudgeRotationsReverseRelations = relations(
 	}),
 )
 
-// Reverse relation: track workouts can have judge rotations
-export const trackWorkoutsJudgeRotationsReverseRelations = relations(
+// Reverse relation: track workouts can have judge rotations and versions
+export const trackWorkoutsJudgeSystemReverseRelations = relations(
 	trackWorkoutsTable,
 	({ many }) => ({
 		judgeRotations: many(competitionJudgeRotationsTable),
+		judgeAssignmentVersions: many(judgeAssignmentVersionsTable),
 	}),
 )

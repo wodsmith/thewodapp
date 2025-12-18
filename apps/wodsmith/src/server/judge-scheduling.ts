@@ -1,6 +1,6 @@
 import "server-only"
 
-import { eq, inArray } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type * as schema from "@/db/schema"
 
@@ -9,8 +9,9 @@ type Db = DrizzleD1Database<typeof schema>
 import {
 	type CompetitionHeatVolunteer,
 	competitionHeatsTable,
-	competitionHeatVolunteersTable,
 	competitionVenuesTable,
+	judgeAssignmentVersionsTable,
+	judgeHeatAssignmentsTable,
 	teamMembershipTable,
 	userTable,
 	VOLUNTEER_ROLE_TYPES,
@@ -34,6 +35,8 @@ export interface JudgeVolunteerInfo {
 
 export interface JudgeHeatAssignment extends CompetitionHeatVolunteer {
 	volunteer: JudgeVolunteerInfo
+	versionId: string | null
+	isManualOverride: boolean
 }
 
 export interface JudgeConflictInfo {
@@ -140,11 +143,40 @@ export async function getJudgeVolunteers(
 /**
  * Get all judge assignments for all heats of a track workout (event).
  * Uses sql-batching pattern for fetching related data.
+ * 
+ * @param db - Database instance
+ * @param trackWorkoutId - The event/workout ID
+ * @param versionId - Optional version ID to filter by. If omitted, uses the active version.
+ * @returns Array of judge heat assignments with volunteer info
  */
 export async function getJudgeHeatAssignments(
 	db: Db,
 	trackWorkoutId: string,
+	versionId?: string,
 ): Promise<JudgeHeatAssignment[]> {
+	// If no versionId provided, find the active version for this event
+	let targetVersionId = versionId
+	if (!targetVersionId) {
+		const activeVersion = await db
+			.select()
+			.from(judgeAssignmentVersionsTable)
+			.where(
+				and(
+					eq(judgeAssignmentVersionsTable.trackWorkoutId, trackWorkoutId),
+					eq(judgeAssignmentVersionsTable.isActive, true),
+				),
+			)
+			.limit(1)
+			.then((rows) => rows[0] ?? null)
+
+		// If no active version exists, return empty array (nothing published yet)
+		if (!activeVersion) {
+			return []
+		}
+
+		targetVersionId = activeVersion.id
+	}
+
 	// Get all heats for this event
 	const heats = await db
 		.select({ id: competitionHeatsTable.id })
@@ -157,12 +189,17 @@ export async function getJudgeHeatAssignments(
 
 	const heatIds = heats.map((h) => h.id)
 
-	// Fetch assignments in batches
+	// Fetch assignments in batches, filtered by versionId
 	const assignments = await autochunk({ items: heatIds }, async (heatChunk) =>
 		db
 			.select()
-			.from(competitionHeatVolunteersTable)
-			.where(inArray(competitionHeatVolunteersTable.heatId, heatChunk)),
+			.from(judgeHeatAssignmentsTable)
+			.where(
+				and(
+					inArray(judgeHeatAssignmentsTable.heatId, heatChunk),
+					eq(judgeHeatAssignmentsTable.versionId, targetVersionId),
+				),
+			),
 	)
 
 	if (assignments.length === 0) {
@@ -254,7 +291,7 @@ export async function assignJudgeToHeat(
 	},
 ): Promise<CompetitionHeatVolunteer> {
 	const [assignment] = await db
-		.insert(competitionHeatVolunteersTable)
+		.insert(judgeHeatAssignmentsTable)
 		.values({
 			heatId: params.heatId,
 			membershipId: params.membershipId,
@@ -303,7 +340,7 @@ export async function bulkAssignJudgesToHeat(
 	const results = await Promise.all(
 		chunk(params.assignments, INSERT_BATCH_SIZE).map((batch) =>
 			db
-				.insert(competitionHeatVolunteersTable)
+				.insert(judgeHeatAssignmentsTable)
 				.values(
 					batch.map((a) => ({
 						heatId: params.heatId,
@@ -332,8 +369,8 @@ export async function removeJudgeFromHeat(
 	assignmentId: string,
 ): Promise<void> {
 	await db
-		.delete(competitionHeatVolunteersTable)
-		.where(eq(competitionHeatVolunteersTable.id, assignmentId))
+		.delete(judgeHeatAssignmentsTable)
+		.where(eq(judgeHeatAssignmentsTable.id, assignmentId))
 }
 
 // ============================================================================
@@ -352,13 +389,13 @@ export async function moveJudgeAssignment(
 	},
 ): Promise<void> {
 	await db
-		.update(competitionHeatVolunteersTable)
+		.update(judgeHeatAssignmentsTable)
 		.set({
 			heatId: params.targetHeatId,
 			laneNumber: params.targetLaneNumber,
 			updatedAt: new Date(),
 		})
-		.where(eq(competitionHeatVolunteersTable.id, params.assignmentId))
+		.where(eq(judgeHeatAssignmentsTable.id, params.assignmentId))
 }
 
 // ============================================================================
@@ -392,10 +429,10 @@ export async function getJudgeConflicts(
 	// Get all heat assignments for this judge
 	const judgeAssignments = await db
 		.select({
-			heatId: competitionHeatVolunteersTable.heatId,
+			heatId: judgeHeatAssignmentsTable.heatId,
 		})
-		.from(competitionHeatVolunteersTable)
-		.where(eq(competitionHeatVolunteersTable.membershipId, membershipId))
+		.from(judgeHeatAssignmentsTable)
+		.where(eq(judgeHeatAssignmentsTable.membershipId, membershipId))
 
 	if (judgeAssignments.length === 0) {
 		return null
@@ -465,8 +502,8 @@ export async function copyJudgeAssignmentsToHeat(
 	// Get source assignments
 	const sourceAssignments = await db
 		.select()
-		.from(competitionHeatVolunteersTable)
-		.where(eq(competitionHeatVolunteersTable.heatId, params.sourceHeatId))
+		.from(judgeHeatAssignmentsTable)
+		.where(eq(judgeHeatAssignmentsTable.heatId, params.sourceHeatId))
 
 	if (sourceAssignments.length === 0) {
 		return []
@@ -530,8 +567,8 @@ export async function copyJudgeAssignmentsToRemainingHeats(
 	// Get source assignments
 	const sourceAssignments = await db
 		.select()
-		.from(competitionHeatVolunteersTable)
-		.where(eq(competitionHeatVolunteersTable.heatId, params.sourceHeatId))
+		.from(judgeHeatAssignmentsTable)
+		.where(eq(judgeHeatAssignmentsTable.heatId, params.sourceHeatId))
 
 	if (sourceAssignments.length === 0) {
 		return []
@@ -573,8 +610,8 @@ export async function clearHeatJudgeAssignments(
 	heatId: string,
 ): Promise<void> {
 	await db
-		.delete(competitionHeatVolunteersTable)
-		.where(eq(competitionHeatVolunteersTable.heatId, heatId))
+		.delete(judgeHeatAssignmentsTable)
+		.where(eq(judgeHeatAssignmentsTable.heatId, heatId))
 }
 
 // ============================================================================

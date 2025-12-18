@@ -1,6 +1,9 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { FileWarning } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { useServerAction } from "@repo/zsa-react"
+import { toast } from "sonner"
 
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -11,7 +14,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { CompetitionJudgeRotation } from "@/db/schema"
+import type {
+	CompetitionJudgeRotation,
+	JudgeAssignmentVersion,
+} from "@/db/schema"
+import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { calculateCoverage } from "@/lib/judge-rotation-utils"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
@@ -19,12 +26,23 @@ import type {
 	JudgeHeatAssignment,
 	JudgeVolunteerInfo,
 } from "@/server/judge-scheduling"
+import {
+	getAssignmentsForVersionAction,
+	rollbackToVersionAction,
+} from "@/actions/judge-assignment-actions"
 
 import { DraggableJudge } from "./draggable-judge"
+import { EventDefaultsEditor } from "./event-defaults-editor"
 import { JudgeHeatCard } from "./judge-heat-card"
 import { JudgeOverview } from "./judge-overview"
 import { RotationOverview } from "./rotation-overview"
 import { RotationTimeline } from "./rotation-timeline"
+
+/** Per-event defaults for judge rotations */
+interface EventDefaults {
+	defaultHeatsCount: number | null
+	defaultLaneShiftPattern: LaneShiftPattern | null
+}
 
 interface JudgeSchedulingContainerProps {
 	competitionId: string
@@ -34,6 +52,16 @@ interface JudgeSchedulingContainerProps {
 	judges: JudgeVolunteerInfo[]
 	judgeAssignments: JudgeHeatAssignment[]
 	rotations: CompetitionJudgeRotation[]
+	/** Map of event ID to event defaults */
+	eventDefaultsMap: Map<string, EventDefaults>
+	/** Map of event ID to version history */
+	versionHistoryMap: Map<string, JudgeAssignmentVersion[]>
+	/** Map of event ID to active version */
+	activeVersionMap: Map<string, JudgeAssignmentVersion | null>
+	/** Competition-level default heats per rotation */
+	competitionDefaultHeats: number
+	/** Competition-level default lane shift pattern */
+	competitionDefaultPattern: LaneShiftPattern
 }
 
 /**
@@ -48,6 +76,11 @@ export function JudgeSchedulingContainer({
 	judges,
 	judgeAssignments: initialAssignments,
 	rotations: initialRotations,
+	eventDefaultsMap,
+	versionHistoryMap,
+	activeVersionMap,
+	competitionDefaultHeats,
+	competitionDefaultPattern,
 }: JudgeSchedulingContainerProps) {
 	const [selectedEventId, setSelectedEventId] = useState<string>(
 		events[0]?.id ?? "",
@@ -57,6 +90,15 @@ export function JudgeSchedulingContainer({
 	const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
 		new Set(),
 	)
+	const [selectedVersionId, setSelectedVersionId] = useState<string | null>(
+		null,
+	)
+
+	// Server actions
+	const { execute: executeRollback, isPending: isRollingBack } =
+		useServerAction(rollbackToVersionAction)
+	const { execute: executeGetAssignments, isPending: isFetchingAssignments } =
+		useServerAction(getAssignmentsForVersionAction)
 
 	// Get heats for selected event
 	const eventHeats = useMemo(
@@ -100,6 +142,79 @@ export function JudgeSchedulingContainer({
 		() => events.find((e) => e.id === selectedEventId),
 		[events, selectedEventId],
 	)
+
+	// Get version data for selected event
+	const eventVersionHistory = useMemo(
+		() => versionHistoryMap.get(selectedEventId) ?? [],
+		[versionHistoryMap, selectedEventId],
+	)
+
+	const eventActiveVersion = useMemo(
+		() => activeVersionMap.get(selectedEventId) ?? null,
+		[activeVersionMap, selectedEventId],
+	)
+
+	// Auto-select active version when event changes
+	useEffect(() => {
+		if (eventActiveVersion) {
+			setSelectedVersionId(eventActiveVersion.id)
+		} else {
+			setSelectedVersionId(null)
+		}
+	}, [eventActiveVersion])
+
+	// Handle version change
+	async function handleVersionChange(versionId: string) {
+		if (versionId === eventActiveVersion?.id) {
+			// Already active, just update UI
+			setSelectedVersionId(versionId)
+			return
+		}
+
+		// Rollback to different version
+		const result = await executeRollback({
+			teamId: organizingTeamId,
+			versionId,
+		})
+
+		if (result[0]?.success) {
+			toast.success("Version activated successfully")
+			setSelectedVersionId(versionId)
+
+			// Fetch assignments for the new version
+			const assignmentsResult = await executeGetAssignments({ versionId })
+			if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
+				setAssignments((prev) => {
+					// Remove old assignments for this event, add new ones
+					const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+					const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+					return [...withoutEvent, ...assignmentsResult[0].data]
+				})
+			}
+		} else {
+			toast.error("Failed to activate version")
+		}
+	}
+
+	// Get event defaults for selected event (with fallback to competition defaults)
+	const selectedEventDefaults = useMemo(() => {
+		const eventDefaults = eventDefaultsMap.get(selectedEventId)
+		return {
+			defaultHeatsCount:
+				eventDefaults?.defaultHeatsCount ?? competitionDefaultHeats,
+			defaultLaneShiftPattern:
+				eventDefaults?.defaultLaneShiftPattern ?? competitionDefaultPattern,
+			// Raw values (null if not overridden at event level)
+			rawDefaultHeatsCount: eventDefaults?.defaultHeatsCount ?? null,
+			rawDefaultLaneShiftPattern:
+				eventDefaults?.defaultLaneShiftPattern ?? null,
+		}
+	}, [
+		selectedEventId,
+		eventDefaultsMap,
+		competitionDefaultHeats,
+		competitionDefaultPattern,
+	])
 
 	// Calculate rotation coverage for selected event
 	const rotationCoverage = useMemo(() => {
@@ -232,21 +347,87 @@ export function JudgeSchedulingContainer({
 				</Select>
 			</div>
 
-			{/* Tabs for Manual vs Rotation View */}
-			<Tabs defaultValue="manual" className="w-full">
+			{/* Tabs for Published vs Rotation View */}
+			<Tabs defaultValue="published" className="w-full">
 				<TabsList className="grid w-full max-w-md grid-cols-2">
-					<TabsTrigger value="manual">Manual Assignment</TabsTrigger>
+					<TabsTrigger value="published">Published Assignments</TabsTrigger>
 					<TabsTrigger value="rotations">Rotations</TabsTrigger>
 				</TabsList>
 
-				{/* Manual Assignment Tab */}
-				<TabsContent value="manual" className="space-y-6">
-					{/* Overview */}
-					<JudgeOverview
-						events={events}
-						heats={heats}
-						judgeAssignments={assignments}
-					/>
+				{/* Published Assignments Tab */}
+				<TabsContent value="published" className="space-y-6">
+					{/* Version Selector */}
+					{eventVersionHistory.length > 0 && (
+						<Card>
+							<CardContent className="p-4">
+								<div className="flex items-center gap-4">
+									<div className="flex-1">
+										<label
+											htmlFor="version-selector"
+											className="text-sm font-medium mb-1 block"
+										>
+											Assignment Version
+										</label>
+										<Select
+											value={selectedVersionId ?? ""}
+											onValueChange={handleVersionChange}
+											disabled={isRollingBack || isFetchingAssignments}
+										>
+											<SelectTrigger id="version-selector" className="w-full">
+												<SelectValue placeholder="Select version" />
+											</SelectTrigger>
+											<SelectContent>
+												{eventVersionHistory.map((version) => (
+													<SelectItem key={version.id} value={version.id}>
+														Version {version.version} - Published{" "}
+														{new Date(version.publishedAt).toLocaleDateString()}
+														{version.isActive && " (Active)"}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{selectedVersionId &&
+											eventVersionHistory.find((v) => v.id === selectedVersionId)
+												?.notes && (
+												<p className="text-xs text-muted-foreground mt-1">
+													{
+														eventVersionHistory.find(
+															(v) => v.id === selectedVersionId,
+														)?.notes
+													}
+												</p>
+											)}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Empty State when no version */}
+					{!eventActiveVersion && (
+						<Card>
+							<CardContent className="py-12 text-center">
+								<FileWarning className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+								<h3 className="text-lg font-semibold mb-2">
+									No assignments published yet
+								</h3>
+								<p className="text-muted-foreground mb-4">
+									Create rotations in the Rotations tab, then publish them to
+									generate assignments.
+								</p>
+							</CardContent>
+						</Card>
+					)}
+
+					{/* Show content when there's an active version */}
+					{eventActiveVersion && (
+						<>
+							{/* Overview */}
+							<JudgeOverview
+								events={events}
+								heats={heats}
+								judgeAssignments={assignments}
+							/>
 
 					{/* Main content: judges panel + heats */}
 					<div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
@@ -333,16 +514,38 @@ export function JudgeSchedulingContainer({
 							)}
 						</div>
 					</div>
+						</>
+					)}
 				</TabsContent>
 
 				{/* Rotations Tab */}
 				<TabsContent value="rotations" className="space-y-6">
-					{/* Rotation Overview */}
-					<RotationOverview
-						rotations={eventRotations}
-						coverage={rotationCoverage}
-						eventName={selectedEvent?.workout.name ?? "Event"}
+					{/* Event Defaults Editor */}
+					<EventDefaultsEditor
+						teamId={organizingTeamId}
+						trackWorkoutId={selectedEventId}
+						defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
+						defaultLaneShiftPattern={
+							selectedEventDefaults.rawDefaultLaneShiftPattern
+						}
+						competitionDefaultHeats={competitionDefaultHeats}
+						competitionDefaultPattern={competitionDefaultPattern}
 					/>
+
+				{/* Rotation Overview */}
+				<RotationOverview
+					rotations={eventRotations}
+					coverage={rotationCoverage}
+					eventName={selectedEvent?.workout.name ?? "Event"}
+					teamId={organizingTeamId}
+					trackWorkoutId={selectedEventId}
+					hasActiveVersion={!!eventActiveVersion}
+					nextVersionNumber={
+						eventVersionHistory.length > 0
+							? eventVersionHistory[0].version + 1
+							: 1
+					}
+				/>
 
 					{/* Rotation Timeline */}
 					{eventHeats.length > 0 ? (
@@ -355,6 +558,10 @@ export function JudgeSchedulingContainer({
 							laneCount={maxLanes}
 							availableJudges={judges}
 							initialRotations={eventRotations}
+							eventLaneShiftPattern={
+								selectedEventDefaults.defaultLaneShiftPattern
+							}
+							eventDefaultHeatsCount={selectedEventDefaults.defaultHeatsCount}
 						/>
 					) : (
 						<Card>

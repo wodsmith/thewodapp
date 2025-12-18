@@ -442,6 +442,20 @@
       "when": 1765995224784,
       "tag": "0060_outgoing_ozymandias",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1766011721532,
+      "tag": "0061_add-event-rotation-defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1766012400000,
+      "tag": "0062_judge-assignment-versioning",
+      "breakpoints": true
     }
   ]
 }

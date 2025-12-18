@@ -8,8 +8,10 @@ import {
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
 	competitionVenuesTable,
+	competitionsTable,
 	LANE_SHIFT_PATTERN,
 	type LaneShiftPattern,
+	trackWorkoutsTable,
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 // Import pure utility functions from shared module (can be used in client components)
@@ -58,6 +60,13 @@ export interface UpdateJudgeRotationParams {
 	teamId: string // For permission check
 }
 
+export interface UpdateEventRotationDefaultsParams {
+	trackWorkoutId: string
+	defaultHeatsCount?: number | null
+	defaultLaneShiftPattern?: LaneShiftPattern | null
+	teamId: string // For permission check
+}
+
 export interface RotationConflict {
 	rotationId: string
 	conflictType: "double_booking" | "invalid_lane" | "invalid_heat"
@@ -66,12 +75,23 @@ export interface RotationConflict {
 	laneNumber?: number
 }
 
+export interface ValidationResult {
+	conflicts: RotationConflict[]
+	/** How many heats will actually be assigned (may be less than requested if some don't exist) */
+	effectiveHeatsCount: number
+	/** The requested heats count from the rotation */
+	requestedHeatsCount: number
+	/** True if some heats were skipped because they don't exist */
+	truncated: boolean
+}
+
 // ============================================================================
 // 1. Create Judge Rotation
 // ============================================================================
 
 /**
  * Create a new judge rotation assignment.
+ * If laneShiftPattern is not provided, inherits from event defaults or competition defaults.
  */
 export async function createJudgeRotation(
 	db: Db,
@@ -83,6 +103,50 @@ export async function createJudgeRotation(
 		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 	)
 
+	// Determine lane shift pattern from hierarchy: param > event default > competition default > STAY
+	let laneShiftPattern = params.laneShiftPattern
+
+	if (!laneShiftPattern) {
+		// Get event defaults
+		const [event] = await db
+			.select({
+				defaultLaneShiftPattern: trackWorkoutsTable.defaultLaneShiftPattern,
+				trackId: trackWorkoutsTable.trackId,
+			})
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+
+		if (event?.defaultLaneShiftPattern) {
+			laneShiftPattern = event.defaultLaneShiftPattern as LaneShiftPattern
+		} else if (event?.trackId) {
+			// Fall back to competition defaults via track
+			const [track] = await db
+				.select({
+					competitionId: trackWorkoutsTable.trackId,
+				})
+				.from(trackWorkoutsTable)
+				.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+
+			if (track?.competitionId) {
+				const [competition] = await db
+					.select({
+						defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+					})
+					.from(competitionsTable)
+					.where(eq(competitionsTable.id, params.competitionId))
+
+				laneShiftPattern =
+					(competition?.defaultLaneShiftPattern as LaneShiftPattern) ??
+					LANE_SHIFT_PATTERN.STAY
+			}
+		}
+
+		// Final fallback
+		if (!laneShiftPattern) {
+			laneShiftPattern = LANE_SHIFT_PATTERN.STAY
+		}
+	}
+
 	const [rotation] = await db
 		.insert(competitionJudgeRotationsTable)
 		.values({
@@ -92,7 +156,7 @@ export async function createJudgeRotation(
 			startingHeat: params.startingHeat,
 			startingLane: params.startingLane,
 			heatsCount: params.heatsCount,
-			laneShiftPattern: params.laneShiftPattern ?? LANE_SHIFT_PATTERN.STAY,
+			laneShiftPattern,
 			notes: params.notes ?? null,
 		})
 		.returning()
@@ -175,26 +239,88 @@ export async function deleteJudgeRotation(
 }
 
 // ============================================================================
-// 4. Get Rotations for Event
+// 4. Update Event Rotation Defaults
+// ============================================================================
+
+/**
+ * Update default heats count and lane shift pattern for an event.
+ * These defaults are used when creating new rotations for this event.
+ */
+export async function updateEventRotationDefaults(
+	db: Db,
+	params: UpdateEventRotationDefaultsParams,
+): Promise<void> {
+	// Permission check
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
+
+	const updateData: {
+		defaultHeatsCount?: number | null
+		defaultLaneShiftPattern?: string | null
+		updatedAt: Date
+	} = {
+		updatedAt: new Date(),
+	}
+
+	if (params.defaultHeatsCount !== undefined) {
+		updateData.defaultHeatsCount = params.defaultHeatsCount
+	}
+	if (params.defaultLaneShiftPattern !== undefined) {
+		updateData.defaultLaneShiftPattern = params.defaultLaneShiftPattern
+	}
+
+	await db
+		.update(trackWorkoutsTable)
+		.set(updateData)
+		.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+}
+
+// ============================================================================
+// 5. Get Rotations for Event
 // ============================================================================
 
 /**
  * Get all judge rotations for a specific event/workout.
+ * Also returns the event's default heats count and lane shift pattern.
  */
 export async function getRotationsForEvent(
 	db: Db,
 	trackWorkoutId: string,
-): Promise<CompetitionJudgeRotation[]> {
+): Promise<{
+	rotations: CompetitionJudgeRotation[]
+	eventDefaults: {
+		defaultHeatsCount: number | null
+		defaultLaneShiftPattern: LaneShiftPattern | null
+	}
+}> {
 	const rotations = await db
 		.select()
 		.from(competitionJudgeRotationsTable)
 		.where(eq(competitionJudgeRotationsTable.trackWorkoutId, trackWorkoutId))
 
-	return rotations
+	// Get event defaults from trackWorkout
+	const [event] = await db
+		.select({
+			defaultHeatsCount: trackWorkoutsTable.defaultHeatsCount,
+			defaultLaneShiftPattern: trackWorkoutsTable.defaultLaneShiftPattern,
+		})
+		.from(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+
+	return {
+		rotations,
+		eventDefaults: {
+			defaultHeatsCount: event?.defaultHeatsCount ?? null,
+			defaultLaneShiftPattern:
+				(event?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
+		},
+	}
 }
 
 // ============================================================================
-// 5. Get Rotations for Judge
+// 6. Get Rotations for Judge
 // ============================================================================
 
 /**
@@ -219,16 +345,17 @@ export async function getRotationsForJudge(
 }
 
 // ============================================================================
-// 6. Validate Rotation Conflicts
+// 7. Validate Rotation Conflicts
 // ============================================================================
 
 /**
- * Check if a rotation creates conflicts (double-booking, invalid lanes/heats).
- * Should be called before creating/updating a rotation.
+ * Check if a rotation creates conflicts (double-booking, invalid lanes).
+ * Non-existent heats are NOT treated as conflicts - the rotation will simply
+ * cover fewer heats than requested (truncated).
  *
  * @param db - Database instance
  * @param rotation - The rotation to validate (can be partial for updates)
- * @returns Array of conflicts (empty if valid)
+ * @returns ValidationResult with conflicts and effective heats count
  */
 export async function validateRotationConflicts(
 	db: Db,
@@ -241,7 +368,7 @@ export async function validateRotationConflicts(
 		heatsCount: number
 		laneShiftPattern: LaneShiftPattern
 	},
-): Promise<RotationConflict[]> {
+): Promise<ValidationResult> {
 	const conflicts: RotationConflict[] = []
 
 	// Get all heats for the event with venue lane count
@@ -270,25 +397,30 @@ export async function validateRotationConflicts(
 			conflictType: "invalid_heat",
 			message: "No heats found for this event",
 		})
-		return conflicts
+		return {
+			conflicts,
+			effectiveHeatsCount: 0,
+			requestedHeatsCount: rotation.heatsCount,
+			truncated: true,
+		}
 	}
 
 	const heatMap = new Map(heats.map((h) => [h.heatNumber, h]))
 
-	// Validate each heat in the rotation
+	// Count how many heats actually exist in the requested range
+	let effectiveHeatsCount = 0
+
+	// Validate each heat in the rotation - skip non-existent heats (don't treat as error)
 	for (let i = 0; i < rotation.heatsCount; i++) {
 		const heatNumber = rotation.startingHeat + i
 		const heat = heatMap.get(heatNumber)
 
+		// Skip heats that don't exist - they just won't be assigned
 		if (!heat) {
-			conflicts.push({
-				rotationId: rotation.id ?? "new",
-				conflictType: "invalid_heat",
-				message: `Heat ${heatNumber} does not exist`,
-				heatNumber,
-			})
 			continue
 		}
+
+		effectiveHeatsCount++
 
 		// Calculate lane for this heat
 		let laneNumber = rotation.startingLane
@@ -316,6 +448,16 @@ export async function validateRotationConflicts(
 				laneNumber,
 			})
 		}
+	}
+
+	// If no heats exist in the requested range, that's still an error
+	if (effectiveHeatsCount === 0) {
+		conflicts.push({
+			rotationId: rotation.id ?? "new",
+			conflictType: "invalid_heat",
+			message: `Starting heat ${rotation.startingHeat} does not exist`,
+			heatNumber: rotation.startingHeat,
+		})
 	}
 
 	// Check for double-booking with existing rotations
@@ -378,5 +520,10 @@ export async function validateRotationConflicts(
 		}
 	}
 
-	return conflicts
+	return {
+		conflicts,
+		effectiveHeatsCount,
+		requestedHeatsCount: rotation.heatsCount,
+		truncated: effectiveHeatsCount < rotation.heatsCount,
+	}
 }

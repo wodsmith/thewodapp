@@ -74,6 +74,7 @@ export const createCompetitionHeatId = () => `cheat_${createId()}`
 export const createCompetitionHeatAssignmentId = () => `chasgn_${createId()}`
 export const createHeatVolunteerId = () => `hvol_${createId()}`
 export const createJudgeRotationId = () => `jrot_${createId()}`
+export const createJudgeAssignmentVersionId = () => `jver_${createId()}`
 
 // Sponsor ID generators
 export const createSponsorGroupId = () => `spgrp_${createId()}`

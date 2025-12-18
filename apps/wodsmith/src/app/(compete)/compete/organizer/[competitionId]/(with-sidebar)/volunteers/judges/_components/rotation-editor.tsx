@@ -111,6 +111,11 @@ export function RotationEditor({
 }: RotationEditorProps) {
 	const isEditing = !!rotation
 	const [conflicts, setConflicts] = useState<string[]>([])
+	const [truncationInfo, setTruncationInfo] = useState<{
+		effectiveHeatsCount: number
+		requestedHeatsCount: number
+		truncated: boolean
+	} | null>(null)
 
 	const createRotation = useServerAction(createJudgeRotationAction)
 	const updateRotation = useServerAction(updateJudgeRotationAction)
@@ -190,6 +195,7 @@ export function RotationEditor({
 		const timer = setTimeout(async () => {
 			if (!formValues.membershipId) {
 				setConflicts([])
+				setTruncationInfo(null)
 				return
 			}
 
@@ -207,6 +213,12 @@ export function RotationEditor({
 				setConflicts(
 					result.data.valid ? [] : result.data.conflicts.map((c) => c.message),
 				)
+				// Capture truncation info for display
+				setTruncationInfo({
+					effectiveHeatsCount: result.data.effectiveHeatsCount,
+					requestedHeatsCount: result.data.requestedHeatsCount,
+					truncated: result.data.truncated,
+				})
 			}
 		}, 500) // Debounce
 
@@ -370,11 +382,22 @@ export function RotationEditor({
 						<AlertDescription>
 							<div className="text-sm space-y-1">
 								<p className="font-medium">Preview:</p>
-								<p>
-									{`${selectedJudge.firstName ?? ""} ${selectedJudge.lastName ?? ""}`.trim()}{" "}
-									will judge heats {formValues.startingHeat} through{" "}
-									{formValues.startingHeat + formValues.heatsCount - 1}
-								</p>
+								{truncationInfo?.truncated ? (
+									<p>
+										{`${selectedJudge.firstName ?? ""} ${selectedJudge.lastName ?? ""}`.trim()}{" "}
+										will judge heats {formValues.startingHeat} through{" "}
+										{formValues.startingHeat + truncationInfo.effectiveHeatsCount - 1}{" "}
+										<span className="text-muted-foreground">
+											({truncationInfo.effectiveHeatsCount} of {truncationInfo.requestedHeatsCount} requested - remaining heats don't exist)
+										</span>
+									</p>
+								) : (
+									<p>
+										{`${selectedJudge.firstName ?? ""} ${selectedJudge.lastName ?? ""}`.trim()}{" "}
+										will judge heats {formValues.startingHeat} through{" "}
+										{formValues.startingHeat + formValues.heatsCount - 1}
+									</p>
+								)}
 							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY && (
 								<p>Starting and staying in lane {formValues.startingLane}</p>
 							)}

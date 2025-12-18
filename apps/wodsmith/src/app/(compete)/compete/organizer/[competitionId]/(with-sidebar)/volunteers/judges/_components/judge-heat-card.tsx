@@ -11,6 +11,7 @@ import {
 	ChevronDown,
 	ChevronRight,
 	Clock,
+	Edit2,
 	GripVertical,
 	Loader2,
 	MapPin,
@@ -241,6 +242,9 @@ function DraggableAssignedJudge({
 				credentials={assignment.volunteer.credentials}
 				className="text-xs"
 			/>
+			{assignment.isManualOverride && (
+				<Edit2 className="h-3 w-3 text-orange-500" title="Manually modified" />
+			)}
 			<Button
 				variant="ghost"
 				size="icon"

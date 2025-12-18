@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -9,6 +10,7 @@ import {
 	deleteJudgeRotation,
 	getRotationsForEvent,
 	getRotationsForJudge,
+	updateEventRotationDefaults,
 	updateJudgeRotation,
 	validateRotationConflicts,
 } from "@/server/judge-rotations"
@@ -79,6 +81,20 @@ const validateRotationSchema = z.object({
 	rotationId: z.string().optional(), // For update validation
 })
 
+const updateEventDefaultsSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackWorkoutId: z.string().min(1, "Event ID is required"),
+	defaultHeatsCount: z.number().int().min(1).nullable().optional(),
+	defaultLaneShiftPattern: z
+		.enum([
+			LANE_SHIFT_PATTERN.STAY,
+			LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+			LANE_SHIFT_PATTERN.SHIFT_LEFT,
+		])
+		.nullable()
+		.optional(),
+})
+
 // ============================================================================
 // Actions
 // ============================================================================
@@ -93,7 +109,7 @@ export const createJudgeRotationAction = createServerAction()
 			const db = getDb()
 
 			// Validate rotation before creating
-			const conflicts = await validateRotationConflicts(db, {
+			const validation = await validateRotationConflicts(db, {
 				trackWorkoutId: input.trackWorkoutId,
 				membershipId: input.membershipId,
 				startingHeat: input.startingHeat,
@@ -102,10 +118,10 @@ export const createJudgeRotationAction = createServerAction()
 				laneShiftPattern: input.laneShiftPattern ?? LANE_SHIFT_PATTERN.STAY,
 			})
 
-			if (conflicts.length > 0) {
+			if (validation.conflicts.length > 0) {
 				throw new ZSAError(
 					"CONFLICT",
-					`Rotation has conflicts: ${conflicts.map((c) => c.message).join(", ")}`,
+					`Rotation has conflicts: ${validation.conflicts.map((c) => c.message).join(", ")}`,
 				)
 			}
 
@@ -144,7 +160,7 @@ export const updateJudgeRotationAction = createServerAction()
 			}
 
 			// Validate with merged data
-			const conflicts = await validateRotationConflicts(db, {
+			const validation = await validateRotationConflicts(db, {
 				id: input.rotationId,
 				trackWorkoutId: existing.trackWorkoutId,
 				membershipId: existing.membershipId,
@@ -154,10 +170,10 @@ export const updateJudgeRotationAction = createServerAction()
 				laneShiftPattern: input.laneShiftPattern ?? existing.laneShiftPattern,
 			})
 
-			if (conflicts.length > 0) {
+			if (validation.conflicts.length > 0) {
 				throw new ZSAError(
 					"CONFLICT",
-					`Rotation has conflicts: ${conflicts.map((c) => c.message).join(", ")}`,
+					`Rotation has conflicts: ${validation.conflicts.map((c) => c.message).join(", ")}`,
 				)
 			}
 
@@ -209,8 +225,8 @@ export const getEventRotationsAction = createServerAction()
 	.handler(async ({ input }) => {
 		try {
 			const db = getDb()
-			const rotations = await getRotationsForEvent(db, input.trackWorkoutId)
-			return { success: true, data: rotations }
+			const result = await getRotationsForEvent(db, input.trackWorkoutId)
+			return { success: true, data: result }
 		} catch (error) {
 			console.error("Failed to get event rotations:", error)
 
@@ -254,20 +270,25 @@ export const getJudgeRotationsAction = createServerAction()
 	})
 
 /**
- * Validate a rotation configuration without creating it
+ * Validate a rotation configuration without creating it.
+ * Returns conflicts (blocking errors) and truncation info (non-blocking).
  */
 export const validateRotationAction = createServerAction()
 	.input(validateRotationSchema)
 	.handler(async ({ input }) => {
 		try {
 			const db = getDb()
-			const conflicts = await validateRotationConflicts(db, input)
+			const validation = await validateRotationConflicts(db, input)
 
 			return {
 				success: true,
 				data: {
-					valid: conflicts.length === 0,
-					conflicts,
+					valid: validation.conflicts.length === 0,
+					conflicts: validation.conflicts,
+					// Truncation info - heats that don't exist will be skipped
+					effectiveHeatsCount: validation.effectiveHeatsCount,
+					requestedHeatsCount: validation.requestedHeatsCount,
+					truncated: validation.truncated,
 				},
 			}
 		} catch (error) {
@@ -278,5 +299,36 @@ export const validateRotationAction = createServerAction()
 			}
 
 			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to validate rotation")
+		}
+	})
+
+/**
+ * Update default heats count and lane shift pattern for an event
+ */
+export const updateEventDefaultsAction = createServerAction()
+	.input(updateEventDefaultsSchema)
+	.handler(async ({ input }) => {
+		try {
+			const db = getDb()
+			await updateEventRotationDefaults(db, input)
+
+			// Revalidate the judges page to reflect the updated defaults
+			revalidatePath(
+				"/compete/organizer/[competitionId]/volunteers/judges",
+				"page",
+			)
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update event defaults:", error)
+
+			if (error instanceof ZSAError) {
+				throw error
+			}
+
+			throw new ZSAError(
+				"INTERNAL_SERVER_ERROR",
+				"Failed to update event defaults",
+			)
 		}
 	})

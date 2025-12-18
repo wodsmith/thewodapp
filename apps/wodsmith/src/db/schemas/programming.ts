@@ -114,6 +114,12 @@ export const trackWorkoutsTable = sqliteTable(
 		sponsorId: text().references(() => sponsorsTable.id, {
 			onDelete: "set null",
 		}),
+		// Judge rotation defaults for this event (nullable = inherit from competition)
+		// Default number of heats per rotation assignment
+		defaultHeatsCount: integer(),
+		// Default lane shift pattern for all rotations in this event
+		// All rotations in an event must use the same pattern
+		defaultLaneShiftPattern: text({ length: 20 }),
 	},
 	(table) => [
 		index("track_workout_track_idx").on(table.trackId),
