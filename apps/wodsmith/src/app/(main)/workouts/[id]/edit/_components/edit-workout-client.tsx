@@ -6,6 +6,8 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { useServerAction } from "@repo/zsa-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { getDefaultScoreType } from "@/lib/scoring"
+import type { WorkoutScheme, ScoreType } from "@/lib/scoring"
 import { MovementsList } from "@/components/movements-list"
 import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
 import { Badge } from "@/components/ui/badge"
@@ -69,8 +71,8 @@ export default function EditWorkoutClient({
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
 	const [scheme, setScheme] = useState<WorkoutUpdate["scheme"]>(workout?.scheme)
-	const [scoreType, setScoreType] = useState<WorkoutUpdate["scoreType"]>(
-		workout?.scoreType,
+	const [scoreType, setScoreType] = useState<ScoreType | undefined>(
+		workout?.scoreType ?? undefined,
 	)
 	const [scope, setScope] = useState(workout?.scope || "private")
 	const [tags, setTags] = useState<TagWithoutSaved[]>(initialTags)
@@ -122,28 +124,7 @@ export default function EditWorkoutClient({
 			// Check if this is a user-initiated change (not initial load)
 			if (scheme !== initialSchemeRef.current || hasSchemeChangedRef.current) {
 				hasSchemeChangedRef.current = true
-				// Get default score type based on scheme
-				const getDefaultScoreType = (
-					schemeValue: string,
-				): "min" | "max" | "sum" | "average" | undefined => {
-					switch (schemeValue) {
-						case "time":
-						case "time-with-cap":
-							return "min" // Lower time is better
-						case "rounds-reps":
-						case "reps":
-						case "calories":
-						case "meters":
-						case "load":
-						case "emom":
-						case "pass-fail":
-							return "max" // Higher is better
-						default:
-							return undefined
-					}
-				}
-
-				const defaultScoreType = getDefaultScoreType(scheme)
+				const defaultScoreType = getDefaultScoreType(scheme as WorkoutScheme)
 				setScoreType(defaultScoreType)
 			}
 		}
@@ -385,7 +366,7 @@ export default function EditWorkoutClient({
 								<Select
 									value={scoreType ?? ""}
 									onValueChange={(value) =>
-										setScoreType(value as WorkoutUpdate["scoreType"])
+										setScoreType(value as ScoreType)
 									}
 								>
 									<SelectTrigger id="workout-score-type">
@@ -403,6 +384,12 @@ export default function EditWorkoutClient({
 										</SelectItem>
 										<SelectItem value="average">
 											Average (mean across rounds)
+										</SelectItem>
+										<SelectItem value="first">
+											First (first attempt only)
+										</SelectItem>
+										<SelectItem value="last">
+											Last (final attempt only)
 										</SelectItem>
 									</SelectContent>
 								</Select>
