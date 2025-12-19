@@ -527,17 +527,18 @@ export function JudgeSchedulingContainer({
 				<h3 className="text-lg font-semibold">Rotations</h3>
 
 				{/* Event Defaults Editor */}
-				<EventDefaultsEditor
-					teamId={organizingTeamId}
-					trackWorkoutId={selectedEventId}
-					defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
-					defaultLaneShiftPattern={
-						selectedEventDefaults.rawDefaultLaneShiftPattern
-					}
-					minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
-					competitionDefaultHeats={competitionDefaultHeats}
-					competitionDefaultPattern={competitionDefaultPattern}
-				/>
+			<EventDefaultsEditor
+				teamId={organizingTeamId}
+				competitionId={competitionId}
+				trackWorkoutId={selectedEventId}
+				defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
+				defaultLaneShiftPattern={
+					selectedEventDefaults.rawDefaultLaneShiftPattern
+				}
+				minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
+				competitionDefaultHeats={competitionDefaultHeats}
+				competitionDefaultPattern={competitionDefaultPattern}
+			/>
 
 				{/* Rotation Overview */}
 				<RotationOverview

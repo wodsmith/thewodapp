@@ -23,6 +23,7 @@ const DEBOUNCE_MS = 500
 
 interface EventDefaultsEditorProps {
 	teamId: string
+	competitionId: string
 	trackWorkoutId: string
 	defaultHeatsCount: number | null
 	defaultLaneShiftPattern: LaneShiftPattern | null
@@ -51,6 +52,7 @@ const LANE_SHIFT_OPTIONS = [
  */
 export function EventDefaultsEditor({
 	teamId,
+	competitionId,
 	trackWorkoutId,
 	defaultHeatsCount,
 	defaultLaneShiftPattern,
@@ -85,6 +87,7 @@ export function EventDefaultsEditor({
 		try {
 			await updateEventDefaultsAction({
 				teamId,
+				competitionId,
 				trackWorkoutId,
 				defaultHeatsCount: newHeats,
 			})
@@ -101,6 +104,7 @@ export function EventDefaultsEditor({
 		try {
 			await updateEventDefaultsAction({
 				teamId,
+				competitionId,
 				trackWorkoutId,
 				minHeatBuffer: newBuffer,
 			})
@@ -165,6 +169,7 @@ export function EventDefaultsEditor({
 		try {
 			await updateEventDefaultsAction({
 				teamId,
+				competitionId,
 				trackWorkoutId,
 				defaultLaneShiftPattern: value,
 			})

@@ -60,3 +60,5 @@ dist
 # AI tools
 .opencode/
 .hive/
+.beads/daemon.lock
+.beads/daemon.pid

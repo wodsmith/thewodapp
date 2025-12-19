@@ -17,7 +17,7 @@
  * The script is idempotent - safe to run multiple times.
  */
 
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { getDb } from "../src/db"
 import {
 	competitionHeatVolunteersTable,
@@ -218,13 +218,62 @@ async function main() {
 		}
 	}
 
-	// Step 3: Create rotation records
-	console.log("💾 Step 3: Creating rotation records...\n")
+	// Step 3: Check for existing rotations and create only new ones
+	console.log("💾 Step 3: Checking for existing rotations...\n")
+
+	// Query all existing rotations for the competitions involved
+	const competitionIds = [...new Set(rotations.map((r) => r.competitionId))]
+	const existingRotations =
+		await db.query.competitionJudgeRotationsTable.findMany({
+			where: (table, { inArray }) =>
+				inArray(table.competitionId, competitionIds),
+		})
+
+	console.log(`   Found ${existingRotations.length} existing rotation(s)\n`)
+
+	// Create a set of existing rotation signatures for fast lookup
+	const existingSignatures = new Set(
+		existingRotations.map(
+			(r) =>
+				`${r.membershipId}:${r.trackWorkoutId}:${r.startingHeat}:${r.startingLane}:${r.heatsCount}`,
+		),
+	)
+
+	// Filter out rotations that already exist
+	const newRotations = rotations.filter((rotation) => {
+		const signature = `${rotation.membershipId}:${rotation.trackWorkoutId}:${rotation.startingHeat}:${rotation.startingLane}:${rotation.heatsCount}`
+		return !existingSignatures.has(signature)
+	})
+
+	console.log(
+		`   ${newRotations.length} new rotation(s) to create (${rotations.length - newRotations.length} already exist)\n`,
+	)
 
 	let createdCount = 0
 	const rotationIdMap = new Map<string, string>() // assignmentId -> rotationId
 
+	// Map existing rotations to assignment IDs
 	for (const rotation of rotations) {
+		const signature = `${rotation.membershipId}:${rotation.trackWorkoutId}:${rotation.startingHeat}:${rotation.startingLane}:${rotation.heatsCount}`
+		const existing = existingRotations.find(
+			(r) =>
+				`${r.membershipId}:${r.trackWorkoutId}:${r.startingHeat}:${r.startingLane}:${r.heatsCount}` ===
+				signature,
+		)
+
+		if (existing) {
+			// Use existing rotation ID
+			for (const assignmentId of rotation.assignmentIds) {
+				rotationIdMap.set(assignmentId, existing.id)
+			}
+			console.log(
+				`   ⏭️  Skipped (exists): Heat ${rotation.startingHeat}, Count ${rotation.heatsCount}, Lane ${rotation.startingLane}`,
+			)
+		}
+	}
+
+	// Create only new rotations
+	for (const rotation of newRotations) {
 		try {
 			// Insert rotation
 			const [inserted] = await db

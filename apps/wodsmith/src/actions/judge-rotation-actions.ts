@@ -75,6 +75,7 @@ const validateRotationSchema = z.object({
 
 const updateEventDefaultsSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
+	competitionId: z.string().min(1, "Competition ID is required"),
 	trackWorkoutId: z.string().min(1, "Event ID is required"),
 	defaultHeatsCount: z.number().int().min(1).nullable().optional(),
 	defaultLaneShiftPattern: z
@@ -349,11 +350,11 @@ export const updateEventDefaultsAction = createServerAction()
 			const db = getDb()
 			await updateEventRotationDefaults(db, input)
 
-			// Revalidate the judges page to reflect the updated defaults
-			revalidatePath(
-				"/compete/organizer/[competitionId]/volunteers/judges",
-				"page",
-			)
+		// Revalidate the judges page to reflect the updated defaults
+		revalidatePath(
+			`/compete/organizer/${input.competitionId}/volunteers/judges`,
+			"page",
+		)
 
 			return { success: true }
 		} catch (error) {
@@ -381,7 +382,39 @@ export const batchCreateRotationsAction = createServerAction()
 		try {
 			const db = getDb()
 
-			// Validate all rotations first (fail-fast)
+			// ===================================================================
+			// ATOMIC VALIDATION - Check ALL inputs BEFORE any writes
+			// ===================================================================
+
+			// 1. Validate that all foreign keys exist
+			const [trackWorkout, membership, competition] = await Promise.all([
+				// Verify trackWorkoutId exists
+				db.query.trackWorkoutsTable.findFirst({
+					where: (table, { eq }) => eq(table.id, input.trackWorkoutId),
+				}),
+				// Verify membershipId exists
+				db.query.teamMembershipTable.findFirst({
+					where: (table, { eq }) => eq(table.id, input.membershipId),
+				}),
+				// Verify competitionId exists
+				db.query.competitionsTable.findFirst({
+					where: (table, { eq }) => eq(table.id, input.competitionId),
+				}),
+			])
+
+			if (!trackWorkout) {
+				throw new ZSAError("NOT_FOUND", "Event not found")
+			}
+
+			if (!membership) {
+				throw new ZSAError("NOT_FOUND", "Judge membership not found")
+			}
+
+			if (!competition) {
+				throw new ZSAError("NOT_FOUND", "Competition not found")
+			}
+
+			// 2. Validate all rotations first (fail-fast)
 			// Check both internal conflicts and conflicts with existing rotations
 			const validationPromises = input.rotations.map((rotation) =>
 				validateRotationConflicts(db, {
@@ -483,7 +516,39 @@ export const batchUpdateVolunteerRotationsAction = createServerAction()
 		try {
 			const db = getDb()
 
-			// Validate all NEW rotations first (fail-fast)
+			// ===================================================================
+			// ATOMIC VALIDATION - Check ALL inputs BEFORE any writes
+			// ===================================================================
+
+			// 1. Validate that all foreign keys exist
+			const [trackWorkout, membership, competition] = await Promise.all([
+				// Verify trackWorkoutId exists
+				db.query.trackWorkoutsTable.findFirst({
+					where: (table, { eq }) => eq(table.id, input.trackWorkoutId),
+				}),
+				// Verify membershipId exists
+				db.query.teamMembershipTable.findFirst({
+					where: (table, { eq }) => eq(table.id, input.membershipId),
+				}),
+				// Verify competitionId exists
+				db.query.competitionsTable.findFirst({
+					where: (table, { eq }) => eq(table.id, input.competitionId),
+				}),
+			])
+
+			if (!trackWorkout) {
+				throw new ZSAError("NOT_FOUND", "Event not found")
+			}
+
+			if (!membership) {
+				throw new ZSAError("NOT_FOUND", "Judge membership not found")
+			}
+
+			if (!competition) {
+				throw new ZSAError("NOT_FOUND", "Competition not found")
+			}
+
+			// 2. Validate all NEW rotations first (fail-fast)
 			// Pass excludeAllForMembership: true because we're replacing ALL rotations
 			// for this member, so we don't need to check conflicts with their existing rotations
 			const validationPromises = input.rotations.map((rotation) =>
