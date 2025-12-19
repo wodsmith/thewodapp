@@ -432,23 +432,23 @@ export function TrackWorkoutManagement({
 
 				// Optimistic update wrapped in startTransition
 				startTransition(() => {
-				const tempTrackWorkout: TrackWorkout = {
-					id: `temp_${Date.now()}_${i}`,
-					trackId,
-					workoutId,
-					trackOrder,
-					notes: null,
-					pointsMultiplier: 100,
-					heatStatus: null, // Not used for regular programming tracks
-					eventStatus: null, // Not used for regular programming tracks
-					sponsorId: null, // Not used for regular programming tracks
-					defaultHeatsCount: null, // Not used for regular programming tracks
-					defaultLaneShiftPattern: null, // Not used for regular programming tracks
-					minHeatBuffer: null,
-					updateCounter: null,
-					createdAt: new Date(), // Temporary UI object
-					updatedAt: new Date(), // Temporary UI object
-				}
+					const tempTrackWorkout: TrackWorkout = {
+						id: `temp_${Date.now()}_${i}`,
+						trackId,
+						workoutId,
+						trackOrder,
+						notes: null,
+						pointsMultiplier: 100,
+						heatStatus: null, // Not used for regular programming tracks
+						eventStatus: null, // Not used for regular programming tracks
+						sponsorId: null, // Not used for regular programming tracks
+						defaultHeatsCount: null, // Not used for regular programming tracks
+						defaultLaneShiftPattern: null, // Not used for regular programming tracks
+						minHeatBuffer: null,
+						updateCounter: null,
+						createdAt: new Date(), // Temporary UI object
+						updatedAt: new Date(), // Temporary UI object
+					}
 					setOptimisticTrackWorkouts({
 						type: "add",
 						workout: tempTrackWorkout,

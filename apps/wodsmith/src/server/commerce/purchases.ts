@@ -115,7 +115,9 @@ export async function getUserPurchases(
 						name: comp.name,
 						slug: comp.slug,
 						startDate: comp.startDate,
-						organizingTeam: ("organizingTeam" in comp ? comp.organizingTeam : null) as { name: string } | null,
+						organizingTeam: ("organizingTeam" in comp
+							? comp.organizingTeam
+							: null) as { name: string } | null,
 					}
 				: null,
 		}
@@ -180,7 +182,9 @@ export async function getInvoiceDetails(
 				name: comp.name,
 				slug: comp.slug,
 				startDate: comp.startDate,
-				organizingTeam: ("organizingTeam" in comp ? comp.organizingTeam : null) as { name: string } | null,
+				organizingTeam: ("organizingTeam" in comp
+					? comp.organizingTeam
+					: null) as { name: string } | null,
 			}
 		}
 	}
