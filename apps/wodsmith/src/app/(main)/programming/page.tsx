@@ -1,7 +1,7 @@
 import "server-only"
-import { getSessionFromCookie } from "@/utils/auth"
-import { getPublicTracksWithTeamSubscriptions } from "@/server/programming-multi-team"
 import { ProgrammingTracksClient } from "@/components/programming/programming-tracks-client"
+import { getPublicTracksWithTeamSubscriptions } from "@/server/programming-multi-team"
+import { getSessionFromCookie } from "@/utils/auth"
 
 export default async function ProgrammingPage() {
 	const session = await getSessionFromCookie()

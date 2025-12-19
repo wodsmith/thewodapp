@@ -1,49 +1,48 @@
 import "server-only"
+import { ZSAError } from "@repo/zsa"
 import { fromZonedTime } from "date-fns-tz"
 import { asc, desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
-import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
-	programmingTracksTable,
-	scalingGroupsTable,
-	scalingLevelsTable,
-	workouts,
-	scoresTable,
-	scoreRoundsTable,
 	createScoreId,
 	createScoreRoundId,
-	type WorkoutScheme,
-	type ScoreType,
-	type TiebreakScheme,
+	programmingTracksTable,
 	type ScoreStatusNew,
+	type ScoreType,
+	scalingGroupsTable,
+	scalingLevelsTable,
+	scoreRoundsTable,
+	scoresTable,
+	type TiebreakScheme,
+	type WorkoutScheme,
+	workouts,
 } from "@/db/schema"
 import {
-	decodeScore,
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
+import {
 	aggregateValues,
-	parseScore as libParseScore,
-	encodeTimeFromSeconds,
 	computeSortKey,
+	decodeScore,
 	encodeRoundsReps,
 	encodeRoundsRepsFromParts,
+	encodeTimeFromSeconds,
 	extractRoundsReps,
 	GRAMS_PER_UNIT,
+	parseScore as libParseScore,
 	MM_PER_UNIT,
 } from "@/lib/scoring"
-import { parseScore as parseScoreInput } from "@/utils/score-parser-new"
-import { getActiveOrPersonalTeamId } from "@/utils/auth"
 import type {
 	ResultSet,
 	ResultSetInput,
 	Workout,
 	WorkoutResultWithWorkoutName,
 } from "@/types"
-import { requireVerifiedEmail } from "@/utils/auth"
-import {
-	logError,
-	logInfo,
-	logWarning,
-} from "@/lib/logging/posthog-otel-logger"
+import { getActiveOrPersonalTeamId, requireVerifiedEmail } from "@/utils/auth"
+import { parseScore as parseScoreInput } from "@/utils/score-parser-new"
 
 /* -------------------------------------------------------------------------- */
 /*                         Shared Score Processing Types                       */
@@ -421,7 +420,8 @@ export function processScoreEntries(
 	workout: WorkoutScoreInfo,
 ): ProcessedScoreResult {
 	const scheme = workout.scheme as WorkoutScheme
-	const scoreType = (workout.scoreType || getDefaultScoreType(scheme)) as ScoreType
+	const scoreType = (workout.scoreType ||
+		getDefaultScoreType(scheme)) as ScoreType
 
 	// Encode each entry directly to the new format
 	const roundValues: number[] = []
@@ -461,9 +461,10 @@ export function processScoreEntries(
 	}
 
 	// Generate display string
-	const displayScore = scoreValue !== null
-		? decodeScore(scoreValue, scheme, { includeUnit: true })
-		: ""
+	const displayScore =
+		scoreValue !== null
+			? decodeScore(scoreValue, scheme, { includeUnit: true })
+			: ""
 
 	return {
 		scoreValue,
@@ -1120,7 +1121,12 @@ export async function addScore(input: AddScoreInput): Promise<{
 		// Compute sort key
 		const sortKey =
 			scoreValue !== null || status !== "scored"
-				? computeSortKey({ value: scoreValue, status, scheme, scoreType }).toString()
+				? computeSortKey({
+						value: scoreValue,
+						status,
+						scheme,
+						scoreType,
+					}).toString()
 				: null
 
 		// Insert score
@@ -1143,7 +1149,9 @@ export async function addScore(input: AddScoreInput): Promise<{
 			tiebreakScheme: input.workoutInfo.tiebreakScheme ?? null,
 			recordedAt: new Date(input.recordedAt),
 			scheduledWorkoutInstanceId: input.scheduledWorkoutInstanceId || null,
-			timeCapMs: input.workoutInfo.timeCap ? input.workoutInfo.timeCap * 1000 : null,
+			timeCapMs: input.workoutInfo.timeCap
+				? input.workoutInfo.timeCap * 1000
+				: null,
 		})
 
 		// Insert score rounds (always, even for single round)
@@ -1291,7 +1299,10 @@ export async function getScoreById(scoreId: string) {
 					userTeams: session.teams?.map((t) => t.id) || [],
 				},
 			})
-			throw new ZSAError("NOT_AUTHORIZED", "Not authorized to access this score")
+			throw new ZSAError(
+				"NOT_AUTHORIZED",
+				"Not authorized to access this score",
+			)
 		}
 
 		logInfo({
@@ -1532,7 +1543,12 @@ export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
 		// Compute sort key
 		const sortKey =
 			scoreValue !== null || status !== "scored"
-				? computeSortKey({ value: scoreValue, status, scheme, scoreType }).toString()
+				? computeSortKey({
+						value: scoreValue,
+						status,
+						scheme,
+						scoreType,
+					}).toString()
 				: null
 
 		// Fetch old round IDs before making changes
@@ -1558,7 +1574,10 @@ export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
 			await db.insert(scoreRoundsTable).values(roundsToInsert)
 			logInfo({
 				message: "[updateScoreV2] Inserted new rounds",
-				attributes: { scoreId: input.scoreId, insertedRounds: roundsToInsert.length },
+				attributes: {
+					scoreId: input.scoreId,
+					insertedRounds: roundsToInsert.length,
+				},
 			})
 		}
 
@@ -1581,7 +1600,9 @@ export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
 				tiebreakValue: input.tiebreakValue ?? null,
 				tiebreakScheme: input.workoutInfo.tiebreakScheme ?? null,
 				scheduledWorkoutInstanceId: input.scheduledWorkoutInstanceId || null,
-				timeCapMs: input.workoutInfo.timeCap ? input.workoutInfo.timeCap * 1000 : null,
+				timeCapMs: input.workoutInfo.timeCap
+					? input.workoutInfo.timeCap * 1000
+					: null,
 				updatedAt: new Date(),
 			})
 			.where(eq(scoresTable.id, input.scoreId))
@@ -1590,13 +1611,14 @@ export async function updateScoreV2(input: UpdateScoreV2Input): Promise<void> {
 		// This avoids deleting the new rounds we just inserted
 		if (oldRoundIds.length > 0) {
 			for (const oldId of oldRoundIds) {
-				await db
-					.delete(scoreRoundsTable)
-					.where(eq(scoreRoundsTable.id, oldId))
+				await db.delete(scoreRoundsTable).where(eq(scoreRoundsTable.id, oldId))
 			}
 			logInfo({
 				message: "[updateScoreV2] Deleted old rounds",
-				attributes: { scoreId: input.scoreId, deletedRounds: oldRoundIds.length },
+				attributes: {
+					scoreId: input.scoreId,
+					deletedRounds: oldRoundIds.length,
+				},
 			})
 		}
 

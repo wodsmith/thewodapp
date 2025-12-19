@@ -1,25 +1,25 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useServerAction } from "@repo/zsa-react"
 import {
+	Building2,
 	Check,
 	ChevronsUpDown,
 	Search,
-	Building2,
 	ShieldCheck,
 	ShieldQuestion,
 } from "lucide-react"
-import { useServerAction } from "@repo/zsa-react"
-import { cn } from "@/lib/utils"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { searchAffiliatesAction } from "@/actions/affiliate-actions"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover"
-import { searchAffiliatesAction } from "@/actions/affiliate-actions"
+import { cn } from "@/lib/utils"
 
 type Affiliate = {
 	id: string

@@ -1,17 +1,17 @@
 import "server-only"
+import { CheckCircleIcon, ClockIcon } from "@heroicons/react/24/outline"
+import { formatDistanceToNow } from "date-fns"
 import type { Metadata } from "next"
-import { redirect } from "next/navigation"
 import Link from "next/link"
-import { ClockIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
-import { getSessionFromCookie } from "@/utils/auth"
-import { getUserTeams } from "@/server/teams"
+import { redirect } from "next/navigation"
+import { Button } from "@/components/ui/button"
 import {
 	getOrganizerRequest,
-	isApprovedOrganizer,
 	hasPendingOrganizerRequest,
+	isApprovedOrganizer,
 } from "@/server/organizer-onboarding"
-import { Button } from "@/components/ui/button"
-import { formatDistanceToNow } from "date-fns"
+import { getUserTeams } from "@/server/teams"
+import { getSessionFromCookie } from "@/utils/auth"
 
 export const metadata: Metadata = {
 	title: "Application Under Review - Compete",

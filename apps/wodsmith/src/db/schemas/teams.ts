@@ -38,6 +38,7 @@ export const SYSTEM_ROLES_ENUM = {
 	CAPTAIN: "captain", // Competition team captain
 	MEMBER: "member",
 	GUEST: "guest",
+	VOLUNTEER: "volunteer", // Competition volunteer
 } as const
 
 export const systemRoleTuple = Object.values(SYSTEM_ROLES_ENUM) as [
@@ -166,6 +167,8 @@ export const teamMembershipTable = sqliteTable(
 		joinedAt: integer({ mode: "timestamp" }),
 		expiresAt: integer({ mode: "timestamp" }),
 		isActive: integer().default(1).notNull(),
+		// JSON metadata for role-specific data (e.g., volunteer info)
+		metadata: text({ length: 5000 }),
 	},
 	(table) => [
 		index("team_membership_team_id_idx").on(table.teamId),
@@ -221,12 +224,12 @@ export const teamInvitationTable = sqliteTable(
 		// Flag to indicate if this is a system role
 		isSystemRole: integer().default(1).notNull(),
 		token: text({ length: 255 }).notNull().unique(),
-		invitedBy: text()
-			.notNull()
-			.references(() => userTable.id),
+		invitedBy: text().references(() => userTable.id),
 		expiresAt: integer({ mode: "timestamp" }).notNull(),
 		acceptedAt: integer({ mode: "timestamp" }),
 		acceptedBy: text().references(() => userTable.id),
+		// Optional JSON metadata to transfer to membership on acceptance
+		metadata: text(),
 	},
 	(table) => [
 		index("team_invitation_team_id_idx").on(table.teamId),

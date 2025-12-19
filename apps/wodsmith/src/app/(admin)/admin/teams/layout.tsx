@@ -1,5 +1,5 @@
-import { getAdminTeamContext } from "./_utils/get-team-context"
 import { AdminSidebar } from "../_components/admin-sidebar"
+import { getAdminTeamContext } from "./_utils/get-team-context"
 
 export default async function TeamAdminLayout({
 	children,

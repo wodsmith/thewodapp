@@ -1,9 +1,9 @@
 import "server-only"
+import { SubscriptionsList } from "@/components/programming/subscriptions-list"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getTeamProgrammingTracks } from "@/server/programming"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { SubscriptionsList } from "@/components/programming/subscriptions-list"
 
 interface SubscriptionsPageProps {
 	searchParams: Promise<{

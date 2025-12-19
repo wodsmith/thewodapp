@@ -1,13 +1,13 @@
 import "server-only"
+import { Building2, Users } from "lucide-react"
 import { notFound } from "next/navigation"
+import { EnhancedSubscribeButton } from "@/components/programming/enhanced-subscribe-button"
+import { PaginatedTrackWorkouts } from "@/components/programming/paginated-track-workouts"
+import { TrackDetailTeamSelector } from "@/components/programming/track-detail-team-selector"
 import { Badge } from "@/components/ui/badge"
-import { getSessionFromCookie } from "@/utils/auth"
 import { getProgrammingTrackById } from "@/server/programming"
 import { getTrackSubscribedTeams } from "@/server/programming-multi-team"
-import { PaginatedTrackWorkouts } from "@/components/programming/paginated-track-workouts"
-import { EnhancedSubscribeButton } from "@/components/programming/enhanced-subscribe-button"
-import { Building2, Users } from "lucide-react"
-import { TrackDetailTeamSelector } from "@/components/programming/track-detail-team-selector"
+import { getSessionFromCookie } from "@/utils/auth"
 
 interface ProgrammingTrackPageProps {
 	params: Promise<{

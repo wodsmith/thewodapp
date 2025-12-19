@@ -1,10 +1,9 @@
 "use server"
 
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { requireTeamPermission } from "@/utils/team-auth"
 import {
 	assignToHeat,
 	bulkAssignToHeat,
@@ -23,6 +22,7 @@ import {
 	updateHeat,
 	updateVenue,
 } from "@/server/competition-heats"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 /* -------------------------------------------------------------------------- */
 /*                              Schemas                                        */

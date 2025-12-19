@@ -1,15 +1,12 @@
 "use client"
 
 import { useChat } from "@ai-sdk/react"
+import { useServerAction } from "@repo/zsa-react"
 import { DefaultChatTransport } from "ai"
 import { AlertCircle, Crown, Info, MessageCircle } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
-import { useTeamContext } from "@/state/team-context"
-import { checkCanUseAIAction } from "@/actions/entitlements-actions"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useEffect, useState } from "react"
+import { checkCanUseAIAction } from "@/actions/entitlements-actions"
 import {
 	Conversation,
 	ConversationContent,
@@ -32,7 +29,10 @@ import {
 	PromptInputTools,
 } from "@/components/ai-elements/prompt-input"
 import { Response } from "@/components/ai-elements/response"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import type { LimitCheckResult } from "@/server/entitlements-checks"
+import { useTeamContext } from "@/state/team-context"
 
 export default function ChatPage() {
 	const [input, setInput] = useState("")

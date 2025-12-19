@@ -2,8 +2,9 @@ import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
 import { and, eq, max, notExists, or } from "drizzle-orm"
+import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
-import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	type ProgrammingTrack,
 	programmingTracksTable,
@@ -17,9 +18,8 @@ import {
 	type Workout,
 	workouts,
 } from "@/db/schema"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { requireFeature, requireLimit } from "./entitlements"
-import { FEATURES } from "@/config/features"
-import { LIMITS } from "@/config/limits"
 
 /* -------------------------------------------------------------------------- */
 /*                                Data Types                                  */

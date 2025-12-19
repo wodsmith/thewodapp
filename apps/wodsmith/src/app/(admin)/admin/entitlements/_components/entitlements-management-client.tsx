@@ -20,6 +20,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
 	Table,
 	TableBody,
@@ -28,16 +36,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { getAllPlansAction, getAllTeamsWithPlansAction } from "../../_actions"
 import type { Plan } from "@/db/schemas/entitlements"
+import { getAllPlansAction, getAllTeamsWithPlansAction } from "../../_actions"
 
 interface TeamWithPlan {
 	id: string
@@ -47,6 +47,7 @@ interface TeamWithPlan {
 	currentPlanId: string | null
 	createdAt: Date
 }
+
 import { ChangePlanDialog } from "./change-plan-dialog"
 import { EntitlementOverridesDialog } from "./entitlement-overrides-dialog"
 import { TeamEntitlementsDetail } from "./team-entitlements-detail"

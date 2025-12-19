@@ -10,9 +10,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog"
+import { ImageUpload } from "@/components/ui/image-upload"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ImageUpload } from "@/components/ui/image-upload"
 import type { Sponsor } from "@/db/schema"
 
 interface AthleteSponsorFormDialogProps {

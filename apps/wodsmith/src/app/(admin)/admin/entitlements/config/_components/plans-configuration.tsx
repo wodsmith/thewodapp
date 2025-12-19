@@ -11,9 +11,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import type { Plan } from "@/db/schemas/entitlements"
 import { getAllPlansAction } from "../../../_actions/entitlement-admin-actions"
 import { PlanConfigDialog } from "./plan-config-dialog"
-import type { Plan } from "@/db/schemas/entitlements"
 
 export function PlansConfiguration() {
 	const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)

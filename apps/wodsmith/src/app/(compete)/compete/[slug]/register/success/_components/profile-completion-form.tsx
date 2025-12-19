@@ -1,10 +1,12 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useServerAction } from "@repo/zsa-react"
+import { CheckCircle, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { updateAthleteProfileAction } from "@/app/(settings)/settings/settings.actions"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -14,6 +16,7 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 import {
 	Select,
 	SelectContent,
@@ -21,11 +24,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
 import { GENDER_ENUM, type Gender } from "@/db/schemas/users"
-import { updateAthleteProfileAction } from "@/app/(settings)/settings/settings.actions"
 import { AffiliateCombobox } from "../../_components/affiliate-combobox"
-import { CheckCircle, Loader2 } from "lucide-react"
 
 const profileSchema = z.object({
 	gender: z.enum([GENDER_ENUM.MALE, GENDER_ENUM.FEMALE], {

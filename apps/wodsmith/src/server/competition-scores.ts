@@ -1,45 +1,47 @@
 import "server-only"
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, inArray } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
-import { autochunk } from "@/utils/batch-query"
 import {
 	competitionRegistrationsTable,
+	programmingTracksTable,
+	type ScoreStatus,
+	type ScoreType,
 	scalingLevelsTable,
-	scoresTable,
 	scoreRoundsTable,
+	scoresTable,
+	type TiebreakScheme,
 	teamMembershipTable,
 	trackWorkoutsTable,
 	userTable,
-	type ScoreStatus,
 	type WorkoutScheme,
-	type ScoreType,
-	type TiebreakScheme,
+	workouts,
 } from "@/db/schema"
 import {
-	processScoresToSetsAndWodScore,
-	type WorkoutScoreInfo,
-	type NormalizedScoreEntry,
-} from "@/server/logs"
-import { getSessionFromCookie } from "@/utils/auth"
-import {
+	logError,
 	logInfo,
 	logWarning,
-	logError,
 } from "@/lib/logging/posthog-otel-logger"
-import { getHeatsForWorkout } from "./competition-heats"
 import {
-	encodeScore,
-	encodeRounds,
 	computeSortKey,
 	decodeScore,
-	sortKeyToString,
+	encodeRounds,
+	encodeScore,
 	getDefaultScoreType,
+	sortKeyToString,
 } from "@/lib/scoring"
 import { STATUS_ORDER } from "@/lib/scoring/constants"
+import {
+	type NormalizedScoreEntry,
+	processScoresToSetsAndWodScore,
+	type WorkoutScoreInfo,
+} from "@/server/logs"
+import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
 import { convertLegacyToNew } from "@/utils/score-adapter"
+import { getHeatsForWorkout } from "./competition-heats"
 
 // ============================================================================
 // Helper Functions
@@ -129,22 +131,24 @@ async function verifyTrackWorkoutOwnership(
 ): Promise<void> {
 	const db = getDb()
 
-	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
-		where: eq(trackWorkoutsTable.id, trackWorkoutId),
-		with: {
-			track: {
-				columns: {
-					ownerTeamId: true,
-				},
-			},
-		},
-	})
+	const [result] = await db
+		.select({
+			trackWorkoutId: trackWorkoutsTable.id,
+			ownerTeamId: programmingTracksTable.ownerTeamId,
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(
+			programmingTracksTable,
+			eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+		)
+		.where(eq(trackWorkoutsTable.id, trackWorkoutId))
+		.limit(1)
 
-	if (!trackWorkout) {
+	if (!result) {
 		throw new ZSAError("NOT_FOUND", "Event not found")
 	}
 
-	if (trackWorkout.track?.ownerTeamId !== competitionTeamId) {
+	if (result.ownerTeamId !== competitionTeamId) {
 		throw new ZSAError(
 			"NOT_AUTHORIZED",
 			"Not authorized to access this competition event",
@@ -242,15 +246,46 @@ export async function getEventScoreEntryData(params: {
 	const db = getDb()
 
 	// Get the track workout (event) with workout details
-	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
-		where: eq(trackWorkoutsTable.id, params.trackWorkoutId),
-		with: {
-			workout: true,
-		},
-	})
+	const [result] = await db
+		.select({
+			trackWorkoutId: trackWorkoutsTable.id,
+			trackOrder: trackWorkoutsTable.trackOrder,
+			pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+			workoutId: workouts.id,
+			workoutName: workouts.name,
+			workoutDescription: workouts.description,
+			workoutScheme: workouts.scheme,
+			workoutScoreType: workouts.scoreType,
+			workoutTiebreakScheme: workouts.tiebreakScheme,
+			workoutTimeCap: workouts.timeCap,
+			workoutRepsPerRound: workouts.repsPerRound,
+			workoutRoundsToScore: workouts.roundsToScore,
+		})
+		.from(trackWorkoutsTable)
+		.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+		.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+		.limit(1)
 
-	if (!trackWorkout || !trackWorkout.workout) {
+	if (!result) {
 		throw new ZSAError("NOT_FOUND", "Event not found")
+	}
+
+	// Restructure to match expected format
+	const trackWorkout = {
+		id: result.trackWorkoutId,
+		trackOrder: result.trackOrder,
+		pointsMultiplier: result.pointsMultiplier,
+		workout: {
+			id: result.workoutId,
+			name: result.workoutName,
+			description: result.workoutDescription,
+			scheme: result.workoutScheme as WorkoutScheme,
+			scoreType: result.workoutScoreType as ScoreType | null,
+			tiebreakScheme: result.workoutTiebreakScheme as TiebreakScheme | null,
+			timeCap: result.workoutTimeCap,
+			repsPerRound: result.workoutRepsPerRound,
+			roundsToScore: result.workoutRoundsToScore,
+		},
 	}
 
 	// Get all registrations for this competition
@@ -808,25 +843,26 @@ export async function saveCompetitionScore(params: {
 				: null
 
 		// Get teamId from competition context
-		const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
-			where: eq(trackWorkoutsTable.id, params.trackWorkoutId),
-			with: {
-				track: {
-					columns: {
-						ownerTeamId: true,
-					},
-				},
-			},
-		})
+		const [teamResult] = await db
+			.select({
+				ownerTeamId: programmingTracksTable.ownerTeamId,
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(
+				programmingTracksTable,
+				eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+			)
+			.where(eq(trackWorkoutsTable.id, params.trackWorkoutId))
+			.limit(1)
 
-		if (!trackWorkout?.track?.ownerTeamId) {
+		if (!teamResult?.ownerTeamId) {
 			throw new ZSAError(
 				"ERROR",
 				"Could not determine team ownership for competition",
 			)
 		}
 
-		const teamId = trackWorkout.track.ownerTeamId
+		const teamId = teamResult.ownerTeamId
 
 		// Encode tiebreak if provided
 		let tiebreakValue: number | null = null

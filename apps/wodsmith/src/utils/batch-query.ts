@@ -4,8 +4,10 @@
  */
 
 /**
- * D1/SQLite has a 999 variable limit, but we use 100 to leave room for other params.
+ * D1 has a 100 bound parameter limit per query (NOT 999 like standard SQLite).
+ * See: https://developers.cloudflare.com/d1/platform/limits/
  * For simple ID arrays, each ID = 1 parameter.
+ * For inserts, each column value = 1 parameter (including auto-generated columns).
  */
 export const SQL_BATCH_SIZE = 100
 const MAX_PARAMETERS = SQL_BATCH_SIZE

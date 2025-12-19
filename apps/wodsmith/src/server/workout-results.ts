@@ -3,20 +3,20 @@ import "server-only"
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
-	scoresTable,
-	scoreRoundsTable,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	scoreRoundsTable,
+	scoresTable,
 	workoutScalingDescriptionsTable,
 } from "@/db/schema"
-import type { ResultSet, WorkoutResult, ScoreWithScaling } from "@/types"
-import { decodeScore } from "@/lib/scoring"
-import { ScalingQueryMonitor } from "@/utils/query-monitor"
 import {
 	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
+import { decodeScore } from "@/lib/scoring"
+import type { ResultSet, ScoreWithScaling, WorkoutResult } from "@/types"
+import { ScalingQueryMonitor } from "@/utils/query-monitor"
 
 // Multi-tier cache system for scaling data
 type CachedScalingLevel = {
@@ -416,7 +416,8 @@ export async function getWorkoutResultsByWorkoutAndUser(
 ): Promise<WorkoutResult[]> {
 	const db = getDb()
 	logInfo({
-		message: "[workout-results] Fetching results for workout/user with team filter",
+		message:
+			"[workout-results] Fetching results for workout/user with team filter",
 		attributes: { workoutId, userId, teamId },
 	})
 	try {
@@ -432,8 +433,14 @@ export async function getWorkoutResultsByWorkoutAndUser(
 			)
 			.orderBy(scoresTable.recordedAt)
 		logInfo({
-			message: "[workout-results] Results fetched with team filter (security fix applied)",
-			attributes: { workoutId, userId, teamId, count: workoutResultsData.length },
+			message:
+				"[workout-results] Results fetched with team filter (security fix applied)",
+			attributes: {
+				workoutId,
+				userId,
+				teamId,
+				count: workoutResultsData.length,
+			},
 		})
 		return workoutResultsData
 	} catch (error) {

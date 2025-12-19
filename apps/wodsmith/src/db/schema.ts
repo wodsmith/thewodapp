@@ -14,6 +14,7 @@ export * from "./schemas/scores"
 export * from "./schemas/sponsors"
 export * from "./schemas/teams"
 export * from "./schemas/users"
+export * from "./schemas/volunteers"
 export * from "./schemas/workouts"
 
 // Cross-schema relations to ensure proper relation names and avoid conflicts

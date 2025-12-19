@@ -1,8 +1,8 @@
 import { z } from "zod"
 import {
-	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
+	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 
 /**

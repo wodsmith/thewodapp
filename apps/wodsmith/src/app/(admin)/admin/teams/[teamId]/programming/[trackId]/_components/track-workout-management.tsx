@@ -442,6 +442,9 @@ export function TrackWorkoutManagement({
 						heatStatus: null, // Not used for regular programming tracks
 						eventStatus: null, // Not used for regular programming tracks
 						sponsorId: null, // Not used for regular programming tracks
+						defaultHeatsCount: null, // Not used for regular programming tracks
+						defaultLaneShiftPattern: null, // Not used for regular programming tracks
+						minHeatBuffer: null,
 						updateCounter: null,
 						createdAt: new Date(), // Temporary UI object
 						updatedAt: new Date(), // Temporary UI object

@@ -1,4 +1,12 @@
-import type { Set as DBSet, Movement, Result, Score, ScoreRound, Tag, Workout } from "@/db/schema"
+import type {
+	Set as DBSet,
+	Movement,
+	Result,
+	Score,
+	ScoreRound,
+	Tag,
+	Workout,
+} from "@/db/schema"
 import type { KVSession } from "./utils/kv-session"
 
 export type SessionValidationResult = KVSession | null

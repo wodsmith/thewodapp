@@ -38,7 +38,9 @@ export function WeeklyWorkoutCard({
 	// Include units for load/distance schemes so users see "225 lbs" not just "225"
 	const displayScore =
 		result?.displayScore ??
-		(result?.scoreValue !== null && result?.scoreValue !== undefined && result?.scheme
+		(result?.scoreValue !== null &&
+		result?.scoreValue !== undefined &&
+		result?.scheme
 			? decodeScore(result.scoreValue, result.scheme, { includeUnit: true })
 			: undefined)
 

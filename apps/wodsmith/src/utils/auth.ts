@@ -2,20 +2,28 @@ import "server-only"
 
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { init } from "@paralleldrive/cuid2"
+import { ZSAError } from "@repo/zsa"
 import { eq } from "drizzle-orm"
 import ms from "ms"
 import { cookies } from "next/headers"
 import { cache } from "react"
-import { ZSAError } from "@repo/zsa"
 import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
 import { getDb } from "@/db"
 import {
 	ROLES_ENUM,
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
+	type Team,
+	type TeamMembership,
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
+
+/** Membership with team relation included */
+type TeamMembershipWithTeam = TeamMembership & {
+	team: Team | null
+}
+
 import type { SessionValidationResult } from "@/types"
 import isProd from "@/utils/is-prod"
 import { addFreeMonthlyCreditsIfNeeded } from "./credits"
@@ -118,12 +126,12 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 	const db = getDb()
 
 	// Get user's team memberships
-	const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+	const userTeamMemberships = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, userId),
 		with: {
 			team: true,
 		},
-	})
+	})) as TeamMembershipWithTeam[]
 
 	// Get all custom role IDs that need to be fetched
 	const customRoleIds = userTeamMemberships

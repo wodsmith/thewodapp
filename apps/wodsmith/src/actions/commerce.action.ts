@@ -1,29 +1,29 @@
 "use server"
 
-import { and, eq } from "drizzle-orm"
 import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
-	commercePurchaseTable,
+	COMMERCE_PAYMENT_STATUS,
+	COMMERCE_PRODUCT_TYPE,
+	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
-	competitionsTable,
+	commercePurchaseTable,
 	competitionDivisionsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 	scalingLevelsTable,
-	teamTable,
-	COMMERCE_PURCHASE_STATUS,
-	COMMERCE_PRODUCT_TYPE,
-	COMMERCE_PAYMENT_STATUS,
 	TEAM_PERMISSIONS,
+	teamTable,
 } from "@/db/schema"
-import {
-	calculateCompetitionFees,
-	getRegistrationFee,
-	buildFeeConfig,
-	type FeeBreakdown,
-} from "@/server/commerce"
 import { getStripe } from "@/lib/stripe"
+import {
+	buildFeeConfig,
+	calculateCompetitionFees,
+	type FeeBreakdown,
+	getRegistrationFee,
+} from "@/server/commerce"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { RATE_LIMITS, withRateLimit } from "@/utils/with-rate-limit"
 

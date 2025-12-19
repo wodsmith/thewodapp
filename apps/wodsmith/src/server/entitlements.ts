@@ -5,6 +5,10 @@
 import "server-only"
 
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm"
+import { getDb } from "@/db"
+import { logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
+import { FEATURES } from "../config/features"
+import { LIMITS } from "../config/limits"
 import type { Entitlement, PlanEntitlements } from "../db/schema"
 import {
 	entitlementTable,
@@ -22,10 +26,6 @@ import {
 	teamTable,
 	teamUsageTable,
 } from "../db/schema"
-import { getDb } from "@/db"
-import { logInfo, logWarning } from "@/lib/logging/posthog-otel-logger"
-import { FEATURES } from "../config/features"
-import { LIMITS } from "../config/limits"
 
 // ============================================================================
 // TEAM-LEVEL ENTITLEMENT CHECKING (Snapshot-Based)

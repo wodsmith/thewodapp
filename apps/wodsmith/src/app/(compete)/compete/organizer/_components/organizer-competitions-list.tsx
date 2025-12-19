@@ -1,5 +1,6 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import {
 	Calendar,
 	ExternalLink,
@@ -12,9 +13,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useMemo } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
+import { deleteCompetitionAction } from "@/actions/competition-actions"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -27,10 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-	Card,
-	CardContent,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -47,7 +45,6 @@ import {
 } from "@/components/ui/select"
 import type { Competition, CompetitionGroup } from "@/db/schema"
 import { formatUTCDateFull } from "@/utils/date-utils"
-import { deleteCompetitionAction } from "@/actions/competition-actions"
 
 interface OrganizerCompetitionsListProps {
 	competitions: Competition[]
@@ -120,7 +117,8 @@ export function OrganizerCompetitionsList({
 
 		// Sort by createdAt descending (most recent first)
 		filtered.sort(
-			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 		)
 
 		return filtered
@@ -200,9 +198,10 @@ export function OrganizerCompetitionsList({
 				{filteredAndSortedCompetitions.length > 0 && (
 					<div className="space-y-2">
 						{filteredAndSortedCompetitions.map((competition) => {
-							const seriesName = groups.find((g) => g.id === competition.groupId)
-								?.name
-							const isCurrent = (() => {
+							const seriesName = groups.find(
+								(g) => g.id === competition.groupId,
+							)?.name
+							const _isCurrent = (() => {
 								const today = new Date()
 								today.setHours(0, 0, 0, 0)
 								const normalizedEndDate = new Date(competition.endDate)
@@ -291,15 +290,21 @@ export function OrganizerCompetitionsList({
 				)}
 
 				{/* No results for filter state */}
-				{competitions.length > 0 && filteredAndSortedCompetitions.length === 0 && (
-					<div className="text-center py-8">
-						<Trophy className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-						<p className="text-sm text-muted-foreground">
-							No {statusFilter === "current" ? "current" : statusFilter === "past" ? "past" : ""}{" "}
-							competitions found
-						</p>
-					</div>
-				)}
+				{competitions.length > 0 &&
+					filteredAndSortedCompetitions.length === 0 && (
+						<div className="text-center py-8">
+							<Trophy className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+							<p className="text-sm text-muted-foreground">
+								No{" "}
+								{statusFilter === "current"
+									? "current"
+									: statusFilter === "past"
+										? "past"
+										: ""}{" "}
+								competitions found
+							</p>
+						</div>
+					)}
 			</div>
 
 			<AlertDialog

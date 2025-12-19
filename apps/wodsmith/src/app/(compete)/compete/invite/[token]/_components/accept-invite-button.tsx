@@ -1,12 +1,12 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { CheckCircle } from "lucide-react"
-import posthog from "posthog-js"
 import { useServerAction } from "@repo/zsa-react"
+import { CheckCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import posthog from "posthog-js"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 import { acceptTeamInvitationAction } from "@/actions/team-actions"
+import { Button } from "@/components/ui/button"
 
 type Props = {
 	token: string

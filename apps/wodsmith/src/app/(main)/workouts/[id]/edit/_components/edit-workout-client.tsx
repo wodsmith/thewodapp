@@ -1,10 +1,10 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import { getDefaultScoreType } from "@/lib/scoring"
 import type { WorkoutScheme, ScoreType } from "@/lib/scoring"

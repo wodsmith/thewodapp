@@ -1,14 +1,9 @@
 import "server-only"
 
-import { and, eq } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { and, eq } from "drizzle-orm"
 import { getDefaultProgrammingTracks } from "@/config/programming-tracks"
 import { getDb } from "@/db"
-import {
-	logError,
-	logInfo,
-	logWarning,
-} from "@/lib/logging/posthog-otel-logger"
 import type { User } from "@/db/schema"
 import {
 	programmingTracksTable,
@@ -17,6 +12,11 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
 
 /**
  * Creates a personal team for a user upon account creation

@@ -1,7 +1,7 @@
 import "server-only"
 
-import { SeverityNumber } from "@opentelemetry/api-logs"
 import { getCloudflareContext } from "@opennextjs/cloudflare"
+import { SeverityNumber } from "@opentelemetry/api-logs"
 
 /**
  * PostHog OpenTelemetry Logger for Cloudflare Workers via OpenNext
@@ -110,8 +110,8 @@ function sendLogToPostHog(params: {
 					await response.text(),
 				)
 			}
-		} catch (err) {
-			console.error("[posthog-otel] Error sending log:", err)
+		} catch (_err) {
+			console.error("[posthog-otel] Error sending log:", _err)
 		}
 	})()
 
@@ -121,7 +121,7 @@ function sendLogToPostHog(params: {
 		if (cloudflareContext?.ctx?.waitUntil) {
 			cloudflareContext.ctx.waitUntil(fetchPromise)
 		}
-	} catch (err) {
+	} catch (_err) {
 		// Context not available (e.g., local dev or non-Cloudflare environment)
 		// Log will still be attempted but may not complete if execution terminates early
 	}

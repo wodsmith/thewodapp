@@ -10,11 +10,11 @@ import {
 	scalingLevelsTable,
 	TEAM_PERMISSIONS,
 } from "@/db/schema"
-import { requireTeamPermission } from "@/utils/team-auth"
 import {
 	parseCompetitionSettings,
 	stringifyCompetitionSettings,
 } from "@/types/competitions"
+import { requireTeamPermission } from "@/utils/team-auth"
 import { createScalingGroup } from "./scaling-groups"
 import { createScalingLevel, listScalingLevels } from "./scaling-levels"
 

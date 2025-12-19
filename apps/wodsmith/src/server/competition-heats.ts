@@ -4,6 +4,9 @@ import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+	type CompetitionHeat,
+	type CompetitionHeatAssignment,
+	type CompetitionVenue,
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
@@ -11,9 +14,6 @@ import {
 	scalingLevelsTable,
 	trackWorkoutsTable,
 	userTable,
-	type CompetitionHeat,
-	type CompetitionHeatAssignment,
-	type CompetitionVenue,
 } from "@/db/schema"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
@@ -651,8 +651,9 @@ export async function bulkCreateHeats(params: {
 		}
 	}
 
-	// Each heat row uses ~8 params - batch to stay under D1's 100 param limit
-	const INSERT_BATCH_SIZE = 10
+	// competitionHeatsTable has 12 columns (commonColumns + 9 fields)
+	// D1 limit: 100 params, so max rows per batch = floor(100/12) = 8
+	const INSERT_BATCH_SIZE = 8
 
 	const results = await Promise.all(
 		chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>

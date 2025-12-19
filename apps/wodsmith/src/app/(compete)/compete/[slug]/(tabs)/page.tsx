@@ -1,10 +1,10 @@
 import "server-only"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
-import { getCompetition } from "@/server/competitions"
 import { getPublicCompetitionDivisions } from "@/server/competition-divisions"
 import { getHeatsForCompetition } from "@/server/competition-heats"
 import { getPublishedCompetitionWorkouts } from "@/server/competition-workouts"
+import { getCompetition } from "@/server/competitions"
 import { getCompetitionSponsors } from "@/server/sponsors"
 import { getSessionFromCookie } from "@/utils/auth"
 import { EventDetailsContent } from "../_components/event-details-content"
@@ -42,18 +42,13 @@ export default async function CompetitionEventDetailsPage({ params }: Props) {
 			divisions={divisions.length > 0 ? divisions : undefined}
 			sponsors={sponsorsResult}
 			workoutsContent={
-				<Suspense fallback={<WorkoutsSkeleton />}>
-					<WorkoutsContent
-						key="workouts"
-						competition={competition}
-						divisions={divisions}
-					/>
+				<Suspense key="workouts-suspense" fallback={<WorkoutsSkeleton />}>
+					<WorkoutsContent competition={competition} divisions={divisions} />
 				</Suspense>
 			}
 			scheduleContent={
-				<Suspense fallback={<ScheduleSkeleton />}>
+				<Suspense key="schedule-suspense" fallback={<ScheduleSkeleton />}>
 					<ScheduleContent
-						key="schedule"
 						eventsPromise={eventsPromise}
 						heatsPromise={heatsPromise}
 						currentUserId={session?.userId}

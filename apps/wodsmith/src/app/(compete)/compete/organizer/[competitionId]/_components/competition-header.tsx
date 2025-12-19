@@ -1,4 +1,3 @@
-import Link from "next/link"
 import {
 	Calendar,
 	ExternalLink,
@@ -7,8 +6,9 @@ import {
 	Pencil,
 	UserPlus,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { formatUTCDateFull } from "@/utils/date-utils"
 
 interface CompetitionHeaderProps {

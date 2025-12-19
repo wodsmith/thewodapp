@@ -9,7 +9,13 @@ export async function isGoogleSSOEnabled() {
 }
 
 export async function isTurnstileEnabled() {
-	return Boolean(process.env.TURNSTILE_SECRET_KEY)
+	// Both the server secret key AND the client site key must be present
+	// for Turnstile to work properly. If only the secret is set but the
+	// site key is missing, the client-side widget won't function.
+	return Boolean(
+		process.env.TURNSTILE_SECRET_KEY &&
+			process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+	)
 }
 
 export const getConfig = cache(async () => {

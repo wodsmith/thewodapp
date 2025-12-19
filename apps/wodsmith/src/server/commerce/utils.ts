@@ -1,4 +1,4 @@
-import type { FeeConfiguration, FeeBreakdown } from "./fee-calculator"
+import type { FeeBreakdown, FeeConfiguration } from "./fee-calculator"
 
 /**
  * Platform default fee configuration

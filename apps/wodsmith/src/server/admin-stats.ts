@@ -1,6 +1,6 @@
 import "server-only"
-import { count, countDistinct, eq, or } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { count, countDistinct, eq, or } from "drizzle-orm"
 import { getDb } from "@/db"
 import { teamMembershipTable, workouts } from "@/db/schema"
 import { requireVerifiedEmail } from "@/utils/auth"
