@@ -1,14 +1,24 @@
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { redirect } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
+import { VolunteerStatus } from "@/components/compete/volunteer-status"
 import { Separator } from "@/components/ui/separator"
 import { getDb } from "@/db"
-import { userTable } from "@/db/schema"
+import { competitionsTable, userTable } from "@/db/schema"
 import { getUserCompetitionHistory } from "@/server/competitions"
 import { getUserSponsors } from "@/server/sponsors"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
 import { getUserGymAffiliation } from "@/server/user"
+import {
+	getPendingVolunteerInvitationsForEmail,
+	getUserVolunteerMemberships,
+} from "@/server/volunteers"
+import type {
+	VolunteerMembershipMetadata,
+	VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import { calculateAge, parseAthleteProfile } from "@/utils/athlete-profile"
+import { autochunk } from "@/utils/batch-query"
 import { getSessionFromCookie } from "@/utils/auth"
 import { AthleteHeader } from "./_components/athlete-header"
 import { AthleteStats } from "./_components/athlete-stats"
@@ -29,6 +39,7 @@ export default async function AthletePage() {
 		where: eq(userTable.id, session.userId),
 		columns: {
 			id: true,
+			email: true,
 			firstName: true,
 			lastName: true,
 			avatar: true,
@@ -45,14 +56,97 @@ export default async function AthletePage() {
 	// Parse athlete profile JSON
 	const athleteProfile = parseAthleteProfile(user.athleteProfile)
 
-	// Get gym affiliation, competition history, sponsors, and pending invitations in parallel
-	const [gym, competitionHistory, sponsors, pendingInvitations] =
-		await Promise.all([
-			getUserGymAffiliation(session.userId),
-			getUserCompetitionHistory(session.userId),
-			getUserSponsors(session.userId),
-			getPendingInvitationsForCurrentUser().catch(() => []),
-		])
+	// Get gym affiliation, competition history, sponsors, pending invitations, and volunteer data in parallel
+	const [
+		gym,
+		competitionHistory,
+		sponsors,
+		pendingInvitations,
+		pendingVolunteerInvitations,
+		volunteerMemberships,
+	] = await Promise.all([
+		getUserGymAffiliation(session.userId),
+		getUserCompetitionHistory(session.userId),
+		getUserSponsors(session.userId),
+		getPendingInvitationsForCurrentUser().catch(() => []),
+		user.email
+			? getPendingVolunteerInvitationsForEmail(db, user.email).catch(() => [])
+			: Promise.resolve([]),
+		getUserVolunteerMemberships(db, session.userId).catch(() => []),
+	])
+
+	// Get competitions for volunteer invitations
+	const pendingVolunteerInvitationsWithCompetitions = await (async () => {
+		if (pendingVolunteerInvitations.length === 0) return []
+
+		const teamIds = pendingVolunteerInvitations.map((inv) => inv.teamId)
+		const competitions = await autochunk(
+			{ items: teamIds, otherParametersCount: 0 },
+			async (chunk) =>
+				db.query.competitionsTable.findMany({
+					where: inArray(competitionsTable.competitionTeamId, chunk),
+					columns: {
+						id: true,
+						name: true,
+						slug: true,
+						competitionTeamId: true,
+					},
+				}),
+		)
+
+		return pendingVolunteerInvitations.map((inv) => {
+			const comp = competitions.find((c) => c.competitionTeamId === inv.teamId)
+			return {
+				id: inv.id,
+				competitionName: comp?.name || "Unknown Competition",
+				competitionSlug: comp?.slug || "",
+				signupDate: new Date(inv.createdAt),
+			}
+		})
+	})()
+
+	// Get competitions for volunteer memberships
+	const volunteerMembershipsWithCompetitions = await (async () => {
+		if (volunteerMemberships.length === 0) return []
+
+		const teamIds = volunteerMemberships.map((m) => m.teamId)
+		const competitions = await autochunk(
+			{ items: teamIds, otherParametersCount: 0 },
+			async (chunk) =>
+				db.query.competitionsTable.findMany({
+					where: inArray(competitionsTable.competitionTeamId, chunk),
+					columns: {
+						id: true,
+						name: true,
+						slug: true,
+						competitionTeamId: true,
+					},
+				}),
+		)
+
+		return volunteerMemberships.map((membership) => {
+			const comp = competitions.find(
+				(c) => c.competitionTeamId === membership.teamId,
+			)
+			// Parse role types from metadata
+			let roleTypes: VolunteerRoleType[] = []
+			try {
+				const meta = JSON.parse(
+					membership.metadata || "{}",
+				) as VolunteerMembershipMetadata
+				roleTypes = meta.volunteerRoleTypes || []
+			} catch {
+				// Ignore parse errors
+			}
+
+			return {
+				id: membership.id,
+				competitionName: comp?.name || "Unknown Competition",
+				competitionSlug: comp?.slug || "",
+				roleTypes,
+			}
+		})
+	})()
 
 	// Calculate age
 	const age = calculateAge(user.dateOfBirth)
@@ -82,6 +176,21 @@ export default async function AthletePage() {
 						<PendingTeamInvites
 							invitations={pendingInvitations}
 							variant="inline"
+						/>
+					</section>
+				</>
+			)}
+
+			{/* Volunteer Status */}
+			{(pendingVolunteerInvitationsWithCompetitions.length > 0 ||
+				volunteerMembershipsWithCompetitions.length > 0) && (
+				<>
+					<Separator />
+					<section className="space-y-4">
+						<h2 className="font-semibold text-lg">Volunteer Status</h2>
+						<VolunteerStatus
+							pendingInvitations={pendingVolunteerInvitationsWithCompetitions}
+							activeMemberships={volunteerMembershipsWithCompetitions}
 						/>
 					</section>
 				</>

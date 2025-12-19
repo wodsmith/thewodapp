@@ -5,11 +5,16 @@ import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { teamMembershipTable, userTable } from "@/db/schema"
+import {
+	teamInvitationTable,
+	teamMembershipTable,
+	userTable,
+} from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { inviteUserToTeam } from "@/server/team-members"
 import {
 	addVolunteerRoleType,
+	approveVolunteerInvitation,
 	createVolunteerSignup,
 	getCompetitionVolunteers,
 	grantScoreAccess,
@@ -74,7 +79,13 @@ const revokeScoreAccessSchema = z.object({
 })
 
 const updateVolunteerMetadataSchema = z.object({
-	membershipId: membershipIdSchema,
+	// Can be either membership ID (tmem_) for existing members or invitation ID (tinv_) for pending signups
+	membershipId: z
+		.string()
+		.refine(
+			(val) => val.startsWith("tmem_") || val.startsWith("tinv_"),
+			"Invalid membership or invitation ID",
+		),
 	organizingTeamId: competitionTeamIdSchema,
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	metadata: z.record(z.unknown()),
@@ -220,96 +231,176 @@ export const revokeScoreAccessAction = createServerAction()
 /**
  * Update volunteer membership metadata
  * Generic metadata update for volunteer-specific fields
+ *
+ * Handles both:
+ * - Team memberships (tmem_*) - existing volunteers with accounts
+ * - Team invitations (tinv_*) - pending volunteer signups
  */
 export const updateVolunteerMetadataAction = createServerAction()
 	.input(updateVolunteerMetadataSchema)
 	.handler(async ({ input }) => {
 		try {
+			const { getSessionFromCookie } = await import("@/utils/auth")
+			const session = await getSessionFromCookie()
+
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
+			}
+
 			await requireTeamPermission(
 				input.organizingTeamId,
 				TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 			)
 
 			const db = getDb()
-
-			// Fetch current membership with user relation
-			const membership = await db.query.teamMembershipTable.findFirst({
-				where: eq(teamMembershipTable.id, input.membershipId),
-				with: {
-					user: true,
-				},
-			})
-
-			if (!membership) {
-				throw new ZSAError("NOT_FOUND", "Membership not found")
-			}
-
-			// Parse current and new metadata
-			const currentMetadata = membership.metadata
-				? (JSON.parse(membership.metadata) as Record<string, unknown>)
-				: {}
+			const isInvitation = input.membershipId.startsWith("tinv_")
 			const newMetadata = input.metadata as Record<string, unknown>
-			const updatedMetadata = {
-				...currentMetadata,
-				...newMetadata,
-			}
 
 			// Check if status is changing to "approved"
-			const wasApproved =
-				currentMetadata.status !== "approved" &&
-				newMetadata.status === "approved"
+			const isApprovingStatus = newMetadata.status === "approved"
 
-			// Update membership
-			await db
-				.update(teamMembershipTable)
-				.set({
-					metadata: JSON.stringify(updatedMetadata),
-					updatedAt: new Date(),
+			if (isInvitation) {
+				// Handle invitation updates
+				const invitation = await db.query.teamInvitationTable.findFirst({
+					where: eq(teamInvitationTable.id, input.membershipId),
 				})
-				.where(eq(teamMembershipTable.id, input.membershipId))
 
-			revalidatePath(`/compete/organizer/${input.competitionId}/volunteers`)
+				if (!invitation) {
+					throw new ZSAError("NOT_FOUND", "Invitation not found")
+				}
 
-			// Send approval email if status changed to approved
-			if (wasApproved) {
-				// Get volunteer email - either from user account or signup metadata
-				let volunteerEmail: string | undefined
-				let volunteerName = "Volunteer"
+				// Parse current metadata
+				const currentMetadata = invitation.metadata
+					? (JSON.parse(invitation.metadata) as Record<string, unknown>)
+					: {}
 
-				// Try to get user info if membership has a userId
-				if (membership.userId) {
-					const user = await db.query.userTable.findFirst({
-						where: eq(userTable.id, membership.userId),
+				const wasApproved =
+					currentMetadata.status !== "approved" && isApprovingStatus
+
+				if (wasApproved) {
+					// Use the dedicated approval function which handles invitedBy and membership creation
+					const updatedInvitation = await approveVolunteerInvitation({
+						db,
+						invitationId: input.membershipId,
+						approverId: session.userId,
 					})
-					if (user) {
-						volunteerEmail = user.email ?? undefined
-						volunteerName = user.firstName || volunteerName
-					}
-				}
 
-				// Fall back to signup metadata if no user or no email
-				if (!volunteerEmail) {
-					volunteerEmail = currentMetadata.signupEmail as string | undefined
-					volunteerName =
-						(currentMetadata.signupName as string | undefined) || volunteerName
-				}
+					// Get volunteer email for notification
+					const volunteerEmail = updatedInvitation.email
+					const metadata = updatedInvitation.metadata
+						? (JSON.parse(updatedInvitation.metadata) as Record<
+								string,
+								unknown
+							>)
+						: {}
+					const volunteerName =
+						(metadata.signupName as string | undefined) || "Volunteer"
 
-				if (volunteerEmail) {
+					// Send approval email
 					const { notifyVolunteerApproved } = await import(
 						"@/server/notifications/compete"
 					)
 					notifyVolunteerApproved({
 						volunteerEmail,
 						volunteerName,
-						competitionTeamId: membership.teamId,
-						roleTypes: updatedMetadata.volunteerRoleTypes as
-							| string[]
-							| undefined,
+						competitionTeamId: updatedInvitation.teamId,
+						roleTypes: metadata.volunteerRoleTypes as string[] | undefined,
 					}).catch((err) => {
 						console.error("Failed to send volunteer approved email:", err)
 					})
+				} else {
+					// For non-approval updates (e.g., rejection), just update metadata
+					const updatedMetadata = {
+						...currentMetadata,
+						...newMetadata,
+					}
+
+					await db
+						.update(teamInvitationTable)
+						.set({
+							metadata: JSON.stringify(updatedMetadata),
+							updatedAt: new Date(),
+						})
+						.where(eq(teamInvitationTable.id, input.membershipId))
+				}
+			} else {
+				// Handle membership updates (existing flow)
+				const membership = await db.query.teamMembershipTable.findFirst({
+					where: eq(teamMembershipTable.id, input.membershipId),
+					with: {
+						user: true,
+					},
+				})
+
+				if (!membership) {
+					throw new ZSAError("NOT_FOUND", "Membership not found")
+				}
+
+				// Parse current and new metadata
+				const currentMetadata = membership.metadata
+					? (JSON.parse(membership.metadata) as Record<string, unknown>)
+					: {}
+				const updatedMetadata = {
+					...currentMetadata,
+					...newMetadata,
+				}
+
+				// Update membership
+				await db
+					.update(teamMembershipTable)
+					.set({
+						metadata: JSON.stringify(updatedMetadata),
+						updatedAt: new Date(),
+					})
+					.where(eq(teamMembershipTable.id, input.membershipId))
+
+				// Send approval email if status changed to approved
+				const wasApproved =
+					currentMetadata.status !== "approved" && isApprovingStatus
+
+				if (wasApproved) {
+					// Get volunteer email - either from user account or signup metadata
+					let volunteerEmail: string | undefined
+					let volunteerName = "Volunteer"
+
+					// Try to get user info if membership has a userId
+					if (membership.userId) {
+						const user = await db.query.userTable.findFirst({
+							where: eq(userTable.id, membership.userId),
+						})
+						if (user) {
+							volunteerEmail = user.email ?? undefined
+							volunteerName = user.firstName || volunteerName
+						}
+					}
+
+					// Fall back to signup metadata if no user or no email
+					if (!volunteerEmail) {
+						volunteerEmail = currentMetadata.signupEmail as string | undefined
+						volunteerName =
+							(currentMetadata.signupName as string | undefined) ||
+							volunteerName
+					}
+
+					if (volunteerEmail) {
+						const { notifyVolunteerApproved } = await import(
+							"@/server/notifications/compete"
+						)
+						notifyVolunteerApproved({
+							volunteerEmail,
+							volunteerName,
+							competitionTeamId: membership.teamId,
+							roleTypes: updatedMetadata.volunteerRoleTypes as
+								| string[]
+								| undefined,
+						}).catch((err) => {
+							console.error("Failed to send volunteer approved email:", err)
+						})
+					}
 				}
 			}
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/volunteers`)
 
 			return { success: true }
 		} catch (error) {

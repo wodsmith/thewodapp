@@ -1,7 +1,10 @@
 import "server-only"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { and, eq } from "drizzle-orm"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
+import { getDb } from "@/db"
+import { SYSTEM_ROLES_ENUM, teamMembershipTable } from "@/db/schema"
 import {
 	getCompetition,
 	getCompetitionRegistrations,
@@ -78,6 +81,7 @@ export default async function CompetitionTabsLayout({
 		ReturnType<typeof getPendingInvitationsForCurrentUser>
 	> = []
 	let canManage = false
+	let isVolunteer = false
 	if (session) {
 		const [registration, invitations, canOrganize] = await Promise.all([
 			getUserCompetitionRegistration(competition.id, session.userId),
@@ -87,6 +91,21 @@ export default async function CompetitionTabsLayout({
 		userRegistration = registration
 		pendingInvitations = invitations
 		canManage = canOrganize
+
+		// Check if user is a volunteer for this competition
+		if (competition.competitionTeamId) {
+			const db = getDb()
+			const membership = await db.query.teamMembershipTable.findFirst({
+				where: and(
+					eq(teamMembershipTable.teamId, competition.competitionTeamId),
+					eq(teamMembershipTable.userId, session.userId),
+					eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+					eq(teamMembershipTable.isSystemRole, 1),
+					eq(teamMembershipTable.isActive, 1),
+				),
+			})
+			isVolunteer = !!membership
+		}
 	}
 
 	const registrationCount = registrations.length
@@ -169,6 +188,7 @@ export default async function CompetitionTabsLayout({
 								(userRegistration?.division?.teamSize ?? 1) > 1
 							}
 							isCaptain={userRegistration?.userId === session?.userId}
+							isVolunteer={isVolunteer}
 						/>
 					</aside>
 				</div>
