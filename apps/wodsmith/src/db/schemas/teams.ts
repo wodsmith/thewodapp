@@ -224,9 +224,7 @@ export const teamInvitationTable = sqliteTable(
 		// Flag to indicate if this is a system role
 		isSystemRole: integer().default(1).notNull(),
 		token: text({ length: 255 }).notNull().unique(),
-		invitedBy: text()
-			.notNull()
-			.references(() => userTable.id),
+		invitedBy: text().references(() => userTable.id),
 		expiresAt: integer({ mode: "timestamp" }).notNull(),
 		acceptedAt: integer({ mode: "timestamp" }),
 		acceptedBy: text().references(() => userTable.id),

@@ -7,16 +7,17 @@ import { getDb } from "@/db"
 import { getHeatsForWorkout } from "@/server/competition-heats"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import { getCompetition } from "@/server/competitions"
-import {
-	getActiveVersion,
-	getVersionHistory,
-} from "@/server/judge-assignments"
+import { getActiveVersion, getVersionHistory } from "@/server/judge-assignments"
 import { getRotationsForEvent } from "@/server/judge-rotations"
 import {
 	getJudgeHeatAssignments,
 	getJudgeVolunteers,
 } from "@/server/judge-scheduling"
-import { canInputScores, getCompetitionVolunteers } from "@/server/volunteers"
+import {
+	canInputScores,
+	getCompetitionVolunteers,
+	getPendingVolunteerInvitations,
+} from "@/server/volunteers"
 
 import { VolunteersList } from "./_components/volunteers-list"
 import { JudgeSchedulingContainer } from "./judges/_components/judge-scheduling-container"
@@ -59,8 +60,9 @@ export default async function CompetitionVolunteersPage({
 
 	const db = getDb()
 
-	// Parallel fetch: volunteers, events, judges
-	const [volunteers, events, judges] = await Promise.all([
+	// Parallel fetch: invitations, volunteers, events, judges
+	const [invitations, volunteers, events, judges] = await Promise.all([
+		getPendingVolunteerInvitations(db, competition.competitionTeamId),
 		getCompetitionVolunteers(db, competition.competitionTeamId),
 		getCompetitionWorkouts(competition.id),
 		getJudgeVolunteers(db, competition.competitionTeamId),
@@ -91,13 +93,17 @@ export default async function CompetitionVolunteersPage({
 	const heats = allHeats.flat()
 
 	// Get judge assignments, rotations, and version data for all events
-	const [allAssignments, allRotationResults, allVersionHistory, allActiveVersions] =
-		await Promise.all([
-			Promise.all(events.map((event) => getJudgeHeatAssignments(db, event.id))),
-			Promise.all(events.map((event) => getRotationsForEvent(db, event.id))),
-			Promise.all(events.map((event) => getVersionHistory(db, event.id))),
-			Promise.all(events.map((event) => getActiveVersion(db, event.id))),
-		])
+	const [
+		allAssignments,
+		allRotationResults,
+		allVersionHistory,
+		allActiveVersions,
+	] = await Promise.all([
+		Promise.all(events.map((event) => getJudgeHeatAssignments(db, event.id))),
+		Promise.all(events.map((event) => getRotationsForEvent(db, event.id))),
+		Promise.all(events.map((event) => getVersionHistory(db, event.id))),
+		Promise.all(events.map((event) => getActiveVersion(db, event.id))),
+	])
 	const judgeAssignments = allAssignments.flat()
 	// Extract rotations from the new { rotations, eventDefaults } return type
 	const rotations = allRotationResults.flatMap((result) => result.rotations)
@@ -131,8 +137,9 @@ export default async function CompetitionVolunteersPage({
 				<div className="mb-4">
 					<h2 className="text-xl font-semibold">Volunteers</h2>
 					<p className="text-muted-foreground text-sm">
-						{volunteersWithAccess.length} volunteer
-						{volunteersWithAccess.length !== 1 ? "s" : ""}
+						{invitations.length + volunteersWithAccess.length} total (
+						{invitations.length} pending, {volunteersWithAccess.length}{" "}
+						approved)
 					</p>
 				</div>
 
@@ -141,6 +148,7 @@ export default async function CompetitionVolunteersPage({
 					competitionSlug={competition.slug}
 					competitionTeamId={competition.competitionTeamId}
 					organizingTeamId={competition.organizingTeamId}
+					invitations={invitations}
 					volunteers={volunteersWithAccess}
 				/>
 			</section>

@@ -2,22 +2,21 @@ import "server-only"
 
 import { and, asc, desc, eq } from "drizzle-orm"
 import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type * as schema from "@/db/schema"
 import {
-	LANE_SHIFT_PATTERN,
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
 	competitionsTable,
 	competitionVenuesTable,
 	type JudgeAssignmentVersion,
-	judgeAssignmentVersionsTable,
 	type JudgeHeatAssignment,
+	judgeAssignmentVersionsTable,
 	judgeHeatAssignmentsTable,
+	LANE_SHIFT_PATTERN,
 	programmingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schema"
-import type * as schema from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 type Db = DrizzleD1Database<typeof schema>
@@ -108,13 +107,21 @@ export async function rollbackToVersion(
 	}
 
 	// Permission check
-	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
 
 	// Deactivate all versions for this event
 	await db
 		.update(judgeAssignmentVersionsTable)
 		.set({ isActive: false, updatedAt: new Date() })
-		.where(eq(judgeAssignmentVersionsTable.trackWorkoutId, targetVersion.trackWorkoutId))
+		.where(
+			eq(
+				judgeAssignmentVersionsTable.trackWorkoutId,
+				targetVersion.trackWorkoutId,
+			),
+		)
 
 	// Activate the target version
 	const [updatedVersion] = await db
@@ -227,7 +234,10 @@ export async function publishRotations(
 	params: PublishRotationsParams,
 ): Promise<JudgeAssignmentVersion> {
 	// Permission check
-	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
 
 	// Get event info to find maxLanes - using manual join to get competition venues
 	const result = await db
@@ -268,7 +278,9 @@ export async function publishRotations(
 	await db
 		.update(judgeAssignmentVersionsTable)
 		.set({ isActive: false, updatedAt: new Date() })
-		.where(eq(judgeAssignmentVersionsTable.trackWorkoutId, params.trackWorkoutId))
+		.where(
+			eq(judgeAssignmentVersionsTable.trackWorkoutId, params.trackWorkoutId),
+		)
 
 	// Create new version
 	const [newVersion] = await db
@@ -293,30 +305,36 @@ export async function publishRotations(
 		maxLanes,
 	)
 
-	// Bulk insert assignments using autochunk
-	// Each assignment has 7 fields: heatId, membershipId, rotationId, laneNumber, position, versionId, isManualOverride
-	// That's 7 params per row, plus id/createdAt/updatedAt/updateCounter (auto-generated)
-	// Total ~10 params per row, so batch size of 10 = ~100 params
+	// Bulk insert assignments using manual chunking
+	// Drizzle inserts all columns including auto-generated ones:
+	// createdAt, updatedAt, updateCounter, id, heatId, membershipId, rotationId, versionId, laneNumber, position, instructions, isManualOverride
+	// That's 11 params per row (instructions is null literal).
+	// D1 has a 100 bound parameter limit (NOT 999 like standard SQLite).
+	// max rows per batch = floor(100 / 11) = 9, use 8 for safety
+	const INSERT_BATCH_SIZE = 8
 	if (materializedAssignments.length > 0) {
-		await autochunk<MaterializedAssignment, JudgeHeatAssignment>(
-			{ items: materializedAssignments },
-			async (chunk: MaterializedAssignment[]) => {
-				return db
-					.insert(judgeHeatAssignmentsTable)
-					.values(
-						chunk.map((a) => ({
-							heatId: a.heatId,
-							membershipId: a.membershipId,
-							rotationId: a.rotationId,
-							laneNumber: a.laneNumber,
-							position: a.position,
-							versionId: newVersion.id,
-							isManualOverride: false,
-						})),
-					)
-					.returning()
-			},
-		)
+		const chunks: MaterializedAssignment[][] = []
+		for (
+			let i = 0;
+			i < materializedAssignments.length;
+			i += INSERT_BATCH_SIZE
+		) {
+			chunks.push(materializedAssignments.slice(i, i + INSERT_BATCH_SIZE))
+		}
+
+		for (const chunk of chunks) {
+			await db.insert(judgeHeatAssignmentsTable).values(
+				chunk.map((a) => ({
+					heatId: a.heatId,
+					membershipId: a.membershipId,
+					rotationId: a.rotationId,
+					laneNumber: a.laneNumber,
+					position: a.position,
+					versionId: newVersion.id,
+					isManualOverride: false,
+				})),
+			)
+		}
 	}
 
 	return newVersion

@@ -7,11 +7,12 @@ import {
 	type CompetitionJudgeRotation,
 	competitionHeatsTable,
 	competitionJudgeRotationsTable,
-	competitionVenuesTable,
 	competitionsTable,
+	competitionVenuesTable,
 	LANE_SHIFT_PATTERN,
 	type LaneShiftPattern,
 	trackWorkoutsTable,
+	workouts,
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 // Import pure utility functions from shared module (can be used in client components)
@@ -334,6 +335,13 @@ export async function getRotationsForEvent(
 
 /**
  * Get all rotations for a specific judge in a competition.
+ * 
+ * NOTE: This returns raw rotation records. Enrichment with trackWorkout/workout/heats
+ * happens in the calling component. If rotations are missing from the UI, check:
+ * 1. Are rotations returned here? (Check console logs)
+ * 2. Does the trackWorkoutId exist in track_workouts table?
+ * 3. Does the workout exist for that trackWorkout?
+ * 4. Are heats missing scheduledTime/durationMinutes?
  */
 export async function getRotationsForJudge(
 	db: Db,
@@ -350,11 +358,182 @@ export async function getRotationsForJudge(
 			),
 		)
 
+	// Debug logging to diagnose missing rotations
+	if (rotations.length === 0) {
+		console.error(
+			`[getRotationsForJudge] No rotations found for membershipId=${membershipId}, competitionId=${competitionId}`,
+		)
+	} else {
+		console.log(
+			`[getRotationsForJudge] Found ${rotations.length} rotation(s) for membershipId=${membershipId}, competitionId=${competitionId}`,
+		)
+		for (const rotation of rotations) {
+			console.log(
+				`[getRotationsForJudge] Rotation ${rotation.id}: trackWorkoutId=${rotation.trackWorkoutId}, heatsCount=${rotation.heatsCount}, startingHeat=${rotation.startingHeat}`,
+			)
+		}
+	}
+
 	return rotations
 }
 
 // ============================================================================
-// 7. Validate Rotation Conflicts
+// 7. Get Enriched Rotations for Judge (with debugging)
+// ============================================================================
+
+export interface EnrichedJudgeRotation {
+	rotation: CompetitionJudgeRotation
+	trackWorkout: typeof trackWorkoutsTable.$inferSelect | null
+	workout: { id: string; name: string } | null
+	heats: Array<{
+		heatNumber: number
+		scheduledTime: Date | null
+		durationMinutes: number | null
+	}>
+	/** Diagnostic info about why data might be missing */
+	diagnostics: {
+		missingTrackWorkout: boolean
+		missingWorkout: boolean
+		missingHeats: boolean
+		heatsWithoutSchedule: number
+	}
+}
+
+/**
+ * Get rotations for a judge WITH enriched data (trackWorkout, workout, heats).
+ * This version includes comprehensive error logging to diagnose missing data.
+ * 
+ * Use this instead of manually enriching in the component when you need better
+ * diagnostics about why rotations aren't displaying.
+ * 
+ * @param includeUnpublished - If false, filters out rotations where trackWorkout.eventStatus != 'published'
+ */
+export async function getEnrichedRotationsForJudge(
+	db: Db,
+	membershipId: string,
+	competitionId: string,
+	options?: {
+		includeUnpublished?: boolean
+	},
+): Promise<EnrichedJudgeRotation[]> {
+	const rotations = await getRotationsForJudge(db, membershipId, competitionId)
+
+	const enriched: EnrichedJudgeRotation[] = []
+
+	for (const rotation of rotations) {
+		const diagnostics = {
+			missingTrackWorkout: false,
+			missingWorkout: false,
+			missingHeats: false,
+			heatsWithoutSchedule: 0,
+		}
+
+		// Fetch trackWorkout
+		const [trackWorkout] = await db
+			.select()
+			.from(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, rotation.trackWorkoutId))
+
+		if (!trackWorkout) {
+			console.error(
+				`[getEnrichedRotationsForJudge] Missing trackWorkout for rotation ${rotation.id}, trackWorkoutId=${rotation.trackWorkoutId}`,
+			)
+			diagnostics.missingTrackWorkout = true
+		}
+
+		// Skip if filtering unpublished and event is not published
+		if (
+			!options?.includeUnpublished &&
+			trackWorkout?.eventStatus !== "published"
+		) {
+			console.log(
+				`[getEnrichedRotationsForJudge] Skipping rotation ${rotation.id} - eventStatus=${trackWorkout?.eventStatus} (not published)`,
+			)
+			continue
+		}
+
+		// Fetch workout if trackWorkout exists
+		let workout: { id: string; name: string } | null = null
+		if (trackWorkout?.workoutId) {
+			const [workoutResult] = await db
+				.select({ id: workouts.id, name: workouts.name })
+				.from(workouts)
+				.where(eq(workouts.id, trackWorkout.workoutId))
+
+			if (!workoutResult) {
+				console.error(
+					`[getEnrichedRotationsForJudge] Missing workout for rotation ${rotation.id}, workoutId=${trackWorkout.workoutId}`,
+				)
+				diagnostics.missingWorkout = true
+			} else {
+				workout = workoutResult
+			}
+		} else if (trackWorkout) {
+			console.error(
+				`[getEnrichedRotationsForJudge] TrackWorkout ${trackWorkout.id} has no workoutId`,
+			)
+			diagnostics.missingWorkout = true
+		}
+
+		// Fetch heats for this trackWorkout
+		const heats = trackWorkout
+			? await db
+					.select({
+						heatNumber: competitionHeatsTable.heatNumber,
+						scheduledTime: competitionHeatsTable.scheduledTime,
+						durationMinutes: competitionHeatsTable.durationMinutes,
+					})
+					.from(competitionHeatsTable)
+					.where(eq(competitionHeatsTable.trackWorkoutId, rotation.trackWorkoutId))
+			: []
+
+		if (heats.length === 0) {
+			console.error(
+				`[getEnrichedRotationsForJudge] No heats found for rotation ${rotation.id}, trackWorkoutId=${rotation.trackWorkoutId}`,
+			)
+			diagnostics.missingHeats = true
+		} else {
+			// Check for heats missing schedule data
+			const unscheduled = heats.filter(
+				(h) => !h.scheduledTime || !h.durationMinutes,
+			)
+			if (unscheduled.length > 0) {
+				console.warn(
+					`[getEnrichedRotationsForJudge] ${unscheduled.length}/${heats.length} heats for rotation ${rotation.id} lack scheduledTime or durationMinutes`,
+				)
+				diagnostics.heatsWithoutSchedule = unscheduled.length
+			}
+		}
+
+		enriched.push({
+			rotation,
+			trackWorkout: trackWorkout ?? null,
+			workout,
+			heats,
+			diagnostics,
+		})
+	}
+
+	// Summary logging
+	const withIssues = enriched.filter(
+		(r) =>
+			r.diagnostics.missingTrackWorkout ||
+			r.diagnostics.missingWorkout ||
+			r.diagnostics.missingHeats ||
+			r.diagnostics.heatsWithoutSchedule > 0,
+	)
+
+	if (withIssues.length > 0) {
+		console.warn(
+			`[getEnrichedRotationsForJudge] ${withIssues.length}/${enriched.length} rotation(s) have data issues`,
+		)
+	}
+
+	return enriched
+}
+
+// ============================================================================
+// 8. Validate Rotation Conflicts
 // ============================================================================
 
 /**

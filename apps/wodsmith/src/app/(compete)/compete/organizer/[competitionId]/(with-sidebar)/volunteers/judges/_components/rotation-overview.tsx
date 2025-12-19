@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo } from "react"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
+import { useMemo } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import type { CompetitionJudgeRotation } from "@/db/schema"

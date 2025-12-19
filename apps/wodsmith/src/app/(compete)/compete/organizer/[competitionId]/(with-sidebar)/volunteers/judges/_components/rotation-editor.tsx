@@ -31,12 +31,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
 import {
 	type CompetitionJudgeRotation,
 	LANE_SHIFT_PATTERN,
 	type LaneShiftPattern,
 } from "@/db/schema"
+import { useToast } from "@/hooks/use-toast"
 import type { JudgeVolunteerInfo } from "@/server/judge-scheduling"
 
 /**
@@ -135,9 +135,7 @@ export function RotationEditor({
 			startingHeat: rotation?.startingHeat ?? initialHeat ?? 1,
 			startingLane: rotation?.startingLane ?? initialLane ?? 1,
 			heatsCount:
-				rotation?.heatsCount ??
-				eventDefaultHeatsCount ??
-				Math.min(4, maxHeats),
+				rotation?.heatsCount ?? eventDefaultHeatsCount ?? Math.min(4, maxHeats),
 			notes: rotation?.notes ?? "",
 		},
 	})
@@ -160,12 +158,12 @@ export function RotationEditor({
 			if (heat > maxHeats) break
 
 			let lane: number
-		if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
-			lane = startingLane
-		} else {
-			// shift_right
-			lane = ((startingLane - 1 + i) % maxLanes) + 1
-		}
+			if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
+				lane = startingLane
+			} else {
+				// shift_right
+				lane = ((startingLane - 1 + i) % maxLanes) + 1
+			}
 
 			cells.push({ heat, lane })
 		}
@@ -223,7 +221,13 @@ export function RotationEditor({
 		}, 500) // Debounce
 
 		return () => clearTimeout(timer)
-	}, [formValues, trackWorkoutId, rotation?.id, validateRotation, eventLaneShiftPattern])
+	}, [
+		formValues,
+		trackWorkoutId,
+		rotation?.id,
+		validateRotation,
+		eventLaneShiftPattern,
+	])
 
 	async function onSubmit(values: RotationFormValues) {
 		if (isEditing) {
@@ -404,9 +408,13 @@ export function RotationEditor({
 									<p>
 										{`${selectedJudge.firstName ?? ""} ${selectedJudge.lastName ?? ""}`.trim()}{" "}
 										will judge heats {formValues.startingHeat} through{" "}
-										{formValues.startingHeat + truncationInfo.effectiveHeatsCount - 1}{" "}
+										{formValues.startingHeat +
+											truncationInfo.effectiveHeatsCount -
+											1}{" "}
 										<span className="text-muted-foreground">
-											({truncationInfo.effectiveHeatsCount} of {truncationInfo.requestedHeatsCount} requested - remaining heats don't exist)
+											({truncationInfo.effectiveHeatsCount} of{" "}
+											{truncationInfo.requestedHeatsCount} requested - remaining
+											heats don't exist)
 										</span>
 									</p>
 								) : (
@@ -416,15 +424,15 @@ export function RotationEditor({
 										{formValues.startingHeat + formValues.heatsCount - 1}
 									</p>
 								)}
-							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY && (
-								<p>Starting and staying in lane {formValues.startingLane}</p>
-							)}
-							{eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
-								<p>
-									Starting at lane {formValues.startingLane}, shifting lanes
-									each heat
-								</p>
-							)}
+								{eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY && (
+									<p>Starting and staying in lane {formValues.startingLane}</p>
+								)}
+								{eventLaneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT && (
+									<p>
+										Starting at lane {formValues.startingLane}, shifting lanes
+										each heat
+									</p>
+								)}
 							</div>
 						</AlertDescription>
 					</Alert>

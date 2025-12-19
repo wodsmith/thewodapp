@@ -899,3 +899,110 @@ export async function getPendingInvitationsForCurrentUser() {
 		}
 	})
 }
+
+/**
+ * Process approved volunteer invitations for a newly created user
+ * Finds all invitations for the user's email where metadata.status === "approved"
+ * and automatically creates team memberships for them
+ */
+export async function processApprovedInvitationsForEmail(
+	db: ReturnType<typeof getDb>,
+	email: string,
+	userId: string,
+): Promise<void> {
+	// Normalize email for case-insensitive comparison
+	const normalizedEmail = email.toLowerCase()
+
+	// Find all unaccepted invitations for this email
+	const invitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.email, normalizedEmail),
+			isNull(teamInvitationTable.acceptedAt),
+		),
+	})
+
+	let processedCount = 0
+	let skippedCount = 0
+
+	for (const invitation of invitations) {
+		// Check if invitation is approved via metadata
+		let isApproved = false
+		if (invitation.metadata) {
+			try {
+				const metadata = JSON.parse(invitation.metadata) as {
+					status?: "pending" | "approved" | "rejected"
+				}
+				isApproved = metadata.status === "approved"
+			} catch {
+				// If metadata parse fails, skip this invitation
+				continue
+			}
+		}
+
+		// Only process approved invitations
+		// Pending invitations remain as invitations (user will see them on profile)
+		if (!isApproved) {
+			continue
+		}
+
+		// Check if user already has membership for this team
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, invitation.teamId),
+				eq(teamMembershipTable.userId, userId),
+			),
+		})
+
+		if (existingMembership) {
+			// User already has membership - mark invitation as accepted and skip
+			await db
+				.update(teamInvitationTable)
+				.set({
+					acceptedAt: new Date(),
+					acceptedBy: userId,
+					updatedAt: new Date(),
+				})
+				.where(eq(teamInvitationTable.id, invitation.id))
+
+			skippedCount++
+			continue
+		}
+
+		// Create team membership
+		await db.insert(teamMembershipTable).values({
+			teamId: invitation.teamId,
+			userId,
+			roleId: invitation.roleId,
+			isSystemRole: Number(invitation.isSystemRole),
+			invitedBy: invitation.invitedBy,
+			invitedAt: invitation.createdAt
+				? new Date(invitation.createdAt)
+				: new Date(),
+			joinedAt: new Date(),
+			isActive: 1,
+			metadata: invitation.metadata, // Copy metadata from invitation
+		})
+
+		// Mark invitation as accepted
+		await db
+			.update(teamInvitationTable)
+			.set({
+				acceptedAt: new Date(),
+				acceptedBy: userId,
+				updatedAt: new Date(),
+			})
+			.where(eq(teamInvitationTable.id, invitation.id))
+
+		processedCount++
+	}
+
+	// Update user's session to include new team memberships
+	if (processedCount > 0) {
+		await updateAllSessionsOfUser(userId)
+	}
+
+	// Log results for debugging
+	console.log(
+		`[processApprovedInvitationsForEmail] Processed ${processedCount} approved invitations, skipped ${skippedCount} existing memberships for ${email}`,
+	)
+}

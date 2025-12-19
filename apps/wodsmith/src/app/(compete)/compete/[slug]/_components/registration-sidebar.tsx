@@ -24,6 +24,7 @@ interface RegistrationSidebarProps {
 	registrationId?: string | null
 	isTeamRegistration?: boolean
 	isCaptain?: boolean
+	isVolunteer?: boolean
 }
 
 function formatDateShort(date: Date | number): string {
@@ -54,11 +55,26 @@ export function RegistrationSidebar({
 	registrationId,
 	isTeamRegistration,
 	isCaptain,
+	isVolunteer = false,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 
 	return (
 		<div className="space-y-4">
+			{/* Volunteer Dashboard Button */}
+			{isVolunteer && (
+				<Card className="border-2 border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent">
+					<CardContent className="p-4">
+						<Button asChild variant="default" size="sm" className="w-full">
+							<Link href={`/compete/${competition.slug}/my-schedule`}>
+								<Calendar className="mr-2 h-4 w-4" />
+								My Volunteer Schedule
+							</Link>
+						</Button>
+					</CardContent>
+				</Card>
+			)}
+
 			{/* Registration Status Card */}
 			{(isRegistered || (registrationOpen && regClosesAt)) && (
 				<Card className="border-2 border-teal-500/20 bg-gradient-to-br from-teal-500/5 to-transparent">

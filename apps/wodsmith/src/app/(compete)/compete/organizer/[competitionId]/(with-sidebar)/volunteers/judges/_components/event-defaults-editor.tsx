@@ -230,7 +230,10 @@ export function EventDefaultsEditor({
 						}
 						disabled={isSubmitting}
 					>
-						<SelectTrigger id="defaultLaneShiftPattern" className="max-w-[200px]">
+						<SelectTrigger
+							id="defaultLaneShiftPattern"
+							className="max-w-[200px]"
+						>
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TableCell, TableRow } from "@/components/ui/table"
 import type { User } from "@/db/schema"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 
 interface VolunteerWithAccess {
 	id: string
@@ -74,6 +75,22 @@ const ROLE_TYPE_LABELS: Record<VolunteerRoleType, string> = {
 }
 
 /**
+ * Get availability display label
+ */
+function getAvailabilityLabel(availability?: string): string | null {
+	switch (availability) {
+		case VOLUNTEER_AVAILABILITY.MORNING:
+			return "Morning"
+		case VOLUNTEER_AVAILABILITY.AFTERNOON:
+			return "Afternoon"
+		case VOLUNTEER_AVAILABILITY.ALL_DAY:
+			return "All Day"
+		default:
+			return null
+	}
+}
+
+/**
  * Parse volunteer metadata
  */
 function parseMetadata(metadata: string | null): {
@@ -82,6 +99,7 @@ function parseMetadata(metadata: string | null): {
 	signupName?: string
 	signupEmail?: string
 	signupPhone?: string
+	availability?: string
 } {
 	if (!metadata)
 		return {
@@ -94,6 +112,7 @@ function parseMetadata(metadata: string | null): {
 			signupName?: string
 			signupEmail?: string
 			signupPhone?: string
+			availability?: string
 		}
 		return {
 			roleTypes: parsed.volunteerRoleTypes ?? [],
@@ -101,6 +120,7 @@ function parseMetadata(metadata: string | null): {
 			signupName: parsed.signupName,
 			signupEmail: parsed.signupEmail,
 			signupPhone: parsed.signupPhone,
+			availability: parsed.availability,
 		}
 	} catch {
 		return {
@@ -302,6 +322,7 @@ export function VolunteerRow({
 	const displayEmail = volunteer.user
 		? volunteer.user.email
 		: metadata.signupEmail || "—"
+	const availabilityLabel = getAvailabilityLabel(metadata.availability)
 
 	return (
 		<TableRow className={isSelected ? "bg-muted/50" : undefined}>
@@ -332,11 +353,18 @@ export function VolunteerRow({
 					</Avatar>
 					<div className="flex flex-col gap-1">
 						<span className="font-medium">{displayName}</span>
-						{isPendingVolunteer && (
-							<Badge variant="outline" className="w-fit text-xs">
-								Pending
-							</Badge>
-						)}
+						<div className="flex flex-wrap gap-1">
+							{isPendingVolunteer && (
+								<Badge variant="outline" className="w-fit text-xs">
+									Pending
+								</Badge>
+							)}
+							{availabilityLabel && (
+								<Badge variant="outline" className="w-fit text-xs">
+									{availabilityLabel}
+								</Badge>
+							)}
+						</div>
 					</div>
 				</div>
 			</TableCell>

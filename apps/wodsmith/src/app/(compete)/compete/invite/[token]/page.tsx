@@ -3,6 +3,8 @@
 import {
 	AlertCircle,
 	Calendar,
+	CheckCircle2,
+	Clock,
 	LogIn,
 	Trophy,
 	UserPlus,
@@ -16,7 +18,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { getTeammateInvite } from "@/server/competitions"
+import { getTeammateInvite, getVolunteerInvite } from "@/server/competitions"
 import { checkEmailExists } from "@/server/user"
 import { getSessionFromCookie } from "@/utils/auth"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
@@ -30,7 +32,13 @@ export default async function CompeteInvitePage({
 	const { token } = await params
 	const session = await getSessionFromCookie()
 
-	// Get invite details
+	// First check if this is a volunteer invite
+	const volunteerInvite = await getVolunteerInvite(token)
+	if (volunteerInvite) {
+		return <VolunteerInviteStatus invite={volunteerInvite} />
+	}
+
+	// Get teammate invite details
 	const invite = await getTeammateInvite(token)
 
 	if (!invite) {
@@ -291,6 +299,118 @@ export default async function CompeteInvitePage({
 							</p>
 						</>
 					)}
+				</CardContent>
+			</Card>
+		</div>
+	)
+}
+
+/**
+ * Status page for volunteer invites
+ * Shows the current status of a volunteer application (pending, approved, rejected)
+ */
+function VolunteerInviteStatus({
+	invite,
+}: {
+	invite: NonNullable<Awaited<ReturnType<typeof getVolunteerInvite>>>
+}) {
+	const statusConfig = {
+		pending: {
+			icon: Clock,
+			iconClass: "text-yellow-500",
+			bgClass: "bg-yellow-500/10",
+			title: "Application Pending",
+			description:
+				"Your volunteer application is being reviewed by the organizers. You'll receive an email when it's been processed.",
+		},
+		approved: {
+			icon: CheckCircle2,
+			iconClass: "text-green-500",
+			bgClass: "bg-green-500/10",
+			title: "Application Approved!",
+			description:
+				"Congratulations! Your volunteer application has been approved. Check your email for next steps.",
+		},
+		rejected: {
+			icon: AlertCircle,
+			iconClass: "text-destructive",
+			bgClass: "bg-destructive/10",
+			title: "Application Not Accepted",
+			description:
+				"Unfortunately, your volunteer application was not accepted at this time. Thank you for your interest.",
+		},
+	}
+
+	const status = (invite.status as keyof typeof statusConfig) || "pending"
+	const config = statusConfig[status] || statusConfig.pending
+	const StatusIcon = config.icon
+
+	return (
+		<div className="container mx-auto max-w-lg py-16">
+			<Card>
+				<CardHeader className="text-center">
+					<div
+						className={`mx-auto mb-4 p-3 rounded-full ${config.bgClass} w-fit`}
+					>
+						<StatusIcon className={`w-8 h-8 ${config.iconClass}`} />
+					</div>
+					<CardTitle className="text-2xl">{config.title}</CardTitle>
+					<CardDescription>{config.description}</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Application Details */}
+					<div className="space-y-3 p-4 rounded-lg bg-muted/50">
+						{invite.competition && (
+							<div className="flex items-center gap-3">
+								<Trophy className="w-5 h-5 text-muted-foreground" />
+								<div>
+									<p className="text-sm text-muted-foreground">Competition</p>
+									<p className="font-medium">{invite.competition.name}</p>
+								</div>
+							</div>
+						)}
+						{invite.signupName && (
+							<div className="flex items-center gap-3">
+								<UserPlus className="w-5 h-5 text-muted-foreground" />
+								<div>
+									<p className="text-sm text-muted-foreground">Name</p>
+									<p className="font-medium">{invite.signupName}</p>
+								</div>
+							</div>
+						)}
+						{invite.roleTypes && invite.roleTypes.length > 0 && (
+							<div className="flex items-center gap-3">
+								<Users className="w-5 h-5 text-muted-foreground" />
+								<div>
+									<p className="text-sm text-muted-foreground">
+										Assigned Roles
+									</p>
+									<p className="font-medium capitalize">
+										{invite.roleTypes.join(", ").replace(/_/g, " ")}
+									</p>
+								</div>
+							</div>
+						)}
+					</div>
+
+					{/* Action buttons based on status */}
+					{status === "approved" && invite.competition && (
+						<Button asChild className="w-full">
+							<a href={`/compete/${invite.competition.slug}`}>
+								View Competition
+							</a>
+						</Button>
+					)}
+
+					{status === "pending" && (
+						<p className="text-sm text-center text-muted-foreground">
+							Questions? Contact the competition organizers directly.
+						</p>
+					)}
+
+					<Button asChild variant="outline" className="w-full">
+						<a href="/compete">Browse Competitions</a>
+					</Button>
 				</CardContent>
 			</Card>
 		</div>

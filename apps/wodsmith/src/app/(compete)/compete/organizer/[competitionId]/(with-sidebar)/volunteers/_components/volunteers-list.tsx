@@ -23,6 +23,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+import {
 	Table,
 	TableBody,
 	TableHead,
@@ -30,7 +37,8 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { User } from "@/db/schema"
+import type { TeamInvitation, User } from "@/db/schema"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
@@ -77,6 +85,7 @@ interface VolunteersListProps {
 	competitionSlug: string
 	competitionTeamId: string
 	organizingTeamId: string
+	invitations: TeamInvitation[]
 	volunteers: VolunteerWithAccess[]
 }
 
@@ -89,10 +98,14 @@ export function VolunteersList({
 	competitionSlug,
 	competitionTeamId,
 	organizingTeamId,
+	invitations,
 	volunteers,
 }: VolunteersListProps) {
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
+	const [availabilityFilter, setAvailabilityFilter] = useState<string | null>(
+		null,
+	)
 	const [copied, setCopied] = useState(false)
 
 	// Selection state
@@ -134,38 +147,78 @@ export function VolunteersList({
 	}
 
 	// Parse status from metadata
-	const getVolunteerStatus = (
-		volunteer: VolunteerWithAccess,
+	const getInvitationStatus = (
+		invitation: TeamInvitation,
 	): "pending" | "approved" | "rejected" => {
-		if (!volunteer.metadata) return "approved"
+		if (!invitation.metadata) return "pending"
 		try {
-			const parsed = JSON.parse(volunteer.metadata) as {
+			const parsed = JSON.parse(invitation.metadata) as {
 				status?: "pending" | "approved" | "rejected"
 			}
-			return parsed.status || "approved"
+			return parsed.status || "pending"
 		} catch {
-			return "approved"
+			return "pending"
 		}
 	}
 
-	// Separate volunteers by status
-	const pendingVolunteers = volunteers.filter(
-		(v) => getVolunteerStatus(v) === "pending",
-	)
-	const approvedVolunteers = volunteers.filter(
-		(v) => getVolunteerStatus(v) === "approved",
-	)
+	// Parse availability from metadata
+	const getAvailability = (metadata: string | null): string | null => {
+		if (!metadata) return null
+		try {
+			const parsed = JSON.parse(metadata) as { availability?: string }
+			return parsed.availability || null
+		} catch {
+			return null
+		}
+	}
 
-	// Filter volunteers based on selected filter
-	const filteredVolunteers =
+	// Convert invitations to a compatible format for display
+	// Invitations show as pending items with signup info
+	type VolunteerItem =
+		| { type: "invitation"; data: TeamInvitation }
+		| { type: "membership"; data: VolunteerWithAccess }
+
+	const invitationItems: VolunteerItem[] = invitations.map((inv) => ({
+		type: "invitation" as const,
+		data: inv,
+	}))
+
+	const membershipItems: VolunteerItem[] = volunteers.map((vol) => ({
+		type: "membership" as const,
+		data: vol,
+	}))
+
+	// Combine all items
+	const allItems = [...invitationItems, ...membershipItems]
+
+	// Separate by status
+	const pendingItems: VolunteerItem[] = invitationItems.filter((item) => {
+		if (item.type === "invitation") {
+			return getInvitationStatus(item.data) === "pending"
+		}
+		return false
+	})
+	const approvedItems: VolunteerItem[] = membershipItems // All memberships are approved
+
+	// Filter items based on selected filter
+	let filteredItems: VolunteerItem[] =
 		filter === "all"
-			? volunteers
+			? allItems
 			: filter === "pending"
-				? pendingVolunteers
-				: approvedVolunteers
+				? pendingItems
+				: approvedItems
+
+	// Apply availability filter
+	if (availabilityFilter) {
+		filteredItems = filteredItems.filter((item) => {
+			const metadata = item.data.metadata
+			const availability = getAvailability(metadata)
+			return availability === availabilityFilter
+		})
+	}
 
 	// Get flat list of IDs for range selection
-	const filteredIds = filteredVolunteers.map((v) => v.id)
+	const filteredIds = filteredItems.map((item) => item.data.id)
 
 	/**
 	 * Toggle selection with shift-click range support
@@ -227,12 +280,20 @@ export function VolunteersList({
 
 	/**
 	 * Handle bulk role assignment
+	 * Only membership IDs (tmem_*) are valid - invitations (tinv_*) cannot have roles assigned
 	 */
 	function handleBulkAssignRole(roleType: VolunteerRoleType) {
 		if (selectedIds.size === 0) return
 
+		// Filter to only include membership IDs (invitations can't have roles assigned)
+		const membershipIds = Array.from(selectedIds).filter((id) =>
+			id.startsWith("tmem_"),
+		)
+
+		if (membershipIds.length === 0) return
+
 		bulkAssignRole({
-			membershipIds: Array.from(selectedIds),
+			membershipIds,
 			organizingTeamId,
 			competitionId,
 			roleType,
@@ -244,7 +305,7 @@ export function VolunteersList({
 		filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id))
 	const someSelected = selectedIds.size > 0
 
-	if (volunteers.length === 0) {
+	if (invitations.length === 0 && volunteers.length === 0) {
 		return (
 			<Card>
 				<CardHeader>
@@ -314,6 +375,28 @@ export function VolunteersList({
 
 			{/* Actions */}
 			<div className="flex items-center justify-end gap-2">
+				<Select
+					value={availabilityFilter ?? "all"}
+					onValueChange={(value) =>
+						setAvailabilityFilter(value === "all" ? null : value)
+					}
+				>
+					<SelectTrigger className="w-[140px]">
+						<SelectValue placeholder="Availability" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All Times</SelectItem>
+						<SelectItem value={VOLUNTEER_AVAILABILITY.MORNING}>
+							Morning
+						</SelectItem>
+						<SelectItem value={VOLUNTEER_AVAILABILITY.AFTERNOON}>
+							Afternoon
+						</SelectItem>
+						<SelectItem value={VOLUNTEER_AVAILABILITY.ALL_DAY}>
+							All Day
+						</SelectItem>
+					</SelectContent>
+				</Select>
 				<Button variant="outline" onClick={copySignupLink}>
 					{copied ? (
 						<Check className="mr-2 h-4 w-4" />
@@ -348,21 +431,21 @@ export function VolunteersList({
 					<TabsTrigger value="all">
 						All
 						<Badge variant="secondary" className="ml-2">
-							{volunteers.length}
+							{allItems.length}
 						</Badge>
 					</TabsTrigger>
 					<TabsTrigger value="pending">
 						Pending
-						{pendingVolunteers.length > 0 && (
+						{pendingItems.length > 0 && (
 							<Badge variant="secondary" className="ml-2">
-								{pendingVolunteers.length}
+								{pendingItems.length}
 							</Badge>
 						)}
 					</TabsTrigger>
 					<TabsTrigger value="approved">
 						Approved
 						<Badge variant="secondary" className="ml-2">
-							{approvedVolunteers.length}
+							{approvedItems.length}
 						</Badge>
 					</TabsTrigger>
 				</TabsList>
@@ -388,19 +471,75 @@ export function VolunteersList({
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{filteredVolunteers.map((volunteer) => (
-										<VolunteerRow
-											key={volunteer.id}
-											volunteer={volunteer}
-											competitionId={competitionId}
-											competitionTeamId={competitionTeamId}
-											organizingTeamId={organizingTeamId}
-											isSelected={selectedIds.has(volunteer.id)}
-											onToggleSelect={(shiftKey) =>
-												toggleSelection(volunteer.id, shiftKey)
+									{filteredItems.map((item) => {
+										if (item.type === "invitation") {
+											// Render invitation as a pending volunteer
+											const invitation = item.data
+											// Parse metadata for signup info
+											let metadata: {
+												signupName?: string
+												signupEmail?: string
+												credentials?: string
+												status?: "pending" | "approved" | "rejected"
+											} = {}
+											try {
+												metadata = invitation.metadata
+													? JSON.parse(invitation.metadata)
+													: {}
+											} catch {
+												// ignore
 											}
-										/>
-									))}
+
+											// Convert invitation to VolunteerWithAccess format for VolunteerRow
+											const volunteerItem: VolunteerWithAccess = {
+												id: invitation.id,
+												userId: "", // No user yet
+												teamId: invitation.teamId,
+												roleId: invitation.roleId,
+												isSystemRole: invitation.isSystemRole,
+												isActive: 0, // Pending
+												metadata: invitation.metadata,
+												joinedAt: null,
+												createdAt: invitation.createdAt,
+												expiresAt: invitation.expiresAt,
+												invitedAt: null,
+												invitedBy: invitation.invitedBy,
+												user: null,
+												hasScoreAccess: false,
+												status: metadata.status || "pending",
+											}
+
+											return (
+												<VolunteerRow
+													key={invitation.id}
+													volunteer={volunteerItem}
+													competitionId={competitionId}
+													competitionTeamId={competitionTeamId}
+													organizingTeamId={organizingTeamId}
+													isSelected={selectedIds.has(invitation.id)}
+													onToggleSelect={(shiftKey) =>
+														toggleSelection(invitation.id, shiftKey)
+													}
+												/>
+											)
+										}
+
+										// Render membership
+										const volunteer = item.data
+										return (
+											<VolunteerRow
+												key={volunteer.id}
+												volunteer={volunteer}
+												competitionId={competitionId}
+												competitionTeamId={competitionTeamId}
+												organizingTeamId={organizingTeamId}
+												isSelected={selectedIds.has(volunteer.id)}
+												onToggleSelect={(shiftKey) =>
+													toggleSelection(volunteer.id, shiftKey)
+												}
+											/>
+										)
+									})}
 								</TableBody>
 							</Table>
 						</CardContent>

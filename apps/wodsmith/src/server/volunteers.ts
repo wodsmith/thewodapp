@@ -10,10 +10,11 @@ import type * as schema from "@/db/schema"
 
 type Db = DrizzleD1Database<typeof schema>
 
-import type { TeamMembership, User } from "@/db/schema"
+import type { TeamInvitation, TeamMembership, User } from "@/db/schema"
 import {
 	entitlementTable,
 	SYSTEM_ROLES_ENUM,
+	teamInvitationTable,
 	teamMembershipTable,
 	userTable,
 } from "@/db/schema"
@@ -26,6 +27,10 @@ export type TeamMembershipWithUser = TeamMembership & {
 import type {
 	VolunteerMembershipMetadata,
 	VolunteerRoleType,
+} from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	type VolunteerAvailability,
 } from "@/db/schemas/volunteers"
 import { autochunk } from "@/utils/batch-query"
 import { createEntitlement } from "./entitlements"
@@ -75,8 +80,139 @@ export function hasRoleType(
 }
 
 // ============================================================================
+// VOLUNTEER AVAILABILITY HELPERS
+// ============================================================================
+
+/**
+ * Get the availability from volunteer membership metadata
+ */
+export function getVolunteerAvailability(
+	metadata: VolunteerMembershipMetadata | null | undefined,
+): VolunteerAvailability | undefined {
+	return metadata?.availability
+}
+
+/**
+ * Check if a volunteer is available for a given time slot
+ * Morning heats: accept morning + all_day
+ * Afternoon heats: accept afternoon + all_day
+ * All day: accept any
+ */
+export function isVolunteerAvailableFor(
+	metadata: VolunteerMembershipMetadata | null | undefined,
+	timeSlot: "morning" | "afternoon",
+): boolean {
+	const availability = metadata?.availability
+
+	// No availability set = assume available (backwards compatibility)
+	if (!availability) return true
+
+	// All day volunteers are always available
+	if (availability === VOLUNTEER_AVAILABILITY.ALL_DAY) return true
+
+	// Match specific time slot
+	return availability === timeSlot
+}
+
+/**
+ * Filter volunteers by availability for a given time slot
+ */
+export function filterVolunteersByAvailability<
+	T extends { metadata?: string | null },
+>(volunteers: T[], timeSlot: "morning" | "afternoon" | null): T[] {
+	if (!timeSlot) return volunteers
+
+	return volunteers.filter((v) => {
+		const metadata = v.metadata
+			? (JSON.parse(v.metadata) as VolunteerMembershipMetadata)
+			: null
+		return isVolunteerAvailableFor(metadata, timeSlot)
+	})
+}
+
+// ============================================================================
 // VOLUNTEER QUERIES
 // ============================================================================
+
+/**
+ * Get pending volunteer invitations (not yet accepted/converted to memberships)
+ */
+export async function getPendingVolunteerInvitations(
+	db: Db,
+	competitionTeamId: string,
+): Promise<TeamInvitation[]> {
+	return db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.teamId, competitionTeamId),
+			eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamInvitationTable.isSystemRole, 1),
+			isNull(teamInvitationTable.acceptedAt),
+		),
+	})
+}
+
+/**
+ * Get pending volunteer invitations for a specific email (for athlete profile page)
+ * Filters to only invitations with status "pending" in metadata
+ */
+export async function getPendingVolunteerInvitationsForEmail(
+	db: Db,
+	email: string,
+): Promise<TeamInvitation[]> {
+	const invitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.email, email.toLowerCase()),
+			eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamInvitationTable.isSystemRole, 1),
+			isNull(teamInvitationTable.acceptedAt),
+		),
+	})
+
+	// Filter to only pending status
+	return invitations.filter((inv) => {
+		try {
+			const meta = JSON.parse(
+				inv.metadata || "{}",
+			) as VolunteerMembershipMetadata
+			return meta.status === "pending"
+		} catch {
+			return false
+		}
+	})
+}
+
+/**
+ * Get active volunteer memberships for a user (for athlete profile page)
+ * Returns memberships with status "approved" in metadata
+ */
+export async function getUserVolunteerMemberships(
+	db: Db,
+	userId: string,
+): Promise<TeamMembershipWithUser[]> {
+	const memberships = (await db.query.teamMembershipTable.findMany({
+		where: and(
+			eq(teamMembershipTable.userId, userId),
+			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamMembershipTable.isSystemRole, 1),
+			eq(teamMembershipTable.isActive, 1),
+		),
+		with: {
+			user: true,
+		},
+	})) as unknown as TeamMembershipWithUser[]
+
+	// Filter to only approved status
+	return memberships.filter((membership) => {
+		try {
+			const meta = JSON.parse(
+				membership.metadata || "{}",
+			) as VolunteerMembershipMetadata
+			return meta.status === "approved"
+		} catch {
+			return false
+		}
+	})
+}
 
 /**
  * Get all team members with volunteer role for a competition team
@@ -136,98 +272,190 @@ export async function getVolunteersByRoleType(
 // ============================================================================
 
 /**
- * Add a volunteer role type to a membership's metadata
+ * Add a volunteer role type to a membership or invitation's metadata
  * Idempotent - won't duplicate if already exists
+ * Supports both membership IDs (tmem_) and invitation IDs (tinv_)
  */
 export async function addVolunteerRoleType(
 	db: Db,
-	membershipId: string,
+	id: string,
 	roleType: VolunteerRoleType,
 ): Promise<void> {
-	const membership = await db.query.teamMembershipTable.findFirst({
-		where: eq(teamMembershipTable.id, membershipId),
-	})
+	const isInvitation = id.startsWith("tinv_")
 
-	if (!membership) {
-		throw new Error(`Membership ${membershipId} not found`)
+	if (isInvitation) {
+		// Handle invitation
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, id),
+		})
+
+		if (!invitation) {
+			throw new Error(`Invitation ${id} not found`)
+		}
+
+		// Ensure this is a volunteer invitation
+		if (
+			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
+			invitation.isSystemRole !== 1
+		) {
+			throw new Error(
+				"Cannot add volunteer role type to non-volunteer invitation",
+			)
+		}
+
+		// Parse existing metadata
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = invitation.metadata
+				? (JSON.parse(invitation.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		const currentRoleTypes = metadata.volunteerRoleTypes ?? []
+
+		// If already has this role type, nothing to do
+		if (currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Add new role type
+		metadata.volunteerRoleTypes = [...currentRoleTypes, roleType]
+
+		// Update invitation
+		await db
+			.update(teamInvitationTable)
+			.set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
+			.where(eq(teamInvitationTable.id, id))
+	} else {
+		// Handle membership (original logic)
+		const membership = await db.query.teamMembershipTable.findFirst({
+			where: eq(teamMembershipTable.id, id),
+		})
+
+		if (!membership) {
+			throw new Error(`Membership ${id} not found`)
+		}
+
+		// Ensure this is a volunteer membership
+		if (!isVolunteer(membership)) {
+			throw new Error(
+				"Cannot add volunteer role type to non-volunteer membership",
+			)
+		}
+
+		// Get current role types
+		const currentRoleTypes = getVolunteerRoleTypes(membership)
+
+		// If already has this role type, nothing to do
+		if (currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Parse existing metadata or create new
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = membership.metadata
+				? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		// Add new role type
+		metadata.volunteerRoleTypes = [...currentRoleTypes, roleType]
+
+		// Update membership
+		await db
+			.update(teamMembershipTable)
+			.set({ metadata: JSON.stringify(metadata) })
+			.where(eq(teamMembershipTable.id, id))
 	}
-
-	// Ensure this is a volunteer membership
-	if (!isVolunteer(membership)) {
-		throw new Error(
-			"Cannot add volunteer role type to non-volunteer membership",
-		)
-	}
-
-	// Get current role types
-	const currentRoleTypes = getVolunteerRoleTypes(membership)
-
-	// If already has this role type, nothing to do
-	if (currentRoleTypes.includes(roleType)) {
-		return
-	}
-
-	// Parse existing metadata or create new
-	let metadata: VolunteerMembershipMetadata
-	try {
-		metadata = membership.metadata
-			? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
-			: { volunteerRoleTypes: [] }
-	} catch {
-		metadata = { volunteerRoleTypes: [] }
-	}
-
-	// Add new role type
-	metadata.volunteerRoleTypes = [...currentRoleTypes, roleType]
-
-	// Update membership
-	await db
-		.update(teamMembershipTable)
-		.set({ metadata: JSON.stringify(metadata) })
-		.where(eq(teamMembershipTable.id, membershipId))
 }
 
 /**
- * Remove a volunteer role type from a membership's metadata
+ * Remove a volunteer role type from a membership or invitation's metadata
+ * Supports both membership IDs (tmem_) and invitation IDs (tinv_)
  */
 export async function removeVolunteerRoleType(
 	db: Db,
-	membershipId: string,
+	id: string,
 	roleType: VolunteerRoleType,
 ): Promise<void> {
-	const membership = await db.query.teamMembershipTable.findFirst({
-		where: eq(teamMembershipTable.id, membershipId),
-	})
+	const isInvitation = id.startsWith("tinv_")
 
-	if (!membership) {
-		throw new Error(`Membership ${membershipId} not found`)
+	if (isInvitation) {
+		// Handle invitation
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, id),
+		})
+
+		if (!invitation) {
+			throw new Error(`Invitation ${id} not found`)
+		}
+
+		// Parse existing metadata
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = invitation.metadata
+				? (JSON.parse(invitation.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		const currentRoleTypes = metadata.volunteerRoleTypes ?? []
+
+		// If doesn't have this role type, nothing to do
+		if (!currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Remove role type
+		metadata.volunteerRoleTypes = currentRoleTypes.filter((r) => r !== roleType)
+
+		// Update invitation
+		await db
+			.update(teamInvitationTable)
+			.set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
+			.where(eq(teamInvitationTable.id, id))
+	} else {
+		// Handle membership (original logic)
+		const membership = await db.query.teamMembershipTable.findFirst({
+			where: eq(teamMembershipTable.id, id),
+		})
+
+		if (!membership) {
+			throw new Error(`Membership ${id} not found`)
+		}
+
+		const currentRoleTypes = getVolunteerRoleTypes(membership)
+
+		// If doesn't have this role type, nothing to do
+		if (!currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Parse existing metadata
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = membership.metadata
+				? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		// Remove role type
+		metadata.volunteerRoleTypes = currentRoleTypes.filter((r) => r !== roleType)
+
+		// Update membership
+		await db
+			.update(teamMembershipTable)
+			.set({ metadata: JSON.stringify(metadata) })
+			.where(eq(teamMembershipTable.id, id))
 	}
-
-	const currentRoleTypes = getVolunteerRoleTypes(membership)
-
-	// If doesn't have this role type, nothing to do
-	if (!currentRoleTypes.includes(roleType)) {
-		return
-	}
-
-	// Parse existing metadata
-	let metadata: VolunteerMembershipMetadata
-	try {
-		metadata = membership.metadata
-			? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
-			: { volunteerRoleTypes: [] }
-	} catch {
-		metadata = { volunteerRoleTypes: [] }
-	}
-
-	// Remove role type
-	metadata.volunteerRoleTypes = currentRoleTypes.filter((r) => r !== roleType)
-
-	// Update membership
-	await db
-		.update(teamMembershipTable)
-		.set({ metadata: JSON.stringify(metadata) })
-		.where(eq(teamMembershipTable.id, membershipId))
 }
 
 // ============================================================================
@@ -355,12 +583,126 @@ export async function revokeScoreAccess(
 }
 
 // ============================================================================
+// VOLUNTEER APPROVAL
+// ============================================================================
+
+/**
+ * Approve a volunteer invitation and optionally create membership if user exists
+ *
+ * @param db - Database instance
+ * @param invitationId - ID of the team invitation to approve
+ * @param approverId - User ID of the admin approving the volunteer
+ * @returns The updated invitation
+ * @throws Error if invitation not found or not a volunteer invitation
+ */
+export async function approveVolunteerInvitation({
+	db,
+	invitationId,
+	approverId,
+}: {
+	db: Db
+	invitationId: string
+	approverId: string
+}): Promise<TeamInvitation> {
+	// Fetch the invitation
+	const invitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.id, invitationId),
+	})
+
+	if (!invitation) {
+		throw new Error("Invitation not found")
+	}
+
+	// Verify this is a volunteer invitation
+	if (
+		invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
+		invitation.isSystemRole !== 1
+	) {
+		throw new Error("This is not a volunteer invitation")
+	}
+
+	// Parse current metadata
+	let metadata: VolunteerMembershipMetadata
+	try {
+		metadata = invitation.metadata
+			? (JSON.parse(invitation.metadata) as VolunteerMembershipMetadata)
+			: { volunteerRoleTypes: [] }
+	} catch {
+		metadata = { volunteerRoleTypes: [] }
+	}
+
+	// Update metadata status to approved
+	metadata.status = "approved"
+
+	// Check if user exists with this email
+	const existingUser = await db.query.userTable.findFirst({
+		where: eq(userTable.email, invitation.email),
+	})
+
+	// Update invitation with approved status, set invitedBy, and auto-accept
+	// Since the volunteer applied themselves, approval = acceptance
+	const now = new Date()
+	await db
+		.update(teamInvitationTable)
+		.set({
+			invitedBy: approverId,
+			metadata: JSON.stringify(metadata),
+			updatedAt: now,
+			// Auto-accept the invitation since the volunteer applied themselves
+			acceptedAt: now,
+			acceptedBy: existingUser?.id ?? null,
+		})
+		.where(eq(teamInvitationTable.id, invitationId))
+
+	// If user exists, create the team membership immediately
+	if (existingUser) {
+		// Check if membership doesn't already exist
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, invitation.teamId),
+				eq(teamMembershipTable.userId, existingUser.id),
+				eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+				eq(teamMembershipTable.isSystemRole, 1),
+			),
+		})
+
+		if (!existingMembership) {
+			// Create active membership
+			await db.insert(teamMembershipTable).values({
+				teamId: invitation.teamId,
+				userId: existingUser.id,
+				roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+				isSystemRole: 1,
+				invitedBy: approverId,
+				invitedAt: now,
+				joinedAt: now,
+				isActive: 1,
+				metadata: JSON.stringify(metadata),
+			})
+		}
+	}
+	// If user doesn't exist, they'll get the membership when they sign up
+	// and the acceptedAt is already set, so the invite page will show "already accepted"
+
+	// Return updated invitation
+	const updatedInvitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.id, invitationId),
+	})
+
+	if (!updatedInvitation) {
+		throw new Error("Failed to retrieve updated invitation")
+	}
+
+	return updatedInvitation
+}
+
+// ============================================================================
 // PUBLIC VOLUNTEER SIGN-UP
 // ============================================================================
 
 /**
  * Create a pending volunteer sign-up from the public form
- * No user account required - stores contact info in metadata for admin approval
+ * Creates a team invitation that can be approved later by competition admin
  *
  * @throws Error if email is already signed up as a volunteer for this competition
  */
@@ -370,6 +712,7 @@ export async function createVolunteerSignup({
 	signupName,
 	signupEmail,
 	signupPhone,
+	availability,
 	availabilityNotes,
 	credentials,
 }: {
@@ -378,50 +721,36 @@ export async function createVolunteerSignup({
 	signupName: string
 	signupEmail: string
 	signupPhone?: string
+	availability?: import("@/db/schemas/volunteers").VolunteerAvailability
 	availabilityNotes?: string
 	credentials?: string
-}): Promise<TeamMembership> {
+}): Promise<TeamInvitation> {
 	// Check for duplicate email sign-up
-	// Look for existing volunteer memberships with this email in metadata
-	const existingVolunteers = await db.query.teamMembershipTable.findMany({
+	// Look for existing volunteer invitations with this email
+	const existingInvitations = await db.query.teamInvitationTable.findMany({
 		where: and(
-			eq(teamMembershipTable.teamId, competitionTeamId),
-			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-			eq(teamMembershipTable.isSystemRole, 1),
+			eq(teamInvitationTable.teamId, competitionTeamId),
+			eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamInvitationTable.isSystemRole, 1),
 		),
 	})
 
-	// Check metadata for matching signup email
-	for (const volunteer of existingVolunteers) {
-		if (!volunteer.metadata) continue
-		try {
-			const metadata = JSON.parse(
-				volunteer.metadata,
-			) as VolunteerMembershipMetadata
-			if (metadata.signupEmail?.toLowerCase() === signupEmail.toLowerCase()) {
-				throw new Error(
-					"This email has already been used to sign up as a volunteer for this competition",
-				)
-			}
-		} catch (error) {
-			// If it's our duplicate error, re-throw it
-			if (
-				error instanceof Error &&
-				error.message.includes("already been used")
-			) {
-				throw error
-			}
-			// Otherwise ignore JSON parse errors and continue
+	// Check for matching email (case-insensitive)
+	for (const invitation of existingInvitations) {
+		if (invitation.email.toLowerCase() === signupEmail.toLowerCase()) {
+			throw new Error(
+				"This email has already been used to sign up as a volunteer for this competition",
+			)
 		}
 	}
 
-	// Check if there's a registered user with this email
+	// Also check if there's already an accepted membership with this email
+	// (user might have signed up and been approved already)
 	const existingUser = await db.query.userTable.findFirst({
 		where: eq(userTable.email, signupEmail),
 	})
 
 	if (existingUser) {
-		// Check if this user is already a volunteer for this competition
 		const existingMembership = await db.query.teamMembershipTable.findFirst({
 			where: and(
 				eq(teamMembershipTable.teamId, competitionTeamId),
@@ -438,36 +767,11 @@ export async function createVolunteerSignup({
 		}
 	}
 
-	// Use existing user or create a placeholder user for the volunteer
-	let user: NonNullable<typeof existingUser>
-	if (existingUser) {
-		// Use the existing user account
-		user = existingUser
-	} else {
-		// Create a placeholder user - they can claim this account later by signing up with the same email
-		const newUser = await db
-			.insert(userTable)
-			.values({
-				email: signupEmail,
-				firstName: signupName.split(" ")[0] || signupName,
-				lastName: signupName.split(" ").slice(1).join(" ") || undefined,
-				// No password - account is not activated
-				passwordHash: null,
-				emailVerified: null,
-			})
-			.returning()
-
-		const createdUser = newUser[0]
-		if (!createdUser) {
-			throw new Error("Failed to create placeholder user for volunteer signup")
-		}
-		user = createdUser
-	}
-
-	// Create volunteer membership metadata
+	// Create volunteer signup metadata
 	const metadata: VolunteerMembershipMetadata = {
 		volunteerRoleTypes: [], // Admin will assign roles after approval
 		credentials,
+		availability,
 		status: "pending",
 		signupEmail,
 		signupName,
@@ -475,25 +779,29 @@ export async function createVolunteerSignup({
 		availabilityNotes,
 	}
 
-	// Create the team membership with volunteer role
-	const newMembership = await db
-		.insert(teamMembershipTable)
+	// Create team invitation for volunteer signup
+	// These invitations don't expire like regular invites - they're pending until approved/rejected
+	const oneYearFromNow = new Date()
+	oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
+
+	const newInvitation = await db
+		.insert(teamInvitationTable)
 		.values({
 			teamId: competitionTeamId,
-			userId: user.id,
+			email: signupEmail,
 			roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
 			isSystemRole: 1,
-			isActive: 0, // Inactive until approved
+			token: crypto.randomUUID(),
+			invitedBy: null, // Will be set on approval by admin
+			expiresAt: oneYearFromNow,
 			metadata: JSON.stringify(metadata),
-			invitedAt: new Date(),
-			// joinedAt will be set when approved
 		})
 		.returning()
 
-	const membership = newMembership[0]
-	if (!membership) {
-		throw new Error("Failed to create volunteer membership")
+	const invitation = newInvitation[0]
+	if (!invitation) {
+		throw new Error("Failed to create volunteer invitation")
 	}
 
-	return membership
+	return invitation
 }

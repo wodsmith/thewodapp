@@ -342,23 +342,23 @@ export async function detectExternalProgrammingTrackWorkouts(
 			createdAt: row.instanceCreatedAt,
 			updatedAt: row.instanceUpdatedAt,
 			updateCounter: row.instanceUpdateCounter,
-		trackWorkout: row.trackWorkoutId
-			? {
-					id: row.trackWorkoutId,
-					trackId: row.trackWorkoutTrackId as string,
-					workoutId: row.trackWorkoutWorkoutId as string,
-					trackOrder: (row.trackWorkoutTrackOrder ?? 0) as number,
-					pointsMultiplier: row.trackWorkoutPointsMultiplier,
-					heatStatus: row.trackWorkoutHeatStatus,
-					eventStatus: row.trackWorkoutEventStatus,
-					sponsorId: null, // Not included in this query
-					notes: row.trackWorkoutNotes,
-					defaultHeatsCount: null, // Not included in this query
-					defaultLaneShiftPattern: null, // Not included in this query
-					minHeatBuffer: null,
-					createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
-					updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,
-					updateCounter: row.trackWorkoutUpdateCounter,
+			trackWorkout: row.trackWorkoutId
+				? {
+						id: row.trackWorkoutId,
+						trackId: row.trackWorkoutTrackId as string,
+						workoutId: row.trackWorkoutWorkoutId as string,
+						trackOrder: (row.trackWorkoutTrackOrder ?? 0) as number,
+						pointsMultiplier: row.trackWorkoutPointsMultiplier,
+						heatStatus: row.trackWorkoutHeatStatus,
+						eventStatus: row.trackWorkoutEventStatus,
+						sponsorId: null, // Not included in this query
+						notes: row.trackWorkoutNotes,
+						defaultHeatsCount: null, // Not included in this query
+						defaultLaneShiftPattern: null, // Not included in this query
+						minHeatBuffer: null,
+						createdAt: (row.trackWorkoutCreatedAt ?? new Date()) as Date,
+						updatedAt: (row.trackWorkoutUpdatedAt ?? new Date()) as Date,
+						updateCounter: row.trackWorkoutUpdateCounter,
 						workout: row.workoutId
 							? {
 									id: row.workoutId,

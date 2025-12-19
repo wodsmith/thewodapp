@@ -1,10 +1,13 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { FileWarning } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
 import { toast } from "sonner"
-
+import {
+	getAssignmentsForVersionAction,
+	rollbackToVersionAction,
+} from "@/actions/judge-assignment-actions"
 import { Card, CardContent } from "@/components/ui/card"
 import {
 	Select,
@@ -25,10 +28,6 @@ import type {
 	JudgeHeatAssignment,
 	JudgeVolunteerInfo,
 } from "@/server/judge-scheduling"
-import {
-	getAssignmentsForVersionAction,
-	rollbackToVersionAction,
-} from "@/actions/judge-assignment-actions"
 
 import { DraggableJudge } from "./draggable-judge"
 import { EventDefaultsEditor } from "./event-defaults-editor"
@@ -131,6 +130,27 @@ export function JudgeSchedulingContainer({
 		[judges, assignedJudgeIds],
 	)
 
+	// Get all judges sorted by total heat assignment count (ascending - least assigned first)
+	const judgesByAssignmentCount = useMemo(() => {
+		// Count assignments per judge across ALL heats (not just current event)
+		const assignmentCounts = new Map<string, number>()
+		for (const judge of judges) {
+			assignmentCounts.set(judge.membershipId, 0)
+		}
+		for (const assignment of assignments) {
+			const count = assignmentCounts.get(assignment.membershipId) ?? 0
+			assignmentCounts.set(assignment.membershipId, count + 1)
+		}
+
+		// Sort judges by assignment count (ascending)
+		return [...judges]
+			.map((judge) => ({
+				...judge,
+				assignmentCount: assignmentCounts.get(judge.membershipId) ?? 0,
+			}))
+			.sort((a, b) => a.assignmentCount - b.assignmentCount)
+	}, [judges, assignments])
+
 	// Get rotations for selected event
 	const eventRotations = useMemo(
 		() => initialRotations.filter((r) => r.trackWorkoutId === selectedEventId),
@@ -183,16 +203,19 @@ export function JudgeSchedulingContainer({
 
 			// Fetch assignments for the new version
 			const assignmentsResult = await executeGetAssignments({ versionId })
-		if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
-			setAssignments((prev) => {
-				// Remove old assignments for this event, add new ones
-				const eventHeatIds = new Set(eventHeats.map((h) => h.id))
-				const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
-				// Type assertion needed because getAssignmentsForVersion returns raw DB structure
-				// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
-				return [...withoutEvent, ...(assignmentsResult[0].data as JudgeHeatAssignment[])]
-			})
-		}
+			if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
+				setAssignments((prev) => {
+					// Remove old assignments for this event, add new ones
+					const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+					const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+					// Type assertion needed because getAssignmentsForVersion returns raw DB structure
+					// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
+					return [
+						...withoutEvent,
+						...(assignmentsResult[0].data as JudgeHeatAssignment[]),
+					]
+				})
+			}
 		} else {
 			toast.error("Failed to activate version")
 		}
@@ -245,8 +268,8 @@ export function JudgeSchedulingContainer({
 		setSelectedJudgeIds((prev) => {
 			const next = new Set(prev)
 			if (shiftKey && prev.size > 0) {
-				// Range select - find indices
-				const sortedJudges = unassignedJudges
+				// Range select - find indices using the sorted list
+				const sortedJudges = judgesByAssignmentCount
 				const lastSelected = Array.from(prev).pop()
 				const lastIndex = sortedJudges.findIndex(
 					(j) => j.membershipId === lastSelected,
@@ -450,28 +473,27 @@ export function JudgeSchedulingContainer({
 											</button>
 										)}
 									</div>
-									{unassignedJudges.length === 0 ? (
+									{judges.length === 0 ? (
 										<p className="text-sm text-muted-foreground py-4 text-center">
-											All judges assigned
+											No judges have been added yet. Add volunteers with the
+											Judge role type in the Volunteers section above.
 										</p>
 									) : (
 										<div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
-											{unassignedJudges.map((judge) => (
+											{judgesByAssignmentCount.map((judge) => (
 												<DraggableJudge
 													key={judge.membershipId}
 													volunteer={judge}
 													isSelected={selectedJudgeIds.has(judge.membershipId)}
 													onToggleSelect={handleToggleSelect}
 													selectedIds={selectedJudgeIds}
+													assignmentCount={judge.assignmentCount}
+													isAssignedToCurrentEvent={assignedJudgeIds.has(
+														judge.membershipId,
+													)}
 												/>
 											))}
 										</div>
-									)}
-									{judges.length === 0 && (
-										<p className="text-sm text-muted-foreground py-4 text-center">
-											No judges have been added yet. Add volunteers with the
-											Judge role type in the Volunteers section above.
-										</p>
 									)}
 								</CardContent>
 							</Card>
@@ -527,18 +549,18 @@ export function JudgeSchedulingContainer({
 				<h3 className="text-lg font-semibold">Rotations</h3>
 
 				{/* Event Defaults Editor */}
-			<EventDefaultsEditor
-				teamId={organizingTeamId}
-				competitionId={competitionId}
-				trackWorkoutId={selectedEventId}
-				defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
-				defaultLaneShiftPattern={
-					selectedEventDefaults.rawDefaultLaneShiftPattern
-				}
-				minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
-				competitionDefaultHeats={competitionDefaultHeats}
-				competitionDefaultPattern={competitionDefaultPattern}
-			/>
+				<EventDefaultsEditor
+					teamId={organizingTeamId}
+					competitionId={competitionId}
+					trackWorkoutId={selectedEventId}
+					defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
+					defaultLaneShiftPattern={
+						selectedEventDefaults.rawDefaultLaneShiftPattern
+					}
+					minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
+					competitionDefaultHeats={competitionDefaultHeats}
+					competitionDefaultPattern={competitionDefaultPattern}
+				/>
 
 				{/* Rotation Overview */}
 				<RotationOverview
@@ -548,11 +570,11 @@ export function JudgeSchedulingContainer({
 					teamId={organizingTeamId}
 					trackWorkoutId={selectedEventId}
 					hasActiveVersion={!!eventActiveVersion}
-				nextVersionNumber={
-					eventVersionHistory.length > 0
-						? (eventVersionHistory[0]?.version ?? 0) + 1
-						: 1
-				}
+					nextVersionNumber={
+						eventVersionHistory.length > 0
+							? (eventVersionHistory[0]?.version ?? 0) + 1
+							: 1
+					}
 				/>
 
 				{/* Rotation Timeline */}
