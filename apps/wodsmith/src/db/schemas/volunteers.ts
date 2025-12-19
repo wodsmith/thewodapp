@@ -45,6 +45,16 @@ export const LANE_SHIFT_PATTERN = {
 export type LaneShiftPattern =
 	(typeof LANE_SHIFT_PATTERN)[keyof typeof LANE_SHIFT_PATTERN]
 
+// Volunteer availability schedule options
+export const VOLUNTEER_AVAILABILITY = {
+	MORNING: "morning",
+	AFTERNOON: "afternoon",
+	ALL_DAY: "all_day",
+} as const
+
+export type VolunteerAvailability =
+	(typeof VOLUNTEER_AVAILABILITY)[keyof typeof VOLUNTEER_AVAILABILITY]
+
 // TypeScript interface for volunteer membership metadata
 // This gets stored as JSON in teamMembershipTable.metadata
 export interface VolunteerMembershipMetadata {
@@ -54,6 +64,8 @@ export interface VolunteerMembershipMetadata {
 	credentials?: string
 	// T-shirt size for volunteer apparel
 	shirtSize?: string
+	// Schedule availability for this volunteer
+	availability?: VolunteerAvailability
 	// Availability notes (e.g., "Can only work Saturdays")
 	availabilityNotes?: string
 	// Emergency contact information

@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 
 interface VolunteerSignupFormProps {
 	competition: {
@@ -45,13 +46,20 @@ export function VolunteerSignupForm({
 	)
 
 	function handleSubmit(formData: FormData) {
+		const availabilityValue = formData.get("availability") as string
 		const data = {
 			competitionTeamId,
 			signupName: formData.get("name") as string,
 			signupEmail: formData.get("email") as string,
 			signupPhone: (formData.get("phone") as string) || undefined,
 			credentials: (formData.get("credentials") as string) || undefined,
-			availabilityNotes: (formData.get("availability") as string) || undefined,
+			availability: availabilityValue as
+				| "morning"
+				| "afternoon"
+				| "all_day"
+				| undefined,
+			availabilityNotes:
+				(formData.get("availabilityNotes") as string) || undefined,
 			// Honeypot field
 			website: (formData.get("website") as string) || undefined,
 		}
@@ -151,30 +159,84 @@ export function VolunteerSignupForm({
 						</p>
 					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="credentials">Certifications / Credentials</Label>
-						<Textarea
-							id="credentials"
-							name="credentials"
-							placeholder="e.g., CrossFit L1 Judge, CrossFit L2, EMT, First Aid/CPR certified..."
-							rows={2}
-							disabled={isPending}
-						/>
-						<p className="text-sm text-muted-foreground">
-							List any relevant certifications or judging credentials you hold
-						</p>
-					</div>
+				<div className="space-y-2">
+					<Label htmlFor="credentials">Certifications / Credentials</Label>
+					<Textarea
+						id="credentials"
+						name="credentials"
+						placeholder="e.g., CrossFit L1 Judge, CrossFit L2, EMT, First Aid/CPR certified..."
+						rows={2}
+						disabled={isPending}
+					/>
+					<p className="text-sm text-muted-foreground">
+						List any relevant certifications or judging credentials you hold
+					</p>
+				</div>
 
+				<div className="space-y-3">
+					<Label>
+						Availability <span className="text-destructive">*</span>
+					</Label>
 					<div className="space-y-2">
-						<Label htmlFor="availability">Additional Notes</Label>
-						<Textarea
-							id="availability"
-							name="availability"
-							placeholder="Anything else you'd like us to know about your availability, experience, or preferences..."
-							rows={3}
-							disabled={isPending}
-						/>
+						<div className="flex items-center space-x-2">
+							<input
+								type="radio"
+								id="availability-morning"
+								name="availability"
+								value={VOLUNTEER_AVAILABILITY.MORNING}
+								required
+								disabled={isPending}
+								className="h-4 w-4"
+							/>
+							<Label htmlFor="availability-morning" className="font-normal">
+								Morning (typically 8am - 2pm)
+							</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<input
+								type="radio"
+								id="availability-afternoon"
+								name="availability"
+								value={VOLUNTEER_AVAILABILITY.AFTERNOON}
+								required
+								disabled={isPending}
+								className="h-4 w-4"
+							/>
+							<Label htmlFor="availability-afternoon" className="font-normal">
+								Afternoon (typically 2pm - close)
+							</Label>
+						</div>
+						<div className="flex items-center space-x-2">
+							<input
+								type="radio"
+								id="availability-all-day"
+								name="availability"
+								value={VOLUNTEER_AVAILABILITY.ALL_DAY}
+								required
+								disabled={isPending}
+								className="h-4 w-4"
+								defaultChecked
+							/>
+							<Label htmlFor="availability-all-day" className="font-normal">
+								All Day
+							</Label>
+						</div>
 					</div>
+					<p className="text-sm text-muted-foreground">
+						Select when you'll be available to volunteer
+					</p>
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="availabilityNotes">Additional Notes</Label>
+					<Textarea
+						id="availabilityNotes"
+						name="availabilityNotes"
+						placeholder="Anything else you'd like us to know about your availability, experience, or preferences..."
+						rows={3}
+						disabled={isPending}
+					/>
+				</div>
 
 					{error && (
 						<div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">

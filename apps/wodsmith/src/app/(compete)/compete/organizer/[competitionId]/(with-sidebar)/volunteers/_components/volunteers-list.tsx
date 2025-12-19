@@ -23,6 +23,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+import {
 	Table,
 	TableBody,
 	TableHead,
@@ -31,6 +38,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { TeamInvitation, User } from "@/db/schema"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
@@ -95,6 +103,9 @@ export function VolunteersList({
 }: VolunteersListProps) {
 	const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
 	const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
+	const [availabilityFilter, setAvailabilityFilter] = useState<string | null>(
+		null,
+	)
 	const [copied, setCopied] = useState(false)
 
 	// Selection state
@@ -150,6 +161,17 @@ export function VolunteersList({
 		}
 	}
 
+	// Parse availability from metadata
+	const getAvailability = (metadata: string | null): string | null => {
+		if (!metadata) return null
+		try {
+			const parsed = JSON.parse(metadata) as { availability?: string }
+			return parsed.availability || null
+		} catch {
+			return null
+		}
+	}
+
 	// Convert invitations to a compatible format for display
 	// Invitations show as pending items with signup info
 	type VolunteerItem =
@@ -179,12 +201,21 @@ export function VolunteersList({
 	const approvedItems: VolunteerItem[] = membershipItems // All memberships are approved
 
 	// Filter items based on selected filter
-	const filteredItems: VolunteerItem[] =
+	let filteredItems: VolunteerItem[] =
 		filter === "all"
 			? allItems
 			: filter === "pending"
 				? pendingItems
 				: approvedItems
+
+	// Apply availability filter
+	if (availabilityFilter) {
+		filteredItems = filteredItems.filter((item) => {
+			const metadata = item.data.metadata
+			const availability = getAvailability(metadata)
+			return availability === availabilityFilter
+		})
+	}
 
 	// Get flat list of IDs for range selection
 	const filteredIds = filteredItems.map((item) => item.data.id)
@@ -336,6 +367,28 @@ export function VolunteersList({
 
 			{/* Actions */}
 			<div className="flex items-center justify-end gap-2">
+				<Select
+					value={availabilityFilter ?? "all"}
+					onValueChange={(value) =>
+						setAvailabilityFilter(value === "all" ? null : value)
+					}
+				>
+					<SelectTrigger className="w-[140px]">
+						<SelectValue placeholder="Availability" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All Times</SelectItem>
+						<SelectItem value={VOLUNTEER_AVAILABILITY.MORNING}>
+							Morning
+						</SelectItem>
+						<SelectItem value={VOLUNTEER_AVAILABILITY.AFTERNOON}>
+							Afternoon
+						</SelectItem>
+						<SelectItem value={VOLUNTEER_AVAILABILITY.ALL_DAY}>
+							All Day
+						</SelectItem>
+					</SelectContent>
+				</Select>
 				<Button variant="outline" onClick={copySignupLink}>
 					{copied ? (
 						<Check className="mr-2 h-4 w-4" />

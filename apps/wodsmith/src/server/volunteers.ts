@@ -28,6 +28,10 @@ import type {
 	VolunteerMembershipMetadata,
 	VolunteerRoleType,
 } from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	type VolunteerAvailability,
+} from "@/db/schemas/volunteers"
 import { autochunk } from "@/utils/batch-query"
 import { createEntitlement } from "./entitlements"
 
@@ -73,6 +77,57 @@ export function hasRoleType(
 ): boolean {
 	const roleTypes = getVolunteerRoleTypes(membership)
 	return roleTypes.includes(roleType)
+}
+
+// ============================================================================
+// VOLUNTEER AVAILABILITY HELPERS
+// ============================================================================
+
+/**
+ * Get the availability from volunteer membership metadata
+ */
+export function getVolunteerAvailability(
+	metadata: VolunteerMembershipMetadata | null | undefined,
+): VolunteerAvailability | undefined {
+	return metadata?.availability
+}
+
+/**
+ * Check if a volunteer is available for a given time slot
+ * Morning heats: accept morning + all_day
+ * Afternoon heats: accept afternoon + all_day
+ * All day: accept any
+ */
+export function isVolunteerAvailableFor(
+	metadata: VolunteerMembershipMetadata | null | undefined,
+	timeSlot: "morning" | "afternoon",
+): boolean {
+	const availability = metadata?.availability
+
+	// No availability set = assume available (backwards compatibility)
+	if (!availability) return true
+
+	// All day volunteers are always available
+	if (availability === VOLUNTEER_AVAILABILITY.ALL_DAY) return true
+
+	// Match specific time slot
+	return availability === timeSlot
+}
+
+/**
+ * Filter volunteers by availability for a given time slot
+ */
+export function filterVolunteersByAvailability<
+	T extends { metadata?: string | null },
+>(volunteers: T[], timeSlot: "morning" | "afternoon" | null): T[] {
+	if (!timeSlot) return volunteers
+
+	return volunteers.filter((v) => {
+		const metadata = v.metadata
+			? (JSON.parse(v.metadata) as VolunteerMembershipMetadata)
+			: null
+		return isVolunteerAvailableFor(metadata, timeSlot)
+	})
 }
 
 // ============================================================================
@@ -657,6 +712,7 @@ export async function createVolunteerSignup({
 	signupName,
 	signupEmail,
 	signupPhone,
+	availability,
 	availabilityNotes,
 	credentials,
 }: {
@@ -665,6 +721,7 @@ export async function createVolunteerSignup({
 	signupName: string
 	signupEmail: string
 	signupPhone?: string
+	availability?: import("@/db/schemas/volunteers").VolunteerAvailability
 	availabilityNotes?: string
 	credentials?: string
 }): Promise<TeamInvitation> {
@@ -714,6 +771,7 @@ export async function createVolunteerSignup({
 	const metadata: VolunteerMembershipMetadata = {
 		volunteerRoleTypes: [], // Admin will assign roles after approval
 		credentials,
+		availability,
 		status: "pending",
 		signupEmail,
 		signupName,

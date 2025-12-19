@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest"
 import {
+	filterVolunteersByAvailability,
+	getVolunteerAvailability,
 	getVolunteerRoleTypes,
 	hasRoleType,
 	isVolunteer,
+	isVolunteerAvailableFor,
 } from "@/server/volunteers"
 import { SYSTEM_ROLES_ENUM, type TeamMembership } from "@/db/schema"
-import type { VolunteerMembershipMetadata, VolunteerRoleType } from "@/db/schemas/volunteers"
-import { VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
+import type {
+	VolunteerMembershipMetadata,
+	VolunteerRoleType,
+} from "@/db/schemas/volunteers"
+import {
+	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_ROLE_TYPES,
+} from "@/db/schemas/volunteers"
 
 // Factory to create test memberships
 function createMembership(
@@ -357,5 +366,243 @@ describe("volunteer metadata parsing edge cases", () => {
 			// isVolunteer only checks roleId and isSystemRole, not metadata validity
 			expect(isVolunteer(membership)).toBe(true)
 		})
+	})
+})
+
+describe("getVolunteerAvailability", () => {
+	it("returns undefined when metadata is null", () => {
+		expect(getVolunteerAvailability(null)).toBeUndefined()
+	})
+
+	it("returns undefined when metadata is undefined", () => {
+		expect(getVolunteerAvailability(undefined)).toBeUndefined()
+	})
+
+	it("returns undefined when metadata has no availability field", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+		}
+		expect(getVolunteerAvailability(metadata)).toBeUndefined()
+	})
+
+	it("returns morning when availability is morning", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.MORNING,
+		}
+		expect(getVolunteerAvailability(metadata)).toBe(
+			VOLUNTEER_AVAILABILITY.MORNING,
+		)
+	})
+
+	it("returns afternoon when availability is afternoon", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.AFTERNOON,
+		}
+		expect(getVolunteerAvailability(metadata)).toBe(
+			VOLUNTEER_AVAILABILITY.AFTERNOON,
+		)
+	})
+
+	it("returns all_day when availability is all_day", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+		}
+		expect(getVolunteerAvailability(metadata)).toBe(
+			VOLUNTEER_AVAILABILITY.ALL_DAY,
+		)
+	})
+})
+
+describe("isVolunteerAvailableFor", () => {
+	it("returns true when metadata is null (backwards compatibility)", () => {
+		expect(isVolunteerAvailableFor(null, "morning")).toBe(true)
+		expect(isVolunteerAvailableFor(null, "afternoon")).toBe(true)
+	})
+
+	it("returns true when metadata is undefined (backwards compatibility)", () => {
+		expect(isVolunteerAvailableFor(undefined, "morning")).toBe(true)
+		expect(isVolunteerAvailableFor(undefined, "afternoon")).toBe(true)
+	})
+
+	it("returns true when availability is not set (backwards compatibility)", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+		}
+		expect(isVolunteerAvailableFor(metadata, "morning")).toBe(true)
+		expect(isVolunteerAvailableFor(metadata, "afternoon")).toBe(true)
+	})
+
+	it("returns true for all_day volunteers for morning heats", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+		}
+		expect(isVolunteerAvailableFor(metadata, "morning")).toBe(true)
+	})
+
+	it("returns true for all_day volunteers for afternoon heats", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+		}
+		expect(isVolunteerAvailableFor(metadata, "afternoon")).toBe(true)
+	})
+
+	it("returns true for morning volunteers for morning heats", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.MORNING,
+		}
+		expect(isVolunteerAvailableFor(metadata, "morning")).toBe(true)
+	})
+
+	it("returns false for morning volunteers for afternoon heats", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.MORNING,
+		}
+		expect(isVolunteerAvailableFor(metadata, "afternoon")).toBe(false)
+	})
+
+	it("returns true for afternoon volunteers for afternoon heats", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.AFTERNOON,
+		}
+		expect(isVolunteerAvailableFor(metadata, "afternoon")).toBe(true)
+	})
+
+	it("returns false for afternoon volunteers for morning heats", () => {
+		const metadata: VolunteerMembershipMetadata = {
+			volunteerRoleTypes: [],
+			availability: VOLUNTEER_AVAILABILITY.AFTERNOON,
+		}
+		expect(isVolunteerAvailableFor(metadata, "morning")).toBe(false)
+	})
+})
+
+describe("filterVolunteersByAvailability", () => {
+	const createVolunteerWithAvailability = (
+		id: string,
+		availability?: string,
+	) => ({
+		id,
+		metadata: availability
+			? JSON.stringify({ volunteerRoleTypes: [], availability })
+			: null,
+	})
+
+	it("returns all volunteers when timeSlot is null", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.MORNING),
+			createVolunteerWithAvailability("v2", VOLUNTEER_AVAILABILITY.AFTERNOON),
+			createVolunteerWithAvailability("v3", VOLUNTEER_AVAILABILITY.ALL_DAY),
+		]
+
+		const result = filterVolunteersByAvailability(volunteers, null)
+
+		expect(result).toHaveLength(3)
+		expect(result).toEqual(volunteers)
+	})
+
+	it("returns morning and all_day volunteers for morning heats", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.MORNING),
+			createVolunteerWithAvailability("v2", VOLUNTEER_AVAILABILITY.AFTERNOON),
+			createVolunteerWithAvailability("v3", VOLUNTEER_AVAILABILITY.ALL_DAY),
+		]
+
+		const result = filterVolunteersByAvailability(volunteers, "morning")
+
+		expect(result).toHaveLength(2)
+		expect(result.map((v) => v.id)).toEqual(["v1", "v3"])
+	})
+
+	it("returns afternoon and all_day volunteers for afternoon heats", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.MORNING),
+			createVolunteerWithAvailability("v2", VOLUNTEER_AVAILABILITY.AFTERNOON),
+			createVolunteerWithAvailability("v3", VOLUNTEER_AVAILABILITY.ALL_DAY),
+		]
+
+		const result = filterVolunteersByAvailability(volunteers, "afternoon")
+
+		expect(result).toHaveLength(2)
+		expect(result.map((v) => v.id)).toEqual(["v2", "v3"])
+	})
+
+	it("includes volunteers with no metadata (backwards compatibility)", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.MORNING),
+			createVolunteerWithAvailability("v2"), // No metadata
+			createVolunteerWithAvailability("v3", VOLUNTEER_AVAILABILITY.AFTERNOON),
+		]
+
+		const morningResult = filterVolunteersByAvailability(volunteers, "morning")
+		expect(morningResult.map((v) => v.id)).toEqual(["v1", "v2"])
+
+		const afternoonResult = filterVolunteersByAvailability(
+			volunteers,
+			"afternoon",
+		)
+		expect(afternoonResult.map((v) => v.id)).toEqual(["v2", "v3"])
+	})
+
+	it("includes volunteers with metadata but no availability field", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.MORNING),
+			{
+				id: "v2",
+				metadata: JSON.stringify({ volunteerRoleTypes: [] }),
+			},
+			createVolunteerWithAvailability("v3", VOLUNTEER_AVAILABILITY.AFTERNOON),
+		]
+
+		const morningResult = filterVolunteersByAvailability(volunteers, "morning")
+		expect(morningResult.map((v) => v.id)).toEqual(["v1", "v2"])
+	})
+
+	it("handles empty array", () => {
+		const result = filterVolunteersByAvailability([], "morning")
+		expect(result).toHaveLength(0)
+	})
+
+	it("filters out all morning volunteers for afternoon heats", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.MORNING),
+			createVolunteerWithAvailability("v2", VOLUNTEER_AVAILABILITY.MORNING),
+		]
+
+		const result = filterVolunteersByAvailability(volunteers, "afternoon")
+		expect(result).toHaveLength(0)
+	})
+
+	it("filters out all afternoon volunteers for morning heats", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.AFTERNOON),
+			createVolunteerWithAvailability("v2", VOLUNTEER_AVAILABILITY.AFTERNOON),
+		]
+
+		const result = filterVolunteersByAvailability(volunteers, "morning")
+		expect(result).toHaveLength(0)
+	})
+
+	it("works with only all_day volunteers", () => {
+		const volunteers = [
+			createVolunteerWithAvailability("v1", VOLUNTEER_AVAILABILITY.ALL_DAY),
+			createVolunteerWithAvailability("v2", VOLUNTEER_AVAILABILITY.ALL_DAY),
+		]
+
+		const morningResult = filterVolunteersByAvailability(volunteers, "morning")
+		expect(morningResult).toHaveLength(2)
+
+		const afternoonResult = filterVolunteersByAvailability(
+			volunteers,
+			"afternoon",
+		)
+		expect(afternoonResult).toHaveLength(2)
 	})
 })

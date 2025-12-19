@@ -11,6 +11,10 @@ import {
 	userTable,
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	VOLUNTEER_AVAILABILITY,
+	type VolunteerAvailability,
+} from "@/db/schemas/volunteers"
 import { inviteUserToTeam } from "@/server/team-members"
 import {
 	addVolunteerRoleType,
@@ -437,6 +441,13 @@ const submitVolunteerSignupSchema = z.object({
 	signupName: z.string().min(1, "Name is required"),
 	signupEmail: z.string().email("Invalid email address"),
 	signupPhone: z.string().optional(),
+	availability: z
+		.enum([
+			VOLUNTEER_AVAILABILITY.MORNING,
+			VOLUNTEER_AVAILABILITY.AFTERNOON,
+			VOLUNTEER_AVAILABILITY.ALL_DAY,
+		])
+		.default(VOLUNTEER_AVAILABILITY.ALL_DAY),
 	availabilityNotes: z.string().optional(),
 	// Certifications/credentials (e.g., "CrossFit L1 Judge", "EMT")
 	credentials: z.string().optional(),
@@ -517,6 +528,7 @@ export const submitVolunteerSignupAction = createServerAction()
 				signupName: input.signupName,
 				signupEmail: input.signupEmail,
 				signupPhone: input.signupPhone,
+				availability: input.availability,
 				availabilityNotes: input.availabilityNotes,
 				credentials: input.credentials,
 			})
