@@ -1,28 +1,18 @@
 "use client"
 
-import type { CompetitionJudgeRotation } from "@/db/schema"
-import { ScheduleCard } from "./schedule-card"
-
-export interface EnrichedRotation {
-	rotation: CompetitionJudgeRotation
-	eventName: string
-	timeWindow: string | null
-	isUpcoming: boolean
-}
+import type { EventWithRotations } from "@/server/judge-schedule"
+import { EventSection } from "./event-section"
 
 interface ScheduleViewProps {
-	rotations: EnrichedRotation[]
+	events: EventWithRotations[]
 	competitionName: string
 }
 
 /**
- * Client component that displays all judge rotations
+ * Client component that displays all judge rotations grouped by event
  */
-export function ScheduleView({
-	rotations,
-	competitionName,
-}: ScheduleViewProps) {
-	if (rotations.length === 0) {
+export function ScheduleView({ events, competitionName }: ScheduleViewProps) {
+	if (events.length === 0) {
 		return (
 			<div className="bg-muted rounded-lg border p-8 text-center">
 				<h1 className="text-2xl font-bold mb-2">No Assignments Yet</h1>
@@ -35,21 +25,15 @@ export function ScheduleView({
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-8">
 			<div>
 				<h1 className="text-3xl font-bold mb-2">My Judging Schedule</h1>
 				<p className="text-muted-foreground">{competitionName}</p>
 			</div>
 
-			<div className="space-y-4">
-				{rotations.map((enriched) => (
-					<ScheduleCard
-						key={enriched.rotation.id}
-						rotation={enriched.rotation}
-						eventName={enriched.eventName}
-						timeWindow={enriched.timeWindow}
-						isUpcoming={enriched.isUpcoming}
-					/>
+			<div className="space-y-8">
+				{events.map((event) => (
+					<EventSection key={event.trackWorkoutId} event={event} />
 				))}
 			</div>
 
