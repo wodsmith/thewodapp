@@ -27,9 +27,16 @@ import { requireTeamPermission } from "@/utils/team-auth"
 /*                              Schemas                                        */
 /* -------------------------------------------------------------------------- */
 
-const membershipIdSchema = z
+const _membershipIdSchema = z
 	.string()
 	.startsWith("tmem_", "Invalid membership ID")
+// Schema that accepts both membership IDs (tmem_) and invitation IDs (tinv_)
+const membershipOrInvitationIdSchema = z
+	.string()
+	.refine(
+		(val) => val.startsWith("tmem_") || val.startsWith("tinv_"),
+		"Invalid membership or invitation ID",
+	)
 const competitionTeamIdSchema = z
 	.string()
 	.startsWith("team_", "Invalid team ID")
@@ -49,14 +56,14 @@ const getCompetitionVolunteersSchema = z.object({
 })
 
 const addVolunteerRoleTypeSchema = z.object({
-	membershipId: membershipIdSchema,
+	membershipId: membershipOrInvitationIdSchema,
 	organizingTeamId: competitionTeamIdSchema,
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	roleType: volunteerRoleTypeSchema,
 })
 
 const removeVolunteerRoleTypeSchema = z.object({
-	membershipId: membershipIdSchema,
+	membershipId: membershipOrInvitationIdSchema,
 	organizingTeamId: competitionTeamIdSchema,
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	roleType: volunteerRoleTypeSchema,
@@ -541,7 +548,7 @@ export const submitVolunteerSignupAction = createServerAction()
 
 const bulkAssignVolunteerRoleSchema = z.object({
 	membershipIds: z
-		.array(membershipIdSchema)
+		.array(membershipOrInvitationIdSchema)
 		.min(1, "Select at least one volunteer"),
 	organizingTeamId: competitionTeamIdSchema,
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),

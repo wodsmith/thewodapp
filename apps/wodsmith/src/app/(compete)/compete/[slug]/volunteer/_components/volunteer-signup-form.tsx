@@ -44,7 +44,7 @@ export function VolunteerSignupForm({
 		},
 	)
 
-	async function handleSubmit(formData: FormData) {
+	function handleSubmit(formData: FormData) {
 		const data = {
 			competitionTeamId,
 			signupName: formData.get("name") as string,
@@ -56,7 +56,10 @@ export function VolunteerSignupForm({
 			website: (formData.get("website") as string) || undefined,
 		}
 
-		await execute(data)
+		// Don't await - onSuccess callback handles the state update
+		// Awaiting can cause the spinner to hang due to a race condition
+		// in useServerAction's Promise resolution
+		execute(data)
 	}
 
 	if (submitted) {

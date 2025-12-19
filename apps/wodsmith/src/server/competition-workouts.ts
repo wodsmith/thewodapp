@@ -14,8 +14,8 @@ import {
 	type ScoreType,
 	scalingLevelsTable,
 	type TiebreakScheme,
-	tags,
 	type TrackWorkout,
+	tags,
 	trackWorkoutsTable,
 	type Workout,
 	type WorkoutScheme,
@@ -659,8 +659,9 @@ export async function saveCompetitionEvent(params: {
 				movementId,
 			}))
 
-			// Each movement insert has 3 params, so batch ~33 at a time
-			const movementBatches = chunk(movementValues, 33)
+			// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
+			// D1 limit: 100 params, so max rows per batch = floor(100/6) = 16
+			const movementBatches = chunk(movementValues, 16)
 			for (const batch of movementBatches) {
 				await db.insert(workoutMovements).values(batch)
 			}

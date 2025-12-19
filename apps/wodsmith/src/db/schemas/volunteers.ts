@@ -10,8 +10,8 @@ import {
 import {
 	commonColumns,
 	createHeatVolunteerId,
-	createJudgeRotationId,
 	createJudgeAssignmentVersionId,
+	createJudgeRotationId,
 } from "./common"
 import { competitionHeatsTable, competitionsTable } from "./competitions"
 import { trackWorkoutsTable } from "./programming"

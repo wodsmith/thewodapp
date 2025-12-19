@@ -42,18 +42,13 @@ export default async function CompetitionEventDetailsPage({ params }: Props) {
 			divisions={divisions.length > 0 ? divisions : undefined}
 			sponsors={sponsorsResult}
 			workoutsContent={
-				<Suspense fallback={<WorkoutsSkeleton />}>
-					<WorkoutsContent
-						key="workouts"
-						competition={competition}
-						divisions={divisions}
-					/>
+				<Suspense key="workouts-suspense" fallback={<WorkoutsSkeleton />}>
+					<WorkoutsContent competition={competition} divisions={divisions} />
 				</Suspense>
 			}
 			scheduleContent={
-				<Suspense fallback={<ScheduleSkeleton />}>
+				<Suspense key="schedule-suspense" fallback={<ScheduleSkeleton />}>
 					<ScheduleContent
-						key="schedule"
 						eventsPromise={eventsPromise}
 						heatsPromise={heatsPromise}
 						currentUserId={session?.userId}

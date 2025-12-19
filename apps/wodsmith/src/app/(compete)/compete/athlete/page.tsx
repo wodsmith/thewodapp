@@ -5,6 +5,10 @@ import { VolunteerStatus } from "@/components/compete/volunteer-status"
 import { Separator } from "@/components/ui/separator"
 import { getDb } from "@/db"
 import { competitionsTable, userTable } from "@/db/schema"
+import type {
+	VolunteerMembershipMetadata,
+	VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import { getUserCompetitionHistory } from "@/server/competitions"
 import { getUserSponsors } from "@/server/sponsors"
 import { getPendingInvitationsForCurrentUser } from "@/server/team-members"
@@ -13,13 +17,9 @@ import {
 	getPendingVolunteerInvitationsForEmail,
 	getUserVolunteerMemberships,
 } from "@/server/volunteers"
-import type {
-	VolunteerMembershipMetadata,
-	VolunteerRoleType,
-} from "@/db/schemas/volunteers"
 import { calculateAge, parseAthleteProfile } from "@/utils/athlete-profile"
-import { autochunk } from "@/utils/batch-query"
 import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
 import { AthleteHeader } from "./_components/athlete-header"
 import { AthleteStats } from "./_components/athlete-stats"
 import { BenchmarkStats } from "./_components/benchmark-stats"

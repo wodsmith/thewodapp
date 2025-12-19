@@ -1,7 +1,7 @@
 import "server-only"
+import { and, eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { and, eq } from "drizzle-orm"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { getDb } from "@/db"
 import { SYSTEM_ROLES_ENUM, teamMembershipTable } from "@/db/schema"

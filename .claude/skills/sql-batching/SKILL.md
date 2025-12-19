@@ -1,11 +1,14 @@
 ---
 name: sql-batching
-description: Prevent D1/SQLite "too many SQL variables" errors when using Drizzle ORM. Use this skill whenever writing database queries with `inArray()`, bulk inserts/updates, or any query with dynamic arrays. Critical for queries where array size is unbounded (user teams, registrations, IDs from prior queries).
+description: Prevent D1 "too many SQL variables" errors when using Drizzle ORM. Use this skill whenever writing database queries with `inArray()`, bulk inserts/updates, or any query with dynamic arrays. Critical for queries where array size is unbounded (user teams, registrations, IDs from prior queries).
 ---
 
 # SQL Batching Pattern
 
-D1/SQLite has a 999 variable limit. Use `@/utils/batch-query.ts` utilities to batch queries.
+**CRITICAL: D1 has a 100 bound parameter limit per query** (NOT 999 like standard SQLite).
+See: https://developers.cloudflare.com/d1/platform/limits/
+
+Use `@/utils/batch-query.ts` utilities to batch queries.
 
 ## When to Batch
 
@@ -61,4 +64,26 @@ const results = (await Promise.all(
 
 - `items`: Array to batch (IDs, objects)
 - `otherParametersCount`: Number of other bound params in query (eq conditions, etc.)
-- `SQL_BATCH_SIZE`: 500 (leaves headroom below 999 limit)
+- `SQL_BATCH_SIZE`: 100 (D1's actual limit)
+
+## For Bulk Inserts
+
+For bulk inserts, Drizzle includes ALL columns (including auto-generated ones like `id`, `createdAt`, `updatedAt`, `updateCounter`). Calculate batch size carefully:
+
+```typescript
+// Example: table has 12 columns (including auto-generated)
+// D1 limit: 100 params
+// Max rows per batch: floor(100 / 12) = 8 rows
+const INSERT_BATCH_SIZE = 8
+
+const chunks: Item[][] = []
+for (let i = 0; i < items.length; i += INSERT_BATCH_SIZE) {
+  chunks.push(items.slice(i, i + INSERT_BATCH_SIZE))
+}
+
+for (const chunk of chunks) {
+  await db.insert(table).values(chunk.map(item => ({ ... })))
+}
+```
+
+**Common gotcha**: A table with 11 columns can only insert 9 rows per batch (9 × 11 = 99 < 100).

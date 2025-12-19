@@ -217,98 +217,190 @@ export async function getVolunteersByRoleType(
 // ============================================================================
 
 /**
- * Add a volunteer role type to a membership's metadata
+ * Add a volunteer role type to a membership or invitation's metadata
  * Idempotent - won't duplicate if already exists
+ * Supports both membership IDs (tmem_) and invitation IDs (tinv_)
  */
 export async function addVolunteerRoleType(
 	db: Db,
-	membershipId: string,
+	id: string,
 	roleType: VolunteerRoleType,
 ): Promise<void> {
-	const membership = await db.query.teamMembershipTable.findFirst({
-		where: eq(teamMembershipTable.id, membershipId),
-	})
+	const isInvitation = id.startsWith("tinv_")
 
-	if (!membership) {
-		throw new Error(`Membership ${membershipId} not found`)
+	if (isInvitation) {
+		// Handle invitation
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, id),
+		})
+
+		if (!invitation) {
+			throw new Error(`Invitation ${id} not found`)
+		}
+
+		// Ensure this is a volunteer invitation
+		if (
+			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
+			invitation.isSystemRole !== 1
+		) {
+			throw new Error(
+				"Cannot add volunteer role type to non-volunteer invitation",
+			)
+		}
+
+		// Parse existing metadata
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = invitation.metadata
+				? (JSON.parse(invitation.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		const currentRoleTypes = metadata.volunteerRoleTypes ?? []
+
+		// If already has this role type, nothing to do
+		if (currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Add new role type
+		metadata.volunteerRoleTypes = [...currentRoleTypes, roleType]
+
+		// Update invitation
+		await db
+			.update(teamInvitationTable)
+			.set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
+			.where(eq(teamInvitationTable.id, id))
+	} else {
+		// Handle membership (original logic)
+		const membership = await db.query.teamMembershipTable.findFirst({
+			where: eq(teamMembershipTable.id, id),
+		})
+
+		if (!membership) {
+			throw new Error(`Membership ${id} not found`)
+		}
+
+		// Ensure this is a volunteer membership
+		if (!isVolunteer(membership)) {
+			throw new Error(
+				"Cannot add volunteer role type to non-volunteer membership",
+			)
+		}
+
+		// Get current role types
+		const currentRoleTypes = getVolunteerRoleTypes(membership)
+
+		// If already has this role type, nothing to do
+		if (currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Parse existing metadata or create new
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = membership.metadata
+				? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		// Add new role type
+		metadata.volunteerRoleTypes = [...currentRoleTypes, roleType]
+
+		// Update membership
+		await db
+			.update(teamMembershipTable)
+			.set({ metadata: JSON.stringify(metadata) })
+			.where(eq(teamMembershipTable.id, id))
 	}
-
-	// Ensure this is a volunteer membership
-	if (!isVolunteer(membership)) {
-		throw new Error(
-			"Cannot add volunteer role type to non-volunteer membership",
-		)
-	}
-
-	// Get current role types
-	const currentRoleTypes = getVolunteerRoleTypes(membership)
-
-	// If already has this role type, nothing to do
-	if (currentRoleTypes.includes(roleType)) {
-		return
-	}
-
-	// Parse existing metadata or create new
-	let metadata: VolunteerMembershipMetadata
-	try {
-		metadata = membership.metadata
-			? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
-			: { volunteerRoleTypes: [] }
-	} catch {
-		metadata = { volunteerRoleTypes: [] }
-	}
-
-	// Add new role type
-	metadata.volunteerRoleTypes = [...currentRoleTypes, roleType]
-
-	// Update membership
-	await db
-		.update(teamMembershipTable)
-		.set({ metadata: JSON.stringify(metadata) })
-		.where(eq(teamMembershipTable.id, membershipId))
 }
 
 /**
- * Remove a volunteer role type from a membership's metadata
+ * Remove a volunteer role type from a membership or invitation's metadata
+ * Supports both membership IDs (tmem_) and invitation IDs (tinv_)
  */
 export async function removeVolunteerRoleType(
 	db: Db,
-	membershipId: string,
+	id: string,
 	roleType: VolunteerRoleType,
 ): Promise<void> {
-	const membership = await db.query.teamMembershipTable.findFirst({
-		where: eq(teamMembershipTable.id, membershipId),
-	})
+	const isInvitation = id.startsWith("tinv_")
 
-	if (!membership) {
-		throw new Error(`Membership ${membershipId} not found`)
+	if (isInvitation) {
+		// Handle invitation
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.id, id),
+		})
+
+		if (!invitation) {
+			throw new Error(`Invitation ${id} not found`)
+		}
+
+		// Parse existing metadata
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = invitation.metadata
+				? (JSON.parse(invitation.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		const currentRoleTypes = metadata.volunteerRoleTypes ?? []
+
+		// If doesn't have this role type, nothing to do
+		if (!currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Remove role type
+		metadata.volunteerRoleTypes = currentRoleTypes.filter((r) => r !== roleType)
+
+		// Update invitation
+		await db
+			.update(teamInvitationTable)
+			.set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
+			.where(eq(teamInvitationTable.id, id))
+	} else {
+		// Handle membership (original logic)
+		const membership = await db.query.teamMembershipTable.findFirst({
+			where: eq(teamMembershipTable.id, id),
+		})
+
+		if (!membership) {
+			throw new Error(`Membership ${id} not found`)
+		}
+
+		const currentRoleTypes = getVolunteerRoleTypes(membership)
+
+		// If doesn't have this role type, nothing to do
+		if (!currentRoleTypes.includes(roleType)) {
+			return
+		}
+
+		// Parse existing metadata
+		let metadata: VolunteerMembershipMetadata
+		try {
+			metadata = membership.metadata
+				? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
+				: { volunteerRoleTypes: [] }
+		} catch {
+			metadata = { volunteerRoleTypes: [] }
+		}
+
+		// Remove role type
+		metadata.volunteerRoleTypes = currentRoleTypes.filter((r) => r !== roleType)
+
+		// Update membership
+		await db
+			.update(teamMembershipTable)
+			.set({ metadata: JSON.stringify(metadata) })
+			.where(eq(teamMembershipTable.id, id))
 	}
-
-	const currentRoleTypes = getVolunteerRoleTypes(membership)
-
-	// If doesn't have this role type, nothing to do
-	if (!currentRoleTypes.includes(roleType)) {
-		return
-	}
-
-	// Parse existing metadata
-	let metadata: VolunteerMembershipMetadata
-	try {
-		metadata = membership.metadata
-			? (JSON.parse(membership.metadata) as VolunteerMembershipMetadata)
-			: { volunteerRoleTypes: [] }
-	} catch {
-		metadata = { volunteerRoleTypes: [] }
-	}
-
-	// Remove role type
-	metadata.volunteerRoleTypes = currentRoleTypes.filter((r) => r !== roleType)
-
-	// Update membership
-	await db
-		.update(teamMembershipTable)
-		.set({ metadata: JSON.stringify(metadata) })
-		.where(eq(teamMembershipTable.id, membershipId))
 }
 
 // ============================================================================
@@ -487,20 +579,25 @@ export async function approveVolunteerInvitation({
 	// Update metadata status to approved
 	metadata.status = "approved"
 
-	// Update invitation with approved status and set invitedBy
+	// Check if user exists with this email
+	const existingUser = await db.query.userTable.findFirst({
+		where: eq(userTable.email, invitation.email),
+	})
+
+	// Update invitation with approved status, set invitedBy, and auto-accept
+	// Since the volunteer applied themselves, approval = acceptance
+	const now = new Date()
 	await db
 		.update(teamInvitationTable)
 		.set({
 			invitedBy: approverId,
 			metadata: JSON.stringify(metadata),
-			updatedAt: new Date(),
+			updatedAt: now,
+			// Auto-accept the invitation since the volunteer applied themselves
+			acceptedAt: now,
+			acceptedBy: existingUser?.id ?? null,
 		})
 		.where(eq(teamInvitationTable.id, invitationId))
-
-	// Check if user exists with this email
-	const existingUser = await db.query.userTable.findFirst({
-		where: eq(userTable.email, invitation.email),
-	})
 
 	// If user exists, create the team membership immediately
 	if (existingUser) {
@@ -522,15 +619,15 @@ export async function approveVolunteerInvitation({
 				roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
 				isSystemRole: 1,
 				invitedBy: approverId,
-				invitedAt: new Date(),
-				joinedAt: new Date(),
+				invitedAt: now,
+				joinedAt: now,
 				isActive: 1,
 				metadata: JSON.stringify(metadata),
 			})
 		}
 	}
 	// If user doesn't exist, they'll get the membership when they sign up
-	// (handled by task 4 - auto-associate approved invitations)
+	// and the acceptedAt is already set, so the invite page will show "already accepted"
 
 	// Return updated invitation
 	const updatedInvitation = await db.query.teamInvitationTable.findFirst({
