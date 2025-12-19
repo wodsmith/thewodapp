@@ -1440,6 +1440,7 @@ export async function getVolunteerInvite(inviteToken: string) {
 	// Parse volunteer metadata
 	let volunteerMetadata: {
 		status?: string
+		inviteSource?: "direct" | "application"
 		signupName?: string
 		signupEmail?: string
 		signupPhone?: string
@@ -1456,12 +1457,21 @@ export async function getVolunteerInvite(inviteToken: string) {
 		}
 	}
 
+	// Determine invite source - fallback to heuristics for legacy data
+	// Direct invites have invitedBy set; applications don't
+	const inviteSource =
+		volunteerMetadata.inviteSource ||
+		(invitation.invitedBy ? "direct" : "application")
+
 	return {
 		id: invitation.id,
 		email: invitation.email,
 		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
 		acceptedAt: invitation.acceptedAt ? new Date(invitation.acceptedAt) : null,
 		status: volunteerMetadata.status || "pending",
+		// "direct" = admin invited specific person, user accepts
+		// "application" = user applied via public form, admin approves
+		inviteSource,
 		signupName: volunteerMetadata.signupName,
 		credentials: volunteerMetadata.credentials,
 		roleTypes: volunteerMetadata.volunteerRoleTypes || [],

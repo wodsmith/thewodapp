@@ -11,10 +11,7 @@ import {
 	userTable,
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import {
-	VOLUNTEER_AVAILABILITY,
-	type VolunteerAvailability,
-} from "@/db/schemas/volunteers"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { inviteUserToTeam } from "@/server/team-members"
 import {
 	addVolunteerRoleType,
@@ -483,6 +480,7 @@ export const inviteVolunteerAction = createServerAction()
 			// Create metadata for volunteer role types
 			const metadata = {
 				volunteerRoleTypes: input.roleTypes,
+				inviteSource: "direct" as const, // Admin directly invited - user accepts to join
 			}
 
 			// Invite user to the COMPETITION team with volunteer role

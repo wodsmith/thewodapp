@@ -55,6 +55,17 @@ export const VOLUNTEER_AVAILABILITY = {
 export type VolunteerAvailability =
 	(typeof VOLUNTEER_AVAILABILITY)[keyof typeof VOLUNTEER_AVAILABILITY]
 
+// How the volunteer invite was created
+export const VOLUNTEER_INVITE_SOURCE = {
+	// Admin directly invited a specific person - user accepts to join
+	DIRECT: "direct",
+	// Person applied via public form - admin approves to add them
+	APPLICATION: "application",
+} as const
+
+export type VolunteerInviteSource =
+	(typeof VOLUNTEER_INVITE_SOURCE)[keyof typeof VOLUNTEER_INVITE_SOURCE]
+
 // TypeScript interface for volunteer membership metadata
 // This gets stored as JSON in teamMembershipTable.metadata
 export interface VolunteerMembershipMetadata {
@@ -78,6 +89,10 @@ export interface VolunteerMembershipMetadata {
 	internalNotes?: string
 	// Volunteer signup status - for unauthenticated sign-ups
 	status?: "pending" | "approved" | "rejected"
+	// How the invite was created: "direct" (admin invited) or "application" (user applied)
+	// - direct: Admin sends invite → user accepts → membership created
+	// - application: User applies → admin approves → membership created
+	inviteSource?: VolunteerInviteSource
 	// Contact info from public sign-up form (for pending volunteers without user accounts)
 	signupEmail?: string
 	signupName?: string

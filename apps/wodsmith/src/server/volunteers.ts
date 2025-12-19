@@ -773,6 +773,7 @@ export async function createVolunteerSignup({
 		credentials,
 		availability,
 		status: "pending",
+		inviteSource: "application", // User applied via public form - admin must approve
 		signupEmail,
 		signupName,
 		signupPhone,
