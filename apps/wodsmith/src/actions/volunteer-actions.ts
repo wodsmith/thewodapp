@@ -507,6 +507,183 @@ export const inviteVolunteerAction = createServerAction()
 	})
 
 /* -------------------------------------------------------------------------- */
+/*                      Accept Volunteer Invite Action                          */
+/* -------------------------------------------------------------------------- */
+
+const acceptVolunteerInviteSchema = z.object({
+	token: z.string().min(1, "Token is required"),
+	availability: z
+		.enum([
+			VOLUNTEER_AVAILABILITY.MORNING,
+			VOLUNTEER_AVAILABILITY.AFTERNOON,
+			VOLUNTEER_AVAILABILITY.ALL_DAY,
+		])
+		.default(VOLUNTEER_AVAILABILITY.ALL_DAY),
+	availabilityNotes: z.string().optional(),
+	credentials: z.string().optional(),
+})
+
+/**
+ * Accept a direct volunteer invitation with additional volunteer data
+ *
+ * This is used when an admin directly invites someone to volunteer.
+ * The user provides their availability and credentials when accepting.
+ */
+export const acceptVolunteerInviteAction = createServerAction()
+	.input(acceptVolunteerInviteSchema)
+	.handler(async ({ input }) => {
+		// Import here to avoid circular dependencies
+		const { getSessionFromCookie } = await import("@/utils/auth")
+		const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
+		const { and, eq, count } = await import("drizzle-orm")
+		const { teamTable, SYSTEM_ROLES_ENUM } = await import("@/db/schema")
+
+		const session = await getSessionFromCookie()
+		if (!session) {
+			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		}
+
+		const db = getDb()
+
+		// Find the invitation by token
+		const invitation = await db.query.teamInvitationTable.findFirst({
+			where: eq(teamInvitationTable.token, input.token),
+		})
+
+		if (!invitation) {
+			throw new ZSAError("NOT_FOUND", "Invitation not found")
+		}
+
+		// Verify this is a volunteer invitation
+		if (
+			invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
+			invitation.isSystemRole !== 1
+		) {
+			throw new ZSAError("ERROR", "This is not a volunteer invitation")
+		}
+
+		// Check if invitation has expired
+		if (invitation.expiresAt && new Date(invitation.expiresAt) < new Date()) {
+			throw new ZSAError("ERROR", "Invitation has expired")
+		}
+
+		// Check if invitation was already accepted
+		if (invitation.acceptedAt) {
+			throw new ZSAError("CONFLICT", "Invitation has already been accepted")
+		}
+
+		// Check if user's email matches the invitation email (case-insensitive)
+		if (
+			session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()
+		) {
+			throw new ZSAError(
+				"FORBIDDEN",
+				"This invitation is for a different email address",
+			)
+		}
+
+		// Check if user is already a member
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, invitation.teamId),
+				eq(teamMembershipTable.userId, session.userId),
+			),
+		})
+
+		if (existingMembership) {
+			// Mark invitation as accepted
+			await db
+				.update(teamInvitationTable)
+				.set({
+					acceptedAt: new Date(),
+					acceptedBy: session.userId,
+					updatedAt: new Date(),
+				})
+				.where(eq(teamInvitationTable.id, invitation.id))
+
+			throw new ZSAError(
+				"CONFLICT",
+				"You are already a volunteer for this competition",
+			)
+		}
+
+		// Check if user has reached their team joining limit
+		const MAX_TEAMS_JOINED_PER_USER = 100
+		const teamsCountResult = await db
+			.select({ value: count() })
+			.from(teamMembershipTable)
+			.where(eq(teamMembershipTable.userId, session.userId))
+
+		const teamsJoined = teamsCountResult[0]?.value || 0
+
+		if (teamsJoined >= MAX_TEAMS_JOINED_PER_USER) {
+			throw new ZSAError(
+				"FORBIDDEN",
+				`You have reached the limit of ${MAX_TEAMS_JOINED_PER_USER} teams you can join.`,
+			)
+		}
+
+		// Parse existing invitation metadata and merge with user-provided data
+		let existingMetadata: Record<string, unknown> = {}
+		if (invitation.metadata) {
+			try {
+				existingMetadata = JSON.parse(invitation.metadata)
+			} catch {
+				// Invalid JSON, ignore
+			}
+		}
+
+		// Merge user-provided volunteer data with existing metadata
+		const mergedMetadata = {
+			...existingMetadata,
+			availability: input.availability,
+			availabilityNotes: input.availabilityNotes,
+			credentials: input.credentials,
+			// Mark as approved since user is accepting a direct invite
+			status: "approved",
+		}
+
+		// Add user to the team with merged metadata
+		await db.insert(teamMembershipTable).values({
+			teamId: invitation.teamId,
+			userId: session.userId,
+			roleId: invitation.roleId,
+			isSystemRole: Number(invitation.isSystemRole),
+			invitedBy: invitation.invitedBy,
+			invitedAt: invitation.createdAt
+				? new Date(invitation.createdAt)
+				: new Date(),
+			joinedAt: new Date(),
+			isActive: 1,
+			metadata: JSON.stringify(mergedMetadata),
+		})
+
+		// Mark invitation as accepted
+		await db
+			.update(teamInvitationTable)
+			.set({
+				acceptedAt: new Date(),
+				acceptedBy: session.userId,
+				updatedAt: new Date(),
+			})
+			.where(eq(teamInvitationTable.id, invitation.id))
+
+		// Update the user's session to include this team
+		await updateAllSessionsOfUser(session.userId)
+
+		// Get team to return competition info
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, invitation.teamId),
+		})
+
+		return {
+			success: true,
+			teamId: invitation.teamId,
+			teamSlug: team?.slug,
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
 /*                      Public Volunteer Signup Action                         */
 /* -------------------------------------------------------------------------- */
 

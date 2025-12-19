@@ -20,8 +20,8 @@ import {
 import { getTeammateInvite, getVolunteerInvite } from "@/server/competitions"
 import { checkEmailExists } from "@/server/user"
 import { getSessionFromCookie } from "@/utils/auth"
-import { AcceptVolunteerInviteButton } from "./_components/accept-volunteer-invite-button"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
+import { AcceptVolunteerInviteForm } from "./_components/accept-volunteer-invite-form"
 import { InviteSignUpForm } from "./_components/invite-signup-form"
 
 export default async function CompeteInvitePage({
@@ -539,7 +539,7 @@ async function DirectVolunteerInvite({
 							</div>
 						</div>
 
-						<AcceptVolunteerInviteButton
+						<AcceptVolunteerInviteForm
 							token={token}
 							competitionSlug={invite.competition?.slug}
 							competitionId={invite.competition?.id}
