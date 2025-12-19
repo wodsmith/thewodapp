@@ -35,5 +35,4 @@ PRAGMA foreign_keys=ON;--> statement-breakpoint
 
 CREATE UNIQUE INDEX `team_invitation_token_unique` ON `team_invitation` (`token`);--> statement-breakpoint
 CREATE INDEX `team_invitation_team_id_idx` ON `team_invitation` (`teamId`);--> statement-breakpoint
-CREATE INDEX `team_invitation_email_idx` ON `team_invitation` (`email`);--> statement-breakpoint
-CREATE INDEX `team_invitation_token_idx` ON `team_invitation` (`token`);
+CREATE INDEX `team_invitation_email_idx` ON `team_invitation` (`email`);

@@ -280,12 +280,20 @@ export function VolunteersList({
 
 	/**
 	 * Handle bulk role assignment
+	 * Only membership IDs (tmem_*) are valid - invitations (tinv_*) cannot have roles assigned
 	 */
 	function handleBulkAssignRole(roleType: VolunteerRoleType) {
 		if (selectedIds.size === 0) return
 
+		// Filter to only include membership IDs (invitations can't have roles assigned)
+		const membershipIds = Array.from(selectedIds).filter((id) =>
+			id.startsWith("tmem_"),
+		)
+
+		if (membershipIds.length === 0) return
+
 		bulkAssignRole({
-			membershipIds: Array.from(selectedIds),
+			membershipIds,
 			organizingTeamId,
 			competitionId,
 			roleType,

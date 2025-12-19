@@ -52,6 +52,10 @@ const volunteerRoleTypeSchema = z.enum([
 	"floor_manager",
 	"media",
 	"general",
+	"equipment",
+	"medical",
+	"check_in",
+	"staff",
 ])
 
 const getCompetitionVolunteersSchema = z.object({
