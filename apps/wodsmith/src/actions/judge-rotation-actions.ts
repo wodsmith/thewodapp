@@ -93,8 +93,14 @@ const batchCreateRotationsSchema = z.object({
 	rotations: z
 		.array(
 			z.object({
-				startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
-				startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
+				startingHeat: z
+					.number()
+					.int()
+					.min(1, "Starting heat must be at least 1"),
+				startingLane: z
+					.number()
+					.int()
+					.min(1, "Starting lane must be at least 1"),
 				heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
 				notes: z.string().max(500, "Notes too long").optional(),
 			}),
@@ -114,8 +120,14 @@ const batchUpdateVolunteerRotationsSchema = z.object({
 	rotations: z
 		.array(
 			z.object({
-				startingHeat: z.number().int().min(1, "Starting heat must be at least 1"),
-				startingLane: z.number().int().min(1, "Starting lane must be at least 1"),
+				startingHeat: z
+					.number()
+					.int()
+					.min(1, "Starting heat must be at least 1"),
+				startingLane: z
+					.number()
+					.int()
+					.min(1, "Starting lane must be at least 1"),
 				heatsCount: z.number().int().min(1, "Must cover at least 1 heat"),
 				notes: z.string().max(500, "Notes too long").optional(),
 			}),
@@ -350,11 +362,11 @@ export const updateEventDefaultsAction = createServerAction()
 			const db = getDb()
 			await updateEventRotationDefaults(db, input)
 
-		// Revalidate the judges page to reflect the updated defaults
-		revalidatePath(
-			`/compete/organizer/${input.competitionId}/volunteers/judges`,
-			"page",
-		)
+			// Revalidate the judges page to reflect the updated defaults
+			revalidatePath(
+				`/compete/organizer/${input.competitionId}/volunteers/judges`,
+				"page",
+			)
 
 			return { success: true }
 		} catch (error) {
@@ -430,7 +442,9 @@ export const batchCreateRotationsAction = createServerAction()
 			const validationResults = await Promise.all(validationPromises)
 
 			// Collect all conflicts
-			const allConflicts = validationResults.flatMap((result) => result.conflicts)
+			const allConflicts = validationResults.flatMap(
+				(result) => result.conflicts,
+			)
 
 			if (allConflicts.length > 0) {
 				throw new ZSAError(
@@ -452,9 +466,7 @@ export const batchCreateRotationsAction = createServerAction()
 					const rot1End = rot1.startingHeat + rot1.heatsCount - 1
 					const rot2End = rot2.startingHeat + rot2.heatsCount - 1
 
-					if (
-						!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)
-					) {
+					if (!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)) {
 						// Ranges overlap - need to check lane assignments
 						// For simplicity, we'll flag this as a potential conflict
 						throw new ZSAError(
@@ -582,9 +594,7 @@ export const batchUpdateVolunteerRotationsAction = createServerAction()
 					const rot1End = rot1.startingHeat + rot1.heatsCount - 1
 					const rot2End = rot2.startingHeat + rot2.heatsCount - 1
 
-					if (
-						!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)
-					) {
+					if (!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)) {
 						// Ranges overlap - need to check lane assignments
 						throw new ZSAError(
 							"CONFLICT",
@@ -595,7 +605,9 @@ export const batchUpdateVolunteerRotationsAction = createServerAction()
 			}
 
 			// Collect validation errors (invalid lanes, missing heats - NOT double-booking since we excluded that)
-			const allConflicts = validationResults.flatMap((result) => result.conflicts)
+			const allConflicts = validationResults.flatMap(
+				(result) => result.conflicts,
+			)
 
 			if (allConflicts.length > 0) {
 				throw new ZSAError(
@@ -610,7 +622,10 @@ export const batchUpdateVolunteerRotationsAction = createServerAction()
 				.from(competitionJudgeRotationsTable)
 				.where(
 					and(
-						eq(competitionJudgeRotationsTable.trackWorkoutId, input.trackWorkoutId),
+						eq(
+							competitionJudgeRotationsTable.trackWorkoutId,
+							input.trackWorkoutId,
+						),
 						eq(competitionJudgeRotationsTable.membershipId, input.membershipId),
 					),
 				)

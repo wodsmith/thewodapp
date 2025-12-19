@@ -243,7 +243,10 @@ function DraggableAssignedJudge({
 				className="text-xs"
 			/>
 			{assignment.isManualOverride && (
-				<Edit2 className="h-3 w-3 text-orange-500" aria-label="Manually modified" />
+				<Edit2
+					className="h-3 w-3 text-orange-500"
+					aria-label="Manually modified"
+				/>
 			)}
 			<Button
 				variant="ghost"

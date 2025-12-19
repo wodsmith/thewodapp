@@ -183,16 +183,19 @@ export function JudgeSchedulingContainer({
 
 			// Fetch assignments for the new version
 			const assignmentsResult = await executeGetAssignments({ versionId })
-		if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
-			setAssignments((prev) => {
-				// Remove old assignments for this event, add new ones
-				const eventHeatIds = new Set(eventHeats.map((h) => h.id))
-				const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
-				// Type assertion needed because getAssignmentsForVersion returns raw DB structure
-				// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
-				return [...withoutEvent, ...(assignmentsResult[0].data as JudgeHeatAssignment[])]
-			})
-		}
+			if (assignmentsResult[0]?.success && assignmentsResult[0].data) {
+				setAssignments((prev) => {
+					// Remove old assignments for this event, add new ones
+					const eventHeatIds = new Set(eventHeats.map((h) => h.id))
+					const withoutEvent = prev.filter((a) => !eventHeatIds.has(a.heatId))
+					// Type assertion needed because getAssignmentsForVersion returns raw DB structure
+					// but JudgeHeatAssignment expects a 'volunteer' property (server-side type mismatch)
+					return [
+						...withoutEvent,
+						...(assignmentsResult[0].data as JudgeHeatAssignment[]),
+					]
+				})
+			}
 		} else {
 			toast.error("Failed to activate version")
 		}
@@ -527,18 +530,18 @@ export function JudgeSchedulingContainer({
 				<h3 className="text-lg font-semibold">Rotations</h3>
 
 				{/* Event Defaults Editor */}
-			<EventDefaultsEditor
-				teamId={organizingTeamId}
-				competitionId={competitionId}
-				trackWorkoutId={selectedEventId}
-				defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
-				defaultLaneShiftPattern={
-					selectedEventDefaults.rawDefaultLaneShiftPattern
-				}
-				minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
-				competitionDefaultHeats={competitionDefaultHeats}
-				competitionDefaultPattern={competitionDefaultPattern}
-			/>
+				<EventDefaultsEditor
+					teamId={organizingTeamId}
+					competitionId={competitionId}
+					trackWorkoutId={selectedEventId}
+					defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
+					defaultLaneShiftPattern={
+						selectedEventDefaults.rawDefaultLaneShiftPattern
+					}
+					minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
+					competitionDefaultHeats={competitionDefaultHeats}
+					competitionDefaultPattern={competitionDefaultPattern}
+				/>
 
 				{/* Rotation Overview */}
 				<RotationOverview
@@ -548,11 +551,11 @@ export function JudgeSchedulingContainer({
 					teamId={organizingTeamId}
 					trackWorkoutId={selectedEventId}
 					hasActiveVersion={!!eventActiveVersion}
-				nextVersionNumber={
-					eventVersionHistory.length > 0
-						? (eventVersionHistory[0]?.version ?? 0) + 1
-						: 1
-				}
+					nextVersionNumber={
+						eventVersionHistory.length > 0
+							? (eventVersionHistory[0]?.version ?? 0) + 1
+							: 1
+					}
 				/>
 
 				{/* Rotation Timeline */}

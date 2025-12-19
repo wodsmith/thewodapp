@@ -108,13 +108,21 @@ export async function rollbackToVersion(
 	}
 
 	// Permission check
-	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
 
 	// Deactivate all versions for this event
 	await db
 		.update(judgeAssignmentVersionsTable)
 		.set({ isActive: false, updatedAt: new Date() })
-		.where(eq(judgeAssignmentVersionsTable.trackWorkoutId, targetVersion.trackWorkoutId))
+		.where(
+			eq(
+				judgeAssignmentVersionsTable.trackWorkoutId,
+				targetVersion.trackWorkoutId,
+			),
+		)
 
 	// Activate the target version
 	const [updatedVersion] = await db
@@ -227,7 +235,10 @@ export async function publishRotations(
 	params: PublishRotationsParams,
 ): Promise<JudgeAssignmentVersion> {
 	// Permission check
-	await requireTeamPermission(params.teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+	await requireTeamPermission(
+		params.teamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
 
 	// Get event info to find maxLanes - using manual join to get competition venues
 	const result = await db
@@ -268,7 +279,9 @@ export async function publishRotations(
 	await db
 		.update(judgeAssignmentVersionsTable)
 		.set({ isActive: false, updatedAt: new Date() })
-		.where(eq(judgeAssignmentVersionsTable.trackWorkoutId, params.trackWorkoutId))
+		.where(
+			eq(judgeAssignmentVersionsTable.trackWorkoutId, params.trackWorkoutId),
+		)
 
 	// Create new version
 	const [newVersion] = await db

@@ -143,7 +143,7 @@ export async function getJudgeVolunteers(
 /**
  * Get all judge assignments for all heats of a track workout (event).
  * Uses sql-batching pattern for fetching related data.
- * 
+ *
  * @param db - Database instance
  * @param trackWorkoutId - The event/workout ID
  * @param versionId - Optional version ID to filter by. If omitted, uses the active version.

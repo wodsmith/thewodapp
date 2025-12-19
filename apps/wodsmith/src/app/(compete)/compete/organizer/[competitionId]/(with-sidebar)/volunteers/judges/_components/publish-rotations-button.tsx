@@ -52,8 +52,9 @@ export function PublishRotationsButton({
 	const { toast } = useToast()
 	const session = useSessionStore((state) => state.session)
 
-	const { execute: publishRotations, isPending } =
-		useServerAction(publishRotationsAction)
+	const { execute: publishRotations, isPending } = useServerAction(
+		publishRotationsAction,
+	)
 
 	const handlePublish = async () => {
 		if (!session?.userId) {
@@ -92,7 +93,8 @@ export function PublishRotationsButton({
 		}
 	}
 
-	const isPerfect = coverage.coveragePercent === 100 && coverage.gaps.length === 0
+	const isPerfect =
+		coverage.coveragePercent === 100 && coverage.gaps.length === 0
 	const hasGaps = coverage.gaps.length > 0
 
 	return (

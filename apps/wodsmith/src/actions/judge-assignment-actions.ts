@@ -73,10 +73,7 @@ export const publishRotationsAction = createServerAction()
 				throw error
 			}
 
-			throw new ZSAError(
-				"INTERNAL_SERVER_ERROR",
-				"Failed to publish rotations",
-			)
+			throw new ZSAError("INTERNAL_SERVER_ERROR", "Failed to publish rotations")
 		}
 	})
 

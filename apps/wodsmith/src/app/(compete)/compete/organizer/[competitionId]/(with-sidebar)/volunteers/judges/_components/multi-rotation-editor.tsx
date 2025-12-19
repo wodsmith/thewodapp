@@ -194,7 +194,13 @@ export function MultiRotationEditor({
 			// Only open the new block (collapse others)
 			setOpenBlocks(new Set([fields.length]))
 		}
-	}, [activeBlockIndex, fields.length, append, eventDefaultHeatsCount, maxHeats])
+	}, [
+		activeBlockIndex,
+		fields.length,
+		append,
+		eventDefaultHeatsCount,
+		maxHeats,
+	])
 
 	// Calculate preview cells for ALL rotations
 	// Using useMemo ensures preview updates whenever watchedRotations changes
@@ -374,8 +380,10 @@ export function MultiRotationEditor({
 					render={({ field }) => {
 						// Sort judges by rotation count (fewest first) to surface those needing assignments
 						const sortedJudges = [...availableJudges].sort((a, b) => {
-							const aCount = rotationsByVolunteer.get(a.membershipId)?.length ?? 0
-							const bCount = rotationsByVolunteer.get(b.membershipId)?.length ?? 0
+							const aCount =
+								rotationsByVolunteer.get(a.membershipId)?.length ?? 0
+							const bCount =
+								rotationsByVolunteer.get(b.membershipId)?.length ?? 0
 							return aCount - bCount
 						})
 
@@ -391,7 +399,8 @@ export function MultiRotationEditor({
 									<SelectContent>
 										{sortedJudges.map((judge) => {
 											const rotationCount =
-												rotationsByVolunteer.get(judge.membershipId)?.length ?? 0
+												rotationsByVolunteer.get(judge.membershipId)?.length ??
+												0
 											const judgeName =
 												`${judge.firstName ?? ""} ${judge.lastName ?? ""}`.trim() ||
 												"Unknown"
@@ -447,52 +456,54 @@ export function MultiRotationEditor({
 								<div
 									className={`border rounded-lg ${isActive ? "ring-2 ring-primary" : ""}`}
 								>
-								{/* Block Header */}
-								<div className="flex items-center justify-between p-3 hover:bg-muted/50">
-									<CollapsibleTrigger asChild>
-										<button
-											type="button"
-											className="flex items-center gap-2 flex-1 text-left"
-											onClick={() => onActiveBlockChange(index)}
-										>
-											<ChevronDown
-												className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-											/>
-											<span className="font-medium">
-												Rotation {index + 1}
-												{rotation && (
-													<span className="text-muted-foreground text-sm ml-2">
-														{(() => {
-															const endHeat = Math.min(
-																rotation.startingHeat + rotation.heatsCount - 1,
-																maxHeats,
-															)
-															return rotation.startingHeat === endHeat
-																? `Heat ${rotation.startingHeat}`
-																: `Heats ${rotation.startingHeat} - ${endHeat}`
-														})()}
+									{/* Block Header */}
+									<div className="flex items-center justify-between p-3 hover:bg-muted/50">
+										<CollapsibleTrigger asChild>
+											<button
+												type="button"
+												className="flex items-center gap-2 flex-1 text-left"
+												onClick={() => onActiveBlockChange(index)}
+											>
+												<ChevronDown
+													className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+												/>
+												<span className="font-medium">
+													Rotation {index + 1}
+													{rotation && (
+														<span className="text-muted-foreground text-sm ml-2">
+															{(() => {
+																const endHeat = Math.min(
+																	rotation.startingHeat +
+																		rotation.heatsCount -
+																		1,
+																	maxHeats,
+																)
+																return rotation.startingHeat === endHeat
+																	? `Heat ${rotation.startingHeat}`
+																	: `Heats ${rotation.startingHeat} - ${endHeat}`
+															})()}
+														</span>
+													)}
+												</span>
+												{isActive && (
+													<span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+														<MousePointer2 className="h-3 w-3" />
+														Active
 													</span>
 												)}
-											</span>
-											{isActive && (
-												<span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-													<MousePointer2 className="h-3 w-3" />
-													Active
-												</span>
-											)}
-										</button>
-									</CollapsibleTrigger>
-									{fields.length > 1 && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={() => removeRotation(index)}
-										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
-									)}
-								</div>
+											</button>
+										</CollapsibleTrigger>
+										{fields.length > 1 && (
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onClick={() => removeRotation(index)}
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										)}
+									</div>
 
 									{/* Block Content */}
 									<CollapsibleContent>
