@@ -14,6 +14,10 @@ interface DraggableJudgeProps {
 	onToggleSelect?: (id: string, shiftKey: boolean) => void
 	selectedCount?: number
 	selectedIds?: Set<string>
+	/** Number of heats this judge is assigned to */
+	assignmentCount?: number
+	/** Whether judge is already assigned to the currently selected event */
+	isAssignedToCurrentEvent?: boolean
 }
 
 /**
@@ -26,6 +30,8 @@ export function DraggableJudge({
 	isSelected = false,
 	onToggleSelect,
 	selectedIds,
+	assignmentCount,
+	isAssignedToCurrentEvent = false,
 }: DraggableJudgeProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const [isDragging, setIsDragging] = useState(false)
@@ -139,7 +145,9 @@ export function DraggableJudge({
 			} ${
 				isSelected
 					? "bg-primary/20 ring-1 ring-primary"
-					: "bg-muted hover:bg-muted/80"
+					: isAssignedToCurrentEvent
+						? "bg-muted/50 opacity-60"
+						: "bg-muted hover:bg-muted/80"
 			}`}
 		>
 			{onToggleSelect ? (
@@ -156,6 +164,14 @@ export function DraggableJudge({
 				<GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
 			)}
 			<span className="flex-1 truncate">{displayName}</span>
+			{assignmentCount !== undefined && (
+				<span
+					className="text-xs text-muted-foreground tabular-nums flex-shrink-0"
+					title={`Assigned to ${assignmentCount} heat${assignmentCount === 1 ? "" : "s"}`}
+				>
+					{assignmentCount}
+				</span>
+			)}
 			<CredentialBadge
 				credentials={volunteer.credentials}
 				className="text-xs flex-shrink-0"

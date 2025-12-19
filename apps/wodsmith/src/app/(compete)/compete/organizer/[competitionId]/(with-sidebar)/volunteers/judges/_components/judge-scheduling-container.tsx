@@ -130,6 +130,27 @@ export function JudgeSchedulingContainer({
 		[judges, assignedJudgeIds],
 	)
 
+	// Get all judges sorted by total heat assignment count (ascending - least assigned first)
+	const judgesByAssignmentCount = useMemo(() => {
+		// Count assignments per judge across ALL heats (not just current event)
+		const assignmentCounts = new Map<string, number>()
+		for (const judge of judges) {
+			assignmentCounts.set(judge.membershipId, 0)
+		}
+		for (const assignment of assignments) {
+			const count = assignmentCounts.get(assignment.membershipId) ?? 0
+			assignmentCounts.set(assignment.membershipId, count + 1)
+		}
+
+		// Sort judges by assignment count (ascending)
+		return [...judges]
+			.map((judge) => ({
+				...judge,
+				assignmentCount: assignmentCounts.get(judge.membershipId) ?? 0,
+			}))
+			.sort((a, b) => a.assignmentCount - b.assignmentCount)
+	}, [judges, assignments])
+
 	// Get rotations for selected event
 	const eventRotations = useMemo(
 		() => initialRotations.filter((r) => r.trackWorkoutId === selectedEventId),
@@ -247,8 +268,8 @@ export function JudgeSchedulingContainer({
 		setSelectedJudgeIds((prev) => {
 			const next = new Set(prev)
 			if (shiftKey && prev.size > 0) {
-				// Range select - find indices
-				const sortedJudges = unassignedJudges
+				// Range select - find indices using the sorted list
+				const sortedJudges = judgesByAssignmentCount
 				const lastSelected = Array.from(prev).pop()
 				const lastIndex = sortedJudges.findIndex(
 					(j) => j.membershipId === lastSelected,
@@ -452,28 +473,27 @@ export function JudgeSchedulingContainer({
 											</button>
 										)}
 									</div>
-									{unassignedJudges.length === 0 ? (
+									{judges.length === 0 ? (
 										<p className="text-sm text-muted-foreground py-4 text-center">
-											All judges assigned
+											No judges have been added yet. Add volunteers with the
+											Judge role type in the Volunteers section above.
 										</p>
 									) : (
 										<div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
-											{unassignedJudges.map((judge) => (
+											{judgesByAssignmentCount.map((judge) => (
 												<DraggableJudge
 													key={judge.membershipId}
 													volunteer={judge}
 													isSelected={selectedJudgeIds.has(judge.membershipId)}
 													onToggleSelect={handleToggleSelect}
 													selectedIds={selectedJudgeIds}
+													assignmentCount={judge.assignmentCount}
+													isAssignedToCurrentEvent={assignedJudgeIds.has(
+														judge.membershipId,
+													)}
 												/>
 											))}
 										</div>
-									)}
-									{judges.length === 0 && (
-										<p className="text-sm text-muted-foreground py-4 text-center">
-											No judges have been added yet. Add volunteers with the
-											Judge role type in the Volunteers section above.
-										</p>
 									)}
 								</CardContent>
 							</Card>
