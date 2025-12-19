@@ -1,8 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { useState } from "react"
+import {
+	createVenueAction,
+	deleteVenueAction,
+	updateVenueAction,
+} from "@/actions/competition-heat-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -15,11 +20,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { CompetitionVenue } from "@/db/schema"
-import {
-	createVenueAction,
-	deleteVenueAction,
-	updateVenueAction,
-} from "@/actions/competition-heat-actions"
 
 interface VenueManagerProps {
 	competitionId: string

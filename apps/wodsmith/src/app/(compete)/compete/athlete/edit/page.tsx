@@ -1,14 +1,14 @@
+import { eq } from "drizzle-orm"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
-import { getSessionFromCookie } from "@/utils/auth"
-import { parseAthleteProfile } from "@/utils/athlete-profile"
 import { getUserNotableMetconResults } from "@/server/user"
+import { parseAthleteProfile } from "@/utils/athlete-profile"
+import { getSessionFromCookie } from "@/utils/auth"
 import { AthleteProfileForm } from "../_components/athlete-profile-form"
-import { eq } from "drizzle-orm"
 
 export default async function AthleteEditPage() {
 	// Require authentication

@@ -4,8 +4,8 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { getDb } from "@/db"
 import { teamTable } from "@/db/schema"
-import { getCompetition } from "@/server/competitions"
 import { getCompetitionRevenueStats } from "@/server/commerce"
+import { getCompetition } from "@/server/competitions"
 import { RevenueStatsDisplay } from "./_components/revenue-stats-display"
 
 interface RevenuePageProps {

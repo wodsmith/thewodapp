@@ -1,15 +1,15 @@
 "use client"
 
+import { AlertTriangle } from "lucide-react"
 import { forwardRef, useImperativeHandle } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { ScoreType, TiebreakScheme, WorkoutScheme } from "@/db/schema"
 import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { AlertTriangle } from "lucide-react"
 import {
-	useScoreRowState,
 	type ScoreEntryData,
 	type ScoreInputSubject,
+	useScoreRowState,
 } from "./use-score-row-state"
 
 export interface ScoreInputFieldsValue {
@@ -113,12 +113,22 @@ export const ScoreInputFields = forwardRef<
 		() => ({
 			getValue: () => ({
 				score: inputValue,
-				roundScores: isMultiRound ? roundScores.map((r) => ({ score: r.score })) : undefined,
-				secondaryScore: showSecondaryInput ? (secondaryValue || null) : null,
-				tieBreakScore: showTiebreak ? (tieBreakValue || null) : null,
+				roundScores: isMultiRound
+					? roundScores.map((r) => ({ score: r.score }))
+					: undefined,
+				secondaryScore: showSecondaryInput ? secondaryValue || null : null,
+				tieBreakScore: showTiebreak ? tieBreakValue || null : null,
 			}),
 		}),
-		[inputValue, isMultiRound, roundScores, secondaryValue, showSecondaryInput, showTiebreak, tieBreakValue],
+		[
+			inputValue,
+			isMultiRound,
+			roundScores,
+			secondaryValue,
+			showSecondaryInput,
+			showTiebreak,
+			tieBreakValue,
+		],
 	)
 
 	const isInvalidWarning = showWarning
@@ -137,7 +147,10 @@ export const ScoreInputFields = forwardRef<
 							onChange={(e) => {
 								const val = e.target.value
 								const numVal = parseInt(val, 10)
-								if (val !== "" && (Number.isNaN(numVal) || numVal > numRounds || numVal < 0))
+								if (
+									val !== "" &&
+									(Number.isNaN(numVal) || numVal > numRounds || numVal < 0)
+								)
 									return
 								setInputValue(val)
 							}}
@@ -148,7 +161,9 @@ export const ScoreInputFields = forwardRef<
 							max={numRounds}
 							className="h-10 text-base font-mono w-40"
 						/>
-						<span className="text-sm text-muted-foreground">/ {numRounds} rounds</span>
+						<span className="text-sm text-muted-foreground">
+							/ {numRounds} rounds
+						</span>
 					</div>
 				</div>
 			) : isMultiRound ? (
@@ -158,7 +173,10 @@ export const ScoreInputFields = forwardRef<
 						const roundIndex = roundScore.roundNumber - 1
 						const roundResult = roundParseResults[roundIndex]
 						return (
-							<div key={roundScore.roundNumber} className="flex items-center gap-2">
+							<div
+								key={roundScore.roundNumber}
+								className="flex items-center gap-2"
+							>
 								<span className="text-xs text-muted-foreground w-10 shrink-0">
 									R{roundScore.roundNumber}:
 								</span>
@@ -167,11 +185,14 @@ export const ScoreInputFields = forwardRef<
 										if (el) roundInputRefs.current.set(roundIndex, el)
 									}}
 									value={roundScore.score}
-									onChange={(e) => handleRoundScoreChange(roundIndex, e.target.value)}
+									onChange={(e) =>
+										handleRoundScoreChange(roundIndex, e.target.value)
+									}
 									onKeyDown={(e) => handleKeyDown(e, "score", roundIndex)}
 									onBlur={() => handleBlur("round")}
 									placeholder={
-										workoutScheme === "time" || workoutScheme === "time-with-cap"
+										workoutScheme === "time" ||
+										workoutScheme === "time-with-cap"
 											? "90 (secs) or 1:30"
 											: workoutScheme === "rounds-reps"
 												? "5+12 or 5.12"
@@ -179,7 +200,9 @@ export const ScoreInputFields = forwardRef<
 									}
 									className={cn(
 										"h-8 text-sm font-mono flex-1",
-										roundResult?.error && !roundResult?.isValid && "border-destructive focus:ring-destructive",
+										roundResult?.error &&
+											!roundResult?.isValid &&
+											"border-destructive focus:ring-destructive",
 									)}
 								/>
 								{roundResult?.isValid && (
@@ -188,7 +211,10 @@ export const ScoreInputFields = forwardRef<
 									</span>
 								)}
 								{roundResult?.error && !roundResult?.isValid && (
-									<span className="text-xs text-destructive w-20 shrink-0 truncate" title={roundResult.error}>
+									<span
+										className="text-xs text-destructive w-20 shrink-0 truncate"
+										title={roundResult.error}
+									>
 										Invalid
 									</span>
 								)}
@@ -199,7 +225,9 @@ export const ScoreInputFields = forwardRef<
 					{/* Aggregate score below all rounds */}
 					{(() => {
 						const aggregate = getAggregateScore()
-						const validCount = roundParseResults.filter((r) => r?.isValid && r?.rawValue !== null).length
+						const validCount = roundParseResults.filter(
+							(r) => r?.isValid && r?.rawValue !== null,
+						).length
 						if (validCount > 0 && aggregate.formatted) {
 							const getAggregateLabel = () => {
 								switch (effectiveScoreType) {
@@ -224,7 +252,9 @@ export const ScoreInputFields = forwardRef<
 									<span className="text-xs font-medium text-muted-foreground w-10 shrink-0">
 										{getAggregateLabel()}
 									</span>
-									<span className="text-sm font-mono font-medium">{aggregate.formatted}</span>
+									<span className="text-sm font-mono font-medium">
+										{aggregate.formatted}
+									</span>
 									<span className="text-xs text-muted-foreground">
 										({validCount}/{numRounds} rounds)
 									</span>
@@ -253,7 +283,9 @@ export const ScoreInputFields = forwardRef<
 						className={cn(
 							"h-10 text-base font-mono",
 							isInvalidWarning && "border-yellow-400 focus:ring-yellow-400",
-							hasWarning && !isInvalidWarning && "border-amber-400 focus:ring-amber-400",
+							hasWarning &&
+								!isInvalidWarning &&
+								"border-amber-400 focus:ring-amber-400",
 						)}
 					/>
 					{parseResult?.isValid && !showSecondaryInput && (
@@ -267,7 +299,9 @@ export const ScoreInputFields = forwardRef<
 						</div>
 					)}
 					{parseResult?.error && (
-						<div className="mt-1 text-xs text-destructive">{parseResult.error}</div>
+						<div className="mt-1 text-xs text-destructive">
+							{parseResult.error}
+						</div>
 					)}
 				</div>
 			)}
@@ -284,7 +318,9 @@ export const ScoreInputFields = forwardRef<
 						placeholder="e.g., 150 reps"
 						className="h-10 text-base font-mono"
 					/>
-					<div className="mt-1 text-xs text-muted-foreground">Enter reps achieved at cap</div>
+					<div className="mt-1 text-xs text-muted-foreground">
+						Enter reps achieved at cap
+					</div>
 				</div>
 			)}
 
@@ -297,7 +333,11 @@ export const ScoreInputFields = forwardRef<
 							{parseResult.error}
 						</p>
 						<div className="mt-2 flex gap-2">
-							<Button size="sm" variant="outline" onClick={handleConfirmWarning}>
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={handleConfirmWarning}
+							>
 								Save Anyway
 							</Button>
 							<Button
@@ -324,11 +364,14 @@ export const ScoreInputFields = forwardRef<
 						onChange={(e) => handleTieBreakChange(e.target.value)}
 						onKeyDown={(e) => handleKeyDown(e, "tieBreak")}
 						onBlur={() => handleBlur("tieBreak")}
-						placeholder={tiebreakScheme === "time" ? "90 (secs) or 1:30" : "e.g., 150 reps"}
+						placeholder={
+							tiebreakScheme === "time" ? "90 (secs) or 1:30" : "e.g., 150 reps"
+						}
 						className={cn(
 							"h-10 text-base font-mono",
 							(showTieBreakWarning ||
-								(tieBreakParseResult?.error && !tieBreakParseResult?.isValid)) &&
+								(tieBreakParseResult?.error &&
+									!tieBreakParseResult?.isValid)) &&
 								"border-yellow-400 focus:ring-yellow-400",
 						)}
 					/>
@@ -338,7 +381,9 @@ export const ScoreInputFields = forwardRef<
 						</div>
 					)}
 					{tieBreakParseResult?.error && !showTieBreakWarning && (
-						<div className="mt-1 text-xs text-destructive">{tieBreakParseResult.error}</div>
+						<div className="mt-1 text-xs text-destructive">
+							{tieBreakParseResult.error}
+						</div>
 					)}
 
 					{showTieBreakWarning && tieBreakParseResult?.error && (
@@ -375,4 +420,3 @@ export const ScoreInputFields = forwardRef<
 		</div>
 	)
 })
-

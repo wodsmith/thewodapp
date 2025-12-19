@@ -1,9 +1,8 @@
 import "server-only"
+import { ZSAError } from "@repo/zsa"
 import { eq, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { z } from "zod"
-import { ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
 	MOVEMENT_TYPE_VALUES,
@@ -13,6 +12,7 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schema"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 

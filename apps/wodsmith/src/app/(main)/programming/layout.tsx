@@ -1,7 +1,7 @@
 "use client"
 
-import { Suspense } from "react"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
+import { Suspense } from "react"
 
 export default function ProgrammingLayout({
 	children,

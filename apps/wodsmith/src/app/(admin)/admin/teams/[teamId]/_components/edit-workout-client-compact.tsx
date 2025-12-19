@@ -1,9 +1,9 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { Plus, X } from "lucide-react"
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	getScalingGroupWithLevelsAction,
 	getWorkoutScalingDescriptionsAction,

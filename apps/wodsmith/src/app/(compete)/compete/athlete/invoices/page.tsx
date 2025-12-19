@@ -1,11 +1,11 @@
-import { redirect } from "next/navigation"
+import { ArrowLeft, ExternalLink, FileText, Receipt } from "lucide-react"
 import Link from "next/link"
-import { Receipt, ArrowLeft, FileText, ExternalLink } from "lucide-react"
-import { getSessionFromCookie } from "@/utils/auth"
-import { getUserPurchases } from "@/server/commerce"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { redirect } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { getUserPurchases } from "@/server/commerce"
+import { getSessionFromCookie } from "@/utils/auth"
 
 function formatCurrency(cents: number): string {
 	return new Intl.NumberFormat("en-US", {

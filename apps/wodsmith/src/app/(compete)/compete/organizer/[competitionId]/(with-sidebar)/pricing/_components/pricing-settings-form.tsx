@@ -1,9 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { DollarSign, Loader2, User, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, DollarSign, Users, User } from "lucide-react"
+import {
+	updateCompetitionFeeConfig,
+	updateDivisionFee,
+} from "@/actions/commerce.action"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -12,14 +17,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
-import {
-	updateCompetitionFeeConfig,
-	updateDivisionFee,
-} from "@/actions/commerce.action"
 import { PLATFORM_DEFAULTS } from "@/server/commerce"
 
 interface Props {

@@ -1,12 +1,12 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { format } from "date-fns"
 import { ArrowLeft, CalendarIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import { scheduleStandaloneWorkoutAction } from "@/actions/workout-actions"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"

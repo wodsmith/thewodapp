@@ -1,9 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card"
 import {
+	type AthleteProfileData,
 	calculateAge,
 	formatHeight,
 	formatWeight,
-	type AthleteProfileData,
 } from "@/utils/athlete-profile"
 
 type AthleteStatsProps = {

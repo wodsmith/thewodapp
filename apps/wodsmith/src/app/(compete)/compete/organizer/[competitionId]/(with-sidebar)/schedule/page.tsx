@@ -1,13 +1,13 @@
 import "server-only"
-import { Suspense } from "react"
+import { ZSAError } from "@repo/zsa"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { ZSAError } from "@repo/zsa"
+import { Suspense } from "react"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { ScheduleContainer } from "./_components/schedule-container"
 import { HeatScheduleSkeleton } from "./_components/heat-schedule-skeleton"
+import { ScheduleContainer } from "./_components/schedule-container"
 import { VenueManagerSkeleton } from "./_components/venue-manager-skeleton"
 
 interface CompetitionSchedulePageProps {

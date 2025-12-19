@@ -11,19 +11,21 @@ import {
 	userTable,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
-import { sendEmail } from "@/utils/email"
+import { PaymentExpiredEmail } from "@/react-email/compete/payment-expired"
 import { RegistrationConfirmationEmail } from "@/react-email/compete/registration-confirmation"
 import { CompetitionTeamInviteEmail } from "@/react-email/compete/team-invite"
-import { PaymentExpiredEmail } from "@/react-email/compete/payment-expired"
 import { TeammateJoinedEmail } from "@/react-email/compete/teammate-joined"
+import { VolunteerApprovedEmail } from "@/react-email/compete/volunteer-approved"
+import { VolunteerSignupConfirmationEmail } from "@/react-email/compete/volunteer-signup-confirmation"
+import { sendEmail } from "@/utils/email"
 import {
+	buildInviteLink,
 	formatCents,
 	formatDate,
 	getAthleteName,
-	parsePendingTeammateCount,
-	isTeamComplete,
 	getTeammateJoinedSubject,
-	buildInviteLink,
+	isTeamComplete,
+	parsePendingTeammateCount,
 } from "./helpers"
 
 // ============================================================================
@@ -494,6 +496,153 @@ export async function notifyTeammateJoined(params: {
 			message: "[Email] Failed to send teammate joined notification",
 			error: err,
 			attributes: { captainUserId, newTeammateUserId, competitionTeamId },
+		})
+	}
+}
+
+// ============================================================================
+// Volunteer Signup Confirmation
+// ============================================================================
+
+/**
+ * Send confirmation email when someone submits the public volunteer signup form.
+ * Confirms their application was received and is pending review.
+ */
+export async function notifyVolunteerSignupReceived(params: {
+	volunteerEmail: string
+	volunteerName: string
+	competitionTeamId: string
+}): Promise<void> {
+	const { volunteerEmail, volunteerName, competitionTeamId } = params
+
+	try {
+		const db = getDb()
+
+		// Find the competition via the competition team
+		const competitionTeam = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, competitionTeamId),
+		})
+
+		if (!competitionTeam) {
+			logError({
+				message: "[Email] Cannot send volunteer signup confirmation - no team",
+				attributes: { competitionTeamId },
+			})
+			return
+		}
+
+		// Find competition that uses this team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.competitionTeamId, competitionTeamId),
+		})
+
+		if (!competition) {
+			logError({
+				message:
+					"[Email] Cannot send volunteer signup confirmation - no competition",
+				attributes: { competitionTeamId },
+			})
+			return
+		}
+
+		await sendEmail({
+			to: volunteerEmail,
+			subject: `Volunteer Application Received: ${competition.name}`,
+			template: VolunteerSignupConfirmationEmail({
+				volunteerName,
+				competitionName: competition.name,
+				competitionSlug: competition.slug,
+				competitionDate: formatDate(competition.startDate),
+			}),
+			tags: [{ name: "type", value: "volunteer-signup-confirmation" }],
+		})
+
+		logInfo({
+			message: "[Email] Sent volunteer signup confirmation",
+			attributes: {
+				competitionTeamId,
+				competitionId: competition.id,
+				competitionName: competition.name,
+			},
+		})
+	} catch (err) {
+		logError({
+			message: "[Email] Failed to send volunteer signup confirmation",
+			error: err,
+			attributes: { competitionTeamId },
+		})
+	}
+}
+
+// ============================================================================
+// Volunteer Approved
+// ============================================================================
+
+/**
+ * Send email when a volunteer's application is approved by organizers.
+ * Includes their assigned role types.
+ */
+export async function notifyVolunteerApproved(params: {
+	volunteerEmail: string
+	volunteerName: string
+	competitionTeamId: string
+	roleTypes?: string[]
+}): Promise<void> {
+	const { volunteerEmail, volunteerName, competitionTeamId, roleTypes } = params
+
+	try {
+		const db = getDb()
+
+		// Find competition that uses this team
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.competitionTeamId, competitionTeamId),
+		})
+
+		if (!competition) {
+			logError({
+				message:
+					"[Email] Cannot send volunteer approved email - no competition",
+				attributes: { competitionTeamId },
+			})
+			return
+		}
+
+		// Format role types for display (capitalize first letter)
+		const formattedRoleTypes = roleTypes?.map((role) => {
+			// Convert snake_case to Title Case (e.g., "head_judge" -> "Head Judge")
+			return role
+				.split("_")
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(" ")
+		})
+
+		await sendEmail({
+			to: volunteerEmail,
+			subject: `You're approved to volunteer at ${competition.name}!`,
+			template: VolunteerApprovedEmail({
+				volunteerName,
+				competitionName: competition.name,
+				competitionSlug: competition.slug,
+				competitionDate: formatDate(competition.startDate),
+				roleTypes: formattedRoleTypes,
+			}),
+			tags: [{ name: "type", value: "volunteer-approved" }],
+		})
+
+		logInfo({
+			message: "[Email] Sent volunteer approved notification",
+			attributes: {
+				competitionTeamId,
+				competitionId: competition.id,
+				competitionName: competition.name,
+				roleTypes,
+			},
+		})
+	} catch (err) {
+		logError({
+			message: "[Email] Failed to send volunteer approved notification",
+			error: err,
+			attributes: { competitionTeamId },
 		})
 	}
 }

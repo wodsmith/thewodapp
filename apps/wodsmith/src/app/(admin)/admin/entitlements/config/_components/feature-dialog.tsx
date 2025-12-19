@@ -3,6 +3,7 @@
 import { useServerAction } from "@repo/zsa-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Dialog,
 	DialogContent,
@@ -21,12 +22,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
+import type { Feature } from "@/db/schemas/entitlements"
 import {
 	createFeatureAction,
 	updateFeatureAction,
 } from "../../../_actions/entitlement-admin-actions"
-import type { Feature } from "@/db/schemas/entitlements"
 
 interface FeatureDialogProps {
 	open: boolean

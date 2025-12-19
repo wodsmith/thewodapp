@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import { useServerAction } from "@repo/zsa-react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { useState } from "react"
+import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +13,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 interface QuickActionsEventsProps {

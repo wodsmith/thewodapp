@@ -1,13 +1,15 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq, not } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { and, eq, not } from "drizzle-orm"
 import { MAX_TEAMS_JOINED_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
 	TEAM_TYPE_ENUM,
+	type Team,
+	type TeamMembership,
 	teamMembershipTable,
 	teamRoleTable,
 	teamSubscriptionTable,
@@ -265,10 +267,17 @@ export async function getTeam(teamId: string) {
 	return team
 }
 
+/** Membership with team relation included */
+export type TeamMembershipWithTeam = TeamMembership & {
+	team: Team | null
+}
+
 /**
  * Get all team memberships for a specific user
  */
-export async function getUserTeamMemberships(userId: string) {
+export async function getUserTeamMemberships(
+	userId: string,
+): Promise<TeamMembershipWithTeam[]> {
 	const db = getDb()
 
 	const memberships = await db.query.teamMembershipTable.findMany({
@@ -278,13 +287,13 @@ export async function getUserTeamMemberships(userId: string) {
 		},
 	})
 
-	return memberships
+	return memberships as TeamMembershipWithTeam[]
 }
 
 /**
  * Get all teams for current user
  */
-export async function getUserTeams() {
+export async function getUserTeams(): Promise<Team[]> {
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
@@ -293,12 +302,12 @@ export async function getUserTeams() {
 
 	const db = getDb()
 
-	const userTeams = await db.query.teamMembershipTable.findMany({
+	const userTeams = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.userId, session.userId),
 		with: {
 			team: true,
 		},
-	})
+	})) as TeamMembershipWithTeam[]
 
 	// This function doesn't enforce the MAX_TEAMS_JOINED_PER_USER limit directly
 	// since it's just retrieving teams, but we use the constant here to show that
@@ -319,7 +328,8 @@ export async function getUserTeams() {
 	return userTeams
 		.map((membership) => membership.team)
 		.filter(
-			(team) =>
+			(team): team is Team =>
+				team !== null &&
 				team.type !== TEAM_TYPE_ENUM.COMPETITION_EVENT &&
 				team.type !== TEAM_TYPE_ENUM.COMPETITION_TEAM,
 		)
@@ -328,7 +338,7 @@ export async function getUserTeams() {
 /**
  * Get teams owned by the current user
  */
-export async function getOwnedTeams() {
+export async function getOwnedTeams(): Promise<(Team | null)[]> {
 	const session = await requireVerifiedEmail()
 
 	if (!session) {
@@ -337,7 +347,7 @@ export async function getOwnedTeams() {
 
 	const db = getDb()
 
-	const ownedTeams = await db.query.teamMembershipTable.findMany({
+	const ownedTeams = (await db.query.teamMembershipTable.findMany({
 		where: and(
 			eq(teamMembershipTable.userId, session.userId),
 			eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.OWNER),
@@ -346,7 +356,7 @@ export async function getOwnedTeams() {
 		with: {
 			team: true,
 		},
-	})
+	})) as TeamMembershipWithTeam[]
 
 	return ownedTeams.map((membership) => membership.team)
 }

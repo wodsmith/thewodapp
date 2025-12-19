@@ -1,15 +1,15 @@
 import "server-only"
+import { Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups } from "@/server/competitions"
 import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
-import { OrganizerSeriesList } from "./_components/organizer-series-list"
 import { TeamFilter } from "../_components/team-filter"
+import { OrganizerSeriesList } from "./_components/organizer-series-list"
 
 export const metadata: Metadata = {
 	title: "Competition Series - Compete",

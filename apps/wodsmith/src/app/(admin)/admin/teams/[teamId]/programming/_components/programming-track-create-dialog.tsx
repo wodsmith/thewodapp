@@ -1,13 +1,16 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
+import { AlertCircle, Crown, Info } from "lucide-react"
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { useServerAction } from "@repo/zsa-react"
-import { getScalingGroupsAction } from "@/actions/scaling-actions"
 import { checkCanCreateProgrammingTrackAction } from "@/actions/entitlements-actions"
+import { getScalingGroupsAction } from "@/actions/scaling-actions"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -34,13 +37,10 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Crown, Info } from "lucide-react"
-import Link from "next/link"
 import type { ProgrammingTrack } from "@/db/schema"
 import { PROGRAMMING_TRACK_TYPE } from "@/db/schemas/programming"
-import { createProgrammingTrackAction } from "../../_actions/programming-track-actions"
 import type { LimitCheckResult } from "@/server/entitlements-checks"
+import { createProgrammingTrackAction } from "../../_actions/programming-track-actions"
 
 const formSchema = z.object({
 	name: z

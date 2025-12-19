@@ -1,28 +1,31 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useServerAction } from "@repo/zsa-react"
 import {
-	Trophy,
+	AlertCircle,
 	CheckCircle,
-	Loader2,
+	CheckCircle2,
+	Clock,
 	CreditCard,
 	ExternalLink,
+	Loader2,
+	Trophy,
 	Unlink,
 	Wallet,
-	Clock,
-	CheckCircle2,
-	AlertCircle,
 } from "lucide-react"
-import { useServerAction } from "@repo/zsa-react"
-import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
+import { enableCompetitionOrganizingAction } from "@/actions/entitlements-actions"
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
+	disconnectStripeAccount,
+	getStripeConnectionStatus,
+	getStripeDashboardUrl,
+	initiateExpressOnboarding,
+	initiateStandardOAuth,
+	refreshOnboardingLink,
+} from "@/actions/stripe-connect.action"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -34,22 +37,19 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { enableCompetitionOrganizingAction } from "@/actions/entitlements-actions"
+import { Button } from "@/components/ui/button"
 import {
-	initiateExpressOnboarding,
-	initiateStandardOAuth,
-	refreshOnboardingLink,
-	getStripeDashboardUrl,
-	disconnectStripeAccount,
-	getStripeConnectionStatus,
-} from "@/actions/stripe-connect.action"
-import { toast } from "sonner"
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import type { AccountBalance } from "@/server/stripe-connect"
 
 interface EnableCompetitionOrganizingProps {
 	teamId: string
-	teamSlug: string
+	_teamSlug: string
 	isEnabled: boolean
 	organizerStatus: "not_applied" | "pending" | "approved"
 	stripeAccountStatus: string | null
@@ -70,7 +70,7 @@ function formatCurrency(amountCents: number, currency: string): string {
 
 export function EnableCompetitionOrganizing({
 	teamId,
-	teamSlug,
+	_teamSlug,
 	isEnabled,
 	organizerStatus,
 	stripeAccountStatus,
@@ -528,7 +528,7 @@ export function EnableCompetitionOrganizing({
 												} else {
 													toast.info("Account still pending verification")
 												}
-											} catch (err) {
+											} catch (_err) {
 												toast.error("Failed to check status")
 											} finally {
 												setIsLoading(null)

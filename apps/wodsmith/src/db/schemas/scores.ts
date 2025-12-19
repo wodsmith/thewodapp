@@ -19,10 +19,10 @@ import { scalingLevelsTable } from "./scaling"
 import { teamTable } from "./teams"
 import { userTable } from "./users"
 import {
-	workouts,
-	WORKOUT_SCHEME_VALUES,
 	SCORE_TYPE_VALUES,
 	TIEBREAK_SCHEME_VALUES,
+	WORKOUT_SCHEME_VALUES,
+	workouts,
 } from "./workouts"
 
 // ID generators

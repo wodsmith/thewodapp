@@ -1,8 +1,8 @@
 "use server"
 import { createId } from "@paralleldrive/cuid2"
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import {
 	coachBlackoutDatesTable,

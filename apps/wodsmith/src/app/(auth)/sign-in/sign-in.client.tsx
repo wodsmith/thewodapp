@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { startAuthentication } from "@simplewebauthn/browser"
 import { KeyIcon } from "lucide-react"
 import Link from "next/link"
@@ -8,7 +9,6 @@ import posthog from "posthog-js"
 import { type ReactNode, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	generateAuthenticationOptionsAction,
 	verifyAuthenticationAction,

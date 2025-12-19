@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { ChevronDown, ChevronUp, Target } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { CompetitionWorkout } from "@/server/competition-workouts"

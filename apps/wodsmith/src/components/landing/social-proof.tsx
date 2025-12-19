@@ -18,10 +18,11 @@ const testimonials = [
 ]
 
 function StarRating() {
+	const stars = [1, 2, 3, 4, 5]
 	return (
 		<div className="mb-4 flex gap-1">
-			{[...Array(5)].map((_, i) => (
-				<StarIcon key={i} className="h-4 w-4 text-amber-400" />
+			{stars.map((star) => (
+				<StarIcon key={`star-${star}`} className="h-4 w-4 text-amber-400" />
 			))}
 		</div>
 	)

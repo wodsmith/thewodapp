@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo } from "react"
 import { Clock } from "lucide-react"
-import type { CompetitionWorkout } from "@/server/competition-workouts"
+import { useMemo } from "react"
 import type { HeatWithAssignments } from "@/server/competition-heats"
+import type { CompetitionWorkout } from "@/server/competition-workouts"
 
 interface EventOverviewProps {
 	events: CompetitionWorkout[]

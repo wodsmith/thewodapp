@@ -2,28 +2,27 @@
 
 import {
 	type ColumnDef,
-	type SortingState,
 	flexRender,
 	getCoreRowModel,
 	getSortedRowModel,
+	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table"
 import {
 	ArrowDownNarrowWide,
+	ArrowUpDown,
 	ArrowUpNarrowWide,
+	ChevronDown,
 	Medal,
 	Trophy,
-	ArrowUpDown,
-	ChevronDown,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
 	Select,
 	SelectContent,
@@ -39,11 +38,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { getSortDirection } from "@/lib/scoring"
+import { cn } from "@/lib/utils"
 import type {
 	CompetitionLeaderboardEntry,
 	TeamMemberInfo,
 } from "@/server/competition-leaderboard"
-import { getSortDirection } from "@/lib/scoring"
 
 interface CompetitionLeaderboardTableProps {
 	leaderboard: CompetitionLeaderboardEntry[]
@@ -304,13 +304,12 @@ export function CompetitionLeaderboardTable({
 }: CompetitionLeaderboardTableProps) {
 	// Compute the correct default sort column based on view mode
 	const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
-	
+
 	const [sorting, setSorting] = useState<SortingState>([
 		{ id: defaultSortColumn, desc: false },
 	])
 
 	// Reset sorting when view changes between overall and single event
-	// biome-ignore lint/correctness/useExhaustiveDependencies: we only want to reset on selectedEventId change
 	useEffect(() => {
 		// Ensure sorting column exists in current view
 		const validSortColumn = selectedEventId ? "eventRank" : "overallRank"
@@ -479,13 +478,13 @@ export function CompetitionLeaderboardTable({
 	const validatedSorting = useMemo<SortingState>(() => {
 		const columnIds = new Set(columns.map((c) => c.id).filter(Boolean))
 		const validSorting = sorting.filter((s) => columnIds.has(s.id))
-		
+
 		// If no valid sorting, use default for current view
 		if (validSorting.length === 0) {
 			const defaultColumn = selectedEventId ? "eventRank" : "overallRank"
 			return [{ id: defaultColumn, desc: false }]
 		}
-		
+
 		return validSorting
 	}, [sorting, columns, selectedEventId])
 

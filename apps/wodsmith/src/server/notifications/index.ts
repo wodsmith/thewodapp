@@ -1,16 +1,16 @@
 export {
-	notifyRegistrationConfirmed,
 	notifyCompetitionTeamInvite,
 	notifyPaymentExpired,
+	notifyRegistrationConfirmed,
 	notifyTeammateJoined,
 } from "./compete"
 
 export {
+	buildInviteLink,
 	formatCents,
 	formatDate,
 	getAthleteName,
-	parsePendingTeammateCount,
-	isTeamComplete,
-	buildInviteLink,
 	getTeammateJoinedSubject,
+	isTeamComplete,
+	parsePendingTeammateCount,
 } from "./helpers"

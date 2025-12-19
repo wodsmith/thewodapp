@@ -1,8 +1,8 @@
 "use server"
 
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { UAParser } from "ua-parser-js"
 import { z } from "zod"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import type { SessionWithMeta } from "@/types"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {

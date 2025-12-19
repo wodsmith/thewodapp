@@ -2,26 +2,27 @@ import "server-only"
 import { createId } from "@paralleldrive/cuid2"
 import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
-import { autochunk, autochunkFirst } from "@/utils/batch-query"
 import {
 	type Competition,
 	type CompetitionGroup,
-	type Team,
 	competitionGroupsTable,
 	competitionsTable,
-	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
+	programmingTracksTable,
+	type Team,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { autochunk, autochunkFirst } from "@/utils/batch-query"
 
 // Competition with organizing team relation for public display
 export type CompetitionWithOrganizingTeam = Competition & {
 	organizingTeam: Team | null
 	group: CompetitionGroup | null
 }
-import { getTeamLimit, requireFeature } from "./entitlements"
+
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
+import { getTeamLimit, requireFeature } from "./entitlements"
 
 /* -------------------------------------------------------------------------- */
 /*                           Competition Helper Functions                      */
@@ -1394,6 +1395,95 @@ export async function getTeammateInvite(inviteToken: string) {
 }
 
 /**
+ * Get volunteer invite by token (for invite page)
+ *
+ * Returns volunteer invite details including competition context.
+ * Volunteer invites are created when someone signs up via the public volunteer form.
+ */
+export async function getVolunteerInvite(inviteToken: string) {
+	const db = getDb()
+	const { teamInvitationTable, SYSTEM_ROLES_ENUM } = await import("@/db/schema")
+
+	// Find the invitation by token
+	const invitation = await db.query.teamInvitationTable.findFirst({
+		where: eq(teamInvitationTable.token, inviteToken),
+		with: {
+			team: true,
+		},
+	})
+
+	if (!invitation) {
+		return null
+	}
+
+	// Check if this is a volunteer invite
+	if (
+		invitation.roleId !== SYSTEM_ROLES_ENUM.VOLUNTEER ||
+		invitation.isSystemRole !== 1
+	) {
+		return null // Not a volunteer invite
+	}
+
+	const team = Array.isArray(invitation.team)
+		? invitation.team[0]
+		: invitation.team
+
+	if (!team) {
+		return null
+	}
+
+	// Get competition that uses this team (competition team)
+	const competition = await db.query.competitionsTable.findFirst({
+		where: eq(competitionsTable.competitionTeamId, team.id),
+	})
+
+	// Parse volunteer metadata
+	let volunteerMetadata: {
+		status?: string
+		signupName?: string
+		signupEmail?: string
+		signupPhone?: string
+		credentials?: string
+		availabilityNotes?: string
+		volunteerRoleTypes?: string[]
+	} = {}
+
+	if (invitation.metadata) {
+		try {
+			volunteerMetadata = JSON.parse(invitation.metadata)
+		} catch {
+			// Invalid JSON, ignore
+		}
+	}
+
+	return {
+		id: invitation.id,
+		email: invitation.email,
+		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
+		acceptedAt: invitation.acceptedAt ? new Date(invitation.acceptedAt) : null,
+		status: volunteerMetadata.status || "pending",
+		signupName: volunteerMetadata.signupName,
+		credentials: volunteerMetadata.credentials,
+		roleTypes: volunteerMetadata.volunteerRoleTypes || [],
+		team: {
+			id: team.id,
+			name: team.name,
+		},
+		competition: competition
+			? {
+					id: competition.id,
+					name: competition.name,
+					slug: competition.slug,
+				}
+			: null,
+	}
+}
+
+export type VolunteerInvite = NonNullable<
+	Awaited<ReturnType<typeof getVolunteerInvite>>
+>
+
+/**
  * Update the affiliate for a registration
  * Each team member can update their own affiliate
  * Affiliates are stored per-user in metadata.affiliates[userId]
@@ -1515,7 +1605,7 @@ export async function getTeamRoster(registrationId: string) {
 	}
 
 	// Get confirmed team members
-	const memberships = await db.query.teamMembershipTable.findMany({
+	const memberships = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
 		with: {
 			user: {
@@ -1528,7 +1618,22 @@ export async function getTeamRoster(registrationId: string) {
 				},
 			},
 		},
-	})
+	})) as unknown as Array<{
+		id: string
+		userId: string
+		teamId: string
+		roleId: string
+		isSystemRole: number
+		isActive: number
+		joinedAt: Date | null
+		user: {
+			id: string
+			firstName: string | null
+			lastName: string | null
+			email: string
+			avatar: string | null
+		} | null
+	}>
 
 	// Get pending invitations
 	const invitations = await db.query.teamInvitationTable.findMany({

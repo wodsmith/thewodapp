@@ -2,24 +2,22 @@
  * Sorting module: comparison functions and sort key computation
  */
 
+export {
+	compareScores,
+	createComparator,
+	findRank,
+	sortScores,
+} from "./compare"
 // Re-export all sort functions
 export {
+	getDefaultScoreType,
 	getSortDirection,
 	isLowerBetter,
-	getDefaultScoreType,
 } from "./direction"
-
 export {
 	computeSortKey,
 	computeSortKeyWithDirection,
 	extractFromSortKey,
-	statusFromOrder,
 	sortKeyToString,
+	statusFromOrder,
 } from "./sort-key"
-
-export {
-	compareScores,
-	createComparator,
-	sortScores,
-	findRank,
-} from "./compare"

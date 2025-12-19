@@ -1,20 +1,20 @@
+import { and, eq } from "drizzle-orm"
 import { type NextRequest, NextResponse } from "next/server"
 import type Stripe from "stripe"
-import { and, eq } from "drizzle-orm"
-import { getStripe } from "@/lib/stripe"
 import { getDb } from "@/db"
 import {
+	COMMERCE_PAYMENT_STATUS,
+	COMMERCE_PURCHASE_STATUS,
 	commercePurchaseTable,
 	competitionRegistrationsTable,
 	teamTable,
-	COMMERCE_PURCHASE_STATUS,
-	COMMERCE_PAYMENT_STATUS,
 } from "@/db/schema"
 import {
 	logError,
 	logInfo,
 	logWarning,
 } from "@/lib/logging/posthog-otel-logger"
+import { getStripe } from "@/lib/stripe"
 
 /**
  * Stripe webhook handler for commerce events

@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useCallback, useState } from "react"
 import type { CompetitionVenue } from "@/db/schema"
-import type { CompetitionWorkout } from "@/server/competition-workouts"
 import type { HeatWithAssignments } from "@/server/competition-heats"
-import { VenueManager } from "./venue-manager"
+import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { HeatScheduleManager } from "./heat-schedule-manager"
+import { VenueManager } from "./venue-manager"
 
 interface Division {
 	id: string

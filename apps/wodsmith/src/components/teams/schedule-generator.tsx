@@ -1,5 +1,6 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { addDays, format, startOfWeek } from "date-fns"
 import {
 	AlertTriangle,
@@ -12,7 +13,6 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	checkExistingScheduleAction,
 	generateScheduleAction,

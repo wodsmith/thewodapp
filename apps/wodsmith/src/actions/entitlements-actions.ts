@@ -1,17 +1,17 @@
 "use server"
 
+import { createServerAction } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { createServerAction } from "@repo/zsa"
 import { FEATURES } from "@/config/features"
-import {
-	checkCanUseAI,
-	checkCanInviteMember,
-	checkCanCreateProgrammingTrack,
-} from "@/server/entitlements-checks"
-import { grantTeamFeature, hasFeature } from "@/server/entitlements"
-import { hasTeamPermission } from "@/utils/team-auth"
 import { TEAM_PERMISSIONS } from "@/db/schema"
+import { grantTeamFeature, hasFeature } from "@/server/entitlements"
+import {
+	checkCanCreateProgrammingTrack,
+	checkCanInviteMember,
+	checkCanUseAI,
+} from "@/server/entitlements-checks"
+import { hasTeamPermission } from "@/utils/team-auth"
 
 /**
  * Check if team can invite more members

@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { GripVertical, Check } from "lucide-react"
 import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
+import { Check, GripVertical } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 
 interface Registration {

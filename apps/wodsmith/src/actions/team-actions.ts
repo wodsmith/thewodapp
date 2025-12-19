@@ -1,7 +1,9 @@
 "use server"
 
-import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { z } from "zod"
+import { TEAM_PERMISSIONS } from "@/db/schema"
+import { acceptTeamInvitation } from "@/server/team-members"
 import {
 	createTeam,
 	deleteTeam,
@@ -10,9 +12,7 @@ import {
 	getUserTeams,
 	updateTeam,
 } from "@/server/teams"
-import { acceptTeamInvitation } from "@/server/team-members"
 import { requireVerifiedEmail, setActiveTeamCookie } from "@/utils/auth"
-import { TEAM_PERMISSIONS } from "@/db/schema"
 
 // Update team schema
 const updateTeamSchema = z.object({

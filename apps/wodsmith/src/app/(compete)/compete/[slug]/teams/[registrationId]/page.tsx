@@ -1,9 +1,9 @@
 "use server"
 
+import { CheckCircle, Clock, Crown, Mail, Users } from "lucide-react"
 import { notFound, redirect } from "next/navigation"
-import { Users, Clock, CheckCircle, Mail, Crown } from "lucide-react"
-import { getSessionFromCookie } from "@/utils/auth"
-import { getTeamRoster } from "@/server/competitions"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
 	Card,
 	CardContent,
@@ -11,10 +11,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CopyInviteLinkButton } from "./_components/copy-invite-link-button"
+import { getTeamRoster } from "@/server/competitions"
+import { getSessionFromCookie } from "@/utils/auth"
 import { AffiliateEditor } from "./_components/affiliate-editor"
+import { CopyInviteLinkButton } from "./_components/copy-invite-link-button"
 
 type RegistrationMetadata = {
 	affiliateName?: string // Legacy: captain's affiliate

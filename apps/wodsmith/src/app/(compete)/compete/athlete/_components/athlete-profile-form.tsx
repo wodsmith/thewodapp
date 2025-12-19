@@ -1,13 +1,14 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { useRouter } from "next/navigation"
 import posthog from "posthog-js"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import type * as z from "zod"
-import { useServerAction } from "@repo/zsa-react"
+import { updateAthleteExtendedProfileAction } from "@/app/(settings)/settings/settings.actions"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -33,16 +34,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { updateAthleteExtendedProfileAction } from "@/app/(settings)/settings/settings.actions"
+import { GENDER_ENUM } from "@/db/schemas/users"
 import { athleteProfileExtendedSchema } from "@/schemas/settings.schema"
 import {
+	type AthleteProfileData,
 	cmToFeetInches,
 	feetInchesToCm,
 	kgToLbs,
 	lbsToKg,
-	type AthleteProfileData,
 } from "@/utils/athlete-profile"
-import { GENDER_ENUM } from "@/db/schemas/users"
 
 type NotableMetconSuggestion = {
 	workoutId: string

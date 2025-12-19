@@ -38,12 +38,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { SCORE_TYPES, TIEBREAK_SCHEMES, WORKOUT_SCHEMES } from "@/constants"
 import type { Movement, Sponsor } from "@/db/schema"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
+import { isTimeBasedScheme } from "@/lib/scoring"
 import {
 	type CompetitionEventSchema,
 	competitionEventSchema,
 } from "@/schemas/workout.schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
-import { isTimeBasedScheme } from "@/lib/scoring"
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"

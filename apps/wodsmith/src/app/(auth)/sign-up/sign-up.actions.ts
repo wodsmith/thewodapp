@@ -1,12 +1,13 @@
 "use server"
 
-import { eq } from "drizzle-orm"
 import { createServerAction, ZSAError } from "@repo/zsa"
+import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { isTurnstileEnabled } from "@/flags"
 import { logError } from "@/lib/logging/posthog-otel-logger"
 import { signUpSchema } from "@/schemas/signup.schema"
+import { processApprovedInvitationsForEmail } from "@/server/team-members"
 import { createPersonalTeamForUser } from "@/server/user"
 import {
 	canSignUp,
@@ -78,6 +79,19 @@ export const signUpAction = createServerAction()
 					"INTERNAL_SERVER_ERROR",
 					"Failed to set up user account. Please try again.",
 				)
+			}
+
+			// Process any approved volunteer invitations for this email
+			try {
+				await processApprovedInvitationsForEmail(db, user.email, user.id)
+			} catch (error) {
+				// Log but don't fail signup if invitation processing fails
+				logError({
+					message:
+						"[signUpAction] Failed to process approved invitations for user",
+					error,
+					attributes: { userId: user.id, email: user.email },
+				})
 			}
 
 			try {

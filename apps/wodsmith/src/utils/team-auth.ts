@@ -1,6 +1,6 @@
 import "server-only"
-import { cache } from "react"
 import { ZSAError } from "@repo/zsa"
+import { cache } from "react"
 import { requireVerifiedEmail } from "./auth"
 
 // Get the current user's teams
