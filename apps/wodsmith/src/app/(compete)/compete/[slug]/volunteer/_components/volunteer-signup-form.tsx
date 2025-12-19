@@ -189,7 +189,7 @@ export function VolunteerSignupForm({
 								className="h-4 w-4"
 							/>
 							<Label htmlFor="availability-morning" className="font-normal">
-								Morning (typically 8am - 2pm)
+								Morning
 							</Label>
 						</div>
 						<div className="flex items-center space-x-2">
@@ -203,7 +203,7 @@ export function VolunteerSignupForm({
 								className="h-4 w-4"
 							/>
 							<Label htmlFor="availability-afternoon" className="font-normal">
-								Afternoon (typically 2pm - close)
+								Afternoon
 							</Label>
 						</div>
 						<div className="flex items-center space-x-2">
