@@ -16,10 +16,17 @@ type Props = Omit<ComponentProps<typeof Turnstile>, "siteKey"> & {
 	validationError?: string
 }
 
+const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""
+
 export const Captcha = ({ validationError, ...props }: Props) => {
 	const { isTurnstileEnabled } = useConfigStore()
 
-	return isTurnstileEnabled ? (
+	// Don't render if turnstile is disabled or if the site key is missing
+	if (!isTurnstileEnabled || !siteKey) {
+		return null
+	}
+
+	return (
 		<>
 			<Turnstile
 				options={{
@@ -27,7 +34,7 @@ export const Captcha = ({ validationError, ...props }: Props) => {
 					language: "auto",
 				}}
 				{...props}
-				siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+				siteKey={siteKey}
 			/>
 
 			{validationError && (
@@ -36,5 +43,5 @@ export const Captcha = ({ validationError, ...props }: Props) => {
 				</FormMessage>
 			)}
 		</>
-	) : null
+	)
 }
