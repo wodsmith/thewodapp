@@ -969,12 +969,12 @@ jobs:
 | **P1** | 3 | Setup Playwright with basic smoke tests | 16h | ✅ Complete |
 | **P1** | 4 | Add CI workflow for unit tests | 8h | ✅ Complete |
 | **P2** | 4 | Add E2E CI workflow with sharding | 8h | ✅ Complete |
-| **P2** | 5 | Migrate existing mocks to fake implementations | 16h | 🔲 Pending |
-| **P3** | 5 | Add coverage reporting | 4h | 🔲 Pending |
+| **P2** | 5 | Migrate existing mocks to fake implementations | 16h | ✅ Complete |
+| **P3** | 5 | Add coverage reporting | 4h | 🔲 Pending (optional) |
 
 **Total Effort:** 68 hours (~8.5 days)
-**Completed:** ~52 hours (Phases 0-4)
-**Remaining:** ~16 hours (Phase 5)
+**Completed:** ~64 hours (Phases 0-5)
+**Remaining:** ~4 hours (optional coverage reporting)
 
 ---
 
@@ -1075,6 +1075,29 @@ testEffect("my effect test", () =>
 ---
 
 ## Changelog
+
+### 2025-12-20 - Phase 5 Complete (Test Mock Migration)
+
+**Implemented:**
+- Updated `createTestSession` factory to match actual `KVSession` type structure (7fd4a6ce)
+  - Added `KVSessionUser`, `KVSessionTeam` interfaces matching app types
+  - Added `permissions`, `teamRole`, `teamSlug` factory options
+  - Included `createdAt`, `version`, `isCurrentSession` fields
+  
+- Migrated 4 test files (71 tests total) to use `createTestSession` factory:
+  - `test/utils/workout-permissions.test.ts` (17 tests)
+  - `test/server/workouts.test.ts` (7 tests)
+  - `test/actions/organizer-onboarding-actions.test.ts` (39 tests)
+  - `test/actions/workout-actions.test.ts` (8 tests)
+
+**Benefits:**
+- Reduced ~30 lines of boilerplate per test file
+- Type-safe session creation matching real app types
+- Consistent session structure across test suite
+- Factory handles structure changes automatically
+
+**Remaining (Optional):**
+- Add coverage reporting (~4h)
 
 ### 2025-12-20 - E2E Database Seeding Complete
 
