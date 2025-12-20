@@ -342,6 +342,9 @@ importers:
       '@next/bundle-analyzer':
         specifier: ^15.5.4
         version: 15.5.7
+      '@repo/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -432,6 +435,19 @@ importers:
       wrangler:
         specifier: ^4.16.1
         version: 4.16.1(@cloudflare/workers-types@4.20251205.0)
+
+  packages/test-utils:
+    dependencies:
+      '@paralleldrive/cuid2':
+        specifier: ^2.2.2
+        version: 2.2.2
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      vitest:
+        specifier: ^3.2.3
+        version: 3.2.3(@types/debug@4.1.12)(@types/node@20.17.50)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2)
 
   packages/typescript-config: {}
 
@@ -20317,7 +20333,7 @@ snapshots:
 
   terser-webpack-plugin@5.3.14(esbuild@0.19.12)(webpack@5.102.1(esbuild@0.19.12)):
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2

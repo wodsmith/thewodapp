@@ -1,45 +1,58 @@
 {
-  "$schema": "https://turbo.build/schema.json",
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
-    },
-    "dev": {
-      "persistent": true,
-      "cache": false
-    },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "format": {
-      "dependsOn": ["^format"]
-    },
-    "check": {
-      "dependsOn": ["^check"]
-    },
-    "type-check": {
-      "dependsOn": ["^type-check"]
-    },
-    "test": {
-      "dependsOn": ["^test"]
-    },
-    "db:generate": {
-      "cache": false
-    },
-    "db:studio": {
-      "persistent": true,
-      "cache": false
-    },
-    "db:migrate:dev": {
-      "cache": false
-    },
-    "db:migrate:prod": {
-      "cache": false
-    },
-    "email:dev": {
-      "persistent": true,
-      "cache": false
-    }
-  }
+	"$schema": "https://turbo.build/schema.json",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": [".next/**", "!.next/cache/**"]
+		},
+		"dev": {
+			"persistent": true,
+			"cache": false
+		},
+		"lint": {
+			"dependsOn": ["^lint"]
+		},
+		"format": {
+			"dependsOn": ["^format"]
+		},
+		"check": {
+			"dependsOn": ["^check"]
+		},
+		"type-check": {
+			"dependsOn": ["^type-check"]
+		},
+		"test": {
+			"dependsOn": ["^build"],
+			"inputs": [
+				"src/**",
+				"test/**",
+				"tests/**",
+				"__tests__/**",
+				"vitest.config.*",
+				"tsconfig.json"
+			],
+			"outputs": ["coverage/**"]
+		},
+		"test:watch": {
+			"cache": false,
+			"persistent": true
+		},
+		"db:generate": {
+			"cache": false
+		},
+		"db:studio": {
+			"persistent": true,
+			"cache": false
+		},
+		"db:migrate:dev": {
+			"cache": false
+		},
+		"db:migrate:prod": {
+			"cache": false
+		},
+		"email:dev": {
+			"persistent": true,
+			"cache": false
+		}
+	}
 }
