@@ -7,3 +7,9 @@ export {
 	type SessionWithMeta,
 	type SessionFactoryOptions,
 } from "./session"
+export {
+	createTeamMembership,
+	createVolunteerMembership,
+	type TeamMembershipFactory,
+	type VolunteerMetadata,
+} from "./team-membership"

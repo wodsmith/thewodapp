@@ -4,3 +4,4 @@ export {
   createFakeCloudflareEnv,
   type FakeCloudflareEnv,
 } from "./fake-cloudflare-env"
+export { FakeDrizzleDb } from "./fake-drizzle-db"

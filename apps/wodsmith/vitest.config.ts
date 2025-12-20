@@ -14,6 +14,7 @@ export default mergeConfig(baseConfig, {
 		globals: true,
 		setupFiles: ["./test/setup.ts"],
 		include: ["./test/**/*.test.ts", "./test/**/*.test.tsx"],
+		exclude: ["./e2e/**", "**/node_modules/**"],
 	},
 	plugins: [react(), tsconfigPaths()],
 	resolve: {
