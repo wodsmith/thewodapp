@@ -17,6 +17,7 @@ import {
 	VOLUNTEER_ROLE_TYPES,
 	type VolunteerMembershipMetadata,
 } from "@/db/schema"
+import type { VolunteerAvailability } from "@/db/schemas/volunteers"
 import { autochunk, chunk } from "@/utils/batch-query"
 
 // ============================================================================
@@ -30,6 +31,7 @@ export interface JudgeVolunteerInfo {
 	lastName: string | null
 	volunteerRoleTypes: string[]
 	credentials?: string
+	availability?: VolunteerAvailability
 	availabilityNotes?: string
 }
 
@@ -131,6 +133,7 @@ export async function getJudgeVolunteers(
 			lastName: user?.lastName ?? null,
 			volunteerRoleTypes: meta?.volunteerRoleTypes ?? [],
 			credentials: meta?.credentials,
+			availability: meta?.availability,
 			availabilityNotes: meta?.availabilityNotes,
 		}
 	})

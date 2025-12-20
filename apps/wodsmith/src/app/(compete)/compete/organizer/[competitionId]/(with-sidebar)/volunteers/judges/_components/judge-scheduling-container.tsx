@@ -585,7 +585,10 @@ export function JudgeSchedulingContainer({
 						teamId={organizingTeamId}
 						trackWorkoutId={selectedEventId}
 						eventName={selectedEvent?.workout.name ?? "Event"}
-						heatsCount={eventHeats.length}
+						heatsList={eventHeats.map((h) => ({
+							heatNumber: h.heatNumber,
+							scheduledTime: h.scheduledTime,
+						}))}
 						laneCount={maxLanes}
 						availableJudges={judges}
 						initialRotations={eventRotations}

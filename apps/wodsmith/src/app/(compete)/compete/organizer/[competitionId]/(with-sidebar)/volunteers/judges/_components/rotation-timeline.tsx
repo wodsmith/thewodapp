@@ -15,7 +15,10 @@ import { getEventRotationsAction } from "@/actions/judge-rotation-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ToggleGroup } from "@/components/ui/toggle-group"
 import type { CompetitionJudgeRotation, LaneShiftPattern } from "@/db/schema"
+import type { VolunteerAvailability } from "@/db/schemas/volunteers"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import {
 	type CoverageStats,
 	calculateCoverage,
@@ -27,12 +30,18 @@ import {
 	MultiRotationEditor,
 } from "./multi-rotation-editor"
 
+interface HeatInfo {
+	heatNumber: number
+	scheduledTime: Date | null
+}
+
 interface RotationTimelineProps {
 	competitionId: string
 	teamId: string
 	trackWorkoutId: string
 	eventName: string
-	heatsCount: number
+	/** Array of heats with scheduled times for display in the header */
+	heatsList: HeatInfo[]
 	laneCount: number
 	availableJudges: JudgeVolunteerInfo[]
 	initialRotations: CompetitionJudgeRotation[]
@@ -54,7 +63,7 @@ export function RotationTimeline({
 	teamId,
 	trackWorkoutId,
 	eventName,
-	heatsCount,
+	heatsList,
 	laneCount,
 	availableJudges,
 	initialRotations,
@@ -62,6 +71,10 @@ export function RotationTimeline({
 	eventDefaultHeatsCount,
 	minHeatBuffer,
 }: RotationTimelineProps) {
+	const heatsCount = heatsList.length
+	const [availabilityFilter, setAvailabilityFilter] = useState<
+		"all" | VolunteerAvailability
+	>("all")
 	const [rotations, setRotations] =
 		useState<CompetitionJudgeRotation[]>(initialRotations)
 
@@ -139,6 +152,44 @@ export function RotationTimeline({
 		}
 		return grouped
 	}, [rotations])
+
+	// Filter rotations by volunteer availability
+	const filteredRotationsByVolunteer = useMemo(() => {
+		if (availabilityFilter === "all") {
+			return rotationsByVolunteer
+		}
+
+		// Get judge availability from availableJudges
+		const judgeAvailabilityMap = new Map<
+			string,
+			VolunteerAvailability | undefined
+		>()
+		for (const judge of availableJudges) {
+			judgeAvailabilityMap.set(judge.membershipId, judge.availability)
+		}
+
+		// Filter based on selected availability
+		const filtered = new Map<string, CompetitionJudgeRotation[]>()
+		for (const [membershipId, rotations] of rotationsByVolunteer.entries()) {
+			const judgeAvailability = judgeAvailabilityMap.get(membershipId)
+
+			// Filter logic:
+			// - 'morning': show volunteers with availability === 'morning' OR availability === 'all_day'
+			// - 'afternoon': show volunteers with availability === 'afternoon' OR availability === 'all_day'
+			// - 'all_day': show only volunteers with availability === 'all_day'
+			const shouldInclude =
+				availabilityFilter === VOLUNTEER_AVAILABILITY.ALL_DAY
+					? judgeAvailability === VOLUNTEER_AVAILABILITY.ALL_DAY
+					: judgeAvailability === availabilityFilter ||
+						judgeAvailability === VOLUNTEER_AVAILABILITY.ALL_DAY
+
+			if (shouldInclude) {
+				filtered.set(membershipId, rotations)
+			}
+		}
+
+		return filtered
+	}, [rotationsByVolunteer, availabilityFilter, availableJudges])
 
 	// Build coverage grid with rotation IDs for highlighting and buffer zones
 	const coverageGrid = useMemo(() => {
@@ -498,158 +549,194 @@ export function RotationTimeline({
 							</p>
 						) : (
 							/* Grouped Judge List */
-							<div className="space-y-2 max-h-[60vh] overflow-y-auto">
-								{Array.from(rotationsByVolunteer.entries()).map(
-									([membershipId, volunteerRotations]) => {
-										const judgeName = getJudgeName(membershipId)
-										const isExpanded = expandedVolunteers.has(membershipId)
+							<>
+								{/* Availability Filter */}
+								<div className="mb-3">
+									<div className="text-xs font-medium text-muted-foreground mb-2">
+										Filter by Availability
+									</div>
+									<ToggleGroup
+										value={availabilityFilter}
+										onValueChange={(value) => {
+											setAvailabilityFilter(
+												value as "all" | VolunteerAvailability,
+											)
+										}}
+										options={[
+											{ value: "all", label: "All" },
+											{
+												value: VOLUNTEER_AVAILABILITY.MORNING,
+												label: "Morning",
+											},
+											{
+												value: VOLUNTEER_AVAILABILITY.AFTERNOON,
+												label: "Afternoon",
+											},
+											{
+												value: VOLUNTEER_AVAILABILITY.ALL_DAY,
+												label: "All Day",
+											},
+										]}
+										className="justify-start"
+									/>
+								</div>
+								<div className="space-y-2 max-h-[60vh] overflow-y-auto">
+									{Array.from(filteredRotationsByVolunteer.entries()).map(
+										([membershipId, volunteerRotations]) => {
+											const judgeName = getJudgeName(membershipId)
+											const isExpanded = expandedVolunteers.has(membershipId)
 
-										// Calculate heat ranges for this volunteer
-										const heatRanges = volunteerRotations.map((r) => ({
-											start: r.startingHeat,
-											end: Math.min(
-												r.startingHeat + r.heatsCount - 1,
-												heatsCount,
-											),
-										}))
-										const minHeat = Math.min(...heatRanges.map((r) => r.start))
-										const maxHeat = Math.max(...heatRanges.map((r) => r.end))
+											// Calculate heat ranges for this volunteer
+											const heatRanges = volunteerRotations.map((r) => ({
+												start: r.startingHeat,
+												end: Math.min(
+													r.startingHeat + r.heatsCount - 1,
+													heatsCount,
+												),
+											}))
+											const minHeat = Math.min(
+												...heatRanges.map((r) => r.start),
+											)
+											const maxHeat = Math.max(...heatRanges.map((r) => r.end))
 
-										const isVolunteerSelected =
-											selectedVolunteerId === membershipId
+											const isVolunteerSelected =
+												selectedVolunteerId === membershipId
 
-										return (
-											<div
-												key={membershipId}
-												className={`border rounded-lg transition-colors ${
-													isVolunteerSelected
-														? "bg-primary/10 border-primary ring-1 ring-primary"
-														: "bg-muted/50"
-												}`}
-											>
-												{/* Volunteer Header */}
-												<div className="p-3 space-y-2">
-													<div className="flex items-start justify-between gap-2">
-														<button
-															type="button"
-															onClick={() => {
-																// Toggle expand/collapse - this also syncs selection state
-																toggleVolunteerExpansion(membershipId)
-															}}
-															className="flex items-center gap-2 min-w-0 text-left flex-1"
-														>
-															<User
-																className={`h-4 w-4 flex-shrink-0 ${
-																	isVolunteerSelected
-																		? "text-primary"
-																		: "text-muted-foreground"
-																}`}
-															/>
-															<div className="flex-1 min-w-0">
-																<div
-																	className={`font-medium text-sm truncate ${
-																		isVolunteerSelected ? "text-primary" : ""
+											return (
+												<div
+													key={membershipId}
+													className={`border rounded-lg transition-colors ${
+														isVolunteerSelected
+															? "bg-primary/10 border-primary ring-1 ring-primary"
+															: "bg-muted/50"
+													}`}
+												>
+													{/* Volunteer Header */}
+													<div className="p-3 space-y-2">
+														<div className="flex items-start justify-between gap-2">
+															<button
+																type="button"
+																onClick={() => {
+																	// Toggle expand/collapse - this also syncs selection state
+																	toggleVolunteerExpansion(membershipId)
+																}}
+																className="flex items-center gap-2 min-w-0 text-left flex-1"
+															>
+																<User
+																	className={`h-4 w-4 flex-shrink-0 ${
+																		isVolunteerSelected
+																			? "text-primary"
+																			: "text-muted-foreground"
 																	}`}
-																>
-																	{judgeName} ({volunteerRotations.length}{" "}
-																	rotation
-																	{volunteerRotations.length > 1 ? "s" : ""})
+																/>
+																<div className="flex-1 min-w-0">
+																	<div
+																		className={`font-medium text-sm truncate ${
+																			isVolunteerSelected ? "text-primary" : ""
+																		}`}
+																	>
+																		{judgeName} ({volunteerRotations.length}{" "}
+																		rotation
+																		{volunteerRotations.length > 1 ? "s" : ""})
+																	</div>
+																	<div className="text-xs text-muted-foreground tabular-nums">
+																		Heats {minHeat}-{maxHeat} • Lane{" "}
+																		{volunteerRotations[0]?.startingLane ?? 1}
+																		{volunteerRotations[0]?.laneShiftPattern &&
+																			volunteerRotations[0].laneShiftPattern !==
+																				"stay" && (
+																				<span className="ml-1">
+																					(
+																					{volunteerRotations[0].laneShiftPattern.replace(
+																						"_",
+																						" ",
+																					)}
+																					)
+																				</span>
+																			)}
+																	</div>
 																</div>
-																<div className="text-xs text-muted-foreground tabular-nums">
-																	Heats {minHeat}-{maxHeat} • Lane{" "}
-																	{volunteerRotations[0]?.startingLane ?? 1}
-																	{volunteerRotations[0]?.laneShiftPattern &&
-																		volunteerRotations[0].laneShiftPattern !==
-																			"stay" && (
-																			<span className="ml-1">
-																				(
-																				{volunteerRotations[0].laneShiftPattern.replace(
-																					"_",
-																					" ",
-																				)}
-																				)
+																<ChevronLeft
+																	className={`h-4 w-4 transition-transform ${isExpanded ? "-rotate-90" : ""}`}
+																/>
+															</button>
+														</div>
+														<div className="flex items-center gap-1">
+															<Button
+																variant="outline"
+																size="sm"
+																className="h-7 text-xs"
+																onClick={() =>
+																	handleEditVolunteerRotations(membershipId)
+																}
+															>
+																<Pencil className="h-3 w-3 mr-1" />
+																Edit
+															</Button>
+															<Button
+																variant="outline"
+																size="sm"
+																className="h-7 text-xs"
+																onClick={() =>
+																	handleAddRotationForVolunteer(membershipId)
+																}
+															>
+																<Plus className="h-3 w-3 mr-1" />
+																Add Rotation
+															</Button>
+														</div>
+													</div>
+
+													{/* Expanded individual rotations */}
+													{isExpanded && (
+														<div className="border-t px-3 pb-3 pt-2 space-y-1.5">
+															{volunteerRotations.map((rotation, idx) => {
+																const endHeat = Math.min(
+																	rotation.startingHeat +
+																		rotation.heatsCount -
+																		1,
+																	heatsCount,
+																)
+																const isSelected =
+																	selectedRotationId === rotation.id
+
+																return (
+																	<button
+																		key={rotation.id}
+																		type="button"
+																		onClick={() =>
+																			toggleRotationSelection(rotation.id)
+																		}
+																		className={`flex items-center gap-2 p-2 rounded border transition-all w-full text-left ${
+																			isSelected
+																				? "bg-primary/10 border-primary"
+																				: "bg-background border-border hover:bg-muted/50"
+																		}`}
+																	>
+																		<span className="text-xs">
+																			<span className="font-medium">
+																				Rotation {idx + 1}:
+																			</span>{" "}
+																			<span className="text-muted-foreground tabular-nums">
+																				H{rotation.startingHeat}-{endHeat}, L
+																				{rotation.startingLane}
+																				{rotation.laneShiftPattern ===
+																				"shift_right"
+																					? " (shift)"
+																					: " (stay)"}
 																			</span>
-																		)}
-																</div>
-															</div>
-															<ChevronLeft
-																className={`h-4 w-4 transition-transform ${isExpanded ? "-rotate-90" : ""}`}
-															/>
-														</button>
-													</div>
-													<div className="flex items-center gap-1">
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-7 text-xs"
-															onClick={() =>
-																handleEditVolunteerRotations(membershipId)
-															}
-														>
-															<Pencil className="h-3 w-3 mr-1" />
-															Edit
-														</Button>
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-7 text-xs"
-															onClick={() =>
-																handleAddRotationForVolunteer(membershipId)
-															}
-														>
-															<Plus className="h-3 w-3 mr-1" />
-															Add Rotation
-														</Button>
-													</div>
-												</div>
-
-												{/* Expanded individual rotations */}
-												{isExpanded && (
-													<div className="border-t px-3 pb-3 pt-2 space-y-1.5">
-														{volunteerRotations.map((rotation, idx) => {
-															const endHeat = Math.min(
-																rotation.startingHeat + rotation.heatsCount - 1,
-																heatsCount,
-															)
-															const isSelected =
-																selectedRotationId === rotation.id
-
-															return (
-																<button
-																	key={rotation.id}
-																	type="button"
-																	onClick={() =>
-																		toggleRotationSelection(rotation.id)
-																	}
-																	className={`flex items-center gap-2 p-2 rounded border transition-all w-full text-left ${
-																		isSelected
-																			? "bg-primary/10 border-primary"
-																			: "bg-background border-border hover:bg-muted/50"
-																	}`}
-																>
-																	<span className="text-xs">
-																		<span className="font-medium">
-																			Rotation {idx + 1}:
-																		</span>{" "}
-																		<span className="text-muted-foreground tabular-nums">
-																			H{rotation.startingHeat}-{endHeat}, L
-																			{rotation.startingLane}
-																			{rotation.laneShiftPattern ===
-																			"shift_right"
-																				? " (shift)"
-																				: " (stay)"}
 																		</span>
-																	</span>
-																</button>
-															)
-														})}
-													</div>
-												)}
-											</div>
-										)
-									},
-								)}
-							</div>
+																	</button>
+																)
+															})}
+														</div>
+													)}
+												</div>
+											)
+										},
+									)}
+								</div>
+							</>
 						)}
 					</CardContent>
 				</Card>
@@ -670,10 +757,10 @@ export function RotationTimeline({
 									className="grid gap-0 border rounded-lg overflow-hidden"
 									style={{
 										gridTemplateColumns: `60px repeat(${heatsCount}, 60px)`,
-										gridTemplateRows: `40px repeat(${laneCount}, 40px)`,
+										gridTemplateRows: `40px 24px repeat(${laneCount}, 40px)`,
 									}}
 								>
-									{/* Header Row - Heats */}
+									{/* Header Row - Heat Numbers */}
 									<div className="bg-muted border-r border-b flex items-center justify-center text-xs font-medium sticky left-0 z-20">
 										Lane
 									</div>
@@ -687,6 +774,25 @@ export function RotationTimeline({
 											</div>
 										),
 									)}
+
+									{/* Header Row - Heat Times */}
+									<div className="bg-muted border-r border-b sticky left-0 z-20" />
+									{heatsList.map((heat) => {
+										const timeText = heat.scheduledTime
+											? heat.scheduledTime.toLocaleTimeString("en-US", {
+													hour: "numeric",
+													minute: "2-digit",
+												})
+											: "--"
+										return (
+											<div
+												key={`time-${heat.heatNumber}`}
+												className="bg-muted border-r border-b last:border-r-0 flex items-center justify-center text-xs text-muted-foreground tabular-nums"
+											>
+												{timeText}
+											</div>
+										)
+									})}
 
 									{/* Lane Rows */}
 									{Array.from({ length: laneCount }, (_, i) => i + 1).map(
