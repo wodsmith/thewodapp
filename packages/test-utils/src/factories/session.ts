@@ -1,48 +1,103 @@
 import { createId } from "@paralleldrive/cuid2"
 
 /**
- * Matches the SessionWithMeta type from @/utils/auth
- * This is the structure Lucia returns for authenticated sessions.
+ * User object within a KVSession.
+ * Matches the KVSessionUser type from apps/wodsmith/src/utils/kv-session.ts
  */
-export interface SessionWithMeta {
+export interface KVSessionUser {
+	id: string
+	email: string
+	firstName: string | null
+	lastName: string | null
+	role: "user" | "admin"
+	emailVerified: Date | null
+	avatar: string | null
+	createdAt: Date
+	updatedAt: Date
+	currentCredits: number
+	lastCreditRefreshAt: Date | null
+	initials?: string
+}
+
+/**
+ * Team object within a KVSession.
+ * Matches the teams array structure in KVSession.
+ */
+export interface KVSessionTeam {
+	id: string
+	name: string
+	slug: string
+	type?: string
+	isPersonalTeam: boolean
+	role: {
+		id: string
+		name: string
+		isSystemRole: boolean
+	}
+	permissions: string[]
+	plan?: {
+		id: string
+		name: string
+		features: string[]
+		limits: Record<string, number>
+	}
+}
+
+/**
+ * Matches the KVSession type from apps/wodsmith/src/utils/kv-session.ts
+ * This is the actual session structure used in the wodsmith app.
+ */
+export interface KVSession {
 	id: string
 	userId: string
 	expiresAt: number
-	fresh: boolean
-	user: {
+	createdAt: number
+	user: KVSessionUser
+	country?: string
+	city?: string
+	continent?: string
+	ip?: string | null
+	userAgent?: string | null
+	authenticationType?: "passkey" | "password" | "google-oauth"
+	passkeyCredentialId?: string
+	teams?: KVSessionTeam[]
+	entitlements?: {
 		id: string
-		email: string
-		emailVerified: boolean
-		name: string
-		avatarUrl: string | null
-		createdAt: Date
-		updatedAt: Date
-	}
-	teams: Array<{
-		teamId: string
-		teamName: string
-		teamSlug: string
-		roleId: string
-		isOwner: boolean
-	}>
-	activeTeamId: string
+		type: string
+		metadata: Record<string, unknown>
+		expiresAt: Date | null
+	}[]
+	version?: number
+}
+
+/**
+ * SessionWithMeta extends KVSession with isCurrentSession flag.
+ * Matches the type from apps/wodsmith/src/types.ts
+ */
+export interface SessionWithMeta extends KVSession {
+	isCurrentSession?: boolean
 }
 
 export interface SessionFactoryOptions {
 	userId?: string
 	teamId?: string
-	roles?: string[]
+	teamSlug?: string
+	role?: "user" | "admin"
+	teamRole?: string
+	permissions?: string[]
 	expiresInMs?: number
+	isPersonalTeam?: boolean
 }
 
 /**
- * Create a test session matching Lucia's SessionWithMeta structure.
+ * Create a test session matching the KVSession/SessionWithMeta structure.
  *
  * @example
  * ```ts
  * const session = createTestSession()
- * const adminSession = createTestSession({ roles: ["admin"] })
+ * const adminSession = createTestSession({ role: "admin", teamRole: "owner" })
  * const expiredSession = createTestSession({ expiresInMs: -1000 })
+ * const withPermissions = createTestSession({ permissions: ["edit_components", "create_components"] })
  * ```
  */
 export function createTestSession(
@@ -50,34 +105,53 @@ export function createTestSession(
 ): SessionWithMeta {
 	const userId = overrides?.userId ?? createId()
 	const teamId = overrides?.teamId ?? createId()
-	const expiresAt = Date.now() + (overrides?.expiresInMs ?? 86400000) // 24h default
+	const teamSlug = overrides?.teamSlug ?? `test-team-${teamId.slice(0, 8)}`
 	const now = new Date()
+	const createdAt = Date.now()
+	const expiresAt = createdAt + (overrides?.expiresInMs ?? 86400000) // 24h default
+
+	const defaultPermissions = [
+		"access_dashboard",
+		"create_components",
+		"edit_components",
+	]
 
 	return {
 		id: createId(),
 		userId,
 		expiresAt,
-		fresh: true,
+		createdAt,
+		isCurrentSession: true,
 		user: {
 			id: userId,
 			email: `test-${userId.slice(0, 4)}@example.com`,
-			emailVerified: true,
-			name: `Test User ${userId.slice(0, 4)}`,
-			avatarUrl: null,
+			firstName: "Test",
+			lastName: `User ${userId.slice(0, 4)}`,
+			role: overrides?.role ?? "user",
+			emailVerified: now,
+			avatar: null,
 			createdAt: now,
 			updatedAt: now,
+			currentCredits: 100,
+			lastCreditRefreshAt: null,
 			...overrides?.user,
 		},
 		teams: overrides?.teams ?? [
 			{
-				teamId,
-				teamName: `Test Team ${teamId.slice(0, 4)}`,
-				teamSlug: `test-team-${teamId.slice(0, 8)}`,
-				roleId: overrides?.roles?.[0] ?? "member",
-				isOwner: false,
+				id: teamId,
+				name: `Test Team ${teamId.slice(0, 4)}`,
+				slug: teamSlug,
+				type: "gym",
+				isPersonalTeam: overrides?.isPersonalTeam ?? false,
+				role: {
+					id: overrides?.teamRole ?? "member",
+					name: overrides?.teamRole === "owner" ? "Owner" : "Member",
+					isSystemRole: true,
+				},
+				permissions: overrides?.permissions ?? defaultPermissions,
 			},
 		],
-		activeTeamId: teamId,
+		version: 5,
 		...overrides,
 	}
 }

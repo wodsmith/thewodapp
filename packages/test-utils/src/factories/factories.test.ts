@@ -83,11 +83,12 @@ describe("createTestSession", () => {
 		expect(session.id).toBeDefined()
 		expect(session.userId).toBeDefined()
 		expect(session.expiresAt).toBeGreaterThan(Date.now())
-		expect(session.fresh).toBe(true)
+		expect(session.createdAt).toBeDefined()
+		expect(session.isCurrentSession).toBe(true)
 		expect(session.user.id).toBe(session.userId)
 		expect(session.teams).toHaveLength(1)
-		expect(session.teams[0]?.roleId).toBe("member")
-		expect(session.activeTeamId).toBe(session.teams[0]?.teamId)
+		expect(session.teams![0]?.role.id).toBe("member")
+		expect(session.teams![0]?.id).toBeDefined()
 	})
 
 	it("should accept custom userId and teamId", () => {
@@ -98,16 +99,27 @@ describe("createTestSession", () => {
 
 		expect(session.userId).toBe("user-123")
 		expect(session.user.id).toBe("user-123")
-		expect(session.teams[0]?.teamId).toBe("team-456")
-		expect(session.activeTeamId).toBe("team-456")
+		expect(session.teams![0]?.id).toBe("team-456")
 	})
 
-	it("should accept custom roles", () => {
+	it("should accept custom teamRole", () => {
 		const session = createTestSession({
-			roles: ["admin"],
+			teamRole: "owner",
 		})
 
-		expect(session.teams[0]?.roleId).toBe("admin")
+		expect(session.teams![0]?.role.id).toBe("owner")
+		expect(session.teams![0]?.role.name).toBe("Owner")
+	})
+
+	it("should accept custom permissions", () => {
+		const session = createTestSession({
+			permissions: ["edit_workouts", "delete_workouts"],
+		})
+
+		expect(session.teams![0]?.permissions).toEqual([
+			"edit_workouts",
+			"delete_workouts",
+		])
 	})
 
 	it("should allow setting expiration", () => {
