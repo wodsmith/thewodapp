@@ -1076,6 +1076,23 @@ testEffect("my effect test", () =>
 
 ## Changelog
 
+### 2025-12-20 - E2E Database Seeding Complete
+
+**Implemented:**
+- E2E database seeding infrastructure (e578c34a)
+  - `seed-e2e.sql` with predictable test users, team, and workouts
+  - `setup-e2e-db.ts` script to run migrations + seeding
+  - Playwright `globalSetup.ts` to seed DB before tests
+  - Updated fixtures to use real seeded data IDs and credentials
+  - Test credentials: `test@wodsmith.com` / `TestPassword123!`
+
+**Files Created:**
+- `apps/wodsmith/scripts/seed-e2e.sql`
+- `apps/wodsmith/scripts/setup-e2e-db.ts`
+- `apps/wodsmith/scripts/seed-e2e.sh`
+- `apps/wodsmith/scripts/generate-test-password-hash.ts`
+- `apps/wodsmith/e2e/global-setup.ts`
+
 ### 2025-12-20 - Phases 0-4 Complete
 
 **Implemented:**
@@ -1087,6 +1104,7 @@ testEffect("my effect test", () =>
 **Branch:** `claude/extract-testing-rig-gVzi5`
 
 **Commits:**
+- `e578c34a` - feat(e2e): add database seeding for E2E tests
 - `3e295814` - feat(test-utils): add @repo/test-utils package with fakes, factories, and workspace config
 - `b50364e6` - feat(e2e): add Playwright E2E testing infrastructure (Phase 3)
 - `a316a714` - feat(ci): add CI and E2E workflows with Turbo caching and Playwright sharding (Phase 4)
