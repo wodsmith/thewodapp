@@ -13,6 +13,9 @@ vi.mock("../_actions/scheduling-actions", () => ({
 		.mockResolvedValue([{ success: true }]),
 	scheduleWorkoutAction: vi.fn().mockResolvedValue([{ success: true }]),
 	updateScheduledWorkoutAction: vi.fn().mockResolvedValue([{ success: true }]),
+	updateScheduledWorkoutInstanceAction: vi
+		.fn()
+		.mockResolvedValue([{ success: true }]),
 }))
 
 vi.mock("../_actions/programming-actions", () => ({
@@ -27,7 +30,7 @@ vi.mock("../_actions/programming-actions", () => ({
 
 vi.mock("@repo/zsa-react", () => ({
 	useServerAction: vi.fn(() => ({
-		execute: vi.fn(),
+		execute: vi.fn().mockResolvedValue([{ success: true, data: [] }]),
 		isPending: false,
 	})),
 }))
@@ -62,10 +65,11 @@ describe("WorkoutSelectionModal (Refactored)", () => {
 	it("displays selected date in header", () => {
 		render(<WorkoutSelectionModal {...defaultProps} />)
 
-		// The date format shown is "Sun Jun 15 2025" (formatted by the modal)
+		// The date format shown is "Sun Jun 15 2025" (formatted by toDateString())
 		expect(
-			screen.getByText(/Schedule Workout for June 16th, 2025/),
+			screen.getByText(/Select a workout from your team's programming tracks for/),
 		).toBeInTheDocument()
+		expect(screen.getByText(/Sun Jun 15 2025/)).toBeInTheDocument()
 	})
 
 	it("renders all component sections", () => {

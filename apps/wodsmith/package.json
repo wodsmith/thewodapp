@@ -40,6 +40,7 @@
 		"list:kv": "wrangler kv key list --namespace-id=$(node scripts/get-kv-id.mjs) --remote | jq '[.[].name]' > kv.log",
 		"delete:kv": "wrangler kv bulk delete kv.log --namespace-id=$(node scripts/get-kv-id.mjs) --remote",
 		"test": "vitest run",
+		"test:coverage": "vitest run --coverage",
 		"e2e": "playwright test",
 		"e2e:ui": "playwright test --ui",
 		"stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe --forward-connect-to localhost:3000/api/webhooks/stripe"
@@ -167,6 +168,7 @@
 		"@types/react-syntax-highlighter": "^15.5.13",
 		"@typescript/native-preview": "catalog:",
 		"@vitejs/plugin-react": "^5.1.2",
+		"@vitest/coverage-v8": "^4.0.16",
 		"better-sqlite3": "^11.10.0",
 		"drizzle-kit": "^0.30.6",
 		"eslint": "^9.29.0",
@@ -181,7 +183,7 @@
 		"turbo": "^2.5.8",
 		"typescript": "^5.8.3",
 		"vite-tsconfig-paths": "^5.1.4",
-		"vitest": "^3.2.3",
+		"vitest": "^4.0.16",
 		"wrangler": "^4.16.1"
 	},
 	"packageManager": "pnpm@9.12.1+sha512.e5a7e52a4183a02d5931057f7a0dbff9d5e9ce3161e33fa68ae392125b79282a8a8a470a51dfc8a0ed86221442eb2fb57019b0990ed24fab519bf0e1bc5ccfc4"

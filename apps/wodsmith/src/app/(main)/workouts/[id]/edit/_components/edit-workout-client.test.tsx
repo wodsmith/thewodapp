@@ -3,14 +3,54 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import EditWorkoutClient from "./edit-workout-client"
 
-// Mock the updateWorkoutAction
+// Mock the workout actions
 vi.mock("../../../../../actions/workout-actions", () => ({
 	updateWorkoutAction: vi.fn(),
+}))
+
+// Mock the scaling actions
+vi.mock("@/actions/scaling-actions", () => ({
+	getScalingGroupWithLevelsAction: vi.fn(),
 }))
 
 // Mock next/navigation useRouter
 vi.mock("next/navigation", () => ({
 	useRouter: () => ({ push: vi.fn() }),
+}))
+
+// Mock useServerAction from zsa-react
+vi.mock("@repo/zsa-react", () => ({
+	useServerAction: () => ({
+		execute: vi.fn().mockResolvedValue([{ success: true, data: { levels: [] } }]),
+		isPending: false,
+		isSuccess: false,
+		isError: false,
+		data: undefined,
+		error: undefined,
+		reset: vi.fn(),
+	}),
+}))
+
+// Mock Radix UI components to avoid compose-refs infinite loop in React 19
+vi.mock("@/components/ui/select", () => ({
+	Select: vi.fn(({ children }) => <div>{children}</div>),
+	SelectTrigger: vi.fn(({ children, id }) => <div id={id}>{children}</div>),
+	SelectValue: vi.fn(({ placeholder }) => <span>{placeholder}</span>),
+	SelectContent: vi.fn(({ children }) => <div>{children}</div>),
+	SelectItem: vi.fn(({ children, value }) => <div data-value={value}>{children}</div>),
+}))
+
+vi.mock("@/components/ui/label", () => ({
+	Label: vi.fn(({ children, htmlFor }) => <label htmlFor={htmlFor}>{children}</label>),
+}))
+
+vi.mock("@/components/ui/button", () => ({
+	Button: vi.fn(({ children, asChild, type = "button", ...props }) => {
+		if (asChild) {
+			return <>{children}</>
+		}
+		return <button type={type} {...props}>{children}</button>
+	}),
 }))
 
 const mockTags = [

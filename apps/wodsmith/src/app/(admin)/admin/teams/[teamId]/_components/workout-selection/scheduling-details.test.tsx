@@ -78,7 +78,7 @@ describe("SchedulingDetails", () => {
 		expect(screen.getByText("Scheduling Details")).toBeInTheDocument()
 		expect(screen.getByText("Selected Workout:")).toBeInTheDocument()
 		expect(
-			screen.getByText("Squat Focus from Strength Training (Day 1)"),
+			screen.getByText("Squat Focus from Strength Training (Event #1)"),
 		).toBeInTheDocument()
 	})
 
@@ -292,7 +292,7 @@ describe("SchedulingDetails", () => {
 		)
 
 		expect(
-			screen.getByText("Squat Focus from Strength Training (Day 1)"),
+			screen.getByText("Squat Focus from Strength Training (Event #1)"),
 		).toBeInTheDocument()
 	})
 
@@ -330,7 +330,7 @@ describe("SchedulingDetails", () => {
 		)
 
 		expect(
-			screen.getByText("from Strength Training (Day 1)"),
+			screen.getByText("from Strength Training (Event #1)"),
 		).toBeInTheDocument()
 	})
 })

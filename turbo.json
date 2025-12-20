@@ -33,6 +33,18 @@
 			],
 			"outputs": ["coverage/**"]
 		},
+		"test:coverage": {
+			"dependsOn": ["^build"],
+			"inputs": [
+				"src/**",
+				"test/**",
+				"tests/**",
+				"__tests__/**",
+				"vitest.config.*",
+				"tsconfig.json"
+			],
+			"outputs": ["coverage/**"]
+		},
 	"test:watch": {
 		"cache": false,
 		"persistent": true

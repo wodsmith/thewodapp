@@ -3,6 +3,9 @@ import "@testing-library/jest-dom/vitest"
 
 // Mock DOM methods used by Radix UI components
 Element.prototype.scrollIntoView = vi.fn()
+Element.prototype.hasPointerCapture = vi.fn()
+Element.prototype.setPointerCapture = vi.fn()
+Element.prototype.releasePointerCapture = vi.fn()
 
 // Mock the D1 client used by Drizzle
 const mockD1Client = {
