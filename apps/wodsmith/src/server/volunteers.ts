@@ -181,6 +181,92 @@ export async function getPendingVolunteerInvitationsForEmail(
 	})
 }
 
+// ============================================================================
+// DIRECT VOLUNTEER INVITATIONS (Admin-initiated)
+// ============================================================================
+
+/** Return type for direct volunteer invites */
+export type DirectVolunteerInvite = {
+	id: string
+	token: string
+	email: string
+	roleTypes: string[]
+	status: "pending" | "accepted" | "expired"
+	createdAt: Date
+	expiresAt: Date | null
+	acceptedAt: Date | null
+}
+
+/**
+ * Get direct volunteer invitations (admin-invited, not public applications)
+ * Filters to invitations where inviteSource='direct' or invitedBy is not null (legacy)
+ * Returns invitation details with calculated status based on acceptedAt and expiresAt
+ */
+export async function getDirectVolunteerInvites(
+	db: Db,
+	competitionTeamId: string,
+): Promise<DirectVolunteerInvite[]> {
+	// Get all volunteer invitations for this team
+	const invitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.teamId, competitionTeamId),
+			eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+			eq(teamInvitationTable.isSystemRole, 1),
+		),
+	})
+
+	// Filter to only direct invites (admin-initiated)
+	const directInvites = invitations.filter((inv) => {
+		try {
+			const meta = JSON.parse(
+				inv.metadata || "{}",
+			) as VolunteerMembershipMetadata
+			// Direct invite if inviteSource is 'direct' OR invitedBy is set (legacy)
+			return meta.inviteSource === "direct" || inv.invitedBy !== null
+		} catch {
+			// If metadata is invalid, fall back to invitedBy check (legacy)
+			return inv.invitedBy !== null
+		}
+	})
+
+	// Map to return type with calculated status
+	return directInvites
+		.map((inv) => {
+			// Parse metadata to get role types
+			let roleTypes: string[] = []
+			try {
+				const meta = JSON.parse(
+					inv.metadata || "{}",
+				) as VolunteerMembershipMetadata
+				roleTypes = meta.volunteerRoleTypes ?? []
+			} catch {
+				// Invalid metadata, leave roleTypes empty
+			}
+
+			// Calculate status based on acceptedAt and expiresAt
+			let status: "pending" | "accepted" | "expired"
+			if (inv.acceptedAt) {
+				status = "accepted"
+			} else if (inv.expiresAt && inv.expiresAt < new Date()) {
+				status = "expired"
+			} else {
+				status = "pending"
+			}
+
+			return {
+				id: inv.id,
+				token: inv.token,
+				email: inv.email,
+				roleTypes,
+				status,
+				createdAt: inv.createdAt,
+				expiresAt: inv.expiresAt,
+				acceptedAt: inv.acceptedAt,
+			}
+		})
+		.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) // Newest first
+}
+
 /**
  * Get active volunteer memberships for a user (for athlete profile page)
  * Returns memberships with status "approved" in metadata

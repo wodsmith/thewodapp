@@ -16,9 +16,11 @@ import {
 import {
 	canInputScores,
 	getCompetitionVolunteers,
+	getDirectVolunteerInvites,
 	getPendingVolunteerInvitations,
 } from "@/server/volunteers"
 
+import { InvitedVolunteersList } from "./_components/invited-volunteers-list"
 import { VolunteersList } from "./_components/volunteers-list"
 import { JudgeSchedulingContainer } from "./judges/_components/judge-scheduling-container"
 
@@ -60,13 +62,15 @@ export default async function CompetitionVolunteersPage({
 
 	const db = getDb()
 
-	// Parallel fetch: invitations, volunteers, events, judges
-	const [invitations, volunteers, events, judges] = await Promise.all([
-		getPendingVolunteerInvitations(db, competition.competitionTeamId),
-		getCompetitionVolunteers(db, competition.competitionTeamId),
-		getCompetitionWorkouts(competition.id),
-		getJudgeVolunteers(db, competition.competitionTeamId),
-	])
+	// Parallel fetch: invitations, volunteers, events, judges, direct invites
+	const [invitations, volunteers, events, judges, directInvites] =
+		await Promise.all([
+			getPendingVolunteerInvitations(db, competition.competitionTeamId),
+			getCompetitionVolunteers(db, competition.competitionTeamId),
+			getCompetitionWorkouts(competition.id),
+			getJudgeVolunteers(db, competition.competitionTeamId),
+			getDirectVolunteerInvites(db, competition.competitionTeamId),
+		])
 
 	// For each volunteer, check if they have score access
 	const volunteersWithAccess = await Promise.all(
@@ -130,16 +134,34 @@ export default async function CompetitionVolunteersPage({
 		events.map((event, index) => [event.id, allActiveVersions[index] ?? null]),
 	)
 
+	// Filter pending direct invites for conditional rendering
+	const pendingDirectInvites = directInvites.filter((i) => i.status === "pending")
+
 	return (
 		<div className="flex flex-col gap-8">
+			{/* Invited Volunteers Section - Only show if there are pending direct invites */}
+			{pendingDirectInvites.length > 0 && (
+				<section>
+					<div className="mb-4">
+						<h2 className="text-xl font-semibold">Invited Volunteers</h2>
+						<p className="text-muted-foreground text-sm">
+							{pendingDirectInvites.length} pending{" "}
+							{pendingDirectInvites.length === 1 ? "invite" : "invites"}
+						</p>
+					</div>
+					<InvitedVolunteersList invites={directInvites} />
+				</section>
+			)}
+
 			{/* Volunteers Section */}
 			<section>
 				<div className="mb-4">
 					<h2 className="text-xl font-semibold">Volunteers</h2>
 					<p className="text-muted-foreground text-sm">
 						{invitations.length + volunteersWithAccess.length} total (
-						{invitations.length} pending, {volunteersWithAccess.length}{" "}
-						approved)
+						{invitations.length} application
+						{invitations.length === 1 ? "" : "s"},{" "}
+						{volunteersWithAccess.length} approved)
 					</p>
 				</div>
 
