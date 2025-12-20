@@ -252,6 +252,38 @@ export function HeatScheduleManager({
 		return formatDatetimeLocal(nextTime)
 	}
 
+	// Calculate the default start time for copying heats based on the last heat across ALL events
+	function getDefaultCopyStartTime(gapMinutes: number): string {
+		// Get all heats across all events with scheduled times
+		const allScheduledHeats = heats.filter((h) => h.scheduledTime)
+
+		if (allScheduledHeats.length === 0) {
+			return getDefaultHeatTime()
+		}
+
+		// Find the latest scheduled heat across all events
+		const latestHeat = allScheduledHeats.reduce((latest, heat) => {
+			if (!heat.scheduledTime) return latest
+			if (!latest?.scheduledTime) return heat
+			return new Date(heat.scheduledTime) > new Date(latest.scheduledTime)
+				? heat
+				: latest
+		}, allScheduledHeats[0])
+
+		if (!latestHeat?.scheduledTime) {
+			return getDefaultHeatTime()
+		}
+
+		// Get the duration of the last heat (or use default)
+		const lastHeatDuration = latestHeat.durationMinutes ?? workoutCapMinutes + 3
+
+		// Calculate: last heat time + its duration + gap between events
+		const nextTime = new Date(latestHeat.scheduledTime)
+		nextTime.setMinutes(nextTime.getMinutes() + lastHeatDuration + gapMinutes)
+
+		return formatDatetimeLocal(nextTime)
+	}
+
 	const [newHeatTime, setNewHeatTime] = useState(getDefaultHeatTime)
 	const [newHeatVenueId, setNewHeatVenueId] = useState<string>("")
 	const [newHeatDivisionId, setNewHeatDivisionId] = useState<string>("")
@@ -266,6 +298,10 @@ export function HeatScheduleManager({
 	const [copySourceEventId, setCopySourceEventId] = useState<string>("")
 	const [copyStartTime, setCopyStartTime] = useState<string>(getDefaultHeatTime())
 	const [copyDurationMinutes, setCopyDurationMinutes] = useState(8)
+	// Gap between end of last event and start of copied heats (default to venue transition, set when dialog opens)
+	const [copyGapMinutes, setCopyGapMinutes] = useState<number>(3)
+	// Transition time between heats within this event (default to venue transition)
+	const [copyTransitionMinutes, setCopyTransitionMinutes] = useState<number>(3)
 	const [eventsWithHeats, setEventsWithHeats] = useState<
 		Array<{
 			trackWorkoutId: string
@@ -300,6 +336,7 @@ export function HeatScheduleManager({
 	const { toast } = useToast()
 
 	// Fetch events with heats when bulk create dialog opens
+	// biome-ignore lint/correctness/useExhaustiveDependencies: getEventsWithHeats.execute is stable, including it causes infinite loop
 	useEffect(() => {
 		async function fetchEventsWithHeats() {
 			if (isBulkCreateOpen && selectedEventId) {
@@ -317,7 +354,7 @@ export function HeatScheduleManager({
 			}
 		}
 		fetchEventsWithHeats()
-	}, [isBulkCreateOpen, selectedEventId, competitionId, getEventsWithHeats])
+	}, [isBulkCreateOpen, selectedEventId, competitionId])
 
 	// Get the selected event
 	const selectedEvent = localEvents.find((e) => e.id === selectedEventId)
@@ -548,11 +585,21 @@ export function HeatScheduleManager({
 		}
 
 		setBulkHeatTimes(times)
-		// Reset copy tab state
-		setCopyStartTime(getDefaultHeatTime())
+		// Reset copy tab state with smart default based on last heat across all events
+		const defaultGap = selectedVenue?.transitionMinutes ?? 3
+		const defaultTransition = selectedVenue?.transitionMinutes ?? 3
+		setCopyGapMinutes(defaultGap)
+		setCopyTransitionMinutes(defaultTransition)
+		setCopyStartTime(getDefaultCopyStartTime(defaultGap))
 		setCopyDurationMinutes(workoutCapMinutes)
 		setBulkCreateTab("new")
 		setIsBulkCreateOpen(true)
+	}
+
+	// Recalculate start time when gap changes
+	function handleGapChange(newGap: number) {
+		setCopyGapMinutes(newGap)
+		setCopyStartTime(getDefaultCopyStartTime(newGap))
 	}
 
 	// Handle copying heats from another event
@@ -566,6 +613,7 @@ export function HeatScheduleManager({
 			targetTrackWorkoutId: selectedEventId,
 			newStartTime: new Date(copyStartTime),
 			newDurationMinutes: copyDurationMinutes,
+			transitionMinutes: copyTransitionMinutes,
 		})
 
 		if (error) {
@@ -578,7 +626,7 @@ export function HeatScheduleManager({
 		}
 
 		if (result?.data) {
-			// Add the new heats to the state
+			// Add the new heats to the state (server returns heats with assignments already included)
 			const newHeats: HeatWithAssignments[] = result.data.map((heat) => ({
 				...heat,
 				venue: heat.venueId
@@ -587,13 +635,16 @@ export function HeatScheduleManager({
 				division: heat.divisionId
 					? (divisions.find((d) => d.id === heat.divisionId) ?? null)
 					: null,
-				assignments: [],
 			}))
 			setHeats([...heats, ...newHeats])
 
+			const totalAssignments = result.data.reduce(
+				(sum, heat) => sum + heat.assignments.length,
+				0,
+			)
 			toast({
 				title: "Heats copied successfully",
-				description: `Copied ${result.data.length} heat${result.data.length !== 1 ? "s" : ""} with assignments`,
+				description: `Copied ${result.data.length} heat${result.data.length !== 1 ? "s" : ""} with ${totalAssignments} athlete assignment${totalAssignments !== 1 ? "s" : ""}`,
 			})
 
 			setIsBulkCreateOpen(false)
@@ -1070,6 +1121,23 @@ export function HeatScheduleManager({
 									</div>
 
 									<div>
+										<Label htmlFor="copy-gap">
+											Gap After Last Event (minutes)
+										</Label>
+										<Input
+											id="copy-gap"
+											type="number"
+											min={0}
+											max={120}
+											value={copyGapMinutes}
+											onChange={(e) => handleGapChange(Number(e.target.value))}
+										/>
+										<p className="text-xs text-muted-foreground mt-1">
+											Time between end of last heat and start of this event
+										</p>
+									</div>
+
+									<div>
 										<Label htmlFor="copy-start-time">New Start Time</Label>
 										<Input
 											id="copy-start-time"
@@ -1078,28 +1146,45 @@ export function HeatScheduleManager({
 											onChange={(e) => setCopyStartTime(e.target.value)}
 										/>
 										<p className="text-xs text-muted-foreground mt-1">
-											First heat will start at this time
+											First heat will start at this time (auto-calculated from gap)
 										</p>
 									</div>
 
-									<div>
-										<Label htmlFor="copy-duration">
-											Duration / Time Cap (minutes)
-										</Label>
-										<Input
-											id="copy-duration"
-											type="number"
-											min={1}
-											max={180}
-											value={copyDurationMinutes}
-											onChange={(e) =>
-												setCopyDurationMinutes(Number(e.target.value))
-											}
-										/>
-										<p className="text-xs text-muted-foreground mt-1">
-											Time allocated per heat (including transitions)
-										</p>
+									<div className="grid grid-cols-2 gap-3">
+										<div>
+											<Label htmlFor="copy-duration">
+												Event Time Cap (min)
+											</Label>
+											<Input
+												id="copy-duration"
+												type="number"
+												min={1}
+												max={180}
+												value={copyDurationMinutes}
+												onChange={(e) =>
+													setCopyDurationMinutes(Number(e.target.value))
+												}
+											/>
+										</div>
+										<div>
+											<Label htmlFor="copy-transition">
+												Heat Transition (min)
+											</Label>
+											<Input
+												id="copy-transition"
+												type="number"
+												min={0}
+												max={60}
+												value={copyTransitionMinutes}
+												onChange={(e) =>
+													setCopyTransitionMinutes(Number(e.target.value))
+												}
+											/>
+										</div>
 									</div>
+									<p className="text-xs text-muted-foreground -mt-2">
+										Each heat slot = time cap + transition
+									</p>
 
 									<div className="flex justify-end gap-2">
 										<Button

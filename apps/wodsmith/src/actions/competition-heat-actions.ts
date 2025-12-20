@@ -178,6 +178,7 @@ const copyHeatsSchema = z.object({
 		.min(1, "Target track workout ID is required"),
 	newStartTime: z.date(),
 	newDurationMinutes: z.number().int().min(1).max(180),
+	transitionMinutes: z.number().int().min(0).max(120).default(3),
 })
 
 /* -------------------------------------------------------------------------- */
@@ -677,6 +678,7 @@ export const copyHeatsFromEventAction = createServerAction()
 				targetTrackWorkoutId: input.targetTrackWorkoutId,
 				newStartTime: input.newStartTime,
 				newDurationMinutes: input.newDurationMinutes,
+				transitionMinutes: input.transitionMinutes,
 			})
 
 			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)

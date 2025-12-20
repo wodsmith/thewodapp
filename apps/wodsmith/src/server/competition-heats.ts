@@ -1086,22 +1086,27 @@ export async function getEventsWithHeats(
 }
 
 /**
- * Copy heats from one event to another with time and duration adjustments
+ * Copy heats from one event to another with fresh time calculations
+ * Times are calculated as: startTime + (heatIndex × (duration + transition))
  */
 export async function copyHeatsFromEvent(params: {
 	sourceTrackWorkoutId: string
 	targetTrackWorkoutId: string
 	newStartTime: Date
 	newDurationMinutes: number
+	transitionMinutes: number
 }): Promise<HeatWithAssignments[]> {
 	const db = getDb()
 
-	// Fetch source heats with assignments
+	// Fetch source heats with assignments (sorted by heat number)
 	const sourceHeats = await getHeatsForWorkout(params.sourceTrackWorkoutId)
 
 	if (sourceHeats.length === 0) {
 		return []
 	}
+
+	// Sort by heat number to ensure correct ordering
+	sourceHeats.sort((a, b) => a.heatNumber - b.heatNumber)
 
 	// Get the target workout's competition ID
 	const targetWorkout = await db
@@ -1131,23 +1136,10 @@ export async function copyHeatsFromEvent(params: {
 
 	const competitionId = track.competitionId
 
-	// Calculate time offsets between source heats
-	const firstHeat = sourceHeats[0]
-	if (!firstHeat) {
-		throw new Error("Source heats not found")
-	}
+	// Calculate time slot: duration + transition between heats
+	const timeSlotMinutes = params.newDurationMinutes + params.transitionMinutes
 
-	const firstHeatTime = firstHeat.scheduledTime
-
-	if (!firstHeatTime) {
-		throw new Error("Source heats must have scheduled times")
-	}
-
-	// Calculate source duration (if available, otherwise use newDurationMinutes)
-	const sourceDuration = firstHeat.durationMinutes ?? params.newDurationMinutes
-	const durationScale = params.newDurationMinutes / sourceDuration
-
-	// Create new heats with adjusted times
+	// Create new heats with calculated times
 	const heatsToCreate: Array<{
 		competitionId: string
 		trackWorkoutId: string
@@ -1159,15 +1151,13 @@ export async function copyHeatsFromEvent(params: {
 		notes: string | null
 	}> = []
 
-	for (const sourceHeat of sourceHeats) {
-		const timeOffset = sourceHeat.scheduledTime
-			? sourceHeat.scheduledTime.getTime() - firstHeatTime.getTime()
-			: 0
+	for (let i = 0; i < sourceHeats.length; i++) {
+		const sourceHeat = sourceHeats[i]
+		if (!sourceHeat) continue
 
-		// Scale the time offset by duration ratio
-		const scaledOffset = timeOffset * durationScale
-
-		const newTime = new Date(params.newStartTime.getTime() + scaledOffset)
+		// Calculate time: startTime + (index × timeSlot)
+		const offsetMinutes = i * timeSlotMinutes
+		const newTime = new Date(params.newStartTime.getTime() + offsetMinutes * 60 * 1000)
 
 		heatsToCreate.push({
 			competitionId,
