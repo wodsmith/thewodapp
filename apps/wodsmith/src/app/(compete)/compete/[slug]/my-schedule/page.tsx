@@ -105,9 +105,20 @@ export default async function MySchedulePage({ params }: Props) {
 	// Group rotations by event for display
 	const events = groupRotationsByEvent(enrichedRotations)
 
-	// Extract volunteer metadata from membership
-	const volunteerMetadata =
-		(membership.metadata as VolunteerMembershipMetadata | null) ?? null
+	// Extract and parse volunteer metadata from membership
+	// metadata is stored as JSON string in the database
+	let volunteerMetadata: VolunteerMembershipMetadata | null = null
+	if (membership.metadata) {
+		try {
+			volunteerMetadata =
+				typeof membership.metadata === "string"
+					? JSON.parse(membership.metadata)
+					: membership.metadata
+		} catch {
+			// Invalid JSON, ignore
+			volunteerMetadata = null
+		}
+	}
 
 	return (
 		<div className="mx-auto max-w-4xl py-8 px-4">
