@@ -33,13 +33,22 @@
 			],
 			"outputs": ["coverage/**"]
 		},
-		"test:watch": {
-			"cache": false,
-			"persistent": true
-		},
-		"db:generate": {
-			"cache": false
-		},
+	"test:watch": {
+		"cache": false,
+		"persistent": true
+	},
+	"e2e": {
+		"dependsOn": ["build"],
+		"inputs": [
+			"e2e/**",
+			"src/**",
+			"playwright.config.ts"
+		],
+		"outputs": ["playwright-report/**", "test-results/**"]
+	},
+	"db:generate": {
+		"cache": false
+	},
 		"db:studio": {
 			"persistent": true,
 			"cache": false
