@@ -23,3 +23,4 @@ export async function isTeamPendingOrganizer(teamId: string): Promise<boolean> {
 
 	return limit === 0
 }
+

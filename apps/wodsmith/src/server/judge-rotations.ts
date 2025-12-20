@@ -358,20 +358,15 @@ export async function getRotationsForJudge(
 			),
 		)
 
-	// Debug logging to diagnose missing rotations
+	// Debug logging (info level - no rotations is a valid state)
 	if (rotations.length === 0) {
-		console.error(
+		console.log(
 			`[getRotationsForJudge] No rotations found for membershipId=${membershipId}, competitionId=${competitionId}`,
 		)
 	} else {
 		console.log(
 			`[getRotationsForJudge] Found ${rotations.length} rotation(s) for membershipId=${membershipId}, competitionId=${competitionId}`,
 		)
-		for (const rotation of rotations) {
-			console.log(
-				`[getRotationsForJudge] Rotation ${rotation.id}: trackWorkoutId=${rotation.trackWorkoutId}, heatsCount=${rotation.heatsCount}, startingHeat=${rotation.startingHeat}`,
-			)
-		}
 	}
 
 	return rotations
