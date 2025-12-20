@@ -573,9 +573,7 @@ export const acceptVolunteerInviteAction = createServerAction()
 		}
 
 		// Check if user's email matches the invitation email (case-insensitive)
-		if (
-			session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()
-		) {
+		if (session.user.email?.toLowerCase() !== invitation.email?.toLowerCase()) {
 			throw new ZSAError(
 				"FORBIDDEN",
 				"This invitation is for a different email address",
@@ -782,5 +780,91 @@ export const bulkAssignVolunteerRoleAction = createServerAction()
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to assign roles")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                     Update Volunteer Profile Action                        */
+/* -------------------------------------------------------------------------- */
+
+const updateVolunteerProfileSchema = z.object({
+	membershipId: z.string().startsWith("tmem_", "Invalid membership ID"),
+	competitionSlug: z.string().min(1, "Competition slug is required"),
+	availability: z
+		.enum([
+			VOLUNTEER_AVAILABILITY.MORNING,
+			VOLUNTEER_AVAILABILITY.AFTERNOON,
+			VOLUNTEER_AVAILABILITY.ALL_DAY,
+		])
+		.optional(),
+	credentials: z.string().optional(),
+	availabilityNotes: z.string().optional(),
+})
+
+/**
+ * Update volunteer's own profile information
+ * Self-service action for volunteers to update their availability and credentials
+ */
+export const updateVolunteerProfileAction = createServerAction()
+	.input(updateVolunteerProfileSchema)
+	.handler(async ({ input }) => {
+		try {
+			const { getSessionFromCookie } = await import("@/utils/auth")
+			const session = await getSessionFromCookie()
+
+			if (!session) {
+				throw new ZSAError("NOT_AUTHORIZED", "You must be logged in")
+			}
+
+			const db = getDb()
+
+			// Get the membership to verify ownership
+			const membership = await db.query.teamMembershipTable.findFirst({
+				where: eq(teamMembershipTable.id, input.membershipId),
+			})
+
+			if (!membership) {
+				throw new ZSAError("NOT_FOUND", "Membership not found")
+			}
+
+			// Verify the user owns this membership
+			if (membership.userId !== session.userId) {
+				throw new ZSAError("FORBIDDEN", "You can only update your own profile")
+			}
+
+			// Parse current metadata
+			const currentMetadata = membership.metadata
+				? (JSON.parse(membership.metadata) as Record<string, unknown>)
+				: {}
+
+			// Merge with new data (only update provided fields)
+			const updatedMetadata = {
+				...currentMetadata,
+				...(input.availability && { availability: input.availability }),
+				...(input.credentials !== undefined && {
+					credentials: input.credentials,
+				}),
+				...(input.availabilityNotes !== undefined && {
+					availabilityNotes: input.availabilityNotes,
+				}),
+			}
+
+			// Update membership
+			await db
+				.update(teamMembershipTable)
+				.set({
+					metadata: JSON.stringify(updatedMetadata),
+					updatedAt: new Date(),
+				})
+				.where(eq(teamMembershipTable.id, input.membershipId))
+
+			revalidatePath(`/compete/${input.competitionSlug}/my-schedule`)
+
+			return { success: true }
+		} catch (error) {
+			console.error("Failed to update volunteer profile:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to update volunteer profile")
 		}
 	})

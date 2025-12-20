@@ -3,6 +3,7 @@ import "server-only"
 import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import { getDb } from "@/db"
+import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { getCompetition } from "@/server/competitions"
 import {
 	getEnrichedRotationsForJudge,
@@ -104,9 +105,21 @@ export default async function MySchedulePage({ params }: Props) {
 	// Group rotations by event for display
 	const events = groupRotationsByEvent(enrichedRotations)
 
+	// Extract volunteer metadata from membership
+	const volunteerMetadata =
+		(membership.metadata as VolunteerMembershipMetadata | null) ?? null
+
 	return (
 		<div className="mx-auto max-w-4xl py-8 px-4">
-			<ScheduleView events={events} competitionName={competition.name} />
+			<ScheduleView
+				events={events}
+				competitionName={competition.name}
+				volunteerMetadata={volunteerMetadata}
+				membershipId={membership.id}
+				competitionSlug={slug}
+				competitionStartDate={competition.startDate}
+				competitionEndDate={competition.endDate}
+			/>
 		</div>
 	)
 }
