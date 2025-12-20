@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { Pencil, X, Check, Loader2 } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
+import { Check, Loader2, Pencil, X } from "lucide-react"
+import { useState } from "react"
 import { toast } from "sonner"
+import { updateRegistrationAffiliateAction } from "@/actions/competition-actions"
+import { AffiliateCombobox } from "@/app/(compete)/compete/[slug]/register/_components/affiliate-combobox"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -12,8 +14,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { AffiliateCombobox } from "@/app/(compete)/compete/[slug]/register/_components/affiliate-combobox"
-import { updateRegistrationAffiliateAction } from "@/actions/competition-actions"
 
 type Props = {
 	registrationId: string

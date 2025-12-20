@@ -1,8 +1,8 @@
 "use server"
 
+import { createServerAction, ZSAError } from "@repo/zsa"
 import { eq } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { createServerAction, ZSAError } from "@repo/zsa"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import {

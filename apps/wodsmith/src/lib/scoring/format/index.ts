@@ -4,11 +4,11 @@
 
 // Re-export all format functions
 export {
+	formatRounds,
 	formatScore,
 	formatScoreCompact,
-	formatRounds,
-	formatScoreWithTiebreak,
 	formatScoreForList,
+	formatScoreWithTiebreak,
 } from "./score"
 
 export {
@@ -18,9 +18,9 @@ export {
 } from "./status"
 
 export {
-	getWeightUnitLabel,
-	getDistanceUnitLabel,
-	convertWeight,
 	convertDistance,
+	convertWeight,
 	formatNumber,
+	getDistanceUnitLabel,
+	getWeightUnitLabel,
 } from "./units"

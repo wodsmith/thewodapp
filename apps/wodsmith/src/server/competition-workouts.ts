@@ -11,19 +11,23 @@ import {
 	movements,
 	PROGRAMMING_TRACK_TYPE,
 	programmingTracksTable,
+	type ScoreType,
 	scalingLevelsTable,
 	type TiebreakScheme,
+	type TrackWorkout,
 	tags,
 	trackWorkoutsTable,
 	type Workout,
 	type WorkoutScheme,
-	type ScoreType,
 	workoutMovements,
 	workoutScalingDescriptionsTable,
 	workouts,
 	workoutTags,
 } from "@/db/schema"
 import { autochunk, chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
+
+// Type alias for TrackWorkout with workout relation included
+type TrackWorkoutWithWorkout = TrackWorkout & { workout: Workout }
 
 export interface DivisionDescription {
 	divisionId: string
@@ -349,12 +353,12 @@ export async function getCompetitionEvent(
 ): Promise<CompetitionWorkout | null> {
 	const db = getDb()
 
-	const trackWorkout = await db.query.trackWorkoutsTable.findFirst({
+	const trackWorkout = (await db.query.trackWorkoutsTable.findFirst({
 		where: eq(trackWorkoutsTable.id, trackWorkoutId),
 		with: {
 			workout: true,
 		},
-	})
+	})) as TrackWorkoutWithWorkout | undefined
 
 	if (!trackWorkout || !trackWorkout.workout) {
 		return null
@@ -655,8 +659,9 @@ export async function saveCompetitionEvent(params: {
 				movementId,
 			}))
 
-			// Each movement insert has 3 params, so batch ~33 at a time
-			const movementBatches = chunk(movementValues, 33)
+			// workoutMovements has 6 columns (commonColumns + id, workoutId, movementId)
+			// D1 limit: 100 params, so max rows per batch = floor(100/6) = 16
+			const movementBatches = chunk(movementValues, 16)
 			for (const batch of movementBatches) {
 				await db.insert(workoutMovements).values(batch)
 			}

@@ -1,8 +1,8 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
 import { createCompleteGymSetupWithCoaches } from "@/actions/complete-gym-setup-actions"
 import { Button } from "@/components/ui/button"
 import {

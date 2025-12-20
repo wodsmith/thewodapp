@@ -1,8 +1,8 @@
 import "server-only"
+import { DollarSign, FileText, TrendingUp, Users } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { DollarSign, FileText, TrendingUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -11,13 +11,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { getCompetitionRevenueStats } from "@/server/commerce"
+import { getHeatsForCompetition } from "@/server/competition-heats"
+import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import {
 	getCompetition,
 	getCompetitionRegistrations,
 } from "@/server/competitions"
-import { getCompetitionRevenueStats } from "@/server/commerce"
-import { getCompetitionWorkouts } from "@/server/competition-workouts"
-import { getHeatsForCompetition } from "@/server/competition-heats"
 import { formatUTCDateFull } from "@/utils/date-utils"
 import { QuickActionsEvents } from "./_components/quick-actions-events"
 import { QuickActionsHeats } from "./_components/quick-actions-heats"

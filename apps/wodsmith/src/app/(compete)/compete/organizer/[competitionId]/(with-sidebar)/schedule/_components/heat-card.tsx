@@ -1,24 +1,31 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import {
-	ChevronDown,
-	ChevronRight,
-	Clock,
-	MapPin,
-	Plus,
-	Trash2,
-	X,
-	Loader2,
-} from "lucide-react"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	draggable,
 	dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
-import { GripVertical } from "lucide-react"
+import { useServerAction } from "@repo/zsa-react"
+import {
+	ChevronDown,
+	ChevronRight,
+	Clock,
+	GripVertical,
+	Loader2,
+	MapPin,
+	Plus,
+	Trash2,
+	X,
+} from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import {
+	assignToHeatAction,
+	bulkAssignToHeatAction,
+	moveAssignmentAction,
+	removeFromHeatAction,
+} from "@/actions/competition-heat-actions"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -35,14 +42,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import type { HeatWithAssignments } from "@/server/competition-heats"
-import {
-	assignToHeatAction,
-	removeFromHeatAction,
-	bulkAssignToHeatAction,
-	moveAssignmentAction,
-} from "@/actions/competition-heat-actions"
 
 interface Registration {
 	id: string

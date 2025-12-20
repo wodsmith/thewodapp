@@ -1,16 +1,16 @@
 "use client"
 
+import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { forwardRef, useImperativeHandle } from "react"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, Check, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import type { ScoreType, TiebreakScheme, WorkoutScheme } from "@/db/schema"
 import { cn } from "@/lib/utils"
-import type { WorkoutScheme, TiebreakScheme, ScoreType } from "@/db/schema"
 import type { EventScoreEntryAthlete } from "@/server/competition-scores"
 import {
-	useScoreRowState,
 	type ScoreEntryData,
+	useScoreRowState,
 } from "./score-input-row/use-score-row-state"
 
 export type { ScoreEntryData } from "./score-input-row/use-score-row-state"

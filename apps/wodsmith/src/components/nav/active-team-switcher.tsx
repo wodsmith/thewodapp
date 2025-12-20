@@ -1,10 +1,12 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { Building2, Check, ChevronsUpDown } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
+import { setActiveTeamAction } from "@/actions/team-actions"
+import { Button } from "@/components/ui/button"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -13,8 +15,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { setActiveTeamAction } from "@/actions/team-actions"
 import { cn } from "@/utils/cn"
 
 interface Team {

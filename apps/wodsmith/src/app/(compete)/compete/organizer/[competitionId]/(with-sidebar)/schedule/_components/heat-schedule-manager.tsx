@@ -1,8 +1,15 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Plus, Users, Loader2, Calculator, Eye, EyeOff } from "lucide-react"
 import { useServerAction } from "@repo/zsa-react"
+import { Calculator, Eye, EyeOff, Loader2, Plus, Users } from "lucide-react"
+import { useMemo, useState } from "react"
+import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
+import {
+	bulkCreateHeatsAction,
+	createHeatAction,
+	deleteHeatAction,
+	getUnassignedRegistrationsAction,
+} from "@/actions/competition-heat-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -21,23 +28,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { CompetitionVenue } from "@/db/schema"
-import type { CompetitionWorkout } from "@/server/competition-workouts"
-import type { HeatWithAssignments } from "@/server/competition-heats"
-import {
-	createHeatAction,
-	deleteHeatAction,
-	getUnassignedRegistrationsAction,
-	bulkCreateHeatsAction,
-} from "@/actions/competition-heat-actions"
-import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
-import { HEAT_STATUS, type HeatStatus } from "@/db/schema"
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip"
+import type { CompetitionVenue } from "@/db/schema"
+import { HEAT_STATUS, type HeatStatus } from "@/db/schema"
+import type { HeatWithAssignments } from "@/server/competition-heats"
+import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { DraggableAthlete } from "./draggable-athlete"
 import { EventOverview } from "./event-overview"
 import { HeatCard } from "./heat-card"

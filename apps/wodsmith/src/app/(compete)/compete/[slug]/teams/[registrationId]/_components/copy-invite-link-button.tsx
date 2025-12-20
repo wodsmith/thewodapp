@@ -1,9 +1,9 @@
 "use client"
 
-import { Copy, Check } from "lucide-react"
+import { Check, Copy } from "lucide-react"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 
 type Props = {
 	token: string

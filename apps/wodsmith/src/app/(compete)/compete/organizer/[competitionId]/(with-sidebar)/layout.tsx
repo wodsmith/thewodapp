@@ -6,9 +6,9 @@ import { competitionGroupsTable } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
 import { isTeamPendingOrganizer } from "@/server/organizer-pending"
 import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
+import { PendingOrganizerBanner } from "../../_components/pending-organizer-banner"
 import { CompetitionHeader } from "../_components/competition-header"
 import { CompetitionSidebar } from "../_components/competition-sidebar"
-import { PendingOrganizerBanner } from "../../_components/pending-organizer-banner"
 
 interface CompetitionSidebarLayoutProps {
 	children: React.ReactNode
@@ -55,7 +55,9 @@ export default async function CompetitionSidebarLayout({
 	return (
 		<div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] overflow-x-hidden">
 			<CompetitionSidebar competitionId={competition.id}>
-				{isOrganizerPending && <PendingOrganizerBanner variant="sidebar-inset" />}
+				{isOrganizerPending && (
+					<PendingOrganizerBanner variant="sidebar-inset" />
+				)}
 				<div className="flex flex-1 flex-col gap-6 p-6">
 					{/* Breadcrumb */}
 					<OrganizerBreadcrumb segments={breadcrumbSegments} />

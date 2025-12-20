@@ -110,6 +110,9 @@ export const competitionsTable = sqliteTable(
 		// Competition branding images
 		profileImageUrl: text({ length: 600 }),
 		bannerImageUrl: text({ length: 600 }),
+		// Judge rotation defaults
+		defaultHeatsPerRotation: integer().default(4),
+		defaultLaneShiftPattern: text({ length: 20 }).default("shift_right"),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
@@ -423,6 +426,7 @@ export const competitionHeatsRelations = relations(
 			references: [scalingLevelsTable.id],
 		}),
 		assignments: many(competitionHeatAssignmentsTable),
+		// Note: volunteers relation defined in volunteers.ts to avoid circular dependency
 	}),
 )
 

@@ -1,24 +1,38 @@
 import "server-only"
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, eq, isNull } from "drizzle-orm"
 import { ZSAError } from "@repo/zsa"
+import { and, count, eq, isNull } from "drizzle-orm"
+import { LIMITS } from "@/config/limits"
 import { MAX_TEAMS_JOINED_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import {
 	SYSTEM_ROLES_ENUM,
 	TEAM_PERMISSIONS,
+	type TeamMembership,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamRoleTable,
 	teamTable,
+	type User,
 	userTable,
 } from "@/db/schema"
+
+/** User fields included in team member queries */
+type MemberUser = Pick<
+	User,
+	"id" | "firstName" | "lastName" | "email" | "avatar"
+>
+
+/** Membership with user relation included */
+type TeamMembershipWithUser = TeamMembership & {
+	user: MemberUser | null
+}
+
 import { canSignUp, getSessionFromCookie } from "@/utils/auth"
 import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { requireTeamPermission } from "@/utils/team-auth"
 import { requireLimit } from "./entitlements"
-import { LIMITS } from "@/config/limits"
 
 /**
  * Get all members of a team
@@ -29,7 +43,7 @@ export async function getTeamMembers(teamId: string) {
 
 	const db = getDb()
 
-	const members = await db.query.teamMembershipTable.findMany({
+	const members = (await db.query.teamMembershipTable.findMany({
 		where: eq(teamMembershipTable.teamId, teamId),
 		with: {
 			user: {
@@ -42,7 +56,7 @@ export async function getTeamMembers(teamId: string) {
 				},
 			},
 		},
-	})
+	})) as TeamMembershipWithUser[]
 
 	// Get all team roles for this team (for custom roles)
 	const teamRoles = await db.query.teamRoleTable.findMany({
@@ -222,20 +236,30 @@ export async function removeTeamMember({
 
 /**
  * Invite a user to join a team
+ *
+ * @param skipPermissionCheck - Skip the INVITE_MEMBERS permission check.
+ *   Use this when permission was already checked against a different team
+ *   (e.g., checking organizing team permissions for competition team invites)
  */
 export async function inviteUserToTeam({
 	teamId,
 	email,
 	roleId,
 	isSystemRole = true,
+	metadata,
+	skipPermissionCheck = false,
 }: {
 	teamId: string
 	email: string
 	roleId: string
 	isSystemRole?: boolean
+	metadata?: string
+	skipPermissionCheck?: boolean
 }) {
-	// Check if user has permission to invite members
-	await requireTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
+	// Check if user has permission to invite members (unless caller already checked)
+	if (!skipPermissionCheck) {
+		await requireTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
+	}
 
 	const session = await getSessionFromCookie()
 
@@ -326,6 +350,7 @@ export async function inviteUserToTeam({
 			invitedAt: new Date(),
 			joinedAt: new Date(),
 			isActive: 1,
+			metadata,
 		})
 
 		// Update the user's session to include this team
@@ -364,6 +389,7 @@ export async function inviteUserToTeam({
 				acceptedAt: null,
 				acceptedBy: null,
 				updatedAt: new Date(),
+				metadata,
 			})
 			.where(eq(teamInvitationTable.id, existingInvitation.id))
 
@@ -392,6 +418,7 @@ export async function inviteUserToTeam({
 			token,
 			invitedBy: session.userId,
 			expiresAt,
+			metadata,
 		})
 		.returning()
 
@@ -617,6 +644,7 @@ export async function acceptTeamInvitation(token: string) {
 			: new Date(),
 		joinedAt: new Date(),
 		isActive: 1,
+		metadata: invitation.metadata,
 	})
 
 	// Mark invitation as accepted
@@ -870,4 +898,111 @@ export async function getPendingInvitationsForCurrentUser() {
 			},
 		}
 	})
+}
+
+/**
+ * Process approved volunteer invitations for a newly created user
+ * Finds all invitations for the user's email where metadata.status === "approved"
+ * and automatically creates team memberships for them
+ */
+export async function processApprovedInvitationsForEmail(
+	db: ReturnType<typeof getDb>,
+	email: string,
+	userId: string,
+): Promise<void> {
+	// Normalize email for case-insensitive comparison
+	const normalizedEmail = email.toLowerCase()
+
+	// Find all unaccepted invitations for this email
+	const invitations = await db.query.teamInvitationTable.findMany({
+		where: and(
+			eq(teamInvitationTable.email, normalizedEmail),
+			isNull(teamInvitationTable.acceptedAt),
+		),
+	})
+
+	let processedCount = 0
+	let skippedCount = 0
+
+	for (const invitation of invitations) {
+		// Check if invitation is approved via metadata
+		let isApproved = false
+		if (invitation.metadata) {
+			try {
+				const metadata = JSON.parse(invitation.metadata) as {
+					status?: "pending" | "approved" | "rejected"
+				}
+				isApproved = metadata.status === "approved"
+			} catch {
+				// If metadata parse fails, skip this invitation
+				continue
+			}
+		}
+
+		// Only process approved invitations
+		// Pending invitations remain as invitations (user will see them on profile)
+		if (!isApproved) {
+			continue
+		}
+
+		// Check if user already has membership for this team
+		const existingMembership = await db.query.teamMembershipTable.findFirst({
+			where: and(
+				eq(teamMembershipTable.teamId, invitation.teamId),
+				eq(teamMembershipTable.userId, userId),
+			),
+		})
+
+		if (existingMembership) {
+			// User already has membership - mark invitation as accepted and skip
+			await db
+				.update(teamInvitationTable)
+				.set({
+					acceptedAt: new Date(),
+					acceptedBy: userId,
+					updatedAt: new Date(),
+				})
+				.where(eq(teamInvitationTable.id, invitation.id))
+
+			skippedCount++
+			continue
+		}
+
+		// Create team membership
+		await db.insert(teamMembershipTable).values({
+			teamId: invitation.teamId,
+			userId,
+			roleId: invitation.roleId,
+			isSystemRole: Number(invitation.isSystemRole),
+			invitedBy: invitation.invitedBy,
+			invitedAt: invitation.createdAt
+				? new Date(invitation.createdAt)
+				: new Date(),
+			joinedAt: new Date(),
+			isActive: 1,
+			metadata: invitation.metadata, // Copy metadata from invitation
+		})
+
+		// Mark invitation as accepted
+		await db
+			.update(teamInvitationTable)
+			.set({
+				acceptedAt: new Date(),
+				acceptedBy: userId,
+				updatedAt: new Date(),
+			})
+			.where(eq(teamInvitationTable.id, invitation.id))
+
+		processedCount++
+	}
+
+	// Update user's session to include new team memberships
+	if (processedCount > 0) {
+		await updateAllSessionsOfUser(userId)
+	}
+
+	// Log results for debugging
+	console.log(
+		`[processApprovedInvitationsForEmail] Processed ${processedCount} approved invitations, skipped ${skippedCount} existing memberships for ${email}`,
+	)
 }

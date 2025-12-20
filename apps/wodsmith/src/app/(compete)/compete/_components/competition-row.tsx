@@ -11,9 +11,9 @@ import {
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { ListItem } from "@/components/ui/list-item"
+import { cn } from "@/lib/utils"
 import type { CompetitionWithOrganizingTeam } from "@/server/competitions"
 import { formatUTCDateFull, formatUTCDateShort } from "@/utils/date-utils"
-import { cn } from "@/lib/utils"
 
 type CompetitionStatus =
 	| "registration-open"

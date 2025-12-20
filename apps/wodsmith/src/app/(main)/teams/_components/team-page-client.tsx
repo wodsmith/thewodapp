@@ -1,8 +1,8 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useServerAction } from "@repo/zsa-react"
 import {
 	getScheduledTeamWorkoutsWithResultsAction,
 	getTeamLeaderboardsAction,

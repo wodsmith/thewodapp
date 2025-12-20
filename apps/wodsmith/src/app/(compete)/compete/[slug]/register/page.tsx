@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm"
 import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
+import { getDb } from "@/db"
+import { scalingGroupsTable, userTable } from "@/db/schema"
 import {
 	getCompetition,
 	getUserCompetitionRegistration,
@@ -7,9 +10,6 @@ import {
 import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { RegistrationForm } from "./_components/registration-form"
-import { scalingGroupsTable, userTable } from "@/db/schema"
-import { getDb } from "@/db"
-import { eq } from "drizzle-orm"
 
 type Props = {
 	params: Promise<{ slug: string }>

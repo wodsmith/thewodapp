@@ -1,21 +1,21 @@
 import "server-only"
-import type { Metadata } from "next"
-import { redirect } from "next/navigation"
 import {
 	CalendarDaysIcon,
 	ChartBarIcon,
+	ClipboardDocumentListIcon,
 	CreditCardIcon,
 	TrophyIcon,
 	UserGroupIcon,
-	ClipboardDocumentListIcon,
 } from "@heroicons/react/24/outline"
-import { getSessionFromCookie } from "@/utils/auth"
-import { getUserTeams } from "@/server/teams"
+import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import {
 	getOrganizerRequest,
-	isApprovedOrganizer,
 	hasPendingOrganizerRequest,
+	isApprovedOrganizer,
 } from "@/server/organizer-onboarding"
+import { getUserTeams } from "@/server/teams"
+import { getSessionFromCookie } from "@/utils/auth"
 import { OnboardForm } from "./_components/onboard-form"
 
 export const metadata: Metadata = {

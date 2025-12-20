@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useServerAction } from "@repo/zsa-react"
+import { Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import posthog from "posthog-js"
+import { useState } from "react"
 import { toast } from "sonner"
-import { Trash2 } from "lucide-react"
-import { useServerAction } from "@repo/zsa-react"
+import { deleteCompetitionAction } from "@/actions/competition-actions"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { deleteCompetitionAction } from "@/actions/competition-actions"
 
 interface DeleteCompetitionFormProps {
 	competitionId: string

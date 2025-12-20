@@ -5,22 +5,22 @@
 import "server-only"
 
 import { and, desc, eq } from "drizzle-orm"
+import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
-	organizerRequestTable,
 	ORGANIZER_REQUEST_STATUS,
 	type OrganizerRequest,
+	organizerRequestTable,
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { FEATURES } from "@/config/features"
-import { LIMITS } from "@/config/limits"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	grantTeamFeature,
 	revokeTeamFeature,
 	setTeamLimitOverride,
 } from "./entitlements"
-import { logInfo } from "@/lib/logging/posthog-otel-logger"
 
 export interface OrganizerRequestWithDetails extends OrganizerRequest {
 	team: {
@@ -182,7 +182,12 @@ export async function getAllOrganizerRequests({
 
 	// Fetch reviewer details separately for requests that have reviewedBy
 	const reviewerIds = [
-		...new Set(requests.filter((r) => r.reviewedBy).map((r) => r.reviewedBy!)),
+		...new Set(
+			requests
+				.filter((r) => r.reviewedBy)
+				.map((r) => r.reviewedBy)
+				.filter((id): id is string => id !== null),
+		),
 	]
 	const reviewerMap = new Map<
 		string,

@@ -1,17 +1,10 @@
 "use client"
 
 import { useServerAction } from "@repo/zsa-react"
-import { Plus, Trash2, Pencil } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog"
 import {
 	Card,
 	CardContent,
@@ -20,6 +13,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog"
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -27,6 +27,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import type { Plan } from "@/db/schemas/entitlements"
 import {
 	getPlanConfigAction,
 	removeFeatureFromPlanAction,
@@ -35,7 +36,6 @@ import {
 import { AddFeatureDialog } from "./add-feature-dialog"
 import { AddLimitDialog } from "./add-limit-dialog"
 import { EditLimitValueDialog } from "./edit-limit-value-dialog"
-import type { Plan } from "@/db/schemas/entitlements"
 
 interface PlanConfigDialogProps {
 	open: boolean

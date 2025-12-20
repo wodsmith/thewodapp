@@ -1,9 +1,9 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { Layers, Plus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import { initializeCompetitionDivisionsAction } from "@/actions/competition-division-actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

@@ -3,6 +3,7 @@
 import { useServerAction } from "@repo/zsa-react"
 import { Plus, Trash2, X } from "lucide-react"
 import { useEffect, useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -21,6 +22,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import type {
+	Feature,
+	Limit,
+	TeamEntitlementOverride,
+} from "@/db/schemas/entitlements"
 import { useToast } from "@/hooks/use-toast"
 import {
 	addEntitlementOverrideAction,
@@ -29,12 +35,6 @@ import {
 	getTeamOverridesAction,
 	removeEntitlementOverrideAction,
 } from "../../_actions"
-import type {
-	Feature,
-	Limit,
-	TeamEntitlementOverride,
-} from "@/db/schemas/entitlements"
-import { Badge } from "@/components/ui/badge"
 
 interface EntitlementOverridesDialogProps {
 	open: boolean

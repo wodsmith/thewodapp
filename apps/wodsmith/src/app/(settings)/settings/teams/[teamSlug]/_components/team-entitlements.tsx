@@ -1,3 +1,4 @@
+import { Check, Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -10,7 +11,6 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import { getTeamEntitlementSnapshot } from "@/server/entitlements"
-import { Check, Info } from "lucide-react"
 
 interface TeamEntitlementsProps {
 	teamId: string

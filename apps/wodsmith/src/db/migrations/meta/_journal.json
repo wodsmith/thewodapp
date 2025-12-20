@@ -414,6 +414,62 @@
       "when": 1765408892523,
       "tag": "0056_add-competition-status",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1765950512940,
+      "tag": "0057_add-volunteer-system",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1765953336089,
+      "tag": "0058_add-invitation-metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1765991732058,
+      "tag": "0059_add_judge_rotations",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1765995224784,
+      "tag": "0060_outgoing_ozymandias",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1766011721532,
+      "tag": "0061_add-event-rotation-defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1766012400000,
+      "tag": "0062_judge-assignment-versioning",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1766093927607,
+      "tag": "0063_add-min-heat-buffer",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1766118924829,
+      "tag": "0064_make-invitedBy-nullable",
+      "breakpoints": true
     }
   ]
 }

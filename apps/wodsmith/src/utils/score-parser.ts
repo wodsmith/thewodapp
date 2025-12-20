@@ -1,4 +1,4 @@
-import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
+import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
 
 export interface ParseResult {
 	formatted: string

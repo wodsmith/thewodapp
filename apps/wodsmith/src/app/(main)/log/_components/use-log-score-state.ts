@@ -89,11 +89,10 @@ export function useLogScoreState({
 	})
 
 	// Multi-round state
-	const [roundScores, setRoundScores] = useState<Array<{ score: string }>>(
-		() =>
-			Array(roundsToScore)
-				.fill(null)
-				.map(() => ({ score: "" })),
+	const [roundScores, setRoundScores] = useState<Array<{ score: string }>>(() =>
+		Array(roundsToScore)
+			.fill(null)
+			.map(() => ({ score: "" })),
 	)
 	const [roundParseResults, setRoundParseResults] = useState<
 		Array<ParseResult | null>

@@ -5,9 +5,9 @@ import type {
 	EventClickArg,
 	EventDropArg,
 } from "@fullcalendar/core"
+import { useServerAction } from "@repo/zsa-react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import type { ScheduledWorkoutInstanceWithDetails } from "@/server/scheduling-service"
 import { getScheduledWorkoutsAction } from "../_actions/scheduling-actions"
 import { CalendarSkeleton } from "./calendar-skeleton"

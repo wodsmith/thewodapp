@@ -5,15 +5,15 @@
  * These actions are restricted to site admins only
  */
 
-import { z } from "zod"
 import { createServerAction, ZSAError } from "@repo/zsa"
 import { revalidatePath } from "next/cache"
-import { requireAdmin } from "@/utils/auth"
+import { z } from "zod"
 import {
 	approveOrganizerRequest,
 	getPendingOrganizerRequests,
 	rejectOrganizerRequest,
 } from "@/server/organizer-onboarding"
+import { requireAdmin } from "@/utils/auth"
 
 /**
  * Get all pending organizer requests (admin only)

@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useServerAction } from "@repo/zsa-react"
 import { ArrowLeft, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -8,16 +9,15 @@ import posthog from "posthog-js"
 import { useEffect, useRef, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
 import { submitLogFormAction } from "@/actions/log-actions"
-import {
-	type LogFormSchema,
-	logFormSchema,
-} from "@/app/(main)/log/new/_components/log.schema"
 import {
 	ScoreInputFields,
 	type ScoreInputFieldsHandle,
 } from "@/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/_components/score-input-row/score-input-fields"
+import {
+	type LogFormSchema,
+	logFormSchema,
+} from "@/app/(main)/log/new/_components/log.schema"
 import { WorkoutScalingTabs } from "@/components/scaling/workout-scaling-tabs"
 import { ScalingSelector } from "@/components/scaling-selector"
 import { Badge } from "@/components/ui/badge"

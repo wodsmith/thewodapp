@@ -2,7 +2,7 @@
 
 import { createServerAction } from "@repo/zsa"
 import { z } from "zod"
-import { searchAffiliates, getTopAffiliates } from "@/server/affiliates"
+import { getTopAffiliates, searchAffiliates } from "@/server/affiliates"
 
 /**
  * Search affiliates by name

@@ -1,7 +1,7 @@
 import "server-only"
+import { ZSAError } from "@repo/zsa"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { ZSAError } from "@repo/zsa"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"

@@ -12,8 +12,8 @@ import {
 	getDefaultScoreType as libGetDefaultScoreType,
 } from "@/lib/scoring"
 import {
-	convertLegacyToNew,
 	convertLegacyFractionalRoundsReps,
+	convertLegacyToNew,
 } from "./score-adapter"
 
 /**

@@ -2,6 +2,7 @@
  * Encoding module: converts human-readable inputs to sortable integers
  */
 
+import { aggregateValues } from "../aggregate"
 import {
 	isCountBasedScheme,
 	isDistanceBasedScheme,
@@ -21,22 +22,21 @@ import { encodeDistance, encodeDistanceFromNumber } from "./distance"
 import { encodeLoad, encodeLoadFromNumber } from "./load"
 import { encodeRoundsReps } from "./rounds-reps"
 import { encodeTime, encodeTimeFromSeconds } from "./time"
-import { aggregateValues } from "../aggregate"
 
-// Re-export individual encoders
-export {
-	encodeTime,
-	encodeTimeFromSeconds,
-	encodeTimeFromMs,
-} from "./time"
-export { encodeRoundsReps, encodeRoundsRepsFromParts } from "./rounds-reps"
 export { extractRoundsReps } from "../decode/rounds-reps"
-export { encodeLoad, encodeLoadFromNumber, gramsToUnit } from "./load"
 export {
 	encodeDistance,
 	encodeDistanceFromNumber,
 	mmToUnit,
 } from "./distance"
+export { encodeLoad, encodeLoadFromNumber, gramsToUnit } from "./load"
+export { encodeRoundsReps, encodeRoundsRepsFromParts } from "./rounds-reps"
+// Re-export individual encoders
+export {
+	encodeTime,
+	encodeTimeFromMs,
+	encodeTimeFromSeconds,
+} from "./time"
 
 /**
  * Encode a score input string to a sortable integer based on the scheme.

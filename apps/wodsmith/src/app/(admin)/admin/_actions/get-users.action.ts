@@ -1,8 +1,8 @@
 "use server"
 
+import { createServerAction } from "@repo/zsa"
 import { sql } from "drizzle-orm"
 import { z } from "zod"
-import { createServerAction } from "@repo/zsa"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schema"
 import { requireAdmin } from "@/utils/auth"

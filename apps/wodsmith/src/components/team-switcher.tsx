@@ -1,11 +1,12 @@
 "use client"
 
+import { useServerAction } from "@repo/zsa-react"
 import { Building2, ChevronsUpDown, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
-import { useServerAction } from "@repo/zsa-react"
+import { setActiveTeamAction } from "@/actions/team-actions"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -21,7 +22,6 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar"
-import { setActiveTeamAction } from "@/actions/team-actions"
 
 export function TeamSwitcher({
 	teams,

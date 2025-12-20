@@ -1,23 +1,23 @@
 "use client"
 
-import { useState } from "react"
 import { format } from "date-fns"
 import { Check, ChevronDown, ChevronRight, Clock, MapPin } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import type { TiebreakScheme, WorkoutScheme } from "@/db/schema"
+import { cn } from "@/lib/utils"
 import type {
 	EventScoreEntryAthlete,
 	HeatScoreGroup as HeatScoreGroupType,
 } from "@/server/competition-scores"
-import type { WorkoutScheme, TiebreakScheme } from "@/db/schema"
 import {
-	ScoreInputRow,
 	type ScoreEntryData,
+	ScoreInputRow,
 	type ScoreInputRowHandle,
 } from "./score-input-row"
 

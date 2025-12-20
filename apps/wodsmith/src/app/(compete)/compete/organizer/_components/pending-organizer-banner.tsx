@@ -1,7 +1,7 @@
 import "server-only"
 
-import Link from "next/link"
 import { ClockIcon } from "@heroicons/react/24/outline"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 
 interface PendingOrganizerBannerProps {
@@ -35,3 +35,4 @@ export function PendingOrganizerBanner({
 		</div>
 	)
 }
+

@@ -2,6 +2,7 @@ import "server-only"
 
 import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
+import type { WorkoutScheme } from "@/db/schema"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -12,17 +13,16 @@ import {
 	userTable,
 	workouts,
 } from "@/db/schema"
+import {
+	decodeScore,
+	formatScore,
+	getDefaultScoreType,
+	getSortDirection,
+} from "@/lib/scoring"
 import type { ScoringSettings } from "@/types/competitions"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { autochunk } from "@/utils/batch-query"
 import { getCompetitionTrack } from "./competition-workouts"
-import {
-	formatScore,
-	getDefaultScoreType,
-	decodeScore,
-	getSortDirection,
-} from "@/lib/scoring"
-import type { WorkoutScheme } from "@/db/schema"
 
 export interface TeamMemberInfo {
 	userId: string
@@ -401,43 +401,43 @@ export async function getCompetitionLeaderboard(params: {
 				return 0
 			})
 
-		const athleteCount = sortedScores.length
+			const athleteCount = sortedScores.length
 
-		// Track ranking state for tie detection
-		let lastScore: (typeof sortedScores)[0] | null = null
-		let lastRank = 1
-		let lastPoints = 0
+			// Track ranking state for tie detection
+			let lastScore: (typeof sortedScores)[0] | null = null
+			let lastRank = 1
+			let lastPoints = 0
 
-		for (let i = 0; i < sortedScores.length; i++) {
-			const score = sortedScores[i]
+			for (let i = 0; i < sortedScores.length; i++) {
+				const score = sortedScores[i]
 
-			if (!score) continue
+				if (!score) continue
 
-			let rank: number
-			let points: number
+				let rank: number
+				let points: number
 
-			// Check if this score ties with the previous
-			if (lastScore && areScoresEqual(score, lastScore)) {
-				// Tie - use same rank and points as previous
-				rank = lastRank
-				points = lastPoints
-			} else {
-				// Not a tie - use current position as rank (standard 1224 ranking)
-				rank = i + 1
-				const basePoints = calculatePoints(
-					rank,
-					athleteCount,
-					settings?.scoring,
-				)
-				const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
-				points = Math.round(basePoints * multiplier)
+				// Check if this score ties with the previous
+				if (lastScore && areScoresEqual(score, lastScore)) {
+					// Tie - use same rank and points as previous
+					rank = lastRank
+					points = lastPoints
+				} else {
+					// Not a tie - use current position as rank (standard 1224 ranking)
+					rank = i + 1
+					const basePoints = calculatePoints(
+						rank,
+						athleteCount,
+						settings?.scoring,
+					)
+					const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
+					points = Math.round(basePoints * multiplier)
 
-				// Update for next iteration
-				lastRank = rank
-				lastPoints = points
-			}
+					// Update for next iteration
+					lastRank = rank
+					lastPoints = points
+				}
 
-			lastScore = score
+				lastScore = score
 
 				// Find registration for this user
 				const registration = filteredRegistrations.find(
@@ -567,14 +567,18 @@ export async function getCompetitionLeaderboard(params: {
 				const prev = entries[i - 1]
 				if (prev && entry.totalPoints === prev.totalPoints) {
 					// Check tiebreaker counts too
-					const entryFirsts = entry.eventResults.filter((er) => er.rank === 1)
-						.length
-					const prevFirsts = prev.eventResults.filter((er) => er.rank === 1)
-						.length
-					const entrySeconds = entry.eventResults.filter((er) => er.rank === 2)
-						.length
-					const prevSeconds = prev.eventResults.filter((er) => er.rank === 2)
-						.length
+					const entryFirsts = entry.eventResults.filter(
+						(er) => er.rank === 1,
+					).length
+					const prevFirsts = prev.eventResults.filter(
+						(er) => er.rank === 1,
+					).length
+					const entrySeconds = entry.eventResults.filter(
+						(er) => er.rank === 2,
+					).length
+					const prevSeconds = prev.eventResults.filter(
+						(er) => er.rank === 2,
+					).length
 
 					if (entryFirsts === prevFirsts && entrySeconds === prevSeconds) {
 						// True tie - use same rank as previous

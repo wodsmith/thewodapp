@@ -1,43 +1,44 @@
 import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
-import Link from "next/link"
-import { eq } from "drizzle-orm"
+
 import { getCloudflareContext } from "@opennextjs/cloudflare"
-import { getSessionFromCookie } from "@/utils/auth"
+import { eq } from "drizzle-orm"
+import {
+	AlertCircle,
+	CheckCircle,
+	CheckCircle2,
+	Clock,
+	Loader2,
+	Mail,
+	Receipt,
+	Users,
+} from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { getDb } from "@/db"
+import {
+	commercePurchaseTable,
+	teamInvitationTable,
+	userTable,
+} from "@/db/schema"
+import { getStripe } from "@/lib/stripe"
 import {
 	getCompetition,
 	getUserCompetitionRegistration,
 } from "@/server/competitions"
-import { getDb } from "@/db"
-import {
-	userTable,
-	commercePurchaseTable,
-	teamInvitationTable,
-} from "@/db/schema"
-import { getStripe } from "@/lib/stripe"
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import {
-	CheckCircle,
-	Loader2,
-	AlertCircle,
-	Receipt,
-	Users,
-	Mail,
-	CheckCircle2,
-	Clock,
-} from "lucide-react"
-import { RefreshButton } from "./_components/refresh-button"
-import { ProfileCompletionForm } from "./_components/profile-completion-form"
+import { getSessionFromCookie } from "@/utils/auth"
 import { CopyInviteLink } from "./_components/copy-invite-link"
+import { ProfileCompletionForm } from "./_components/profile-completion-form"
+import { RefreshButton } from "./_components/refresh-button"
 
 function formatCurrency(cents: number): string {
 	return new Intl.NumberFormat("en-US", {

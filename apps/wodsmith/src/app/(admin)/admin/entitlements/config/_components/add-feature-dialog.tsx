@@ -12,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import {
 	Select,
 	SelectContent,
@@ -19,12 +20,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import {
-	getAllFeaturesAction,
-	assignFeatureToPlanAction,
-} from "../../../_actions/entitlement-admin-actions"
 import type { Feature } from "@/db/schemas/entitlements"
+import {
+	assignFeatureToPlanAction,
+	getAllFeaturesAction,
+} from "../../../_actions/entitlement-admin-actions"
 
 interface AddFeatureDialogProps {
 	open: boolean

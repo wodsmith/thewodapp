@@ -20,9 +20,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import type { Limit } from "@/db/schemas/entitlements"
 import { getAllLimitsAction } from "../../../_actions/entitlement-admin-actions"
 import { LimitDialog } from "./limit-dialog"
-import type { Limit } from "@/db/schemas/entitlements"
 
 export function LimitsManagement() {
 	const [selectedLimit, setSelectedLimit] = useState<Limit | null>(null)
