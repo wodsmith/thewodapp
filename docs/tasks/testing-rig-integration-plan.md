@@ -1,32 +1,45 @@
 # Testing Rig Integration Plan
 
 > Extracted from analysis of [badass-courses/gremlin](https://github.com/badass-courses/gremlin) monorepo
+> 
+> **Last Updated:** 2025-12-19 (Gap Analysis Complete - thewodapp-c51)
 
 ## Executive Summary
 
 This document outlines a plan to enhance wodsmith's testing infrastructure by adopting patterns from the Gremlin monorepo, which implements a sophisticated, multi-layered testing system combining:
 
-- **Vitest 4.0** for unit/integration testing with workspace coordination
+- **Vitest 3.x/4.x** for unit/integration testing with workspace coordination
 - **Playwright** for E2E testing with intelligent sharding
 - **Custom test utilities** (fakes, spies, parameterized adapters)
 - **Turbo-powered CI/CD** with parallel execution
 
+### Viability Assessment
+
+| Verdict | Confidence | Effort |
+|---------|------------|--------|
+| **CONDITIONAL GO** | 93% plan accuracy | 68 hours (~8.5 days) |
+
+**Conditions for GO:**
+1. Use `@repo/test-utils` (not `@wodsmith/test-utils`) - matches existing package convention
+2. Add Phase 0 (immediate CI gate) before full implementation
+3. Include 4 domain-specific gaps in Phase 1 (see below)
+
 ---
 
-## Current State Assessment
+## Current State Assessment (Validated 2025-12-19)
 
 ### What Wodsmith Has
 
-| Component | Status |
-|-----------|--------|
-| Vitest | 3.2.3 with jsdom |
-| Test files | 40+ in `apps/wodsmith/test/` |
-| Testing Library | React, jest-dom, user-event |
-| D1/Drizzle mocking | Basic chainable mock |
-| Playwright E2E | Not configured |
-| Workspace orchestration | None |
-| Shared test utilities | None (inline in app) |
-| CI test pipeline | None |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Vitest | 3.2.3 with jsdom | Plan originally assumed 4.0+ |
+| Test files | **43** in `apps/wodsmith/test/` | Validated (plan said "40+") |
+| Testing Library | React 16.3, jest-dom 6.6, user-event 14.6 | All present |
+| D1/Drizzle mocking | 24-method chainable mock (~65 lines) | More sophisticated than "basic" |
+| Playwright E2E | **Installed (1.55.0) but NOT configured** | No config, no e2e/ directory |
+| Workspace orchestration | None | No vitest.workspace.ts |
+| Shared test utilities | None (inline in app) | 2 ad-hoc factories exist |
+| CI test pipeline | **None - deploys directly to prod** | Critical gap |
 
 ### What Gremlin Has (Target State)
 
@@ -39,61 +52,147 @@ This document outlines a plan to enhance wodsmith's testing infrastructure by ad
 | Playwright | Sharded E2E with blob reporting |
 | CI/CD | Parallel jobs, Turbo caching, report merging |
 
+### Domain-Specific Gaps (NOT in Gremlin, REQUIRED for Wodsmith)
+
+| Gap | Impact | Why It's Critical |
+|-----|--------|-------------------|
+| **Cloudflare Workers env mocking** | Can't test server actions without FakeKV/FakeR2/env vars | Wodsmith runs on Workers, not Node |
+| **Lucia auth session factories** | 33-line SessionWithMeta copy-pasted in every test | Auth is central to every feature |
+| **D1 100-parameter limit enforcement** | Production uses `autochunk`, tests don't validate | Silent production bugs |
+| **Multi-tenancy isolation testing** | No helper to verify teamId filtering | Data leakage between tenants |
+
+---
+
+## Phase 0: Immediate CI Gate (CRITICAL - DO FIRST)
+
+**Purpose:** Prevent untested code from reaching production while implementing full plan.
+
+**Effort:** 30 minutes | **Impact:** Blocks broken deploys immediately
+
+### 0.1 Add Test Job to deploy.yml
+
+```yaml
+# .github/workflows/deploy.yml - ADD THIS JOB BEFORE publish
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+        env:
+          NODE_ENV: test
+
+  publish:
+    needs: test  # ADD THIS DEPENDENCY
+    runs-on: ubuntu-latest
+    # ... rest of existing publish job
+```
+
+### 0.2 Success Criteria
+- [ ] `pnpm test` runs in CI before deploy
+- [ ] Failed tests block deployment
+- [ ] Existing 43 tests pass in CI environment
+
 ---
 
 ## Phase 1: Foundation - Test Utilities Package
+
+**Effort:** 28 hours (4 days) | **Priority:** P0
 
 ### 1.1 Create `packages/test-utils`
 
 ```
 packages/
 └── test-utils/
+    ├── src/
+    │   ├── index.ts              # Main exports
+    │   ├── vitest-base.ts        # Shared Vitest config
+    │   ├── fakes/
+    │   │   ├── index.ts
+    │   │   ├── fake-db.ts        # In-memory D1/Drizzle mock
+    │   │   ├── fake-kv.ts        # In-memory KV mock
+    │   │   ├── fake-r2.ts        # In-memory R2 mock
+    │   │   └── fake-cloudflare-env.ts  # Combined Workers env
+    │   ├── factories/
+    │   │   ├── index.ts
+    │   │   ├── user.ts           # User test data factory
+    │   │   ├── team.ts           # Team test data factory
+    │   │   ├── workout.ts        # Workout test data factory
+    │   │   └── session.ts        # Lucia auth session factory
+    │   ├── helpers/
+    │   │   ├── index.ts
+    │   │   ├── spy.ts            # createSpy() utility
+    │   │   ├── delay.ts          # async delay helper
+    │   │   └── tenant-isolation.ts  # Multi-tenancy assertions
+    │   └── assertions/
+    │       ├── index.ts
+    │       └── tenant.ts         # assertTenantIsolation()
     ├── package.json
-    ├── tsconfig.json
-    ├── index.ts           # Main exports
-    ├── vitest-base.ts     # Shared Vitest config
-    ├── fakes/
-    │   ├── index.ts
-    │   ├── fake-db.ts     # In-memory D1/Drizzle mock
-    │   └── fake-kv.ts     # In-memory KV mock
-    ├── factories/
-    │   ├── index.ts
-    │   ├── user.ts        # User test data factory
-    │   ├── team.ts        # Team test data factory
-    │   └── workout.ts     # Workout test data factory
-    └── helpers/
-        ├── index.ts
-        ├── spy.ts         # createSpy() utility
-        └── delay.ts       # async delay helper
+    └── tsconfig.json
 ```
 
 ### 1.2 Package Configuration
 
 ```json
 {
-  "name": "@wodsmith/test-utils",
-  "version": "0.0.1",
+  "name": "@repo/test-utils",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./index.ts",
-    "./vitest": "./vitest-base.ts",
-    "./fakes": "./fakes/index.ts",
-    "./factories": "./factories/index.ts"
+    ".": "./src/index.ts",
+    "./vitest": "./src/vitest-base.ts",
+    "./fakes": "./src/fakes/index.ts",
+    "./factories": "./src/factories/index.ts",
+    "./helpers": "./src/helpers/index.ts",
+    "./assertions": "./src/assertions/index.ts"
+  },
+  "main": "./src/index.ts",
+  "files": ["src/**"],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit"
   },
   "peerDependencies": {
-    "vitest": "^3.0.0"
+    "vitest": "catalog:"
   },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2"
   }
 }
 ```
 
-### 1.3 Shared Vitest Base Config
+### 1.3 pnpm Catalog Additions
+
+Add to `pnpm-workspace.yaml`:
+
+```yaml
+catalog:
+  # ... existing entries
+  vitest: "^3.2.3"
+  "@testing-library/react": "^16.3.0"
+  "@testing-library/jest-dom": "^6.6.3"
+  "@testing-library/user-event": "^14.6.1"
+  "@vitejs/plugin-react": "^5.1.2"
+  jsdom: "^26.1.0"
+```
+
+### 1.4 Shared Vitest Base Config
 
 ```typescript
-// packages/test-utils/vitest-base.ts
+// packages/test-utils/src/vitest-base.ts
 import { defineConfig } from "vitest/config"
 
 export const baseConfig = defineConfig({
@@ -113,14 +212,31 @@ export const baseConfig = defineConfig({
 export { mergeConfig } from "vitest/config"
 ```
 
-### 1.4 FakeDatabase Implementation
-
-Replace current chainable mock with a proper in-memory implementation:
+### 1.5 FakeDatabase Implementation (with D1 Constraints)
 
 ```typescript
-// packages/test-utils/fakes/fake-db.ts
+// packages/test-utils/src/fakes/fake-db.ts
+import { createId } from "@paralleldrive/cuid2"
+
+const D1_PARAMETER_LIMIT = 100
+
 export class FakeDatabase<TSchema extends Record<string, unknown>> {
   private tables = new Map<string, Map<string, unknown>>()
+  private parameterCount = 0
+
+  /**
+   * Enforce D1's 100 SQL parameter limit.
+   * Call this before any query with dynamic parameters.
+   */
+  enforceParameterLimit(params: unknown[]): void {
+    if (params.length > D1_PARAMETER_LIMIT) {
+      throw new Error(
+        `D1 parameter limit exceeded: ${params.length} > ${D1_PARAMETER_LIMIT}. ` +
+        `Use autochunk() from @/utils/batch-query for large arrays.`
+      )
+    }
+    this.parameterCount = params.length
+  }
 
   getTable<K extends keyof TSchema>(name: K): Map<string, TSchema[K]> {
     if (!this.tables.has(name as string)) {
@@ -133,8 +249,14 @@ export class FakeDatabase<TSchema extends Record<string, unknown>> {
     table: K,
     data: Omit<TSchema[K], "id"> & { id?: string }
   ): TSchema[K] {
-    const id = data.id ?? generateCuid2()
-    const record = { ...data, id } as TSchema[K]
+    const id = data.id ?? createId()
+    const now = new Date()
+    const record = { 
+      ...data, 
+      id,
+      createdAt: now,
+      updatedAt: now
+    } as TSchema[K]
     this.getTable(table).set(id, record)
     return record
   }
@@ -149,6 +271,19 @@ export class FakeDatabase<TSchema extends Record<string, unknown>> {
   ): TSchema[K][] {
     const items = Array.from(this.getTable(table).values())
     return predicate ? items.filter(predicate) : items
+  }
+
+  /**
+   * Find by IDs with D1 parameter limit enforcement.
+   */
+  findByIds<K extends keyof TSchema>(
+    table: K,
+    ids: string[]
+  ): TSchema[K][] {
+    this.enforceParameterLimit(ids)
+    return ids
+      .map(id => this.findById(table, id))
+      .filter((item): item is TSchema[K] => item !== null)
   }
 
   update<K extends keyof TSchema>(
@@ -169,14 +304,197 @@ export class FakeDatabase<TSchema extends Record<string, unknown>> {
 
   reset(): void {
     this.tables.clear()
+    this.parameterCount = 0
   }
 }
 ```
 
-### 1.5 Test Factories
+### 1.6 Cloudflare Environment Fakes
 
 ```typescript
-// packages/test-utils/factories/team.ts
+// packages/test-utils/src/fakes/fake-kv.ts
+export class FakeKV implements KVNamespace {
+  private store = new Map<string, { value: string; metadata?: unknown }>()
+
+  async get(key: string, options?: { type?: "text" }): Promise<string | null> {
+    return this.store.get(key)?.value ?? null
+  }
+
+  async getWithMetadata<T>(key: string): Promise<{ value: string | null; metadata: T | null }> {
+    const entry = this.store.get(key)
+    return {
+      value: entry?.value ?? null,
+      metadata: (entry?.metadata as T) ?? null
+    }
+  }
+
+  async put(key: string, value: string, options?: { metadata?: unknown }): Promise<void> {
+    this.store.set(key, { value, metadata: options?.metadata })
+  }
+
+  async delete(key: string): Promise<void> {
+    this.store.delete(key)
+  }
+
+  async list(): Promise<{ keys: { name: string }[] }> {
+    return { keys: Array.from(this.store.keys()).map(name => ({ name })) }
+  }
+
+  reset(): void {
+    this.store.clear()
+  }
+}
+
+// packages/test-utils/src/fakes/fake-cloudflare-env.ts
+import { FakeKV } from "./fake-kv"
+import { FakeDatabase } from "./fake-db"
+
+export interface FakeCloudflareEnv {
+  DB: FakeDatabase<any>
+  KV_SESSIONS: FakeKV
+  KV_CACHE: FakeKV
+  // Add more bindings as needed
+}
+
+export function createFakeCloudflareEnv(): FakeCloudflareEnv {
+  return {
+    DB: new FakeDatabase(),
+    KV_SESSIONS: new FakeKV(),
+    KV_CACHE: new FakeKV()
+  }
+}
+```
+
+### 1.7 Lucia Auth Session Factory
+
+```typescript
+// packages/test-utils/src/factories/session.ts
+import { createId } from "@paralleldrive/cuid2"
+import type { SessionWithMeta } from "@/utils/auth"
+
+export interface SessionFactoryOptions {
+  userId?: string
+  teamId?: string
+  roles?: string[]
+  expiresInMs?: number
+}
+
+export function createTestSession(
+  overrides?: Partial<SessionWithMeta> & SessionFactoryOptions
+): SessionWithMeta {
+  const userId = overrides?.userId ?? createId()
+  const teamId = overrides?.teamId ?? createId()
+  const expiresAt = Date.now() + (overrides?.expiresInMs ?? 86400000) // 24h default
+
+  return {
+    id: createId(),
+    userId,
+    expiresAt,
+    fresh: true,
+    user: {
+      id: userId,
+      email: `test-${userId.slice(0, 4)}@example.com`,
+      emailVerified: true,
+      name: `Test User ${userId.slice(0, 4)}`,
+      avatarUrl: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides?.user
+    },
+    teams: [
+      {
+        teamId,
+        teamName: `Test Team ${teamId.slice(0, 4)}`,
+        teamSlug: `test-team-${teamId.slice(0, 4)}`,
+        roleId: overrides?.roles?.[0] ?? "member",
+        isOwner: false,
+        ...overrides?.teams?.[0]
+      }
+    ],
+    activeTeamId: teamId,
+    ...overrides
+  }
+}
+
+// Fake session store for KV-based sessions
+export class FakeSessionStore {
+  private sessions = new Map<string, SessionWithMeta>()
+
+  async get(sessionId: string): Promise<SessionWithMeta | null> {
+    return this.sessions.get(sessionId) ?? null
+  }
+
+  async set(session: SessionWithMeta): Promise<void> {
+    this.sessions.set(session.id, session)
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    this.sessions.delete(sessionId)
+  }
+
+  reset(): void {
+    this.sessions.clear()
+  }
+}
+```
+
+### 1.8 Multi-Tenancy Isolation Helper
+
+```typescript
+// packages/test-utils/src/assertions/tenant.ts
+import type { FakeDatabase } from "../fakes/fake-db"
+
+/**
+ * Assert that a query only returns data for the specified team.
+ * Use this to verify multi-tenant data isolation.
+ */
+export async function assertTenantIsolation<T extends { teamId: string }>(
+  db: FakeDatabase<any>,
+  tableName: string,
+  expectedTeamId: string,
+  queryFn: () => Promise<T[]>
+): Promise<void> {
+  // Seed data for multiple teams
+  const otherTeamId = "other-team-isolation-test"
+  
+  // Run the query
+  const results = await queryFn()
+  
+  // Verify all results belong to expected team
+  const violations = results.filter(r => r.teamId !== expectedTeamId)
+  
+  if (violations.length > 0) {
+    throw new Error(
+      `Tenant isolation violation in ${tableName}: ` +
+      `Found ${violations.length} records with wrong teamId. ` +
+      `Expected: ${expectedTeamId}, Got: ${violations.map(v => v.teamId).join(", ")}`
+    )
+  }
+}
+
+/**
+ * Assert that a record is not accessible to a different team.
+ */
+export async function assertRecordIsolation<T>(
+  getRecord: (teamId: string) => Promise<T | null>,
+  ownerTeamId: string,
+  attackerTeamId: string
+): Promise<void> {
+  const attackerResult = await getRecord(attackerTeamId)
+  
+  if (attackerResult !== null) {
+    throw new Error(
+      `Record isolation violation: Record owned by ${ownerTeamId} ` +
+      `was accessible to team ${attackerTeamId}`
+    )
+  }
+}
+```
+
+### 1.9 Test Factories
+
+```typescript
+// packages/test-utils/src/factories/team.ts
 import { createId } from "@paralleldrive/cuid2"
 
 export interface TeamFactory {
@@ -189,7 +507,7 @@ export interface TeamFactory {
 }
 
 export function createTeam(overrides?: Partial<TeamFactory>): TeamFactory {
-  const id = createId()
+  const id = overrides?.id ?? createId()
   return {
     id,
     name: `Test Team ${id.slice(0, 4)}`,
@@ -200,11 +518,82 @@ export function createTeam(overrides?: Partial<TeamFactory>): TeamFactory {
     ...overrides
   }
 }
+
+// packages/test-utils/src/factories/user.ts
+import { createId } from "@paralleldrive/cuid2"
+
+export interface UserFactory {
+  id: string
+  email: string
+  emailVerified: boolean
+  name: string
+  avatarUrl: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export function createUser(overrides?: Partial<UserFactory>): UserFactory {
+  const id = overrides?.id ?? createId()
+  return {
+    id,
+    email: `user-${id.slice(0, 4)}@example.com`,
+    emailVerified: true,
+    name: `Test User ${id.slice(0, 4)}`,
+    avatarUrl: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides
+  }
+}
+
+// packages/test-utils/src/factories/workout.ts
+import { createId } from "@paralleldrive/cuid2"
+
+export interface WorkoutFactory {
+  id: string
+  teamId: string
+  name: string
+  description: string | null
+  type: string
+  createdById: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export function createWorkout(overrides?: Partial<WorkoutFactory>): WorkoutFactory {
+  const id = overrides?.id ?? createId()
+  return {
+    id,
+    teamId: createId(),
+    name: `Test Workout ${id.slice(0, 4)}`,
+    description: null,
+    type: "amrap",
+    createdById: createId(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides
+  }
+}
 ```
+
+### 1.10 Success Criteria
+
+- [ ] `@repo/test-utils` package created and exports all utilities
+- [ ] FakeDatabase supports 10 core Drizzle methods
+- [ ] FakeDatabase throws on >100 SQL params (D1 limit)
+- [ ] FakeKV implements KVNamespace interface
+- [ ] createTestSession() generates valid SessionWithMeta
+- [ ] createFakeCloudflareEnv() provides DB, KV bindings
+- [ ] assertTenantIsolation() validates teamId filtering
+- [ ] 3+ existing tests migrated to use new utilities
+- [ ] All utilities have JSDoc documentation
+- [ ] Package has self-tests that pass
 
 ---
 
 ## Phase 2: Vitest Workspace Configuration
+
+**Effort:** 8 hours (1 day) | **Priority:** P0
 
 ### 2.1 Root Workspace Config
 
@@ -223,7 +612,7 @@ export default defineWorkspace([
 ```typescript
 // apps/wodsmith/vitest.config.ts
 import { mergeConfig } from "vitest/config"
-import { baseConfig } from "@wodsmith/test-utils/vitest"
+import { baseConfig } from "@repo/test-utils/vitest"
 import react from "@vitejs/plugin-react"
 import tsconfigPaths from "vite-tsconfig-paths"
 import { resolve } from "node:path"
@@ -245,14 +634,27 @@ export default mergeConfig(baseConfig, {
 })
 ```
 
+### 2.3 Success Criteria
+
+- [ ] vitest.workspace.ts configured at repo root
+- [ ] `pnpm test` runs tests from all packages
+- [ ] Test output shows workspace package names
+- [ ] No performance regression vs current setup
+
 ---
 
 ## Phase 3: Playwright E2E Setup
 
-### 3.1 Install Dependencies
+**Effort:** 16 hours (2 days) | **Priority:** P1
+
+> **Note:** Playwright 1.55.0 is already installed. Skip installation step.
+
+### 3.1 Verify Playwright Installation
 
 ```bash
-pnpm add -D @playwright/test --filter wodsmith
+# Already installed, just verify
+pnpm --filter wodsmith exec playwright --version
+# Should output: Version 1.55.0
 ```
 
 ### 3.2 Playwright Configuration
@@ -318,9 +720,19 @@ apps/wodsmith/
     └── programming.spec.ts # Programming tracks
 ```
 
+### 3.4 Success Criteria
+
+- [ ] playwright.config.ts exists with baseURL configured
+- [ ] e2e/ directory structure matches proposed plan
+- [ ] 2+ critical path tests pass (auth, workout creation)
+- [ ] Screenshots captured on failure
+- [ ] `pnpm --filter wodsmith exec playwright test` runs without errors
+
 ---
 
 ## Phase 4: CI/CD Integration
+
+**Effort:** 16 hours (2 days) | **Priority:** P1-P2
 
 ### 4.1 CI Workflow
 
@@ -483,9 +895,7 @@ jobs:
           retention-days: 14
 ```
 
----
-
-## Phase 5: Turbo Configuration Updates
+### 4.3 Turbo Configuration Updates
 
 ```json
 {
@@ -528,19 +938,31 @@ jobs:
 }
 ```
 
+### 4.4 Success Criteria
+
+- [ ] ci.yaml runs on PR (lint, typecheck, unit, build)
+- [ ] e2e.yaml runs with sharding (2 shards minimum)
+- [ ] deploy.yml depends on ci.yaml passing (remove Phase 0 test job)
+- [ ] Turbo caching works (2nd run < 30% of 1st run time)
+- [ ] All jobs pass on main branch
+
 ---
 
-## Implementation Priority
+## Implementation Priority (Updated)
 
-| Priority | Task | Effort | Impact |
-|----------|------|--------|--------|
-| **P0** | Create `packages/test-utils` with fakes/factories | Medium | High |
-| **P0** | Add Vitest workspace config | Low | Medium |
-| **P1** | Setup Playwright with basic smoke tests | Medium | High |
-| **P1** | Add CI workflow for unit tests | Low | High |
-| **P2** | Add E2E CI workflow with sharding | Medium | Medium |
-| **P2** | Migrate existing mocks to fake implementations | High | Medium |
-| **P3** | Add coverage reporting | Low | Low |
+| Priority | Phase | Task | Effort | Impact |
+|----------|-------|------|--------|--------|
+| **P0** | 0 | Add test job to deploy.yml (IMMEDIATE) | 30 min | Critical |
+| **P0** | 1 | Create `@repo/test-utils` with fakes/factories | 28h | High |
+| **P0** | 1 | Add domain-specific utilities (Cloudflare, Auth, D1, Tenancy) | (included) | High |
+| **P0** | 2 | Add Vitest workspace config | 8h | Medium |
+| **P1** | 3 | Setup Playwright with basic smoke tests | 16h | High |
+| **P1** | 4 | Add CI workflow for unit tests | 8h | High |
+| **P2** | 4 | Add E2E CI workflow with sharding | 8h | Medium |
+| **P2** | 5 | Migrate existing mocks to fake implementations | 16h | Medium |
+| **P3** | 5 | Add coverage reporting | 4h | Low |
+
+**Total Effort:** 68 hours (~8.5 days)
 
 ---
 
@@ -550,24 +972,40 @@ jobs:
 
 1. `packages/test-utils/package.json`
 2. `packages/test-utils/tsconfig.json`
-3. `packages/test-utils/index.ts`
-4. `packages/test-utils/vitest-base.ts`
-5. `packages/test-utils/fakes/*.ts`
-6. `packages/test-utils/factories/*.ts`
-7. `packages/test-utils/helpers/*.ts`
-8. `vitest.workspace.ts`
-9. `apps/wodsmith/playwright.config.ts`
-10. `apps/wodsmith/e2e/*.spec.ts`
-11. `.github/workflows/ci.yaml`
-12. `.github/workflows/e2e.yaml`
+3. `packages/test-utils/src/index.ts`
+4. `packages/test-utils/src/vitest-base.ts`
+5. `packages/test-utils/src/fakes/*.ts` (fake-db, fake-kv, fake-r2, fake-cloudflare-env)
+6. `packages/test-utils/src/factories/*.ts` (user, team, workout, session)
+7. `packages/test-utils/src/helpers/*.ts` (spy, delay, tenant-isolation)
+8. `packages/test-utils/src/assertions/*.ts` (tenant)
+9. `vitest.workspace.ts`
+10. `apps/wodsmith/playwright.config.ts`
+11. `apps/wodsmith/e2e/*.spec.ts`
+12. `.github/workflows/ci.yaml`
+13. `.github/workflows/e2e.yaml`
 
 ### Modified Files
 
-1. `package.json` - Add workspace scripts
-2. `turbo.json` - Add test/e2e task configs
-3. `apps/wodsmith/vitest.config.mjs` → `vitest.config.ts` (use shared base)
-4. `apps/wodsmith/package.json` - Add Playwright, update Vitest
-5. `apps/wodsmith/test/setup.ts` - Use new fakes
+1. `pnpm-workspace.yaml` - Add catalog entries for test deps
+2. `package.json` - Add workspace scripts
+3. `turbo.json` - Add test/e2e task configs with inputs/outputs
+4. `.github/workflows/deploy.yml` - Add test job (Phase 0), then depend on ci.yaml (Phase 4)
+5. `apps/wodsmith/vitest.config.mjs` → `vitest.config.ts` (use shared base)
+6. `apps/wodsmith/package.json` - Update Vitest version
+7. `apps/wodsmith/test/setup.ts` - Use new fakes (gradual migration)
+
+---
+
+## Risk Matrix
+
+| Risk | Severity | Likelihood | Mitigation |
+|------|----------|------------|------------|
+| **No CI gates → prod bugs** | Critical | High | Phase 0 adds immediate gate |
+| **Wrong package name breaks imports** | High | Medium | Use `@repo/test-utils` (established convention) |
+| **FakeDatabase too complex** | Medium | Medium | Start with 10 core methods, expand incrementally |
+| **Existing tests break** | Low | Low | Opt-in migration, run alongside current setup |
+| **Cloudflare env mocking incomplete** | Medium | High | Document unsupported bindings, fail fast |
+| **Playwright flakiness** | Low | Medium | Use built-in retry, screenshots on failure |
 
 ---
 
@@ -602,7 +1040,7 @@ runContentResourceAdapterTests({
 If we adopt Effect.ts in the future:
 
 ```typescript
-import { testEffect } from "@wodsmith/test-utils/effect"
+import { testEffect } from "@repo/test-utils/effect"
 import { Effect } from "effect"
 
 testEffect("my effect test", () =>
@@ -621,3 +1059,31 @@ testEffect("my effect test", () =>
 - [Vitest Workspace Documentation](https://vitest.dev/guide/workspace)
 - [Playwright Sharding](https://playwright.dev/docs/test-sharding)
 - [Turbo Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
+
+---
+
+## Changelog
+
+### 2025-12-19 - Gap Analysis Update (thewodapp-c51)
+
+**Validated:**
+- 43 test files (plan said "40+") ✅
+- Vitest 3.2.3 ✅
+- Playwright installed (1.55.0) but not configured ✅
+- No CI test pipeline ✅
+
+**Corrected:**
+- Package naming: `@wodsmith/test-utils` → `@repo/test-utils`
+- D1 mock complexity: "basic" → "24-method chainable mock"
+- Playwright: Skip installation step (already installed)
+
+**Added:**
+- Phase 0: Immediate CI gate (30 min)
+- FakeCloudflareEnv (KV, R2, env vars)
+- createTestSession() for Lucia auth
+- D1 100-parameter limit enforcement
+- assertTenantIsolation() helper
+- pnpm catalog additions
+- Updated effort estimates (56h → 68h)
+- Risk matrix
+- Success criteria per phase
