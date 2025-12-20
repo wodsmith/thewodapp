@@ -1,79 +1,103 @@
 /**
- * Test data setup and seeded data references
- * Provides helpers to ensure test data exists for E2E tests
+ * E2E Test Data References
+ *
+ * These constants match the data seeded by scripts/seed-e2e.sql
+ * IDs are prefixed with 'e2e_' for easy identification
+ *
+ * IMPORTANT: Keep these in sync with seed-e2e.sql
  */
 
 import type { Page } from "@playwright/test"
 
 /**
- * Seeded test data references
- * These should match the data created by your database seed script
+ * Seeded test data - matches seed-e2e.sql exactly
  */
-export const SEEDED_DATA = {
+export const TEST_DATA = {
 	users: {
 		testUser: {
-			id: "test-user-id",
+			id: "e2e_test_user",
 			email: "test@wodsmith.com",
-			name: "Test User",
+			password: "TestPassword123!",
+			firstName: "Test",
+			lastName: "User",
+			role: "user" as const,
 		},
 		adminUser: {
-			id: "admin-user-id",
+			id: "e2e_admin_user",
 			email: "admin@wodsmith.com",
-			name: "Admin User",
+			password: "TestPassword123!",
+			firstName: "Admin",
+			lastName: "User",
+			role: "admin" as const,
 		},
 	},
 	teams: {
 		testTeam: {
-			id: "test-team-id",
-			name: "Test CrossFit Gym",
-			slug: "test-crossfit-gym",
+			id: "e2e_test_team",
+			name: "E2E Test Gym",
+			slug: "e2e-test-gym",
+			type: "gym" as const,
+		},
+	},
+	memberships: {
+		ownerMembership: {
+			id: "e2e_membership_owner",
+			teamId: "e2e_test_team",
+			userId: "e2e_test_user",
+			roleId: "owner",
+		},
+		adminMembership: {
+			id: "e2e_membership_admin",
+			teamId: "e2e_test_team",
+			userId: "e2e_admin_user",
+			roleId: "admin",
 		},
 	},
 	workouts: {
-		sampleWorkout: {
-			id: "sample-workout-id",
+		fran: {
+			id: "e2e_workout_fran",
 			name: "Fran",
-			type: "time",
+			type: "time" as const,
+			scheme: "21-15-9",
+		},
+		murph: {
+			id: "e2e_workout_murph",
+			name: "Murph",
+			type: "time" as const,
+			scheme: "Hero WOD",
+		},
+		cindy: {
+			id: "e2e_workout_cindy",
+			name: "Cindy",
+			type: "amrap" as const,
+			duration: 20,
 		},
 	},
 } as const
 
-/**
- * Helper to ensure test data exists in the database
- * This should be called in test setup (beforeAll/beforeEach) if needed
- * @returns Promise that resolves when test data is verified
- */
-export async function ensureTestDataExists(): Promise<void> {
-	// In a real implementation, this would:
-	// 1. Connect to the test database
-	// 2. Check if seeded data exists
-	// 3. Create it if missing
-	// For now, assume data is seeded via pnpm db:seed
-	console.log("Assuming test data is seeded via database seed script")
-}
-
-/**
- * Helper to reset test data to known state
- * Useful for tests that modify data and need a clean slate
- * @returns Promise that resolves when data is reset
- */
-export async function resetTestData(): Promise<void> {
-	// In a real implementation, this would:
-	// 1. Connect to the test database
-	// 2. Delete test-specific records
-	// 3. Re-seed with SEEDED_DATA
-	console.log("Resetting test data to seeded state")
-}
+// Type exports for use in tests
+export type TestUser = (typeof TEST_DATA.users)[keyof typeof TEST_DATA.users]
+export type TestTeam = (typeof TEST_DATA.teams)[keyof typeof TEST_DATA.teams]
+export type TestWorkout =
+	(typeof TEST_DATA.workouts)[keyof typeof TEST_DATA.workouts]
 
 /**
  * Helper to wait for API calls to complete
  * Useful when interacting with the UI that triggers background requests
- * @param page - Playwright page object
- * @param urlPattern - URL pattern to wait for (e.g., '/api/workouts')
  */
 export async function waitForApiCall(
 	page: Page,
 	urlPattern: string,
 ): Promise<void> {
 	await page.waitForResponse((response) => response.url().includes(urlPattern))
+}
+
+/**
+ * Helper to wait for navigation to complete
+ */
+export async function waitForNavigation(
+	page: Page,
+	urlPattern: string | RegExp,
+): Promise<void> {
+	await page.waitForURL(urlPattern)
 }

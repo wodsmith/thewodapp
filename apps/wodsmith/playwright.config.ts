@@ -10,6 +10,9 @@ export default defineConfig({
 	retries: isCI ? 2 : 0,
 	workers: isCI ? "50%" : undefined,
 
+	// Run database seeding before all tests
+	globalSetup: "./e2e/global-setup.ts",
+
 	reporter: isCI
 		? [["blob"], ["github"], ["list"]]
 		: [["html", { open: "never" }]],

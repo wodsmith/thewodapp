@@ -3,15 +3,21 @@
  */
 
 export {
+	ADMIN_USER,
 	createAuthenticatedContext,
+	isAuthenticated,
+	login,
+	loginAsAdmin,
 	loginAsTestUser,
 	logout,
 	TEST_USER,
 } from "./auth"
 
 export {
-	ensureTestDataExists,
-	resetTestData,
-	SEEDED_DATA,
+	TEST_DATA,
 	waitForApiCall,
+	waitForNavigation,
+	type TestTeam,
+	type TestUser,
+	type TestWorkout,
 } from "./test-data"

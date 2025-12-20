@@ -21,6 +21,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "bash ./scripts/seed-all.sh",
+		"db:seed:e2e": "pnpm tsx scripts/setup-e2e-db.ts",
 		"db:migrate:dev": "wrangler d1 migrations apply $(node scripts/get-db-name.mjs) --local",
 		"db:migrate:staging": "wrangler d1 migrations apply wodsmith-db-staging --remote",
 		"db:migrate:prod": "wrangler d1 migrations apply $(node scripts/get-db-name.mjs) --remote",
