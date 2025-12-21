@@ -5,7 +5,7 @@ import { Check, Loader2, Pencil, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { updateRegistrationAffiliateAction } from "@/actions/competition-actions"
-import { AffiliateCombobox } from "@/app/(compete)/compete/[slug]/register/_components/affiliate-combobox"
+import { AffiliateCombobox } from "@/app/(compete)/compete/(public)/[slug]/register/_components/affiliate-combobox"
 import { Button } from "@/components/ui/button"
 import {
 	Card,

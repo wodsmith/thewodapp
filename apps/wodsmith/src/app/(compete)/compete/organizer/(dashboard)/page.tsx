@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { getCompetitionGroups, getCompetitions } from "@/server/competitions"
 import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
-import { OrganizerCompetitionsList } from "./_components/organizer-competitions-list"
-import { TeamFilter } from "./_components/team-filter"
+import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
+import { TeamFilter } from "@/app/(compete)/compete/organizer/_components/team-filter"
 
 export const metadata: Metadata = {
 	title: "My Competitions - Compete",

@@ -15,8 +15,8 @@ import {
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup, getCompetitions } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
-import { OrganizerCompetitionsList } from "../../_components/organizer-competitions-list"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
+import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
 import { OrganizerSeriesActions } from "./_components/organizer-series-actions"
 
 interface SeriesDetailPageProps {
