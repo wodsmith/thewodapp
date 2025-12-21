@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { OrganizerBreadcrumb } from "../../../_components/organizer-breadcrumb"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
 import { OrganizerSeriesEditForm } from "./_components/organizer-series-edit-form"
 
 interface EditSeriesPageProps {

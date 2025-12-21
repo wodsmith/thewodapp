@@ -946,9 +946,9 @@ export function HeatScheduleManager({
 			</div>
 
 			{/* Heat Grid + Unassigned Panel */}
-			<div className="grid gap-6 lg:grid-cols-3">
+			<div className="flex flex-col lg:flex-row gap-6">
 				{/* Heats Column */}
-				<div className="lg:col-span-2 space-y-4">
+				<div className="flex-1 min-w-0 space-y-4">
 					{eventHeats.length === 0 ? (
 						<Card className="border-dashed">
 							<CardContent className="py-8 text-center text-muted-foreground">
@@ -978,8 +978,8 @@ export function HeatScheduleManager({
 				</div>
 
 				{/* Unassigned Athletes Panel */}
-				<div className="sticky top-4 self-start">
-					<Card className="max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col">
+				<div className="lg:w-80 lg:shrink-0 lg:sticky lg:top-6 lg:self-start">
+					<Card className="max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col">
 						<CardHeader className="pb-3">
 							<div className="flex items-center justify-between">
 								<CardTitle className="text-base flex items-center gap-2">

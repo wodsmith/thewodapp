@@ -5,7 +5,7 @@ import { getCompetitionGroups } from "@/server/competitions"
 import { listScalingGroups } from "@/server/scaling-groups"
 import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
-import { OrganizerBreadcrumb } from "../_components/organizer-breadcrumb"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
 import { OrganizerCompetitionForm } from "./_components/organizer-competition-form"
 
 export const metadata: Metadata = {

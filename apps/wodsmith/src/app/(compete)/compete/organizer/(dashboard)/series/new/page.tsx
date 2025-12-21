@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
-import { OrganizerBreadcrumb } from "../../_components/organizer-breadcrumb"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
 import { OrganizerSeriesForm } from "./_components/organizer-series-form"
 
 export const metadata: Metadata = {
