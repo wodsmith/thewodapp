@@ -7,19 +7,27 @@
 --   Password: TestPassword123!
 
 -- Clean up any existing E2E test data first (order matters for FK constraints)
--- Delete by ID pattern AND by known slugs/emails to catch all E2E data
+-- Delete by ID pattern AND by known teamId to catch all E2E data
+
+-- Step 1: Delete team_subscription (references team)
 DELETE FROM team_subscription WHERE id LIKE 'e2e_%';
+DELETE FROM team_subscription WHERE teamId LIKE 'e2e_%';
 DELETE FROM team_subscription WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
-DELETE FROM team_subscription WHERE teamId IN (SELECT id FROM team WHERE slug LIKE 'test-%' OR slug LIKE 'admin-%');
+
+-- Step 2: Delete workouts (references team)
 DELETE FROM workouts WHERE id LIKE 'e2e_%';
-DELETE FROM workouts WHERE team_id IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
+DELETE FROM workouts WHERE team_id LIKE 'e2e_%';
+
+-- Step 3: Delete team_membership (references team and user)
 DELETE FROM team_membership WHERE id LIKE 'e2e_%';
-DELETE FROM team_membership WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
-DELETE FROM team_membership WHERE teamId IN (SELECT id FROM team WHERE slug LIKE 'test-%' OR slug LIKE 'admin-%');
+DELETE FROM team_membership WHERE teamId LIKE 'e2e_%';
+DELETE FROM team_membership WHERE userId LIKE 'e2e_%';
+
+-- Step 4: Delete teams (references user via personalTeamOwnerId)
+-- Must delete teams before users due to FK constraint
 DELETE FROM team WHERE id LIKE 'e2e_%';
-DELETE FROM team WHERE slug = 'e2e-test-gym';
-DELETE FROM team WHERE slug LIKE 'test-%' AND isPersonalTeam = 1;
-DELETE FROM team WHERE slug LIKE 'admin-%' AND isPersonalTeam = 1;
+
+-- Step 5: Delete users
 DELETE FROM user WHERE id LIKE 'e2e_%';
 DELETE FROM user WHERE email = 'test@wodsmith.com';
 DELETE FROM user WHERE email = 'admin@wodsmith.com';

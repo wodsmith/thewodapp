@@ -63,9 +63,9 @@ export async function createAuthenticatedContext(page: Page): Promise<void> {
 	await loginAsTestUser(page)
 
 	// Verify we're actually authenticated by checking for user-specific elements
-	// Wait for any authenticated page element to appear
+	// Wait for authenticated nav links to appear
 	await page.waitForSelector(
-		'[data-testid="user-menu"], [data-testid="team-switcher"], nav',
+		'nav a[href="/log"], nav a[href="/teams"]',
 		{ timeout: 10000 },
 	)
 }
@@ -90,11 +90,18 @@ export async function logout(page: Page): Promise<void> {
 
 /**
  * Check if the current page shows authenticated state
+ *
+ * We check for authenticated-only UI elements:
+ * - Navigation links that only appear when logged in (Log, Team, etc.)
+ * - Settings link in the nav
+ * - The logout button
  */
 export async function isAuthenticated(page: Page): Promise<boolean> {
 	try {
+		// Look for nav elements that only appear when authenticated
+		// The main nav shows "LOG" and "TEAM" links only for authenticated users
 		await page.waitForSelector(
-			'[data-testid="user-menu"], [data-testid="team-switcher"]',
+			'nav a[href="/log"], nav a[href="/teams"], nav a[href="/settings"]',
 			{ timeout: 2000 },
 		)
 		return true

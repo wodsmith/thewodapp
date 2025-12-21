@@ -7,7 +7,23 @@ import { TEST_DATA } from "./fixtures/test-data"
  *
  * Tests workout viewing and creation using seeded test data.
  * The database is seeded with test workouts (Fran, Murph, Cindy) via globalSetup.
+ *
+ * NOTE: The workouts page shows BOTH team-specific workouts AND public workouts.
+ * This means we need to use precise selectors to match our E2E test workouts
+ * specifically, as there may be other public workouts with similar names.
  */
+
+/**
+ * Helper to get a workout card by exact name match.
+ * The workout name appears in a <p> tag with specific styling inside a link.
+ * Using getByRole('link') with name that starts with the workout name ensures
+ * we match the workout card link, not just any text on the page.
+ */
+function getWorkoutCardByName(page: import("@playwright/test").Page, name: string) {
+	// Match a link that contains the workout name at the start
+	// The link text includes the workout name followed by description preview
+	return page.getByRole("link", { name: new RegExp(`^${name}`) }).first()
+}
 
 test.describe("Workouts", () => {
 	test.beforeEach(async ({ page }) => {
@@ -19,24 +35,25 @@ test.describe("Workouts", () => {
 		test("should display seeded workouts in list", async ({ page }) => {
 			await page.goto("/workouts")
 
-			// Verify seeded workouts are visible
-			// These were created in seed-e2e.sql
-			await expect(page.getByText(TEST_DATA.workouts.fran.name)).toBeVisible()
-			await expect(page.getByText(TEST_DATA.workouts.murph.name)).toBeVisible()
-			await expect(page.getByText(TEST_DATA.workouts.cindy.name)).toBeVisible()
+			// Verify seeded workouts are visible using exact match selectors
+			// Use getByRole('link') to match the workout card links specifically
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible()
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.murph.name)).toBeVisible()
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.cindy.name)).toBeVisible()
 		})
 
 		test("should navigate to workout detail page", async ({ page }) => {
 			await page.goto("/workouts")
 
-			// Click on a seeded workout
-			await page.getByText(TEST_DATA.workouts.fran.name).click()
+			// Click on the Fran workout card (using precise selector)
+			await getWorkoutCardByName(page, TEST_DATA.workouts.fran.name).click()
 
 			// Should navigate to workout detail
 			await expect(page).toHaveURL(/\/workouts\//)
 
-			// Workout details should be visible
-			await expect(page.getByText(TEST_DATA.workouts.fran.name)).toBeVisible()
+			// Workout name should be visible on detail page
+			// On detail page, the name appears in a heading
+			await expect(page.getByRole("heading", { name: TEST_DATA.workouts.fran.name })).toBeVisible()
 		})
 	})
 
@@ -134,15 +151,17 @@ test.describe("Workouts", () => {
 				.first()
 
 			if (await searchInput.isVisible()) {
-				// Search for a specific workout
+				// Search for "Fran" - note this may also match "War Frank" etc.
+				// so we need to verify our specific Fran workout is still visible
 				await searchInput.fill("Fran")
 				await page.waitForTimeout(500) // Wait for debounce
 
-				// Fran should be visible
-				await expect(page.getByText(TEST_DATA.workouts.fran.name)).toBeVisible()
+				// Our E2E Fran workout should be visible
+				// Use the precise selector to avoid matching other workouts
+				await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible()
 
-				// Other workouts may be filtered out
-				// (depending on implementation, Murph might not be visible)
+				// Note: Other workouts containing "fran" (like "War Frank") may also appear
+				// This is expected behavior - search matches substring
 			}
 		})
 	})
