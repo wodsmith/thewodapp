@@ -1221,3 +1221,76 @@ export async function copyHeatsFromEvent(params: {
 	// Return the newly created heats with assignments
 	return getHeatsForWorkout(params.targetTrackWorkoutId)
 }
+
+/**
+ * Reorder heats by updating their heatNumber to match the new order
+ * The heatNumber determines the display name (Heat 1, Heat 2, etc.)
+ */
+export async function reorderHeats(params: {
+	trackWorkoutId: string
+	orderedHeatIds: string[]
+}): Promise<CompetitionHeat[]> {
+	const db = getDb()
+
+	// Validate that all heat IDs belong to this workout
+	const heats = await db
+		.select()
+		.from(competitionHeatsTable)
+		.where(eq(competitionHeatsTable.trackWorkoutId, params.trackWorkoutId))
+
+	const heatIdSet = new Set(heats.map((h) => h.id))
+	for (const heatId of params.orderedHeatIds) {
+		if (!heatIdSet.has(heatId)) {
+			throw new Error(
+				`Heat ${heatId} does not belong to workout ${params.trackWorkoutId}`,
+			)
+		}
+	}
+
+	if (params.orderedHeatIds.length !== heats.length) {
+		throw new Error(
+			`Expected ${heats.length} heat IDs, received ${params.orderedHeatIds.length}`,
+		)
+	}
+
+	// Update each heat's heatNumber to match its new position (1-indexed)
+	// Note: D1 doesn't support transactions, so we update individually
+	// The unique constraint on (trackWorkoutId, heatNumber) means we need to be careful
+	// We'll use a temporary offset to avoid conflicts, then fix them
+	const TEMP_OFFSET = 1000
+
+	// First pass: set all to temporary values to avoid unique constraint conflicts
+	await Promise.all(
+		params.orderedHeatIds.map((heatId, index) =>
+			db
+				.update(competitionHeatsTable)
+				.set({
+					heatNumber: TEMP_OFFSET + index,
+					updatedAt: new Date(),
+				})
+				.where(eq(competitionHeatsTable.id, heatId)),
+		),
+	)
+
+	// Second pass: set to final values (1-indexed)
+	await Promise.all(
+		params.orderedHeatIds.map((heatId, index) =>
+			db
+				.update(competitionHeatsTable)
+				.set({
+					heatNumber: index + 1,
+					updatedAt: new Date(),
+				})
+				.where(eq(competitionHeatsTable.id, heatId)),
+		),
+	)
+
+	// Return updated heats in the new order
+	const updatedHeats = await db
+		.select()
+		.from(competitionHeatsTable)
+		.where(eq(competitionHeatsTable.trackWorkoutId, params.trackWorkoutId))
+		.orderBy(asc(competitionHeatsTable.heatNumber))
+
+	return updatedHeats
+}
