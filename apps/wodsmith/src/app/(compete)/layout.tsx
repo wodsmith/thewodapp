@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import type React from "react"
-import CompeteNav from "@/components/nav/compete-nav"
 import { SITE_URL } from "@/constants"
 
 export const metadata: Metadata = {
@@ -24,19 +23,8 @@ export default function CompeteLayout({
 }: {
 	children: React.ReactNode
 }) {
-	return (
-		<div className="flex min-h-screen flex-col">
-			<CompeteNav />
-
-			<main className="container mx-auto flex-1 pt-4 sm:p-4">{children}</main>
-
-			<footer className="border-black border-t-2 p-4">
-				<div className="container mx-auto">
-					<p className="text-center">
-						&copy; {new Date().getFullYear()} WODsmith. All rights reserved.
-					</p>
-				</div>
-			</footer>
-		</div>
-	)
+	// Note: CompeteNav and footer are added by child layouts
+	// This allows organizer routes to use full-width sidebar layout
+	// while public routes use container-constrained layout
+	return <>{children}</>
 }

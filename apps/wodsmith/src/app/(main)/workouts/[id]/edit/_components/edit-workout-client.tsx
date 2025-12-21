@@ -4,8 +4,10 @@ import { useServerAction } from "@repo/zsa-react"
 import { ArrowLeft, Plus, Shuffle, X } from "lucide-react"
 import Link from "next/link"
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
+import { getDefaultScoreType } from "@/lib/scoring"
+import type { WorkoutScheme, ScoreType } from "@/lib/scoring"
 import { MovementsList } from "@/components/movements-list"
 import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
 import { Badge } from "@/components/ui/badge"
@@ -69,8 +71,8 @@ export default function EditWorkoutClient({
 	const [name, setName] = useState(workout?.name || "")
 	const [description, setDescription] = useState(workout?.description || "")
 	const [scheme, setScheme] = useState<WorkoutUpdate["scheme"]>(workout?.scheme)
-	const [scoreType, setScoreType] = useState<WorkoutUpdate["scoreType"]>(
-		workout?.scoreType,
+	const [scoreType, setScoreType] = useState<ScoreType | undefined>(
+		workout?.scoreType ?? undefined,
 	)
 	const [scope, setScope] = useState(workout?.scope || "private")
 	const [tags, setTags] = useState<TagWithoutSaved[]>(initialTags)
@@ -100,6 +102,11 @@ export default function EditWorkoutClient({
 			position: number
 		}>
 	>([])
+	const [formError, setFormError] = useState<string | null>(null)
+
+	// Track if scheme was changed by user (not initial load)
+	const initialSchemeRef = useRef(workout?.scheme)
+	const hasSchemeChangedRef = useRef(false)
 
 	const { execute: fetchScalingLevels } = useServerAction(
 		getScalingGroupWithLevelsAction,
@@ -111,32 +118,15 @@ export default function EditWorkoutClient({
 	)
 
 	// Watch for scheme changes and set default score type
+	// Only update scoreType when user explicitly changes scheme, not on initial load
 	useEffect(() => {
 		if (scheme) {
-			// Get default score type based on scheme
-			const getDefaultScoreType = (
-				schemeValue: string,
-			): "min" | "max" | "sum" | "average" | undefined => {
-				switch (schemeValue) {
-					case "time":
-					case "time-with-cap":
-						return "min" // Lower time is better
-					case "rounds-reps":
-					case "reps":
-					case "calories":
-					case "meters":
-					case "load":
-					case "emom":
-					case "pass-fail":
-						return "max" // Higher is better
-					default:
-						return undefined
-				}
+			// Check if this is a user-initiated change (not initial load)
+			if (scheme !== initialSchemeRef.current || hasSchemeChangedRef.current) {
+				hasSchemeChangedRef.current = true
+				const defaultScoreType = getDefaultScoreType(scheme as WorkoutScheme)
+				setScoreType(defaultScoreType)
 			}
-
-			const defaultScoreType = getDefaultScoreType(scheme)
-			// Always set to scheme default when scheme changes
-			setScoreType(defaultScoreType)
 		}
 	}, [scheme])
 
@@ -203,25 +193,41 @@ export default function EditWorkoutClient({
 
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
-		await updateWorkoutAction({
-			id: workoutId,
-			remixTeamId: isRemixMode ? selectedTeamId : undefined,
-			workout: {
-				name,
-				description,
-				scheme,
-				scoreType: scoreType ?? null,
-				scope,
-				repsPerRound: repsPerRound === undefined ? null : repsPerRound,
-				roundsToScore: roundsToScore,
-				scalingGroupId:
-					selectedScalingGroupId && selectedScalingGroupId !== "none"
-						? selectedScalingGroupId
-						: null,
-			},
-			tagIds: selectedTags,
-			movementIds: selectedMovements,
-		})
+		setFormError(null)
+
+		// Client-side validation
+		if (scheme && !scoreType) {
+			setFormError("Score Type is required when a scheme is selected")
+			return
+		}
+
+		try {
+			await updateWorkoutAction({
+				id: workoutId,
+				remixTeamId: isRemixMode ? selectedTeamId : undefined,
+				workout: {
+					name,
+					description,
+					scheme,
+					scoreType: scoreType ?? null,
+					scope,
+					repsPerRound: repsPerRound === undefined ? null : repsPerRound,
+					roundsToScore: roundsToScore,
+					scalingGroupId:
+						selectedScalingGroupId && selectedScalingGroupId !== "none"
+							? selectedScalingGroupId
+							: null,
+				},
+				tagIds: selectedTags,
+				movementIds: selectedMovements,
+			})
+		} catch (error) {
+			if (error instanceof Error) {
+				setFormError(error.message)
+			} else {
+				setFormError("An unexpected error occurred. Please try again.")
+			}
+		}
 	}
 
 	return (
@@ -360,7 +366,7 @@ export default function EditWorkoutClient({
 								<Select
 									value={scoreType ?? ""}
 									onValueChange={(value) =>
-										setScoreType(value as WorkoutUpdate["scoreType"])
+										setScoreType(value as ScoreType)
 									}
 								>
 									<SelectTrigger id="workout-score-type">
@@ -378,6 +384,12 @@ export default function EditWorkoutClient({
 										</SelectItem>
 										<SelectItem value="average">
 											Average (mean across rounds)
+										</SelectItem>
+										<SelectItem value="first">
+											First (first attempt only)
+										</SelectItem>
+										<SelectItem value="last">
+											Last (final attempt only)
 										</SelectItem>
 									</SelectContent>
 								</Select>
@@ -558,6 +570,12 @@ export default function EditWorkoutClient({
 							scalingGroupId={selectedScalingGroupId}
 							teamId={userTeams.length > 0 ? userTeams[0]?.id : undefined}
 						/>
+					</div>
+				)}
+
+				{formError && (
+					<div className="mt-6 border-2 border-red-500 bg-red-50 p-4 text-red-700 dark:bg-red-950 dark:text-red-300">
+						{formError}
 					</div>
 				)}
 

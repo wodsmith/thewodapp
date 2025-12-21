@@ -23,6 +23,7 @@ import {
 	type CoverageStats,
 	calculateCoverage,
 	expandRotationToAssignments,
+	filterRotationsByAvailability,
 } from "@/lib/judge-rotation-utils"
 import type { JudgeVolunteerInfo } from "@/server/judge-scheduling"
 import {
@@ -155,10 +156,6 @@ export function RotationTimeline({
 
 	// Filter rotations by volunteer availability
 	const filteredRotationsByVolunteer = useMemo(() => {
-		if (availabilityFilter === "all") {
-			return rotationsByVolunteer
-		}
-
 		// Get judge availability from availableJudges
 		const judgeAvailabilityMap = new Map<
 			string,
@@ -168,27 +165,11 @@ export function RotationTimeline({
 			judgeAvailabilityMap.set(judge.membershipId, judge.availability)
 		}
 
-		// Filter based on selected availability
-		const filtered = new Map<string, CompetitionJudgeRotation[]>()
-		for (const [membershipId, rotations] of rotationsByVolunteer.entries()) {
-			const judgeAvailability = judgeAvailabilityMap.get(membershipId)
-
-			// Filter logic:
-			// - 'morning': show volunteers with availability === 'morning' OR availability === 'all_day'
-			// - 'afternoon': show volunteers with availability === 'afternoon' OR availability === 'all_day'
-			// - 'all_day': show only volunteers with availability === 'all_day'
-			const shouldInclude =
-				availabilityFilter === VOLUNTEER_AVAILABILITY.ALL_DAY
-					? judgeAvailability === VOLUNTEER_AVAILABILITY.ALL_DAY
-					: judgeAvailability === availabilityFilter ||
-						judgeAvailability === VOLUNTEER_AVAILABILITY.ALL_DAY
-
-			if (shouldInclude) {
-				filtered.set(membershipId, rotations)
-			}
-		}
-
-		return filtered
+		return filterRotationsByAvailability(
+			rotationsByVolunteer,
+			availabilityFilter,
+			judgeAvailabilityMap,
+		)
 	}, [rotationsByVolunteer, availabilityFilter, availableJudges])
 
 	// Build coverage grid with rotation IDs for highlighting and buffer zones

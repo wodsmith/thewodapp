@@ -11,7 +11,13 @@ function getAppUrl() {
 	return env.NEXT_PUBLIC_APP_URL
 }
 
-const STRIPE_CLIENT_ID = process.env.STRIPE_CLIENT_ID
+/**
+ * Get STRIPE_CLIENT_ID lazily to support test environment setup.
+ * Reading at module load time prevents tests from setting the env var.
+ */
+function getStripeClientId(): string | undefined {
+	return process.env.STRIPE_CLIENT_ID
+}
 
 /**
  * Create an Express connected account for a team
@@ -136,7 +142,8 @@ export function getOAuthAuthorizeUrl(
 	userId: string,
 	csrfToken: string,
 ): string {
-	if (!STRIPE_CLIENT_ID) {
+	const clientId = getStripeClientId()
+	if (!clientId) {
 		throw new Error("STRIPE_CLIENT_ID environment variable not configured")
 	}
 
@@ -146,7 +153,7 @@ export function getOAuthAuthorizeUrl(
 	const redirectUri = `${appUrl}/api/stripe/connect/callback`
 
 	const params = new URLSearchParams({
-		client_id: STRIPE_CLIENT_ID,
+		client_id: clientId,
 		state,
 		scope: "read_write",
 		response_type: "code",

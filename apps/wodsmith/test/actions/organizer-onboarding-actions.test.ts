@@ -15,6 +15,7 @@ import {
 } from "@/server/organizer-onboarding"
 import type { SessionWithMeta } from "@/types"
 import { TEAM_PERMISSIONS } from "@/db/schema"
+import { createTestSession } from "@repo/test-utils/factories"
 
 // Mock dependencies
 vi.mock("@/utils/auth", () => ({
@@ -50,43 +51,16 @@ vi.mock("next/cache", () => ({
 	revalidatePath: vi.fn(),
 }))
 
-const mockSession: SessionWithMeta = {
-	id: "session-123",
+const mockSession: SessionWithMeta = createTestSession({
 	userId: "user-123",
-	expiresAt: Date.now() + 86400000,
-	createdAt: Date.now(),
-	isCurrentSession: true,
-	user: {
-		id: "user-123",
-		email: "test@example.com",
-		firstName: "Test",
-		lastName: "User",
-		emailVerified: new Date(),
-		role: "user",
-		avatar: null,
-		createdAt: new Date(),
-		updatedAt: new Date(),
-		currentCredits: 100,
-		lastCreditRefreshAt: null,
-	},
-	teams: [
-		{
-			id: "team-123",
-			name: "Test Team",
-			slug: "test-team",
-			isPersonalTeam: false,
-			role: {
-				id: "owner",
-				name: "Owner",
-				isSystemRole: true,
-			},
-			permissions: [
-				TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
-				TEAM_PERMISSIONS.ACCESS_DASHBOARD,
-			],
-		},
+	teamId: "team-123",
+	teamSlug: "test-team",
+	teamRole: "owner",
+	permissions: [
+		TEAM_PERMISSIONS.EDIT_TEAM_SETTINGS,
+		TEAM_PERMISSIONS.ACCESS_DASHBOARD,
 	],
-}
+})
 
 beforeEach(async () => {
 	vi.clearAllMocks()

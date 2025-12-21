@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest"
 import {
 	calculateCoverage,
 	expandRotationToAssignments,
+	filterRotationsByAvailability,
 	type HeatInfo,
+	type AvailabilityFilter,
 } from "@/lib/judge-rotation-utils"
 import type { CompetitionJudgeRotation } from "@/db/schema"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import type { VolunteerAvailability } from "@/db/schemas/volunteers"
 
 // Factory to create test rotations
 function createRotation(
@@ -495,5 +499,236 @@ describe("expandRotationToAssignments with varying lane counts", () => {
 		// Only heats 1 and 3 should have assignments
 		expect(assignments).toHaveLength(2)
 		expect(assignments.map((a) => a.heatNumber)).toEqual([1, 3])
+	})
+})
+
+// ============================================================================
+// Availability Filter Tests
+// ============================================================================
+
+/**
+ * Test suite for volunteer availability filter logic used in rotation timeline.
+ *
+ * Filter rules:
+ * - 'all': shows all volunteers
+ * - 'morning': shows volunteers with availability === 'morning' OR 'all_day'
+ * - 'afternoon': shows volunteers with availability === 'afternoon' OR 'all_day'
+ * - 'all_day': shows ONLY volunteers with availability === 'all_day'
+ */
+
+describe("filterRotationsByAvailability", () => {
+	// Sample data: 4 volunteers with different availabilities
+	const rotations: CompetitionJudgeRotation[] = [
+		createRotation({ id: "rot-1", membershipId: "judge-morning" }),
+		createRotation({ id: "rot-2", membershipId: "judge-afternoon" }),
+		createRotation({ id: "rot-3", membershipId: "judge-all-day" }),
+		createRotation({ id: "rot-4", membershipId: "judge-no-availability" }),
+	]
+
+	const rotationsByVolunteer = new Map<string, CompetitionJudgeRotation[]>([
+		["judge-morning", [rotations[0]!]],
+		["judge-afternoon", [rotations[1]!]],
+		["judge-all-day", [rotations[2]!]],
+		["judge-no-availability", [rotations[3]!]],
+	])
+
+	const judgeAvailabilityMap = new Map<
+		string,
+		VolunteerAvailability | undefined
+	>([
+		["judge-morning", VOLUNTEER_AVAILABILITY.MORNING],
+		["judge-afternoon", VOLUNTEER_AVAILABILITY.AFTERNOON],
+		["judge-all-day", VOLUNTEER_AVAILABILITY.ALL_DAY],
+		["judge-no-availability", undefined],
+	])
+
+	describe("'all' filter", () => {
+		it("returns all volunteers regardless of availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				"all",
+				judgeAvailabilityMap,
+			)
+
+			expect(result.size).toBe(4)
+			expect(result.has("judge-morning")).toBe(true)
+			expect(result.has("judge-afternoon")).toBe(true)
+			expect(result.has("judge-all-day")).toBe(true)
+			expect(result.has("judge-no-availability")).toBe(true)
+		})
+	})
+
+	describe("'morning' filter", () => {
+		it("includes volunteers with morning availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.MORNING,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-morning")).toBe(true)
+		})
+
+		it("includes volunteers with all_day availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.MORNING,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-all-day")).toBe(true)
+		})
+
+		it("excludes volunteers with afternoon availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.MORNING,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-afternoon")).toBe(false)
+		})
+
+		it("excludes volunteers with undefined availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.MORNING,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-no-availability")).toBe(false)
+			expect(result.size).toBe(2) // only morning + all_day
+		})
+	})
+
+	describe("'afternoon' filter", () => {
+		it("includes volunteers with afternoon availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.AFTERNOON,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-afternoon")).toBe(true)
+		})
+
+		it("includes volunteers with all_day availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.AFTERNOON,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-all-day")).toBe(true)
+		})
+
+		it("excludes volunteers with morning availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.AFTERNOON,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-morning")).toBe(false)
+		})
+
+		it("excludes volunteers with undefined availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.AFTERNOON,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-no-availability")).toBe(false)
+			expect(result.size).toBe(2) // only afternoon + all_day
+		})
+	})
+
+	describe("'all_day' filter", () => {
+		it("includes ONLY volunteers with all_day availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.ALL_DAY,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.size).toBe(1)
+			expect(result.has("judge-all-day")).toBe(true)
+		})
+
+		it("excludes volunteers with morning availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.ALL_DAY,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-morning")).toBe(false)
+		})
+
+		it("excludes volunteers with afternoon availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.ALL_DAY,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-afternoon")).toBe(false)
+		})
+
+		it("excludes volunteers with undefined availability", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.ALL_DAY,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.has("judge-no-availability")).toBe(false)
+		})
+	})
+
+	describe("edge cases", () => {
+		it("handles empty rotationsByVolunteer map", () => {
+			const result = filterRotationsByAvailability(
+				new Map(),
+				VOLUNTEER_AVAILABILITY.MORNING,
+				judgeAvailabilityMap,
+			)
+
+			expect(result.size).toBe(0)
+		})
+
+		it("handles empty availability map", () => {
+			const result = filterRotationsByAvailability(
+				rotationsByVolunteer,
+				VOLUNTEER_AVAILABILITY.MORNING,
+				new Map(),
+			)
+
+			// With no availability data, all volunteers treated as undefined
+			expect(result.size).toBe(0)
+		})
+
+		it("preserves rotation arrays for matched volunteers", () => {
+			// Create a volunteer with multiple rotations
+			const multiRotations = [
+				createRotation({ id: "rot-a", membershipId: "judge-multi" }),
+				createRotation({ id: "rot-b", membershipId: "judge-multi" }),
+			]
+
+			const multiMap = new Map([["judge-multi", multiRotations]])
+			const multiAvail = new Map<string, VolunteerAvailability | undefined>([
+				["judge-multi", VOLUNTEER_AVAILABILITY.MORNING],
+			])
+
+			const result = filterRotationsByAvailability(
+				multiMap,
+				VOLUNTEER_AVAILABILITY.MORNING,
+				multiAvail,
+			)
+
+			expect(result.get("judge-multi")).toEqual(multiRotations)
+			expect(result.get("judge-multi")?.length).toBe(2)
+		})
 	})
 })

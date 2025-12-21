@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
+	calculateInviteStatus,
 	filterVolunteersByAvailability,
 	getVolunteerAvailability,
 	getVolunteerRoleTypes,
 	hasRoleType,
+	isDirectInvite,
 	isVolunteer,
 	isVolunteerAvailableFor,
 } from "@/server/volunteers"
@@ -14,6 +16,7 @@ import type {
 } from "@/db/schemas/volunteers"
 import {
 	VOLUNTEER_AVAILABILITY,
+	VOLUNTEER_INVITE_SOURCE,
 	VOLUNTEER_ROLE_TYPES,
 } from "@/db/schemas/volunteers"
 
@@ -604,5 +607,311 @@ describe("filterVolunteersByAvailability", () => {
 			"afternoon",
 		)
 		expect(afternoonResult).toHaveLength(2)
+	})
+})
+
+// ============================================================================
+// DIRECT INVITE DETECTION
+// ============================================================================
+
+describe("isDirectInvite", () => {
+	describe("with inviteSource in metadata", () => {
+		it("returns true when inviteSource is 'direct'", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.DIRECT,
+			}
+
+			expect(isDirectInvite(metadata, null)).toBe(true)
+		})
+
+		it("returns false when inviteSource is 'application'", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.APPLICATION,
+			}
+
+			expect(isDirectInvite(metadata, null)).toBe(false)
+		})
+
+		it("returns false when inviteSource is not set", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [],
+			}
+
+			expect(isDirectInvite(metadata, null)).toBe(false)
+		})
+	})
+
+	describe("with invitedBy (legacy detection)", () => {
+		it("returns true when invitedBy is set, regardless of metadata", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.APPLICATION, // Even if metadata says application
+			}
+
+			// invitedBy takes precedence - if someone invited them, it's a direct invite
+			expect(isDirectInvite(metadata, "admin-user-id")).toBe(true)
+		})
+
+		it("returns true when invitedBy is set and metadata is null", () => {
+			expect(isDirectInvite(null, "admin-user-id")).toBe(true)
+		})
+
+		it("returns false when invitedBy is null and metadata is null", () => {
+			expect(isDirectInvite(null, null)).toBe(false)
+		})
+	})
+
+	describe("combined logic", () => {
+		it("returns true for direct invite with invitedBy", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.DIRECT,
+			}
+
+			expect(isDirectInvite(metadata, "admin-id")).toBe(true)
+		})
+
+		it("returns false for application without invitedBy", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.GENERAL],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.APPLICATION,
+				status: "pending",
+				signupEmail: "volunteer@example.com",
+				signupName: "Test Volunteer",
+			}
+
+			expect(isDirectInvite(metadata, null)).toBe(false)
+		})
+
+		it("returns true for legacy invite (no inviteSource but has invitedBy)", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+				// No inviteSource - legacy invite before inviteSource was added
+			}
+
+			expect(isDirectInvite(metadata, "admin-user-123")).toBe(true)
+		})
+	})
+})
+
+// ============================================================================
+// INVITE STATUS CALCULATION
+// ============================================================================
+
+describe("calculateInviteStatus", () => {
+	describe("accepted status", () => {
+		it("returns 'accepted' when acceptedAt is set", () => {
+			const acceptedAt = new Date("2024-01-15")
+			const expiresAt = null
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt)).toBe("accepted")
+		})
+
+		it("returns 'accepted' when acceptedAt is set even if expired", () => {
+			// Edge case: accepted before expiry but we're checking after expiry
+			// Acceptance takes precedence
+			const acceptedAt = new Date("2024-01-15")
+			const expiresAt = new Date("2024-01-10") // Expires before acceptance
+			const now = new Date("2024-01-20")
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("accepted")
+		})
+
+		it("returns 'accepted' when accepted recently", () => {
+			const now = new Date("2024-06-15T12:00:00Z")
+			const acceptedAt = new Date("2024-06-15T11:00:00Z") // 1 hour ago
+			const expiresAt = new Date("2024-07-01") // Future expiry
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("accepted")
+		})
+	})
+
+	describe("expired status", () => {
+		it("returns 'expired' when expiresAt is in the past", () => {
+			const acceptedAt = null
+			const expiresAt = new Date("2024-01-01")
+			const now = new Date("2024-06-15")
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("expired")
+		})
+
+		it("returns 'expired' when expiresAt is exactly now", () => {
+			const now = new Date("2024-06-15T12:00:00Z")
+			const acceptedAt = null
+			const expiresAt = new Date("2024-06-15T11:59:59Z") // 1 second before now
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("expired")
+		})
+
+		it("returns 'pending' when expiresAt is in the future", () => {
+			const now = new Date("2024-06-15")
+			const acceptedAt = null
+			const expiresAt = new Date("2024-07-01")
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("pending")
+		})
+	})
+
+	describe("pending status", () => {
+		it("returns 'pending' when not accepted and not expired", () => {
+			const now = new Date("2024-06-15")
+			const acceptedAt = null
+			const expiresAt = new Date("2024-12-31")
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("pending")
+		})
+
+		it("returns 'pending' when not accepted and no expiry", () => {
+			const acceptedAt = null
+			const expiresAt = null
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt)).toBe("pending")
+		})
+
+		it("returns 'pending' for fresh invite with future expiry", () => {
+			const now = new Date("2024-06-15T10:00:00Z")
+			const acceptedAt = null
+			const expiresAt = new Date("2024-06-22T10:00:00Z") // 7 days from now
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt, now)).toBe("pending")
+		})
+	})
+
+	describe("edge cases", () => {
+		it("handles null for both acceptedAt and expiresAt", () => {
+			expect(calculateInviteStatus(null, null)).toBe("pending")
+		})
+
+		it("uses current date when now is not provided", () => {
+			const acceptedAt = null
+			// Set expiry far in future - should be pending
+			const expiresAt = new Date("2099-12-31")
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt)).toBe("pending")
+		})
+
+		it("uses current date when now is not provided and invite is expired", () => {
+			const acceptedAt = null
+			// Set expiry in past - should be expired
+			const expiresAt = new Date("2020-01-01")
+
+			expect(calculateInviteStatus(acceptedAt, expiresAt)).toBe("expired")
+		})
+	})
+})
+
+// ============================================================================
+// INVITE SOURCE METADATA INTEGRATION
+// ============================================================================
+
+describe("volunteer invite metadata integration", () => {
+	describe("direct invite metadata structure", () => {
+		it("correctly identifies direct invite with full metadata", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE, VOLUNTEER_ROLE_TYPES.HEAD_JUDGE],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.DIRECT,
+				availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+				credentials: "L1 Judge Certified",
+			}
+
+			expect(isDirectInvite(metadata, "admin-123")).toBe(true)
+			expect(metadata.inviteSource).toBe("direct")
+		})
+
+		it("correctly identifies application with full metadata", () => {
+			const metadata: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.GENERAL],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.APPLICATION,
+				status: "pending",
+				signupEmail: "applicant@example.com",
+				signupName: "Jane Applicant",
+				signupPhone: "555-1234",
+				availability: VOLUNTEER_AVAILABILITY.MORNING,
+				availabilityNotes: "Available Saturday morning only",
+			}
+
+			expect(isDirectInvite(metadata, null)).toBe(false)
+			expect(metadata.inviteSource).toBe("application")
+			expect(metadata.status).toBe("pending")
+		})
+	})
+
+	describe("status workflow", () => {
+		it("pending application workflow", () => {
+			// Step 1: User applies via public form
+			const pendingApplication: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.APPLICATION,
+				status: "pending",
+				signupEmail: "volunteer@example.com",
+				signupName: "New Volunteer",
+			}
+
+			expect(isDirectInvite(pendingApplication, null)).toBe(false)
+			expect(pendingApplication.status).toBe("pending")
+
+			// Step 2: Admin approves (status changes to approved, invitedBy is set)
+			const approvedApplication: VolunteerMembershipMetadata = {
+				...pendingApplication,
+				status: "approved",
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+			}
+
+			// Still an application (inviteSource doesn't change)
+			expect(isDirectInvite(approvedApplication, null)).toBe(false)
+			expect(approvedApplication.status).toBe("approved")
+		})
+
+		it("direct invite workflow", () => {
+			// Step 1: Admin creates direct invite
+			const directInvite: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+				inviteSource: VOLUNTEER_INVITE_SOURCE.DIRECT,
+			}
+
+			expect(isDirectInvite(directInvite, "admin-user-id")).toBe(true)
+
+			// Step 2: User accepts and fills in availability
+			const acceptedDirectInvite: VolunteerMembershipMetadata = {
+				...directInvite,
+				availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+				credentials: "CrossFit L1",
+				availabilityNotes: "Available both days",
+			}
+
+			expect(isDirectInvite(acceptedDirectInvite, "admin-user-id")).toBe(true)
+		})
+	})
+
+	describe("legacy data compatibility", () => {
+		it("handles legacy invite without inviteSource field", () => {
+			// Old invites created before inviteSource was added
+			const legacyDirectInvite: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+				credentials: "Experienced Judge",
+				// No inviteSource field
+			}
+
+			// Without invitedBy, defaults to not direct
+			expect(isDirectInvite(legacyDirectInvite, null)).toBe(false)
+
+			// With invitedBy (legacy indicator), should be direct
+			expect(isDirectInvite(legacyDirectInvite, "old-admin-id")).toBe(true)
+		})
+
+		it("handles legacy application without inviteSource field", () => {
+			const legacyApplication: VolunteerMembershipMetadata = {
+				volunteerRoleTypes: [],
+				status: "pending",
+				signupEmail: "old-applicant@example.com",
+				signupName: "Old Applicant",
+				// No inviteSource field
+			}
+
+			// Applications never had invitedBy set
+			expect(isDirectInvite(legacyApplication, null)).toBe(false)
+		})
 	})
 })

@@ -53,8 +53,7 @@ export default async function CompetitionSidebarLayout({
 	)
 
 	return (
-		<div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] overflow-x-hidden">
-			<CompetitionSidebar competitionId={competition.id}>
+		<CompetitionSidebar competitionId={competition.id}>
 				{isOrganizerPending && (
 					<PendingOrganizerBanner variant="sidebar-inset" />
 				)}
@@ -82,6 +81,5 @@ export default async function CompetitionSidebarLayout({
 					{children}
 				</div>
 			</CompetitionSidebar>
-		</div>
 	)
 }

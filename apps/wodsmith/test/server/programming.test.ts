@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getPublicProgrammingTracks, getTeamProgrammingTracks, isTeamSubscribedToProgrammingTrack, isWorkoutInTeamSubscribedTrack } from "@/server/programming";
 
-// Mock console.info to avoid log output during tests
-const mockConsoleInfo = vi.spyOn(console, 'info').mockImplementation(() => {});
-
 describe("Programming Server Functions", () => {
+  let mockConsoleInfo: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Set up console.info spy before each test
+    mockConsoleInfo = vi.spyOn(console, 'info').mockImplementation(() => {});
   });
 
   describe("getPublicProgrammingTracks", () => {

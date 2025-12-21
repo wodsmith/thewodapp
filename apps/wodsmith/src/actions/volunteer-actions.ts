@@ -837,16 +837,12 @@ export const updateVolunteerProfileAction = createServerAction()
 				? (JSON.parse(membership.metadata) as Record<string, unknown>)
 				: {}
 
-			// Merge with new data (only update provided fields)
+			// Merge with new data - always update all fields (undefined = clear the field)
 			const updatedMetadata = {
 				...currentMetadata,
-				...(input.availability && { availability: input.availability }),
-				...(input.credentials !== undefined && {
-					credentials: input.credentials,
-				}),
-				...(input.availabilityNotes !== undefined && {
-					availabilityNotes: input.availabilityNotes,
-				}),
+				availability: input.availability || currentMetadata.availability,
+				credentials: input.credentials || undefined,
+				availabilityNotes: input.availabilityNotes || undefined,
 			}
 
 			// Update membership
