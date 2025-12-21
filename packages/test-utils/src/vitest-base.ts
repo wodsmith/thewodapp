@@ -26,7 +26,7 @@ export const baseConfig = defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html"],
       enabled: false,
-      exclude: ["**/node_modules/**", "**/test/**", "**/*.test.{ts,tsx}"]
+      exclude: ["**/node_modules/**", "**/test/**", "**/*.{test,spec}.{ts,tsx}"]
     },
     include: ["**/*.{test,spec}.{ts,tsx}"]
   }

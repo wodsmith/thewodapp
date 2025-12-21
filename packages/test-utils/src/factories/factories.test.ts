@@ -161,13 +161,16 @@ describe("FakeSessionStore", () => {
 	})
 
 	it("should reset all sessions", async () => {
-		await store.set(createTestSession())
-		await store.set(createTestSession())
+		const session1 = createTestSession()
+		const session2 = createTestSession()
+		await store.set(session1)
+		await store.set(session2)
 
 		store.reset()
 
-		// Can't directly check count, but new sessions won't exist
-		const result = await store.get("any-id")
-		expect(result).toBeNull()
+		const result1 = await store.get(session1.id)
+		const result2 = await store.get(session2.id)
+		expect(result1).toBeNull()
+		expect(result2).toBeNull()
 	})
 })

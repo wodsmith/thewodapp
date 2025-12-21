@@ -73,7 +73,7 @@ describe("FakeKV", () => {
     })
 
     it("should not throw for non-existent key", async () => {
-      await expect(kv.delete("non-existent")).resolves.not.toThrow()
+      await expect(kv.delete("non-existent")).resolves.toBeUndefined()
     })
   })
 

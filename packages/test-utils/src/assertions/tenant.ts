@@ -35,6 +35,8 @@ export async function assertTenantIsolation<T extends { teamId: string }>(
 
 /**
  * Assert that a record is not accessible to a different team.
+ * Verifies both that the owner CAN access the record and that
+ * the attacker CANNOT access it.
  * 
  * @example
  * ```ts
@@ -50,8 +52,17 @@ export async function assertRecordIsolation<T>(
   ownerTeamId: string,
   attackerTeamId: string
 ): Promise<void> {
-  const attackerResult = await getRecord(attackerTeamId)
+  // First verify the owner CAN access the record (prevents false positives)
+  const ownerResult = await getRecord(ownerTeamId)
+  if (ownerResult === null) {
+    throw new Error(
+      `Record isolation test invalid: Owner team ${ownerTeamId} ` +
+      `cannot access the record. Ensure the record exists before testing isolation.`
+    )
+  }
 
+  // Then verify the attacker CANNOT access it
+  const attackerResult = await getRecord(attackerTeamId)
   if (attackerResult !== null) {
     throw new Error(
       `Record isolation violation: Record owned by ${ownerTeamId} ` +

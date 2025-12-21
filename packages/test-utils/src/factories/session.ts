@@ -103,12 +103,25 @@ export interface SessionFactoryOptions {
 export function createTestSession(
 	overrides?: Partial<SessionWithMeta> & SessionFactoryOptions,
 ): SessionWithMeta {
-	const userId = overrides?.userId ?? createId()
-	const teamId = overrides?.teamId ?? createId()
-	const teamSlug = overrides?.teamSlug ?? `test-team-${teamId.slice(0, 8)}`
+	// Destructure factory-specific options to prevent them from leaking into the session
+	const {
+		userId: userIdOverride,
+		teamId: teamIdOverride,
+		teamSlug: teamSlugOverride,
+		role: roleOverride,
+		teamRole: teamRoleOverride,
+		permissions: permissionsOverride,
+		expiresInMs,
+		isPersonalTeam,
+		...sessionOverrides
+	} = overrides ?? {}
+
+	const userId = userIdOverride ?? createId()
+	const teamId = teamIdOverride ?? createId()
+	const teamSlug = teamSlugOverride ?? `test-team-${teamId.slice(0, 8)}`
 	const now = new Date()
 	const createdAt = Date.now()
-	const expiresAt = createdAt + (overrides?.expiresInMs ?? 86400000) // 24h default
+	const expiresAt = createdAt + (expiresInMs ?? 86400000) // 24h default
 
 	const defaultPermissions = [
 		"access_dashboard",
@@ -127,32 +140,32 @@ export function createTestSession(
 			email: `test-${userId.slice(0, 4)}@example.com`,
 			firstName: "Test",
 			lastName: `User ${userId.slice(0, 4)}`,
-			role: overrides?.role ?? "user",
+			role: roleOverride ?? "user",
 			emailVerified: now,
 			avatar: null,
 			createdAt: now,
 			updatedAt: now,
 			currentCredits: 100,
 			lastCreditRefreshAt: null,
-			...overrides?.user,
+			...sessionOverrides?.user,
 		},
-		teams: overrides?.teams ?? [
+		teams: sessionOverrides?.teams ?? [
 			{
 				id: teamId,
 				name: `Test Team ${teamId.slice(0, 4)}`,
 				slug: teamSlug,
 				type: "gym",
-				isPersonalTeam: overrides?.isPersonalTeam ?? false,
+				isPersonalTeam: isPersonalTeam ?? false,
 				role: {
-					id: overrides?.teamRole ?? "member",
-					name: overrides?.teamRole === "owner" ? "Owner" : "Member",
+					id: teamRoleOverride ?? "member",
+					name: teamRoleOverride === "owner" ? "Owner" : "Member",
 					isSystemRole: true,
 				},
-				permissions: overrides?.permissions ?? defaultPermissions,
+				permissions: permissionsOverride ?? defaultPermissions,
 			},
 		],
 		version: 5,
-		...overrides,
+		...sessionOverrides,
 	}
 }
 
