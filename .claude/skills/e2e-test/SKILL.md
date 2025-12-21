@@ -35,7 +35,7 @@ export class LoginPage {
   readonly submitButton = () => this.page.locator('button[type="submit"]');
 
   async goto() { await this.page.goto('/sign-in'); }
-  async login(email: string, password: string) {
+  async login(email: string) {
     await this.emailInput().fill(email);
     await this.submitButton().click();
   }

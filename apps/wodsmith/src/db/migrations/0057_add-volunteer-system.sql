@@ -16,6 +16,4 @@ CREATE INDEX IF NOT EXISTS `competition_heat_volunteers_heat_idx` ON `competitio
 CREATE INDEX IF NOT EXISTS `competition_heat_volunteers_membership_idx` ON `competition_heat_volunteers` (`membershipId`);--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS `competition_heat_volunteers_unique_idx` ON `competition_heat_volunteers` (`heatId`,`membershipId`);--> statement-breakpoint
 ALTER TABLE `team_membership` ADD `metadata` text(5000);--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);--> statement-breakpoint
-ALTER TABLE `scores` DROP COLUMN `secondary_scheme`;--> statement-breakpoint
-ALTER TABLE `workouts` DROP COLUMN `secondary_scheme`;
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_scores_competition_user_unique` ON `scores` (`competition_event_id`,`user_id`);

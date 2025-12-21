@@ -223,7 +223,7 @@ describe("Workout Subscription Flow", () => {
     session = createTestSession({ permissions: ["subscribe_to_workouts"] })
     
     // Seed test data
-    db.insert("workouts", createWorkout({ name: "CrossFit Open 24.1" }))
+    const workout = db.insert("workouts", createWorkout({ name: "CrossFit Open 24.1" }))
   })
   
   it("allows user to subscribe to a workout", async () => {
