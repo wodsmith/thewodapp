@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ZSAError } from "@repo/zsa"
+import { createTestSession, createTeamMembership } from "@repo/test-utils"
 import type { SessionWithMeta } from "@/types"
 
 // Mock dependencies before importing the action
@@ -21,13 +22,9 @@ import { getDb } from "@/db"
 import { getSessionFromCookie } from "@/utils/auth"
 import { revalidatePath } from "next/cache"
 
-// Mock session for volunteer user
-const mockVolunteerSession: SessionWithMeta = {
-	id: "session-volunteer-123",
+// Create test sessions using factory
+const mockVolunteerSession = createTestSession({
 	userId: "volunteer-user-123",
-	expiresAt: Date.now() + 86400000,
-	createdAt: Date.now(),
-	isCurrentSession: true,
 	user: {
 		id: "volunteer-user-123",
 		email: "volunteer@example.com",
@@ -42,56 +39,64 @@ const mockVolunteerSession: SessionWithMeta = {
 		lastCreditRefreshAt: null,
 	},
 	teams: [],
-}
+})
 
-// Mock session for different user (to test forbidden scenario)
-const mockOtherUserSession: SessionWithMeta = {
-	...mockVolunteerSession,
-	id: "session-other-123",
+const mockOtherUserSession = createTestSession({
 	userId: "other-user-123",
 	user: {
-		...mockVolunteerSession.user,
 		id: "other-user-123",
 		email: "other@example.com",
+		firstName: "Other",
+		lastName: "User",
+		emailVerified: new Date(),
+		role: "user",
+		avatar: null,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+		currentCredits: 0,
+		lastCreditRefreshAt: null,
 	},
-}
+	teams: [],
+})
 
-const mockMembership = {
+const mockMembership = createTeamMembership({
 	id: "tmem_volunteer123",
 	teamId: "team-123",
 	userId: "volunteer-user-123",
 	roleId: "volunteer",
-	isSystemRole: 1,
-	invitedBy: null,
-	invitedAt: null,
-	joinedAt: new Date(),
-	expiresAt: null,
-	isActive: 1,
 	metadata: JSON.stringify({
 		volunteerRoleTypes: ["judge"],
 		availability: "morning",
 		credentials: "L1 Judge",
 	}),
-	createdAt: new Date(),
-	updatedAt: new Date(),
-}
+})
 
-const mockDb = {
+// Create a chainable mock that properly handles the Drizzle query pattern:
+// db.update(table).set({...}).where(...)
+const createUpdateChain = () => ({
+	set: vi.fn().mockReturnValue({
+		where: vi.fn().mockResolvedValue([mockMembership]),
+	}),
+})
+
+// Use a function to create fresh mockDb for each test
+const createMockDb = () => ({
 	query: {
 		teamMembershipTable: {
-			findFirst: vi.fn(),
+			findFirst: vi.fn().mockResolvedValue(mockMembership),
 		},
 	},
-	update: vi.fn().mockReturnThis(),
-	set: vi.fn().mockReturnThis(),
-	where: vi.fn().mockResolvedValue([mockMembership]),
-}
+	update: vi.fn().mockImplementation(() => createUpdateChain()),
+})
+
+let mockDb: ReturnType<typeof createMockDb>
 
 beforeEach(() => {
 	vi.clearAllMocks()
+	// Create fresh mock for each test
+	mockDb = createMockDb()
 	vi.mocked(getDb).mockReturnValue(mockDb as unknown as ReturnType<typeof getDb>)
 	vi.mocked(getSessionFromCookie).mockResolvedValue(mockVolunteerSession)
-	mockDb.query.teamMembershipTable.findFirst.mockResolvedValue(mockMembership)
 })
 
 describe("updateVolunteerProfileAction", () => {

@@ -10,6 +10,7 @@
 		"check": "turbo check",
 		"type-check": "turbo type-check",
 		"test": "turbo test",
+		"test:coverage": "turbo test:coverage",
 		"db:generate": "turbo db:generate",
 		"db:studio": "turbo db:studio",
 		"db:migrate:dev": "turbo db:migrate:dev",

@@ -1,6 +1,12 @@
 import { vi } from "vitest"
 import "@testing-library/jest-dom/vitest"
 
+// Mock DOM methods used by Radix UI components
+Element.prototype.scrollIntoView = vi.fn()
+Element.prototype.hasPointerCapture = vi.fn()
+Element.prototype.setPointerCapture = vi.fn()
+Element.prototype.releasePointerCapture = vi.fn()
+
 // Mock the D1 client used by Drizzle
 const mockD1Client = {
 	prepare: () => mockD1Client,
@@ -21,7 +27,7 @@ const mockD1Client = {
 
 // Mock the db object that is null in test environment
 // The mockDb needs to be thenable so that when you await the query chain, it returns an array
-const createChainableMock = () => {
+export const createChainableMock = () => {
 	const mock: Record<string, unknown> = {
 		// Make it thenable so await works at any point in the chain
 		then: (resolve: (value: unknown[]) => void) => {
