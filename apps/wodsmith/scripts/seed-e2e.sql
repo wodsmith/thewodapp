@@ -10,12 +10,16 @@
 -- Delete by ID pattern AND by known slugs/emails to catch all E2E data
 DELETE FROM team_subscription WHERE id LIKE 'e2e_%';
 DELETE FROM team_subscription WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
+DELETE FROM team_subscription WHERE teamId IN (SELECT id FROM team WHERE slug LIKE 'test-%' OR slug LIKE 'admin-%');
 DELETE FROM workouts WHERE id LIKE 'e2e_%';
 DELETE FROM workouts WHERE team_id IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
 DELETE FROM team_membership WHERE id LIKE 'e2e_%';
 DELETE FROM team_membership WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
+DELETE FROM team_membership WHERE teamId IN (SELECT id FROM team WHERE slug LIKE 'test-%' OR slug LIKE 'admin-%');
 DELETE FROM team WHERE id LIKE 'e2e_%';
 DELETE FROM team WHERE slug = 'e2e-test-gym';
+DELETE FROM team WHERE slug LIKE 'test-%' AND isPersonalTeam = 1;
+DELETE FROM team WHERE slug LIKE 'admin-%' AND isPersonalTeam = 1;
 DELETE FROM user WHERE id LIKE 'e2e_%';
 DELETE FROM user WHERE email = 'test@wodsmith.com';
 DELETE FROM user WHERE email = 'admin@wodsmith.com';
@@ -80,7 +84,64 @@ INSERT INTO user (
 );
 
 -- ============================================================================
--- TEST TEAM
+-- PERSONAL TEAMS (Required for each user)
+-- ============================================================================
+-- Personal team for test user
+INSERT INTO team (
+    id,
+    name,
+    slug,
+    description,
+    isPersonalTeam,
+    personalTeamOwnerId,
+    creditBalance,
+    currentPlanId,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_personal_team_test',
+    'Test''s Team (personal)',
+    'test-st_user',
+    'Personal team for individual programming track subscriptions',
+    1,
+    'e2e_test_user',
+    0,
+    'free',
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- Personal team for admin user
+INSERT INTO team (
+    id,
+    name,
+    slug,
+    description,
+    isPersonalTeam,
+    personalTeamOwnerId,
+    creditBalance,
+    currentPlanId,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_personal_team_admin',
+    'Admin''s Team (personal)',
+    'admin-n_user',
+    'Personal team for individual programming track subscriptions',
+    1,
+    'e2e_admin_user',
+    0,
+    'free',
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- ============================================================================
+-- TEST TEAM (Gym)
 -- ============================================================================
 INSERT INTO team (
     id,
@@ -109,7 +170,57 @@ INSERT INTO team (
 -- ============================================================================
 -- TEAM MEMBERSHIPS
 -- ============================================================================
--- Test user is owner of test team
+-- Test user is owner of their personal team
+INSERT INTO team_membership (
+    id,
+    teamId,
+    userId,
+    roleId,
+    isSystemRole,
+    isActive,
+    joinedAt,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_membership_personal_test',
+    'e2e_personal_team_test',
+    'e2e_test_user',
+    'owner',
+    1,
+    1,
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- Admin user is owner of their personal team
+INSERT INTO team_membership (
+    id,
+    teamId,
+    userId,
+    roleId,
+    isSystemRole,
+    isActive,
+    joinedAt,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_membership_personal_admin',
+    'e2e_personal_team_admin',
+    'e2e_admin_user',
+    'owner',
+    1,
+    1,
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- Test user is owner of test gym team
 INSERT INTO team_membership (
     id,
     teamId,
@@ -134,7 +245,7 @@ INSERT INTO team_membership (
     0
 );
 
--- Admin user is admin of test team
+-- Admin user is admin of test gym team
 INSERT INTO team_membership (
     id,
     teamId,
