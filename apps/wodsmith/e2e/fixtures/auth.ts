@@ -72,20 +72,33 @@ export async function createAuthenticatedContext(page: Page): Promise<void> {
 
 /**
  * Logout the current user
+ * 
+ * The app uses a LogoutButton component that triggers signOutAction server action.
+ * The button only has a LogOut icon, so we find it by role and position in the nav.
+ * After logout, the app redirects to /compete.
  */
 export async function logout(page: Page): Promise<void> {
-	// Try to find and click logout in user menu
-	const userMenu = page.getByTestId("user-menu")
-	if (await userMenu.isVisible()) {
-		await userMenu.click()
-		await page.getByRole("menuitem", { name: /log out|sign out/i }).click()
+	// The logout button is in the nav, appears after other nav items
+	// It's a button with a LogOut icon (no text)
+	// On desktop, find it in the main nav
+	const logoutButton = page.locator('nav button').filter({ has: page.locator('svg.lucide-log-out') }).first()
+	
+	if (await logoutButton.isVisible({ timeout: 2000 })) {
+		await logoutButton.click()
 	} else {
-		// Fallback: navigate directly to logout endpoint
-		await page.goto("/api/auth/logout")
+		// On mobile, might need to open menu first
+		const mobileMenuButton = page.getByRole('button', { name: /menu/i })
+		if (await mobileMenuButton.isVisible()) {
+			await mobileMenuButton.click()
+			// Look for logout in mobile menu
+			const mobileLogout = page.locator('button').filter({ has: page.locator('svg.lucide-log-out') }).first()
+			await mobileLogout.click()
+		}
 	}
 
-	// Wait for redirect to login page
-	await page.waitForURL(/\/(login|sign-in)/, { timeout: 5000 })
+	// The app redirects to /compete after logout (see useSignOut hook)
+	// Wait for navigation away from the authenticated page
+	await page.waitForURL(/\/(compete|sign-in|login)/, { timeout: 5000 })
 }
 
 /**

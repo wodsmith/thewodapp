@@ -281,6 +281,11 @@ INSERT INTO team_membership (
 -- ============================================================================
 -- TEST WORKOUTS
 -- ============================================================================
+-- Workouts are added to the PERSONAL team because:
+-- 1. When user logs in, their active team defaults to their personal team
+-- 2. The /workouts page shows workouts for the active team
+-- 3. Therefore, E2E test workouts must be in the personal team to be visible
+
 -- Classic CrossFit workout: Fran (time-based)
 INSERT INTO workouts (
     id,
@@ -293,7 +298,7 @@ INSERT INTO workouts (
     updateCounter
 ) VALUES (
     'e2e_workout_fran',
-    'e2e_test_team',
+    'e2e_personal_team_test',
     'Fran',
     '21-15-9 Thrusters (95/65 lb) and Pull-ups',
     'time',
@@ -314,7 +319,7 @@ INSERT INTO workouts (
     updateCounter
 ) VALUES (
     'e2e_workout_murph',
-    'e2e_test_team',
+    'e2e_personal_team_test',
     'Murph',
     '1 mile Run, 100 Pull-ups, 200 Push-ups, 300 Squats, 1 mile Run',
     'time',
@@ -336,7 +341,7 @@ INSERT INTO workouts (
     updateCounter
 ) VALUES (
     'e2e_workout_cindy',
-    'e2e_test_team',
+    'e2e_personal_team_test',
     'Cindy',
     '5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes',
     'rounds-reps',

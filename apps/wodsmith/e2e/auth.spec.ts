@@ -123,8 +123,9 @@ test.describe("Authentication", () => {
 		// Logout
 		await logout(page)
 
-		// Should redirect to login page
-		await expect(page).toHaveURL(/\/(login|sign-in)/)
+		// The app redirects to /compete after logout (see useSignOut hook)
+		// Then verify we're logged out by trying to access a protected route
+		await expect(page).toHaveURL(/\/(compete|sign-in|login)/)
 
 		// Verify we're logged out by trying to access protected route
 		await page.goto("/workouts")
