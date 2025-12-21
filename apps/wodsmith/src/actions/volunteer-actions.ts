@@ -521,6 +521,7 @@ const acceptVolunteerInviteSchema = z.object({
 		.default(VOLUNTEER_AVAILABILITY.ALL_DAY),
 	availabilityNotes: z.string().optional(),
 	credentials: z.string().optional(),
+	signupPhone: z.string().optional(),
 })
 
 /**
@@ -637,6 +638,7 @@ export const acceptVolunteerInviteAction = createServerAction()
 			availability: input.availability,
 			availabilityNotes: input.availabilityNotes,
 			credentials: input.credentials,
+			signupPhone: input.signupPhone,
 			// Mark as approved since user is accepting a direct invite
 			status: "approved",
 		}
