@@ -21,11 +21,11 @@ export async function login(
 	page: Page,
 	credentials: { email: string; password: string },
 ): Promise<void> {
-	await page.goto("/login")
+	await page.goto("/sign-in")
 
 	// Fill in the login form
-	await page.getByLabel(/email/i).fill(credentials.email)
-	await page.getByLabel(/password/i).fill(credentials.password)
+	await page.getByPlaceholder(/email/i).fill(credentials.email)
+	await page.getByPlaceholder(/password/i).fill(credentials.password)
 
 	// Submit the form
 	await page.getByRole("button", { name: /sign in/i }).click()
