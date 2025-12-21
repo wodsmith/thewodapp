@@ -27,8 +27,8 @@ export async function login(
 	await page.getByPlaceholder(/email/i).fill(credentials.email)
 	await page.getByPlaceholder(/password/i).fill(credentials.password)
 
-	// Submit the form
-	await page.getByRole("button", { name: /sign in/i }).click()
+	// Submit the form (use exact match to avoid passkey button)
+	await page.getByRole("button", { name: "SIGN IN", exact: true }).click()
 
 	// Wait for redirect after successful login
 	// The app redirects to /workouts after login

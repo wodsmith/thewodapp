@@ -29,7 +29,7 @@ test.describe("Authentication", () => {
 		await expect(page.getByPlaceholder(/email/i)).toBeVisible()
 		await expect(page.getByPlaceholder(/password/i)).toBeVisible()
 		await expect(
-			page.getByRole("button", { name: /sign in/i }),
+			page.getByRole("button", { name: "SIGN IN", exact: true }),
 		).toBeVisible()
 	})
 
@@ -83,7 +83,7 @@ test.describe("Authentication", () => {
 		await page.getByPlaceholder(/password/i).fill("wrongpassword123")
 
 		// Submit the form
-		await page.getByRole("button", { name: /sign in/i }).click()
+		await page.getByRole("button", { name: "SIGN IN", exact: true }).click()
 
 		// Should stay on sign-in page
 		await expect(page).toHaveURL(/\/sign-in/)
@@ -102,7 +102,7 @@ test.describe("Authentication", () => {
 		await page.getByPlaceholder(/password/i).fill("somepassword")
 
 		// Submit the form
-		await page.getByRole("button", { name: /sign in/i }).click()
+		await page.getByRole("button", { name: "SIGN IN", exact: true }).click()
 
 		// Should stay on sign-in page
 		await expect(page).toHaveURL(/\/sign-in/)
