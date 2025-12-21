@@ -7,6 +7,7 @@ import { canUserEditWorkout, shouldCreateRemix } from "@/utils/workout-permissio
 import { createWorkoutRemix, getWorkoutById, updateWorkout } from "@/server/workouts"
 import { hasTeamPermission, requireTeamMembership } from "@/utils/team-auth"
 import type { SessionWithMeta } from "@/types"
+import { createTestSession } from "@repo/test-utils/factories"
 
 // Mock the dependencies
 vi.mock("@/utils/auth", () => ({
@@ -59,40 +60,13 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }))
 
-const mockSession: SessionWithMeta = {
-  id: "session-123",
+const mockSession: SessionWithMeta = createTestSession({
   userId: "user-123",
-  expiresAt: Date.now() + 86400000,
-  createdAt: Date.now(),
-  isCurrentSession: true,
-  user: {
-    id: "user-123",
-    email: "test@example.com",
-    firstName: "Test",
-    lastName: "User",
-    emailVerified: new Date(),
-    role: "user",
-    avatar: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    currentCredits: 100,
-    lastCreditRefreshAt: null,
-  },
-  teams: [
-    {
-      id: "team-123",
-      name: "Test Team",
-      slug: "test-team",
-      isPersonalTeam: false,
-      role: {
-        id: "member",
-        name: "Member",
-        isSystemRole: true,
-      },
-      permissions: ["access_dashboard", "create_components", "edit_components"],
-    },
-  ],
-}
+  teamId: "team-123",
+  teamSlug: "test-team",
+  teamRole: "member",
+  permissions: ["access_dashboard", "create_components", "edit_components"],
+})
 
 beforeAll(async () => {
   // Skip database setup for now - focus on unit tests

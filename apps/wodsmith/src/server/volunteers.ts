@@ -198,6 +198,44 @@ export type DirectVolunteerInvite = {
 }
 
 /**
+ * Determine if an invitation is a direct invite (admin-initiated)
+ * Direct invites have inviteSource='direct' in metadata OR invitedBy is not null (legacy)
+ */
+export function isDirectInvite(
+	metadata: VolunteerMembershipMetadata | null,
+	invitedBy: string | null,
+): boolean {
+	// If invitedBy is set, it's a direct invite (legacy check)
+	if (invitedBy !== null) return true
+
+	// Check metadata for inviteSource
+	if (metadata?.inviteSource === "direct") return true
+
+	// Default: not a direct invite (it's an application)
+	return false
+}
+
+/**
+ * Calculate the status of a volunteer invitation based on acceptedAt and expiresAt
+ * @param acceptedAt - When the invitation was accepted (null if not accepted)
+ * @param expiresAt - When the invitation expires (null if no expiry)
+ * @param now - Current date (for testing injection)
+ */
+export function calculateInviteStatus(
+	acceptedAt: Date | null,
+	expiresAt: Date | null,
+	now: Date = new Date(),
+): "pending" | "accepted" | "expired" {
+	if (acceptedAt) {
+		return "accepted"
+	}
+	if (expiresAt && expiresAt < now) {
+		return "expired"
+	}
+	return "pending"
+}
+
+/**
  * Get direct volunteer invitations (admin-invited, not public applications)
  * Filters to invitations where inviteSource='direct' or invitedBy is not null (legacy)
  * Returns invitation details with calculated status based on acceptedAt and expiresAt
@@ -221,11 +259,10 @@ export async function getDirectVolunteerInvites(
 			const meta = JSON.parse(
 				inv.metadata || "{}",
 			) as VolunteerMembershipMetadata
-			// Direct invite if inviteSource is 'direct' OR invitedBy is set (legacy)
-			return meta.inviteSource === "direct" || inv.invitedBy !== null
+			return isDirectInvite(meta, inv.invitedBy)
 		} catch {
 			// If metadata is invalid, fall back to invitedBy check (legacy)
-			return inv.invitedBy !== null
+			return isDirectInvite(null, inv.invitedBy)
 		}
 	})
 
@@ -243,22 +280,12 @@ export async function getDirectVolunteerInvites(
 				// Invalid metadata, leave roleTypes empty
 			}
 
-			// Calculate status based on acceptedAt and expiresAt
-			let status: "pending" | "accepted" | "expired"
-			if (inv.acceptedAt) {
-				status = "accepted"
-			} else if (inv.expiresAt && inv.expiresAt < new Date()) {
-				status = "expired"
-			} else {
-				status = "pending"
-			}
-
 			return {
 				id: inv.id,
 				token: inv.token,
 				email: inv.email,
 				roleTypes,
-				status,
+				status: calculateInviteStatus(inv.acceptedAt, inv.expiresAt),
 				createdAt: inv.createdAt,
 				expiresAt: inv.expiresAt,
 				acceptedAt: inv.acceptedAt,

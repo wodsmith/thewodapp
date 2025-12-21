@@ -1,0 +1,147 @@
+import { expect, test } from "@playwright/test"
+import {
+	ADMIN_USER,
+	TEST_USER,
+	isAuthenticated,
+	login,
+	loginAsTestUser,
+	logout,
+} from "./fixtures/auth"
+
+/**
+ * Authentication E2E Tests
+ *
+ * Tests authentication flows using seeded test data from seed-e2e.sql.
+ * The database is automatically seeded via globalSetup before tests run.
+ */
+
+test.describe("Authentication", () => {
+	test("should show login page", async ({ page }) => {
+		await page.goto("/login")
+
+		// Verify page loaded
+		await expect(page).toHaveURL(/\/login/)
+
+		// Verify form elements are visible
+		await expect(
+			page.getByRole("heading", { name: /sign in/i }),
+		).toBeVisible()
+		await expect(page.getByLabel(/email/i)).toBeVisible()
+		await expect(page.getByLabel(/password/i)).toBeVisible()
+		await expect(
+			page.getByRole("button", { name: /sign in/i }),
+		).toBeVisible()
+	})
+
+	test("should redirect unauthenticated users to login", async ({ page }) => {
+		// Visit protected route without authentication
+		await page.goto("/workouts")
+
+		// Should redirect to login
+		await expect(page).toHaveURL(/\/login/)
+
+		// Should show login form
+		await expect(
+			page.getByRole("heading", { name: /sign in/i }),
+		).toBeVisible()
+	})
+
+	test("should login with valid test user credentials", async ({ page }) => {
+		// Use the test user from seeded data
+		await login(page, {
+			email: TEST_USER.email,
+			password: TEST_USER.password,
+		})
+
+		// Should redirect to workouts or dashboard after successful login
+		await expect(page).toHaveURL(/\/(workouts|dashboard)/)
+
+		// Verify we're authenticated
+		const authenticated = await isAuthenticated(page)
+		expect(authenticated).toBe(true)
+	})
+
+	test("should login with admin user credentials", async ({ page }) => {
+		await login(page, {
+			email: ADMIN_USER.email,
+			password: ADMIN_USER.password,
+		})
+
+		// Should redirect after successful login
+		await expect(page).toHaveURL(/\/(workouts|dashboard)/)
+
+		// Verify we're authenticated
+		const authenticated = await isAuthenticated(page)
+		expect(authenticated).toBe(true)
+	})
+
+	test("should show error for invalid credentials", async ({ page }) => {
+		await page.goto("/login")
+
+		// Fill in the login form with wrong password
+		await page.getByLabel(/email/i).fill(TEST_USER.email)
+		await page.getByLabel(/password/i).fill("wrongpassword123")
+
+		// Submit the form
+		await page.getByRole("button", { name: /sign in/i }).click()
+
+		// Should stay on login page
+		await expect(page).toHaveURL(/\/login/)
+
+		// Should show error message
+		await expect(
+			page.getByText(/invalid|incorrect|wrong/i),
+		).toBeVisible({ timeout: 5000 })
+	})
+
+	test("should show error for non-existent user", async ({ page }) => {
+		await page.goto("/login")
+
+		// Fill in the login form with non-existent email
+		await page.getByLabel(/email/i).fill("nonexistent@example.com")
+		await page.getByLabel(/password/i).fill("somepassword")
+
+		// Submit the form
+		await page.getByRole("button", { name: /sign in/i }).click()
+
+		// Should stay on login page
+		await expect(page).toHaveURL(/\/login/)
+
+		// Should show error message
+		await expect(
+			page.getByText(/invalid|incorrect|not found|wrong/i),
+		).toBeVisible({ timeout: 5000 })
+	})
+
+	test("should logout successfully", async ({ page }) => {
+		// First, login as test user
+		await loginAsTestUser(page)
+
+		// Verify we're on authenticated page
+		await expect(page).toHaveURL(/\/(workouts|dashboard)/)
+
+		// Logout
+		await logout(page)
+
+		// Should redirect to login page
+		await expect(page).toHaveURL(/\/(login|sign-in)/)
+
+		// Verify we're logged out by trying to access protected route
+		await page.goto("/workouts")
+		await expect(page).toHaveURL(/\/login/)
+	})
+
+	test("should persist session across page navigation", async ({ page }) => {
+		// Login
+		await loginAsTestUser(page)
+		await expect(page).toHaveURL(/\/(workouts|dashboard)/)
+
+		// Navigate to another protected page
+		await page.goto("/workouts")
+		await expect(page).toHaveURL(/\/workouts/)
+
+		// Should still be authenticated
+		const authenticated = await isAuthenticated(page)
+		expect(authenticated).toBe(true)
+	})
+})

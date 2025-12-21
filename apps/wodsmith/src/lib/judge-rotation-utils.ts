@@ -5,10 +5,14 @@
 
 import type { CompetitionJudgeRotation } from "@/db/schema"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
+import type { VolunteerAvailability } from "@/db/schemas/volunteers"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 
 // ============================================================================
 // Types
 // ============================================================================
+
+export type AvailabilityFilter = VolunteerAvailability | "all"
 
 export interface HeatLaneAssignment {
 	heatNumber: number
@@ -181,4 +185,57 @@ export function calculateCoverage(
 		gaps,
 		overlaps,
 	}
+}
+
+// ============================================================================
+// Filter Rotations by Availability
+// ============================================================================
+
+/**
+ * Filter rotations by volunteer availability.
+ * Pure function extracted from rotation-timeline.tsx for testability.
+ *
+ * Filter rules:
+ * - 'all': shows all volunteers
+ * - 'morning': shows volunteers with availability === 'morning' OR 'all_day'
+ * - 'afternoon': shows volunteers with availability === 'afternoon' OR 'all_day'
+ * - 'all_day': shows ONLY volunteers with availability === 'all_day'
+ *
+ * @param rotationsByVolunteer - Map of membershipId to their rotations
+ * @param availabilityFilter - The selected availability filter
+ * @param judgeAvailabilityMap - Map of membershipId to their availability
+ * @returns Filtered map of volunteers and their rotations
+ */
+export function filterRotationsByAvailability(
+	rotationsByVolunteer: Map<string, CompetitionJudgeRotation[]>,
+	availabilityFilter: AvailabilityFilter,
+	judgeAvailabilityMap: Map<string, VolunteerAvailability | undefined>,
+): Map<string, CompetitionJudgeRotation[]> {
+	// If 'all', return everything
+	if (availabilityFilter === "all") {
+		return rotationsByVolunteer
+	}
+
+	// Filter based on selected availability
+	const filtered = new Map<string, CompetitionJudgeRotation[]>()
+
+	for (const [membershipId, rotations] of rotationsByVolunteer.entries()) {
+		const judgeAvailability = judgeAvailabilityMap.get(membershipId)
+
+		// Filter logic:
+		// - 'morning': show volunteers with availability === 'morning' OR availability === 'all_day'
+		// - 'afternoon': show volunteers with availability === 'afternoon' OR availability === 'all_day'
+		// - 'all_day': show only volunteers with availability === 'all_day'
+		const shouldInclude =
+			availabilityFilter === VOLUNTEER_AVAILABILITY.ALL_DAY
+				? judgeAvailability === VOLUNTEER_AVAILABILITY.ALL_DAY
+				: judgeAvailability === availabilityFilter ||
+					judgeAvailability === VOLUNTEER_AVAILABILITY.ALL_DAY
+
+		if (shouldInclude) {
+			filtered.set(membershipId, rotations)
+		}
+	}
+
+	return filtered
 }

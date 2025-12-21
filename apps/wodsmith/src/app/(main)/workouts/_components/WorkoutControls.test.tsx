@@ -43,25 +43,43 @@ describe("WorkoutControls", () => {
 	})
 
 	it("updates URL params when controls change", async () => {
-		vi.useFakeTimers()
 		render(<WorkoutControls allTags={["tag1"]} allMovements={["move1"]} />)
+		
+		// Change search input
 		fireEvent.change(screen.getByPlaceholderText("Search workouts..."), {
 			target: { value: "Fran" },
 		})
-		vi.advanceTimersByTime(500)
 
+		// Wait for URL update after search
+		await waitFor(() => {
+			expect(mockReplace).toHaveBeenCalledWith(
+				"/workouts?search=Fran",
+				{ scroll: false },
+			)
+		})
+
+		// Select tag
 		const tagDropdown = screen.getByText("All Tags")
 		fireEvent.click(tagDropdown)
-		await waitFor(() => fireEvent.click(screen.getByText("tag1")))
-		vi.advanceTimersByTime(500)
+		const tag1Option = await screen.findByText("tag1")
+		fireEvent.click(tag1Option)
 
+		// Wait for URL update after tag selection
+		await waitFor(() => {
+			expect(mockReplace).toHaveBeenCalledWith(
+				"/workouts?search=Fran&tag=tag1",
+				{ scroll: false },
+			)
+		})
+
+		// Select movement
 		const movementDropdown = screen.getByText("All Movements")
 		fireEvent.click(movementDropdown)
-		await waitFor(() => fireEvent.click(screen.getByText("move1")))
-		vi.advanceTimersByTime(500)
+		const move1Option = await screen.findByText("move1")
+		fireEvent.click(move1Option)
 
+		// Wait for final URL update
 		await waitFor(() => {
-			expect(mockReplace).toHaveBeenCalledTimes(3)
 			expect(mockReplace).toHaveBeenLastCalledWith(
 				"/workouts?search=Fran&tag=tag1&movement=move1",
 				{ scroll: false },

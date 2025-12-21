@@ -16,8 +16,28 @@ interface VolunteerProfileCardProps {
 }
 
 /**
+ * Format role type for display
+ */
+function formatRoleType(role: string): string {
+	const roleLabels: Record<string, string> = {
+		judge: "Judge",
+		head_judge: "Head Judge",
+		scorekeeper: "Scorekeeper",
+		emcee: "Emcee",
+		floor_manager: "Floor Manager",
+		media: "Media",
+		general: "General",
+		equipment: "Equipment",
+		medical: "Medical",
+		check_in: "Check-in",
+		staff: "Staff",
+	}
+	return roleLabels[role] || role
+}
+
+/**
  * Display volunteer profile info with edit capability
- * Collapsible card showing availability, credentials, notes
+ * Shows roles, availability, credentials, notes
  */
 export function VolunteerProfileCard({
 	metadata,
@@ -27,6 +47,7 @@ export function VolunteerProfileCard({
 	const [isExpanded, setIsExpanded] = useState(false)
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 
+	const volunteerRoles = metadata?.volunteerRoleTypes || []
 	const availability = metadata?.availability
 	const credentials = metadata?.credentials
 	const availabilityNotes = metadata?.availabilityNotes
@@ -49,7 +70,7 @@ export function VolunteerProfileCard({
 				<CardHeader className="pb-3">
 					<div className="flex items-center justify-between">
 						<CardTitle className="text-lg font-medium">
-							Volunteer Profile
+							My Volunteer Info
 						</CardTitle>
 						<div className="flex items-center gap-2">
 							<Button
@@ -76,10 +97,29 @@ export function VolunteerProfileCard({
 				</CardHeader>
 
 				<CardContent className="space-y-3 pt-0">
-					{/* Always show availability badge */}
-					<div className="flex items-center gap-2">
-						<span className="text-sm text-muted-foreground">Availability:</span>
-						<Badge variant={availabilityVariant}>{availabilityLabel}</Badge>
+					{/* Always show roles and availability */}
+					<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+						{/* Volunteer Roles */}
+						{volunteerRoles.length > 0 && (
+							<div className="flex items-center gap-2">
+								<span className="text-sm text-muted-foreground">Role:</span>
+								<div className="flex flex-wrap gap-1">
+									{volunteerRoles.map((role) => (
+										<Badge key={role} variant="outline">
+											{formatRoleType(role)}
+										</Badge>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Availability */}
+						<div className="flex items-center gap-2">
+							<span className="text-sm text-muted-foreground">
+								Availability:
+							</span>
+							<Badge variant={availabilityVariant}>{availabilityLabel}</Badge>
+						</div>
 					</div>
 
 					{/* Expandable section */}

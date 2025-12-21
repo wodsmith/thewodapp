@@ -12,7 +12,7 @@ node_modules
 .yarn/install-state.gz
 
 # testing
-/coverage
+coverage
 .playwright-mcp
 
 # next.js

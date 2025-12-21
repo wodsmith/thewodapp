@@ -17,7 +17,18 @@ interface ScheduleViewProps {
 }
 
 /**
- * Client component that displays all judge rotations grouped by event
+ * Check if volunteer has a judge role
+ */
+function hasJudgeRole(metadata: VolunteerMembershipMetadata | null): boolean {
+	if (!metadata?.volunteerRoleTypes) return false
+	return metadata.volunteerRoleTypes.some((role) =>
+		["judge", "head_judge"].includes(role),
+	)
+}
+
+/**
+ * Client component that displays volunteer schedule
+ * Shows judging assignments only for volunteers with judge roles
  */
 export function ScheduleView({
 	events,
@@ -34,49 +45,60 @@ export function ScheduleView({
 			? formatUTCDateRange(competitionStartDate, competitionEndDate)
 			: null
 
-	// Empty state: Show volunteer info but indicate no assignments
+	const isJudge = hasJudgeRole(volunteerMetadata)
+	const pageTitle = isJudge ? "My Judging Schedule" : "My Volunteer Schedule"
+
+	// No judging assignments (or not a judge)
 	if (events.length === 0) {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-3xl font-bold mb-2">My Judging Schedule</h1>
+					<h1 className="text-3xl font-bold mb-2">{pageTitle}</h1>
 					<p className="text-muted-foreground">
 						{competitionName}
 						{dateRangeText && ` • ${dateRangeText}`}
 					</p>
 				</div>
 
-				{/* Volunteer Profile Card - still visible in empty state */}
+				{/* Volunteer Profile Card - always visible */}
 				<VolunteerProfileCard
 					metadata={volunteerMetadata}
 					membershipId={membershipId}
 					competitionSlug={competitionSlug}
 				/>
 
-				{/* Less prominent empty state message */}
-				<div className="bg-muted/50 rounded-lg border border-dashed p-6 text-center">
-					<p className="text-muted-foreground">
-						No judging assignments yet. Check back after the organizer publishes
-						the schedule.
-					</p>
-				</div>
+				{/* Show appropriate empty message based on role */}
+				{isJudge ? (
+					<div className="bg-muted/50 rounded-lg border border-dashed p-6 text-center">
+						<p className="text-muted-foreground">
+							No judging assignments yet. Check back after the organizer
+							publishes the schedule.
+						</p>
+					</div>
+				) : (
+					<div className="bg-muted/50 rounded-lg border border-dashed p-6 text-center">
+						<p className="text-muted-foreground">
+							Thank you for volunteering! The organizer will reach out with
+							details about your role.
+						</p>
+					</div>
+				)}
 
 				<div className="bg-muted rounded-lg border p-4 text-sm text-muted-foreground">
 					<p className="font-semibold mb-1">Need help?</p>
 					<p>
-						If you have questions about your assignments, please contact the
-						competition organizers.
+						If you have questions, please contact the competition organizers.
 					</p>
 				</div>
 			</div>
 		)
 	}
 
-	// Normal state: Show header, profile, and assignments
+	// Has judging assignments - show them
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-3xl font-bold mb-2">My Judging Schedule</h1>
+				<h1 className="text-3xl font-bold mb-2">{pageTitle}</h1>
 				<p className="text-muted-foreground">
 					{competitionName}
 					{dateRangeText && ` • ${dateRangeText}`}

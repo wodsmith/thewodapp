@@ -3,9 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { SchedulingDetails } from "./scheduling-details"
 import type { ProgrammingTrack, StandaloneWorkout, TrackWorkout } from "./types"
 
-// Mock console.log for environment variable testing
+// Store original LOG_LEVEL for restoration
 const originalEnv = process.env.LOG_LEVEL
-const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {})
 
 describe("SchedulingDetails", () => {
 	const mockTrack: ProgrammingTrack = {
@@ -78,7 +77,7 @@ describe("SchedulingDetails", () => {
 		expect(screen.getByText("Scheduling Details")).toBeInTheDocument()
 		expect(screen.getByText("Selected Workout:")).toBeInTheDocument()
 		expect(
-			screen.getByText("Squat Focus from Strength Training (Day 1)"),
+			screen.getByText("Squat Focus from Strength Training (Event #1)"),
 		).toBeInTheDocument()
 	})
 
@@ -241,6 +240,8 @@ describe("SchedulingDetails", () => {
 	})
 
 	it("logs debug information when LOG_LEVEL is debug", () => {
+		// Create spy within test to ensure it captures the right calls
+		const consoleSpy = vi.spyOn(console, "log")
 		process.env.LOG_LEVEL = "debug"
 
 		render(
@@ -259,9 +260,12 @@ describe("SchedulingDetails", () => {
 		expect(consoleSpy).toHaveBeenCalledWith(
 			"DEBUG: [SchedulingDetails] Form submitted with classTimes: '6:00 AM', teamNotes length: 10, scalingGuidance length: 12",
 		)
+
+		consoleSpy.mockRestore()
 	})
 
 	it("does not log debug information when LOG_LEVEL is not debug", () => {
+		const consoleSpy = vi.spyOn(console, "log")
 		process.env.LOG_LEVEL = "info"
 
 		render(
@@ -275,6 +279,8 @@ describe("SchedulingDetails", () => {
 		fireEvent.click(screen.getByTestId("schedule-button"))
 
 		expect(consoleSpy).not.toHaveBeenCalled()
+
+		consoleSpy.mockRestore()
 	})
 
 	it("renders correct workout info without week number", () => {
@@ -292,7 +298,7 @@ describe("SchedulingDetails", () => {
 		)
 
 		expect(
-			screen.getByText("Squat Focus from Strength Training (Day 1)"),
+			screen.getByText("Squat Focus from Strength Training (Event #1)"),
 		).toBeInTheDocument()
 	})
 
@@ -330,7 +336,7 @@ describe("SchedulingDetails", () => {
 		)
 
 		expect(
-			screen.getByText("from Strength Training (Day 1)"),
+			screen.getByText("from Strength Training (Event #1)"),
 		).toBeInTheDocument()
 	})
 })
