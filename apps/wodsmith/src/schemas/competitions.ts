@@ -90,8 +90,8 @@ export const createCompetitionSchema = z
 			.optional(),
 		settings: z.string().max(10000, "Settings are too large").optional(),
 	})
-	.refine((data) => data.startDate < data.endDate, {
-		message: "Start date must be before end date",
+	.refine((data) => data.startDate <= data.endDate, {
+		message: "Start date must be before or equal to end date",
 		path: ["endDate"],
 	})
 	.refine(
@@ -158,10 +158,10 @@ export const updateCompetitionSchema = z
 	.refine(
 		(data) => {
 			if (!data.startDate || !data.endDate) return true
-			return data.startDate < data.endDate
+			return data.startDate <= data.endDate
 		},
 		{
-			message: "Start date must be before end date",
+			message: "Start date must be before or equal to end date",
 			path: ["endDate"],
 		},
 	)
