@@ -20,6 +20,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	return {
 		title: `Volunteer for ${competition.name}`,
 		description: `Sign up to volunteer at ${competition.name}`,
+		openGraph: {
+			title: `Volunteer for ${competition.name}`,
+			description: `Sign up to volunteer at ${competition.name}`,
+			images: [
+				{
+					url: `/api/og/competition?slug=${encodeURIComponent(slug)}`,
+					width: 1200,
+					height: 630,
+					alt: competition.name,
+				},
+			],
+		},
 	}
 }
 

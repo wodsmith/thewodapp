@@ -7,15 +7,31 @@
 --   Password: TestPassword123!
 
 -- Clean up any existing E2E test data first (order matters for FK constraints)
--- Delete by ID pattern AND by known slugs/emails to catch all E2E data
+-- Delete by ID pattern AND by known teamId to catch all E2E data
+
+-- Step 1: Delete team_subscription (references team)
 DELETE FROM team_subscription WHERE id LIKE 'e2e_%';
+DELETE FROM team_subscription WHERE teamId LIKE 'e2e_%';
 DELETE FROM team_subscription WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
+
+-- Step 2: Delete workouts (references team)
+-- Must delete ALL workouts referencing e2e teams, not just e2e_ prefixed
 DELETE FROM workouts WHERE id LIKE 'e2e_%';
-DELETE FROM workouts WHERE team_id IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
+DELETE FROM workouts WHERE team_id LIKE 'e2e_%';
+DELETE FROM workouts WHERE team_id = 'e2e_personal_team_test';
+DELETE FROM workouts WHERE team_id = 'e2e_personal_team_admin';
+DELETE FROM workouts WHERE team_id = 'e2e_test_team';
+
+-- Step 3: Delete team_membership (references team and user)
 DELETE FROM team_membership WHERE id LIKE 'e2e_%';
-DELETE FROM team_membership WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
+DELETE FROM team_membership WHERE teamId LIKE 'e2e_%';
+DELETE FROM team_membership WHERE userId LIKE 'e2e_%';
+
+-- Step 4: Delete teams (references user via personalTeamOwnerId)
+-- Must delete teams before users due to FK constraint
 DELETE FROM team WHERE id LIKE 'e2e_%';
-DELETE FROM team WHERE slug = 'e2e-test-gym';
+
+-- Step 5: Delete users
 DELETE FROM user WHERE id LIKE 'e2e_%';
 DELETE FROM user WHERE email = 'test@wodsmith.com';
 DELETE FROM user WHERE email = 'admin@wodsmith.com';
@@ -80,7 +96,64 @@ INSERT INTO user (
 );
 
 -- ============================================================================
--- TEST TEAM
+-- PERSONAL TEAMS (Required for each user)
+-- ============================================================================
+-- Personal team for test user
+INSERT INTO team (
+    id,
+    name,
+    slug,
+    description,
+    isPersonalTeam,
+    personalTeamOwnerId,
+    creditBalance,
+    currentPlanId,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_personal_team_test',
+    'Test''s Team (personal)',
+    'test-st_user',
+    'Personal team for individual programming track subscriptions',
+    1,
+    'e2e_test_user',
+    0,
+    'free',
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- Personal team for admin user
+INSERT INTO team (
+    id,
+    name,
+    slug,
+    description,
+    isPersonalTeam,
+    personalTeamOwnerId,
+    creditBalance,
+    currentPlanId,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_personal_team_admin',
+    'Admin''s Team (personal)',
+    'admin-n_user',
+    'Personal team for individual programming track subscriptions',
+    1,
+    'e2e_admin_user',
+    0,
+    'free',
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- ============================================================================
+-- TEST TEAM (Gym)
 -- ============================================================================
 INSERT INTO team (
     id,
@@ -109,7 +182,57 @@ INSERT INTO team (
 -- ============================================================================
 -- TEAM MEMBERSHIPS
 -- ============================================================================
--- Test user is owner of test team
+-- Test user is owner of their personal team
+INSERT INTO team_membership (
+    id,
+    teamId,
+    userId,
+    roleId,
+    isSystemRole,
+    isActive,
+    joinedAt,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_membership_personal_test',
+    'e2e_personal_team_test',
+    'e2e_test_user',
+    'owner',
+    1,
+    1,
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- Admin user is owner of their personal team
+INSERT INTO team_membership (
+    id,
+    teamId,
+    userId,
+    roleId,
+    isSystemRole,
+    isActive,
+    joinedAt,
+    createdAt,
+    updatedAt,
+    updateCounter
+) VALUES (
+    'e2e_membership_personal_admin',
+    'e2e_personal_team_admin',
+    'e2e_admin_user',
+    'owner',
+    1,
+    1,
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    strftime('%s', 'now'),
+    0
+);
+
+-- Test user is owner of test gym team
 INSERT INTO team_membership (
     id,
     teamId,
@@ -134,7 +257,7 @@ INSERT INTO team_membership (
     0
 );
 
--- Admin user is admin of test team
+-- Admin user is admin of test gym team
 INSERT INTO team_membership (
     id,
     teamId,
@@ -162,6 +285,11 @@ INSERT INTO team_membership (
 -- ============================================================================
 -- TEST WORKOUTS
 -- ============================================================================
+-- Workouts are added to the PERSONAL team because:
+-- 1. When user logs in, their active team defaults to their personal team
+-- 2. The /workouts page shows workouts for the active team
+-- 3. Therefore, E2E test workouts must be in the personal team to be visible
+
 -- Classic CrossFit workout: Fran (time-based)
 INSERT INTO workouts (
     id,
@@ -174,7 +302,7 @@ INSERT INTO workouts (
     updateCounter
 ) VALUES (
     'e2e_workout_fran',
-    'e2e_test_team',
+    'e2e_personal_team_test',
     'Fran',
     '21-15-9 Thrusters (95/65 lb) and Pull-ups',
     'time',
@@ -195,7 +323,7 @@ INSERT INTO workouts (
     updateCounter
 ) VALUES (
     'e2e_workout_murph',
-    'e2e_test_team',
+    'e2e_personal_team_test',
     'Murph',
     '1 mile Run, 100 Pull-ups, 200 Push-ups, 300 Squats, 1 mile Run',
     'time',
@@ -217,7 +345,7 @@ INSERT INTO workouts (
     updateCounter
 ) VALUES (
     'e2e_workout_cindy',
-    'e2e_test_team',
+    'e2e_personal_team_test',
     'Cindy',
     '5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes',
     'rounds-reps',
