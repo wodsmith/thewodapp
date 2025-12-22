@@ -36,8 +36,9 @@ test.describe("Workouts", () => {
 			// Navigate and wait for network to settle (server data fetching)
 			await page.goto("/workouts", { waitUntil: 'networkidle' })
 
-			// Wait for the main workout list heading to confirm page loaded
-			await expect(page.getByRole("heading", { name: /workouts/i })).toBeVisible()
+			// Wait for the main page title (h1) to confirm page loaded
+			// Use level: 1 to match only the h1 heading
+			await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 
 			// Verify seeded workouts are visible using exact match selectors
 			// Use getByRole('link') to match the workout card links specifically
