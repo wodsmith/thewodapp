@@ -1,4 +1,4 @@
-import "server-only"
+"use server"
 
 import type { Metadata } from "next"
 import { CheckCircle, Clock, Crown, Mail, Users } from "lucide-react"
