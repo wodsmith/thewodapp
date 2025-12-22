@@ -5,7 +5,12 @@ import {
 	INSERT_UNORDERED_LIST_COMMAND,
 } from "@lexical/list"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND } from "lexical"
+import {
+	$createTextNode,
+	$getSelection,
+	$isRangeSelection,
+	FORMAT_TEXT_COMMAND,
+} from "lexical"
 import {
 	Bold,
 	Italic,
@@ -14,9 +19,16 @@ import {
 	ListOrdered,
 	Underline,
 } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import {
 	Tooltip,
@@ -33,6 +45,10 @@ export function WaiversEditorToolbar() {
 	const [isBold, setIsBold] = useState(false)
 	const [isItalic, setIsItalic] = useState(false)
 	const [isUnderline, setIsUnderline] = useState(false)
+	const [linkPopoverOpen, setLinkPopoverOpen] = useState(false)
+	const [linkText, setLinkText] = useState("")
+	const [linkUrl, setLinkUrl] = useState("")
+	const urlInputRef = useRef<HTMLInputElement>(null)
 
 	// Update toolbar state when selection changes
 	const updateToolbar = useCallback(() => {
@@ -64,11 +80,51 @@ export function WaiversEditorToolbar() {
 		}
 	}
 
-	const insertLink = () => {
-		// Basic link insertion - could be enhanced with a dialog for URL input
-		const url = window.prompt("Enter URL:")
-		if (url) {
-			editor.dispatchCommand("INSERT_LINK" as never, { url } as never)
+	const handleLinkPopoverOpen = (open: boolean) => {
+		setLinkPopoverOpen(open)
+		if (open) {
+			// Check if there's selected text to use as link text
+			editor.getEditorState().read(() => {
+				const selection = $getSelection()
+				if ($isRangeSelection(selection)) {
+					const selectedText = selection.getTextContent()
+					if (selectedText) {
+						setLinkText(selectedText)
+					}
+				}
+			})
+			// Focus URL input after popover opens
+			setTimeout(() => urlInputRef.current?.focus(), 0)
+		} else {
+			// Reset form when closing
+			setLinkText("")
+			setLinkUrl("")
+		}
+	}
+
+	const insertMarkdownLink = () => {
+		if (!linkUrl.trim()) return
+
+		const text = linkText.trim() || linkUrl.trim()
+		const markdownLink = `[${text}](${linkUrl.trim()})`
+
+		editor.update(() => {
+			const selection = $getSelection()
+			if ($isRangeSelection(selection)) {
+				// If there was selected text, replace it with the link
+				selection.insertNodes([$createTextNode(markdownLink)])
+			}
+		})
+
+		setLinkPopoverOpen(false)
+		setLinkText("")
+		setLinkUrl("")
+	}
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter") {
+			e.preventDefault()
+			insertMarkdownLink()
 		}
 	}
 
@@ -151,14 +207,59 @@ export function WaiversEditorToolbar() {
 			<Separator orientation="vertical" className="mx-1 h-6" />
 
 			{/* Links */}
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button variant="ghost" size="sm" onClick={insertLink} type="button">
-						<LinkIcon className="h-4 w-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>Insert Link</TooltipContent>
-			</Tooltip>
+			<Popover open={linkPopoverOpen} onOpenChange={handleLinkPopoverOpen}>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<PopoverTrigger asChild>
+							<Button variant="ghost" size="sm" type="button">
+								<LinkIcon className="h-4 w-4" />
+							</Button>
+						</PopoverTrigger>
+					</TooltipTrigger>
+					<TooltipContent>Insert Link</TooltipContent>
+				</Tooltip>
+				<PopoverContent className="w-80" align="start">
+					<div className="grid gap-4">
+						<div className="space-y-2">
+							<h4 className="font-medium leading-none">Insert Link</h4>
+							<p className="text-muted-foreground text-sm">
+								Add a markdown-style link to your waiver.
+							</p>
+						</div>
+						<div className="grid gap-3">
+							<div className="grid gap-2">
+								<Label htmlFor="link-text">Link Text</Label>
+								<Input
+									id="link-text"
+									placeholder="Click here"
+									value={linkText}
+									onChange={(e) => setLinkText(e.target.value)}
+									onKeyDown={handleKeyDown}
+								/>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="link-url">URL</Label>
+								<Input
+									ref={urlInputRef}
+									id="link-url"
+									placeholder="https://example.com"
+									value={linkUrl}
+									onChange={(e) => setLinkUrl(e.target.value)}
+									onKeyDown={handleKeyDown}
+								/>
+							</div>
+							<Button
+								type="button"
+								size="sm"
+								onClick={insertMarkdownLink}
+								disabled={!linkUrl.trim()}
+							>
+								Insert Link
+							</Button>
+						</div>
+					</div>
+				</PopoverContent>
+			</Popover>
 		</div>
 	)
 }
