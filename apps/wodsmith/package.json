@@ -137,6 +137,7 @@
 		"react-day-picker": "^9.10.0",
 		"react-dom": "19.2.1",
 		"react-hook-form": "^7.56.4",
+		"react-markdown": "^10.1.0",
 		"react-syntax-highlighter": "^15.6.6",
 		"react-turnstile": "^1.1.4",
 		"remeda": "^2.22.1",

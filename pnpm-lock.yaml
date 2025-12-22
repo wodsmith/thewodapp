@@ -302,6 +302,9 @@ importers:
       react-hook-form:
         specifier: ^7.56.4
         version: 7.56.4(react@19.2.1)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.7)(react@19.2.1)
       react-syntax-highlighter:
         specifier: ^15.6.6
         version: 15.6.6(react@19.2.1)
@@ -18510,7 +18513,7 @@ snapshots:
 
   hast-util-to-jsx-runtime@2.3.6:
     dependencies:
-      '@types/estree': 1.0.7
+      '@types/estree': 1.0.8
       '@types/hast': 3.0.4
       '@types/unist': 3.0.3
       comma-separated-tokens: 2.0.3
