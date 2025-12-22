@@ -27,6 +27,16 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { deleteWaiverAction, reorderWaiversAction } from "@/actions/waivers"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -219,11 +229,15 @@ export function WaiverList({
 	const [instanceId] = useState(() => Symbol("waiver-list"))
 	const [editingWaiver, setEditingWaiver] = useState<Waiver | null>(null)
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+	const [deletingWaiverId, setDeletingWaiverId] = useState<string | null>(null)
 
 	const { execute: executeReorder } = useServerAction(reorderWaiversAction)
-	const { execute: executeDelete } = useServerAction(deleteWaiverAction)
+	const { execute: executeDelete, isPending: isDeleting } =
+		useServerAction(deleteWaiverAction)
 
 	const handleDrop = async (sourceIndex: number, targetIndex: number) => {
+		// Capture previous state before optimistic update to avoid stale closure
+		const previousWaivers = waivers
 		const newWaivers = [...waivers]
 		const [movedWaiver] = newWaivers.splice(sourceIndex, 1)
 		if (movedWaiver) {
@@ -248,21 +262,17 @@ export function WaiverList({
 
 			if (error) {
 				toast.error("Failed to reorder waivers")
-				// Revert on error
-				setWaivers(waivers)
+				// Revert to captured snapshot, not stale closure
+				setWaivers(previousWaivers)
 			}
 		}
 	}
 
-	const handleDelete = async (waiverId: string) => {
-		// TODO: Replace with confirmation dialog component
-		// eslint-disable-next-line no-alert
-		if (!window.confirm("Are you sure you want to delete this waiver?")) {
-			return
-		}
+	const confirmDelete = async () => {
+		if (!deletingWaiverId) return
 
 		const [, error] = await executeDelete({
-			waiverId,
+			waiverId: deletingWaiverId,
 			competitionId,
 			teamId,
 		})
@@ -271,9 +281,9 @@ export function WaiverList({
 			toast.error("Failed to delete waiver")
 		} else {
 			toast.success("Waiver deleted")
-			// Remove from local state
-			setWaivers((prev) => prev.filter((w) => w.id !== waiverId))
+			setWaivers((prev) => prev.filter((w) => w.id !== deletingWaiverId))
 		}
+		setDeletingWaiverId(null)
 	}
 
 	const handleWaiverCreated = (waiver: Waiver) => {
@@ -327,7 +337,7 @@ export function WaiverList({
 							teamId={teamId}
 							competitionId={competitionId}
 							onEdit={setEditingWaiver}
-							onDelete={handleDelete}
+							onDelete={setDeletingWaiverId}
 							onDrop={handleDrop}
 						/>
 					))}
@@ -354,6 +364,33 @@ export function WaiverList({
 					onSuccess={handleWaiverUpdated}
 				/>
 			)}
+
+			{/* Delete Confirmation Dialog */}
+			<AlertDialog
+				open={!!deletingWaiverId}
+				onOpenChange={(open) => !open && setDeletingWaiverId(null)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Waiver</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to delete this waiver? Athletes who have
+							already signed it will keep their signature records, but the
+							waiver content will be removed.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmDelete}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting ? "Deleting..." : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	)
 }
