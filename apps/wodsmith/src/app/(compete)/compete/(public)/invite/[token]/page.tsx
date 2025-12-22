@@ -19,10 +19,12 @@ import {
 } from "@/components/ui/card"
 import { getTeammateInvite, getVolunteerInvite } from "@/server/competitions"
 import { checkEmailExists } from "@/server/user"
+import { getCompetitionWaivers } from "@/server/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
 import { AcceptVolunteerInviteForm } from "./_components/accept-volunteer-invite-form"
 import { InviteSignUpForm } from "./_components/invite-signup-form"
+import { TeammateWaiverSigning } from "./_components/teammate-waiver-signing"
 
 export default async function CompeteInvitePage({
 	params,
@@ -122,6 +124,12 @@ export default async function CompeteInvitePage({
 		session &&
 		session.user.email?.toLowerCase() === invite.email.toLowerCase()
 	) {
+		// Fetch competition waivers if competition exists
+		const waivers =
+			invite.competition?.id && invite.registrationId
+				? await getCompetitionWaivers(invite.competition.id)
+				: []
+
 		return (
 			<div className="container mx-auto max-w-lg py-16">
 				<Card>
@@ -178,12 +186,24 @@ export default async function CompeteInvitePage({
 							)}
 						</div>
 
-						<AcceptInviteButton
-							token={token}
-							competitionSlug={invite.competition?.slug}
-							competitionId={invite.competition?.id}
-							teamName={invite.team.name}
-						/>
+						{/* Waiver signing or direct accept */}
+						{waivers.length > 0 && invite.registrationId ? (
+							<TeammateWaiverSigning
+								waivers={waivers}
+								registrationId={invite.registrationId}
+								token={token}
+								competitionSlug={invite.competition?.slug}
+								competitionId={invite.competition?.id}
+								teamName={invite.team.name}
+							/>
+						) : (
+							<AcceptInviteButton
+								token={token}
+								competitionSlug={invite.competition?.slug}
+								competitionId={invite.competition?.id}
+								teamName={invite.team.name}
+							/>
+						)}
 					</CardContent>
 				</Card>
 			</div>
