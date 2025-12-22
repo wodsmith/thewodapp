@@ -1157,7 +1157,9 @@ export async function copyHeatsFromEvent(params: {
 
 		// Calculate time: startTime + (index × timeSlot)
 		const offsetMinutes = i * timeSlotMinutes
-		const newTime = new Date(params.newStartTime.getTime() + offsetMinutes * 60 * 1000)
+		const newTime = new Date(
+			params.newStartTime.getTime() + offsetMinutes * 60 * 1000,
+		)
 
 		heatsToCreate.push({
 			competitionId,

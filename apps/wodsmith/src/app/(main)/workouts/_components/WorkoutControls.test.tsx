@@ -44,7 +44,7 @@ describe("WorkoutControls", () => {
 
 	it("updates URL params when controls change", async () => {
 		render(<WorkoutControls allTags={["tag1"]} allMovements={["move1"]} />)
-		
+
 		// Change search input
 		fireEvent.change(screen.getByPlaceholderText("Search workouts..."), {
 			target: { value: "Fran" },
@@ -52,10 +52,9 @@ describe("WorkoutControls", () => {
 
 		// Wait for URL update after search
 		await waitFor(() => {
-			expect(mockReplace).toHaveBeenCalledWith(
-				"/workouts?search=Fran",
-				{ scroll: false },
-			)
+			expect(mockReplace).toHaveBeenCalledWith("/workouts?search=Fran", {
+				scroll: false,
+			})
 		})
 
 		// Select tag

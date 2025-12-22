@@ -296,7 +296,9 @@ export function HeatScheduleManager({
 	const [bulkCreateTab, setBulkCreateTab] = useState<"new" | "copy">("new")
 	// Copy from previous event state
 	const [copySourceEventId, setCopySourceEventId] = useState<string>("")
-	const [copyStartTime, setCopyStartTime] = useState<string>(getDefaultHeatTime())
+	const [copyStartTime, setCopyStartTime] = useState<string>(
+		getDefaultHeatTime(),
+	)
 	const [copyDurationMinutes, setCopyDurationMinutes] = useState(8)
 	// Gap between end of last event and start of copied heats (default to venue transition, set when dialog opens)
 	const [copyGapMinutes, setCopyGapMinutes] = useState<number>(3)
@@ -1027,7 +1029,10 @@ export function HeatScheduleManager({
 					<DialogHeader>
 						<DialogTitle>Add Heats</DialogTitle>
 					</DialogHeader>
-					<Tabs value={bulkCreateTab} onValueChange={(v) => setBulkCreateTab(v as "new" | "copy")}>
+					<Tabs
+						value={bulkCreateTab}
+						onValueChange={(v) => setBulkCreateTab(v as "new" | "copy")}
+					>
 						<TabsList className="grid w-full grid-cols-2">
 							<TabsTrigger value="new">Create New</TabsTrigger>
 							<TabsTrigger value="copy" disabled={eventsWithHeats.length === 0}>
@@ -1052,7 +1057,9 @@ export function HeatScheduleManager({
 										<Input
 											type="datetime-local"
 											value={time}
-											onChange={(e) => updateBulkHeatTime(index, e.target.value)}
+											onChange={(e) =>
+												updateBulkHeatTime(index, e.target.value)
+											}
 											className="flex-1"
 										/>
 									</div>
@@ -1146,7 +1153,8 @@ export function HeatScheduleManager({
 											onChange={(e) => setCopyStartTime(e.target.value)}
 										/>
 										<p className="text-xs text-muted-foreground mt-1">
-											First heat will start at this time (auto-calculated from gap)
+											First heat will start at this time (auto-calculated from
+											gap)
 										</p>
 									</div>
 

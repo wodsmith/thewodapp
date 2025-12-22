@@ -135,7 +135,9 @@ export default async function CompetitionVolunteersPage({
 	)
 
 	// Filter pending direct invites for conditional rendering
-	const pendingDirectInvites = directInvites.filter((i) => i.status === "pending")
+	const pendingDirectInvites = directInvites.filter(
+		(i) => i.status === "pending",
+	)
 
 	return (
 		<div className="flex flex-col gap-8">
@@ -160,8 +162,8 @@ export default async function CompetitionVolunteersPage({
 					<p className="text-muted-foreground text-sm">
 						{invitations.length + volunteersWithAccess.length} total (
 						{invitations.length} application
-						{invitations.length === 1 ? "" : "s"},{" "}
-						{volunteersWithAccess.length} approved)
+						{invitations.length === 1 ? "" : "s"}, {volunteersWithAccess.length}{" "}
+						approved)
 					</p>
 				</div>
 

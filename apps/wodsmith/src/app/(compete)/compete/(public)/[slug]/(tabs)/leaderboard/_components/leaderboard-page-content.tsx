@@ -34,7 +34,10 @@ export function LeaderboardPageContent({
 		"division",
 		parseAsString.withDefault(defaultDivision),
 	)
-	const [selectedEventId, setSelectedEventId] = useQueryState("event", parseAsString)
+	const [selectedEventId, setSelectedEventId] = useQueryState(
+		"event",
+		parseAsString,
+	)
 
 	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
 		[],
