@@ -188,9 +188,7 @@ export const deleteWaiverAction = createServerAction()
 			const db = getDb()
 
 			// Delete waiver (signatures cascade via DB constraint)
-			await db
-				.delete(waiversTable)
-				.where(eq(waiversTable.id, input.waiverId))
+			await db.delete(waiversTable).where(eq(waiversTable.id, input.waiverId))
 
 			// Revalidate
 			revalidatePath(`/compete/organizer/${input.competitionId}/waivers`)
