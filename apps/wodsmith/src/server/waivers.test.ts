@@ -37,9 +37,10 @@ describe("Waiver Server Functions", () => {
 					title: "General Liability Waiver",
 					content: "You agree to...",
 					position: 0,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 				{
 					id: "waiver-2",
@@ -47,9 +48,10 @@ describe("Waiver Server Functions", () => {
 					title: "Photo Release",
 					content: "We may take photos...",
 					position: 1,
-					isRequired: 0,
+					required: false,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 			]
 
@@ -102,7 +104,7 @@ describe("Waiver Server Functions", () => {
 
 			await getCompetitionWaivers("comp-specific-123")
 
-			const findManyCall = mockDb.query.waiversTable.findMany.mock.calls[0][0]
+			const findManyCall = mockDb.query.waiversTable.findMany.mock.calls[0]![0]
 			expect(findManyCall).toHaveProperty("where")
 			expect(findManyCall).toHaveProperty("orderBy")
 		})
@@ -115,9 +117,10 @@ describe("Waiver Server Functions", () => {
 					title: "First Waiver",
 					content: "Content 1",
 					position: 0,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 				{
 					id: "waiver-2",
@@ -125,9 +128,10 @@ describe("Waiver Server Functions", () => {
 					title: "Second Waiver",
 					content: "Content 2",
 					position: 1,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 				{
 					id: "waiver-3",
@@ -135,9 +139,10 @@ describe("Waiver Server Functions", () => {
 					title: "Third Waiver",
 					content: "Content 3",
 					position: 2,
-					isRequired: 0,
+					required: false,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 			]
 
@@ -153,9 +158,9 @@ describe("Waiver Server Functions", () => {
 
 			const result = await getCompetitionWaivers("comp-123")
 
-			expect(result[0].position).toBe(0)
-			expect(result[1].position).toBe(1)
-			expect(result[2].position).toBe(2)
+			expect(result[0]!.position).toBe(0)
+			expect(result[1]!.position).toBe(1)
+			expect(result[2]!.position).toBe(2)
 		})
 	})
 
@@ -167,9 +172,10 @@ describe("Waiver Server Functions", () => {
 				title: "Test Waiver",
 				content: "Waiver content here",
 				position: 0,
-				isRequired: 1,
+				required: true,
 				createdAt: new Date("2024-01-01"),
 				updatedAt: new Date("2024-01-01"),
+				updateCounter: null,
 			}
 
 			const mockDb = {
@@ -219,14 +225,16 @@ describe("Waiver Server Functions", () => {
 
 			await getWaiver("specific-waiver-id")
 
-			const findFirstCall = mockDb.query.waiversTable.findFirst.mock.calls[0][0]
+			const findFirstCall = mockDb.query.waiversTable.findFirst.mock.calls[0]![0]
 			expect(findFirstCall).toHaveProperty("where")
 		})
 	})
 
 	describe("getWaiverSignaturesForRegistration", () => {
 		it("should return signatures with waiver relation", async () => {
-			const mockSignatures: WaiverSignature[] = [
+			const mockSignatures: Array<
+				WaiverSignature & { waiver: Waiver }
+			> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -234,16 +242,19 @@ describe("Waiver Server Functions", () => {
 					registrationId: "reg-456",
 					signedAt: new Date("2024-01-15"),
 					ipAddress: "192.168.1.1",
-					userAgent: "Mozilla/5.0",
+					createdAt: new Date("2024-01-01"),
+					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 					waiver: {
 						id: "waiver-1",
 						competitionId: "comp-123",
 						title: "Liability Waiver",
 						content: "Content...",
 						position: 0,
-						isRequired: 1,
+						required: true,
 						createdAt: new Date("2024-01-01"),
 						updatedAt: new Date("2024-01-01"),
+						updateCounter: null,
 					},
 				},
 			]
@@ -261,8 +272,8 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForRegistration("reg-456")
 
 			expect(result).toEqual(mockSignatures)
-			expect(result[0].waiver).toBeDefined()
-			expect(result[0].waiver?.title).toBe("Liability Waiver")
+			expect((result[0] as typeof mockSignatures[0])!.waiver).toBeDefined()
+			expect((result[0] as typeof mockSignatures[0])!.waiver?.title).toBe("Liability Waiver")
 			expect(mockDb.query.waiverSignaturesTable.findMany).toHaveBeenCalledWith({
 				where: expect.anything(),
 				with: { waiver: true },
@@ -300,13 +311,15 @@ describe("Waiver Server Functions", () => {
 			await getWaiverSignaturesForRegistration("specific-reg-id")
 
 			const findManyCall =
-				mockDb.query.waiverSignaturesTable.findMany.mock.calls[0][0]
+				mockDb.query.waiverSignaturesTable.findMany.mock.calls[0]![0]
 			expect(findManyCall).toHaveProperty("where")
 			expect(findManyCall).toHaveProperty("with")
 		})
 
 		it("should include waiver relation for each signature", async () => {
-			const mockSignatures: WaiverSignature[] = [
+			const mockSignatures: Array<
+				WaiverSignature & { waiver: Waiver }
+			> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -314,16 +327,19 @@ describe("Waiver Server Functions", () => {
 					registrationId: "reg-456",
 					signedAt: new Date("2024-01-15"),
 					ipAddress: "192.168.1.1",
-					userAgent: "Mozilla/5.0",
+					createdAt: new Date("2024-01-01"),
+					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 					waiver: {
 						id: "waiver-1",
 						competitionId: "comp-123",
 						title: "Waiver 1",
 						content: "Content 1",
 						position: 0,
-						isRequired: 1,
+						required: true,
 						createdAt: new Date("2024-01-01"),
 						updatedAt: new Date("2024-01-01"),
+						updateCounter: null,
 					},
 				},
 				{
@@ -333,16 +349,19 @@ describe("Waiver Server Functions", () => {
 					registrationId: "reg-456",
 					signedAt: new Date("2024-01-15"),
 					ipAddress: "192.168.1.1",
-					userAgent: "Mozilla/5.0",
+					createdAt: new Date("2024-01-01"),
+					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 					waiver: {
 						id: "waiver-2",
 						competitionId: "comp-123",
 						title: "Waiver 2",
 						content: "Content 2",
 						position: 1,
-						isRequired: 0,
+						required: false,
 						createdAt: new Date("2024-01-01"),
 						updatedAt: new Date("2024-01-01"),
+						updateCounter: null,
 					},
 				},
 			]
@@ -360,10 +379,10 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForRegistration("reg-456")
 
 			expect(result).toHaveLength(2)
-			expect(result[0].waiver).toBeDefined()
-			expect(result[1].waiver).toBeDefined()
-			expect(result[0].waiver?.id).toBe("waiver-1")
-			expect(result[1].waiver?.id).toBe("waiver-2")
+			expect((result[0] as typeof mockSignatures[0])!.waiver).toBeDefined()
+			expect((result[1] as typeof mockSignatures[1])!.waiver).toBeDefined()
+			expect((result[0] as typeof mockSignatures[0])!.waiver?.id).toBe("waiver-1")
+			expect((result[1] as typeof mockSignatures[1])!.waiver?.id).toBe("waiver-2")
 		})
 	})
 
@@ -376,13 +395,16 @@ describe("Waiver Server Functions", () => {
 					title: "Waiver 1",
 					content: "Content 1",
 					position: 0,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 			]
 
-			const mockSignatures: WaiverSignature[] = [
+			const mockSignatures: Array<
+				WaiverSignature & { waiver: Waiver }
+			> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -390,8 +412,10 @@ describe("Waiver Server Functions", () => {
 					registrationId: "reg-456",
 					signedAt: new Date("2024-01-15"),
 					ipAddress: "192.168.1.1",
-					userAgent: "Mozilla/5.0",
-					waiver: mockWaivers[0],
+					createdAt: new Date("2024-01-01"),
+					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
+					waiver: mockWaivers[0]!,
 				},
 			]
 
@@ -411,7 +435,7 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForUser("user-123", "comp-123")
 
 			expect(result).toEqual(mockSignatures)
-			expect(result[0].waiver).toBeDefined()
+			expect((result[0] as typeof mockSignatures[0])!.waiver).toBeDefined()
 		})
 
 		it("should return empty array when no waivers exist for competition", async () => {
@@ -446,9 +470,10 @@ describe("Waiver Server Functions", () => {
 					title: "Waiver 1",
 					content: "Content 1",
 					position: 0,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 			]
 
@@ -480,9 +505,10 @@ describe("Waiver Server Functions", () => {
 				title: `Waiver ${i}`,
 				content: `Content ${i}`,
 				position: i,
-				isRequired: 1,
+				required: true,
 				createdAt: new Date("2024-01-01"),
 				updatedAt: new Date("2024-01-01"),
+				updateCounter: null,
 			}))
 
 			const mockDb = {
@@ -520,9 +546,10 @@ describe("Waiver Server Functions", () => {
 					title: "Waiver 1",
 					content: "Content 1",
 					position: 0,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 				{
 					id: "waiver-2",
@@ -530,9 +557,10 @@ describe("Waiver Server Functions", () => {
 					title: "Waiver 2",
 					content: "Content 2",
 					position: 1,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 			]
 
@@ -565,9 +593,10 @@ describe("Waiver Server Functions", () => {
 					title: "Waiver 1",
 					content: "Content 1",
 					position: 0,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 				{
 					id: "waiver-2",
@@ -575,13 +604,16 @@ describe("Waiver Server Functions", () => {
 					title: "Waiver 2",
 					content: "Content 2",
 					position: 1,
-					isRequired: 1,
+					required: true,
 					createdAt: new Date("2024-01-01"),
 					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
 				},
 			]
 
-			const mockSignatures: WaiverSignature[] = [
+			const mockSignatures: Array<
+				WaiverSignature & { waiver: Waiver }
+			> = [
 				{
 					id: "sig-1",
 					waiverId: "waiver-1",
@@ -589,8 +621,10 @@ describe("Waiver Server Functions", () => {
 					registrationId: "reg-1",
 					signedAt: new Date("2024-01-15"),
 					ipAddress: "192.168.1.1",
-					userAgent: "Mozilla/5.0",
-					waiver: mockWaivers[0],
+					createdAt: new Date("2024-01-01"),
+					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
+					waiver: mockWaivers[0]!,
 				},
 				{
 					id: "sig-2",
@@ -599,8 +633,10 @@ describe("Waiver Server Functions", () => {
 					registrationId: "reg-1",
 					signedAt: new Date("2024-01-15"),
 					ipAddress: "192.168.1.1",
-					userAgent: "Mozilla/5.0",
-					waiver: mockWaivers[1],
+					createdAt: new Date("2024-01-01"),
+					updatedAt: new Date("2024-01-01"),
+					updateCounter: null,
+					waiver: mockWaivers[1]!,
 				},
 			]
 
@@ -620,41 +656,17 @@ describe("Waiver Server Functions", () => {
 			const result = await getWaiverSignaturesForUser("user-123", "comp-123")
 
 			expect(result).toHaveLength(2)
-			expect(result[0].id).toBe("sig-1")
-			expect(result[1].id).toBe("sig-2")
+			expect(result[0]!.id).toBe("sig-1")
+			expect(result[1]!.id).toBe("sig-2")
 		})
 	})
 
 	describe("validateCompetitionOwnership", () => {
 		it("should pass validation when competition belongs to team", async () => {
-			const mockCompetition: Competition = {
+			const mockCompetition = {
 				id: "comp-123",
 				organizingTeamId: "team-456",
-				name: "Test Competition",
-				slug: "test-competition",
-				description: null,
-				logoUrl: null,
-				startDate: new Date("2024-06-01"),
-				endDate: new Date("2024-06-02"),
-				registrationOpenDate: new Date("2024-05-01"),
-				registrationCloseDate: new Date("2024-05-31"),
-				location: "Test Gym",
-				city: "Test City",
-				state: "TS",
-				country: "US",
-				venue: "Test Venue",
-				maxTeams: 100,
-				maxIndividuals: 200,
-				status: "draft",
-				publishedAt: null,
-				visibility: "public",
-				allowTeamRegistration: 1,
-				allowIndividualRegistration: 1,
-				requireWaivers: 0,
-				stripeAccountId: null,
-				createdAt: new Date("2024-01-01"),
-				updatedAt: new Date("2024-01-01"),
-			}
+			} as Competition
 
 			const mockDb = {
 				query: {
@@ -688,34 +700,10 @@ describe("Waiver Server Functions", () => {
 		})
 
 		it("should throw error when competition belongs to different team", async () => {
-			const mockCompetition: Competition = {
+			const mockCompetition = {
 				id: "comp-123",
 				organizingTeamId: "team-other",
-				name: "Test Competition",
-				slug: "test-competition",
-				description: null,
-				logoUrl: null,
-				startDate: new Date("2024-06-01"),
-				endDate: new Date("2024-06-02"),
-				registrationOpenDate: new Date("2024-05-01"),
-				registrationCloseDate: new Date("2024-05-31"),
-				location: "Test Gym",
-				city: "Test City",
-				state: "TS",
-				country: "US",
-				venue: "Test Venue",
-				maxTeams: 100,
-				maxIndividuals: 200,
-				status: "draft",
-				publishedAt: null,
-				visibility: "public",
-				allowTeamRegistration: 1,
-				allowIndividualRegistration: 1,
-				requireWaivers: 0,
-				stripeAccountId: null,
-				createdAt: new Date("2024-01-01"),
-				updatedAt: new Date("2024-01-01"),
-			}
+			} as Competition
 
 			const mockDb = {
 				query: {
@@ -733,34 +721,10 @@ describe("Waiver Server Functions", () => {
 		})
 
 		it("should query with correct competition ID", async () => {
-			const mockCompetition: Competition = {
+			const mockCompetition = {
 				id: "comp-specific-789",
 				organizingTeamId: "team-456",
-				name: "Test Competition",
-				slug: "test-competition",
-				description: null,
-				logoUrl: null,
-				startDate: new Date("2024-06-01"),
-				endDate: new Date("2024-06-02"),
-				registrationOpenDate: new Date("2024-05-01"),
-				registrationCloseDate: new Date("2024-05-31"),
-				location: "Test Gym",
-				city: "Test City",
-				state: "TS",
-				country: "US",
-				venue: "Test Venue",
-				maxTeams: 100,
-				maxIndividuals: 200,
-				status: "draft",
-				publishedAt: null,
-				visibility: "public",
-				allowTeamRegistration: 1,
-				allowIndividualRegistration: 1,
-				requireWaivers: 0,
-				stripeAccountId: null,
-				createdAt: new Date("2024-01-01"),
-				updatedAt: new Date("2024-01-01"),
-			}
+			} as Competition
 
 			const mockDb = {
 				query: {
@@ -775,39 +739,15 @@ describe("Waiver Server Functions", () => {
 			await validateCompetitionOwnership("comp-specific-789", "team-456")
 
 			const findFirstCall =
-				mockDb.query.competitionsTable.findFirst.mock.calls[0][0]
+				mockDb.query.competitionsTable.findFirst.mock.calls[0]![0]
 			expect(findFirstCall).toHaveProperty("where")
 		})
 
 		it("should not throw when organizingTeamId matches exactly", async () => {
-			const mockCompetition: Competition = {
+			const mockCompetition = {
 				id: "comp-123",
 				organizingTeamId: "team-exact-match",
-				name: "Test Competition",
-				slug: "test-competition",
-				description: null,
-				logoUrl: null,
-				startDate: new Date("2024-06-01"),
-				endDate: new Date("2024-06-02"),
-				registrationOpenDate: new Date("2024-05-01"),
-				registrationCloseDate: new Date("2024-05-31"),
-				location: "Test Gym",
-				city: "Test City",
-				state: "TS",
-				country: "US",
-				venue: "Test Venue",
-				maxTeams: 100,
-				maxIndividuals: 200,
-				status: "draft",
-				publishedAt: null,
-				visibility: "public",
-				allowTeamRegistration: 1,
-				allowIndividualRegistration: 1,
-				requireWaivers: 0,
-				stripeAccountId: null,
-				createdAt: new Date("2024-01-01"),
-				updatedAt: new Date("2024-01-01"),
-			}
+			} as Competition
 
 			const mockDb = {
 				query: {

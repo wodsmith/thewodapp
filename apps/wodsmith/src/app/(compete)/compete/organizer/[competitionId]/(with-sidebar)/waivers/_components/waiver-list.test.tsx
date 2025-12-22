@@ -291,7 +291,6 @@ describe("WaiverList", () => {
 		const { toast } = await import("sonner")
 		const mockDelete = vi.mocked(deleteWaiverAction)
 		mockDelete.mockResolvedValue([
-			// @ts-expect-error - mocking return type
 			{ success: true },
 			null,
 		])

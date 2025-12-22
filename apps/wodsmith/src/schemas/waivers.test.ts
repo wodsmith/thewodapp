@@ -82,11 +82,11 @@ describe("createWaiverSchema", () => {
 			}
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
-			if (!result.success) {
-				expect(result.error.issues[0].message).toContain(
-					"Invalid competition ID",
-				)
-			}
+		if (!result.success) {
+			expect(result.error.issues[0]!.message).toContain(
+				"Invalid competition ID",
+			)
+		}
 		})
 
 		test("rejects missing teamId", () => {
@@ -109,7 +109,7 @@ describe("createWaiverSchema", () => {
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Invalid team ID")
+				expect(result.error.issues[0]!.message).toContain("Invalid team ID")
 			}
 		})
 
@@ -123,7 +123,7 @@ describe("createWaiverSchema", () => {
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Title is required")
+				expect(result.error.issues[0]!.message).toContain("Title is required")
 			}
 		})
 
@@ -137,7 +137,7 @@ describe("createWaiverSchema", () => {
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Title is too long")
+				expect(result.error.issues[0]!.message).toContain("Title is too long")
 			}
 		})
 
@@ -151,7 +151,7 @@ describe("createWaiverSchema", () => {
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Content is required")
+				expect(result.error.issues[0]!.message).toContain("Content is required")
 			}
 		})
 
@@ -165,7 +165,7 @@ describe("createWaiverSchema", () => {
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Content is too long")
+				expect(result.error.issues[0]!.message).toContain("Content is too long")
 			}
 		})
 
@@ -239,7 +239,7 @@ describe("updateWaiverSchema", () => {
 			const result = updateWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Invalid waiver ID")
+				expect(result.error.issues[0]!.message).toContain("Invalid waiver ID")
 			}
 		})
 
@@ -253,7 +253,7 @@ describe("updateWaiverSchema", () => {
 			const result = updateWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Title is required")
+				expect(result.error.issues[0]!.message).toContain("Title is required")
 			}
 		})
 
@@ -267,7 +267,7 @@ describe("updateWaiverSchema", () => {
 			const result = updateWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Title is too long")
+				expect(result.error.issues[0]!.message).toContain("Title is too long")
 			}
 		})
 
@@ -281,7 +281,7 @@ describe("updateWaiverSchema", () => {
 			const result = updateWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Content is required")
+				expect(result.error.issues[0]!.message).toContain("Content is required")
 			}
 		})
 	})
@@ -319,7 +319,7 @@ describe("deleteWaiverSchema", () => {
 			const result = deleteWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Invalid waiver ID")
+				expect(result.error.issues[0]!.message).toContain("Invalid waiver ID")
 			}
 		})
 
@@ -380,7 +380,7 @@ describe("reorderWaiversSchema", () => {
 			const result = reorderWaiversSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain(
+				expect(result.error.issues[0]!.message).toContain(
 					"At least one waiver is required",
 				)
 			}
@@ -395,7 +395,7 @@ describe("reorderWaiversSchema", () => {
 			const result = reorderWaiversSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Invalid waiver ID")
+				expect(result.error.issues[0]!.message).toContain("Invalid waiver ID")
 			}
 		})
 
@@ -486,7 +486,7 @@ describe("signWaiverSchema", () => {
 			const result = signWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain("Invalid waiver ID")
+				expect(result.error.issues[0]!.message).toContain("Invalid waiver ID")
 			}
 		})
 
@@ -498,7 +498,7 @@ describe("signWaiverSchema", () => {
 			const result = signWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain(
+				expect(result.error.issues[0]!.message).toContain(
 					"Invalid registration ID",
 				)
 			}
@@ -540,7 +540,7 @@ describe("getWaiverSignaturesForRegistrationSchema", () => {
 			const result = getWaiverSignaturesForRegistrationSchema.safeParse(input)
 			expect(result.success).toBe(false)
 			if (!result.success) {
-				expect(result.error.issues[0].message).toContain(
+				expect(result.error.issues[0]!.message).toContain(
 					"Invalid registration ID",
 				)
 			}

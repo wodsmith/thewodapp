@@ -6,7 +6,7 @@ import { WaiverViewer } from "./waiver-viewer"
 
 describe("WaiverViewer", () => {
 	it("renders markdown content from Lexical JSON", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -21,7 +21,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -29,7 +29,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders bold text with markdown formatting", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -45,7 +45,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -56,7 +56,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders italic text with markdown formatting", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -72,7 +72,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -83,7 +83,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders links with target=_blank and noopener noreferrer", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -108,7 +108,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -120,7 +120,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders headings with correct levels", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -146,7 +146,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -158,7 +158,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders bullet lists", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -188,7 +188,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -197,7 +197,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders numbered lists", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -227,7 +227,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -236,7 +236,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders quotes with blockquote styling", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -251,7 +251,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -263,12 +263,12 @@ describe("WaiverViewer", () => {
 	})
 
 	it("handles empty content gracefully", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		const { container } = render(<WaiverViewer content={content} />)
 
@@ -286,7 +286,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("applies custom className to wrapper", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -301,7 +301,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		const { container } = render(
 			<WaiverViewer content={content} className="border rounded-lg p-4" />,
@@ -312,7 +312,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders complex nested content correctly", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -381,7 +381,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -408,7 +408,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("renders multiple links correctly", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -447,7 +447,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 
@@ -461,7 +461,7 @@ describe("WaiverViewer", () => {
 	})
 
 	it("link has correct CSS classes for styling", () => {
-		const content: SerializedEditorState = {
+		const content = {
 			root: {
 				children: [
 					{
@@ -482,7 +482,7 @@ describe("WaiverViewer", () => {
 				],
 				type: "root",
 			},
-		}
+		} as unknown as SerializedEditorState
 
 		render(<WaiverViewer content={content} />)
 

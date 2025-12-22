@@ -406,19 +406,17 @@ describe("WaiverFormDialog", () => {
 		const { createWaiverAction } = await import("@/actions/waivers")
 		const mockCreate = vi.mocked(createWaiverAction)
 		// Make the action hang so we can check loading state
-		mockCreate.mockImplementation(
-			() =>
-				new Promise((resolve) => {
-					setTimeout(
-						() =>
-							resolve([
-								// @ts-expect-error - mocking return type
-								{ data: mockWaiver },
-								null,
-							]),
-						100,
-					)
-				}),
+		mockCreate.mockReturnValue(
+			new Promise((resolve) => {
+				setTimeout(
+					() =>
+						resolve([
+							{ data: mockWaiver },
+							null,
+						] as any),
+					100,
+				)
+			}) as any,
 		)
 
 		const user = userEvent.setup()
