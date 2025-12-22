@@ -1,11 +1,20 @@
 "use client"
 
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
 import {
 	draggable,
 	dropTargetForElements,
+	type ElementDropTargetEventBasePayload,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
+import {
+	attachClosestEdge,
+	type Edge,
+	extractClosestEdge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
+import { DragHandleButton } from "@atlaskit/pragmatic-drag-and-drop-react-accessibility/drag-handle-button"
+import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 import { useServerAction } from "@repo/zsa-react"
 import {
 	ChevronDown,
@@ -18,7 +27,7 @@ import {
 	Trash2,
 	X,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
 	assignToHeatAction,
 	bulkAssignToHeatAction,
@@ -42,6 +51,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 
 interface Registration {
@@ -60,7 +70,11 @@ interface Registration {
 
 interface DroppableLaneProps {
 	laneNum: number
-	onDropUnassigned: (registrationIds: string[], laneNumber: number) => void
+	onDropUnassigned: (
+		registrationIds: string[],
+		laneNumber: number,
+		divisionName?: string,
+	) => void
 	onDropAssigned: (
 		assignmentId: string,
 		sourceHeatId: string,
@@ -80,6 +94,7 @@ function DroppableLane({
 }: DroppableLaneProps) {
 	const ref = useRef<HTMLDivElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
+	const [isDivisionOver, setIsDivisionOver] = useState(false)
 	const hasSelection = selectedAthleteIds && selectedAthleteIds.size > 0
 
 	function handleClick() {
@@ -95,13 +110,34 @@ function DroppableLane({
 		return dropTargetForElements({
 			element,
 			canDrop: ({ source }) =>
-				source.data.type === "athlete" || source.data.type === "assigned",
-			onDragEnter: () => setIsDraggedOver(true),
-			onDragLeave: () => setIsDraggedOver(false),
+				source.data.type === "athlete" ||
+				source.data.type === "assigned" ||
+				source.data.type === "division",
+			onDragEnter: ({ source }) => {
+				if (source.data.type === "division") {
+					setIsDivisionOver(true)
+				} else {
+					setIsDraggedOver(true)
+				}
+			},
+			onDragLeave: () => {
+				setIsDraggedOver(false)
+				setIsDivisionOver(false)
+			},
 			onDrop: ({ source }) => {
 				setIsDraggedOver(false)
+				setIsDivisionOver(false)
 
-				if (source.data.type === "assigned") {
+				if (source.data.type === "division") {
+					// Division drop
+					const registrationIds = source.data.registrationIds as
+						| string[]
+						| undefined
+					const divisionName = source.data.divisionName as string | undefined
+					if (registrationIds && Array.isArray(registrationIds)) {
+						onDropUnassigned(registrationIds, laneNum, divisionName)
+					}
+				} else if (source.data.type === "assigned") {
 					// Moving an already assigned athlete
 					const assignmentId = source.data.assignmentId as string
 					const sourceHeatId = source.data.heatId as string
@@ -139,7 +175,9 @@ function DroppableLane({
 			onClick={handleClick}
 			onKeyDown={hasSelection ? handleKeyDown : undefined}
 			className={`flex items-center gap-3 py-1 border-b border-border/50 last:border-0 transition-colors ${
-				isDraggedOver ? "bg-primary/10 border-primary rounded" : ""
+				isDraggedOver || isDivisionOver
+					? "bg-primary/10 border-primary rounded"
+					: ""
 			} ${hasSelection ? "cursor-pointer hover:bg-primary/5" : ""}`}
 		>
 			{/* Spacer to align with grip handle in assigned rows - hidden on mobile */}
@@ -149,14 +187,18 @@ function DroppableLane({
 			</span>
 			<span
 				className={`flex-1 text-sm ${
-					isDraggedOver
+					isDraggedOver || isDivisionOver
 						? "text-primary font-medium"
 						: hasSelection
 							? "text-primary/70"
 							: "text-muted-foreground"
 				}`}
 			>
-				{isDraggedOver ? "Drop here" : hasSelection ? "Tap to assign" : "Empty"}
+				{isDraggedOver || isDivisionOver
+					? "Drop here"
+					: hasSelection
+						? "Tap to assign"
+						: "Empty"}
 			</span>
 		</div>
 	)
@@ -284,6 +326,9 @@ interface HeatCardProps {
 	) => void
 	selectedAthleteIds?: Set<string>
 	onClearSelection?: () => void
+	index?: number
+	instanceId?: symbol
+	onReorder?: (sourceIndex: number, targetIndex: number) => void
 }
 
 export function HeatCard({
@@ -297,6 +342,9 @@ export function HeatCard({
 	onMoveAssignment,
 	selectedAthleteIds,
 	onClearSelection,
+	index,
+	instanceId,
+	onReorder,
 }: HeatCardProps) {
 	const [isAssignOpen, setIsAssignOpen] = useState(false)
 	const [selectedRegistrationId, setSelectedRegistrationId] =
@@ -307,6 +355,20 @@ export function HeatCard({
 	const removeFromHeat = useServerAction(removeFromHeatAction)
 	const moveAssignment = useServerAction(moveAssignmentAction)
 	const bulkAssign = useServerAction(bulkAssignToHeatAction)
+	const { toast } = useToast()
+
+	// Drag-and-drop refs and state for heat reordering
+	const heatRef = useRef<HTMLDivElement>(null)
+	const dragHandleRef = useRef<HTMLButtonElement>(null)
+	const [isDraggingHeat, setIsDraggingHeat] = useState(false)
+	const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
+	const closestEdgeRef = useRef<Edge | null>(null)
+
+	// Wrap in useCallback for drag-drop skill pattern
+	const updateClosestEdge = useCallback((edge: Edge | null) => {
+		closestEdgeRef.current = edge
+		setClosestEdge(edge)
+	}, [])
 
 	// Get occupied lanes
 	const occupiedLanes = new Set(heat.assignments.map((a) => a.laneNumber))
@@ -383,6 +445,7 @@ export function HeatCard({
 	async function handleDropAssign(
 		registrationIds: string[],
 		startLane: number,
+		divisionName?: string,
 	) {
 		// Filter to only IDs that exist in unassigned and limit to available lanes
 		const validIds = registrationIds.filter((id) =>
@@ -474,6 +537,15 @@ export function HeatCard({
 					.filter(Boolean) as HeatWithAssignments["assignments"]
 
 				onAssignmentChange([...heat.assignments, ...newAssignments])
+
+				// Show toast for division bulk assignment
+				if (divisionName) {
+					const assignedCount = newAssignments.length
+					toast({
+						title: "Athletes assigned",
+						description: `Assigned ${assignedCount} athlete${assignedCount !== 1 ? "s" : ""} from ${divisionName}`,
+					})
+				}
 			}
 		}
 
@@ -536,6 +608,119 @@ export function HeatCard({
 		}
 	}
 
+	// Heat reordering drag-drop effect
+	useEffect(() => {
+		const element = heatRef.current
+		const dragHandle = dragHandleRef.current
+		if (
+			!element ||
+			!dragHandle ||
+			index === undefined ||
+			!instanceId ||
+			!onReorder
+		)
+			return
+
+		const heatData = {
+			heatId: heat.id,
+			heatNumber: heat.heatNumber,
+			index,
+			instanceId,
+		}
+
+		function onChange({ source, self }: ElementDropTargetEventBasePayload) {
+			const isSource = source.element === dragHandle
+			if (isSource) {
+				updateClosestEdge(null)
+				return
+			}
+
+			const edge = extractClosestEdge(self.data)
+			const sourceIndex = source.data.index
+			if (typeof sourceIndex !== "number") return
+
+			const isItemBeforeSource = index === sourceIndex - 1
+			const isItemAfterSource = index === sourceIndex + 1
+
+			const isDropIndicatorHidden =
+				(isItemBeforeSource && edge === "bottom") ||
+				(isItemAfterSource && edge === "top")
+
+			if (isDropIndicatorHidden) {
+				updateClosestEdge(null)
+				return
+			}
+
+			updateClosestEdge(edge)
+		}
+
+		return combine(
+			draggable({
+				element: dragHandle,
+				getInitialData: () => heatData,
+				onGenerateDragPreview({ nativeSetDragImage }) {
+					setCustomNativeDragPreview({
+						nativeSetDragImage,
+						getOffset: pointerOutsideOfPreview({ x: "16px", y: "8px" }),
+						render({ container }) {
+							const preview = document.createElement("div")
+							preview.style.cssText = `
+								background: hsl(var(--background));
+								border: 2px solid hsl(var(--primary));
+								border-radius: 6px;
+								padding: 8px 12px;
+								font-size: 14px;
+								color: hsl(var(--foreground));
+								box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+								font-weight: 600;
+							`
+							preview.textContent = `Heat ${heat.heatNumber}`
+							container.appendChild(preview)
+						},
+					})
+				},
+				onDragStart: () => setIsDraggingHeat(true),
+				onDrop: () => setIsDraggingHeat(false),
+			}),
+			dropTargetForElements({
+				element,
+				canDrop: ({ source }) =>
+					source.data &&
+					"heatId" in source.data &&
+					"instanceId" in source.data &&
+					source.data.instanceId === instanceId,
+				getData({ input }) {
+					return attachClosestEdge(heatData, {
+						element,
+						input,
+						allowedEdges: ["top", "bottom"],
+					})
+				},
+				onDragEnter: onChange,
+				onDrag: onChange,
+				onDragLeave: () => updateClosestEdge(null),
+				onDrop: ({ source }) => {
+					updateClosestEdge(null)
+					const sourceIndex = source.data.index
+					if (typeof sourceIndex === "number" && sourceIndex !== index) {
+						const edge = closestEdgeRef.current
+						const targetIndex = edge === "top" ? index : index + 1
+						const adjustedTargetIndex =
+							sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+						onReorder(sourceIndex, adjustedTargetIndex)
+					}
+				},
+			}),
+		)
+	}, [
+		heat.id,
+		heat.heatNumber,
+		index,
+		instanceId,
+		onReorder,
+		updateClosestEdge,
+	])
+
 	// Group assignments by division for collapsed view
 	const assignmentsByDivision = heat.assignments.reduce(
 		(acc, assignment) => {
@@ -549,216 +734,236 @@ export function HeatCard({
 	// Collapsed view for full heats
 	if (!isExpanded) {
 		return (
-			<Card
-				className="cursor-pointer hover:bg-muted/50 transition-colors"
-				onClick={() => setIsExpanded(true)}
-			>
-				<CardHeader className="py-3">
-					<div className="flex items-center gap-3">
-						<ChevronRight className="h-4 w-4 text-muted-foreground" />
-						<CardTitle className="text-base">
-							Heat <span className="tabular-nums">{heat.heatNumber}</span>
-						</CardTitle>
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							{heat.scheduledTime && (
-								<span className="flex items-center gap-1">
-									<Clock className="h-3 w-3" />
-									{formatTime(heat.scheduledTime)}
-								</span>
+			<div ref={heatRef} className="relative">
+				{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
+				<Card
+					className={`cursor-pointer hover:bg-muted/50 transition-colors ${
+						isDraggingHeat ? "opacity-50" : ""
+					}`}
+					onClick={() => setIsExpanded(true)}
+				>
+					<CardHeader className="py-3">
+						<div className="flex items-center gap-3">
+							{onReorder && (
+								<DragHandleButton
+									ref={dragHandleRef}
+									label={`Reorder Heat ${heat.heatNumber}`}
+								/>
 							)}
-							{heat.venue && (
-								<span className="flex items-center gap-1">
-									<MapPin className="h-3 w-3" />
-									{heat.venue.name}
-								</span>
-							)}
-						</div>
-						<Badge
-							variant={isFull ? "default" : "outline"}
-							className="text-xs tabular-nums"
-						>
-							{heat.assignments.length}/{maxLanes}
-						</Badge>
-						<div className="flex-1" />
-						{Object.entries(assignmentsByDivision).map(([divLabel, count]) => (
-							<Badge key={divLabel} variant="secondary" className="text-xs">
-								{divLabel}: {count}
+							<ChevronRight className="h-4 w-4 text-muted-foreground" />
+							<CardTitle className="text-base">
+								Heat <span className="tabular-nums">{heat.heatNumber}</span>
+							</CardTitle>
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								{heat.scheduledTime && (
+									<span className="flex items-center gap-1">
+										<Clock className="h-3 w-3" />
+										{formatTime(heat.scheduledTime)}
+									</span>
+								)}
+								{heat.venue && (
+									<span className="flex items-center gap-1">
+										<MapPin className="h-3 w-3" />
+										{heat.venue.name}
+									</span>
+								)}
+							</div>
+							<Badge
+								variant={isFull ? "default" : "outline"}
+								className="text-xs tabular-nums"
+							>
+								{heat.assignments.length}/{maxLanes}
 							</Badge>
-						))}
-					</div>
-				</CardHeader>
-			</Card>
+							<div className="flex-1" />
+							{Object.entries(assignmentsByDivision).map(([divLabel, count]) => (
+								<Badge key={divLabel} variant="secondary" className="text-xs">
+									{divLabel}: {count}
+								</Badge>
+							))}
+						</div>
+					</CardHeader>
+				</Card>
+			</div>
 		)
 	}
 
 	return (
-		<Card>
-			<CardHeader className="pb-3">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-6 w-6"
-							onClick={() => setIsExpanded(false)}
-						>
-							<ChevronDown className="h-4 w-4" />
-						</Button>
-						<CardTitle className="text-base">
-							Heat <span className="tabular-nums">{heat.heatNumber}</span>
-						</CardTitle>
-						<Badge
-							variant={isFull ? "default" : "outline"}
-							className="text-xs tabular-nums"
-						>
-							{heat.assignments.length}/{maxLanes}
-						</Badge>
+		<div ref={heatRef} className="relative">
+			{closestEdge && <DropIndicator edge={closestEdge} gap="2px" />}
+			<Card className={isDraggingHeat ? "opacity-50" : ""}>
+				<CardHeader className="pb-3">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							{onReorder && (
+								<DragHandleButton
+									ref={dragHandleRef}
+									label={`Reorder Heat ${heat.heatNumber}`}
+								/>
+							)}
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6"
+								onClick={() => setIsExpanded(false)}
+							>
+								<ChevronDown className="h-4 w-4" />
+							</Button>
+							<CardTitle className="text-base">
+								Heat <span className="tabular-nums">{heat.heatNumber}</span>
+							</CardTitle>
+							<Badge
+								variant={isFull ? "default" : "outline"}
+								className="text-xs tabular-nums"
+							>
+								{heat.assignments.length}/{maxLanes}
+							</Badge>
+						</div>
+						<div className="flex items-center gap-2">
+							{heat.division && (
+								<Badge variant="secondary">{heat.division.label}</Badge>
+							)}
+							<Button variant="ghost" size="icon" onClick={onDelete}>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-					<div className="flex items-center gap-2">
-						{heat.division && (
-							<Badge variant="secondary">{heat.division.label}</Badge>
+					<div className="flex items-center gap-4 text-sm text-muted-foreground">
+						{heat.scheduledTime && (
+							<span className="flex items-center gap-1">
+								<Clock className="h-3 w-3" />
+								{formatTime(heat.scheduledTime)}
+							</span>
 						)}
-						<Button variant="ghost" size="icon" onClick={onDelete}>
-							<Trash2 className="h-4 w-4" />
-						</Button>
+						{heat.venue && (
+							<span className="flex items-center gap-1">
+								<MapPin className="h-3 w-3" />
+								{heat.venue.name}
+							</span>
+						)}
 					</div>
-				</div>
-				<div className="flex items-center gap-4 text-sm text-muted-foreground">
-					{heat.scheduledTime && (
-						<span className="flex items-center gap-1">
-							<Clock className="h-3 w-3" />
-							{formatTime(heat.scheduledTime)}
-						</span>
-					)}
-					{heat.venue && (
-						<span className="flex items-center gap-1">
-							<MapPin className="h-3 w-3" />
-							{heat.venue.name}
-						</span>
-					)}
-				</div>
-			</CardHeader>
-			<CardContent>
-				{/* Lane Assignments */}
-				<div className="space-y-2">
-					{Array.from({ length: maxLanes }, (_, i) => i + 1).map((laneNum) => {
-						const assignment = heat.assignments.find(
-							(a) => a.laneNumber === laneNum,
-						)
+				</CardHeader>
+				<CardContent>
+					{/* Lane Assignments */}
+					<div className="space-y-2">
+						{Array.from({ length: maxLanes }, (_, i) => i + 1).map((laneNum) => {
+							const assignment = heat.assignments.find(
+								(a) => a.laneNumber === laneNum,
+							)
 
-						if (!assignment) {
+							if (!assignment) {
+								return (
+									<DroppableLane
+										key={laneNum}
+										laneNum={laneNum}
+										onDropUnassigned={handleDropAssign}
+										onDropAssigned={handleDropAssigned}
+										selectedAthleteIds={selectedAthleteIds}
+										onTapAssign={(lane) => {
+											if (selectedAthleteIds && selectedAthleteIds.size > 0) {
+												handleDropAssign(Array.from(selectedAthleteIds), lane)
+											}
+										}}
+									/>
+								)
+							}
+
 							return (
-								<DroppableLane
+								<DraggableAssignedAthlete
 									key={laneNum}
+									assignment={assignment}
+									heatId={heat.id}
 									laneNum={laneNum}
-									onDropUnassigned={handleDropAssign}
-									onDropAssigned={handleDropAssigned}
-									selectedAthleteIds={selectedAthleteIds}
-									onTapAssign={(lane) => {
-										if (selectedAthleteIds && selectedAthleteIds.size > 0) {
-											handleDropAssign(Array.from(selectedAthleteIds), lane)
-										}
-									}}
+									onRemove={() => handleRemove(assignment.id)}
+									isRemoving={removeFromHeat.isPending}
 								/>
 							)
-						}
+						})}
+					</div>
 
-						return (
-							<DraggableAssignedAthlete
-								key={laneNum}
-								assignment={assignment}
-								heatId={heat.id}
-								laneNum={laneNum}
-								onRemove={() => handleRemove(assignment.id)}
-								isRemoving={removeFromHeat.isPending}
-							/>
-						)
-					})}
-				</div>
-
-				{/* Add Athlete Button */}
-				{availableLanes.length > 0 && unassignedRegistrations.length > 0 && (
-					<Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
-						<DialogTrigger asChild>
-							<Button variant="outline" size="sm" className="w-full mt-4">
-								<Plus className="h-4 w-4 mr-2" />
-								Assign Athlete
-							</Button>
-						</DialogTrigger>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>
-									Assign Athlete to Heat {heat.heatNumber}
-								</DialogTitle>
-							</DialogHeader>
-							<div className="space-y-4">
-								<div>
-									{/* biome-ignore lint/a11y/noLabelWithoutControl: Select component handles its own labeling */}
-									<label className="text-sm font-medium">Athlete</label>
-									<Select
-										value={selectedRegistrationId}
-										onValueChange={setSelectedRegistrationId}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select an athlete" />
-										</SelectTrigger>
-										<SelectContent>
-											{unassignedRegistrations.map((reg) => (
-												<SelectItem key={reg.id} value={reg.id}>
-													{reg.teamName ??
-														(`${reg.user.firstName ?? ""} ${reg.user.lastName ?? ""}`.trim() ||
-															"Unknown")}{" "}
-													{reg.division && `(${reg.division.label})`}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+					{/* Add Athlete Button */}
+					{availableLanes.length > 0 && unassignedRegistrations.length > 0 && (
+						<Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
+							<DialogTrigger asChild>
+								<Button variant="outline" size="sm" className="w-full mt-4">
+									<Plus className="h-4 w-4 mr-2" />
+									Assign Athlete
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>
+										Assign Athlete to Heat {heat.heatNumber}
+									</DialogTitle>
+								</DialogHeader>
+								<div className="space-y-4">
+									<div>
+										{/* biome-ignore lint/a11y/noLabelWithoutControl: Select component handles its own labeling */}
+										<label className="text-sm font-medium">Athlete</label>
+										<Select
+											value={selectedRegistrationId}
+											onValueChange={setSelectedRegistrationId}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Select an athlete" />
+											</SelectTrigger>
+											<SelectContent>
+												{unassignedRegistrations.map((reg) => (
+													<SelectItem key={reg.id} value={reg.id}>
+														{reg.teamName ??
+															(`${reg.user.firstName ?? ""} ${reg.user.lastName ?? ""}`.trim() ||
+																"Unknown")}{" "}
+														{reg.division && `(${reg.division.label})`}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<div>
+										{/* biome-ignore lint/a11y/noLabelWithoutControl: Select component handles its own labeling */}
+										<label className="text-sm font-medium">Lane</label>
+										<Select
+											value={String(selectedLane)}
+											onValueChange={(v) => setSelectedLane(Number(v))}
+										>
+											<SelectTrigger>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												{availableLanes.map((lane) => (
+													<SelectItem key={lane} value={String(lane)}>
+														Lane {lane}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<div className="flex justify-end gap-2">
+										<Button
+											variant="outline"
+											onClick={() => setIsAssignOpen(false)}
+										>
+											Cancel
+										</Button>
+										<Button
+											onClick={handleAssign}
+											disabled={
+												!selectedRegistrationId ||
+												!selectedLane ||
+												assignToHeat.isPending
+											}
+										>
+											{assignToHeat.isPending && (
+												<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+											)}
+											Assign
+										</Button>
+									</div>
 								</div>
-								<div>
-									{/* biome-ignore lint/a11y/noLabelWithoutControl: Select component handles its own labeling */}
-									<label className="text-sm font-medium">Lane</label>
-									<Select
-										value={String(selectedLane)}
-										onValueChange={(v) => setSelectedLane(Number(v))}
-									>
-										<SelectTrigger>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											{availableLanes.map((lane) => (
-												<SelectItem key={lane} value={String(lane)}>
-													Lane {lane}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-								<div className="flex justify-end gap-2">
-									<Button
-										variant="outline"
-										onClick={() => setIsAssignOpen(false)}
-									>
-										Cancel
-									</Button>
-									<Button
-										onClick={handleAssign}
-										disabled={
-											!selectedRegistrationId ||
-											!selectedLane ||
-											assignToHeat.isPending
-										}
-									>
-										{assignToHeat.isPending && (
-											<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-										)}
-										Assign
-									</Button>
-								</div>
-							</div>
-						</DialogContent>
-					</Dialog>
-				)}
-			</CardContent>
-		</Card>
+							</DialogContent>
+						</Dialog>
+					)}
+				</CardContent>
+			</Card>
+		</div>
 	)
 }
