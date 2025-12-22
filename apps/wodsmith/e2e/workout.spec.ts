@@ -33,17 +33,26 @@ test.describe("Workouts", () => {
 
 	test.describe("Viewing Workouts", () => {
 		test("should display seeded workouts in list", async ({ page }) => {
-			await page.goto("/workouts")
+			// Navigate and wait for network to settle (server data fetching)
+			await page.goto("/workouts", { waitUntil: 'networkidle' })
+
+			// Wait for the main workout list heading to confirm page loaded
+			await expect(page.getByRole("heading", { name: /workouts/i })).toBeVisible()
 
 			// Verify seeded workouts are visible using exact match selectors
 			// Use getByRole('link') to match the workout card links specifically
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible()
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.murph.name)).toBeVisible()
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.cindy.name)).toBeVisible()
+			// Use longer timeout as workouts may take time to render
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible({ timeout: 10000 })
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.murph.name)).toBeVisible({ timeout: 10000 })
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.cindy.name)).toBeVisible({ timeout: 10000 })
 		})
 
 		test("should navigate to workout detail page", async ({ page }) => {
-			await page.goto("/workouts")
+			// Navigate and wait for network to settle
+			await page.goto("/workouts", { waitUntil: 'networkidle' })
+
+			// Wait for workout to be visible before clicking
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible({ timeout: 10000 })
 
 			// Click on the Fran workout card (using precise selector)
 			await getWorkoutCardByName(page, TEST_DATA.workouts.fran.name).click()
