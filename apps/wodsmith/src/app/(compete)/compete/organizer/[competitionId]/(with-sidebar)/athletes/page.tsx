@@ -6,6 +6,7 @@ import {
 	getCompetition,
 	getCompetitionRegistrations,
 } from "@/server/competitions"
+import { getCompetitionWaivers } from "@/server/waivers"
 import { OrganizerRegistrationList } from "./_components/organizer-registration-list"
 
 interface CompetitionAthletesPageProps {
@@ -14,6 +15,7 @@ interface CompetitionAthletesPageProps {
 	}>
 	searchParams: Promise<{
 		division?: string
+		waiverStatus?: "all" | "complete" | "pending"
 	}>
 }
 
@@ -40,7 +42,7 @@ export default async function CompetitionAthletesPage({
 	searchParams,
 }: CompetitionAthletesPageProps) {
 	const { competitionId } = await params
-	const { division: divisionFilter } = await searchParams
+	const { division: divisionFilter, waiverStatus } = await searchParams
 
 	// Get competition (layout already validated access)
 	const competition = await getCompetition(competitionId)
@@ -49,10 +51,11 @@ export default async function CompetitionAthletesPage({
 		notFound()
 	}
 
-	// Parallel fetch: registrations and divisions for filtering
-	const [registrations, { divisions }] = await Promise.all([
+	// Parallel fetch: registrations, divisions, and waivers
+	const [registrations, { divisions }, waivers] = await Promise.all([
 		getCompetitionRegistrations(competitionId, divisionFilter),
 		getCompetitionDivisionsWithCounts({ competitionId }),
+		getCompetitionWaivers(competitionId),
 	])
 
 	return (
@@ -69,7 +72,9 @@ export default async function CompetitionAthletesPage({
 				competitionId={competition.id}
 				registrations={registrations}
 				divisions={divisions}
+				waivers={waivers}
 				currentDivisionFilter={divisionFilter}
+				currentWaiverStatusFilter={waiverStatus}
 			/>
 		</div>
 	)
