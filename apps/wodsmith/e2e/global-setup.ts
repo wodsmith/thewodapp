@@ -9,19 +9,14 @@
  */
 
 import { execSync } from "node:child_process"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const APP_DIR = join(__dirname, "..")
-
-export default async function globalSetup(): Promise<void> {
+async function globalSetup(): Promise<void> {
 	console.log("\n🧪 [E2E Global Setup] Preparing test database...")
 
 	try {
 		// Run the E2E database setup script
+		// Playwright runs from apps/wodsmith, so cwd is already correct
 		execSync("pnpm tsx scripts/setup-e2e-db.ts", {
-			cwd: APP_DIR,
 			stdio: "inherit",
 			env: {
 				...process.env,
@@ -36,3 +31,5 @@ export default async function globalSetup(): Promise<void> {
 		throw error
 	}
 }
+
+export default globalSetup

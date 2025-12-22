@@ -17,19 +17,19 @@ import {
 
 test.describe("Authentication", () => {
 	test("should show login page", async ({ page }) => {
-		await page.goto("/login")
+		await page.goto("/sign-in")
 
 		// Verify page loaded
-		await expect(page).toHaveURL(/\/login/)
+		await expect(page).toHaveURL(/\/sign-in/)
 
 		// Verify form elements are visible
 		await expect(
 			page.getByRole("heading", { name: /sign in/i }),
 		).toBeVisible()
-		await expect(page.getByLabel(/email/i)).toBeVisible()
-		await expect(page.getByLabel(/password/i)).toBeVisible()
+		await expect(page.getByPlaceholder(/email/i)).toBeVisible()
+		await expect(page.getByPlaceholder(/password/i)).toBeVisible()
 		await expect(
-			page.getByRole("button", { name: /sign in/i }),
+			page.getByRole("button", { name: "SIGN IN", exact: true }),
 		).toBeVisible()
 	})
 
@@ -37,8 +37,8 @@ test.describe("Authentication", () => {
 		// Visit protected route without authentication
 		await page.goto("/workouts")
 
-		// Should redirect to login
-		await expect(page).toHaveURL(/\/login/)
+		// Should redirect to sign-in
+		await expect(page).toHaveURL(/\/sign-in/)
 
 		// Should show login form
 		await expect(
@@ -76,17 +76,17 @@ test.describe("Authentication", () => {
 	})
 
 	test("should show error for invalid credentials", async ({ page }) => {
-		await page.goto("/login")
+		await page.goto("/sign-in")
 
 		// Fill in the login form with wrong password
-		await page.getByLabel(/email/i).fill(TEST_USER.email)
-		await page.getByLabel(/password/i).fill("wrongpassword123")
+		await page.getByPlaceholder(/email/i).fill(TEST_USER.email)
+		await page.getByPlaceholder(/password/i).fill("wrongpassword123")
 
 		// Submit the form
-		await page.getByRole("button", { name: /sign in/i }).click()
+		await page.getByRole("button", { name: "SIGN IN", exact: true }).click()
 
-		// Should stay on login page
-		await expect(page).toHaveURL(/\/login/)
+		// Should stay on sign-in page
+		await expect(page).toHaveURL(/\/sign-in/)
 
 		// Should show error message
 		await expect(
@@ -95,17 +95,17 @@ test.describe("Authentication", () => {
 	})
 
 	test("should show error for non-existent user", async ({ page }) => {
-		await page.goto("/login")
+		await page.goto("/sign-in")
 
 		// Fill in the login form with non-existent email
-		await page.getByLabel(/email/i).fill("nonexistent@example.com")
-		await page.getByLabel(/password/i).fill("somepassword")
+		await page.getByPlaceholder(/email/i).fill("nonexistent@example.com")
+		await page.getByPlaceholder(/password/i).fill("somepassword")
 
 		// Submit the form
-		await page.getByRole("button", { name: /sign in/i }).click()
+		await page.getByRole("button", { name: "SIGN IN", exact: true }).click()
 
-		// Should stay on login page
-		await expect(page).toHaveURL(/\/login/)
+		// Should stay on sign-in page
+		await expect(page).toHaveURL(/\/sign-in/)
 
 		// Should show error message
 		await expect(
@@ -123,12 +123,13 @@ test.describe("Authentication", () => {
 		// Logout
 		await logout(page)
 
-		// Should redirect to login page
-		await expect(page).toHaveURL(/\/(login|sign-in)/)
+		// The app redirects to /compete after logout (see useSignOut hook)
+		// Then verify we're logged out by trying to access a protected route
+		await expect(page).toHaveURL(/\/(compete|sign-in|login)/)
 
 		// Verify we're logged out by trying to access protected route
 		await page.goto("/workouts")
-		await expect(page).toHaveURL(/\/login/)
+		await expect(page).toHaveURL(/\/sign-in/)
 	})
 
 	test("should persist session across page navigation", async ({ page }) => {
