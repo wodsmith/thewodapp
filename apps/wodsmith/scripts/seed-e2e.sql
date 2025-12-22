@@ -15,8 +15,12 @@ DELETE FROM team_subscription WHERE teamId LIKE 'e2e_%';
 DELETE FROM team_subscription WHERE teamId IN (SELECT id FROM team WHERE slug = 'e2e-test-gym');
 
 -- Step 2: Delete workouts (references team)
+-- Must delete ALL workouts referencing e2e teams, not just e2e_ prefixed
 DELETE FROM workouts WHERE id LIKE 'e2e_%';
 DELETE FROM workouts WHERE team_id LIKE 'e2e_%';
+DELETE FROM workouts WHERE team_id = 'e2e_personal_team_test';
+DELETE FROM workouts WHERE team_id = 'e2e_personal_team_admin';
+DELETE FROM workouts WHERE team_id = 'e2e_test_team';
 
 -- Step 3: Delete team_membership (references team and user)
 DELETE FROM team_membership WHERE id LIKE 'e2e_%';

@@ -89,26 +89,39 @@ test.describe("Workouts", () => {
 			// Fill in description (required)
 			await page.getByLabel(/description/i).fill("E2E test workout description")
 
-			// Select scheme (required) - the scheme field is a Select component
-			// Click on the scheme trigger to open the dropdown
-			const schemeTrigger = page.locator('button[role="combobox"]').filter({ hasText: /select.*scheme|scheme/i }).first()
-				.or(page.getByRole("combobox", { name: /scheme/i }))
-				.or(page.locator('[data-testid="scheme-select"]'))
-				.first()
-			
+			// Select scheme (required) - the scheme field is a shadcn Select component
+			// The Select renders as a button with role="combobox"
+			// We need to find the one that shows "Select a scheme" placeholder
+			const schemeTrigger = page.getByRole("combobox").filter({ hasText: /select a scheme/i })
 			await schemeTrigger.click()
+
+			// Wait for the dropdown to open and select "For Time"
+			// Options appear in a portal with role="option"
+			// Use exact: true to avoid matching "For Time (with cap)"
+			await page.getByRole("option", { name: "For Time", exact: true }).click()
+
+			// The Score Type field appears after scheme is selected
+			// The form has a useEffect that sets the default score type, but the Select component
+			// may not show it immediately. We need to explicitly select if it shows placeholder.
+			const scoreTypeCombobox = page.getByRole("combobox", { name: /score type/i })
+			await expect(scoreTypeCombobox).toBeVisible()
 			
-			// Select "For Time" option (one of the most common workout types)
-			await page.getByRole("option", { name: /for time|time/i }).first().click()
+			// Check if score type needs to be selected (shows "Select score type")
+			const scoreTypeText = await scoreTypeCombobox.textContent()
+			if (scoreTypeText?.toLowerCase().includes("select")) {
+				// Manually select the score type
+				await scoreTypeCombobox.click()
+				await page.getByRole("option", { name: /min/i }).first().click()
+			}
 
 			// Submit the form
-			await page.getByRole("button", { name: /create|save|submit/i }).click()
+			await page.getByRole("button", { name: /create workout/i }).click()
 
 			// Wait for navigation away from create page
 			await page.waitForURL(/\/workouts(?!\/new)/, { timeout: 10000 })
 
-			// Verify workout was created (should be visible on list or detail page)
-			await expect(page.getByText(uniqueName)).toBeVisible({ timeout: 5000 })
+			// Verify workout was created (should be on detail page with heading)
+			await expect(page.getByRole("heading", { name: uniqueName })).toBeVisible({ timeout: 5000 })
 		})
 
 		test("should show validation errors for empty form", async ({ page }) => {

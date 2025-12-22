@@ -21,18 +21,36 @@ export async function login(
 	page: Page,
 	credentials: { email: string; password: string },
 ): Promise<void> {
-	await page.goto("/sign-in")
+	// Navigate to sign-in page and wait for network to settle
+	await page.goto("/sign-in", { waitUntil: 'networkidle' })
+
+	// Check if already authenticated (server-side redirect to workouts)
+	// This happens when the user has a valid session cookie
+	if (!page.url().includes('/sign-in')) {
+		// Already logged in, redirected away from sign-in
+		return
+	}
+
+	// Check if the sign-in button exists (page might still be redirecting)
+	const signInButton = page.getByRole("button", { name: "SIGN IN", exact: true })
+	if (!(await signInButton.isVisible({ timeout: 2000 }).catch(() => false))) {
+		// No sign-in button visible, we're probably already authenticated
+		return
+	}
 
 	// Fill in the login form
 	await page.getByPlaceholder(/email/i).fill(credentials.email)
 	await page.getByPlaceholder(/password/i).fill(credentials.password)
 
-	// Submit the form (use exact match to avoid passkey button)
-	await page.getByRole("button", { name: "SIGN IN", exact: true }).click()
+	// Submit the form
+	await signInButton.click()
 
 	// Wait for redirect after successful login
 	// The app redirects to /workouts after login
-	await page.waitForURL(/\/(workouts|dashboard)/, { timeout: 10000 })
+	await page.waitForURL(/\/(workouts|dashboard)/, { 
+		timeout: 10000,
+		waitUntil: 'domcontentloaded'
+	})
 }
 
 /**
