@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import {
 	AlertCircle,
 	Calendar,
@@ -23,6 +24,74 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { AcceptInviteButton } from "./_components/accept-invite-button"
 import { AcceptVolunteerInviteForm } from "./_components/accept-volunteer-invite-form"
 import { InviteSignUpForm } from "./_components/invite-signup-form"
+
+type Props = {
+	params: Promise<{ token: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+	const { token } = await params
+
+	// Check if it's a volunteer invite first
+	const volunteerInvite = await getVolunteerInvite(token)
+	if (volunteerInvite?.competition) {
+		return {
+			title: `Volunteer Invitation - ${volunteerInvite.competition.name}`,
+			description: `You've been invited to volunteer at ${volunteerInvite.competition.name}`,
+			openGraph: {
+				title: `Volunteer Invitation - ${volunteerInvite.competition.name}`,
+				description: `You've been invited to volunteer at ${volunteerInvite.competition.name}`,
+				images: [
+					{
+						url: `/api/og/competition?slug=${encodeURIComponent(volunteerInvite.competition.slug)}`,
+						width: 1200,
+						height: 630,
+						alt: volunteerInvite.competition.name,
+					},
+				],
+			},
+		}
+	}
+
+	// Check teammate invite
+	const invite = await getTeammateInvite(token)
+	if (invite?.competition) {
+		return {
+			title: `Team Invitation - ${invite.competition.name}`,
+			description: `You've been invited to join a team for ${invite.competition.name}`,
+			openGraph: {
+				title: `Team Invitation - ${invite.competition.name}`,
+				description: `You've been invited to join a team for ${invite.competition.name}`,
+				images: [
+					{
+						url: `/api/og/competition?slug=${encodeURIComponent(invite.competition.slug)}`,
+						width: 1200,
+						height: 630,
+						alt: invite.competition.name,
+					},
+				],
+			},
+		}
+	}
+
+	// Fallback for invalid/expired invites
+	return {
+		title: "Competition Invitation | WODsmith",
+		description: "You've been invited to join a competition",
+		openGraph: {
+			title: "Competition Invitation",
+			description: "You've been invited to join a competition on WODsmith",
+			images: [
+				{
+					url: `/api/og?title=${encodeURIComponent("Competition Invitation")}`,
+					width: 1200,
+					height: 630,
+					alt: "Competition Invitation",
+				},
+			],
+		},
+	}
+}
 
 export default async function CompeteInvitePage({
 	params,

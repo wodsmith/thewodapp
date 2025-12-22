@@ -1,5 +1,6 @@
 "use server"
 
+import type { Metadata } from "next"
 import { CheckCircle, Clock, Crown, Mail, Users } from "lucide-react"
 import { notFound, redirect } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,7 +12,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { getTeamRoster } from "@/server/competitions"
+import { getCompetition, getTeamRoster } from "@/server/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { AffiliateEditor } from "./_components/affiliate-editor"
 import { CopyInviteLinkButton } from "./_components/copy-invite-link-button"
@@ -26,6 +27,38 @@ type PendingTeammate = {
 	firstName?: string | null
 	lastName?: string | null
 	affiliateName?: string | null
+}
+
+type Props = {
+	params: Promise<{ slug: string; registrationId: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+	const { slug } = await params
+	const competition = await getCompetition(slug)
+
+	if (!competition) {
+		return {
+			title: "Team Not Found",
+		}
+	}
+
+	return {
+		title: `Team Management - ${competition.name}`,
+		description: `Manage your team for ${competition.name}`,
+		openGraph: {
+			title: `Team Management - ${competition.name}`,
+			description: `Manage your team for ${competition.name}`,
+			images: [
+				{
+					url: `/api/og/competition?slug=${encodeURIComponent(slug)}`,
+					width: 1200,
+					height: 630,
+					alt: competition.name,
+				},
+			],
+		},
+	}
 }
 
 export default async function TeamManagementPage({
