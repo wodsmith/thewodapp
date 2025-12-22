@@ -83,25 +83,23 @@ test.describe("Workouts", () => {
 
 			await page.goto("/workouts/new")
 
-			// Fill in workout data
-			await page.getByLabel(/name/i).fill(uniqueName)
+			// Fill in workout name (required)
+			await page.getByLabel(/workout name/i).fill(uniqueName)
 
-			// Look for description field
-			const descField = page.getByLabel(/description/i)
-			if (await descField.isVisible()) {
-				await descField.fill("E2E test workout description")
-			}
+			// Fill in description (required)
+			await page.getByLabel(/description/i).fill("E2E test workout description")
 
-			// Try to select workout type/scheme if dropdown exists
-			const schemeField = page.getByLabel(/type|scheme/i)
-			if (await schemeField.isVisible()) {
-				await schemeField.click()
-				// Try to select first option
-				const firstOption = page.getByRole("option").first()
-				if (await firstOption.isVisible()) {
-					await firstOption.click()
-				}
-			}
+			// Select scheme (required) - the scheme field is a Select component
+			// Click on the scheme trigger to open the dropdown
+			const schemeTrigger = page.locator('button[role="combobox"]').filter({ hasText: /select.*scheme|scheme/i }).first()
+				.or(page.getByRole("combobox", { name: /scheme/i }))
+				.or(page.locator('[data-testid="scheme-select"]'))
+				.first()
+			
+			await schemeTrigger.click()
+			
+			// Select "For Time" option (one of the most common workout types)
+			await page.getByRole("option", { name: /for time|time/i }).first().click()
 
 			// Submit the form
 			await page.getByRole("button", { name: /create|save|submit/i }).click()
