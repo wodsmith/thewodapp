@@ -29,6 +29,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	return {
 		title: `My Schedule - ${competition.name}`,
 		description: `View your judging assignments for ${competition.name}`,
+		openGraph: {
+			title: `My Schedule - ${competition.name}`,
+			description: `View your judging assignments for ${competition.name}`,
+			images: [
+				{
+					url: `/api/og/competition?slug=${encodeURIComponent(slug)}`,
+					width: 1200,
+					height: 630,
+					alt: competition.name,
+				},
+			],
+		},
 	}
 }
 
