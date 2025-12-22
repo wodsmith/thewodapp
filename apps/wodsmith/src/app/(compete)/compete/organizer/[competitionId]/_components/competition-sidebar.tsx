@@ -3,6 +3,7 @@
 import {
 	AlertTriangle,
 	Calendar,
+	ClipboardSignature,
 	DollarSign,
 	Home,
 	Layers,
@@ -68,6 +69,11 @@ const getNavigation = (
 			items: [
 				{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
 				{ label: "Events", href: `${basePath}/events`, icon: Trophy },
+				{
+					label: "Waivers",
+					href: `${basePath}/waivers`,
+					icon: ClipboardSignature,
+				},
 				{ label: "Registrations", href: `${basePath}/athletes`, icon: Users },
 			],
 		},

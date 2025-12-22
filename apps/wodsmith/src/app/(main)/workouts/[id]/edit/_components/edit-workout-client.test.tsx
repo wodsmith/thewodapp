@@ -1,31 +1,31 @@
 /**
  * KNOWN ISSUE: These tests fail with "Maximum update depth exceeded" error
- * 
+ *
  * Root Cause: Radix UI compose-refs (@radix-ui/react-compose-refs@1.1.2) creates
  * an infinite loop when rendering components in React 19.2.1 test environment (jsdom).
- * 
+ *
  * Stack trace points to:
  * - @radix-ui/react-compose-refs/dist/index.mjs setRef function
  * - react-dom dispatchSetStateInternal
- * 
+ *
  * Affected components: Any using Radix UI primitives (Select, Button with asChild,
  * Label, etc.)
- * 
+ *
  * Attempted fixes that didn't work:
  * - Mocking @/components/ui/select
  * - Mocking @/components/ui/button
  * - Mocking @/components/ui/label
  * - Mocking MovementsList
  * - Mocking WorkoutScalingDescriptionsEditor
- * 
+ *
  * The infinite loop occurs during initial render before any test assertions run.
- * 
+ *
  * Possible solutions:
  * 1. Upgrade Radix UI packages to React 19 compatible versions
  * 2. Change test environment configuration (different jsdom setup)
  * 3. Implement comprehensive Radix UI mock with proper ref handling at setup level
  * 4. Downgrade to React 18 for testing only
- * 
+ *
  * See also: create-workout-client.test.tsx has identical issue
  */
 import "@testing-library/jest-dom"
@@ -51,7 +51,9 @@ vi.mock("next/navigation", () => ({
 // Mock useServerAction from zsa-react
 vi.mock("@repo/zsa-react", () => ({
 	useServerAction: () => ({
-		execute: vi.fn().mockResolvedValue([{ success: true, data: { levels: [] } }]),
+		execute: vi
+			.fn()
+			.mockResolvedValue([{ success: true, data: { levels: [] } }]),
 		isPending: false,
 		isSuccess: false,
 		isError: false,
@@ -67,11 +69,15 @@ vi.mock("@/components/ui/select", () => ({
 	SelectTrigger: vi.fn(({ children, id }) => <div id={id}>{children}</div>),
 	SelectValue: vi.fn(({ placeholder }) => <span>{placeholder}</span>),
 	SelectContent: vi.fn(({ children }) => <div>{children}</div>),
-	SelectItem: vi.fn(({ children, value }) => <div data-value={value}>{children}</div>),
+	SelectItem: vi.fn(({ children, value }) => (
+		<div data-value={value}>{children}</div>
+	)),
 }))
 
 vi.mock("@/components/ui/label", () => ({
-	Label: vi.fn(({ children, htmlFor }) => <label htmlFor={htmlFor}>{children}</label>),
+	Label: vi.fn(({ children, htmlFor }) => (
+		<label htmlFor={htmlFor}>{children}</label>
+	)),
 }))
 
 vi.mock("@/components/ui/button", () => ({
@@ -79,18 +85,26 @@ vi.mock("@/components/ui/button", () => ({
 		if (asChild) {
 			return <>{children}</>
 		}
-		return <button type={type} {...props}>{children}</button>
+		return (
+			<button type={type} {...props}>
+				{children}
+			</button>
+		)
 	}),
 }))
 
 // Mock MovementsList component
 vi.mock("@/components/movements-list", () => ({
-	MovementsList: vi.fn(() => <div data-testid="movements-list">Movements List</div>),
+	MovementsList: vi.fn(() => (
+		<div data-testid="movements-list">Movements List</div>
+	)),
 }))
 
 // Mock WorkoutScalingDescriptionsEditor component
 vi.mock("@/components/scaling/workout-scaling-descriptions-editor", () => ({
-	WorkoutScalingDescriptionsEditor: vi.fn(() => <div data-testid="scaling-editor">Scaling Editor</div>),
+	WorkoutScalingDescriptionsEditor: vi.fn(() => (
+		<div data-testid="scaling-editor">Scaling Editor</div>
+	)),
 }))
 
 const mockTags = [

@@ -7,6 +7,13 @@ Element.prototype.hasPointerCapture = vi.fn()
 Element.prototype.setPointerCapture = vi.fn()
 Element.prototype.releasePointerCapture = vi.fn()
 
+// Mock ResizeObserver used by Radix Dialog
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+	observe: vi.fn(),
+	unobserve: vi.fn(),
+	disconnect: vi.fn(),
+}))
+
 // Mock the D1 client used by Drizzle
 const mockD1Client = {
 	prepare: () => mockD1Client,

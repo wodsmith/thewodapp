@@ -54,32 +54,30 @@ export default async function CompetitionSidebarLayout({
 
 	return (
 		<CompetitionSidebar competitionId={competition.id}>
-				{isOrganizerPending && (
-					<PendingOrganizerBanner variant="sidebar-inset" />
-				)}
-				<div className="flex flex-1 flex-col gap-6 p-6">
-					{/* Breadcrumb */}
-					<OrganizerBreadcrumb segments={breadcrumbSegments} />
+			{isOrganizerPending && <PendingOrganizerBanner variant="sidebar-inset" />}
+			<div className="flex flex-1 flex-col gap-6 p-6">
+				{/* Breadcrumb */}
+				<OrganizerBreadcrumb segments={breadcrumbSegments} />
 
-					{/* Competition Header */}
-					<CompetitionHeader
-						competition={{
-							id: competition.id,
-							name: competition.name,
-							slug: competition.slug,
-							description: competition.description,
-							startDate: competition.startDate,
-							endDate: competition.endDate,
-							registrationOpensAt: competition.registrationOpensAt,
-							registrationClosesAt: competition.registrationClosesAt,
-							visibility: competition.visibility,
-							status: competition.status,
-						}}
-					/>
+				{/* Competition Header */}
+				<CompetitionHeader
+					competition={{
+						id: competition.id,
+						name: competition.name,
+						slug: competition.slug,
+						description: competition.description,
+						startDate: competition.startDate,
+						endDate: competition.endDate,
+						registrationOpensAt: competition.registrationOpensAt,
+						registrationClosesAt: competition.registrationClosesAt,
+						visibility: competition.visibility,
+						status: competition.status,
+					}}
+				/>
 
-					{/* Page Content */}
-					{children}
-				</div>
-			</CompetitionSidebar>
+				{/* Page Content */}
+				{children}
+			</div>
+		</CompetitionSidebar>
 	)
 }

@@ -32,7 +32,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { EventWithRotations, WorkoutDetails } from "@/server/judge-schedule"
+import type {
+	EventWithRotations,
+	WorkoutDetails,
+} from "@/server/judge-schedule"
 import { cn } from "@/utils/cn"
 import { RotationCard } from "./rotation-card"
 
@@ -208,11 +211,18 @@ function getAssignedDivisions(
 	rotations: EventWithRotations["rotations"],
 ): Array<{ divisionId: string; divisionName: string }> {
 	// Track division -> first heat number encountered
-	const divisionFirstHeat = new Map<string, { name: string; heatNumber: number }>()
+	const divisionFirstHeat = new Map<
+		string,
+		{ name: string; heatNumber: number }
+	>()
 
 	for (const rotation of rotations) {
 		for (const heat of rotation.heats) {
-			if (heat.divisionId && heat.divisionName && heat.divisionName !== "null") {
+			if (
+				heat.divisionId &&
+				heat.divisionName &&
+				heat.divisionName !== "null"
+			) {
 				const existing = divisionFirstHeat.get(heat.divisionId)
 				if (!existing || heat.heatNumber < existing.heatNumber) {
 					divisionFirstHeat.set(heat.divisionId, {

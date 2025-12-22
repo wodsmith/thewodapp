@@ -39,8 +39,15 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Competition, ScalingGroup, ScalingLevel, Team } from "@/db/schema"
+import type {
+	Competition,
+	ScalingGroup,
+	ScalingLevel,
+	Team,
+	Waiver,
+} from "@/db/schema"
 import { AffiliateCombobox } from "./affiliate-combobox"
+import { WaiverSigningStep } from "./waiver-signing-step"
 
 const teammateSchema = z.object({
 	email: z.string().email("Valid email required"),
@@ -71,6 +78,7 @@ type Props = {
 	registrationClosesAt: Date | null
 	paymentCanceled?: boolean
 	defaultAffiliateName?: string
+	waivers: Waiver[]
 }
 
 // Fee breakdown display component - updates when division changes
@@ -185,9 +193,13 @@ export function RegistrationForm({
 	registrationClosesAt,
 	paymentCanceled,
 	defaultAffiliateName,
+	waivers,
 }: Props) {
 	const router = useRouter()
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [currentStep, setCurrentStep] = useState<
+		"form" | "waivers" | "payment"
+	>("form")
 
 	// Show toast if returning from canceled payment
 	useEffect(() => {
@@ -264,8 +276,6 @@ export function RegistrationForm({
 			}
 		}
 
-		setIsSubmitting(true)
-
 		// Track registration started
 		posthog.capture("competition_registration_started", {
 			competition_id: competition.id,
@@ -277,13 +287,27 @@ export function RegistrationForm({
 			team_size: teamSize,
 		})
 
+		// If waivers exist, go to waiver step first
+		if (waivers.length > 0) {
+			setCurrentStep("waivers")
+			return
+		}
+
+		// No waivers, proceed directly to payment
+		await proceedToPayment(data)
+	}
+
+	const proceedToPayment = async (_data: FormValues) => {
+		setIsSubmitting(true)
+
 		try {
+			const formData = form.getValues()
 			const result = await initiateRegistrationPayment({
 				competitionId: competition.id,
-				divisionId: data.divisionId,
-				teamName: isTeamDivision ? data.teamName : undefined,
-				affiliateName: data.affiliateName || undefined,
-				teammates: isTeamDivision ? data.teammates : undefined,
+				divisionId: formData.divisionId,
+				teamName: isTeamDivision ? formData.teamName : undefined,
+				affiliateName: formData.affiliateName || undefined,
+				teammates: isTeamDivision ? formData.teammates : undefined,
 			})
 
 			// FREE registration - redirect to competition page
@@ -293,7 +317,7 @@ export function RegistrationForm({
 					competition_id: competition.id,
 					competition_name: competition.name,
 					competition_slug: competition.slug,
-					division_id: data.divisionId,
+					division_id: formData.divisionId,
 					division_name: selectedDivision?.label,
 					is_team_division: isTeamDivision,
 					is_free: true,
@@ -309,7 +333,7 @@ export function RegistrationForm({
 				posthog.capture("competition_registration_payment_started", {
 					competition_id: competition.id,
 					competition_name: competition.name,
-					division_id: data.divisionId,
+					division_id: formData.divisionId,
 					is_team_division: isTeamDivision,
 				})
 				// Use window.location for external redirect
@@ -319,10 +343,11 @@ export function RegistrationForm({
 
 			throw new Error("Failed to create checkout session")
 		} catch (err) {
+			const formData = form.getValues()
 			posthog.capture("competition_registration_failed", {
 				competition_id: competition.id,
 				competition_name: competition.name,
-				division_id: data.divisionId,
+				division_id: formData.divisionId,
 				error_message: err instanceof Error ? err.message : "Unknown error",
 			})
 			toast.error(err instanceof Error ? err.message : "Registration failed")
@@ -357,6 +382,34 @@ export function RegistrationForm({
 	}
 
 	const registrationMessage = getRegistrationMessage()
+
+	// If we're on the waiver step, render only the waiver component
+	if (currentStep === "waivers") {
+		return (
+			<div className="space-y-6">
+				<div className="space-y-2">
+					<h1 className="text-3xl font-bold">Register for Competition</h1>
+					<p className="text-muted-foreground">{competition.name}</p>
+				</div>
+
+				<WaiverSigningStep
+					waivers={waivers}
+					onComplete={() => proceedToPayment(form.getValues())}
+				/>
+
+				<div className="flex justify-center">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => setCurrentStep("form")}
+						disabled={isSubmitting}
+					>
+						Back to Form
+					</Button>
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<div className="space-y-6">
@@ -666,6 +719,8 @@ export function RegistrationForm({
 								</>
 							) : !registrationOpen ? (
 								"Registration Closed"
+							) : waivers.length > 0 ? (
+								"Continue to Waivers"
 							) : isTeamDivision ? (
 								"Register Team"
 							) : (

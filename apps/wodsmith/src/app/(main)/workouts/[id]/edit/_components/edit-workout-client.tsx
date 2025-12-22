@@ -365,9 +365,7 @@ export default function EditWorkoutClient({
 								<Label htmlFor="workout-score-type">Score Type</Label>
 								<Select
 									value={scoreType ?? ""}
-									onValueChange={(value) =>
-										setScoreType(value as ScoreType)
-									}
+									onValueChange={(value) => setScoreType(value as ScoreType)}
 								>
 									<SelectTrigger id="workout-score-type">
 										<SelectValue placeholder="Select score type" />

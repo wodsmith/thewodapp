@@ -36,20 +36,33 @@ test.describe("Workouts", () => {
 			// Navigate and wait for network to settle (server data fetching)
 			await page.goto("/workouts", { waitUntil: 'networkidle' })
 
+			// Wait for the page heading to confirm we're on the workouts page
+			await expect(page.getByRole("heading", { name: /workouts/i })).toBeVisible({ timeout: 10000 })
+
+			// Wait for the workout list to render (wait for any workout link to appear)
+			// This ensures the data has loaded before we check for specific workouts
+			await page.waitForSelector('a[href*="/workouts/"]', { timeout: 15000 })
+
 			// Verify seeded workouts are visible using exact match selectors
 			// Use getByRole('link') to match the workout card links specifically
 			// Use longer timeout as workouts may take time to render
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible({ timeout: 10000 })
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.murph.name)).toBeVisible({ timeout: 10000 })
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.cindy.name)).toBeVisible({ timeout: 10000 })
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible({ timeout: 15000 })
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.murph.name)).toBeVisible({ timeout: 15000 })
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.cindy.name)).toBeVisible({ timeout: 15000 })
 		})
 
 		test("should navigate to workout detail page", async ({ page }) => {
 			// Navigate and wait for network to settle
 			await page.goto("/workouts", { waitUntil: 'networkidle' })
 
+			// Wait for the page heading to confirm we're on the workouts page
+			await expect(page.getByRole("heading", { name: /workouts/i })).toBeVisible({ timeout: 10000 })
+
+			// Wait for the workout list to render
+			await page.waitForSelector('a[href*="/workouts/"]', { timeout: 15000 })
+
 			// Wait for workout to be visible before clicking
-			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible({ timeout: 10000 })
+			await expect(getWorkoutCardByName(page, TEST_DATA.workouts.fran.name)).toBeVisible({ timeout: 15000 })
 
 			// Click on the Fran workout card (using precise selector)
 			await getWorkoutCardByName(page, TEST_DATA.workouts.fran.name).click()

@@ -335,7 +335,7 @@ export async function getRotationsForEvent(
 
 /**
  * Get all rotations for a specific judge in a competition.
- * 
+ *
  * NOTE: This returns raw rotation records. Enrichment with trackWorkout/workout/heats
  * happens in the calling component. If rotations are missing from the UI, check:
  * 1. Are rotations returned here? (Check console logs)
@@ -397,10 +397,10 @@ export interface EnrichedJudgeRotation {
 /**
  * Get rotations for a judge WITH enriched data (trackWorkout, workout, heats).
  * This version includes comprehensive error logging to diagnose missing data.
- * 
+ *
  * Use this instead of manually enriching in the component when you need better
  * diagnostics about why rotations aren't displaying.
- * 
+ *
  * @param includeUnpublished - If false, filters out rotations where trackWorkout.eventStatus != 'published'
  */
 export async function getEnrichedRotationsForJudge(
@@ -479,7 +479,9 @@ export async function getEnrichedRotationsForJudge(
 						durationMinutes: competitionHeatsTable.durationMinutes,
 					})
 					.from(competitionHeatsTable)
-					.where(eq(competitionHeatsTable.trackWorkoutId, rotation.trackWorkoutId))
+					.where(
+						eq(competitionHeatsTable.trackWorkoutId, rotation.trackWorkoutId),
+					)
 			: []
 
 		if (heats.length === 0) {
