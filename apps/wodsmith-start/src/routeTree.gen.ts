@@ -9,18 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
+import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
+import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
+import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
+import { Route as ProtectedLogIndexRouteImport } from './routes/_protected/log/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
+import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
+import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
+import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
+import { Route as ProtectedLogNewIndexRouteImport } from './routes/_protected/log/new/index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
+import { Route as ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport } from './routes/_protected/workouts/$workoutId/schedule/index'
+import { Route as ProtectedWorkoutsWorkoutIdEditIndexRouteImport } from './routes/_protected/workouts/$workoutId/edit/index'
+import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './routes/_protected/settings/programming/$trackId/index'
 
+const ProtectedRoute = ProtectedRouteImport.update({
+  id: '/_protected',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => rootRouteImport,
@@ -29,6 +46,16 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedSettingsRoute = ProtectedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/sign-up',
@@ -39,6 +66,21 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
   getParentRoute: () => AuthRoute,
+} as any)
+const ProtectedWorkoutsIndexRoute = ProtectedWorkoutsIndexRouteImport.update({
+  id: '/workouts/',
+  path: '/workouts/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedTeamIndexRoute = ProtectedTeamIndexRouteImport.update({
+  id: '/team/',
+  path: '/team/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedLogIndexRoute = ProtectedLogIndexRouteImport.update({
+  id: '/log/',
+  path: '/log/',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
   id: '/demo/start/server-funcs',
@@ -60,6 +102,29 @@ const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
   path: '/demo/start/ssr/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedWorkoutsNewIndexRoute =
+  ProtectedWorkoutsNewIndexRouteImport.update({
+    id: '/workouts/new/',
+    path: '/workouts/new/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedWorkoutsWorkoutIdIndexRoute =
+  ProtectedWorkoutsWorkoutIdIndexRouteImport.update({
+    id: '/workouts/$workoutId/',
+    path: '/workouts/$workoutId/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedSettingsProgrammingIndexRoute =
+  ProtectedSettingsProgrammingIndexRouteImport.update({
+    id: '/programming/',
+    path: '/programming/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedLogNewIndexRoute = ProtectedLogNewIndexRouteImport.update({
+  id: '/log/new/',
+  path: '/log/new/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const DemoStartSsrSpaModeRoute = DemoStartSsrSpaModeRouteImport.update({
   id: '/demo/start/ssr/spa-mode',
   path: '/demo/start/ssr/spa-mode',
@@ -75,44 +140,99 @@ const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
   path: '/demo/start/ssr/data-only',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedWorkoutsWorkoutIdScheduleIndexRoute =
+  ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport.update({
+    id: '/workouts/$workoutId/schedule/',
+    path: '/workouts/$workoutId/schedule/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedWorkoutsWorkoutIdEditIndexRoute =
+  ProtectedWorkoutsWorkoutIdEditIndexRouteImport.update({
+    id: '/workouts/$workoutId/edit/',
+    path: '/workouts/$workoutId/edit/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedSettingsProgrammingTrackIdIndexRoute =
+  ProtectedSettingsProgrammingTrackIdIndexRouteImport.update({
+    id: '/programming/$trackId/',
+    path: '/programming/$trackId/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/dashboard': typeof ProtectedDashboardRoute
+  '/settings': typeof ProtectedSettingsRouteWithChildren
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/log': typeof ProtectedLogIndexRoute
+  '/team': typeof ProtectedTeamIndexRoute
+  '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
+  '/log/new': typeof ProtectedLogNewIndexRoute
+  '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
+  '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
+  '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
+  '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+  '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/dashboard': typeof ProtectedDashboardRoute
+  '/settings': typeof ProtectedSettingsRouteWithChildren
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/log': typeof ProtectedLogIndexRoute
+  '/team': typeof ProtectedTeamIndexRoute
+  '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
+  '/log/new': typeof ProtectedLogNewIndexRoute
+  '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
+  '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
+  '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
+  '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+  '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_auth': typeof AuthRouteWithChildren
+  '/_protected': typeof ProtectedRouteWithChildren
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
+  '/_protected/dashboard': typeof ProtectedDashboardRoute
+  '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/_protected/log/': typeof ProtectedLogIndexRoute
+  '/_protected/team/': typeof ProtectedTeamIndexRoute
+  '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
+  '/_protected/log/new/': typeof ProtectedLogNewIndexRoute
+  '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
+  '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
+  '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
   '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
+  '/_protected/settings/programming/$trackId/': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  '/_protected/workouts/$workoutId/edit/': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+  '/_protected/workouts/$workoutId/schedule/': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,43 +240,81 @@ export interface FileRouteTypes {
     | '/'
     | '/sign-in'
     | '/sign-up'
+    | '/dashboard'
+    | '/settings'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/log'
+    | '/team'
+    | '/workouts'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
+    | '/log/new'
+    | '/settings/programming'
+    | '/workouts/$workoutId'
+    | '/workouts/new'
     | '/demo/start/ssr'
+    | '/settings/programming/$trackId'
+    | '/workouts/$workoutId/edit'
+    | '/workouts/$workoutId/schedule'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/sign-in'
     | '/sign-up'
+    | '/dashboard'
+    | '/settings'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/log'
+    | '/team'
+    | '/workouts'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
+    | '/log/new'
+    | '/settings/programming'
+    | '/workouts/$workoutId'
+    | '/workouts/new'
     | '/demo/start/ssr'
+    | '/settings/programming/$trackId'
+    | '/workouts/$workoutId/edit'
+    | '/workouts/$workoutId/schedule'
   id:
     | '__root__'
     | '/'
     | '/_auth'
+    | '/_protected'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
+    | '/_protected/dashboard'
+    | '/_protected/settings'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/_protected/log/'
+    | '/_protected/team/'
+    | '/_protected/workouts/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
+    | '/_protected/log/new/'
+    | '/_protected/settings/programming/'
+    | '/_protected/workouts/$workoutId/'
+    | '/_protected/workouts/new/'
     | '/demo/start/ssr/'
+    | '/_protected/settings/programming/$trackId/'
+    | '/_protected/workouts/$workoutId/edit/'
+    | '/_protected/workouts/$workoutId/schedule/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
+  ProtectedRoute: typeof ProtectedRouteWithChildren
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
   DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
@@ -168,6 +326,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_protected': {
+      id: '/_protected'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof ProtectedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_auth': {
       id: '/_auth'
       path: ''
@@ -182,6 +347,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/settings': {
+      id: '/_protected/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ProtectedSettingsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/dashboard': {
+      id: '/_protected/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof ProtectedDashboardRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_auth/sign-up': {
       id: '/_auth/sign-up'
       path: '/sign-up'
@@ -195,6 +374,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-in'
       preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/_protected/workouts/': {
+      id: '/_protected/workouts/'
+      path: '/workouts'
+      fullPath: '/workouts'
+      preLoaderRoute: typeof ProtectedWorkoutsIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/team/': {
+      id: '/_protected/team/'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof ProtectedTeamIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/log/': {
+      id: '/_protected/log/'
+      path: '/log'
+      fullPath: '/log'
+      preLoaderRoute: typeof ProtectedLogIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
     '/demo/start/server-funcs': {
       id: '/demo/start/server-funcs'
@@ -224,6 +424,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoStartSsrIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/workouts/new/': {
+      id: '/_protected/workouts/new/'
+      path: '/workouts/new'
+      fullPath: '/workouts/new'
+      preLoaderRoute: typeof ProtectedWorkoutsNewIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/workouts/$workoutId/': {
+      id: '/_protected/workouts/$workoutId/'
+      path: '/workouts/$workoutId'
+      fullPath: '/workouts/$workoutId'
+      preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/settings/programming/': {
+      id: '/_protected/settings/programming/'
+      path: '/programming'
+      fullPath: '/settings/programming'
+      preLoaderRoute: typeof ProtectedSettingsProgrammingIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/log/new/': {
+      id: '/_protected/log/new/'
+      path: '/log/new'
+      fullPath: '/log/new'
+      preLoaderRoute: typeof ProtectedLogNewIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/demo/start/ssr/spa-mode': {
       id: '/demo/start/ssr/spa-mode'
       path: '/demo/start/ssr/spa-mode'
@@ -245,6 +473,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoStartSsrDataOnlyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/workouts/$workoutId/schedule/': {
+      id: '/_protected/workouts/$workoutId/schedule/'
+      path: '/workouts/$workoutId/schedule'
+      fullPath: '/workouts/$workoutId/schedule'
+      preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/workouts/$workoutId/edit/': {
+      id: '/_protected/workouts/$workoutId/edit/'
+      path: '/workouts/$workoutId/edit'
+      fullPath: '/workouts/$workoutId/edit'
+      preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/settings/programming/$trackId/': {
+      id: '/_protected/settings/programming/$trackId/'
+      path: '/programming/$trackId'
+      fullPath: '/settings/programming/$trackId'
+      preLoaderRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
   }
 }
 
@@ -260,9 +509,57 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface ProtectedSettingsRouteChildren {
+  ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
+  ProtectedSettingsProgrammingTrackIdIndexRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+}
+
+const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
+  ProtectedSettingsProgrammingIndexRoute:
+    ProtectedSettingsProgrammingIndexRoute,
+  ProtectedSettingsProgrammingTrackIdIndexRoute:
+    ProtectedSettingsProgrammingTrackIdIndexRoute,
+}
+
+const ProtectedSettingsRouteWithChildren =
+  ProtectedSettingsRoute._addFileChildren(ProtectedSettingsRouteChildren)
+
+interface ProtectedRouteChildren {
+  ProtectedDashboardRoute: typeof ProtectedDashboardRoute
+  ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
+  ProtectedLogIndexRoute: typeof ProtectedLogIndexRoute
+  ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
+  ProtectedWorkoutsIndexRoute: typeof ProtectedWorkoutsIndexRoute
+  ProtectedLogNewIndexRoute: typeof ProtectedLogNewIndexRoute
+  ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
+  ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
+  ProtectedWorkoutsWorkoutIdEditIndexRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+  ProtectedWorkoutsWorkoutIdScheduleIndexRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedDashboardRoute: ProtectedDashboardRoute,
+  ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
+  ProtectedLogIndexRoute: ProtectedLogIndexRoute,
+  ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
+  ProtectedWorkoutsIndexRoute: ProtectedWorkoutsIndexRoute,
+  ProtectedLogNewIndexRoute: ProtectedLogNewIndexRoute,
+  ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
+  ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
+  ProtectedWorkoutsWorkoutIdEditIndexRoute:
+    ProtectedWorkoutsWorkoutIdEditIndexRoute,
+  ProtectedWorkoutsWorkoutIdScheduleIndexRoute:
+    ProtectedWorkoutsWorkoutIdScheduleIndexRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
+  ProtectedRoute: ProtectedRouteWithChildren,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
   DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,

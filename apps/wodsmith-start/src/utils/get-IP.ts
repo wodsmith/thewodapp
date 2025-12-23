@@ -1,4 +1,4 @@
-import {getHeaders} from '@tanstack/react-start/server'
+import {getRequestHeaders} from '@tanstack/react-start/server'
 
 /**
  * Get client IP address from request headers
@@ -6,7 +6,7 @@ import {getHeaders} from '@tanstack/react-start/server'
  */
 export async function getIP(): Promise<string | null> {
   try {
-    const headers = getHeaders()
+    const headers = getRequestHeaders()
 
     const ip =
       headers.get('cf-connecting-ip') ||

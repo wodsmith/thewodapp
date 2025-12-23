@@ -7,7 +7,7 @@ export const SITE_URL =
     : process.env.SITE_URL || 'https://thewodapp.com'
 
 // Auth configuration
-export const REDIRECT_AFTER_SIGN_IN = '/workouts'
+export const REDIRECT_AFTER_SIGN_IN = '/dashboard'
 export const SESSION_COOKIE_NAME = 'session'
 export const ACTIVE_TEAM_COOKIE_NAME = 'active-team'
 export const PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60 // 24 hours

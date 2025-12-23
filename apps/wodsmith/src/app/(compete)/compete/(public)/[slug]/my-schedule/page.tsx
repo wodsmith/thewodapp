@@ -146,5 +146,3 @@ export default async function MySchedulePage({ params }: Props) {
 		</div>
 	)
 }
-
-

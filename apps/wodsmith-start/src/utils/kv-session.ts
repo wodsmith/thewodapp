@@ -1,4 +1,4 @@
-import {getHeaders} from '@tanstack/react-start/server'
+import {getRequestHeaders} from '@tanstack/react-start/server'
 import {env} from 'cloudflare:workers'
 import {MAX_SESSIONS_PER_USER} from '@/constants'
 import {getUserFromDB, getUserTeamsWithPermissions} from '@/utils/auth'
@@ -121,7 +121,7 @@ export async function createKVSession({
   // Get request headers for geo and user agent info
   let headers: Headers | null = null
   try {
-    headers = getHeaders()
+    headers = getRequestHeaders()
   } catch {
     // Headers may not be available in all contexts
   }
