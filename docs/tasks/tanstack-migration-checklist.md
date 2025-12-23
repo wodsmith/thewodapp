@@ -1,8 +1,8 @@
 # TanStack Start Migration Checklist
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
-**Last Updated:** December 23, 2025
-**Migration Status:** 15% Complete (Routes exist, feature parity incomplete)
+**Last Updated:** December 24, 2025
+**Migration Status:** 25% Complete (Competition public routes largely complete)
 
 ---
 
@@ -12,32 +12,33 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 ### Overall Progress
 
-| Category | Total Routes | ✅ Migrated | 🔄 Partial | ❌ Not Started | % Complete |
-|----------|--------------|-------------|-----------|----------------|------------|
-| **Authentication** | 7 | 2 | 0 | 5 | 29% |
-| **Main App** (workouts, logs, movements) | 17 | 6 | 5 | 6 | 35% |
-| **Programming & Teams** | 7 | 2 | 1 | 4 | 29% |
-| **Settings & Admin** | 19 | 0 | 2 | 17 | 5% |
-| **Competition Platform** | 39 | 0 | 0 | 39 | 0% |
-| **TOTAL** | **89** | **10** | **8** | **71** | **15%** |
+| Category                                 | Total Routes | ✅ Migrated | 🔄 Partial | ❌ Not Started | % Complete |
+| ---------------------------------------- | ------------ | ----------- | ---------- | -------------- | ---------- |
+| **Authentication**                       | 7            | 2           | 0          | 5              | 29%        |
+| **Main App** (workouts, logs, movements) | 17           | 6           | 5          | 6              | 35%        |
+| **Programming & Teams**                  | 7            | 2           | 1          | 4              | 29%        |
+| **Settings & Admin**                     | 19           | 0           | 2          | 17             | 5%         |
+| **Competition Platform**                 | 39           | 12          | 3          | 24             | 38%        |
+| **TOTAL**                                | **89**       | **22**      | **11**     | **56**         | **25%**    |
 
 ### Action/Function Coverage
 
-| Category | Next.js Actions | TanStack Functions | Missing |
-|----------|----------------|-------------------|---------|
-| **Authentication** | 10 | 2 | 8 (80%) |
-| **Workouts** | 21 | 4 | 17 (81%) |
-| **Logs** | 5 | 1 | 4 (80%) |
-| **Movements** | 4 | 0 | 4 (100%) |
-| **Programming** | 4 | 9 | 4 subscriptions (44%) |
-| **Teams** | 16 | 2 | 14 (88%) |
-| **Settings** | 4 files | 0 | 4 (100%) |
-| **Admin** | 5 files | 0 | 5 (100%) |
-| **Compete** | 12 files | 0 | 12 (100%) |
+| Category           | Next.js Actions | TanStack Functions | Missing               |
+| ------------------ | --------------- | ------------------ | --------------------- |
+| **Authentication** | 10              | 2                  | 8 (80%)               |
+| **Workouts**       | 21              | 4                  | 17 (81%)              |
+| **Logs**           | 5               | 1                  | 4 (80%)               |
+| **Movements**      | 4               | 0                  | 4 (100%)              |
+| **Programming**    | 4               | 9                  | 4 subscriptions (44%) |
+| **Teams**          | 16              | 2                  | 14 (88%)              |
+| **Settings**       | 4 files         | 0                  | 4 (100%)              |
+| **Admin**          | 5 files         | 0                  | 5 (100%)              |
+| **Compete**        | 12 files        | 6                  | 6 (50%)               |
 
 ### Critical Gaps
 
 **MUST HAVE (Blocking):**
+
 - ❌ Email verification flow
 - ❌ Password reset flow
 - ❌ Google SSO
@@ -47,9 +48,12 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - ❌ Advanced workout filters & pagination
 - ❌ Programming subscriptions
 - ❌ Team settings and member management
-- ❌ Competition platform (entire subsystem)
+- ✅ Competition public pages (discovery, detail, tabs) - DONE
+- ❌ Competition registration flow
+- ❌ Competition organizer management routes
 
 **SHOULD HAVE (Important):**
+
 - ❌ Workout remix tracking
 - ❌ Multi-round sets display
 - ❌ Leaderboards
@@ -63,6 +67,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### P0 - CRITICAL (Blocks Core User Flows)
 
 #### Authentication (2/7 complete)
+
 - [x] ✅ Sign In (email/password)
 - [x] ✅ Sign Up (email/password)
 - [ ] ❌ Forgot Password
@@ -72,6 +77,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Team Invite Acceptance
 
 #### Core Workouts (3/6 complete)
+
 - [x] ✅ Workouts List (missing: filters, pagination)
 - [x] ✅ Workout Detail (missing: remix, sets, leaderboards)
 - [x] ✅ Create Workout (needs verification)
@@ -80,16 +86,18 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Add Workout to Track
 
 #### Logging (2/3 complete)
+
 - [x] ✅ Log List (needs verification)
 - [x] ✅ Log New (needs verification)
 - [ ] ❌ Log Edit
 
-#### Compete - Core Flow (0/10 complete)
-- [ ] ❌ Competition Discovery
-- [ ] ❌ Competition Detail
-- [ ] ❌ Leaderboard Display
+#### Compete - Core Flow (6/10 complete)
+
+- [x] ✅ Competition Discovery (`/compete`) - DONE
+- [x] ✅ Competition Detail (`/compete/$slug`) - DONE with layout, hero, tabs
+- [x] ✅ Leaderboard Display (`/compete/$slug/leaderboard`) - DONE
 - [ ] ❌ Registration Flow
-- [ ] ❌ Organizer Dashboard
+- [x] ✅ Organizer Dashboard (`/compete/organizer`) - DONE with series management
 - [ ] ❌ Athletes Management
 - [ ] ❌ Divisions Configuration
 - [ ] ❌ Events Management
@@ -103,11 +111,13 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### P1 - HIGH (Essential Features)
 
 #### Movements (0/3 complete)
+
 - [ ] ❌ Movements List
 - [ ] ❌ Movement Detail
 - [ ] ❌ Create Movement
 
 #### Workout Features (0/5 complete)
+
 - [ ] ❌ Advanced filters (tags, movements, types, tracks)
 - [ ] ❌ Pagination
 - [ ] ❌ Remix tracking
@@ -115,20 +125,23 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Leaderboards
 
 #### Programming (1/4 complete)
+
 - [x] ✅ My Tracks (owner view)
 - [ ] ❌ Public Track Browse
 - [ ] ❌ Track Detail (subscriber view)
 - [ ] ❌ Subscriptions Management
 
 #### Settings (0/4 complete)
+
 - [ ] ❌ Profile Editing
 - [ ] ❌ Security/Passkeys
 - [ ] ❌ Team Settings
 - [ ] ❌ Session Management
 
-#### Compete - Enhanced (0/7 complete)
-- [ ] ❌ Workouts Tab
-- [ ] ❌ Schedule Tab
+#### Compete - Enhanced (2/7 complete)
+
+- [x] ✅ Workouts Tab (`/compete/$slug/workouts`) - DONE
+- [x] ✅ Schedule Tab (`/compete/$slug/schedule`) - DONE
 - [ ] ❌ Athlete Portal
 - [ ] ❌ Volunteer Management
 - [ ] ❌ My Schedule
@@ -142,10 +155,12 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### P2 - MEDIUM (Nice to Have)
 
 #### Utilities (0/2 complete)
+
 - [ ] ❌ Barbell Calculator
 - [ ] ❌ Spreadsheet Calculator
 
 #### Admin (0/12 complete)
+
 - [ ] ❌ Admin Dashboard
 - [ ] ❌ Team Scheduling (calendar)
 - [ ] ❌ Entitlements Management
@@ -160,6 +175,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Programming Track Detail (complete migration)
 
 #### Compete - Extended (0/5 complete)
+
 - [ ] ❌ Series Management
 - [ ] ❌ Athlete Sponsors
 - [ ] ❌ Invoices & PDF
@@ -173,10 +189,12 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### P3 - LOW (Future)
 
 #### Auth Features (0/2 complete)
+
 - [ ] ❌ Passkey Registration (WebAuthn)
 - [ ] ❌ SSO Buttons Component
 
 #### Compete (0/1 complete)
+
 - [ ] ❌ Danger Zone (deletion)
 
 **P3 Estimated Effort:** 1-2 weeks
@@ -186,6 +204,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ## 📊 Recommended Migration Order
 
 ### Phase 1: Foundation (2-3 weeks)
+
 **Goal:** Complete auth flows + core workout CRUD
 
 1. **Week 1:** Auth completion
@@ -212,6 +231,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ---
 
 ### Phase 2: Programming & Teams (2-3 weeks)
+
 **Goal:** Multi-tenant programming features
 
 4. **Week 4:** Programming subscriptions
@@ -236,6 +256,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ---
 
 ### Phase 3: Settings & Utilities (1-2 weeks)
+
 **Goal:** Complete user-facing features
 
 7. **Week 7:** Utilities & polish
@@ -249,6 +270,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ---
 
 ### Phase 4: Admin Dashboard (3-4 weeks)
+
 **Goal:** Gym management features
 
 8. **Week 8-9:** Admin foundation
@@ -267,13 +289,14 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ---
 
 ### Phase 5: Competition Platform (6-9 weeks)
+
 **Goal:** Full competition lifecycle
 
-10. **Week 12-13:** Public compete
-    - [ ] Competition discovery
-    - [ ] Competition detail
-    - [ ] Leaderboard
-    - [ ] Workouts/schedule tabs
+10. **Week 12-13:** Public compete ✅ COMPLETE
+    - [x] Competition discovery - DONE
+    - [x] Competition detail - DONE
+    - [x] Leaderboard - DONE
+    - [x] Workouts/schedule tabs - DONE
 
 11. **Week 14-15:** Registration flow
     - [ ] Registration form
@@ -311,18 +334,18 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 ## 📈 Effort Estimates by Section
 
-| Section | Routes | Components | Actions | Effort | Complexity |
-|---------|--------|------------|---------|--------|-----------|
-| **Auth** | 5 remaining | 5 | 8 | 1-2 weeks | Medium |
-| **Workouts** | 6 remaining | 15 | 17 | 2-3 weeks | Medium-High |
-| **Logs** | 1 remaining | 3 | 4 | 3-5 days | Low |
-| **Movements** | 3 | 4 | 4 | 1 week | Low |
-| **Programming** | 4 | 12 | 4 | 2 weeks | Medium |
-| **Teams** | 4 | 10 | 14 | 2 weeks | Medium |
-| **Settings** | 6 | 8 | 4 files | 1-2 weeks | Medium |
-| **Admin** | 17 | 40+ | 5 files | 3-4 weeks | High |
-| **Compete** | 39 | 102+ | 12 files | 6-9 weeks | Very High |
-| **TOTAL** | **85** | **199+** | **72 files** | **20-28 weeks** | - |
+| Section         | Routes      | Components | Actions      | Effort          | Complexity  |
+| --------------- | ----------- | ---------- | ------------ | --------------- | ----------- |
+| **Auth**        | 5 remaining | 5          | 8            | 1-2 weeks       | Medium      |
+| **Workouts**    | 6 remaining | 15         | 17           | 2-3 weeks       | Medium-High |
+| **Logs**        | 1 remaining | 3          | 4            | 3-5 days        | Low         |
+| **Movements**   | 3           | 4          | 4            | 1 week          | Low         |
+| **Programming** | 4           | 12         | 4            | 2 weeks         | Medium      |
+| **Teams**       | 4           | 10         | 14           | 2 weeks         | Medium      |
+| **Settings**    | 6           | 8          | 4 files      | 1-2 weeks       | Medium      |
+| **Admin**       | 17          | 40+        | 5 files      | 3-4 weeks       | High        |
+| **Compete**     | 39          | 102+       | 12 files     | 6-9 weeks       | Very High   |
+| **TOTAL**       | **85**      | **199+**   | **72 files** | **20-28 weeks** | -           |
 
 ---
 
@@ -343,18 +366,21 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 🔐 Authentication (29% complete)
 
 #### Core Auth
+
 - [x] ✅ Sign In (email/password) - DONE
 - [x] ✅ Sign Up (email/password) - DONE
 - [ ] ❌ Session management (`getSessionFromCookie` for TanStack)
 - [ ] ❌ Rate limiting implementation
 
 #### Password Management
+
 - [ ] ❌ Forgot Password route + action
 - [ ] ❌ Reset Password route + action
 - [ ] ❌ KV store integration for tokens
 - [ ] ❌ Email service integration (Resend)
 
 #### Enhanced Security
+
 - [ ] ❌ Google SSO (initiation)
 - [ ] ❌ Google SSO (callback)
 - [ ] ❌ Turnstile captcha integration
@@ -362,6 +388,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ PostHog analytics
 
 #### Advanced Features
+
 - [ ] ❌ Email verification flow
 - [ ] ❌ Passkey registration (WebAuthn)
 - [ ] ❌ Team invite acceptance
@@ -372,6 +399,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 🏋️ Workouts (35% complete)
 
 #### Routes
+
 - [x] ✅ Workouts List - DONE (partial: missing filters, pagination)
 - [x] ✅ Workout Detail - DONE (partial: missing remix, sets, leaderboards)
 - [x] 🔄 Create Workout - EXISTS (needs verification)
@@ -380,6 +408,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Add to Programming Track
 
 #### Features
+
 - [ ] ❌ Advanced filtering (tags, movements, types, tracks)
 - [ ] ❌ Pagination (50 items/page)
 - [ ] ❌ Remix tracking (source/remixed workouts)
@@ -389,6 +418,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Team-specific workout views
 
 #### Actions/Functions
+
 - [x] ✅ `getWorkoutsFn` - Basic list
 - [x] ✅ `getScheduledWorkoutsWithResultsFn`
 - [x] ✅ `getWorkoutByIdFn`
@@ -405,11 +435,13 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 📝 Logs (67% complete)
 
 #### Routes
+
 - [x] ✅ Log List - DONE (needs verification)
 - [x] ✅ Log New - DONE (needs verification)
 - [ ] ❌ Log Edit
 
 #### Actions/Functions
+
 - [x] ✅ `getWorkoutScoresFn` (migrated)
 - [ ] ❌ `getLogsByUserFn` (needs verification)
 - [ ] ❌ `getScoreRoundsByIdFn`
@@ -422,11 +454,13 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 🏃 Movements (0% complete)
 
 #### Routes
+
 - [ ] ❌ Movements List (`/movements`)
 - [ ] ❌ Movement Detail (`/movements/$id`)
 - [ ] ❌ Create Movement (`/movements/new`)
 
 #### Actions/Functions
+
 - [ ] ❌ `getAllMovementsFn`
 - [ ] ❌ `createMovementFn`
 - [ ] ❌ `getMovementByIdFn`
@@ -437,6 +471,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 🔢 Calculator (0% complete)
 
 #### Routes
+
 - [ ] ❌ Barbell Calculator (`/calculator`)
 - [ ] ❌ Spreadsheet Calculator (`/calculator/spreadsheet`)
 
@@ -445,6 +480,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 📅 Programming Tracks (43% complete)
 
 #### Routes
+
 - [x] ✅ My Tracks (`/settings/programming`) - Owner view
 - [x] ✅ Track Detail (`/settings/programming/$trackId`) - Owner view
 - [ ] ❌ Public Browse (`/programming` or `/tracks`)
@@ -452,6 +488,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Subscriptions (`/programming/subscriptions`)
 
 #### Functions
+
 - [x] ✅ `getTeamProgrammingTracksFn`
 - [x] ✅ `getProgrammingTrackByIdFn`
 - [x] ✅ `createProgrammingTrackFn`
@@ -471,12 +508,14 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 👥 Teams (29% complete)
 
 #### Routes
+
 - [x] ✅ Team Page (`/team`) - Basic
 - [ ] ❌ Team Settings (`/settings/teams`)
 - [ ] ❌ Team Detail (`/settings/teams/$teamSlug`)
 - [ ] ❌ Create Team (`/settings/teams/create`)
 
 #### Functions
+
 - [x] ✅ `getTeamLeaderboardsFn`
 - [x] ✅ `getActiveTeamFn`
 - [ ] ❌ `createTeamFn`
@@ -494,6 +533,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ `acceptInvitationFn`
 
 #### Features
+
 - [ ] ❌ Team switcher component
 - [ ] ❌ Active team preference system
 - [ ] ❌ Member management UI
@@ -505,6 +545,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### ⚙️ Settings (5% complete)
 
 #### Routes
+
 - [x] 🔄 Settings Root (layout only)
 - [ ] ❌ Profile (`/settings/profile`)
 - [ ] ❌ Security/Passkeys (`/settings/security`)
@@ -514,6 +555,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Create Team (`/settings/teams/create`)
 
 #### Functions
+
 - [ ] ❌ Profile update functions
 - [ ] ❌ Passkey CRUD functions
 - [ ] ❌ Session management functions
@@ -524,6 +566,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### 🔧 Admin (5% complete)
 
 #### Routes
+
 - [ ] ❌ Admin Dashboard (`/admin`)
 - [ ] ❌ Entitlements (`/admin/entitlements`)
 - [ ] ❌ Organizer Requests (`/admin/organizer-requests`)
@@ -538,6 +581,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Schedule Week (`/admin/teams/$teamId/schedule-week`)
 
 #### Functions
+
 - [ ] ❌ Entitlement admin functions
 - [ ] ❌ Organizer request functions
 - [ ] ❌ Scheduling functions (calendar)
@@ -546,14 +590,15 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 ---
 
-### 🏆 Competition Platform (0% complete)
+### 🏆 Competition Platform (38% complete)
 
-#### Public Routes (0/15 complete)
-- [ ] ❌ Competition Landing (`/compete`)
-- [ ] ❌ Competition Detail (`/compete/$slug`)
-- [ ] ❌ Leaderboard Tab (`/compete/$slug/leaderboard`)
-- [ ] ❌ Workouts Tab (`/compete/$slug/workouts`)
-- [ ] ❌ Schedule Tab (`/compete/$slug/schedule`)
+#### Public Routes (5/15 complete)
+
+- [x] ✅ Competition Landing (`/compete`) - DONE with search, filtering
+- [x] ✅ Competition Detail (`/compete/$slug`) - DONE with layout, hero, tabs
+- [x] ✅ Leaderboard Tab (`/compete/$slug/leaderboard`) - DONE with division selector
+- [x] ✅ Workouts Tab (`/compete/$slug/workouts`) - DONE with WorkoutCard
+- [x] ✅ Schedule Tab (`/compete/$slug/schedule`) - DONE with heat display
 - [ ] ❌ Registration (`/compete/$slug/register`)
 - [ ] ❌ Registration Success (`/compete/$slug/register/success`)
 - [ ] ❌ Team Management (`/compete/$slug/teams/$registrationId`)
@@ -565,15 +610,17 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ My Schedule (`/compete/$slug/my-schedule`)
 - [ ] ❌ Invite Acceptance (`/compete/invite/$token`)
 
-#### Organizer Routes (0/24 complete)
-- [ ] ❌ Competition List (`/compete/organizer`)
-- [ ] ❌ Create Competition (`/compete/organizer/new`)
+#### Organizer Routes (7/24 complete)
+
+- [x] ✅ Competition List (`/compete/organizer`) - DONE with team filter
+- [x] ✅ Create Competition (`/compete/organizer/new`) - DONE
 - [ ] ❌ Onboard (`/compete/organizer/onboard`)
 - [ ] ❌ Payout Settings (`/compete/organizer/settings/payouts/$teamSlug`)
-- [ ] ❌ Series List (`/compete/organizer/series`)
-- [ ] ❌ Create Series (`/compete/organizer/series/new`)
-- [ ] ❌ Series Detail (`/compete/organizer/series/$groupId`)
-- [ ] ❌ Competition Overview (`/compete/organizer/$competitionId`)
+- [x] ✅ Series List (`/compete/organizer/series`) - DONE
+- [x] ✅ Create Series (`/compete/organizer/series/new`) - DONE
+- [x] ✅ Series Detail (`/compete/organizer/series/$groupId`) - DONE
+- [x] ✅ Edit Series (`/compete/organizer/series/$groupId/edit`) - DONE
+- [x] 🔄 Competition Overview (`/compete/organizer/$competitionId`) - Partial
 - [ ] ❌ Edit Competition (`/compete/organizer/$competitionId/edit`)
 - [ ] ❌ Athletes (`/compete/organizer/$competitionId/athletes`)
 - [ ] ❌ Divisions (`/compete/organizer/$competitionId/divisions`)
@@ -586,22 +633,22 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ Revenue (`/compete/organizer/$competitionId/revenue`)
 - [ ] ❌ Settings (`/compete/organizer/$competitionId/settings`)
 - [ ] ❌ Sponsors (`/compete/organizer/$competitionId/sponsors`)
-- [ ] ❌ Waivers (`/compete/organizer/$competitionId/waivers`)
 - [ ] ❌ Danger Zone (`/compete/organizer/$competitionId/danger-zone`)
 
-#### Functions (0/12 files complete)
-- [ ] ❌ `competition-actions.ts` → `competition-fns.ts`
-- [ ] ❌ `competition-division-actions.ts` → `division-fns.ts`
-- [ ] ❌ `competition-heat-actions.ts` → `heat-fns.ts`
+#### Functions (6/12 files complete)
+
+- [x] ✅ `competition-fns.ts` - Competition CRUD, public listing
+- [x] ✅ `competition-detail-fns.ts` - Registration counts, user status
+- [x] ✅ `competition-workouts-fns.ts` - Published workouts, division descriptions
+- [x] ✅ `competition-heats-fns.ts` - Heats with assignments
+- [x] ✅ `competition-divisions-fns.ts` - Public divisions
+- [x] ✅ `leaderboard-fns.ts` - Leaderboard data
 - [ ] ❌ `competition-score-actions.ts` → `score-fns.ts`
 - [ ] ❌ `competition-settings.action.ts` → `competition-settings-fns.ts`
 - [ ] ❌ `judge-scheduling-actions.ts` → `judge-scheduling-fns.ts`
-- [ ] ❌ `judge-rotation-actions.ts` → `judge-rotation-fns.ts`
-- [ ] ❌ `judge-assignment-actions.ts` → `judge-assignment-fns.ts`
 - [ ] ❌ `volunteer-actions.ts` → `volunteer-fns.ts`
 - [ ] ❌ `commerce.action.ts` → `commerce-fns.ts`
 - [ ] ❌ `stripe-connect.action.ts` → `stripe-connect-fns.ts`
-- [ ] ❌ `sponsors.actions.ts` → `sponsors-fns.ts`
 
 ---
 
@@ -610,6 +657,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### Infrastructure Requirements
 
 **MUST IMPLEMENT:**
+
 1. **Rate Limiting** - All auth/sensitive actions need rate limiting
 2. **KV Store Access** - Tokens, OAuth state, sessions
 3. **Email Service** - Verification, password reset, invitations
@@ -622,6 +670,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### Component Patterns
 
 **PORT TO TANSTACK:**
+
 1. **Drag-and-Drop** - Heat scheduling, workout reordering
 2. **Pagination** - URL-based pagination component
 3. **Calendar** - FullCalendar integration for scheduling
@@ -631,6 +680,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### Data Patterns
 
 **ESTABLISH PATTERNS:**
+
 1. **Multi-Team Queries** - All queries filter by `teamId`
 2. **Permission Checks** - `requireTeamPermission` equivalent
 3. **Optimistic Updates** - Subscription buttons, toggles
@@ -658,25 +708,27 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 ### ZSA to TanStack Conversion Pattern
 
 **Next.js (ZSA):**
+
 ```typescript
 export const myAction = createServerAction()
   .input(mySchema)
-  .handler(async ({ input }) => {
+  .handler(async ({input}) => {
     return withRateLimit(async () => {
       // ... logic
-      throw new ZSAError("NOT_AUTHORIZED", "Error message")
+      throw new ZSAError('NOT_AUTHORIZED', 'Error message')
     }, RATE_LIMITS.MY_ACTION)
   })
 ```
 
 **TanStack Start:**
+
 ```typescript
 export const myServerFn = createServerFn({method: 'POST'})
   .inputValidator((data: unknown) => mySchema.parse(data))
   .handler(async ({data}) => {
     // TODO: Add rate limiting
     // ... logic
-    throw new Error("Error message")
+    throw new Error('Error message')
   })
 ```
 
@@ -693,28 +745,35 @@ export const myServerFn = createServerFn({method: 'POST'})
 ### Immediate Next Steps
 
 **Sprint 1 (Current):**
+
 1. ✅ Complete analysis documents (DONE)
 2. 🔄 Set up infrastructure (rate limiting, KV, email)
 3. 🔄 Complete auth flows (forgot/reset password, email verification)
 4. 🔄 Verify existing migrated routes (create/edit/schedule workout, log new)
 
-**Sprint 2 (Next):**
-1. ❌ Implement missing CRUD (log edit, add to track)
-2. ❌ Movements section (list, detail, create)
-3. ❌ Advanced workout features (filters, pagination, remix)
+**Sprint 2 (Completed - Competition Public):**
 
-**Sprint 3:**
-1. ❌ Programming subscriptions (public browse, subscribe)
-2. ❌ Team settings (settings routes, member management)
-3. ❌ Google SSO
+1. ✅ Competition discovery page - DONE
+2. ✅ Competition detail with all tabs - DONE
+3. ✅ Organizer dashboard with series - DONE
+4. ✅ Server functions for workouts, heats, divisions, leaderboard - DONE
+
+**Sprint 3 (Next):**
+
+1. ❌ Competition registration flow
+2. ❌ Organizer competition management routes
+3. ❌ Programming subscriptions (public browse, subscribe)
+4. ❌ Team settings (settings routes, member management)
 
 **Sprint 4:**
+
 1. ❌ Settings completion (profile, security, sessions)
 2. ❌ Calculator routes
-3. ❌ Feature parity verification
+3. ❌ Google SSO
+4. ❌ Feature parity verification
 
 **Sprint 5-8:** Admin dashboard
-**Sprint 9-15:** Competition platform
+**Sprint 9-12:** Competition organizer routes (scheduling, scoring, volunteers)
 
 ---
 
