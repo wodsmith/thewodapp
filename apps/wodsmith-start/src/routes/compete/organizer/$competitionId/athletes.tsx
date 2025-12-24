@@ -46,7 +46,7 @@ export const Route = createFileRoute(
   validateSearch: athletesSearchSchema,
   loader: async ({params, search}) => {
     const {competitionId} = params
-    const {division: divisionFilter} = search
+    const divisionFilter = search?.division
 
     // Parallel fetch: registrations and divisions for filtering
     const [registrationsResult, divisionsResult] = await Promise.all([
