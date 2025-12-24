@@ -1,9 +1,9 @@
 # TanStack Start Migration - Competition Platform (Compete)
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
-**Status:** In Progress (40% Complete)
+**Status:** In Progress (42% Complete)
 **Complexity:** CRITICAL - Largest feature area in the application
-**Last Updated:** December 23, 2025
+**Last Updated:** December 24, 2025
 
 ## Overview
 
@@ -180,7 +180,7 @@ Located at `volunteers/judges/_components/` - 11 judge scheduling components exi
 | **Pricing**     | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/pricing/page.tsx`     | ❌ Not Started        | P0       | commerce.action.ts             | pricing-settings-form.tsx, stripe-connection-required.tsx, stripe-connection-manager.tsx | Registration pricing                                      |
 | **Revenue**     | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/revenue/page.tsx`     | ❌ Not Started        | P1       | commerce.action.ts             | revenue-stats-display.tsx                                                                | Revenue tracking                                          |
 | **Settings**    | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/settings/page.tsx`    | ❌ Not Started        | P1       | competition-settings.action.ts | rotation-settings-form.tsx                                                               | Competition configuration                                 |
-| **Sponsors**    | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/sponsors/page.tsx`    | ❌ Not Started        | P2       | sponsors.actions.ts            | sponsor-card.tsx                                                                         | Competition sponsor management                            |
+| **Sponsors**    | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/sponsors/page.tsx`    | ✅ DONE               | P2       | sponsor-fns.ts                 | sponsor-manager.tsx, sponsor-card.tsx, sponsor-form-dialog.tsx, sponsor-group-card.tsx, sponsor-group-form-dialog.tsx, ungrouped-sponsors.tsx | Competition sponsor management - 47 tests, TDD migrated Dec 24 |
 | ~~**Waivers**~~ | ~~`waivers/page.tsx`~~                                                            | ⛔ **DOES NOT EXIST** | ~~P2~~   | ~~waivers.ts~~                 | N/A                                                                                      | **AUDIT FINDING: No waivers route or action file exists** |
 | **Danger Zone** | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/danger-zone/page.tsx` | ❌ Not Started        | P2       | competition-actions.ts         | delete-competition-form.tsx                                                              | Competition deletion                                      |
 
