@@ -23,7 +23,7 @@ import {getSessionFromCookie} from '@/utils/auth'
 /**
  * Parse competition settings from JSON string
  */
-function parseCompetitionSettings(settings: string | null): {
+export function parseCompetitionSettings(settings: string | null): {
   divisions?: {scalingGroupId?: string}
 } | null {
   if (!settings) return null

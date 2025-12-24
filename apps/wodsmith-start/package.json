@@ -17,6 +17,9 @@
     "db:seed": "bash ./scripts/seed-all.sh"
   },
   "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.1",
     "@cloudflare/vite-plugin": "^1.13.8",
     "@hookform/resolvers": "^5.2.2",
     "@marsidev/react-turnstile": "^1.0.2",
@@ -56,8 +59,10 @@
     "react-day-picker": "^9.10.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.56.4",
+    "server-only": "^0.0.1",
     "slugify": "^1.6.6",
     "sonner": "^1.7.4",
+    "stripe": "^17.7.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.0.6",
     "vite-tsconfig-paths": "^5.1.4",
