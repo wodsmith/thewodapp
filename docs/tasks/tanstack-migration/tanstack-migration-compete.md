@@ -1,9 +1,9 @@
 # TanStack Start Migration - Competition Platform (Compete)
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
-**Status:** In Progress (38% Complete)
+**Status:** In Progress (40% Complete)
 **Complexity:** CRITICAL - Largest feature area in the application
-**Last Updated:** December 24, 2025
+**Last Updated:** December 23, 2025
 
 ## Overview
 
@@ -112,20 +112,20 @@ The Competition Platform is the most complex feature area in WODsmith, encompass
 
 ### Competition Management (with-sidebar)
 
-| Route                    | Next.js Path                                                                    | Status         | Priority | Actions                         | Components                                                                                            | Notes                          |
-| ------------------------ | ------------------------------------------------------------------------------- | -------------- | -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------ |
-| **Competition Overview** | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/page.tsx`           | ❌ Not Started | P0       | competition-actions.ts          | (overview dashboard)                                                                                  | Competition management home    |
-| **Edit Competition**     | `(compete)/compete/organizer/[competitionId]/edit/page.tsx`                     | ❌ Not Started | P0       | competition-actions.ts          | organizer-competition-edit-form.tsx                                                                   | Competition details editing    |
-| **Athletes**             | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/athletes/page.tsx`  | ❌ Not Started | P0       | competition-actions.ts          | organizer-registration-list.tsx                                                                       | Registration management        |
-| **Divisions**            | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/divisions/page.tsx` | ❌ Not Started | P0       | competition-division-actions.ts | organizer-division-manager.tsx, organizer-division-item.tsx, organizer-template-selector.tsx          | Division configuration         |
-| **Events**               | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/events/page.tsx`    | ❌ Not Started | P0       | competition-actions.ts          | organizer-event-manager.tsx, competition-event-row.tsx, create-event-dialog.tsx, add-event-dialog.tsx | Event/workout management       |
-| **Event Detail**         | `(compete)/compete/organizer/[competitionId]/events/[eventId]/page.tsx`         | ❌ Not Started | P0       | competition-actions.ts          | event-details-form.tsx                                                                                | Individual event configuration |
+| Route                    | Next.js Path                                                                    | Status                   | Priority | Actions                         | Components                                                                                            | Notes                          |
+| ------------------------ | ------------------------------------------------------------------------------- | ------------------------ | -------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------ |
+| **Competition Overview** | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/page.tsx`           | 🟡 Partially Implemented | P0       | competition-actions.ts          | competition-sidebar.tsx, competition-header.tsx, organizer-breadcrumb.tsx                             | Layout + overview page done    |
+| **Edit Competition**     | `(compete)/compete/organizer/[competitionId]/edit/page.tsx`                     | ❌ Not Started           | P0       | competition-actions.ts          | organizer-competition-edit-form.tsx                                                                   | Competition details editing    |
+| **Athletes**             | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/athletes/page.tsx`  | ❌ Not Started           | P0       | competition-actions.ts          | organizer-registration-list.tsx                                                                       | Registration management        |
+| **Divisions**            | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/divisions/page.tsx` | ❌ Not Started           | P0       | competition-division-actions.ts | organizer-division-manager.tsx, organizer-division-item.tsx, organizer-template-selector.tsx          | Division configuration         |
+| **Events**               | `(compete)/compete/organizer/[competitionId]/(with-sidebar)/events/page.tsx`    | ❌ Not Started           | P0       | competition-actions.ts          | organizer-event-manager.tsx, competition-event-row.tsx, create-event-dialog.tsx, add-event-dialog.tsx | Event/workout management       |
+| **Event Detail**         | `(compete)/compete/organizer/[competitionId]/events/[eventId]/page.tsx`         | ❌ Not Started           | P0       | competition-actions.ts          | event-details-form.tsx                                                                                | Individual event configuration |
 
 **Shared Components:**
 
-- `competition-sidebar.tsx` - Sidebar navigation
-- `competition-header.tsx` - Page header with breadcrumbs
-- `organizer-breadcrumb.tsx` - Breadcrumb navigation
+- `competition-sidebar.tsx` - Sidebar navigation ✅ Ported to TanStack Start
+- `competition-header.tsx` - Page header with badges ✅ Ported to TanStack Start
+- `organizer-breadcrumb.tsx` - Breadcrumb navigation ✅ Ported to TanStack Start
 - `organizer-competition-actions.tsx` - Action menu
 
 ### Scheduling & Heats

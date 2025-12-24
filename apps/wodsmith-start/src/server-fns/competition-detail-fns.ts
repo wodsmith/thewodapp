@@ -55,9 +55,64 @@ const checkIsVolunteerInputSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
 })
 
+const getCompetitionByIdInputSchema = z.object({
+  competitionId: z.string().min(1, 'Competition ID is required'),
+})
+
 // ============================================================================
 // Server Functions
 // ============================================================================
+
+/**
+ * Get a single competition by ID
+ * Used for the organizer layout route
+ */
+export const getCompetitionByIdFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) => getCompetitionByIdInputSchema.parse(data))
+  .handler(async ({data}) => {
+    const db = getDb()
+
+    const result = await db
+      .select({
+        id: competitionsTable.id,
+        organizingTeamId: competitionsTable.organizingTeamId,
+        competitionTeamId: competitionsTable.competitionTeamId,
+        groupId: competitionsTable.groupId,
+        slug: competitionsTable.slug,
+        name: competitionsTable.name,
+        description: competitionsTable.description,
+        startDate: competitionsTable.startDate,
+        endDate: competitionsTable.endDate,
+        registrationOpensAt: competitionsTable.registrationOpensAt,
+        registrationClosesAt: competitionsTable.registrationClosesAt,
+        settings: competitionsTable.settings,
+        defaultRegistrationFeeCents:
+          competitionsTable.defaultRegistrationFeeCents,
+        platformFeePercentage: competitionsTable.platformFeePercentage,
+        platformFeeFixed: competitionsTable.platformFeeFixed,
+        passStripeFeesToCustomer: competitionsTable.passStripeFeesToCustomer,
+        passPlatformFeesToCustomer:
+          competitionsTable.passPlatformFeesToCustomer,
+        visibility: competitionsTable.visibility,
+        status: competitionsTable.status,
+        profileImageUrl: competitionsTable.profileImageUrl,
+        bannerImageUrl: competitionsTable.bannerImageUrl,
+        defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
+        defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+        createdAt: competitionsTable.createdAt,
+        updatedAt: competitionsTable.updatedAt,
+        updateCounter: competitionsTable.updateCounter,
+      })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!result[0]) {
+      return {competition: null}
+    }
+
+    return {competition: result[0]}
+  })
 
 /**
  * Get registration count for a competition

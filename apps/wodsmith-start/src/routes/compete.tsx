@@ -1,4 +1,4 @@
-import {createFileRoute, Outlet} from '@tanstack/react-router'
+import {createFileRoute, Outlet, useLocation} from '@tanstack/react-router'
 import {createServerFn} from '@tanstack/react-start'
 import CompeteNav from '@/components/compete-nav'
 import {getSessionFromCookie} from '@/utils/auth'
@@ -30,6 +30,18 @@ export const Route = createFileRoute('/compete')({
 
 function CompeteLayout() {
   const {session, canOrganize} = Route.useLoaderData()
+  const location = useLocation()
+
+  // Check if we're on an organizer competition detail page (has sidebar layout)
+  // These pages have their own layout and don't need the CompeteNav header
+  const isOrganizerDetailPage =
+    /^\/compete\/organizer\/[^/]+/.test(location.pathname) &&
+    location.pathname !== '/compete/organizer'
+
+  // Organizer detail pages have their own full-page layout with sidebar
+  if (isOrganizerDetailPage) {
+    return <Outlet />
+  }
 
   return (
     <div className="flex min-h-screen flex-col">

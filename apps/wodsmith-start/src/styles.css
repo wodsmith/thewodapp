@@ -5,6 +5,11 @@
  * Define custom colors using @theme so they become utility classes
  */
 @theme {
+  /* Sidebar dimensions */
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 3rem;
+  --sidebar-width-mobile: 18rem;
+
   /* Border radius */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

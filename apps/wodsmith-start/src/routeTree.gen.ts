@@ -29,11 +29,13 @@ import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.se
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
 import { Route as CompeteOrganizerNewRouteImport } from './routes/compete/organizer/new'
+import { Route as CompeteOrganizerCompetitionIdRouteImport } from './routes/compete/organizer/$competitionId'
 import { Route as CompeteSlugWorkoutsRouteImport } from './routes/compete/$slug/workouts'
 import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/schedule'
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as CompeteOrganizerSeriesIndexRouteImport } from './routes/compete/organizer/series/index'
+import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from './routes/compete/organizer/$competitionId/index'
 import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
 import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
 import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
@@ -147,6 +149,12 @@ const CompeteOrganizerNewRoute = CompeteOrganizerNewRouteImport.update({
   path: '/new',
   getParentRoute: () => CompeteOrganizerRoute,
 } as any)
+const CompeteOrganizerCompetitionIdRoute =
+  CompeteOrganizerCompetitionIdRouteImport.update({
+    id: '/$competitionId',
+    path: '/$competitionId',
+    getParentRoute: () => CompeteOrganizerRoute,
+  } as any)
 const CompeteSlugWorkoutsRoute = CompeteSlugWorkoutsRouteImport.update({
   id: '/workouts',
   path: '/workouts',
@@ -172,6 +180,12 @@ const CompeteOrganizerSeriesIndexRoute =
     id: '/series/',
     path: '/series/',
     getParentRoute: () => CompeteOrganizerRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdIndexRoute =
+  CompeteOrganizerCompetitionIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
 const ProtectedWorkoutsNewIndexRoute =
   ProtectedWorkoutsNewIndexRouteImport.update({
@@ -267,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
+  '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdRouteWithChildren
   '/compete/organizer/new': typeof CompeteOrganizerNewRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -285,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
+  '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerSeriesIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
@@ -320,6 +336,7 @@ export interface FileRoutesByTo {
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
+  '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerSeriesIndexRoute
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
@@ -344,6 +361,7 @@ export interface FileRoutesById {
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
+  '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdRouteWithChildren
   '/compete/organizer/new': typeof CompeteOrganizerNewRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -362,6 +380,7 @@ export interface FileRoutesById {
   '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
   '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
+  '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/series/': typeof CompeteOrganizerSeriesIndexRoute
   '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
@@ -385,6 +404,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/schedule'
     | '/compete/$slug/workouts'
+    | '/compete/organizer/$competitionId'
     | '/compete/organizer/new'
     | '/demo/api/names'
     | '/demo/start/api-request'
@@ -403,6 +423,7 @@ export interface FileRouteTypes {
     | '/settings/programming'
     | '/workouts/$workoutId'
     | '/workouts/new'
+    | '/compete/organizer/$competitionId/'
     | '/compete/organizer/series'
     | '/demo/start/ssr'
     | '/compete/organizer/series/$groupId/edit'
@@ -438,6 +459,7 @@ export interface FileRouteTypes {
     | '/settings/programming'
     | '/workouts/$workoutId'
     | '/workouts/new'
+    | '/compete/organizer/$competitionId'
     | '/compete/organizer/series'
     | '/demo/start/ssr'
     | '/compete/organizer/series/$groupId/edit'
@@ -461,6 +483,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/schedule'
     | '/compete/$slug/workouts'
+    | '/compete/organizer/$competitionId'
     | '/compete/organizer/new'
     | '/demo/api/names'
     | '/demo/start/api-request'
@@ -479,6 +502,7 @@ export interface FileRouteTypes {
     | '/_protected/settings/programming/'
     | '/_protected/workouts/$workoutId/'
     | '/_protected/workouts/new/'
+    | '/compete/organizer/$competitionId/'
     | '/compete/organizer/series/'
     | '/demo/start/ssr/'
     | '/compete/organizer/series/$groupId/edit'
@@ -644,6 +668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerNewRouteImport
       parentRoute: typeof CompeteOrganizerRoute
     }
+    '/compete/organizer/$competitionId': {
+      id: '/compete/organizer/$competitionId'
+      path: '/$competitionId'
+      fullPath: '/compete/organizer/$competitionId'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdRouteImport
+      parentRoute: typeof CompeteOrganizerRoute
+    }
     '/compete/$slug/workouts': {
       id: '/compete/$slug/workouts'
       path: '/workouts'
@@ -678,6 +709,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/compete/organizer/series'
       preLoaderRoute: typeof CompeteOrganizerSeriesIndexRouteImport
       parentRoute: typeof CompeteOrganizerRoute
+    }
+    '/compete/organizer/$competitionId/': {
+      id: '/compete/organizer/$competitionId/'
+      path: '/'
+      fullPath: '/compete/organizer/$competitionId/'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdIndexRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
     '/_protected/workouts/new/': {
       id: '/_protected/workouts/new/'
@@ -857,6 +895,21 @@ const CompeteSlugRouteWithChildren = CompeteSlugRoute._addFileChildren(
   CompeteSlugRouteChildren,
 )
 
+interface CompeteOrganizerCompetitionIdRouteChildren {
+  CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
+}
+
+const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdRouteChildren =
+  {
+    CompeteOrganizerCompetitionIdIndexRoute:
+      CompeteOrganizerCompetitionIdIndexRoute,
+  }
+
+const CompeteOrganizerCompetitionIdRouteWithChildren =
+  CompeteOrganizerCompetitionIdRoute._addFileChildren(
+    CompeteOrganizerCompetitionIdRouteChildren,
+  )
+
 interface CompeteOrganizerSeriesGroupIdRouteChildren {
   CompeteOrganizerSeriesGroupIdEditRoute: typeof CompeteOrganizerSeriesGroupIdEditRoute
   CompeteOrganizerSeriesGroupIdIndexRoute: typeof CompeteOrganizerSeriesGroupIdIndexRoute
@@ -876,6 +929,7 @@ const CompeteOrganizerSeriesGroupIdRouteWithChildren =
   )
 
 interface CompeteOrganizerRouteChildren {
+  CompeteOrganizerCompetitionIdRoute: typeof CompeteOrganizerCompetitionIdRouteWithChildren
   CompeteOrganizerNewRoute: typeof CompeteOrganizerNewRoute
   CompeteOrganizerIndexRoute: typeof CompeteOrganizerIndexRoute
   CompeteOrganizerSeriesGroupIdRoute: typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
@@ -884,6 +938,8 @@ interface CompeteOrganizerRouteChildren {
 }
 
 const CompeteOrganizerRouteChildren: CompeteOrganizerRouteChildren = {
+  CompeteOrganizerCompetitionIdRoute:
+    CompeteOrganizerCompetitionIdRouteWithChildren,
   CompeteOrganizerNewRoute: CompeteOrganizerNewRoute,
   CompeteOrganizerIndexRoute: CompeteOrganizerIndexRoute,
   CompeteOrganizerSeriesGroupIdRoute:
