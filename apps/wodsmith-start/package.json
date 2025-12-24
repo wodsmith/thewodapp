@@ -69,8 +69,10 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@repo/test-utils": "workspace:*",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^22.19.3",
     "@types/react": "^19.2.0",
@@ -80,6 +82,7 @@
     "jsdom": "^27.0.0",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0",
     "wrangler": "^4.56.0"
