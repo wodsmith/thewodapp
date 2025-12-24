@@ -299,10 +299,9 @@ export function EventDetailsForm({
       // Invalidate router to refetch data
       router.invalidate()
 
-      // Navigate back to organizer dashboard (events route not yet created)
-      // TODO: Update to navigate to events list once route is created
+      // Navigate back to events list
       navigate({
-        to: '/compete/organizer/$competitionId',
+        to: '/compete/organizer/$competitionId/events',
         params: {competitionId},
       })
     } catch (error) {
@@ -736,12 +735,12 @@ export function EventDetailsForm({
                       variant="outline"
                       onClick={() =>
                         navigate({
-                          to: '/compete/organizer/$competitionId',
+                          to: '/compete/organizer/$competitionId/divisions',
                           params: {competitionId},
                         })
                       }
                     >
-                      Go to Competition
+                      Create Divisions
                     </Button>
                   </div>
                 )}
@@ -757,7 +756,7 @@ export function EventDetailsForm({
             variant="outline"
             onClick={() =>
               navigate({
-                to: '/compete/organizer/$competitionId',
+                to: '/compete/organizer/$competitionId/events',
                 params: {competitionId},
               })
             }
