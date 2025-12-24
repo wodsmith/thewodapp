@@ -10,10 +10,13 @@ import {
   Outlet,
   notFound,
   redirect,
+  useMatches,
 } from '@tanstack/react-router'
 import {getCompetitionByIdFn} from '@/server-fns/competition-detail-fns'
 import {checkCanManageCompetitionFn} from '@/server-fns/competition-detail-fns'
 import {CompetitionSidebar} from '@/components/competition-sidebar'
+import {CompetitionHeader} from '@/components/competition-header'
+import {OrganizerBreadcrumb} from '@/components/organizer-breadcrumb'
 
 export const Route = createFileRoute('/compete/organizer/$competitionId')({
   component: CompetitionLayout,
@@ -58,12 +61,66 @@ export const Route = createFileRoute('/compete/organizer/$competitionId')({
   },
 })
 
+// Map route paths to breadcrumb labels
+const routeLabels: Record<string, string> = {
+  divisions: 'Divisions',
+  athletes: 'Registrations',
+  events: 'Events',
+  schedule: 'Schedule',
+  volunteers: 'Volunteers',
+  results: 'Results',
+  pricing: 'Pricing',
+  revenue: 'Revenue',
+  sponsors: 'Sponsors',
+  settings: 'Settings',
+  'danger-zone': 'Danger Zone',
+}
+
 function CompetitionLayout() {
   const {competition} = Route.useLoaderData()
+  const matches = useMatches()
+
+  // Get the current child route segment for breadcrumb
+  const currentPath = matches[matches.length - 1]?.pathname ?? ''
+  const segments = currentPath.split('/').filter(Boolean)
+  const lastSegment = segments[segments.length - 1]
+
+  // Build breadcrumb segments
+  const breadcrumbSegments: Array<{label: string; href?: string}> = [
+    {label: competition.name},
+  ]
+
+  // Add current page to breadcrumb if not on overview
+  if (lastSegment && lastSegment !== competition.id) {
+    const label = routeLabels[lastSegment] || lastSegment
+    breadcrumbSegments.push({label})
+  }
 
   return (
     <CompetitionSidebar competitionId={competition.id}>
-      <Outlet />
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        {/* Breadcrumb */}
+        <OrganizerBreadcrumb segments={breadcrumbSegments} />
+
+        {/* Competition Header */}
+        <CompetitionHeader
+          competition={{
+            id: competition.id,
+            name: competition.name,
+            slug: competition.slug,
+            description: competition.description,
+            startDate: competition.startDate,
+            endDate: competition.endDate,
+            registrationOpensAt: competition.registrationOpensAt,
+            registrationClosesAt: competition.registrationClosesAt,
+            visibility: competition.visibility,
+            status: competition.status,
+          }}
+        />
+
+        {/* Child route content */}
+        <Outlet />
+      </div>
     </CompetitionSidebar>
   )
 }

@@ -44,16 +44,28 @@ export const Route = createFileRoute(
 )({
   component: AthletesPage,
   validateSearch: athletesSearchSchema,
-  loader: async ({params, search}) => {
+  loader: async ({params, search, context}) => {
     const {competitionId} = params
     const divisionFilter = search?.division
+
+    // Get competition from parent route context to get teamId
+    // We need to fetch it here since we can't access parent loader data in loader
+    const {getCompetitionByIdFn} =
+      await import('@/server-fns/competition-detail-fns')
+    const {competition} = await getCompetitionByIdFn({data: {competitionId}})
+
+    if (!competition) {
+      throw new Error('Competition not found')
+    }
 
     // Parallel fetch: registrations and divisions for filtering
     const [registrationsResult, divisionsResult] = await Promise.all([
       getOrganizerRegistrationsFn({
         data: {competitionId, divisionFilter},
       }),
-      getCompetitionDivisionsWithCountsFn({data: {competitionId}}),
+      getCompetitionDivisionsWithCountsFn({
+        data: {competitionId, teamId: competition.organizingTeamId},
+      }),
     ])
 
     return {

@@ -16,8 +16,6 @@ import {getCompetitionByIdFn} from '@/server-fns/competition-detail-fns'
 import {getAllMovementsFn} from '@/server-fns/movement-fns'
 import {getCompetitionSponsorsFn} from '@/server-fns/sponsor-fns'
 import {OrganizerEventManager} from '@/components/events/organizer-event-manager'
-import {OrganizerBreadcrumb} from '@/components/organizer-breadcrumb'
-import {CompetitionHeader} from '@/components/competition-header'
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi('/compete/organizer/$competitionId')
@@ -114,44 +112,14 @@ function EventsPage() {
   const {competition} = parentRoute.useLoaderData()
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      {/* Breadcrumb */}
-      <OrganizerBreadcrumb
-        segments={[
-          {
-            label: competition.name,
-            href: `/compete/organizer/${competition.id}`,
-          },
-          {label: 'Events'},
-        ]}
-      />
-
-      {/* Competition Header */}
-      <CompetitionHeader
-        competition={{
-          id: competition.id,
-          name: competition.name,
-          slug: competition.slug,
-          description: competition.description,
-          startDate: competition.startDate,
-          endDate: competition.endDate,
-          registrationOpensAt: competition.registrationOpensAt,
-          registrationClosesAt: competition.registrationClosesAt,
-          visibility: competition.visibility,
-          status: competition.status,
-        }}
-      />
-
-      {/* Events Manager */}
-      <OrganizerEventManager
-        competitionId={competition.id}
-        organizingTeamId={competition.organizingTeamId}
-        events={events}
-        movements={movements}
-        divisions={divisions}
-        divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
-        sponsors={sponsors}
-      />
-    </div>
+    <OrganizerEventManager
+      competitionId={competition.id}
+      organizingTeamId={competition.organizingTeamId}
+      events={events}
+      movements={movements}
+      divisions={divisions}
+      divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
+      sponsors={sponsors}
+    />
   )
 }

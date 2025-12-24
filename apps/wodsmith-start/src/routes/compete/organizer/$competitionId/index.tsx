@@ -7,8 +7,6 @@
 
 import {createFileRoute, getRouteApi, Link} from '@tanstack/react-router'
 import {FileText, TrendingUp, Users} from 'lucide-react'
-import {CompetitionHeader} from '@/components/competition-header'
-import {OrganizerBreadcrumb} from '@/components/organizer-breadcrumb'
 import {Button} from '@/components/ui/button'
 import {
   Card,
@@ -67,26 +65,7 @@ function CompetitionOverviewPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      {/* Breadcrumb */}
-      <OrganizerBreadcrumb segments={[{label: competition.name}]} />
-
-      {/* Competition Header */}
-      <CompetitionHeader
-        competition={{
-          id: competition.id,
-          name: competition.name,
-          slug: competition.slug,
-          description: competition.description,
-          startDate: competition.startDate,
-          endDate: competition.endDate,
-          registrationOpensAt: competition.registrationOpensAt,
-          registrationClosesAt: competition.registrationClosesAt,
-          visibility: competition.visibility,
-          status: competition.status,
-        }}
-      />
-
+    <>
       {/* Description Card */}
       {competition.description && (
         <Card>
@@ -258,6 +237,6 @@ function CompetitionOverviewPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </>
   )
 }
