@@ -2,7 +2,7 @@
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
 **Last Updated:** December 24, 2025
-**Migration Status:** 25% Complete (Competition public routes largely complete)
+**Migration Status:** 27% Complete (Competition public routes + organizer events management complete)
 
 ---
 
@@ -18,8 +18,8 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 | **Main App** (workouts, logs, movements) | 17           | 6           | 5          | 6              | 35%        |
 | **Programming & Teams**                  | 7            | 2           | 1          | 4              | 29%        |
 | **Settings & Admin**                     | 19           | 0           | 2          | 17             | 5%         |
-| **Competition Platform**                 | 39           | 12          | 3          | 24             | 38%        |
-| **TOTAL**                                | **89**       | **22**      | **11**     | **56**         | **25%**    |
+| **Competition Platform**                 | 39           | 14          | 2          | 23             | 41%        |
+| **TOTAL**                                | **89**       | **24**      | **10**     | **55**         | **27%**    |
 
 ### Action/Function Coverage
 
@@ -50,7 +50,8 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - ❌ Team settings and member management
 - ✅ Competition public pages (discovery, detail, tabs) - DONE
 - ❌ Competition registration flow
-- ❌ Competition organizer management routes
+- ✅ Competition organizer events management - DONE
+- ❌ Competition organizer athletes/divisions/scheduling routes
 
 **SHOULD HAVE (Important):**
 
@@ -91,7 +92,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [x] ✅ Log New (needs verification)
 - [ ] ❌ Log Edit
 
-#### Compete - Core Flow (6/10 complete)
+#### Compete - Core Flow (7/10 complete)
 
 - [x] ✅ Competition Discovery (`/compete`) - DONE
 - [x] ✅ Competition Detail (`/compete/$slug`) - DONE with layout, hero, tabs
@@ -100,7 +101,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [x] ✅ Organizer Dashboard (`/compete/organizer`) - DONE with series management
 - [ ] ❌ Athletes Management
 - [ ] ❌ Divisions Configuration
-- [ ] ❌ Events Management
+- [x] ✅ Events Management - DONE with drag-drop, create/add/edit
 - [ ] ❌ Heat Scheduling
 - [ ] ❌ Results Entry
 
@@ -590,7 +591,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 ---
 
-### 🏆 Competition Platform (38% complete)
+### 🏆 Competition Platform (41% complete)
 
 #### Public Routes (5/15 complete)
 
@@ -610,7 +611,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [ ] ❌ My Schedule (`/compete/$slug/my-schedule`)
 - [ ] ❌ Invite Acceptance (`/compete/invite/$token`)
 
-#### Organizer Routes (7/24 complete)
+#### Organizer Routes (9/24 complete)
 
 - [x] ✅ Competition List (`/compete/organizer`) - DONE with team filter
 - [x] ✅ Create Competition (`/compete/organizer/new`) - DONE
@@ -620,12 +621,12 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [x] ✅ Create Series (`/compete/organizer/series/new`) - DONE
 - [x] ✅ Series Detail (`/compete/organizer/series/$groupId`) - DONE
 - [x] ✅ Edit Series (`/compete/organizer/series/$groupId/edit`) - DONE
-- [x] 🔄 Competition Overview (`/compete/organizer/$competitionId`) - Partial
+- [x] ✅ Competition Overview (`/compete/organizer/$competitionId`) - DONE
 - [ ] ❌ Edit Competition (`/compete/organizer/$competitionId/edit`)
 - [ ] ❌ Athletes (`/compete/organizer/$competitionId/athletes`)
 - [ ] ❌ Divisions (`/compete/organizer/$competitionId/divisions`)
-- [ ] ❌ Events (`/compete/organizer/$competitionId/events`)
-- [ ] ❌ Event Detail (`/compete/organizer/$competitionId/events/$eventId`)
+- [x] ✅ Events (`/compete/organizer/$competitionId/events`) - DONE with drag-drop reorder, create/add dialogs
+- [x] ✅ Event Detail (`/compete/organizer/$competitionId/events/$eventId`) - DONE with full edit form
 - [ ] ❌ Schedule Manager (`/compete/organizer/$competitionId/schedule`) - COMPLEX
 - [ ] ❌ Results Entry (`/compete/organizer/$competitionId/results`)
 - [ ] ❌ Volunteers (`/compete/organizer/$competitionId/volunteers`)
