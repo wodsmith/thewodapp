@@ -47,6 +47,7 @@ import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ss
 import { Route as CompeteOrganizerSeriesNewRouteImport } from './routes/compete/organizer/series/new'
 import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from './routes/compete/organizer/series/$groupId'
 import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from './routes/compete/organizer/$competitionId/divisions'
+import { Route as CompeteOrganizerCompetitionIdAthletesRouteImport } from './routes/compete/organizer/$competitionId/athletes'
 import { Route as CompeteSlugRegisterSuccessRouteImport } from './routes/compete/$slug/register/success'
 import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
@@ -253,6 +254,12 @@ const CompeteOrganizerCompetitionIdDivisionsRoute =
     path: '/divisions',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
+const CompeteOrganizerCompetitionIdAthletesRoute =
+  CompeteOrganizerCompetitionIdAthletesRouteImport.update({
+    id: '/athletes',
+    path: '/athletes',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteSlugRegisterSuccessRoute =
   CompeteSlugRegisterSuccessRouteImport.update({
     id: '/success',
@@ -327,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/': typeof CompeteSlugIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerIndexRoute
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
+  '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
@@ -369,6 +377,7 @@ export interface FileRoutesByTo {
   '/compete/$slug': typeof CompeteSlugIndexRoute
   '/compete/organizer': typeof CompeteOrganizerIndexRoute
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
+  '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
@@ -417,6 +426,7 @@ export interface FileRoutesById {
   '/compete/$slug/': typeof CompeteSlugIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerIndexRoute
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
+  '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
@@ -465,6 +475,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/'
     | '/compete/organizer/'
     | '/compete/$slug/register/success'
+    | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/new'
@@ -507,6 +518,7 @@ export interface FileRouteTypes {
     | '/compete/$slug'
     | '/compete/organizer'
     | '/compete/$slug/register/success'
+    | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/series/new'
     | '/demo/start/ssr/data-only'
@@ -554,6 +566,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/'
     | '/compete/organizer/'
     | '/compete/$slug/register/success'
+    | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/new'
@@ -858,6 +871,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdDivisionsRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
+    '/compete/organizer/$competitionId/athletes': {
+      id: '/compete/organizer/$competitionId/athletes'
+      path: '/athletes'
+      fullPath: '/compete/organizer/$competitionId/athletes'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdAthletesRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/$slug/register/success': {
       id: '/compete/$slug/register/success'
       path: '/success'
@@ -1008,6 +1028,7 @@ const CompeteSlugRouteWithChildren = CompeteSlugRoute._addFileChildren(
 )
 
 interface CompeteOrganizerCompetitionIdRouteChildren {
+  CompeteOrganizerCompetitionIdAthletesRoute: typeof CompeteOrganizerCompetitionIdAthletesRoute
   CompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteOrganizerCompetitionIdDivisionsRoute
   CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
   CompeteOrganizerCompetitionIdEventsEventIdRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
@@ -1016,6 +1037,8 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
 
 const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdRouteChildren =
   {
+    CompeteOrganizerCompetitionIdAthletesRoute:
+      CompeteOrganizerCompetitionIdAthletesRoute,
     CompeteOrganizerCompetitionIdDivisionsRoute:
       CompeteOrganizerCompetitionIdDivisionsRoute,
     CompeteOrganizerCompetitionIdIndexRoute:

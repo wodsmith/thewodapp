@@ -400,3 +400,81 @@ export const getRegistrationStatusFn = createServerFn({method: 'GET'})
       registrationNotYetOpen,
     }
   })
+
+// ============================================================================
+// Organizer Athletes View
+// ============================================================================
+
+const getOrganizerRegistrationsInputSchema = z.object({
+  competitionId: z.string().min(1, 'Competition ID is required'),
+  divisionFilter: z.string().optional(),
+})
+
+/**
+ * Get registrations for organizer view with full user and division details
+ */
+export const getOrganizerRegistrationsFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) =>
+    getOrganizerRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({data}) => {
+    const db = getDb()
+
+    // Build where clause
+    const whereConditions = [
+      eq(competitionRegistrationsTable.eventId, data.competitionId),
+    ]
+
+    // Get registrations with user and division info using query builder
+    const registrations = await db.query.competitionRegistrationsTable.findMany(
+      {
+        where: and(...whereConditions),
+        orderBy: (table, {desc}) => [desc(table.registeredAt)],
+        with: {
+          user: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+              gender: true,
+              dateOfBirth: true,
+            },
+          },
+          division: {
+            columns: {
+              id: true,
+              label: true,
+              teamSize: true,
+            },
+          },
+          athleteTeam: {
+            with: {
+              memberships: {
+                where: eq(teamMembershipTable.isActive, 1),
+                with: {
+                  user: {
+                    columns: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      email: true,
+                      avatar: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    )
+
+    // Filter by division if specified (done in JS since we're using query builder)
+    const filteredRegistrations = data.divisionFilter
+      ? registrations.filter((r) => r.divisionId === data.divisionFilter)
+      : registrations
+
+    return {registrations: filteredRegistrations}
+  })
