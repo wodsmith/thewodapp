@@ -1038,3 +1038,365 @@ apps/wodsmith-start/src/components/
 - File paths all correct (where documented)
 - Code examples match actual implementation
 - Permission patterns accurately described
+
+---
+
+## Step 0: Test Coverage Baseline
+
+**Purpose:** Document existing test coverage and gaps to ensure migration preserves behavior.
+
+### Testing Trophy Philosophy
+
+For this migration, we prioritize:
+1. **Integration tests** (PRIMARY) - Multi-team subscriptions, permission checks, workflow validation
+2. **Unit tests** - Permission helpers, team-auth utilities, pure logic functions
+
+### Existing Test Inventory
+
+#### Programming Tests
+
+| File | Type | Coverage | Status |
+|------|------|----------|--------|
+| `test/server/programming.test.ts` | Unit | `getPublicProgrammingTracks`, `getTeamProgrammingTracks`, `isTeamSubscribedToProgrammingTrack`, `isWorkoutInTeamSubscribedTrack` | ⚠️ Shallow - validates array return, not behavior |
+| `test/server/programming-subscriptions.test.ts` | Unit | `getTeamProgrammingTracks` | ⚠️ Duplicate coverage, shallow |
+| `test/integration/programming-subscription.test.ts` | Integration | Full subscription flow (list → subscribe → view → unsubscribe) | ⚠️ Smoke test only - validates functions exist |
+| `test/actions/programming-actions.test.ts` | Unit | `subscribeToTrackAction`, `unsubscribeFromTrackAction` | ⚠️ Validates function existence, not behavior |
+| `test/server/getTeamTracks.test.ts` | Integration | `getTeamTracks`, `assignTrackToTeam`, `createProgrammingTrack` | ✅ Good - but `describe.skip` (requires DB) |
+| `test/server/programmingService.test.ts` | Unit | Programming service functions | Need audit |
+| `test/components/programming-track-dashboard.test.ts` | Component | Programming track dashboard | Need audit |
+| `test/pages/admin/programming-tracks.test.ts` | Page | Admin programming tracks page | ⚠️ Permission check stubs only |
+
+#### Team Tests
+
+| File | Type | Coverage | Status |
+|------|------|----------|--------|
+| `test/utils/workout-permissions.test.ts` | Unit | `canUserEditWorkout`, `shouldCreateRemix`, `getWorkoutPermissions` | ✅ Good - uses `createTestSession` factory |
+| `test/actions/team-specific-workout-actions.test.ts` | Unit | Team-specific workout actions | Need audit |
+| `test/server/team-specific-workout-resolution.test.ts` | Unit | Team workout resolution | Need audit |
+
+#### Permission Tests
+
+| File | Type | Coverage | Status |
+|------|------|----------|--------|
+| `test/utils/workout-permissions.test.ts` | Unit | `hasTeamPermission` usage | ✅ Good - mocks and validates permission checks |
+| `test/actions/organizer-onboarding-actions.test.ts` | Unit | `EDIT_TEAM_SETTINGS`, `ACCESS_DASHBOARD` permission checks | ✅ Good - validates permission rejection |
+| `test/server/stripe-connect.test.ts` | Unit | `EDIT_TEAM_SETTINGS` permission | ⚠️ Documents requirement, no actual test |
+
+### Missing Tests (CRITICAL for Migration)
+
+#### 1. Programming Browse Route (`/programming`)
+
+**Test Type:** Integration
+**Location:** Create `test/integration/programming-browse.test.ts`
+**Acceptance Criteria:**
+
+```typescript
+describe("Programming Browse Integration", () => {
+  describe("getPublicTracksWithTeamSubscriptions", () => {
+    it("returns all public tracks with correct subscription status per team")
+    it("returns subscribedTeams array containing teamIds that are subscribed")
+    it("excludes tracks owned by the querying teams from subscription options")
+    it("handles user with multiple teams correctly")
+    it("returns empty subscribedTeams for new users with no subscriptions")
+  })
+
+  describe("multi-team filtering", () => {
+    it("shows subscription badges for ALL user teams, not just active team")
+    it("allows subscribing Team A to a track Team B owns")
+    it("prevents team from subscribing to its own track")
+  })
+})
+```
+
+#### 2. Programming Subscriptions Route (`/programming/subscriptions`)
+
+**Test Type:** Integration
+**Location:** Create `test/integration/programming-subscriptions-route.test.ts`
+**Acceptance Criteria:**
+
+```typescript
+describe("Programming Subscriptions Route", () => {
+  describe("permission checks", () => {
+    it("requires ACCESS_DASHBOARD permission")
+    it("throws ZSAError FORBIDDEN without permission")
+    it("returns 403 for non-team-members")
+  })
+
+  describe("getTeamProgrammingTracks behavior", () => {
+    it("returns ALL subscribed tracks (owned + 3rd party public)")
+    it("queries teamProgrammingTracksTable, NOT ownership")
+    it("includes track details via join")
+    it("respects isActive flag (soft delete)")
+  })
+})
+```
+
+#### 3. Multi-Team Subscription Logic
+
+**Test Type:** Integration
+**Location:** Create `test/integration/multi-team-subscriptions.test.ts`
+**Acceptance Criteria:**
+
+```typescript
+describe("Multi-Team Subscription Logic", () => {
+  describe("subscribeToTrackAction", () => {
+    it("creates subscription with correct teamId, trackId, isActive=1")
+    it("prevents duplicate subscriptions for same team+track")
+    it("allows same track to be subscribed by multiple teams")
+    it("requires team membership for the subscribing team")
+    it("rejects subscription to team's own track (self-subscription)")
+  })
+
+  describe("unsubscribeFromTrackAction", () => {
+    it("sets isActive=0 (soft delete, not hard delete)")
+    it("allows re-subscription after unsubscribe (isActive=1)")
+    it("requires team membership")
+    it("returns error for non-existent subscription")
+  })
+
+  describe("cross-team visibility", () => {
+    it("Team A can see Team B's public tracks in browse")
+    it("Team A cannot see Team B's private tracks")
+    it("Subscription to public track grants workout visibility")
+  })
+})
+```
+
+#### 4. Team-Auth Utility Tests
+
+**Test Type:** Unit
+**Location:** Create `test/utils/team-auth.test.ts`
+**Acceptance Criteria:**
+
+```typescript
+describe("team-auth utilities", () => {
+  describe("hasTeamPermission", () => {
+    it("returns true when permission exists in team.permissions array")
+    it("returns false for non-existent permission")
+    it("returns false when user is not team member")
+    it("returns false when session is null")
+    it("checks correct team when user has multiple teams")
+  })
+
+  describe("requireTeamPermission", () => {
+    it("returns session when permission exists")
+    it("throws ZSAError NOT_AUTHORIZED when not authenticated")
+    it("throws ZSAError FORBIDDEN when permission missing")
+    it("throws FORBIDDEN for non-team-member")
+  })
+
+  describe("isTeamMember", () => {
+    it("returns true for valid team member")
+    it("returns false for non-member")
+    it("returns false when session is null")
+  })
+
+  describe("requireTeamMembership", () => {
+    it("returns session for valid member")
+    it("throws NOT_AUTHORIZED when not authenticated")
+    it("throws FORBIDDEN for non-member")
+  })
+
+  describe("hasTeamRole", () => {
+    it("returns true for matching system role")
+    it("returns true for matching custom role")
+    it("returns false for non-matching role")
+    it("distinguishes between system and custom roles")
+  })
+})
+```
+
+#### 5. Team Settings Route (`/settings/teams/[teamSlug]`)
+
+**Test Type:** Integration
+**Location:** Create `test/integration/team-settings.test.ts`
+**Acceptance Criteria:**
+
+```typescript
+describe("Team Settings Integration", () => {
+  describe("permission checks", () => {
+    it("requires EDIT_TEAM_SETTINGS for settings modification")
+    it("requires MANAGE_MEMBERS for member operations")
+    it("requires INVITE_MEMBERS for invitation creation")
+    it("owner has all permissions")
+    it("admin has subset of permissions")
+    it("member has view-only access")
+  })
+
+  describe("team CRUD", () => {
+    it("updateTeamAction validates permission before update")
+    it("deleteTeamAction requires owner role")
+    it("createTeamAction creates new team with creator as owner")
+  })
+
+  describe("member management", () => {
+    it("getTeamMembersAction returns all members with roles")
+    it("updateMemberRoleAction requires CHANGE_MEMBER_ROLES")
+    it("removeTeamMemberAction requires REMOVE_MEMBERS")
+    it("cannot remove last owner")
+  })
+
+  describe("invitation flow", () => {
+    it("inviteUserAction creates pending invitation")
+    it("acceptInvitationAction adds user to team with specified role")
+    it("cancelInvitationAction removes pending invitation")
+    it("cannot invite existing member")
+  })
+})
+```
+
+#### 6. Team Page Route (`/team`)
+
+**Test Type:** Integration
+**Location:** Create `test/integration/team-page.test.ts`
+**Acceptance Criteria:**
+
+```typescript
+describe("Team Page Integration", () => {
+  describe("active team selection", () => {
+    it("Next.js: uses active team preference from DB")
+    it("TanStack: uses first team from session (current behavior)")
+    it("TanStack: TODO - implement active team preference")
+  })
+
+  describe("leaderboard display", () => {
+    it("shows team's daily leaderboard")
+    it("filters workouts by team context")
+    it("respects scheduling for workout display")
+  })
+})
+```
+
+### Test Factory Requirements
+
+The following factories exist in `@repo/test-utils/factories`:
+
+- ✅ `createTestSession` - Creates mock session with permissions
+- ❌ `createTeam` - Needs creation
+- ❌ `createTeamMember` - Needs creation
+- ❌ `createProgrammingTrack` - Needs creation (for unit tests without DB)
+- ❌ `createSubscription` - Needs creation
+
+**Factory creation tasks:**
+
+```typescript
+// packages/test-utils/src/factories/team.ts
+export function createTeam(overrides?: Partial<Team>): Team {
+  return {
+    id: `team-${Date.now()}`,
+    name: "Test Team",
+    slug: `test-team-${Date.now()}`,
+    isPersonalTeam: 0,
+    creditBalance: 100,
+    ...overrides,
+  }
+}
+
+// packages/test-utils/src/factories/programming.ts
+export function createProgrammingTrack(overrides?: Partial<ProgrammingTrack>): ProgrammingTrack {
+  return {
+    id: `track-${Date.now()}`,
+    name: "Test Track",
+    description: "Test description",
+    type: "team_owned",
+    ownerTeamId: null,
+    visibility: "public",
+    ...overrides,
+  }
+}
+
+export function createSubscription(overrides?: Partial<TeamProgrammingTrack>): TeamProgrammingTrack {
+  return {
+    id: `sub-${Date.now()}`,
+    teamId: "team-1",
+    trackId: "track-1",
+    isActive: 1,
+    isDefault: 0,
+    subscribedAt: new Date(),
+    ...overrides,
+  }
+}
+```
+
+### Critical Migration Behavior Tests
+
+These tests MUST pass before migration is complete:
+
+#### `getTeamProgrammingTracksFn` Behavior Preservation
+
+```typescript
+describe("CRITICAL: getTeamProgrammingTracksFn behavior", () => {
+  /**
+   * AUDIT FINDING: Function queries subscription table, NOT ownership
+   * This is the correct behavior - must be preserved in migration
+   */
+  it("returns tracks from teamProgrammingTracksTable (subscriptions), not ownerTeamId", async () => {
+    // Setup: Team A owns Track 1, Team A is subscribed to Track 2 (owned by Team B)
+    const teamA = createTeam({ id: "team-a" })
+    const trackOwnedByA = createProgrammingTrack({ id: "track-1", ownerTeamId: "team-a" })
+    const trackOwnedByB = createProgrammingTrack({ id: "track-2", ownerTeamId: "team-b" })
+    
+    // Subscribe Team A to both tracks
+    const sub1 = createSubscription({ teamId: "team-a", trackId: "track-1" })
+    const sub2 = createSubscription({ teamId: "team-a", trackId: "track-2" })
+
+    const result = await getTeamProgrammingTracksFn({ data: { teamId: "team-a" } })
+
+    // CRITICAL: Both tracks should be returned (owned AND subscribed)
+    expect(result.tracks).toHaveLength(2)
+    expect(result.tracks.map(t => t.id)).toContain("track-1")
+    expect(result.tracks.map(t => t.id)).toContain("track-2")
+  })
+
+  it("does NOT return unsubscribed tracks even if owned by team", async () => {
+    // Team owns track but is NOT in subscription table
+    const teamA = createTeam({ id: "team-a" })
+    const trackOwnedByA = createProgrammingTrack({ id: "track-1", ownerTeamId: "team-a" })
+    // NO subscription record
+
+    const result = await getTeamProgrammingTracksFn({ data: { teamId: "team-a" } })
+
+    // Should be empty if no subscription exists (even though team owns it)
+    // NOTE: This documents ACTUAL behavior - verify this is intended
+    expect(result.tracks).toHaveLength(0)
+  })
+})
+```
+
+### Acceptance Criteria for Migration Complete
+
+For each route/feature, verify:
+
+| Route | Tests Required | Acceptance |
+|-------|----------------|------------|
+| **Programming Browse** | Integration + Unit | All subscription states correctly shown for all user teams |
+| **Programming Track Detail** | Integration | Subscriber vs owner view correctly displayed, multi-team badges |
+| **Programming Subscriptions** | Integration | Permission check passes, shows owned+subscribed tracks |
+| **Team Page** | Integration | Active team context respected, leaderboard displays |
+| **Team Settings** | Integration | All CRUD operations protected by correct permissions |
+| **Team Members** | Integration | Role changes require CHANGE_MEMBER_ROLES permission |
+| **Team Invitations** | Integration | Full invite→accept flow works |
+
+### Running Tests
+
+```bash
+# Run all programming/team tests
+pnpm test test/server/programming test/integration/programming test/utils/workout-permissions test/utils/team-auth
+
+# Run with coverage
+pnpm test --coverage test/integration/
+
+# Single file
+pnpm test test/integration/multi-team-subscriptions.test.ts
+```
+
+### Test Coverage Goals
+
+| Area | Current | Target | Priority |
+|------|---------|--------|----------|
+| Programming server functions | 20% | 80% | HIGH |
+| Programming actions | 10% | 70% | HIGH |
+| Multi-team subscriptions | 5% | 90% | CRITICAL |
+| Team-auth utilities | 30% | 90% | HIGH |
+| Team CRUD actions | 0% | 70% | MEDIUM |
+| Permission checks | 40% | 90% | CRITICAL |

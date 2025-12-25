@@ -59,6 +59,248 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 ---
 
+## 📊 Step 0: Test Coverage Summary
+
+**Purpose:** Ensure migration preserves behavior through comprehensive test coverage. Tests are the safety net for refactoring.
+
+### Testing Philosophy (Testing Trophy)
+
+```
+       /\
+      /  \  E2E (5-10 critical paths)
+     /----\  Registration, auth, scheduling
+    / INT  \ Integration (SWEET SPOT)
+   /--------\ Actions, workflows, multi-component
+  |  UNIT  | Unit (fast, focused)
+  |________| Scoring, permissions, validators
+   STATIC   TypeScript + Biome
+```
+
+**Priority:** Integration tests > E2E tests > Unit tests. Integration tests catch the most bugs for the least effort.
+
+---
+
+### Test Coverage by Category
+
+| Category | E2E Tests | Integration Tests | Unit Tests | Coverage % | Status | Priority |
+|----------|-----------|-------------------|------------|------------|--------|----------|
+| **Auth** | 8 | 0 | 0 | 40% | 🟡 E2E only | P0 - Add integration |
+| **Main App (Workouts)** | 0 | 5 | ~200 (scoring) | 30% | 🟡 Partial | P0 - Add E2E, integration |
+| **Main App (Logs)** | 0 | 0 | 0 | 0% | 🔴 None | P0 - Critical gap |
+| **Main App (Movements)** | 0 | 0 | 0 | 0% | 🔴 None | P1 - Add all |
+| **Programming/Teams** | 0 | 3 | 14 | 50% | 🟡 Partial | P1 - Add E2E |
+| **Settings** | 0 | 0 | 0 | 0% | 🔴 None | P1 - Add integration |
+| **Admin** | 0 | 2 | 0 | 10% | 🔴 Minimal | P1 - Add integration |
+| **Compete** | 0 | 0 | ~200 (server) | 60% | 🟢 Server only | P0 - Add E2E, integration |
+
+**Overall:** ~400 existing tests, ~100 missing tests needed for safe migration.
+
+---
+
+### Detailed Test Requirements
+
+#### 🔐 Authentication (8 E2E, 0 Integration, 0 Unit)
+
+**Existing:**
+- ✅ `e2e/auth.spec.ts` - 8 tests (sign-in, logout, session persistence)
+
+**Missing (CRITICAL):**
+- ❌ `test/actions/sign-in-actions.test.ts` - Integration tests for `signInAction`
+- ❌ `test/actions/sign-up-actions.test.ts` - Integration tests for `signUpAction`
+- ❌ `test/actions/forgot-password-actions.test.ts` - Password reset flow
+- ❌ `test/actions/reset-password-actions.test.ts` - Token validation
+- ❌ `test/utils/password-hasher.test.ts` - Unit tests for hashing
+- ❌ `e2e/sign-up.spec.ts` - E2E for user registration
+
+**Priority:** P0 - Auth is the foundation. Integration tests needed before migrating P1 routes.
+
+**See:** [tanstack-migration-auth.md](./tanstack-migration-auth.md#step-0-test-requirements)
+
+---
+
+#### 🏋️ Main App - Workouts (0 E2E, 5 Integration, ~200 Unit)
+
+**Existing:**
+- ✅ `test/actions/workout-actions.test.ts` - 8 tests (create, update, remix)
+- ✅ `test/server/workouts.test.ts` - 3 test suites
+- ✅ `test/lib/scoring/` - ~200 tests (validate, parse, format, encode, decode, aggregate, sort)
+
+**Missing (HIGH PRIORITY):**
+- ❌ `test/actions/scheduling-actions.test.ts` - `scheduleStandaloneWorkoutAction`, `addWorkoutToTrackAction`
+- ❌ `test/actions/workout-actions.test.ts` (extend) - Remix, leaderboards, multi-round sets
+- ❌ `e2e/workout.spec.ts` (extend) - Scheduling, filtering, pagination
+
+**Priority:** P0 - Core user workflow. Need scheduling tests before migrating schedule routes.
+
+**See:** [tanstack-migration-main-workouts.md](./tanstack-migration-main-workouts.md#step-0-test-coverage-analysis)
+
+---
+
+#### 📝 Main App - Logs (0 E2E, 0 Integration, 0 Unit)
+
+**Existing:** None
+
+**Missing (CRITICAL GAP):**
+- ❌ `test/actions/log-actions.test.ts` - `submitLogFormAction`, `getLogsByUserAction`, `updateResultAction`
+- ❌ `test/integration/log-workflow.test.ts` - Full log creation → edit flow
+- ❌ `e2e/log.spec.ts` - Log workout result E2E
+
+**Priority:** P0 - Users cannot fix mistakes without edit functionality. Blocking migration.
+
+**See:** [tanstack-migration-main-workouts.md](./tanstack-migration-main-workouts.md#2-log-routes)
+
+---
+
+#### 🏃 Main App - Movements (0 E2E, 0 Integration, 0 Unit)
+
+**Existing:** None
+
+**Missing:**
+- ❌ `test/actions/movement-actions.test.ts` - All 4 actions (CRUD)
+- ❌ `e2e/movements.spec.ts` - Movement management E2E
+
+**Priority:** P1 - Entire section missing. Add tests before implementing.
+
+**See:** [tanstack-migration-main-workouts.md](./tanstack-migration-main-workouts.md#5-movement-routes)
+
+---
+
+#### 📅 Programming & Teams (0 E2E, 3 Integration, 14 Unit)
+
+**Existing:**
+- ✅ `test/actions/programming-actions.test.ts` - Subscribe/unsubscribe
+- ✅ `test/integration/programming-subscription.test.ts` - Full subscription flow
+- ✅ `test/server/programming.test.ts` - Server functions
+- ✅ `test/utils/workout-permissions.test.ts` - 14 tests (permission checks)
+
+**Missing:**
+- ❌ `test/integration/programming-browse.test.ts` - Multi-team subscription UI
+- ❌ `test/integration/multi-team-subscriptions.test.ts` - Cross-team visibility
+- ❌ `test/utils/team-auth.test.ts` - `requireTeamPermission`, `hasTeamPermission`
+- ❌ `test/integration/team-settings.test.ts` - Team CRUD, member management
+- ❌ `e2e/team-management.spec.ts` - Invite → accept → manage flow
+
+**Priority:** P1 - Multi-tenancy is core. Need team-auth tests before migrating team settings.
+
+**See:** [tanstack-migration-programming-teams.md](./tanstack-migration-programming-teams.md#step-0-test-coverage-baseline)
+
+---
+
+#### ⚙️ Settings & Admin (0 E2E, 2 Integration, 0 Unit)
+
+**Existing:**
+- ✅ `test/actions/organizer-admin-actions.test.ts` - Organizer requests
+- ✅ `test/server/organizer-onboarding.test.ts` - Server logic
+
+**Missing (CRITICAL):**
+- ❌ `test/actions/settings-actions.test.ts` - Profile update
+- ❌ `test/actions/passkey-settings-actions.test.ts` - WebAuthn CRUD
+- ❌ `test/actions/sessions-actions.test.ts` - Session management
+- ❌ `test/actions/team-membership-actions.test.ts` - Member management
+- ❌ `test/actions/entitlement-admin-actions.test.ts` - Plan changes
+- ❌ `test/integration/scheduling-workflow.test.ts` - FullCalendar scheduling
+- ❌ `e2e/settings.spec.ts` - Profile, security, sessions
+- ❌ `e2e/scheduling.spec.ts` - FullCalendar drag-and-drop
+- ❌ `e2e/passkey.spec.ts` - WebAuthn ceremony
+
+**Priority:** P1 - Settings are essential. Scheduling is primary admin feature.
+
+**See:** [tanstack-migration-settings-admin.md](./tanstack-migration-settings-admin.md#step-0-test-coverage-audit)
+
+---
+
+#### 🏆 Competition Platform (0 E2E, 0 Integration, ~200 Unit)
+
+**Existing:**
+- ✅ `test/server/competition-leaderboard.test.ts` - 98 tests (ranking, points, ties)
+- ✅ `test/server/sponsors.test.ts` - 47 tests (sponsor CRUD)
+- ✅ `test/server/volunteers.test.ts` - 61 tests (volunteer management)
+- ✅ `test/lib/judge-rotation-utils.test.ts` - 35 tests (rotation patterns)
+- ✅ `test/server/judge-scheduling.test.ts` - 9 tests (judge requirements)
+- ✅ `test/server/stripe-connect.test.ts` - 27 tests (OAuth, account sync)
+- ✅ `test/lib/scoring/` - ~150 tests (scoring library)
+
+**Missing (CRITICAL):**
+- ❌ `e2e/compete/registration.spec.ts` - Registration → payment → success
+- ❌ `e2e/compete/organizer-onboard.spec.ts` - Stripe Connect OAuth
+- ❌ `e2e/compete/competition-create.spec.ts` - Competition CRUD
+- ❌ `test/integration/compete/heat-scheduling.test.ts` - Heat CRUD, drag-and-drop
+- ❌ `test/integration/compete/score-entry.test.ts` - Score submission
+- ❌ `test/actions/competition-actions.test.ts` - All 11 action files
+
+**Priority:** P0 - Revenue-critical paths (registration, onboarding). Server tests excellent, need E2E + integration.
+
+**See:** [tanstack-migration-compete.md](./tanstack-migration-compete.md#step-0-test-coverage-requirements)
+
+---
+
+### Test Creation Priority Order
+
+**Week 1 (P0 - Blockers):**
+1. `test/actions/log-actions.test.ts` - Log CRUD (users can't fix mistakes)
+2. `test/actions/scheduling-actions.test.ts` - Workout scheduling
+3. `e2e/compete/registration.spec.ts` - Revenue path
+
+**Week 2 (P0 - Auth):**
+4. `test/actions/sign-in-actions.test.ts` - Sign-in integration
+5. `test/actions/sign-up-actions.test.ts` - Sign-up integration
+6. `test/actions/forgot-password-actions.test.ts` - Password reset
+
+**Week 3 (P1 - Core Features):**
+7. `test/actions/movement-actions.test.ts` - Movement CRUD
+8. `test/utils/team-auth.test.ts` - Permission helpers
+9. `test/integration/team-settings.test.ts` - Team management
+
+**Week 4 (P1 - Admin):**
+10. `test/integration/scheduling-workflow.test.ts` - FullCalendar scheduling
+11. `test/actions/entitlement-admin-actions.test.ts` - Plan management
+12. `e2e/scheduling.spec.ts` - Scheduling E2E
+
+---
+
+### Migration Acceptance Criteria
+
+**Before migrating any route:**
+- [ ] Existing tests for related server functions pass
+- [ ] Integration tests exist for all server actions used by route
+- [ ] Unit tests exist for pure functions (validators, formatters)
+
+**After migrating route:**
+- [ ] All existing tests still pass
+- [ ] New TanStack Start route renders correctly
+- [ ] Data fetching works with loaders
+- [ ] Forms submit correctly
+- [ ] E2E test passes for critical paths (if applicable)
+
+**Migration-Blocking Tests (Must Create First):**
+1. Log actions - Before migrating `/log/$id/edit`
+2. Scheduling actions - Before migrating `/workouts/$workoutId/schedule`
+3. Team-auth utils - Before migrating `/settings/teams`
+4. Compete registration E2E - Before migrating `/compete/[slug]/register`
+
+---
+
+### Testing Infrastructure
+
+**Existing:**
+- Vitest + jsdom for unit/integration
+- Playwright for E2E
+- FakeDatabase for D1 mocking (respects 100 param limit)
+- Factory functions in `@repo/test-utils`
+
+**Required New Factories:**
+- `createCompetition` - Full competition with relations
+- `createDivision` - Division with event associations
+- `createHeat` - Heat with athlete assignments
+- `createScore` - Score with all scheme variations
+
+**Test Data Seeds:**
+- Competition with 3 divisions, 5 events
+- 50 athletes across divisions
+- Heat schedule with judge rotations
+
+---
+
 ## 🔍 Audit Findings (December 23, 2025)
 
 Five comprehensive audits were completed to verify the accuracy of this checklist against the actual Next.js and TanStack codebases. The following corrections were made:

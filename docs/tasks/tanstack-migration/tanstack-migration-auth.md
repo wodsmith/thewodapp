@@ -15,6 +15,148 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 |----------|-------|-------------|-----------|----------------|
 | Routes | 8 | 2 | 0 | 6 |
 | Actions | 10 | 2 | 0 | 8 |
+| Tests (E2E) | 8 | 8 | 0 | 0 |
+| Tests (Integration) | 10 | 0 | 0 | 10 |
+
+---
+
+## Step 0: Test Requirements
+
+Before migrating auth routes, we need test coverage to ensure functional parity between Next.js and TanStack implementations.
+
+### Testing Trophy Strategy
+
+```
+       /\
+      /  \  E2E (8 tests exist)
+     /----\  sign-in, logout, session persistence
+    / INT  \ Integration (0 tests - PRIORITY)
+   /--------\ Actions: forgot-password, reset-password, verify-email, etc.
+  |  UNIT  | Unit (Validators, pure functions)
+  |________| password validation, email validation, token generation
+   STATIC   TypeScript + Biome linting
+```
+
+### Existing Test Coverage
+
+#### E2E Tests (Playwright) ✅ Complete for P0
+
+| Test File | Tests | Coverage | Status |
+|-----------|-------|----------|--------|
+| `e2e/auth.spec.ts` | 8 | Sign-in flows, logout, session | ✅ Exists |
+| `e2e/fixtures/auth.ts` | N/A | Auth helper functions | ✅ Exists |
+
+**Covered Scenarios:**
+- ✅ Login page display
+- ✅ Unauthenticated redirect to /sign-in
+- ✅ Valid test user login
+- ✅ Admin user login
+- ✅ Invalid credentials error
+- ✅ Non-existent user error
+- ✅ Logout flow
+- ✅ Session persistence across navigation
+
+**Missing E2E:**
+- ❌ Sign-up flow (user creation)
+- ❌ Forgot password → reset password flow
+- ❌ Email verification flow
+- ❌ Google OAuth flow (may need mock)
+- ❌ Team invite acceptance
+
+#### Integration Tests ❌ Missing
+
+| Action | Test File | Status | Priority |
+|--------|-----------|--------|----------|
+| `signInAction` | N/A | ❌ Missing | P1 |
+| `signUpAction` | N/A | ❌ Missing | P1 |
+| `forgotPasswordAction` | N/A | ❌ Missing | P1 |
+| `resetPasswordAction` | N/A | ❌ Missing | P1 |
+| `verifyEmailAction` | N/A | ❌ Missing | P2 |
+| `resendVerificationAction` | N/A | ❌ Missing | P2 |
+| `googleSSOCallbackAction` | N/A | ❌ Missing | P2 |
+| `acceptTeamInviteAction` | N/A | ❌ Missing | P2 |
+| `startPasskeyRegistrationAction` | N/A | ❌ Missing | P3 |
+| `completePasskeyRegistrationAction` | N/A | ❌ Missing | P3 |
+
+#### Unit Tests ❌ Missing
+
+| Utility | Test File | Status | Priority |
+|---------|-----------|--------|----------|
+| `hashPassword` / `verifyPassword` | N/A | ❌ Missing | P1 |
+| `canSignUp` (disposable email) | N/A | ❌ Missing | P1 |
+| `getVerificationTokenKey` | N/A | ❌ Missing | P2 |
+| `getResetTokenKey` | N/A | ❌ Missing | P2 |
+| `validateTurnstileToken` | N/A | ❌ Missing | P2 |
+| Password validation schemas | N/A | ❌ Missing | P1 |
+
+### Test Requirements by Route
+
+#### P0 - Critical Path (E2E Required)
+
+| Route | E2E Tests | Integration Tests | Unit Tests | Notes |
+|-------|-----------|-------------------|------------|-------|
+| Sign In | ✅ 6 tests in auth.spec.ts | ❌ Need `signInAction` test | ❌ Need password verification | E2E sufficient for migration |
+| Sign Up | ❌ Missing | ❌ Need `signUpAction` test | ❌ Need password hashing, email validation | **BLOCKER**: Need at least integration |
+
+#### P1 - Password Management (Integration Required)
+
+| Route | E2E Tests | Integration Tests | Unit Tests | Notes |
+|-------|-----------|-------------------|------------|-------|
+| Forgot Password | ❌ Missing | ❌ Need `forgotPasswordAction` | ❌ Token generation | KV + email mocking required |
+| Reset Password | ❌ Missing | ❌ Need `resetPasswordAction` | ❌ Token validation | KV mocking required |
+
+#### P2 - Email & OAuth (Integration Required)
+
+| Route | E2E Tests | Integration Tests | Unit Tests | Notes |
+|-------|-----------|-------------------|------------|-------|
+| Verify Email | ❌ Missing | ❌ Need `verifyEmailAction` | ❌ Token validation | KV + session update mocking |
+| Google OAuth | ❌ Difficult to E2E | ❌ Need `googleSSOCallbackAction` | ❌ OAuth state validation | Mock Arctic library |
+| Team Invite | ❌ Missing | ❌ Need `acceptTeamInviteAction` | N/A | Session + team service mocking |
+
+#### P3 - Advanced Features (Integration Required)
+
+| Route | E2E Tests | Integration Tests | Unit Tests | Notes |
+|-------|-----------|-------------------|------------|-------|
+| Passkey | ❌ Complex | ❌ Need WebAuthn actions | ❌ Challenge generation | WebAuthn mocking complex |
+
+### Recommended Test Creation Order
+
+1. **Create integration tests for migrated routes first:**
+   - `test/actions/sign-in-actions.test.ts` - Test `signInAction`
+   - `test/actions/sign-up-actions.test.ts` - Test `signUpAction`
+
+2. **Add unit tests for shared utilities:**
+   - `test/utils/password-hasher.test.ts`
+   - `test/utils/auth-validators.test.ts`
+
+3. **Add integration tests for P1 routes (before migration):**
+   - `test/actions/forgot-password-actions.test.ts`
+   - `test/actions/reset-password-actions.test.ts`
+
+4. **Create E2E for sign-up flow:**
+   - Add to `e2e/auth.spec.ts` - user registration test
+
+### Test Mocking Strategy
+
+| Dependency | Mock Approach | Test Utility |
+|------------|---------------|--------------|
+| Database (D1) | Use test database with fixtures | `test/setup.ts` |
+| KV Store | Mock Cloudflare KV | Custom mock in `test/__mocks__/` |
+| Email (Resend) | Mock API calls | `vi.mock()` |
+| Session | Mock `getSessionFromCookie` | Already in other tests |
+| OAuth (Arctic) | Mock Google client | `vi.mock()` |
+| Turnstile | Mock validation | `vi.mock()` |
+
+### Migration Test Checklist
+
+For each route migration, verify:
+
+- [ ] Existing E2E tests pass against TanStack implementation
+- [ ] Integration tests written for server functions
+- [ ] Unit tests written for extracted utilities
+- [ ] Error handling matches Next.js behavior
+- [ ] Rate limiting behavior verified (manual or integration)
+- [ ] Session management works correctly
 
 ---
 
@@ -22,9 +164,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Sign In
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Sign In | `/sign-in` | `/_auth/sign-in` | ✅ Migrated | `sign-in.client.tsx`, `page.tsx` | `signInAction` | Core functionality migrated. Missing: SSO buttons, passkey auth |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Sign In | `/sign-in` | `/_auth/sign-in` | ✅ Migrated | `sign-in.client.tsx`, `page.tsx` | `signInAction` | ✅ E2E (6), ❌ Integration, ❌ Unit | Core functionality migrated. Missing: SSO buttons, passkey auth |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/sign-in/`
@@ -69,9 +211,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Sign Up
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Sign Up | `/sign-up` | `/_auth/sign-up` | ✅ Migrated | `sign-up.client.tsx`, `page.tsx` | `signUpAction`, `startPasskeyRegistrationAction`, `completePasskeyRegistrationAction` | Core functionality migrated. Missing: SSO, passkey, captcha, email verification, invite processing |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Sign Up | `/sign-up` | `/_auth/sign-up` | ✅ Migrated | `sign-up.client.tsx`, `page.tsx` | `signUpAction`, `startPasskeyRegistrationAction`, `completePasskeyRegistrationAction` | ❌ E2E, ❌ Integration, ❌ Unit | Core functionality migrated. Missing: SSO, passkey, captcha, email verification, invite processing |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/sign-up/`
@@ -131,9 +273,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Forgot Password
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Forgot Password | `/forgot-password` | N/A | ❌ Not Started | `forgot-password.client.tsx`, `page.tsx` | `forgotPasswordAction` | Generates reset token, sends email |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Forgot Password | `/forgot-password` | N/A | ❌ Not Started | `forgot-password.client.tsx`, `page.tsx` | `forgotPasswordAction` | ❌ E2E, ❌ Integration, ❌ Unit | Generates reset token, sends email |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/forgot-password/`
@@ -169,9 +311,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Reset Password
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Reset Password | `/reset-password?token=...` | N/A | ❌ Not Started | `reset-password.client.tsx`, `page.tsx`, `not-found.tsx` | `resetPasswordAction` | Validates token, updates password |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Reset Password | `/reset-password?token=...` | N/A | ❌ Not Started | `reset-password.client.tsx`, `page.tsx`, `not-found.tsx` | `resetPasswordAction` | ❌ E2E, ❌ Integration, ❌ Unit | Validates token, updates password |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/reset-password/`
@@ -210,9 +352,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Verify Email
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Verify Email | `/verify-email?token=...` | N/A | ❌ Not Started | `verify-email.client.tsx`, `page.tsx`, `not-found.tsx` | `verifyEmailAction` | Validates token, verifies email |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Verify Email | `/verify-email?token=...` | N/A | ❌ Not Started | `verify-email.client.tsx`, `page.tsx`, `not-found.tsx` | `verifyEmailAction` | ❌ E2E, ❌ Integration, ❌ Unit | Validates token, verifies email |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/verify-email/`
@@ -258,9 +400,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Resend Verification
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Resend Verification | (Action only, no dedicated route) | N/A | ❌ Not Started | N/A | `resendVerificationAction` | Generates new token, sends email |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Resend Verification | (Action only, no dedicated route) | N/A | ❌ Not Started | N/A | `resendVerificationAction` | ❌ Integration | Generates new token, sends email |
 
 **Next.js Implementation:**
 - **Action File**: `apps/wodsmith/src/app/(auth)/resend-verification.action.ts`
@@ -291,10 +433,10 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Google OAuth Callback
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Google OAuth | `/sso/google` | N/A | ❌ Not Started | `route.ts` (redirect to Google) | N/A | Initiates OAuth flow |
-| Google Callback | `/sso/google/callback` | N/A | ❌ Not Started | `google-callback.client.tsx`, `page.tsx` | `googleSSOCallbackAction` | Handles OAuth callback, creates/links account |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Google OAuth | `/sso/google` | N/A | ❌ Not Started | `route.ts` (redirect to Google) | N/A | ❌ E2E, ❌ Integration | Initiates OAuth flow |
+| Google Callback | `/sso/google/callback` | N/A | ❌ Not Started | `google-callback.client.tsx`, `page.tsx` | `googleSSOCallbackAction` | ❌ E2E, ❌ Integration, ❌ Unit | Handles OAuth callback, creates/links account |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/sso/google/`
@@ -342,9 +484,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Team Invite
 
-| Route | Next.js Path | TanStack Path | Status | Components | Actions | Notes |
-|-------|-------------|---------------|--------|------------|---------|-------|
-| Team Invite | `/team-invite?token=...` | N/A | ❌ Not Started | `team-invite.client.tsx`, `page.tsx`, `not-found.tsx` | `acceptTeamInviteAction` | Accepts team invitation |
+| Route | Next.js Path | TanStack Path | Status | Components | Actions | Tests | Notes |
+|-------|-------------|---------------|--------|------------|---------|-------|-------|
+| Team Invite | `/team-invite?token=...` | N/A | ❌ Not Started | `team-invite.client.tsx`, `page.tsx`, `not-found.tsx` | `acceptTeamInviteAction` | ❌ E2E, ❌ Integration | Accepts team invitation |
 
 **Next.js Implementation:**
 - **Route**: `apps/wodsmith/src/app/(auth)/team-invite/`
@@ -382,9 +524,9 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### SSO Buttons
 
-| Component | Next.js Path | TanStack Path | Status | Notes |
-|-----------|-------------|---------------|--------|-------|
-| SSO Buttons | `(auth)/_components/sso-buttons.tsx` | N/A | ❌ Not Started | Used in sign-in and sign-up pages |
+| Component | Next.js Path | TanStack Path | Status | Tests | Notes |
+|-----------|-------------|---------------|--------|-------|-------|
+| SSO Buttons | `(auth)/_components/sso-buttons.tsx` | N/A | ❌ Not Started | ❌ None | Used in sign-in and sign-up pages |
 
 **Next.js Implementation:**
 - **File**: `apps/wodsmith/src/app/(auth)/_components/sso-buttons.tsx`
@@ -408,18 +550,18 @@ This document catalogs all authentication routes in the Next.js app (apps/wodsmi
 
 ### Implemented Actions
 
-| Action | File | Purpose | Status | Dependencies |
-|--------|------|---------|--------|--------------|
-| `signInAction` | `sign-in.actions.ts` | Email/password authentication | ✅ Migrated as `signInServerFn` | User table, password verification, session creation, rate limiting |
-| `signUpAction` | `sign-up.actions.ts` | Email/password registration | ✅ Migrated as `signUpServerFn` | User table, password hashing, team creation, session creation, rate limiting, captcha |
-| `startPasskeyRegistrationAction` | `passkey-sign-up.actions.ts` | Start WebAuthn registration | ❌ Not Started | WebAuthn, user creation, team creation, KV cookies, captcha |
-| `completePasskeyRegistrationAction` | `passkey-sign-up.actions.ts` | Complete WebAuthn registration | ❌ Not Started | WebAuthn verification, email verification, session creation |
-| `forgotPasswordAction` | `forgot-password.action.ts` | Request password reset | ❌ Not Started | KV store, email service, rate limiting, captcha |
-| `resetPasswordAction` | `reset-password.action.ts` | Reset password with token | ❌ Not Started | KV store, password hashing, rate limiting |
-| `verifyEmailAction` | `verify-email.action.ts` | Verify email address | ❌ Not Started | KV store, session updates, rate limiting |
-| `resendVerificationAction` | `resend-verification.action.ts` | Resend verification email | ❌ Not Started | KV store, email service, session check, rate limiting |
-| `googleSSOCallbackAction` | `google-callback.action.ts` | Handle Google OAuth callback | ❌ Not Started | Arctic OAuth, Google SSO client, user/team creation, session creation, rate limiting |
-| `acceptTeamInviteAction` | `team-invite.action.ts` | Accept team invitation | ❌ Not Started | Session check, team invitation service, PostHog, rate limiting |
+| Action | File | Purpose | Status | Tests | Dependencies |
+|--------|------|---------|--------|-------|--------------|
+| `signInAction` | `sign-in.actions.ts` | Email/password authentication | ✅ Migrated as `signInServerFn` | ❌ Integration | User table, password verification, session creation, rate limiting |
+| `signUpAction` | `sign-up.actions.ts` | Email/password registration | ✅ Migrated as `signUpServerFn` | ❌ Integration | User table, password hashing, team creation, session creation, rate limiting, captcha |
+| `startPasskeyRegistrationAction` | `passkey-sign-up.actions.ts` | Start WebAuthn registration | ❌ Not Started | ❌ Integration | WebAuthn, user creation, team creation, KV cookies, captcha |
+| `completePasskeyRegistrationAction` | `passkey-sign-up.actions.ts` | Complete WebAuthn registration | ❌ Not Started | ❌ Integration | WebAuthn verification, email verification, session creation |
+| `forgotPasswordAction` | `forgot-password.action.ts` | Request password reset | ❌ Not Started | ❌ Integration | KV store, email service, rate limiting, captcha |
+| `resetPasswordAction` | `reset-password.action.ts` | Reset password with token | ❌ Not Started | ❌ Integration | KV store, password hashing, rate limiting |
+| `verifyEmailAction` | `verify-email.action.ts` | Verify email address | ❌ Not Started | ❌ Integration | KV store, session updates, rate limiting |
+| `resendVerificationAction` | `resend-verification.action.ts` | Resend verification email | ❌ Not Started | ❌ Integration | KV store, email service, session check, rate limiting |
+| `googleSSOCallbackAction` | `google-callback.action.ts` | Handle Google OAuth callback | ❌ Not Started | ❌ Integration | Arctic OAuth, Google SSO client, user/team creation, session creation, rate limiting |
+| `acceptTeamInviteAction` | `team-invite.action.ts` | Accept team invitation | ❌ Not Started | ❌ Integration | Session check, team invitation service, PostHog, rate limiting |
 
 ---
 
@@ -577,6 +719,25 @@ export const myServerFn = createServerFn({method: 'POST'})
 
 ## Audit History
 
+### 2025-12-24 - Test Coverage Audit (AuthDocWorker)
+**Added:**
+- ✅ New "Step 0: Test Requirements" section with Testing Trophy strategy
+- ✅ "Tests" column added to all route tables (8 routes)
+- ✅ "Tests" column added to Actions Summary table (10 actions)
+- ✅ Documented existing E2E tests in `e2e/auth.spec.ts` (8 tests)
+- ✅ Documented missing integration tests for all 10 auth actions
+- ✅ Documented missing unit tests for auth utilities
+
+**Test Coverage Findings:**
+- **E2E**: 8 tests exist covering sign-in flows (P0 adequate)
+- **Integration**: 0 tests for auth actions (CRITICAL GAP)
+- **Unit**: 0 tests for auth utilities (password hashing, token generation)
+
+**Recommendations:**
+1. Create integration tests for `signInAction` and `signUpAction` before proceeding with P1 routes
+2. Add E2E test for sign-up flow
+3. Create unit tests for `hashPassword`, `verifyPassword`, `canSignUp`
+
 ### 2025-12-23 - Documentation Audit (CalmStorm)
 **Verified:**
 - ✅ All 8 Next.js routes documented (sign-in, sign-up, forgot-password, reset-password, verify-email, google-oauth, google-callback, team-invite)
@@ -593,5 +754,5 @@ export const myServerFn = createServerFn({method: 'POST'})
 
 ---
 
-**Last Updated:** 2025-12-23  
-**Document Version:** 1.1 (Audited)
+**Last Updated:** 2025-12-24  
+**Document Version:** 1.2 (Test Coverage Added)

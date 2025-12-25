@@ -26,6 +26,699 @@ The Competition Platform is the most complex feature area in WODsmith, encompass
 
 ---
 
+## Step 0: Test Coverage Requirements
+
+Before migrating any competition routes, we need comprehensive test coverage to ensure functional parity between Next.js and TanStack implementations.
+
+### Testing Trophy Philosophy
+
+```
+       /\
+      /  \  E2E (5-10 critical path tests)
+     /----\  Registration → Payment → Success
+    / INT  \ Integration (SWEET SPOT)
+   /--------\ Heat scheduling, scoring, judge rotation
+  |  UNIT  | Unit (fast, focused)
+  |________| Score calculations, ranking algorithms
+   STATIC   TypeScript + Biome
+```
+
+**Priority:** Integration tests are the SWEET SPOT for compete features. They catch multi-component interactions, database constraints, and business logic bugs without the brittleness of E2E tests.
+
+---
+
+### 🎯 EXISTING TEST COVERAGE
+
+#### Competition Leaderboard (`test/server/competition-leaderboard.test.ts` - 1513 lines)
+
+| Area | Tests | Status | Notes |
+|------|-------|--------|-------|
+| `calculatePoints` | 17 | ✅ Complete | fixed_step, winner_takes_more, even_spread scoring |
+| `assignRanksWithTies` | 25 | ✅ Complete | Two-way, three-way, multiple ties |
+| Capped scores | 8 | ✅ Complete | secondaryValue matching, time cap handling |
+| Tiebreaker values | 6 | ✅ Complete | tiebreakValue matching logic |
+| Scheme-specific sorting | 12 | ✅ Complete | time/reps/load ascending/descending |
+| Overall ranking tiebreakers | 8 | ✅ Complete | 1st/2nd place count tiebreakers |
+| Integration scenarios | 7 | ✅ Complete | CrossFit Open-style, multi-event |
+| `areScoresEqual` edge cases | 15 | ✅ Complete | null handling, status matching |
+
+**Total:** 98 tests covering all leaderboard calculation logic
+
+#### Sponsors (`test/server/sponsors.test.ts` - 1070 lines, 47 tests)
+
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `getSponsor` | 2 | ✅ Complete | Get by ID, not found |
+| `getCompetitionSponsors` | 2 | ✅ Complete | Grouped/ungrouped organization |
+| `getCompetitionSponsorGroups` | 2 | ✅ Complete | Ordered list, empty state |
+| `getUserSponsors` | 2 | ✅ Complete | Ordered list for athlete sponsors |
+| `createSponsorGroup` | 4 | ✅ Complete | Auto-order, explicit order, validation |
+| `updateSponsorGroup` | 4 | ✅ Complete | Name, display order, not found |
+| `deleteSponsorGroup` | 3 | ✅ Complete | Delete, idempotent, validation |
+| `reorderSponsorGroups` | 3 | ✅ Complete | Multiple groups, empty list |
+| `createSponsor` | 6 | ✅ Complete | Competition/user sponsors, group assignment |
+| `updateSponsor` | 5 | ✅ Complete | Name, group, logo URL updates |
+| `deleteSponsor` | 3 | ✅ Complete | Clears workout references |
+| `reorderSponsors` | 3 | ✅ Complete | Within competition, between groups |
+| `assignWorkoutSponsor` | 5 | ✅ Complete | Assign, clear, validation |
+| `getWorkoutSponsor` | 3 | ✅ Complete | Get sponsor, no sponsor, not found |
+
+**Total:** 47 tests covering full sponsor lifecycle (TDD migrated Dec 24, 2025)
+
+#### Volunteers (`test/server/volunteers.test.ts` - 918 lines)
+
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `getVolunteerRoleTypes` | 7 | ✅ Complete | Metadata parsing, all role types |
+| `isVolunteer` | 7 | ✅ Complete | Role checking, system role validation |
+| `hasRoleType` | 5 | ✅ Complete | Role type matching |
+| `getVolunteerAvailability` | 4 | ✅ Complete | morning/afternoon/all_day |
+| `isVolunteerAvailableFor` | 8 | ✅ Complete | Availability matching |
+| `filterVolunteersByAvailability` | 8 | ✅ Complete | Time slot filtering |
+| `isDirectInvite` | 6 | ✅ Complete | Direct vs application detection |
+| `calculateInviteStatus` | 10 | ✅ Complete | accepted/expired/pending |
+| Metadata integration | 6 | ✅ Complete | Status workflow, legacy compatibility |
+
+**Total:** 61 tests covering volunteer management
+
+#### Judge Rotation (`test/lib/judge-rotation-utils.test.ts` - 735 lines)
+
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `expandRotationToAssignments` | 10 | ✅ Complete | STAY, SHIFT_RIGHT patterns |
+| `calculateCoverage` | 12 | ✅ Complete | Gaps, overlaps, percentage |
+| `filterRotationsByAvailability` | 10 | ✅ Complete | morning/afternoon/all_day filtering |
+| Varying lane counts | 3 | ✅ Complete | Per-heat lane count handling |
+
+**Total:** 35 tests covering judge rotation logic
+
+#### Judge Scheduling (`test/server/judge-scheduling.test.ts` - 110 lines)
+
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `calculateRequiredJudges` | 9 | ✅ Complete | Basic, varying lanes, rotation length |
+
+**Total:** 9 tests covering judge capacity calculations
+
+#### Stripe Connect (`test/server/stripe-connect.test.ts` - 631 lines)
+
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `parseOAuthState` | 8 | ✅ Complete | Base64 parsing, validation |
+| `getOAuthAuthorizeUrl` | 4 | ✅ Complete | URL generation, CSRF |
+| `handleOAuthCallback` | 6 | ✅ Complete | Code exchange, account status |
+| `syncAccountStatus` | 4 | ✅ Complete | PENDING → VERIFIED transitions |
+| Security tests | 5 | ✅ Complete | CSRF, session, permissions |
+
+**Total:** 27 tests covering Stripe Connect onboarding
+
+#### Scoring Library (`test/lib/scoring/` - 9 files)
+
+| File | Tests | Status | Notes |
+|------|-------|--------|-------|
+| `validate.test.ts` | ~30 | ✅ Complete | Input validation, tiebreaks, time caps |
+| `parse.test.ts` | ~25 | ✅ Complete | Time, reps, load parsing |
+| `format.test.ts` | ~20 | ✅ Complete | Display formatting |
+| `encode.test.ts` | ~15 | ✅ Complete | Sort key encoding |
+| `decode.test.ts` | ~15 | ✅ Complete | Sort key decoding |
+| `aggregate.test.ts` | ~10 | ✅ Complete | Multi-round aggregation |
+| `sort.test.ts` | ~10 | ✅ Complete | Leaderboard sorting |
+| `time-cap-tiebreak.test.ts` | ~15 | ✅ Complete | Cap/tiebreak handling |
+| `multi-round.test.ts` | ~10 | ✅ Complete | Multi-round scoring |
+
+**Total:** ~150 tests covering all scoring schemes
+
+#### Commerce (`test/server/commerce/fee-calculation.test.ts`)
+
+| Area | Tests | Status | Notes |
+|------|-------|--------|-------|
+| Fee calculation | ~20 | ✅ Complete | 4 pricing models, edge cases |
+
+**Total:** ~20 tests covering registration pricing
+
+#### Organizer Onboarding (`test/server/organizer-onboarding.test.ts`)
+
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| Organizer onboarding flow | ~15 | ✅ Complete | Stripe Connect integration |
+
+**Total:** ~15 tests
+
+#### Action Tests (Partial Coverage)
+
+| File | Tests | Status | Notes |
+|------|-------|--------|-------|
+| `test/actions/organizer-onboarding-actions.test.ts` | ~10 | ✅ Complete | Permission checks, validation |
+| `test/actions/organizer-admin-actions.test.ts` | ~8 | ✅ Complete | Admin operations |
+| `test/actions/volunteer-profile-actions.test.ts` | ~12 | ✅ Complete | Volunteer profile CRUD |
+
+**Total:** ~30 action tests
+
+#### E2E Tests
+
+| File | Tests | Status | Notes |
+|------|-------|--------|-------|
+| `e2e/auth.spec.ts` | 8 | ✅ Complete | Auth flows (not compete-specific) |
+| `e2e/workout.spec.ts` | ~5 | ✅ Complete | Workout flows (not compete-specific) |
+
+**Total:** 0 compete-specific E2E tests
+
+---
+
+### ❌ MISSING TEST COVERAGE - REQUIRED FOR MIGRATION
+
+#### E2E Tests (Critical Path) - `e2e/compete/`
+
+| Test File | Priority | Routes Covered | Acceptance Criteria | Status |
+|-----------|----------|----------------|---------------------|--------|
+| `registration.spec.ts` | **P0** | `/compete/[slug]/register`, `/register/success` | Full registration flow in <30s | ❌ Missing |
+| `payment-flow.spec.ts` | **P0** | Stripe checkout integration | Test mode payment completes | ❌ Missing |
+| `organizer-onboard.spec.ts` | **P0** | `/compete/organizer/onboard`, Stripe Connect OAuth | Account linked, can create competitions | ❌ Missing |
+| `competition-create.spec.ts` | **P0** | `/compete/organizer/new`, competition CRUD | Competition appears in public listing | ❌ Missing |
+| `leaderboard-live.spec.ts` | **P1** | `/compete/[slug]/leaderboard` | Score updates reflect in <2s | ❌ Missing |
+
+**E2E Test Requirements:**
+
+1. **Registration Flow** (revenue path - CRITICAL)
+   ```typescript
+   test("athlete can register for competition", async ({ page }) => {
+     // Navigate to competition detail
+     await page.goto("/compete/test-throwdown");
+     
+     // Click register, select division
+     await page.click('text="Register"');
+     await page.selectOption('[name="divisionId"]', "rx-men");
+     
+     // Fill registration form
+     await page.fill('[name="firstName"]', "John");
+     await page.fill('[name="lastName"]', "Doe");
+     await page.click('[name="registrationType"][value="individual"]');
+     
+     // Complete Stripe checkout (test mode)
+     await page.click('text="Proceed to Payment"');
+     await page.fill('[name="cardNumber"]', "4242424242424242");
+     await page.fill('[name="expiry"]', "12/34");
+     await page.fill('[name="cvc"]', "123");
+     await page.click('text="Pay $50.00"');
+     
+     // Verify success page
+     await expect(page).toHaveURL(/\/register\/success/);
+     await expect(page.locator("text=Registration Complete")).toBeVisible();
+     
+     // Verify team invite link exists
+     await expect(page.locator('[data-testid="invite-link"]')).toBeVisible();
+   });
+   ```
+
+2. **Organizer Onboarding** (revenue enablement)
+   ```typescript
+   test("organizer can complete Stripe Connect onboarding", async ({ page }) => {
+     // Sign up as organizer
+     await page.goto("/compete/organizer/onboard");
+     
+     // Fill onboarding form
+     await page.fill('[name="organizationName"]', "Test Gym");
+     await page.click('text="Connect Stripe Account"');
+     
+     // Complete Stripe Connect OAuth (test mode)
+     await expect(page).toHaveURL(/connect.stripe.com/);
+     await page.fill('[name="email"]', "test@example.com");
+     await page.click('text="Authorize"');
+     
+     // Verify redirect back to app
+     await expect(page).toHaveURL(/\/compete\/organizer/);
+     await expect(page.locator("text=Account Connected")).toBeVisible();
+     
+     // Verify can create competitions
+     await page.click('text="Create Competition"');
+     await expect(page).toHaveURL(/\/compete\/organizer\/new/);
+   });
+   ```
+
+3. **Competition Management**
+   ```typescript
+   test("organizer can create and publish competition", async ({ page }) => {
+     // Create competition
+     await page.goto("/compete/organizer/new");
+     await page.fill('[name="name"]', "Test Throwdown 2025");
+     await page.fill('[name="slug"]', "test-throwdown-2025");
+     await page.fill('[name="startDate"]', "2025-06-01");
+     await page.fill('[name="endDate"]', "2025-06-02");
+     await page.click('text="Create"');
+     
+     // Configure divisions
+     await page.click('text="Divisions"');
+     await page.click('text="Add Division"');
+     await page.fill('[name="name"]', "RX Men");
+     await page.click('text="Save"');
+     
+     // Configure pricing
+     await page.click('text="Pricing"');
+     await page.fill('[name="individualPrice"]', "50");
+     await page.click('text="Save"');
+     
+     // Publish
+     await page.click('text="Publish Competition"');
+     
+     // Verify appears in public listing
+     await page.goto("/compete");
+     await expect(page.locator("text=Test Throwdown 2025")).toBeVisible();
+   });
+   ```
+
+#### Integration Tests - `test/integration/compete/`
+
+| Test File | Priority | Coverage | Acceptance Criteria | Status |
+|-----------|----------|----------|---------------------|--------|
+| `heat-scheduling.test.ts` | **P0** | Heat CRUD, drag-and-drop reorder | Heat capacity enforced, D1 param limits respected | ❌ Missing |
+| `judge-assignment.test.ts` | **P0** | Judge → heat assignment flow | Coverage gaps detected, rotation patterns work | ❌ Missing |
+| `score-entry.test.ts` | **P0** | Score submission, leaderboard update | Leaderboard ranks correctly, ties resolved | ❌ Missing |
+| `division-management.test.ts` | **P1** | Division CRUD, template import | Templates apply correctly, events assigned | ❌ Missing |
+| `event-management.test.ts` | **P1** | Event/workout assignment | Workouts link to events, scoring schemes set | ❌ Missing |
+| `volunteer-signup.test.ts` | **P1** | Public signup, approval workflow | Invites sent, status transitions work | ❌ Missing |
+| `team-registration.test.ts` | **P1** | Team invite, roster management | Team members added, captain assigned | ❌ Missing |
+
+**Integration Test Requirements:**
+
+1. **Heat Scheduling** (15+ components, high complexity)
+   ```typescript
+   describe("Heat Scheduling Integration", () => {
+     it("creates heats for an event with correct capacity", async () => {
+       const competition = await createCompetition();
+       const event = await createEvent({ competitionId: competition.id });
+       const division = await createDivision({ competitionId: competition.id });
+       
+       const heat = await createHeat({
+         eventId: event.id,
+         divisionId: division.id,
+         capacity: 10,
+         laneCount: 5
+       });
+       
+       expect(heat.capacity).toBe(10);
+       expect(heat.laneCount).toBe(5);
+     });
+     
+     it("prevents over-capacity athlete assignment", async () => {
+       const heat = await createHeat({ capacity: 2 });
+       const athletes = await createAthletes(3);
+       
+       await assignAthleteToHeat(heat.id, athletes[0].id);
+       await assignAthleteToHeat(heat.id, athletes[1].id);
+       
+       await expect(
+         assignAthleteToHeat(heat.id, athletes[2].id)
+       ).rejects.toThrow("Heat is at capacity");
+     });
+     
+     it("handles D1 parameter limits with autochunk", async () => {
+       const heat = await createHeat();
+       const athletes = await createAthletes(150); // > 100 param limit
+       
+       // Should use autochunk internally
+       const assignments = await assignAthletesToHeat(
+         heat.id,
+         athletes.map(a => a.id)
+       );
+       
+       expect(assignments).toHaveLength(150);
+     });
+   });
+   ```
+
+2. **Judge Rotation**
+   ```typescript
+   describe("Judge Assignment Integration", () => {
+     it("assigns judges to heats with rotation pattern", async () => {
+       const judges = await createJudges(5);
+       const heats = await createHeats(10);
+       
+       const rotation = await createRotation({
+         pattern: "SHIFT_RIGHT",
+         judges: judges.map(j => j.id),
+         heats: heats.map(h => h.id)
+       });
+       
+       const assignments = await expandRotationToAssignments(rotation);
+       
+       expect(assignments).toHaveLength(50); // 5 judges * 10 heats
+       expect(assignments[0].judgeId).toBe(judges[0].id);
+       expect(assignments[1].judgeId).toBe(judges[1].id);
+     });
+     
+     it("detects coverage gaps", async () => {
+       const judges = await createJudges(3);
+       const heats = await createHeats(10);
+       
+       const rotation = await createRotation({
+         pattern: "STAY",
+         judges: judges.map(j => j.id),
+         heats: heats.slice(0, 5).map(h => h.id) // Only 5 heats
+       });
+       
+       const coverage = await calculateCoverage(rotation, heats);
+       
+       expect(coverage.percentage).toBe(50); // 5/10 heats covered
+       expect(coverage.gaps).toHaveLength(5);
+     });
+   });
+   ```
+
+3. **Scoring/Results**
+   ```typescript
+   describe("Score Entry Integration", () => {
+     it("submits score and updates leaderboard", async () => {
+       const competition = await createCompetition();
+       const event = await createEvent({ competitionId: competition.id });
+       const athlete = await createAthlete();
+       
+       await submitScore({
+         eventId: event.id,
+         athleteId: athlete.id,
+         scheme: "time",
+         value: "5:30",
+         status: "completed"
+       });
+       
+       const leaderboard = await getLeaderboard(event.id);
+       
+       expect(leaderboard[0].athleteId).toBe(athlete.id);
+       expect(leaderboard[0].rank).toBe(1);
+       expect(leaderboard[0].displayValue).toBe("5:30");
+     });
+     
+     it("resolves ties with tiebreaker", async () => {
+       const event = await createEvent({ scheme: "time" });
+       const athletes = await createAthletes(2);
+       
+       await submitScore({
+         eventId: event.id,
+         athleteId: athletes[0].id,
+         value: "5:30",
+         tiebreakValue: "100" // reps
+       });
+       
+       await submitScore({
+         eventId: event.id,
+         athleteId: athletes[1].id,
+         value: "5:30",
+         tiebreakValue: "95" // fewer reps
+       });
+       
+       const leaderboard = await getLeaderboard(event.id);
+       
+       expect(leaderboard[0].athleteId).toBe(athletes[0].id); // More reps wins
+       expect(leaderboard[1].athleteId).toBe(athletes[1].id);
+     });
+   });
+   ```
+
+#### Action Tests - `test/actions/compete/`
+
+| Action File | Tests Needed | Priority | Acceptance Criteria | Status |
+|-------------|--------------|----------|---------------------|--------|
+| `competition-actions.ts` | CRUD, registration, events | P0 | All actions validate permissions, return correct types | ❌ Missing |
+| `competition-division-actions.ts` | Division CRUD | P0 | Template import works, events assigned | ❌ Missing |
+| `competition-heat-actions.ts` | Heat CRUD, athlete assignment | P0 | Capacity enforced, reordering works | ❌ Missing |
+| `competition-score-actions.ts` | Score entry, validation | P0 | Schemes validated, leaderboard updates | ❌ Missing |
+| `judge-scheduling-actions.ts` | Judge availability | P1 | Availability filters work | ❌ Missing |
+| `judge-rotation-actions.ts` | Rotation patterns | P1 | STAY/SHIFT_RIGHT patterns work | ❌ Missing |
+| `judge-assignment-actions.ts` | Judge-heat assignments | P1 | Assignments created, coverage calculated | ❌ Missing |
+| `volunteer-actions.ts` | Volunteer CRUD, invites | P1 | Invites sent, status transitions work | ❌ Missing |
+| `commerce.action.ts` | Pricing, purchases | P0 | Fee calculation correct, Stripe integration works | ❌ Missing |
+| `sponsors.actions.ts` | Sponsor CRUD | P2 | ⚠️ Partial (server tests exist, action tests missing) | ⚠️ Partial |
+| `stripe-connect.action.ts` | OAuth, status sync | P0 | ⚠️ Partial (server tests exist, action tests missing) | ⚠️ Partial |
+
+**Action Test Requirements:**
+
+```typescript
+// Example: test/actions/compete/competition-actions.test.ts
+describe("Competition Actions", () => {
+  describe("createCompetitionAction", () => {
+    it("creates competition with valid data", async () => {
+      const session = await createTestSession({ teamId: "team-1" });
+      const result = await createCompetitionAction({
+        name: "Test Throwdown",
+        slug: "test-throwdown",
+        startDate: "2025-06-01",
+        endDate: "2025-06-02",
+        teamId: "team-1"
+      }, session);
+      
+      expect(result.success).toBe(true);
+      expect(result.data.name).toBe("Test Throwdown");
+    });
+    
+    it("requires EDIT_TEAM_SETTINGS permission", async () => {
+      const session = await createTestSession({ 
+        teamId: "team-1",
+        permissions: [] // No permissions
+      });
+      
+      await expect(
+        createCompetitionAction({ name: "Test" }, session)
+      ).rejects.toThrow("FORBIDDEN");
+    });
+    
+    it("validates slug uniqueness", async () => {
+      await createCompetition({ slug: "test-throwdown" });
+      
+      await expect(
+        createCompetitionAction({ slug: "test-throwdown" })
+      ).rejects.toThrow("Slug already exists");
+    });
+  });
+});
+```
+
+---
+
+### 📊 TEST COVERAGE SUMMARY
+
+| Category | Existing | Missing | Priority | Notes |
+|----------|----------|---------|----------|-------|
+| **E2E (Critical Path)** | 0 | 5 specs | P0-P1 | Registration, payment, onboarding |
+| **Integration** | 0 | 7 files | P0-P1 | Heat scheduling, scoring, judge rotation |
+| **Server Functions** | ~450 tests | Complete | ✅ | Leaderboard, scoring, volunteers, judges |
+| **Actions** | ~30 tests | 11 files | P0-P2 | Competition CRUD, scoring, volunteers |
+| **Components** | 0 | ~115 components | P1-P2 | Defer to post-migration |
+
+**Total Existing:** ~480 tests (mostly unit/server functions)
+**Total Missing:** ~200 tests (integration + actions + E2E)
+
+---
+
+### ✅ ACCEPTANCE CRITERIA FOR MIGRATION COMPLETE
+
+**Before migrating any route:**
+
+1. ✅ Existing server function tests pass (~450 tests)
+2. ✅ Scoring library tests pass (~150 tests)
+3. ⚠️ **BLOCKER:** Action tests must be created for the route
+4. ⚠️ **BLOCKER:** Integration test for multi-component flows
+
+**After migrating route:**
+
+1. ✅ All existing tests still pass
+2. ✅ New TanStack Start route renders correctly
+3. ✅ Data fetching works with TanStack Router loaders
+4. ✅ Forms submit correctly via server actions
+5. ⚠️ E2E test passes for critical paths (P0 routes only)
+
+**Migration-Blocking Tests (Must Create First):**
+
+| Test File | Blocks Migration Of | Reason |
+|-----------|---------------------|--------|
+| `e2e/compete/registration.spec.ts` | Registration routes | Revenue path - CRITICAL |
+| `test/integration/compete/heat-scheduling.test.ts` | Schedule page | 15+ components, high complexity |
+| `test/actions/competition-actions.test.ts` | All competition pages | Core CRUD operations |
+| `test/actions/competition-score-actions.test.ts` | Results/leaderboard | Scoring integrity |
+| `test/integration/compete/score-entry.test.ts` | Results entry | Leaderboard calculation |
+
+---
+
+### 🔧 TEST INFRASTRUCTURE REQUIREMENTS
+
+**Existing Infrastructure:**
+- ✅ Vitest + jsdom for unit/integration
+- ✅ Playwright for E2E
+- ✅ FakeDatabase for D1 mocking (respects 100 param limit)
+- ✅ Factory functions in `@repo/test-utils`
+- ✅ Existing fixtures: `createSponsor`, `createSponsorGroup`
+
+**Required New Factories:**
+
+```typescript
+// packages/test-utils/src/factories/compete.ts
+
+export function createCompetition(overrides?: Partial<Competition>) {
+  return {
+    id: cuid2(),
+    name: "Test Throwdown",
+    slug: "test-throwdown",
+    startDate: "2025-06-01",
+    endDate: "2025-06-02",
+    teamId: "team-1",
+    status: "draft",
+    ...overrides
+  };
+}
+
+export function createDivision(overrides?: Partial<Division>) {
+  return {
+    id: cuid2(),
+    name: "RX Men",
+    competitionId: "comp-1",
+    ...overrides
+  };
+}
+
+export function createHeat(overrides?: Partial<Heat>) {
+  return {
+    id: cuid2(),
+    eventId: "event-1",
+    divisionId: "div-1",
+    capacity: 10,
+    laneCount: 5,
+    startTime: "2025-06-01T09:00:00Z",
+    ...overrides
+  };
+}
+
+export function createScore(overrides?: Partial<Score>) {
+  return {
+    id: cuid2(),
+    eventId: "event-1",
+    athleteId: "athlete-1",
+    scheme: "time",
+    value: "5:30",
+    status: "completed",
+    ...overrides
+  };
+}
+
+export function createVolunteerMembership(overrides?: Partial<VolunteerMembership>) {
+  return {
+    id: cuid2(),
+    competitionId: "comp-1",
+    userId: "user-1",
+    roles: ["judge"],
+    availability: "all_day",
+    status: "accepted",
+    ...overrides
+  };
+}
+
+export function createAthletes(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: cuid2(),
+    firstName: `Athlete${i}`,
+    lastName: `Test${i}`,
+    email: `athlete${i}@test.com`
+  }));
+}
+
+export function createJudges(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: cuid2(),
+    firstName: `Judge${i}`,
+    lastName: `Test${i}`,
+    availability: "all_day"
+  }));
+}
+```
+
+**Test Data Seeds:**
+
+```typescript
+// test/fixtures/compete-seed.ts
+
+export async function seedCompetitionData(db: Database) {
+  // Competition with 3 divisions, 5 events
+  const competition = await db.insert(competitions).values({
+    name: "Test Throwdown 2025",
+    slug: "test-throwdown-2025",
+    startDate: "2025-06-01",
+    endDate: "2025-06-02",
+    teamId: "team-1"
+  });
+  
+  // Divisions
+  const divisions = await db.insert(competitionDivisions).values([
+    { name: "RX Men", competitionId: competition.id },
+    { name: "RX Women", competitionId: competition.id },
+    { name: "Scaled", competitionId: competition.id }
+  ]);
+  
+  // Events
+  const events = await db.insert(competitionEvents).values([
+    { name: "Event 1", competitionId: competition.id, scheme: "time" },
+    { name: "Event 2", competitionId: competition.id, scheme: "reps" },
+    { name: "Event 3", competitionId: competition.id, scheme: "load" },
+    { name: "Event 4", competitionId: competition.id, scheme: "time" },
+    { name: "Event 5", competitionId: competition.id, scheme: "reps" }
+  ]);
+  
+  // 50 athletes across divisions
+  const athletes = await createAthletes(50);
+  
+  // Heat schedule with judge rotations
+  const heats = await db.insert(competitionHeats).values(
+    events.flatMap(event => 
+      divisions.map(division => ({
+        eventId: event.id,
+        divisionId: division.id,
+        capacity: 10,
+        laneCount: 5
+      }))
+    )
+  );
+  
+  // Sample scores for leaderboard testing
+  await db.insert(competitionScores).values(
+    athletes.slice(0, 10).map((athlete, i) => ({
+      eventId: events[0].id,
+      athleteId: athlete.id,
+      value: `${5 + i}:30`,
+      status: "completed"
+    }))
+  );
+}
+```
+
+---
+
+### 🎯 TEST CREATION PRIORITY ORDER
+
+**Phase 1: Migration Blockers (Create FIRST)**
+
+1. `test/actions/competition-actions.test.ts` - Core CRUD
+2. `test/integration/compete/heat-scheduling.test.ts` - Scheduling complexity
+3. `test/actions/competition-score-actions.test.ts` - Scoring integrity
+4. `e2e/compete/registration.spec.ts` - Revenue path
+
+**Phase 2: P0 Route Support**
+
+5. `test/actions/competition-division-actions.test.ts`
+6. `test/actions/competition-heat-actions.test.ts`
+7. `test/integration/compete/score-entry.test.ts`
+8. `e2e/compete/organizer-onboard.spec.ts`
+
+**Phase 3: P1 Route Support**
+
+9. `test/actions/judge-scheduling-actions.test.ts`
+10. `test/actions/volunteer-actions.test.ts`
+11. `test/integration/compete/division-management.test.ts`
+12. `test/integration/compete/event-management.test.ts`
+
+**Phase 4: Post-Migration Validation**
+
+13. `e2e/compete/competition-create.spec.ts`
+14. `e2e/compete/leaderboard-live.spec.ts`
+15. Component tests (defer to post-migration)
+
+---
+
 ## ⚠️ PATH CORRECTION
 
 **IMPORTANT:** All routes are in `apps/wodsmith/src/app/(compete)/compete/`, NOT `(main)/compete/`.
@@ -395,6 +1088,258 @@ Located at `volunteers/judges/_components/` - 11 judge scheduling components exi
 - P2 (Extended): 1-2 weeks
 
 **Total:** 6-9 weeks for complete migration
+
+---
+
+## 📋 STEP 0: TEST COVERAGE REQUIREMENTS
+
+### Testing Philosophy (Testing Trophy)
+
+```
+      /\
+     /  \  E2E (5-10 critical path tests)
+    /----\  Registration → Payment → Success
+   / INT  \ Integration (SWEET SPOT)
+  /--------\ Heat scheduling, scoring, judge rotation
+ |  UNIT  | Unit (fast, focused)
+ |________| Score calculations, ranking algorithms
+  STATIC   TypeScript + Biome
+```
+
+---
+
+### 🎯 EXISTING TEST COVERAGE (apps/wodsmith/test/)
+
+#### Competition Leaderboard (`test/server/competition-leaderboard.test.ts` - 1513 lines)
+| Area | Tests | Status | Notes |
+|------|-------|--------|-------|
+| `calculatePoints` | 17 | ✅ Complete | fixed_step, winner_takes_more, even_spread scoring |
+| `assignRanksWithTies` | 25 | ✅ Complete | Two-way, three-way, multiple ties |
+| Capped scores | 8 | ✅ Complete | secondaryValue matching, time cap handling |
+| Tiebreaker values | 6 | ✅ Complete | tiebreakValue matching logic |
+| Scheme-specific sorting | 12 | ✅ Complete | time/reps/load ascending/descending |
+| Overall ranking tiebreakers | 8 | ✅ Complete | 1st/2nd place count tiebreakers |
+| Integration scenarios | 7 | ✅ Complete | CrossFit Open-style, multi-event |
+| `areScoresEqual` edge cases | 15 | ✅ Complete | null handling, status matching |
+
+#### Sponsors (`test/server/sponsors.test.ts` - 1070 lines, 47 tests)
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `getSponsor` | 2 | ✅ Complete | Get by ID, not found |
+| `getCompetitionSponsors` | 2 | ✅ Complete | Grouped/ungrouped organization |
+| `getCompetitionSponsorGroups` | 2 | ✅ Complete | Ordered list, empty state |
+| `getUserSponsors` | 2 | ✅ Complete | Ordered list for athlete sponsors |
+| `createSponsorGroup` | 4 | ✅ Complete | Auto-order, explicit order, validation |
+| `updateSponsorGroup` | 4 | ✅ Complete | Name, display order, not found |
+| `deleteSponsorGroup` | 3 | ✅ Complete | Delete, idempotent, validation |
+| `reorderSponsorGroups` | 3 | ✅ Complete | Multiple groups, empty list |
+| `createSponsor` | 6 | ✅ Complete | Competition/user sponsors, group assignment |
+| `updateSponsor` | 5 | ✅ Complete | Name, group, logo URL updates |
+| `deleteSponsor` | 3 | ✅ Complete | Clears workout references |
+| `reorderSponsors` | 3 | ✅ Complete | Within competition, between groups |
+| `assignWorkoutSponsor` | 5 | ✅ Complete | Assign, clear, validation |
+| `getWorkoutSponsor` | 3 | ✅ Complete | Get sponsor, no sponsor, not found |
+
+#### Volunteers (`test/server/volunteers.test.ts` - 918 lines)
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `getVolunteerRoleTypes` | 7 | ✅ Complete | Metadata parsing, all role types |
+| `isVolunteer` | 7 | ✅ Complete | Role checking, system role validation |
+| `hasRoleType` | 5 | ✅ Complete | Role type matching |
+| `getVolunteerAvailability` | 4 | ✅ Complete | morning/afternoon/all_day |
+| `isVolunteerAvailableFor` | 8 | ✅ Complete | Availability matching |
+| `filterVolunteersByAvailability` | 8 | ✅ Complete | Time slot filtering |
+| `isDirectInvite` | 6 | ✅ Complete | Direct vs application detection |
+| `calculateInviteStatus` | 10 | ✅ Complete | accepted/expired/pending |
+| Metadata integration | 6 | ✅ Complete | Status workflow, legacy compatibility |
+
+#### Judge Rotation (`test/lib/judge-rotation-utils.test.ts` - 735 lines)
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `expandRotationToAssignments` | 10 | ✅ Complete | STAY, SHIFT_RIGHT patterns |
+| `calculateCoverage` | 12 | ✅ Complete | Gaps, overlaps, percentage |
+| `filterRotationsByAvailability` | 10 | ✅ Complete | morning/afternoon/all_day filtering |
+| Varying lane counts | 3 | ✅ Complete | Per-heat lane count handling |
+
+#### Judge Scheduling (`test/server/judge-scheduling.test.ts` - 110 lines)
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `calculateRequiredJudges` | 9 | ✅ Complete | Basic, varying lanes, rotation length |
+
+#### Stripe Connect (`test/server/stripe-connect.test.ts` - 631 lines)
+| Function | Tests | Status | Notes |
+|----------|-------|--------|-------|
+| `parseOAuthState` | 8 | ✅ Complete | Base64 parsing, validation |
+| `getOAuthAuthorizeUrl` | 4 | ✅ Complete | URL generation, CSRF |
+| `handleOAuthCallback` | 6 | ✅ Complete | Code exchange, account status |
+| `syncAccountStatus` | 4 | ✅ Complete | PENDING → VERIFIED transitions |
+| Security tests | 5 | ✅ Complete | CSRF, session, permissions |
+
+#### Scoring Library (`test/lib/scoring/` - 6 files)
+| File | Tests | Status | Notes |
+|------|-------|--------|-------|
+| `validate.test.ts` | ~30 | ✅ Complete | Input validation, tiebreaks, time caps |
+| `parse.test.ts` | ~25 | ✅ Complete | Time, reps, load parsing |
+| `format.test.ts` | ~20 | ✅ Complete | Display formatting |
+| `encode.test.ts` | ~15 | ✅ Complete | Sort key encoding |
+| `decode.test.ts` | ~15 | ✅ Complete | Sort key decoding |
+| `aggregate.test.ts` | ~10 | ✅ Complete | Multi-round aggregation |
+| `sort.test.ts` | ~10 | ✅ Complete | Leaderboard sorting |
+| `time-cap-tiebreak.test.ts` | ~15 | ✅ Complete | Cap/tiebreak handling |
+| `multi-round.test.ts` | ~10 | ✅ Complete | Multi-round scoring |
+
+#### Commerce (`test/server/commerce/fee-calculation.test.ts`)
+| Area | Tests | Status | Notes |
+|------|-------|--------|-------|
+| Fee calculation | ~20 | ✅ Complete | 4 pricing models, edge cases |
+
+---
+
+### ❌ MISSING TEST COVERAGE - REQUIRED FOR MIGRATION
+
+#### E2E Tests (Critical Path) - `e2e/compete/`
+
+| Test File | Priority | Routes Covered | Status |
+|-----------|----------|----------------|--------|
+| `registration.spec.ts` | **P0** | `/compete/[slug]/register`, `/register/success` | ❌ Missing |
+| `payment-flow.spec.ts` | **P0** | Stripe checkout integration | ❌ Missing |
+| `organizer-onboard.spec.ts` | **P0** | `/compete/organizer/onboard`, Stripe Connect OAuth | ❌ Missing |
+| `competition-create.spec.ts` | **P0** | `/compete/organizer/new`, competition CRUD | ❌ Missing |
+
+**E2E Test Requirements:**
+
+1. **Registration Flow** (revenue path - CRITICAL)
+   - Navigate to competition detail
+   - Click register, select division
+   - Fill registration form with team/individual
+   - Complete Stripe checkout (test mode)
+   - Verify success page, team invite links
+   - Acceptance: Full journey in <30s
+
+2. **Organizer Onboarding** (revenue enablement)
+   - Sign up as organizer
+   - Complete Stripe Connect OAuth flow
+   - Verify PENDING → VERIFIED status
+   - Acceptance: Account linked, can create competitions
+
+3. **Competition Management**
+   - Create competition with all fields
+   - Configure divisions, events, pricing
+   - Publish competition
+   - Acceptance: Competition appears in public listing
+
+#### Integration Tests - `test/integration/compete/`
+
+| Test File | Priority | Coverage | Status |
+|-----------|----------|----------|--------|
+| `heat-scheduling.test.ts` | **P0** | Heat CRUD, drag-and-drop reorder | ❌ Missing |
+| `judge-assignment.test.ts` | **P0** | Judge → heat assignment flow | ❌ Missing |
+| `score-entry.test.ts` | **P0** | Score submission, leaderboard update | ❌ Missing |
+| `division-management.test.ts` | **P1** | Division CRUD, template import | ❌ Missing |
+| `event-management.test.ts` | **P1** | Event/workout assignment | ❌ Missing |
+| `volunteer-signup.test.ts` | **P1** | Public signup, approval workflow | ❌ Missing |
+| `team-registration.test.ts` | **P1** | Team invite, roster management | ❌ Missing |
+
+**Integration Test Requirements:**
+
+1. **Heat Scheduling** (15+ components, high complexity)
+   - Create heats for an event
+   - Drag athletes between heats
+   - Drag divisions to auto-create heats
+   - Assign venues/lanes
+   - Verify heat capacity enforcement
+   - Test with FakeDatabase for D1 parameter limits
+
+2. **Judge Rotation**
+   - Assign judges to heats
+   - Configure rotation patterns (STAY, SHIFT_RIGHT)
+   - Calculate coverage percentage
+   - Detect gaps and overlaps
+   - Filter by availability
+
+3. **Scoring/Results**
+   - Submit scores for different schemes
+   - Verify leaderboard ranking
+   - Test tie detection and resolution
+   - Multi-event point aggregation
+
+#### Action Tests - `test/actions/compete/`
+
+| Action File | Tests Needed | Priority | Status |
+|-------------|--------------|----------|--------|
+| `competition-actions.ts` | CRUD, registration, events | P0 | ❌ Missing |
+| `competition-division-actions.ts` | Division CRUD | P0 | ❌ Missing |
+| `competition-heat-actions.ts` | Heat CRUD, athlete assignment | P0 | ❌ Missing |
+| `competition-score-actions.ts` | Score entry, validation | P0 | ❌ Missing |
+| `judge-scheduling-actions.ts` | Judge availability | P1 | ❌ Missing |
+| `judge-rotation-actions.ts` | Rotation patterns | P1 | ❌ Missing |
+| `judge-assignment-actions.ts` | Judge-heat assignments | P1 | ❌ Missing |
+| `volunteer-actions.ts` | Volunteer CRUD, invites | P1 | ❌ Missing |
+| `commerce.action.ts` | Pricing, purchases | P0 | ❌ Missing |
+| `sponsors.actions.ts` | Sponsor CRUD | P2 | ⚠️ Partial (server only) |
+| `stripe-connect.action.ts` | OAuth, status sync | P0 | ⚠️ Partial (server only) |
+
+---
+
+### 📊 TEST COVERAGE SUMMARY
+
+| Category | Existing | Missing | Priority |
+|----------|----------|---------|----------|
+| **E2E (Critical Path)** | 0 | 4 specs | P0 |
+| **Integration** | 0 | 7 files | P0-P1 |
+| **Server Functions** | ~200 tests | Complete | ✅ |
+| **Scoring Library** | ~150 tests | Complete | ✅ |
+| **Actions** | 0 | 11 files | P0-P2 |
+| **Components** | 0 | ~115 components | P1-P2 |
+
+---
+
+### ✅ ACCEPTANCE CRITERIA FOR MIGRATION COMPLETE
+
+**Before migrating any route:**
+
+1. ✅ Existing server function tests pass
+2. ✅ Scoring library tests pass
+3. ⚠️ Action tests must be created for the route
+4. ⚠️ Integration test for multi-component flows
+
+**After migrating route:**
+
+1. ✅ All existing tests still pass
+2. ✅ New TanStack Start route renders correctly
+3. ✅ Data fetching works with TanStack Router loaders
+4. ✅ Forms submit correctly via server actions
+5. ⚠️ E2E test passes for critical paths
+
+**Migration-Blocking Tests (Must Create First):**
+
+1. `e2e/compete/registration.spec.ts` - Before migrating registration route
+2. `test/integration/compete/heat-scheduling.test.ts` - Before migrating schedule page
+3. `test/actions/competition-actions.test.ts` - Before migrating any competition page
+
+---
+
+### 🔧 TEST INFRASTRUCTURE NOTES
+
+**Existing Infrastructure:**
+- Vitest + jsdom for unit/integration
+- Playwright for E2E
+- FakeDatabase for D1 mocking (respects 100 param limit)
+- Factory functions in `@repo/test-utils`
+- Existing fixtures: `createSponsor`, `createSponsorGroup`
+
+**Required New Factories:**
+- `createCompetition` - Full competition with relations
+- `createDivision` - Division with event associations
+- `createHeat` - Heat with athlete assignments
+- `createScore` - Score with all scheme variations
+- `createVolunteerMembership` - Volunteer with roles/availability
+
+**Test Data Seeds:**
+- Competition with 3 divisions, 5 events
+- 50 athletes across divisions
+- Heat schedule with judge rotations
+- Sample scores for leaderboard testing
 
 ---
 

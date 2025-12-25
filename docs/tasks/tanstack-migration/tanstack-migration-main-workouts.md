@@ -12,6 +12,574 @@ This document catalogs all main application routes for workouts, logs, movements
 
 ---
 
+## Step 0: Test Coverage Analysis
+
+**Purpose:** Establish test coverage baseline before migration to ensure functional parity between Next.js and TanStack Start implementations.
+
+**Auditor:** Claude Code  
+**Date:** December 24, 2025
+
+### Testing Trophy Philosophy
+
+```
+       /\
+      /  \  E2E (slow, high confidence)
+     /----\  5-10 critical path tests
+    / INT  \ Integration (SWEET SPOT)
+   /--------\ Test real interactions
+  |  UNIT  | Unit (fast, focused)
+  |________| Pure logic, no mocks
+   STATIC   Lint + TypeScript
+```
+
+**Philosophy Applied:**
+- **E2E:** Critical user paths only (workout creation, logging, scheduling)
+- **Integration:** Most tests - server actions, database ops, multi-component workflows
+- **Unit:** Pure functions - scoring calculations, formatters, validators, permissions
+
+### Existing Test Inventory
+
+#### Workout Tests
+
+| File | Type | Test Count | Coverage | Status |
+|------|------|------------|----------|--------|
+| `test/actions/workout-actions.test.ts` | Integration | 8 tests, 3 suites | `createWorkoutAction`, `createWorkoutRemixAction`, `updateWorkoutAction` | ✅ Good |
+| `test/server/workouts.test.ts` | Unit | 3 suites | `getWorkoutById`, `getUserWorkouts` (mock-based) | ⚠️ Shallow - needs real DB tests |
+| `test/server/team-specific-workout-resolution.test.ts` | Integration | Multiple | Team workout resolution logic | ✅ Good |
+| `test/actions/team-specific-workout-actions.test.ts` | Integration | 6 tests | `getTeamSpecificWorkoutAction` | ✅ Good |
+| `test/utils/workout-permissions.test.ts` | Unit | 14 tests | `canUserEditWorkout`, `shouldCreateRemix`, `getWorkoutPermissions` | ✅ Excellent |
+| `test/components/workout-row-card.test.tsx` | Component | Multiple | Workout card rendering | ✅ Good |
+| `e2e/workout.spec.ts` | E2E | 6 tests | List, detail, create, search | ✅ Good |
+
+**Workout Actions Coverage (21 total in Next.js):**
+
+| Action | Tested | Test Location | Coverage |
+|--------|--------|---------------|----------|
+| `createWorkoutAction` | ✅ | `workout-actions.test.ts` | Full test with teamId |
+| `createWorkoutRemixAction` | ✅ | `workout-actions.test.ts` | Success + error cases |
+| `updateWorkoutAction` | ✅ | `workout-actions.test.ts` | 5 scenarios including remix flow |
+| `getWorkoutByIdAction` | 🔄 | `workouts.test.ts` (indirect) | Mock-based, needs real tests |
+| `getUserWorkoutsAction` | 🔄 | `workouts.test.ts` (indirect) | Mock-based, needs real tests |
+| `getTeamSpecificWorkoutAction` | ✅ | `team-specific-workout-actions.test.ts` | 6 comprehensive tests |
+| `createProgrammingTrackWorkoutRemixAction` | ❌ | - | **Missing** |
+| `addWorkoutToTrackAction` | ❌ | - | **Missing** |
+| `scheduleStandaloneWorkoutAction` | ❌ | - | **Missing** |
+| `getWorkoutResultsByWorkoutAndUserAction` | ❌ | - | **Missing** |
+| `getResultSetsByIdAction` | ❌ | - | **Missing** |
+| `alignWorkoutScalingWithTrackAction` | ❌ | - | **Missing** |
+| `getScheduledTeamWorkoutsAction` | ❌ | - | **Missing** |
+| `getScheduledTeamWorkoutsWithResultsAction` | ❌ | - | **Missing** |
+| `getScheduledWorkoutResultAction` | ❌ | - | **Missing** |
+| `getRemixedWorkoutsAction` | ❌ | - | **Missing** |
+| `migrateScalingDescriptionsAction` | ❌ | - | **Missing** |
+| `enhancedAlignWorkoutScalingWithTrackAction` | ❌ | - | **Missing** |
+| `completeWorkoutRemixWithScalingMigrationAction` | ❌ | - | **Missing** |
+| `getTeamLeaderboardsAction` | ❌ | - | **Missing** |
+| `getUserTeamsAction` | ❌ | - | **Missing** |
+
+**Coverage: 6/21 actions tested (29%)**
+
+#### Log Tests
+
+| File | Type | Test Count | Coverage | Status |
+|------|------|------------|----------|--------|
+| **None** | - | - | - | ❌ **0% coverage** |
+
+**Log Actions Coverage (5 total):**
+
+| Action | Tested | Test Location | Coverage |
+|--------|--------|---------------|----------|
+| `getLogsByUserAction` | ❌ | - | **Missing - HIGH PRIORITY** |
+| `getScoreRoundsByIdAction` | ❌ | - | **Missing** |
+| `submitLogFormAction` | ❌ | - | **Missing - HIGH PRIORITY** |
+| `getScoreByIdAction` | ❌ | - | **Missing** |
+| `updateResultAction` | ❌ | - | **Missing - HIGH PRIORITY** |
+
+**Coverage: 0/5 actions tested (0%)**
+
+#### Movement Tests
+
+| File | Type | Test Count | Coverage | Status |
+|------|------|------------|----------|--------|
+| **None** | - | - | - | ❌ **0% coverage** |
+
+**Movement Actions Coverage (4 total):**
+
+| Action | Tested | Test Location | Coverage |
+|--------|--------|---------------|----------|
+| `getAllMovementsAction` | ❌ | - | **Missing** |
+| `createMovementAction` | ❌ | - | **Missing** |
+| `getMovementByIdAction` | ❌ | - | **Missing** |
+| `getWorkoutsByMovementIdAction` | ❌ | - | **Missing** |
+
+**Coverage: 0/4 actions tested (0%)**
+
+#### Scoring Library Tests (EXCELLENT ✅)
+
+The scoring library has **comprehensive unit test coverage**:
+
+| Module | Test File | Test Count | Coverage |
+|--------|-----------|------------|----------|
+| `aggregate` | `lib/scoring/aggregate.test.ts` | 15 | ✅ Excellent |
+| `decode` | `lib/scoring/decode.test.ts` | 31 | ✅ Excellent |
+| `encode` | `lib/scoring/encode.test.ts` | 42 | ✅ Excellent |
+| `format` | `lib/scoring/format.test.ts` | 24 | ✅ Excellent |
+| `sort` | `lib/scoring/sort.test.ts` | 25 | ✅ Excellent |
+| `validate` | `lib/scoring/validate.test.ts` | 18 | ✅ Excellent |
+| `parse` | `lib/scoring/parse.test.ts` | Multiple | ✅ Good |
+| `multi-round` | `lib/scoring/multi-round.test.ts` | Multiple | ✅ Good |
+| `time-cap-tiebreak` | `lib/scoring/time-cap-tiebreak.test.ts` | Multiple | ✅ Good |
+
+**Additional scoring tests:**
+- `utils/score-adapter.test.ts` - 12 tests for legacy ↔ new conversion
+- `utils/score-formatting.test.ts` - 45 tests for display formatting
+- `utils/score-parser-new.test.ts` - 29 tests for input parsing
+
+**Total: ~200+ scoring-related unit tests** ✅
+
+#### E2E Tests (Playwright)
+
+| Test File | Tests | Coverage | Status |
+|-----------|-------|----------|--------|
+| `e2e/workout.spec.ts` | 6 | Workout list, detail, create, search/filter | ✅ Good |
+| `e2e/auth.spec.ts` | 8 | Sign-in flows, logout, session | ✅ Good |
+
+**Workout E2E Coverage:**
+- ✅ Display seeded workouts in list
+- ✅ Navigate to workout detail page
+- ✅ Navigate to workout creation page
+- ✅ Create a new workout (full form submission)
+- ✅ Show validation errors for empty form
+- ✅ Filter workouts by search term
+
+**Missing E2E:**
+- ❌ Edit existing workout
+- ❌ Schedule workout
+- ❌ Add workout to programming track
+- ❌ Log workout result
+- ❌ View workout leaderboard
+- ❌ Remix workout
+
+---
+
+### Missing Tests by Priority
+
+#### P0 - Critical Path (BLOCKERS for Migration)
+
+**1. Log Actions (0% coverage)**
+
+**Location:** Create `test/actions/log-actions.test.ts`
+
+**Acceptance Criteria:**
+
+```typescript
+describe("Log Actions", () => {
+  describe("submitLogFormAction", () => {
+    it("creates new result with valid score")
+    it("handles multi-round scoring (sets)")
+    it("validates score input format")
+    it("rejects unauthorized access (team isolation)")
+    it("associates result with scheduled workout instance")
+    it("associates result with standalone workout")
+  })
+
+  describe("getLogsByUserAction", () => {
+    it("returns user's logs ordered by date DESC")
+    it("handles empty log list")
+    it("filters by team context")
+    it("includes workout details via join")
+    it("includes scheduled instance details if applicable")
+  })
+
+  describe("updateResultAction", () => {
+    it("updates existing result")
+    it("validates user owns the result")
+    it("handles score format changes")
+    it("rejects unauthorized edits")
+  })
+
+  describe("getScoreByIdAction", () => {
+    it("returns score with rounds/sets")
+    it("handles missing score (404)")
+    it("validates team access")
+  })
+
+  describe("getScoreRoundsByIdAction", () => {
+    it("returns all rounds for multi-round score")
+    it("returns empty array for single-round score")
+    it("orders rounds by roundNumber ASC")
+  })
+})
+```
+
+**Test Factory Requirements:**
+
+```typescript
+// test/factories/log-factories.ts (NEW)
+export function createTestScore(overrides?: Partial<Score>) {
+  return {
+    id: cuid2(),
+    userId: "user-123",
+    workoutId: "workout-123",
+    teamId: "team-123",
+    scoreType: "time",
+    value: 300, // 5:00
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+
+export function createTestScoreRound(overrides?: Partial<ScoreRound>) {
+  return {
+    id: cuid2(),
+    scoreId: "score-123",
+    roundNumber: 1,
+    scoreType: "time",
+    value: 100, // 1:40
+    ...overrides,
+  }
+}
+```
+
+**2. Workout Scheduling Actions (0% coverage)**
+
+**Location:** Create `test/actions/scheduling-actions.test.ts`
+
+**Acceptance Criteria:**
+
+```typescript
+describe("Scheduling Actions", () => {
+  describe("scheduleStandaloneWorkoutAction", () => {
+    it("schedules workout for specific date")
+    it("validates team permissions (MANAGE_PROGRAMMING)")
+    it("handles timezone correctly (UTC storage)")
+    it("creates scheduledWorkout record")
+    it("rejects duplicate scheduling for same date")
+  })
+
+  describe("addWorkoutToTrackAction", () => {
+    it("adds workout to programming track")
+    it("validates track ownership or subscription")
+    it("handles scaling alignment (if track has scaling)")
+    it("rejects adding to non-existent track")
+    it("validates MANAGE_PROGRAMMING permission")
+  })
+
+  describe("getScheduledTeamWorkoutsAction", () => {
+    it("returns scheduled workouts for date range")
+    it("filters by team context")
+    it("includes workout details via join")
+    it("orders by scheduledDate ASC")
+  })
+
+  describe("getScheduledTeamWorkoutsWithResultsAction", () => {
+    it("returns scheduled workouts with result counts")
+    it("includes user's personal result if exists")
+    it("aggregates team results count")
+    it("handles workouts with no results")
+  })
+})
+```
+
+**Test Factory Requirements:**
+
+```typescript
+// test/factories/scheduling-factories.ts (NEW)
+export function createTestScheduledWorkout(overrides?: Partial<ScheduledWorkout>) {
+  return {
+    id: cuid2(),
+    workoutId: "workout-123",
+    teamId: "team-123",
+    scheduledDate: new Date(),
+    trackId: null,
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+```
+
+#### P1 - Core Features (Required for Feature Parity)
+
+**3. Movement Actions (0% coverage)**
+
+**Location:** Create `test/actions/movement-actions.test.ts`
+
+**Acceptance Criteria:**
+
+```typescript
+describe("Movement Actions", () => {
+  describe("getAllMovementsAction", () => {
+    it("returns all movements ordered by name")
+    it("includes movement category")
+    it("handles empty movement list")
+  })
+
+  describe("createMovementAction", () => {
+    it("creates new movement with valid data")
+    it("validates required fields (name)")
+    it("handles duplicate movement names")
+    it("requires authentication")
+  })
+
+  describe("getMovementByIdAction", () => {
+    it("returns movement by ID")
+    it("handles non-existent movement (404)")
+  })
+
+  describe("getWorkoutsByMovementIdAction", () => {
+    it("returns workouts using the movement")
+    it("filters by team context (team + public)")
+    it("orders by createdAt DESC")
+    it("handles movement with no workouts")
+  })
+})
+```
+
+**Test Factory Requirements:**
+
+```typescript
+// test/factories/movement-factories.ts (NEW)
+export function createTestMovement(overrides?: Partial<Movement>) {
+  return {
+    id: cuid2(),
+    name: "Squat",
+    category: "weightlifting",
+    description: "A fundamental movement",
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+```
+
+**4. Workout Advanced Features (partial coverage)**
+
+**Location:** Extend `test/actions/workout-actions.test.ts`
+
+**Acceptance Criteria:**
+
+```typescript
+describe("Workout Advanced Features", () => {
+  describe("getRemixedWorkoutsAction", () => {
+    it("returns all remixes of a source workout")
+    it("includes remix metadata (sourceWorkoutId)")
+    it("filters by team context")
+    it("handles workout with no remixes")
+  })
+
+  describe("getResultSetsByIdAction", () => {
+    it("returns all sets/rounds for a result")
+    it("orders by roundNumber ASC")
+    it("handles single-round result (empty array)")
+  })
+
+  describe("getTeamLeaderboardsAction", () => {
+    it("returns top scores for workout")
+    it("groups by scoreType (Rx, Scaled, etc.)")
+    it("orders by score value (best first)")
+    it("limits to top N results")
+    it("filters by team context")
+  })
+
+  describe("getScheduledWorkoutResultAction", () => {
+    it("returns result for scheduled instance")
+    it("includes user details")
+    it("handles no result (null)")
+  })
+
+  describe("createProgrammingTrackWorkoutRemixAction", () => {
+    it("creates remix within programming track context")
+    it("inherits track scaling settings")
+    it("validates track ownership/subscription")
+  })
+})
+```
+
+**5. Workout Filtering & Pagination (0% coverage)**
+
+**Location:** Create `test/integration/workout-filtering.test.ts`
+
+**Acceptance Criteria:**
+
+```typescript
+describe("Workout Filtering Integration", () => {
+  describe("getUserWorkoutsAction with filters", () => {
+    it("filters by search term (name, description)")
+    it("filters by tag IDs (AND logic)")
+    it("filters by movement IDs (AND logic)")
+    it("filters by workout type (scheme)")
+    it("filters by programming track ID")
+    it("combines multiple filters (search + tags + movements)")
+    it("returns empty array when no matches")
+  })
+
+  describe("pagination", () => {
+    it("returns first 50 workouts by default")
+    it("supports offset pagination")
+    it("returns total count for pagination UI")
+    it("handles last page (< 50 results)")
+  })
+})
+```
+
+#### P2 - Nice-to-Have (Post-Migration)
+
+**6. Calculator Routes (0% coverage)**
+
+**Location:** Create `test/lib/calculator/barbell.test.ts`
+
+**Acceptance Criteria:**
+
+```typescript
+describe("Barbell Calculator", () => {
+  describe("calculatePlateLoading", () => {
+    it("calculates plate loading for target weight")
+    it("handles different bar weights (20kg, 15kg, 35lb, 45lb)")
+    it("supports metric plates (25kg, 20kg, 15kg, 10kg, 5kg, 2.5kg, 1.25kg)")
+    it("supports imperial plates (45lb, 35lb, 25lb, 10lb, 5lb, 2.5lb)")
+    it("returns empty when weight < bar weight")
+    it("handles fractional plates")
+  })
+})
+```
+
+---
+
+### Test Coverage Summary
+
+| Category | Tested | Total | Coverage | Priority |
+|----------|--------|-------|----------|----------|
+| **Workout Actions** | 6 | 21 | 29% | P0/P1 |
+| **Log Actions** | 0 | 5 | 0% | **P0** |
+| **Movement Actions** | 0 | 4 | 0% | P1 |
+| **Scheduling Actions** | 0 | 4 | 0% | **P0** |
+| **Scoring Library** | ~200 | ~200 | ~100% | ✅ Complete |
+| **E2E Tests** | 6 | ~15 | 40% | P1 |
+
+**Overall Action Coverage:** 6/34 = 18%
+
+---
+
+### Test Factory Requirements
+
+#### Existing Factories (from `@repo/test-utils`)
+
+```typescript
+// packages/test-utils/src/factories/session.ts
+export function createTestSession(overrides?: Partial<SessionWithMeta>)
+```
+
+**Usage in existing tests:**
+- ✅ `test/utils/workout-permissions.test.ts` - Uses `createTestSession` for permission tests
+- ✅ `test/actions/workout-actions.test.ts` - Uses `createTestSession` for auth mocking
+
+#### Required New Factories
+
+**Location:** Create `apps/wodsmith/test/factories/` directory
+
+**Files to create:**
+
+1. **`workout-factories.ts`**
+   ```typescript
+   export function createTestWorkout(overrides?: Partial<Workout>)
+   export function createTestWorkoutTag(overrides?: Partial<WorkoutTag>)
+   export function createTestWorkoutMovement(overrides?: Partial<WorkoutMovement>)
+   ```
+
+2. **`log-factories.ts`**
+   ```typescript
+   export function createTestScore(overrides?: Partial<Score>)
+   export function createTestScoreRound(overrides?: Partial<ScoreRound>)
+   ```
+
+3. **`scheduling-factories.ts`**
+   ```typescript
+   export function createTestScheduledWorkout(overrides?: Partial<ScheduledWorkout>)
+   export function createTestProgrammingTrack(overrides?: Partial<ProgrammingTrack>)
+   ```
+
+4. **`movement-factories.ts`**
+   ```typescript
+   export function createTestMovement(overrides?: Partial<Movement>)
+   ```
+
+5. **`team-factories.ts`**
+   ```typescript
+   export function createTestTeam(overrides?: Partial<Team>)
+   export function createTestTeamMember(overrides?: Partial<TeamMember>)
+   ```
+
+---
+
+### Migration Test Checklist
+
+For each route migration, verify:
+
+**Before Migration:**
+- [ ] Identify all server actions used by the route
+- [ ] Write integration tests for untested actions
+- [ ] Write unit tests for pure utility functions
+- [ ] Document expected behavior (acceptance criteria)
+
+**During Migration:**
+- [ ] Port server actions to TanStack server functions
+- [ ] Update tests to use new function signatures
+- [ ] Verify error handling matches Next.js behavior
+- [ ] Test team isolation (multi-tenancy)
+
+**After Migration:**
+- [ ] All existing tests pass against TanStack implementation
+- [ ] E2E tests pass (if applicable)
+- [ ] Manual smoke test in browser
+- [ ] Performance check (no N+1 queries)
+
+**Route-Specific Checklist:**
+
+| Route | Actions Tested | E2E Tested | Ready to Migrate |
+|-------|----------------|------------|------------------|
+| `/workouts` (list) | 🔄 Partial (6/21) | ✅ Yes | ⚠️ Need filtering tests |
+| `/workouts/[id]` (detail) | 🔄 Partial | ✅ Yes | ⚠️ Need leaderboard tests |
+| `/workouts/new` | ✅ Yes | ✅ Yes | ✅ Ready |
+| `/workouts/[id]/edit` | ✅ Yes | ❌ No | ⚠️ Need E2E |
+| `/workouts/[id]/schedule` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/workouts/[id]/add-to-track` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/log` (list) | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/log/new` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/log/[id]/edit` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/movements` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/movements/[id]` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/movements/new` | ❌ No | ❌ No | ❌ **BLOCKER** |
+| `/calculator` | ❌ No | ❌ No | ⚠️ Low priority |
+
+---
+
+### Recommended Test Creation Order
+
+**Week 1: Critical Path (P0)**
+1. [ ] Create `test/actions/log-actions.test.ts` - submitLogFormAction, getLogsByUserAction
+2. [ ] Create `test/actions/scheduling-actions.test.ts` - scheduleStandaloneWorkoutAction, addWorkoutToTrackAction
+3. [ ] Create `test/factories/log-factories.ts` - Score, ScoreRound factories
+4. [ ] Create `test/factories/scheduling-factories.ts` - ScheduledWorkout factory
+
+**Week 2: Core Features (P1)**
+5. [ ] Create `test/actions/movement-actions.test.ts` - all 4 movement actions
+6. [ ] Extend `test/actions/workout-actions.test.ts` - remix, leaderboards, sets
+7. [ ] Create `test/factories/movement-factories.ts` - Movement factory
+8. [ ] Create `test/integration/workout-filtering.test.ts` - filtering + pagination
+
+**Week 3: Edge Cases & E2E**
+9. [ ] Extend `test/actions/log-actions.test.ts` - updateResultAction, getScoreByIdAction
+10. [ ] Create `test/lib/calculator/barbell.test.ts` - pure unit tests
+11. [ ] Add E2E tests to `e2e/workout.spec.ts` - edit, schedule, add-to-track
+12. [ ] Add E2E tests `e2e/log.spec.ts` (NEW) - log creation, editing
+
+**Week 4: Integration & Polish**
+13. [ ] Create `test/integration/log-workflow.test.ts` - full log flow
+14. [ ] Create `test/integration/workout-scheduling.test.ts` - scheduling flow
+15. [ ] Review all tests for team isolation coverage
+16. [ ] Performance testing (N+1 query detection)
+
+---
+
 ## 1. Workouts Routes
 
 ### 1.1 Workouts List (`/workouts`)
@@ -553,6 +1121,390 @@ The TanStack Start migration has made **significant progress on core routes** (w
 1. Focus on missing CRUD operations first (movements, log edit)
 2. Then port advanced features (filters, pagination, remix)
 3. Finally add utility routes (calculator, subscriptions)
+
+---
+
+## Step 0: Test Coverage Analysis
+
+**Auditor:** TestAuditor  
+**Cell:** wodsmith-monorepo--tuyyc-mjl0et2nnl1  
+**Epic:** wodsmith-monorepo--tuyyc-mjl0et2epg9  
+**Date:** December 24, 2025
+
+### Testing Trophy Philosophy
+
+```
+      /\
+     /  \  E2E (slow, high confidence)
+    /----\  5-10 critical path tests
+   / INT  \ Integration (SWEET SPOT)
+  /--------\ Test real interactions
+ |  UNIT  | Unit (fast, focused)
+ |________| Pure logic, no mocks
+  STATIC   Lint + TypeScript
+```
+
+**Philosophy Applied:**
+- **E2E:** Critical user paths only (workout logging could be E2E candidate)
+- **Integration:** Most tests - server actions, database ops, multi-component workflows
+- **Unit:** Pure functions - scoring calculations, formatters, validators
+
+### Test Directory Structure
+
+```
+apps/wodsmith/test/
+├── __mocks__/                   # Mock modules
+├── actions/                     # Server action tests (integration)
+│   ├── organizer-admin-actions.test.ts
+│   ├── organizer-onboarding-actions.test.ts
+│   ├── programming-actions.test.ts
+│   ├── team-specific-workout-actions.test.ts
+│   ├── volunteer-profile-actions.test.ts
+│   └── workout-actions.test.ts  # ✅ 8 tests, 3 test suites
+├── components/                  # Component tests
+│   ├── programming/
+│   │   └── subscribe-button.test.tsx
+│   ├── programming-track-dashboard.test.ts
+│   ├── schedule-calendar.test.tsx
+│   └── workout-row-card.test.tsx
+├── db/
+│   └── schema.integrity.test.ts
+├── hooks/
+│   └── useActiveNavItem.test.ts
+├── integration/                 # Multi-component integration tests
+│   └── programming-subscription.test.ts  # ✅ Full subscription flow
+├── lib/
+│   └── scoring/                 # ✅ EXTENSIVE - Pure unit tests
+│       ├── aggregate.test.ts    # 15 tests
+│       ├── decode.test.ts       # 31 tests
+│       ├── encode.test.ts       # 42 tests
+│       ├── format.test.ts       # 24 tests
+│       ├── multi-round.test.ts
+│       ├── parse.test.ts
+│       ├── sort.test.ts         # 25 tests
+│       ├── time-cap-tiebreak.test.ts
+│       └── validate.test.ts     # 18 tests
+├── pages/
+│   └── admin/
+│       ├── programming-tracks.test.ts
+│       └── track-workout-management.test.tsx
+├── server/                      # Server function tests
+│   ├── commerce/
+│   │   └── fee-calculation.test.ts
+│   ├── notifications/
+│   │   └── helpers.test.ts
+│   ├── competition-leaderboard.test.ts
+│   ├── getTeamTracks.test.ts
+│   ├── judge-scheduling.test.ts
+│   ├── organizer-onboarding.test.ts
+│   ├── programming-subscriptions.test.ts
+│   ├── programming.test.ts
+│   ├── programmingService.test.ts
+│   ├── schedulingService.test.ts
+│   ├── sponsors.test.ts
+│   ├── stripe-connect.test.ts
+│   ├── team-specific-workout-resolution.test.ts
+│   ├── volunteers.test.ts
+│   └── workouts.test.ts         # ✅ 3 test suites
+├── utils/
+│   ├── score-adapter.test.ts    # 12 tests
+│   ├── score-formatting.test.ts # 45 tests
+│   ├── score-parser-new.test.ts # 29 tests
+│   └── workout-permissions.test.ts  # ✅ 14 tests
+└── setup.ts
+```
+
+---
+
+### Route-by-Route Test Coverage
+
+#### 1. Workouts Routes
+
+| Route | Existing Tests | Test Type | Status | Missing Tests |
+|-------|----------------|-----------|--------|---------------|
+| `/workouts` (list) | `workout-actions.test.ts` (partial) | Integration | 🔄 Partial | Pagination, filtering, search tests |
+| `/workouts/[id]` (detail) | `workout-actions.test.ts`, `workouts.test.ts` | Integration | 🔄 Partial | Leaderboard, remix tracking, multi-round sets tests |
+| `/workouts/new` | `createWorkoutAction` test in `workout-actions.test.ts` | Integration | ✅ Good | Scaling groups, programming tracks integration |
+| `/workouts/[id]/edit` | `updateWorkoutAction` tests (4 scenarios) | Integration | ✅ Good | UI component tests |
+| `/workouts/[id]/schedule` | None | - | ❌ Missing | `scheduleStandaloneWorkoutAction` tests |
+| `/workouts/[id]/add-to-track` | None | - | ❌ Missing | `addWorkoutToTrackAction` tests |
+
+**Workout Actions Coverage (21 total in Next.js):**
+
+| Action | Tested | Test Location | Notes |
+|--------|--------|---------------|-------|
+| `createWorkoutAction` | ✅ | `workout-actions.test.ts` | Full test with teamId |
+| `createWorkoutRemixAction` | ✅ | `workout-actions.test.ts` | Success + error cases |
+| `updateWorkoutAction` | ✅ | `workout-actions.test.ts` | 5 scenarios including remix flow |
+| `getWorkoutByIdAction` | 🔄 | `workouts.test.ts` (indirect) | Mock-based, needs real tests |
+| `getUserWorkoutsAction` | 🔄 | `workouts.test.ts` (indirect) | Mock-based, needs real tests |
+| `getTeamSpecificWorkoutAction` | ✅ | `team-specific-workout-actions.test.ts` | 6 comprehensive tests |
+| `createProgrammingTrackWorkoutRemixAction` | ❌ | - | Missing |
+| `addWorkoutToTrackAction` | ❌ | - | Missing |
+| `scheduleStandaloneWorkoutAction` | ❌ | - | Missing |
+| `getWorkoutResultsByWorkoutAndUserAction` | ❌ | - | Missing |
+| `getResultSetsByIdAction` | ❌ | - | Missing |
+| `alignWorkoutScalingWithTrackAction` | ❌ | - | Missing |
+| `getScheduledTeamWorkoutsAction` | ❌ | - | Missing |
+| `getScheduledTeamWorkoutsWithResultsAction` | ❌ | - | Missing |
+| `getScheduledWorkoutResultAction` | ❌ | - | Missing |
+| `getRemixedWorkoutsAction` | ❌ | - | Missing |
+| `migrateScalingDescriptionsAction` | ❌ | - | Missing |
+| `enhancedAlignWorkoutScalingWithTrackAction` | ❌ | - | Missing |
+| `completeWorkoutRemixWithScalingMigrationAction` | ❌ | - | Missing |
+| `getTeamLeaderboardsAction` | ❌ | - | Missing |
+| `getUserTeamsAction` | ❌ | - | Missing |
+
+**Coverage: 5/21 actions tested (24%)**
+
+---
+
+#### 2. Log Routes
+
+| Route | Existing Tests | Test Type | Status | Missing Tests |
+|-------|----------------|-----------|--------|---------------|
+| `/log` (list) | None | - | ❌ Missing | `getLogsByUserAction` tests |
+| `/log/new` | None | - | ❌ Missing | `submitLogFormAction` tests |
+| `/log/[id]/edit` | None | - | ❌ Missing | `updateResultAction`, `getScoreByIdAction` tests |
+
+**Log Actions Coverage (5 total):**
+
+| Action | Tested | Test Location | Notes |
+|--------|--------|---------------|-------|
+| `getLogsByUserAction` | ❌ | - | Missing - HIGH PRIORITY |
+| `getScoreRoundsByIdAction` | ❌ | - | Missing |
+| `submitLogFormAction` | ❌ | - | Missing - HIGH PRIORITY |
+| `getScoreByIdAction` | ❌ | - | Missing |
+| `updateResultAction` | ❌ | - | Missing - HIGH PRIORITY |
+
+**Coverage: 0/5 actions tested (0%)**
+
+---
+
+#### 3. Movement Routes
+
+| Route | Existing Tests | Test Type | Status | Missing Tests |
+|-------|----------------|-----------|--------|---------------|
+| `/movements` (list) | None | - | ❌ Missing | `getAllMovementsAction` tests |
+| `/movements/[id]` (detail) | None | - | ❌ Missing | `getMovementByIdAction`, `getWorkoutsByMovementIdAction` |
+| `/movements/new` | None | - | ❌ Missing | `createMovementAction` tests |
+
+**Movement Actions Coverage (4 total):**
+
+| Action | Tested | Test Location | Notes |
+|--------|--------|---------------|-------|
+| `getAllMovementsAction` | ❌ | - | Missing |
+| `createMovementAction` | ❌ | - | Missing |
+| `getMovementByIdAction` | ❌ | - | Missing |
+| `getWorkoutsByMovementIdAction` | ❌ | - | Missing |
+
+**Coverage: 0/4 actions tested (0%)**
+
+---
+
+#### 4. Calculator Routes
+
+| Route | Existing Tests | Test Type | Status | Missing Tests |
+|-------|----------------|-----------|--------|---------------|
+| `/calculator` | None | - | ❌ Missing | Barbell calculator pure function tests |
+| `/calculator/spreadsheet` | None | - | ❌ Missing | Spreadsheet calculator tests |
+
+**Notes:** Calculator routes are pure client-side components. Tests should be unit tests for calculation logic.
+
+**Coverage: 0/2 routes tested (0%)**
+
+---
+
+#### 5. Programming Routes
+
+| Route | Existing Tests | Test Type | Status | Missing Tests |
+|-------|----------------|-----------|--------|---------------|
+| `/programming` (list) | `programming-actions.test.ts`, `programming-subscription.test.ts` | Integration | ✅ Good | Component tests |
+| `/programming/[trackId]` (detail) | `programming.test.ts`, `programmingService.test.ts` | Integration | ✅ Good | Route-level tests |
+| `/programming/subscriptions` | `programming-subscription.test.ts` | Integration | ✅ Good | - |
+
+**Coverage: 3/3 routes have tests (100%)**
+
+---
+
+#### 6. Teams Routes
+
+| Route | Existing Tests | Test Type | Status | Missing Tests |
+|-------|----------------|-----------|--------|---------------|
+| `/teams` (management) | `team-specific-workout-actions.test.ts` | Integration | 🔄 Partial | Team management CRUD tests |
+
+**Coverage: 1/1 route partial (50%)**
+
+---
+
+### Scoring Library Test Coverage (EXCELLENT)
+
+The scoring library has **comprehensive unit test coverage**:
+
+| Module | Test File | Test Count | Coverage |
+|--------|-----------|------------|----------|
+| `aggregate` | `aggregate.test.ts` | 15 | ✅ Excellent |
+| `decode` | `decode.test.ts` | 31 | ✅ Excellent |
+| `encode` | `encode.test.ts` | 42 | ✅ Excellent |
+| `format` | `format.test.ts` | 24 | ✅ Excellent |
+| `sort` | `sort.test.ts` | 25 | ✅ Excellent |
+| `validate` | `validate.test.ts` | 18 | ✅ Excellent |
+| `parse` | `parse.test.ts` | - | ✅ Good |
+| `multi-round` | `multi-round.test.ts` | - | ✅ Good |
+| `time-cap-tiebreak` | `time-cap-tiebreak.test.ts` | - | ✅ Good |
+
+**Additional scoring tests:**
+- `score-adapter.test.ts` - 12 tests for legacy ↔ new conversion
+- `score-formatting.test.ts` - 45 tests for display formatting
+- `score-parser-new.test.ts` - 29 tests for input parsing
+
+**Total: ~200+ scoring-related unit tests**
+
+---
+
+### Test Requirements by Route
+
+#### High Priority (P0) - Critical User Workflows
+
+**1. Log Routes (0% coverage)**
+```
+Required tests:
+├── actions/
+│   └── log-actions.test.ts (NEW)
+│       ├── getLogsByUserAction
+│       │   ├── returns user's logs ordered by date
+│       │   ├── handles empty log list
+│       │   └── filters by team context
+│       ├── submitLogFormAction
+│       │   ├── creates new result with valid score
+│       │   ├── handles multi-round scoring
+│       │   ├── validates score input
+│       │   └── rejects unauthorized access
+│       ├── updateResultAction
+│       │   ├── updates existing result
+│       │   ├── validates permissions
+│       │   └── handles score format changes
+│       └── getScoreByIdAction
+│           ├── returns score with rounds/sets
+│           └── handles missing score
+└── integration/
+    └── log-workflow.test.ts (NEW)
+        ├── full log creation flow
+        ├── edit existing log
+        └── view log history
+```
+
+**2. Workout Scheduling (0% coverage)**
+```
+Required tests:
+├── actions/
+│   └── scheduling-actions.test.ts (NEW)
+│       ├── scheduleStandaloneWorkoutAction
+│       │   ├── schedules workout for date
+│       │   ├── validates team permissions
+│       │   └── handles timezone correctly
+│       └── addWorkoutToTrackAction
+│           ├── adds workout to programming track
+│           ├── validates track ownership
+│           └── handles scaling alignment
+```
+
+#### Medium Priority (P1) - Essential Features
+
+**3. Movement Routes (0% coverage)**
+```
+Required tests:
+├── actions/
+│   └── movement-actions.test.ts (NEW)
+│       ├── getAllMovementsAction
+│       ├── createMovementAction
+│       ├── getMovementByIdAction
+│       └── getWorkoutsByMovementIdAction
+```
+
+**4. Workout Advanced Features (partial coverage)**
+```
+Required tests (add to existing):
+├── actions/
+│   └── workout-actions.test.ts (EXTEND)
+│       ├── getRemixedWorkoutsAction
+│       ├── getResultSetsByIdAction
+│       ├── getTeamLeaderboardsAction
+│       └── getScheduledTeamWorkoutsWithResultsAction
+```
+
+#### Low Priority (P2) - Nice-to-Have
+
+**5. Calculator Routes**
+```
+Required tests:
+├── lib/
+│   └── calculator/
+│       └── barbell.test.ts (NEW)
+│           ├── calculates plate loading for weight
+│           ├── handles different bar weights
+│           └── supports metric/imperial
+```
+
+---
+
+### Acceptance Criteria for Migration Complete
+
+Each route migration is **complete** when:
+
+1. **Route Tests:**
+   - [ ] Route renders without error
+   - [ ] Data fetching works (loader/server function)
+   - [ ] Error states handled
+
+2. **Action Tests:**
+   - [ ] All server actions have integration tests
+   - [ ] Happy path tested
+   - [ ] Error cases tested
+   - [ ] Permission validation tested
+
+3. **Feature Parity Tests:**
+   - [ ] All features from Next.js version work
+   - [ ] Edge cases covered
+   - [ ] Team isolation verified
+
+4. **Component Tests (if applicable):**
+   - [ ] Key UI components have tests
+   - [ ] User interactions tested
+   - [ ] Accessibility verified
+
+---
+
+### Test Coverage Summary
+
+| Category | Tested | Total | Coverage |
+|----------|--------|-------|----------|
+| **Workout Actions** | 5 | 21 | 24% |
+| **Log Actions** | 0 | 5 | 0% |
+| **Movement Actions** | 0 | 4 | 0% |
+| **Programming Actions** | 3 | 3 | 100% |
+| **Calculator** | 0 | 2 | 0% |
+| **Scoring Library** | ~200 | ~200 | ~100% |
+
+**Overall Action Coverage:** 8/33 = 24%
+
+### Recommended Test Creation Order
+
+1. **Week 1: Critical Path**
+   - [ ] `log-actions.test.ts` - submitLogFormAction, getLogsByUserAction
+   - [ ] `scheduling-actions.test.ts` - scheduleStandaloneWorkoutAction
+
+2. **Week 2: Core Features**
+   - [ ] `movement-actions.test.ts` - all 4 actions
+   - [ ] Extend `workout-actions.test.ts` - remix, leaderboards
+
+3. **Week 3: Edge Cases**
+   - [ ] `log-actions.test.ts` - updateResultAction, getScoreByIdAction
+   - [ ] `calculator/barbell.test.ts` - pure unit tests
+
+4. **Week 4: Integration**
+   - [ ] `integration/log-workflow.test.ts` - full flow test
+   - [ ] `integration/workout-scheduling.test.ts` - scheduling flow
 
 ---
 
