@@ -25,6 +25,31 @@ const config = defineConfig({
         .pathname,
     },
   },
+  // Pre-bundle SSR dependencies to avoid mid-session optimization errors
+  ssr: {
+    optimizeDeps: {
+      include: [
+        // Utility libraries
+        'clsx',
+        'tailwind-merge',
+        'class-variance-authority',
+        // Radix UI components (all installed packages)
+        '@radix-ui/react-avatar',
+        '@radix-ui/react-checkbox',
+        '@radix-ui/react-collapsible',
+        '@radix-ui/react-dialog',
+        '@radix-ui/react-dropdown-menu',
+        '@radix-ui/react-label',
+        '@radix-ui/react-popover',
+        '@radix-ui/react-scroll-area',
+        '@radix-ui/react-select',
+        '@radix-ui/react-separator',
+        '@radix-ui/react-slot',
+        '@radix-ui/react-tabs',
+        '@radix-ui/react-tooltip',
+      ],
+    },
+  },
 })
 
 export default config
