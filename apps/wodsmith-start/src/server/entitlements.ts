@@ -4,14 +4,19 @@
  * Full implementation will be migrated from wodsmith app.
  */
 
+import 'server-only'
+
 import {getDb} from '@/db'
 import {entitlementTable} from '@/db/schema'
+import type {Entitlement} from '@/db/schema'
 import {and, eq, gt, isNull, or} from 'drizzle-orm'
 
-export interface Entitlement {
+export type {Entitlement}
+
+export interface EntitlementResult {
   id: string
   entitlementTypeId: string
-  metadata: Record<string, any> | null
+  metadata: Record<string, unknown> | null
   expiresAt: Date | null
 }
 
@@ -21,7 +26,7 @@ export interface Entitlement {
  */
 export async function getUserEntitlements(
   userId: string,
-): Promise<Entitlement[]> {
+): Promise<EntitlementResult[]> {
   const db = getDb()
 
   const now = new Date()
@@ -41,7 +46,7 @@ export async function getUserEntitlements(
   return entitlements.map((e) => ({
     id: e.id,
     entitlementTypeId: e.entitlementTypeId,
-    metadata: e.metadata as Record<string, any> | null,
+    metadata: e.metadata as Record<string, unknown> | null,
     expiresAt: e.expiresAt,
   }))
 }
@@ -50,7 +55,7 @@ export async function getUserEntitlements(
  * Get team's plan with features and limits
  * Stub implementation - returns null for PoC (no plan)
  */
-export async function getTeamPlan(teamId: string): Promise<{
+export async function getTeamPlan(_teamId: string): Promise<{
   id: string
   name: string
   entitlements: {
@@ -70,4 +75,46 @@ export async function getTeamPlan(teamId: string): Promise<{
       },
     },
   }
+}
+
+/**
+ * Create an entitlement (typically called after purchase/subscription/manual grant)
+ */
+export async function createEntitlement({
+  userId,
+  teamId,
+  entitlementTypeId,
+  sourceType,
+  sourceId,
+  metadata,
+  expiresAt,
+}: {
+  userId: string
+  teamId?: string
+  entitlementTypeId: string
+  sourceType: 'PURCHASE' | 'SUBSCRIPTION' | 'MANUAL'
+  sourceId: string
+  metadata?: Record<string, unknown>
+  expiresAt?: Date
+}): Promise<Entitlement> {
+  const db = getDb()
+
+  const [entitlement] = await db
+    .insert(entitlementTable)
+    .values({
+      userId,
+      teamId,
+      entitlementTypeId,
+      sourceType,
+      sourceId,
+      metadata,
+      expiresAt,
+    })
+    .returning()
+
+  if (!entitlement) {
+    throw new Error('Failed to create entitlement')
+  }
+
+  return entitlement
 }
