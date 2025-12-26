@@ -2,7 +2,7 @@
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
 **Last Updated:** December 26, 2025
-**Migration Status:** 30% Complete (Competition public routes + organizer events management + compete tests migrated)
+**Migration Status:** 35% Complete (Competition public routes + organizer schedule/results + compete tests migrated)
 
 ---
 
@@ -710,7 +710,7 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ---
 
-### 🏆 Competition Platform (41% complete)
+### 🏆 Competition Platform (49% complete)
 
 #### Public Routes (5/15 complete)
 
@@ -730,7 +730,7 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [ ] ❌ My Schedule (`/compete/$slug/my-schedule`)
 - [ ] ❌ Invite Acceptance (`/compete/invite/$token`)
 
-#### Organizer Routes (9/24 complete)
+#### Organizer Routes (11/24 complete)
 
 - [x] ✅ Competition List (`/compete/organizer`) - DONE with team filter
 - [x] ✅ Create Competition (`/compete/organizer/new`) - DONE
@@ -746,8 +746,8 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [ ] ❌ Divisions (`/compete/organizer/$competitionId/divisions`)
 - [x] ✅ Events (`/compete/organizer/$competitionId/events`) - DONE with drag-drop reorder, create/add dialogs
 - [x] ✅ Event Detail (`/compete/organizer/$competitionId/events/$eventId`) - DONE with full edit form
-- [ ] ❌ Schedule Manager (`/compete/organizer/$competitionId/schedule`) - COMPLEX
-- [ ] ❌ Results Entry (`/compete/organizer/$competitionId/results`)
+- [x] ✅ Schedule Manager (`/compete/organizer/$competitionId/schedule`) - DONE with heat management, venues, drag-drop assignments
+- [x] ✅ Results Entry (`/compete/organizer/$competitionId/results`) - DONE with score entry, heat grouping
 - [ ] ❌ Volunteers (`/compete/organizer/$competitionId/volunteers`)
 - [ ] ❌ Pricing (`/compete/organizer/$competitionId/pricing`)
 - [ ] ❌ Revenue (`/compete/organizer/$competitionId/revenue`)
@@ -755,7 +755,7 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [ ] ❌ Sponsors (`/compete/organizer/$competitionId/sponsors`)
 - [ ] ❌ Danger Zone (`/compete/organizer/$competitionId/danger-zone`)
 
-#### Functions (6/12 files complete)
+#### Functions (10/12 files complete)
 
 - [x] ✅ `competition-fns.ts` - Competition CRUD, public listing
 - [x] ✅ `competition-detail-fns.ts` - Registration counts, user status
@@ -766,7 +766,7 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [x] ✅ `organizer-onboarding-fns.ts` - Organizer request submission
 - [x] ✅ `organizer-admin-fns.ts` - Admin organizer request review
 - [x] ✅ `volunteer-profile-fns.ts` - Volunteer profile updates
-- [ ] ❌ `competition-score-actions.ts` → `score-fns.ts`
+- [x] ✅ `competition-score-fns.ts` - Score entry, save, delete
 - [ ] ❌ `competition-settings.action.ts` → `competition-settings-fns.ts`
 - [ ] ❌ `judge-scheduling-actions.ts` → `judge-scheduling-fns.ts`
 - [ ] ❌ `volunteer-actions.ts` → `volunteer-fns.ts`
