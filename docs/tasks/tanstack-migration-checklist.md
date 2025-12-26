@@ -63,6 +63,125 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 ---
 
+## 📊 Step 0: Test Coverage Summary
+
+**Purpose:** Ensure migration preserves behavior through comprehensive test coverage. Tests are the safety net for refactoring.
+
+### Testing Philosophy (Testing Trophy)
+
+```
+       /\
+      /  \  E2E (5-10 critical paths)
+     /----\  Registration, auth, scheduling
+    / INT  \ Integration (SWEET SPOT)
+   /--------\ Actions, workflows, multi-component
+  |  UNIT  | Unit (fast, focused)
+  |________| Scoring, permissions, validators
+   STATIC   TypeScript + Biome
+```
+
+**Priority:** Integration tests > E2E tests > Unit tests. Integration tests catch the most bugs for the least effort.
+
+### Test Coverage by Category
+
+| Category                 | E2E Tests | Integration Tests | Unit Tests     | Coverage % | Status         | Priority                  |
+| ------------------------ | --------- | ----------------- | -------------- | ---------- | -------------- | ------------------------- |
+| **Auth**                 | 8         | 0                 | 0              | 40%        | 🟡 E2E only    | P0 - Add integration      |
+| **Main App (Workouts)**  | 0         | 5                 | ~200 (scoring) | 30%        | 🟡 Partial     | P0 - Add E2E, integration |
+| **Main App (Logs)**      | 0         | 0                 | 0              | 0%         | 🔴 None        | P0 - Critical gap         |
+| **Main App (Movements)** | 0         | 0                 | 0              | 0%         | 🔴 None        | P1 - Add all              |
+| **Programming/Teams**    | 0         | 3                 | 14             | 50%        | 🟡 Partial     | P1 - Add E2E              |
+| **Settings**             | 0         | 0                 | 0              | 0%         | 🔴 None        | P1 - Add integration      |
+| **Admin**                | 0         | 2                 | 0              | 10%        | 🔴 Minimal     | P1 - Add integration      |
+| **Compete**              | 0         | 0                 | ~200 (server)  | 60%        | 🟢 Server only | P0 - Add E2E, integration |
+
+**Overall:** ~400 existing tests, ~100 missing tests needed for safe migration.
+
+### Test Creation Priority Order
+
+**Week 1 (P0 - Blockers):**
+
+1. `test/actions/log-actions.test.ts` - Log CRUD (users can't fix mistakes)
+2. `test/actions/scheduling-actions.test.ts` - Workout scheduling
+3. `e2e/compete/registration.spec.ts` - Revenue path
+
+**Week 2 (P0 - Auth):** 4. `test/actions/sign-in-actions.test.ts` - Sign-in integration 5. `test/actions/sign-up-actions.test.ts` - Sign-up integration 6. `test/actions/forgot-password-actions.test.ts` - Password reset
+
+**Week 3 (P1 - Core Features):** 7. `test/actions/movement-actions.test.ts` - Movement CRUD 8. `test/utils/team-auth.test.ts` - Permission helpers 9. `test/integration/team-settings.test.ts` - Team management
+
+**Week 4 (P1 - Admin):** 10. `test/integration/scheduling-workflow.test.ts` - FullCalendar scheduling 11. `test/actions/entitlement-admin-actions.test.ts` - Plan management 12. `e2e/scheduling.spec.ts` - Scheduling E2E
+
+### Migration Acceptance Criteria
+
+**Before migrating any route:**
+
+- [ ] Existing tests for related server functions pass
+- [ ] Integration tests exist for all server actions used by route
+- [ ] Unit tests exist for pure functions (validators, formatters)
+
+**After migrating route:**
+
+- [ ] All existing tests still pass
+- [ ] New TanStack Start route renders correctly
+- [ ] Data fetching works with loaders
+- [ ] Forms submit correctly
+- [ ] E2E test passes for critical paths (if applicable)
+
+**Migration-Blocking Tests (Must Create First):**
+
+1. Log actions - Before migrating `/log/$id/edit`
+2. Scheduling actions - Before migrating `/workouts/$workoutId/schedule`
+3. Team-auth utils - Before migrating `/settings/teams`
+4. Compete registration E2E - Before migrating `/compete/[slug]/register`
+
+### Testing Infrastructure
+
+**Existing:**
+
+- Vitest + jsdom for unit/integration
+- Playwright for E2E
+- FakeDatabase for D1 mocking (respects 100 param limit)
+- Factory functions in `@repo/test-utils`
+
+**Required New Factories:**
+
+- `createCompetition` - Full competition with relations
+- `createDivision` - Division with event associations
+- `createHeat` - Heat with athlete assignments
+- `createScore` - Score with all scheme variations
+
+---
+
+## 🔍 Audit Findings (December 23, 2025)
+
+Five comprehensive audits were completed to verify the accuracy of this checklist against the actual Next.js and TanStack codebases. Key corrections:
+
+### Summary of Corrections
+
+| Metric                     | Original | Corrected | Change                     |
+| -------------------------- | -------- | --------- | -------------------------- |
+| **Total Routes**           | 89       | 113       | +24 routes (+27%)          |
+| **Auth Routes**            | 7        | 8         | +1 (Google OAuth split)    |
+| **Main App Routes**        | 17       | 20        | +3                         |
+| **Settings/Admin Routes**  | 19       | 39        | +20 (dual routing pattern) |
+| **Compete Components**     | 102+     | 115+      | +13                        |
+| **Workout Functions (TS)** | ~4       | 8         | +4                         |
+| **Log Functions (TS)**     | 1        | 7         | +6 (TanStack ahead)        |
+
+### Key Audit Findings
+
+1. **Auth:** Google OAuth has 2 separate route files. `canSignUp` IS implemented (was incorrectly marked missing).
+
+2. **Main App:** TanStack has 8 workout functions (not ~4) and 7 log functions (MORE than Next.js's 5). Log editing route is the main gap.
+
+3. **Programming:** `getTeamProgrammingTracksFn` gets ALL team-subscribed tracks (not just owned). TanStack HAS subscription read capability, just missing write actions.
+
+4. **Admin:** MAJOR correction - Route count doubled (19 → 39) due to dual routing pattern (explicit teamId + active team routes). Discovered undocumented Gym Scheduler AI feature.
+
+5. **Compete:** Path prefix is `(compete)/compete/`, not `(main)/compete/`. Component count updated to 115+.
+
+---
+
 ## 🎯 Priority Matrix
 
 ### P0 - CRITICAL (Blocks Core User Flows)
@@ -209,7 +328,6 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Complete auth flows + core workout CRUD
 
 1. **Week 1:** Auth completion
-
    - [ ] Forgot/reset password
    - [ ] Email verification
    - [ ] Session management utilities
@@ -217,7 +335,6 @@ This master checklist consolidates analysis from 5 detailed migration documents 
    - [ ] KV store integration
 
 2. **Week 2:** Core features
-
    - [ ] Log editing
    - [ ] Movements section (all routes)
    - [ ] Add workout to track
@@ -238,14 +355,12 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Multi-tenant programming features
 
 4. **Week 4:** Programming subscriptions
-
    - [ ] Public track browsing
    - [ ] Subscription system
    - [ ] Multi-team subscription UI
    - [ ] Track detail (subscriber view)
 
 5. **Week 5:** Team management
-
    - [ ] Team settings routes
    - [ ] Member management
    - [ ] Invitation system
@@ -279,7 +394,6 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Gym management features
 
 8. **Week 8-9:** Admin foundation
-
    - [ ] Admin dashboard layout
    - [ ] Team scheduling calendar
    - [ ] Entitlements management
@@ -299,35 +413,30 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Full competition lifecycle
 
 10. **Week 12-13:** Public compete ✅ COMPLETE
-
     - [x] Competition discovery - DONE
     - [x] Competition detail - DONE
     - [x] Leaderboard - DONE
     - [x] Workouts/schedule tabs - DONE
 
 11. **Week 14-15:** Registration flow
-
     - [ ] Registration form
     - [ ] Stripe integration
     - [ ] Team management
     - [ ] Success flow
 
 12. **Week 16-17:** Organizer dashboard
-
     - [ ] Competition list/create
     - [ ] Athletes management
     - [ ] Divisions configuration
     - [ ] Events management
 
 13. **Week 18-19:** Scheduling & scoring (COMPLEX)
-
     - [ ] Heat scheduling (drag-and-drop)
     - [ ] Judge rotation
     - [ ] Venue management
     - [ ] Results entry
 
 14. **Week 20:** Volunteers & athlete portal
-
     - [ ] Volunteer signup/management
     - [ ] Athlete profile
     - [ ] My schedule
