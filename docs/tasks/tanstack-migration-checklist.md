@@ -1,8 +1,8 @@
 # TanStack Start Migration Checklist
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
-**Last Updated:** December 24, 2025
-**Migration Status:** 27% Complete (Competition public routes + organizer events management complete)
+**Last Updated:** December 26, 2025
+**Migration Status:** 30% Complete (Competition public routes + organizer events management + compete tests migrated)
 
 ---
 
@@ -33,7 +33,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 | **Teams**          | 16              | 2                  | 14 (88%)              |
 | **Settings**       | 4 files         | 0                  | 4 (100%)              |
 | **Admin**          | 5 files         | 0                  | 5 (100%)              |
-| **Compete**        | 12 files        | 6                  | 6 (50%)               |
+| **Compete**        | 12 files        | 10                 | 2 (17%)               |
 
 ### Critical Gaps
 
@@ -209,6 +209,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Complete auth flows + core workout CRUD
 
 1. **Week 1:** Auth completion
+
    - [ ] Forgot/reset password
    - [ ] Email verification
    - [ ] Session management utilities
@@ -216,6 +217,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
    - [ ] KV store integration
 
 2. **Week 2:** Core features
+
    - [ ] Log editing
    - [ ] Movements section (all routes)
    - [ ] Add workout to track
@@ -236,12 +238,14 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Multi-tenant programming features
 
 4. **Week 4:** Programming subscriptions
+
    - [ ] Public track browsing
    - [ ] Subscription system
    - [ ] Multi-team subscription UI
    - [ ] Track detail (subscriber view)
 
 5. **Week 5:** Team management
+
    - [ ] Team settings routes
    - [ ] Member management
    - [ ] Invitation system
@@ -275,6 +279,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Gym management features
 
 8. **Week 8-9:** Admin foundation
+
    - [ ] Admin dashboard layout
    - [ ] Team scheduling calendar
    - [ ] Entitlements management
@@ -294,30 +299,35 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 **Goal:** Full competition lifecycle
 
 10. **Week 12-13:** Public compete ✅ COMPLETE
+
     - [x] Competition discovery - DONE
     - [x] Competition detail - DONE
     - [x] Leaderboard - DONE
     - [x] Workouts/schedule tabs - DONE
 
 11. **Week 14-15:** Registration flow
+
     - [ ] Registration form
     - [ ] Stripe integration
     - [ ] Team management
     - [ ] Success flow
 
 12. **Week 16-17:** Organizer dashboard
+
     - [ ] Competition list/create
     - [ ] Athletes management
     - [ ] Divisions configuration
     - [ ] Events management
 
 13. **Week 18-19:** Scheduling & scoring (COMPLEX)
+
     - [ ] Heat scheduling (drag-and-drop)
     - [ ] Judge rotation
     - [ ] Venue management
     - [ ] Results entry
 
 14. **Week 20:** Volunteers & athlete portal
+
     - [ ] Volunteer signup/management
     - [ ] Athlete profile
     - [ ] My schedule
@@ -644,6 +654,9 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - [x] ✅ `competition-heats-fns.ts` - Heats with assignments
 - [x] ✅ `competition-divisions-fns.ts` - Public divisions
 - [x] ✅ `leaderboard-fns.ts` - Leaderboard data
+- [x] ✅ `organizer-onboarding-fns.ts` - Organizer request submission
+- [x] ✅ `organizer-admin-fns.ts` - Admin organizer request review
+- [x] ✅ `volunteer-profile-fns.ts` - Volunteer profile updates
 - [ ] ❌ `competition-score-actions.ts` → `score-fns.ts`
 - [ ] ❌ `competition-settings.action.ts` → `competition-settings-fns.ts`
 - [ ] ❌ `judge-scheduling-actions.ts` → `judge-scheduling-fns.ts`
@@ -758,6 +771,15 @@ export const myServerFn = createServerFn({method: 'POST'})
 2. ✅ Competition detail with all tabs - DONE
 3. ✅ Organizer dashboard with series - DONE
 4. ✅ Server functions for workouts, heats, divisions, leaderboard - DONE
+
+**Sprint 2.5 (Completed - Test Migration):**
+
+1. ✅ Scoring tests migrated (multi-round, time-cap-tiebreak) - 71 tests
+2. ✅ Competition leaderboard tests migrated - 83 tests
+3. ✅ Organizer onboarding tests migrated (actions + server) - 80 tests
+4. ✅ Volunteer tests migrated (profile + utilities) - 89 tests
+5. ✅ Judge tests migrated (rotation-utils + scheduling) - 48 tests
+6. ✅ Total: 468 tests passing in wodsmith-start
 
 **Sprint 3 (Next):**
 
