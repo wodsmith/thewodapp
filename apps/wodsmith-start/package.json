@@ -19,6 +19,7 @@
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-accessibility": "^2.0.6",
     "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.1",
     "@cloudflare/vite-plugin": "^1.13.8",
     "@hookform/resolvers": "^5.2.2",
