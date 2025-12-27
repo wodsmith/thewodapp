@@ -1,5 +1,6 @@
 'use client'
 
+import {useRouter} from '@tanstack/react-router'
 import {Check, X} from 'lucide-react'
 import {useEffect, useState} from 'react'
 import {toast} from 'sonner'
@@ -138,6 +139,7 @@ export function VolunteerRow({
   isSelected = false,
   onToggleSelect,
 }: VolunteerRowProps) {
+  const router = useRouter()
   const metadata = parseMetadata(volunteer.metadata)
   const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
   const [selectedRoles, setSelectedRoles] = useState<Set<VolunteerRoleType>>(
@@ -232,6 +234,8 @@ export function VolunteerRow({
         })
         toast.success('Role type removed')
       }
+      // Invalidate route to refresh judge list in JudgeSchedulingContainer
+      router.invalidate()
     } catch (error) {
       // Revert on error
       if (checked) {

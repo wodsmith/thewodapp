@@ -1,5 +1,6 @@
 'use client'
 
+import {useRouter} from '@tanstack/react-router'
 import {Loader2} from 'lucide-react'
 import {useEffect, useRef, useState} from 'react'
 import {toast} from 'sonner'
@@ -60,6 +61,7 @@ export function EventDefaultsEditor({
   competitionDefaultHeats,
   competitionDefaultPattern,
 }: EventDefaultsEditorProps) {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Use event-specific value or fall back to competition default
@@ -94,6 +96,7 @@ export function EventDefaultsEditor({
         },
       })
       toast.success('Event defaults updated')
+      router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update')
     } finally {
@@ -113,6 +116,7 @@ export function EventDefaultsEditor({
         },
       })
       toast.success('Event defaults updated')
+      router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update')
     } finally {
@@ -180,6 +184,7 @@ export function EventDefaultsEditor({
         },
       })
       toast.success('Event defaults updated')
+      router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update')
     } finally {
