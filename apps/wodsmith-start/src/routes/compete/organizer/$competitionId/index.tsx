@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {getCompetitionRevenueStatsFn} from '@/server-fns/commerce-fns'
 import {getCompetitionRegistrationsFn} from '@/server-fns/competition-detail-fns'
 import {formatUTCDateFull} from '@/utils/date-utils'
 
@@ -24,17 +25,29 @@ const parentRoute = getRouteApi('/compete/organizer/$competitionId')
 export const Route = createFileRoute('/compete/organizer/$competitionId/')({
   component: CompetitionOverviewPage,
   loader: async ({params}) => {
-    // Get registrations for this competition
-    const {registrations} = await getCompetitionRegistrationsFn({
-      data: {competitionId: params.competitionId},
-    })
+    // Parallel fetch: registrations and revenue stats
+    const [registrationsResult, revenueResult] = await Promise.all([
+      getCompetitionRegistrationsFn({
+        data: {competitionId: params.competitionId},
+      }),
+      getCompetitionRevenueStatsFn({
+        data: {competitionId: params.competitionId},
+      }),
+    ])
 
-    return {registrations}
+    return {
+      registrations: registrationsResult.registrations,
+      revenueStats: revenueResult.stats,
+    }
   },
 })
 
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
+}
+
 function CompetitionOverviewPage() {
-  const {registrations} = Route.useLoaderData()
+  const {registrations, revenueStats} = Route.useLoaderData()
   // Get competition from parent layout loader data
   const {competition} = parentRoute.useLoaderData()
 
@@ -214,7 +227,7 @@ function CompetitionOverviewPage() {
           </CardContent>
         </Card>
 
-        {/* Revenue Summary Card - Placeholder for now */}
+        {/* Revenue Summary Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -229,11 +242,40 @@ function CompetitionOverviewPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="py-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                Revenue tracking coming soon
-              </p>
-            </div>
+            {revenueStats.purchaseCount > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Gross Revenue
+                  </span>
+                  <span className="font-medium">
+                    {formatCents(revenueStats.totalGrossCents)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Your Net Revenue
+                  </span>
+                  <span className="font-bold text-green-600">
+                    {formatCents(revenueStats.totalOrganizerNetCents)}
+                  </span>
+                </div>
+                <div className="pt-2 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    {revenueStats.purchaseCount} paid{' '}
+                    {revenueStats.purchaseCount === 1
+                      ? 'registration'
+                      : 'registrations'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No paid registrations yet
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

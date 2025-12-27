@@ -52,6 +52,7 @@ import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from './routes/comp
 import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from './routes/compete/organizer/$competitionId/volunteers'
 import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/compete/organizer/$competitionId/sponsors'
 import { Route as CompeteOrganizerCompetitionIdScheduleRouteImport } from './routes/compete/organizer/$competitionId/schedule'
+import { Route as CompeteOrganizerCompetitionIdRevenueRouteImport } from './routes/compete/organizer/$competitionId/revenue'
 import { Route as CompeteOrganizerCompetitionIdResultsRouteImport } from './routes/compete/organizer/$competitionId/results'
 import { Route as CompeteOrganizerCompetitionIdPricingRouteImport } from './routes/compete/organizer/$competitionId/pricing'
 import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from './routes/compete/organizer/$competitionId/divisions'
@@ -289,6 +290,12 @@ const CompeteOrganizerCompetitionIdScheduleRoute =
     path: '/schedule',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
+const CompeteOrganizerCompetitionIdRevenueRoute =
+  CompeteOrganizerCompetitionIdRevenueRouteImport.update({
+    id: '/revenue',
+    path: '/revenue',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdResultsRoute =
   CompeteOrganizerCompetitionIdResultsRouteImport.update({
     id: '/results',
@@ -394,6 +401,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
   '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
+  '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
   '/compete/organizer/$competitionId/schedule': typeof CompeteOrganizerCompetitionIdScheduleRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
@@ -445,6 +453,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
   '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
+  '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
   '/compete/organizer/$competitionId/schedule': typeof CompeteOrganizerCompetitionIdScheduleRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
@@ -502,6 +511,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
   '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
   '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
+  '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
   '/compete/organizer/$competitionId/schedule': typeof CompeteOrganizerCompetitionIdScheduleRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
@@ -559,6 +569,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/$competitionId/pricing'
     | '/compete/organizer/$competitionId/results'
+    | '/compete/organizer/$competitionId/revenue'
     | '/compete/organizer/$competitionId/schedule'
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/volunteers'
@@ -610,6 +621,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/$competitionId/pricing'
     | '/compete/organizer/$competitionId/results'
+    | '/compete/organizer/$competitionId/revenue'
     | '/compete/organizer/$competitionId/schedule'
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/volunteers'
@@ -666,6 +678,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/divisions'
     | '/compete/organizer/$competitionId/pricing'
     | '/compete/organizer/$competitionId/results'
+    | '/compete/organizer/$competitionId/revenue'
     | '/compete/organizer/$competitionId/schedule'
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/volunteers'
@@ -1007,6 +1020,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdScheduleRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
+    '/compete/organizer/$competitionId/revenue': {
+      id: '/compete/organizer/$competitionId/revenue'
+      path: '/revenue'
+      fullPath: '/compete/organizer/$competitionId/revenue'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdRevenueRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/organizer/$competitionId/results': {
       id: '/compete/organizer/$competitionId/results'
       path: '/results'
@@ -1193,6 +1213,7 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteOrganizerCompetitionIdDivisionsRoute
   CompeteOrganizerCompetitionIdPricingRoute: typeof CompeteOrganizerCompetitionIdPricingRoute
   CompeteOrganizerCompetitionIdResultsRoute: typeof CompeteOrganizerCompetitionIdResultsRoute
+  CompeteOrganizerCompetitionIdRevenueRoute: typeof CompeteOrganizerCompetitionIdRevenueRoute
   CompeteOrganizerCompetitionIdScheduleRoute: typeof CompeteOrganizerCompetitionIdScheduleRoute
   CompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteOrganizerCompetitionIdSponsorsRoute
   CompeteOrganizerCompetitionIdVolunteersRoute: typeof CompeteOrganizerCompetitionIdVolunteersRoute
@@ -1211,6 +1232,8 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
       CompeteOrganizerCompetitionIdPricingRoute,
     CompeteOrganizerCompetitionIdResultsRoute:
       CompeteOrganizerCompetitionIdResultsRoute,
+    CompeteOrganizerCompetitionIdRevenueRoute:
+      CompeteOrganizerCompetitionIdRevenueRoute,
     CompeteOrganizerCompetitionIdScheduleRoute:
       CompeteOrganizerCompetitionIdScheduleRoute,
     CompeteOrganizerCompetitionIdSponsorsRoute:

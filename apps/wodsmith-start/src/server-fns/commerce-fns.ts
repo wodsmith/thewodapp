@@ -12,9 +12,16 @@ import {getDb} from '@/db'
 import {
   competitionDivisionsTable,
   competitionsTable,
+  teamTable,
   TEAM_PERMISSIONS,
 } from '@/db/schema'
+import {
+  getCompetitionRevenueStats,
+  type CompetitionRevenueStats,
+} from '@/server/commerce/fee-calculator'
 import {getSessionFromCookie, requireVerifiedEmail} from '@/utils/auth'
+
+export type {CompetitionRevenueStats}
 
 // ============================================================================
 // Permission Helpers
@@ -54,6 +61,10 @@ async function requireTeamPermission(
 // ============================================================================
 
 const getCompetitionDivisionFeesInputSchema = z.object({
+  competitionId: z.string().min(1, 'Competition ID is required'),
+})
+
+const getCompetitionRevenueStatsInputSchema = z.object({
   competitionId: z.string().min(1, 'Competition ID is required'),
 })
 
@@ -146,6 +157,48 @@ export const updateCompetitionFeeConfigFn = createServerFn({method: 'POST'})
       .where(eq(competitionsTable.id, input.competitionId))
 
     return {success: true}
+  })
+
+/**
+ * Get revenue stats for a competition
+ */
+export const getCompetitionRevenueStatsFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) =>
+    getCompetitionRevenueStatsInputSchema.parse(data),
+  )
+  .handler(async ({data}) => {
+    const stats = await getCompetitionRevenueStats(data.competitionId)
+    return {stats}
+  })
+
+/**
+ * Get organizing team's Stripe status for a competition
+ */
+export const getOrganizerStripeStatusFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) =>
+    z.object({organizingTeamId: z.string().min(1)}).parse(data),
+  )
+  .handler(async ({data}) => {
+    const db = getDb()
+
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, data.organizingTeamId),
+      columns: {
+        slug: true,
+        stripeAccountStatus: true,
+      },
+    })
+
+    if (!team?.slug) {
+      return {stripeStatus: null}
+    }
+
+    return {
+      stripeStatus: {
+        isConnected: team.stripeAccountStatus === 'VERIFIED',
+        teamSlug: team.slug,
+      },
+    }
   })
 
 /**
