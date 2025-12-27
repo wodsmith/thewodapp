@@ -1,8 +1,8 @@
 # TanStack Start Migration Checklist
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
-**Last Updated:** December 26, 2025
-**Migration Status:** 35% Complete (Competition public routes + organizer schedule/results + compete tests migrated)
+**Last Updated:** December 27, 2025
+**Migration Status:** 55% Complete (Competition public + organizer routes mostly complete)
 
 ---
 
@@ -18,8 +18,8 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 | **Main App** (workouts, logs, movements) | 17           | 6           | 5          | 6              | 35%        |
 | **Programming & Teams**                  | 7            | 2           | 1          | 4              | 29%        |
 | **Settings & Admin**                     | 19           | 0           | 2          | 17             | 5%         |
-| **Competition Platform**                 | 39           | 14          | 2          | 23             | 41%        |
-| **TOTAL**                                | **89**       | **24**      | **10**     | **55**         | **27%**    |
+| **Competition Platform**                 | 39           | 22          | 2          | 15             | 62%        |
+| **TOTAL**                                | **89**       | **32**      | **10**     | **47**         | **36%**    |
 
 ### Action/Function Coverage
 
@@ -730,7 +730,7 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [x] ✅ My Schedule (`/compete/$slug/my-schedule`) - DONE
 - [x] ✅ Invite Acceptance (`/compete/invite/$token`) - DONE
 
-#### Organizer Routes (11/24 complete)
+#### Organizer Routes (19/24 complete)
 
 - [x] ✅ Competition List (`/compete/organizer`) - DONE with team filter
 - [x] ✅ Create Competition (`/compete/organizer/new`) - DONE
@@ -742,18 +742,18 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [x] ✅ Edit Series (`/compete/organizer/series/$groupId/edit`) - DONE
 - [x] ✅ Competition Overview (`/compete/organizer/$competitionId`) - DONE
 - [ ] ❌ Edit Competition (`/compete/organizer/$competitionId/edit`)
-- [ ] ❌ Athletes (`/compete/organizer/$competitionId/athletes`)
-- [ ] ❌ Divisions (`/compete/organizer/$competitionId/divisions`)
+- [x] ✅ Athletes (`/compete/organizer/$competitionId/athletes`) - DONE
+- [x] ✅ Divisions (`/compete/organizer/$competitionId/divisions`) - DONE
 - [x] ✅ Events (`/compete/organizer/$competitionId/events`) - DONE with drag-drop reorder, create/add dialogs
 - [x] ✅ Event Detail (`/compete/organizer/$competitionId/events/$eventId`) - DONE with full edit form
 - [x] ✅ Schedule Manager (`/compete/organizer/$competitionId/schedule`) - DONE with heat management, venues, drag-drop assignments
 - [x] ✅ Results Entry (`/compete/organizer/$competitionId/results`) - DONE with score entry, heat grouping
-- [ ] ❌ Volunteers (`/compete/organizer/$competitionId/volunteers`)
-- [ ] ❌ Pricing (`/compete/organizer/$competitionId/pricing`)
+- [x] ✅ Volunteers (`/compete/organizer/$competitionId/volunteers`) - DONE
+- [x] ✅ Pricing (`/compete/organizer/$competitionId/pricing`) - DONE
 - [x] ✅ Revenue (`/compete/organizer/$competitionId/revenue`) - DONE
 - [x] ✅ Settings (`/compete/organizer/$competitionId/settings`) - DONE
-- [ ] ❌ Sponsors (`/compete/organizer/$competitionId/sponsors`)
-- [ ] ❌ Danger Zone (`/compete/organizer/$competitionId/danger-zone`)
+- [x] ✅ Sponsors (`/compete/organizer/$competitionId/sponsors`) - DONE
+- [x] ✅ Danger Zone (`/compete/organizer/$competitionId/danger-zone`) - DONE
 
 #### Functions (10/12 files complete)
 
