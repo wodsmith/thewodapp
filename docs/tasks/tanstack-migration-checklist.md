@@ -726,9 +726,9 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [ ] ❌ Edit Profile (`/compete/athlete/edit`)
 - [ ] ❌ Sponsors (`/compete/athlete/sponsors`)
 - [ ] ❌ Invoices (`/compete/athlete/invoices`)
-- [ ] ❌ Volunteer Signup (`/compete/$slug/volunteer`)
-- [ ] ❌ My Schedule (`/compete/$slug/my-schedule`)
-- [ ] ❌ Invite Acceptance (`/compete/invite/$token`)
+- [x] ✅ Volunteer Signup (`/compete/$slug/volunteer`) - DONE
+- [x] ✅ My Schedule (`/compete/$slug/my-schedule`) - DONE
+- [x] ✅ Invite Acceptance (`/compete/invite/$token`) - DONE
 
 #### Organizer Routes (11/24 complete)
 
@@ -750,8 +750,8 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [x] ✅ Results Entry (`/compete/organizer/$competitionId/results`) - DONE with score entry, heat grouping
 - [ ] ❌ Volunteers (`/compete/organizer/$competitionId/volunteers`)
 - [ ] ❌ Pricing (`/compete/organizer/$competitionId/pricing`)
-- [ ] ❌ Revenue (`/compete/organizer/$competitionId/revenue`)
-- [ ] ❌ Settings (`/compete/organizer/$competitionId/settings`)
+- [x] ✅ Revenue (`/compete/organizer/$competitionId/revenue`) - DONE
+- [x] ✅ Settings (`/compete/organizer/$competitionId/settings`) - DONE
 - [ ] ❌ Sponsors (`/compete/organizer/$competitionId/sponsors`)
 - [ ] ❌ Danger Zone (`/compete/organizer/$competitionId/danger-zone`)
 

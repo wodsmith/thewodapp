@@ -19,13 +19,17 @@ import {getDb} from '@/db'
 import {
   teamMembershipTable,
   teamInvitationTable,
+  teamTable,
   SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
 } from '@/db/schemas/teams'
 import {
   competitionsTable,
   competitionRegistrationsTable,
 } from '@/db/schemas/competitions'
+import type {LaneShiftPattern} from '@/db/schemas/volunteers'
 import {eq, and, isNull, sql, count} from 'drizzle-orm'
+import {getSessionFromCookie, requireVerifiedEmail} from '@/utils/auth'
 
 // ============================================================================
 // Input Schemas
@@ -58,6 +62,40 @@ const checkIsVolunteerInputSchema = z.object({
 const getCompetitionByIdInputSchema = z.object({
   competitionId: z.string().min(1, 'Competition ID is required'),
 })
+
+const updateCompetitionRotationSettingsInputSchema = z.object({
+  competitionId: z.string().min(1, 'Competition ID is required'),
+  defaultHeatsPerRotation: z.number().int().min(1).max(10).optional(),
+  defaultLaneShiftPattern: z.enum(['stay', 'shift_right']).optional(),
+})
+
+const deleteCompetitionInputSchema = z.object({
+  competitionId: z.string().min(1, 'Competition ID is required'),
+  organizingTeamId: z.string().min(1, 'Organizing team ID is required'),
+})
+
+// ============================================================================
+// Permission Helpers
+// ============================================================================
+
+async function requireTeamPermission(
+  teamId: string,
+  permission: string,
+): Promise<void> {
+  const session = await getSessionFromCookie()
+  if (!session?.userId) {
+    throw new Error('Unauthorized')
+  }
+
+  const team = session.teams?.find((t) => t.id === teamId)
+  if (!team) {
+    throw new Error('Team not found')
+  }
+
+  if (!team.permissions.includes(permission)) {
+    throw new Error(`Missing required permission: ${permission}`)
+  }
+}
 
 // ============================================================================
 // Server Functions
@@ -477,4 +515,95 @@ export const getOrganizerRegistrationsFn = createServerFn({method: 'GET'})
       : registrations
 
     return {registrations: filteredRegistrations}
+  })
+
+/**
+ * Update competition rotation settings
+ */
+export const updateCompetitionRotationSettingsFn = createServerFn({
+  method: 'POST',
+})
+  .inputValidator((data: unknown) =>
+    updateCompetitionRotationSettingsInputSchema.parse(data),
+  )
+  .handler(async ({data: input}) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error('Unauthorized')
+
+    const db = getDb()
+
+    // Verify user has permission to manage this competition
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error('Competition not found')
+
+    // Check permission
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    // Update competition
+    await db
+      .update(competitionsTable)
+      .set({
+        defaultHeatsPerRotation: input.defaultHeatsPerRotation,
+        defaultLaneShiftPattern: input.defaultLaneShiftPattern as
+          | LaneShiftPattern
+          | undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(competitionsTable.id, input.competitionId))
+
+    return {success: true}
+  })
+
+/**
+ * Delete a competition
+ */
+export const deleteCompetitionFn = createServerFn({method: 'POST'})
+  .inputValidator((data: unknown) => deleteCompetitionInputSchema.parse(data))
+  .handler(async ({data: input}) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error('Unauthorized')
+
+    const db = getDb()
+
+    // Check permission
+    await requireTeamPermission(
+      input.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    // Get the competition to verify it exists and get the competitionTeamId
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error('Competition not found')
+
+    // Check for existing registrations
+    const registrations = await db
+      .select({count: count()})
+      .from(competitionRegistrationsTable)
+      .where(eq(competitionRegistrationsTable.eventId, input.competitionId))
+
+    const registrationCount = registrations[0]?.count ?? 0
+    if (registrationCount > 0) {
+      throw new Error(
+        `Cannot delete competition with ${registrationCount} existing registration(s). Please remove registrations first.`,
+      )
+    }
+
+    // Delete the competition (will cascade delete registrations due to schema)
+    await db
+      .delete(competitionsTable)
+      .where(eq(competitionsTable.id, input.competitionId))
+
+    // Delete the competition_event team
+    await db
+      .delete(teamTable)
+      .where(eq(teamTable.id, competition.competitionTeamId))
+
+    return {success: true}
   })
