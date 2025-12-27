@@ -6,26 +6,26 @@
  * Requires Stripe connection to be verified before showing the pricing form.
  */
 
-import {createFileRoute} from '@tanstack/react-router'
-import {getCompetitionByIdFn} from '@/server-fns/competition-detail-fns'
-import {getCompetitionDivisionFeesFn} from '@/server-fns/commerce-fns'
- import {getStripeConnectionStatusFn} from '@/server-fns/stripe-connect-fns'
+import { createFileRoute } from '@tanstack/react-router'
+import { getCompetitionByIdFn } from '@/server-fns/competition-detail-fns'
+import { getCompetitionDivisionFeesFn } from '@/server-fns/commerce-fns'
+import { getStripeConnectionStatusFn } from '@/server-fns/stripe-connect-fns'
 import {
   parseCompetitionSettings,
   getScalingGroupWithLevelsFn,
 } from '@/server-fns/competition-divisions-fns'
-import {getTeamSlugFn} from '@/server-fns/team-fns'
+import { getTeamSlugFn } from '@/server-fns/team-fns'
 
-import {PricingSettingsForm} from './-components/pricing-settings-form'
-import {StripeConnectionRequired} from './-components/stripe-connection-required'
+import { PricingSettingsForm } from './-components/pricing-settings-form'
+import { StripeConnectionRequired } from './-components/stripe-connection-required'
 
 export const Route = createFileRoute(
   '/compete/organizer/$competitionId/pricing',
 )({
-  loader: async ({params}) => {
+  loader: async ({ params }) => {
     // 1. Get competition details
     const result = await getCompetitionByIdFn({
-      data: {competitionId: params.competitionId},
+      data: { competitionId: params.competitionId },
     })
 
     if (!result.competition) {
@@ -36,14 +36,14 @@ export const Route = createFileRoute(
 
     // 2. Get Stripe connection status for the organizing team
     const stripeStatus = await getStripeConnectionStatusFn({
-       data: {teamId: competition.organizingTeamId},
-     })
+      data: { teamId: competition.organizingTeamId },
+    })
 
-    const isStripeConnected = false //stripeStatus.isConnected
+    const isStripeConnected = stripeStatus.isConnected
 
     // 3. Get team slug for Stripe connection redirect (if not connected)
     const teamSlug = await getTeamSlugFn({
-      data: {teamId: competition.organizingTeamId},
+      data: { teamId: competition.organizingTeamId },
     })
 
     // 4. If Stripe not connected, return early with minimal data
@@ -62,11 +62,11 @@ export const Route = createFileRoute(
 
     // 5. Get competition's divisions from scaling group
     const settings = parseCompetitionSettings(competition.settings)
-    let divisions: Array<{id: string; label: string; teamSize: number}> = []
+    let divisions: Array<{ id: string; label: string; teamSize: number }> = []
 
     if (settings?.divisions?.scalingGroupId) {
       const scalingGroup = await getScalingGroupWithLevelsFn({
-        data: {scalingGroupId: settings.divisions.scalingGroupId},
+        data: { scalingGroupId: settings.divisions.scalingGroupId },
       })
 
       if (scalingGroup?.scalingLevels) {
@@ -80,7 +80,7 @@ export const Route = createFileRoute(
 
     // 6. Get current fee configuration
     const feeConfig = await getCompetitionDivisionFeesFn({
-      data: {competitionId: competition.id},
+      data: { competitionId: competition.id },
     })
 
     return {
@@ -105,7 +105,7 @@ export const Route = createFileRoute(
 })
 
 function PricingPage() {
-  const {competition, isStripeConnected, teamSlug, divisions, currentFees} =
+  const { competition, isStripeConnected, teamSlug, divisions, currentFees } =
     Route.useLoaderData()
 
   // If Stripe not connected, show connection prompt
