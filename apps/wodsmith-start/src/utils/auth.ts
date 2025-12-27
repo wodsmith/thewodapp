@@ -35,6 +35,7 @@ import {
   updateKVSession,
 } from './kv-session'
 import {getInitials} from './name-initials'
+import {getUserPersonalTeamId} from '@/server/user'
 
 const getSessionLength = () => {
   return ms('30d')
@@ -92,10 +93,11 @@ function decodeSessionCookie(
   return {userId: parts[0], token: parts[1]}
 }
 
-interface CreateSessionParams extends Pick<
-  CreateKVSessionParams,
-  'authenticationType' | 'passkeyCredentialId' | 'userId'
-> {
+interface CreateSessionParams
+  extends Pick<
+    CreateKVSessionParams,
+    'authenticationType' | 'passkeyCredentialId' | 'userId'
+  > {
   token: string
 }
 
@@ -438,7 +440,6 @@ export async function getActiveOrPersonalTeamId(
 
   // If no active team cookie, get personal team
   if (!activeTeamId || !session?.teams) {
-    const {getUserPersonalTeamId} = await import('@/server/user')
     return getUserPersonalTeamId(userId)
   }
 
@@ -449,7 +450,6 @@ export async function getActiveOrPersonalTeamId(
     // Active team is invalid, fall back to personal team
     // Note: Cannot delete cookie here as this may be called from Server Components
     // The stale cookie will be ignored and overwritten when user explicitly changes teams
-    const {getUserPersonalTeamId} = await import('@/server/user')
     return getUserPersonalTeamId(userId)
   }
 

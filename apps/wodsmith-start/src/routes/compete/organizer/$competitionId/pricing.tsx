@@ -7,52 +7,17 @@
  */
 
 import {createFileRoute} from '@tanstack/react-router'
-import {createServerFn} from '@tanstack/react-start'
-import {eq} from 'drizzle-orm'
-import {z} from 'zod'
-import {getDb} from '@/db'
-import {scalingGroupsTable, teamTable} from '@/db/schema'
 import {getCompetitionByIdFn} from '@/server-fns/competition-detail-fns'
-import {getCompetitionDivisionFeesFn} from '@/server-fns/commerce'
-import {getStripeConnectionStatusFn} from '@/server-fns/stripe-connect'
-import {parseCompetitionSettings} from '@/server-fns/competition-divisions-fns'
+import {getCompetitionDivisionFeesFn} from '@/server-fns/commerce-fns'
+ import {getStripeConnectionStatusFn} from '@/server-fns/stripe-connect-fns'
+import {
+  parseCompetitionSettings,
+  getScalingGroupWithLevelsFn,
+} from '@/server-fns/competition-divisions-fns'
+import {getTeamSlugFn} from '@/server-fns/team-fns'
 
 import {PricingSettingsForm} from './-components/pricing-settings-form'
 import {StripeConnectionRequired} from './-components/stripe-connection-required'
-
-// Input schemas
-const scalingGroupInputSchema = z.object({scalingGroupId: z.string()})
-const teamIdInputSchema = z.object({teamId: z.string()})
-
-// Server function to get scaling group with levels (for divisions)
-const getScalingGroupWithLevelsFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) => scalingGroupInputSchema.parse(data))
-  .handler(async ({data}) => {
-    const db = getDb()
-    const scalingGroup = await db.query.scalingGroupsTable.findFirst({
-      where: eq(scalingGroupsTable.id, data.scalingGroupId),
-      with: {
-        scalingLevels: {
-          orderBy: (table, {asc}) => [asc(table.position)],
-        },
-      },
-    })
-
-    return scalingGroup
-  })
-
-// Server function to get team slug for Stripe connection redirect
-const getTeamSlugFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) => teamIdInputSchema.parse(data))
-  .handler(async ({data}) => {
-    const db = getDb()
-    const team = await db.query.teamTable.findFirst({
-      where: eq(teamTable.id, data.teamId),
-      columns: {slug: true},
-    })
-
-    return team?.slug ?? null
-  })
 
 export const Route = createFileRoute(
   '/compete/organizer/$competitionId/pricing',
@@ -71,10 +36,10 @@ export const Route = createFileRoute(
 
     // 2. Get Stripe connection status for the organizing team
     const stripeStatus = await getStripeConnectionStatusFn({
-      data: {teamId: competition.organizingTeamId},
-    })
+       data: {teamId: competition.organizingTeamId},
+     })
 
-    const isStripeConnected = stripeStatus.isConnected
+    const isStripeConnected = false //stripeStatus.isConnected
 
     // 3. Get team slug for Stripe connection redirect (if not connected)
     const teamSlug = await getTeamSlugFn({

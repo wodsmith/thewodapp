@@ -51,6 +51,10 @@ const getActiveTeamInputSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
 })
 
+const getTeamSlugInputSchema = z.object({
+  teamId: z.string().min(1, 'Team ID is required'),
+})
+
 // ===========================
 // Helper Functions
 // ===========================
@@ -301,4 +305,20 @@ export const getActiveTeamFn = createServerFn({method: 'GET'})
     }
 
     return {team}
+  })
+
+/**
+ * Get team slug by team ID
+ * Used for redirects (e.g., Stripe connection redirect)
+ */
+export const getTeamSlugFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
+  .handler(async ({data}) => {
+    const db = getDb()
+    const team = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, data.teamId),
+      columns: {slug: true},
+    })
+
+    return team?.slug ?? null
   })

@@ -1,8 +1,8 @@
-'use client'
-
+          
 import {DollarSign, Loader2, User, Users} from 'lucide-react'
 import {useState} from 'react'
 import {Link, useRouter} from '@tanstack/react-router'
+import {useServerFn} from '@tanstack/react-start'
 import {toast} from 'sonner'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
@@ -19,7 +19,7 @@ import {Label} from '@/components/ui/label'
 import {
   updateCompetitionFeeConfigFn,
   updateDivisionFeeFn,
-} from '@/server-fns/commerce'
+} from '@/server-fns/commerce-fns'
 import {PLATFORM_DEFAULTS} from '@/server/commerce/utils'
 
 interface Props {
@@ -66,6 +66,10 @@ export function PricingSettingsForm({
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Wrap server functions with useServerFn for client-side calls
+  const updateFeeConfig = useServerFn(updateCompetitionFeeConfigFn)
+  const updateDivisionFee = useServerFn(updateDivisionFeeFn)
+
   // Competition-level settings
   const [defaultFee, setDefaultFee] = useState(
     centsToDollars(competition.defaultRegistrationFeeCents),
@@ -92,7 +96,7 @@ export function PricingSettingsForm({
   const handleSaveDefaultFee = async () => {
     setIsSubmitting(true)
     try {
-      await updateCompetitionFeeConfigFn({
+      await updateFeeConfig({
         data: {
           competitionId: competition.id,
           defaultRegistrationFeeCents: dollarsToCents(defaultFee),
@@ -116,7 +120,7 @@ export function PricingSettingsForm({
   ) => {
     setIsSubmitting(true)
     try {
-      await updateDivisionFeeFn({
+      await updateDivisionFee({
         data: {
           competitionId: competition.id,
           divisionId,

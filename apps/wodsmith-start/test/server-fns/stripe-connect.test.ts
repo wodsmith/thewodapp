@@ -10,7 +10,7 @@ import {
   getStripeDashboardUrlFn,
   getStripeAccountBalanceFn,
   syncStripeAccountStatusFn,
-} from '@/server-fns/stripe-connect'
+} from '@/server-fns/stripe-connect-fns'
 
 // Mock the database
 const mockDb = new FakeDrizzleDb()
@@ -213,7 +213,7 @@ describe('stripe-connect server functions', () => {
     it('should sync status from Stripe when account is PENDING and becomes VERIFIED', async () => {
       // When PENDING and Stripe says now VERIFIED:
       // 1. First findFirst: get team status (returns PENDING)
-      // 2. syncStripeAccountStatusInternal calls findFirst 
+      // 2. syncStripeAccountStatusInternal calls findFirst
       // 3. After sync, findFirst again to re-fetch status (now VERIFIED)
       const mockFindFirst = vi
         .fn()
@@ -414,9 +414,9 @@ describe('stripe-connect server functions', () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
       vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
 
-      await expect(
-        initiateStandardOAuthFn({data: validInput}),
-      ).rejects.toThrow('Unauthorized')
+      await expect(initiateStandardOAuthFn({data: validInput})).rejects.toThrow(
+        'Unauthorized',
+      )
     })
 
     it('should throw error when team is not found', async () => {
@@ -425,9 +425,9 @@ describe('stripe-connect server functions', () => {
         findMany: vi.fn().mockResolvedValue([]),
       }
 
-      await expect(
-        initiateStandardOAuthFn({data: validInput}),
-      ).rejects.toThrow('Team not found')
+      await expect(initiateStandardOAuthFn({data: validInput})).rejects.toThrow(
+        'Team not found',
+      )
     })
   })
 
@@ -460,9 +460,9 @@ describe('stripe-connect server functions', () => {
         findMany: vi.fn().mockResolvedValue([]),
       }
 
-      await expect(
-        refreshOnboardingLinkFn({data: validInput}),
-      ).rejects.toThrow('No Stripe account connected')
+      await expect(refreshOnboardingLinkFn({data: validInput})).rejects.toThrow(
+        'No Stripe account connected',
+      )
     })
 
     it('should throw error for Standard accounts', async () => {
@@ -475,18 +475,18 @@ describe('stripe-connect server functions', () => {
         findMany: vi.fn().mockResolvedValue([]),
       }
 
-      await expect(
-        refreshOnboardingLinkFn({data: validInput}),
-      ).rejects.toThrow('Can only refresh onboarding for Express accounts')
+      await expect(refreshOnboardingLinkFn({data: validInput})).rejects.toThrow(
+        'Can only refresh onboarding for Express accounts',
+      )
     })
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
       vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
 
-      await expect(
-        refreshOnboardingLinkFn({data: validInput}),
-      ).rejects.toThrow('Unauthorized')
+      await expect(refreshOnboardingLinkFn({data: validInput})).rejects.toThrow(
+        'Unauthorized',
+      )
     })
   })
 
@@ -571,9 +571,9 @@ describe('stripe-connect server functions', () => {
         findMany: vi.fn().mockResolvedValue([]),
       }
 
-      await expect(
-        getStripeDashboardUrlFn({data: validInput}),
-      ).rejects.toThrow('No Stripe account connected')
+      await expect(getStripeDashboardUrlFn({data: validInput})).rejects.toThrow(
+        'No Stripe account connected',
+      )
     })
 
     it('should throw error when account is not VERIFIED', async () => {
@@ -586,18 +586,18 @@ describe('stripe-connect server functions', () => {
         findMany: vi.fn().mockResolvedValue([]),
       }
 
-      await expect(
-        getStripeDashboardUrlFn({data: validInput}),
-      ).rejects.toThrow('Stripe account not verified')
+      await expect(getStripeDashboardUrlFn({data: validInput})).rejects.toThrow(
+        'Stripe account not verified',
+      )
     })
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
       vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
 
-      await expect(
-        getStripeDashboardUrlFn({data: validInput}),
-      ).rejects.toThrow('Unauthorized')
+      await expect(getStripeDashboardUrlFn({data: validInput})).rejects.toThrow(
+        'Unauthorized',
+      )
     })
   })
 

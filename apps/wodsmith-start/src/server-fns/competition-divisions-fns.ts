@@ -162,6 +162,10 @@ const updateDivisionDescriptionInputSchema = z.object({
   description: z.string().max(2000).nullable(),
 })
 
+const getScalingGroupWithLevelsInputSchema = z.object({
+  scalingGroupId: z.string().min(1, 'Scaling Group ID is required'),
+})
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -441,6 +445,28 @@ async function getRegistrationCountForDivision({
 // ============================================================================
 // Server Functions
 // ============================================================================
+
+/**
+ * Get a scaling group with its levels (divisions)
+ * Used by pricing page to get division options
+ */
+export const getScalingGroupWithLevelsFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) =>
+    getScalingGroupWithLevelsInputSchema.parse(data),
+  )
+  .handler(async ({data}) => {
+    const db = getDb()
+    const scalingGroup = await db.query.scalingGroupsTable.findFirst({
+      where: eq(scalingGroupsTable.id, data.scalingGroupId),
+      with: {
+        scalingLevels: {
+          orderBy: (table, {asc}) => [asc(table.position)],
+        },
+      },
+    })
+
+    return scalingGroup
+  })
 
 /**
  * Get divisions for public competition display

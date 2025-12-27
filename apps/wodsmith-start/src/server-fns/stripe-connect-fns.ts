@@ -10,8 +10,10 @@ import {setCookie} from '@tanstack/react-start/server'
 import {getDb} from '@/db'
 import {TEAM_PERMISSIONS, teamTable} from '@/db/schema'
 import {getStripe} from '@/lib/stripe'
-import {getSessionFromCookie, requireVerifiedEmail} from '@/utils/auth'
+import {requireVerifiedEmail} from '@/utils/auth'
 import isProd from '@/utils/is-prod'
+import {requireTeamMembership} from './requireTeamMembership'
+import {requireTeamPermission} from '@/utils/team-auth'
 
 // ============================================================================
 // Constants
@@ -19,54 +21,6 @@ import isProd from '@/utils/is-prod'
 
 /** Cookie name for OAuth state CSRF token */
 export const STRIPE_OAUTH_STATE_COOKIE_NAME = 'stripe_oauth_state'
-
-// ============================================================================
-// Permission Helpers
-// ============================================================================
-
-/**
- * Check if user has permission for a team
- */
-async function hasTeamPermission(
-  teamId: string,
-  permission: string,
-): Promise<boolean> {
-  const session = await getSessionFromCookie()
-  if (!session?.userId) return false
-
-  const team = session.teams?.find((t) => t.id === teamId)
-  if (!team) return false
-
-  return team.permissions.includes(permission)
-}
-
-/**
- * Require team permission or throw error
- */
-async function requireTeamPermission(
-  teamId: string,
-  permission: string,
-): Promise<void> {
-  const hasPermission = await hasTeamPermission(teamId, permission)
-  if (!hasPermission) {
-    throw new Error(`Missing required permission: ${permission}`)
-  }
-}
-
-/**
- * Require team membership (any role)
- */
-async function requireTeamMembership(teamId: string): Promise<void> {
-  const session = await getSessionFromCookie()
-  if (!session?.userId) {
-    throw new Error('Not authenticated')
-  }
-
-  const team = session.teams?.find((t) => t.id === teamId)
-  if (!team) {
-    throw new Error('Not a member of this team')
-  }
-}
 
 // ============================================================================
 // Stripe Connect Helpers (ported from wodsmith)
@@ -233,71 +187,71 @@ async function createExpressAccountLink(
   return {url: accountLink.url}
 }
 
-/**
- * Handle OAuth callback - exchange code for account ID
- * Exported for use in OAuth callback API route
- *
- * @param code - The authorization code from Stripe
- * @param state - The state parameter containing teamId, teamSlug, userId, csrfToken
- * @returns Object with teamId, teamSlug, accountId, and status
- */
-export async function handleOAuthCallback(
-  code: string,
-  state: string,
-): Promise<{
-  teamId: string
-  teamSlug: string
-  accountId: string
-  status: 'VERIFIED' | 'PENDING'
-}> {
-  const stripe = getStripe()
-  const db = getDb()
+// /**
+//  * Handle OAuth callback - exchange code for account ID
+//  * Exported for use in OAuth callback API route
+//  *
+//  * @param code - The authorization code from Stripe
+//  * @param state - The state parameter containing teamId, teamSlug, userId, csrfToken
+//  * @returns Object with teamId, teamSlug, accountId, and status
+//  */
+// export async function handleOAuthCallback(
+//   code: string,
+//   state: string,
+// ): Promise<{
+//   teamId: string
+//   teamSlug: string
+//   accountId: string
+//   status: 'VERIFIED' | 'PENDING'
+// }> {
+//   const stripe = getStripe()
+//   const db = getDb()
 
-  // Decode state - now includes userId and csrfToken for security
-  const stateData = parseOAuthState(state)
+//   // Decode state - now includes userId and csrfToken for security
+//   const stateData = parseOAuthState(state)
 
-  // Exchange code for account ID
-  const response = await stripe.oauth.token({
-    grant_type: 'authorization_code',
-    code,
-  })
+//   // Exchange code for account ID
+//   const response = await stripe.oauth.token({
+//     grant_type: 'authorization_code',
+//     code,
+//   })
 
-  if (!response.stripe_user_id) {
-    throw new Error('Failed to get Stripe account ID from OAuth')
-  }
+//   if (!response.stripe_user_id) {
+//     throw new Error('Failed to get Stripe account ID from OAuth')
+//   }
 
-  // Get account details to check status
-  const account = await stripe.accounts.retrieve(response.stripe_user_id)
-  const status =
-    account.charges_enabled && account.payouts_enabled ? 'VERIFIED' : 'PENDING'
+//   // Get account details to check status
+//   const account = await stripe.accounts.retrieve(response.stripe_user_id)
+//   const status =
+//     account.charges_enabled && account.payouts_enabled ? 'VERIFIED' : 'PENDING'
 
-  console.log('[Stripe OAuth] Account status check:', {
-    accountId: response.stripe_user_id,
-    chargesEnabled: account.charges_enabled,
-    payoutsEnabled: account.payouts_enabled,
-    detailsSubmitted: account.details_submitted,
-    status,
-    teamId: stateData.teamId,
-  })
+//   console.log('[Stripe OAuth] Account status check:', {
+//     accountId: response.stripe_user_id,
+//     chargesEnabled: account.charges_enabled,
+//     payoutsEnabled: account.payouts_enabled,
+//     detailsSubmitted: account.details_submitted,
+//     status,
+//     teamId: stateData.teamId,
+//   })
 
-  // Update team
-  await db
-    .update(teamTable)
-    .set({
-      stripeConnectedAccountId: response.stripe_user_id,
-      stripeAccountStatus: status,
-      stripeAccountType: 'standard',
-      stripeOnboardingCompletedAt: status === 'VERIFIED' ? new Date() : null,
-    })
-    .where(eq(teamTable.id, stateData.teamId))
+//   // Update team
+//   await db
+//     .update(teamTable)
+//     .set({
+//       stripeConnectedAccountId: response.stripe_user_id,
+//       stripeAccountStatus: status,
+//       stripeAccountType: 'standard',
+//       stripeOnboardingCompletedAt: status === 'VERIFIED' ? new Date() : null,
+//     })
+//     .where(eq(teamTable.id, stateData.teamId))
 
-  return {
-    teamId: stateData.teamId,
-    teamSlug: stateData.teamSlug,
-    accountId: response.stripe_user_id,
-    status,
-  }
-}
+//   return {
+//     teamId: stateData.teamId,
+//     teamSlug: stateData.teamSlug,
+//     accountId: response.stripe_user_id,
+//     status,
+//   }
+// }
 
 /**
  * Sync account status from Stripe to database
@@ -425,7 +379,6 @@ export const getStripeConnectionStatusFn = createServerFn({method: 'GET'})
   .handler(async ({data: input}) => {
     // Verify user is a member of this team
     await requireTeamMembership(input.teamId)
-
     const db = getDb()
     const team = await db.query.teamTable.findFirst({
       where: eq(teamTable.id, input.teamId),
@@ -440,7 +393,6 @@ export const getStripeConnectionStatusFn = createServerFn({method: 'GET'})
     if (!team) {
       throw new Error('Team not found')
     }
-
     // If pending, sync status from Stripe
     if (
       team.stripeConnectedAccountId &&
@@ -462,7 +414,6 @@ export const getStripeConnectionStatusFn = createServerFn({method: 'GET'})
         onboardingCompletedAt: updated?.stripeOnboardingCompletedAt,
       }
     }
-
     return {
       isConnected: team.stripeAccountStatus === 'VERIFIED',
       status: team.stripeAccountStatus,

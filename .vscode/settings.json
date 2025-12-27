@@ -29,7 +29,7 @@
 	"[typescriptreact]": {
 		"editor.defaultFormatter": "TypeScriptTeam.native-preview"
 	},
-	"typescript.experimental.useTsgo": true,
+	"typescript.experimental.useTsgo": false,
 	"[typescript]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	}
