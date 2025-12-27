@@ -55,13 +55,13 @@ export function DraggableDivision({
 							align-items: center;
 							gap: 8px;
 						`
-						
+
 						// Division name
 						const nameSpan = document.createElement("span")
 						nameSpan.style.fontWeight = "600"
 						nameSpan.textContent = divisionName
 						preview.appendChild(nameSpan)
-						
+
 						// Athlete count in badge
 						const badge = document.createElement("span")
 						badge.style.cssText = `
@@ -73,7 +73,7 @@ export function DraggableDivision({
 						`
 						badge.textContent = `${athleteCount} athlete${athleteCount !== 1 ? "s" : ""}`
 						preview.appendChild(badge)
-						
+
 						container.appendChild(preview)
 					},
 				})

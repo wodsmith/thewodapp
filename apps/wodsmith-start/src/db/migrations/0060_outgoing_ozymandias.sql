@@ -1,0 +1,1 @@
+ALTER TABLE `competition_heat_volunteers` ADD `rotationId` text REFERENCES competition_judge_rotations(id);

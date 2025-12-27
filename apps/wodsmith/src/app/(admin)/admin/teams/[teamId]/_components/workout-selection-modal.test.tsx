@@ -67,7 +67,9 @@ describe("WorkoutSelectionModal (Refactored)", () => {
 
 		// The date format shown is "Sun Jun 15 2025" (formatted by toDateString())
 		expect(
-			screen.getByText(/Select a workout from your team's programming tracks for/),
+			screen.getByText(
+				/Select a workout from your team's programming tracks for/,
+			),
 		).toBeInTheDocument()
 		expect(screen.getByText(/Sun Jun 15 2025/)).toBeInTheDocument()
 	})

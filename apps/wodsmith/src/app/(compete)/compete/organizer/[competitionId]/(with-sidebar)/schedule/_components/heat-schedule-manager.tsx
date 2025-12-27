@@ -4,7 +4,15 @@ import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
 import { useServerAction } from "@repo/zsa-react"
-import { Calculator, Eye, EyeOff, GripVertical, Loader2, Plus, Users } from "lucide-react"
+import {
+	Calculator,
+	Eye,
+	EyeOff,
+	GripVertical,
+	Loader2,
+	Plus,
+	Users,
+} from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
 import {
@@ -135,13 +143,13 @@ function DraggableDivisionHeader({
 							align-items: center;
 							gap: 8px;
 						`
-						
+
 						// Division name
 						const nameSpan = document.createElement("span")
 						nameSpan.style.fontWeight = "600"
 						nameSpan.textContent = divisionLabel
 						preview.appendChild(nameSpan)
-						
+
 						// Athlete count in badge
 						const badge = document.createElement("span")
 						badge.style.cssText = `
@@ -153,7 +161,7 @@ function DraggableDivisionHeader({
 						`
 						badge.textContent = `${athleteCount} athlete${athleteCount !== 1 ? "s" : ""}`
 						preview.appendChild(badge)
-						
+
 						container.appendChild(preview)
 					},
 				})
@@ -389,7 +397,9 @@ export function HeatScheduleManager({
 	const [bulkCreateTab, setBulkCreateTab] = useState<"new" | "copy">("new")
 	// Copy from previous event state
 	const [copySourceEventId, setCopySourceEventId] = useState<string>("")
-	const [copyStartTime, setCopyStartTime] = useState<string>(getDefaultHeatTime())
+	const [copyStartTime, setCopyStartTime] = useState<string>(
+		getDefaultHeatTime(),
+	)
 	const [copyDurationMinutes, setCopyDurationMinutes] = useState(8)
 	// Gap between end of last event and start of copied heats (default to venue transition, set when dialog opens)
 	const [copyGapMinutes, setCopyGapMinutes] = useState<number>(3)
@@ -682,7 +692,7 @@ export function HeatScheduleManager({
 		setHeats(
 			heats.map((h) =>
 				h.trackWorkoutId === selectedEventId
-					? updatedEventHeats.find((uh) => uh.id === h.id) ?? h
+					? (updatedEventHeats.find((uh) => uh.id === h.id) ?? h)
 					: h,
 			),
 		)
@@ -1172,7 +1182,10 @@ export function HeatScheduleManager({
 					<DialogHeader>
 						<DialogTitle>Add Heats</DialogTitle>
 					</DialogHeader>
-					<Tabs value={bulkCreateTab} onValueChange={(v) => setBulkCreateTab(v as "new" | "copy")}>
+					<Tabs
+						value={bulkCreateTab}
+						onValueChange={(v) => setBulkCreateTab(v as "new" | "copy")}
+					>
 						<TabsList className="grid w-full grid-cols-2">
 							<TabsTrigger value="new">Create New</TabsTrigger>
 							<TabsTrigger value="copy" disabled={eventsWithHeats.length === 0}>
@@ -1197,7 +1210,9 @@ export function HeatScheduleManager({
 										<Input
 											type="datetime-local"
 											value={time}
-											onChange={(e) => updateBulkHeatTime(index, e.target.value)}
+											onChange={(e) =>
+												updateBulkHeatTime(index, e.target.value)
+											}
 											className="flex-1"
 										/>
 									</div>
@@ -1291,7 +1306,8 @@ export function HeatScheduleManager({
 											onChange={(e) => setCopyStartTime(e.target.value)}
 										/>
 										<p className="text-xs text-muted-foreground mt-1">
-											First heat will start at this time (auto-calculated from gap)
+											First heat will start at this time (auto-calculated from
+											gap)
 										</p>
 									</div>
 
@@ -1428,69 +1444,69 @@ export function HeatScheduleManager({
 											{div.label}
 										</SelectItem>
 									))}
-						</SelectContent>
-					</Select>
-				</CardHeader>
-				<CardContent className="overflow-y-auto flex-1">
-					{selectedAthleteIds.size > 0 && (
-						<div className="flex items-center justify-between mb-3 pb-2 border-b">
-							<span className="text-sm font-medium text-primary">
-								{selectedAthleteIds.size} selected
-							</span>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={clearSelection}
-								className="h-6 text-xs"
-							>
-								Clear
-							</Button>
-						</div>
-					)}
-					{unassignedRegistrations.length === 0 ? (
-						<p className="text-sm text-muted-foreground text-center py-4">
-							All athletes are assigned to heats.
-						</p>
-					) : unassignedByDivision.size === 0 ? (
-						<p className="text-sm text-muted-foreground text-center py-4">
-							No athletes in this division.
-						</p>
-					) : (
-						<div className="space-y-4">
-							{/* Division groups with draggable headers */}
-							{Array.from(unassignedByDivision.entries()).map(
-								([divId, regs]) => {
-									const divisionLabel =
-										divisions.find((d) => d.id === divId)?.label ??
-										"No Division"
-
-									return (
-										<div key={divId}>
-											<DraggableDivisionHeader
-												divisionId={divId}
-												divisionLabel={divisionLabel}
-												athleteCount={regs.length}
-												registrationIds={regs.map((r) => r.id)}
-											/>
-											<div className="space-y-1">
-												{regs.map((reg) => (
-													<DraggableAthlete
-														key={reg.id}
-														registration={reg}
-														isSelected={selectedAthleteIds.has(reg.id)}
-														onToggleSelect={toggleAthleteSelection}
-														selectedCount={selectedAthleteIds.size}
-														selectedIds={selectedAthleteIds}
-													/>
-												))}
-											</div>
-										</div>
-									)
-								},
+								</SelectContent>
+							</Select>
+						</CardHeader>
+						<CardContent className="overflow-y-auto flex-1">
+							{selectedAthleteIds.size > 0 && (
+								<div className="flex items-center justify-between mb-3 pb-2 border-b">
+									<span className="text-sm font-medium text-primary">
+										{selectedAthleteIds.size} selected
+									</span>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={clearSelection}
+										className="h-6 text-xs"
+									>
+										Clear
+									</Button>
+								</div>
 							)}
-						</div>
-					)}
-				</CardContent>
+							{unassignedRegistrations.length === 0 ? (
+								<p className="text-sm text-muted-foreground text-center py-4">
+									All athletes are assigned to heats.
+								</p>
+							) : unassignedByDivision.size === 0 ? (
+								<p className="text-sm text-muted-foreground text-center py-4">
+									No athletes in this division.
+								</p>
+							) : (
+								<div className="space-y-4">
+									{/* Division groups with draggable headers */}
+									{Array.from(unassignedByDivision.entries()).map(
+										([divId, regs]) => {
+											const divisionLabel =
+												divisions.find((d) => d.id === divId)?.label ??
+												"No Division"
+
+											return (
+												<div key={divId}>
+													<DraggableDivisionHeader
+														divisionId={divId}
+														divisionLabel={divisionLabel}
+														athleteCount={regs.length}
+														registrationIds={regs.map((r) => r.id)}
+													/>
+													<div className="space-y-1">
+														{regs.map((reg) => (
+															<DraggableAthlete
+																key={reg.id}
+																registration={reg}
+																isSelected={selectedAthleteIds.has(reg.id)}
+																onToggleSelect={toggleAthleteSelection}
+																selectedCount={selectedAthleteIds.size}
+																selectedIds={selectedAthleteIds}
+															/>
+														))}
+													</div>
+												</div>
+											)
+										},
+									)}
+								</div>
+							)}
+						</CardContent>
 					</Card>
 				</div>
 			</div>
