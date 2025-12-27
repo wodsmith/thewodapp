@@ -337,19 +337,22 @@ export const getJudgeHeatAssignmentsFn = createServerFn({method: 'GET'})
  */
 export const getRotationsForEventFn = createServerFn({method: 'GET'})
   .inputValidator((data: unknown) =>
-    z.object({eventId: z.string()}).parse(data),
+    z.object({trackWorkoutId: z.string()}).parse(data),
   )
   .handler(async ({data}) => {
     const db = getDb()
 
     const rotations = await db.query.competitionJudgeRotationsTable.findMany({
-      where: eq(competitionJudgeRotationsTable.trackWorkoutId, data.eventId),
+      where: eq(
+        competitionJudgeRotationsTable.trackWorkoutId,
+        data.trackWorkoutId,
+      ),
       orderBy: (table, {asc}) => [asc(table.startingHeat)],
     })
 
     // Get event defaults from trackWorkout
     const event = await db.query.trackWorkoutsTable.findFirst({
-      where: eq(trackWorkoutsTable.id, data.eventId),
+      where: eq(trackWorkoutsTable.id, data.trackWorkoutId),
     })
 
     const eventDefaults = {
@@ -364,39 +367,7 @@ export const getRotationsForEventFn = createServerFn({method: 'GET'})
     }
   })
 
-/**
- * Get version history for an event
- */
-export const getVersionHistoryFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) =>
-    z.object({eventId: z.string()}).parse(data),
-  )
-  .handler(async ({data}) => {
-    const db = getDb()
-
-    return db.query.judgeAssignmentVersionsTable.findMany({
-      where: eq(judgeAssignmentVersionsTable.trackWorkoutId, data.eventId),
-      orderBy: (table, {desc}) => [desc(table.version)],
-    })
-  })
-
-/**
- * Get active version for an event
- */
-export const getActiveVersionFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) =>
-    z.object({eventId: z.string()}).parse(data),
-  )
-  .handler(async ({data}) => {
-    const db = getDb()
-
-    return db.query.judgeAssignmentVersionsTable.findFirst({
-      where: and(
-        eq(judgeAssignmentVersionsTable.trackWorkoutId, data.eventId),
-        eq(judgeAssignmentVersionsTable.isActive, true),
-      ),
-    })
-  })
+// Note: getVersionHistoryFn and getActiveVersionFn are in judge-assignment-fns.ts
 
 /**
  * Get judge conflicts for a heat
