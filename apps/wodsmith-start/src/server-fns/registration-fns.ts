@@ -14,7 +14,6 @@ import {
   COMMERCE_PURCHASE_STATUS,
   commerceProductTable,
   commercePurchaseTable,
-  competitionDivisionsTable,
   competitionRegistrationsTable,
   competitionsTable,
   scalingLevelsTable,

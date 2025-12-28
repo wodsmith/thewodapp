@@ -11,8 +11,6 @@ export const Route = createFileRoute('/_protected')({
 })
 
 function ProtectedLayout() {
-  const {session} = Route.useRouteContext()
-
   return (
     <div className="min-h-screen bg-background">
       <main>

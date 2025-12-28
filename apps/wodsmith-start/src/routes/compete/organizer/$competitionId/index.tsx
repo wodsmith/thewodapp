@@ -174,11 +174,11 @@ function CompetitionOverviewPage() {
               <p className="text-sm text-muted-foreground">
                 No registration window configured
               </p>
-              <Link to={`/compete/organizer/${competition.id}/edit`}>
+              <a href={`/compete/organizer/${competition.id}/edit`}>
                 <Button variant="outline" size="sm" className="mt-2">
                   Configure Registration
                 </Button>
-              </Link>
+              </a>
             </div>
           )}
         </CardContent>
@@ -193,7 +193,10 @@ function CompetitionOverviewPage() {
               <CardTitle>Registrations</CardTitle>
               <CardDescription>Athletes registered</CardDescription>
             </div>
-            <Link to={`/compete/organizer/${competition.id}/athletes`}>
+            <Link
+              to="/compete/organizer/$competitionId/athletes"
+              params={{competitionId: competition.id}}
+            >
               <Button variant="outline" size="sm">
                 <Users className="mr-2 h-4 w-4" />
                 View All
@@ -234,7 +237,10 @@ function CompetitionOverviewPage() {
               <CardTitle>Revenue</CardTitle>
               <CardDescription>Paid registrations</CardDescription>
             </div>
-            <Link to={`/compete/organizer/${competition.id}/revenue`}>
+            <Link
+              to="/compete/organizer/$competitionId/revenue"
+              params={{competitionId: competition.id}}
+            >
               <Button variant="outline" size="sm">
                 <TrendingUp className="mr-2 h-4 w-4" />
                 Details

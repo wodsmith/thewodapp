@@ -1,17 +1,12 @@
-import { AnyZodObject, objectUtil, z, ZodObject } from "zod"
-import { NextRequest } from "./api"
-import {
-  TOnCompleteFn,
-  TOnErrorFn,
-  TOnStartFn,
-  TOnSuccessFn,
-} from "./callbacks"
+import {AnyZodObject, objectUtil, z, ZodObject} from 'zod'
+import {NextRequest} from './api'
+import {TOnCompleteFn, TOnErrorFn, TOnStartFn, TOnSuccessFn} from './callbacks'
 import {
   TReplaceErrorPlaceholders,
   TypedProxyError,
   TZSAError,
   ZSAError,
-} from "./errors"
+} from './errors'
 
 export type TFinalError<
   TInputSchema extends z.ZodType | undefined,
@@ -35,15 +30,15 @@ export type TSchemaOrZodUnknown<T extends z.ZodType | undefined> =
   T extends z.ZodType ? T : z.ZodUnknown
 
 export type TSchemaInput<T extends z.ZodType | undefined> = T extends z.ZodType
-  ? T["_input"]
+  ? T['_input']
   : undefined
 
 export type TSchemaOutput<T extends z.ZodType | undefined> = T extends z.ZodType
-  ? T["_output"]
+  ? T['_output']
   : undefined
 
 export type TSchemaOutputOrUnknown<T extends z.ZodType | undefined> =
-  T extends z.ZodType ? T["_output"] : unknown
+  T extends z.ZodType ? T['_output'] : unknown
 
 /** Replace void with undefined */
 type TCleanData<T extends Promise<any>> =
@@ -157,11 +152,11 @@ export interface TNoInputHandlerFunc<
   (
     placeholder?: undefined,
     $overrideArgs?: undefined,
-    $opts?: THandlerOpts<TProcedureChainOutput>
+    $opts?: THandlerOpts<TProcedureChainOutput>,
   ): TDataOrError<
     TInputSchema,
     TOutputSchema,
-    TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet,
+    TOutputSchema extends z.ZodType ? TOutputSchema['_output'] : TRet,
     TError,
     TIsProcedure
   >
@@ -179,15 +174,15 @@ export interface THandlerFunc<
 > {
   (
     /** The input to the handler */
-    args: TInputType extends "json" ? TSchemaInput<TInputSchema> : FormData,
+    args: TInputType extends 'json' ? TSchemaInput<TInputSchema> : FormData,
     /** Override the args */
     $overrideArgs?: Partial<TSchemaInput<TInputSchema>>,
     /** Options for the handler */
-    $opts?: THandlerOpts<TProcedureChainOutput>
+    $opts?: THandlerOpts<TProcedureChainOutput>,
   ): TDataOrError<
     TInputSchema,
     TOutputSchema,
-    TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet,
+    TOutputSchema extends z.ZodType ? TOutputSchema['_output'] : TRet,
     TError,
     TIsProcedure
   >
@@ -204,11 +199,11 @@ export interface TStateHandlerFunc<
     /** The previous state */
     previousState: any,
     /** Override the args */
-    formData: FormData
+    formData: FormData,
   ): TDataOrErrorOrNull<
     TInputSchema,
     TOutputSchema,
-    TOutputSchema extends z.ZodType ? TOutputSchema["_output"] : TRet,
+    TOutputSchema extends z.ZodType ? TOutputSchema['_output'] : TRet,
     TError
   >
 }
@@ -251,12 +246,12 @@ export type TAnyZodSafeFunctionHandler<
   | ((
       input: any,
       overrideArgs?: any,
-      opts?: THandlerOpts<any>
+      opts?: THandlerOpts<any>,
     ) => TDataOrError<TInputSchema, TOutputSchema, TData, TError, TIsProcedure>)
   | ((
       placeholder?: undefined,
       overrideArgs?: undefined,
-      opts?: THandlerOpts<any>
+      opts?: THandlerOpts<any>,
     ) => TDataOrError<TInputSchema, TOutputSchema, TData, TError, TIsProcedure>)
 
 /** infer input schema */
@@ -275,7 +270,7 @@ export type inferInputSchemaFromHandler<
 export interface TInternals<
   TInputSchema extends z.ZodType | undefined,
   TOutputSchema extends z.ZodType | undefined,
-  TError extends any,
+  _TError extends any,
   TIsProcedure extends boolean,
 > {
   /**
@@ -340,7 +335,7 @@ export interface TInternals<
   shapeErrorFns: Array<TShapeErrorFn> | undefined
 }
 
-export type InputTypeOptions = "formData" | "json" | "state"
+export type InputTypeOptions = 'formData' | 'json' | 'state'
 
 /**
  * A class representing a ZSA response meta object
@@ -370,7 +365,7 @@ export type PrettifyNested<T> =
       }
     : T
 
-export const ShapeErrorNotSet = "ShapeErrorNotSet" as const
+export const ShapeErrorNotSet = 'ShapeErrorNotSet' as const
 export type TShapeErrorNotSet = typeof ShapeErrorNotSet
 
 export interface TShapeErrorFn<TError extends any = TShapeErrorNotSet> {
@@ -389,7 +384,7 @@ export interface TInputSchemaFn<
     args: {
       ctx: TProcedureChainOutput
       previousSchema: TSchemaOrZodUndefined<TPreviousInputSchema>
-    } & Pick<THandlerOpts<any>, "previousState" | "request" | "responseMeta">
+    } & Pick<THandlerOpts<any>, 'previousState' | 'request' | 'responseMeta'>,
   ): z.ZodType | Promise<z.ZodType>
 }
 
@@ -398,7 +393,7 @@ export interface TOutputSchemaFn<TProcedureChainOutput extends any> {
     args: {
       ctx: TProcedureChainOutput
       unparsedData: unknown
-    } & Pick<THandlerOpts<any>, "previousState" | "request" | "responseMeta">
+    } & Pick<THandlerOpts<any>, 'previousState' | 'request' | 'responseMeta'>,
   ): z.ZodType | Promise<z.ZodType>
 }
 
@@ -414,9 +409,9 @@ export type TZodMerge<
 > = T1 extends AnyZodObject
   ? T2 extends AnyZodObject
     ? ZodObject<
-        objectUtil.extendShape<T1["shape"], T2["shape"]>,
-        T2["_def"]["unknownKeys"],
-        T2["_def"]["catchall"]
+        objectUtil.extendShape<T1['shape'], T2['shape']>,
+        T2['_def']['unknownKeys'],
+        T2['_def']['catchall']
       >
     : T2 extends undefined
       ? T1 // only return T1 if T2 is undefined

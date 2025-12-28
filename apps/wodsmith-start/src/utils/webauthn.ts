@@ -70,15 +70,16 @@ export async function verifyPasskeyRegistration({
     throw new Error('Passkey registration failed')
   }
 
-  const {credential, aaguid} = verification.registrationInfo
+  // Extract credential info from registrationInfo
+  // Note: API changed in simplewebauthn v10 - credential is now at top level
+  const {credentialID, credentialPublicKey, aaguid} =
+    verification.registrationInfo
 
   const db = getDb()
   await db.insert(passKeyCredentialTable).values({
     userId,
-    credentialId: credential.id,
-    credentialPublicKey: Buffer.from(credential.publicKey).toString(
-      'base64url',
-    ),
+    credentialId: credentialID,
+    credentialPublicKey: Buffer.from(credentialPublicKey).toString('base64url'),
     counter: 0, // Initial counter value for new registrations
     transports: response.response.transports
       ? JSON.stringify(response.response.transports)
@@ -130,9 +131,13 @@ export async function verifyPasskeyAuthentication(
     expectedOrigin: origin,
     expectedRPID: rpID,
     requireUserVerification: true,
-    credential: {
-      id: credential.credentialId,
-      publicKey: Buffer.from(credential.credentialPublicKey, 'base64url'),
+    // Note: In simplewebauthn v10+, authenticator is passed instead of credential
+    authenticator: {
+      credentialID: credential.credentialId,
+      credentialPublicKey: Buffer.from(
+        credential.credentialPublicKey,
+        'base64url',
+      ),
       counter: credential.counter,
       transports: credential.transports
         ? JSON.parse(credential.transports)

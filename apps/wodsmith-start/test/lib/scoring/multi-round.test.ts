@@ -1,10 +1,8 @@
 import {describe, expect, it} from 'vitest'
 import {
   encodeRounds,
-  encodeScore,
   aggregateValues,
   formatRounds,
-  decodeScore,
   getDefaultScoreType,
   type RoundInput,
   type ScoreRound,

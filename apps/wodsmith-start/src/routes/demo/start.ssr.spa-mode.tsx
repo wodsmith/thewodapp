@@ -1,19 +1,19 @@
-import { useEffect, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { getPunkSongs } from '@/data/demo.punk-songs'
+import {useEffect, useState} from 'react'
+import {createFileRoute} from '@tanstack/react-router'
+import {getPunkSongs} from '@/data/demo.punk-songs'
 
 export const Route = createFileRoute('/demo/start/ssr/spa-mode')({
   ssr: false,
   component: RouteComponent,
 })
 
+type PunkSong = {id: number; name: string; artist: string}
+
 function RouteComponent() {
-  const [punkSongs, setPunkSongs] = useState<
-    Awaited<ReturnType<typeof getPunkSongs>>
-  >([])
+  const [punkSongs, setPunkSongs] = useState<PunkSong[]>([])
 
   useEffect(() => {
-    getPunkSongs().then(setPunkSongs)
+    getPunkSongs().then((songs) => setPunkSongs(songs as PunkSong[]))
   }, [])
 
   return (

@@ -87,7 +87,7 @@ export const Route = createFileRoute('/compete/$slug/register')({
       })
 
     if (existingRegistration) {
-      throw redirect({to: `/compete/${slug}`})
+      throw redirect({to: '/compete/$slug', params: {slug}})
     }
 
     // 4. Check profile completeness (commented out in original)

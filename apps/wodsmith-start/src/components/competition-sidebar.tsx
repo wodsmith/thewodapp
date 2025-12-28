@@ -22,7 +22,6 @@ import {
   Users,
 } from 'lucide-react'
 import {Link, useRouterState} from '@tanstack/react-router'
-import {Button} from '@/components/ui/button'
 import {
   Sidebar,
   SidebarContent,

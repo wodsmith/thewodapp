@@ -5,7 +5,7 @@ import {
   getCompetitionDivisionFeesFn,
   updateCompetitionFeeConfigFn,
   updateDivisionFeeFn,
-} from '@/server-fns/commerce'
+} from '@/server-fns/commerce-fns'
 
 // Mock the database
 const mockDb = new FakeDrizzleDb()
@@ -93,12 +93,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllMocks()
 })
-
-// Helper to set up the chain mock with limit support
-function mockChainWithLimit(values: unknown[]) {
-  const limitMock = mockDb.getChainMock().limit as any
-  limitMock.mockResolvedValueOnce(values)
-}
 
 describe('commerce server functions', () => {
   describe('getCompetitionDivisionFeesFn', () => {
@@ -218,7 +212,9 @@ describe('commerce server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(
         updateCompetitionFeeConfigFn({
@@ -258,7 +254,9 @@ describe('commerce server functions', () => {
       }
 
       const {getSessionFromCookie} = await import('@/utils/auth')
-      vi.mocked(getSessionFromCookie).mockResolvedValueOnce(noPermSession as any)
+      vi.mocked(getSessionFromCookie).mockResolvedValueOnce(
+        noPermSession as any,
+      )
 
       mockDb.query.competitionsTable = {
         findFirst: vi.fn().mockResolvedValue(mockCompetition),
@@ -365,7 +363,9 @@ describe('commerce server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(
         updateDivisionFeeFn({

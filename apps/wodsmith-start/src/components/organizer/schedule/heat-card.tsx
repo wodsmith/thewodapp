@@ -332,8 +332,8 @@ interface HeatCardProps {
 
 export function HeatCard({
   heat,
-  competitionId,
-  organizingTeamId,
+  competitionId: _competitionId,
+  organizingTeamId: _organizingTeamId,
   unassignedRegistrations,
   maxLanes,
   onDelete,
@@ -353,7 +353,7 @@ export function HeatCard({
   // Loading states
   const [isAssigning, setIsAssigning] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
-  const [isMoving, setIsMoving] = useState(false)
+  const [_isMoving, setIsMoving] = useState(false)
 
   // Drag-and-drop refs and state for heat reordering
   const heatRef = useRef<HTMLDivElement>(null)

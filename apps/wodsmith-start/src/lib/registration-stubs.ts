@@ -30,6 +30,8 @@ export async function registerForCompetition(
   const db = getDb()
 
   // Create registration record
+  // Note: affiliateName is stored in user profile, not registration
+  // TODO: Create teamMemberId before inserting registration
   const [registration] = await db
     .insert(competitionRegistrationsTable)
     .values({
@@ -37,7 +39,8 @@ export async function registerForCompetition(
       userId: params.userId,
       divisionId: params.divisionId,
       teamName: params.teamName,
-      affiliateName: params.affiliateName,
+      teamMemberId: '', // TODO: Create team membership first
+      registeredAt: new Date(),
       // TODO: Handle team creation and invitations for team registrations
     })
     .returning()

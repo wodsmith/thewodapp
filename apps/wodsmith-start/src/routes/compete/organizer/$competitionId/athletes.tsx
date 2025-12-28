@@ -44,14 +44,16 @@ export const Route = createFileRoute(
 )({
   component: AthletesPage,
   validateSearch: athletesSearchSchema,
-  loader: async ({params, search, context}) => {
+  loaderDeps: ({search}) => ({division: search?.division}),
+  loader: async ({params, deps}) => {
     const {competitionId} = params
-    const divisionFilter = search?.division
+    const divisionFilter = deps?.division
 
     // Get competition from parent route context to get teamId
     // We need to fetch it here since we can't access parent loader data in loader
-    const {getCompetitionByIdFn} =
-      await import('@/server-fns/competition-detail-fns')
+    const {getCompetitionByIdFn} = await import(
+      '@/server-fns/competition-detail-fns'
+    )
     const {competition} = await getCompetitionByIdFn({data: {competitionId}})
 
     if (!competition) {
@@ -191,9 +193,25 @@ function AthletesPage() {
                         (registration.division?.teamSize ?? 1) > 1
 
                       // Get teammates (non-captain members)
+                      // Type assertion needed because Drizzle's relation inference doesn't fully capture nested relations
+                      const athleteTeamWithMemberships =
+                        registration.athleteTeam as {
+                          memberships?: Array<{
+                            id: string
+                            userId: string
+                            user?: {
+                              id: string
+                              firstName: string | null
+                              lastName: string | null
+                              email: string | null
+                              avatar: string | null
+                            } | null
+                          }>
+                        } | null
                       const teammates =
-                        registration.athleteTeam?.memberships?.filter(
-                          (m) => m.userId !== registration.userId && m.user,
+                        athleteTeamWithMemberships?.memberships?.filter(
+                          (m: {userId: string; user?: unknown}) =>
+                            m.userId !== registration.userId && m.user,
                         ) ?? []
 
                       return (

@@ -32,7 +32,7 @@ export function MovementsList({
   movements,
   selectedMovements = [],
   onMovementToggle,
-  mode = 'selectable',
+  mode: _mode = 'selectable',
   variant = 'default',
   className = '',
   showLabel = true,

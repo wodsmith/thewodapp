@@ -5,6 +5,7 @@ export const SITE_URL =
   process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
     : process.env.SITE_URL || 'https://thewodapp.com'
+export const SITE_DOMAIN = 'thewodapp.com'
 
 // Auth configuration
 export const REDIRECT_AFTER_SIGN_IN = '/dashboard'

@@ -43,8 +43,9 @@ const updateAthleteProfileFn = createServerFn({method: 'POST'})
   .inputValidator((data: unknown) =>
     updateAthleteProfileInputSchema.parse(data),
   )
-  .handler(async ({data, context}) => {
-    const session = context.session
+  .handler(async ({data}) => {
+    const {getSessionFromCookie} = await import('@/utils/auth')
+    const session = await getSessionFromCookie()
     if (!session?.userId) {
       throw new Error('Unauthorized')
     }
@@ -197,10 +198,11 @@ export const Route = createFileRoute('/compete/$slug/register/success')({
   validateSearch: z.object({
     session_id: z.string().optional(),
   }),
-  loader: async ({params, context, search}) => {
+  loaderDeps: ({search}) => ({session_id: search.session_id}),
+  loader: async ({params, context, deps}) => {
     const {slug} = params
-    const {session_id} = search
-    const session = context.session
+    const {session_id} = deps
+    const session = context?.session ?? null
 
     if (!session) {
       throw redirect({
@@ -238,7 +240,9 @@ export const Route = createFileRoute('/compete/$slug/register/success')({
           userId: session.userId,
           sessionId: session_id,
           registrationId: registration?.id,
-          commercePurchaseId: registration?.commercePurchaseId ?? undefined,
+          commercePurchaseId:
+            (registration as {commercePurchaseId?: string})
+              ?.commercePurchaseId ?? undefined,
           athleteTeamId: registration?.athleteTeamId ?? undefined,
           passStripeFeesToCustomer,
         },

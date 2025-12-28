@@ -146,7 +146,8 @@ interface CompetitionWorkout {
     roundsToScore: number | null
     tiebreakScheme: string | null
     timeCap: number | null
-    movements?: Movement[]
+    // Simplified movement type from server function
+    movements?: Array<{id: string; name: string; type: string}>
   }
 }
 

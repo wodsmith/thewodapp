@@ -55,14 +55,26 @@ export async function checkRateLimit({
   // if (!env?.NEXT_INC_CACHE_KV) {
   // 	throw new Error("Can't connect to KV store")
   // }
-  throw new Error('Not implemented - needs TanStack Start Cloudflare context')
 
   // Normalize the key if it looks like an IP address
   const normalizedKey = ipaddr.isValid(key) ? normalizeIP(key) : key
 
+  // Build window key for rate limiting
   const windowKey = `rate-limit:${options.identifier}:${normalizedKey}:${Math.floor(
     now / options.windowInSeconds,
   )}`
+
+  // TODO: Implement with TanStack Start Cloudflare context
+  console.warn('Rate limiting not implemented:', windowKey)
+
+  // For now, always allow (no rate limiting)
+  return {
+    success: true,
+    remaining: options.limit,
+    reset:
+      (Math.floor(now / options.windowInSeconds) + 1) * options.windowInSeconds,
+    limit: options.limit,
+  }
 
   // Get the current count from KV
   // const currentCount = Number.parseInt(

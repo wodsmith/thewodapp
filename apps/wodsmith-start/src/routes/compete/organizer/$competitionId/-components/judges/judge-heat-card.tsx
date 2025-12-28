@@ -303,8 +303,7 @@ export function JudgeHeatCard({
   const [selectedLane, setSelectedLane] = useState<number>(1)
   const [isAssigning, setIsAssigning] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isBulkAssigning, setIsBulkAssigning] = useState(false)
+  const [_isBulkAssigning, setIsBulkAssigning] = useState(false)
 
   // Get this heat's judge assignments
   const heatAssignments = judgeAssignments.filter((ja) => ja.heatId === heat.id)

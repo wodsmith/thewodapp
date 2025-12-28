@@ -46,6 +46,7 @@ interface ScalingGroupWithLevels {
   id: string
   title: string
   description: string | null
+  teamId?: string | null
   isSystem: number
   levels: Array<{
     id: string

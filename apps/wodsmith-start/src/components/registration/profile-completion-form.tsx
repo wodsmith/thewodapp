@@ -28,7 +28,7 @@ import {AffiliateCombobox} from './affiliate-combobox'
 
 const profileSchema = z.object({
   gender: z.enum([GENDER_ENUM.MALE, GENDER_ENUM.FEMALE], {
-    required_error: 'Please select your gender',
+    message: 'Please select your gender',
   }),
   dateOfBirth: z.string().min(1, 'Please enter your date of birth'),
   affiliateName: z

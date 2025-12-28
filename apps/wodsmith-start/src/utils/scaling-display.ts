@@ -1,9 +1,10 @@
 // Legacy scale values that might be stored in scalingLevelId
-const _LEGACY_SCALE_VALUES = {
-  rx: 'Rx',
-  'rx+': 'Rx+',
-  scaled: 'Scaled',
-} as const
+// Kept for reference - actual mapping is done in getLegacyScaleLabel
+// const LEGACY_SCALE_VALUES = {
+//   rx: 'Rx',
+//   'rx+': 'Rx+',
+//   scaled: 'Scaled',
+// } as const
 
 // Default scaling group labels
 const DEFAULT_SCALING_LABELS = ['Rx+', 'Rx', 'Scaled'] as const

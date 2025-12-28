@@ -114,13 +114,13 @@ export function CompetitionHeader({competition}: CompetitionHeaderProps) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Link to={`/compete/organizer/${competition.id}/edit`}>
+        <a href={`/compete/organizer/${competition.id}/edit`}>
           <Button variant="outline" size="sm">
             <Pencil className="mr-2 h-4 w-4" />
             Edit
           </Button>
-        </Link>
-        <Link to={`/compete/${competition.slug}`}>
+        </a>
+        <Link to="/compete/$slug" params={{slug: competition.slug}}>
           <Button variant="outline" size="sm">
             <ExternalLink className="mr-2 h-4 w-4" />
             View Public Page

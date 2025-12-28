@@ -104,6 +104,11 @@ export interface ScalingGroupForTemplate {
   description: string | null
   teamId: string | null
   isSystem: number
+  levels: Array<{
+    id: string
+    label: string
+    position: number
+  }>
 }
 
 // ============================================================================
@@ -640,24 +645,32 @@ export const listScalingGroupsFn = createServerFn({method: 'GET'})
     // Check permission
     await requireTeamPermission(data.teamId, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-    // Get team's scaling groups + system groups
-    const groups = await db
-      .select({
-        id: scalingGroupsTable.id,
-        title: scalingGroupsTable.title,
-        description: scalingGroupsTable.description,
-        teamId: scalingGroupsTable.teamId,
-        isSystem: scalingGroupsTable.isSystem,
-      })
-      .from(scalingGroupsTable)
-      .where(
-        sql`${scalingGroupsTable.teamId} = ${data.teamId} OR ${scalingGroupsTable.teamId} IS NULL`,
-      )
-      .orderBy(
-        sql`${scalingGroupsTable.isSystem} DESC, ${scalingGroupsTable.title} ASC`,
-      )
+    // Get team's scaling groups + system groups with their levels
+    const groups = await db.query.scalingGroupsTable.findMany({
+      where: sql`${scalingGroupsTable.teamId} = ${data.teamId} OR ${scalingGroupsTable.teamId} IS NULL`,
+      orderBy: sql`${scalingGroupsTable.isSystem} DESC, ${scalingGroupsTable.title} ASC`,
+      with: {
+        scalingLevels: {
+          orderBy: (table, {asc}) => [asc(table.position)],
+        },
+      },
+    })
 
-    return {groups: groups as ScalingGroupForTemplate[]}
+    // Transform to expected format
+    const transformedGroups = groups.map((g) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description,
+      teamId: g.teamId,
+      isSystem: g.isSystem,
+      levels: g.scalingLevels.map((l) => ({
+        id: l.id,
+        label: l.label,
+        position: l.position,
+      })),
+    }))
+
+    return {groups: transformedGroups}
   })
 
 /**

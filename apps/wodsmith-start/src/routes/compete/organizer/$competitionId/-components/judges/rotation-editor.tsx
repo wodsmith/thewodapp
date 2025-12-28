@@ -118,8 +118,7 @@ export function RotationEditor({
   } | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isValidating, setIsValidating] = useState(false)
+  const [_isValidating, setIsValidating] = useState(false)
 
   const rotationFormSchema = useMemo(
     () => createRotationFormSchema(maxHeats),

@@ -114,7 +114,7 @@ beforeEach(() => {
 
   // Set required env vars for OAuth tests
   process.env.STRIPE_CLIENT_ID = 'ca_test_123'
-  process.env.NEXT_PUBLIC_APP_URL = 'https://test.thewodapp.com'
+  process.env.NEXT_PUBLIC_APP_URL = 'https://wodsmith.com'
 })
 
 afterEach(() => {
@@ -327,7 +327,9 @@ describe('stripe-connect server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(
         initiateExpressOnboardingFn({data: validInput}),
@@ -412,7 +414,9 @@ describe('stripe-connect server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(initiateStandardOAuthFn({data: validInput})).rejects.toThrow(
         'Unauthorized',
@@ -482,7 +486,9 @@ describe('stripe-connect server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(refreshOnboardingLinkFn({data: validInput})).rejects.toThrow(
         'Unauthorized',
@@ -520,7 +526,9 @@ describe('stripe-connect server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(
         disconnectStripeAccountFn({data: validInput}),
@@ -593,7 +601,9 @@ describe('stripe-connect server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(getStripeDashboardUrlFn({data: validInput})).rejects.toThrow(
         'Unauthorized',
@@ -650,7 +660,9 @@ describe('stripe-connect server functions', () => {
 
     it('should require authentication', async () => {
       const {requireVerifiedEmail} = await import('@/utils/auth')
-      vi.mocked(requireVerifiedEmail).mockResolvedValueOnce(null)
+      vi.mocked(requireVerifiedEmail).mockRejectedValueOnce(
+        new Error('Unauthorized'),
+      )
 
       await expect(
         getStripeAccountBalanceFn({data: validInput}),
@@ -661,7 +673,9 @@ describe('stripe-connect server functions', () => {
   describe('Permission edge cases', () => {
     it('should fail fast when user is not authenticated', async () => {
       const {getSessionFromCookie} = await import('@/utils/auth')
-      vi.mocked(getSessionFromCookie).mockResolvedValueOnce(null)
+      vi.mocked(getSessionFromCookie).mockRejectedValueOnce(
+        new Error('Not authenticated'),
+      )
 
       await expect(
         getStripeConnectionStatusFn({data: {teamId: 'team-123'}}),

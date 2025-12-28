@@ -522,6 +522,9 @@ importers:
       '@simplewebauthn/server':
         specifier: ^10.0.1
         version: 10.0.1
+      '@simplewebauthn/types':
+        specifier: ^12.0.0
+        version: 12.0.0
       '@tailwindcss/vite':
         specifier: ^4.0.6
         version: 4.1.18(vite@7.3.0(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2))
@@ -604,6 +607,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@biomejs/biome':
+        specifier: 2.0.6
+        version: 2.0.6
       '@repo/test-utils':
         specifier: workspace:*
         version: link:../../packages/test-utils
@@ -665,6 +671,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
       vitest:
         specifier: ^3.2.3
         version: 3.2.3(@types/debug@4.1.12)(@types/node@22.19.3)(jiti@2.6.1)(jsdom@27.3.0)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.3)(yaml@2.8.2)

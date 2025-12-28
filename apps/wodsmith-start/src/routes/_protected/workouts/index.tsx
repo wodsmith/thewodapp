@@ -173,13 +173,23 @@ function WorkoutsPage() {
         </ul>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredWorkouts.map((workout) => (
+          {filteredWorkouts.map((workout, index) => (
             <Link
               key={workout.id}
               to="/workouts/$workoutId"
               params={{workoutId: workout.id}}
             >
-              <WorkoutCard workout={workout} />
+              <WorkoutCard
+                trackOrder={index + 1}
+                name={workout.name}
+                scheme={workout.scheme}
+                description={workout.description}
+                scoreType={null}
+                roundsToScore={null}
+                pointsMultiplier={null}
+                notes={null}
+                divisionDescriptions={[]}
+              />
             </Link>
           ))}
         </div>

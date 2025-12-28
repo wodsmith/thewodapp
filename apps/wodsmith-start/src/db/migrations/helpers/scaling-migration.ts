@@ -1,10 +1,49 @@
-import { sql } from "drizzle-orm"
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
-import {
-	globalDefaultScalingGroup,
-	globalDefaultScalingLevels,
-	legacyScaleMapping,
-} from "../../seeds/global-default-scaling"
+import {sql} from 'drizzle-orm'
+import type {BetterSQLite3Database} from 'drizzle-orm/better-sqlite3'
+
+// TODO: Create this seed file when scaling migration is needed
+// import {
+// 	globalDefaultScalingGroup,
+// 	globalDefaultScalingLevels,
+// 	legacyScaleMapping,
+// } from "../../seeds/global-default-scaling"
+
+// Placeholder values until seed file is created
+const globalDefaultScalingGroup = {
+  id: 'global-default-scaling',
+  title: 'Default Scaling',
+  description: 'Global default scaling group',
+  teamId: null,
+  isDefault: true,
+  isSystem: true,
+}
+
+const globalDefaultScalingLevels = [
+  {
+    id: 'rx-plus',
+    scalingGroupId: 'global-default-scaling',
+    label: 'Rx+',
+    position: 0,
+  },
+  {
+    id: 'rx',
+    scalingGroupId: 'global-default-scaling',
+    label: 'Rx',
+    position: 1,
+  },
+  {
+    id: 'scaled',
+    scalingGroupId: 'global-default-scaling',
+    label: 'Scaled',
+    position: 2,
+  },
+]
+
+const legacyScaleMapping = {
+  'rx+': {scalingLevelId: 'rx-plus', asRx: true},
+  rx: {scalingLevelId: 'rx', asRx: true},
+  scaled: {scalingLevelId: 'scaled', asRx: false},
+}
 
 /**
  * Migration helper to set up the global default scaling group
@@ -15,8 +54,8 @@ import {
  * Step 1: Insert the global default scaling group and levels
  */
 export async function insertGlobalDefaultScaling(db: BetterSQLite3Database) {
-	// Insert global default scaling group
-	await db.run(sql`
+  // Insert global default scaling group
+  await db.run(sql`
     INSERT INTO scaling_groups (
       id, title, description, teamId, isDefault, isSystem, createdAt, updatedAt, updateCounter
     ) VALUES (
@@ -32,9 +71,9 @@ export async function insertGlobalDefaultScaling(db: BetterSQLite3Database) {
     )
   `)
 
-	// Insert global default scaling levels
-	for (const level of globalDefaultScalingLevels) {
-		await db.run(sql`
+  // Insert global default scaling levels
+  for (const level of globalDefaultScalingLevels) {
+    await db.run(sql`
       INSERT INTO scaling_levels (
         id, scalingGroupId, label, position, createdAt, updatedAt, updateCounter
       ) VALUES (
@@ -47,14 +86,14 @@ export async function insertGlobalDefaultScaling(db: BetterSQLite3Database) {
         0
       )
     `)
-	}
+  }
 }
 
 /**
  * Step 2: Update all teams to use global default if they don't have a default
  */
 export async function setTeamDefaultScaling(db: BetterSQLite3Database) {
-	await db.run(sql`
+  await db.run(sql`
     UPDATE team
     SET defaultScalingGroupId = ${globalDefaultScalingGroup.id},
         updatedAt = datetime('now'),
@@ -67,18 +106,18 @@ export async function setTeamDefaultScaling(db: BetterSQLite3Database) {
  * Step 3: Migrate existing results from scale enum to scalingLevelId
  */
 export async function migrateResultsScaling(db: BetterSQLite3Database) {
-	// Migrate Rx+ results
-	await db.run(sql`
+  // Migrate Rx+ results
+  await db.run(sql`
     UPDATE results
-    SET scalingLevelId = ${legacyScaleMapping["rx+"].scalingLevelId},
-        asRx = ${legacyScaleMapping["rx+"].asRx ? 1 : 0},
+    SET scalingLevelId = ${legacyScaleMapping['rx+'].scalingLevelId},
+        asRx = ${legacyScaleMapping['rx+'].asRx ? 1 : 0},
         updatedAt = datetime('now'),
         updateCounter = updateCounter + 1
     WHERE scale = 'rx+'
   `)
 
-	// Migrate Rx results
-	await db.run(sql`
+  // Migrate Rx results
+  await db.run(sql`
     UPDATE results
     SET scalingLevelId = ${legacyScaleMapping.rx.scalingLevelId},
         asRx = ${legacyScaleMapping.rx.asRx ? 1 : 0},
@@ -87,8 +126,8 @@ export async function migrateResultsScaling(db: BetterSQLite3Database) {
     WHERE scale = 'rx'
   `)
 
-	// Migrate Scaled results
-	await db.run(sql`
+  // Migrate Scaled results
+  await db.run(sql`
     UPDATE results
     SET scalingLevelId = ${legacyScaleMapping.scaled.scalingLevelId},
         asRx = ${legacyScaleMapping.scaled.asRx ? 1 : 0},
@@ -102,65 +141,65 @@ export async function migrateResultsScaling(db: BetterSQLite3Database) {
  * Step 4: Verify migration success
  */
 export async function verifyScalingMigration(db: BetterSQLite3Database) {
-	// Check if global default exists
-	const globalDefault = (await db.get(sql`
+  // Check if global default exists
+  const globalDefault = (await db.get(sql`
     SELECT COUNT(*) as count
     FROM scaling_groups
     WHERE id = ${globalDefaultScalingGroup.id}
-  `)) as { count: number } | undefined
+  `)) as {count: number} | undefined
 
-	if (!globalDefault || globalDefault.count === 0) {
-		throw new Error("Global default scaling group not created")
-	}
+  if (!globalDefault || globalDefault.count === 0) {
+    throw new Error('Global default scaling group not created')
+  }
 
-	// Check if all scaling levels exist
-	const levels = (await db.get(sql`
+  // Check if all scaling levels exist
+  const levels = (await db.get(sql`
     SELECT COUNT(*) as count
     FROM scaling_levels
     WHERE scalingGroupId = ${globalDefaultScalingGroup.id}
-  `)) as { count: number } | undefined
+  `)) as {count: number} | undefined
 
-	if (!levels || levels.count !== 3) {
-		throw new Error("Global default scaling levels not created correctly")
-	}
+  if (!levels || levels.count !== 3) {
+    throw new Error('Global default scaling levels not created correctly')
+  }
 
-	// Check if any results still have scale but no scalingLevelId
-	const unmigrated = (await db.get(sql`
+  // Check if any results still have scale but no scalingLevelId
+  const unmigrated = (await db.get(sql`
     SELECT COUNT(*) as count
     FROM results
     WHERE scale IS NOT NULL AND scalingLevelId IS NULL
-  `)) as { count: number } | undefined
+  `)) as {count: number} | undefined
 
-	if (unmigrated && unmigrated.count > 0) {
-		throw new Error(
-			`${unmigrated.count} results not migrated to new scaling system`,
-		)
-	}
+  if (unmigrated && unmigrated.count > 0) {
+    throw new Error(
+      `${unmigrated.count} results not migrated to new scaling system`,
+    )
+  }
 
-	return true
+  return true
 }
 
 /**
  * Main migration function to run all steps
  */
 export async function runScalingMigration(db: BetterSQLite3Database) {
-	try {
-		// Step 1: Create global defaults
-		await insertGlobalDefaultScaling(db)
+  try {
+    // Step 1: Create global defaults
+    await insertGlobalDefaultScaling(db)
 
-		// Step 2: Set team defaults
-		await setTeamDefaultScaling(db)
+    // Step 2: Set team defaults
+    await setTeamDefaultScaling(db)
 
-		// Step 3: Migrate existing results
-		await migrateResultsScaling(db)
+    // Step 3: Migrate existing results
+    await migrateResultsScaling(db)
 
-		// Step 4: Verify
-		await verifyScalingMigration(db)
+    // Step 4: Verify
+    await verifyScalingMigration(db)
 
-		console.log("✅ Scaling migration completed successfully")
-		return true
-	} catch (error) {
-		console.error("❌ Scaling migration failed:", error)
-		throw error
-	}
+    console.log('✅ Scaling migration completed successfully')
+    return true
+  } catch (error) {
+    console.error('❌ Scaling migration failed:', error)
+    throw error
+  }
 }

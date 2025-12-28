@@ -22,8 +22,7 @@ async function hasTeamPermission(
 /**
  * Require team permission or throw error
  */
-
-async function requireTeamPermission(
+export async function requireTeamPermission(
   teamId: string,
   permission: string,
 ): Promise<void> {

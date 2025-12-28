@@ -95,8 +95,8 @@ export async function getRegistrationFee(
     where: eq(competitionDivisionsTable.id, divisionId),
   })
 
-  if (division?.registrationFeeCents != null) {
-    return division.registrationFeeCents
+  if (division?.feeCents != null) {
+    return division.feeCents
   }
 
   // Fall back to competition default
@@ -104,5 +104,5 @@ export async function getRegistrationFee(
     where: eq(competitionsTable.id, competitionId),
   })
 
-  return competition?.registrationFeeCents ?? 0
+  return competition?.defaultRegistrationFeeCents ?? 0
 }
