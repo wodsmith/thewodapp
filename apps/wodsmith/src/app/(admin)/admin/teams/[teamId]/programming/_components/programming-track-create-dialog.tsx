@@ -77,7 +77,8 @@ const formSchema = z.object({
 		.optional(),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
 
 interface ScalingGroup {
 	id: string
@@ -110,7 +111,7 @@ export function ProgrammingTrackCreateDialog({
 		(LimitCheckResult & { hasFeature: boolean }) | null
 	>(null)
 
-	const form = useForm<FormValues>({
+	const form = useForm<FormInput, unknown, FormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			name: "",
@@ -318,11 +319,11 @@ export function ProgrammingTrackCreateDialog({
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>Scaling Group (Optional)</FormLabel>
-									<Select
-										onValueChange={field.onChange}
-										value={field.value}
-										disabled={isLoadingGroups}
-									>
+								<Select
+									onValueChange={field.onChange}
+									value={field.value ?? undefined}
+									disabled={isLoadingGroups}
+								>
 										<FormControl>
 											<SelectTrigger>
 												<SelectValue placeholder="Select scaling group (optional)" />

@@ -72,7 +72,8 @@ const formSchema = z.object({
 		.optional(),
 })
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
 
 interface ScalingGroup {
 	id: string
@@ -104,7 +105,7 @@ export function ProgrammingTrackEditDialog({
 	const [scalingGroups, setScalingGroups] = useState<ScalingGroup[]>([])
 	const [isLoadingGroups, setIsLoadingGroups] = useState(false)
 
-	const form = useForm<FormValues>({
+	const form = useForm<FormInput, unknown, FormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			name: track.name,
@@ -303,11 +304,11 @@ export function ProgrammingTrackEditDialog({
 									<FormLabel className="font-mono font-semibold">
 										Scaling Group
 									</FormLabel>
-									<Select
-										onValueChange={field.onChange}
-										value={field.value}
-										disabled={isLoadingGroups}
-									>
+								<Select
+									onValueChange={field.onChange}
+									value={field.value ?? undefined}
+									disabled={isLoadingGroups}
+								>
 										<FormControl>
 											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
 												<SelectValue placeholder="Select scaling group" />

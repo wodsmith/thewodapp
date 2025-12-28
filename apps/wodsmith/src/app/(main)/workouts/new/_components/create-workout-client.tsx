@@ -14,6 +14,7 @@ import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
 import { createWorkoutAction } from "@/actions/workout-actions"
 import {
 	type CreateWorkoutSchema,
+	type CreateWorkoutInput,
 	createWorkoutSchema,
 } from "@/app/(main)/workouts/new/_components/create-workout.schema"
 import { MovementsList } from "@/components/movements-list"
@@ -97,7 +98,7 @@ export default function CreateWorkoutClient({
 	>(new Map())
 	const router = useRouter()
 
-	const form = useForm<CreateWorkoutSchema>({
+	const form = useForm<CreateWorkoutInput, unknown, CreateWorkoutSchema>({
 		resolver: zodResolver(createWorkoutSchema),
 		defaultValues: {
 			name: "",
@@ -135,10 +136,10 @@ export default function CreateWorkoutClient({
 					workout_name: form.getValues("name"),
 					workout_scheme: form.getValues("scheme"),
 					workout_scope: form.getValues("scope"),
-					has_track: !!form.getValues("trackId"),
-					has_scheduled_date: !!form.getValues("scheduledDate"),
-					movements_count: form.getValues("selectedMovements").length,
-					tags_count: form.getValues("selectedTags").length,
+				has_track: !!form.getValues("trackId"),
+				has_scheduled_date: !!form.getValues("scheduledDate"),
+				movements_count: (form.getValues("selectedMovements") ?? []).length,
+				tags_count: (form.getValues("selectedTags") ?? []).length,
 				})
 				if (result?.data?.data?.id) {
 					router.push(`/workouts/${result.data.data.id}`)
@@ -238,14 +239,14 @@ export default function CreateWorkoutClient({
 			}
 			setTags([...tags, newTagObj])
 
-			const currentSelectedTags = form.getValues("selectedTags")
-			form.setValue("selectedTags", [...currentSelectedTags, id])
+		const currentSelectedTags = form.getValues("selectedTags") ?? []
+		form.setValue("selectedTags", [...currentSelectedTags, id])
 			setNewTag("")
 		}
 	}
 
 	const handleMovementToggle = (movementId: string) => {
-		const currentSelectedMovements = form.getValues("selectedMovements")
+		const currentSelectedMovements = form.getValues("selectedMovements") ?? []
 		if (currentSelectedMovements.includes(movementId)) {
 			form.setValue(
 				"selectedMovements",
@@ -260,7 +261,7 @@ export default function CreateWorkoutClient({
 	}
 
 	const handleTagToggle = (tagId: string) => {
-		const currentSelectedTags = form.getValues("selectedTags")
+		const currentSelectedTags = form.getValues("selectedTags") ?? []
 		if (currentSelectedTags.includes(tagId)) {
 			form.setValue(
 				"selectedTags",
@@ -273,7 +274,7 @@ export default function CreateWorkoutClient({
 
 	const onSubmit = async (data: CreateWorkoutSchema) => {
 		// Separate existing tags from new tags
-		const existingTagIds = data.selectedTags.filter(
+		const existingTagIds = (data.selectedTags ?? []).filter(
 			(id) => !id.startsWith("new_tag_"),
 		)
 		const newTagNames = data.selectedTags
@@ -698,8 +699,8 @@ export default function CreateWorkoutClient({
 
 								<div className="mt-2 flex flex-wrap gap-2">
 									{tags.map((tag) => {
-										const selectedTags = form.watch("selectedTags")
-										const isSelected = selectedTags.includes(tag.id)
+									const selectedTags = form.watch("selectedTags") ?? []
+									const isSelected = selectedTags.includes(tag.id)
 										return (
 											<button
 												type="button"

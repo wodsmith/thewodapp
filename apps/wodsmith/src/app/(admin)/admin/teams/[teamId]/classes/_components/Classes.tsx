@@ -63,7 +63,8 @@ const createClassFormSchema = z.object({
 	skillIds: z.array(z.string()).optional(),
 })
 
-type CreateClassFormData = z.infer<typeof createClassFormSchema>
+type CreateClassFormData = z.output<typeof createClassFormSchema>
+type CreateClassFormInput = z.input<typeof createClassFormSchema>
 
 const Classes = ({
 	classes,
@@ -78,7 +79,7 @@ const Classes = ({
 	const { execute: deleteExecute, isPending: isDeleting } =
 		useServerAction(deleteClassCatalog)
 
-	const form = useForm<CreateClassFormData>({
+	const form = useForm<CreateClassFormInput, unknown, CreateClassFormData>({
 		resolver: zodResolver(createClassFormSchema),
 		defaultValues: {
 			name: "",
@@ -204,7 +205,7 @@ const Classes = ({
 														type="number"
 														placeholder="60"
 														{...field}
-														value={field.value || ""}
+														value={String(field.value ?? "")}
 													/>
 												</FormControl>
 												<FormMessage />
@@ -223,7 +224,7 @@ const Classes = ({
 														type="number"
 														placeholder="15"
 														{...field}
-														value={field.value || ""}
+														value={String(field.value ?? "")}
 													/>
 												</FormControl>
 												<FormMessage />

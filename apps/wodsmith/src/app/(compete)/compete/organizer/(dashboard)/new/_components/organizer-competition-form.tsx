@@ -78,7 +78,8 @@ const formSchema = z
 		},
 	)
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
 
 interface OrganizerCompetitionFormProps {
 	teams: OrganizingTeam[]
@@ -129,7 +130,7 @@ export function OrganizerCompetitionForm({
 		},
 	)
 
-	const form = useForm<FormValues>({
+	const form = useForm<FormInput, unknown, FormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			teamId: selectedTeamId,
