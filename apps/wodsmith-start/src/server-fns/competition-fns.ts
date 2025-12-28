@@ -12,8 +12,9 @@ import {
   type Competition,
   type CompetitionGroup,
 } from '@/db/schemas/competitions'
-import {teamTable, type Team} from '@/db/schemas/teams'
+import {teamTable, TEAM_PERMISSIONS, type Team} from '@/db/schemas/teams'
 import {eq, and, desc, sql} from 'drizzle-orm'
+import {getSessionFromCookie} from '@/utils/auth'
 
 // ============================================================================
 // Types
@@ -515,10 +516,46 @@ export const createCompetitionFn = createServerFn({method: 'POST'})
 /**
  * Update an existing competition
  * Allows updating competition details, slug, dates, settings, etc.
+ * Requires authentication and MANAGE_COMPETITION permission on the organizing team.
  */
 export const updateCompetitionFn = createServerFn({method: 'POST'})
   .inputValidator((data: unknown) => updateCompetitionInputSchema.parse(data))
   .handler(async ({data}) => {
+    // Auth check: require authenticated user
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error('Authentication required')
+    }
+
+    const db = getDb()
+
+    // Get the competition to check organizing team
+    const existingCompetition = await db
+      .select({
+        id: competitionsTable.id,
+        organizingTeamId: competitionsTable.organizingTeamId,
+      })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!existingCompetition[0]) {
+      throw new Error('Competition not found')
+    }
+
+    // Permission check: user must have MANAGE_COMPETITION permission on organizing team
+    const organizingTeam = session.teams?.find(
+      (t) => t.id === existingCompetition[0].organizingTeamId,
+    )
+    if (
+      !organizingTeam ||
+      !organizingTeam.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
+    ) {
+      throw new Error(
+        'You do not have permission to manage this competition. Please contact the organizing team.',
+      )
+    }
+
     // Import updateCompetition from server functions
     const {updateCompetition} =
       await import('@/server-fns/competition-server-logic')

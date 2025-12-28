@@ -73,6 +73,7 @@ const routeLabels: Record<string, string> = {
   revenue: 'Revenue',
   sponsors: 'Sponsors',
   settings: 'Settings',
+  edit: 'Edit',
   'danger-zone': 'Danger Zone',
 }
 
