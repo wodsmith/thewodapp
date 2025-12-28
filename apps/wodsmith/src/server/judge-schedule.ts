@@ -109,7 +109,7 @@ export interface EventWithRotations {
 
 /**
  * Fetch rotations for a judge with all related data in efficient batched queries.
- * 
+ *
  * This function:
  * 1. Fetches base rotations for judge
  * 2. Batch-fetches trackWorkouts with autochunk (D1-safe)
@@ -117,7 +117,7 @@ export interface EventWithRotations {
  * 4. Batch-fetches heats with autochunk (D1-safe)
  * 5. Fetches division descriptions with getWorkoutDivisionDescriptions (already uses autochunk)
  * 6. Calculates derived fields (timeWindow, estimatedDuration, isUpcoming)
- * 
+ *
  * @param db - Database instance
  * @param membershipId - Judge's team membership ID
  * @param competitionId - Competition ID
@@ -164,26 +164,23 @@ export async function getEnrichedRotationsForJudge(
 		...new Set(trackWorkouts.map((tw) => tw.workoutId).filter(Boolean)),
 	]
 
-	const workoutsList = await autochunk(
-		{ items: workoutIds },
-		async (chunk) => {
-			return db
-				.select({
-					id: workouts.id,
-					name: workouts.name,
-					description: workouts.description,
-					scheme: workouts.scheme,
-					scoreType: workouts.scoreType,
-					timeCap: workouts.timeCap,
-					repsPerRound: workouts.repsPerRound,
-					roundsToScore: workouts.roundsToScore,
-					tiebreakScheme: workouts.tiebreakScheme,
-					teamId: workouts.teamId, // Need this for division descriptions lookup
-				})
-				.from(workouts)
-				.where(inArray(workouts.id, chunk))
-		},
-	)
+	const workoutsList = await autochunk({ items: workoutIds }, async (chunk) => {
+		return db
+			.select({
+				id: workouts.id,
+				name: workouts.name,
+				description: workouts.description,
+				scheme: workouts.scheme,
+				scoreType: workouts.scoreType,
+				timeCap: workouts.timeCap,
+				repsPerRound: workouts.repsPerRound,
+				roundsToScore: workouts.roundsToScore,
+				tiebreakScheme: workouts.tiebreakScheme,
+				teamId: workouts.teamId, // Need this for division descriptions lookup
+			})
+			.from(workouts)
+			.where(inArray(workouts.id, chunk))
+	})
 
 	// Create lookup map
 	const workoutMap = new Map(workoutsList.map((w) => [w.id, w]))
@@ -257,10 +254,7 @@ export async function getEnrichedRotationsForJudge(
 	// This function already uses autochunk internally
 	// IMPORTANT: Use the workout's own teamId, not the competition's teamId,
 	// because workouts can be shared across teams
-	const divisionDescriptionsByWorkout = new Map<
-		string,
-		DivisionDescription[]
-	>()
+	const divisionDescriptionsByWorkout = new Map<string, DivisionDescription[]>()
 
 	for (const workout of workoutsList) {
 		if (!workout.teamId) {

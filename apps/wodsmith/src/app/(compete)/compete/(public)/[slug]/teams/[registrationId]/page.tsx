@@ -1,7 +1,7 @@
 "use server"
 
-import type { Metadata } from "next"
 import { CheckCircle, Clock, Crown, Mail, Users } from "lucide-react"
+import type { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"

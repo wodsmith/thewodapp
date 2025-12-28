@@ -40,8 +40,8 @@ import type { Movement, Sponsor } from "@/db/schema"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import { isTimeBasedScheme } from "@/lib/scoring"
 import {
-	type CompetitionEventSchema,
 	type CompetitionEventInput,
+	type CompetitionEventSchema,
 	competitionEventSchema,
 } from "@/schemas/workout.schema"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
@@ -428,10 +428,10 @@ export function EventDetailsForm({
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div className="space-y-2">
-								{(selectedMovements ?? []).length > 0 && (
-									<div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
-										{movements
-											.filter((m) => (selectedMovements ?? []).includes(m.id))
+									{(selectedMovements ?? []).length > 0 && (
+										<div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
+											{movements
+												.filter((m) => (selectedMovements ?? []).includes(m.id))
 												.map((movement) => (
 													<Badge
 														key={movement.id}

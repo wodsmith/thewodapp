@@ -304,11 +304,11 @@ export function ProgrammingTrackEditDialog({
 									<FormLabel className="font-mono font-semibold">
 										Scaling Group
 									</FormLabel>
-								<Select
-									onValueChange={field.onChange}
-									value={field.value ?? undefined}
-									disabled={isLoadingGroups}
-								>
+									<Select
+										onValueChange={field.onChange}
+										value={field.value ?? undefined}
+										disabled={isLoadingGroups}
+									>
 										<FormControl>
 											<SelectTrigger className="border-2 border-primary rounded-none font-mono">
 												<SelectValue placeholder="Select scaling group" />

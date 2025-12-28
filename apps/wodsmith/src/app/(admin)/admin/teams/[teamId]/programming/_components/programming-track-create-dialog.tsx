@@ -319,11 +319,11 @@ export function ProgrammingTrackCreateDialog({
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>Scaling Group (Optional)</FormLabel>
-								<Select
-									onValueChange={field.onChange}
-									value={field.value ?? undefined}
-									disabled={isLoadingGroups}
-								>
+									<Select
+										onValueChange={field.onChange}
+										value={field.value ?? undefined}
+										disabled={isLoadingGroups}
+									>
 										<FormControl>
 											<SelectTrigger>
 												<SelectValue placeholder="Select scaling group (optional)" />

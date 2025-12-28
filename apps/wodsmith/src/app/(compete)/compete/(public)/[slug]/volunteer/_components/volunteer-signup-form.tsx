@@ -159,84 +159,84 @@ export function VolunteerSignupForm({
 						</p>
 					</div>
 
-				<div className="space-y-2">
-					<Label htmlFor="credentials">Certifications / Credentials</Label>
-					<Textarea
-						id="credentials"
-						name="credentials"
-						placeholder="e.g., CrossFit L1 Judge, CrossFit L2, EMT, First Aid/CPR certified..."
-						rows={2}
-						disabled={isPending}
-					/>
-					<p className="text-sm text-muted-foreground">
-						List any relevant certifications or judging credentials you hold
-					</p>
-				</div>
-
-				<div className="space-y-3">
-					<Label>
-						Availability <span className="text-destructive">*</span>
-					</Label>
 					<div className="space-y-2">
-						<div className="flex items-center space-x-2">
-							<input
-								type="radio"
-								id="availability-morning"
-								name="availability"
-								value={VOLUNTEER_AVAILABILITY.MORNING}
-								required
-								disabled={isPending}
-								className="h-4 w-4"
-							/>
-							<Label htmlFor="availability-morning" className="font-normal">
-								Morning
-							</Label>
-						</div>
-						<div className="flex items-center space-x-2">
-							<input
-								type="radio"
-								id="availability-afternoon"
-								name="availability"
-								value={VOLUNTEER_AVAILABILITY.AFTERNOON}
-								required
-								disabled={isPending}
-								className="h-4 w-4"
-							/>
-							<Label htmlFor="availability-afternoon" className="font-normal">
-								Afternoon
-							</Label>
-						</div>
-						<div className="flex items-center space-x-2">
-							<input
-								type="radio"
-								id="availability-all-day"
-								name="availability"
-								value={VOLUNTEER_AVAILABILITY.ALL_DAY}
-								required
-								disabled={isPending}
-								className="h-4 w-4"
-								defaultChecked
-							/>
-							<Label htmlFor="availability-all-day" className="font-normal">
-								All Day
-							</Label>
-						</div>
+						<Label htmlFor="credentials">Certifications / Credentials</Label>
+						<Textarea
+							id="credentials"
+							name="credentials"
+							placeholder="e.g., CrossFit L1 Judge, CrossFit L2, EMT, First Aid/CPR certified..."
+							rows={2}
+							disabled={isPending}
+						/>
+						<p className="text-sm text-muted-foreground">
+							List any relevant certifications or judging credentials you hold
+						</p>
 					</div>
-					<p className="text-sm text-muted-foreground">
-						Select when you'll be available to volunteer
-					</p>
-				</div>
 
-				<div className="space-y-2">
-					<Label htmlFor="availabilityNotes">Additional Notes</Label>
-					<Textarea
-						id="availabilityNotes"
-						name="availabilityNotes"
-						placeholder="Anything else you'd like us to know about your availability, experience, or preferences..."
-						rows={3}
-						disabled={isPending}
-					/>
-				</div>
+					<div className="space-y-3">
+						<Label>
+							Availability <span className="text-destructive">*</span>
+						</Label>
+						<div className="space-y-2">
+							<div className="flex items-center space-x-2">
+								<input
+									type="radio"
+									id="availability-morning"
+									name="availability"
+									value={VOLUNTEER_AVAILABILITY.MORNING}
+									required
+									disabled={isPending}
+									className="h-4 w-4"
+								/>
+								<Label htmlFor="availability-morning" className="font-normal">
+									Morning
+								</Label>
+							</div>
+							<div className="flex items-center space-x-2">
+								<input
+									type="radio"
+									id="availability-afternoon"
+									name="availability"
+									value={VOLUNTEER_AVAILABILITY.AFTERNOON}
+									required
+									disabled={isPending}
+									className="h-4 w-4"
+								/>
+								<Label htmlFor="availability-afternoon" className="font-normal">
+									Afternoon
+								</Label>
+							</div>
+							<div className="flex items-center space-x-2">
+								<input
+									type="radio"
+									id="availability-all-day"
+									name="availability"
+									value={VOLUNTEER_AVAILABILITY.ALL_DAY}
+									required
+									disabled={isPending}
+									className="h-4 w-4"
+									defaultChecked
+								/>
+								<Label htmlFor="availability-all-day" className="font-normal">
+									All Day
+								</Label>
+							</div>
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Select when you'll be available to volunteer
+						</p>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="availabilityNotes">Additional Notes</Label>
+						<Textarea
+							id="availabilityNotes"
+							name="availabilityNotes"
+							placeholder="Anything else you'd like us to know about your availability, experience, or preferences..."
+							rows={3}
+							disabled={isPending}
+						/>
+					</div>
 
 					{error && (
 						<div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">

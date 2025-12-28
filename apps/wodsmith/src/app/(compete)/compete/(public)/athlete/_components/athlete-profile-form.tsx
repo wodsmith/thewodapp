@@ -115,7 +115,11 @@ export function AthleteProfileForm({
 		},
 	)
 
-	const form = useForm<z.input<typeof athleteProfileExtendedSchema>, unknown, z.output<typeof athleteProfileExtendedSchema>>({
+	const form = useForm<
+		z.input<typeof athleteProfileExtendedSchema>,
+		unknown,
+		z.output<typeof athleteProfileExtendedSchema>
+	>({
 		resolver: zodResolver(athleteProfileExtendedSchema),
 		defaultValues: {
 			preferredUnits: "imperial",

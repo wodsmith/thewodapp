@@ -6,8 +6,6 @@ import Link from "next/link"
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { getScalingGroupWithLevelsAction } from "@/actions/scaling-actions"
-import { getDefaultScoreType } from "@/lib/scoring"
-import type { WorkoutScheme, ScoreType } from "@/lib/scoring"
 import { MovementsList } from "@/components/movements-list"
 import { WorkoutScalingDescriptionsEditor } from "@/components/scaling/workout-scaling-descriptions-editor"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +20,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
+import { getDefaultScoreType } from "@/lib/scoring"
 import type { Prettify } from "@/lib/utils"
 import type {
 	Movement,
@@ -365,9 +365,7 @@ export default function EditWorkoutClient({
 								<Label htmlFor="workout-score-type">Score Type</Label>
 								<Select
 									value={scoreType ?? ""}
-									onValueChange={(value) =>
-										setScoreType(value as ScoreType)
-									}
+									onValueChange={(value) => setScoreType(value as ScoreType)}
 								>
 									<SelectTrigger id="workout-score-type">
 										<SelectValue placeholder="Select score type" />

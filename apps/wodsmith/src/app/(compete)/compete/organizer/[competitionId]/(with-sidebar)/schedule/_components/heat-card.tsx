@@ -775,11 +775,13 @@ export function HeatCard({
 								{heat.assignments.length}/{maxLanes}
 							</Badge>
 							<div className="flex-1" />
-							{Object.entries(assignmentsByDivision).map(([divLabel, count]) => (
-								<Badge key={divLabel} variant="secondary" className="text-xs">
-									{divLabel}: {count}
-								</Badge>
-							))}
+							{Object.entries(assignmentsByDivision).map(
+								([divLabel, count]) => (
+									<Badge key={divLabel} variant="secondary" className="text-xs">
+										{divLabel}: {count}
+									</Badge>
+								),
+							)}
 						</div>
 					</CardHeader>
 				</Card>
@@ -845,39 +847,41 @@ export function HeatCard({
 				<CardContent>
 					{/* Lane Assignments */}
 					<div className="space-y-2">
-						{Array.from({ length: maxLanes }, (_, i) => i + 1).map((laneNum) => {
-							const assignment = heat.assignments.find(
-								(a) => a.laneNumber === laneNum,
-							)
+						{Array.from({ length: maxLanes }, (_, i) => i + 1).map(
+							(laneNum) => {
+								const assignment = heat.assignments.find(
+									(a) => a.laneNumber === laneNum,
+								)
 
-							if (!assignment) {
+								if (!assignment) {
+									return (
+										<DroppableLane
+											key={laneNum}
+											laneNum={laneNum}
+											onDropUnassigned={handleDropAssign}
+											onDropAssigned={handleDropAssigned}
+											selectedAthleteIds={selectedAthleteIds}
+											onTapAssign={(lane) => {
+												if (selectedAthleteIds && selectedAthleteIds.size > 0) {
+													handleDropAssign(Array.from(selectedAthleteIds), lane)
+												}
+											}}
+										/>
+									)
+								}
+
 								return (
-									<DroppableLane
+									<DraggableAssignedAthlete
 										key={laneNum}
+										assignment={assignment}
+										heatId={heat.id}
 										laneNum={laneNum}
-										onDropUnassigned={handleDropAssign}
-										onDropAssigned={handleDropAssigned}
-										selectedAthleteIds={selectedAthleteIds}
-										onTapAssign={(lane) => {
-											if (selectedAthleteIds && selectedAthleteIds.size > 0) {
-												handleDropAssign(Array.from(selectedAthleteIds), lane)
-											}
-										}}
+										onRemove={() => handleRemove(assignment.id)}
+										isRemoving={removeFromHeat.isPending}
 									/>
 								)
-							}
-
-							return (
-								<DraggableAssignedAthlete
-									key={laneNum}
-									assignment={assignment}
-									heatId={heat.id}
-									laneNum={laneNum}
-									onRemove={() => handleRemove(assignment.id)}
-									isRemoving={removeFromHeat.isPending}
-								/>
-							)
-						})}
+							},
+						)}
 					</div>
 
 					{/* Add Athlete Button */}

@@ -118,8 +118,8 @@ export function CreateWorkoutModal({
 			}
 			setTags([...tags, newTagObj])
 
-		const currentSelectedTags = form.getValues("selectedTags") ?? []
-		form.setValue("selectedTags", [...currentSelectedTags, id])
+			const currentSelectedTags = form.getValues("selectedTags") ?? []
+			form.setValue("selectedTags", [...currentSelectedTags, id])
 			setNewTag("")
 		}
 	}
@@ -357,15 +357,19 @@ export function CreateWorkoutModal({
 													key={movement.id}
 													className="flex items-center space-x-2 cursor-pointer font-mono text-sm"
 												>
-												<Checkbox
-													checked={field.value?.includes(movement.id) ?? false}
-													onCheckedChange={(checked) => {
-														const currentValue = field.value ?? []
-														const newValue = checked
-															? [...currentValue, movement.id]
-															: currentValue.filter((id) => id !== movement.id)
-														field.onChange(newValue)
-													}}
+													<Checkbox
+														checked={
+															field.value?.includes(movement.id) ?? false
+														}
+														onCheckedChange={(checked) => {
+															const currentValue = field.value ?? []
+															const newValue = checked
+																? [...currentValue, movement.id]
+																: currentValue.filter(
+																		(id) => id !== movement.id,
+																	)
+															field.onChange(newValue)
+														}}
 													/>
 													<span>{movement.name}</span>
 												</Label>
@@ -410,21 +414,23 @@ export function CreateWorkoutModal({
 												<Button
 													key={tag.id}
 													type="button"
-												onClick={() => {
-													const currentValue = field.value ?? []
-													const newValue = currentValue.includes(tag.id)
-														? currentValue.filter((id) => id !== tag.id)
-														: [...currentValue, tag.id]
-													field.onChange(newValue)
-												}}
-												variant={
-													(field.value ?? []).includes(tag.id) ? "default" : "outline"
-												}
-											>
-												{tag.name}
-												{(field.value ?? []).includes(tag.id) && (
-													<X className="inline ml-1 h-3 w-3" />
-												)}
+													onClick={() => {
+														const currentValue = field.value ?? []
+														const newValue = currentValue.includes(tag.id)
+															? currentValue.filter((id) => id !== tag.id)
+															: [...currentValue, tag.id]
+														field.onChange(newValue)
+													}}
+													variant={
+														(field.value ?? []).includes(tag.id)
+															? "default"
+															: "outline"
+													}
+												>
+													{tag.name}
+													{(field.value ?? []).includes(tag.id) && (
+														<X className="inline ml-1 h-3 w-3" />
+													)}
 												</Button>
 											))}
 										</div>
