@@ -63,10 +63,10 @@ const formSchema = z
 	.refine(
 		(data) => {
 			if (!data.startDate || !data.endDate) return true
-			return new Date(data.startDate) < new Date(data.endDate)
+			return new Date(data.startDate) <= new Date(data.endDate)
 		},
 		{
-			message: "Start date must be before end date",
+			message: "End date cannot be before start date",
 			path: ["endDate"],
 		},
 	)
