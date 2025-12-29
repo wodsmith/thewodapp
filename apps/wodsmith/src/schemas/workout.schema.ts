@@ -22,7 +22,8 @@ export const workoutFieldsSchema = z.object({
 	selectedMovements: z.array(z.string()).default([]),
 })
 
-export type WorkoutFieldsSchema = z.infer<typeof workoutFieldsSchema>
+export type WorkoutFieldsSchema = z.output<typeof workoutFieldsSchema>
+export type WorkoutFieldsInput = z.input<typeof workoutFieldsSchema>
 
 /**
  * Competition event details schema - extends workout fields with competition-specific fields
@@ -45,4 +46,5 @@ export const competitionEventSchema = z.object({
 	sponsorId: z.string().nullable(), // "Presented by" sponsor
 })
 
-export type CompetitionEventSchema = z.infer<typeof competitionEventSchema>
+export type CompetitionEventSchema = z.output<typeof competitionEventSchema>
+export type CompetitionEventInput = z.input<typeof competitionEventSchema>

@@ -1,4 +1,3 @@
-import type { Metadata } from "next"
 import {
 	AlertCircle,
 	Calendar,
@@ -10,6 +9,7 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react"
+import type { Metadata } from "next"
 import { Button } from "@/components/ui/button"
 import {
 	Card,

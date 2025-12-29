@@ -126,11 +126,23 @@ export async function getJudgeVolunteers(
 		const meta = parseVolunteerMetadata(volunteer.metadata)
 		const user = userMap.get(volunteer.userId)
 
+		// Use user name if available, otherwise fall back to signupName from metadata
+		// This allows volunteers without full user accounts to still display properly
+		let firstName = user?.firstName ?? null
+		let lastName = user?.lastName ?? null
+
+		if (!firstName && !lastName && meta?.signupName) {
+			// Split signupName into first/last (assumes "First Last" format)
+			const nameParts = meta.signupName.trim().split(/\s+/)
+			firstName = nameParts[0] ?? null
+			lastName = nameParts.slice(1).join(" ") || null
+		}
+
 		return {
 			membershipId: volunteer.id,
 			userId: volunteer.userId,
-			firstName: user?.firstName ?? null,
-			lastName: user?.lastName ?? null,
+			firstName,
+			lastName,
 			volunteerRoleTypes: meta?.volunteerRoleTypes ?? [],
 			credentials: meta?.credentials,
 			availability: meta?.availability,

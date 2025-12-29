@@ -2,12 +2,12 @@ import "server-only"
 import { CreditCard, Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
+import { TeamFilter } from "@/app/(compete)/compete/organizer/_components/team-filter"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroups, getCompetitions } from "@/server/competitions"
 import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
-import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
-import { TeamFilter } from "@/app/(compete)/compete/organizer/_components/team-filter"
 
 export const metadata: Metadata = {
 	title: "My Competitions - Compete",

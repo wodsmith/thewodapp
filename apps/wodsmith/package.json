@@ -65,7 +65,7 @@
 		"@fullcalendar/timegrid": "^6.1.17",
 		"@heroicons/react": "^2.2.0",
 		"@heroui/react": "^2.7.8",
-		"@hookform/resolvers": "^3.10.0",
+		"@hookform/resolvers": "^5.2.2",
 		"@icons-pack/react-simple-icons": "^11.2.0",
 		"@marsidev/react-turnstile": "^1.1.0",
 		"@opennextjs/cloudflare": "^1.14.3",
