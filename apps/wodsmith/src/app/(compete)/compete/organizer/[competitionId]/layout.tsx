@@ -3,7 +3,7 @@ import { ZSAError } from "@repo/zsa"
 import { notFound } from "next/navigation"
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetition } from "@/server/competitions"
-import { requireTeamPermission } from "@/utils/team-auth"
+import { requireTeamPermissionOrAdmin } from "@/utils/team-auth"
 
 interface CompetitionLayoutProps {
 	children: React.ReactNode
@@ -25,9 +25,9 @@ export default async function CompetitionLayout({
 		notFound()
 	}
 
-	// Check if user has permission on the organizing team
+	// Check if user has permission on the organizing team OR is a site admin
 	try {
-		await requireTeamPermission(
+		await requireTeamPermissionOrAdmin(
 			competition.organizingTeamId,
 			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
 		)
