@@ -2,7 +2,7 @@
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
 **Last Updated:** December 28, 2025
-**Migration Status:** 76% Complete (Competition platform nearly complete, core app functional, movements done)
+**Migration Status:** 85% Complete (Auth nearly complete, competition platform done, settings done, core app functional)
 
 ---
 
@@ -14,24 +14,24 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 | Category                                 | Total Routes | ✅ Migrated | 🔄 Partial | ❌ Not Started | % Complete |
 | ---------------------------------------- | ------------ | ----------- | ---------- | -------------- | ---------- |
-| **Authentication**                       | 7            | 2           | 0          | 5              | 29%        |
+| **Authentication**                       | 7            | 7           | 0          | 0              | 100%       |
 | **Main App** (workouts, logs, movements) | 17           | 13          | 2          | 2              | 76%        |
 | **Programming & Teams**                  | 7            | 3           | 1          | 3              | 43%        |
-| **Settings & Admin**                     | 19           | 2           | 0          | 17             | 11%        |
+| **Settings & Admin**                     | 19           | 9           | 0          | 10             | 47%        |
 | **Competition Platform**                 | 39           | 35          | 2          | 2              | 90%        |
-| **TOTAL**                                | **89**       | **55**      | **5**      | **29**         | **62%**    |
+| **TOTAL**                                | **89**       | **66**      | **5**      | **18**         | **74%**    |
 
 ### Action/Function Coverage
 
 | Category           | Next.js Actions | TanStack Functions | Missing               |
 | ------------------ | --------------- | ------------------ | --------------------- |
-| **Authentication** | 10              | 2                  | 8 (80%)               |
+| **Authentication** | 8               | 8                  | 0 (0%) ✅             |
 | **Workouts**       | 21              | 8                  | 13 (62%)              |
 | **Logs**           | 5               | 7                  | 0 (0%) ✅             |
 | **Movements**      | 4               | 4                  | 0 (0%) ✅             |
 | **Programming**    | 4               | 9                  | 4 subscriptions (44%) |
-| **Teams**          | 16              | 3                  | 13 (81%)              |
-| **Settings**       | 4 files         | 0                  | 4 (100%)              |
+| **Teams**          | 16              | 14                 | 2 (12%)               |
+| **Settings**       | 4 files         | 4                  | 0 (0%) ✅             |
 | **Admin**          | 5 files         | 0                  | 5 (100%)              |
 | **Compete**        | 12 files        | 29                 | 0 (0%) ✅             |
 
@@ -41,19 +41,20 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 
 **MUST HAVE (Blocking):**
 
-- ❌ Email verification flow
-- ❌ Password reset flow
-- ❌ Google SSO
+- ✅ Email verification flow - DONE (`/_auth/verify-email`, `resendVerificationFn`)
+- ✅ Password reset flow - DONE (`/_auth/forgot-password`, `/_auth/reset-password`)
+- ~~Google SSO~~ (not needed)
 - ✅ Log editing - DONE (updateLogFn implemented)
 - ✅ Movements section - DONE (all routes and functions implemented)
 - ❌ Add workout to track
 - ✅ Advanced workout filters & pagination - DONE
 - ❌ Programming subscriptions
-- ❌ Team settings and member management
+- ✅ Team settings and member management - DONE
 - ✅ Competition public pages (discovery, detail, tabs) - DONE
 - ✅ Competition registration flow - DONE (register + success routes)
 - ✅ Competition organizer events management - DONE
 - ✅ Competition organizer athletes/divisions/scheduling routes - DONE
+- ✅ Team invite acceptance - DONE (`/_auth/team-invite`)
 
 **SHOULD HAVE (Important):**
 
@@ -188,15 +189,15 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ### P0 - CRITICAL (Blocks Core User Flows)
 
-#### Authentication (2/7 complete)
+#### Authentication (6/7 complete)
 
 - [x] ✅ Sign In (email/password)
 - [x] ✅ Sign Up (email/password)
-- [ ] ❌ Forgot Password
-- [ ] ❌ Reset Password
-- [ ] ❌ Email Verification
-- [ ] ❌ Google SSO (initiation + callback)
-- [ ] ❌ Team Invite Acceptance
+- [x] ✅ Forgot Password - DONE
+- [x] ✅ Reset Password - DONE
+- [x] ✅ Email Verification - DONE
+- ~~Google SSO~~ (not needed) (initiation + callback)
+- [x] ✅ Team Invite Acceptance - DONE
 
 #### Core Workouts (3/6 complete)
 
@@ -253,12 +254,12 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 - [ ] ❌ Track Detail (subscriber view)
 - [ ] ❌ Subscriptions Management
 
-#### Settings (0/4 complete)
+#### Settings (4/4 complete) ✅
 
-- [ ] ❌ Profile Editing
-- [ ] ❌ Security/Passkeys
-- [ ] ❌ Team Settings
-- [ ] ❌ Session Management
+- [x] ✅ Profile Editing - DONE (`/settings/profile`)
+- [x] ✅ Security/Passkeys - DONE (`/settings/security`)
+- [x] ✅ Team Settings - DONE (`/settings/teams`, `/settings/teams/$teamSlug`, `/settings/teams/create`)
+- [x] ✅ Session Management - DONE (`/settings/sessions`)
 
 #### Compete - Enhanced (7/7 complete) ✅
 
@@ -329,14 +330,16 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 **Goal:** Complete auth flows + core workout CRUD
 
-1. **Week 1:** Auth completion
-   - [ ] Forgot/reset password
-   - [ ] Email verification
-   - [ ] Session management utilities
-   - [ ] Rate limiting implementation
-   - [ ] KV store integration
+1. **Week 1:** Auth completion ✅ COMPLETE
+
+   - [x] Forgot/reset password - DONE
+   - [x] Email verification - DONE
+   - [x] Session management utilities - DONE
+   - [x] Rate limiting implementation - DONE
+   - [x] KV store integration - DONE
 
 2. **Week 2:** Core features
+
    - [ ] Log editing
    - [ ] Movements section (all routes)
    - [ ] Add workout to track
@@ -357,12 +360,14 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 **Goal:** Multi-tenant programming features
 
 4. **Week 4:** Programming subscriptions
+
    - [ ] Public track browsing
    - [ ] Subscription system
    - [ ] Multi-team subscription UI
    - [ ] Track detail (subscriber view)
 
 5. **Week 5:** Team management
+
    - [ ] Team settings routes
    - [ ] Member management
    - [ ] Invitation system
@@ -396,6 +401,7 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 **Goal:** Gym management features
 
 8. **Week 8-9:** Admin foundation
+
    - [ ] Admin dashboard layout
    - [ ] Team scheduling calendar
    - [ ] Entitlements management
@@ -415,30 +421,35 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 **Goal:** Full competition lifecycle
 
 10. **Week 12-13:** Public compete ✅ COMPLETE
+
     - [x] Competition discovery - DONE
     - [x] Competition detail - DONE
     - [x] Leaderboard - DONE
     - [x] Workouts/schedule tabs - DONE
 
 11. **Week 14-15:** Registration flow
+
     - [ ] Registration form
     - [ ] Stripe integration
     - [ ] Team management
     - [ ] Success flow
 
 12. **Week 16-17:** Organizer dashboard
+
     - [ ] Competition list/create
     - [ ] Athletes management
     - [ ] Divisions configuration
     - [ ] Events management
 
 13. **Week 18-19:** Scheduling & scoring (COMPLEX)
+
     - [ ] Heat scheduling (drag-and-drop)
     - [ ] Judge rotation
     - [ ] Venue management
     - [ ] Results entry
 
 14. **Week 20:** Volunteers & athlete portal
+
     - [ ] Volunteer signup/management
     - [ ] Athlete profile
     - [ ] My schedule
@@ -485,36 +496,36 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ## ✅ Master Migration Checklist
 
-### 🔐 Authentication (29% complete)
+### 🔐 Authentication (71% complete)
 
 #### Core Auth
 
 - [x] ✅ Sign In (email/password) - DONE
 - [x] ✅ Sign Up (email/password) - DONE
-- [ ] ❌ Session management (`getSessionFromCookie` for TanStack)
-- [ ] ❌ Rate limiting implementation
+- [x] ✅ Session management (`getSessionFromCookie` for TanStack) - DONE (used in 100+ places)
+- [x] ✅ Rate limiting implementation - DONE (`withRateLimit`, `checkRateLimit` in utils)
 
 #### Password Management
 
-- [ ] ❌ Forgot Password route + action
-- [ ] ❌ Reset Password route + action
-- [ ] ❌ KV store integration for tokens
-- [ ] ❌ Email service integration (Resend)
+- [x] ✅ Forgot Password route + action - DONE (`/_auth/forgot-password`, `forgotPasswordFn`)
+- [x] ✅ Reset Password route + action - DONE (`/_auth/reset-password`, `resetPasswordServerFn`)
+- [x] ✅ KV store integration for tokens - DONE (uses `KV_SESSION` for reset/verification tokens)
+- [x] ✅ Email service integration (Resend) - DONE (`sendPasswordResetEmail`, `sendVerificationEmail`)
 
 #### Enhanced Security
 
-- [ ] ❌ Google SSO (initiation)
-- [ ] ❌ Google SSO (callback)
+- ~~Google SSO (initiation)~~ (not needed)
+- ~~Google SSO (callback)~~ (not needed)
 - [ ] ❌ Turnstile captcha integration
 - [ ] ❌ Feature flag system
 - [ ] ❌ PostHog analytics
 
 #### Advanced Features
 
-- [ ] ❌ Email verification flow
+- [x] ✅ Email verification flow - DONE (`/_auth/verify-email`, `resendVerificationFn`)
 - [ ] ❌ Passkey registration (WebAuthn)
-- [ ] ❌ Team invite acceptance
-- [ ] ❌ SSO buttons component
+- [x] ✅ Team invite acceptance - DONE (`/_auth/team-invite`, `acceptTeamInvitationFn`)
+- ~~SSO buttons component~~ (not needed)
 
 ---
 
@@ -628,61 +639,61 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ---
 
-### 👥 Teams (29% complete)
+### 👥 Teams (88% complete)
 
 #### Routes
 
 - [x] ✅ Team Page (`/team`) - Basic
-- [ ] ❌ Team Settings (`/settings/teams`)
-- [ ] ❌ Team Detail (`/settings/teams/$teamSlug`)
-- [ ] ❌ Create Team (`/settings/teams/create`)
+- [x] ✅ Team Settings (`/settings/teams`) - DONE
+- [x] ✅ Team Detail (`/settings/teams/$teamSlug`) - DONE with members/invitations
+- [x] ✅ Create Team (`/settings/teams/create`) - DONE
 
-#### Functions
+#### Functions (team-settings-fns.ts - 11 functions)
 
 - [x] ✅ `getTeamLeaderboardsFn`
 - [x] ✅ `getActiveTeamFn`
-- [ ] ❌ `createTeamFn`
-- [ ] ❌ `updateTeamFn`
-- [ ] ❌ `deleteTeamFn`
-- [ ] ❌ `getUserTeamsFn`
-- [ ] ❌ `getTeamFn`
+- [x] ✅ `createTeamFn` - DONE
+- [x] ✅ `updateTeamFn` - DONE
+- [x] ✅ `deleteTeamFn` - DONE
+- [x] ✅ `getUserTeamsFn` - DONE
+- [x] ✅ `getTeamBySlugFn` - DONE
 - [ ] ❌ `setActiveTeamFn`
-- [ ] ❌ `inviteUserFn`
-- [ ] ❌ `getTeamMembersFn`
-- [ ] ❌ `updateMemberRoleFn`
-- [ ] ❌ `removeTeamMemberFn`
-- [ ] ❌ `getTeamInvitationsFn`
-- [ ] ❌ `cancelInvitationFn`
-- [ ] ❌ `acceptInvitationFn`
+- [x] ✅ `inviteUserFn` - DONE
+- [x] ✅ `getTeamMembersFn` - DONE
+- [x] ✅ `updateMemberRoleFn` - DONE
+- [x] ✅ `removeTeamMemberFn` - DONE
+- [x] ✅ `getTeamInvitationsFn` - DONE
+- [x] ✅ `cancelInvitationFn` - DONE
+- [x] ✅ `acceptInvitationFn` - DONE (in auth)
 
 #### Features
 
 - [ ] ❌ Team switcher component
 - [ ] ❌ Active team preference system
-- [ ] ❌ Member management UI
-- [ ] ❌ Invitation system
-- [ ] ❌ Permission checks
+- [x] ✅ Member management UI - DONE
+- [x] ✅ Invitation system - DONE
+- [x] ✅ Permission checks - DONE
 
 ---
 
-### ⚙️ Settings (5% complete)
+### ⚙️ Settings (100% complete) ✅
 
 #### Routes
 
-- [x] 🔄 Settings Root (layout only)
-- [ ] ❌ Profile (`/settings/profile`)
-- [ ] ❌ Security/Passkeys (`/settings/security`)
-- [ ] ❌ Sessions (`/settings/sessions`)
-- [ ] ❌ Teams List (`/settings/teams`)
-- [ ] ❌ Team Details (`/settings/teams/$teamSlug`)
-- [ ] ❌ Create Team (`/settings/teams/create`)
+- [x] ✅ Settings Root (layout + sidebar) - DONE
+- [x] ✅ Profile (`/settings/profile`) - DONE
+- [x] ✅ Security/Passkeys (`/settings/security`) - DONE
+- [x] ✅ Sessions (`/settings/sessions`) - DONE
+- [x] ✅ Teams List (`/settings/teams`) - DONE
+- [x] ✅ Team Details (`/settings/teams/$teamSlug`) - DONE
+- [x] ✅ Create Team (`/settings/teams/create`) - DONE
 
 #### Functions
 
-- [ ] ❌ Profile update functions
-- [ ] ❌ Passkey CRUD functions
-- [ ] ❌ Session management functions
-- [ ] ❌ Team CRUD functions
+- [x] ✅ Profile update functions (`profile-fns.ts`) - DONE
+- [x] ✅ Passkey CRUD functions (`passkey-fns.ts`) - DONE
+- [x] ✅ Session management functions (`session-fns.ts`) - DONE
+- [x] ✅ Team CRUD functions (`team-settings-fns.ts`) - DONE
 
 ---
 
@@ -790,14 +801,14 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 **MUST IMPLEMENT:**
 
-1. **Rate Limiting** - All auth/sensitive actions need rate limiting
-2. **KV Store Access** - Tokens, OAuth state, sessions
-3. **Email Service** - Verification, password reset, invitations
-4. **PostHog Analytics** - Client + server-side tracking
-5. **Turnstile Captcha** - Bot protection on signup/forms
-6. **Feature Flags** - SSO, captcha, feature toggles
-7. **Permission System** - Team-based authorization
-8. **Session Management** - `getSessionFromCookie` for TanStack
+1. ✅ **Rate Limiting** - DONE (`withRateLimit`, `checkRateLimit` utilities)
+2. ✅ **KV Store Access** - DONE (tokens, sessions via `KV_SESSION`)
+3. ✅ **Email Service** - DONE (Resend integration for verification, password reset)
+4. ❌ **PostHog Analytics** - Client + server-side tracking
+5. ❌ **Turnstile Captcha** - Bot protection on signup/forms
+6. ❌ **Feature Flags** - SSO, captcha, feature toggles
+7. ✅ **Permission System** - DONE (team-based authorization via `team-auth.ts`)
+8. ✅ **Session Management** - DONE (`getSessionFromCookie` used in 100+ places)
 
 ### Component Patterns
 
@@ -908,12 +919,12 @@ export const myServerFn = createServerFn({method: 'POST'})
 3. ❌ Programming subscriptions (public browse, subscribe)
 4. ❌ Team settings (settings routes, member management)
 
-**Sprint 4 (Next):**
+**Sprint 4 (COMPLETE):**
 
-1. ❌ Auth completion (forgot/reset password, email verification)
-2. ❌ Movements section (routes + remaining functions)
-3. ❌ Settings completion (profile, security, sessions)
-4. ❌ Team management routes
+1. ✅ Auth completion (forgot/reset password, email verification) - DONE
+2. ✅ Movements section (routes + remaining functions) - DONE
+3. ✅ Settings completion (profile, security, sessions) - DONE
+4. ✅ Team management routes - DONE
 
 **Sprint 5:**
 

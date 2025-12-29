@@ -157,7 +157,6 @@ function SignInPage() {
           </p>
         </div>
 
-        {/* TODO: Add SSO buttons when OAuth is implemented */}
         {/* TODO: Add Passkey authentication when WebAuthn is implemented */}
 
         {error && (
