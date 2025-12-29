@@ -16,9 +16,11 @@ import WorkoutRowCard from '@/components/workout-row-card'
 import {WORKOUT_SCHEME_VALUES} from '@/db/schemas/workouts'
 import {
   getScheduledWorkoutsWithResultsFn,
+  getTodayScoresFn,
   getWorkoutFilterOptionsFn,
   getWorkoutsFn,
   type ScheduledWorkoutWithResult,
+  type TodayScore,
 } from '@/server-fns/workout-fns'
 
 // Helper to get start of local day
@@ -94,6 +96,7 @@ export const Route = createFileRoute('/_protected/workouts/')({
           movements: [],
           tracks: [],
         } as FilterOptions,
+        todayScoresMap: {} as Record<string, TodayScore>,
         teamId: null,
         userId: null,
       }
@@ -157,6 +160,25 @@ export const Route = createFileRoute('/_protected/workouts/')({
         getWorkoutFilterOptionsFn({data: {teamId}}),
       ])
 
+    // Fetch today's scores for the returned workouts
+    const workoutIds = workoutsResult.workouts.map((w) => w.id)
+    const todayScoresResult =
+      userId && workoutIds.length > 0
+        ? await getTodayScoresFn({
+            data: {
+              teamId,
+              userId,
+              workoutIds,
+            },
+          })
+        : {scores: [] as TodayScore[]}
+
+    // Create a map of workout ID to today's score for easy lookup
+    const todayScoresMap = new Map<string, TodayScore>()
+    for (const score of todayScoresResult.scores) {
+      todayScoresMap.set(score.workoutId, score)
+    }
+
     return {
       workouts: workoutsResult.workouts,
       totalCount: workoutsResult.totalCount,
@@ -164,6 +186,7 @@ export const Route = createFileRoute('/_protected/workouts/')({
       pageSize: workoutsResult.pageSize,
       scheduledWorkouts: scheduledResult.scheduledWorkoutsWithResults,
       filterOptions: filterOptionsResult,
+      todayScoresMap: Object.fromEntries(todayScoresMap),
       teamId,
       userId,
     }
@@ -178,6 +201,7 @@ function WorkoutsPage() {
     pageSize,
     scheduledWorkouts,
     filterOptions,
+    todayScoresMap,
     teamId,
     userId,
   } = Route.useLoaderData()
@@ -341,7 +365,11 @@ function WorkoutsPage() {
       ) : view === 'row' ? (
         <ul className="space-y-2">
           {filteredWorkouts.map((workout) => (
-            <WorkoutRowCard key={workout.id} workout={workout} />
+            <WorkoutRowCard
+              key={workout.id}
+              workout={workout}
+              result={todayScoresMap[workout.id] ?? null}
+            />
           ))}
         </ul>
       ) : (
@@ -361,6 +389,8 @@ function WorkoutsPage() {
                 roundsToScore={null}
                 pointsMultiplier={null}
                 notes={null}
+                movements={workout.movements}
+                tags={workout.tags}
                 divisionDescriptions={[]}
               />
             </Link>

@@ -834,6 +834,144 @@ export const getScheduledWorkoutsWithResultsFn = createServerFn({
     return {scheduledWorkoutsWithResults}
   })
 
+// Schema for getting today's scores for workouts
+const getTodayScoresInputSchema = z.object({
+  teamId: z.string().min(1, 'Team ID is required'),
+  userId: z.string().min(1, 'User ID is required'),
+  workoutIds: z.array(z.string()),
+})
+
+export type GetTodayScoresInput = z.infer<typeof getTodayScoresInputSchema>
+
+export interface TodayScore {
+  workoutId: string
+  scoreId: string
+  scoreValue: number | null
+  displayScore: string
+  scalingLabel: string | null
+  asRx: boolean
+  recordedAt: Date
+}
+
+/**
+ * Helper function to format score value for display
+ */
+function formatScoreValue(scoreValue: number | null, scheme: string): string {
+  if (scoreValue === null) return 'No score'
+
+  switch (scheme) {
+    case 'time':
+    case 'time-with-cap': {
+      // Time is stored in milliseconds
+      const totalSeconds = Math.floor(scoreValue / 1000)
+      const minutes = Math.floor(totalSeconds / 60)
+      const seconds = totalSeconds % 60
+      const ms = scoreValue % 1000
+      // Show ms only if non-zero
+      if (ms > 0) {
+        return `${minutes}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
+      }
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`
+    }
+    case 'rounds-reps': {
+      // Encoded as rounds * 100000 + reps
+      const rounds = Math.floor(scoreValue / 100000)
+      const reps = scoreValue % 100000
+      return `${rounds}+${reps}`
+    }
+    case 'reps':
+      return `${scoreValue} reps`
+    case 'load': {
+      // Load is stored in grams, convert to lbs or kg
+      const lbs = Math.round(scoreValue / 453.592)
+      return `${lbs} lbs`
+    }
+    case 'calories':
+      return `${scoreValue} cal`
+    case 'meters':
+      return `${scoreValue} m`
+    case 'feet':
+      return `${scoreValue} ft`
+    case 'points':
+      return `${scoreValue} pts`
+    case 'pass-fail':
+      return scoreValue === 1 ? 'Pass' : 'Fail'
+    default:
+      return String(scoreValue)
+  }
+}
+
+/**
+ * Get today's scores for a user for the specified workouts
+ * Returns the most recent score for each workout logged today
+ */
+export const getTodayScoresFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) => getTodayScoresInputSchema.parse(data))
+  .handler(async ({data}) => {
+    const db = getDb()
+
+    if (data.workoutIds.length === 0) {
+      return {scores: [] as TodayScore[]}
+    }
+
+    // Get start and end of today in local time
+    const today = new Date()
+    const startOfDay = new Date(today)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(today)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    // Fetch today's scores for the user and workouts (batched for D1 limit)
+    const scoresData = await autochunk(
+      {items: data.workoutIds, otherParametersCount: 4},
+      async (chunk) =>
+        db
+          .select({
+            workoutId: scoresTable.workoutId,
+            scoreId: scoresTable.id,
+            scoreValue: scoresTable.scoreValue,
+            scheme: scoresTable.scheme,
+            recordedAt: scoresTable.recordedAt,
+            asRx: scoresTable.asRx,
+            scalingLevelId: scoresTable.scalingLevelId,
+            scalingLabel: scalingLevelsTable.label,
+          })
+          .from(scoresTable)
+          .leftJoin(
+            scalingLevelsTable,
+            eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
+          )
+          .where(
+            and(
+              eq(scoresTable.userId, data.userId),
+              eq(scoresTable.teamId, data.teamId),
+              inArray(scoresTable.workoutId, chunk),
+              gte(scoresTable.recordedAt, startOfDay),
+              lte(scoresTable.recordedAt, endOfDay),
+            ),
+          )
+          .orderBy(desc(scoresTable.recordedAt)),
+    )
+
+    // Deduplicate by workout ID (keep first/most recent for each workout)
+    const scoresByWorkoutId = new Map<string, TodayScore>()
+    for (const score of scoresData) {
+      if (!scoresByWorkoutId.has(score.workoutId)) {
+        scoresByWorkoutId.set(score.workoutId, {
+          workoutId: score.workoutId,
+          scoreId: score.scoreId,
+          scoreValue: score.scoreValue,
+          displayScore: formatScoreValue(score.scoreValue, score.scheme),
+          scalingLabel: score.scalingLabel,
+          asRx: score.asRx,
+          recordedAt: score.recordedAt,
+        })
+      }
+    }
+
+    return {scores: Array.from(scoresByWorkoutId.values())}
+  })
+
 // Schema for getting filter options
 const getWorkoutFilterOptionsInputSchema = z.object({
   teamId: z.string().min(1, 'Team ID is required'),
