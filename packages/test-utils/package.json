@@ -12,7 +12,9 @@
     "./assertions": "./src/assertions/index.ts"
   },
   "main": "./src/index.ts",
-  "files": ["src/**"],
+  "files": [
+    "src/**"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -23,6 +25,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "typescript": "^5.8.3",
     "vitest": "^3.2.3"
   },
   "dependencies": {
