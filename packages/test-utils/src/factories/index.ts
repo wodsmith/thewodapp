@@ -13,3 +13,9 @@ export {
 	type TeamMembershipFactory,
 	type VolunteerMetadata,
 } from "./team-membership"
+export {
+	createSponsor,
+	createSponsorGroup,
+	type SponsorFactory,
+	type SponsorGroupFactory,
+} from "./sponsor"
