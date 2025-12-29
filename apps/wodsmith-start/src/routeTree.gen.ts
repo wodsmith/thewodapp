@@ -69,6 +69,7 @@ import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './
 import { Route as ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport } from './routes/_protected/workouts/$workoutId/schedule/index'
 import { Route as ProtectedWorkoutsWorkoutIdEditIndexRouteImport } from './routes/_protected/workouts/$workoutId/edit/index'
 import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './routes/_protected/settings/programming/$trackId/index'
+import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected/log/$id/edit/index'
 import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from './routes/compete/organizer/series/$groupId/edit'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId'
 
@@ -397,6 +398,11 @@ const ProtectedSettingsProgrammingTrackIdIndexRoute =
     path: '/programming/$trackId/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
+const ProtectedLogIdEditIndexRoute = ProtectedLogIdEditIndexRouteImport.update({
+  id: '/log/$id/edit/',
+  path: '/log/$id/edit/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const CompeteOrganizerSeriesGroupIdEditRoute =
   CompeteOrganizerSeriesGroupIdEditRouteImport.update({
     id: '/edit',
@@ -466,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
   '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
@@ -523,6 +530,7 @@ export interface FileRoutesByTo {
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
   '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
@@ -588,6 +596,7 @@ export interface FileRoutesById {
   '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/_protected/log/$id/edit/': typeof ProtectedLogIdEditIndexRoute
   '/_protected/settings/programming/$trackId/': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   '/_protected/workouts/$workoutId/edit/': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/_protected/workouts/$workoutId/schedule/': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
@@ -652,6 +661,7 @@ export interface FileRouteTypes {
     | '/demo/start/ssr'
     | '/compete/organizer/$competitionId/events/$eventId'
     | '/compete/organizer/series/$groupId/edit'
+    | '/log/$id/edit'
     | '/settings/programming/$trackId'
     | '/workouts/$workoutId/edit'
     | '/workouts/$workoutId/schedule'
@@ -709,6 +719,7 @@ export interface FileRouteTypes {
     | '/demo/start/ssr'
     | '/compete/organizer/$competitionId/events/$eventId'
     | '/compete/organizer/series/$groupId/edit'
+    | '/log/$id/edit'
     | '/settings/programming/$trackId'
     | '/workouts/$workoutId/edit'
     | '/workouts/$workoutId/schedule'
@@ -773,6 +784,7 @@ export interface FileRouteTypes {
     | '/demo/start/ssr/'
     | '/compete/organizer/$competitionId/events/$eventId'
     | '/compete/organizer/series/$groupId/edit'
+    | '/_protected/log/$id/edit/'
     | '/_protected/settings/programming/$trackId/'
     | '/_protected/workouts/$workoutId/edit/'
     | '/_protected/workouts/$workoutId/schedule/'
@@ -1216,6 +1228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
+    '/_protected/log/$id/edit/': {
+      id: '/_protected/log/$id/edit/'
+      path: '/log/$id/edit'
+      fullPath: '/log/$id/edit'
+      preLoaderRoute: typeof ProtectedLogIdEditIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/compete/organizer/series/$groupId/edit': {
       id: '/compete/organizer/series/$groupId/edit'
       path: '/edit'
@@ -1272,6 +1291,7 @@ interface ProtectedRouteChildren {
   ProtectedMovementsNewIndexRoute: typeof ProtectedMovementsNewIndexRoute
   ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
   ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
+  ProtectedLogIdEditIndexRoute: typeof ProtectedLogIdEditIndexRoute
   ProtectedWorkoutsWorkoutIdEditIndexRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   ProtectedWorkoutsWorkoutIdScheduleIndexRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
 }
@@ -1288,6 +1308,7 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedMovementsNewIndexRoute: ProtectedMovementsNewIndexRoute,
   ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
   ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
+  ProtectedLogIdEditIndexRoute: ProtectedLogIdEditIndexRoute,
   ProtectedWorkoutsWorkoutIdEditIndexRoute:
     ProtectedWorkoutsWorkoutIdEditIndexRoute,
   ProtectedWorkoutsWorkoutIdScheduleIndexRoute:

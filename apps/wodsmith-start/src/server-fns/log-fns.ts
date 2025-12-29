@@ -632,6 +632,42 @@ export const createLogFn = createServerFn({method: 'POST'})
   })
 
 /**
+ * Get existing round scores for a score
+ */
+const getScoreRoundsInputSchema = z.object({
+  scoreId: z.string().min(1, 'Score ID is required'),
+})
+
+export const getScoreRoundsFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) => getScoreRoundsInputSchema.parse(data))
+  .handler(async ({data}) => {
+    const db = getDb()
+
+    // Verify user is authenticated
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error('Not authenticated')
+    }
+
+    // Get rounds ordered by round number
+    const rounds = await db
+      .select({
+        id: scoreRoundsTable.id,
+        scoreId: scoreRoundsTable.scoreId,
+        roundNumber: scoreRoundsTable.roundNumber,
+        value: scoreRoundsTable.value,
+        status: scoreRoundsTable.status,
+        secondaryValue: scoreRoundsTable.secondaryValue,
+        notes: scoreRoundsTable.notes,
+      })
+      .from(scoreRoundsTable)
+      .where(eq(scoreRoundsTable.scoreId, data.scoreId))
+      .orderBy(asc(scoreRoundsTable.roundNumber))
+
+    return {rounds}
+  })
+
+/**
  * Update an existing score
  */
 const updateLogInputSchema = z.object({
@@ -640,6 +676,15 @@ const updateLogInputSchema = z.object({
   notes: z.string().optional(),
   asRx: z.boolean().optional(),
   scalingLevelId: z.string().optional(),
+  date: z.string().optional(),
+  // Multi-round support
+  roundScores: z
+    .array(
+      z.object({
+        score: z.string(),
+      }),
+    )
+    .optional(),
 })
 
 export type UpdateLogInput = z.infer<typeof updateLogInputSchema>
@@ -674,6 +719,13 @@ export const updateLogFn = createServerFn({method: 'POST'})
       throw new Error('Not authorized to update this score')
     }
 
+    const scheme = existingScore.scheme as WorkoutScheme
+    const scoreType = (existingScore.scoreType ||
+      getDefaultScoreType(scheme)) as ScoreType
+
+    // Determine if this is a multi-round update
+    const isMultiRound = data.roundScores && data.roundScores.length > 0
+
     // Build the update object with only provided fields
     const updateData: {
       scoreValue?: number | null
@@ -681,19 +733,37 @@ export const updateLogFn = createServerFn({method: 'POST'})
       asRx?: boolean
       scalingLevelId?: string | null
       sortKey?: string | null
+      recordedAt?: Date
       updatedAt: Date
     } = {
       updatedAt: new Date(),
     }
 
-    if (data.scoreValue !== undefined) {
+    if (isMultiRound) {
+      // Multi-round: encode each round and aggregate
+      const roundInputs = data.roundScores!.map((rs) => ({
+        raw: rs.score,
+      }))
+      const result = encodeRounds(roundInputs, scheme, scoreType)
+      updateData.scoreValue = result.aggregated
+
+      // Recompute sort key
+      if (result.aggregated !== null) {
+        const sortKeyBigInt = computeSortKey({
+          value: result.aggregated,
+          status: 'scored',
+          scheme,
+          scoreType,
+        })
+        updateData.sortKey = sortKeyBigInt.toString()
+      } else {
+        updateData.sortKey = null
+      }
+    } else if (data.scoreValue !== undefined) {
       updateData.scoreValue = data.scoreValue
 
       // Recompute sort key if score value changed
       if (data.scoreValue !== null) {
-        const scheme = existingScore.scheme as WorkoutScheme
-        const scoreType = (existingScore.scoreType ||
-          getDefaultScoreType(scheme)) as ScoreType
         const sortKeyBigInt = computeSortKey({
           value: data.scoreValue,
           status: 'scored',
@@ -705,6 +775,7 @@ export const updateLogFn = createServerFn({method: 'POST'})
         updateData.sortKey = null
       }
     }
+
     if (data.notes !== undefined) {
       updateData.notes = data.notes || null
     }
@@ -713,6 +784,9 @@ export const updateLogFn = createServerFn({method: 'POST'})
     }
     if (data.scalingLevelId !== undefined) {
       updateData.scalingLevelId = data.scalingLevelId || null
+    }
+    if (data.date !== undefined) {
+      updateData.recordedAt = new Date(data.date)
     }
 
     // Update the score
@@ -724,6 +798,46 @@ export const updateLogFn = createServerFn({method: 'POST'})
 
     if (!updatedScore) {
       throw new Error('Failed to update score')
+    }
+
+    // Handle multi-round updates: delete old rounds and insert new ones
+    if (isMultiRound && data.roundScores) {
+      // Delete existing rounds
+      await db
+        .delete(scoreRoundsTable)
+        .where(eq(scoreRoundsTable.scoreId, data.id))
+
+      // Insert new rounds
+      const roundsToInsert = data.roundScores.map((round, index) => {
+        let roundValue: number
+
+        if (scheme === 'rounds-reps') {
+          // Parse rounds+reps format (e.g., "5+12" or "5.12")
+          const match = round.score.match(/^(\d+)[+.](\d+)$/)
+          if (match) {
+            const rounds = Number.parseInt(match[1], 10) || 0
+            const reps = Number.parseInt(match[2], 10) || 0
+            roundValue = rounds * 100000 + reps
+          } else {
+            // Try as plain number (just rounds)
+            roundValue = (Number.parseInt(round.score, 10) || 0) * 100000
+          }
+        } else {
+          // For other schemes, encode directly
+          roundValue = encodeScore(round.score, scheme) ?? 0
+        }
+
+        return {
+          scoreId: data.id,
+          roundNumber: index + 1,
+          value: roundValue,
+          status: null,
+        }
+      })
+
+      if (roundsToInsert.length > 0) {
+        await db.insert(scoreRoundsTable).values(roundsToInsert)
+      }
     }
 
     return {score: updatedScore}
