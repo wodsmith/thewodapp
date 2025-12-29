@@ -25,6 +25,7 @@ export default async function AthleteEditPage() {
 			athleteProfile: true,
 			gender: true,
 			dateOfBirth: true,
+			affiliateName: true,
 		},
 	})
 
@@ -41,6 +42,7 @@ export default async function AthleteEditPage() {
 		dateOfBirth: user.dateOfBirth
 			? user.dateOfBirth.toISOString().split("T")[0]
 			: undefined,
+		affiliateName: user.affiliateName ?? undefined,
 	}
 
 	// Get notable metcon results as suggestions
