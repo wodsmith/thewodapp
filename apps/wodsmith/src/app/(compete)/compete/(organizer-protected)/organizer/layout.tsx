@@ -1,6 +1,5 @@
 import "server-only"
 import type { Metadata } from "next"
-import { headers } from "next/headers"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import CompeteNav from "@/components/nav/compete-nav"
@@ -24,16 +23,11 @@ export default async function OrganizerLayout({
 		redirect("/sign-in")
 	}
 
-	// Get current pathname to allow onboard routes through
-	const headersList = await headers()
-	const pathname = headersList.get("x-pathname") || ""
-	const isOnboardRoute = pathname.startsWith("/compete/organizer/onboard")
-
 	// Check if user can organize competitions
 	const organizingTeams = await getUserOrganizingTeams()
 
-	// Allow onboard routes through even if user has no organizing teams
-	if (organizingTeams.length === 0 && !isOnboardRoute) {
+	// Redirect to onboard if user has no organizing teams
+	if (organizingTeams.length === 0) {
 		return (
 			<div className="flex min-h-screen flex-col">
 				<CompeteNav />

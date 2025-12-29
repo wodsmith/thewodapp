@@ -4,8 +4,8 @@ import { Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
-import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/(organizer-protected)/organizer/_components/organizer-breadcrumb"
+import { OrganizerCompetitionsList } from "@/app/(compete)/compete/(organizer-protected)/organizer/_components/organizer-competitions-list"
 import { Button } from "@/components/ui/button"
 import {
 	Card,

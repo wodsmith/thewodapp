@@ -99,16 +99,31 @@ function AuthSection() {
 	// Sign In form
 	const signInForm = useForm<SignInSchema>({
 		resolver: zodResolver(signInSchema),
+		defaultValues: {
+			email: "",
+			password: "",
+		},
 	})
 
 	// Sign Up form
 	const signUpForm = useForm<SignUpSchema>({
 		resolver: zodResolver(signUpSchema),
+		defaultValues: {
+			email: "",
+			password: "",
+			firstName: "",
+			lastName: "",
+			captchaToken: "",
+		},
 	})
 
 	// Passkey form for sign up
 	const passkeyForm = useForm<PasskeyEmailSchema>({
 		resolver: zodResolver(passkeyEmailSchema),
+		defaultValues: {
+			email: "",
+			captchaToken: "",
+		},
 	})
 
 	const signUpCaptchaToken = useWatch({

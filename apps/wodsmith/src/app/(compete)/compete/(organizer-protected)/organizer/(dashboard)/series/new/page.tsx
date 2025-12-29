@@ -1,7 +1,7 @@
 import "server-only"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/(organizer-protected)/organizer/_components/organizer-breadcrumb"
 import { getActiveTeamFromCookie } from "@/utils/auth"
 import { getUserOrganizingTeams } from "@/utils/get-user-organizing-teams"
 import { OrganizerSeriesForm } from "./_components/organizer-series-form"

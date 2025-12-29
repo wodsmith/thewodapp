@@ -22,7 +22,7 @@ export default async function OrganizerOnboardPendingPage() {
 	const session = await getSessionFromCookie()
 
 	if (!session?.user) {
-		redirect("/sign-in?redirect=/compete/organizer/onboard")
+		redirect("/sign-in?redirect=/compete/organizer/onboard/pending")
 	}
 
 	// Get user's teams and find one with pending request
