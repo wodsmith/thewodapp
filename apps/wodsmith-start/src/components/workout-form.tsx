@@ -88,6 +88,7 @@ type WorkoutFormProps = {
   backUrl: string
   movements?: MovementData[]
   initialMovementIds?: string[]
+  isRemix?: boolean
 }
 
 export function WorkoutForm({
@@ -97,6 +98,7 @@ export function WorkoutForm({
   backUrl,
   movements = [],
   initialMovementIds = [],
+  isRemix = false,
 }: WorkoutFormProps) {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -180,9 +182,23 @@ export function WorkoutForm({
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold">
-          {mode === 'create' ? 'CREATE WORKOUT' : 'EDIT WORKOUT'}
+          {isRemix
+            ? 'REMIX WORKOUT'
+            : mode === 'create'
+              ? 'CREATE WORKOUT'
+              : 'EDIT WORKOUT'}
         </h1>
       </div>
+
+      {/* Remix notice */}
+      {isRemix && (
+        <div className="mb-6 p-4 bg-muted rounded-lg border">
+          <p className="text-sm text-muted-foreground">
+            You're creating a remix. Modify the workout below and save to create
+            your own version.
+          </p>
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}

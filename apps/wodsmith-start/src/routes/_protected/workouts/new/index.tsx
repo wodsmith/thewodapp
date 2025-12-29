@@ -1,20 +1,32 @@
 import {createFileRoute, useNavigate} from '@tanstack/react-router'
 import {WorkoutForm, type WorkoutFormData} from '@/components/workout-form'
 import {getAllMovementsFn} from '@/server-fns/movement-fns'
-import {createWorkoutFn} from '@/server-fns/workout-fns'
+import {createWorkoutFn, getWorkoutByIdFn} from '@/server-fns/workout-fns'
 
 export const Route = createFileRoute('/_protected/workouts/new/')({
   component: CreateWorkoutPage,
-  loader: async () => {
+  validateSearch: (search: Record<string, unknown>) => ({
+    remixFrom: (search.remixFrom as string) || undefined,
+  }),
+  loaderDeps: ({search}) => ({remixFrom: search.remixFrom}),
+  loader: async ({deps}) => {
     const {movements} = await getAllMovementsFn()
-    return {movements}
+
+    // If remixFrom is provided, fetch the source workout data
+    let sourceWorkout = null
+    if (deps.remixFrom) {
+      const result = await getWorkoutByIdFn({data: {id: deps.remixFrom}})
+      sourceWorkout = result.workout
+    }
+
+    return {movements, sourceWorkout, sourceWorkoutId: deps.remixFrom}
   },
 })
 
 function CreateWorkoutPage() {
   const navigate = useNavigate()
   const {session} = Route.useRouteContext()
-  const {movements} = Route.useLoaderData()
+  const {movements, sourceWorkout, sourceWorkoutId} = Route.useLoaderData()
   const teamId = session?.teams?.[0]?.id
 
   const handleSubmit = async (data: WorkoutFormData) => {
@@ -26,6 +38,8 @@ function CreateWorkoutPage() {
       data: {
         ...data,
         teamId,
+        // Include sourceWorkoutId if this is a remix
+        ...(sourceWorkoutId ? {sourceWorkoutId} : {}),
       },
     })
 
@@ -50,12 +64,27 @@ function CreateWorkoutPage() {
     )
   }
 
+  // Prepare initial data from source workout if this is a remix
+  const initialData = sourceWorkout
+    ? {
+        name: sourceWorkout.name,
+        description: sourceWorkout.description ?? '',
+        scheme: sourceWorkout.scheme,
+        scoreType: sourceWorkout.scoreType ?? undefined,
+        scope: 'private' as const, // Remixes always start as private
+        timeCap: sourceWorkout.timeCap ?? undefined,
+        roundsToScore: sourceWorkout.roundsToScore ?? undefined,
+      }
+    : undefined
+
   return (
     <WorkoutForm
       mode="create"
       movements={movements}
       onSubmit={handleSubmit}
       backUrl="/workouts"
+      initialData={initialData}
+      isRemix={!!sourceWorkoutId}
     />
   )
 }

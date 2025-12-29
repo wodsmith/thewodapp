@@ -11,12 +11,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { WorkoutRemixInfo } from "@/components/workout-remix-info"
 import { getWorkoutScoresFn, type WorkoutScore } from "@/server-fns/log-fns"
 import {
 	getWorkoutByIdFn,
 	getWorkoutScheduledInstancesFn,
 	type WorkoutScheduledInstance,
 } from "@/server-fns/workout-fns"
+import { getWorkoutRemixInfoFn } from "@/server-fns/workout-remix-fns"
 
 export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
 	component: WorkoutDetailPage,
@@ -24,7 +26,11 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
 		const session = context.session
 		const teamId = session?.teams?.[0]?.id
 
-		const result = await getWorkoutByIdFn({ data: { id: params.workoutId } })
+		// Fetch workout and remix info in parallel
+		const [result, remixInfoResult] = await Promise.all([
+			getWorkoutByIdFn({ data: { id: params.workoutId } }),
+			getWorkoutRemixInfoFn({ data: { workoutId: params.workoutId } }),
+		])
 
 		// Fetch scores and scheduled instances if we have a team
 		let scores: WorkoutScore[] = []
@@ -43,12 +49,26 @@ export const Route = createFileRoute("/_protected/workouts/$workoutId/")({
 			scheduledInstances = instancesResult.instances
 		}
 
-		return { workout: result.workout, scores, scheduledInstances }
+		return {
+			workout: result.workout,
+			scores,
+			scheduledInstances,
+			teamId,
+			sourceWorkout: remixInfoResult.sourceWorkout,
+			remixCount: remixInfoResult.remixCount,
+		}
 	},
 })
 
 function WorkoutDetailPage() {
-	const { workout, scores, scheduledInstances } = Route.useLoaderData()
+	const {
+		workout,
+		scores,
+		scheduledInstances,
+		teamId,
+		sourceWorkout,
+		remixCount,
+	} = Route.useLoaderData()
 
 	if (!workout) {
 		return (
@@ -178,6 +198,16 @@ function WorkoutDetailPage() {
 						)}
 					</div>
 				</div>
+			</div>
+
+			{/* Remix Info Section */}
+			<div className="mt-8">
+				<WorkoutRemixInfo
+					workoutId={workout.id}
+					teamId={teamId}
+					sourceWorkout={sourceWorkout}
+					remixCount={remixCount}
+				/>
 			</div>
 
 			{/* Scheduled Instances Section */}
