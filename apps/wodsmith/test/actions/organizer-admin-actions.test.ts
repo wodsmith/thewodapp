@@ -293,6 +293,28 @@ describe("organizer admin actions", () => {
 				})
 			)
 		})
+
+		it("should return approved request with reviewedBy field populated", async () => {
+			const mockApprovedResult = {
+				...mockPendingRequest,
+				status: "approved" as const,
+				reviewedBy: "admin-user-123",
+				reviewedAt: new Date(),
+				adminNotes: "Approved",
+			}
+			vi.mocked(approveOrganizerRequest).mockResolvedValue(mockApprovedResult)
+
+			const [data, err] = await approveOrganizerRequestAction({
+				requestId: "request-123",
+				adminNotes: "Approved",
+			})
+
+			expect(err).toBeNull()
+			expect(data?.success).toBe(true)
+			expect(data?.data).toHaveProperty("reviewedBy", "admin-user-123")
+			expect(data?.data).toHaveProperty("reviewedAt")
+			expect(data?.data).toHaveProperty("status", "approved")
+		})
 	})
 
 	describe("rejectOrganizerRequestAction", () => {
@@ -465,6 +487,29 @@ describe("organizer admin actions", () => {
 					adminUserId: "admin-user-123",
 				})
 			)
+		})
+
+		it("should return rejected request with reviewedBy field populated", async () => {
+			const mockRejectedResult = {
+				...mockPendingRequest,
+				status: "rejected" as const,
+				reviewedBy: "admin-user-123",
+				reviewedAt: new Date(),
+				adminNotes: "Not qualified",
+			}
+			vi.mocked(rejectOrganizerRequest).mockResolvedValue(mockRejectedResult)
+
+			const [data, err] = await rejectOrganizerRequestAction({
+				requestId: "request-123",
+				adminNotes: "Not qualified",
+				revokeFeature: false,
+			})
+
+			expect(err).toBeNull()
+			expect(data?.success).toBe(true)
+			expect(data?.data).toHaveProperty("reviewedBy", "admin-user-123")
+			expect(data?.data).toHaveProperty("reviewedAt")
+			expect(data?.data).toHaveProperty("status", "rejected")
 		})
 
 		it("should handle revoke feature flag correctly when set", async () => {
