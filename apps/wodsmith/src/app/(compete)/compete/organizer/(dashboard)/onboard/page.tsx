@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
+import type { Team } from "@/db/schema"
 import {
 	getOrganizerRequest,
 	hasPendingOrganizerRequest,
@@ -79,43 +80,46 @@ const steps = [
 
 export default async function OrganizerOnboardPage() {
 	const session = await getSessionFromCookie()
+	const isAuthenticated = !!session?.user
 
-	if (!session?.user) {
-		redirect("/sign-in?redirect=/compete/organizer/onboard")
+	// Only fetch team data if user is authenticated
+	let availableTeams: Pick<Team, "id" | "name" | "type" | "isPersonalTeam">[] =
+		[]
+
+	if (isAuthenticated) {
+		// Get user's teams
+		const teams = await getUserTeams()
+		const gymTeams = teams.filter((t) => t.type === "gym" && !t.isPersonalTeam)
+
+		// Check if any of the user's teams are already approved or have pending requests
+		const teamStatuses = await Promise.all(
+			gymTeams.map(async (team) => {
+				const [isApproved, isPending, request] = await Promise.all([
+					isApprovedOrganizer(team.id),
+					hasPendingOrganizerRequest(team.id),
+					getOrganizerRequest(team.id),
+				])
+				return { team, isApproved, isPending, request }
+			}),
+		)
+
+		// Check if any team is approved - redirect to organizer dashboard
+		const approvedTeam = teamStatuses.find((s) => s.isApproved)
+		if (approvedTeam) {
+			redirect("/compete/organizer")
+		}
+
+		// Check if any team has a pending request - redirect to pending page
+		const pendingTeam = teamStatuses.find((s) => s.isPending)
+		if (pendingTeam) {
+			redirect("/compete/organizer/onboard/pending")
+		}
+
+		// Filter to teams that haven't submitted a request yet
+		availableTeams = teamStatuses
+			.filter((s) => !s.isApproved && !s.isPending)
+			.map((s) => s.team)
 	}
-
-	// Get user's teams
-	const teams = await getUserTeams()
-	const gymTeams = teams.filter((t) => t.type === "gym" && !t.isPersonalTeam)
-
-	// Check if any of the user's teams are already approved or have pending requests
-	const teamStatuses = await Promise.all(
-		gymTeams.map(async (team) => {
-			const [isApproved, isPending, request] = await Promise.all([
-				isApprovedOrganizer(team.id),
-				hasPendingOrganizerRequest(team.id),
-				getOrganizerRequest(team.id),
-			])
-			return { team, isApproved, isPending, request }
-		}),
-	)
-
-	// Check if any team is approved - redirect to organizer dashboard
-	const approvedTeam = teamStatuses.find((s) => s.isApproved)
-	if (approvedTeam) {
-		redirect("/compete/organizer")
-	}
-
-	// Check if any team has a pending request - redirect to pending page
-	const pendingTeam = teamStatuses.find((s) => s.isPending)
-	if (pendingTeam) {
-		redirect("/compete/organizer/onboard/pending")
-	}
-
-	// Filter to teams that haven't submitted a request yet
-	const availableTeams = teamStatuses
-		.filter((s) => !s.isApproved && !s.isPending)
-		.map((s) => s.team)
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
@@ -197,7 +201,10 @@ export default async function OrganizerOnboardPage() {
 							Applications are typically reviewed within 24-48 hours. You can
 							start creating draft competitions immediately after applying.
 						</p>
-						<OnboardForm teams={availableTeams} />
+						<OnboardForm
+							teams={availableTeams}
+							isAuthenticated={isAuthenticated}
+						/>
 					</div>
 				</div>
 			</div>
