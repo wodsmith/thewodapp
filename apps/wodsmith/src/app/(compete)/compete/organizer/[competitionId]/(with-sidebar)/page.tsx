@@ -234,9 +234,7 @@ export default async function CompetitionDetailPage({
 								<Users className="h-8 w-8 text-primary" />
 							</div>
 							<div>
-								<div className="text-3xl font-bold">
-									{registrations.length}
-								</div>
+								<div className="text-3xl font-bold">{registrations.length}</div>
 								<div className="text-sm text-muted-foreground">
 									{registrations.length === 1
 										? "registration"
