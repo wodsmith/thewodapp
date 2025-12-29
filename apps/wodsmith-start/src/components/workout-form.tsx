@@ -1,10 +1,10 @@
-import {useState} from 'react'
 import {useNavigate} from '@tanstack/react-router'
 import {ArrowLeft} from 'lucide-react'
+import {useState} from 'react'
+import {MovementsList} from '@/components/movements-list'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
-import {Textarea} from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -12,11 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {Textarea} from '@/components/ui/textarea'
 import {
-  WORKOUT_SCHEME_VALUES,
+  type Movement,
   SCORE_TYPE_VALUES,
-  type WorkoutScheme,
   type ScoreType,
+  WORKOUT_SCHEME_VALUES,
+  type WorkoutScheme,
 } from '@/db/schemas/workouts'
 
 // Scheme display labels
@@ -73,13 +75,19 @@ export type WorkoutFormData = {
   scope: 'private' | 'public'
   timeCap?: number
   roundsToScore?: number
+  movementIds?: string[]
 }
+
+// Flexible movement type that can accept partial Movement data
+type MovementData = Pick<Movement, 'id' | 'name' | 'type'>
 
 type WorkoutFormProps = {
   mode: 'create' | 'edit'
   initialData?: Partial<WorkoutFormData>
   onSubmit: (data: WorkoutFormData) => Promise<void>
   backUrl: string
+  movements?: MovementData[]
+  initialMovementIds?: string[]
 }
 
 export function WorkoutForm({
@@ -87,6 +95,8 @@ export function WorkoutForm({
   initialData,
   onSubmit,
   backUrl,
+  movements = [],
+  initialMovementIds = [],
 }: WorkoutFormProps) {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,6 +120,17 @@ export function WorkoutForm({
   const [roundsToScore, setRoundsToScore] = useState<string>(
     initialData?.roundsToScore?.toString() ?? '',
   )
+  const [selectedMovements, setSelectedMovements] =
+    useState<string[]>(initialMovementIds)
+
+  // Handle movement toggle
+  const handleMovementToggle = (movementId: string) => {
+    if (selectedMovements.includes(movementId)) {
+      setSelectedMovements(selectedMovements.filter((id) => id !== movementId))
+    } else {
+      setSelectedMovements([...selectedMovements, movementId])
+    }
+  }
 
   // Update score type when scheme changes
   const handleSchemeChange = (newScheme: WorkoutScheme) => {
@@ -137,6 +158,8 @@ export function WorkoutForm({
         scope,
         timeCap: timeCap ? parseInt(timeCap, 10) : undefined,
         roundsToScore: roundsToScore ? parseInt(roundsToScore, 10) : undefined,
+        movementIds:
+          selectedMovements.length > 0 ? selectedMovements : undefined,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -194,6 +217,18 @@ export function WorkoutForm({
             required
           />
         </div>
+
+        {/* Movements - only show if movements are provided */}
+        {movements.length > 0 && (
+          <MovementsList
+            movements={movements}
+            selectedMovements={selectedMovements}
+            onMovementToggle={handleMovementToggle}
+            mode="selectable"
+            variant="default"
+            containerHeight="h-[300px]"
+          />
+        )}
 
         {/* Scheme */}
         <div className="space-y-2">

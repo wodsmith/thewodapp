@@ -2,7 +2,7 @@
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
 **Last Updated:** December 28, 2025
-**Migration Status:** 72% Complete (Competition platform nearly complete, core app functional)
+**Migration Status:** 76% Complete (Competition platform nearly complete, core app functional, movements done)
 
 ---
 
@@ -15,11 +15,11 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 | Category                                 | Total Routes | ✅ Migrated | 🔄 Partial | ❌ Not Started | % Complete |
 | ---------------------------------------- | ------------ | ----------- | ---------- | -------------- | ---------- |
 | **Authentication**                       | 7            | 2           | 0          | 5              | 29%        |
-| **Main App** (workouts, logs, movements) | 17           | 10          | 2          | 5              | 59%        |
+| **Main App** (workouts, logs, movements) | 17           | 13          | 2          | 2              | 76%        |
 | **Programming & Teams**                  | 7            | 3           | 1          | 3              | 43%        |
 | **Settings & Admin**                     | 19           | 2           | 0          | 17             | 11%        |
 | **Competition Platform**                 | 39           | 35          | 2          | 2              | 90%        |
-| **TOTAL**                                | **89**       | **52**      | **5**      | **32**         | **58%**    |
+| **TOTAL**                                | **89**       | **55**      | **5**      | **29**         | **62%**    |
 
 ### Action/Function Coverage
 
@@ -28,7 +28,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 | **Authentication** | 10              | 2                  | 8 (80%)               |
 | **Workouts**       | 21              | 8                  | 13 (62%)              |
 | **Logs**           | 5               | 7                  | 0 (0%) ✅             |
-| **Movements**      | 4               | 1                  | 3 (75%)               |
+| **Movements**      | 4               | 4                  | 0 (0%) ✅             |
 | **Programming**    | 4               | 9                  | 4 subscriptions (44%) |
 | **Teams**          | 16              | 3                  | 13 (81%)              |
 | **Settings**       | 4 files         | 0                  | 4 (100%)              |
@@ -45,7 +45,7 @@ This master checklist consolidates analysis from 5 detailed migration documents 
 - ❌ Password reset flow
 - ❌ Google SSO
 - ✅ Log editing - DONE (updateLogFn implemented)
-- ❌ Movements section (routes missing, 1 function exists)
+- ✅ Movements section - DONE (all routes and functions implemented)
 - ❌ Add workout to track
 - ❌ Advanced workout filters & pagination
 - ❌ Programming subscriptions
@@ -232,11 +232,11 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ### P1 - HIGH (Essential Features)
 
-#### Movements (0/3 complete)
+#### Movements (3/3 complete) ✅
 
-- [ ] ❌ Movements List
-- [ ] ❌ Movement Detail
-- [ ] ❌ Create Movement
+- [x] ✅ Movements List - DONE (`/_protected/movements/`)
+- [x] ✅ Movement Detail - DONE (`/_protected/movements/$id/`)
+- [x] ✅ Create Movement - DONE (`/_protected/movements/new/`)
 
 #### Workout Features (0/5 complete)
 
@@ -574,20 +574,20 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ---
 
-### 🏃 Movements (25% complete)
+### 🏃 Movements (100% complete) ✅
 
 #### Routes
 
-- [ ] ❌ Movements List (`/movements`)
-- [ ] ❌ Movement Detail (`/movements/$id`)
-- [ ] ❌ Create Movement (`/movements/new`)
+- [x] ✅ Movements List (`/_protected/movements/`) - DONE with search, type filtering
+- [x] ✅ Movement Detail (`/_protected/movements/$id/`) - DONE with workouts list
+- [x] ✅ Create Movement (`/_protected/movements/new/`) - DONE with form
 
 #### Actions/Functions
 
 - [x] ✅ `getAllMovementsFn` - DONE
-- [ ] ❌ `createMovementFn`
-- [ ] ❌ `getMovementByIdFn`
-- [ ] ❌ `getWorkoutsByMovementIdFn`
+- [x] ✅ `createMovementFn` - DONE
+- [x] ✅ `getMovementByIdFn` - DONE
+- [x] ✅ `getWorkoutsByMovementIdFn` - DONE
 
 ---
 

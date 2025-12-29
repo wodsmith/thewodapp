@@ -1,21 +1,36 @@
 import {createFileRoute, useNavigate} from '@tanstack/react-router'
-import {WorkoutForm, type WorkoutFormData} from '@/components/workout-form'
-import {getWorkoutByIdFn, updateWorkoutFn} from '@/server-fns/workout-fns'
-import {Button} from '@/components/ui/button'
 import {ArrowLeft} from 'lucide-react'
+import {Button} from '@/components/ui/button'
+import {WorkoutForm, type WorkoutFormData} from '@/components/workout-form'
+import {getAllMovementsFn} from '@/server-fns/movement-fns'
+import {getWorkoutByIdFn, updateWorkoutFn} from '@/server-fns/workout-fns'
 
 export const Route = createFileRoute('/_protected/workouts/$workoutId/edit/')({
   component: EditWorkoutPage,
   loader: async ({params}) => {
-    const result = await getWorkoutByIdFn({data: {id: params.workoutId}})
-    return {workout: result.workout}
+    const [workoutResult, movementsResult] = await Promise.all([
+      getWorkoutByIdFn({data: {id: params.workoutId}}),
+      getAllMovementsFn(),
+    ])
+    return {
+      workout: workoutResult.workout,
+      movements: movementsResult.movements,
+    }
   },
 })
 
 function EditWorkoutPage() {
   const navigate = useNavigate()
-  const {workout} = Route.useLoaderData()
+  const {workout, movements} = Route.useLoaderData()
   const {workoutId} = Route.useParams()
+
+  // Extract initial movement IDs from the workout's current movements
+  // Note: movements property is added when getWorkoutByIdFn is updated to include workout movements
+  const workoutWithMovements = workout as typeof workout & {
+    movements?: Array<{id: string}>
+  }
+  const initialMovementIds =
+    workoutWithMovements?.movements?.map((m) => m.id) ?? []
 
   const handleSubmit = async (data: WorkoutFormData) => {
     await updateWorkoutFn({
@@ -67,6 +82,8 @@ function EditWorkoutPage() {
       }}
       onSubmit={handleSubmit}
       backUrl={`/workouts/${workoutId}`}
+      movements={movements}
+      initialMovementIds={initialMovementIds}
     />
   )
 }

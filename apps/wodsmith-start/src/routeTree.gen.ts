@@ -24,6 +24,7 @@ import { Route as CompeteOrganizerIndexRouteImport } from './routes/compete/orga
 import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
+import { Route as ProtectedMovementsIndexRouteImport } from './routes/_protected/movements/index'
 import { Route as ProtectedLogIndexRouteImport } from './routes/_protected/log/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
@@ -43,6 +44,8 @@ import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from './routes
 import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
 import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
 import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
+import { Route as ProtectedMovementsNewIndexRouteImport } from './routes/_protected/movements/new/index'
+import { Route as ProtectedMovementsIdIndexRouteImport } from './routes/_protected/movements/$id/index'
 import { Route as ProtectedLogNewIndexRouteImport } from './routes/_protected/log/new/index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
@@ -140,6 +143,11 @@ const ProtectedWorkoutsIndexRoute = ProtectedWorkoutsIndexRouteImport.update({
 const ProtectedTeamIndexRoute = ProtectedTeamIndexRouteImport.update({
   id: '/team/',
   path: '/team/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedMovementsIndexRoute = ProtectedMovementsIndexRouteImport.update({
+  id: '/movements/',
+  path: '/movements/',
   getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedLogIndexRoute = ProtectedLogIndexRouteImport.update({
@@ -242,6 +250,18 @@ const ProtectedSettingsProgrammingIndexRoute =
     id: '/programming/',
     path: '/programming/',
     getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedMovementsNewIndexRoute =
+  ProtectedMovementsNewIndexRouteImport.update({
+    id: '/movements/new/',
+    path: '/movements/new/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedMovementsIdIndexRoute =
+  ProtectedMovementsIdIndexRouteImport.update({
+    id: '/movements/$id/',
+    path: '/movements/$id/',
+    getParentRoute: () => ProtectedRoute,
   } as any)
 const ProtectedLogNewIndexRoute = ProtectedLogNewIndexRouteImport.update({
   id: '/log/new/',
@@ -413,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/log': typeof ProtectedLogIndexRoute
+  '/movements': typeof ProtectedMovementsIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/compete/$slug/': typeof CompeteSlugIndexRoute
@@ -435,6 +456,8 @@ export interface FileRoutesByFullPath {
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
   '/log/new': typeof ProtectedLogNewIndexRoute
+  '/movements/$id': typeof ProtectedMovementsIdIndexRoute
+  '/movements/new': typeof ProtectedMovementsNewIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
@@ -468,6 +491,7 @@ export interface FileRoutesByTo {
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/log': typeof ProtectedLogIndexRoute
+  '/movements': typeof ProtectedMovementsIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/compete/$slug': typeof CompeteSlugIndexRoute
@@ -489,6 +513,8 @@ export interface FileRoutesByTo {
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
   '/log/new': typeof ProtectedLogNewIndexRoute
+  '/movements/$id': typeof ProtectedMovementsIdIndexRoute
+  '/movements/new': typeof ProtectedMovementsNewIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
@@ -529,6 +555,7 @@ export interface FileRoutesById {
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/_protected/log/': typeof ProtectedLogIndexRoute
+  '/_protected/movements/': typeof ProtectedMovementsIndexRoute
   '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/compete/$slug/': typeof CompeteSlugIndexRoute
@@ -551,6 +578,8 @@ export interface FileRoutesById {
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
   '/_protected/log/new/': typeof ProtectedLogNewIndexRoute
+  '/_protected/movements/$id/': typeof ProtectedMovementsIdIndexRoute
+  '/_protected/movements/new/': typeof ProtectedMovementsNewIndexRoute
   '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
   '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
@@ -590,6 +619,7 @@ export interface FileRouteTypes {
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
     | '/log'
+    | '/movements'
     | '/team'
     | '/workouts'
     | '/compete/$slug/'
@@ -612,6 +642,8 @@ export interface FileRouteTypes {
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
     | '/log/new'
+    | '/movements/$id'
+    | '/movements/new'
     | '/settings/programming'
     | '/workouts/$workoutId'
     | '/workouts/new'
@@ -645,6 +677,7 @@ export interface FileRouteTypes {
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
     | '/log'
+    | '/movements'
     | '/team'
     | '/workouts'
     | '/compete/$slug'
@@ -666,6 +699,8 @@ export interface FileRouteTypes {
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
     | '/log/new'
+    | '/movements/$id'
+    | '/movements/new'
     | '/settings/programming'
     | '/workouts/$workoutId'
     | '/workouts/new'
@@ -705,6 +740,7 @@ export interface FileRouteTypes {
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
     | '/_protected/log/'
+    | '/_protected/movements/'
     | '/_protected/team/'
     | '/_protected/workouts/'
     | '/compete/$slug/'
@@ -727,6 +763,8 @@ export interface FileRouteTypes {
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
     | '/_protected/log/new/'
+    | '/_protected/movements/$id/'
+    | '/_protected/movements/new/'
     | '/_protected/settings/programming/'
     | '/_protected/workouts/$workoutId/'
     | '/_protected/workouts/new/'
@@ -863,6 +901,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedTeamIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/movements/': {
+      id: '/_protected/movements/'
+      path: '/movements'
+      fullPath: '/movements'
+      preLoaderRoute: typeof ProtectedMovementsIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/log/': {
       id: '/_protected/log/'
       path: '/log'
@@ -995,6 +1040,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/programming'
       preLoaderRoute: typeof ProtectedSettingsProgrammingIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/movements/new/': {
+      id: '/_protected/movements/new/'
+      path: '/movements/new'
+      fullPath: '/movements/new'
+      preLoaderRoute: typeof ProtectedMovementsNewIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/movements/$id/': {
+      id: '/_protected/movements/$id/'
+      path: '/movements/$id'
+      fullPath: '/movements/$id'
+      preLoaderRoute: typeof ProtectedMovementsIdIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
     '/_protected/log/new/': {
       id: '/_protected/log/new/'
@@ -1205,9 +1264,12 @@ interface ProtectedRouteChildren {
   ProtectedDashboardRoute: typeof ProtectedDashboardRoute
   ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
   ProtectedLogIndexRoute: typeof ProtectedLogIndexRoute
+  ProtectedMovementsIndexRoute: typeof ProtectedMovementsIndexRoute
   ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
   ProtectedWorkoutsIndexRoute: typeof ProtectedWorkoutsIndexRoute
   ProtectedLogNewIndexRoute: typeof ProtectedLogNewIndexRoute
+  ProtectedMovementsIdIndexRoute: typeof ProtectedMovementsIdIndexRoute
+  ProtectedMovementsNewIndexRoute: typeof ProtectedMovementsNewIndexRoute
   ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
   ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
   ProtectedWorkoutsWorkoutIdEditIndexRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
@@ -1218,9 +1280,12 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedDashboardRoute: ProtectedDashboardRoute,
   ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
   ProtectedLogIndexRoute: ProtectedLogIndexRoute,
+  ProtectedMovementsIndexRoute: ProtectedMovementsIndexRoute,
   ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
   ProtectedWorkoutsIndexRoute: ProtectedWorkoutsIndexRoute,
   ProtectedLogNewIndexRoute: ProtectedLogNewIndexRoute,
+  ProtectedMovementsIdIndexRoute: ProtectedMovementsIdIndexRoute,
+  ProtectedMovementsNewIndexRoute: ProtectedMovementsNewIndexRoute,
   ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
   ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
   ProtectedWorkoutsWorkoutIdEditIndexRoute:

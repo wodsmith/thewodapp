@@ -17,20 +17,20 @@ const MAX_PARAMETERS = SQL_BATCH_SIZE
  * Use autochunk for most cases; this is for parallel execution patterns
  */
 export function chunk<T>(arr: T[], size: number): T[][] {
-  const chunks: T[][] = []
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size))
-  }
-  return chunks
+	const chunks: T[][] = []
+	for (let i = 0; i < arr.length; i += size) {
+		chunks.push(arr.slice(i, i + size))
+	}
+	return chunks
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  )
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		!Array.isArray(value) &&
+		Object.getPrototypeOf(value) === Object.prototype
+	)
 }
 
 /**
@@ -66,61 +66,61 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * )
  */
 export async function autochunk<
-  T extends Record<string, unknown> | string | number,
-  U,
+	T extends Record<string, unknown> | string | number,
+	U,
 >(
-  {
-    items,
-    otherParametersCount = 0,
-  }: {
-    items: T[]
-    otherParametersCount?: number
-  },
-  cb: (chunk: T[]) => Promise<U[]>,
+	{
+		items,
+		otherParametersCount = 0,
+	}: {
+		items: T[]
+		otherParametersCount?: number
+	},
+	cb: (chunk: T[]) => Promise<U[]>,
 ): Promise<U[]> {
-  if (items.length === 0) return []
+	if (items.length === 0) return []
 
-  const chunks: T[][] = []
-  let chunk: T[] = []
-  let chunkParameters = 0
+	const chunks: T[][] = []
+	let chunk: T[] = []
+	let chunkParameters = 0
 
-  if (otherParametersCount >= MAX_PARAMETERS) {
-    throw new Error(`otherParametersCount cannot be >= ${MAX_PARAMETERS}`)
-  }
+	if (otherParametersCount >= MAX_PARAMETERS) {
+		throw new Error(`otherParametersCount cannot be >= ${MAX_PARAMETERS}`)
+	}
 
-  for (const item of items) {
-    const itemParameters = isPlainObject(item) ? Object.keys(item).length : 1
+	for (const item of items) {
+		const itemParameters = isPlainObject(item) ? Object.keys(item).length : 1
 
-    if (itemParameters > MAX_PARAMETERS) {
-      throw new Error(`Item has too many parameters (${itemParameters})`)
-    }
+		if (itemParameters > MAX_PARAMETERS) {
+			throw new Error(`Item has too many parameters (${itemParameters})`)
+		}
 
-    if (
-      chunkParameters + itemParameters + otherParametersCount >
-      MAX_PARAMETERS
-    ) {
-      chunks.push(chunk)
-      chunkParameters = itemParameters
-      chunk = [item]
-      continue
-    }
+		if (
+			chunkParameters + itemParameters + otherParametersCount >
+			MAX_PARAMETERS
+		) {
+			chunks.push(chunk)
+			chunkParameters = itemParameters
+			chunk = [item]
+			continue
+		}
 
-    chunk.push(item)
-    chunkParameters += itemParameters
-  }
+		chunk.push(item)
+		chunkParameters += itemParameters
+	}
 
-  if (chunk.length) {
-    chunks.push(chunk)
-  }
+	if (chunk.length) {
+		chunks.push(chunk)
+	}
 
-  const results: U[] = []
+	const results: U[] = []
 
-  for (const chunkItems of chunks) {
-    const result = await cb(chunkItems)
-    results.push(...result)
-  }
+	for (const chunkItems of chunks) {
+		const result = await cb(chunkItems)
+		results.push(...result)
+	}
 
-  return results
+	return results
 }
 
 /**
@@ -133,57 +133,57 @@ export async function autochunk<
  * @returns First matching result or null
  */
 export async function autochunkFirst<
-  T extends Record<string, unknown> | string | number,
-  U,
+	T extends Record<string, unknown> | string | number,
+	U,
 >(
-  {
-    items,
-    otherParametersCount = 0,
-  }: {
-    items: T[]
-    otherParametersCount?: number
-  },
-  cb: (chunk: T[]) => Promise<U | undefined>,
+	{
+		items,
+		otherParametersCount = 0,
+	}: {
+		items: T[]
+		otherParametersCount?: number
+	},
+	cb: (chunk: T[]) => Promise<U | undefined>,
 ): Promise<U | null> {
-  if (items.length === 0) return null
+	if (items.length === 0) return null
 
-  const chunks: T[][] = []
-  let chunk: T[] = []
-  let chunkParameters = 0
+	const chunks: T[][] = []
+	let chunk: T[] = []
+	let chunkParameters = 0
 
-  if (otherParametersCount >= MAX_PARAMETERS) {
-    throw new Error(`otherParametersCount cannot be >= ${MAX_PARAMETERS}`)
-  }
+	if (otherParametersCount >= MAX_PARAMETERS) {
+		throw new Error(`otherParametersCount cannot be >= ${MAX_PARAMETERS}`)
+	}
 
-  for (const item of items) {
-    const itemParameters = isPlainObject(item) ? Object.keys(item).length : 1
+	for (const item of items) {
+		const itemParameters = isPlainObject(item) ? Object.keys(item).length : 1
 
-    if (itemParameters > MAX_PARAMETERS) {
-      throw new Error(`Item has too many parameters (${itemParameters})`)
-    }
+		if (itemParameters > MAX_PARAMETERS) {
+			throw new Error(`Item has too many parameters (${itemParameters})`)
+		}
 
-    if (
-      chunkParameters + itemParameters + otherParametersCount >
-      MAX_PARAMETERS
-    ) {
-      chunks.push(chunk)
-      chunkParameters = itemParameters
-      chunk = [item]
-      continue
-    }
+		if (
+			chunkParameters + itemParameters + otherParametersCount >
+			MAX_PARAMETERS
+		) {
+			chunks.push(chunk)
+			chunkParameters = itemParameters
+			chunk = [item]
+			continue
+		}
 
-    chunk.push(item)
-    chunkParameters += itemParameters
-  }
+		chunk.push(item)
+		chunkParameters += itemParameters
+	}
 
-  if (chunk.length) {
-    chunks.push(chunk)
-  }
+	if (chunk.length) {
+		chunks.push(chunk)
+	}
 
-  for (const chunkItems of chunks) {
-    const result = await cb(chunkItems)
-    if (result !== undefined) return result
-  }
+	for (const chunkItems of chunks) {
+		const result = await cb(chunkItems)
+		if (result !== undefined) return result
+	}
 
-  return null
+	return null
 }

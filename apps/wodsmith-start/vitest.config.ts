@@ -26,7 +26,11 @@ export default defineConfig({
 			provider: "v8",
 			reporter: ["text", "json", "html"],
 			enabled: false,
-			exclude: ["**/node_modules/**", "**/test/**", "**/*.{test,spec}.{ts,tsx}"],
+			exclude: [
+				"**/node_modules/**",
+				"**/test/**",
+				"**/*.{test,spec}.{ts,tsx}",
+			],
 		},
 	},
 	plugins: [react(), tsconfigPaths()],

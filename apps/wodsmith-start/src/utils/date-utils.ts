@@ -8,9 +8,9 @@
  * @returns Date object set to start of day (00:00:00.000) in local timezone
  */
 export function startOfLocalDay(date: Date = new Date()): Date {
-  const localDate = new Date(date)
-  localDate.setHours(0, 0, 0, 0)
-  return localDate
+	const localDate = new Date(date)
+	localDate.setHours(0, 0, 0, 0)
+	return localDate
 }
 
 /**
@@ -19,9 +19,9 @@ export function startOfLocalDay(date: Date = new Date()): Date {
  * @returns Date object set to end of day (23:59:59.999) in local timezone
  */
 export function endOfLocalDay(date: Date = new Date()): Date {
-  const localDate = new Date(date)
-  localDate.setHours(23, 59, 59, 999)
-  return localDate
+	const localDate = new Date(date)
+	localDate.setHours(23, 59, 59, 999)
+	return localDate
 }
 
 /**
@@ -30,12 +30,12 @@ export function endOfLocalDay(date: Date = new Date()): Date {
  * @returns Date object set to start of Sunday in local timezone
  */
 export function startOfLocalWeek(date: Date = new Date()): Date {
-  const localDate = new Date(date)
-  const day = localDate.getDay()
-  const diff = localDate.getDate() - day
-  localDate.setDate(diff)
-  localDate.setHours(0, 0, 0, 0)
-  return localDate
+	const localDate = new Date(date)
+	const day = localDate.getDay()
+	const diff = localDate.getDate() - day
+	localDate.setDate(diff)
+	localDate.setHours(0, 0, 0, 0)
+	return localDate
 }
 
 /**
@@ -44,12 +44,12 @@ export function startOfLocalWeek(date: Date = new Date()): Date {
  * @returns Date object set to end of Saturday in local timezone
  */
 export function endOfLocalWeek(date: Date = new Date()): Date {
-  const localDate = new Date(date)
-  const day = localDate.getDay()
-  const diff = localDate.getDate() - day + 6
-  localDate.setDate(diff)
-  localDate.setHours(23, 59, 59, 999)
-  return localDate
+	const localDate = new Date(date)
+	const day = localDate.getDay()
+	const diff = localDate.getDate() - day + 6
+	localDate.setDate(diff)
+	localDate.setHours(23, 59, 59, 999)
+	return localDate
 }
 
 /**
@@ -58,11 +58,11 @@ export function endOfLocalWeek(date: Date = new Date()): Date {
  * @returns String in YYYY-MM-DD format
  */
 export function getLocalDateKey(date: Date | string | number): string {
-  const localDate = date instanceof Date ? date : new Date(date)
-  const year = localDate.getFullYear()
-  const month = String(localDate.getMonth() + 1).padStart(2, '0')
-  const day = String(localDate.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+	const localDate = date instanceof Date ? date : new Date(date)
+	const year = localDate.getFullYear()
+	const month = String(localDate.getMonth() + 1).padStart(2, "0")
+	const day = String(localDate.getDate()).padStart(2, "0")
+	return `${year}-${month}-${day}`
 }
 
 /**
@@ -70,27 +70,27 @@ export function getLocalDateKey(date: Date | string | number): string {
  * Uses UTC to preserve the calendar date stored in the database.
  */
 export function formatUTCDateShort(
-  date: Date | string | number | null | undefined,
+	date: Date | string | number | null | undefined,
 ): string {
-  if (date == null) return ''
-  const d = date instanceof Date ? date : new Date(date)
-  if (Number.isNaN(d.getTime())) return ''
+	if (date == null) return ""
+	const d = date instanceof Date ? date : new Date(date)
+	if (Number.isNaN(d.getTime())) return ""
 
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ]
-  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`
 }
 
 /**
@@ -98,27 +98,27 @@ export function formatUTCDateShort(
  * Uses UTC to preserve the calendar date stored in the database.
  */
 export function formatUTCDateFull(
-  date: Date | string | number | null | undefined,
+	date: Date | string | number | null | undefined,
 ): string {
-  if (date == null) return ''
-  const d = date instanceof Date ? date : new Date(date)
-  if (Number.isNaN(d.getTime())) return ''
+	if (date == null) return ""
+	const d = date instanceof Date ? date : new Date(date)
+	if (Number.isNaN(d.getTime())) return ""
 
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ]
-  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
 }
 
 /**
@@ -127,11 +127,11 @@ export function formatUTCDateFull(
  * This creates a Date object that preserves the calendar date in UTC.
  */
 export function parseDateInputAsUTC(dateStr: string): Date {
-  const parts = dateStr.split('-').map(Number)
-  const year = parts[0] ?? 0
-  const month = parts[1] ?? 1
-  const day = parts[2] ?? 1
-  return new Date(Date.UTC(year, month - 1, day))
+	const parts = dateStr.split("-").map(Number)
+	const year = parts[0] ?? 0
+	const month = parts[1] ?? 1
+	const day = parts[2] ?? 1
+	return new Date(Date.UTC(year, month - 1, day))
 }
 
 /**
@@ -139,45 +139,45 @@ export function parseDateInputAsUTC(dateStr: string): Date {
  * Handles same month, different months, and different years.
  */
 export function formatUTCDateRange(
-  startDate: Date | string | number,
-  endDate: Date | string | number,
+	startDate: Date | string | number,
+	endDate: Date | string | number,
 ): string {
-  const start =
-    startDate instanceof Date ? startDate : new Date(startDate as string)
-  const end = endDate instanceof Date ? endDate : new Date(endDate as string)
+	const start =
+		startDate instanceof Date ? startDate : new Date(startDate as string)
+	const end = endDate instanceof Date ? endDate : new Date(endDate as string)
 
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ]
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	]
 
-  const startMonth = months[start.getUTCMonth()]
-  const startDay = start.getUTCDate()
-  const startYear = start.getUTCFullYear()
-  const endMonth = months[end.getUTCMonth()]
-  const endDay = end.getUTCDate()
-  const endYear = end.getUTCFullYear()
+	const startMonth = months[start.getUTCMonth()]
+	const startDay = start.getUTCDate()
+	const startYear = start.getUTCFullYear()
+	const endMonth = months[end.getUTCMonth()]
+	const endDay = end.getUTCDate()
+	const endYear = end.getUTCFullYear()
 
-  // Same month and year
-  if (start.getUTCMonth() === end.getUTCMonth() && startYear === endYear) {
-    return `${startMonth} ${startDay}-${endDay}, ${startYear}`
-  }
+	// Same month and year
+	if (start.getUTCMonth() === end.getUTCMonth() && startYear === endYear) {
+		return `${startMonth} ${startDay}-${endDay}, ${startYear}`
+	}
 
-  // Same year, different months
-  if (startYear === endYear) {
-    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`
-  }
+	// Same year, different months
+	if (startYear === endYear) {
+		return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`
+	}
 
-  // Different years
-  return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
+	// Different years
+	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
 }

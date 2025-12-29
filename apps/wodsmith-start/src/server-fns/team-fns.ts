@@ -3,39 +3,39 @@
  * Functions for team page features (leaderboards, team info)
  */
 
-import {createServerFn} from '@tanstack/react-start'
-import {z} from 'zod'
-import {getDb} from '@/db'
-import {userTable} from '@/db/schemas/users'
-import {teamTable, teamMembershipTable} from '@/db/schemas/teams'
-import {scoresTable} from '@/db/schemas/scores'
-import {scalingLevelsTable} from '@/db/schemas/scaling'
-import {eq, and, inArray, desc} from 'drizzle-orm'
-import {getSessionFromCookie} from '@/utils/auth'
+import { createServerFn } from "@tanstack/react-start"
+import { and, desc, eq, inArray } from "drizzle-orm"
+import { z } from "zod"
+import { getDb } from "@/db"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
+import { scoresTable } from "@/db/schemas/scores"
+import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
+import { userTable } from "@/db/schemas/users"
+import { getSessionFromCookie } from "@/utils/auth"
 
 // ===========================
 // Type Definitions
 // ===========================
 
 export interface LeaderboardEntry {
-  rank: number
-  userId: string
-  userName: string
-  scoreValue: number | null
-  displayScore: string
-  asRx: boolean
-  scalingLabel: string | null
+	rank: number
+	userId: string
+	userName: string
+	scoreValue: number | null
+	displayScore: string
+	asRx: boolean
+	scalingLabel: string | null
 }
 
 export interface TeamWithRole {
-  id: string
-  name: string
-  slug: string
-  description: string | null
-  avatarUrl: string | null
-  type: string
-  role: string
-  isSystemRole: boolean
+	id: string
+	name: string
+	slug: string
+	description: string | null
+	avatarUrl: string | null
+	type: string
+	role: string
+	isSystemRole: boolean
 }
 
 // ===========================
@@ -43,16 +43,16 @@ export interface TeamWithRole {
 // ===========================
 
 const getTeamLeaderboardsInputSchema = z.object({
-  scheduledWorkoutInstanceIds: z.array(z.string()).min(1),
-  teamId: z.string().min(1, 'Team ID is required'),
+	scheduledWorkoutInstanceIds: z.array(z.string()).min(1),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 const getActiveTeamInputSchema = z.object({
-  userId: z.string().min(1, 'User ID is required'),
+	userId: z.string().min(1, "User ID is required"),
 })
 
 const getTeamSlugInputSchema = z.object({
-  teamId: z.string().min(1, 'Team ID is required'),
+	teamId: z.string().min(1, "Team ID is required"),
 })
 
 // ===========================
@@ -63,57 +63,57 @@ const getTeamSlugInputSchema = z.object({
  * Format score value for display based on scheme
  */
 function formatScoreValue(scoreValue: number | null, scheme: string): string {
-  if (scoreValue === null) return 'No score'
+	if (scoreValue === null) return "No score"
 
-  switch (scheme) {
-    case 'time':
-    case 'time-with-cap': {
-      // Time is stored in milliseconds
-      const totalSeconds = Math.floor(scoreValue / 1000)
-      const minutes = Math.floor(totalSeconds / 60)
-      const seconds = totalSeconds % 60
-      return `${minutes}:${seconds.toString().padStart(2, '0')}`
-    }
-    case 'rounds-reps': {
-      // Encoded as rounds * 100000 + reps
-      const rounds = Math.floor(scoreValue / 100000)
-      const reps = scoreValue % 100000
-      return `${rounds}+${reps}`
-    }
-    case 'reps':
-      return `${scoreValue} reps`
-    case 'load': {
-      // Load is stored in grams, convert to lbs
-      const lbs = Math.round(scoreValue / 453.592)
-      return `${lbs} lbs`
-    }
-    case 'calories':
-      return `${scoreValue} cal`
-    case 'meters':
-      return `${scoreValue} m`
-    case 'feet':
-      return `${scoreValue} ft`
-    case 'points':
-      return `${scoreValue} pts`
-    default:
-      return String(scoreValue)
-  }
+	switch (scheme) {
+		case "time":
+		case "time-with-cap": {
+			// Time is stored in milliseconds
+			const totalSeconds = Math.floor(scoreValue / 1000)
+			const minutes = Math.floor(totalSeconds / 60)
+			const seconds = totalSeconds % 60
+			return `${minutes}:${seconds.toString().padStart(2, "0")}`
+		}
+		case "rounds-reps": {
+			// Encoded as rounds * 100000 + reps
+			const rounds = Math.floor(scoreValue / 100000)
+			const reps = scoreValue % 100000
+			return `${rounds}+${reps}`
+		}
+		case "reps":
+			return `${scoreValue} reps`
+		case "load": {
+			// Load is stored in grams, convert to lbs
+			const lbs = Math.round(scoreValue / 453.592)
+			return `${lbs} lbs`
+		}
+		case "calories":
+			return `${scoreValue} cal`
+		case "meters":
+			return `${scoreValue} m`
+		case "feet":
+			return `${scoreValue} ft`
+		case "points":
+			return `${scoreValue} pts`
+		default:
+			return String(scoreValue)
+	}
 }
 
 /**
  * Determine if a score scheme should be sorted ascending (lower is better)
  */
 function isLowerBetter(scheme: string, scoreType: string | null): boolean {
-  // Time-based schemes: lower is better
-  if (scheme === 'time' || scheme === 'time-with-cap') {
-    return true
-  }
-  // Use scoreType if available
-  if (scoreType === 'min') {
-    return true
-  }
-  // Default: higher is better
-  return false
+	// Time-based schemes: lower is better
+	if (scheme === "time" || scheme === "time-with-cap") {
+		return true
+	}
+	// Use scoreType if available
+	if (scoreType === "min") {
+		return true
+	}
+	// Default: higher is better
+	return false
 }
 
 // ===========================
@@ -124,201 +124,201 @@ function isLowerBetter(scheme: string, scoreType: string | null): boolean {
  * Get leaderboards for multiple scheduled workout instances
  * Returns a map of instance ID to leaderboard entries
  */
-export const getTeamLeaderboardsFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) => getTeamLeaderboardsInputSchema.parse(data))
-  .handler(async ({data}) => {
-    const db = getDb()
+export const getTeamLeaderboardsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getTeamLeaderboardsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
 
-    // Validate that we have instance IDs
-    if (data.scheduledWorkoutInstanceIds.length === 0) {
-      return {leaderboards: {}}
-    }
+		// Validate that we have instance IDs
+		if (data.scheduledWorkoutInstanceIds.length === 0) {
+			return { leaderboards: {} }
+		}
 
-    // Get all scores for these scheduled instances
-    const scores = await db
-      .select({
-        scoreId: scoresTable.id,
-        userId: scoresTable.userId,
-        scoreValue: scoresTable.scoreValue,
-        scheme: scoresTable.scheme,
-        scoreType: scoresTable.scoreType,
-        asRx: scoresTable.asRx,
-        scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
-        userName: userTable.firstName,
-        userLastName: userTable.lastName,
-        scalingLabel: scalingLevelsTable.label,
-      })
-      .from(scoresTable)
-      .innerJoin(userTable, eq(scoresTable.userId, userTable.id))
-      .leftJoin(
-        scalingLevelsTable,
-        eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
-      )
-      .where(
-        and(
-          inArray(
-            scoresTable.scheduledWorkoutInstanceId,
-            data.scheduledWorkoutInstanceIds,
-          ),
-          eq(scoresTable.teamId, data.teamId),
-        ),
-      )
+		// Get all scores for these scheduled instances
+		const scores = await db
+			.select({
+				scoreId: scoresTable.id,
+				userId: scoresTable.userId,
+				scoreValue: scoresTable.scoreValue,
+				scheme: scoresTable.scheme,
+				scoreType: scoresTable.scoreType,
+				asRx: scoresTable.asRx,
+				scheduledWorkoutInstanceId: scoresTable.scheduledWorkoutInstanceId,
+				userName: userTable.firstName,
+				userLastName: userTable.lastName,
+				scalingLabel: scalingLevelsTable.label,
+			})
+			.from(scoresTable)
+			.innerJoin(userTable, eq(scoresTable.userId, userTable.id))
+			.leftJoin(
+				scalingLevelsTable,
+				eq(scoresTable.scalingLevelId, scalingLevelsTable.id),
+			)
+			.where(
+				and(
+					inArray(
+						scoresTable.scheduledWorkoutInstanceId,
+						data.scheduledWorkoutInstanceIds,
+					),
+					eq(scoresTable.teamId, data.teamId),
+				),
+			)
 
-    // Group scores by scheduled instance ID
-    const scoresByInstance = new Map<
-      string,
-      Array<{
-        userId: string
-        userName: string
-        scoreValue: number | null
-        scheme: string
-        scoreType: string | null
-        asRx: boolean
-        scalingLabel: string | null
-      }>
-    >()
+		// Group scores by scheduled instance ID
+		const scoresByInstance = new Map<
+			string,
+			Array<{
+				userId: string
+				userName: string
+				scoreValue: number | null
+				scheme: string
+				scoreType: string | null
+				asRx: boolean
+				scalingLabel: string | null
+			}>
+		>()
 
-    for (const score of scores) {
-      if (!score.scheduledWorkoutInstanceId) continue
+		for (const score of scores) {
+			if (!score.scheduledWorkoutInstanceId) continue
 
-      const fullName =
-        `${score.userName || ''} ${score.userLastName || ''}`.trim()
+			const fullName =
+				`${score.userName || ""} ${score.userLastName || ""}`.trim()
 
-      const entry = {
-        userId: score.userId,
-        userName: fullName || 'Unknown',
-        scoreValue: score.scoreValue,
-        scheme: score.scheme,
-        scoreType: score.scoreType,
-        asRx: score.asRx,
-        scalingLabel: score.scalingLabel,
-      }
+			const entry = {
+				userId: score.userId,
+				userName: fullName || "Unknown",
+				scoreValue: score.scoreValue,
+				scheme: score.scheme,
+				scoreType: score.scoreType,
+				asRx: score.asRx,
+				scalingLabel: score.scalingLabel,
+			}
 
-      const instanceScores =
-        scoresByInstance.get(score.scheduledWorkoutInstanceId) || []
-      instanceScores.push(entry)
-      scoresByInstance.set(score.scheduledWorkoutInstanceId, instanceScores)
-    }
+			const instanceScores =
+				scoresByInstance.get(score.scheduledWorkoutInstanceId) || []
+			instanceScores.push(entry)
+			scoresByInstance.set(score.scheduledWorkoutInstanceId, instanceScores)
+		}
 
-    // Build leaderboards for each instance
-    const leaderboards: Record<string, LeaderboardEntry[]> = {}
+		// Build leaderboards for each instance
+		const leaderboards: Record<string, LeaderboardEntry[]> = {}
 
-    for (const [instanceId, instanceScores] of scoresByInstance.entries()) {
-      // Determine sort order from first score (all should have same scheme)
-      const sortAscending =
-        instanceScores.length > 0
-          ? isLowerBetter(instanceScores[0].scheme, instanceScores[0].scoreType)
-          : false
+		for (const [instanceId, instanceScores] of scoresByInstance.entries()) {
+			// Determine sort order from first score (all should have same scheme)
+			const sortAscending =
+				instanceScores.length > 0
+					? isLowerBetter(instanceScores[0].scheme, instanceScores[0].scoreType)
+					: false
 
-      // Sort scores
-      const sortedScores = [...instanceScores].sort((a, b) => {
-        // First by asRx (Rx before scaled)
-        if (a.asRx !== b.asRx) {
-          return a.asRx ? -1 : 1
-        }
+			// Sort scores
+			const sortedScores = [...instanceScores].sort((a, b) => {
+				// First by asRx (Rx before scaled)
+				if (a.asRx !== b.asRx) {
+					return a.asRx ? -1 : 1
+				}
 
-        // Then by score value
-        if (a.scoreValue === null && b.scoreValue === null) return 0
-        if (a.scoreValue === null) return 1
-        if (b.scoreValue === null) return -1
+				// Then by score value
+				if (a.scoreValue === null && b.scoreValue === null) return 0
+				if (a.scoreValue === null) return 1
+				if (b.scoreValue === null) return -1
 
-        if (sortAscending) {
-          return a.scoreValue - b.scoreValue
-        } else {
-          return b.scoreValue - a.scoreValue
-        }
-      })
+				if (sortAscending) {
+					return a.scoreValue - b.scoreValue
+				} else {
+					return b.scoreValue - a.scoreValue
+				}
+			})
 
-      // Add ranks and format
-      leaderboards[instanceId] = sortedScores.map((score, index) => ({
-        rank: index + 1,
-        userId: score.userId,
-        userName: score.userName,
-        scoreValue: score.scoreValue,
-        displayScore: formatScoreValue(score.scoreValue, score.scheme),
-        asRx: score.asRx,
-        scalingLabel: score.scalingLabel,
-      }))
-    }
+			// Add ranks and format
+			leaderboards[instanceId] = sortedScores.map((score, index) => ({
+				rank: index + 1,
+				userId: score.userId,
+				userName: score.userName,
+				scoreValue: score.scoreValue,
+				displayScore: formatScoreValue(score.scoreValue, score.scheme),
+				asRx: score.asRx,
+				scalingLabel: score.scalingLabel,
+			}))
+		}
 
-    return {leaderboards}
-  })
+		return { leaderboards }
+	})
 
 /**
  * Get user's active team info with role and permissions
  */
-export const getActiveTeamFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) => getActiveTeamInputSchema.parse(data))
-  .handler(async ({data}) => {
-    const db = getDb()
+export const getActiveTeamFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getActiveTeamInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
 
-    // Get session to verify user is authenticated
-    const session = await getSessionFromCookie()
-    if (!session?.userId) {
-      throw new Error('Not authenticated')
-    }
+		// Get session to verify user is authenticated
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
 
-    // Verify the user ID matches the session
-    if (session.userId !== data.userId) {
-      throw new Error('Unauthorized')
-    }
+		// Verify the user ID matches the session
+		if (session.userId !== data.userId) {
+			throw new Error("Unauthorized")
+		}
 
-    // Get user's team memberships
-    const memberships = await db
-      .select({
-        teamId: teamMembershipTable.teamId,
-        roleId: teamMembershipTable.roleId,
-        isSystemRole: teamMembershipTable.isSystemRole,
-        isActive: teamMembershipTable.isActive,
-        teamName: teamTable.name,
-        teamSlug: teamTable.slug,
-        teamDescription: teamTable.description,
-        teamAvatarUrl: teamTable.avatarUrl,
-        teamType: teamTable.type,
-      })
-      .from(teamMembershipTable)
-      .innerJoin(teamTable, eq(teamMembershipTable.teamId, teamTable.id))
-      .where(
-        and(
-          eq(teamMembershipTable.userId, data.userId),
-          eq(teamMembershipTable.isActive, 1),
-        ),
-      )
-      .orderBy(desc(teamMembershipTable.joinedAt))
-      .limit(1)
+		// Get user's team memberships
+		const memberships = await db
+			.select({
+				teamId: teamMembershipTable.teamId,
+				roleId: teamMembershipTable.roleId,
+				isSystemRole: teamMembershipTable.isSystemRole,
+				isActive: teamMembershipTable.isActive,
+				teamName: teamTable.name,
+				teamSlug: teamTable.slug,
+				teamDescription: teamTable.description,
+				teamAvatarUrl: teamTable.avatarUrl,
+				teamType: teamTable.type,
+			})
+			.from(teamMembershipTable)
+			.innerJoin(teamTable, eq(teamMembershipTable.teamId, teamTable.id))
+			.where(
+				and(
+					eq(teamMembershipTable.userId, data.userId),
+					eq(teamMembershipTable.isActive, 1),
+				),
+			)
+			.orderBy(desc(teamMembershipTable.joinedAt))
+			.limit(1)
 
-    if (memberships.length === 0) {
-      return {team: null}
-    }
+		if (memberships.length === 0) {
+			return { team: null }
+		}
 
-    const membership = memberships[0]
+		const membership = memberships[0]
 
-    const team: TeamWithRole = {
-      id: membership.teamId,
-      name: membership.teamName,
-      slug: membership.teamSlug,
-      description: membership.teamDescription,
-      avatarUrl: membership.teamAvatarUrl,
-      type: membership.teamType || 'gym',
-      role: membership.roleId,
-      isSystemRole: Boolean(membership.isSystemRole),
-    }
+		const team: TeamWithRole = {
+			id: membership.teamId,
+			name: membership.teamName,
+			slug: membership.teamSlug,
+			description: membership.teamDescription,
+			avatarUrl: membership.teamAvatarUrl,
+			type: membership.teamType || "gym",
+			role: membership.roleId,
+			isSystemRole: Boolean(membership.isSystemRole),
+		}
 
-    return {team}
-  })
+		return { team }
+	})
 
 /**
  * Get team slug by team ID
  * Used for redirects (e.g., Stripe connection redirect)
  */
-export const getTeamSlugFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
-  .handler(async ({data}) => {
-    const db = getDb()
-    const team = await db.query.teamTable.findFirst({
-      where: eq(teamTable.id, data.teamId),
-      columns: {slug: true},
-    })
+export const getTeamSlugFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, data.teamId),
+			columns: { slug: true },
+		})
 
-    return team?.slug ?? null
-  })
+		return team?.slug ?? null
+	})

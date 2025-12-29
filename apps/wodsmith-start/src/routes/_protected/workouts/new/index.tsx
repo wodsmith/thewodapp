@@ -1,14 +1,20 @@
 import {createFileRoute, useNavigate} from '@tanstack/react-router'
 import {WorkoutForm, type WorkoutFormData} from '@/components/workout-form'
+import {getAllMovementsFn} from '@/server-fns/movement-fns'
 import {createWorkoutFn} from '@/server-fns/workout-fns'
 
 export const Route = createFileRoute('/_protected/workouts/new/')({
   component: CreateWorkoutPage,
+  loader: async () => {
+    const {movements} = await getAllMovementsFn()
+    return {movements}
+  },
 })
 
 function CreateWorkoutPage() {
   const navigate = useNavigate()
   const {session} = Route.useRouteContext()
+  const {movements} = Route.useLoaderData()
   const teamId = session?.teams?.[0]?.id
 
   const handleSubmit = async (data: WorkoutFormData) => {
@@ -45,6 +51,11 @@ function CreateWorkoutPage() {
   }
 
   return (
-    <WorkoutForm mode="create" onSubmit={handleSubmit} backUrl="/workouts" />
+    <WorkoutForm
+      mode="create"
+      movements={movements}
+      onSubmit={handleSubmit}
+      backUrl="/workouts"
+    />
   )
 }

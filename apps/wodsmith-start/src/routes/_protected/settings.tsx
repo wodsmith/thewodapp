@@ -1,9 +1,9 @@
-import {createFileRoute, Outlet} from '@tanstack/react-router'
+import { createFileRoute, Outlet } from "@tanstack/react-router"
 
-export const Route = createFileRoute('/_protected/settings')({
-  component: SettingsLayout,
+export const Route = createFileRoute("/_protected/settings")({
+	component: SettingsLayout,
 })
 
 function SettingsLayout() {
-  return <Outlet />
+	return <Outlet />
 }

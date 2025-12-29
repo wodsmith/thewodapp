@@ -3,16 +3,16 @@
  * Helper functions for managing competition volunteers and their permissions
  */
 
-import type {TeamMembership} from '@/db/schema'
-import {SYSTEM_ROLES_ENUM} from '@/db/schema'
+import type { TeamMembership } from "@/db/schema"
+import { SYSTEM_ROLES_ENUM } from "@/db/schema"
 import type {
-  VolunteerMembershipMetadata,
-  VolunteerRoleType,
-} from '@/db/schemas/volunteers'
+	VolunteerMembershipMetadata,
+	VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import {
-  VOLUNTEER_AVAILABILITY,
-  type VolunteerAvailability,
-} from '@/db/schemas/volunteers'
+	VOLUNTEER_AVAILABILITY,
+	type VolunteerAvailability,
+} from "@/db/schemas/volunteers"
 
 // ============================================================================
 // VOLUNTEER ROLE TYPE HELPERS
@@ -23,39 +23,39 @@ import {
  * Returns empty array if no metadata or no volunteer roles
  */
 export function getVolunteerRoleTypes(
-  membership: TeamMembership,
+	membership: TeamMembership,
 ): VolunteerRoleType[] {
-  if (!membership.metadata) return []
+	if (!membership.metadata) return []
 
-  try {
-    const metadata = JSON.parse(
-      membership.metadata,
-    ) as VolunteerMembershipMetadata
-    return metadata.volunteerRoleTypes ?? []
-  } catch {
-    return []
-  }
+	try {
+		const metadata = JSON.parse(
+			membership.metadata,
+		) as VolunteerMembershipMetadata
+		return metadata.volunteerRoleTypes ?? []
+	} catch {
+		return []
+	}
 }
 
 /**
  * Check if a membership has the volunteer role
  */
 export function isVolunteer(membership: TeamMembership): boolean {
-  return (
-    membership.roleId === SYSTEM_ROLES_ENUM.VOLUNTEER &&
-    membership.isSystemRole === 1
-  )
+	return (
+		membership.roleId === SYSTEM_ROLES_ENUM.VOLUNTEER &&
+		membership.isSystemRole === 1
+	)
 }
 
 /**
  * Check if a membership has a specific volunteer role type
  */
 export function hasRoleType(
-  membership: TeamMembership,
-  roleType: VolunteerRoleType,
+	membership: TeamMembership,
+	roleType: VolunteerRoleType,
 ): boolean {
-  const roleTypes = getVolunteerRoleTypes(membership)
-  return roleTypes.includes(roleType)
+	const roleTypes = getVolunteerRoleTypes(membership)
+	return roleTypes.includes(roleType)
 }
 
 // ============================================================================
@@ -66,9 +66,9 @@ export function hasRoleType(
  * Get the availability from volunteer membership metadata
  */
 export function getVolunteerAvailability(
-  metadata: VolunteerMembershipMetadata | null | undefined,
+	metadata: VolunteerMembershipMetadata | null | undefined,
 ): VolunteerAvailability | undefined {
-  return metadata?.availability
+	return metadata?.availability
 }
 
 /**
@@ -78,35 +78,35 @@ export function getVolunteerAvailability(
  * All day: accept any
  */
 export function isVolunteerAvailableFor(
-  metadata: VolunteerMembershipMetadata | null | undefined,
-  timeSlot: 'morning' | 'afternoon',
+	metadata: VolunteerMembershipMetadata | null | undefined,
+	timeSlot: "morning" | "afternoon",
 ): boolean {
-  const availability = metadata?.availability
+	const availability = metadata?.availability
 
-  // No availability set = assume available (backwards compatibility)
-  if (!availability) return true
+	// No availability set = assume available (backwards compatibility)
+	if (!availability) return true
 
-  // All day volunteers are always available
-  if (availability === VOLUNTEER_AVAILABILITY.ALL_DAY) return true
+	// All day volunteers are always available
+	if (availability === VOLUNTEER_AVAILABILITY.ALL_DAY) return true
 
-  // Match specific time slot
-  return availability === timeSlot
+	// Match specific time slot
+	return availability === timeSlot
 }
 
 /**
  * Filter volunteers by availability for a given time slot
  */
 export function filterVolunteersByAvailability<
-  T extends {metadata?: string | null},
->(volunteers: T[], timeSlot: 'morning' | 'afternoon' | null): T[] {
-  if (!timeSlot) return volunteers
+	T extends { metadata?: string | null },
+>(volunteers: T[], timeSlot: "morning" | "afternoon" | null): T[] {
+	if (!timeSlot) return volunteers
 
-  return volunteers.filter((v) => {
-    const metadata = v.metadata
-      ? (JSON.parse(v.metadata) as VolunteerMembershipMetadata)
-      : null
-    return isVolunteerAvailableFor(metadata, timeSlot)
-  })
+	return volunteers.filter((v) => {
+		const metadata = v.metadata
+			? (JSON.parse(v.metadata) as VolunteerMembershipMetadata)
+			: null
+		return isVolunteerAvailableFor(metadata, timeSlot)
+	})
 }
 
 // ============================================================================
@@ -118,17 +118,17 @@ export function filterVolunteersByAvailability<
  * Direct invites have inviteSource='direct' in metadata OR invitedBy is not null (legacy)
  */
 export function isDirectInvite(
-  metadata: VolunteerMembershipMetadata | null,
-  invitedBy: string | null,
+	metadata: VolunteerMembershipMetadata | null,
+	invitedBy: string | null,
 ): boolean {
-  // If invitedBy is set, it's a direct invite (legacy check)
-  if (invitedBy !== null) return true
+	// If invitedBy is set, it's a direct invite (legacy check)
+	if (invitedBy !== null) return true
 
-  // Check metadata for inviteSource
-  if (metadata?.inviteSource === 'direct') return true
+	// Check metadata for inviteSource
+	if (metadata?.inviteSource === "direct") return true
 
-  // Default: not a direct invite (it's an application)
-  return false
+	// Default: not a direct invite (it's an application)
+	return false
 }
 
 /**
@@ -138,15 +138,15 @@ export function isDirectInvite(
  * @param now - Current date (for testing injection)
  */
 export function calculateInviteStatus(
-  acceptedAt: Date | null,
-  expiresAt: Date | null,
-  now: Date = new Date(),
-): 'pending' | 'accepted' | 'expired' {
-  if (acceptedAt) {
-    return 'accepted'
-  }
-  if (expiresAt && expiresAt < now) {
-    return 'expired'
-  }
-  return 'pending'
+	acceptedAt: Date | null,
+	expiresAt: Date | null,
+	now: Date = new Date(),
+): "pending" | "accepted" | "expired" {
+	if (acceptedAt) {
+		return "accepted"
+	}
+	if (expiresAt && expiresAt < now) {
+		return "expired"
+	}
+	return "pending"
 }

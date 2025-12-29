@@ -1,12 +1,12 @@
-import type {LeaderboardEntry} from '@/server-fns/team-fns'
-import {DailyLeaderboard} from './daily-leaderboard'
+import type { LeaderboardEntry } from "@/server-fns/team-fns"
+import { DailyLeaderboard } from "./daily-leaderboard"
 
 interface WorkoutWithLeaderboardProps {
-  leaderboard: LeaderboardEntry[]
+	leaderboard: LeaderboardEntry[]
 }
 
 export function WorkoutWithLeaderboard({
-  leaderboard,
+	leaderboard,
 }: WorkoutWithLeaderboardProps) {
-  return <DailyLeaderboard entries={leaderboard} />
+	return <DailyLeaderboard entries={leaderboard} />
 }

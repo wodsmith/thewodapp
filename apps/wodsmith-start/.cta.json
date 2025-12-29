@@ -1,15 +1,12 @@
 {
-  "projectName": "wodsmith-start",
-  "mode": "file-router",
-  "typescript": true,
-  "tailwind": true,
-  "packageManager": "pnpm",
-  "git": false,
-  "addOnOptions": {},
-  "version": 1,
-  "framework": "react-cra",
-  "chosenAddOns": [
-    "start",
-    "cloudflare"
-  ]
+	"projectName": "wodsmith-start",
+	"mode": "file-router",
+	"typescript": true,
+	"tailwind": true,
+	"packageManager": "pnpm",
+	"git": false,
+	"addOnOptions": {},
+	"version": 1,
+	"framework": "react-cra",
+	"chosenAddOns": ["start", "cloudflare"]
 }

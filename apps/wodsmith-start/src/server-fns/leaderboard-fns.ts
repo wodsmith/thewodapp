@@ -7,36 +7,36 @@
  * which may not be needed for competition leaderboards initially.
  */
 
-import {createServerFn} from '@tanstack/react-start'
-import {z} from 'zod'
-import {getDb} from '@/db'
+import { createServerFn } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
+import { z } from "zod"
+import { getDb } from "@/db"
 import {
-  competitionRegistrationsTable,
-  competitionsTable,
-} from '@/db/schemas/competitions'
+	competitionRegistrationsTable,
+	competitionsTable,
+} from "@/db/schemas/competitions"
 import {
-  programmingTracksTable,
-  trackWorkoutsTable,
-} from '@/db/schemas/programming'
-import {eq, and} from 'drizzle-orm'
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface LeaderboardEntry {
-  userId: string
-  userName: string
-  userAvatar: string | null
-  score: string | null
-  aggregatedScore: number | null
-  formattedScore: string
-  scalingLevelId: string | null
-  scalingLevelLabel: string | null
-  scalingLevelPosition: number | null
-  asRx: boolean
-  completedAt: Date
-  isTimeCapped?: boolean
+	userId: string
+	userName: string
+	userAvatar: string | null
+	score: string | null
+	aggregatedScore: number | null
+	formattedScore: string
+	scalingLevelId: string | null
+	scalingLevelLabel: string | null
+	scalingLevelPosition: number | null
+	asRx: boolean
+	completedAt: Date
+	isTimeCapped?: boolean
 }
 
 // ============================================================================
@@ -44,8 +44,8 @@ export interface LeaderboardEntry {
 // ============================================================================
 
 const getLeaderboardDataInputSchema = z.object({
-  competitionId: z.string().min(1, 'Competition ID is required'),
-  divisionId: z.string().optional(),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionId: z.string().optional(),
 })
 
 // ============================================================================
@@ -64,84 +64,84 @@ const getLeaderboardDataInputSchema = z.object({
  *
  * For now, this returns basic registration data grouped by division.
  */
-export const getLeaderboardDataFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) => getLeaderboardDataInputSchema.parse(data))
-  .handler(async ({data}) => {
-    const db = getDb()
+export const getLeaderboardDataFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getLeaderboardDataInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
 
-    // Verify competition exists
-    const competition = await db.query.competitionsTable.findFirst({
-      where: eq(competitionsTable.id, data.competitionId),
-    })
+		// Verify competition exists
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+		})
 
-    if (!competition) {
-      return {leaderboard: [], workouts: []}
-    }
+		if (!competition) {
+			return { leaderboard: [], workouts: [] }
+		}
 
-    // Get published workouts for this competition
-    const track = await db.query.programmingTracksTable.findFirst({
-      where: eq(programmingTracksTable.competitionId, data.competitionId),
-    })
+		// Get published workouts for this competition
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.competitionId, data.competitionId),
+		})
 
-    const trackWorkoutsWithWorkouts = track
-      ? await db.query.trackWorkoutsTable.findMany({
-          where: and(
-            eq(trackWorkoutsTable.trackId, track.id),
-            eq(trackWorkoutsTable.eventStatus, 'published'),
-          ),
-          with: {
-            workout: true,
-          },
-          orderBy: (trackWorkouts, {asc}) => [asc(trackWorkouts.trackOrder)],
-        })
-      : []
+		const trackWorkoutsWithWorkouts = track
+			? await db.query.trackWorkoutsTable.findMany({
+					where: and(
+						eq(trackWorkoutsTable.trackId, track.id),
+						eq(trackWorkoutsTable.eventStatus, "published"),
+					),
+					with: {
+						workout: true,
+					},
+					orderBy: (trackWorkouts, { asc }) => [asc(trackWorkouts.trackOrder)],
+				})
+			: []
 
-    // Get registrations for this competition
-    const registrations = await db.query.competitionRegistrationsTable.findMany(
-      {
-        where: data.divisionId
-          ? and(
-              eq(competitionRegistrationsTable.eventId, data.competitionId),
-              eq(competitionRegistrationsTable.divisionId, data.divisionId),
-            )
-          : eq(competitionRegistrationsTable.eventId, data.competitionId),
-        with: {
-          user: true,
-          division: true,
-        },
-        orderBy: (regs, {asc}) => [asc(regs.registeredAt)],
-      },
-    )
+		// Get registrations for this competition
+		const registrations = await db.query.competitionRegistrationsTable.findMany(
+			{
+				where: data.divisionId
+					? and(
+							eq(competitionRegistrationsTable.eventId, data.competitionId),
+							eq(competitionRegistrationsTable.divisionId, data.divisionId),
+						)
+					: eq(competitionRegistrationsTable.eventId, data.competitionId),
+				with: {
+					user: true,
+					division: true,
+				},
+				orderBy: (regs, { asc }) => [asc(regs.registeredAt)],
+			},
+		)
 
-    // Transform to leaderboard format
-    // In a real implementation, this would query actual competition results
-    const leaderboard: LeaderboardEntry[] = registrations.map((reg) => {
-      const fullName =
-        `${reg.user.firstName || ''} ${reg.user.lastName || ''}`.trim()
+		// Transform to leaderboard format
+		// In a real implementation, this would query actual competition results
+		const leaderboard: LeaderboardEntry[] = registrations.map((reg) => {
+			const fullName =
+				`${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
 
-      return {
-        userId: reg.userId,
-        userName: fullName || reg.user.email || 'Unknown',
-        userAvatar: reg.user.avatar,
-        score: null, // Would come from results table
-        aggregatedScore: null, // Would be calculated from all event scores
-        formattedScore: 'N/A', // Pending results
-        scalingLevelId: reg.divisionId,
-        scalingLevelLabel: reg.division?.label ?? null,
-        scalingLevelPosition: reg.division?.position ?? null,
-        asRx: false, // Would come from results
-        completedAt: reg.registeredAt,
-        isTimeCapped: false,
-      }
-    })
+			return {
+				userId: reg.userId,
+				userName: fullName || reg.user.email || "Unknown",
+				userAvatar: reg.user.avatar,
+				score: null, // Would come from results table
+				aggregatedScore: null, // Would be calculated from all event scores
+				formattedScore: "N/A", // Pending results
+				scalingLevelId: reg.divisionId,
+				scalingLevelLabel: reg.division?.label ?? null,
+				scalingLevelPosition: reg.division?.position ?? null,
+				asRx: false, // Would come from results
+				completedAt: reg.registeredAt,
+				isTimeCapped: false,
+			}
+		})
 
-    return {
-      leaderboard,
-      workouts: trackWorkoutsWithWorkouts.map((tw) => ({
-        id: tw.id,
-        workoutId: tw.workoutId,
-        name: (tw as any).workout?.name ?? 'Unknown Workout',
-        trackOrder: tw.trackOrder,
-      })),
-    }
-  })
+		return {
+			leaderboard,
+			workouts: trackWorkoutsWithWorkouts.map((tw) => ({
+				id: tw.id,
+				workoutId: tw.workoutId,
+				name: (tw as any).workout?.name ?? "Unknown Workout",
+				trackOrder: tw.trackOrder,
+			})),
+		}
+	})
