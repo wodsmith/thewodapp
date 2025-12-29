@@ -189,9 +189,12 @@ test.describe("Admin Competitions Browser", () => {
 		// Attempt to access admin page
 		await page.goto("/admin/competitions")
 
-		// Should be redirected or show 404 (requireAdmin returns notFound())
 		// The page uses notFound() for non-admin users
-		await expect(page).not.toHaveURL(/\/admin\/competitions/)
+		// notFound() renders 404 content but keeps the URL the same
+		// Verify the admin content is NOT visible (user sees 404 instead)
+		await expect(
+			page.getByRole("heading", { name: "All Competitions" }),
+		).not.toBeVisible()
 	})
 })
 
