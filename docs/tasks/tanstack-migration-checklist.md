@@ -2,7 +2,7 @@
 
 **Epic:** wodsmith-monorepo--tuyyc-mjj5sm20ou2
 **Last Updated:** December 28, 2025
-**Migration Status:** 85% Complete (Auth nearly complete, competition platform done, settings done, core app functional)
+**Migration Status:** 74% Complete (Auth complete, competition platform done, settings done, core app functional)
 
 ---
 
@@ -189,14 +189,14 @@ Five comprehensive audits were completed to verify the accuracy of this checklis
 
 ### P0 - CRITICAL (Blocks Core User Flows)
 
-#### Authentication (6/7 complete)
+#### Authentication (7/7 complete) ✅
 
 - [x] ✅ Sign In (email/password)
 - [x] ✅ Sign Up (email/password)
 - [x] ✅ Forgot Password - DONE
 - [x] ✅ Reset Password - DONE
 - [x] ✅ Email Verification - DONE
-- ~~Google SSO~~ (not needed) (initiation + callback)
+- [x] ~~Google SSO~~ (not needed)
 - [x] ✅ Team Invite Acceptance - DONE
 
 #### Core Workouts (3/6 complete)
