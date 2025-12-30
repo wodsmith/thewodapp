@@ -3,6 +3,7 @@
  * Port from apps/wodsmith/src/utils/team-auth.ts
  */
 
+import { ROLES_ENUM } from "@/db/schema"
 import { getSessionFromCookie } from "./auth"
 
 /**
@@ -76,5 +77,39 @@ export async function requireTeamMembership(teamId: string): Promise<void> {
 
 	if (!isMember) {
 		throw new Error("FORBIDDEN: You are not a member of this team")
+	}
+}
+
+/**
+ * Require team permission OR site admin role
+ * Allows admins to bypass team-based authorization
+ *
+ * @param teamId - The team ID to check permissions for
+ * @param permission - The permission required (bypassed for site admins)
+ * @returns Session - The current session if authorized
+ * @throws Error if not authenticated or lacks both permission and admin role
+ */
+export async function requireTeamPermissionOrAdmin(
+	teamId: string,
+	permission: string,
+): Promise<void> {
+	const session = await getSessionFromCookie()
+
+	if (!session) {
+		throw new Error("NOT_AUTHORIZED: Not authenticated")
+	}
+
+	// Admin bypass - site admins can access any team's resources
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return
+	}
+
+	// Normal team permission check
+	const hasPermission = await hasTeamPermission(teamId, permission)
+
+	if (!hasPermission) {
+		throw new Error(
+			"FORBIDDEN: You don't have the required permission in this team",
+		)
 	}
 }

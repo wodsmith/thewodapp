@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -13,13 +13,16 @@ import {
 } from "@/db/schemas/common"
 import {
 	PROGRAMMING_TRACK_TYPE,
+	type ProgrammingTrack,
 	programmingTracksTable,
 	teamProgrammingTracksTable,
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
-import { teamTable } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Types
@@ -45,6 +48,23 @@ export interface ProgrammingTrackWithOwner {
 
 export interface TeamProgrammingTrack extends ProgrammingTrackWithOwner {
 	subscribedAt: Date
+}
+
+/**
+ * Enhanced programming track type that includes subscription information for multiple teams
+ */
+export interface ProgrammingTrackWithTeamSubscriptions
+	extends ProgrammingTrack {
+	ownerTeam: {
+		id: string
+		name: string
+	} | null
+	subscribedTeams: {
+		teamId: string
+		teamName: string
+		subscribedAt: Date
+		isActive: boolean
+	}[]
 }
 
 export interface TrackWorkoutWithDetails {
@@ -145,6 +165,29 @@ const removeWorkoutFromTrackInputSchema = z.object({
 const updateTrackVisibilityInputSchema = z.object({
 	trackId: z.string().min(1, "Track ID is required"),
 	isPublic: z.boolean(),
+})
+
+const subscribeToTrackInputSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+})
+
+const unsubscribeFromTrackInputSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	trackId: z.string().min(1, "Track ID is required"),
+})
+
+const getPublicTracksWithSubscriptionsInputSchema = z.object({
+	userTeamIds: z
+		.array(z.string().min(1))
+		.min(1, "At least one team ID required"),
+})
+
+const getTrackSubscribedTeamsInputSchema = z.object({
+	trackId: z.string().min(1, "Track ID is required"),
+	userTeamIds: z
+		.array(z.string().min(1))
+		.min(1, "At least one team ID required"),
 })
 
 // ============================================================================
@@ -491,4 +534,275 @@ export const updateTrackVisibilityFn = createServerFn({ method: "POST" })
 		}
 
 		return { track: updatedTrack }
+	})
+
+// ============================================================================
+// Subscription Server Functions
+// ============================================================================
+
+/**
+ * Subscribe a team to a public programming track
+ * Requires MANAGE_PROGRAMMING permission for the subscribing team
+ */
+export const subscribeToTrackFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => subscribeToTrackInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify user is authenticated
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		// Check if user has programming management permission for the team
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		console.info(
+			`INFO: Track subscription initiated for track: ${data.trackId} by team: ${data.teamId}`,
+		)
+
+		// Check if track exists and is public
+		const track = await db
+			.select()
+			.from(programmingTracksTable)
+			.where(eq(programmingTracksTable.id, data.trackId))
+			.get()
+
+		if (!track) {
+			throw new Error("Programming track not found")
+		}
+
+		if (!track.isPublic) {
+			throw new Error("Cannot subscribe to private track")
+		}
+
+		// Prevent teams from subscribing to their own tracks
+		if (track.ownerTeamId === data.teamId) {
+			throw new Error("Cannot subscribe to your own team's track")
+		}
+
+		// Check if already subscribed
+		const existing = await db
+			.select()
+			.from(teamProgrammingTracksTable)
+			.where(
+				and(
+					eq(teamProgrammingTracksTable.teamId, data.teamId),
+					eq(teamProgrammingTracksTable.trackId, data.trackId),
+				),
+			)
+			.get()
+
+		if (existing) {
+			if (existing.isActive) {
+				throw new Error("Already subscribed to this track")
+			}
+
+			// Reactivate subscription
+			await db
+				.update(teamProgrammingTracksTable)
+				.set({
+					isActive: 1,
+					subscribedAt: new Date(),
+				})
+				.where(
+					and(
+						eq(teamProgrammingTracksTable.teamId, data.teamId),
+						eq(teamProgrammingTracksTable.trackId, data.trackId),
+					),
+				)
+		} else {
+			// Create new subscription
+			await db.insert(teamProgrammingTracksTable).values({
+				teamId: data.teamId,
+				trackId: data.trackId,
+				isActive: 1,
+			})
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Unsubscribe a team from a programming track
+ * Requires MANAGE_PROGRAMMING permission for the team
+ */
+export const unsubscribeFromTrackFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		unsubscribeFromTrackInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify user is authenticated
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		// Check if user has programming management permission for the team
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Deactivate subscription instead of deleting
+		await db
+			.update(teamProgrammingTracksTable)
+			.set({ isActive: 0 })
+			.where(
+				and(
+					eq(teamProgrammingTracksTable.teamId, data.teamId),
+					eq(teamProgrammingTracksTable.trackId, data.trackId),
+				),
+			)
+
+		return { success: true }
+	})
+
+/**
+ * Get all public programming tracks with subscription status for all user's teams
+ * Uses autochunk to handle large arrays of team IDs (D1 100 param limit)
+ */
+export const getPublicTracksWithSubscriptionsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getPublicTracksWithSubscriptionsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		console.info("INFO: Fetching public tracks with team subscriptions", {
+			teamCount: data.userTeamIds.length,
+		})
+
+		const db = getDb()
+
+		// Get all public tracks
+		const publicTracks = await db
+			.select({
+				id: programmingTracksTable.id,
+				name: programmingTracksTable.name,
+				description: programmingTracksTable.description,
+				type: programmingTracksTable.type,
+				ownerTeamId: programmingTracksTable.ownerTeamId,
+				isPublic: programmingTracksTable.isPublic,
+				scalingGroupId: programmingTracksTable.scalingGroupId,
+				competitionId: programmingTracksTable.competitionId,
+				createdAt: programmingTracksTable.createdAt,
+				updatedAt: programmingTracksTable.updatedAt,
+				updateCounter: programmingTracksTable.updateCounter,
+				ownerTeamName: teamTable.name,
+			})
+			.from(programmingTracksTable)
+			.leftJoin(teamTable, eq(programmingTracksTable.ownerTeamId, teamTable.id))
+			.where(eq(programmingTracksTable.isPublic, 1))
+
+		// Get all subscriptions for user's teams (batched to avoid SQL variable limit)
+		const subscriptions = await autochunk(
+			{ items: data.userTeamIds, otherParametersCount: 1 }, // +1 for isActive
+			async (chunk) =>
+				db
+					.select({
+						trackId: teamProgrammingTracksTable.trackId,
+						teamId: teamProgrammingTracksTable.teamId,
+						teamName: teamTable.name,
+						subscribedAt: teamProgrammingTracksTable.subscribedAt,
+						isActive: teamProgrammingTracksTable.isActive,
+					})
+					.from(teamProgrammingTracksTable)
+					.innerJoin(
+						teamTable,
+						eq(teamProgrammingTracksTable.teamId, teamTable.id),
+					)
+					.where(
+						and(
+							inArray(teamProgrammingTracksTable.teamId, chunk),
+							eq(teamProgrammingTracksTable.isActive, 1),
+						),
+					),
+		)
+
+		// Create a map of track subscriptions grouped by trackId
+		const subscriptionsByTrack = new Map<
+			string,
+			{
+				teamId: string
+				teamName: string
+				subscribedAt: Date
+				isActive: boolean
+			}[]
+		>()
+
+		for (const sub of subscriptions) {
+			if (!subscriptionsByTrack.has(sub.trackId)) {
+				subscriptionsByTrack.set(sub.trackId, [])
+			}
+			subscriptionsByTrack.get(sub.trackId)?.push({
+				teamId: sub.teamId,
+				teamName: sub.teamName,
+				subscribedAt: sub.subscribedAt,
+				isActive: sub.isActive === 1,
+			})
+		}
+
+		// Combine tracks with their subscription data
+		const tracksWithSubscriptions: ProgrammingTrackWithTeamSubscriptions[] =
+			publicTracks.map((track) => ({
+				...track,
+				ownerTeam: track.ownerTeamId
+					? {
+							id: track.ownerTeamId,
+							name: track.ownerTeamName || "Unknown",
+						}
+					: null,
+				subscribedTeams: subscriptionsByTrack.get(track.id) || [],
+			}))
+
+		return { tracks: tracksWithSubscriptions }
+	})
+
+/**
+ * Get teams subscribed to a specific track (filtered to user's teams)
+ * Uses autochunk to handle large arrays of team IDs (D1 100 param limit)
+ */
+export const getTrackSubscribedTeamsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getTrackSubscribedTeamsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		if (data.userTeamIds.length === 0) {
+			return { teams: [] }
+		}
+
+		const db = getDb()
+
+		// Batched query to avoid SQL variable limit
+		const subscriptions = await autochunk(
+			{ items: data.userTeamIds, otherParametersCount: 2 }, // +2 for trackId and isActive
+			async (chunk) =>
+				db
+					.select({
+						teamId: teamProgrammingTracksTable.teamId,
+						teamName: teamTable.name,
+						subscribedAt: teamProgrammingTracksTable.subscribedAt,
+					})
+					.from(teamProgrammingTracksTable)
+					.innerJoin(
+						teamTable,
+						eq(teamProgrammingTracksTable.teamId, teamTable.id),
+					)
+					.where(
+						and(
+							eq(teamProgrammingTracksTable.trackId, data.trackId),
+							inArray(teamProgrammingTracksTable.teamId, chunk),
+							eq(teamProgrammingTracksTable.isActive, 1),
+						),
+					),
+		)
+
+		return { teams: subscriptions }
 	})

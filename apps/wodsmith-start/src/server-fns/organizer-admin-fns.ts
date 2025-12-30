@@ -8,6 +8,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import {
 	approveOrganizerRequest,
+	getAllOrganizerRequests,
 	getPendingOrganizerRequests,
 	rejectOrganizerRequest,
 } from "@/server/organizer-onboarding"
@@ -56,6 +57,31 @@ export const getPendingOrganizerRequestsFn = createServerFn({
 		throw new ZSAError(
 			"INTERNAL_SERVER_ERROR",
 			"Failed to get pending organizer requests",
+		)
+	}
+})
+
+/**
+ * Get all organizer requests with optional status filter (admin only)
+ */
+export const getAllOrganizerRequestsFn = createServerFn({
+	method: "GET",
+}).handler(async () => {
+	await requireAdmin()
+
+	try {
+		const requests = await getAllOrganizerRequests({ statusFilter: "all" })
+		return { success: true, data: requests }
+	} catch (error) {
+		console.error("Failed to get all organizer requests:", error)
+
+		if (error instanceof ZSAError) {
+			throw error
+		}
+
+		throw new ZSAError(
+			"INTERNAL_SERVER_ERROR",
+			"Failed to get all organizer requests",
 		)
 	}
 })

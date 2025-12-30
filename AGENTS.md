@@ -171,6 +171,98 @@ Database is modularly structured in `src/db/schemas/`:
   - Other server functions
 - Server functions called from client components (event handlers, effects) MUST use `useServerFn`
 
+### Debugging TanStack Start Vite Errors (wodsmith-start)
+
+When you see a Vite error like:
+
+```
+Failed to resolve import "cloudflare:workers" from "src/db/index.ts"
+```
+
+This means server-only code is being bundled into the client. Follow this debugging process:
+
+#### Step 1: Identify the Problem File
+
+1. Use the Playwright MCP browser to navigate to `http://localhost:3000`
+2. Check the error overlay - it will show the import chain
+3. The error typically traces back to a route file importing from a `server-fns/*.ts` file
+
+#### Step 2: Check for Top-Level Imports
+
+The root cause is almost always **top-level imports** in `server-fns/*.ts` files:
+
+```typescript
+// BAD - Top-level imports get bundled into client
+import {getDb} from '@/db'
+import {getSessionFromCookie} from '@/utils/auth'
+
+export const myServerFn = createServerFn({method: 'GET'}).handler(async () => {
+  const db = getDb() // This works, but the import above breaks things
+})
+```
+
+#### Step 3: Convert to Dynamic Imports
+
+Fix by using dynamic imports **inside** the handler functions:
+
+```typescript
+// GOOD - Dynamic imports only run on server
+export const myServerFn = createServerFn({method: 'GET'}).handler(async () => {
+  const {getDb} = await import('@/db')
+  const {getSessionFromCookie} = await import('@/utils/auth')
+  const db = getDb()
+})
+```
+
+#### Step 4: Check Helper Functions Too
+
+If your server-fns file exports helper functions (not wrapped in `createServerFn`), those ALSO need dynamic imports:
+
+```typescript
+// BAD - Helper function with top-level import dependency
+export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
+  const db = getDb() // getDb was imported at top level!
+  // ...
+}
+
+// GOOD - Helper function with dynamic import
+export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
+  const {getDb} = await import('@/db')
+  const {eq, and} = await import('drizzle-orm')
+  const db = getDb()
+  // ...
+}
+```
+
+#### Step 5: Incremental Testing
+
+When adding new route files or server-fns:
+
+1. Add ONE file at a time
+2. Check the browser for errors after each addition
+3. If error appears, the last file added is the culprit
+4. Fix that file's imports before continuing
+
+#### Common Problematic Imports
+
+These imports contain `cloudflare:workers` and MUST use dynamic imports:
+
+- `@/db` - Database connection
+- `@/utils/auth` - Session/auth utilities
+- `@/utils/team-auth` - Team permission utilities
+- `@/server/*` - Server-side business logic
+- `drizzle-orm` - When used with schema imports
+
+#### Safe Top-Level Imports
+
+These are safe to import at the top level:
+
+- `@tanstack/react-start` - Framework utilities
+- `zod` - Validation schemas
+- `@/db/schemas/*` - Schema type definitions (but NOT if they re-export from `@/db`)
+- `@/config/*` - Configuration constants
+- UI components from `@/components/*`
+
 ### UI Components
 
 - Use Shadcn UI components from `src/components/ui/`
