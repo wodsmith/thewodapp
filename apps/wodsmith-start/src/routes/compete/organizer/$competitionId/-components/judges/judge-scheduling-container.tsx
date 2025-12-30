@@ -225,7 +225,7 @@ export function JudgeSchedulingContainer({
 					setIsFetchingAssignments(false)
 				}
 			}
-		} catch (err) {
+		} catch (_err) {
 			toast.error("Failed to activate version")
 		} finally {
 			setIsRollingBack(false)

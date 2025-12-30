@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
@@ -44,7 +44,7 @@ function ForgotPasswordPage() {
 	const forgotPassword = useServerFn(forgotPasswordFn)
 
 	const form = useForm<ForgotPasswordSchema>({
-		resolver: zodResolver(forgotPasswordSchema),
+		resolver: standardSchemaResolver(forgotPasswordSchema),
 		defaultValues: {
 			email: "",
 		},

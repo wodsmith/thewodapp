@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowLeft } from "lucide-react"
@@ -45,7 +45,7 @@ function CreateTeamPage() {
 	const createTeam = useServerFn(createTeamFn)
 
 	const form = useForm<FormValues>({
-		resolver: zodResolver(formSchema),
+		resolver: standardSchemaResolver(formSchema),
 		defaultValues: {
 			name: "",
 			description: "",

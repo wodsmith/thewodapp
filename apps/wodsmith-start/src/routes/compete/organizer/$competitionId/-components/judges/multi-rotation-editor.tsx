@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { ChevronDown, Loader2, MousePointer2, Plus, Trash2 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useFieldArray, useForm, useWatch } from "react-hook-form"
@@ -136,7 +136,7 @@ export function MultiRotationEditor({
 	const [isUpdating, setIsUpdating] = useState(false)
 
 	const form = useForm<MultiRotationFormValues>({
-		resolver: zodResolver(multiRotationSchema),
+		resolver: standardSchemaResolver(multiRotationSchema),
 		defaultValues: {
 			membershipId: existingRotations?.[0]?.membershipId ?? "",
 			rotations:

@@ -8,1723 +8,1723 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as CompeteRouteImport } from './routes/compete'
-import { Route as ProtectedRouteImport } from './routes/_protected'
-import { Route as AuthRouteImport } from './routes/_auth'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as CompeteIndexRouteImport } from './routes/compete/index'
-import { Route as CompeteOrganizerRouteImport } from './routes/compete/organizer'
-import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
-import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
-import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
-import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email'
-import { Route as AuthTeamInviteRouteImport } from './routes/_auth/team-invite'
-import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
-import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
-import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
-import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
-import { Route as CompeteOrganizerIndexRouteImport } from './routes/compete/organizer/index'
-import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/index'
-import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
-import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
-import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/settings/index'
-import { Route as ProtectedMovementsIndexRouteImport } from './routes/_protected/movements/index'
-import { Route as ProtectedLogIndexRouteImport } from './routes/_protected/log/index'
-import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
-import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
-import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
-import { Route as CompeteOrganizerNewRouteImport } from './routes/compete/organizer/new'
-import { Route as CompeteOrganizerCompetitionIdRouteImport } from './routes/compete/organizer/$competitionId'
-import { Route as CompeteInviteTokenRouteImport } from './routes/compete/invite/$token'
-import { Route as CompeteSlugWorkoutsRouteImport } from './routes/compete/$slug/workouts'
-import { Route as CompeteSlugVolunteerRouteImport } from './routes/compete/$slug/volunteer'
-import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/schedule'
-import { Route as CompeteSlugRegisterRouteImport } from './routes/compete/$slug/register'
-import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slug/my-schedule'
-import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
-import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
-import { Route as CompeteOrganizerSeriesIndexRouteImport } from './routes/compete/organizer/series/index'
-import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from './routes/compete/organizer/$competitionId/index'
-import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
-import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
-import { Route as ProtectedSettingsTeamsIndexRouteImport } from './routes/_protected/settings/teams/index'
-import { Route as ProtectedSettingsSessionsIndexRouteImport } from './routes/_protected/settings/sessions/index'
-import { Route as ProtectedSettingsSecurityIndexRouteImport } from './routes/_protected/settings/security/index'
-import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
-import { Route as ProtectedSettingsProfileIndexRouteImport } from './routes/_protected/settings/profile/index'
-import { Route as ProtectedMovementsNewIndexRouteImport } from './routes/_protected/movements/new/index'
-import { Route as ProtectedMovementsIdIndexRouteImport } from './routes/_protected/movements/$id/index'
-import { Route as ProtectedLogNewIndexRouteImport } from './routes/_protected/log/new/index'
-import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
-import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
-import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
-import { Route as CompeteOrganizerSeriesNewRouteImport } from './routes/compete/organizer/series/new'
-import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from './routes/compete/organizer/series/$groupId'
-import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from './routes/compete/organizer/$competitionId/volunteers'
-import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/compete/organizer/$competitionId/sponsors'
-import { Route as CompeteOrganizerCompetitionIdSettingsRouteImport } from './routes/compete/organizer/$competitionId/settings'
-import { Route as CompeteOrganizerCompetitionIdScheduleRouteImport } from './routes/compete/organizer/$competitionId/schedule'
-import { Route as CompeteOrganizerCompetitionIdRevenueRouteImport } from './routes/compete/organizer/$competitionId/revenue'
-import { Route as CompeteOrganizerCompetitionIdResultsRouteImport } from './routes/compete/organizer/$competitionId/results'
-import { Route as CompeteOrganizerCompetitionIdPricingRouteImport } from './routes/compete/organizer/$competitionId/pricing'
-import { Route as CompeteOrganizerCompetitionIdEditRouteImport } from './routes/compete/organizer/$competitionId/edit'
-import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from './routes/compete/organizer/$competitionId/divisions'
-import { Route as CompeteOrganizerCompetitionIdDangerZoneRouteImport } from './routes/compete/organizer/$competitionId/danger-zone'
-import { Route as CompeteOrganizerCompetitionIdAthletesRouteImport } from './routes/compete/organizer/$competitionId/athletes'
-import { Route as CompeteSlugRegisterSuccessRouteImport } from './routes/compete/$slug/register/success'
-import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
-import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
-import { Route as ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport } from './routes/_protected/workouts/$workoutId/schedule/index'
-import { Route as ProtectedWorkoutsWorkoutIdEditIndexRouteImport } from './routes/_protected/workouts/$workoutId/edit/index'
-import { Route as ProtectedSettingsTeamsCreateIndexRouteImport } from './routes/_protected/settings/teams/create/index'
-import { Route as ProtectedSettingsTeamsTeamSlugIndexRouteImport } from './routes/_protected/settings/teams/$teamSlug/index'
-import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './routes/_protected/settings/programming/$trackId/index'
-import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected/log/$id/edit/index'
-import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from './routes/compete/organizer/series/$groupId/edit'
-import { Route as CompeteOrganizerCompetitionIdEventsEventIdRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as AuthRouteImport } from "./routes/_auth"
+import { Route as AuthForgotPasswordRouteImport } from "./routes/_auth/forgot-password"
+import { Route as AuthResetPasswordRouteImport } from "./routes/_auth/reset-password"
+import { Route as AuthSignInRouteImport } from "./routes/_auth/sign-in"
+import { Route as AuthSignUpRouteImport } from "./routes/_auth/sign-up"
+import { Route as AuthTeamInviteRouteImport } from "./routes/_auth/team-invite"
+import { Route as AuthVerifyEmailRouteImport } from "./routes/_auth/verify-email"
+import { Route as ProtectedRouteImport } from "./routes/_protected"
+import { Route as ProtectedDashboardRouteImport } from "./routes/_protected/dashboard"
+import { Route as ProtectedLogIdEditIndexRouteImport } from "./routes/_protected/log/$id/edit/index"
+import { Route as ProtectedLogIndexRouteImport } from "./routes/_protected/log/index"
+import { Route as ProtectedLogNewIndexRouteImport } from "./routes/_protected/log/new/index"
+import { Route as ProtectedMovementsIdIndexRouteImport } from "./routes/_protected/movements/$id/index"
+import { Route as ProtectedMovementsIndexRouteImport } from "./routes/_protected/movements/index"
+import { Route as ProtectedMovementsNewIndexRouteImport } from "./routes/_protected/movements/new/index"
+import { Route as ProtectedSettingsRouteImport } from "./routes/_protected/settings"
+import { Route as ProtectedSettingsIndexRouteImport } from "./routes/_protected/settings/index"
+import { Route as ProtectedSettingsProfileIndexRouteImport } from "./routes/_protected/settings/profile/index"
+import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from "./routes/_protected/settings/programming/$trackId/index"
+import { Route as ProtectedSettingsProgrammingIndexRouteImport } from "./routes/_protected/settings/programming/index"
+import { Route as ProtectedSettingsSecurityIndexRouteImport } from "./routes/_protected/settings/security/index"
+import { Route as ProtectedSettingsSessionsIndexRouteImport } from "./routes/_protected/settings/sessions/index"
+import { Route as ProtectedSettingsTeamsTeamSlugIndexRouteImport } from "./routes/_protected/settings/teams/$teamSlug/index"
+import { Route as ProtectedSettingsTeamsCreateIndexRouteImport } from "./routes/_protected/settings/teams/create/index"
+import { Route as ProtectedSettingsTeamsIndexRouteImport } from "./routes/_protected/settings/teams/index"
+import { Route as ProtectedTeamIndexRouteImport } from "./routes/_protected/team/index"
+import { Route as ProtectedWorkoutsWorkoutIdEditIndexRouteImport } from "./routes/_protected/workouts/$workoutId/edit/index"
+import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from "./routes/_protected/workouts/$workoutId/index"
+import { Route as ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport } from "./routes/_protected/workouts/$workoutId/schedule/index"
+import { Route as ProtectedWorkoutsIndexRouteImport } from "./routes/_protected/workouts/index"
+import { Route as ProtectedWorkoutsNewIndexRouteImport } from "./routes/_protected/workouts/new/index"
+import { Route as CompeteRouteImport } from "./routes/compete"
+import { Route as CompeteSlugRouteImport } from "./routes/compete/$slug"
+import { Route as CompeteSlugIndexRouteImport } from "./routes/compete/$slug/index"
+import { Route as CompeteSlugLeaderboardRouteImport } from "./routes/compete/$slug/leaderboard"
+import { Route as CompeteSlugMyScheduleRouteImport } from "./routes/compete/$slug/my-schedule"
+import { Route as CompeteSlugRegisterRouteImport } from "./routes/compete/$slug/register"
+import { Route as CompeteSlugRegisterSuccessRouteImport } from "./routes/compete/$slug/register/success"
+import { Route as CompeteSlugScheduleRouteImport } from "./routes/compete/$slug/schedule"
+import { Route as CompeteSlugVolunteerRouteImport } from "./routes/compete/$slug/volunteer"
+import { Route as CompeteSlugWorkoutsRouteImport } from "./routes/compete/$slug/workouts"
+import { Route as CompeteIndexRouteImport } from "./routes/compete/index"
+import { Route as CompeteInviteTokenRouteImport } from "./routes/compete/invite/$token"
+import { Route as CompeteOrganizerRouteImport } from "./routes/compete/organizer"
+import { Route as CompeteOrganizerCompetitionIdRouteImport } from "./routes/compete/organizer/$competitionId"
+import { Route as CompeteOrganizerCompetitionIdAthletesRouteImport } from "./routes/compete/organizer/$competitionId/athletes"
+import { Route as CompeteOrganizerCompetitionIdDangerZoneRouteImport } from "./routes/compete/organizer/$competitionId/danger-zone"
+import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from "./routes/compete/organizer/$competitionId/divisions"
+import { Route as CompeteOrganizerCompetitionIdEditRouteImport } from "./routes/compete/organizer/$competitionId/edit"
+import { Route as CompeteOrganizerCompetitionIdEventsEventIdRouteImport } from "./routes/compete/organizer/$competitionId/events/$eventId"
+import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from "./routes/compete/organizer/$competitionId/events/index"
+import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from "./routes/compete/organizer/$competitionId/index"
+import { Route as CompeteOrganizerCompetitionIdPricingRouteImport } from "./routes/compete/organizer/$competitionId/pricing"
+import { Route as CompeteOrganizerCompetitionIdResultsRouteImport } from "./routes/compete/organizer/$competitionId/results"
+import { Route as CompeteOrganizerCompetitionIdRevenueRouteImport } from "./routes/compete/organizer/$competitionId/revenue"
+import { Route as CompeteOrganizerCompetitionIdScheduleRouteImport } from "./routes/compete/organizer/$competitionId/schedule"
+import { Route as CompeteOrganizerCompetitionIdSettingsRouteImport } from "./routes/compete/organizer/$competitionId/settings"
+import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from "./routes/compete/organizer/$competitionId/sponsors"
+import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from "./routes/compete/organizer/$competitionId/volunteers"
+import { Route as CompeteOrganizerIndexRouteImport } from "./routes/compete/organizer/index"
+import { Route as CompeteOrganizerNewRouteImport } from "./routes/compete/organizer/new"
+import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from "./routes/compete/organizer/series/$groupId"
+import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from "./routes/compete/organizer/series/$groupId/edit"
+import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from "./routes/compete/organizer/series/$groupId/index"
+import { Route as CompeteOrganizerSeriesIndexRouteImport } from "./routes/compete/organizer/series/index"
+import { Route as CompeteOrganizerSeriesNewRouteImport } from "./routes/compete/organizer/series/new"
+import { Route as DemoApiNamesRouteImport } from "./routes/demo/api.names"
+import { Route as DemoStartApiRequestRouteImport } from "./routes/demo/start.api-request"
+import { Route as DemoStartServerFuncsRouteImport } from "./routes/demo/start.server-funcs"
+import { Route as DemoStartSsrDataOnlyRouteImport } from "./routes/demo/start.ssr.data-only"
+import { Route as DemoStartSsrFullSsrRouteImport } from "./routes/demo/start.ssr.full-ssr"
+import { Route as DemoStartSsrIndexRouteImport } from "./routes/demo/start.ssr.index"
+import { Route as DemoStartSsrSpaModeRouteImport } from "./routes/demo/start.ssr.spa-mode"
+import { Route as IndexRouteImport } from "./routes/index"
 
 const CompeteRoute = CompeteRouteImport.update({
-  id: '/compete',
-  path: '/compete',
-  getParentRoute: () => rootRouteImport,
+	id: "/compete",
+	path: "/compete",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedRoute = ProtectedRouteImport.update({
-  id: '/_protected',
-  getParentRoute: () => rootRouteImport,
+	id: "/_protected",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
-  id: '/_auth',
-  getParentRoute: () => rootRouteImport,
+	id: "/_auth",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
+	id: "/",
+	path: "/",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteIndexRoute = CompeteIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CompeteRoute,
+	id: "/",
+	path: "/",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const CompeteOrganizerRoute = CompeteOrganizerRouteImport.update({
-  id: '/organizer',
-  path: '/organizer',
-  getParentRoute: () => CompeteRoute,
+	id: "/organizer",
+	path: "/organizer",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const CompeteSlugRoute = CompeteSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => CompeteRoute,
+	id: "/$slug",
+	path: "/$slug",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const ProtectedSettingsRoute = ProtectedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => ProtectedRoute,
+	id: "/settings",
+	path: "/settings",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => ProtectedRoute,
+	id: "/dashboard",
+	path: "/dashboard",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => AuthRoute,
+	id: "/verify-email",
+	path: "/verify-email",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthTeamInviteRoute = AuthTeamInviteRouteImport.update({
-  id: '/team-invite',
-  path: '/team-invite',
-  getParentRoute: () => AuthRoute,
+	id: "/team-invite",
+	path: "/team-invite",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
-  getParentRoute: () => AuthRoute,
+	id: "/sign-up",
+	path: "/sign-up",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
-  getParentRoute: () => AuthRoute,
+	id: "/sign-in",
+	path: "/sign-in",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => AuthRoute,
+	id: "/reset-password",
+	path: "/reset-password",
+	getParentRoute: () => AuthRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => AuthRoute,
+	id: "/forgot-password",
+	path: "/forgot-password",
+	getParentRoute: () => AuthRoute,
 } as any)
 const CompeteOrganizerIndexRoute = CompeteOrganizerIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CompeteOrganizerRoute,
+	id: "/",
+	path: "/",
+	getParentRoute: () => CompeteOrganizerRoute,
 } as any)
 const CompeteSlugIndexRoute = CompeteSlugIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/",
+	path: "/",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const ProtectedWorkoutsIndexRoute = ProtectedWorkoutsIndexRouteImport.update({
-  id: '/workouts/',
-  path: '/workouts/',
-  getParentRoute: () => ProtectedRoute,
+	id: "/workouts/",
+	path: "/workouts/",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedTeamIndexRoute = ProtectedTeamIndexRouteImport.update({
-  id: '/team/',
-  path: '/team/',
-  getParentRoute: () => ProtectedRoute,
+	id: "/team/",
+	path: "/team/",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedSettingsIndexRoute = ProtectedSettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ProtectedSettingsRoute,
+	id: "/",
+	path: "/",
+	getParentRoute: () => ProtectedSettingsRoute,
 } as any)
 const ProtectedMovementsIndexRoute = ProtectedMovementsIndexRouteImport.update({
-  id: '/movements/',
-  path: '/movements/',
-  getParentRoute: () => ProtectedRoute,
+	id: "/movements/",
+	path: "/movements/",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedLogIndexRoute = ProtectedLogIndexRouteImport.update({
-  id: '/log/',
-  path: '/log/',
-  getParentRoute: () => ProtectedRoute,
+	id: "/log/",
+	path: "/log/",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
-  id: '/demo/start/server-funcs',
-  path: '/demo/start/server-funcs',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/start/server-funcs",
+	path: "/demo/start/server-funcs",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const DemoStartApiRequestRoute = DemoStartApiRequestRouteImport.update({
-  id: '/demo/start/api-request',
-  path: '/demo/start/api-request',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/start/api-request",
+	path: "/demo/start/api-request",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const DemoApiNamesRoute = DemoApiNamesRouteImport.update({
-  id: '/demo/api/names',
-  path: '/demo/api/names',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/api/names",
+	path: "/demo/api/names",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteOrganizerNewRoute = CompeteOrganizerNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => CompeteOrganizerRoute,
+	id: "/new",
+	path: "/new",
+	getParentRoute: () => CompeteOrganizerRoute,
 } as any)
 const CompeteOrganizerCompetitionIdRoute =
-  CompeteOrganizerCompetitionIdRouteImport.update({
-    id: '/$competitionId',
-    path: '/$competitionId',
-    getParentRoute: () => CompeteOrganizerRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdRouteImport.update({
+		id: "/$competitionId",
+		path: "/$competitionId",
+		getParentRoute: () => CompeteOrganizerRoute,
+	} as any)
 const CompeteInviteTokenRoute = CompeteInviteTokenRouteImport.update({
-  id: '/invite/$token',
-  path: '/invite/$token',
-  getParentRoute: () => CompeteRoute,
+	id: "/invite/$token",
+	path: "/invite/$token",
+	getParentRoute: () => CompeteRoute,
 } as any)
 const CompeteSlugWorkoutsRoute = CompeteSlugWorkoutsRouteImport.update({
-  id: '/workouts',
-  path: '/workouts',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/workouts",
+	path: "/workouts",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugVolunteerRoute = CompeteSlugVolunteerRouteImport.update({
-  id: '/volunteer',
-  path: '/volunteer',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/volunteer",
+	path: "/volunteer",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugScheduleRoute = CompeteSlugScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/schedule",
+	path: "/schedule",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugRegisterRoute = CompeteSlugRegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/register",
+	path: "/register",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugMyScheduleRoute = CompeteSlugMyScheduleRouteImport.update({
-  id: '/my-schedule',
-  path: '/my-schedule',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/my-schedule",
+	path: "/my-schedule",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugLeaderboardRoute = CompeteSlugLeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
-  getParentRoute: () => CompeteSlugRoute,
+	id: "/leaderboard",
+	path: "/leaderboard",
+	getParentRoute: () => CompeteSlugRoute,
 } as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
-  id: '/demo/start/ssr/',
-  path: '/demo/start/ssr/',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/start/ssr/",
+	path: "/demo/start/ssr/",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteOrganizerSeriesIndexRoute =
-  CompeteOrganizerSeriesIndexRouteImport.update({
-    id: '/series/',
-    path: '/series/',
-    getParentRoute: () => CompeteOrganizerRoute,
-  } as any)
+	CompeteOrganizerSeriesIndexRouteImport.update({
+		id: "/series/",
+		path: "/series/",
+		getParentRoute: () => CompeteOrganizerRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdIndexRoute =
-  CompeteOrganizerCompetitionIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdIndexRouteImport.update({
+		id: "/",
+		path: "/",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const ProtectedWorkoutsNewIndexRoute =
-  ProtectedWorkoutsNewIndexRouteImport.update({
-    id: '/workouts/new/',
-    path: '/workouts/new/',
-    getParentRoute: () => ProtectedRoute,
-  } as any)
+	ProtectedWorkoutsNewIndexRouteImport.update({
+		id: "/workouts/new/",
+		path: "/workouts/new/",
+		getParentRoute: () => ProtectedRoute,
+	} as any)
 const ProtectedWorkoutsWorkoutIdIndexRoute =
-  ProtectedWorkoutsWorkoutIdIndexRouteImport.update({
-    id: '/workouts/$workoutId/',
-    path: '/workouts/$workoutId/',
-    getParentRoute: () => ProtectedRoute,
-  } as any)
+	ProtectedWorkoutsWorkoutIdIndexRouteImport.update({
+		id: "/workouts/$workoutId/",
+		path: "/workouts/$workoutId/",
+		getParentRoute: () => ProtectedRoute,
+	} as any)
 const ProtectedSettingsTeamsIndexRoute =
-  ProtectedSettingsTeamsIndexRouteImport.update({
-    id: '/teams/',
-    path: '/teams/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsTeamsIndexRouteImport.update({
+		id: "/teams/",
+		path: "/teams/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedSettingsSessionsIndexRoute =
-  ProtectedSettingsSessionsIndexRouteImport.update({
-    id: '/sessions/',
-    path: '/sessions/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsSessionsIndexRouteImport.update({
+		id: "/sessions/",
+		path: "/sessions/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedSettingsSecurityIndexRoute =
-  ProtectedSettingsSecurityIndexRouteImport.update({
-    id: '/security/',
-    path: '/security/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsSecurityIndexRouteImport.update({
+		id: "/security/",
+		path: "/security/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedSettingsProgrammingIndexRoute =
-  ProtectedSettingsProgrammingIndexRouteImport.update({
-    id: '/programming/',
-    path: '/programming/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsProgrammingIndexRouteImport.update({
+		id: "/programming/",
+		path: "/programming/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedSettingsProfileIndexRoute =
-  ProtectedSettingsProfileIndexRouteImport.update({
-    id: '/profile/',
-    path: '/profile/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsProfileIndexRouteImport.update({
+		id: "/profile/",
+		path: "/profile/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedMovementsNewIndexRoute =
-  ProtectedMovementsNewIndexRouteImport.update({
-    id: '/movements/new/',
-    path: '/movements/new/',
-    getParentRoute: () => ProtectedRoute,
-  } as any)
+	ProtectedMovementsNewIndexRouteImport.update({
+		id: "/movements/new/",
+		path: "/movements/new/",
+		getParentRoute: () => ProtectedRoute,
+	} as any)
 const ProtectedMovementsIdIndexRoute =
-  ProtectedMovementsIdIndexRouteImport.update({
-    id: '/movements/$id/',
-    path: '/movements/$id/',
-    getParentRoute: () => ProtectedRoute,
-  } as any)
+	ProtectedMovementsIdIndexRouteImport.update({
+		id: "/movements/$id/",
+		path: "/movements/$id/",
+		getParentRoute: () => ProtectedRoute,
+	} as any)
 const ProtectedLogNewIndexRoute = ProtectedLogNewIndexRouteImport.update({
-  id: '/log/new/',
-  path: '/log/new/',
-  getParentRoute: () => ProtectedRoute,
+	id: "/log/new/",
+	path: "/log/new/",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const DemoStartSsrSpaModeRoute = DemoStartSsrSpaModeRouteImport.update({
-  id: '/demo/start/ssr/spa-mode',
-  path: '/demo/start/ssr/spa-mode',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/start/ssr/spa-mode",
+	path: "/demo/start/ssr/spa-mode",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const DemoStartSsrFullSsrRoute = DemoStartSsrFullSsrRouteImport.update({
-  id: '/demo/start/ssr/full-ssr',
-  path: '/demo/start/ssr/full-ssr',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/start/ssr/full-ssr",
+	path: "/demo/start/ssr/full-ssr",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
-  id: '/demo/start/ssr/data-only',
-  path: '/demo/start/ssr/data-only',
-  getParentRoute: () => rootRouteImport,
+	id: "/demo/start/ssr/data-only",
+	path: "/demo/start/ssr/data-only",
+	getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteOrganizerSeriesNewRoute =
-  CompeteOrganizerSeriesNewRouteImport.update({
-    id: '/series/new',
-    path: '/series/new',
-    getParentRoute: () => CompeteOrganizerRoute,
-  } as any)
+	CompeteOrganizerSeriesNewRouteImport.update({
+		id: "/series/new",
+		path: "/series/new",
+		getParentRoute: () => CompeteOrganizerRoute,
+	} as any)
 const CompeteOrganizerSeriesGroupIdRoute =
-  CompeteOrganizerSeriesGroupIdRouteImport.update({
-    id: '/series/$groupId',
-    path: '/series/$groupId',
-    getParentRoute: () => CompeteOrganizerRoute,
-  } as any)
+	CompeteOrganizerSeriesGroupIdRouteImport.update({
+		id: "/series/$groupId",
+		path: "/series/$groupId",
+		getParentRoute: () => CompeteOrganizerRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdVolunteersRoute =
-  CompeteOrganizerCompetitionIdVolunteersRouteImport.update({
-    id: '/volunteers',
-    path: '/volunteers',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdVolunteersRouteImport.update({
+		id: "/volunteers",
+		path: "/volunteers",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdSponsorsRoute =
-  CompeteOrganizerCompetitionIdSponsorsRouteImport.update({
-    id: '/sponsors',
-    path: '/sponsors',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdSponsorsRouteImport.update({
+		id: "/sponsors",
+		path: "/sponsors",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdSettingsRoute =
-  CompeteOrganizerCompetitionIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdSettingsRouteImport.update({
+		id: "/settings",
+		path: "/settings",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdScheduleRoute =
-  CompeteOrganizerCompetitionIdScheduleRouteImport.update({
-    id: '/schedule',
-    path: '/schedule',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdScheduleRouteImport.update({
+		id: "/schedule",
+		path: "/schedule",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdRevenueRoute =
-  CompeteOrganizerCompetitionIdRevenueRouteImport.update({
-    id: '/revenue',
-    path: '/revenue',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdRevenueRouteImport.update({
+		id: "/revenue",
+		path: "/revenue",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdResultsRoute =
-  CompeteOrganizerCompetitionIdResultsRouteImport.update({
-    id: '/results',
-    path: '/results',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdResultsRouteImport.update({
+		id: "/results",
+		path: "/results",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdPricingRoute =
-  CompeteOrganizerCompetitionIdPricingRouteImport.update({
-    id: '/pricing',
-    path: '/pricing',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdPricingRouteImport.update({
+		id: "/pricing",
+		path: "/pricing",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdEditRoute =
-  CompeteOrganizerCompetitionIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdEditRouteImport.update({
+		id: "/edit",
+		path: "/edit",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdDivisionsRoute =
-  CompeteOrganizerCompetitionIdDivisionsRouteImport.update({
-    id: '/divisions',
-    path: '/divisions',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdDivisionsRouteImport.update({
+		id: "/divisions",
+		path: "/divisions",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdDangerZoneRoute =
-  CompeteOrganizerCompetitionIdDangerZoneRouteImport.update({
-    id: '/danger-zone',
-    path: '/danger-zone',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdDangerZoneRouteImport.update({
+		id: "/danger-zone",
+		path: "/danger-zone",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdAthletesRoute =
-  CompeteOrganizerCompetitionIdAthletesRouteImport.update({
-    id: '/athletes',
-    path: '/athletes',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdAthletesRouteImport.update({
+		id: "/athletes",
+		path: "/athletes",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const CompeteSlugRegisterSuccessRoute =
-  CompeteSlugRegisterSuccessRouteImport.update({
-    id: '/success',
-    path: '/success',
-    getParentRoute: () => CompeteSlugRegisterRoute,
-  } as any)
+	CompeteSlugRegisterSuccessRouteImport.update({
+		id: "/success",
+		path: "/success",
+		getParentRoute: () => CompeteSlugRegisterRoute,
+	} as any)
 const CompeteOrganizerSeriesGroupIdIndexRoute =
-  CompeteOrganizerSeriesGroupIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
-  } as any)
+	CompeteOrganizerSeriesGroupIdIndexRouteImport.update({
+		id: "/",
+		path: "/",
+		getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdEventsIndexRoute =
-  CompeteOrganizerCompetitionIdEventsIndexRouteImport.update({
-    id: '/events/',
-    path: '/events/',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdEventsIndexRouteImport.update({
+		id: "/events/",
+		path: "/events/",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 const ProtectedWorkoutsWorkoutIdScheduleIndexRoute =
-  ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport.update({
-    id: '/workouts/$workoutId/schedule/',
-    path: '/workouts/$workoutId/schedule/',
-    getParentRoute: () => ProtectedRoute,
-  } as any)
+	ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport.update({
+		id: "/workouts/$workoutId/schedule/",
+		path: "/workouts/$workoutId/schedule/",
+		getParentRoute: () => ProtectedRoute,
+	} as any)
 const ProtectedWorkoutsWorkoutIdEditIndexRoute =
-  ProtectedWorkoutsWorkoutIdEditIndexRouteImport.update({
-    id: '/workouts/$workoutId/edit/',
-    path: '/workouts/$workoutId/edit/',
-    getParentRoute: () => ProtectedRoute,
-  } as any)
+	ProtectedWorkoutsWorkoutIdEditIndexRouteImport.update({
+		id: "/workouts/$workoutId/edit/",
+		path: "/workouts/$workoutId/edit/",
+		getParentRoute: () => ProtectedRoute,
+	} as any)
 const ProtectedSettingsTeamsCreateIndexRoute =
-  ProtectedSettingsTeamsCreateIndexRouteImport.update({
-    id: '/teams/create/',
-    path: '/teams/create/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsTeamsCreateIndexRouteImport.update({
+		id: "/teams/create/",
+		path: "/teams/create/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedSettingsTeamsTeamSlugIndexRoute =
-  ProtectedSettingsTeamsTeamSlugIndexRouteImport.update({
-    id: '/teams/$teamSlug/',
-    path: '/teams/$teamSlug/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsTeamsTeamSlugIndexRouteImport.update({
+		id: "/teams/$teamSlug/",
+		path: "/teams/$teamSlug/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedSettingsProgrammingTrackIdIndexRoute =
-  ProtectedSettingsProgrammingTrackIdIndexRouteImport.update({
-    id: '/programming/$trackId/',
-    path: '/programming/$trackId/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
+	ProtectedSettingsProgrammingTrackIdIndexRouteImport.update({
+		id: "/programming/$trackId/",
+		path: "/programming/$trackId/",
+		getParentRoute: () => ProtectedSettingsRoute,
+	} as any)
 const ProtectedLogIdEditIndexRoute = ProtectedLogIdEditIndexRouteImport.update({
-  id: '/log/$id/edit/',
-  path: '/log/$id/edit/',
-  getParentRoute: () => ProtectedRoute,
+	id: "/log/$id/edit/",
+	path: "/log/$id/edit/",
+	getParentRoute: () => ProtectedRoute,
 } as any)
 const CompeteOrganizerSeriesGroupIdEditRoute =
-  CompeteOrganizerSeriesGroupIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
-  } as any)
+	CompeteOrganizerSeriesGroupIdEditRouteImport.update({
+		id: "/edit",
+		path: "/edit",
+		getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+	} as any)
 const CompeteOrganizerCompetitionIdEventsEventIdRoute =
-  CompeteOrganizerCompetitionIdEventsEventIdRouteImport.update({
-    id: '/events/$eventId',
-    path: '/events/$eventId',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
+	CompeteOrganizerCompetitionIdEventsEventIdRouteImport.update({
+		id: "/events/$eventId",
+		path: "/events/$eventId",
+		getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+	} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/compete': typeof CompeteRouteWithChildren
-  '/forgot-password': typeof AuthForgotPasswordRoute
-  '/reset-password': typeof AuthResetPasswordRoute
-  '/sign-in': typeof AuthSignInRoute
-  '/sign-up': typeof AuthSignUpRoute
-  '/team-invite': typeof AuthTeamInviteRoute
-  '/verify-email': typeof AuthVerifyEmailRoute
-  '/dashboard': typeof ProtectedDashboardRoute
-  '/settings': typeof ProtectedSettingsRouteWithChildren
-  '/compete/$slug': typeof CompeteSlugRouteWithChildren
-  '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
-  '/compete/': typeof CompeteIndexRoute
-  '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
-  '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
-  '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
-  '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
-  '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
-  '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
-  '/compete/invite/$token': typeof CompeteInviteTokenRoute
-  '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdRouteWithChildren
-  '/compete/organizer/new': typeof CompeteOrganizerNewRoute
-  '/demo/api/names': typeof DemoApiNamesRoute
-  '/demo/start/api-request': typeof DemoStartApiRequestRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/log': typeof ProtectedLogIndexRoute
-  '/movements': typeof ProtectedMovementsIndexRoute
-  '/settings/': typeof ProtectedSettingsIndexRoute
-  '/team': typeof ProtectedTeamIndexRoute
-  '/workouts': typeof ProtectedWorkoutsIndexRoute
-  '/compete/$slug/': typeof CompeteSlugIndexRoute
-  '/compete/organizer/': typeof CompeteOrganizerIndexRoute
-  '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
-  '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
-  '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
-  '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
-  '/compete/organizer/$competitionId/edit': typeof CompeteOrganizerCompetitionIdEditRoute
-  '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
-  '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
-  '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
-  '/compete/organizer/$competitionId/schedule': typeof CompeteOrganizerCompetitionIdScheduleRoute
-  '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
-  '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
-  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
-  '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
-  '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
-  '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
-  '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
-  '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
-  '/log/new': typeof ProtectedLogNewIndexRoute
-  '/movements/$id': typeof ProtectedMovementsIdIndexRoute
-  '/movements/new': typeof ProtectedMovementsNewIndexRoute
-  '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
-  '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
-  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
-  '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
-  '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
-  '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
-  '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
-  '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
-  '/compete/organizer/series': typeof CompeteOrganizerSeriesIndexRoute
-  '/demo/start/ssr': typeof DemoStartSsrIndexRoute
-  '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
-  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
-  '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
-  '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
-  '/settings/teams/$teamSlug': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
-  '/settings/teams/create': typeof ProtectedSettingsTeamsCreateIndexRoute
-  '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
-  '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
-  '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
-  '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+	"/": typeof IndexRoute
+	"/compete": typeof CompeteRouteWithChildren
+	"/forgot-password": typeof AuthForgotPasswordRoute
+	"/reset-password": typeof AuthResetPasswordRoute
+	"/sign-in": typeof AuthSignInRoute
+	"/sign-up": typeof AuthSignUpRoute
+	"/team-invite": typeof AuthTeamInviteRoute
+	"/verify-email": typeof AuthVerifyEmailRoute
+	"/dashboard": typeof ProtectedDashboardRoute
+	"/settings": typeof ProtectedSettingsRouteWithChildren
+	"/compete/$slug": typeof CompeteSlugRouteWithChildren
+	"/compete/organizer": typeof CompeteOrganizerRouteWithChildren
+	"/compete/": typeof CompeteIndexRoute
+	"/compete/$slug/leaderboard": typeof CompeteSlugLeaderboardRoute
+	"/compete/$slug/my-schedule": typeof CompeteSlugMyScheduleRoute
+	"/compete/$slug/register": typeof CompeteSlugRegisterRouteWithChildren
+	"/compete/$slug/schedule": typeof CompeteSlugScheduleRoute
+	"/compete/$slug/volunteer": typeof CompeteSlugVolunteerRoute
+	"/compete/$slug/workouts": typeof CompeteSlugWorkoutsRoute
+	"/compete/invite/$token": typeof CompeteInviteTokenRoute
+	"/compete/organizer/$competitionId": typeof CompeteOrganizerCompetitionIdRouteWithChildren
+	"/compete/organizer/new": typeof CompeteOrganizerNewRoute
+	"/demo/api/names": typeof DemoApiNamesRoute
+	"/demo/start/api-request": typeof DemoStartApiRequestRoute
+	"/demo/start/server-funcs": typeof DemoStartServerFuncsRoute
+	"/log": typeof ProtectedLogIndexRoute
+	"/movements": typeof ProtectedMovementsIndexRoute
+	"/settings/": typeof ProtectedSettingsIndexRoute
+	"/team": typeof ProtectedTeamIndexRoute
+	"/workouts": typeof ProtectedWorkoutsIndexRoute
+	"/compete/$slug/": typeof CompeteSlugIndexRoute
+	"/compete/organizer/": typeof CompeteOrganizerIndexRoute
+	"/compete/$slug/register/success": typeof CompeteSlugRegisterSuccessRoute
+	"/compete/organizer/$competitionId/athletes": typeof CompeteOrganizerCompetitionIdAthletesRoute
+	"/compete/organizer/$competitionId/danger-zone": typeof CompeteOrganizerCompetitionIdDangerZoneRoute
+	"/compete/organizer/$competitionId/divisions": typeof CompeteOrganizerCompetitionIdDivisionsRoute
+	"/compete/organizer/$competitionId/edit": typeof CompeteOrganizerCompetitionIdEditRoute
+	"/compete/organizer/$competitionId/pricing": typeof CompeteOrganizerCompetitionIdPricingRoute
+	"/compete/organizer/$competitionId/results": typeof CompeteOrganizerCompetitionIdResultsRoute
+	"/compete/organizer/$competitionId/revenue": typeof CompeteOrganizerCompetitionIdRevenueRoute
+	"/compete/organizer/$competitionId/schedule": typeof CompeteOrganizerCompetitionIdScheduleRoute
+	"/compete/organizer/$competitionId/settings": typeof CompeteOrganizerCompetitionIdSettingsRoute
+	"/compete/organizer/$competitionId/sponsors": typeof CompeteOrganizerCompetitionIdSponsorsRoute
+	"/compete/organizer/$competitionId/volunteers": typeof CompeteOrganizerCompetitionIdVolunteersRoute
+	"/compete/organizer/series/$groupId": typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
+	"/compete/organizer/series/new": typeof CompeteOrganizerSeriesNewRoute
+	"/demo/start/ssr/data-only": typeof DemoStartSsrDataOnlyRoute
+	"/demo/start/ssr/full-ssr": typeof DemoStartSsrFullSsrRoute
+	"/demo/start/ssr/spa-mode": typeof DemoStartSsrSpaModeRoute
+	"/log/new": typeof ProtectedLogNewIndexRoute
+	"/movements/$id": typeof ProtectedMovementsIdIndexRoute
+	"/movements/new": typeof ProtectedMovementsNewIndexRoute
+	"/settings/profile": typeof ProtectedSettingsProfileIndexRoute
+	"/settings/programming": typeof ProtectedSettingsProgrammingIndexRoute
+	"/settings/security": typeof ProtectedSettingsSecurityIndexRoute
+	"/settings/sessions": typeof ProtectedSettingsSessionsIndexRoute
+	"/settings/teams": typeof ProtectedSettingsTeamsIndexRoute
+	"/workouts/$workoutId": typeof ProtectedWorkoutsWorkoutIdIndexRoute
+	"/workouts/new": typeof ProtectedWorkoutsNewIndexRoute
+	"/compete/organizer/$competitionId/": typeof CompeteOrganizerCompetitionIdIndexRoute
+	"/compete/organizer/series": typeof CompeteOrganizerSeriesIndexRoute
+	"/demo/start/ssr": typeof DemoStartSsrIndexRoute
+	"/compete/organizer/$competitionId/events/$eventId": typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
+	"/compete/organizer/series/$groupId/edit": typeof CompeteOrganizerSeriesGroupIdEditRoute
+	"/log/$id/edit": typeof ProtectedLogIdEditIndexRoute
+	"/settings/programming/$trackId": typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+	"/settings/teams/$teamSlug": typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+	"/settings/teams/create": typeof ProtectedSettingsTeamsCreateIndexRoute
+	"/workouts/$workoutId/edit": typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+	"/workouts/$workoutId/schedule": typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+	"/compete/organizer/$competitionId/events": typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+	"/compete/organizer/series/$groupId/": typeof CompeteOrganizerSeriesGroupIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/forgot-password': typeof AuthForgotPasswordRoute
-  '/reset-password': typeof AuthResetPasswordRoute
-  '/sign-in': typeof AuthSignInRoute
-  '/sign-up': typeof AuthSignUpRoute
-  '/team-invite': typeof AuthTeamInviteRoute
-  '/verify-email': typeof AuthVerifyEmailRoute
-  '/dashboard': typeof ProtectedDashboardRoute
-  '/compete': typeof CompeteIndexRoute
-  '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
-  '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
-  '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
-  '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
-  '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
-  '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
-  '/compete/invite/$token': typeof CompeteInviteTokenRoute
-  '/compete/organizer/new': typeof CompeteOrganizerNewRoute
-  '/demo/api/names': typeof DemoApiNamesRoute
-  '/demo/start/api-request': typeof DemoStartApiRequestRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/log': typeof ProtectedLogIndexRoute
-  '/movements': typeof ProtectedMovementsIndexRoute
-  '/settings': typeof ProtectedSettingsIndexRoute
-  '/team': typeof ProtectedTeamIndexRoute
-  '/workouts': typeof ProtectedWorkoutsIndexRoute
-  '/compete/$slug': typeof CompeteSlugIndexRoute
-  '/compete/organizer': typeof CompeteOrganizerIndexRoute
-  '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
-  '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
-  '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
-  '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
-  '/compete/organizer/$competitionId/edit': typeof CompeteOrganizerCompetitionIdEditRoute
-  '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
-  '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
-  '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
-  '/compete/organizer/$competitionId/schedule': typeof CompeteOrganizerCompetitionIdScheduleRoute
-  '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
-  '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
-  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
-  '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
-  '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
-  '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
-  '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
-  '/log/new': typeof ProtectedLogNewIndexRoute
-  '/movements/$id': typeof ProtectedMovementsIdIndexRoute
-  '/movements/new': typeof ProtectedMovementsNewIndexRoute
-  '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
-  '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
-  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
-  '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
-  '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
-  '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
-  '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
-  '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdIndexRoute
-  '/compete/organizer/series': typeof CompeteOrganizerSeriesIndexRoute
-  '/demo/start/ssr': typeof DemoStartSsrIndexRoute
-  '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
-  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
-  '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
-  '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
-  '/settings/teams/$teamSlug': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
-  '/settings/teams/create': typeof ProtectedSettingsTeamsCreateIndexRoute
-  '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
-  '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
-  '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
-  '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+	"/": typeof IndexRoute
+	"/forgot-password": typeof AuthForgotPasswordRoute
+	"/reset-password": typeof AuthResetPasswordRoute
+	"/sign-in": typeof AuthSignInRoute
+	"/sign-up": typeof AuthSignUpRoute
+	"/team-invite": typeof AuthTeamInviteRoute
+	"/verify-email": typeof AuthVerifyEmailRoute
+	"/dashboard": typeof ProtectedDashboardRoute
+	"/compete": typeof CompeteIndexRoute
+	"/compete/$slug/leaderboard": typeof CompeteSlugLeaderboardRoute
+	"/compete/$slug/my-schedule": typeof CompeteSlugMyScheduleRoute
+	"/compete/$slug/register": typeof CompeteSlugRegisterRouteWithChildren
+	"/compete/$slug/schedule": typeof CompeteSlugScheduleRoute
+	"/compete/$slug/volunteer": typeof CompeteSlugVolunteerRoute
+	"/compete/$slug/workouts": typeof CompeteSlugWorkoutsRoute
+	"/compete/invite/$token": typeof CompeteInviteTokenRoute
+	"/compete/organizer/new": typeof CompeteOrganizerNewRoute
+	"/demo/api/names": typeof DemoApiNamesRoute
+	"/demo/start/api-request": typeof DemoStartApiRequestRoute
+	"/demo/start/server-funcs": typeof DemoStartServerFuncsRoute
+	"/log": typeof ProtectedLogIndexRoute
+	"/movements": typeof ProtectedMovementsIndexRoute
+	"/settings": typeof ProtectedSettingsIndexRoute
+	"/team": typeof ProtectedTeamIndexRoute
+	"/workouts": typeof ProtectedWorkoutsIndexRoute
+	"/compete/$slug": typeof CompeteSlugIndexRoute
+	"/compete/organizer": typeof CompeteOrganizerIndexRoute
+	"/compete/$slug/register/success": typeof CompeteSlugRegisterSuccessRoute
+	"/compete/organizer/$competitionId/athletes": typeof CompeteOrganizerCompetitionIdAthletesRoute
+	"/compete/organizer/$competitionId/danger-zone": typeof CompeteOrganizerCompetitionIdDangerZoneRoute
+	"/compete/organizer/$competitionId/divisions": typeof CompeteOrganizerCompetitionIdDivisionsRoute
+	"/compete/organizer/$competitionId/edit": typeof CompeteOrganizerCompetitionIdEditRoute
+	"/compete/organizer/$competitionId/pricing": typeof CompeteOrganizerCompetitionIdPricingRoute
+	"/compete/organizer/$competitionId/results": typeof CompeteOrganizerCompetitionIdResultsRoute
+	"/compete/organizer/$competitionId/revenue": typeof CompeteOrganizerCompetitionIdRevenueRoute
+	"/compete/organizer/$competitionId/schedule": typeof CompeteOrganizerCompetitionIdScheduleRoute
+	"/compete/organizer/$competitionId/settings": typeof CompeteOrganizerCompetitionIdSettingsRoute
+	"/compete/organizer/$competitionId/sponsors": typeof CompeteOrganizerCompetitionIdSponsorsRoute
+	"/compete/organizer/$competitionId/volunteers": typeof CompeteOrganizerCompetitionIdVolunteersRoute
+	"/compete/organizer/series/new": typeof CompeteOrganizerSeriesNewRoute
+	"/demo/start/ssr/data-only": typeof DemoStartSsrDataOnlyRoute
+	"/demo/start/ssr/full-ssr": typeof DemoStartSsrFullSsrRoute
+	"/demo/start/ssr/spa-mode": typeof DemoStartSsrSpaModeRoute
+	"/log/new": typeof ProtectedLogNewIndexRoute
+	"/movements/$id": typeof ProtectedMovementsIdIndexRoute
+	"/movements/new": typeof ProtectedMovementsNewIndexRoute
+	"/settings/profile": typeof ProtectedSettingsProfileIndexRoute
+	"/settings/programming": typeof ProtectedSettingsProgrammingIndexRoute
+	"/settings/security": typeof ProtectedSettingsSecurityIndexRoute
+	"/settings/sessions": typeof ProtectedSettingsSessionsIndexRoute
+	"/settings/teams": typeof ProtectedSettingsTeamsIndexRoute
+	"/workouts/$workoutId": typeof ProtectedWorkoutsWorkoutIdIndexRoute
+	"/workouts/new": typeof ProtectedWorkoutsNewIndexRoute
+	"/compete/organizer/$competitionId": typeof CompeteOrganizerCompetitionIdIndexRoute
+	"/compete/organizer/series": typeof CompeteOrganizerSeriesIndexRoute
+	"/demo/start/ssr": typeof DemoStartSsrIndexRoute
+	"/compete/organizer/$competitionId/events/$eventId": typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
+	"/compete/organizer/series/$groupId/edit": typeof CompeteOrganizerSeriesGroupIdEditRoute
+	"/log/$id/edit": typeof ProtectedLogIdEditIndexRoute
+	"/settings/programming/$trackId": typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+	"/settings/teams/$teamSlug": typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+	"/settings/teams/create": typeof ProtectedSettingsTeamsCreateIndexRoute
+	"/workouts/$workoutId/edit": typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+	"/workouts/$workoutId/schedule": typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+	"/compete/organizer/$competitionId/events": typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+	"/compete/organizer/series/$groupId": typeof CompeteOrganizerSeriesGroupIdIndexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/_auth': typeof AuthRouteWithChildren
-  '/_protected': typeof ProtectedRouteWithChildren
-  '/compete': typeof CompeteRouteWithChildren
-  '/_auth/forgot-password': typeof AuthForgotPasswordRoute
-  '/_auth/reset-password': typeof AuthResetPasswordRoute
-  '/_auth/sign-in': typeof AuthSignInRoute
-  '/_auth/sign-up': typeof AuthSignUpRoute
-  '/_auth/team-invite': typeof AuthTeamInviteRoute
-  '/_auth/verify-email': typeof AuthVerifyEmailRoute
-  '/_protected/dashboard': typeof ProtectedDashboardRoute
-  '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
-  '/compete/$slug': typeof CompeteSlugRouteWithChildren
-  '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
-  '/compete/': typeof CompeteIndexRoute
-  '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
-  '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
-  '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
-  '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
-  '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
-  '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
-  '/compete/invite/$token': typeof CompeteInviteTokenRoute
-  '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdRouteWithChildren
-  '/compete/organizer/new': typeof CompeteOrganizerNewRoute
-  '/demo/api/names': typeof DemoApiNamesRoute
-  '/demo/start/api-request': typeof DemoStartApiRequestRoute
-  '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/_protected/log/': typeof ProtectedLogIndexRoute
-  '/_protected/movements/': typeof ProtectedMovementsIndexRoute
-  '/_protected/settings/': typeof ProtectedSettingsIndexRoute
-  '/_protected/team/': typeof ProtectedTeamIndexRoute
-  '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
-  '/compete/$slug/': typeof CompeteSlugIndexRoute
-  '/compete/organizer/': typeof CompeteOrganizerIndexRoute
-  '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
-  '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
-  '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
-  '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
-  '/compete/organizer/$competitionId/edit': typeof CompeteOrganizerCompetitionIdEditRoute
-  '/compete/organizer/$competitionId/pricing': typeof CompeteOrganizerCompetitionIdPricingRoute
-  '/compete/organizer/$competitionId/results': typeof CompeteOrganizerCompetitionIdResultsRoute
-  '/compete/organizer/$competitionId/revenue': typeof CompeteOrganizerCompetitionIdRevenueRoute
-  '/compete/organizer/$competitionId/schedule': typeof CompeteOrganizerCompetitionIdScheduleRoute
-  '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
-  '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
-  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
-  '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
-  '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
-  '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
-  '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
-  '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
-  '/_protected/log/new/': typeof ProtectedLogNewIndexRoute
-  '/_protected/movements/$id/': typeof ProtectedMovementsIdIndexRoute
-  '/_protected/movements/new/': typeof ProtectedMovementsNewIndexRoute
-  '/_protected/settings/profile/': typeof ProtectedSettingsProfileIndexRoute
-  '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
-  '/_protected/settings/security/': typeof ProtectedSettingsSecurityIndexRoute
-  '/_protected/settings/sessions/': typeof ProtectedSettingsSessionsIndexRoute
-  '/_protected/settings/teams/': typeof ProtectedSettingsTeamsIndexRoute
-  '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
-  '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
-  '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
-  '/compete/organizer/series/': typeof CompeteOrganizerSeriesIndexRoute
-  '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
-  '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
-  '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
-  '/_protected/log/$id/edit/': typeof ProtectedLogIdEditIndexRoute
-  '/_protected/settings/programming/$trackId/': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
-  '/_protected/settings/teams/$teamSlug/': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
-  '/_protected/settings/teams/create/': typeof ProtectedSettingsTeamsCreateIndexRoute
-  '/_protected/workouts/$workoutId/edit/': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
-  '/_protected/workouts/$workoutId/schedule/': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
-  '/compete/organizer/$competitionId/events/': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
-  '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+	__root__: typeof rootRouteImport
+	"/": typeof IndexRoute
+	"/_auth": typeof AuthRouteWithChildren
+	"/_protected": typeof ProtectedRouteWithChildren
+	"/compete": typeof CompeteRouteWithChildren
+	"/_auth/forgot-password": typeof AuthForgotPasswordRoute
+	"/_auth/reset-password": typeof AuthResetPasswordRoute
+	"/_auth/sign-in": typeof AuthSignInRoute
+	"/_auth/sign-up": typeof AuthSignUpRoute
+	"/_auth/team-invite": typeof AuthTeamInviteRoute
+	"/_auth/verify-email": typeof AuthVerifyEmailRoute
+	"/_protected/dashboard": typeof ProtectedDashboardRoute
+	"/_protected/settings": typeof ProtectedSettingsRouteWithChildren
+	"/compete/$slug": typeof CompeteSlugRouteWithChildren
+	"/compete/organizer": typeof CompeteOrganizerRouteWithChildren
+	"/compete/": typeof CompeteIndexRoute
+	"/compete/$slug/leaderboard": typeof CompeteSlugLeaderboardRoute
+	"/compete/$slug/my-schedule": typeof CompeteSlugMyScheduleRoute
+	"/compete/$slug/register": typeof CompeteSlugRegisterRouteWithChildren
+	"/compete/$slug/schedule": typeof CompeteSlugScheduleRoute
+	"/compete/$slug/volunteer": typeof CompeteSlugVolunteerRoute
+	"/compete/$slug/workouts": typeof CompeteSlugWorkoutsRoute
+	"/compete/invite/$token": typeof CompeteInviteTokenRoute
+	"/compete/organizer/$competitionId": typeof CompeteOrganizerCompetitionIdRouteWithChildren
+	"/compete/organizer/new": typeof CompeteOrganizerNewRoute
+	"/demo/api/names": typeof DemoApiNamesRoute
+	"/demo/start/api-request": typeof DemoStartApiRequestRoute
+	"/demo/start/server-funcs": typeof DemoStartServerFuncsRoute
+	"/_protected/log/": typeof ProtectedLogIndexRoute
+	"/_protected/movements/": typeof ProtectedMovementsIndexRoute
+	"/_protected/settings/": typeof ProtectedSettingsIndexRoute
+	"/_protected/team/": typeof ProtectedTeamIndexRoute
+	"/_protected/workouts/": typeof ProtectedWorkoutsIndexRoute
+	"/compete/$slug/": typeof CompeteSlugIndexRoute
+	"/compete/organizer/": typeof CompeteOrganizerIndexRoute
+	"/compete/$slug/register/success": typeof CompeteSlugRegisterSuccessRoute
+	"/compete/organizer/$competitionId/athletes": typeof CompeteOrganizerCompetitionIdAthletesRoute
+	"/compete/organizer/$competitionId/danger-zone": typeof CompeteOrganizerCompetitionIdDangerZoneRoute
+	"/compete/organizer/$competitionId/divisions": typeof CompeteOrganizerCompetitionIdDivisionsRoute
+	"/compete/organizer/$competitionId/edit": typeof CompeteOrganizerCompetitionIdEditRoute
+	"/compete/organizer/$competitionId/pricing": typeof CompeteOrganizerCompetitionIdPricingRoute
+	"/compete/organizer/$competitionId/results": typeof CompeteOrganizerCompetitionIdResultsRoute
+	"/compete/organizer/$competitionId/revenue": typeof CompeteOrganizerCompetitionIdRevenueRoute
+	"/compete/organizer/$competitionId/schedule": typeof CompeteOrganizerCompetitionIdScheduleRoute
+	"/compete/organizer/$competitionId/settings": typeof CompeteOrganizerCompetitionIdSettingsRoute
+	"/compete/organizer/$competitionId/sponsors": typeof CompeteOrganizerCompetitionIdSponsorsRoute
+	"/compete/organizer/$competitionId/volunteers": typeof CompeteOrganizerCompetitionIdVolunteersRoute
+	"/compete/organizer/series/$groupId": typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
+	"/compete/organizer/series/new": typeof CompeteOrganizerSeriesNewRoute
+	"/demo/start/ssr/data-only": typeof DemoStartSsrDataOnlyRoute
+	"/demo/start/ssr/full-ssr": typeof DemoStartSsrFullSsrRoute
+	"/demo/start/ssr/spa-mode": typeof DemoStartSsrSpaModeRoute
+	"/_protected/log/new/": typeof ProtectedLogNewIndexRoute
+	"/_protected/movements/$id/": typeof ProtectedMovementsIdIndexRoute
+	"/_protected/movements/new/": typeof ProtectedMovementsNewIndexRoute
+	"/_protected/settings/profile/": typeof ProtectedSettingsProfileIndexRoute
+	"/_protected/settings/programming/": typeof ProtectedSettingsProgrammingIndexRoute
+	"/_protected/settings/security/": typeof ProtectedSettingsSecurityIndexRoute
+	"/_protected/settings/sessions/": typeof ProtectedSettingsSessionsIndexRoute
+	"/_protected/settings/teams/": typeof ProtectedSettingsTeamsIndexRoute
+	"/_protected/workouts/$workoutId/": typeof ProtectedWorkoutsWorkoutIdIndexRoute
+	"/_protected/workouts/new/": typeof ProtectedWorkoutsNewIndexRoute
+	"/compete/organizer/$competitionId/": typeof CompeteOrganizerCompetitionIdIndexRoute
+	"/compete/organizer/series/": typeof CompeteOrganizerSeriesIndexRoute
+	"/demo/start/ssr/": typeof DemoStartSsrIndexRoute
+	"/compete/organizer/$competitionId/events/$eventId": typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
+	"/compete/organizer/series/$groupId/edit": typeof CompeteOrganizerSeriesGroupIdEditRoute
+	"/_protected/log/$id/edit/": typeof ProtectedLogIdEditIndexRoute
+	"/_protected/settings/programming/$trackId/": typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+	"/_protected/settings/teams/$teamSlug/": typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+	"/_protected/settings/teams/create/": typeof ProtectedSettingsTeamsCreateIndexRoute
+	"/_protected/workouts/$workoutId/edit/": typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+	"/_protected/workouts/$workoutId/schedule/": typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+	"/compete/organizer/$competitionId/events/": typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+	"/compete/organizer/series/$groupId/": typeof CompeteOrganizerSeriesGroupIdIndexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/compete'
-    | '/forgot-password'
-    | '/reset-password'
-    | '/sign-in'
-    | '/sign-up'
-    | '/team-invite'
-    | '/verify-email'
-    | '/dashboard'
-    | '/settings'
-    | '/compete/$slug'
-    | '/compete/organizer'
-    | '/compete/'
-    | '/compete/$slug/leaderboard'
-    | '/compete/$slug/my-schedule'
-    | '/compete/$slug/register'
-    | '/compete/$slug/schedule'
-    | '/compete/$slug/volunteer'
-    | '/compete/$slug/workouts'
-    | '/compete/invite/$token'
-    | '/compete/organizer/$competitionId'
-    | '/compete/organizer/new'
-    | '/demo/api/names'
-    | '/demo/start/api-request'
-    | '/demo/start/server-funcs'
-    | '/log'
-    | '/movements'
-    | '/settings/'
-    | '/team'
-    | '/workouts'
-    | '/compete/$slug/'
-    | '/compete/organizer/'
-    | '/compete/$slug/register/success'
-    | '/compete/organizer/$competitionId/athletes'
-    | '/compete/organizer/$competitionId/danger-zone'
-    | '/compete/organizer/$competitionId/divisions'
-    | '/compete/organizer/$competitionId/edit'
-    | '/compete/organizer/$competitionId/pricing'
-    | '/compete/organizer/$competitionId/results'
-    | '/compete/organizer/$competitionId/revenue'
-    | '/compete/organizer/$competitionId/schedule'
-    | '/compete/organizer/$competitionId/settings'
-    | '/compete/organizer/$competitionId/sponsors'
-    | '/compete/organizer/$competitionId/volunteers'
-    | '/compete/organizer/series/$groupId'
-    | '/compete/organizer/series/new'
-    | '/demo/start/ssr/data-only'
-    | '/demo/start/ssr/full-ssr'
-    | '/demo/start/ssr/spa-mode'
-    | '/log/new'
-    | '/movements/$id'
-    | '/movements/new'
-    | '/settings/profile'
-    | '/settings/programming'
-    | '/settings/security'
-    | '/settings/sessions'
-    | '/settings/teams'
-    | '/workouts/$workoutId'
-    | '/workouts/new'
-    | '/compete/organizer/$competitionId/'
-    | '/compete/organizer/series'
-    | '/demo/start/ssr'
-    | '/compete/organizer/$competitionId/events/$eventId'
-    | '/compete/organizer/series/$groupId/edit'
-    | '/log/$id/edit'
-    | '/settings/programming/$trackId'
-    | '/settings/teams/$teamSlug'
-    | '/settings/teams/create'
-    | '/workouts/$workoutId/edit'
-    | '/workouts/$workoutId/schedule'
-    | '/compete/organizer/$competitionId/events'
-    | '/compete/organizer/series/$groupId/'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/forgot-password'
-    | '/reset-password'
-    | '/sign-in'
-    | '/sign-up'
-    | '/team-invite'
-    | '/verify-email'
-    | '/dashboard'
-    | '/compete'
-    | '/compete/$slug/leaderboard'
-    | '/compete/$slug/my-schedule'
-    | '/compete/$slug/register'
-    | '/compete/$slug/schedule'
-    | '/compete/$slug/volunteer'
-    | '/compete/$slug/workouts'
-    | '/compete/invite/$token'
-    | '/compete/organizer/new'
-    | '/demo/api/names'
-    | '/demo/start/api-request'
-    | '/demo/start/server-funcs'
-    | '/log'
-    | '/movements'
-    | '/settings'
-    | '/team'
-    | '/workouts'
-    | '/compete/$slug'
-    | '/compete/organizer'
-    | '/compete/$slug/register/success'
-    | '/compete/organizer/$competitionId/athletes'
-    | '/compete/organizer/$competitionId/danger-zone'
-    | '/compete/organizer/$competitionId/divisions'
-    | '/compete/organizer/$competitionId/edit'
-    | '/compete/organizer/$competitionId/pricing'
-    | '/compete/organizer/$competitionId/results'
-    | '/compete/organizer/$competitionId/revenue'
-    | '/compete/organizer/$competitionId/schedule'
-    | '/compete/organizer/$competitionId/settings'
-    | '/compete/organizer/$competitionId/sponsors'
-    | '/compete/organizer/$competitionId/volunteers'
-    | '/compete/organizer/series/new'
-    | '/demo/start/ssr/data-only'
-    | '/demo/start/ssr/full-ssr'
-    | '/demo/start/ssr/spa-mode'
-    | '/log/new'
-    | '/movements/$id'
-    | '/movements/new'
-    | '/settings/profile'
-    | '/settings/programming'
-    | '/settings/security'
-    | '/settings/sessions'
-    | '/settings/teams'
-    | '/workouts/$workoutId'
-    | '/workouts/new'
-    | '/compete/organizer/$competitionId'
-    | '/compete/organizer/series'
-    | '/demo/start/ssr'
-    | '/compete/organizer/$competitionId/events/$eventId'
-    | '/compete/organizer/series/$groupId/edit'
-    | '/log/$id/edit'
-    | '/settings/programming/$trackId'
-    | '/settings/teams/$teamSlug'
-    | '/settings/teams/create'
-    | '/workouts/$workoutId/edit'
-    | '/workouts/$workoutId/schedule'
-    | '/compete/organizer/$competitionId/events'
-    | '/compete/organizer/series/$groupId'
-  id:
-    | '__root__'
-    | '/'
-    | '/_auth'
-    | '/_protected'
-    | '/compete'
-    | '/_auth/forgot-password'
-    | '/_auth/reset-password'
-    | '/_auth/sign-in'
-    | '/_auth/sign-up'
-    | '/_auth/team-invite'
-    | '/_auth/verify-email'
-    | '/_protected/dashboard'
-    | '/_protected/settings'
-    | '/compete/$slug'
-    | '/compete/organizer'
-    | '/compete/'
-    | '/compete/$slug/leaderboard'
-    | '/compete/$slug/my-schedule'
-    | '/compete/$slug/register'
-    | '/compete/$slug/schedule'
-    | '/compete/$slug/volunteer'
-    | '/compete/$slug/workouts'
-    | '/compete/invite/$token'
-    | '/compete/organizer/$competitionId'
-    | '/compete/organizer/new'
-    | '/demo/api/names'
-    | '/demo/start/api-request'
-    | '/demo/start/server-funcs'
-    | '/_protected/log/'
-    | '/_protected/movements/'
-    | '/_protected/settings/'
-    | '/_protected/team/'
-    | '/_protected/workouts/'
-    | '/compete/$slug/'
-    | '/compete/organizer/'
-    | '/compete/$slug/register/success'
-    | '/compete/organizer/$competitionId/athletes'
-    | '/compete/organizer/$competitionId/danger-zone'
-    | '/compete/organizer/$competitionId/divisions'
-    | '/compete/organizer/$competitionId/edit'
-    | '/compete/organizer/$competitionId/pricing'
-    | '/compete/organizer/$competitionId/results'
-    | '/compete/organizer/$competitionId/revenue'
-    | '/compete/organizer/$competitionId/schedule'
-    | '/compete/organizer/$competitionId/settings'
-    | '/compete/organizer/$competitionId/sponsors'
-    | '/compete/organizer/$competitionId/volunteers'
-    | '/compete/organizer/series/$groupId'
-    | '/compete/organizer/series/new'
-    | '/demo/start/ssr/data-only'
-    | '/demo/start/ssr/full-ssr'
-    | '/demo/start/ssr/spa-mode'
-    | '/_protected/log/new/'
-    | '/_protected/movements/$id/'
-    | '/_protected/movements/new/'
-    | '/_protected/settings/profile/'
-    | '/_protected/settings/programming/'
-    | '/_protected/settings/security/'
-    | '/_protected/settings/sessions/'
-    | '/_protected/settings/teams/'
-    | '/_protected/workouts/$workoutId/'
-    | '/_protected/workouts/new/'
-    | '/compete/organizer/$competitionId/'
-    | '/compete/organizer/series/'
-    | '/demo/start/ssr/'
-    | '/compete/organizer/$competitionId/events/$eventId'
-    | '/compete/organizer/series/$groupId/edit'
-    | '/_protected/log/$id/edit/'
-    | '/_protected/settings/programming/$trackId/'
-    | '/_protected/settings/teams/$teamSlug/'
-    | '/_protected/settings/teams/create/'
-    | '/_protected/workouts/$workoutId/edit/'
-    | '/_protected/workouts/$workoutId/schedule/'
-    | '/compete/organizer/$competitionId/events/'
-    | '/compete/organizer/series/$groupId/'
-  fileRoutesById: FileRoutesById
+	fileRoutesByFullPath: FileRoutesByFullPath
+	fullPaths:
+		| "/"
+		| "/compete"
+		| "/forgot-password"
+		| "/reset-password"
+		| "/sign-in"
+		| "/sign-up"
+		| "/team-invite"
+		| "/verify-email"
+		| "/dashboard"
+		| "/settings"
+		| "/compete/$slug"
+		| "/compete/organizer"
+		| "/compete/"
+		| "/compete/$slug/leaderboard"
+		| "/compete/$slug/my-schedule"
+		| "/compete/$slug/register"
+		| "/compete/$slug/schedule"
+		| "/compete/$slug/volunteer"
+		| "/compete/$slug/workouts"
+		| "/compete/invite/$token"
+		| "/compete/organizer/$competitionId"
+		| "/compete/organizer/new"
+		| "/demo/api/names"
+		| "/demo/start/api-request"
+		| "/demo/start/server-funcs"
+		| "/log"
+		| "/movements"
+		| "/settings/"
+		| "/team"
+		| "/workouts"
+		| "/compete/$slug/"
+		| "/compete/organizer/"
+		| "/compete/$slug/register/success"
+		| "/compete/organizer/$competitionId/athletes"
+		| "/compete/organizer/$competitionId/danger-zone"
+		| "/compete/organizer/$competitionId/divisions"
+		| "/compete/organizer/$competitionId/edit"
+		| "/compete/organizer/$competitionId/pricing"
+		| "/compete/organizer/$competitionId/results"
+		| "/compete/organizer/$competitionId/revenue"
+		| "/compete/organizer/$competitionId/schedule"
+		| "/compete/organizer/$competitionId/settings"
+		| "/compete/organizer/$competitionId/sponsors"
+		| "/compete/organizer/$competitionId/volunteers"
+		| "/compete/organizer/series/$groupId"
+		| "/compete/organizer/series/new"
+		| "/demo/start/ssr/data-only"
+		| "/demo/start/ssr/full-ssr"
+		| "/demo/start/ssr/spa-mode"
+		| "/log/new"
+		| "/movements/$id"
+		| "/movements/new"
+		| "/settings/profile"
+		| "/settings/programming"
+		| "/settings/security"
+		| "/settings/sessions"
+		| "/settings/teams"
+		| "/workouts/$workoutId"
+		| "/workouts/new"
+		| "/compete/organizer/$competitionId/"
+		| "/compete/organizer/series"
+		| "/demo/start/ssr"
+		| "/compete/organizer/$competitionId/events/$eventId"
+		| "/compete/organizer/series/$groupId/edit"
+		| "/log/$id/edit"
+		| "/settings/programming/$trackId"
+		| "/settings/teams/$teamSlug"
+		| "/settings/teams/create"
+		| "/workouts/$workoutId/edit"
+		| "/workouts/$workoutId/schedule"
+		| "/compete/organizer/$competitionId/events"
+		| "/compete/organizer/series/$groupId/"
+	fileRoutesByTo: FileRoutesByTo
+	to:
+		| "/"
+		| "/forgot-password"
+		| "/reset-password"
+		| "/sign-in"
+		| "/sign-up"
+		| "/team-invite"
+		| "/verify-email"
+		| "/dashboard"
+		| "/compete"
+		| "/compete/$slug/leaderboard"
+		| "/compete/$slug/my-schedule"
+		| "/compete/$slug/register"
+		| "/compete/$slug/schedule"
+		| "/compete/$slug/volunteer"
+		| "/compete/$slug/workouts"
+		| "/compete/invite/$token"
+		| "/compete/organizer/new"
+		| "/demo/api/names"
+		| "/demo/start/api-request"
+		| "/demo/start/server-funcs"
+		| "/log"
+		| "/movements"
+		| "/settings"
+		| "/team"
+		| "/workouts"
+		| "/compete/$slug"
+		| "/compete/organizer"
+		| "/compete/$slug/register/success"
+		| "/compete/organizer/$competitionId/athletes"
+		| "/compete/organizer/$competitionId/danger-zone"
+		| "/compete/organizer/$competitionId/divisions"
+		| "/compete/organizer/$competitionId/edit"
+		| "/compete/organizer/$competitionId/pricing"
+		| "/compete/organizer/$competitionId/results"
+		| "/compete/organizer/$competitionId/revenue"
+		| "/compete/organizer/$competitionId/schedule"
+		| "/compete/organizer/$competitionId/settings"
+		| "/compete/organizer/$competitionId/sponsors"
+		| "/compete/organizer/$competitionId/volunteers"
+		| "/compete/organizer/series/new"
+		| "/demo/start/ssr/data-only"
+		| "/demo/start/ssr/full-ssr"
+		| "/demo/start/ssr/spa-mode"
+		| "/log/new"
+		| "/movements/$id"
+		| "/movements/new"
+		| "/settings/profile"
+		| "/settings/programming"
+		| "/settings/security"
+		| "/settings/sessions"
+		| "/settings/teams"
+		| "/workouts/$workoutId"
+		| "/workouts/new"
+		| "/compete/organizer/$competitionId"
+		| "/compete/organizer/series"
+		| "/demo/start/ssr"
+		| "/compete/organizer/$competitionId/events/$eventId"
+		| "/compete/organizer/series/$groupId/edit"
+		| "/log/$id/edit"
+		| "/settings/programming/$trackId"
+		| "/settings/teams/$teamSlug"
+		| "/settings/teams/create"
+		| "/workouts/$workoutId/edit"
+		| "/workouts/$workoutId/schedule"
+		| "/compete/organizer/$competitionId/events"
+		| "/compete/organizer/series/$groupId"
+	id:
+		| "__root__"
+		| "/"
+		| "/_auth"
+		| "/_protected"
+		| "/compete"
+		| "/_auth/forgot-password"
+		| "/_auth/reset-password"
+		| "/_auth/sign-in"
+		| "/_auth/sign-up"
+		| "/_auth/team-invite"
+		| "/_auth/verify-email"
+		| "/_protected/dashboard"
+		| "/_protected/settings"
+		| "/compete/$slug"
+		| "/compete/organizer"
+		| "/compete/"
+		| "/compete/$slug/leaderboard"
+		| "/compete/$slug/my-schedule"
+		| "/compete/$slug/register"
+		| "/compete/$slug/schedule"
+		| "/compete/$slug/volunteer"
+		| "/compete/$slug/workouts"
+		| "/compete/invite/$token"
+		| "/compete/organizer/$competitionId"
+		| "/compete/organizer/new"
+		| "/demo/api/names"
+		| "/demo/start/api-request"
+		| "/demo/start/server-funcs"
+		| "/_protected/log/"
+		| "/_protected/movements/"
+		| "/_protected/settings/"
+		| "/_protected/team/"
+		| "/_protected/workouts/"
+		| "/compete/$slug/"
+		| "/compete/organizer/"
+		| "/compete/$slug/register/success"
+		| "/compete/organizer/$competitionId/athletes"
+		| "/compete/organizer/$competitionId/danger-zone"
+		| "/compete/organizer/$competitionId/divisions"
+		| "/compete/organizer/$competitionId/edit"
+		| "/compete/organizer/$competitionId/pricing"
+		| "/compete/organizer/$competitionId/results"
+		| "/compete/organizer/$competitionId/revenue"
+		| "/compete/organizer/$competitionId/schedule"
+		| "/compete/organizer/$competitionId/settings"
+		| "/compete/organizer/$competitionId/sponsors"
+		| "/compete/organizer/$competitionId/volunteers"
+		| "/compete/organizer/series/$groupId"
+		| "/compete/organizer/series/new"
+		| "/demo/start/ssr/data-only"
+		| "/demo/start/ssr/full-ssr"
+		| "/demo/start/ssr/spa-mode"
+		| "/_protected/log/new/"
+		| "/_protected/movements/$id/"
+		| "/_protected/movements/new/"
+		| "/_protected/settings/profile/"
+		| "/_protected/settings/programming/"
+		| "/_protected/settings/security/"
+		| "/_protected/settings/sessions/"
+		| "/_protected/settings/teams/"
+		| "/_protected/workouts/$workoutId/"
+		| "/_protected/workouts/new/"
+		| "/compete/organizer/$competitionId/"
+		| "/compete/organizer/series/"
+		| "/demo/start/ssr/"
+		| "/compete/organizer/$competitionId/events/$eventId"
+		| "/compete/organizer/series/$groupId/edit"
+		| "/_protected/log/$id/edit/"
+		| "/_protected/settings/programming/$trackId/"
+		| "/_protected/settings/teams/$teamSlug/"
+		| "/_protected/settings/teams/create/"
+		| "/_protected/workouts/$workoutId/edit/"
+		| "/_protected/workouts/$workoutId/schedule/"
+		| "/compete/organizer/$competitionId/events/"
+		| "/compete/organizer/series/$groupId/"
+	fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRouteWithChildren
-  ProtectedRoute: typeof ProtectedRouteWithChildren
-  CompeteRoute: typeof CompeteRouteWithChildren
-  DemoApiNamesRoute: typeof DemoApiNamesRoute
-  DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
-  DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
-  DemoStartSsrDataOnlyRoute: typeof DemoStartSsrDataOnlyRoute
-  DemoStartSsrFullSsrRoute: typeof DemoStartSsrFullSsrRoute
-  DemoStartSsrSpaModeRoute: typeof DemoStartSsrSpaModeRoute
-  DemoStartSsrIndexRoute: typeof DemoStartSsrIndexRoute
+	IndexRoute: typeof IndexRoute
+	AuthRoute: typeof AuthRouteWithChildren
+	ProtectedRoute: typeof ProtectedRouteWithChildren
+	CompeteRoute: typeof CompeteRouteWithChildren
+	DemoApiNamesRoute: typeof DemoApiNamesRoute
+	DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
+	DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
+	DemoStartSsrDataOnlyRoute: typeof DemoStartSsrDataOnlyRoute
+	DemoStartSsrFullSsrRoute: typeof DemoStartSsrFullSsrRoute
+	DemoStartSsrSpaModeRoute: typeof DemoStartSsrSpaModeRoute
+	DemoStartSsrIndexRoute: typeof DemoStartSsrIndexRoute
 }
 
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/compete': {
-      id: '/compete'
-      path: '/compete'
-      fullPath: '/compete'
-      preLoaderRoute: typeof CompeteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_protected': {
-      id: '/_protected'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof ProtectedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_auth': {
-      id: '/_auth'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compete/': {
-      id: '/compete/'
-      path: '/'
-      fullPath: '/compete/'
-      preLoaderRoute: typeof CompeteIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/compete/organizer': {
-      id: '/compete/organizer'
-      path: '/organizer'
-      fullPath: '/compete/organizer'
-      preLoaderRoute: typeof CompeteOrganizerRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/compete/$slug': {
-      id: '/compete/$slug'
-      path: '/$slug'
-      fullPath: '/compete/$slug'
-      preLoaderRoute: typeof CompeteSlugRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/_protected/settings': {
-      id: '/_protected/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof ProtectedSettingsRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/dashboard': {
-      id: '/_protected/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof ProtectedDashboardRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_auth/verify-email': {
-      id: '/_auth/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof AuthVerifyEmailRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/team-invite': {
-      id: '/_auth/team-invite'
-      path: '/team-invite'
-      fullPath: '/team-invite'
-      preLoaderRoute: typeof AuthTeamInviteRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/sign-up': {
-      id: '/_auth/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof AuthSignUpRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/sign-in': {
-      id: '/_auth/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof AuthSignInRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/reset-password': {
-      id: '/_auth/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/forgot-password': {
-      id: '/_auth/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/compete/organizer/': {
-      id: '/compete/organizer/'
-      path: '/'
-      fullPath: '/compete/organizer/'
-      preLoaderRoute: typeof CompeteOrganizerIndexRouteImport
-      parentRoute: typeof CompeteOrganizerRoute
-    }
-    '/compete/$slug/': {
-      id: '/compete/$slug/'
-      path: '/'
-      fullPath: '/compete/$slug/'
-      preLoaderRoute: typeof CompeteSlugIndexRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/_protected/workouts/': {
-      id: '/_protected/workouts/'
-      path: '/workouts'
-      fullPath: '/workouts'
-      preLoaderRoute: typeof ProtectedWorkoutsIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/team/': {
-      id: '/_protected/team/'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof ProtectedTeamIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/settings/': {
-      id: '/_protected/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof ProtectedSettingsIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/movements/': {
-      id: '/_protected/movements/'
-      path: '/movements'
-      fullPath: '/movements'
-      preLoaderRoute: typeof ProtectedMovementsIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/log/': {
-      id: '/_protected/log/'
-      path: '/log'
-      fullPath: '/log'
-      preLoaderRoute: typeof ProtectedLogIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/demo/start/server-funcs': {
-      id: '/demo/start/server-funcs'
-      path: '/demo/start/server-funcs'
-      fullPath: '/demo/start/server-funcs'
-      preLoaderRoute: typeof DemoStartServerFuncsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/start/api-request': {
-      id: '/demo/start/api-request'
-      path: '/demo/start/api-request'
-      fullPath: '/demo/start/api-request'
-      preLoaderRoute: typeof DemoStartApiRequestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/api/names': {
-      id: '/demo/api/names'
-      path: '/demo/api/names'
-      fullPath: '/demo/api/names'
-      preLoaderRoute: typeof DemoApiNamesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compete/organizer/new': {
-      id: '/compete/organizer/new'
-      path: '/new'
-      fullPath: '/compete/organizer/new'
-      preLoaderRoute: typeof CompeteOrganizerNewRouteImport
-      parentRoute: typeof CompeteOrganizerRoute
-    }
-    '/compete/organizer/$competitionId': {
-      id: '/compete/organizer/$competitionId'
-      path: '/$competitionId'
-      fullPath: '/compete/organizer/$competitionId'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdRouteImport
-      parentRoute: typeof CompeteOrganizerRoute
-    }
-    '/compete/invite/$token': {
-      id: '/compete/invite/$token'
-      path: '/invite/$token'
-      fullPath: '/compete/invite/$token'
-      preLoaderRoute: typeof CompeteInviteTokenRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/compete/$slug/workouts': {
-      id: '/compete/$slug/workouts'
-      path: '/workouts'
-      fullPath: '/compete/$slug/workouts'
-      preLoaderRoute: typeof CompeteSlugWorkoutsRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/compete/$slug/volunteer': {
-      id: '/compete/$slug/volunteer'
-      path: '/volunteer'
-      fullPath: '/compete/$slug/volunteer'
-      preLoaderRoute: typeof CompeteSlugVolunteerRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/compete/$slug/schedule': {
-      id: '/compete/$slug/schedule'
-      path: '/schedule'
-      fullPath: '/compete/$slug/schedule'
-      preLoaderRoute: typeof CompeteSlugScheduleRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/compete/$slug/register': {
-      id: '/compete/$slug/register'
-      path: '/register'
-      fullPath: '/compete/$slug/register'
-      preLoaderRoute: typeof CompeteSlugRegisterRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/compete/$slug/my-schedule': {
-      id: '/compete/$slug/my-schedule'
-      path: '/my-schedule'
-      fullPath: '/compete/$slug/my-schedule'
-      preLoaderRoute: typeof CompeteSlugMyScheduleRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/compete/$slug/leaderboard': {
-      id: '/compete/$slug/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/compete/$slug/leaderboard'
-      preLoaderRoute: typeof CompeteSlugLeaderboardRouteImport
-      parentRoute: typeof CompeteSlugRoute
-    }
-    '/demo/start/ssr/': {
-      id: '/demo/start/ssr/'
-      path: '/demo/start/ssr'
-      fullPath: '/demo/start/ssr'
-      preLoaderRoute: typeof DemoStartSsrIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compete/organizer/series/': {
-      id: '/compete/organizer/series/'
-      path: '/series'
-      fullPath: '/compete/organizer/series'
-      preLoaderRoute: typeof CompeteOrganizerSeriesIndexRouteImport
-      parentRoute: typeof CompeteOrganizerRoute
-    }
-    '/compete/organizer/$competitionId/': {
-      id: '/compete/organizer/$competitionId/'
-      path: '/'
-      fullPath: '/compete/organizer/$competitionId/'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdIndexRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/_protected/workouts/new/': {
-      id: '/_protected/workouts/new/'
-      path: '/workouts/new'
-      fullPath: '/workouts/new'
-      preLoaderRoute: typeof ProtectedWorkoutsNewIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/workouts/$workoutId/': {
-      id: '/_protected/workouts/$workoutId/'
-      path: '/workouts/$workoutId'
-      fullPath: '/workouts/$workoutId'
-      preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/settings/teams/': {
-      id: '/_protected/settings/teams/'
-      path: '/teams'
-      fullPath: '/settings/teams'
-      preLoaderRoute: typeof ProtectedSettingsTeamsIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/sessions/': {
-      id: '/_protected/settings/sessions/'
-      path: '/sessions'
-      fullPath: '/settings/sessions'
-      preLoaderRoute: typeof ProtectedSettingsSessionsIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/security/': {
-      id: '/_protected/settings/security/'
-      path: '/security'
-      fullPath: '/settings/security'
-      preLoaderRoute: typeof ProtectedSettingsSecurityIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/programming/': {
-      id: '/_protected/settings/programming/'
-      path: '/programming'
-      fullPath: '/settings/programming'
-      preLoaderRoute: typeof ProtectedSettingsProgrammingIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/profile/': {
-      id: '/_protected/settings/profile/'
-      path: '/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof ProtectedSettingsProfileIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/movements/new/': {
-      id: '/_protected/movements/new/'
-      path: '/movements/new'
-      fullPath: '/movements/new'
-      preLoaderRoute: typeof ProtectedMovementsNewIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/movements/$id/': {
-      id: '/_protected/movements/$id/'
-      path: '/movements/$id'
-      fullPath: '/movements/$id'
-      preLoaderRoute: typeof ProtectedMovementsIdIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/log/new/': {
-      id: '/_protected/log/new/'
-      path: '/log/new'
-      fullPath: '/log/new'
-      preLoaderRoute: typeof ProtectedLogNewIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/demo/start/ssr/spa-mode': {
-      id: '/demo/start/ssr/spa-mode'
-      path: '/demo/start/ssr/spa-mode'
-      fullPath: '/demo/start/ssr/spa-mode'
-      preLoaderRoute: typeof DemoStartSsrSpaModeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/start/ssr/full-ssr': {
-      id: '/demo/start/ssr/full-ssr'
-      path: '/demo/start/ssr/full-ssr'
-      fullPath: '/demo/start/ssr/full-ssr'
-      preLoaderRoute: typeof DemoStartSsrFullSsrRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo/start/ssr/data-only': {
-      id: '/demo/start/ssr/data-only'
-      path: '/demo/start/ssr/data-only'
-      fullPath: '/demo/start/ssr/data-only'
-      preLoaderRoute: typeof DemoStartSsrDataOnlyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compete/organizer/series/new': {
-      id: '/compete/organizer/series/new'
-      path: '/series/new'
-      fullPath: '/compete/organizer/series/new'
-      preLoaderRoute: typeof CompeteOrganizerSeriesNewRouteImport
-      parentRoute: typeof CompeteOrganizerRoute
-    }
-    '/compete/organizer/series/$groupId': {
-      id: '/compete/organizer/series/$groupId'
-      path: '/series/$groupId'
-      fullPath: '/compete/organizer/series/$groupId'
-      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdRouteImport
-      parentRoute: typeof CompeteOrganizerRoute
-    }
-    '/compete/organizer/$competitionId/volunteers': {
-      id: '/compete/organizer/$competitionId/volunteers'
-      path: '/volunteers'
-      fullPath: '/compete/organizer/$competitionId/volunteers'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/sponsors': {
-      id: '/compete/organizer/$competitionId/sponsors'
-      path: '/sponsors'
-      fullPath: '/compete/organizer/$competitionId/sponsors'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdSponsorsRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/settings': {
-      id: '/compete/organizer/$competitionId/settings'
-      path: '/settings'
-      fullPath: '/compete/organizer/$competitionId/settings'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdSettingsRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/schedule': {
-      id: '/compete/organizer/$competitionId/schedule'
-      path: '/schedule'
-      fullPath: '/compete/organizer/$competitionId/schedule'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdScheduleRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/revenue': {
-      id: '/compete/organizer/$competitionId/revenue'
-      path: '/revenue'
-      fullPath: '/compete/organizer/$competitionId/revenue'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdRevenueRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/results': {
-      id: '/compete/organizer/$competitionId/results'
-      path: '/results'
-      fullPath: '/compete/organizer/$competitionId/results'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdResultsRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/pricing': {
-      id: '/compete/organizer/$competitionId/pricing'
-      path: '/pricing'
-      fullPath: '/compete/organizer/$competitionId/pricing'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdPricingRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/edit': {
-      id: '/compete/organizer/$competitionId/edit'
-      path: '/edit'
-      fullPath: '/compete/organizer/$competitionId/edit'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdEditRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/divisions': {
-      id: '/compete/organizer/$competitionId/divisions'
-      path: '/divisions'
-      fullPath: '/compete/organizer/$competitionId/divisions'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdDivisionsRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/danger-zone': {
-      id: '/compete/organizer/$competitionId/danger-zone'
-      path: '/danger-zone'
-      fullPath: '/compete/organizer/$competitionId/danger-zone'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdDangerZoneRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/organizer/$competitionId/athletes': {
-      id: '/compete/organizer/$competitionId/athletes'
-      path: '/athletes'
-      fullPath: '/compete/organizer/$competitionId/athletes'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdAthletesRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/compete/$slug/register/success': {
-      id: '/compete/$slug/register/success'
-      path: '/success'
-      fullPath: '/compete/$slug/register/success'
-      preLoaderRoute: typeof CompeteSlugRegisterSuccessRouteImport
-      parentRoute: typeof CompeteSlugRegisterRoute
-    }
-    '/compete/organizer/series/$groupId/': {
-      id: '/compete/organizer/series/$groupId/'
-      path: '/'
-      fullPath: '/compete/organizer/series/$groupId/'
-      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdIndexRouteImport
-      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
-    }
-    '/compete/organizer/$competitionId/events/': {
-      id: '/compete/organizer/$competitionId/events/'
-      path: '/events'
-      fullPath: '/compete/organizer/$competitionId/events'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdEventsIndexRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-    '/_protected/workouts/$workoutId/schedule/': {
-      id: '/_protected/workouts/$workoutId/schedule/'
-      path: '/workouts/$workoutId/schedule'
-      fullPath: '/workouts/$workoutId/schedule'
-      preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/workouts/$workoutId/edit/': {
-      id: '/_protected/workouts/$workoutId/edit/'
-      path: '/workouts/$workoutId/edit'
-      fullPath: '/workouts/$workoutId/edit'
-      preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/settings/teams/create/': {
-      id: '/_protected/settings/teams/create/'
-      path: '/teams/create'
-      fullPath: '/settings/teams/create'
-      preLoaderRoute: typeof ProtectedSettingsTeamsCreateIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/teams/$teamSlug/': {
-      id: '/_protected/settings/teams/$teamSlug/'
-      path: '/teams/$teamSlug'
-      fullPath: '/settings/teams/$teamSlug'
-      preLoaderRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/programming/$trackId/': {
-      id: '/_protected/settings/programming/$trackId/'
-      path: '/programming/$trackId'
-      fullPath: '/settings/programming/$trackId'
-      preLoaderRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/log/$id/edit/': {
-      id: '/_protected/log/$id/edit/'
-      path: '/log/$id/edit'
-      fullPath: '/log/$id/edit'
-      preLoaderRoute: typeof ProtectedLogIdEditIndexRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/compete/organizer/series/$groupId/edit': {
-      id: '/compete/organizer/series/$groupId/edit'
-      path: '/edit'
-      fullPath: '/compete/organizer/series/$groupId/edit'
-      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEditRouteImport
-      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
-    }
-    '/compete/organizer/$competitionId/events/$eventId': {
-      id: '/compete/organizer/$competitionId/events/$eventId'
-      path: '/events/$eventId'
-      fullPath: '/compete/organizer/$competitionId/events/$eventId'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
-  }
+declare module "@tanstack/react-router" {
+	interface FileRoutesByPath {
+		"/compete": {
+			id: "/compete"
+			path: "/compete"
+			fullPath: "/compete"
+			preLoaderRoute: typeof CompeteRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_protected": {
+			id: "/_protected"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof ProtectedRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/_auth": {
+			id: "/_auth"
+			path: ""
+			fullPath: ""
+			preLoaderRoute: typeof AuthRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/": {
+			id: "/"
+			path: "/"
+			fullPath: "/"
+			preLoaderRoute: typeof IndexRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/compete/": {
+			id: "/compete/"
+			path: "/"
+			fullPath: "/compete/"
+			preLoaderRoute: typeof CompeteIndexRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/compete/organizer": {
+			id: "/compete/organizer"
+			path: "/organizer"
+			fullPath: "/compete/organizer"
+			preLoaderRoute: typeof CompeteOrganizerRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/compete/$slug": {
+			id: "/compete/$slug"
+			path: "/$slug"
+			fullPath: "/compete/$slug"
+			preLoaderRoute: typeof CompeteSlugRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/_protected/settings": {
+			id: "/_protected/settings"
+			path: "/settings"
+			fullPath: "/settings"
+			preLoaderRoute: typeof ProtectedSettingsRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/dashboard": {
+			id: "/_protected/dashboard"
+			path: "/dashboard"
+			fullPath: "/dashboard"
+			preLoaderRoute: typeof ProtectedDashboardRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_auth/verify-email": {
+			id: "/_auth/verify-email"
+			path: "/verify-email"
+			fullPath: "/verify-email"
+			preLoaderRoute: typeof AuthVerifyEmailRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/team-invite": {
+			id: "/_auth/team-invite"
+			path: "/team-invite"
+			fullPath: "/team-invite"
+			preLoaderRoute: typeof AuthTeamInviteRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/sign-up": {
+			id: "/_auth/sign-up"
+			path: "/sign-up"
+			fullPath: "/sign-up"
+			preLoaderRoute: typeof AuthSignUpRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/sign-in": {
+			id: "/_auth/sign-in"
+			path: "/sign-in"
+			fullPath: "/sign-in"
+			preLoaderRoute: typeof AuthSignInRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/reset-password": {
+			id: "/_auth/reset-password"
+			path: "/reset-password"
+			fullPath: "/reset-password"
+			preLoaderRoute: typeof AuthResetPasswordRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/_auth/forgot-password": {
+			id: "/_auth/forgot-password"
+			path: "/forgot-password"
+			fullPath: "/forgot-password"
+			preLoaderRoute: typeof AuthForgotPasswordRouteImport
+			parentRoute: typeof AuthRoute
+		}
+		"/compete/organizer/": {
+			id: "/compete/organizer/"
+			path: "/"
+			fullPath: "/compete/organizer/"
+			preLoaderRoute: typeof CompeteOrganizerIndexRouteImport
+			parentRoute: typeof CompeteOrganizerRoute
+		}
+		"/compete/$slug/": {
+			id: "/compete/$slug/"
+			path: "/"
+			fullPath: "/compete/$slug/"
+			preLoaderRoute: typeof CompeteSlugIndexRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/_protected/workouts/": {
+			id: "/_protected/workouts/"
+			path: "/workouts"
+			fullPath: "/workouts"
+			preLoaderRoute: typeof ProtectedWorkoutsIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/team/": {
+			id: "/_protected/team/"
+			path: "/team"
+			fullPath: "/team"
+			preLoaderRoute: typeof ProtectedTeamIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/settings/": {
+			id: "/_protected/settings/"
+			path: "/"
+			fullPath: "/settings/"
+			preLoaderRoute: typeof ProtectedSettingsIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/movements/": {
+			id: "/_protected/movements/"
+			path: "/movements"
+			fullPath: "/movements"
+			preLoaderRoute: typeof ProtectedMovementsIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/log/": {
+			id: "/_protected/log/"
+			path: "/log"
+			fullPath: "/log"
+			preLoaderRoute: typeof ProtectedLogIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/demo/start/server-funcs": {
+			id: "/demo/start/server-funcs"
+			path: "/demo/start/server-funcs"
+			fullPath: "/demo/start/server-funcs"
+			preLoaderRoute: typeof DemoStartServerFuncsRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/demo/start/api-request": {
+			id: "/demo/start/api-request"
+			path: "/demo/start/api-request"
+			fullPath: "/demo/start/api-request"
+			preLoaderRoute: typeof DemoStartApiRequestRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/demo/api/names": {
+			id: "/demo/api/names"
+			path: "/demo/api/names"
+			fullPath: "/demo/api/names"
+			preLoaderRoute: typeof DemoApiNamesRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/compete/organizer/new": {
+			id: "/compete/organizer/new"
+			path: "/new"
+			fullPath: "/compete/organizer/new"
+			preLoaderRoute: typeof CompeteOrganizerNewRouteImport
+			parentRoute: typeof CompeteOrganizerRoute
+		}
+		"/compete/organizer/$competitionId": {
+			id: "/compete/organizer/$competitionId"
+			path: "/$competitionId"
+			fullPath: "/compete/organizer/$competitionId"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdRouteImport
+			parentRoute: typeof CompeteOrganizerRoute
+		}
+		"/compete/invite/$token": {
+			id: "/compete/invite/$token"
+			path: "/invite/$token"
+			fullPath: "/compete/invite/$token"
+			preLoaderRoute: typeof CompeteInviteTokenRouteImport
+			parentRoute: typeof CompeteRoute
+		}
+		"/compete/$slug/workouts": {
+			id: "/compete/$slug/workouts"
+			path: "/workouts"
+			fullPath: "/compete/$slug/workouts"
+			preLoaderRoute: typeof CompeteSlugWorkoutsRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/compete/$slug/volunteer": {
+			id: "/compete/$slug/volunteer"
+			path: "/volunteer"
+			fullPath: "/compete/$slug/volunteer"
+			preLoaderRoute: typeof CompeteSlugVolunteerRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/compete/$slug/schedule": {
+			id: "/compete/$slug/schedule"
+			path: "/schedule"
+			fullPath: "/compete/$slug/schedule"
+			preLoaderRoute: typeof CompeteSlugScheduleRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/compete/$slug/register": {
+			id: "/compete/$slug/register"
+			path: "/register"
+			fullPath: "/compete/$slug/register"
+			preLoaderRoute: typeof CompeteSlugRegisterRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/compete/$slug/my-schedule": {
+			id: "/compete/$slug/my-schedule"
+			path: "/my-schedule"
+			fullPath: "/compete/$slug/my-schedule"
+			preLoaderRoute: typeof CompeteSlugMyScheduleRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/compete/$slug/leaderboard": {
+			id: "/compete/$slug/leaderboard"
+			path: "/leaderboard"
+			fullPath: "/compete/$slug/leaderboard"
+			preLoaderRoute: typeof CompeteSlugLeaderboardRouteImport
+			parentRoute: typeof CompeteSlugRoute
+		}
+		"/demo/start/ssr/": {
+			id: "/demo/start/ssr/"
+			path: "/demo/start/ssr"
+			fullPath: "/demo/start/ssr"
+			preLoaderRoute: typeof DemoStartSsrIndexRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/compete/organizer/series/": {
+			id: "/compete/organizer/series/"
+			path: "/series"
+			fullPath: "/compete/organizer/series"
+			preLoaderRoute: typeof CompeteOrganizerSeriesIndexRouteImport
+			parentRoute: typeof CompeteOrganizerRoute
+		}
+		"/compete/organizer/$competitionId/": {
+			id: "/compete/organizer/$competitionId/"
+			path: "/"
+			fullPath: "/compete/organizer/$competitionId/"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdIndexRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/_protected/workouts/new/": {
+			id: "/_protected/workouts/new/"
+			path: "/workouts/new"
+			fullPath: "/workouts/new"
+			preLoaderRoute: typeof ProtectedWorkoutsNewIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/workouts/$workoutId/": {
+			id: "/_protected/workouts/$workoutId/"
+			path: "/workouts/$workoutId"
+			fullPath: "/workouts/$workoutId"
+			preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/settings/teams/": {
+			id: "/_protected/settings/teams/"
+			path: "/teams"
+			fullPath: "/settings/teams"
+			preLoaderRoute: typeof ProtectedSettingsTeamsIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/settings/sessions/": {
+			id: "/_protected/settings/sessions/"
+			path: "/sessions"
+			fullPath: "/settings/sessions"
+			preLoaderRoute: typeof ProtectedSettingsSessionsIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/settings/security/": {
+			id: "/_protected/settings/security/"
+			path: "/security"
+			fullPath: "/settings/security"
+			preLoaderRoute: typeof ProtectedSettingsSecurityIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/settings/programming/": {
+			id: "/_protected/settings/programming/"
+			path: "/programming"
+			fullPath: "/settings/programming"
+			preLoaderRoute: typeof ProtectedSettingsProgrammingIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/settings/profile/": {
+			id: "/_protected/settings/profile/"
+			path: "/profile"
+			fullPath: "/settings/profile"
+			preLoaderRoute: typeof ProtectedSettingsProfileIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/movements/new/": {
+			id: "/_protected/movements/new/"
+			path: "/movements/new"
+			fullPath: "/movements/new"
+			preLoaderRoute: typeof ProtectedMovementsNewIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/movements/$id/": {
+			id: "/_protected/movements/$id/"
+			path: "/movements/$id"
+			fullPath: "/movements/$id"
+			preLoaderRoute: typeof ProtectedMovementsIdIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/log/new/": {
+			id: "/_protected/log/new/"
+			path: "/log/new"
+			fullPath: "/log/new"
+			preLoaderRoute: typeof ProtectedLogNewIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/demo/start/ssr/spa-mode": {
+			id: "/demo/start/ssr/spa-mode"
+			path: "/demo/start/ssr/spa-mode"
+			fullPath: "/demo/start/ssr/spa-mode"
+			preLoaderRoute: typeof DemoStartSsrSpaModeRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/demo/start/ssr/full-ssr": {
+			id: "/demo/start/ssr/full-ssr"
+			path: "/demo/start/ssr/full-ssr"
+			fullPath: "/demo/start/ssr/full-ssr"
+			preLoaderRoute: typeof DemoStartSsrFullSsrRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/demo/start/ssr/data-only": {
+			id: "/demo/start/ssr/data-only"
+			path: "/demo/start/ssr/data-only"
+			fullPath: "/demo/start/ssr/data-only"
+			preLoaderRoute: typeof DemoStartSsrDataOnlyRouteImport
+			parentRoute: typeof rootRouteImport
+		}
+		"/compete/organizer/series/new": {
+			id: "/compete/organizer/series/new"
+			path: "/series/new"
+			fullPath: "/compete/organizer/series/new"
+			preLoaderRoute: typeof CompeteOrganizerSeriesNewRouteImport
+			parentRoute: typeof CompeteOrganizerRoute
+		}
+		"/compete/organizer/series/$groupId": {
+			id: "/compete/organizer/series/$groupId"
+			path: "/series/$groupId"
+			fullPath: "/compete/organizer/series/$groupId"
+			preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdRouteImport
+			parentRoute: typeof CompeteOrganizerRoute
+		}
+		"/compete/organizer/$competitionId/volunteers": {
+			id: "/compete/organizer/$competitionId/volunteers"
+			path: "/volunteers"
+			fullPath: "/compete/organizer/$competitionId/volunteers"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/sponsors": {
+			id: "/compete/organizer/$competitionId/sponsors"
+			path: "/sponsors"
+			fullPath: "/compete/organizer/$competitionId/sponsors"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdSponsorsRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/settings": {
+			id: "/compete/organizer/$competitionId/settings"
+			path: "/settings"
+			fullPath: "/compete/organizer/$competitionId/settings"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdSettingsRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/schedule": {
+			id: "/compete/organizer/$competitionId/schedule"
+			path: "/schedule"
+			fullPath: "/compete/organizer/$competitionId/schedule"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdScheduleRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/revenue": {
+			id: "/compete/organizer/$competitionId/revenue"
+			path: "/revenue"
+			fullPath: "/compete/organizer/$competitionId/revenue"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdRevenueRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/results": {
+			id: "/compete/organizer/$competitionId/results"
+			path: "/results"
+			fullPath: "/compete/organizer/$competitionId/results"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdResultsRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/pricing": {
+			id: "/compete/organizer/$competitionId/pricing"
+			path: "/pricing"
+			fullPath: "/compete/organizer/$competitionId/pricing"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdPricingRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/edit": {
+			id: "/compete/organizer/$competitionId/edit"
+			path: "/edit"
+			fullPath: "/compete/organizer/$competitionId/edit"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdEditRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/divisions": {
+			id: "/compete/organizer/$competitionId/divisions"
+			path: "/divisions"
+			fullPath: "/compete/organizer/$competitionId/divisions"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdDivisionsRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/danger-zone": {
+			id: "/compete/organizer/$competitionId/danger-zone"
+			path: "/danger-zone"
+			fullPath: "/compete/organizer/$competitionId/danger-zone"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdDangerZoneRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/organizer/$competitionId/athletes": {
+			id: "/compete/organizer/$competitionId/athletes"
+			path: "/athletes"
+			fullPath: "/compete/organizer/$competitionId/athletes"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdAthletesRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/compete/$slug/register/success": {
+			id: "/compete/$slug/register/success"
+			path: "/success"
+			fullPath: "/compete/$slug/register/success"
+			preLoaderRoute: typeof CompeteSlugRegisterSuccessRouteImport
+			parentRoute: typeof CompeteSlugRegisterRoute
+		}
+		"/compete/organizer/series/$groupId/": {
+			id: "/compete/organizer/series/$groupId/"
+			path: "/"
+			fullPath: "/compete/organizer/series/$groupId/"
+			preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdIndexRouteImport
+			parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+		}
+		"/compete/organizer/$competitionId/events/": {
+			id: "/compete/organizer/$competitionId/events/"
+			path: "/events"
+			fullPath: "/compete/organizer/$competitionId/events"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdEventsIndexRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+		"/_protected/workouts/$workoutId/schedule/": {
+			id: "/_protected/workouts/$workoutId/schedule/"
+			path: "/workouts/$workoutId/schedule"
+			fullPath: "/workouts/$workoutId/schedule"
+			preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/workouts/$workoutId/edit/": {
+			id: "/_protected/workouts/$workoutId/edit/"
+			path: "/workouts/$workoutId/edit"
+			fullPath: "/workouts/$workoutId/edit"
+			preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/_protected/settings/teams/create/": {
+			id: "/_protected/settings/teams/create/"
+			path: "/teams/create"
+			fullPath: "/settings/teams/create"
+			preLoaderRoute: typeof ProtectedSettingsTeamsCreateIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/settings/teams/$teamSlug/": {
+			id: "/_protected/settings/teams/$teamSlug/"
+			path: "/teams/$teamSlug"
+			fullPath: "/settings/teams/$teamSlug"
+			preLoaderRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/settings/programming/$trackId/": {
+			id: "/_protected/settings/programming/$trackId/"
+			path: "/programming/$trackId"
+			fullPath: "/settings/programming/$trackId"
+			preLoaderRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRouteImport
+			parentRoute: typeof ProtectedSettingsRoute
+		}
+		"/_protected/log/$id/edit/": {
+			id: "/_protected/log/$id/edit/"
+			path: "/log/$id/edit"
+			fullPath: "/log/$id/edit"
+			preLoaderRoute: typeof ProtectedLogIdEditIndexRouteImport
+			parentRoute: typeof ProtectedRoute
+		}
+		"/compete/organizer/series/$groupId/edit": {
+			id: "/compete/organizer/series/$groupId/edit"
+			path: "/edit"
+			fullPath: "/compete/organizer/series/$groupId/edit"
+			preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdEditRouteImport
+			parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+		}
+		"/compete/organizer/$competitionId/events/$eventId": {
+			id: "/compete/organizer/$competitionId/events/$eventId"
+			path: "/events/$eventId"
+			fullPath: "/compete/organizer/$competitionId/events/$eventId"
+			preLoaderRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRouteImport
+			parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+		}
+	}
 }
 
 interface AuthRouteChildren {
-  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
-  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
-  AuthSignInRoute: typeof AuthSignInRoute
-  AuthSignUpRoute: typeof AuthSignUpRoute
-  AuthTeamInviteRoute: typeof AuthTeamInviteRoute
-  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
+	AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+	AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+	AuthSignInRoute: typeof AuthSignInRoute
+	AuthSignUpRoute: typeof AuthSignUpRoute
+	AuthTeamInviteRoute: typeof AuthTeamInviteRoute
+	AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
-  AuthResetPasswordRoute: AuthResetPasswordRoute,
-  AuthSignInRoute: AuthSignInRoute,
-  AuthSignUpRoute: AuthSignUpRoute,
-  AuthTeamInviteRoute: AuthTeamInviteRoute,
-  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
+	AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+	AuthResetPasswordRoute: AuthResetPasswordRoute,
+	AuthSignInRoute: AuthSignInRoute,
+	AuthSignUpRoute: AuthSignUpRoute,
+	AuthTeamInviteRoute: AuthTeamInviteRoute,
+	AuthVerifyEmailRoute: AuthVerifyEmailRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface ProtectedSettingsRouteChildren {
-  ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
-  ProtectedSettingsProfileIndexRoute: typeof ProtectedSettingsProfileIndexRoute
-  ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
-  ProtectedSettingsSecurityIndexRoute: typeof ProtectedSettingsSecurityIndexRoute
-  ProtectedSettingsSessionsIndexRoute: typeof ProtectedSettingsSessionsIndexRoute
-  ProtectedSettingsTeamsIndexRoute: typeof ProtectedSettingsTeamsIndexRoute
-  ProtectedSettingsProgrammingTrackIdIndexRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRoute
-  ProtectedSettingsTeamsTeamSlugIndexRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRoute
-  ProtectedSettingsTeamsCreateIndexRoute: typeof ProtectedSettingsTeamsCreateIndexRoute
+	ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
+	ProtectedSettingsProfileIndexRoute: typeof ProtectedSettingsProfileIndexRoute
+	ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
+	ProtectedSettingsSecurityIndexRoute: typeof ProtectedSettingsSecurityIndexRoute
+	ProtectedSettingsSessionsIndexRoute: typeof ProtectedSettingsSessionsIndexRoute
+	ProtectedSettingsTeamsIndexRoute: typeof ProtectedSettingsTeamsIndexRoute
+	ProtectedSettingsProgrammingTrackIdIndexRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+	ProtectedSettingsTeamsTeamSlugIndexRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+	ProtectedSettingsTeamsCreateIndexRoute: typeof ProtectedSettingsTeamsCreateIndexRoute
 }
 
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
-  ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
-  ProtectedSettingsProfileIndexRoute: ProtectedSettingsProfileIndexRoute,
-  ProtectedSettingsProgrammingIndexRoute:
-    ProtectedSettingsProgrammingIndexRoute,
-  ProtectedSettingsSecurityIndexRoute: ProtectedSettingsSecurityIndexRoute,
-  ProtectedSettingsSessionsIndexRoute: ProtectedSettingsSessionsIndexRoute,
-  ProtectedSettingsTeamsIndexRoute: ProtectedSettingsTeamsIndexRoute,
-  ProtectedSettingsProgrammingTrackIdIndexRoute:
-    ProtectedSettingsProgrammingTrackIdIndexRoute,
-  ProtectedSettingsTeamsTeamSlugIndexRoute:
-    ProtectedSettingsTeamsTeamSlugIndexRoute,
-  ProtectedSettingsTeamsCreateIndexRoute:
-    ProtectedSettingsTeamsCreateIndexRoute,
+	ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
+	ProtectedSettingsProfileIndexRoute: ProtectedSettingsProfileIndexRoute,
+	ProtectedSettingsProgrammingIndexRoute:
+		ProtectedSettingsProgrammingIndexRoute,
+	ProtectedSettingsSecurityIndexRoute: ProtectedSettingsSecurityIndexRoute,
+	ProtectedSettingsSessionsIndexRoute: ProtectedSettingsSessionsIndexRoute,
+	ProtectedSettingsTeamsIndexRoute: ProtectedSettingsTeamsIndexRoute,
+	ProtectedSettingsProgrammingTrackIdIndexRoute:
+		ProtectedSettingsProgrammingTrackIdIndexRoute,
+	ProtectedSettingsTeamsTeamSlugIndexRoute:
+		ProtectedSettingsTeamsTeamSlugIndexRoute,
+	ProtectedSettingsTeamsCreateIndexRoute:
+		ProtectedSettingsTeamsCreateIndexRoute,
 }
 
 const ProtectedSettingsRouteWithChildren =
-  ProtectedSettingsRoute._addFileChildren(ProtectedSettingsRouteChildren)
+	ProtectedSettingsRoute._addFileChildren(ProtectedSettingsRouteChildren)
 
 interface ProtectedRouteChildren {
-  ProtectedDashboardRoute: typeof ProtectedDashboardRoute
-  ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
-  ProtectedLogIndexRoute: typeof ProtectedLogIndexRoute
-  ProtectedMovementsIndexRoute: typeof ProtectedMovementsIndexRoute
-  ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
-  ProtectedWorkoutsIndexRoute: typeof ProtectedWorkoutsIndexRoute
-  ProtectedLogNewIndexRoute: typeof ProtectedLogNewIndexRoute
-  ProtectedMovementsIdIndexRoute: typeof ProtectedMovementsIdIndexRoute
-  ProtectedMovementsNewIndexRoute: typeof ProtectedMovementsNewIndexRoute
-  ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
-  ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
-  ProtectedLogIdEditIndexRoute: typeof ProtectedLogIdEditIndexRoute
-  ProtectedWorkoutsWorkoutIdEditIndexRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
-  ProtectedWorkoutsWorkoutIdScheduleIndexRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+	ProtectedDashboardRoute: typeof ProtectedDashboardRoute
+	ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
+	ProtectedLogIndexRoute: typeof ProtectedLogIndexRoute
+	ProtectedMovementsIndexRoute: typeof ProtectedMovementsIndexRoute
+	ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
+	ProtectedWorkoutsIndexRoute: typeof ProtectedWorkoutsIndexRoute
+	ProtectedLogNewIndexRoute: typeof ProtectedLogNewIndexRoute
+	ProtectedMovementsIdIndexRoute: typeof ProtectedMovementsIdIndexRoute
+	ProtectedMovementsNewIndexRoute: typeof ProtectedMovementsNewIndexRoute
+	ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
+	ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
+	ProtectedLogIdEditIndexRoute: typeof ProtectedLogIdEditIndexRoute
+	ProtectedWorkoutsWorkoutIdEditIndexRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
+	ProtectedWorkoutsWorkoutIdScheduleIndexRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
-  ProtectedDashboardRoute: ProtectedDashboardRoute,
-  ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
-  ProtectedLogIndexRoute: ProtectedLogIndexRoute,
-  ProtectedMovementsIndexRoute: ProtectedMovementsIndexRoute,
-  ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
-  ProtectedWorkoutsIndexRoute: ProtectedWorkoutsIndexRoute,
-  ProtectedLogNewIndexRoute: ProtectedLogNewIndexRoute,
-  ProtectedMovementsIdIndexRoute: ProtectedMovementsIdIndexRoute,
-  ProtectedMovementsNewIndexRoute: ProtectedMovementsNewIndexRoute,
-  ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
-  ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
-  ProtectedLogIdEditIndexRoute: ProtectedLogIdEditIndexRoute,
-  ProtectedWorkoutsWorkoutIdEditIndexRoute:
-    ProtectedWorkoutsWorkoutIdEditIndexRoute,
-  ProtectedWorkoutsWorkoutIdScheduleIndexRoute:
-    ProtectedWorkoutsWorkoutIdScheduleIndexRoute,
+	ProtectedDashboardRoute: ProtectedDashboardRoute,
+	ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
+	ProtectedLogIndexRoute: ProtectedLogIndexRoute,
+	ProtectedMovementsIndexRoute: ProtectedMovementsIndexRoute,
+	ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
+	ProtectedWorkoutsIndexRoute: ProtectedWorkoutsIndexRoute,
+	ProtectedLogNewIndexRoute: ProtectedLogNewIndexRoute,
+	ProtectedMovementsIdIndexRoute: ProtectedMovementsIdIndexRoute,
+	ProtectedMovementsNewIndexRoute: ProtectedMovementsNewIndexRoute,
+	ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
+	ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
+	ProtectedLogIdEditIndexRoute: ProtectedLogIdEditIndexRoute,
+	ProtectedWorkoutsWorkoutIdEditIndexRoute:
+		ProtectedWorkoutsWorkoutIdEditIndexRoute,
+	ProtectedWorkoutsWorkoutIdScheduleIndexRoute:
+		ProtectedWorkoutsWorkoutIdScheduleIndexRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
-  ProtectedRouteChildren,
+	ProtectedRouteChildren,
 )
 
 interface CompeteSlugRegisterRouteChildren {
-  CompeteSlugRegisterSuccessRoute: typeof CompeteSlugRegisterSuccessRoute
+	CompeteSlugRegisterSuccessRoute: typeof CompeteSlugRegisterSuccessRoute
 }
 
 const CompeteSlugRegisterRouteChildren: CompeteSlugRegisterRouteChildren = {
-  CompeteSlugRegisterSuccessRoute: CompeteSlugRegisterSuccessRoute,
+	CompeteSlugRegisterSuccessRoute: CompeteSlugRegisterSuccessRoute,
 }
 
 const CompeteSlugRegisterRouteWithChildren =
-  CompeteSlugRegisterRoute._addFileChildren(CompeteSlugRegisterRouteChildren)
+	CompeteSlugRegisterRoute._addFileChildren(CompeteSlugRegisterRouteChildren)
 
 interface CompeteSlugRouteChildren {
-  CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
-  CompeteSlugMyScheduleRoute: typeof CompeteSlugMyScheduleRoute
-  CompeteSlugRegisterRoute: typeof CompeteSlugRegisterRouteWithChildren
-  CompeteSlugScheduleRoute: typeof CompeteSlugScheduleRoute
-  CompeteSlugVolunteerRoute: typeof CompeteSlugVolunteerRoute
-  CompeteSlugWorkoutsRoute: typeof CompeteSlugWorkoutsRoute
-  CompeteSlugIndexRoute: typeof CompeteSlugIndexRoute
+	CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
+	CompeteSlugMyScheduleRoute: typeof CompeteSlugMyScheduleRoute
+	CompeteSlugRegisterRoute: typeof CompeteSlugRegisterRouteWithChildren
+	CompeteSlugScheduleRoute: typeof CompeteSlugScheduleRoute
+	CompeteSlugVolunteerRoute: typeof CompeteSlugVolunteerRoute
+	CompeteSlugWorkoutsRoute: typeof CompeteSlugWorkoutsRoute
+	CompeteSlugIndexRoute: typeof CompeteSlugIndexRoute
 }
 
 const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
-  CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
-  CompeteSlugMyScheduleRoute: CompeteSlugMyScheduleRoute,
-  CompeteSlugRegisterRoute: CompeteSlugRegisterRouteWithChildren,
-  CompeteSlugScheduleRoute: CompeteSlugScheduleRoute,
-  CompeteSlugVolunteerRoute: CompeteSlugVolunteerRoute,
-  CompeteSlugWorkoutsRoute: CompeteSlugWorkoutsRoute,
-  CompeteSlugIndexRoute: CompeteSlugIndexRoute,
+	CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
+	CompeteSlugMyScheduleRoute: CompeteSlugMyScheduleRoute,
+	CompeteSlugRegisterRoute: CompeteSlugRegisterRouteWithChildren,
+	CompeteSlugScheduleRoute: CompeteSlugScheduleRoute,
+	CompeteSlugVolunteerRoute: CompeteSlugVolunteerRoute,
+	CompeteSlugWorkoutsRoute: CompeteSlugWorkoutsRoute,
+	CompeteSlugIndexRoute: CompeteSlugIndexRoute,
 }
 
 const CompeteSlugRouteWithChildren = CompeteSlugRoute._addFileChildren(
-  CompeteSlugRouteChildren,
+	CompeteSlugRouteChildren,
 )
 
 interface CompeteOrganizerCompetitionIdRouteChildren {
-  CompeteOrganizerCompetitionIdAthletesRoute: typeof CompeteOrganizerCompetitionIdAthletesRoute
-  CompeteOrganizerCompetitionIdDangerZoneRoute: typeof CompeteOrganizerCompetitionIdDangerZoneRoute
-  CompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteOrganizerCompetitionIdDivisionsRoute
-  CompeteOrganizerCompetitionIdEditRoute: typeof CompeteOrganizerCompetitionIdEditRoute
-  CompeteOrganizerCompetitionIdPricingRoute: typeof CompeteOrganizerCompetitionIdPricingRoute
-  CompeteOrganizerCompetitionIdResultsRoute: typeof CompeteOrganizerCompetitionIdResultsRoute
-  CompeteOrganizerCompetitionIdRevenueRoute: typeof CompeteOrganizerCompetitionIdRevenueRoute
-  CompeteOrganizerCompetitionIdScheduleRoute: typeof CompeteOrganizerCompetitionIdScheduleRoute
-  CompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteOrganizerCompetitionIdSettingsRoute
-  CompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteOrganizerCompetitionIdSponsorsRoute
-  CompeteOrganizerCompetitionIdVolunteersRoute: typeof CompeteOrganizerCompetitionIdVolunteersRoute
-  CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
-  CompeteOrganizerCompetitionIdEventsEventIdRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
-  CompeteOrganizerCompetitionIdEventsIndexRoute: typeof CompeteOrganizerCompetitionIdEventsIndexRoute
+	CompeteOrganizerCompetitionIdAthletesRoute: typeof CompeteOrganizerCompetitionIdAthletesRoute
+	CompeteOrganizerCompetitionIdDangerZoneRoute: typeof CompeteOrganizerCompetitionIdDangerZoneRoute
+	CompeteOrganizerCompetitionIdDivisionsRoute: typeof CompeteOrganizerCompetitionIdDivisionsRoute
+	CompeteOrganizerCompetitionIdEditRoute: typeof CompeteOrganizerCompetitionIdEditRoute
+	CompeteOrganizerCompetitionIdPricingRoute: typeof CompeteOrganizerCompetitionIdPricingRoute
+	CompeteOrganizerCompetitionIdResultsRoute: typeof CompeteOrganizerCompetitionIdResultsRoute
+	CompeteOrganizerCompetitionIdRevenueRoute: typeof CompeteOrganizerCompetitionIdRevenueRoute
+	CompeteOrganizerCompetitionIdScheduleRoute: typeof CompeteOrganizerCompetitionIdScheduleRoute
+	CompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteOrganizerCompetitionIdSettingsRoute
+	CompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteOrganizerCompetitionIdSponsorsRoute
+	CompeteOrganizerCompetitionIdVolunteersRoute: typeof CompeteOrganizerCompetitionIdVolunteersRoute
+	CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
+	CompeteOrganizerCompetitionIdEventsEventIdRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
+	CompeteOrganizerCompetitionIdEventsIndexRoute: typeof CompeteOrganizerCompetitionIdEventsIndexRoute
 }
 
 const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdRouteChildren =
-  {
-    CompeteOrganizerCompetitionIdAthletesRoute:
-      CompeteOrganizerCompetitionIdAthletesRoute,
-    CompeteOrganizerCompetitionIdDangerZoneRoute:
-      CompeteOrganizerCompetitionIdDangerZoneRoute,
-    CompeteOrganizerCompetitionIdDivisionsRoute:
-      CompeteOrganizerCompetitionIdDivisionsRoute,
-    CompeteOrganizerCompetitionIdEditRoute:
-      CompeteOrganizerCompetitionIdEditRoute,
-    CompeteOrganizerCompetitionIdPricingRoute:
-      CompeteOrganizerCompetitionIdPricingRoute,
-    CompeteOrganizerCompetitionIdResultsRoute:
-      CompeteOrganizerCompetitionIdResultsRoute,
-    CompeteOrganizerCompetitionIdRevenueRoute:
-      CompeteOrganizerCompetitionIdRevenueRoute,
-    CompeteOrganizerCompetitionIdScheduleRoute:
-      CompeteOrganizerCompetitionIdScheduleRoute,
-    CompeteOrganizerCompetitionIdSettingsRoute:
-      CompeteOrganizerCompetitionIdSettingsRoute,
-    CompeteOrganizerCompetitionIdSponsorsRoute:
-      CompeteOrganizerCompetitionIdSponsorsRoute,
-    CompeteOrganizerCompetitionIdVolunteersRoute:
-      CompeteOrganizerCompetitionIdVolunteersRoute,
-    CompeteOrganizerCompetitionIdIndexRoute:
-      CompeteOrganizerCompetitionIdIndexRoute,
-    CompeteOrganizerCompetitionIdEventsEventIdRoute:
-      CompeteOrganizerCompetitionIdEventsEventIdRoute,
-    CompeteOrganizerCompetitionIdEventsIndexRoute:
-      CompeteOrganizerCompetitionIdEventsIndexRoute,
-  }
+	{
+		CompeteOrganizerCompetitionIdAthletesRoute:
+			CompeteOrganizerCompetitionIdAthletesRoute,
+		CompeteOrganizerCompetitionIdDangerZoneRoute:
+			CompeteOrganizerCompetitionIdDangerZoneRoute,
+		CompeteOrganizerCompetitionIdDivisionsRoute:
+			CompeteOrganizerCompetitionIdDivisionsRoute,
+		CompeteOrganizerCompetitionIdEditRoute:
+			CompeteOrganizerCompetitionIdEditRoute,
+		CompeteOrganizerCompetitionIdPricingRoute:
+			CompeteOrganizerCompetitionIdPricingRoute,
+		CompeteOrganizerCompetitionIdResultsRoute:
+			CompeteOrganizerCompetitionIdResultsRoute,
+		CompeteOrganizerCompetitionIdRevenueRoute:
+			CompeteOrganizerCompetitionIdRevenueRoute,
+		CompeteOrganizerCompetitionIdScheduleRoute:
+			CompeteOrganizerCompetitionIdScheduleRoute,
+		CompeteOrganizerCompetitionIdSettingsRoute:
+			CompeteOrganizerCompetitionIdSettingsRoute,
+		CompeteOrganizerCompetitionIdSponsorsRoute:
+			CompeteOrganizerCompetitionIdSponsorsRoute,
+		CompeteOrganizerCompetitionIdVolunteersRoute:
+			CompeteOrganizerCompetitionIdVolunteersRoute,
+		CompeteOrganizerCompetitionIdIndexRoute:
+			CompeteOrganizerCompetitionIdIndexRoute,
+		CompeteOrganizerCompetitionIdEventsEventIdRoute:
+			CompeteOrganizerCompetitionIdEventsEventIdRoute,
+		CompeteOrganizerCompetitionIdEventsIndexRoute:
+			CompeteOrganizerCompetitionIdEventsIndexRoute,
+	}
 
 const CompeteOrganizerCompetitionIdRouteWithChildren =
-  CompeteOrganizerCompetitionIdRoute._addFileChildren(
-    CompeteOrganizerCompetitionIdRouteChildren,
-  )
+	CompeteOrganizerCompetitionIdRoute._addFileChildren(
+		CompeteOrganizerCompetitionIdRouteChildren,
+	)
 
 interface CompeteOrganizerSeriesGroupIdRouteChildren {
-  CompeteOrganizerSeriesGroupIdEditRoute: typeof CompeteOrganizerSeriesGroupIdEditRoute
-  CompeteOrganizerSeriesGroupIdIndexRoute: typeof CompeteOrganizerSeriesGroupIdIndexRoute
+	CompeteOrganizerSeriesGroupIdEditRoute: typeof CompeteOrganizerSeriesGroupIdEditRoute
+	CompeteOrganizerSeriesGroupIdIndexRoute: typeof CompeteOrganizerSeriesGroupIdIndexRoute
 }
 
 const CompeteOrganizerSeriesGroupIdRouteChildren: CompeteOrganizerSeriesGroupIdRouteChildren =
-  {
-    CompeteOrganizerSeriesGroupIdEditRoute:
-      CompeteOrganizerSeriesGroupIdEditRoute,
-    CompeteOrganizerSeriesGroupIdIndexRoute:
-      CompeteOrganizerSeriesGroupIdIndexRoute,
-  }
+	{
+		CompeteOrganizerSeriesGroupIdEditRoute:
+			CompeteOrganizerSeriesGroupIdEditRoute,
+		CompeteOrganizerSeriesGroupIdIndexRoute:
+			CompeteOrganizerSeriesGroupIdIndexRoute,
+	}
 
 const CompeteOrganizerSeriesGroupIdRouteWithChildren =
-  CompeteOrganizerSeriesGroupIdRoute._addFileChildren(
-    CompeteOrganizerSeriesGroupIdRouteChildren,
-  )
+	CompeteOrganizerSeriesGroupIdRoute._addFileChildren(
+		CompeteOrganizerSeriesGroupIdRouteChildren,
+	)
 
 interface CompeteOrganizerRouteChildren {
-  CompeteOrganizerCompetitionIdRoute: typeof CompeteOrganizerCompetitionIdRouteWithChildren
-  CompeteOrganizerNewRoute: typeof CompeteOrganizerNewRoute
-  CompeteOrganizerIndexRoute: typeof CompeteOrganizerIndexRoute
-  CompeteOrganizerSeriesGroupIdRoute: typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
-  CompeteOrganizerSeriesNewRoute: typeof CompeteOrganizerSeriesNewRoute
-  CompeteOrganizerSeriesIndexRoute: typeof CompeteOrganizerSeriesIndexRoute
+	CompeteOrganizerCompetitionIdRoute: typeof CompeteOrganizerCompetitionIdRouteWithChildren
+	CompeteOrganizerNewRoute: typeof CompeteOrganizerNewRoute
+	CompeteOrganizerIndexRoute: typeof CompeteOrganizerIndexRoute
+	CompeteOrganizerSeriesGroupIdRoute: typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
+	CompeteOrganizerSeriesNewRoute: typeof CompeteOrganizerSeriesNewRoute
+	CompeteOrganizerSeriesIndexRoute: typeof CompeteOrganizerSeriesIndexRoute
 }
 
 const CompeteOrganizerRouteChildren: CompeteOrganizerRouteChildren = {
-  CompeteOrganizerCompetitionIdRoute:
-    CompeteOrganizerCompetitionIdRouteWithChildren,
-  CompeteOrganizerNewRoute: CompeteOrganizerNewRoute,
-  CompeteOrganizerIndexRoute: CompeteOrganizerIndexRoute,
-  CompeteOrganizerSeriesGroupIdRoute:
-    CompeteOrganizerSeriesGroupIdRouteWithChildren,
-  CompeteOrganizerSeriesNewRoute: CompeteOrganizerSeriesNewRoute,
-  CompeteOrganizerSeriesIndexRoute: CompeteOrganizerSeriesIndexRoute,
+	CompeteOrganizerCompetitionIdRoute:
+		CompeteOrganizerCompetitionIdRouteWithChildren,
+	CompeteOrganizerNewRoute: CompeteOrganizerNewRoute,
+	CompeteOrganizerIndexRoute: CompeteOrganizerIndexRoute,
+	CompeteOrganizerSeriesGroupIdRoute:
+		CompeteOrganizerSeriesGroupIdRouteWithChildren,
+	CompeteOrganizerSeriesNewRoute: CompeteOrganizerSeriesNewRoute,
+	CompeteOrganizerSeriesIndexRoute: CompeteOrganizerSeriesIndexRoute,
 }
 
 const CompeteOrganizerRouteWithChildren =
-  CompeteOrganizerRoute._addFileChildren(CompeteOrganizerRouteChildren)
+	CompeteOrganizerRoute._addFileChildren(CompeteOrganizerRouteChildren)
 
 interface CompeteRouteChildren {
-  CompeteSlugRoute: typeof CompeteSlugRouteWithChildren
-  CompeteOrganizerRoute: typeof CompeteOrganizerRouteWithChildren
-  CompeteIndexRoute: typeof CompeteIndexRoute
-  CompeteInviteTokenRoute: typeof CompeteInviteTokenRoute
+	CompeteSlugRoute: typeof CompeteSlugRouteWithChildren
+	CompeteOrganizerRoute: typeof CompeteOrganizerRouteWithChildren
+	CompeteIndexRoute: typeof CompeteIndexRoute
+	CompeteInviteTokenRoute: typeof CompeteInviteTokenRoute
 }
 
 const CompeteRouteChildren: CompeteRouteChildren = {
-  CompeteSlugRoute: CompeteSlugRouteWithChildren,
-  CompeteOrganizerRoute: CompeteOrganizerRouteWithChildren,
-  CompeteIndexRoute: CompeteIndexRoute,
-  CompeteInviteTokenRoute: CompeteInviteTokenRoute,
+	CompeteSlugRoute: CompeteSlugRouteWithChildren,
+	CompeteOrganizerRoute: CompeteOrganizerRouteWithChildren,
+	CompeteIndexRoute: CompeteIndexRoute,
+	CompeteInviteTokenRoute: CompeteInviteTokenRoute,
 }
 
 const CompeteRouteWithChildren =
-  CompeteRoute._addFileChildren(CompeteRouteChildren)
+	CompeteRoute._addFileChildren(CompeteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AuthRoute: AuthRouteWithChildren,
-  ProtectedRoute: ProtectedRouteWithChildren,
-  CompeteRoute: CompeteRouteWithChildren,
-  DemoApiNamesRoute: DemoApiNamesRoute,
-  DemoStartApiRequestRoute: DemoStartApiRequestRoute,
-  DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
-  DemoStartSsrDataOnlyRoute: DemoStartSsrDataOnlyRoute,
-  DemoStartSsrFullSsrRoute: DemoStartSsrFullSsrRoute,
-  DemoStartSsrSpaModeRoute: DemoStartSsrSpaModeRoute,
-  DemoStartSsrIndexRoute: DemoStartSsrIndexRoute,
+	IndexRoute: IndexRoute,
+	AuthRoute: AuthRouteWithChildren,
+	ProtectedRoute: ProtectedRouteWithChildren,
+	CompeteRoute: CompeteRouteWithChildren,
+	DemoApiNamesRoute: DemoApiNamesRoute,
+	DemoStartApiRequestRoute: DemoStartApiRequestRoute,
+	DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
+	DemoStartSsrDataOnlyRoute: DemoStartSsrDataOnlyRoute,
+	DemoStartSsrFullSsrRoute: DemoStartSsrFullSsrRoute,
+	DemoStartSsrSpaModeRoute: DemoStartSsrSpaModeRoute,
+	DemoStartSsrIndexRoute: DemoStartSsrIndexRoute,
 }
 export const routeTree = rootRouteImport
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+	._addFileChildren(rootRouteChildren)
+	._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
+import type { getRouter } from "./router.tsx"
+
+declare module "@tanstack/react-start" {
+	interface Register {
+		ssr: true
+		router: Awaited<ReturnType<typeof getRouter>>
+	}
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -220,7 +220,7 @@ export function EventDetailsForm({
 
 	// Initialize form with React Hook Form
 	const form = useForm<CompetitionEventSchema>({
-		resolver: zodResolver(competitionEventSchema),
+		resolver: standardSchemaResolver(competitionEventSchema),
 		mode: "onChange",
 		defaultValues: {
 			name: event.workout.name,

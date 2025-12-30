@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -69,7 +69,7 @@ export function ProgrammingTrackEditDialog({
 	const dialogCloseRef = useRef<HTMLButtonElement>(null)
 
 	const form = useForm<FormValues>({
-		resolver: zodResolver(formSchema),
+		resolver: standardSchemaResolver(formSchema),
 		defaultValues: {
 			name: track.name,
 			description: track.description || "",

@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -109,7 +109,7 @@ export function OrganizerCompetitionForm({
 	const isEditMode = !!competition
 
 	const form = useForm<FormValues>({
-		resolver: zodResolver(formSchema),
+		resolver: standardSchemaResolver(formSchema),
 		defaultValues: {
 			teamId: competition?.organizingTeamId ?? selectedTeamId,
 			name: competition?.name ?? "",
