@@ -50,6 +50,8 @@ interface WaiversEditorProps {
 	value?: SerializedEditorState
 	onChange?: (value: SerializedEditorState) => void
 	placeholder?: string
+	/** Max height for the content area (toolbar stays fixed). Use CSS value like "50vh" or "300px" */
+	maxContentHeight?: string
 }
 
 /**
@@ -71,6 +73,7 @@ export function WaiversEditor({
 	value,
 	onChange,
 	placeholder = "Enter waiver content...",
+	maxContentHeight,
 }: WaiversEditorProps) {
 	return (
 		<div className="overflow-hidden rounded-lg border shadow">
@@ -81,12 +84,17 @@ export function WaiversEditor({
 				}}
 			>
 				<TooltipProvider>
-					<div className="relative">
+					<div className="relative flex flex-col">
 						<WaiversEditorToolbar />
-						<div className="relative">
+						<div
+							className="relative overflow-y-auto"
+							style={
+								maxContentHeight ? { maxHeight: maxContentHeight } : undefined
+							}
+						>
 							<RichTextPlugin
 								contentEditable={
-									<div className="min-h-[200px] p-4">
+									<div className="min-h-[200px]">
 										<ContentEditable placeholder={placeholder} />
 									</div>
 								}

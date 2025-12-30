@@ -102,7 +102,7 @@ export function WaiverFormDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-3xl">
+			<DialogContent className="flex max-h-[90vh] max-w-3xl flex-col">
 				<DialogHeader>
 					<DialogTitle>{isEditing ? "Edit Waiver" : "Add Waiver"}</DialogTitle>
 					<DialogDescription>
@@ -130,6 +130,7 @@ export function WaiverFormDialog({
 							value={content}
 							onChange={setContent}
 							placeholder="Enter waiver terms and conditions..."
+							maxContentHeight="40vh"
 						/>
 					</div>
 
