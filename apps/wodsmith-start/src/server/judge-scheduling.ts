@@ -7,24 +7,24 @@
  * @returns Estimated minimum judges needed
  */
 export function calculateRequiredJudges(
-  heats: Array<{heatNumber: number; laneCount: number}>,
-  rotationLength = 3,
+	heats: Array<{ heatNumber: number; laneCount: number }>,
+	rotationLength = 3,
 ): number {
-  if (heats.length === 0) return 0
+	if (heats.length === 0) return 0
 
-  // Total slots that need coverage
-  const totalSlots = heats.reduce((sum, heat) => sum + heat.laneCount, 0)
+	// Total slots that need coverage
+	const totalSlots = heats.reduce((sum, heat) => sum + heat.laneCount, 0)
 
-  // Average lanes per heat
-  const avgLanes =
-    heats.reduce((sum, heat) => sum + heat.laneCount, 0) / heats.length
+	// Average lanes per heat
+	const avgLanes =
+		heats.reduce((sum, heat) => sum + heat.laneCount, 0) / heats.length
 
-  // If each judge works rotationLength heats, they cover rotationLength slots
-  // We need enough judges to cover avgLanes at any given time
-  const judgesPerHeat = Math.ceil(avgLanes)
+	// If each judge works rotationLength heats, they cover rotationLength slots
+	// We need enough judges to cover avgLanes at any given time
+	const judgesPerHeat = Math.ceil(avgLanes)
 
-  // Minimum judges needed (considering rotations)
-  const minJudges = Math.ceil(totalSlots / (rotationLength * avgLanes))
+	// Minimum judges needed (considering rotations)
+	const minJudges = Math.ceil(totalSlots / (rotationLength * avgLanes))
 
-  return Math.max(minJudges, judgesPerHeat)
+	return Math.max(minJudges, judgesPerHeat)
 }
