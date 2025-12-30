@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "@tanstack/react-router"
 import { CheckCircle, Loader2 } from "lucide-react"
 import { useState } from "react"
@@ -60,7 +60,7 @@ export function ProfileCompletionForm({
 	const [isSuccess, setIsSuccess] = useState(false)
 
 	const form = useForm<ProfileFormValues>({
-		resolver: zodResolver(profileSchema),
+		resolver: standardSchemaResolver(profileSchema),
 		defaultValues: {
 			gender: currentGender ?? undefined,
 			dateOfBirth: currentDateOfBirth

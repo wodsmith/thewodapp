@@ -48,11 +48,28 @@ export const Route = createFileRoute(
 			throw new Error("Competition team not found")
 		}
 
+		const competitionTeamId = competition.competitionTeamId
+
 		// Parallel fetch: invitations, volunteers, events, direct invites, judges
 		const [invitations, volunteers, eventsResult, directInvites, judges] =
 			await Promise.all([
 				getPendingVolunteerInvitationsFn({
-					data: { competitionTeamId: competition.competitionTeamId },
+					data: { competitionTeamId },
+				}),
+				getCompetitionVolunteersFn({
+					data: { competitionTeamId },
+				}),
+				getCompetitionWorkoutsFn({
+					data: {
+						competitionId: competition.id,
+						teamId: competition.organizingTeamId,
+					},
+				}),
+				getDirectVolunteerInvitesFn({
+					data: { competitionTeamId },
+				}),
+				getJudgeVolunteersFn({
+					data: { competitionTeamId },
 				}),
 				getCompetitionVolunteersFn({
 					data: { competitionTeamId: competition.competitionTeamId },
@@ -80,7 +97,7 @@ export const Route = createFileRoute(
 					? await canInputScoresFn({
 							data: {
 								userId: volunteer.user.id,
-								competitionTeamId: competition.competitionTeamId!,
+								competitionTeamId,
 							},
 						})
 					: false
@@ -163,6 +180,7 @@ export const Route = createFileRoute(
 
 		return {
 			competition,
+			competitionTeamId,
 			invitations,
 			volunteersWithAccess,
 			events,
@@ -183,6 +201,7 @@ export const Route = createFileRoute(
 function VolunteersPage() {
 	const {
 		competition,
+		competitionTeamId,
 		invitations,
 		volunteersWithAccess,
 		events,
@@ -228,7 +247,7 @@ function VolunteersPage() {
 				<VolunteersList
 					competitionId={competition.id}
 					competitionSlug={competition.slug}
-					competitionTeamId={competition.competitionTeamId!}
+					competitionTeamId={competitionTeamId}
 					organizingTeamId={competition.organizingTeamId}
 					invitations={invitations}
 					volunteers={volunteersWithAccess}

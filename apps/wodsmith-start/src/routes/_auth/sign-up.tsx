@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import {
 	createFileRoute,
 	Link,
@@ -151,7 +151,7 @@ function SignUpPage() {
 	const [isLoading, setIsLoading] = useState(false)
 
 	const form = useForm<SignUpSchema>({
-		resolver: zodResolver(signUpSchema),
+		resolver: standardSchemaResolver(signUpSchema),
 		defaultValues: {
 			email: "",
 			firstName: "",
@@ -204,7 +204,6 @@ function SignUpPage() {
 					</p>
 				</div>
 
-				{/* TODO: Add SSO buttons when OAuth is implemented */}
 				{/* TODO: Add Passkey registration when WebAuthn is implemented */}
 
 				{error && (

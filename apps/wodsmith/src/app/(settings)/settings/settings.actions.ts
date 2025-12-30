@@ -93,7 +93,7 @@ export const updateAthleteExtendedProfileAction = createServerAction()
 
 			try {
 				// Extract direct column fields
-				const { gender, dateOfBirth, ...jsonFields } = input
+				const { gender, dateOfBirth, affiliateName, ...jsonFields } = input
 
 				// Stringify the athleteProfile JSON (excluding direct column fields)
 				const athleteProfileJson = JSON.stringify(jsonFields)
@@ -103,6 +103,7 @@ export const updateAthleteExtendedProfileAction = createServerAction()
 					athleteProfile: string
 					gender?: "male" | "female"
 					dateOfBirth?: Date
+					affiliateName?: string | null
 				} = {
 					athleteProfile: athleteProfileJson,
 				}
@@ -113,6 +114,10 @@ export const updateAthleteExtendedProfileAction = createServerAction()
 				}
 				if (dateOfBirth) {
 					updateData.dateOfBirth = new Date(dateOfBirth)
+				}
+				// affiliateName can be set to empty string to clear, or a value to set
+				if (affiliateName !== undefined) {
+					updateData.affiliateName = affiliateName || null
 				}
 
 				await db

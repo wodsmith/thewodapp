@@ -20,6 +20,7 @@ import { programmingTracksTable } from "./programming"
 import { scalingLevelsTable } from "./scaling"
 import { teamMembershipTable, teamTable } from "./teams"
 import { userTable } from "./users"
+import { waiverSignaturesTable } from "./waivers"
 
 // Competition Groups (Series) Table
 // Groups organize multiple competitions into series (e.g., "2026 Throwdowns Series")
@@ -394,6 +395,8 @@ export const competitionRegistrationsRelations = relations(
 		}),
 		// Heat assignments for this registration
 		heatAssignments: many(competitionHeatAssignmentsTable),
+		// Waiver signatures for this registration
+		waiverSignatures: many(waiverSignaturesTable),
 	}),
 )
 

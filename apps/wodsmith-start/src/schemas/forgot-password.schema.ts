@@ -1,8 +1,8 @@
-import {z} from 'zod'
+import { z } from "zod"
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  captchaToken: z.string().optional(),
+	email: z.string().email("Please enter a valid email address"),
+	captchaToken: z.string().optional(),
 })
 
 export type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>

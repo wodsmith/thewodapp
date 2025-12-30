@@ -18,7 +18,7 @@ export const athleteProfileSchema = z.object({
 		required_error: "Please enter your date of birth",
 		invalid_type_error: "Invalid date",
 	}),
-	affiliateName: z.string().optional(),
+	affiliateName: z.string().max(255).optional(),
 })
 
 // Extended athlete profile JSON schema
@@ -26,6 +26,7 @@ export const athleteProfileExtendedSchema = z.object({
 	// Core profile fields (stored as direct columns)
 	gender: z.enum([GENDER_ENUM.MALE, GENDER_ENUM.FEMALE]).optional(),
 	dateOfBirth: z.string().optional(), // ISO date string YYYY-MM-DD
+	affiliateName: z.string().max(255).optional(), // Default affiliate for registration
 
 	// Extended profile fields (stored as JSON)
 	preferredUnits: z.enum(["imperial", "metric"]).default("imperial"),

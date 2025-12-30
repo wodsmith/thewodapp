@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowLeft } from "lucide-react"
@@ -44,7 +44,7 @@ function CreateMovementPage() {
 	const createMovement = useServerFn(createMovementFn)
 
 	const form = useForm<CreateMovementFormData>({
-		resolver: zodResolver(createMovementSchema),
+		resolver: standardSchemaResolver(createMovementSchema),
 		defaultValues: {
 			name: "",
 			type: undefined,

@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { Loader2, User, Users } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -88,7 +88,7 @@ export function RegistrationForm({
 	}, [paymentCanceled])
 
 	const form = useForm<FormValues>({
-		resolver: zodResolver(registrationSchema),
+		resolver: standardSchemaResolver(registrationSchema),
 		defaultValues: {
 			divisionId: "",
 			teamName: "",

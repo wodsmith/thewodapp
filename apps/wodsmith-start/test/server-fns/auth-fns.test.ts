@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 // Import the mock KV from the mock file so we can configure it
-import {mockKV} from '../__mocks__/cloudflare-workers.js'
+import {mockKV} from '../__mocks__/cloudflare-workers'
 
 // Mock the database
 const mockDb = new FakeDrizzleDb()

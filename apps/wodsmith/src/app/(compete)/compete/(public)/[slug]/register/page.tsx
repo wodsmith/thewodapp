@@ -7,6 +7,7 @@ import {
 	getCompetition,
 	getUserCompetitionRegistration,
 } from "@/server/competitions"
+import { getCompetitionWaivers } from "@/server/waivers"
 import { parseCompetitionSettings } from "@/types/competitions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { RegistrationForm } from "./_components/registration-form"
@@ -144,6 +145,9 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 		columns: { affiliateName: true },
 	})
 
+	// Fetch competition waivers
+	const waivers = await getCompetitionWaivers(competition.id)
+
 	return (
 		<div className="mx-auto max-w-2xl">
 			<RegistrationForm
@@ -155,6 +159,7 @@ export default async function RegisterPage({ params, searchParams }: Props) {
 				registrationClosesAt={regClosesAt}
 				paymentCanceled={canceled === "true"}
 				defaultAffiliateName={user?.affiliateName ?? undefined}
+				waivers={waivers}
 			/>
 		</div>
 	)

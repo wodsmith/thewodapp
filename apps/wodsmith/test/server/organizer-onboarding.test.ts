@@ -7,6 +7,8 @@ import {
 	isApprovedOrganizer,
 	hasPendingOrganizerRequest,
 	getOrganizerRequest,
+	getAllOrganizerRequests,
+	type OrganizerRequestWithDetails,
 } from "@/server/organizer-onboarding"
 import {
 	organizerRequestTable,
@@ -742,6 +744,305 @@ describe("Organizer Onboarding", () => {
 
 			// Verify that findFirst was called (the actual orderBy is handled internally)
 			expect(mockDb.query.organizerRequestTable.findFirst).toHaveBeenCalled()
+		})
+	})
+
+	describe("getAllOrganizerRequests", () => {
+		const mockReviewerId = "reviewer-123"
+		const mockReviewerFirstName = "Jane"
+		const mockReviewerLastName = "Admin"
+
+		/**
+		 * Creates a mock DB that handles both the main request query and the reviewer lookup.
+		 * getAllOrganizerRequests calls getDb() once and uses it for both queries:
+		 * 1. db.select(...).from(...).innerJoin(...).innerJoin(...).where(...).orderBy(...)
+		 * 2. db.select(...).from(...).where(...) for reviewer lookup
+		 */
+		const createMockDbForGetAll = (
+			requests: any[],
+			reviewers: any[] = [],
+		) => {
+			let selectCallCount = 0
+			return {
+				select: vi.fn().mockImplementation(() => {
+					selectCallCount++
+					if (selectCallCount === 1) {
+						// First select: main request query with joins
+						return {
+							from: vi.fn().mockReturnValue({
+								innerJoin: vi.fn().mockReturnValue({
+									innerJoin: vi.fn().mockReturnValue({
+										where: vi.fn().mockReturnValue({
+											orderBy: vi.fn().mockResolvedValue(requests),
+										}),
+									}),
+								}),
+							}),
+						}
+					}
+					// Subsequent selects: reviewer lookup query
+					return {
+						from: vi.fn().mockReturnValue({
+							where: vi.fn().mockResolvedValue(reviewers),
+						}),
+					}
+				}),
+			}
+		}
+
+		it("should return requests with reviewer details for approved requests", async () => {
+			const approvedRequest = {
+				id: mockRequestId,
+				teamId: mockTeamId,
+				userId: mockUserId,
+				reason: mockReason,
+				status: ORGANIZER_REQUEST_STATUS.APPROVED,
+				adminNotes: "Approved",
+				reviewedBy: mockReviewerId,
+				reviewedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: 1,
+				teamName: "Test Team",
+				teamSlug: "test-team",
+				userFirstName: "John",
+				userLastName: "Requester",
+				userEmail: "requester@example.com",
+			}
+
+			const mockReviewer = {
+				id: mockReviewerId,
+				firstName: mockReviewerFirstName,
+				lastName: mockReviewerLastName,
+			}
+
+			const mockDb = createMockDbForGetAll([approvedRequest], [mockReviewer])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "approved" })
+
+			expect(result).toHaveLength(1)
+			expect(result[0].reviewer).toEqual({
+				id: mockReviewerId,
+				firstName: mockReviewerFirstName,
+				lastName: mockReviewerLastName,
+			})
+			expect(result[0].reviewedBy).toBe(mockReviewerId)
+		})
+
+		it("should return null reviewer for pending requests without reviewedBy", async () => {
+			const pendingRequest = {
+				id: mockRequestId,
+				teamId: mockTeamId,
+				userId: mockUserId,
+				reason: mockReason,
+				status: ORGANIZER_REQUEST_STATUS.PENDING,
+				adminNotes: null,
+				reviewedBy: null,
+				reviewedAt: null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: 0,
+				teamName: "Test Team",
+				teamSlug: "test-team",
+				userFirstName: "John",
+				userLastName: "Requester",
+				userEmail: "requester@example.com",
+			}
+
+			// No reviewers needed since reviewedBy is null
+			const mockDb = createMockDbForGetAll([pendingRequest], [])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "pending" })
+
+			expect(result).toHaveLength(1)
+			expect(result[0].reviewer).toBeNull()
+			expect(result[0].reviewedBy).toBeNull()
+		})
+
+		it("should return reviewer with id, firstName, lastName fields", async () => {
+			const rejectedRequest = {
+				id: mockRequestId,
+				teamId: mockTeamId,
+				userId: mockUserId,
+				reason: mockReason,
+				status: ORGANIZER_REQUEST_STATUS.REJECTED,
+				adminNotes: "Rejected",
+				reviewedBy: mockReviewerId,
+				reviewedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: 1,
+				teamName: "Test Team",
+				teamSlug: "test-team",
+				userFirstName: "John",
+				userLastName: "Requester",
+				userEmail: "requester@example.com",
+			}
+
+			const mockReviewer = {
+				id: mockReviewerId,
+				firstName: mockReviewerFirstName,
+				lastName: mockReviewerLastName,
+			}
+
+			const mockDb = createMockDbForGetAll([rejectedRequest], [mockReviewer])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "rejected" })
+
+			expect(result).toHaveLength(1)
+			const reviewer = result[0].reviewer
+			expect(reviewer).not.toBeNull()
+			expect(reviewer).toHaveProperty("id")
+			expect(reviewer).toHaveProperty("firstName")
+			expect(reviewer).toHaveProperty("lastName")
+			expect(reviewer?.id).toBe(mockReviewerId)
+			expect(reviewer?.firstName).toBe(mockReviewerFirstName)
+			expect(reviewer?.lastName).toBe(mockReviewerLastName)
+		})
+
+		it("should return null reviewer when reviewedBy user not found in database", async () => {
+			// Edge case: reviewedBy is set but user was deleted
+			const approvedRequest = {
+				id: mockRequestId,
+				teamId: mockTeamId,
+				userId: mockUserId,
+				reason: mockReason,
+				status: ORGANIZER_REQUEST_STATUS.APPROVED,
+				adminNotes: "Approved",
+				reviewedBy: "deleted-user-id",
+				reviewedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: 1,
+				teamName: "Test Team",
+				teamSlug: "test-team",
+				userFirstName: "John",
+				userLastName: "Requester",
+				userEmail: "requester@example.com",
+			}
+
+			// Reviewer not found - empty array
+			const mockDb = createMockDbForGetAll([approvedRequest], [])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "approved" })
+
+			expect(result).toHaveLength(1)
+			// Should gracefully handle missing reviewer
+			expect(result[0].reviewer).toBeNull()
+			expect(result[0].reviewedBy).toBe("deleted-user-id")
+		})
+
+		it("should return empty array when no requests match filter", async () => {
+			const mockDb = createMockDbForGetAll([], [])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "approved" })
+
+			expect(result).toEqual([])
+		})
+
+		it("should handle multiple requests with different reviewers", async () => {
+			const reviewer1 = { id: "rev-1", firstName: "Alice", lastName: "Admin" }
+			const reviewer2 = { id: "rev-2", firstName: "Bob", lastName: "Manager" }
+
+			const requests = [
+				{
+					id: "req-1",
+					teamId: "team-1",
+					userId: "user-1",
+					reason: "Reason 1",
+					status: ORGANIZER_REQUEST_STATUS.APPROVED,
+					adminNotes: null,
+					reviewedBy: "rev-1",
+					reviewedAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					updateCounter: 1,
+					teamName: "Team 1",
+					teamSlug: "team-1",
+					userFirstName: "User",
+					userLastName: "One",
+					userEmail: "user1@example.com",
+				},
+				{
+					id: "req-2",
+					teamId: "team-2",
+					userId: "user-2",
+					reason: "Reason 2",
+					status: ORGANIZER_REQUEST_STATUS.REJECTED,
+					adminNotes: "Not qualified",
+					reviewedBy: "rev-2",
+					reviewedAt: new Date(),
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					updateCounter: 1,
+					teamName: "Team 2",
+					teamSlug: "team-2",
+					userFirstName: "User",
+					userLastName: "Two",
+					userEmail: "user2@example.com",
+				},
+			]
+
+			const mockDb = createMockDbForGetAll(requests, [reviewer1, reviewer2])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "all" })
+
+			expect(result).toHaveLength(2)
+			expect(result[0].reviewer).toEqual(reviewer1)
+			expect(result[1].reviewer).toEqual(reviewer2)
+		})
+
+		it("should include team and user details in response", async () => {
+			const approvedRequest = {
+				id: mockRequestId,
+				teamId: mockTeamId,
+				userId: mockUserId,
+				reason: mockReason,
+				status: ORGANIZER_REQUEST_STATUS.APPROVED,
+				adminNotes: "Approved",
+				reviewedBy: mockReviewerId,
+				reviewedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				updateCounter: 1,
+				teamName: "Test Team",
+				teamSlug: "test-team",
+				userFirstName: "John",
+				userLastName: "Requester",
+				userEmail: "requester@example.com",
+			}
+
+			const mockReviewer = {
+				id: mockReviewerId,
+				firstName: mockReviewerFirstName,
+				lastName: mockReviewerLastName,
+			}
+
+			const mockDb = createMockDbForGetAll([approvedRequest], [mockReviewer])
+			vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+			const result = await getAllOrganizerRequests({ statusFilter: "approved" })
+
+			expect(result).toHaveLength(1)
+			// Verify team details
+			expect(result[0].team).toEqual({
+				id: mockTeamId,
+				name: "Test Team",
+				slug: "test-team",
+			})
+			// Verify user details
+			expect(result[0].user).toEqual({
+				id: mockUserId,
+				firstName: "John",
+				lastName: "Requester",
+				email: "requester@example.com",
+			})
 		})
 	})
 
