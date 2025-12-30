@@ -655,6 +655,41 @@ export async function getCompetitions(teamId: string): Promise<
 }
 
 /**
+ * Get ALL competitions for admin view (no team filtering)
+ *
+ * This is for admin-only use - shows all competitions from all organizers.
+ * Ordered by createdAt DESC to show newest first.
+ */
+export async function getAllCompetitionsForAdmin(): Promise<
+	Array<
+		Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+		}
+	>
+> {
+	const db = getDb()
+
+	const competitions = await db.query.competitionsTable.findMany({
+		with: {
+			competitionTeam: true,
+			group: true,
+			organizingTeam: true,
+		},
+		orderBy: (table, { desc }) => [desc(table.createdAt)],
+	})
+
+	return competitions as Array<
+		Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+		}
+	>
+}
+
+/**
  * Get all public competitions (for competition discovery page)
  *
  * Phase 2 Implementation:

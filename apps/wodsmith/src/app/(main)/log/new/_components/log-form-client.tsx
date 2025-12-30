@@ -13,7 +13,7 @@ import { submitLogFormAction } from "@/actions/log-actions"
 import {
 	ScoreInputFields,
 	type ScoreInputFieldsHandle,
-} from "@/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/_components/score-input-row/score-input-fields"
+} from "@/app/(compete)/compete/(organizer-protected)/organizer/[competitionId]/(with-sidebar)/results/_components/score-input-row/score-input-fields"
 import {
 	type LogFormSchema,
 	logFormSchema,
