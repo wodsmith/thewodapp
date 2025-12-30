@@ -1,6 +1,6 @@
 import {createFileRoute, Link, Outlet, redirect} from '@tanstack/react-router'
 import {createServerFn} from '@tanstack/react-start'
-import {ClipboardList, Home, Settings, Trophy} from 'lucide-react'
+import {Building2, ClipboardList, Home, Settings, Trophy} from 'lucide-react'
 import {DarkModeToggle} from '@/components/nav/dark-mode-toggle'
 import LogoutButton from '@/components/nav/logout-button'
 import {cn} from '@/utils/cn'
@@ -47,6 +47,11 @@ const platformNavItems = [
     title: 'Dashboard',
     href: '/admin',
     icon: Home,
+  },
+  {
+    title: 'Teams',
+    href: '/admin/teams',
+    icon: Building2,
   },
   {
     title: 'Competitions',

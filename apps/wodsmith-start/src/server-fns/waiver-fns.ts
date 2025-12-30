@@ -1,94 +1,88 @@
 /**
  * Waiver Server Functions for TanStack Start
  * Handles waiver CRUD operations and signing for competition registration
+ *
+ * IMPORTANT: All imports from @/db, @/utils/auth, and @/utils/team-auth
+ * must be dynamic imports inside handlers to avoid Vite bundling cloudflare:workers
  */
 
-import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
-import { z } from "zod"
-import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import {
-	type Waiver,
-	type WaiverSignature,
-	waiverSignaturesTable,
-	waiversTable,
-} from "@/db/schemas/waivers"
-import { getSessionFromCookie } from "@/utils/auth"
-import { autochunk } from "@/utils/batch-query"
-import { hasTeamPermission } from "@/utils/team-auth"
+import {createServerFn} from '@tanstack/react-start'
+import {z} from 'zod'
+import type {Waiver, WaiverSignature} from '@/db/schemas/waivers'
+
+// Re-export types for consumers
+export type {Waiver, WaiverSignature}
 
 // ============================================================================
 // Input Schemas
 // ============================================================================
 
 const getCompetitionWaiversInputSchema = z.object({
-	competitionId: z.string().min(1, "Competition ID is required"),
+  competitionId: z.string().min(1, 'Competition ID is required'),
 })
 
 const getWaiverInputSchema = z.object({
-	waiverId: z.string().min(1, "Waiver ID is required"),
+  waiverId: z.string().min(1, 'Waiver ID is required'),
 })
 
 const getWaiverSignaturesForRegistrationInputSchema = z.object({
-	registrationId: z.string().min(1, "Registration ID is required"),
+  registrationId: z.string().min(1, 'Registration ID is required'),
 })
 
 const createWaiverInputSchema = z.object({
-	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
-	teamId: z.string().startsWith("team_", "Invalid team ID"),
-	title: z.string().min(1, "Title is required").max(255, "Title is too long"),
-	content: z
-		.string()
-		.min(1, "Content is required")
-		.max(50000, "Content is too long"),
-	required: z.boolean().default(true),
+  competitionId: z.string().startsWith('comp_', 'Invalid competition ID'),
+  teamId: z.string().startsWith('team_', 'Invalid team ID'),
+  title: z.string().min(1, 'Title is required').max(255, 'Title is too long'),
+  content: z
+    .string()
+    .min(1, 'Content is required')
+    .max(50000, 'Content is too long'),
+  required: z.boolean().default(true),
 })
 
 const updateWaiverInputSchema = z.object({
-	waiverId: z.string().startsWith("waiv_", "Invalid waiver ID"),
-	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
-	teamId: z.string().startsWith("team_", "Invalid team ID"),
-	title: z
-		.string()
-		.min(1, "Title is required")
-		.max(255, "Title is too long")
-		.optional(),
-	content: z
-		.string()
-		.min(1, "Content is required")
-		.max(50000, "Content is too long")
-		.optional(),
-	required: z.boolean().optional(),
+  waiverId: z.string().startsWith('waiv_', 'Invalid waiver ID'),
+  competitionId: z.string().startsWith('comp_', 'Invalid competition ID'),
+  teamId: z.string().startsWith('team_', 'Invalid team ID'),
+  title: z
+    .string()
+    .min(1, 'Title is required')
+    .max(255, 'Title is too long')
+    .optional(),
+  content: z
+    .string()
+    .min(1, 'Content is required')
+    .max(50000, 'Content is too long')
+    .optional(),
+  required: z.boolean().optional(),
 })
 
 const deleteWaiverInputSchema = z.object({
-	waiverId: z.string().startsWith("waiv_", "Invalid waiver ID"),
-	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
-	teamId: z.string().startsWith("team_", "Invalid team ID"),
+  waiverId: z.string().startsWith('waiv_', 'Invalid waiver ID'),
+  competitionId: z.string().startsWith('comp_', 'Invalid competition ID'),
+  teamId: z.string().startsWith('team_', 'Invalid team ID'),
 })
 
 const reorderWaiversInputSchema = z.object({
-	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
-	teamId: z.string().startsWith("team_", "Invalid team ID"),
-	waivers: z
-		.array(
-			z.object({
-				id: z.string().startsWith("waiv_", "Invalid waiver ID"),
-				position: z.number().int().min(0),
-			}),
-		)
-		.min(1, "At least one waiver is required"),
+  competitionId: z.string().startsWith('comp_', 'Invalid competition ID'),
+  teamId: z.string().startsWith('team_', 'Invalid team ID'),
+  waivers: z
+    .array(
+      z.object({
+        id: z.string().startsWith('waiv_', 'Invalid waiver ID'),
+        position: z.number().int().min(0),
+      }),
+    )
+    .min(1, 'At least one waiver is required'),
 })
 
 const signWaiverInputSchema = z.object({
-	waiverId: z.string().startsWith("waiv_", "Invalid waiver ID"),
-	registrationId: z
-		.string()
-		.startsWith("creg_", "Invalid registration ID")
-		.optional(),
-	ipAddress: z.string().max(45).optional(), // IPv6 max length
+  waiverId: z.string().startsWith('waiv_', 'Invalid waiver ID'),
+  registrationId: z
+    .string()
+    .startsWith('creg_', 'Invalid registration ID')
+    .optional(),
+  ipAddress: z.string().max(45).optional(), // IPv6 max length
 })
 
 // ============================================================================
@@ -100,22 +94,26 @@ const signWaiverInputSchema = z.object({
  * Throws an error if the competition doesn't exist or doesn't belong to the team
  */
 async function validateCompetitionOwnership(
-	competitionId: string,
-	teamId: string,
+  competitionId: string,
+  teamId: string,
 ): Promise<void> {
-	const db = getDb()
+  const {getDb} = await import('@/db')
+  const {eq} = await import('drizzle-orm')
+  const {competitionsTable} = await import('@/db/schemas/competitions')
 
-	const competition = await db.query.competitionsTable.findFirst({
-		where: eq(competitionsTable.id, competitionId),
-	})
+  const db = getDb()
 
-	if (!competition) {
-		throw new Error("Competition not found")
-	}
+  const competition = await db.query.competitionsTable.findFirst({
+    where: eq(competitionsTable.id, competitionId),
+  })
 
-	if (competition.organizingTeamId !== teamId) {
-		throw new Error("Competition does not belong to this team")
-	}
+  if (!competition) {
+    throw new Error('Competition not found')
+  }
+
+  if (competition.organizingTeamId !== teamId) {
+    throw new Error('Competition does not belong to this team')
+  }
 }
 
 // ============================================================================
@@ -125,336 +123,387 @@ async function validateCompetitionOwnership(
 /**
  * Get all waivers for a competition, ordered by position
  */
-export const getCompetitionWaiversFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getCompetitionWaiversInputSchema.parse(data),
-	)
-	.handler(async ({ data }): Promise<{ waivers: Waiver[] }> => {
-		const db = getDb()
+export const getCompetitionWaiversFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) =>
+    getCompetitionWaiversInputSchema.parse(data),
+  )
+  .handler(async ({data}): Promise<{waivers: Waiver[]}> => {
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiversTable} = await import('@/db/schemas/waivers')
 
-		const waivers = await db.query.waiversTable.findMany({
-			where: eq(waiversTable.competitionId, data.competitionId),
-			orderBy: (table, { asc }) => [asc(table.position)],
-		})
+    const db = getDb()
 
-		return { waivers }
-	})
+    const waivers = await db.query.waiversTable.findMany({
+      where: eq(waiversTable.competitionId, data.competitionId),
+      orderBy: (table, {asc}) => [asc(table.position)],
+    })
+
+    return {waivers}
+  })
 
 /**
  * Get a single waiver by ID
  */
-export const getWaiverFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) => getWaiverInputSchema.parse(data))
-	.handler(async ({ data }): Promise<{ waiver: Waiver | null }> => {
-		const db = getDb()
+export const getWaiverFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) => getWaiverInputSchema.parse(data))
+  .handler(async ({data}): Promise<{waiver: Waiver | null}> => {
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiversTable} = await import('@/db/schemas/waivers')
 
-		const waiver = await db.query.waiversTable.findFirst({
-			where: eq(waiversTable.id, data.waiverId),
-		})
+    const db = getDb()
 
-		return { waiver: waiver ?? null }
-	})
+    const waiver = await db.query.waiversTable.findFirst({
+      where: eq(waiversTable.id, data.waiverId),
+    })
+
+    return {waiver: waiver ?? null}
+  })
 
 /**
  * Get all waiver signatures for a registration
  * Used to check if an athlete has signed all required waivers
  */
 export const getWaiverSignaturesForRegistrationFn = createServerFn({
-	method: "GET",
+  method: 'GET',
 })
-	.inputValidator((data: unknown) =>
-		getWaiverSignaturesForRegistrationInputSchema.parse(data),
-	)
-	.handler(async ({ data }): Promise<{ signatures: WaiverSignature[] }> => {
-		const session = await getSessionFromCookie()
-		if (!session) {
-			throw new Error("Authentication required")
-		}
+  .inputValidator((data: unknown) =>
+    getWaiverSignaturesForRegistrationInputSchema.parse(data),
+  )
+  .handler(async ({data}): Promise<{signatures: WaiverSignature[]}> => {
+    const {getSessionFromCookie} = await import('@/utils/auth')
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiverSignaturesTable} = await import('@/db/schemas/waivers')
 
-		const db = getDb()
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error('Authentication required')
+    }
 
-		const signatures = await db.query.waiverSignaturesTable.findMany({
-			where: eq(waiverSignaturesTable.registrationId, data.registrationId),
-			with: {
-				waiver: true,
-			},
-		})
+    const db = getDb()
 
-		return { signatures }
-	})
+    const signatures = await db.query.waiverSignaturesTable.findMany({
+      where: eq(waiverSignaturesTable.registrationId, data.registrationId),
+      with: {
+        waiver: true,
+      },
+    })
+
+    return {signatures}
+  })
 
 /**
  * Get all waiver signatures for a user in a specific competition
  * Used to check if a user (captain or teammate) has signed all required waivers
  */
-export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z
-			.object({
-				userId: z.string().min(1),
-				competitionId: z.string().min(1),
-			})
-			.parse(data),
-	)
-	.handler(async ({ data }): Promise<{ signatures: WaiverSignature[] }> => {
-		const db = getDb()
+export const getWaiverSignaturesForUserFn = createServerFn({method: 'GET'})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        userId: z.string().min(1),
+        competitionId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({data}): Promise<{signatures: WaiverSignature[]}> => {
+    const {getDb} = await import('@/db')
+    const {eq, and, inArray} = await import('drizzle-orm')
+    const {waiversTable, waiverSignaturesTable} = await import(
+      '@/db/schemas/waivers'
+    )
+    const {autochunk} = await import('@/utils/batch-query')
 
-		// Get all waivers for the competition
-		const waivers = await db.query.waiversTable.findMany({
-			where: eq(waiversTable.competitionId, data.competitionId),
-		})
+    const db = getDb()
 
-		const waiverIds = waivers.map((w) => w.id)
+    // Get all waivers for the competition
+    const waivers = await db.query.waiversTable.findMany({
+      where: eq(waiversTable.competitionId, data.competitionId),
+    })
 
-		if (waiverIds.length === 0) {
-			return { signatures: [] }
-		}
+    const waiverIds = waivers.map((w) => w.id)
 
-		// Get signatures for this user for any of those waivers
-		// Use autochunk to handle potential large arrays (D1 has 100 param limit)
-		const signatures = await autochunk(
-			{ items: waiverIds, otherParametersCount: 1 }, // 1 for userId param
-			async (chunk) =>
-				db.query.waiverSignaturesTable.findMany({
-					where: and(
-						eq(waiverSignaturesTable.userId, data.userId),
-						inArray(waiverSignaturesTable.waiverId, chunk),
-					),
-					with: {
-						waiver: true,
-					},
-				}),
-		)
+    if (waiverIds.length === 0) {
+      return {signatures: []}
+    }
 
-		return { signatures }
-	})
+    // Get signatures for this user for any of those waivers
+    // Use autochunk to handle potential large arrays (D1 has 100 param limit)
+    const signatures = await autochunk(
+      {items: waiverIds, otherParametersCount: 1}, // 1 for userId param
+      async (chunk) =>
+        db.query.waiverSignaturesTable.findMany({
+          where: and(
+            eq(waiverSignaturesTable.userId, data.userId),
+            inArray(waiverSignaturesTable.waiverId, chunk),
+          ),
+          with: {
+            waiver: true,
+          },
+        }),
+    )
+
+    return {signatures}
+  })
 
 /**
  * Create a new waiver for a competition
  * Requires MANAGE_PROGRAMMING permission (competition management)
  */
-export const createWaiverFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => createWaiverInputSchema.parse(data))
-	.handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
-		const session = await getSessionFromCookie()
-		if (!session) {
-			throw new Error("Authentication required")
-		}
+export const createWaiverFn = createServerFn({method: 'POST'})
+  .inputValidator((data: unknown) => createWaiverInputSchema.parse(data))
+  .handler(async ({data}): Promise<{success: true; waiver: Waiver}> => {
+    const {getSessionFromCookie} = await import('@/utils/auth')
+    const {hasTeamPermission} = await import('@/utils/team-auth')
+    const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiversTable} = await import('@/db/schemas/waivers')
 
-		// Check permission to manage competitions
-		const hasAccess = await hasTeamPermission(
-			data.teamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error('Authentication required')
+    }
 
-		if (!hasAccess) {
-			throw new Error("No permission to manage competitions")
-		}
+    // Check permission to manage competitions
+    const hasAccess = await hasTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Validate competition belongs to team
-		await validateCompetitionOwnership(data.competitionId, data.teamId)
+    if (!hasAccess) {
+      throw new Error('No permission to manage competitions')
+    }
 
-		const db = getDb()
+    // Validate competition belongs to team
+    await validateCompetitionOwnership(data.competitionId, data.teamId)
 
-		// Get current max position
-		const existingWaivers = await db.query.waiversTable.findMany({
-			where: eq(waiversTable.competitionId, data.competitionId),
-			orderBy: (table, { desc }) => [desc(table.position)],
-		})
+    const db = getDb()
 
-		const maxPosition =
-			existingWaivers.length > 0 ? (existingWaivers[0]?.position ?? -1) : -1
+    // Get current max position
+    const existingWaivers = await db.query.waiversTable.findMany({
+      where: eq(waiversTable.competitionId, data.competitionId),
+      orderBy: (table, {desc}) => [desc(table.position)],
+    })
 
-		// Insert waiver
-		const result = await db
-			.insert(waiversTable)
-			.values({
-				competitionId: data.competitionId,
-				title: data.title,
-				content: data.content,
-				required: data.required,
-				position: maxPosition + 1,
-			})
-			.returning()
+    const maxPosition =
+      existingWaivers.length > 0 ? (existingWaivers[0]?.position ?? -1) : -1
 
-		const [waiver] = Array.isArray(result) ? result : []
-		if (!waiver) {
-			throw new Error("Failed to create waiver")
-		}
+    // Insert waiver
+    const result = await db
+      .insert(waiversTable)
+      .values({
+        competitionId: data.competitionId,
+        title: data.title,
+        content: data.content,
+        required: data.required,
+        position: maxPosition + 1,
+      })
+      .returning()
 
-		return { success: true, waiver }
-	})
+    const [waiver] = Array.isArray(result) ? result : []
+    if (!waiver) {
+      throw new Error('Failed to create waiver')
+    }
+
+    return {success: true, waiver}
+  })
 
 /**
  * Update an existing waiver
  * Requires MANAGE_PROGRAMMING permission
  */
-export const updateWaiverFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => updateWaiverInputSchema.parse(data))
-	.handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
-		const session = await getSessionFromCookie()
-		if (!session) {
-			throw new Error("Authentication required")
-		}
+export const updateWaiverFn = createServerFn({method: 'POST'})
+  .inputValidator((data: unknown) => updateWaiverInputSchema.parse(data))
+  .handler(async ({data}): Promise<{success: true; waiver: Waiver}> => {
+    const {getSessionFromCookie} = await import('@/utils/auth')
+    const {hasTeamPermission} = await import('@/utils/team-auth')
+    const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiversTable} = await import('@/db/schemas/waivers')
 
-		// Check permission
-		const hasAccess = await hasTeamPermission(
-			data.teamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error('Authentication required')
+    }
 
-		if (!hasAccess) {
-			throw new Error("No permission to manage competitions")
-		}
+    // Check permission
+    const hasAccess = await hasTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Validate competition belongs to team
-		await validateCompetitionOwnership(data.competitionId, data.teamId)
+    if (!hasAccess) {
+      throw new Error('No permission to manage competitions')
+    }
 
-		const db = getDb()
+    // Validate competition belongs to team
+    await validateCompetitionOwnership(data.competitionId, data.teamId)
 
-		// Build update data
-		const updateData: Partial<typeof waiversTable.$inferInsert> = {
-			updatedAt: new Date(),
-		}
+    const db = getDb()
 
-		if (data.title !== undefined) updateData.title = data.title
-		if (data.content !== undefined) updateData.content = data.content
-		if (data.required !== undefined) updateData.required = data.required
+    // Build update data
+    const updateData: Partial<typeof waiversTable.$inferInsert> = {
+      updatedAt: new Date(),
+    }
 
-		// Update waiver
-		const result = await db
-			.update(waiversTable)
-			.set(updateData)
-			.where(eq(waiversTable.id, data.waiverId))
-			.returning()
+    if (data.title !== undefined) updateData.title = data.title
+    if (data.content !== undefined) updateData.content = data.content
+    if (data.required !== undefined) updateData.required = data.required
 
-		const [waiver] = Array.isArray(result) ? result : []
-		if (!waiver) {
-			throw new Error("Failed to update waiver")
-		}
+    // Update waiver
+    const result = await db
+      .update(waiversTable)
+      .set(updateData)
+      .where(eq(waiversTable.id, data.waiverId))
+      .returning()
 
-		return { success: true, waiver }
-	})
+    const [waiver] = Array.isArray(result) ? result : []
+    if (!waiver) {
+      throw new Error('Failed to update waiver')
+    }
+
+    return {success: true, waiver}
+  })
 
 /**
  * Delete a waiver
  * Requires MANAGE_PROGRAMMING permission
  * Cascade deletes signatures via DB constraint
  */
-export const deleteWaiverFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => deleteWaiverInputSchema.parse(data))
-	.handler(async ({ data }): Promise<{ success: true }> => {
-		const session = await getSessionFromCookie()
-		if (!session) {
-			throw new Error("Authentication required")
-		}
+export const deleteWaiverFn = createServerFn({method: 'POST'})
+  .inputValidator((data: unknown) => deleteWaiverInputSchema.parse(data))
+  .handler(async ({data}): Promise<{success: true}> => {
+    const {getSessionFromCookie} = await import('@/utils/auth')
+    const {hasTeamPermission} = await import('@/utils/team-auth')
+    const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiversTable} = await import('@/db/schemas/waivers')
 
-		// Check permission
-		const hasAccess = await hasTeamPermission(
-			data.teamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error('Authentication required')
+    }
 
-		if (!hasAccess) {
-			throw new Error("No permission to manage competitions")
-		}
+    // Check permission
+    const hasAccess = await hasTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Validate competition belongs to team
-		await validateCompetitionOwnership(data.competitionId, data.teamId)
+    if (!hasAccess) {
+      throw new Error('No permission to manage competitions')
+    }
 
-		const db = getDb()
+    // Validate competition belongs to team
+    await validateCompetitionOwnership(data.competitionId, data.teamId)
 
-		// Delete waiver (signatures cascade via DB constraint)
-		await db.delete(waiversTable).where(eq(waiversTable.id, data.waiverId))
+    const db = getDb()
 
-		return { success: true }
-	})
+    // Delete waiver (signatures cascade via DB constraint)
+    await db.delete(waiversTable).where(eq(waiversTable.id, data.waiverId))
+
+    return {success: true}
+  })
 
 /**
  * Reorder waivers (drag and drop)
  * Requires MANAGE_PROGRAMMING permission
  */
-export const reorderWaiversFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => reorderWaiversInputSchema.parse(data))
-	.handler(async ({ data }): Promise<{ success: true }> => {
-		const session = await getSessionFromCookie()
-		if (!session) {
-			throw new Error("Authentication required")
-		}
+export const reorderWaiversFn = createServerFn({method: 'POST'})
+  .inputValidator((data: unknown) => reorderWaiversInputSchema.parse(data))
+  .handler(async ({data}): Promise<{success: true}> => {
+    const {getSessionFromCookie} = await import('@/utils/auth')
+    const {hasTeamPermission} = await import('@/utils/team-auth')
+    const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
+    const {getDb} = await import('@/db')
+    const {eq} = await import('drizzle-orm')
+    const {waiversTable} = await import('@/db/schemas/waivers')
 
-		// Check permission
-		const hasAccess = await hasTeamPermission(
-			data.teamId,
-			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-		)
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error('Authentication required')
+    }
 
-		if (!hasAccess) {
-			throw new Error("No permission to manage competitions")
-		}
+    // Check permission
+    const hasAccess = await hasTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
 
-		// Validate competition belongs to team
-		await validateCompetitionOwnership(data.competitionId, data.teamId)
+    if (!hasAccess) {
+      throw new Error('No permission to manage competitions')
+    }
 
-		const db = getDb()
+    // Validate competition belongs to team
+    await validateCompetitionOwnership(data.competitionId, data.teamId)
 
-		// Update positions for each waiver
-		for (const waiver of data.waivers) {
-			await db
-				.update(waiversTable)
-				.set({ position: waiver.position, updatedAt: new Date() })
-				.where(eq(waiversTable.id, waiver.id))
-		}
+    const db = getDb()
 
-		return { success: true }
-	})
+    // Update positions for each waiver
+    for (const waiver of data.waivers) {
+      await db
+        .update(waiversTable)
+        .set({position: waiver.position, updatedAt: new Date()})
+        .where(eq(waiversTable.id, waiver.id))
+    }
+
+    return {success: true}
+  })
 
 /**
  * Sign a waiver
  * Anyone can sign (athlete during registration or teammate during invite acceptance)
  */
-export const signWaiverFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => signWaiverInputSchema.parse(data))
-	.handler(
-		async ({
-			data,
-		}): Promise<{ success: true; signature: WaiverSignature }> => {
-			const session = await getSessionFromCookie()
-			if (!session) {
-				throw new Error("Authentication required")
-			}
+export const signWaiverFn = createServerFn({method: 'POST'})
+  .inputValidator((data: unknown) => signWaiverInputSchema.parse(data))
+  .handler(
+    async ({data}): Promise<{success: true; signature: WaiverSignature}> => {
+      const {getSessionFromCookie} = await import('@/utils/auth')
+      const {getDb} = await import('@/db')
+      const {eq, and} = await import('drizzle-orm')
+      const {waiverSignaturesTable} = await import('@/db/schemas/waivers')
 
-			const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session) {
+        throw new Error('Authentication required')
+      }
 
-			// Check if user already signed this waiver
-			const existingSignature = await db.query.waiverSignaturesTable.findFirst({
-				where: and(
-					eq(waiverSignaturesTable.waiverId, data.waiverId),
-					eq(waiverSignaturesTable.userId, session.userId),
-				),
-			})
+      const db = getDb()
 
-			if (existingSignature) {
-				// Already signed, return success
-				return { success: true, signature: existingSignature }
-			}
+      // Check if user already signed this waiver
+      const existingSignature = await db.query.waiverSignaturesTable.findFirst({
+        where: and(
+          eq(waiverSignaturesTable.waiverId, data.waiverId),
+          eq(waiverSignaturesTable.userId, session.userId),
+        ),
+      })
 
-			// Create signature
-			const result = await db
-				.insert(waiverSignaturesTable)
-				.values({
-					waiverId: data.waiverId,
-					userId: session.userId,
-					registrationId: data.registrationId,
-					ipAddress: data.ipAddress,
-					signedAt: new Date(),
-				})
-				.returning()
+      if (existingSignature) {
+        // Already signed, return success
+        return {success: true, signature: existingSignature}
+      }
 
-			const [signature] = Array.isArray(result) ? result : []
-			if (!signature) {
-				throw new Error("Failed to create signature")
-			}
+      // Create signature
+      const result = await db
+        .insert(waiverSignaturesTable)
+        .values({
+          waiverId: data.waiverId,
+          userId: session.userId,
+          registrationId: data.registrationId,
+          ipAddress: data.ipAddress,
+          signedAt: new Date(),
+        })
+        .returning()
 
-			return { success: true, signature }
-		},
-	)
+      const [signature] = Array.isArray(result) ? result : []
+      if (!signature) {
+        throw new Error('Failed to create signature')
+      }
+
+      return {success: true, signature}
+    },
+  )
