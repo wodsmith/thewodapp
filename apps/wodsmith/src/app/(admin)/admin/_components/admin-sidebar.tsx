@@ -11,6 +11,8 @@ import {
 	DocumentTextIcon,
 	UserGroupIcon,
 } from "@heroicons/react/24/outline"
+import { ClipboardDocumentListIcon } from "@heroicons/react/24/outline"
+import { Trophy } from "lucide-react"
 import { ScrollShadow } from "@heroui/react"
 import type { Route } from "next"
 import Link from "next/link"
@@ -84,6 +86,20 @@ const getAdminNavItems = (): AdminNavItem[] => [
 	},
 ]
 
+/** Site-wide admin navigation items (require ADMIN role) */
+const getSiteAdminNavItems = (): AdminNavItem[] => [
+	{
+		title: "Organizer Requests",
+		href: "/admin/organizer-requests" as Route,
+		icon: ClipboardDocumentListIcon,
+	},
+	{
+		title: "Competitions",
+		href: "/admin/competitions" as Route,
+		icon: Trophy,
+	},
+]
+
 export function AdminSidebar() {
 	const pathname = usePathname()
 	const isLgAndSmaller = useMediaQuery("LG_AND_SMALLER")
@@ -92,7 +108,11 @@ export function AdminSidebar() {
 	)
 
 	const navItems = getAdminNavItems()
-	const isActiveNavItem = useActiveNavItem(pathname, navItems)
+	const siteAdminItems = getSiteAdminNavItems()
+	const isActiveNavItem = useActiveNavItem(pathname, [
+		...navItems,
+		...siteAdminItems,
+	])
 
 	const toggleSection = (title: string) => {
 		setExpandedSections((prev) => {
@@ -226,6 +246,51 @@ export function AdminSidebar() {
 								</Link>
 							)
 						})}
+
+						{/* Platform Admin Section */}
+						<div className="hidden lg:block w-full border-t border-border pt-4 mt-4">
+							<p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+								Platform
+							</p>
+							{siteAdminItems.map((item) => {
+								const isActive = isActiveNavItem(item)
+								return (
+									<Link
+										key={item.href}
+										href={item.href}
+										className={cn(
+											buttonVariants({
+												variant: isActive ? "default" : "ghost",
+											}),
+											"justify-start hover:no-underline whitespace-nowrap w-full",
+										)}
+									>
+										<item.icon className="mr-2 h-4 w-4" />
+										{item.title}
+									</Link>
+								)
+							})}
+						</div>
+						{/* Mobile Platform Admin Links */}
+						{isLgAndSmaller &&
+							siteAdminItems.map((item) => {
+								const isActive = isActiveNavItem(item)
+								return (
+									<Link
+										key={item.href}
+										href={item.href}
+										className={cn(
+											buttonVariants({
+												variant: isActive ? "default" : "ghost",
+											}),
+											"justify-start hover:no-underline whitespace-nowrap flex-shrink-0",
+										)}
+									>
+										<item.icon className="mr-2 h-4 w-4" />
+										{item.title}
+									</Link>
+								)
+							})}
 					</nav>
 				</ScrollShadow>
 			</div>
