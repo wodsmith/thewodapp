@@ -342,7 +342,21 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
 		// Validate competition belongs to team
 		await validateCompetitionOwnership(data.competitionId, data.teamId)
 
+		const { and } = await import("drizzle-orm")
+
 		const db = getDb()
+
+		// Validate waiver belongs to the specified competition
+		const existingWaiver = await db.query.waiversTable.findFirst({
+			where: and(
+				eq(waiversTable.id, data.waiverId),
+				eq(waiversTable.competitionId, data.competitionId),
+			),
+		})
+
+		if (!existingWaiver) {
+			throw new Error("Waiver not found or does not belong to this competition")
+		}
 
 		// Build update data
 		const updateData: Partial<typeof waiversTable.$inferInsert> = {
@@ -353,11 +367,16 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
 		if (data.content !== undefined) updateData.content = data.content
 		if (data.required !== undefined) updateData.required = data.required
 
-		// Update waiver
+		// Update waiver with compound where clause
 		const result = await db
 			.update(waiversTable)
 			.set(updateData)
-			.where(eq(waiversTable.id, data.waiverId))
+			.where(
+				and(
+					eq(waiversTable.id, data.waiverId),
+					eq(waiversTable.competitionId, data.competitionId),
+				),
+			)
 			.returning()
 
 		const [waiver] = Array.isArray(result) ? result : []
@@ -401,10 +420,20 @@ export const deleteWaiverFn = createServerFn({ method: "POST" })
 		// Validate competition belongs to team
 		await validateCompetitionOwnership(data.competitionId, data.teamId)
 
+		const { and } = await import("drizzle-orm")
+
 		const db = getDb()
 
-		// Delete waiver (signatures cascade via DB constraint)
-		await db.delete(waiversTable).where(eq(waiversTable.id, data.waiverId))
+		// Delete waiver with compound where clause (waiverId AND competitionId)
+		// This ensures we only delete waivers that belong to the specified competition
+		await db
+			.delete(waiversTable)
+			.where(
+				and(
+					eq(waiversTable.id, data.waiverId),
+					eq(waiversTable.competitionId, data.competitionId),
+				),
+			)
 
 		return { success: true }
 	})
@@ -441,14 +470,22 @@ export const reorderWaiversFn = createServerFn({ method: "POST" })
 		// Validate competition belongs to team
 		await validateCompetitionOwnership(data.competitionId, data.teamId)
 
+		const { and } = await import("drizzle-orm")
+
 		const db = getDb()
 
-		// Update positions for each waiver
+		// Update positions for each waiver with compound where clause
+		// This ensures we only update waivers that belong to the specified competition
 		for (const waiver of data.waivers) {
 			await db
 				.update(waiversTable)
 				.set({ position: waiver.position, updatedAt: new Date() })
-				.where(eq(waiversTable.id, waiver.id))
+				.where(
+					and(
+						eq(waiversTable.id, waiver.id),
+						eq(waiversTable.competitionId, data.competitionId),
+					),
+				)
 		}
 
 		return { success: true }

@@ -428,6 +428,17 @@ export const getRegistrationSuccessDataFn = createServerFn({ method: "GET" })
 		getRegistrationSuccessDataInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		// Verify caller is authenticated and is the user they claim to be
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Unauthorized")
+		}
+
+		// Ensure the caller can only access their own registration data
+		if (session.userId !== data.userId) {
+			throw new Error("Unauthorized: Cannot access another user's registration data")
+		}
+
 		const { getDb } = await import("@/db")
 		const { userTable, commercePurchaseTable, teamInvitationTable } =
 			await import("@/db/schema")

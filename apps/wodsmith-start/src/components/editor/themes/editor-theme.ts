@@ -94,7 +94,7 @@ export const editorTheme: EditorThemeClasses = {
 	characterLimit: "!bg-destructive/50",
 	table: "EditorTheme__table w-fit overflow-scroll border-collapse",
 	tableCell:
-		'EditorTheme__tableCell w-24 relative border px-4 py-2 text-left [&[align=center]]:text-center [&[align=right]]:text-right"',
+		"EditorTheme__tableCell w-24 relative border px-4 py-2 text-left [&[align=center]]:text-center [&[align=right]]:text-right",
 	tableCellActionButton:
 		"EditorTheme__tableCellActionButton bg-background block border-0 rounded-2xl w-5 h-5 text-foreground cursor-pointer",
 	tableCellActionButtonContainer:

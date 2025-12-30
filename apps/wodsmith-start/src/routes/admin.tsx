@@ -95,9 +95,9 @@ function AdminSidebar() {
 					{platformNavItems.map((item) => {
 						const active = isActive(item.href)
 						return (
-							<a
+							<Link
 								key={item.href}
-								href={item.href}
+								to={item.href}
 								className={cn(
 									"flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
 									active
@@ -107,7 +107,7 @@ function AdminSidebar() {
 							>
 								<item.icon className="h-4 w-4" />
 								{item.title}
-							</a>
+							</Link>
 						)
 					})}
 				</nav>

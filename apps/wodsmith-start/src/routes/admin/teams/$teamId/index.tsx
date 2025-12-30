@@ -24,6 +24,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/admin/teams/$teamId")
 
@@ -262,11 +263,12 @@ function AdminTeamOverviewPage() {
 															? `${membership.user.firstName} ${membership.user.lastName}`
 															: membership.user.email}
 													</p>
-													{membership.user.firstName && (
-														<p className="text-xs text-muted-foreground">
-															{membership.user.email}
-														</p>
-													)}
+													{membership.user.firstName &&
+														membership.user.lastName && (
+															<p className="text-xs text-muted-foreground">
+																{membership.user.email}
+															</p>
+														)}
 												</div>
 											</TableCell>
 											<TableCell>

@@ -111,12 +111,9 @@ const getPlateDimensions = (
 	const minHeight = baseHeight * 0.4
 	const minWidth = baseWidth * 0.5
 
-	if (weight >= 45 || weight >= 25)
-		return { height: baseHeight, width: baseWidth * 1.5 }
-	if (weight >= 35 || weight >= 20)
-		return { height: baseHeight * 0.95, width: baseWidth * 1.4 }
-	if (weight >= 25 || weight >= 15)
-		return { height: baseHeight * 0.9, width: baseWidth * 1.3 }
+	if (weight >= 45) return { height: baseHeight, width: baseWidth * 1.5 }
+	if (weight >= 35) return { height: baseHeight * 0.95, width: baseWidth * 1.4 }
+	if (weight >= 25) return { height: baseHeight * 0.9, width: baseWidth * 1.3 }
 	if (weight >= 15) return { height: baseHeight * 0.8, width: baseWidth * 1.2 }
 	if (weight >= 10) return { height: baseHeight * 0.7, width: baseWidth * 1.1 }
 	if (weight >= 5) return { height: baseHeight * 0.6, width: baseWidth }
@@ -437,7 +434,7 @@ function BarbellCalculatorPage() {
 						<div className="flex h-full items-center justify-center gap-2.5 rounded-none border-2 border-black bg-white p-2">
 							<Label
 								className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-									units === "lb" ? "bg-black text-black dark:text-black" : ""
+									units === "lb" ? "bg-black text-white dark:text-white" : ""
 								}`}
 								htmlFor="units-lb"
 							>
@@ -454,7 +451,7 @@ function BarbellCalculatorPage() {
 							</Label>
 							<Label
 								className={`flex-1 cursor-pointer rounded-none border-2 border-black bg-gray-300 px-2.5 py-1 text-center text-black text-sm dark:text-black ${
-									units === "kg" ? "bg-black text-black" : ""
+									units === "kg" ? "bg-black text-white dark:text-white" : ""
 								}`}
 								htmlFor="units-kg"
 							>

@@ -86,7 +86,7 @@ export async function requireTeamMembership(teamId: string): Promise<void> {
  *
  * @param teamId - The team ID to check permissions for
  * @param permission - The permission required (bypassed for site admins)
- * @returns Session - The current session if authorized
+ * @returns Promise<void> - Resolves if authorized
  * @throws Error if not authenticated or lacks both permission and admin role
  */
 export async function requireTeamPermissionOrAdmin(

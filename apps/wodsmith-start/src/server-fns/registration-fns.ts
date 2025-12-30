@@ -481,7 +481,7 @@ export const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 
 interface TeamMemberData {
 	id: string
-	oderId: string | null
+	userId: string | null
 	roleId: string
 	isCaptain: boolean
 	user: {
@@ -638,7 +638,7 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			const user = m.user
 			return {
 				id: m.id,
-				oderId: m.userId,
+				userId: m.userId,
 				roleId: m.roleId,
 				isCaptain: m.roleId === "captain",
 				user: user

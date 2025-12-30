@@ -4,40 +4,27 @@
  *
  * Allows organizers to manage waivers for their competition - create, edit, delete, reorder.
  * Uses the existing waiver-fns.ts server functions.
+ * Uses parent route loader data for competition data (avoids duplicate fetch).
  */
 
-import { createFileRoute } from "@tanstack/react-router"
-import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 
 import { WaiverList } from "./-components/waiver-list"
+
+// Get parent route API to access its loader data
+const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/waivers",
 )({
 	loader: async ({ params }) => {
-		// 1. Get competition details
-		const result = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
-
-		if (!result.competition) {
-			throw new Error("Competition not found")
-		}
-
-		const competition = result.competition
-
-		// 2. Get waivers for this competition
+		// Fetch waivers for this competition
 		const { waivers } = await getCompetitionWaiversFn({
 			data: { competitionId: params.competitionId },
 		})
 
 		return {
-			competition: {
-				id: competition.id,
-				name: competition.name,
-				organizingTeamId: competition.organizingTeamId,
-			},
 			waivers,
 		}
 	},
@@ -45,7 +32,9 @@ export const Route = createFileRoute(
 })
 
 function WaiversPage() {
-	const { competition, waivers } = Route.useLoaderData()
+	const { waivers } = Route.useLoaderData()
+	// Get competition from parent layout loader data
+	const { competition } = parentRoute.useLoaderData()
 
 	return (
 		<WaiverList

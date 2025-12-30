@@ -159,10 +159,14 @@ function TeamManagementPage() {
 		return teammate?.affiliateName || null
 	}
 
-	const copyInviteLink = (token: string) => {
+	const copyInviteLink = async (token: string) => {
 		const link = `${window.location.origin}/compete/invite/${token}`
-		navigator.clipboard.writeText(link)
-		toast.success("Invite link copied to clipboard")
+		try {
+			await navigator.clipboard.writeText(link)
+			toast.success("Invite link copied to clipboard")
+		} catch {
+			toast.error("Failed to copy invite link")
+		}
 	}
 
 	// For individual registrations, show simpler view

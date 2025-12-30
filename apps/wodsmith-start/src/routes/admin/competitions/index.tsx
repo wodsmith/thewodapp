@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { getAllCompetitionsForAdminFn } from "@/server-fns/admin-fns"
 import { AdminCompetitionsTable } from "./_components/admin-competitions-table"
 
@@ -17,9 +17,9 @@ function AdminCompetitionsPage() {
 		<div className="max-w-6xl">
 			{/* Breadcrumb */}
 			<nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-				<a href="/admin" className="hover:text-foreground">
+				<Link to="/admin" className="hover:text-foreground">
 					Admin
-				</a>
+				</Link>
 				<span>/</span>
 				<span className="text-foreground">Competitions</span>
 			</nav>

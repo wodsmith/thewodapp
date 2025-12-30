@@ -137,7 +137,7 @@ function SubscriptionsPage() {
 				(track: TeamProgrammingTrack) =>
 					track.name.toLowerCase().includes(query) ||
 					track.description?.toLowerCase().includes(query) ||
-					track.ownerTeam?.name.toLowerCase().includes(query),
+					track.ownerTeam?.name?.toLowerCase().includes(query),
 			),
 		}))
 	}, [teamSubscriptions, searchQuery])
