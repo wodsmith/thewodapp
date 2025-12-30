@@ -29,7 +29,6 @@ function HomePage() {
 				<MissionHero session={session} />
 				<ProductCards session={session} />
 				<InsightsFeatures />
-				{/* <SocialProof /> */}
 			</main>
 			<Footer />
 		</>
