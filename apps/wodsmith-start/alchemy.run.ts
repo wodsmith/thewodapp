@@ -119,7 +119,7 @@ import {
  * npx alchemy deploy --stage prod
  * ```
  */
-const app = await alchemy("wodsmith-start", {
+const app = await alchemy("wodsmith", {
 	/**
 	 * Deployment stage/environment name.
 	 *
@@ -180,7 +180,7 @@ const app = await alchemy("wodsmith-start", {
  *
  * @see {@link https://developers.cloudflare.com/d1/ D1 Documentation}
  */
-const db = await D1Database("wodsmith-db", {
+const db = await D1Database("db", {
 	/**
 	 * Directory containing Drizzle migration SQL files.
 	 * Migrations are applied in filename order on each deployment.
@@ -269,7 +269,7 @@ const r2Bucket = await R2Bucket("wodsmith-uploads")
  *
  * @see {@link https://tanstack.com/start/latest TanStack Start Docs}
  */
-const website = await TanStackStart("wodsmith-start", {
+const website = await TanStackStart("app", {
 	/**
 	 * Cloudflare resource bindings available to the application.
 	 *
