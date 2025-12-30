@@ -3,9 +3,6 @@
  * This is a minimal implementation for auth flow testing.
  * Full implementation will be migrated from wodsmith app.
  */
-
-import "server-only"
-
 import { and, eq, gt, isNull, or } from "drizzle-orm"
 import { getDb } from "@/db"
 import type { Entitlement } from "@/db/schema"

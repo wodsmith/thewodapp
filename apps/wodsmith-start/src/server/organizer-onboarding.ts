@@ -2,8 +2,6 @@
  * Organizer Onboarding Server Functions
  * Handles the workflow for teams to request and receive competition organizing access
  */
-import "server-only"
-
 import { and, desc, eq } from "drizzle-orm"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"

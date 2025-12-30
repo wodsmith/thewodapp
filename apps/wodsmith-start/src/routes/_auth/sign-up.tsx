@@ -204,7 +204,6 @@ function SignUpPage() {
 					</p>
 				</div>
 
-				{/* TODO: Add SSO buttons when OAuth is implemented */}
 				{/* TODO: Add Passkey registration when WebAuthn is implemented */}
 
 				{error && (

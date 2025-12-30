@@ -28,6 +28,7 @@ import { Route as CompeteOrganizerIndexRouteImport } from './routes/compete/orga
 import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
+import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/settings/index'
 import { Route as ProtectedMovementsIndexRouteImport } from './routes/_protected/movements/index'
 import { Route as ProtectedLogIndexRouteImport } from './routes/_protected/log/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
@@ -47,7 +48,11 @@ import { Route as CompeteOrganizerSeriesIndexRouteImport } from './routes/compet
 import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from './routes/compete/organizer/$competitionId/index'
 import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
 import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
+import { Route as ProtectedSettingsTeamsIndexRouteImport } from './routes/_protected/settings/teams/index'
+import { Route as ProtectedSettingsSessionsIndexRouteImport } from './routes/_protected/settings/sessions/index'
+import { Route as ProtectedSettingsSecurityIndexRouteImport } from './routes/_protected/settings/security/index'
 import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
+import { Route as ProtectedSettingsProfileIndexRouteImport } from './routes/_protected/settings/profile/index'
 import { Route as ProtectedMovementsNewIndexRouteImport } from './routes/_protected/movements/new/index'
 import { Route as ProtectedMovementsIdIndexRouteImport } from './routes/_protected/movements/$id/index'
 import { Route as ProtectedLogNewIndexRouteImport } from './routes/_protected/log/new/index'
@@ -72,6 +77,8 @@ import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
 import { Route as ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport } from './routes/_protected/workouts/$workoutId/schedule/index'
 import { Route as ProtectedWorkoutsWorkoutIdEditIndexRouteImport } from './routes/_protected/workouts/$workoutId/edit/index'
+import { Route as ProtectedSettingsTeamsCreateIndexRouteImport } from './routes/_protected/settings/teams/create/index'
+import { Route as ProtectedSettingsTeamsTeamSlugIndexRouteImport } from './routes/_protected/settings/teams/$teamSlug/index'
 import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './routes/_protected/settings/programming/$trackId/index'
 import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected/log/$id/edit/index'
 import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from './routes/compete/organizer/series/$groupId/edit'
@@ -169,6 +176,11 @@ const ProtectedTeamIndexRoute = ProtectedTeamIndexRouteImport.update({
   id: '/team/',
   path: '/team/',
   getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedSettingsIndexRoute = ProtectedSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProtectedSettingsRoute,
 } as any)
 const ProtectedMovementsIndexRoute = ProtectedMovementsIndexRouteImport.update({
   id: '/movements/',
@@ -270,10 +282,34 @@ const ProtectedWorkoutsWorkoutIdIndexRoute =
     path: '/workouts/$workoutId/',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedSettingsTeamsIndexRoute =
+  ProtectedSettingsTeamsIndexRouteImport.update({
+    id: '/teams/',
+    path: '/teams/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsSessionsIndexRoute =
+  ProtectedSettingsSessionsIndexRouteImport.update({
+    id: '/sessions/',
+    path: '/sessions/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsSecurityIndexRoute =
+  ProtectedSettingsSecurityIndexRouteImport.update({
+    id: '/security/',
+    path: '/security/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
 const ProtectedSettingsProgrammingIndexRoute =
   ProtectedSettingsProgrammingIndexRouteImport.update({
     id: '/programming/',
     path: '/programming/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsProfileIndexRoute =
+  ProtectedSettingsProfileIndexRouteImport.update({
+    id: '/profile/',
+    path: '/profile/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
 const ProtectedMovementsNewIndexRoute =
@@ -416,6 +452,18 @@ const ProtectedWorkoutsWorkoutIdEditIndexRoute =
     path: '/workouts/$workoutId/edit/',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedSettingsTeamsCreateIndexRoute =
+  ProtectedSettingsTeamsCreateIndexRouteImport.update({
+    id: '/teams/create/',
+    path: '/teams/create/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsTeamsTeamSlugIndexRoute =
+  ProtectedSettingsTeamsTeamSlugIndexRouteImport.update({
+    id: '/teams/$teamSlug/',
+    path: '/teams/$teamSlug/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
 const ProtectedSettingsProgrammingTrackIdIndexRoute =
   ProtectedSettingsProgrammingTrackIdIndexRouteImport.update({
     id: '/programming/$trackId/',
@@ -468,6 +516,7 @@ export interface FileRoutesByFullPath {
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/log': typeof ProtectedLogIndexRoute
   '/movements': typeof ProtectedMovementsIndexRoute
+  '/settings/': typeof ProtectedSettingsIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/compete/$slug/': typeof CompeteSlugIndexRoute
@@ -492,7 +541,11 @@ export interface FileRoutesByFullPath {
   '/log/new': typeof ProtectedLogNewIndexRoute
   '/movements/$id': typeof ProtectedMovementsIdIndexRoute
   '/movements/new': typeof ProtectedMovementsNewIndexRoute
+  '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
+  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
+  '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
+  '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
@@ -502,6 +555,8 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
   '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  '/settings/teams/$teamSlug': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+  '/settings/teams/create': typeof ProtectedSettingsTeamsCreateIndexRoute
   '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
@@ -516,7 +571,6 @@ export interface FileRoutesByTo {
   '/team-invite': typeof AuthTeamInviteRoute
   '/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard': typeof ProtectedDashboardRoute
-  '/settings': typeof ProtectedSettingsRouteWithChildren
   '/compete': typeof CompeteIndexRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
@@ -531,6 +585,7 @@ export interface FileRoutesByTo {
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/log': typeof ProtectedLogIndexRoute
   '/movements': typeof ProtectedMovementsIndexRoute
+  '/settings': typeof ProtectedSettingsIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/compete/$slug': typeof CompeteSlugIndexRoute
@@ -554,7 +609,11 @@ export interface FileRoutesByTo {
   '/log/new': typeof ProtectedLogNewIndexRoute
   '/movements/$id': typeof ProtectedMovementsIdIndexRoute
   '/movements/new': typeof ProtectedMovementsNewIndexRoute
+  '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
+  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
+  '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
+  '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdIndexRoute
@@ -564,6 +623,8 @@ export interface FileRoutesByTo {
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
   '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  '/settings/teams/$teamSlug': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+  '/settings/teams/create': typeof ProtectedSettingsTeamsCreateIndexRoute
   '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
@@ -600,6 +661,7 @@ export interface FileRoutesById {
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
   '/_protected/log/': typeof ProtectedLogIndexRoute
   '/_protected/movements/': typeof ProtectedMovementsIndexRoute
+  '/_protected/settings/': typeof ProtectedSettingsIndexRoute
   '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/compete/$slug/': typeof CompeteSlugIndexRoute
@@ -624,7 +686,11 @@ export interface FileRoutesById {
   '/_protected/log/new/': typeof ProtectedLogNewIndexRoute
   '/_protected/movements/$id/': typeof ProtectedMovementsIdIndexRoute
   '/_protected/movements/new/': typeof ProtectedMovementsNewIndexRoute
+  '/_protected/settings/profile/': typeof ProtectedSettingsProfileIndexRoute
   '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
+  '/_protected/settings/security/': typeof ProtectedSettingsSecurityIndexRoute
+  '/_protected/settings/sessions/': typeof ProtectedSettingsSessionsIndexRoute
+  '/_protected/settings/teams/': typeof ProtectedSettingsTeamsIndexRoute
   '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
   '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
@@ -634,6 +700,8 @@ export interface FileRoutesById {
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
   '/_protected/log/$id/edit/': typeof ProtectedLogIdEditIndexRoute
   '/_protected/settings/programming/$trackId/': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  '/_protected/settings/teams/$teamSlug/': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+  '/_protected/settings/teams/create/': typeof ProtectedSettingsTeamsCreateIndexRoute
   '/_protected/workouts/$workoutId/edit/': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/_protected/workouts/$workoutId/schedule/': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
   '/compete/organizer/$competitionId/events/': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
@@ -669,6 +737,7 @@ export interface FileRouteTypes {
     | '/demo/start/server-funcs'
     | '/log'
     | '/movements'
+    | '/settings/'
     | '/team'
     | '/workouts'
     | '/compete/$slug/'
@@ -693,7 +762,11 @@ export interface FileRouteTypes {
     | '/log/new'
     | '/movements/$id'
     | '/movements/new'
+    | '/settings/profile'
     | '/settings/programming'
+    | '/settings/security'
+    | '/settings/sessions'
+    | '/settings/teams'
     | '/workouts/$workoutId'
     | '/workouts/new'
     | '/compete/organizer/$competitionId/'
@@ -703,6 +776,8 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/edit'
     | '/log/$id/edit'
     | '/settings/programming/$trackId'
+    | '/settings/teams/$teamSlug'
+    | '/settings/teams/create'
     | '/workouts/$workoutId/edit'
     | '/workouts/$workoutId/schedule'
     | '/compete/organizer/$competitionId/events'
@@ -717,7 +792,6 @@ export interface FileRouteTypes {
     | '/team-invite'
     | '/verify-email'
     | '/dashboard'
-    | '/settings'
     | '/compete'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
@@ -732,6 +806,7 @@ export interface FileRouteTypes {
     | '/demo/start/server-funcs'
     | '/log'
     | '/movements'
+    | '/settings'
     | '/team'
     | '/workouts'
     | '/compete/$slug'
@@ -755,7 +830,11 @@ export interface FileRouteTypes {
     | '/log/new'
     | '/movements/$id'
     | '/movements/new'
+    | '/settings/profile'
     | '/settings/programming'
+    | '/settings/security'
+    | '/settings/sessions'
+    | '/settings/teams'
     | '/workouts/$workoutId'
     | '/workouts/new'
     | '/compete/organizer/$competitionId'
@@ -765,6 +844,8 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/edit'
     | '/log/$id/edit'
     | '/settings/programming/$trackId'
+    | '/settings/teams/$teamSlug'
+    | '/settings/teams/create'
     | '/workouts/$workoutId/edit'
     | '/workouts/$workoutId/schedule'
     | '/compete/organizer/$competitionId/events'
@@ -800,6 +881,7 @@ export interface FileRouteTypes {
     | '/demo/start/server-funcs'
     | '/_protected/log/'
     | '/_protected/movements/'
+    | '/_protected/settings/'
     | '/_protected/team/'
     | '/_protected/workouts/'
     | '/compete/$slug/'
@@ -824,7 +906,11 @@ export interface FileRouteTypes {
     | '/_protected/log/new/'
     | '/_protected/movements/$id/'
     | '/_protected/movements/new/'
+    | '/_protected/settings/profile/'
     | '/_protected/settings/programming/'
+    | '/_protected/settings/security/'
+    | '/_protected/settings/sessions/'
+    | '/_protected/settings/teams/'
     | '/_protected/workouts/$workoutId/'
     | '/_protected/workouts/new/'
     | '/compete/organizer/$competitionId/'
@@ -834,6 +920,8 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/edit'
     | '/_protected/log/$id/edit/'
     | '/_protected/settings/programming/$trackId/'
+    | '/_protected/settings/teams/$teamSlug/'
+    | '/_protected/settings/teams/create/'
     | '/_protected/workouts/$workoutId/edit/'
     | '/_protected/workouts/$workoutId/schedule/'
     | '/compete/organizer/$competitionId/events/'
@@ -989,6 +1077,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedTeamIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/settings/': {
+      id: '/_protected/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof ProtectedSettingsIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
     '/_protected/movements/': {
       id: '/_protected/movements/'
       path: '/movements'
@@ -1122,11 +1217,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/settings/teams/': {
+      id: '/_protected/settings/teams/'
+      path: '/teams'
+      fullPath: '/settings/teams'
+      preLoaderRoute: typeof ProtectedSettingsTeamsIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/sessions/': {
+      id: '/_protected/settings/sessions/'
+      path: '/sessions'
+      fullPath: '/settings/sessions'
+      preLoaderRoute: typeof ProtectedSettingsSessionsIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/security/': {
+      id: '/_protected/settings/security/'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof ProtectedSettingsSecurityIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
     '/_protected/settings/programming/': {
       id: '/_protected/settings/programming/'
       path: '/programming'
       fullPath: '/settings/programming'
       preLoaderRoute: typeof ProtectedSettingsProgrammingIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/profile/': {
+      id: '/_protected/settings/profile/'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof ProtectedSettingsProfileIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/movements/new/': {
@@ -1297,6 +1420,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/settings/teams/create/': {
+      id: '/_protected/settings/teams/create/'
+      path: '/teams/create'
+      fullPath: '/settings/teams/create'
+      preLoaderRoute: typeof ProtectedSettingsTeamsCreateIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/teams/$teamSlug/': {
+      id: '/_protected/settings/teams/$teamSlug/'
+      path: '/teams/$teamSlug'
+      fullPath: '/settings/teams/$teamSlug'
+      preLoaderRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
     '/_protected/settings/programming/$trackId/': {
       id: '/_protected/settings/programming/$trackId/'
       path: '/programming/$trackId'
@@ -1349,15 +1486,31 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface ProtectedSettingsRouteChildren {
+  ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
+  ProtectedSettingsProfileIndexRoute: typeof ProtectedSettingsProfileIndexRoute
   ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
+  ProtectedSettingsSecurityIndexRoute: typeof ProtectedSettingsSecurityIndexRoute
+  ProtectedSettingsSessionsIndexRoute: typeof ProtectedSettingsSessionsIndexRoute
+  ProtectedSettingsTeamsIndexRoute: typeof ProtectedSettingsTeamsIndexRoute
   ProtectedSettingsProgrammingTrackIdIndexRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRoute
+  ProtectedSettingsTeamsTeamSlugIndexRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRoute
+  ProtectedSettingsTeamsCreateIndexRoute: typeof ProtectedSettingsTeamsCreateIndexRoute
 }
 
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
+  ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
+  ProtectedSettingsProfileIndexRoute: ProtectedSettingsProfileIndexRoute,
   ProtectedSettingsProgrammingIndexRoute:
     ProtectedSettingsProgrammingIndexRoute,
+  ProtectedSettingsSecurityIndexRoute: ProtectedSettingsSecurityIndexRoute,
+  ProtectedSettingsSessionsIndexRoute: ProtectedSettingsSessionsIndexRoute,
+  ProtectedSettingsTeamsIndexRoute: ProtectedSettingsTeamsIndexRoute,
   ProtectedSettingsProgrammingTrackIdIndexRoute:
     ProtectedSettingsProgrammingTrackIdIndexRoute,
+  ProtectedSettingsTeamsTeamSlugIndexRoute:
+    ProtectedSettingsTeamsTeamSlugIndexRoute,
+  ProtectedSettingsTeamsCreateIndexRoute:
+    ProtectedSettingsTeamsCreateIndexRoute,
 }
 
 const ProtectedSettingsRouteWithChildren =

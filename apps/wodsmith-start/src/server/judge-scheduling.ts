@@ -1,5 +1,3 @@
-import "server-only"
-
 /**
  * Calculate the minimum number of unique judges required to achieve full coverage.
  * Uses rotation patterns to determine optimal judge count.
