@@ -76,15 +76,28 @@ const config: Config = {
 			style: "dark",
 			links: [
 				{
-					title: "Documentation",
+					title: "Learn",
 					items: [
 						{
-							label: "Getting Started",
-							to: "/getting-started/quick-start",
+							label: "Tutorials",
+							to: "/category/tutorials",
 						},
 						{
-							label: "Features",
-							to: "/features/workouts",
+							label: "How-to Guides",
+							to: "/category/how-to-guides",
+						},
+					],
+				},
+				{
+					title: "Understand",
+					items: [
+						{
+							label: "Concepts",
+							to: "/category/concepts",
+						},
+						{
+							label: "Reference",
+							to: "/category/reference",
 						},
 					],
 				},
@@ -95,15 +108,6 @@ const config: Config = {
 							label: "WodSmith App",
 							href: "https://app.wadsmith.com",
 						},
-						{
-							label: "Pricing",
-							href: "https://wadsmith.com/pricing",
-						},
-					],
-				},
-				{
-					title: "More",
-					items: [
 						{
 							label: "GitHub",
 							href: "https://github.com/wodsmith/thewodapp",

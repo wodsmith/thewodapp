@@ -5,32 +5,38 @@ slug: /
 
 # Welcome to WodSmith
 
-WodSmith is a comprehensive workout management platform designed specifically for CrossFit gyms and fitness communities. This documentation will help you understand and make the most of WodSmith's features.
+WodSmith is a comprehensive workout management and competition platform designed for CrossFit gyms, athletes, and event organizers.
 
-## What is WodSmith?
+## Choose Your Path
 
-WodSmith helps gym owners, coaches, and athletes manage their entire fitness operation:
+Select the documentation that matches your role:
 
-- **Workout Management** - Create, organize, and track workouts with full CrossFit scoring support
-- **Programming Tracks** - Build and schedule workout programs for your members
-- **Team Management** - Multi-tenant team system for gyms and affiliates
-- **Competitions** - Run throwdowns and competitions with athlete registration and scoring
-- **Athlete Profiles** - Track progress, PRs, and benchmark performances
+### For Athletes
 
-## Quick Start
+Competing in or registering for a competition?
 
-Get started with WodSmith by exploring these sections:
+- [**Register for a Competition**](/tutorials/athletes/first-competition) - Step-by-step guide to your first registration
+- [**View Your Schedule**](/how-to/athletes/view-schedule) - Find your heat times and workout order
+- [**Track Your Results**](/how-to/athletes/check-standings) - Follow the leaderboard during events
 
-- [Getting Started](/category/getting-started) - Learn the basics and core concepts
-- [Features](/category/features) - Explore all WodSmith capabilities
-- [Guides](/category/guides) - Step-by-step tutorials for common tasks
+### For Gym Owners & Coaches
 
-## For Developers
+Managing workouts and programming for your gym?
 
-WodSmith is built with modern web technologies:
+- [**Set Up Your Gym**](/tutorials/gym-owners/getting-started) - Create your team and start programming
+- [**Create Workouts**](/how-to/coaches/create-workout) - Build AMRAPs, For Time, EMOMs, and more
+- [**Schedule Programming**](/how-to/coaches/schedule-programming) - Organize your training calendar
 
-- **Frontend**: React 19, TanStack Router/Start, Tailwind CSS
-- **Backend**: Cloudflare Workers, D1 Database, Drizzle ORM
-- **Authentication**: Lucia Auth with WebAuthn support
+### For Competition Organizers
 
-Visit our [GitHub repository](https://github.com/wodsmith/thewodapp) for more technical details.
+Running a throwdown or multi-gym event?
+
+- [**Create Your First Competition**](/tutorials/organizers/first-competition) - End-to-end setup guide
+- [**Manage Registrations**](/how-to/organizers/manage-registrations) - Handle athlete signups
+- [**Run Event Day**](/how-to/organizers/event-day) - Heats, scoring, and leaderboards
+
+## Concepts & Reference
+
+- [**Core Concepts**](/concepts/overview) - Understand how WodSmith works
+- [**Feature Reference**](/category/reference) - Detailed specifications for all features
+- [**Scoring Rules**](/reference/scoring) - How scores and rankings are calculated
