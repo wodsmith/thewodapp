@@ -12,6 +12,31 @@ Explanation operates at a higher, broader perspective than tutorials, how-to gui
 
 Explanation is "characterised by its distance from the active concerns of the practitioner." While potentially less urgent than other documentation types, it remains equally important for building robust understanding.
 
+## Critical Distinction: Explanation vs Reference
+
+Both provide knowledge (cognition), but for fundamentally different contexts:
+
+| Test Question | If Yes → Explanation | If No → Reference |
+|---------------|---------------------|-------------------|
+| Could you imagine **reading this in the bath**? | ✓ | |
+| Does it primarily answer **"why?" questions**? | ✓ | |
+| Would someone turn to this **while actively working**? | | ✓ |
+| Is it **lists, tables, or technical specs**? | | ✓ |
+
+**Key insight**: A tidal chart with tables of figures is clearly reference. An article explaining why there are tides and how they behave is clearly explanation.
+
+**Explanation examples:**
+- "About user authentication" (why the system works this way)
+- "Database architecture" (how components relate)
+- "Design decisions in the permission system"
+- "The evolution of our API design"
+
+**Reference examples (NOT explanation):**
+- API endpoint documentation
+- Configuration option lists
+- Error code tables
+- Command syntax specifications
+
 ## Essential Guidelines
 
 ### Make Connections
