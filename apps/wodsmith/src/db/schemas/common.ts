@@ -82,3 +82,7 @@ export const createSponsorId = () => `spnsr_${createId()}`
 
 // Organizer request ID generators
 export const createOrganizerRequestId = () => `oreq_${createId()}`
+
+// Waiver ID generators
+export const createWaiverId = () => `waiv_${createId()}`
+export const createWaiverSignatureId = () => `wsig_${createId()}`

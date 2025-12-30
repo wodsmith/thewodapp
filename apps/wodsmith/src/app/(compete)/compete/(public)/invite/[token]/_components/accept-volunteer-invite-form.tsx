@@ -7,6 +7,7 @@ import posthog from "posthog-js"
 import { toast } from "sonner"
 import { acceptVolunteerInviteAction } from "@/actions/volunteer-actions"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
@@ -65,11 +66,27 @@ export function AcceptVolunteerInviteForm({
 			availabilityNotes:
 				(formData.get("availabilityNotes") as string) || undefined,
 			credentials: (formData.get("credentials") as string) || undefined,
+			signupPhone: (formData.get("phone") as string) || undefined,
 		})
 	}
 
 	return (
 		<form action={handleSubmit} className="space-y-6">
+			{/* Phone Number */}
+			<div className="space-y-2">
+				<Label htmlFor="phone">Phone Number</Label>
+				<Input
+					type="tel"
+					id="phone"
+					name="phone"
+					placeholder="(555) 123-4567"
+					disabled={isPending}
+				/>
+				<p className="text-sm text-muted-foreground">
+					Optional - for day-of coordination
+				</p>
+			</div>
+
 			{/* Credentials */}
 			<div className="space-y-2">
 				<Label htmlFor="credentials">Certifications / Credentials</Label>

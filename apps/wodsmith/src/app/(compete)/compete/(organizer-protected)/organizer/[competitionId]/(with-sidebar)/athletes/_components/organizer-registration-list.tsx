@@ -26,6 +26,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import type { Waiver } from "@/db/schemas/waivers"
+import { WaiverStatusBadge } from "./waiver-status-badge"
 
 interface TeamMember {
 	id: string
@@ -38,6 +40,13 @@ interface TeamMember {
 		email: string | null
 		avatar: string | null
 	} | null
+}
+
+interface WaiverSignature {
+	id: string
+	waiverId: string
+	userId: string
+	signedAt: Date
 }
 
 interface Registration {
@@ -65,6 +74,7 @@ interface Registration {
 		memberships?: TeamMember[]
 		[key: string]: unknown
 	} | null
+	waiverSignatures?: WaiverSignature[]
 }
 
 interface Division {
@@ -77,14 +87,18 @@ interface OrganizerRegistrationListProps {
 	competitionId: string
 	registrations: Registration[]
 	divisions: Division[]
+	waivers: Waiver[]
 	currentDivisionFilter?: string
+	currentWaiverStatusFilter?: "all" | "complete" | "pending"
 }
 
 export function OrganizerRegistrationList({
 	competitionId,
 	registrations,
 	divisions,
+	waivers,
 	currentDivisionFilter,
+	currentWaiverStatusFilter,
 }: OrganizerRegistrationListProps) {
 	const router = useRouter()
 	const searchParams = useSearchParams()
@@ -95,6 +109,18 @@ export function OrganizerRegistrationList({
 			params.delete("division")
 		} else {
 			params.set("division", value)
+		}
+		router.push(
+			`/compete/organizer/${competitionId}/athletes?${params.toString()}`,
+		)
+	}
+
+	const handleWaiverStatusChange = (value: string) => {
+		const params = new URLSearchParams(searchParams.toString())
+		if (value === "all") {
+			params.delete("waiverStatus")
+		} else {
+			params.set("waiverStatus", value)
 		}
 		router.push(
 			`/compete/organizer/${competitionId}/athletes?${params.toString()}`,
@@ -125,7 +151,40 @@ export function OrganizerRegistrationList({
 		}
 	}
 
-	if (registrations.length === 0 && !currentDivisionFilter) {
+	// Check if a registration has all required waivers signed
+	const hasAllWaiversSigned = (registration: Registration): boolean => {
+		const requiredWaivers = waivers.filter((w) => w.required)
+		if (requiredWaivers.length === 0) return true
+
+		const signedWaiverIds =
+			registration.waiverSignatures?.map((s) => s.waiverId) ?? []
+		return requiredWaivers.every((w) => signedWaiverIds.includes(w.id))
+	}
+
+	// Filter registrations by waiver status
+	const filteredRegistrations = registrations.filter((registration) => {
+		if (!currentWaiverStatusFilter || currentWaiverStatusFilter === "all") {
+			return true
+		}
+
+		const allSigned = hasAllWaiversSigned(registration)
+
+		if (currentWaiverStatusFilter === "complete") {
+			return allSigned
+		}
+
+		if (currentWaiverStatusFilter === "pending") {
+			return !allSigned
+		}
+
+		return true
+	})
+
+	if (
+		registrations.length === 0 &&
+		!currentDivisionFilter &&
+		!currentWaiverStatusFilter
+	) {
 		return (
 			<Card>
 				<CardHeader>
@@ -158,14 +217,30 @@ export function OrganizerRegistrationList({
 						))}
 					</SelectContent>
 				</Select>
+
+				{waivers.some((w) => w.required) && (
+					<Select
+						value={currentWaiverStatusFilter || "all"}
+						onValueChange={handleWaiverStatusChange}
+					>
+						<SelectTrigger className="w-[200px]">
+							<SelectValue placeholder="All Waiver Statuses" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Waiver Statuses</SelectItem>
+							<SelectItem value="complete">Complete</SelectItem>
+							<SelectItem value="pending">Pending</SelectItem>
+						</SelectContent>
+					</Select>
+				)}
 			</div>
 
-			{registrations.length === 0 ? (
+			{filteredRegistrations.length === 0 ? (
 				<Card>
 					<CardHeader>
 						<CardTitle>No Registrations</CardTitle>
 						<CardDescription>
-							No athletes are registered in this division.
+							No athletes match the selected filters.
 						</CardDescription>
 					</CardHeader>
 				</Card>
@@ -179,6 +254,7 @@ export function OrganizerRegistrationList({
 									<TableHead>Athlete</TableHead>
 									<TableHead>Division</TableHead>
 									<TableHead>Team</TableHead>
+									<TableHead>Waivers</TableHead>
 									<TableHead>
 										<span className="flex items-center gap-1">
 											<Calendar className="h-3.5 w-3.5" />
@@ -188,7 +264,7 @@ export function OrganizerRegistrationList({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{registrations.map((registration, index) => {
+								{filteredRegistrations.map((registration, index) => {
 									const pendingCount = getPendingCount(
 										registration.pendingTeammates,
 									)
@@ -289,6 +365,16 @@ export function OrganizerRegistrationList({
 												) : (
 													<span className="text-muted-foreground">—</span>
 												)}
+											</TableCell>
+											<TableCell className="align-top pt-4">
+												<WaiverStatusBadge
+													requiredWaivers={waivers}
+													signedWaiverIds={
+														registration.waiverSignatures?.map(
+															(s) => s.waiverId,
+														) ?? []
+													}
+												/>
 											</TableCell>
 											<TableCell className="text-muted-foreground text-sm align-top pt-4">
 												{formatDate(registration.registeredAt)}

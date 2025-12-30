@@ -1370,6 +1370,7 @@ export async function getTeammateInvite(inviteToken: string) {
 
 	// Get the captain info from the registration
 	let captain = null
+	let registrationId: string | null = null
 	if (competitionContext.competitionId) {
 		const { competitionRegistrationsTable } = await import("@/db/schema")
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
@@ -1388,6 +1389,7 @@ export async function getTeammateInvite(inviteToken: string) {
 		)
 
 		if (registration) {
+			registrationId = registration.id
 			const captainUser = Array.isArray(registration.captain)
 				? registration.captain[0]
 				: registration.captain
@@ -1407,6 +1409,7 @@ export async function getTeammateInvite(inviteToken: string) {
 		email: invitation.email,
 		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
 		acceptedAt: invitation.acceptedAt ? new Date(invitation.acceptedAt) : null,
+		registrationId,
 		team: {
 			id: team.id,
 			name: team.name,
@@ -1783,6 +1786,14 @@ export async function getCompetitionRegistrations(
 							},
 						},
 					},
+				},
+			},
+			waiverSignatures: {
+				columns: {
+					id: true,
+					waiverId: true,
+					userId: true,
+					signedAt: true,
 				},
 			},
 		},
