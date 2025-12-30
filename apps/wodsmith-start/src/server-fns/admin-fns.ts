@@ -3,18 +3,18 @@
  * Functions for site-wide admin operations (require ADMIN role)
  */
 
-import { createServerFn } from "@tanstack/react-start";
-import type { Competition, CompetitionGroup } from "@/db/schemas/competitions";
-import type { Team } from "@/db/schemas/teams";
+import { createServerFn } from "@tanstack/react-start"
+import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import type { Team } from "@/db/schemas/teams"
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface AdminCompetition extends Competition {
-  organizingTeam: Team | null;
-  competitionTeam: Team | null;
-  group: CompetitionGroup | null;
+	organizingTeam: Team | null
+	competitionTeam: Team | null
+	group: CompetitionGroup | null
 }
 
 // ============================================================================
@@ -27,33 +27,33 @@ export interface AdminCompetition extends Competition {
  * Ordered by createdAt DESC to show newest first.
  */
 export const getAllCompetitionsForAdminFn = createServerFn({
-  method: "GET",
+	method: "GET",
 }).handler(async () => {
-  const { requireAdmin } = await import("@/utils/auth");
-  const { getDb } = await import("@/db");
-  const { competitionsTable } = await import("@/db/schemas/competitions");
-  const { desc } = await import("drizzle-orm");
+	const { requireAdmin } = await import("@/utils/auth")
+	const { getDb } = await import("@/db")
+	const { competitionsTable } = await import("@/db/schemas/competitions")
+	const { desc } = await import("drizzle-orm")
 
-  // Require site admin role
-  const session = await requireAdmin();
-  if (!session) {
-    throw new Error("Not authorized - admin access required");
-  }
+	// Require site admin role
+	const session = await requireAdmin()
+	if (!session) {
+		throw new Error("Not authorized - admin access required")
+	}
 
-  const db = getDb();
+	const db = getDb()
 
-  // Query all competitions with relations using Drizzle query builder
-  const competitions = await db.query.competitionsTable.findMany({
-    with: {
-      competitionTeam: true,
-      group: true,
-      organizingTeam: true,
-    },
-    orderBy: [desc(competitionsTable.createdAt)],
-  });
+	// Query all competitions with relations using Drizzle query builder
+	const competitions = await db.query.competitionsTable.findMany({
+		with: {
+			competitionTeam: true,
+			group: true,
+			organizingTeam: true,
+		},
+		orderBy: [desc(competitionsTable.createdAt)],
+	})
 
-  // Cast to AdminCompetition type
-  return {
-    competitions: competitions as AdminCompetition[],
-  };
-});
+	// Cast to AdminCompetition type
+	return {
+		competitions: competitions as AdminCompetition[],
+	}
+})

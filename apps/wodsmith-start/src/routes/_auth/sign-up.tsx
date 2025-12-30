@@ -1,222 +1,222 @@
-import {standardSchemaResolver} from '@hookform/resolvers/standard-schema'
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import {
-  createFileRoute,
-  Link,
-  redirect,
-  useRouter,
-} from '@tanstack/react-router'
-import {useServerFn} from '@tanstack/react-start'
-import {useState} from 'react'
-import {useForm} from 'react-hook-form'
-import {Button} from '@/components/ui/button'
+	createFileRoute,
+	Link,
+	redirect,
+	useRouter,
+} from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { Button } from "@/components/ui/button"
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {REDIRECT_AFTER_SIGN_IN} from '@/constants'
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import {
-  getSessionFn,
-  signUpFn,
-  signUpSchema,
-  type SignUpInput,
-} from '@/server-fns/auth-fns'
+	getSessionFn,
+	signUpFn,
+	signUpSchema,
+	type SignUpInput,
+} from "@/server-fns/auth-fns"
 
-export const Route = createFileRoute('/_auth/sign-up')({
-  component: SignUpPage,
-  validateSearch: (search: Record<string, unknown>) => {
-    return {
-      redirect: (search.redirect as string) || REDIRECT_AFTER_SIGN_IN,
-    }
-  },
-  beforeLoad: async ({search}) => {
-    const session = await getSessionFn()
-    const redirectPath =
-      (search as {redirect?: string}).redirect || REDIRECT_AFTER_SIGN_IN
+export const Route = createFileRoute("/_auth/sign-up")({
+	component: SignUpPage,
+	validateSearch: (search: Record<string, unknown>) => {
+		return {
+			redirect: (search.redirect as string) || REDIRECT_AFTER_SIGN_IN,
+		}
+	},
+	beforeLoad: async ({ search }) => {
+		const session = await getSessionFn()
+		const redirectPath =
+			(search as { redirect?: string }).redirect || REDIRECT_AFTER_SIGN_IN
 
-    if (session) {
-      throw redirect({to: redirectPath})
-    }
-  },
+		if (session) {
+			throw redirect({ to: redirectPath })
+		}
+	},
 })
 
 function SignUpPage() {
-  const router = useRouter()
-  const {redirect: redirectPath} = Route.useSearch()
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+	const router = useRouter()
+	const { redirect: redirectPath } = Route.useSearch()
+	const [error, setError] = useState<string | null>(null)
+	const [isLoading, setIsLoading] = useState(false)
 
-  // Use useServerFn for client-side calls
-  const signUp = useServerFn(signUpFn)
+	// Use useServerFn for client-side calls
+	const signUp = useServerFn(signUpFn)
 
-  const form = useForm<SignUpInput>({
-    resolver: standardSchemaResolver(signUpSchema),
-    defaultValues: {
-      email: '',
-      firstName: '',
-      lastName: '',
-      password: '',
-    },
-  })
+	const form = useForm<SignUpInput>({
+		resolver: standardSchemaResolver(signUpSchema),
+		defaultValues: {
+			email: "",
+			firstName: "",
+			lastName: "",
+			password: "",
+		},
+	})
 
-  const onSubmit = async (data: SignUpInput) => {
-    try {
-      setIsLoading(true)
-      setError(null)
+	const onSubmit = async (data: SignUpInput) => {
+		try {
+			setIsLoading(true)
+			setError(null)
 
-      await signUp({data})
+			await signUp({ data })
 
-      // TODO: Add analytics tracking (PostHog)
-      // posthog.identify(userId, { email: data.email, first_name: data.firstName, last_name: data.lastName })
-      // posthog.capture('user_signed_up', { auth_method: 'email_password' })
+			// TODO: Add analytics tracking (PostHog)
+			// posthog.identify(userId, { email: data.email, first_name: data.firstName, last_name: data.lastName })
+			// posthog.capture('user_signed_up', { auth_method: 'email_password' })
 
-      // Redirect to the intended destination
-      router.navigate({to: redirectPath})
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Sign-up failed'
-      setError(errorMessage)
-      console.error('Sign-up error:', err)
+			// Redirect to the intended destination
+			router.navigate({ to: redirectPath })
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Sign-up failed"
+			setError(errorMessage)
+			console.error("Sign-up error:", err)
 
-      // TODO: Add error analytics tracking
-      // posthog.capture('user_signed_up_failed', { error_message: errorMessage })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+			// TODO: Add error analytics tracking
+			// posthog.capture('user_signed_up_failed', { error_message: errorMessage })
+		} finally {
+			setIsLoading(false)
+		}
+	}
 
-  return (
-    <div className="min-h-[90vh] flex items-center px-4 justify-center bg-background my-6 md:my-10">
-      <div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl md:text-4xl font-mono font-bold tracking-tight text-primary uppercase">
-            CREATE ACCOUNT
-          </h2>
-          <p className="mt-4 text-primary font-mono">
-            ALREADY HAVE AN ACCOUNT?{' '}
-            <Link
-              to="/sign-in"
-              search={{redirect: redirectPath}}
-              className="font-bold text-orange underline hover:no-underline"
-            >
-              SIGN IN
-            </Link>
-          </p>
-        </div>
+	return (
+		<div className="min-h-[90vh] flex items-center px-4 justify-center bg-background my-6 md:my-10">
+			<div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary">
+				<div className="text-center">
+					<h2 className="mt-6 text-3xl md:text-4xl font-mono font-bold tracking-tight text-primary uppercase">
+						CREATE ACCOUNT
+					</h2>
+					<p className="mt-4 text-primary font-mono">
+						ALREADY HAVE AN ACCOUNT?{" "}
+						<Link
+							to="/sign-in"
+							search={{ redirect: redirectPath }}
+							className="font-bold text-orange underline hover:no-underline"
+						>
+							SIGN IN
+						</Link>
+					</p>
+				</div>
 
-        {/* TODO: Add Passkey registration when WebAuthn is implemented */}
+				{/* TODO: Add Passkey registration when WebAuthn is implemented */}
 
-        {error && (
-          <div className="p-4 bg-red-500/10 border-2 border-red-500 text-red-500 font-mono text-sm">
-            {error}
-          </div>
-        )}
+				{error && (
+					<div className="p-4 bg-red-500/10 border-2 border-red-500 text-red-500 font-mono text-sm">
+						{error}
+					</div>
+				)}
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="mt-8 space-y-4"
-          >
-            <FormField
-              control={form.control}
-              name="email"
-              render={({field}) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="EMAIL ADDRESS"
-                      disabled={isLoading}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+				<Form {...form}>
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="mt-8 space-y-4"
+					>
+						<FormField
+							control={form.control}
+							name="email"
+							render={({ field }) => (
+								<FormItem>
+									<FormControl>
+										<Input
+											type="email"
+											placeholder="EMAIL ADDRESS"
+											disabled={isLoading}
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
-            <FormField
-              control={form.control}
-              name="firstName"
-              render={({field}) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="FIRST NAME"
-                      disabled={isLoading}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+						<FormField
+							control={form.control}
+							name="firstName"
+							render={({ field }) => (
+								<FormItem>
+									<FormControl>
+										<Input
+											placeholder="FIRST NAME"
+											disabled={isLoading}
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
-            <FormField
-              control={form.control}
-              name="lastName"
-              render={({field}) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="LAST NAME"
-                      disabled={isLoading}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+						<FormField
+							control={form.control}
+							name="lastName"
+							render={({ field }) => (
+								<FormItem>
+									<FormControl>
+										<Input
+											placeholder="LAST NAME"
+											disabled={isLoading}
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({field}) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="PASSWORD"
-                      disabled={isLoading}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+						<FormField
+							control={form.control}
+							name="password"
+							render={({ field }) => (
+								<FormItem>
+									<FormControl>
+										<Input
+											type="password"
+											placeholder="PASSWORD"
+											disabled={isLoading}
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
-            {/* TODO: Add Captcha component when Turnstile is implemented */}
+						{/* TODO: Add Captcha component when Turnstile is implemented */}
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
-            </Button>
-          </form>
-        </Form>
+						<Button type="submit" className="w-full" disabled={isLoading}>
+							{isLoading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
+						</Button>
+					</form>
+				</Form>
 
-        <div className="mt-8">
-          <p className="text-xs text-center text-primary font-mono">
-            BY SIGNING UP, YOU AGREE TO OUR{' '}
-            {/* TODO: Add terms and privacy routes */}
-            <a
-              href="/terms"
-              className="font-bold text-orange underline hover:no-underline"
-            >
-              TERMS OF SERVICE
-            </a>{' '}
-            AND{' '}
-            <a
-              href="/privacy"
-              className="font-bold text-orange underline hover:no-underline"
-            >
-              PRIVACY POLICY
-            </a>
-          </p>
-        </div>
-      </div>
-    </div>
-  )
+				<div className="mt-8">
+					<p className="text-xs text-center text-primary font-mono">
+						BY SIGNING UP, YOU AGREE TO OUR{" "}
+						{/* TODO: Add terms and privacy routes */}
+						<a
+							href="/terms"
+							className="font-bold text-orange underline hover:no-underline"
+						>
+							TERMS OF SERVICE
+						</a>{" "}
+						AND{" "}
+						<a
+							href="/privacy"
+							className="font-bold text-orange underline hover:no-underline"
+						>
+							PRIVACY POLICY
+						</a>
+					</p>
+				</div>
+			</div>
+		</div>
+	)
 }

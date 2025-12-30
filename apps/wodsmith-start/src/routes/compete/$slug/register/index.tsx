@@ -54,4 +54,4 @@
  */
 
 // Re-export the WaiverSigningStep component for use in the registration flow
-export {WaiverSigningStep} from './-components/waiver-signing-step'
+export { WaiverSigningStep } from "./-components/waiver-signing-step"
