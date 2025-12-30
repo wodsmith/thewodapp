@@ -18,4 +18,5 @@ export const createWorkoutSchema = workoutFieldsSchema
 		scalingGroupId: z.string().optional(),
 	})
 
-export type CreateWorkoutSchema = z.infer<typeof createWorkoutSchema>
+export type CreateWorkoutSchema = z.output<typeof createWorkoutSchema>
+export type CreateWorkoutInput = z.input<typeof createWorkoutSchema>

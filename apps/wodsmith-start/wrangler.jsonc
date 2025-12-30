@@ -1,0 +1,87 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"name": "wodsmith-start",
+	"main": "@tanstack/react-start/server-entry",
+	"compatibility_date": "2025-09-02",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"minify": true,
+	"observability": {
+		"enabled": true
+	},
+	/**
+	 * Smart Placement
+	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	"placement": {
+		"mode": "smart"
+	},
+	/**
+	 * Bindings
+	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+	 * databases, object storage, AI inference, real-time communication and more.
+	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+	 */
+	/**
+	 * Environment Variables
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 * Commerce: App URL for Stripe redirects (set to production URL in production)
+	 * Note: Use secrets to store sensitive data.
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 */
+	"vars": {
+		"EMAIL_FROM": "team@mail.wodsmith.com",
+		"EMAIL_FROM_NAME": "WODsmith",
+		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
+		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com",
+		"R2_PUBLIC_URL": "https://pub-14c651314867492fa9637e830cc729a3.r2.dev"
+	},
+	/**
+	 * D1 Database Bindings
+	 * Production and staging databases for the app
+	 */
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "wodsmith-db",
+			"database_id": "931185e9-99e5-48f0-bf70-d03ca5936f2d",
+			"migrations_dir": "src/db/migrations"
+		},
+		{
+			"binding": "STAGING_DB",
+			"database_name": "wodsmith-db-staging",
+			"database_id": "e1e200c5-1671-455f-b40d-855b155cac48",
+			"migrations_dir": "src/db/migrations"
+		}
+	],
+	/**
+	 * KV Namespace Binding
+	 * Used for session storage
+	 */
+	"kv_namespaces": [
+		{
+			"binding": "KV_SESSION",
+			"id": "e7a18a19d2cb4afbaf02be597cbecb35"
+		}
+	],
+	/**
+	 * R2 Bucket Bindings
+	 * Object storage for file uploads
+	 */
+	"r2_buckets": [
+		{
+			"binding": "R2_BUCKET",
+			"bucket_name": "wodsmith-uploads"
+		},
+		{
+			"bucket_name": "wodsmith-uploads-dev",
+			"binding": "wodsmith_uploads_dev"
+		}
+	]
+}

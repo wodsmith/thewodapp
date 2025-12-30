@@ -12,8 +12,10 @@ node_modules
 .yarn/install-state.gz
 
 # testing
-/coverage
+coverage
 .playwright-mcp
+playwright-report/
+test-results/
 
 # next.js
 .next

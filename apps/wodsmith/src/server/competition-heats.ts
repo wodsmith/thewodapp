@@ -11,9 +11,11 @@ import {
 	competitionHeatsTable,
 	competitionRegistrationsTable,
 	competitionVenuesTable,
+	programmingTracksTable,
 	scalingLevelsTable,
 	trackWorkoutsTable,
 	userTable,
+	workouts,
 } from "@/db/schema"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
@@ -972,4 +974,325 @@ export async function getHeatsForUser(
 		},
 		laneNumber: assignments.find((a) => a.heatId === heat.id)?.laneNumber ?? 0,
 	}))
+}
+
+// ============================================================================
+// Heat Copying Functions
+// ============================================================================
+
+/**
+ * Get list of events (track workouts) with scheduled heats for copying
+ */
+export async function getEventsWithHeats(
+	competitionId: string,
+	excludeTrackWorkoutId?: string,
+): Promise<
+	Array<{
+		trackWorkoutId: string
+		workoutName: string
+		heatCount: number
+		firstHeatTime: Date | null
+		lastHeatTime: Date | null
+	}>
+> {
+	const db = getDb()
+
+	// Get all heats for the competition
+	const heats = await db
+		.select({
+			trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+			scheduledTime: competitionHeatsTable.scheduledTime,
+		})
+		.from(competitionHeatsTable)
+		.where(eq(competitionHeatsTable.competitionId, competitionId))
+		.orderBy(asc(competitionHeatsTable.scheduledTime))
+
+	if (heats.length === 0) {
+		return []
+	}
+
+	// Group heats by trackWorkoutId
+	const heatsByWorkout = new Map<
+		string,
+		Array<{ scheduledTime: Date | null }>
+	>()
+	for (const heat of heats) {
+		const existing = heatsByWorkout.get(heat.trackWorkoutId) ?? []
+		existing.push({ scheduledTime: heat.scheduledTime })
+		heatsByWorkout.set(heat.trackWorkoutId, existing)
+	}
+
+	// Get unique trackWorkoutIds, excluding the target if specified
+	const trackWorkoutIds = [...heatsByWorkout.keys()].filter(
+		(id) => id !== excludeTrackWorkoutId,
+	)
+
+	if (trackWorkoutIds.length === 0) {
+		return []
+	}
+
+	// Fetch track workouts with their associated workouts (batched)
+	const trackWorkoutBatches = await Promise.all(
+		chunk(trackWorkoutIds, BATCH_SIZE).map((batch) =>
+			db
+				.select({
+					id: trackWorkoutsTable.id,
+					workoutId: trackWorkoutsTable.workoutId,
+				})
+				.from(trackWorkoutsTable)
+				.where(inArray(trackWorkoutsTable.id, batch)),
+		),
+	)
+	const trackWorkouts = trackWorkoutBatches.flat()
+
+	// Fetch workout names
+	const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
+	const workoutBatches = await Promise.all(
+		chunk(workoutIds, BATCH_SIZE).map((batch) =>
+			db
+				.select({
+					id: workouts.id,
+					name: workouts.name,
+				})
+				.from(workouts)
+				.where(inArray(workouts.id, batch)),
+		),
+	)
+	const workoutList = workoutBatches.flat()
+	const workoutMap = new Map(workoutList.map((w) => [w.id, w]))
+
+	// Build result
+	return trackWorkouts.map((tw) => {
+		const workoutHeats = heatsByWorkout.get(tw.id) ?? []
+		const workout = workoutMap.get(tw.workoutId)
+
+		// Find first and last heat times
+		const times = workoutHeats
+			.map((h) => h.scheduledTime)
+			.filter((t): t is Date => t !== null)
+		const firstHeatTime: Date | null =
+			times.length > 0 ? (times[0] ?? null) : null
+		const lastHeatTime: Date | null =
+			times.length > 0 ? (times[times.length - 1] ?? null) : null
+
+		return {
+			trackWorkoutId: tw.id,
+			workoutName: workout?.name ?? "Unknown Workout",
+			heatCount: workoutHeats.length,
+			firstHeatTime,
+			lastHeatTime,
+		}
+	})
+}
+
+/**
+ * Copy heats from one event to another with fresh time calculations
+ * Times are calculated as: startTime + (heatIndex × (duration + transition))
+ */
+export async function copyHeatsFromEvent(params: {
+	sourceTrackWorkoutId: string
+	targetTrackWorkoutId: string
+	newStartTime: Date
+	newDurationMinutes: number
+	transitionMinutes: number
+}): Promise<HeatWithAssignments[]> {
+	const db = getDb()
+
+	// Fetch source heats with assignments (sorted by heat number)
+	const sourceHeats = await getHeatsForWorkout(params.sourceTrackWorkoutId)
+
+	if (sourceHeats.length === 0) {
+		return []
+	}
+
+	// Sort by heat number to ensure correct ordering
+	sourceHeats.sort((a, b) => a.heatNumber - b.heatNumber)
+
+	// Get the target workout's competition ID
+	const targetWorkout = await db
+		.select({
+			trackId: trackWorkoutsTable.trackId,
+		})
+		.from(trackWorkoutsTable)
+		.where(eq(trackWorkoutsTable.id, params.targetTrackWorkoutId))
+		.get()
+
+	if (!targetWorkout) {
+		throw new Error("Target track workout not found")
+	}
+
+	// Get competition ID from the track
+	const track = await db
+		.select({
+			competitionId: programmingTracksTable.competitionId,
+		})
+		.from(programmingTracksTable)
+		.where(eq(programmingTracksTable.id, targetWorkout.trackId))
+		.get()
+
+	if (!track || !track.competitionId) {
+		throw new Error("Competition not found for target track")
+	}
+
+	const competitionId = track.competitionId
+
+	// Calculate time slot: duration + transition between heats
+	const timeSlotMinutes = params.newDurationMinutes + params.transitionMinutes
+
+	// Create new heats with calculated times
+	const heatsToCreate: Array<{
+		competitionId: string
+		trackWorkoutId: string
+		heatNumber: number
+		venueId: string | null
+		scheduledTime: Date
+		durationMinutes: number
+		divisionId: string | null
+		notes: string | null
+	}> = []
+
+	for (let i = 0; i < sourceHeats.length; i++) {
+		const sourceHeat = sourceHeats[i]
+		if (!sourceHeat) continue
+
+		// Calculate time: startTime + (index × timeSlot)
+		const offsetMinutes = i * timeSlotMinutes
+		const newTime = new Date(
+			params.newStartTime.getTime() + offsetMinutes * 60 * 1000,
+		)
+
+		heatsToCreate.push({
+			competitionId,
+			trackWorkoutId: params.targetTrackWorkoutId,
+			heatNumber: sourceHeat.heatNumber,
+			venueId: sourceHeat.venueId,
+			scheduledTime: newTime,
+			durationMinutes: params.newDurationMinutes,
+			divisionId: sourceHeat.divisionId,
+			notes: sourceHeat.notes,
+		})
+	}
+
+	// Bulk insert heats in batches (competitionHeatsTable has 12 columns)
+	const INSERT_BATCH_SIZE = 8
+
+	const createdHeatBatches = await Promise.all(
+		chunk(heatsToCreate, INSERT_BATCH_SIZE).map((batch) =>
+			db.insert(competitionHeatsTable).values(batch).returning(),
+		),
+	)
+	const createdHeats = createdHeatBatches.flat()
+
+	// Create heat ID mapping (source heat number -> new heat ID)
+	const heatIdMap = new Map<number, string>()
+	for (const heat of createdHeats) {
+		heatIdMap.set(heat.heatNumber, heat.id)
+	}
+
+	// Copy assignments
+	const assignmentsToCreate: Array<{
+		heatId: string
+		registrationId: string
+		laneNumber: number
+	}> = []
+
+	for (const sourceHeat of sourceHeats) {
+		const newHeatId = heatIdMap.get(sourceHeat.heatNumber)
+		if (!newHeatId) continue
+
+		for (const assignment of sourceHeat.assignments) {
+			assignmentsToCreate.push({
+				heatId: newHeatId,
+				registrationId: assignment.registration.id,
+				laneNumber: assignment.laneNumber,
+			})
+		}
+	}
+
+	// Bulk insert assignments in batches (7 columns)
+	const ASSIGNMENT_BATCH_SIZE = 10
+
+	if (assignmentsToCreate.length > 0) {
+		await Promise.all(
+			chunk(assignmentsToCreate, ASSIGNMENT_BATCH_SIZE).map((batch) =>
+				db.insert(competitionHeatAssignmentsTable).values(batch),
+			),
+		)
+	}
+
+	// Return the newly created heats with assignments
+	return getHeatsForWorkout(params.targetTrackWorkoutId)
+}
+
+/**
+ * Reorder heats by updating their heatNumber to match the new order
+ * The heatNumber determines the display name (Heat 1, Heat 2, etc.)
+ */
+export async function reorderHeats(params: {
+	trackWorkoutId: string
+	orderedHeatIds: string[]
+}): Promise<CompetitionHeat[]> {
+	const db = getDb()
+
+	// Validate that all heat IDs belong to this workout
+	const heats = await db
+		.select()
+		.from(competitionHeatsTable)
+		.where(eq(competitionHeatsTable.trackWorkoutId, params.trackWorkoutId))
+
+	const heatIdSet = new Set(heats.map((h) => h.id))
+	for (const heatId of params.orderedHeatIds) {
+		if (!heatIdSet.has(heatId)) {
+			throw new Error(
+				`Heat ${heatId} does not belong to workout ${params.trackWorkoutId}`,
+			)
+		}
+	}
+
+	if (params.orderedHeatIds.length !== heats.length) {
+		throw new Error(
+			`Expected ${heats.length} heat IDs, received ${params.orderedHeatIds.length}`,
+		)
+	}
+
+	// Update each heat's heatNumber to match its new position (1-indexed)
+	// Note: D1 doesn't support transactions, so we update individually
+	// The unique constraint on (trackWorkoutId, heatNumber) means we need to be careful
+	// We'll use a temporary offset to avoid conflicts, then fix them
+	const TEMP_OFFSET = 1000
+
+	// First pass: set all to temporary values to avoid unique constraint conflicts
+	await Promise.all(
+		params.orderedHeatIds.map((heatId, index) =>
+			db
+				.update(competitionHeatsTable)
+				.set({
+					heatNumber: TEMP_OFFSET + index,
+					updatedAt: new Date(),
+				})
+				.where(eq(competitionHeatsTable.id, heatId)),
+		),
+	)
+
+	// Second pass: set to final values (1-indexed)
+	await Promise.all(
+		params.orderedHeatIds.map((heatId, index) =>
+			db
+				.update(competitionHeatsTable)
+				.set({
+					heatNumber: index + 1,
+					updatedAt: new Date(),
+				})
+				.where(eq(competitionHeatsTable.id, heatId)),
+		),
+	)
+
+	// Return updated heats in the new order
+	const updatedHeats = await db
+		.select()
+		.from(competitionHeatsTable)
+		.where(eq(competitionHeatsTable.trackWorkoutId, params.trackWorkoutId))
+		.orderBy(asc(competitionHeatsTable.heatNumber))
+
+	return updatedHeats
 }

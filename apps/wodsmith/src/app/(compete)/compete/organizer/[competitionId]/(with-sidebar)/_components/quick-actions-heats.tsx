@@ -4,8 +4,6 @@ import { useServerAction } from "@repo/zsa-react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -13,6 +11,13 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 
@@ -30,16 +35,15 @@ export function QuickActionsHeats({
 	const { execute } = useServerAction(updateCompetitionWorkoutAction)
 	const [pendingEvents, setPendingEvents] = useState<Set<string>>(new Set())
 
-	const handleToggleHeatStatus = async (
+	const handleHeatStatusChange = async (
 		trackWorkoutId: string,
-		currentStatus: string | null,
+		newStatus: string,
 	) => {
 		setPendingEvents((prev) => new Set(prev).add(trackWorkoutId))
-		const newStatus = currentStatus === "published" ? "draft" : "published"
 		await execute({
 			trackWorkoutId,
 			organizingTeamId,
-			heatStatus: newStatus,
+			heatStatus: newStatus as "draft" | "published",
 		})
 		setPendingEvents((prev) => {
 			const next = new Set(prev)
@@ -99,31 +103,44 @@ export function QuickActionsHeats({
 										{eventHeats.length !== 1 ? "s" : ""})
 									</span>
 								</div>
-								<div className="flex items-center gap-2 shrink-0">
-									<Badge
-										variant={isPublished ? "default" : "secondary"}
-										className="text-xs"
-									>
-										{isPublished ? "Published" : "Draft"}
-									</Badge>
-									<Button
-										variant="ghost"
-										size="sm"
-										className="h-7 w-7 p-0"
-										onClick={() =>
-											handleToggleHeatStatus(event.id, event.heatStatus)
-										}
-										disabled={pendingEvents.has(event.id)}
-									>
+								<Select
+									value={event.heatStatus ?? "draft"}
+									onValueChange={(value) =>
+										handleHeatStatusChange(event.id, value)
+									}
+									disabled={pendingEvents.has(event.id)}
+								>
+									<SelectTrigger className="w-[110px] h-7 text-xs">
 										{pendingEvents.has(event.id) ? (
 											<Loader2 className="h-3.5 w-3.5 animate-spin" />
-										) : isPublished ? (
-											<EyeOff className="h-3.5 w-3.5" />
 										) : (
-											<Eye className="h-3.5 w-3.5" />
+											<SelectValue>
+												<span className="flex items-center gap-1.5">
+													{isPublished ? (
+														<Eye className="h-3.5 w-3.5 text-green-600" />
+													) : (
+														<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+													)}
+													{isPublished ? "Published" : "Draft"}
+												</span>
+											</SelectValue>
 										)}
-									</Button>
-								</div>
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="draft">
+											<span className="flex items-center gap-2">
+												<EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+												Draft
+											</span>
+										</SelectItem>
+										<SelectItem value="published">
+											<span className="flex items-center gap-2">
+												<Eye className="h-3.5 w-3.5 text-green-600" />
+												Published
+											</span>
+										</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 						)
 					})}

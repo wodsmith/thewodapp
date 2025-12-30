@@ -8,16 +8,19 @@ import {
 	assignToHeat,
 	bulkAssignToHeat,
 	bulkCreateHeats,
+	copyHeatsFromEvent,
 	createHeat,
 	createVenue,
 	deleteHeat,
 	deleteVenue,
 	getCompetitionVenues,
+	getEventsWithHeats,
 	getHeatsForCompetition,
 	getHeatsForWorkout,
 	getNextHeatNumber,
 	getUnassignedRegistrations,
 	removeFromHeat,
+	reorderHeats,
 	updateAssignment,
 	updateHeat,
 	updateVenue,
@@ -158,6 +161,34 @@ const bulkAssignSchema = z.object({
 const getUnassignedSchema = z.object({
 	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const getEventsWithHeatsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	excludeTrackWorkoutId: z.string().optional(),
+})
+
+const copyHeatsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	sourceTrackWorkoutId: z
+		.string()
+		.min(1, "Source track workout ID is required"),
+	targetTrackWorkoutId: z
+		.string()
+		.min(1, "Target track workout ID is required"),
+	newStartTime: z.date(),
+	newDurationMinutes: z.number().int().min(1).max(180),
+	transitionMinutes: z.number().int().min(0).max(120).default(3),
+})
+
+const reorderHeatsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	orderedHeatIds: z
+		.array(heatIdSchema)
+		.min(1, "At least one heat ID is required"),
 })
 
 /* -------------------------------------------------------------------------- */
@@ -613,5 +644,89 @@ export const moveAssignmentAction = createServerAction()
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to move assignment")
+		}
+	})
+
+/* -------------------------------------------------------------------------- */
+/*                        Heat Copying Actions                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Get events with heats for copying (public - for dropdown)
+ */
+export const getEventsWithHeatsAction = createServerAction()
+	.input(getEventsWithHeatsSchema)
+	.handler(async ({ input }) => {
+		try {
+			const events = await getEventsWithHeats(
+				input.competitionId,
+				input.excludeTrackWorkoutId,
+			)
+			return { success: true, data: events }
+		} catch (error) {
+			console.error("Failed to get events with heats:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to get events with heats")
+		}
+	})
+
+/**
+ * Copy heats from one event to another
+ */
+export const copyHeatsFromEventAction = createServerAction()
+	.input(copyHeatsSchema)
+	.handler(async ({ input }) => {
+		try {
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			const heats = await copyHeatsFromEvent({
+				sourceTrackWorkoutId: input.sourceTrackWorkoutId,
+				targetTrackWorkoutId: input.targetTrackWorkoutId,
+				newStartTime: input.newStartTime,
+				newDurationMinutes: input.newDurationMinutes,
+				transitionMinutes: input.transitionMinutes,
+			})
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
+
+			return { success: true, data: heats }
+		} catch (error) {
+			console.error("Failed to copy heats:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to copy heats from event")
+		}
+	})
+
+/**
+ * Reorder heats within an event
+ * Updates heat numbers to match the new order (Heat 1, Heat 2, etc.)
+ */
+export const reorderHeatsAction = createServerAction()
+	.input(reorderHeatsSchema)
+	.handler(async ({ input }) => {
+		try {
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			const heats = await reorderHeats({
+				trackWorkoutId: input.trackWorkoutId,
+				orderedHeatIds: input.orderedHeatIds,
+			})
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
+
+			return { success: true, data: heats }
+		} catch (error) {
+			console.error("Failed to reorder heats:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to reorder heats")
 		}
 	})

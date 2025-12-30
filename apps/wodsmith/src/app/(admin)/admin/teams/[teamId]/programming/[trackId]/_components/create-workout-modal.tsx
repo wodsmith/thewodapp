@@ -65,7 +65,8 @@ const createWorkoutSchema = z.object({
 	selectedTags: z.array(z.string()).default([]),
 })
 
-type CreateWorkoutFormData = z.infer<typeof createWorkoutSchema>
+type CreateWorkoutFormData = z.output<typeof createWorkoutSchema>
+type CreateWorkoutFormInput = z.input<typeof createWorkoutSchema>
 
 interface CreateWorkoutModalProps {
 	open: boolean
@@ -89,7 +90,7 @@ export function CreateWorkoutModal({
 	const [newTag, setNewTag] = useState("")
 	const [isSubmitting, setIsSubmitting] = useState(false)
 
-	const form = useForm<CreateWorkoutFormData>({
+	const form = useForm<CreateWorkoutFormInput, unknown, CreateWorkoutFormData>({
 		resolver: zodResolver(createWorkoutSchema),
 		defaultValues: {
 			name: "",
@@ -117,7 +118,7 @@ export function CreateWorkoutModal({
 			}
 			setTags([...tags, newTagObj])
 
-			const currentSelectedTags = form.getValues("selectedTags")
+			const currentSelectedTags = form.getValues("selectedTags") ?? []
 			form.setValue("selectedTags", [...currentSelectedTags, id])
 			setNewTag("")
 		}
@@ -357,11 +358,16 @@ export function CreateWorkoutModal({
 													className="flex items-center space-x-2 cursor-pointer font-mono text-sm"
 												>
 													<Checkbox
-														checked={field.value.includes(movement.id)}
+														checked={
+															field.value?.includes(movement.id) ?? false
+														}
 														onCheckedChange={(checked) => {
+															const currentValue = field.value ?? []
 															const newValue = checked
-																? [...field.value, movement.id]
-																: field.value.filter((id) => id !== movement.id)
+																? [...currentValue, movement.id]
+																: currentValue.filter(
+																		(id) => id !== movement.id,
+																	)
 															field.onChange(newValue)
 														}}
 													/>
@@ -409,17 +415,20 @@ export function CreateWorkoutModal({
 													key={tag.id}
 													type="button"
 													onClick={() => {
-														const newValue = field.value.includes(tag.id)
-															? field.value.filter((id) => id !== tag.id)
-															: [...field.value, tag.id]
+														const currentValue = field.value ?? []
+														const newValue = currentValue.includes(tag.id)
+															? currentValue.filter((id) => id !== tag.id)
+															: [...currentValue, tag.id]
 														field.onChange(newValue)
 													}}
 													variant={
-														field.value.includes(tag.id) ? "default" : "outline"
+														(field.value ?? []).includes(tag.id)
+															? "default"
+															: "outline"
 													}
 												>
 													{tag.name}
-													{field.value.includes(tag.id) && (
+													{(field.value ?? []).includes(tag.id) && (
 														<X className="inline ml-1 h-3 w-3" />
 													)}
 												</Button>

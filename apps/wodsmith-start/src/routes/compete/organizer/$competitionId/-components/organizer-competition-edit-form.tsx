@@ -1,0 +1,493 @@
+"use client"
+
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { z } from "zod"
+import { Button } from "@/components/ui/button"
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form"
+import { ImageUpload } from "@/components/ui/image-upload"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import { updateCompetitionFn } from "@/server-fns/competition-fns"
+import { parseDateInputAsUTC } from "@/utils/date-utils"
+
+/**
+ * Format a Date to YYYY-MM-DD string for HTML date inputs.
+ * Uses UTC methods to preserve the calendar date stored in the database.
+ */
+function formatDateInputFromUTC(
+	date: Date | string | number | null | undefined,
+): string {
+	if (date == null) return ""
+	const d = date instanceof Date ? date : new Date(date)
+	if (Number.isNaN(d.getTime())) return ""
+	const year = d.getUTCFullYear()
+	const month = String(d.getUTCMonth() + 1).padStart(2, "0")
+	const day = String(d.getUTCDate()).padStart(2, "0")
+	return `${year}-${month}-${day}`
+}
+
+const formSchema = z
+	.object({
+		name: z
+			.string()
+			.min(1, "Competition name is required")
+			.max(255, "Name is too long"),
+		slug: z
+			.string()
+			.min(2, "Slug must be at least 2 characters")
+			.max(255, "Slug is too long")
+			.regex(
+				/^[a-z0-9-]+$/,
+				"Slug must be lowercase letters, numbers, and hyphens only",
+			),
+		startDate: z.string().min(1, "Start date is required"),
+		endDate: z.string().min(1, "End date is required"),
+		description: z.string().max(2000, "Description is too long").optional(),
+		registrationOpensAt: z.string().optional(),
+		registrationClosesAt: z.string().optional(),
+		groupId: z.string().nullable().optional(),
+		visibility: z.enum(["public", "private"]),
+		status: z.enum(["draft", "published"]),
+	})
+	.refine(
+		(data) => {
+			if (!data.startDate || !data.endDate) return true
+			return new Date(data.startDate) < new Date(data.endDate)
+		},
+		{
+			message: "Start date must be before end date",
+			path: ["endDate"],
+		},
+	)
+	.refine(
+		(data) => {
+			if (!data.registrationOpensAt || !data.registrationClosesAt) return true
+			return (
+				new Date(data.registrationOpensAt) < new Date(data.registrationClosesAt)
+			)
+		},
+		{
+			message: "Registration opening must be before closing",
+			path: ["registrationClosesAt"],
+		},
+	)
+
+type FormValues = z.infer<typeof formSchema>
+
+interface OrganizerCompetitionEditFormProps {
+	competition: Competition
+	groups: Array<CompetitionGroup & { competitionCount: number }>
+	isPendingApproval?: boolean
+}
+
+export function OrganizerCompetitionEditForm({
+	competition,
+	groups,
+	isPendingApproval = false,
+}: OrganizerCompetitionEditFormProps) {
+	const router = useRouter()
+	const [isPending, setIsPending] = useState(false)
+	const [profileImageUrl, setProfileImageUrl] = useState<string | null>(
+		competition.profileImageUrl ?? null,
+	)
+	const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(
+		competition.bannerImageUrl ?? null,
+	)
+
+	// Use useServerFn hook for client-side server function calls
+	const updateCompetition = useServerFn(updateCompetitionFn)
+
+	const form = useForm<FormValues>({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			name: competition.name,
+			slug: competition.slug,
+			startDate: formatDateInputFromUTC(competition.startDate),
+			endDate: formatDateInputFromUTC(competition.endDate),
+			description: competition.description || "",
+			registrationOpensAt: formatDateInputFromUTC(
+				competition.registrationOpensAt,
+			),
+			registrationClosesAt: formatDateInputFromUTC(
+				competition.registrationClosesAt,
+			),
+			groupId: competition.groupId ?? undefined,
+			visibility: competition.visibility ?? "public",
+			status: competition.status ?? "draft",
+		},
+	})
+
+	// Auto-generate slug from name
+	const handleNameChange = (name: string) => {
+		const slug = name
+			.toLowerCase()
+			.replace(/[^a-z0-9\s-]/g, "")
+			.replace(/\s+/g, "-")
+			.replace(/-+/g, "-")
+			.trim()
+
+		form.setValue("slug", slug)
+	}
+
+	async function onSubmit(data: FormValues) {
+		setIsPending(true)
+		try {
+			await updateCompetition({
+				data: {
+					competitionId: competition.id,
+					name: data.name,
+					slug: data.slug,
+					startDate: parseDateInputAsUTC(data.startDate),
+					endDate: parseDateInputAsUTC(data.endDate),
+					description: data.description || null,
+					registrationOpensAt: data.registrationOpensAt
+						? parseDateInputAsUTC(data.registrationOpensAt)
+						: null,
+					registrationClosesAt: data.registrationClosesAt
+						? parseDateInputAsUTC(data.registrationClosesAt)
+						: null,
+					groupId: data.groupId,
+					visibility: data.visibility,
+					status: data.status,
+					profileImageUrl,
+					bannerImageUrl,
+				},
+			})
+			toast.success("Competition updated successfully")
+			router.navigate({
+				to: "/compete/organizer/$competitionId",
+				params: { competitionId: competition.id },
+			})
+			await router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to update competition",
+			)
+		} finally {
+			setIsPending(false)
+		}
+	}
+
+	const handleCancel = () => {
+		router.navigate({
+			to: "/compete/organizer/$competitionId",
+			params: { competitionId: competition.id },
+		})
+	}
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+				<FormField
+					control={form.control}
+					name="name"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Competition Name</FormLabel>
+							<FormControl>
+								<Input
+									placeholder="e.g., Summer Throwdown 2026"
+									{...field}
+									onChange={(e) => {
+										field.onChange(e)
+										if (!form.formState.dirtyFields.slug) {
+											handleNameChange(e.target.value)
+										}
+									}}
+								/>
+							</FormControl>
+							<FormDescription>
+								A descriptive name for your competition
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="slug"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Slug</FormLabel>
+							<FormControl>
+								<Input placeholder="e.g., summer-throwdown-2026" {...field} />
+							</FormControl>
+							<FormDescription>
+								URL-friendly identifier (globally unique, lowercase, hyphens
+								only)
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<div className="grid gap-6 md:grid-cols-2">
+					<div className="space-y-2">
+						<Label>Profile Image</Label>
+						<ImageUpload
+							purpose="competition-profile"
+							entityId={competition.id}
+							value={profileImageUrl ?? undefined}
+							onChange={setProfileImageUrl}
+							maxSizeMb={5}
+							aspectRatio="1/1"
+							recommendedDimensions={{ width: 400, height: 400 }}
+						/>
+						<p className="text-sm text-muted-foreground">
+							Your competition logo or profile picture
+						</p>
+					</div>
+
+					<div className="space-y-2">
+						<Label>Banner Image</Label>
+						<ImageUpload
+							purpose="competition-banner"
+							entityId={competition.id}
+							value={bannerImageUrl ?? undefined}
+							onChange={setBannerImageUrl}
+							maxSizeMb={5}
+							aspectRatio="3/1"
+							recommendedDimensions={{ width: 1200, height: 400 }}
+						/>
+						<p className="text-sm text-muted-foreground">
+							Hero banner displayed at the top of your competition page
+						</p>
+					</div>
+				</div>
+
+				{groups.length > 0 && (
+					<FormField
+						control={form.control}
+						name="groupId"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Series (Optional)</FormLabel>
+								<Select
+									onValueChange={(value) => {
+										if (value === "none") {
+											field.onChange(null)
+										} else {
+											field.onChange(value)
+										}
+									}}
+									value={field.value ?? "none"}
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="No series" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										<SelectItem value="none">No series</SelectItem>
+										{groups.map((group) => (
+											<SelectItem key={group.id} value={group.id}>
+												{group.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<FormDescription>
+									Optionally assign this competition to a series
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
+
+				<div className="grid gap-4 md:grid-cols-2">
+					<FormField
+						control={form.control}
+						name="startDate"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Start Date</FormLabel>
+								<FormControl>
+									<Input type="date" {...field} />
+								</FormControl>
+								<FormDescription>When the competition begins</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="endDate"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>End Date</FormLabel>
+								<FormControl>
+									<Input type="date" {...field} />
+								</FormControl>
+								<FormDescription>When the competition ends</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				<div className="grid gap-4 md:grid-cols-2">
+					<FormField
+						control={form.control}
+						name="registrationOpensAt"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Registration Opens (Optional)</FormLabel>
+								<FormControl>
+									<Input type="date" {...field} value={field.value || ""} />
+								</FormControl>
+								<FormDescription>When registration opens</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="registrationClosesAt"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Registration Closes (Optional)</FormLabel>
+								<FormControl>
+									<Input type="date" {...field} value={field.value || ""} />
+								</FormControl>
+								<FormDescription>When registration closes</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				<FormField
+					control={form.control}
+					name="description"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Description (Optional)</FormLabel>
+							<FormControl>
+								<Textarea
+									placeholder="Enter a description of this competition"
+									{...field}
+									value={field.value || ""}
+									rows={4}
+								/>
+							</FormControl>
+							<FormDescription>
+								Provide details about the competition
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="status"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Status</FormLabel>
+							<Select
+								onValueChange={field.onChange}
+								value={field.value}
+								disabled={isPendingApproval && field.value === "draft"}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select status" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="draft">
+										Draft - Not visible to athletes
+									</SelectItem>
+									<SelectItem value="published" disabled={isPendingApproval}>
+										Published - Visible to athletes
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							{isPendingApproval ? (
+								<FormDescription className="text-amber-600 dark:text-amber-400">
+									Publishing is disabled while your organizer application is
+									pending approval
+								</FormDescription>
+							) : (
+								<FormDescription>
+									Draft competitions are only visible to organizers
+								</FormDescription>
+							)}
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="visibility"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Visibility</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select visibility" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="public">
+										Public - Listed on /compete page
+									</SelectItem>
+									<SelectItem value="private">
+										Private - Unlisted, accessible via direct URL
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>
+								Private competitions are not listed publicly but can be accessed
+								via direct URL
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<div className="flex gap-4">
+					<Button type="submit" disabled={isPending}>
+						{isPending ? "Saving..." : "Save Changes"}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={handleCancel}
+						disabled={isPending}
+					>
+						Cancel
+					</Button>
+				</div>
+			</form>
+		</Form>
+	)
+}

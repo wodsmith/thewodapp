@@ -1,5 +1,5 @@
 import "server-only"
-import { DollarSign, FileText, TrendingUp, Users } from "lucide-react"
+import { FileText, Users } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -11,7 +11,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
-import { getCompetitionRevenueStats } from "@/server/commerce"
+
 import { getHeatsForCompetition } from "@/server/competition-heats"
 import { getCompetitionWorkouts } from "@/server/competition-workouts"
 import {
@@ -21,6 +21,7 @@ import {
 import { formatUTCDateFull } from "@/utils/date-utils"
 import { QuickActionsEvents } from "./_components/quick-actions-events"
 import { QuickActionsHeats } from "./_components/quick-actions-heats"
+import { EventOverview } from "./schedule/_components/event-overview"
 
 interface CompetitionDetailPageProps {
 	params: Promise<{
@@ -58,10 +59,9 @@ export default async function CompetitionDetailPage({
 		notFound()
 	}
 
-	// Fetch registrations, revenue stats, events, and heats
-	const [registrations, revenueStats, events, heats] = await Promise.all([
+	// Fetch registrations, events, and heats
+	const [registrations, events, heats] = await Promise.all([
 		getCompetitionRegistrations(competitionId),
-		getCompetitionRevenueStats(competitionId),
 		getCompetitionWorkouts(competitionId),
 		getHeatsForCompetition(competitionId),
 	])
@@ -85,6 +85,7 @@ export default async function CompetitionDetailPage({
 					<QuickActionsEvents
 						events={events}
 						organizingTeamId={competition.organizingTeamId}
+						competitionId={competition.id}
 					/>
 					<QuickActionsHeats
 						events={events}
@@ -93,6 +94,9 @@ export default async function CompetitionDetailPage({
 					/>
 				</div>
 			)}
+
+			{/* Schedule Overview */}
+			<EventOverview events={events} heats={heats} />
 
 			{/* Description Card */}
 			{competition.description && (
@@ -203,91 +207,46 @@ export default async function CompetitionDetailPage({
 				</CardContent>
 			</Card>
 
-			{/* Stats Row */}
-			<div className="grid gap-4 md:grid-cols-2">
-				{/* Registrations Card */}
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
-						<div>
-							<CardTitle>Registrations</CardTitle>
-							<CardDescription>Athletes registered</CardDescription>
+			{/* Registrations Card */}
+			<Card>
+				<CardHeader className="flex flex-row items-center justify-between">
+					<div>
+						<CardTitle>Registrations</CardTitle>
+						<CardDescription>Athletes registered</CardDescription>
+					</div>
+					<Link href={`/compete/organizer/${competition.id}/athletes`}>
+						<Button variant="outline" size="sm">
+							<Users className="h-4 w-4 mr-2" />
+							View All
+						</Button>
+					</Link>
+				</CardHeader>
+				<CardContent>
+					{registrations.length === 0 ? (
+						<div className="text-center py-8">
+							<p className="text-muted-foreground text-sm">
+								No athletes have registered yet
+							</p>
 						</div>
-						<Link href={`/compete/organizer/${competition.id}/athletes`}>
-							<Button variant="outline" size="sm">
-								<Users className="h-4 w-4 mr-2" />
-								View All
-							</Button>
-						</Link>
-					</CardHeader>
-					<CardContent>
-						{registrations.length === 0 ? (
-							<div className="text-center py-8">
-								<p className="text-muted-foreground text-sm">
-									No athletes have registered yet
-								</p>
+					) : (
+						<div className="flex items-center gap-4">
+							<div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+								<Users className="h-8 w-8 text-primary" />
 							</div>
-						) : (
-							<div className="flex items-center gap-4">
-								<div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-									<Users className="h-8 w-8 text-primary" />
+							<div>
+								<div className="text-3xl font-bold">
+									{registrations.length}
 								</div>
-								<div>
-									<div className="text-3xl font-bold">
-										{registrations.length}
-									</div>
-									<div className="text-sm text-muted-foreground">
-										{registrations.length === 1
-											? "registration"
-											: "registrations"}
-									</div>
+								<div className="text-sm text-muted-foreground">
+									{registrations.length === 1
+										? "registration"
+										: "registrations"}
 								</div>
 							</div>
-						)}
-					</CardContent>
-				</Card>
-
-				{/* Revenue Summary Card */}
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between">
-						<div>
-							<CardTitle>Revenue</CardTitle>
-							<CardDescription>Paid registrations</CardDescription>
 						</div>
-						<Link href={`/compete/organizer/${competition.id}/revenue`}>
-							<Button variant="outline" size="sm">
-								<TrendingUp className="h-4 w-4 mr-2" />
-								Details
-							</Button>
-						</Link>
-					</CardHeader>
-					<CardContent>
-						{revenueStats.purchaseCount === 0 ? (
-							<div className="text-center py-8">
-								<p className="text-muted-foreground text-sm">
-									No paid registrations yet
-								</p>
-							</div>
-						) : (
-							<div className="flex items-center gap-4">
-								<div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10">
-									<DollarSign className="h-8 w-8 text-green-600" />
-								</div>
-								<div>
-									<div className="text-3xl font-bold text-green-600">
-										${(revenueStats.totalOrganizerNetCents / 100).toFixed(2)}
-									</div>
-									<div className="text-sm text-muted-foreground">
-										net from {revenueStats.purchaseCount}{" "}
-										{revenueStats.purchaseCount === 1
-											? "purchase"
-											: "purchases"}
-									</div>
-								</div>
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</div>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

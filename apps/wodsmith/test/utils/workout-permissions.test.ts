@@ -6,6 +6,7 @@ import { getDb } from "@/db"
 import { eq } from "drizzle-orm"
 import { workouts } from "@/db/schema"
 import type { KVSession } from "@/utils/kv-session"
+import { createTestSession } from "@repo/test-utils/factories"
 
 // Mock the dependencies
 vi.mock("@/utils/auth", () => ({
@@ -40,39 +41,25 @@ vi.mock("drizzle-orm", () => ({
 }))
 
 describe("workout-permissions", () => {
-  const mockSession: KVSession = {
-    id: "session-123",
+  const mockSession = createTestSession({
     userId: "user-123",
-    expiresAt: Date.now() + 86400000,
-    createdAt: Date.now(),
+    teamId: "team-123",
+    teamSlug: "test-team",
     user: {
       id: "user-123",
       email: "test@example.com",
       firstName: "Test",
       lastName: "User",
       role: "user",
-      emailVerified: new Date(Date.now()),
+      emailVerified: new Date(),
       avatar: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       currentCredits: 100,
       lastCreditRefreshAt: null,
     },
-    teams: [
-      {
-        id: "team-123",
-        name: "Test Team",
-        slug: "test-team",
-        isPersonalTeam: false,
-        role: {
-          id: "member",
-          name: "Member",
-          isSystemRole: true,
-        },
-        permissions: ["access_dashboard", "create_components", "edit_components"],
-      },
-    ],
-  }
+    permissions: ["access_dashboard", "create_components", "edit_components"],
+  })
 
   const mockWorkout = {
     id: "workout-123",

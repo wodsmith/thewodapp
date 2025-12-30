@@ -83,8 +83,8 @@ describe("WorkoutSelection", () => {
 		)
 
 		expect(screen.getByText("Select Workout")).toBeInTheDocument()
-		expect(screen.getByText("Day 1 - Week 1")).toBeInTheDocument()
-		expect(screen.getByText("Day 2 - Week 1")).toBeInTheDocument()
+		expect(screen.getByText("Strength Training")).toBeInTheDocument()
+		expect(screen.getByText("Cardio Blast")).toBeInTheDocument()
 		expect(screen.getByText("Strength Training (5x5)")).toBeInTheDocument()
 	})
 
@@ -120,7 +120,7 @@ describe("WorkoutSelection", () => {
 			/>,
 		)
 
-		fireEvent.click(screen.getByText("Day 1 - Week 1"))
+		fireEvent.click(screen.getByText("Strength Training"))
 
 		expect(onWorkoutSelect).toHaveBeenCalledWith(mockTrackWorkouts[0])
 	})
@@ -152,7 +152,7 @@ describe("WorkoutSelection", () => {
 		)
 
 		expect(screen.getByText("Loading workouts...")).toBeInTheDocument()
-		expect(screen.queryByText("Day 1 - Week 1")).not.toBeInTheDocument()
+		expect(screen.queryByText("Strength Training")).not.toBeInTheDocument()
 	})
 
 	it("displays loading state for standalone workouts", () => {
@@ -194,7 +194,7 @@ describe("WorkoutSelection", () => {
 		)
 
 		const selectedCard = screen
-			.getByText("Day 1 - Week 1")
+			.getByText("Strength Training")
 			.closest("[data-testid='workout-card']")
 		expect(selectedCard).toHaveClass("border-primary", "bg-primary/10")
 	})

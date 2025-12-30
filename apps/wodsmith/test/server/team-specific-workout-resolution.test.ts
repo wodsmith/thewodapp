@@ -1,12 +1,9 @@
 import { describe, expect, it, beforeEach, vi } from "vitest"
+import { FakeDrizzleDb } from "@repo/test-utils"
 import { getTeamSpecificWorkout } from "@/server/workouts"
 
-// Mock the database
-const mockDb = {
-	select: vi.fn().mockReturnThis(),
-	from: vi.fn().mockReturnThis(),
-	where: vi.fn().mockReturnThis(),
-}
+// Mock the database with proper chainable mock
+const mockDb = new FakeDrizzleDb()
 
 vi.mock("@/db", () => ({
 	getDb: vi.fn(() => mockDb),
@@ -15,6 +12,7 @@ vi.mock("@/db", () => ({
 describe("Team-Specific Workout Resolution", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		mockDb.reset()
 	})
 
 	describe("getTeamSpecificWorkout", () => {
@@ -23,14 +21,16 @@ describe("Team-Specific Workout Resolution", () => {
 				id: "original-workout-id",
 				name: "Original Fran",
 				description: "21-15-9 Thrusters and Pull-ups",
-				scheme: "time",
-				scope: "public",
+				scheme: "time" as const,
+				scope: "public" as const,
 				teamId: null,
 				sourceWorkoutId: null,
 			}
 
-			// Mock no team remix found, then original workout found
-			mockDb.where
+			// First query: check for team remix (returns empty)
+			// Second query: fetch original workout
+			const whereMock = mockDb.getChainMock().where as any
+			whereMock
 				.mockResolvedValueOnce([]) // No team remix
 				.mockResolvedValueOnce([originalWorkout]) // Original workout found
 
@@ -49,14 +49,15 @@ describe("Team-Specific Workout Resolution", () => {
 				id: "team-remix-id",
 				name: "Team A Modified Fran",
 				description: "Team A version",
-				scheme: "time",
-				scope: "private",
+				scheme: "time" as const,
+				scope: "private" as const,
 				teamId: "team-a",
 				sourceWorkoutId: "original-workout-id",
 			}
 
-			// Mock team remix found
-			mockDb.where.mockResolvedValueOnce([teamRemix])
+			// First query: check for team remix (returns the remix)
+			const whereMock = mockDb.getChainMock().where as any
+			whereMock.mockResolvedValueOnce([teamRemix])
 
 			const result = await getTeamSpecificWorkout({
 				originalWorkoutId: "original-workout-id",
@@ -72,6 +73,9 @@ describe("Team-Specific Workout Resolution", () => {
 			const teamARemix = {
 				id: "team-a-remix-id",
 				name: "Team A Modified Fran",
+				description: "Team A version",
+				scheme: "time" as const,
+				scope: "private" as const,
 				teamId: "team-a",
 				sourceWorkoutId: "original-workout-id",
 			}
@@ -79,12 +83,17 @@ describe("Team-Specific Workout Resolution", () => {
 			const teamBRemix = {
 				id: "team-b-remix-id",
 				name: "Team B Modified Fran",
+				description: "Team B version",
+				scheme: "time" as const,
+				scope: "private" as const,
 				teamId: "team-b",
 				sourceWorkoutId: "original-workout-id",
 			}
 
+			const whereMock = mockDb.getChainMock().where as any
+			
 			// Mock team A gets their remix
-			mockDb.where.mockResolvedValueOnce([teamARemix])
+			whereMock.mockResolvedValueOnce([teamARemix])
 
 			const teamAResult = await getTeamSpecificWorkout({
 				originalWorkoutId: "original-workout-id",
@@ -95,7 +104,7 @@ describe("Team-Specific Workout Resolution", () => {
 			expect(teamAResult.name).toBe("Team A Modified Fran")
 
 			// Mock team B gets their remix
-			mockDb.where.mockResolvedValueOnce([teamBRemix])
+			whereMock.mockResolvedValueOnce([teamBRemix])
 
 			const teamBResult = await getTeamSpecificWorkout({
 				originalWorkoutId: "original-workout-id",
@@ -111,7 +120,8 @@ describe("Team-Specific Workout Resolution", () => {
 
 		it("should handle non-existent workouts gracefully", async () => {
 			// Mock no team remix and no original workout
-			mockDb.where
+			const whereMock = mockDb.getChainMock().where as any
+			whereMock
 				.mockResolvedValueOnce([]) // No team remix
 				.mockResolvedValueOnce([]) // No original workout
 
@@ -127,19 +137,16 @@ describe("Team-Specific Workout Resolution", () => {
 			const teamRemix = {
 				id: "team-remix-id",
 				name: "Team Remix",
+				description: "Team version",
+				scheme: "time" as const,
+				scope: "private" as const,
 				teamId: "team-a",
 				sourceWorkoutId: "original-workout-id",
 			}
 
-			const originalWorkout = {
-				id: "original-workout-id",
-				name: "Original Workout",
-				teamId: null,
-				sourceWorkoutId: null,
-			}
-
 			// Mock team remix found (should not check for original)
-			mockDb.where.mockResolvedValueOnce([teamRemix])
+			const whereMock = mockDb.getChainMock().where as any
+			whereMock.mockResolvedValueOnce([teamRemix])
 
 			const result = await getTeamSpecificWorkout({
 				originalWorkoutId: "original-workout-id",
@@ -149,18 +156,23 @@ describe("Team-Specific Workout Resolution", () => {
 			expect(result.id).toBe("team-remix-id")
 			expect(result.name).toBe("Team Remix")
 			
-			// Should only have called the database once (for remix check)
-			expect(mockDb.where).toHaveBeenCalledTimes(1)
+			// Should only have called where once (for remix check)
+			expect(whereMock).toHaveBeenCalledTimes(1)
 		})
 
 		it("should query with correct parameters", async () => {
 			const teamRemix = {
 				id: "team-remix-id",
+				name: "Team Remix",
+				description: "Team version",
+				scheme: "time" as const,
+				scope: "private" as const,
 				teamId: "team-a",
 				sourceWorkoutId: "original-workout-id",
 			}
 
-			mockDb.where.mockResolvedValueOnce([teamRemix])
+			const whereMock = mockDb.getChainMock().where as any
+			whereMock.mockResolvedValueOnce([teamRemix])
 
 			await getTeamSpecificWorkout({
 				originalWorkoutId: "original-workout-id",
@@ -170,7 +182,7 @@ describe("Team-Specific Workout Resolution", () => {
 			// Verify the database was called correctly
 			expect(mockDb.select).toHaveBeenCalled()
 			expect(mockDb.from).toHaveBeenCalled()
-			expect(mockDb.where).toHaveBeenCalled()
+			expect(whereMock).toHaveBeenCalled()
 		})
 
 		it("should return original workout when preferOriginal is true, even if remix exists", async () => {
@@ -178,14 +190,15 @@ describe("Team-Specific Workout Resolution", () => {
 				id: "original-workout-id",
 				name: "Original Grace",
 				description: "30 Clean and Jerks for Time",
-				scheme: "time",
-				scope: "public",
+				scheme: "time" as const,
+				scope: "public" as const,
 				teamId: null,
 				sourceWorkoutId: null,
 			}
 
 			// Mock original workout found (should skip remix check)
-			mockDb.where.mockResolvedValueOnce([originalWorkout])
+			const whereMock = mockDb.getChainMock().where as any
+			whereMock.mockResolvedValueOnce([originalWorkout])
 
 			const result = await getTeamSpecificWorkout({
 				originalWorkoutId: "original-workout-id",
@@ -197,8 +210,8 @@ describe("Team-Specific Workout Resolution", () => {
 			expect(result.name).toBe("Original Grace")
 			expect(result.sourceWorkoutId).toBe(null)
 			
-			// Should only have called the database once (for original workout, skipping remix check)
-			expect(mockDb.where).toHaveBeenCalledTimes(1)
+			// Should only have called where once (for original workout, skipping remix check)
+			expect(whereMock).toHaveBeenCalledTimes(1)
 		})
 	})
 })
