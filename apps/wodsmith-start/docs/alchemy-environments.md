@@ -73,8 +73,8 @@ npx alchemy deploy --dev
 # Deploy to staging
 STAGE=staging npx alchemy deploy
 
-# Verify staging deployment (use the full stage-prefixed database name)
-npx wrangler d1 execute wodsmith-start-wodsmith-db-staging --command "SELECT 1" --remote
+# Verify staging deployment
+npx wrangler d1 execute wodsmith-db-staging --command "SELECT 1" --remote
 ```
 
 ### Production
