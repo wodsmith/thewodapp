@@ -83,7 +83,8 @@ const formSchema = z
 		},
 	)
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.output<typeof formSchema>
+type FormInput = z.input<typeof formSchema>
 
 interface OrganizerCompetitionEditFormProps {
 	competition: Competition
@@ -124,7 +125,7 @@ export function OrganizerCompetitionEditForm({
 	const existingSettings = parseCompetitionSettings(competition.settings)
 	const existingScalingGroupId = existingSettings?.divisions?.scalingGroupId
 
-	const form = useForm<FormValues>({
+	const form = useForm<FormInput, unknown, FormValues>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			name: competition.name,

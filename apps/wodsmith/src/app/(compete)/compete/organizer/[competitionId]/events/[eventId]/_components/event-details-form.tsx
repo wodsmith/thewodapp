@@ -40,6 +40,7 @@ import type { Movement, Sponsor } from "@/db/schema"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import { isTimeBasedScheme } from "@/lib/scoring"
 import {
+	type CompetitionEventInput,
 	type CompetitionEventSchema,
 	competitionEventSchema,
 } from "@/schemas/workout.schema"
@@ -108,7 +109,7 @@ export function EventDetailsForm({
 	}
 
 	// Initialize form with React Hook Form
-	const form = useForm<CompetitionEventSchema>({
+	const form = useForm<CompetitionEventInput, unknown, CompetitionEventSchema>({
 		resolver: zodResolver(competitionEventSchema),
 		mode: "onChange",
 		defaultValues: {
@@ -141,13 +142,14 @@ export function EventDetailsForm({
 	}, [scheme, scoreType, setValue])
 
 	const handleMovementToggle = (movementId: string) => {
-		if (selectedMovements.includes(movementId)) {
+		const currentMovements = selectedMovements ?? []
+		if (currentMovements.includes(movementId)) {
 			setValue(
 				"selectedMovements",
-				selectedMovements.filter((id) => id !== movementId),
+				currentMovements.filter((id) => id !== movementId),
 			)
 		} else {
-			setValue("selectedMovements", [...selectedMovements, movementId])
+			setValue("selectedMovements", [...currentMovements, movementId])
 		}
 	}
 
@@ -426,10 +428,10 @@ export function EventDetailsForm({
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div className="space-y-2">
-									{selectedMovements.length > 0 && (
+									{(selectedMovements ?? []).length > 0 && (
 										<div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/50">
 											{movements
-												.filter((m) => selectedMovements.includes(m.id))
+												.filter((m) => (selectedMovements ?? []).includes(m.id))
 												.map((movement) => (
 													<Badge
 														key={movement.id}

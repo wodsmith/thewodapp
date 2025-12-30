@@ -1,0 +1,29 @@
+# Cloudflare Workers Development Variables
+# Copy this file to .dev.vars and fill in values
+# These are loaded by `wrangler dev` and override .env variables
+
+### Stripe Configuration (Required for Stripe features)
+# Get your API keys from https://dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY=sk_test_...
+
+# Stripe Connect OAuth Client ID
+# IMPORTANT: Required for Stripe Connect OAuth flow (Standard accounts)
+# Get from Stripe Dashboard > Settings > Connect > Integration > OAuth Client ID
+STRIPE_CLIENT_ID=ca_...
+
+# Webhook secret for Stripe webhook signature verification
+# Get from Stripe Dashboard > Developers > Webhooks > Add endpoint
+# For local dev, use Stripe CLI: `stripe listen --forward-to localhost:5173/api/stripe/webhook`
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+### Client-side Stripe (VITE_ prefix exposes to client)
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+### App Configuration
+VITE_APP_URL=http://localhost:5173
+
+### Other Cloudflare-specific secrets can be added here
+# TURNSTILE_SECRET_KEY=
+# RESEND_API_KEY=
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=

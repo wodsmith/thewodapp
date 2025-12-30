@@ -20,6 +20,7 @@ import {
 	getNextHeatNumber,
 	getUnassignedRegistrations,
 	removeFromHeat,
+	reorderHeats,
 	updateAssignment,
 	updateHeat,
 	updateVenue,
@@ -179,6 +180,15 @@ const copyHeatsSchema = z.object({
 	newStartTime: z.date(),
 	newDurationMinutes: z.number().int().min(1).max(180),
 	transitionMinutes: z.number().int().min(0).max(120).default(3),
+})
+
+const reorderHeatsSchema = z.object({
+	competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+	organizingTeamId: z.string().startsWith("team_", "Invalid team ID"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	orderedHeatIds: z
+		.array(heatIdSchema)
+		.min(1, "At least one heat ID is required"),
 })
 
 /* -------------------------------------------------------------------------- */
@@ -689,5 +699,34 @@ export const copyHeatsFromEventAction = createServerAction()
 			if (error instanceof ZSAError) throw error
 			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
 			throw new ZSAError("ERROR", "Failed to copy heats from event")
+		}
+	})
+
+/**
+ * Reorder heats within an event
+ * Updates heat numbers to match the new order (Heat 1, Heat 2, etc.)
+ */
+export const reorderHeatsAction = createServerAction()
+	.input(reorderHeatsSchema)
+	.handler(async ({ input }) => {
+		try {
+			await requireTeamPermission(
+				input.organizingTeamId,
+				TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+			)
+
+			const heats = await reorderHeats({
+				trackWorkoutId: input.trackWorkoutId,
+				orderedHeatIds: input.orderedHeatIds,
+			})
+
+			revalidatePath(`/compete/organizer/${input.competitionId}/schedule`)
+
+			return { success: true, data: heats }
+		} catch (error) {
+			console.error("Failed to reorder heats:", error)
+			if (error instanceof ZSAError) throw error
+			if (error instanceof Error) throw new ZSAError("ERROR", error.message)
+			throw new ZSAError("ERROR", "Failed to reorder heats")
 		}
 	})

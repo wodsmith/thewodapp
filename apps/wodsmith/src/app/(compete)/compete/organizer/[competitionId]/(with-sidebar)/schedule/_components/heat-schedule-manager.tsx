@@ -1,8 +1,19 @@
 "use client"
 
+import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview"
+import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
 import { useServerAction } from "@repo/zsa-react"
-import { Calculator, Eye, EyeOff, Loader2, Plus, Users } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import {
+	Calculator,
+	Eye,
+	EyeOff,
+	GripVertical,
+	Loader2,
+	Plus,
+	Users,
+} from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { updateCompetitionWorkoutAction } from "@/actions/competition-actions"
 import {
 	bulkCreateHeatsAction,
@@ -11,6 +22,7 @@ import {
 	deleteHeatAction,
 	getEventsWithHeatsAction,
 	getUnassignedRegistrationsAction,
+	reorderHeatsAction,
 } from "@/actions/competition-heat-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,6 +55,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { HeatWithAssignments } from "@/server/competition-heats"
 import type { CompetitionWorkout } from "@/server/competition-workouts"
 import { DraggableAthlete } from "./draggable-athlete"
+import { DraggableDivision } from "./draggable-division"
 import { EventOverview } from "./event-overview"
 import { HeatCard } from "./heat-card"
 import { WorkoutPreview } from "./workout-preview"
@@ -81,6 +94,94 @@ interface HeatScheduleManagerProps {
 	divisions: Division[]
 	registrations: Registration[]
 	onHeatsChange?: (heats: HeatWithAssignments[]) => void
+}
+
+// Draggable Division Header Component
+function DraggableDivisionHeader({
+	divisionId,
+	divisionLabel,
+	athleteCount,
+	registrationIds,
+}: {
+	divisionId: string
+	divisionLabel: string
+	athleteCount: number
+	registrationIds: string[]
+}) {
+	const headerRef = useRef<HTMLHeadingElement>(null)
+	const [isDragging, setIsDragging] = useState(false)
+
+	useEffect(() => {
+		const element = headerRef.current
+		if (!element) return
+
+		return draggable({
+			element,
+			getInitialData: () => ({
+				type: "division",
+				divisionId,
+				divisionName: divisionLabel,
+				registrationIds,
+			}),
+			onDragStart: () => setIsDragging(true),
+			onDrop: () => setIsDragging(false),
+			onGenerateDragPreview({ nativeSetDragImage }) {
+				setCustomNativeDragPreview({
+					nativeSetDragImage,
+					getOffset: pointerOutsideOfPreview({ x: "16px", y: "8px" }),
+					render({ container }) {
+						const preview = document.createElement("div")
+						preview.style.cssText = `
+							background: hsl(var(--background));
+							border: 2px solid hsl(var(--primary));
+							border-radius: 6px;
+							padding: 8px 12px;
+							font-size: 14px;
+							color: hsl(var(--foreground));
+							box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+							display: flex;
+							align-items: center;
+							gap: 8px;
+						`
+
+						// Division name
+						const nameSpan = document.createElement("span")
+						nameSpan.style.fontWeight = "600"
+						nameSpan.textContent = divisionLabel
+						preview.appendChild(nameSpan)
+
+						// Athlete count in badge
+						const badge = document.createElement("span")
+						badge.style.cssText = `
+							background: hsl(var(--muted));
+							color: hsl(var(--muted-foreground));
+							border-radius: 6px;
+							padding: 2px 6px;
+							font-size: 12px;
+						`
+						badge.textContent = `${athleteCount} athlete${athleteCount !== 1 ? "s" : ""}`
+						preview.appendChild(badge)
+
+						container.appendChild(preview)
+					},
+				})
+			},
+		})
+	}, [divisionId, divisionLabel, registrationIds, athleteCount])
+
+	return (
+		<h4
+			ref={headerRef}
+			className={`text-sm font-medium mb-2 flex items-center gap-2 cursor-grab active:cursor-grabbing select-none transition-opacity ${
+				isDragging ? "opacity-50" : ""
+			}`}
+		>
+			<GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+			<span className="flex-1">
+				{divisionLabel} ({athleteCount})
+			</span>
+		</h4>
+	)
 }
 
 export function HeatScheduleManager({
@@ -335,7 +436,11 @@ export function HeatScheduleManager({
 	const bulkCreateHeats = useServerAction(bulkCreateHeatsAction)
 	const getEventsWithHeats = useServerAction(getEventsWithHeatsAction)
 	const copyHeatsFromEvent = useServerAction(copyHeatsFromEventAction)
+	const reorderHeats = useServerAction(reorderHeatsAction)
 	const { toast } = useToast()
+
+	// Instance ID for heat list scoping (drag-drop)
+	const [heatListInstanceId] = useState(() => Symbol("heat-list"))
 
 	// Fetch events with heats when bulk create dialog opens
 	// biome-ignore lint/correctness/useExhaustiveDependencies: getEventsWithHeats.execute is stable, including it causes infinite loop
@@ -361,9 +466,12 @@ export function HeatScheduleManager({
 	// Get the selected event
 	const selectedEvent = localEvents.find((e) => e.id === selectedEventId)
 
-	// Filter heats for the selected event
+	// Filter heats for the selected event, sorted by heat number
 	const eventHeats = useMemo(
-		() => heats.filter((h) => h.trackWorkoutId === selectedEventId),
+		() =>
+			heats
+				.filter((h) => h.trackWorkoutId === selectedEventId)
+				.sort((a, b) => a.heatNumber - b.heatNumber),
 		[heats, selectedEventId],
 	)
 
@@ -566,6 +674,51 @@ export function HeatScheduleManager({
 				return h
 			}),
 		)
+	}
+
+	// Handle heat reordering
+	async function handleHeatReorder(sourceIndex: number, targetIndex: number) {
+		const newHeats = [...eventHeats]
+		const [movedHeat] = newHeats.splice(sourceIndex, 1)
+		if (!movedHeat) return
+		newHeats.splice(targetIndex, 0, movedHeat)
+
+		// Optimistic update
+		const orderedHeatIds = newHeats.map((h) => h.id)
+		const updatedEventHeats = newHeats.map((h, i) => ({
+			...h,
+			heatNumber: i + 1,
+		}))
+		setHeats(
+			heats.map((h) =>
+				h.trackWorkoutId === selectedEventId
+					? (updatedEventHeats.find((uh) => uh.id === h.id) ?? h)
+					: h,
+			),
+		)
+
+		// Persist to server
+		const [, error] = await reorderHeats.execute({
+			competitionId,
+			organizingTeamId,
+			trackWorkoutId: selectedEventId,
+			orderedHeatIds,
+		})
+
+		if (error) {
+			// Revert on error
+			setHeats(heats)
+			toast({
+				title: "Failed to reorder heats",
+				description: error.message,
+				variant: "destructive",
+			})
+		} else {
+			toast({
+				title: "Heats reordered",
+				description: "Heat order has been updated",
+			})
+		}
 	}
 
 	// Open bulk create dialog and initialize times
@@ -1244,7 +1397,7 @@ export function HeatScheduleManager({
 							</CardContent>
 						</Card>
 					) : (
-						eventHeats.map((heat) => (
+						eventHeats.map((heat, index) => (
 							<HeatCard
 								key={heat.id}
 								heat={heat}
@@ -1259,6 +1412,9 @@ export function HeatScheduleManager({
 								onMoveAssignment={handleMoveAssignment}
 								selectedAthleteIds={selectedAthleteIds}
 								onClearSelection={clearSelection}
+								index={index}
+								instanceId={heatListInstanceId}
+								onReorder={handleHeatReorder}
 							/>
 						))
 					)}
@@ -1317,6 +1473,7 @@ export function HeatScheduleManager({
 								</p>
 							) : (
 								<div className="space-y-4">
+									{/* Division groups with draggable headers */}
 									{Array.from(unassignedByDivision.entries()).map(
 										([divId, regs]) => {
 											const divisionLabel =
@@ -1325,9 +1482,12 @@ export function HeatScheduleManager({
 
 											return (
 												<div key={divId}>
-													<h4 className="text-sm font-medium mb-2">
-														{divisionLabel} ({regs.length})
-													</h4>
+													<DraggableDivisionHeader
+														divisionId={divId}
+														divisionLabel={divisionLabel}
+														athleteCount={regs.length}
+														registrationIds={regs.map((r) => r.id)}
+													/>
 													<div className="space-y-1">
 														{regs.map((reg) => (
 															<DraggableAthlete

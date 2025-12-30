@@ -13,6 +13,18 @@ import { CompetitionSection } from "./_components/competition-section"
 export const metadata: Metadata = {
 	title: "Compete | WODsmith",
 	description: "Browse and register for CrossFit competitions.",
+	openGraph: {
+		title: "Browse Competitions",
+		description: "Browse and register for CrossFit competitions.",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Browse Competitions")}&description=${encodeURIComponent("Find and register for CrossFit competitions near you")}`,
+				width: 1200,
+				height: 630,
+				alt: "Browse Competitions",
+			},
+		],
+	},
 }
 
 interface CompetePageProps {

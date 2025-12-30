@@ -4,6 +4,8 @@ import { Plus } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
+import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -15,8 +17,6 @@ import {
 import { TEAM_PERMISSIONS } from "@/db/schema"
 import { getCompetitionGroup, getCompetitions } from "@/server/competitions"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { OrganizerBreadcrumb } from "@/app/(compete)/compete/organizer/_components/organizer-breadcrumb"
-import { OrganizerCompetitionsList } from "@/app/(compete)/compete/organizer/_components/organizer-competitions-list"
 import { OrganizerSeriesActions } from "./_components/organizer-series-actions"
 
 interface SeriesDetailPageProps {

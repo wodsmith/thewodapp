@@ -1,4 +1,5 @@
 import { eq, inArray } from "drizzle-orm"
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { PendingTeamInvites } from "@/components/compete/pending-team-invites"
 import { VolunteerStatus } from "@/components/compete/volunteer-status"
@@ -25,6 +26,23 @@ import { AthleteStats } from "./_components/athlete-stats"
 import { BenchmarkStats } from "./_components/benchmark-stats"
 import { CompetitiveHistory } from "./_components/competitive-history"
 import { SponsorsSocial } from "./_components/sponsors-social"
+
+export const metadata: Metadata = {
+	title: "Athlete Profile | WODsmith",
+	description: "View and manage your athlete profile",
+	openGraph: {
+		title: "Athlete Profile",
+		description: "View and manage your athlete profile on WODsmith",
+		images: [
+			{
+				url: `/api/og?title=${encodeURIComponent("Athlete Profile")}&description=${encodeURIComponent("View and manage your athlete profile")}`,
+				width: 1200,
+				height: 630,
+				alt: "Athlete Profile",
+			},
+		],
+	},
+}
 
 export default async function AthletePage() {
 	// Require authentication
