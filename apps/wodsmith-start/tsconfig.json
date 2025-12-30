@@ -1,5 +1,6 @@
 {
 	"include": ["**/*.ts", "**/*.tsx", "./src/types/env.d.ts"],
+	"exclude": ["alchemy.run.ts"],
 	"compilerOptions": {
 		"target": "ES2022",
 		"jsx": "react-jsx",
