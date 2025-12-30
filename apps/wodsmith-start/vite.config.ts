@@ -1,15 +1,22 @@
-import { cloudflare } from "@cloudflare/vite-plugin"
 import tailwindcss from "@tailwindcss/vite"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
+import alchemy from "alchemy/cloudflare/tanstack-start"
 import { defineConfig } from "vite"
 import viteTsConfigPaths from "vite-tsconfig-paths"
 
 const config = defineConfig({
 	plugins: [
+		// MUST be first - handles Cloudflare bindings via Alchemy IaC
+		// persistState aligns Vite's miniflare database location with wrangler's
+		// so that db:migrate:local applies to the same database Vite uses
+		alchemy({
+			persistState: {
+				path: "./.alchemy/local/.wrangler/state",
+			},
+		}),
 		devtools(),
-		cloudflare({ viteEnvironment: { name: "ssr" } }),
 		// this is the plugin that enables path aliases
 		viteTsConfigPaths({
 			projects: ["./tsconfig.json"],
@@ -18,6 +25,12 @@ const config = defineConfig({
 		tanstackStart(),
 		viteReact(),
 	],
+	build: {
+		target: "esnext",
+		rollupOptions: {
+			external: ["node:async_hooks", "cloudflare:workers"],
+		},
+	},
 	// Resolve server-only as empty module (Next.js specific, not needed in TanStack Start)
 	resolve: {
 		alias: {

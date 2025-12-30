@@ -1,11 +1,17 @@
 {
-	"include": ["**/*.ts", "**/*.tsx"],
+	"include": ["**/*.ts", "**/*.tsx", "./src/types/env.d.ts"],
+	"exclude": ["alchemy.run.ts"],
 	"compilerOptions": {
 		"target": "ES2022",
 		"jsx": "react-jsx",
 		"module": "ESNext",
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
-		"types": ["./worker-configuration.d.ts", "node", "vite/client"],
+		"types": [
+			"./worker-configuration.d.ts",
+			"node",
+			"vite/client",
+			"@cloudflare/workers-types"
+		],
 
 		/* Bundler mode */
 		"moduleResolution": "bundler",
