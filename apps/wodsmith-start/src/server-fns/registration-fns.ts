@@ -84,6 +84,8 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		initiateRegistrationPaymentInputSchema.parse(data),
 	)
 	.handler(async ({ data: input }) => {
+		const { logInfo } = await import("@/lib/logging/posthog-otel-logger")
+
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
@@ -196,6 +198,16 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				registrationId: result.registrationId,
 				competitionId: input.competitionId,
 				isPaid: false,
+			})
+
+			logInfo({
+				message: "[registration] Free registration completed",
+				attributes: {
+					userId,
+					competitionId: input.competitionId,
+					divisionId: input.divisionId,
+					registrationId: result.registrationId,
+				},
 			})
 
 			return {
@@ -354,6 +366,18 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			.update(commercePurchaseTable)
 			.set({ stripeCheckoutSessionId: checkoutSession.id })
 			.where(eq(commercePurchaseTable.id, purchase.id))
+
+		logInfo({
+			message: "[registration] Paid registration checkout initiated",
+			attributes: {
+				userId,
+				competitionId: input.competitionId,
+				divisionId: input.divisionId,
+				purchaseId: purchase.id,
+				totalCents: feeBreakdown.totalChargeCents,
+				hasConnectedAccount: !!organizingTeam?.stripeConnectedAccountId,
+			},
+		})
 
 		return {
 			purchaseId: purchase.id,

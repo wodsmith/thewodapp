@@ -39,12 +39,10 @@ export async function setTeamLimitOverride(
 	// Stub implementation
 }
 
-// Stub implementation for logging
-function logInfo(_params: {
-	message: string
-	attributes: Record<string, any>
-}) {
-	// Stub implementation
+// Dynamic import helper for logging (avoids Vite bundling issues)
+async function getLogger() {
+	const { logInfo, logError } = await import("@/lib/logging/posthog-otel-logger")
+	return { logInfo, logError }
 }
 
 export interface OrganizerRequestWithDetails extends OrganizerRequest {
@@ -132,6 +130,7 @@ export async function submitOrganizerRequest({
 		"Organizer request pending approval",
 	)
 
+	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request submitted",
 		attributes: { teamId, userId, requestId: request.id },
@@ -312,6 +311,7 @@ export async function approveOrganizerRequest({
 		"Organizer request approved",
 	)
 
+	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request approved",
 		attributes: {
@@ -376,6 +376,7 @@ export async function rejectOrganizerRequest({
 		await revokeTeamFeature(request.teamId, FEATURES.HOST_COMPETITIONS)
 	}
 
+	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request rejected",
 		attributes: {

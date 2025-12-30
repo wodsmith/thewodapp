@@ -1,5 +1,6 @@
 import { createRouter } from "@tanstack/react-router"
 
+import { PostHogProvider } from "./lib/posthog/provider"
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen"
 
@@ -9,6 +10,13 @@ export const getRouter = () => {
 		routeTree,
 		scrollRestoration: true,
 		defaultPreloadStaleTime: 0,
+		/**
+		 * InnerWrap provides router context to PostHogProvider,
+		 * enabling automatic pageview tracking on route changes.
+		 */
+		InnerWrap: ({ children }) => (
+			<PostHogProvider>{children}</PostHogProvider>
+		),
 	})
 
 	return router

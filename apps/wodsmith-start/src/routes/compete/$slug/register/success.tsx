@@ -22,7 +22,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { type Gender } from "@/db/schema"
+import type { Gender } from "@/db/schema"
 import {
 	getRegistrationSuccessDataFn,
 	updateAthleteBasicProfileFn,

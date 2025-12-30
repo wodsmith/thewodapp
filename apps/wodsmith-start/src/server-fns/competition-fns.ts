@@ -493,25 +493,53 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 export const createCompetitionFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createCompetitionInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Import createCompetition from server functions
-		const { createCompetition } = await import(
-			"@/server-fns/competition-server-logic"
+		const { logInfo, logError } = await import(
+			"@/lib/logging/posthog-otel-logger"
 		)
 
-		const result = await createCompetition({
-			organizingTeamId: data.organizingTeamId,
-			name: data.name,
-			slug: data.slug,
-			startDate: data.startDate,
-			endDate: data.endDate,
-			description: data.description,
-			registrationOpensAt: data.registrationOpensAt,
-			registrationClosesAt: data.registrationClosesAt,
-			groupId: data.groupId,
-			settings: data.settings,
-		})
+		try {
+			// Import createCompetition from server functions
+			const { createCompetition } = await import(
+				"@/server-fns/competition-server-logic"
+			)
 
-		return result
+			const result = await createCompetition({
+				organizingTeamId: data.organizingTeamId,
+				name: data.name,
+				slug: data.slug,
+				startDate: data.startDate,
+				endDate: data.endDate,
+				description: data.description,
+				registrationOpensAt: data.registrationOpensAt,
+				registrationClosesAt: data.registrationClosesAt,
+				groupId: data.groupId,
+				settings: data.settings,
+			})
+
+			logInfo({
+				message: "[competition] Competition created",
+				attributes: {
+					competitionId: result.competitionId,
+					competitionTeamId: result.competitionTeamId,
+					competitionName: data.name,
+					organizingTeamId: data.organizingTeamId,
+					slug: data.slug,
+				},
+			})
+
+			return result
+		} catch (error) {
+			logError({
+				message: "[competition] Failed to create competition",
+				error,
+				attributes: {
+					competitionName: data.name,
+					organizingTeamId: data.organizingTeamId,
+					slug: data.slug,
+				},
+			})
+			throw error
+		}
 	})
 
 /**
@@ -522,6 +550,10 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 export const updateCompetitionFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateCompetitionInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { logInfo, logError } = await import(
+			"@/lib/logging/posthog-otel-logger"
+		)
+
 		// Auth check: require authenticated user
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
@@ -557,16 +589,37 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 			)
 		}
 
-		// Import updateCompetition from server functions
-		const { updateCompetition } = await import(
-			"@/server-fns/competition-server-logic"
-		)
+		try {
+			// Import updateCompetition from server functions
+			const { updateCompetition } = await import(
+				"@/server-fns/competition-server-logic"
+			)
 
-		const { competitionId, ...updates } = data
+			const { competitionId, ...updates } = data
 
-		const competition = await updateCompetition(competitionId, updates)
+			const competition = await updateCompetition(competitionId, updates)
 
-		return { competition }
+			logInfo({
+				message: "[competition] Competition updated",
+				attributes: {
+					competitionId,
+					userId: session.userId,
+					updatedFields: Object.keys(updates),
+				},
+			})
+
+			return { competition }
+		} catch (error) {
+			logError({
+				message: "[competition] Failed to update competition",
+				error,
+				attributes: {
+					competitionId: data.competitionId,
+					userId: session.userId,
+				},
+			})
+			throw error
+		}
 	})
 
 /**
@@ -644,19 +697,44 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 		createCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Import createCompetitionGroup from server functions
-		const { createCompetitionGroup } = await import(
-			"@/server-fns/competition-server-logic"
+		const { logInfo, logError } = await import(
+			"@/lib/logging/posthog-otel-logger"
 		)
 
-		const result = await createCompetitionGroup({
-			organizingTeamId: data.organizingTeamId,
-			name: data.name,
-			slug: data.slug,
-			description: data.description,
-		})
+		try {
+			// Import createCompetitionGroup from server functions
+			const { createCompetitionGroup } = await import(
+				"@/server-fns/competition-server-logic"
+			)
 
-		return result
+			const result = await createCompetitionGroup({
+				organizingTeamId: data.organizingTeamId,
+				name: data.name,
+				slug: data.slug,
+				description: data.description,
+			})
+
+			logInfo({
+				message: "[competition] Competition group created",
+				attributes: {
+					groupId: result.groupId,
+					groupName: data.name,
+					organizingTeamId: data.organizingTeamId,
+				},
+			})
+
+			return result
+		} catch (error) {
+			logError({
+				message: "[competition] Failed to create competition group",
+				error,
+				attributes: {
+					groupName: data.name,
+					organizingTeamId: data.organizingTeamId,
+				},
+			})
+			throw error
+		}
 	})
 
 /**
@@ -667,16 +745,37 @@ export const updateCompetitionGroupFn = createServerFn({ method: "POST" })
 		updateCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Import updateCompetitionGroup from server functions
-		const { updateCompetitionGroup } = await import(
-			"@/server-fns/competition-server-logic"
+		const { logInfo, logError } = await import(
+			"@/lib/logging/posthog-otel-logger"
 		)
 
-		const { groupId, ...updates } = data
+		try {
+			// Import updateCompetitionGroup from server functions
+			const { updateCompetitionGroup } = await import(
+				"@/server-fns/competition-server-logic"
+			)
 
-		const group = await updateCompetitionGroup(groupId, updates)
+			const { groupId, ...updates } = data
 
-		return { group }
+			const group = await updateCompetitionGroup(groupId, updates)
+
+			logInfo({
+				message: "[competition] Competition group updated",
+				attributes: {
+					groupId,
+					updatedFields: Object.keys(updates),
+				},
+			})
+
+			return { group }
+		} catch (error) {
+			logError({
+				message: "[competition] Failed to update competition group",
+				error,
+				attributes: { groupId: data.groupId },
+			})
+			throw error
+		}
 	})
 
 /**
@@ -688,12 +787,30 @@ export const deleteCompetitionGroupFn = createServerFn({ method: "POST" })
 		deleteCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Import deleteCompetitionGroup from server functions
-		const { deleteCompetitionGroup } = await import(
-			"@/server-fns/competition-server-logic"
+		const { logInfo, logError } = await import(
+			"@/lib/logging/posthog-otel-logger"
 		)
 
-		const result = await deleteCompetitionGroup(data.groupId)
+		try {
+			// Import deleteCompetitionGroup from server functions
+			const { deleteCompetitionGroup } = await import(
+				"@/server-fns/competition-server-logic"
+			)
 
-		return result
+			const result = await deleteCompetitionGroup(data.groupId)
+
+			logInfo({
+				message: "[competition] Competition group deleted",
+				attributes: { groupId: data.groupId },
+			})
+
+			return result
+		} catch (error) {
+			logError({
+				message: "[competition] Failed to delete competition group",
+				error,
+				attributes: { groupId: data.groupId },
+			})
+			throw error
+		}
 	})

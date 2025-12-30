@@ -6,6 +6,7 @@ import { CheckCircle } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { useTrackEvent } from "@/lib/posthog/hooks"
 import { acceptTeamInvitationFn } from "@/server-fns/invite-fns"
 
 interface AcceptInviteButtonProps {
@@ -24,6 +25,7 @@ export function AcceptInviteButton({
 	const navigate = useNavigate()
 	const [isPending, setIsPending] = useState(false)
 	const acceptInvitation = useServerFn(acceptTeamInvitationFn)
+	const trackEvent = useTrackEvent()
 
 	async function handleAccept() {
 		setIsPending(true)
@@ -31,21 +33,11 @@ export function AcceptInviteButton({
 			await acceptInvitation({ data: { token } })
 			toast.success("You've joined the team!")
 
-			// Track event if posthog is available
-			if (typeof window !== "undefined" && "posthog" in window) {
-				const posthog = (
-					window as unknown as {
-						posthog: {
-							capture: (event: string, props: Record<string, unknown>) => void
-						}
-					}
-				).posthog
-				posthog.capture("competition_team_invite_accepted", {
-					competition_slug: competitionSlug,
-					competition_id: competitionId,
-					team_name: teamName,
-				})
-			}
+			trackEvent("competition_team_invite_accepted", {
+				competition_slug: competitionSlug,
+				competition_id: competitionId,
+				team_name: teamName,
+			})
 
 			if (competitionSlug) {
 				navigate({ to: "/compete/$slug", params: { slug: competitionSlug } })
@@ -57,20 +49,10 @@ export function AcceptInviteButton({
 				err instanceof Error ? err.message : "Failed to accept invitation"
 			toast.error(message)
 
-			// Track failure if posthog is available
-			if (typeof window !== "undefined" && "posthog" in window) {
-				const posthog = (
-					window as unknown as {
-						posthog: {
-							capture: (event: string, props: Record<string, unknown>) => void
-						}
-					}
-				).posthog
-				posthog.capture("competition_team_invite_accepted_failed", {
-					competition_slug: competitionSlug,
-					error_message: message,
-				})
-			}
+			trackEvent("competition_team_invite_accepted_failed", {
+				competition_slug: competitionSlug,
+				error_message: message,
+			})
 		} finally {
 			setIsPending(false)
 		}
