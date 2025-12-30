@@ -7,6 +7,7 @@ import {
 } from "@heroicons/react/24/outline"
 import { useServerAction } from "@repo/zsa-react"
 import { format, formatDistanceToNow } from "date-fns"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import {
@@ -39,10 +40,9 @@ interface OrganizerRequestsTableProps {
 }
 
 export function OrganizerRequestsTable({
-	requests: initialRequests,
+	requests,
 }: OrganizerRequestsTableProps) {
-	const [requests, setRequests] =
-		useState<OrganizerRequestWithDetails[]>(initialRequests)
+	const router = useRouter()
 	const [selectedRequest, setSelectedRequest] =
 		useState<OrganizerRequestWithDetails | null>(null)
 	const [dialogType, setDialogType] = useState<"approve" | "reject" | null>(
@@ -56,25 +56,11 @@ export function OrganizerRequestsTable({
 	const { execute: approve, isPending: isApproving } = useServerAction(
 		approveOrganizerRequestAction,
 		{
-			onSuccess: ({ data }) => {
+			onSuccess: () => {
 				toast.success("Request approved successfully")
-				// Update local state with data from server response for complete info
-				if (data?.data) {
-					setRequests((prev) =>
-						prev.map((r) =>
-							r.id === selectedRequest?.id
-								? {
-										...r,
-										status: data.data.status,
-										reviewedAt: data.data.reviewedAt,
-										reviewedBy: data.data.reviewedBy,
-										adminNotes: data.data.adminNotes,
-									}
-								: r,
-						),
-					)
-				}
 				closeDialog()
+				// Refresh to get complete data including reviewer details from server
+				router.refresh()
 			},
 			onError: (error) => {
 				toast.error(error.err?.message || "Failed to approve request")
@@ -85,25 +71,11 @@ export function OrganizerRequestsTable({
 	const { execute: reject, isPending: isRejecting } = useServerAction(
 		rejectOrganizerRequestAction,
 		{
-			onSuccess: ({ data }) => {
+			onSuccess: () => {
 				toast.success("Request rejected")
-				// Update local state with data from server response for complete info
-				if (data?.data) {
-					setRequests((prev) =>
-						prev.map((r) =>
-							r.id === selectedRequest?.id
-								? {
-										...r,
-										status: data.data.status,
-										reviewedAt: data.data.reviewedAt,
-										reviewedBy: data.data.reviewedBy,
-										adminNotes: data.data.adminNotes,
-									}
-								: r,
-						),
-					)
-				}
 				closeDialog()
+				// Refresh to get complete data including reviewer details from server
+				router.refresh()
 			},
 			onError: (error) => {
 				toast.error(error.err?.message || "Failed to reject request")

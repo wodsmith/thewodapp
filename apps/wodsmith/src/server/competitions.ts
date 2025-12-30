@@ -655,6 +655,41 @@ export async function getCompetitions(teamId: string): Promise<
 }
 
 /**
+ * Get ALL competitions for admin view (no team filtering)
+ *
+ * This is for admin-only use - shows all competitions from all organizers.
+ * Ordered by createdAt DESC to show newest first.
+ */
+export async function getAllCompetitionsForAdmin(): Promise<
+	Array<
+		Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+		}
+	>
+> {
+	const db = getDb()
+
+	const competitions = await db.query.competitionsTable.findMany({
+		with: {
+			competitionTeam: true,
+			group: true,
+			organizingTeam: true,
+		},
+		orderBy: (table, { desc }) => [desc(table.createdAt)],
+	})
+
+	return competitions as Array<
+		Competition & {
+			organizingTeam: Team | null
+			competitionTeam: Team | null
+			group: CompetitionGroup | null
+		}
+	>
+}
+
+/**
  * Get all public competitions (for competition discovery page)
  *
  * Phase 2 Implementation:
@@ -1335,6 +1370,7 @@ export async function getTeammateInvite(inviteToken: string) {
 
 	// Get the captain info from the registration
 	let captain = null
+	let registrationId: string | null = null
 	if (competitionContext.competitionId) {
 		const { competitionRegistrationsTable } = await import("@/db/schema")
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
@@ -1353,6 +1389,7 @@ export async function getTeammateInvite(inviteToken: string) {
 		)
 
 		if (registration) {
+			registrationId = registration.id
 			const captainUser = Array.isArray(registration.captain)
 				? registration.captain[0]
 				: registration.captain
@@ -1372,6 +1409,7 @@ export async function getTeammateInvite(inviteToken: string) {
 		email: invitation.email,
 		expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt) : null,
 		acceptedAt: invitation.acceptedAt ? new Date(invitation.acceptedAt) : null,
+		registrationId,
 		team: {
 			id: team.id,
 			name: team.name,
@@ -1748,6 +1786,14 @@ export async function getCompetitionRegistrations(
 							},
 						},
 					},
+				},
+			},
+			waiverSignatures: {
+				columns: {
+					id: true,
+					waiverId: true,
+					userId: true,
+					signedAt: true,
 				},
 			},
 		},

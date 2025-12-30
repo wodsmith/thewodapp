@@ -35,6 +35,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { GENDER_ENUM } from "@/db/schemas/users"
+import { AffiliateCombobox } from "../../[slug]/register/_components/affiliate-combobox"
 import { athleteProfileExtendedSchema } from "@/schemas/settings.schema"
 import {
 	type AthleteProfileData,
@@ -358,6 +359,27 @@ export function AthleteProfileForm({
 								)}
 							/>
 						</div>
+
+						<FormField
+							control={form.control}
+							name="affiliateName"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Default Affiliate</FormLabel>
+									<FormControl>
+										<AffiliateCombobox
+											value={field.value ?? ""}
+											onChange={field.onChange}
+											placeholder="Select your gym or affiliate..."
+										/>
+									</FormControl>
+									<FormDescription>
+										Your default gym/affiliate for competition registrations
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 					</CardContent>
 				</Card>
 
