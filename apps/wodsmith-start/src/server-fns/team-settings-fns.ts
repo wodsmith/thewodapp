@@ -25,7 +25,7 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "./requireTeamMembership"
@@ -132,6 +132,10 @@ const teamIdSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
+const setActiveTeamInputSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
 const teamSlugSchema = z.object({
 	slug: z.string().min(1, "Slug is required"),
 })
@@ -176,6 +180,34 @@ async function requireVerifiedEmail() {
 	}
 	return session
 }
+
+// ============================================================================
+// Server Functions - Active Team
+// ============================================================================
+
+/**
+ * Set the active team for the current user
+ * This stores the preference in a cookie for persistence across sessions
+ */
+export const setActiveTeamFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => setActiveTeamInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		}
+
+		// Validate that the user is a member of the team
+		const isMember = session.teams?.some((team) => team.id === data.teamId)
+		if (!isMember) {
+			throw new ZSAError("FORBIDDEN", "You are not a member of this team")
+		}
+
+		// Set the active team cookie
+		await setActiveTeamCookie(data.teamId)
+
+		return { success: true, teamId: data.teamId }
+	})
 
 // ============================================================================
 // Server Functions - Team CRUD

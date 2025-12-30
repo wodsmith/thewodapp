@@ -1,9 +1,6 @@
-import { env } from "cloudflare:workers"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useRef, useState } from "react"
-import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -14,80 +11,7 @@ import {
 } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
-import { getDb } from "@/db"
-import { userTable } from "@/db/schema"
-import { getVerificationTokenKey } from "@/utils/auth-utils"
-import { updateAllSessionsOfUser } from "@/utils/kv-session"
-
-// Define schema inline to avoid import issues
-const verifyEmailSchema = z.object({
-	token: z.string().min(1, "Verification token is required"),
-})
-
-// Server function for email verification
-const verifyEmailServerFn = createServerFn({ method: "POST" })
-	.inputValidator(
-		(data: unknown): z.infer<typeof verifyEmailSchema> =>
-			verifyEmailSchema.parse(data),
-	)
-	.handler(async ({ data }) => {
-		const kv = env.KV_SESSION
-
-		if (!kv) {
-			throw new Error("Can't connect to KV store")
-		}
-
-		const verificationTokenStr = await kv.get(
-			getVerificationTokenKey(data.token),
-		)
-
-		if (!verificationTokenStr) {
-			throw new Error("Verification token not found or expired")
-		}
-
-		const verificationToken = JSON.parse(verificationTokenStr) as {
-			userId: string
-			expiresAt: string
-		}
-
-		// Check if token is expired (although KV should have auto-deleted it)
-		if (new Date() > new Date(verificationToken.expiresAt)) {
-			throw new Error("Verification token not found or expired")
-		}
-
-		const db = getDb()
-
-		// Find user
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, verificationToken.userId),
-		})
-
-		if (!user) {
-			throw new Error("User not found")
-		}
-
-		try {
-			// Update user's email verification status
-			await db
-				.update(userTable)
-				.set({ emailVerified: new Date() })
-				.where(eq(userTable.id, verificationToken.userId))
-
-			// Update all sessions of the user to reflect the new email verification status
-			await updateAllSessionsOfUser(verificationToken.userId)
-
-			// Delete the used token
-			await kv.delete(getVerificationTokenKey(data.token))
-
-			// Add a small delay to ensure all updates are processed
-			await new Promise((resolve) => setTimeout(resolve, 500))
-
-			return { success: true }
-		} catch (error) {
-			console.error(error)
-			throw new Error("An unexpected error occurred")
-		}
-	})
+import { verifyEmailFn, verifyEmailSchema } from "@/server-fns/auth-fns"
 
 export const Route = createFileRoute("/_auth/verify-email")({
 	component: VerifyEmailPage,
@@ -107,6 +31,9 @@ function VerifyEmailPage() {
 	)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+	// Use useServerFn for client-side calls
+	const verifyEmail = useServerFn(verifyEmailFn)
+
 	useEffect(() => {
 		if (!token) {
 			setStatus("error")
@@ -118,7 +45,7 @@ function VerifyEmailPage() {
 			return
 		}
 
-		const verifyEmail = async () => {
+		const doVerifyEmail = async () => {
 			try {
 				// Validate token format
 				const result = verifyEmailSchema.safeParse({ token })
@@ -129,7 +56,7 @@ function VerifyEmailPage() {
 				}
 
 				hasCalledVerification.current = true
-				await verifyEmailServerFn({ data: { token } })
+				await verifyEmail({ data: { token } })
 
 				setStatus("success")
 
@@ -145,8 +72,8 @@ function VerifyEmailPage() {
 			}
 		}
 
-		verifyEmail()
-	}, [token, router])
+		doVerifyEmail()
+	}, [token, router, verifyEmail])
 
 	if (status === "loading") {
 		return (

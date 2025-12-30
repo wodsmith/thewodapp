@@ -516,6 +516,15 @@ export const requireAdmin = cache(
 	},
 )
 
+/**
+ * Check if the current user is a site admin
+ * Returns false if not authenticated or not an admin (does not throw)
+ */
+export const isAdmin = cache(async (): Promise<boolean> => {
+	const session = await getSessionFromCookie()
+	return session?.user?.role === ROLES_ENUM.ADMIN
+})
+
 export const requireAdminForTeam = cache(
 	async ({
 		doNotThrowError = false,

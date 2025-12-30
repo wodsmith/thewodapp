@@ -51,12 +51,13 @@ function RootComponent() {
 	const { session } = Route.useRouteContext()
 	const location = useLocation()
 
-	// Don't render MainNav on compete routes - they have their own CompeteNav
+	// Don't render MainNav on routes that have their own navigation
 	const isCompeteRoute = location.pathname.startsWith("/compete")
+	const isAdminRoute = location.pathname.startsWith("/admin")
 
 	return (
 		<>
-			{!isCompeteRoute && <MainNav session={session} />}
+			{!isCompeteRoute && !isAdminRoute && <MainNav session={session} />}
 			<Outlet />
 		</>
 	)

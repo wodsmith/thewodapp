@@ -16,6 +16,7 @@ import {
 	commercePurchaseTable,
 	competitionRegistrationsTable,
 	competitionsTable,
+	scalingGroupsTable,
 	scalingLevelsTable,
 	teamTable,
 } from "@/db/schema"
@@ -44,14 +45,14 @@ const initiateRegistrationPaymentInputSchema = z.object({
 	divisionId: z.string().min(1, "Division ID is required"),
 	// Team registration data (stored for webhook to use)
 	teamName: z.string().optional(),
-	affiliateName: z.string().optional(),
+	affiliateName: z.string().max(255).optional(),
 	teammates: z
 		.array(
 			z.object({
 				email: z.string().email(),
 				firstName: z.string().optional(),
 				lastName: z.string().optional(),
-				affiliateName: z.string().optional(),
+				affiliateName: z.string().max(255).optional(),
 			}),
 		)
 		.optional(),
@@ -431,5 +432,248 @@ export const getUserCompetitionRegistrationFn = createServerFn({
 		return {
 			isRegistered: !!registration,
 			registration: registration || null,
+		}
+	})
+
+/**
+ * Get scaling group with levels for registration form
+ */
+export const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ scalingGroupId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
+			where: eq(scalingGroupsTable.id, data.scalingGroupId),
+			with: {
+				scalingLevels: {
+					orderBy: (table, { asc }) => [asc(table.position)],
+				},
+			},
+		})
+
+		return { scalingGroup }
+	})
+
+/**
+ * Get user's affiliate name for registration form
+ */
+export const getUserAffiliateNameFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ userId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+		const { userTable } = await import("@/db/schema")
+
+		const user = await db.query.userTable.findFirst({
+			where: eq(userTable.id, data.userId),
+			columns: { affiliateName: true },
+		})
+
+		return { affiliateName: user?.affiliateName ?? null }
+	})
+
+// ============================================================================
+// Team Roster Types
+// ============================================================================
+
+interface TeamMemberData {
+	id: string
+	userId: string | null
+	roleId: string
+	isCaptain: boolean
+	user: {
+		id: string
+		firstName: string | null
+		lastName: string | null
+		email: string | null
+		avatar: string | null
+	} | null
+}
+
+interface PendingInviteData {
+	id: string
+	email: string
+	token: string | null
+	invitedAt: Date | null
+}
+
+export interface TeamRosterResult {
+	registration: {
+		id: string
+		teamName: string | null
+		captainUserId: string | null
+		userId: string
+		metadata: string | null
+		pendingTeammates: string | null
+		athleteTeamId: string | null
+		competition: {
+			id: string
+			name: string
+			slug: string
+		} | null
+		division: {
+			id: string
+			label: string
+		} | null
+	}
+	members: TeamMemberData[]
+	pending: PendingInviteData[]
+	isTeamRegistration: boolean
+}
+
+/**
+ * Get team roster for a registration
+ */
+export const getTeamRosterFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ registrationId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }): Promise<TeamRosterResult | null> => {
+		const db = getDb()
+		const { teamMembershipTable, teamInvitationTable } = await import(
+			"@/db/schema"
+		)
+		const { isNull } = await import("drizzle-orm")
+
+		// Get registration with related data
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, data.registrationId),
+				with: {
+					competition: {
+						columns: {
+							id: true,
+							name: true,
+							slug: true,
+						},
+					},
+					division: {
+						columns: {
+							id: true,
+							label: true,
+						},
+					},
+				},
+			},
+		)
+
+		if (!registration) {
+			return null
+		}
+
+		// Parse related data
+		const competition = registration.competition
+			? Array.isArray(registration.competition)
+				? registration.competition[0]
+				: registration.competition
+			: null
+
+		const division = registration.division
+			? Array.isArray(registration.division)
+				? registration.division[0]
+				: registration.division
+			: null
+
+		// If no athleteTeamId, this is an individual registration
+		if (!registration.athleteTeamId) {
+			return {
+				registration: {
+					id: registration.id,
+					teamName: registration.teamName,
+					captainUserId: registration.captainUserId,
+					userId: registration.userId,
+					metadata: registration.metadata,
+					pendingTeammates: registration.pendingTeammates,
+					athleteTeamId: registration.athleteTeamId,
+					competition,
+					division,
+				},
+				members: [],
+				pending: [],
+				isTeamRegistration: false,
+			}
+		}
+
+		// Get confirmed team members from teamMembershipTable
+		type MembershipWithUser = {
+			id: string
+			userId: string
+			roleId: string
+			user: {
+				id: string
+				firstName: string | null
+				lastName: string | null
+				email: string | null
+				avatar: string | null
+			} | null
+		}
+
+		const memberships = (await db.query.teamMembershipTable.findMany({
+			where: eq(teamMembershipTable.teamId, registration.athleteTeamId),
+			with: {
+				user: {
+					columns: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						avatar: true,
+					},
+				},
+			},
+		})) as unknown as MembershipWithUser[]
+
+		// Get pending invitations
+		const invitations = await db.query.teamInvitationTable.findMany({
+			where: and(
+				eq(teamInvitationTable.teamId, registration.athleteTeamId),
+				isNull(teamInvitationTable.acceptedAt),
+			),
+		})
+
+		const members: TeamMemberData[] = memberships.map((m) => {
+			const user = m.user
+			return {
+				id: m.id,
+				userId: m.userId,
+				roleId: m.roleId,
+				isCaptain: m.roleId === "captain",
+				user: user
+					? {
+							id: user.id,
+							firstName: user.firstName,
+							lastName: user.lastName,
+							email: user.email,
+							avatar: user.avatar,
+						}
+					: null,
+			}
+		})
+
+		const pending: PendingInviteData[] = invitations.map((i) => ({
+			id: i.id,
+			email: i.email,
+			token: i.token,
+			invitedAt: i.createdAt ? new Date(i.createdAt) : null,
+		}))
+
+		return {
+			registration: {
+				id: registration.id,
+				teamName: registration.teamName,
+				captainUserId: registration.captainUserId,
+				userId: registration.userId,
+				metadata: registration.metadata,
+				pendingTeammates: registration.pendingTeammates,
+				athleteTeamId: registration.athleteTeamId,
+				competition,
+				division,
+			},
+			members,
+			pending,
+			isTeamRegistration: true,
 		}
 	})

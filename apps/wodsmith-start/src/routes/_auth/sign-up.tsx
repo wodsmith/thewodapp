@@ -5,11 +5,9 @@ import {
 	redirect,
 	useRouter,
 } from "@tanstack/react-router"
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -20,111 +18,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
-import { getDb } from "@/db"
-import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
-import { canSignUp, createAndStoreSession } from "@/utils/auth"
-import { hashPassword } from "@/utils/password-hasher"
-
-// Define schema here to avoid import issues with zod versions
-const signUpSchema = z.object({
-	email: z.string().email("Please enter a valid email address"),
-	firstName: z.string().min(1, "First name is required"),
-	lastName: z.string().min(1, "Last name is required"),
-	password: z
-		.string()
-		.min(8, "Password must be at least 8 characters")
-		.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-		.regex(/[a-z]/, "Password must contain at least one lowercase letter")
-		.regex(/[0-9]/, "Password must contain at least one number"),
-})
-
-type SignUpSchema = z.infer<typeof signUpSchema>
-
-// Server function for sign-up
-// With Zod 4, we use inputValidator with a custom function instead of zodValidator adapter
-const signUpServerFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => signUpSchema.parse(data))
-	.handler(async ({ data }) => {
-		const db = getDb()
-
-		// Check if email is disposable
-		await canSignUp({ email: data.email })
-
-		// Check if email is already taken
-		const existingUser = await db.query.userTable.findFirst({
-			where: eq(userTable.email, data.email),
-		})
-
-		if (existingUser) {
-			throw new Error("Email already taken")
-		}
-
-		// Hash the password
-		const hashedPassword = await hashPassword({ password: data.password })
-
-		// Create the user with auto-verified email
-		const [user] = await db
-			.insert(userTable)
-			.values({
-				email: data.email,
-				firstName: data.firstName,
-				lastName: data.lastName,
-				passwordHash: hashedPassword,
-				emailVerified: new Date(), // Auto-verify email on signup
-			})
-			.returning()
-
-		if (!user || !user.email) {
-			throw new Error("Failed to create user")
-		}
-
-		// Create a personal team for the user (inline logic)
-		const personalTeamName = `${user.firstName || "Personal"}'s Team (personal)`
-		const personalTeamSlug = `${
-			user.firstName?.toLowerCase() || "personal"
-		}-${user.id.slice(-6)}`
-
-		const personalTeamResult = await db
-			.insert(teamTable)
-			.values({
-				name: personalTeamName,
-				slug: personalTeamSlug,
-				description:
-					"Personal team for individual programming track subscriptions",
-				isPersonalTeam: 1,
-				personalTeamOwnerId: user.id,
-			})
-			.returning()
-		const personalTeam = personalTeamResult[0]
-
-		if (!personalTeam) {
-			throw new Error("Failed to create personal team")
-		}
-
-		// Add the user as a member of their personal team
-		await db.insert(teamMembershipTable).values({
-			teamId: personalTeam.id,
-			userId: user.id,
-			roleId: "owner", // System role for team owner
-			isSystemRole: 1,
-			joinedAt: new Date(),
-			isActive: 1,
-		})
-
-		// Create session and set cookie
-		await createAndStoreSession(user.id, "password")
-
-		return { success: true, userId: user.id }
-	})
-
-// Server function to check existing session
-const getSessionServerFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		// TODO: Implement getSessionFromCookie for TanStack Start
-		// Check if user is already authenticated
-		return null
-	},
-)
+import {
+	getSessionFn,
+	signUpFn,
+	signUpSchema,
+	type SignUpInput,
+} from "@/server-fns/auth-fns"
 
 export const Route = createFileRoute("/_auth/sign-up")({
 	component: SignUpPage,
@@ -134,7 +33,7 @@ export const Route = createFileRoute("/_auth/sign-up")({
 		}
 	},
 	beforeLoad: async ({ search }) => {
-		const session = await getSessionServerFn()
+		const session = await getSessionFn()
 		const redirectPath =
 			(search as { redirect?: string }).redirect || REDIRECT_AFTER_SIGN_IN
 
@@ -150,7 +49,10 @@ function SignUpPage() {
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 
-	const form = useForm<SignUpSchema>({
+	// Use useServerFn for client-side calls
+	const signUp = useServerFn(signUpFn)
+
+	const form = useForm<SignUpInput>({
 		resolver: standardSchemaResolver(signUpSchema),
 		defaultValues: {
 			email: "",
@@ -160,12 +62,12 @@ function SignUpPage() {
 		},
 	})
 
-	const onSubmit = async (data: SignUpSchema) => {
+	const onSubmit = async (data: SignUpInput) => {
 		try {
 			setIsLoading(true)
 			setError(null)
 
-			await signUpServerFn({ data })
+			await signUp({ data })
 
 			// TODO: Add analytics tracking (PostHog)
 			// posthog.identify(userId, { email: data.email, first_name: data.firstName, last_name: data.lastName })

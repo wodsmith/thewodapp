@@ -1,30 +1,20 @@
 /**
  * Organizer Onboarding Server Functions for TanStack Start
  * Handles the workflow for teams to request and receive competition organizing access
+ *
+ * IMPORTANT: All functions that access @/db must use dynamic imports to avoid
+ * bundling cloudflare:workers into the client bundle.
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
-import { getDb } from "@/db"
 import {
 	ORGANIZER_REQUEST_STATUS,
 	type OrganizerRequest,
-	organizerRequestTable,
 } from "@/db/schemas/organizer-requests"
-import {
-	SYSTEM_ROLES_ENUM,
-	TEAM_PERMISSIONS,
-	teamMembershipTable,
-} from "@/db/schemas/teams"
-import {
-	grantTeamFeature,
-	setTeamLimitOverride,
-} from "@/server/organizer-onboarding"
-import { getSessionFromCookie } from "@/utils/auth"
-import { validateTurnstileToken } from "@/utils/validate-captcha"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 
 // ============================================================================
 // Permission Helpers
@@ -37,6 +27,7 @@ async function hasTeamPermission(
 	teamId: string,
 	permission: string,
 ): Promise<boolean> {
+	const { getSessionFromCookie } = await import("@/utils/auth")
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
 
@@ -54,6 +45,11 @@ async function isTeamOwnerFromDb(
 	userId: string,
 	teamId: string,
 ): Promise<boolean> {
+	const { getDb } = await import("@/db")
+	const { and, eq } = await import("drizzle-orm")
+	const { SYSTEM_ROLES_ENUM, teamMembershipTable } = await import(
+		"@/db/schemas/teams"
+	)
 	const db = getDb()
 	const membership = await db.query.teamMembershipTable.findFirst({
 		where: and(
@@ -84,6 +80,15 @@ export async function submitOrganizerRequest({
 	userId: string
 	reason: string
 }): Promise<OrganizerRequest> {
+	const { getDb } = await import("@/db")
+	const { and, eq } = await import("drizzle-orm")
+	const { organizerRequestTable } = await import(
+		"@/db/schemas/organizer-requests"
+	)
+	const { grantTeamFeature, setTeamLimitOverride } = await import(
+		"@/server/organizer-onboarding"
+	)
+
 	const db = getDb()
 
 	// Check if there's already a pending request for this team
@@ -145,6 +150,12 @@ export async function submitOrganizerRequest({
 export async function getOrganizerRequest(
 	teamId: string,
 ): Promise<OrganizerRequest | null> {
+	const { getDb } = await import("@/db")
+	const { desc, eq } = await import("drizzle-orm")
+	const { organizerRequestTable } = await import(
+		"@/db/schemas/organizer-requests"
+	)
+
 	const db = getDb()
 
 	// Get the most recent request for this team
@@ -162,6 +173,12 @@ export async function getOrganizerRequest(
 export async function hasPendingOrganizerRequest(
 	teamId: string,
 ): Promise<boolean> {
+	const { getDb } = await import("@/db")
+	const { and, eq } = await import("drizzle-orm")
+	const { organizerRequestTable } = await import(
+		"@/db/schemas/organizer-requests"
+	)
+
 	const db = getDb()
 
 	const request = await db.query.organizerRequestTable.findFirst({
@@ -178,6 +195,12 @@ export async function hasPendingOrganizerRequest(
  * Check if a team has an approved organizer request
  */
 export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
+	const { getDb } = await import("@/db")
+	const { and, eq } = await import("drizzle-orm")
+	const { organizerRequestTable } = await import(
+		"@/db/schemas/organizer-requests"
+	)
+
 	const db = getDb()
 
 	const request = await db.query.organizerRequestTable.findFirst({
@@ -218,6 +241,11 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => submitOrganizerRequestSchema.parse(data))
 	.handler(
 		async ({ data }): Promise<{ success: boolean; data: OrganizerRequest }> => {
+			const { validateTurnstileToken } = await import(
+				"@/utils/validate-captcha"
+			)
+			const { getSessionFromCookie } = await import("@/utils/auth")
+
 			// Validate turnstile token if provided
 			if (data.captchaToken) {
 				const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
@@ -278,6 +306,8 @@ export const getOrganizerRequestStatusFn = createServerFn({ method: "GET" })
 				hasNoRequest: boolean
 			}
 		}> => {
+			const { getSessionFromCookie } = await import("@/utils/auth")
+
 			const session = await getSessionFromCookie()
 			if (!session?.user) {
 				throw new Error("You must be logged in")

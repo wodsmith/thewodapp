@@ -9,12 +9,42 @@ import { z } from "zod"
 import { RegistrationForm } from "@/components/registration/registration-form"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/registration-fns"
 
 // Search params validation
 const registerSearchSchema = z.object({
 	canceled: z.enum(["true", "false"]).optional().catch(undefined),
 })
+
+// Server function to check if user is already registered
+const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				competitionId: z.string(),
+				userId: z.string(),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
+		const { competitionRegistrationsTable } = await import("@/db/schema")
+		const { and, eq } = await import("drizzle-orm")
+
+		const db = getDb()
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+					eq(competitionRegistrationsTable.userId, data.userId),
+				),
+			},
+		)
+
+		return {
+			isRegistered: !!registration,
+			registration: registration || null,
+		}
+	})
 
 // Server function to get scaling group with levels (avoids client-side db import)
 const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })

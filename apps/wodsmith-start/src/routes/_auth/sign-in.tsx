@@ -5,10 +5,9 @@ import {
 	redirect,
 	useRouter,
 } from "@tanstack/react-router"
-import { createServerFn } from "@tanstack/react-start"
+import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
 	Form,
@@ -19,70 +18,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
-
-// Define schema here to avoid import issues with zod versions
-const signInSchema = z.object({
-	email: z.string().email("Please enter a valid email address"),
-	password: z.string().min(1, "Password is required"),
-})
-
-type SignInSchema = z.infer<typeof signInSchema>
-
-// Server function for sign-in
-// With Zod 4, we use inputValidator with a custom function instead of zodValidator adapter
-const signInServerFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => signInSchema.parse(data))
-	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { verifyPassword } = await import("@/utils/password-hasher")
-		const { createAndStoreSession } = await import("@/utils/auth")
-		const { userTable } = await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-
-		const db = getDb()
-
-		// Find user by email
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.email, data.email),
-		})
-
-		if (!user) {
-			throw new Error("Invalid email or password")
-		}
-
-		// Check if user has only Google SSO
-		if (!user.passwordHash && user.googleAccountId) {
-			throw new Error("Please sign in with your Google account instead.")
-		}
-
-		if (!user.passwordHash) {
-			throw new Error("Invalid email or password")
-		}
-
-		// Verify password
-		const isValid = await verifyPassword({
-			storedHash: user.passwordHash,
-			passwordAttempt: data.password,
-		})
-
-		if (!isValid) {
-			throw new Error("Invalid email or password")
-		}
-
-		// Create session and set cookie
-		await createAndStoreSession(user.id, "password")
-
-		return { success: true, userId: user.id }
-	})
-
-// Server function to check existing session
-const getSessionServerFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		// TODO: Implement getSessionFromCookie for TanStack Start
-		// Check if user is already authenticated
-		return null
-	},
-)
+import {
+	getSessionFn,
+	signInFn,
+	signInSchema,
+	type SignInInput,
+} from "@/server-fns/auth-fns"
 
 export const Route = createFileRoute("/_auth/sign-in")({
 	component: SignInPage,
@@ -92,7 +33,7 @@ export const Route = createFileRoute("/_auth/sign-in")({
 		}
 	},
 	beforeLoad: async ({ search }) => {
-		const session = await getSessionServerFn()
+		const session = await getSessionFn()
 		const redirectPath =
 			(search as { redirect?: string }).redirect || REDIRECT_AFTER_SIGN_IN
 
@@ -108,7 +49,10 @@ function SignInPage() {
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 
-	const form = useForm<SignInSchema>({
+	// Use useServerFn for client-side calls
+	const signIn = useServerFn(signInFn)
+
+	const form = useForm<SignInInput>({
 		resolver: standardSchemaResolver(signInSchema),
 		defaultValues: {
 			email: "",
@@ -116,12 +60,12 @@ function SignInPage() {
 		},
 	})
 
-	const onSubmit = async (data: SignInSchema) => {
+	const onSubmit = async (data: SignInInput) => {
 		try {
 			setIsLoading(true)
 			setError(null)
 
-			await signInServerFn({ data })
+			await signIn({ data })
 
 			// TODO: Add analytics tracking (PostHog)
 			// posthog.capture('user_signed_in', { auth_method: 'email_password' })

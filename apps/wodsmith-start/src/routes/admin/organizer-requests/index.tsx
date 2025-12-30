@@ -1,0 +1,352 @@
+import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { format, formatDistanceToNow } from "date-fns"
+import { CheckCircle, Clock, XCircle } from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import type { OrganizerRequestWithDetails } from "@/server/organizer-onboarding"
+import {
+	approveOrganizerRequestFn,
+	getAllOrganizerRequestsFn,
+	rejectOrganizerRequestFn,
+} from "@/server-fns/organizer-admin-fns"
+
+export const Route = createFileRoute("/admin/organizer-requests/")({
+	loader: async () => {
+		const result = await getAllOrganizerRequestsFn()
+		return { requests: result.data || [] }
+	},
+	component: OrganizerRequestsPage,
+})
+
+function OrganizerRequestsPage() {
+	const { requests } = Route.useLoaderData()
+
+	return (
+		<div className="max-w-4xl">
+			{/* Breadcrumb */}
+			<nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
+				<a href="/admin" className="hover:text-foreground">
+					Admin
+				</a>
+				<span>/</span>
+				<span className="text-foreground">Organizer Requests</span>
+			</nav>
+
+			<div className="space-y-6">
+				<div>
+					<h1 className="text-3xl font-bold">Organizer Requests</h1>
+					<p className="mt-1 text-muted-foreground">
+						Review applications from teams wanting to host competitions
+					</p>
+				</div>
+
+				<OrganizerRequestsTable requests={requests} />
+			</div>
+		</div>
+	)
+}
+
+interface OrganizerRequestsTableProps {
+	requests: OrganizerRequestWithDetails[]
+}
+
+function OrganizerRequestsTable({ requests }: OrganizerRequestsTableProps) {
+	const router = useRouter()
+	const [selectedRequest, setSelectedRequest] =
+		useState<OrganizerRequestWithDetails | null>(null)
+	const [dialogType, setDialogType] = useState<"approve" | "reject" | null>(
+		null,
+	)
+	const [adminNotes, setAdminNotes] = useState("")
+	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	const pendingRequests = requests.filter((r) => r.status === "pending")
+	const processedRequests = requests.filter((r) => r.status !== "pending")
+
+	const approveRequest = useServerFn(approveOrganizerRequestFn)
+	const rejectRequest = useServerFn(rejectOrganizerRequestFn)
+
+	const openApproveDialog = (request: OrganizerRequestWithDetails) => {
+		setSelectedRequest(request)
+		setDialogType("approve")
+		setAdminNotes("")
+	}
+
+	const openRejectDialog = (request: OrganizerRequestWithDetails) => {
+		setSelectedRequest(request)
+		setDialogType("reject")
+		setAdminNotes("")
+	}
+
+	const closeDialog = () => {
+		setSelectedRequest(null)
+		setDialogType(null)
+		setAdminNotes("")
+	}
+
+	const handleApprove = async () => {
+		if (!selectedRequest) return
+		setIsSubmitting(true)
+
+		try {
+			await approveRequest({
+				data: {
+					requestId: selectedRequest.id,
+					adminNotes: adminNotes || undefined,
+				},
+			})
+			toast.success("Request approved successfully")
+			closeDialog()
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to approve request",
+			)
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const handleReject = async () => {
+		if (!selectedRequest) return
+		setIsSubmitting(true)
+
+		try {
+			await rejectRequest({
+				data: {
+					requestId: selectedRequest.id,
+					adminNotes: adminNotes || undefined,
+					revokeFeature: false,
+				},
+			})
+			toast.success("Request rejected")
+			closeDialog()
+			router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to reject request",
+			)
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const getReviewerName = (request: OrganizerRequestWithDetails) => {
+		if (!request.reviewer) return "Unknown"
+		const { firstName, lastName } = request.reviewer
+		if (firstName && lastName) return `${firstName} ${lastName}`
+		if (firstName) return firstName
+		return "Unknown"
+	}
+
+	return (
+		<>
+			{/* Pending Requests Section */}
+			{pendingRequests.length > 0 ? (
+				<div className="space-y-4">
+					<h2 className="text-lg font-semibold">
+						Pending Requests ({pendingRequests.length})
+					</h2>
+					{pendingRequests.map((request) => (
+						<Card key={request.id}>
+							<CardHeader>
+								<div className="flex items-start justify-between">
+									<div>
+										<CardTitle>{request.team.name}</CardTitle>
+										<CardDescription>
+											Requested by{" "}
+											{request.user.firstName && request.user.lastName
+												? `${request.user.firstName} ${request.user.lastName}`
+												: request.user.email}{" "}
+											{formatDistanceToNow(new Date(request.createdAt), {
+												addSuffix: true,
+											})}
+										</CardDescription>
+									</div>
+									<div className="flex gap-2">
+										<Button
+											size="sm"
+											onClick={() => openApproveDialog(request)}
+										>
+											<CheckCircle className="mr-1.5 h-4 w-4" />
+											Approve
+										</Button>
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={() => openRejectDialog(request)}
+										>
+											<XCircle className="mr-1.5 h-4 w-4" />
+											Reject
+										</Button>
+									</div>
+								</div>
+							</CardHeader>
+							<CardContent>
+								<div>
+									<p className="text-sm font-medium text-muted-foreground mb-1">
+										Reason for organizing
+									</p>
+									<p className="text-sm">{request.reason}</p>
+								</div>
+							</CardContent>
+						</Card>
+					))}
+				</div>
+			) : (
+				<Card>
+					<CardContent className="flex flex-col items-center justify-center py-12">
+						<Clock className="h-12 w-12 text-muted-foreground/50" />
+						<p className="mt-4 text-lg font-medium">No pending requests</p>
+						<p className="text-sm text-muted-foreground">
+							All organizer applications have been processed
+						</p>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Processed Requests Section */}
+			{processedRequests.length > 0 && (
+				<div className="mt-8 space-y-2">
+					<h2 className="text-lg font-semibold mb-3">
+						Past Requests ({processedRequests.length})
+					</h2>
+					<div className="border rounded-lg divide-y">
+						{processedRequests.map((request) => (
+							<div
+								key={request.id}
+								className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/50"
+							>
+								<div className="flex items-center gap-3 min-w-0">
+									<Badge
+										variant={
+											request.status === "approved" ? "default" : "destructive"
+										}
+										className="shrink-0 text-xs"
+									>
+										{request.status === "approved" ? "Approved" : "Rejected"}
+									</Badge>
+									<span className="font-medium truncate">
+										{request.team.name}
+									</span>
+								</div>
+								<div className="flex items-center gap-4 text-muted-foreground shrink-0">
+									<span className="hidden sm:inline">
+										{getReviewerName(request)}
+									</span>
+									{request.reviewedAt && (
+										<span className="tabular-nums">
+											{format(new Date(request.reviewedAt), "MMM d, yyyy")}
+										</span>
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Approve Dialog */}
+			<Dialog
+				open={dialogType === "approve"}
+				onOpenChange={(open) => !open && closeDialog()}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Approve Organizer Request</DialogTitle>
+						<DialogDescription>
+							Approving will allow {selectedRequest?.team.name} to publish
+							public competitions.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label htmlFor="approve-notes">Notes (optional)</Label>
+							<Textarea
+								id="approve-notes"
+								placeholder="Add any notes for this approval..."
+								value={adminNotes}
+								onChange={(e) => setAdminNotes(e.target.value)}
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={closeDialog}
+							disabled={isSubmitting}
+						>
+							Cancel
+						</Button>
+						<Button onClick={handleApprove} disabled={isSubmitting}>
+							{isSubmitting ? "Approving..." : "Approve"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Reject Dialog */}
+			<Dialog
+				open={dialogType === "reject"}
+				onOpenChange={(open) => !open && closeDialog()}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Reject Organizer Request</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to reject the request from{" "}
+							{selectedRequest?.team.name}?
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label htmlFor="reject-notes">Reason for rejection</Label>
+							<Textarea
+								id="reject-notes"
+								placeholder="Explain why this request is being rejected..."
+								value={adminNotes}
+								onChange={(e) => setAdminNotes(e.target.value)}
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={closeDialog}
+							disabled={isSubmitting}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleReject}
+							disabled={isSubmitting}
+						>
+							{isSubmitting ? "Rejecting..." : "Reject"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
+	)
+}
