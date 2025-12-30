@@ -284,6 +284,7 @@ function LogEditPage() {
 										{roundScores.map((roundScore, index) => {
 											const parseResult = getRoundParseResult(index)
 											return (
+												// biome-ignore lint/suspicious/noArrayIndexKey: Round inputs are positional and never reorder
 												<div key={index} className="flex items-center gap-2">
 													<span className="text-xs text-muted-foreground w-10 shrink-0">
 														R{index + 1}:

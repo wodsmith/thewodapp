@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { eq } from "drizzle-orm"
@@ -147,7 +147,7 @@ function ResetPasswordPage() {
 	const [isSuccess, setIsSuccess] = useState(false)
 
 	const form = useForm<ResetPasswordSchema>({
-		resolver: zodResolver(resetPasswordSchema),
+		resolver: standardSchemaResolver(resetPasswordSchema),
 		defaultValues: {
 			token: token || "",
 			password: "",

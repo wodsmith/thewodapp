@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
 	getScheduledWorkoutsWithResultsFn,
 	type ScheduledWorkoutWithResult,
@@ -31,7 +31,7 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 	>([])
 	const [isLoading, setIsLoading] = useState(true)
 
-	const fetchWorkouts = async () => {
+	const fetchWorkouts = useCallback(async () => {
 		setIsLoading(true)
 
 		// Calculate date range based on view mode
@@ -63,12 +63,12 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
 		} finally {
 			setIsLoading(false)
 		}
-	}
+	}, [viewMode, team.id, userId])
 
 	// Fetch workouts on mount and when view mode changes
 	useEffect(() => {
 		fetchWorkouts()
-	}, [viewMode, team.id, userId])
+	}, [fetchWorkouts])
 
 	// Group workouts by date for weekly view
 	const workoutsByDate = workoutsWithResults.reduce(

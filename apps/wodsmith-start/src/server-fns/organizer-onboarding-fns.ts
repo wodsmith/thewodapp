@@ -306,7 +306,7 @@ export const getOrganizerRequestStatusFn = createServerFn({ method: "GET" })
 						hasNoRequest: !request,
 					},
 				}
-			} catch (error) {
+			} catch (_error) {
 				throw new Error("Failed to get organizer request status")
 			}
 		},

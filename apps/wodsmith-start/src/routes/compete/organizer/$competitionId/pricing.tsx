@@ -143,7 +143,7 @@ function PricingPage() {
 			<PricingSettingsForm
 				competition={fullCompetition}
 				divisions={divisions}
-				currentFees={currentFees!}
+				currentFees={currentFees ?? { defaultFeeCents: 0, divisionFees: [] }}
 			/>
 		</div>
 	)

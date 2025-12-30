@@ -102,9 +102,10 @@ export const submitLogFn = createServerFn({ method: "POST" })
 
 		if (isMultiRound) {
 			// Multi-round: encode each round and aggregate
-			const roundInputs = validatedData.roundScores!.map((rs) => ({
-				raw: rs.score,
-			}))
+			const roundInputs =
+				validatedData.roundScores?.map((rs) => ({
+					raw: rs.score,
+				})) ?? []
 			const result = encodeRounds(roundInputs, scheme, scoreType)
 			scoreValue = result.aggregated
 			// Format the aggregated score for display
@@ -741,9 +742,10 @@ export const updateLogFn = createServerFn({ method: "POST" })
 
 		if (isMultiRound) {
 			// Multi-round: encode each round and aggregate
-			const roundInputs = data.roundScores!.map((rs) => ({
-				raw: rs.score,
-			}))
+			const roundInputs =
+				data.roundScores?.map((rs) => ({
+					raw: rs.score,
+				})) ?? []
 			const result = encodeRounds(roundInputs, scheme, scoreType)
 			updateData.scoreValue = result.aggregated
 

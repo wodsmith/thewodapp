@@ -139,6 +139,7 @@ export function AffiliateCombobox({
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
+				{/* biome-ignore lint/a11y/useSemanticElements: Custom combobox pattern using Radix UI */}
 				<Button
 					variant="outline"
 					role="combobox"

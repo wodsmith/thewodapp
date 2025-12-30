@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import {
 	createFileRoute,
 	Link,
@@ -109,7 +109,7 @@ function SignInPage() {
 	const [isLoading, setIsLoading] = useState(false)
 
 	const form = useForm<SignInSchema>({
-		resolver: zodResolver(signInSchema),
+		resolver: standardSchemaResolver(signInSchema),
 		defaultValues: {
 			email: "",
 			password: "",

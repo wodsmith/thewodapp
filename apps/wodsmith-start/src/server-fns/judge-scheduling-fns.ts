@@ -209,8 +209,10 @@ export const getJudgeHeatAssignmentsFn = createServerFn({ method: "GET" })
 		const db = getDb()
 
 		// If no versionId provided, find the active version for this event
-		let targetVersionId = data.versionId
-		if (!targetVersionId) {
+		let targetVersionId: string
+		if (data.versionId) {
+			targetVersionId = data.versionId
+		} else {
 			const activeVersion = await db
 				.select()
 				.from(judgeAssignmentVersionsTable)
@@ -254,7 +256,7 @@ export const getJudgeHeatAssignmentsFn = createServerFn({ method: "GET" })
 				.where(
 					and(
 						inArray(judgeHeatAssignmentsTable.heatId, heatChunk),
-						eq(judgeHeatAssignmentsTable.versionId, targetVersionId!),
+						eq(judgeHeatAssignmentsTable.versionId, targetVersionId),
 					),
 				),
 		)

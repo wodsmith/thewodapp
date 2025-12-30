@@ -135,7 +135,7 @@ export function ImageUpload({
 					<>
 						<img
 							src={value}
-							alt="Uploaded image"
+							alt="Uploaded content"
 							className="absolute inset-0 h-full w-full rounded-lg object-cover"
 						/>
 						{!disabled && (

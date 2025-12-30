@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_auth/team-invite")({
 
 		// If no token is provided, redirect to sign in
 		if (!token) {
-			throw redirect({ to: "/sign-in" })
+			throw redirect({ to: "/sign-in", search: { redirect: "/" } })
 		}
 
 		// Check if user is logged in

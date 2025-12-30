@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { Loader2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -126,7 +126,7 @@ export function RotationEditor({
 	)
 
 	const form = useForm<RotationFormValues>({
-		resolver: zodResolver(rotationFormSchema),
+		resolver: standardSchemaResolver(rotationFormSchema),
 		defaultValues: {
 			membershipId: rotation?.membershipId ?? "",
 			startingHeat: rotation?.startingHeat ?? initialHeat ?? 1,

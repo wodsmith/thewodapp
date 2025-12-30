@@ -318,6 +318,7 @@ function LogNewPage() {
 													const parseResult = getRoundParseResult(index)
 													return (
 														<div
+															// biome-ignore lint/suspicious/noArrayIndexKey: Round inputs are positional and never reorder
 															key={index}
 															className="flex items-center gap-2"
 														>

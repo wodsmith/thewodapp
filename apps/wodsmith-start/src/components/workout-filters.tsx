@@ -246,9 +246,11 @@ export function WorkoutFilters({
 								{filterOptions.tags.map((tag) => (
 									<label
 										key={tag.id}
+										htmlFor={`tag-${tag.id}`}
 										className="flex items-center gap-2 cursor-pointer"
 									>
 										<Checkbox
+											id={`tag-${tag.id}`}
 											checked={filters.tagIds.includes(tag.id)}
 											onCheckedChange={(checked) =>
 												handleTagToggle(tag.id, checked === true)
@@ -269,9 +271,11 @@ export function WorkoutFilters({
 								{filterOptions.movements.map((movement) => (
 									<label
 										key={movement.id}
+										htmlFor={`movement-${movement.id}`}
 										className="flex items-center gap-2 cursor-pointer"
 									>
 										<Checkbox
+											id={`movement-${movement.id}`}
 											checked={filters.movementIds.includes(movement.id)}
 											onCheckedChange={(checked) =>
 												handleMovementToggle(movement.id, checked === true)

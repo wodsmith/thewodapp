@@ -1,6 +1,6 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
@@ -120,7 +120,7 @@ export function OrganizerCompetitionEditForm({
 	const updateCompetition = useServerFn(updateCompetitionFn)
 
 	const form = useForm<FormValues>({
-		resolver: zodResolver(formSchema),
+		resolver: standardSchemaResolver(formSchema),
 		defaultValues: {
 			name: competition.name,
 			slug: competition.slug,
