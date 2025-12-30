@@ -20,7 +20,7 @@ TypeScript-first Infrastructure as Code for deploying TanStack Start application
 ### 1. Install Dependencies
 
 ```bash
-pnpm add alchemy cloudflare-workers
+pnpm add alchemy @cloudflare/workers-types
 ```
 
 ### 2. Create alchemy.run.ts

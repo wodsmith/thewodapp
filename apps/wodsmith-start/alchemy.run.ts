@@ -293,10 +293,10 @@ const website = await TanStackStart("app", {
 	 * 1. DNS zone managed by Cloudflare
 	 * 2. Appropriate DNS records (Alchemy creates these automatically)
 	 *
-	 * In development/staging, you typically omit this to use the auto-generated
-	 * `*.workers.dev` subdomain.
+	 * Only production gets a custom domain. Dev/staging use auto-generated
+	 * `*.workers.dev` subdomains to avoid DNS conflicts.
 	 */
-	domains: ["start.wodsmith.com"],
+	domains: process.env.STAGE === "prod" ? ["start.wodsmith.com"] : undefined,
 })
 
 /**

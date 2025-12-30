@@ -132,10 +132,10 @@ ALCHEMY_PASSWORD=your-secure-password-here
 ### Verify Environment
 
 ```bash
-# Quick check that variables are set
-echo $CLOUDFLARE_API_TOKEN
-echo $CLOUDFLARE_ACCOUNT_ID
-echo $ALCHEMY_PASSWORD
+# Check if variables are set (without revealing values)
+[ -n "$CLOUDFLARE_API_TOKEN" ] && echo "✓ CLOUDFLARE_API_TOKEN is set" || echo "✗ CLOUDFLARE_API_TOKEN is NOT set"
+[ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo "✓ CLOUDFLARE_ACCOUNT_ID is set" || echo "✗ CLOUDFLARE_ACCOUNT_ID is NOT set"
+[ -n "$ALCHEMY_PASSWORD" ] && echo "✓ ALCHEMY_PASSWORD is set" || echo "✗ ALCHEMY_PASSWORD is NOT set"
 ```
 
 ---
