@@ -1,6 +1,6 @@
 "use client"
 
-import { useNavigate, useSearch } from "@tanstack/react-router"
+import { useRouter } from "@tanstack/react-router"
 import {
 	Select,
 	SelectContent,
@@ -8,6 +8,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { setActiveTeamFn } from "@/server-fns/team-settings-fns"
 
 interface OrganizingTeam {
 	id: string
@@ -20,20 +21,14 @@ interface TeamFilterProps {
 }
 
 export function TeamFilter({ teams, selectedTeamId }: TeamFilterProps) {
-	const navigate = useNavigate()
-	const searchParams = useSearch({ strict: false }) as any
+	const router = useRouter()
 
 	const handleTeamChange = async (teamId: string) => {
-		// Build new search params
-		const newParams = { ...searchParams }
-		newParams.teamId = teamId
-		// Reset group filter when changing teams
-		delete newParams.groupId
+		// Update the active team cookie on the server
+		await setActiveTeamFn({ data: { teamId } })
 
-		navigate({
-			to: "/compete/organizer",
-			search: newParams as any,
-		})
+		// Invalidate the route to trigger a reload with the new team
+		router.invalidate()
 	}
 
 	return (
