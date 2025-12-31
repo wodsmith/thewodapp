@@ -30,49 +30,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # Generate Alchemy wrangler config for local D1 and Vite
-      - name: Setup Alchemy local config
+      # This script runs alchemy.run.ts with --dev flag to generate .alchemy/local/wrangler.jsonc
+      # with local/emulated bindings, then exits cleanly (--dev normally starts watch mode)
+      - name: Generate Alchemy local config
         working-directory: apps/wodsmith-start
-        run: |
-          mkdir -p .alchemy/local/src/db
-          ln -sf ../../../../src/db/migrations .alchemy/local/src/db/migrations
-          cat > .alchemy/local/wrangler.jsonc << 'EOF'
-          {
-            "name": "wodsmith-app-e2e",
-            "main": "@tanstack/react-start/server-entry",
-            "compatibility_date": "2025-12-17",
-            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
-            "assets": {
-              "directory": "../../dist/client",
-              "binding": "ASSETS",
-              "not_found_handling": "none",
-              "html_handling": "auto-trailing-slash",
-              "run_worker_first": false
-            },
-            "kv_namespaces": [
-              {
-                "binding": "KV_SESSION",
-                "id": "e2e-kv-session",
-                "preview_id": "e2e-kv-session"
-              }
-            ],
-            "r2_buckets": [
-              {
-                "binding": "R2_BUCKET",
-                "bucket_name": "e2e-uploads",
-                "preview_bucket_name": "e2e-uploads"
-              }
-            ],
-            "d1_databases": [
-              {
-                "binding": "DB",
-                "database_id": "e2e-test-db",
-                "database_name": "wodsmith-db-dev",
-                "migrations_dir": "./src/db/migrations",
-                "preview_database_id": "e2e-test-db"
-              }
-            ]
-          }
-          EOF
+        run: bun scripts/generate-wrangler-config.ts
+        env:
+          ALCHEMY_PASSWORD: e2e-test-password
 
       # Setup E2E database with migrations and seed data
       - name: Setup E2E database
