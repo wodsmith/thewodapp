@@ -8,16 +8,14 @@ import {
 	useLocation,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
-import { getCookie } from "@tanstack/react-start/server"
 import { Toaster } from "sonner"
 
 import MainNav from "@/components/nav/main-nav"
+import { PostHogProvider } from "@/lib/posthog/provider"
 import { getOptionalSession } from "@/server-fns/middleware/auth"
+import { getThemeCookieFn } from "@/server-fns/session-fns"
 
 import appCss from "../styles.css?url"
-
-/** Theme preference stored in cookie */
-type ThemePreference = "light" | "dark" | "system"
 
 export const Route = createRootRoute({
 	head: () => ({
@@ -45,7 +43,7 @@ export const Route = createRootRoute({
 		const session = await getOptionalSession()
 		// Read theme cookie for SSR - apply 'dark' class on server if theme is 'dark'
 		// For 'system' or no cookie, default to light (inline script handles client correction)
-		const themeCookie = getCookie("theme") as ThemePreference | undefined
+		const themeCookie = await getThemeCookieFn()
 		const ssrTheme = themeCookie === "dark" ? "dark" : "light"
 		return { session, ssrTheme }
 	},
@@ -111,7 +109,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body>
-				{children}
+				<PostHogProvider>
+					{children}
+				</PostHogProvider>
 				<Toaster richColors position="top-right" />
 				<TanStackDevtools
 					config={{
