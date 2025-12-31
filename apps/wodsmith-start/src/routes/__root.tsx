@@ -101,17 +101,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" className={ssrTheme === "dark" ? "dark" : undefined}>
 			<head>
-			{/* Blocking script to prevent FOUC - runs before React hydrates.
+				{/* Blocking script to prevent FOUC - runs before React hydrates.
 			    This corrects for 'system' preference which SSR can't detect.
 			    Safe: themeScript is a static string literal, not user input. */}
-			{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme script, no XSS risk */}
-			<script dangerouslySetInnerHTML={{ __html: themeScript }} />
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme script, no XSS risk */}
+				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 				<HeadContent />
 			</head>
 			<body>
-				<PostHogProvider>
-					{children}
-				</PostHogProvider>
+				<PostHogProvider>{children}</PostHogProvider>
 				<Toaster richColors position="top-right" />
 				<TanStackDevtools
 					config={{

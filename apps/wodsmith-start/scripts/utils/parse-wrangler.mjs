@@ -69,11 +69,13 @@ function stripJsonComments(str) {
 
 /**
  * Parses the wrangler.jsonc file and returns the configuration object
+ * Looks for the Alchemy-generated config at .alchemy/local/wrangler.jsonc
  * @returns {object} The parsed wrangler configuration
  * @throws {Error} If the file cannot be read or parsed
  */
 export function parseWranglerConfig() {
-	const wranglerPath = path.join(__dirname, "..", "..", "wrangler.jsonc")
+	// Alchemy generates wrangler.jsonc in .alchemy/local/
+	const wranglerPath = path.join(__dirname, "..", "..", ".alchemy", "local", "wrangler.jsonc")
 	const wranglerContent = fs.readFileSync(wranglerPath, "utf8")
 
 	// Remove comments from the JSONC content

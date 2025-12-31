@@ -682,6 +682,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20250508.0
         version: 4.20251205.0
+      '@playwright/test':
+        specifier: ^1.57.0
+        version: 1.57.0
       '@repo/test-utils':
         specifier: workspace:*
         version: link:../../packages/test-utils
@@ -724,6 +727,12 @@ importers:
       jsdom:
         specifier: ^27.0.0
         version: 27.4.0
+      playwright:
+        specifier: ^1.57.0
+        version: 1.57.0
+      tsx:
+        specifier: ^4.20.3
+        version: 4.20.3
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
