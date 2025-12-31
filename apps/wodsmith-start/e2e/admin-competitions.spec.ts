@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {loginAsAdmin, loginAsTestUser} from './fixtures/auth'
+import {loginAsAdmin} from './fixtures/auth'
 
 /**
  * Admin Competitions Browser E2E Tests
