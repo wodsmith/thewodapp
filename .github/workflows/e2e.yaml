@@ -29,7 +29,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # Generate minimal Alchemy wrangler config for local D1
+      # Generate Alchemy wrangler config for local D1 and Vite
       - name: Setup Alchemy local config
         working-directory: apps/wodsmith-start
         run: |
@@ -38,6 +38,30 @@ jobs:
           cat > .alchemy/local/wrangler.jsonc << 'EOF'
           {
             "name": "wodsmith-app-e2e",
+            "main": "@tanstack/react-start/server-entry",
+            "compatibility_date": "2025-12-17",
+            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+            "assets": {
+              "directory": "../../dist/client",
+              "binding": "ASSETS",
+              "not_found_handling": "none",
+              "html_handling": "auto-trailing-slash",
+              "run_worker_first": false
+            },
+            "kv_namespaces": [
+              {
+                "binding": "KV_SESSION",
+                "id": "e2e-kv-session",
+                "preview_id": "e2e-kv-session"
+              }
+            ],
+            "r2_buckets": [
+              {
+                "binding": "R2_BUCKET",
+                "bucket_name": "e2e-uploads",
+                "preview_bucket_name": "e2e-uploads"
+              }
+            ],
             "d1_databases": [
               {
                 "binding": "DB",
