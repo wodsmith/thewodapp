@@ -1,4 +1,4 @@
-import { getPostHog } from "./client"
+import { getPostHog, isPostHogInitialized } from "./client"
 
 /**
  * Track a custom event in PostHog.
@@ -17,7 +17,7 @@ export function trackEvent(
 	event: string,
 	properties?: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined") return
+	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().capture(event, properties)
 }
 
@@ -42,7 +42,7 @@ export function identifyUser(
 	userId: string,
 	properties?: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined") return
+	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().identify(userId, properties)
 }
 
@@ -60,7 +60,7 @@ export function identifyUser(
  * ```
  */
 export function resetUser(): void {
-	if (typeof window === "undefined") return
+	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().reset()
 }
 
@@ -77,7 +77,7 @@ export function resetUser(): void {
 export function setUserProperties(
 	properties: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined") return
+	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().setPersonProperties(properties)
 }
 
@@ -94,6 +94,6 @@ export function setUserProperties(
 export function registerSuperProperties(
 	properties: Record<string, unknown>,
 ): void {
-	if (typeof window === "undefined") return
+	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().register(properties)
 }

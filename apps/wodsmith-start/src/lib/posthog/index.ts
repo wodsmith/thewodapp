@@ -3,11 +3,19 @@ export {
 	capturePageleave,
 	capturePageview,
 	getPostHog,
-	identifyUser,
 	initPostHog,
+	isPostHogInitialized,
 	posthog,
-	resetUser,
 } from "./client"
+
+// Utility functions with proper guards
+export {
+	identifyUser,
+	registerSuperProperties,
+	resetUser,
+	setUserProperties,
+	trackEvent,
+} from "./utils"
 
 // React provider for TanStack Start
 export { PostHogProvider, usePostHog } from "./provider"

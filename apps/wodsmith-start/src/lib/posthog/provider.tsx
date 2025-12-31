@@ -5,6 +5,7 @@ import {
 	createContext,
 	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	type ReactNode,
 } from "react"
@@ -17,7 +18,7 @@ import {
 	type posthog,
 } from "./client"
 
-type PostHogContextValue = {
+interface PostHogContextValue {
 	posthog: typeof posthog
 }
 
@@ -82,9 +83,12 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
 		}
 	}, [])
 
-	const value: PostHogContextValue = {
-		posthog: getPostHog(),
-	}
+	const value = useMemo<PostHogContextValue>(
+		() => ({
+			posthog: getPostHog(),
+		}),
+		[],
+	)
 
 	return (
 		<PostHogContext.Provider value={value}>{children}</PostHogContext.Provider>
