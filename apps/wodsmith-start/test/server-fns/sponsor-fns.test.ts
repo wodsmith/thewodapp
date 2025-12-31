@@ -46,13 +46,18 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => {
     let handlerFn: any
     return {
+      // Handle pattern: createServerFn().inputValidator().handler()
       inputValidator: () => ({
         handler: (fn: any) => {
           handlerFn = fn
-          // Return a callable that directly invokes the handler
           return handlerFn
         },
       }),
+      // Handle pattern: createServerFn().handler() (no inputValidator)
+      handler: (fn: any) => {
+        handlerFn = fn
+        return handlerFn
+      },
     }
   },
 }))

@@ -567,9 +567,6 @@ importers:
       '@react-email/render':
         specifier: 1.0.4
         version: 1.0.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@repo/zsa':
-        specifier: workspace:*
-        version: link:../../packages/zsa
       '@simplewebauthn/browser':
         specifier: ^10.0.0
         version: 10.0.0
