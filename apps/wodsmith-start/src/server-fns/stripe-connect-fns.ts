@@ -27,7 +27,7 @@ export const STRIPE_OAUTH_STATE_COOKIE_NAME = "stripe_oauth_state"
 // ============================================================================
 
 function getAppUrl(): string {
-	return process.env.NEXT_PUBLIC_APP_URL || "https://thewodapp.com"
+	return process.env.APP_URL || "https://thewodapp.com"
 }
 
 function getStripeClientId(): string | undefined {

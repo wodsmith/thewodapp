@@ -14,6 +14,9 @@
  *   must remain consistent between deployments.
  */
 
+// Import env from cloudflare:workers for server-side access to bindings
+import { env } from "cloudflare:workers"
+
 /**
  * OpenTelemetry severity numbers
  * @see https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
@@ -43,12 +46,25 @@ let isPostHogEnabled = false
 let posthogToken: string | undefined
 let endpoint: string
 
+/**
+ * Type-safe access to env vars that may or may not exist
+ */
+function getEnvVar(key: string): string | undefined {
+	// Cast through unknown to safely access potentially undefined keys
+	return (env as unknown as Record<string, string | undefined>)[key]
+}
+
 function initConfig() {
 	if (posthogToken !== undefined) return
 
-	// Use VITE_ prefix for TanStack Start environment variables
-	posthogToken = import.meta.env.VITE_POSTHOG_KEY
-	endpoint = import.meta.env.VITE_POSTHOG_LOGS_ENDPOINT ?? DEFAULT_ENDPOINT
+	// Access PostHog key from Cloudflare Workers env bindings
+	// Falls back to VITE_ env for local dev with Vite
+	posthogToken =
+		getEnvVar("POSTHOG_KEY") ?? import.meta.env.VITE_POSTHOG_KEY
+	endpoint =
+		getEnvVar("POSTHOG_LOGS_ENDPOINT") ??
+		import.meta.env.VITE_POSTHOG_LOGS_ENDPOINT ??
+		DEFAULT_ENDPOINT
 	isPostHogEnabled = !!posthogToken
 }
 
@@ -72,12 +88,14 @@ function sendLogToPostHog(params: {
 					attributes: [
 						{ key: "service.name", value: { stringValue: "wodsmith-start" } },
 						{ key: "service.namespace", value: { stringValue: "web" } },
-						{
-							key: "deployment.environment.name",
-							value: {
-								stringValue: import.meta.env.DEV ? "development" : "production",
-							},
+					{
+						key: "deployment.environment.name",
+						value: {
+							stringValue:
+								getEnvVar("ENVIRONMENT") ??
+								(import.meta.env.DEV ? "development" : "production"),
 						},
+					},
 					],
 				},
 				scopeLogs: [
@@ -165,6 +183,13 @@ function enrichAttributes({
 }
 
 /**
+ * Check if we're in development mode
+ */
+function isDev(): boolean {
+	return getEnvVar("ENVIRONMENT") === "development" || import.meta.env.DEV === true
+}
+
+/**
  * Emit to console as fallback when PostHog is disabled or in development.
  * This ensures logs are always visible somewhere.
  */
@@ -175,7 +200,7 @@ function emitToConsole(
 	error?: unknown,
 ) {
 	// Always emit to console in development, or when PostHog is disabled
-	if (import.meta.env.DEV || !isPostHogEnabled) {
+	if (isDev() || !isPostHogEnabled) {
 		const logData = attributes ? { ...attributes } : {}
 		if (error) {
 			logData.error =
@@ -304,7 +329,7 @@ export function logError(params: LogParams) {
 export function logDebug(
 	params: Omit<LogParams, "severityNumber" | "severityText">,
 ) {
-	if (import.meta.env.DEV) {
+	if (isDev()) {
 		const logData = params.attributes ? { ...params.attributes } : {}
 		if (params.error) {
 			logData.error =

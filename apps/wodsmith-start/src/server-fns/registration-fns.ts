@@ -296,7 +296,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 
 		// 11. Create Stripe Checkout Session
-		const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://thewodapp.com"
+		const appUrl = process.env.APP_URL || "https://thewodapp.com"
 		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",
 			payment_method_types: ["card"],

@@ -40,9 +40,9 @@
 		"EMAIL_FROM": "team@mail.wodsmith.com",
 		"EMAIL_FROM_NAME": "WODsmith",
 		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
-		"NEXT_PUBLIC_APP_URL": "https://wodsmith.com",
+		"APP_URL": "https://wodsmith.com",
 		"R2_PUBLIC_URL": "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
-		"NEXT_PUBLIC_POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK"
+		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK"
 	},
 	/**
 	 * D1 Database Bindings
