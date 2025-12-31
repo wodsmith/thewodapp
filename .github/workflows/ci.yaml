@@ -27,6 +27,33 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Generate Alchemy wrangler config for CI
+        run: |
+          mkdir -p apps/wodsmith-start/.alchemy/local
+          cat > apps/wodsmith-start/.alchemy/local/wrangler.jsonc << 'EOF'
+          {
+            "name": "wodsmith-app-ci",
+            "main": "@tanstack/react-start/server-entry",
+            "compatibility_date": "2025-12-17",
+            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+            "assets": {
+              "directory": "../../dist/client",
+              "binding": "ASSETS",
+              "not_found_handling": "none",
+              "html_handling": "auto-trailing-slash",
+              "run_worker_first": false
+            },
+            "kv_namespaces": [{ "binding": "KV_SESSION", "id": "ci-placeholder" }],
+            "r2_buckets": [{ "binding": "R2_BUCKET", "bucket_name": "ci-placeholder" }],
+            "d1_databases": [{
+              "binding": "DB",
+              "database_id": "ci-placeholder",
+              "database_name": "ci-placeholder",
+              "migrations_dir": "./src/db/migrations"
+            }],
+            "vars": {}
+          }
+          EOF
       - run: pnpm turbo build --filter=wodsmith-start
       - uses: actions/cache/save@v4
         with:
