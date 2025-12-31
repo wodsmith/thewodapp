@@ -41,7 +41,9 @@ export async function setTeamLimitOverride(
 
 // Dynamic import helper for logging (avoids Vite bundling issues)
 async function getLogger() {
-	const { logInfo, logError } = await import("@/lib/logging/posthog-otel-logger")
+	const { logInfo, logError } = await import(
+		"@/lib/logging/posthog-otel-logger"
+	)
 	return { logInfo, logError }
 }
 
