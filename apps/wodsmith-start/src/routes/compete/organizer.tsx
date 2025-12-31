@@ -5,7 +5,7 @@ import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { validateSession } from "@/server-fns/middleware/auth"
 
 /**
- * Organizer Entitlement State
+ * Organizer Entitlement State for the active organizing team
  * Three possible states:
  * 1. No entitlement - redirect to /compete/organizer/onboard
  * 2. Pending - has HOST_COMPETITIONS but limit=0 (show banner, allow drafts)
@@ -15,59 +15,87 @@ export interface OrganizerEntitlementState {
 	hasHostCompetitions: boolean
 	isPendingApproval: boolean
 	isApproved: boolean
+	activeOrganizingTeamId: string | null
 }
 
 /**
- * Check organizer entitlements for the current user's active team
- * Uses dynamic imports to avoid bundling cloudflare:workers into client
+ * Check if the user has ANY team with HOST_COMPETITIONS entitlement
+ * and determine the active organizing team.
  *
- * IMPORTANT: Uses getActiveTeamId() to respect the team cookie set by team-switcher.
- * Previously this used session.teams?.[0] which ignored team switching.
+ * Uses dynamic imports to avoid bundling cloudflare:workers into client.
+ *
+ * Priority for active organizing team:
+ * 1. Cookie value (if that team has HOST_COMPETITIONS)
+ * 2. First team with HOST_COMPETITIONS
+ * 3. null (redirect to onboarding)
  */
 const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 	async (): Promise<OrganizerEntitlementState> => {
 		// Dynamic imports for server-only modules
 		const { getActiveTeamId } = await import("@/utils/team-auth")
+		const { getSessionFromCookie } = await import("@/utils/auth")
 		const { hasFeature, isTeamPendingOrganizer, getTeamLimit } = await import(
 			"@/server/entitlements"
 		)
 		const { LIMITS } = await import("@/config/limits")
 
-		// Get the active team from cookie (falls back to first team if no cookie)
-		const teamId = await getActiveTeamId()
-		if (!teamId) {
+		const session = await getSessionFromCookie()
+		if (!session?.teams?.length) {
 			return {
 				hasHostCompetitions: false,
 				isPendingApproval: false,
 				isApproved: false,
+				activeOrganizingTeamId: null,
 			}
 		}
 
-		// Check if team has HOST_COMPETITIONS feature
-		const hasHostCompetitions = await hasFeature(
-			teamId,
-			FEATURES.HOST_COMPETITIONS,
+		// Get the active team from cookie
+		const cookieTeamId = await getActiveTeamId()
+
+		// Find all teams that have HOST_COMPETITIONS
+		const teamsWithHostCompetitions: string[] = []
+		for (const team of session.teams) {
+			const hasHost = await hasFeature(team.id, FEATURES.HOST_COMPETITIONS)
+			if (hasHost) {
+				teamsWithHostCompetitions.push(team.id)
+			}
+		}
+
+		// No teams can host competitions - redirect to onboarding
+		if (teamsWithHostCompetitions.length === 0) {
+			return {
+				hasHostCompetitions: false,
+				isPendingApproval: false,
+				isApproved: false,
+				activeOrganizingTeamId: null,
+			}
+		}
+
+		// Determine the active organizing team:
+		// 1. Use cookie team if it has HOST_COMPETITIONS
+		// 2. Otherwise use first team with HOST_COMPETITIONS
+		const activeOrganizingTeamId =
+			cookieTeamId && teamsWithHostCompetitions.includes(cookieTeamId)
+				? cookieTeamId
+				: teamsWithHostCompetitions[0]!
+
+		// Check if pending (limit = 0) for the active organizing team
+		const isPendingApproval = await isTeamPendingOrganizer(
+			activeOrganizingTeamId,
 		)
 
-		if (!hasHostCompetitions) {
-			return {
-				hasHostCompetitions: false,
-				isPendingApproval: false,
-				isApproved: false,
-			}
-		}
-
-		// Check if pending (limit = 0)
-		const isPendingApproval = await isTeamPendingOrganizer(teamId)
-
 		// Check if approved (limit = -1 or > 0)
-		const limit = await getTeamLimit(teamId, LIMITS.MAX_PUBLISHED_COMPETITIONS)
+		const limit = await getTeamLimit(
+			activeOrganizingTeamId,
+			LIMITS.MAX_PUBLISHED_COMPETITIONS,
+		)
 		const isApproved = limit === -1 || limit > 0
 
 		return {
-			hasHostCompetitions,
+			hasHostCompetitions: true,
 			isPendingApproval,
 			isApproved,
+			activeOrganizingTeamId,
 		}
 	},
 )
