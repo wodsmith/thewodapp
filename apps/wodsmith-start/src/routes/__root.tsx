@@ -11,7 +11,9 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { Toaster } from "sonner"
 
 import MainNav from "@/components/nav/main-nav"
+import { PostHogProvider } from "@/lib/posthog/provider"
 import { getOptionalSession } from "@/server-fns/middleware/auth"
+import { getThemeCookieFn } from "@/server-fns/session-fns"
 
 import appCss from "../styles.css?url"
 
@@ -39,7 +41,11 @@ export const Route = createRootRoute({
 
 	beforeLoad: async () => {
 		const session = await getOptionalSession()
-		return { session }
+		// Read theme cookie for SSR - apply 'dark' class on server if theme is 'dark'
+		// For 'system' or no cookie, default to light (inline script handles client correction)
+		const themeCookie = await getThemeCookieFn()
+		const ssrTheme = themeCookie === "dark" ? "dark" : "light"
+		return { session, ssrTheme }
 	},
 
 	component: RootComponent,
@@ -63,14 +69,49 @@ function RootComponent() {
 	)
 }
 
+/**
+ * Blocking script to prevent FOUC - runs before React hydrates.
+ *
+ * SSR applies 'dark' class based on cookie value (only for explicit 'dark' preference).
+ * This script handles:
+ * 1. 'system' preference - reads matchMedia to determine if dark mode
+ * 2. First visit with no preference - respects OS setting
+ * 3. Corrects any mismatch between SSR guess and actual preference
+ */
+const themeScript = `
+try {
+  const stored = localStorage.getItem('theme');
+  const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const shouldBeDark = stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark);
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark');
+  
+  // Correct the class if SSR guess was wrong
+  if (shouldBeDark && !isDark) {
+    html.classList.add('dark');
+  } else if (!shouldBeDark && isDark) {
+    html.classList.remove('dark');
+  }
+} catch {}
+`
+
 function RootDocument({ children }: { children: React.ReactNode }) {
+	const { ssrTheme } = Route.useRouteContext()
+
 	return (
-		<html lang="en">
+		<html lang="en" className={ssrTheme === "dark" ? "dark" : undefined}>
 			<head>
+			{/* Blocking script to prevent FOUC - runs before React hydrates.
+			    This corrects for 'system' preference which SSR can't detect.
+			    Safe: themeScript is a static string literal, not user input. */}
+			{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme script, no XSS risk */}
+			<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 				<HeadContent />
 			</head>
 			<body>
-				{children}
+				<PostHogProvider>
+					{children}
+				</PostHogProvider>
 				<Toaster richColors position="top-right" />
 				<TanStackDevtools
 					config={{

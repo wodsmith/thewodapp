@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
+import { useIdentifyUser, useTrackEvent } from "@/lib/posthog/hooks"
 import {
 	getSessionFn,
 	signUpFn,
@@ -49,6 +50,10 @@ function SignUpPage() {
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 
+	// PostHog tracking hooks
+	const trackEvent = useTrackEvent()
+	const identifyUser = useIdentifyUser()
+
 	// Use useServerFn for client-side calls
 	const signUp = useServerFn(signUpFn)
 
@@ -67,11 +72,15 @@ function SignUpPage() {
 			setIsLoading(true)
 			setError(null)
 
-			await signUp({ data })
+			const result = await signUp({ data })
 
-			// TODO: Add analytics tracking (PostHog)
-			// posthog.identify(userId, { email: data.email, first_name: data.firstName, last_name: data.lastName })
-			// posthog.capture('user_signed_up', { auth_method: 'email_password' })
+			// Identify user and track successful sign-up
+			identifyUser(result.userId, {
+				email: data.email,
+				first_name: data.firstName,
+				last_name: data.lastName,
+			})
+			trackEvent("user_signed_up", { auth_method: "email_password" })
 
 			// Redirect to the intended destination
 			router.navigate({ to: redirectPath })
@@ -80,8 +89,8 @@ function SignUpPage() {
 			setError(errorMessage)
 			console.error("Sign-up error:", err)
 
-			// TODO: Add error analytics tracking
-			// posthog.capture('user_signed_up_failed', { error_message: errorMessage })
+			// Track failed sign-up attempt
+			trackEvent("user_signed_up_failed", { error_message: errorMessage })
 		} finally {
 			setIsLoading(false)
 		}

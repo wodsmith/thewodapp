@@ -13,7 +13,7 @@ import { teamTable } from "@/db/schema"
 import { getStripe } from "@/lib/stripe"
 
 function getAppUrl() {
-	return env.NEXT_PUBLIC_APP_URL
+	return env.APP_URL
 }
 
 /**

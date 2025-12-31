@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import { useTrackEvent } from "@/lib/posthog/hooks"
 import { acceptVolunteerInviteFn } from "@/server-fns/invite-fns"
 
 interface AcceptVolunteerInviteFormProps {
@@ -33,6 +34,7 @@ export function AcceptVolunteerInviteForm({
 	const [isPending, setIsPending] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const acceptInvite = useServerFn(acceptVolunteerInviteFn)
+	const trackEvent = useTrackEvent()
 
 	async function handleSubmit(formData: FormData) {
 		setIsPending(true)
@@ -57,21 +59,11 @@ export function AcceptVolunteerInviteForm({
 
 			toast.success("You're now a volunteer!")
 
-			// Track event if posthog is available
-			if (typeof window !== "undefined" && "posthog" in window) {
-				const posthog = (
-					window as unknown as {
-						posthog: {
-							capture: (event: string, props: Record<string, unknown>) => void
-						}
-					}
-				).posthog
-				posthog.capture("competition_volunteer_invite_accepted", {
-					competition_slug: competitionSlug,
-					competition_id: competitionId,
-					competition_name: competitionName,
-				})
-			}
+			trackEvent("competition_volunteer_invite_accepted", {
+				competition_slug: competitionSlug,
+				competition_id: competitionId,
+				competition_name: competitionName,
+			})
 
 			if (competitionSlug) {
 				navigate({ to: "/compete/$slug", params: { slug: competitionSlug } })
@@ -84,20 +76,10 @@ export function AcceptVolunteerInviteForm({
 			setError(message)
 			toast.error(message)
 
-			// Track failure if posthog is available
-			if (typeof window !== "undefined" && "posthog" in window) {
-				const posthog = (
-					window as unknown as {
-						posthog: {
-							capture: (event: string, props: Record<string, unknown>) => void
-						}
-					}
-				).posthog
-				posthog.capture("competition_volunteer_invite_accepted_failed", {
-					competition_slug: competitionSlug,
-					error_message: message,
-				})
-			}
+			trackEvent("competition_volunteer_invite_accepted_failed", {
+				competition_slug: competitionSlug,
+				error_message: message,
+			})
 		} finally {
 			setIsPending(false)
 		}
