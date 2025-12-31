@@ -9,6 +9,8 @@ import {loginAsTestUser} from './fixtures/auth'
  */
 
 test.describe('Competition Registration with Waivers', () => {
+  // Use unique identifier to prevent test interference
+  const timestamp = Date.now()
   /**
    * Setup: Create competition with waiver via API before tests
    * This ensures we have a known competition state for testing
