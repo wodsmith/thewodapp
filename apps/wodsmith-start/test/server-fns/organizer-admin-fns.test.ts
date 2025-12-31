@@ -1,5 +1,5 @@
 import {beforeEach, afterEach, describe, it, expect, vi} from 'vitest'
-import {ZSAError} from '@repo/zsa'
+import {AppError} from '../../src/utils/errors'
 import type {SessionValidationResult} from '@/types'
 
 // Mock dependencies before importing the server functions
@@ -143,12 +143,12 @@ describe('organizer admin server functions', () => {
 
     it('should throw error when user is not admin', async () => {
       vi.mocked(requireAdmin).mockRejectedValue(
-        new ZSAError('FORBIDDEN', 'Not authorized'),
+        new AppError('FORBIDDEN', 'Not authorized'),
       )
 
       // @ts-expect-error - mock function accepts any args
       await expect(getPendingOrganizerRequestsFn({data: {}})).rejects.toThrow(
-        ZSAError,
+        AppError,
       )
       expect(getPendingOrganizerRequests).not.toHaveBeenCalled()
     })
@@ -167,8 +167,8 @@ describe('organizer admin server functions', () => {
       })
     })
 
-    it('should propagate ZSAError from server function', async () => {
-      const zsaError = new ZSAError('NOT_FOUND', 'No requests found')
+    it('should propagate AppError from server function', async () => {
+      const zsaError = new AppError('NOT_FOUND', 'No requests found')
       vi.mocked(getPendingOrganizerRequests).mockRejectedValue(zsaError)
 
       await expect(
@@ -243,14 +243,14 @@ describe('organizer admin server functions', () => {
 
     it('should reject approval when user is not admin', async () => {
       vi.mocked(requireAdmin).mockRejectedValue(
-        new ZSAError('FORBIDDEN', 'Not authorized'),
+        new AppError('FORBIDDEN', 'Not authorized'),
       )
 
       await expect(
         approveOrganizerRequestFn({
           data: {requestId: 'request-123'},
         }),
-      ).rejects.toThrow(ZSAError)
+      ).rejects.toThrow(AppError)
       expect(approveOrganizerRequest).not.toHaveBeenCalled()
     })
 
@@ -269,8 +269,8 @@ describe('organizer admin server functions', () => {
       })
     })
 
-    it('should propagate ZSAError from server function', async () => {
-      const zsaError = new ZSAError('NOT_FOUND', 'Request not found')
+    it('should propagate AppError from server function', async () => {
+      const zsaError = new AppError('NOT_FOUND', 'Request not found')
       vi.mocked(approveOrganizerRequest).mockRejectedValue(zsaError)
 
       await expect(
@@ -383,14 +383,14 @@ describe('organizer admin server functions', () => {
 
     it('should reject rejection when user is not admin', async () => {
       vi.mocked(requireAdmin).mockRejectedValue(
-        new ZSAError('FORBIDDEN', 'Not authorized'),
+        new AppError('FORBIDDEN', 'Not authorized'),
       )
 
       await expect(
         rejectOrganizerRequestFn({
           data: {requestId: 'request-123'},
         }),
-      ).rejects.toThrow(ZSAError)
+      ).rejects.toThrow(AppError)
       expect(rejectOrganizerRequest).not.toHaveBeenCalled()
     })
 
@@ -409,8 +409,8 @@ describe('organizer admin server functions', () => {
       })
     })
 
-    it('should propagate ZSAError from server function', async () => {
-      const zsaError = new ZSAError('NOT_FOUND', 'Request not found')
+    it('should propagate AppError from server function', async () => {
+      const zsaError = new AppError('NOT_FOUND', 'Request not found')
       vi.mocked(rejectOrganizerRequest).mockRejectedValue(zsaError)
 
       await expect(

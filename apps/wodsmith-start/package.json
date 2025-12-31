@@ -62,7 +62,6 @@
 		"@radix-ui/react-tooltip": "^1.2.7",
 		"@react-email/components": "0.0.32",
 		"@react-email/render": "1.0.4",
-		"@repo/zsa": "workspace:*",
 		"@simplewebauthn/browser": "^10.0.0",
 		"@simplewebauthn/server": "^10.0.1",
 		"@simplewebauthn/types": "^12.0.0",
