@@ -235,10 +235,7 @@ function AthleteEditPage() {
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Measurement System</FormLabel>
-										<Select
-											onValueChange={field.onChange}
-											value={field.value}
-										>
+										<Select onValueChange={field.onChange} value={field.value}>
 											<FormControl>
 												<SelectTrigger>
 													<SelectValue placeholder="Select unit system" />
@@ -888,30 +885,30 @@ function AthleteEditPage() {
 											</FormItem>
 										)}
 									/>
-								<FormField
-									control={form.control}
-									name={`strength.${lift}.unit`}
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Unit</FormLabel>
-											<Select
-												onValueChange={field.onChange}
-												value={field.value || "lbs"}
-											>
-												<FormControl>
-													<SelectTrigger>
-														<SelectValue placeholder="Unit" />
-													</SelectTrigger>
-												</FormControl>
-												<SelectContent>
-													<SelectItem value="lbs">LBS</SelectItem>
-													<SelectItem value="kg">KG</SelectItem>
-												</SelectContent>
-											</Select>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+									<FormField
+										control={form.control}
+										name={`strength.${lift}.unit`}
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Unit</FormLabel>
+												<Select
+													onValueChange={field.onChange}
+													value={field.value || "lbs"}
+												>
+													<FormControl>
+														<SelectTrigger>
+															<SelectValue placeholder="Unit" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														<SelectItem value="lbs">LBS</SelectItem>
+														<SelectItem value="kg">KG</SelectItem>
+													</SelectContent>
+												</Select>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
 									<FormField
 										control={form.control}
 										name={`strength.${lift}.date`}
