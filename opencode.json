@@ -1,5 +1,14 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "formatter": {
+    "biome": {
+      "disabled": true
+    },
+    "wodsmith-biome": {
+      "command": ["pnpm", "--filter", "wodsmith-start", "format"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".json"]
+    }
+  },
   "mcp": {
     "ast-grep": {
       "type": "local",
@@ -14,6 +23,11 @@
     "playwright": {
       "type": "local",
       "command": ["npx", "-y", "@playwright/mcp@latest"],
+      "enabled": true
+    },
+    "deepwiki": {
+      "type": "remote",
+      "url": "https://mcp.deepwiki.com/mcp",
       "enabled": true
     }
   }

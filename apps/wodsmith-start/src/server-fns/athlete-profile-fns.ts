@@ -436,7 +436,9 @@ export const getRegistrationSuccessDataFn = createServerFn({ method: "GET" })
 
 		// Ensure the caller can only access their own registration data
 		if (session.userId !== data.userId) {
-			throw new Error("Unauthorized: Cannot access another user's registration data")
+			throw new Error(
+				"Unauthorized: Cannot access another user's registration data",
+			)
 		}
 
 		const { getDb } = await import("@/db")

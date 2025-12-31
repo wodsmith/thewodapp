@@ -76,19 +76,27 @@ export function CompetitionTabs({
 						})}
 					</nav>
 					<div className="py-2 pr-4">
-						<Button
-							variant={isRegistered ? "outline" : "default"}
-							size="sm"
-							disabled={isRegisterButtonDisabled}
-							className={cn(
-								isRegistered && "cursor-default",
-								registrationOpen &&
-									!isRegistered &&
-									"bg-teal-600 hover:bg-teal-500",
-							)}
-						>
-							{getRegisterButtonText()}
-						</Button>
+						{registrationOpen && !isRegistered ? (
+							<Button
+								variant="default"
+								size="sm"
+								className="bg-teal-600 hover:bg-teal-500"
+								asChild
+							>
+								<Link to="/compete/$slug/register" params={{ slug }}>
+									Register
+								</Link>
+							</Button>
+						) : (
+							<Button
+								variant={isRegistered ? "outline" : "default"}
+								size="sm"
+								disabled={isRegisterButtonDisabled}
+								className={cn(isRegistered && "cursor-default")}
+							>
+								{getRegisterButtonText()}
+							</Button>
+						)}
 					</div>
 				</div>
 			</div>
