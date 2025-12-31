@@ -10,6 +10,14 @@ const POSTHOG_HOST =
 let isInitialized = false
 
 /**
+ * Check if PostHog has been initialized.
+ * Use this to guard utility functions that depend on PostHog being ready.
+ */
+export function isPostHogInitialized(): boolean {
+	return isInitialized
+}
+
+/**
  * Initialize PostHog client-side analytics.
  * Safe to call multiple times - will only initialize once.
  * Must be called in a client-side context (browser).
@@ -79,30 +87,11 @@ export function capturePageleave(): void {
 }
 
 /**
- * Identify a user in PostHog.
- * Call this after successful authentication.
+ * Direct access to the PostHog instance.
+ *
+ * @warning This export bypasses initialization guards. Prefer using the utility
+ * functions from `./utils.ts` (e.g., `trackEvent`, `identifyUser`) which include
+ * proper window and initialization checks. Only use this for advanced cases
+ * where you need direct PostHog API access.
  */
-export function identifyUser(
-	userId: string,
-	properties?: Record<string, unknown>
-): void {
-	if (typeof window === "undefined" || !isInitialized) {
-		return
-	}
-
-	posthog.identify(userId, properties)
-}
-
-/**
- * Reset the current user identity.
- * Call this on logout.
- */
-export function resetUser(): void {
-	if (typeof window === "undefined" || !isInitialized) {
-		return
-	}
-
-	posthog.reset()
-}
-
 export { posthog }
