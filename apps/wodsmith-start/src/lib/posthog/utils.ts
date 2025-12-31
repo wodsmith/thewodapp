@@ -74,9 +74,7 @@ export function resetUser(): void {
  * setUserProperties({ plan: 'pro', upgradeDate: new Date().toISOString() })
  * ```
  */
-export function setUserProperties(
-	properties: Record<string, unknown>,
-): void {
+export function setUserProperties(properties: Record<string, unknown>): void {
 	if (typeof window === "undefined" || !isPostHogInitialized()) return
 	getPostHog().setPersonProperties(properties)
 }
