@@ -18,6 +18,7 @@
 		"db:migrate:prod": "wrangler d1 migrations apply wodsmith-db --remote",
 		"db:migrate:local": "wrangler d1 migrations apply wodsmith-db-dev --local -c .alchemy/local/wrangler.jsonc",
 		"db:seed": "wrangler d1 execute wodsmith-db-dev --local --file ./scripts/seed.sql -c .alchemy/local/wrangler.jsonc",
+		"db:reset": "pnpm db:setup-local && pnpm db:seed",
 		"db:setup-local": "mkdir -p .alchemy/local/src/db && rm -f .alchemy/local/src/db/migrations && ln -sf ../../../../src/db/migrations .alchemy/local/src/db/migrations && pnpm db:migrate:local",
 		"alchemy:configure": "bun alchemy configure",
 		"alchemy:dev": "STAGE=dev bun alchemy.run.ts",

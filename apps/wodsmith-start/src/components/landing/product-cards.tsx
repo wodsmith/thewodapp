@@ -144,7 +144,7 @@ export function ProductCards({ session }: ProductCardsProps) {
 								size="lg"
 								asChild
 							>
-								<Link to="/compete/organizer/new">
+								<Link to="/compete/organizer">
 									Host Your Competition
 									<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
 								</Link>
