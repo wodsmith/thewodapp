@@ -22,7 +22,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { type Gender } from "@/db/schema"
+import type { Gender } from "@/db/schema"
 import {
 	getRegistrationSuccessDataFn,
 	updateAthleteBasicProfileFn,
@@ -97,7 +97,7 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
 			competition.passStripeFeesToCustomer ?? false
 
 		// Get the base URL for invite links
-		const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://thewodapp.com"
+		const baseUrl = process.env.APP_URL || "https://thewodapp.com"
 
 		// Fetch additional data via server function (avoids client-side db import)
 		const { user, isProfileComplete, checkoutSession, purchase, teamInvites } =

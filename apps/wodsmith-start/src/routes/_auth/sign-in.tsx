@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
+import { useIdentifyUser, useTrackEvent } from "@/lib/posthog/hooks"
 import {
 	getSessionFn,
 	signInFn,
@@ -49,6 +50,10 @@ function SignInPage() {
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 
+	// PostHog tracking hooks
+	const trackEvent = useTrackEvent()
+	const identifyUser = useIdentifyUser()
+
 	// Use useServerFn for client-side calls
 	const signIn = useServerFn(signInFn)
 
@@ -65,10 +70,11 @@ function SignInPage() {
 			setIsLoading(true)
 			setError(null)
 
-			await signIn({ data })
+			const result = await signIn({ data })
 
-			// TODO: Add analytics tracking (PostHog)
-			// posthog.capture('user_signed_in', { auth_method: 'email_password' })
+			// Identify user and track successful sign-in
+			identifyUser(result.userId, { email: data.email })
+			trackEvent("user_signed_in", { auth_method: "email_password" })
 
 			// Redirect to the intended destination
 			router.navigate({ to: redirectPath })
@@ -77,8 +83,8 @@ function SignInPage() {
 			setError(errorMessage)
 			console.error("Sign-in error:", err)
 
-			// TODO: Add error analytics tracking
-			// posthog.capture('user_signed_in_failed', { error_message: errorMessage })
+			// Track failed sign-in attempt
+			trackEvent("user_signed_in_failed", { error_message: errorMessage })
 		} finally {
 			setIsLoading(false)
 		}
