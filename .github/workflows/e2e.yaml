@@ -79,7 +79,8 @@ jobs:
         working-directory: apps/wodsmith-start
         run: pnpm db:seed:e2e
 
-      - run: pnpm turbo build --filter=wodsmith-start
+      # Note: We use vite dev (not vite preview) because the Alchemy Cloudflare
+      # plugin only works in dev mode. No build step needed for E2E tests.
       - run: pnpm --filter wodsmith-start exec playwright install chromium --with-deps
       - run: pnpm --filter wodsmith-start exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:

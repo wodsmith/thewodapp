@@ -32,8 +32,9 @@ export default defineConfig({
 	],
 
 	webServer: {
-		// TanStack Start uses vite dev for development and vite preview for production
-		command: isCI ? "pnpm serve" : "pnpm dev",
+		// TanStack Start with Alchemy requires vite dev (not vite preview)
+		// because the Alchemy Cloudflare plugin only works in dev mode
+		command: "pnpm dev",
 		url: baseURL,
 		reuseExistingServer: !isCI,
 		timeout: 120_000,
