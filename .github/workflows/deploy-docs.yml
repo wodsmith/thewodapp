@@ -59,7 +59,7 @@ jobs:
         run: pnpm build
 
       - name: Deploy with Alchemy
-        run: pnpm deploy
+        run: pnpm alchemy:deploy
         env:
           STAGE: ${{ env.STAGE }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -108,7 +108,7 @@ jobs:
           echo "Safe to proceed - destroying stage: ${{ env.STAGE }}"
 
       - name: Destroy PR Docs Environment
-        run: pnpm deploy:destroy
+        run: pnpm alchemy:destroy
         env:
           STAGE: ${{ env.STAGE }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
