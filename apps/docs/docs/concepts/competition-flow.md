@@ -166,7 +166,3 @@ From an athlete's perspective, a well-run competition feels:
 - **Respected**: Their effort acknowledged
 
 WODsmith's features support each of these feelings through thoughtful design.
-
----
-
-_Continue learning: [The Scoring System](/concepts/scoring-system)_
