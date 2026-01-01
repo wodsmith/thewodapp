@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -62,8 +63,9 @@ const formSchema = z
 				/^[a-z0-9-]+$/,
 				"Slug must be lowercase letters, numbers, and hyphens only",
 			),
+		isMultiDay: z.boolean(),
 		startDate: z.string().min(1, "Start date is required"),
-		endDate: z.string().min(1, "End date is required"),
+		endDate: z.string().optional(),
 		description: z.string().max(2000, "Description is too long").optional(),
 		registrationOpensAt: z.string().optional(),
 		registrationClosesAt: z.string().optional(),
@@ -73,11 +75,28 @@ const formSchema = z
 	})
 	.refine(
 		(data) => {
-			if (!data.startDate || !data.endDate) return true
+			// For single-day competitions, endDate is optional (will be set to startDate on submit)
+			if (!data.isMultiDay) return true
+			// For multi-day competitions, endDate is required
+			if (!data.endDate) return false
+			return true
+		},
+		{
+			message: "End date is required for multi-day competitions",
+			path: ["endDate"],
+		},
+	)
+	.refine(
+		(data) => {
+			if (!data.startDate) return true
+			// For single-day competitions, no endDate validation needed
+			if (!data.isMultiDay) return true
+			// For multi-day competitions, endDate must be after startDate
+			if (!data.endDate) return true // Already handled by previous refine
 			return new Date(data.startDate) < new Date(data.endDate)
 		},
 		{
-			message: "Start date must be before end date",
+			message: "End date must be after start date for multi-day competitions",
 			path: ["endDate"],
 		},
 	)
@@ -119,11 +138,17 @@ export function OrganizerCompetitionEditForm({
 	// Use useServerFn hook for client-side server function calls
 	const updateCompetition = useServerFn(updateCompetitionFn)
 
+	// Determine if existing competition is multi-day (start and end dates differ)
+	const existingIsMultiDay =
+		formatDateInputFromUTC(competition.startDate) !==
+		formatDateInputFromUTC(competition.endDate)
+
 	const form = useForm<FormValues>({
 		resolver: standardSchemaResolver(formSchema),
 		defaultValues: {
 			name: competition.name,
 			slug: competition.slug,
+			isMultiDay: existingIsMultiDay,
 			startDate: formatDateInputFromUTC(competition.startDate),
 			endDate: formatDateInputFromUTC(competition.endDate),
 			description: competition.description || "",
@@ -139,6 +164,8 @@ export function OrganizerCompetitionEditForm({
 		},
 	})
 
+	const isMultiDay = form.watch("isMultiDay")
+
 	// Auto-generate slug from name
 	const handleNameChange = (name: string) => {
 		const slug = name
@@ -152,6 +179,10 @@ export function OrganizerCompetitionEditForm({
 	}
 
 	async function onSubmit(data: FormValues) {
+		// For single-day competitions, endDate = startDate
+		const effectiveEndDate =
+			data.isMultiDay && data.endDate ? data.endDate : data.startDate
+
 		setIsPending(true)
 		try {
 			await updateCompetition({
@@ -160,7 +191,7 @@ export function OrganizerCompetitionEditForm({
 					name: data.name,
 					slug: data.slug,
 					startDate: parseDateInputAsUTC(data.startDate),
-					endDate: parseDateInputAsUTC(data.endDate),
+					endDate: parseDateInputAsUTC(effectiveEndDate),
 					description: data.description || null,
 					registrationOpensAt: data.registrationOpensAt
 						? parseDateInputAsUTC(data.registrationOpensAt)
@@ -318,22 +349,52 @@ export function OrganizerCompetitionEditForm({
 					/>
 				)}
 
-				<div className="grid gap-4 md:grid-cols-2">
-					<FormField
-						control={form.control}
-						name="startDate"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Start Date</FormLabel>
-								<FormControl>
-									<Input type="date" {...field} />
-								</FormControl>
-								<FormDescription>When the competition begins</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
+				{/* Competition Date */}
+				<FormField
+					control={form.control}
+					name="startDate"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>
+								{isMultiDay ? "Start Date" : "Competition Date"}
+							</FormLabel>
+							<FormControl>
+								<Input type="date" {...field} />
+							</FormControl>
+							<FormDescription>
+								{isMultiDay
+									? "When the competition begins"
+									: "The date of the competition"}
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
+				{/* Multi-day toggle */}
+				<FormField
+					control={form.control}
+					name="isMultiDay"
+					render={({ field }) => (
+						<FormItem className="flex flex-row items-start space-x-3 space-y-0">
+							<FormControl>
+								<Checkbox
+									checked={field.value}
+									onCheckedChange={field.onChange}
+								/>
+							</FormControl>
+							<div className="space-y-1 leading-none">
+								<FormLabel>Multi-day competition</FormLabel>
+								<FormDescription>
+									Enable this if your competition spans multiple days
+								</FormDescription>
+							</div>
+						</FormItem>
+					)}
+				/>
+
+				{/* End Date (only shown for multi-day) */}
+				{isMultiDay && (
 					<FormField
 						control={form.control}
 						name="endDate"
@@ -341,14 +402,14 @@ export function OrganizerCompetitionEditForm({
 							<FormItem>
 								<FormLabel>End Date</FormLabel>
 								<FormControl>
-									<Input type="date" {...field} />
+									<Input type="date" {...field} value={field.value || ""} />
 								</FormControl>
 								<FormDescription>When the competition ends</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
 					/>
-				</div>
+				)}
 
 				<div className="grid gap-4 md:grid-cols-2">
 					<FormField
