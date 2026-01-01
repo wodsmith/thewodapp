@@ -123,7 +123,7 @@ INSERT OR IGNORE INTO user (
     'Admin',
     'User',
     'admin@example.com',
-    '61646d696e73616c7430303030303030:b5c7a2a33e66a6a7984e74faa100885e4661912b1df25668660c9bda62c85b40',
+    '5a0db2ee7cd6c0130790e5a84c4607b6:486e247bc7843f2834182cbac3e05dff4aaa0af62d5d864644fb065b2debe2e8',
     'user',
     strftime('%s', 'now'),
     100,
