@@ -339,7 +339,8 @@ export async function registerForCompetition(
 
 	// 4. Validate division belongs to competition's scaling group
 	const settings = parseCompetitionSettings(competition.settings)
-	if (!settings?.scalingGroupId) {
+	const scalingGroupId = settings?.divisions?.scalingGroupId
+	if (!scalingGroupId) {
 		throw new Error("This competition does not have divisions configured")
 	}
 
@@ -351,7 +352,7 @@ export async function registerForCompetition(
 		throw new Error("Division not found")
 	}
 
-	if (division.scalingGroupId !== settings.scalingGroupId) {
+	if (division.scalingGroupId !== scalingGroupId) {
 		throw new Error("Selected division does not belong to this competition")
 	}
 

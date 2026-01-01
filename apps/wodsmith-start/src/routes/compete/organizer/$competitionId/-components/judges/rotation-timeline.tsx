@@ -969,8 +969,8 @@ interface TimelineCellProps {
 }
 
 function TimelineCell({
-	heat,
-	lane,
+	heat: _heat,
+	lane: _lane,
 	status,
 	isHighlighted,
 	isPreview,
