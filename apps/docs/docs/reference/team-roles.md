@@ -6,91 +6,159 @@ sidebar_position: 3
 
 Permissions and capabilities for each team role in WodSmith.
 
+## System Roles
+
+WodSmith defines six system roles in order of privilege:
+
+```
+Owner → Admin → Captain → Member → Volunteer → Guest
+```
+
 ## Role Hierarchy
 
-```
-Admin → Coach → Member
-```
-
-Higher roles inherit all permissions from lower roles.
+| Role | Description |
+|------|-------------|
+| **Owner** | Full control over team. Cannot be removed. One per team. |
+| **Admin** | Administrative access with most management capabilities |
+| **Captain** | Team leader for competition teams with limited management |
+| **Member** | Standard member with content creation and editing access |
+| **Volunteer** | Competition volunteer with dashboard access |
+| **Guest** | Read-only access to team dashboard |
 
 ## Permission Matrix
 
-### Content Permissions
+### Resource Access
 
-| Permission | Admin | Coach | Member |
-|------------|:-----:|:-----:|:------:|
-| View published workouts | ✓ | ✓ | ✓ |
-| View draft workouts | ✓ | ✓ | ✗ |
-| Log personal scores | ✓ | ✓ | ✓ |
-| View all member scores | ✓ | ✓ | ✗ |
-| Create workouts | ✓ | ✓ | ✗ |
-| Edit any workout | ✓ | ✓ | ✗ |
-| Delete workouts | ✓ | ✓ | ✗ |
+| Permission | Owner | Admin | Captain | Member | Volunteer | Guest |
+|------------|:-----:|:-----:|:-------:|:------:|:---------:|:-----:|
+| Access dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Access billing | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-### Programming Permissions
+### User Management
 
-| Permission | Admin | Coach | Member |
-|------------|:-----:|:-----:|:------:|
-| View calendar | ✓ | ✓ | ✓ |
-| Schedule workouts | ✓ | ✓ | ✗ |
-| Manage tracks | ✓ | ✓ | ✗ |
-| Create templates | ✓ | ✓ | ✗ |
-| Publish programming | ✓ | ✓ | ✗ |
+| Permission | Owner | Admin | Captain | Member | Volunteer | Guest |
+|------------|:-----:|:-----:|:-------:|:------:|:---------:|:-----:|
+| Invite members | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Remove members | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Change member roles | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-### Team Management Permissions
+### Team Management
 
-| Permission | Admin | Coach | Member |
-|------------|:-----:|:-----:|:------:|
-| View member list | ✓ | ✓ | ✗ |
-| Invite members | ✓ | ✗ | ✗ |
-| Remove members | ✓ | ✗ | ✗ |
-| Change member roles | ✓ | ✗ | ✗ |
-| View team analytics | ✓ | ✓ | ✗ |
+| Permission | Owner | Admin | Captain | Member | Volunteer | Guest |
+|------------|:-----:|:-----:|:-------:|:------:|:---------:|:-----:|
+| Edit team settings | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Delete team | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
-### Administrative Permissions
+### Role Management
 
-| Permission | Admin | Coach | Member |
-|------------|:-----:|:-----:|:------:|
-| Edit team settings | ✓ | ✗ | ✗ |
-| Manage billing | ✓ | ✗ | ✗ |
-| Configure integrations | ✓ | ✗ | ✗ |
-| Delete team | ✓ | ✗ | ✗ |
-| Transfer ownership | ✓ | ✗ | ✗ |
+| Permission | Owner | Admin | Captain | Member | Volunteer | Guest |
+|------------|:-----:|:-----:|:-------:|:------:|:---------:|:-----:|
+| Create custom roles | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Edit custom roles | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Delete custom roles | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Assign roles | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+
+### Content Management
+
+| Permission | Owner | Admin | Captain | Member | Volunteer | Guest |
+|------------|:-----:|:-----:|:-------:|:------:|:---------:|:-----:|
+| Create components | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Edit components | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Delete components | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+
+### Programming & Features
+
+| Permission | Owner | Admin | Captain | Member | Volunteer | Guest |
+|------------|:-----:|:-----:|:-------:|:------:|:---------:|:-----:|
+| Manage programming | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Manage scaling groups | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Manage competitions | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
 
 ## Role Descriptions
 
+### Owner
+
+Full control over team and all resources. The Owner role has all permissions and cannot be removed from the team. Only one Owner exists per team.
+
+**Exclusive permissions:**
+- Delete team
+- Cannot be demoted or removed
+
 ### Admin
 
-Full access to all team features including billing, settings, and member management. At least one admin required per team.
+Administrative access with most management capabilities. Admins can manage users, roles, settings, billing, and all content operations.
 
-### Coach
+**Cannot:**
+- Delete the team (Owner only)
+- Remove or demote the Owner
 
-Programming and workout management access. Can create content and view all member activity. Cannot manage team settings or billing.
+### Captain
+
+Team leader role designed for competition teams. Captains can manage their team's content but cannot access administrative features.
+
+**Default permissions:**
+- Access dashboard
+- Create and edit components
+
+**Use case:** Competition team captains managing their squad's roster and details.
 
 ### Member
 
-Standard athlete access. Can view published content and log personal scores. Limited to personal data only.
+Standard team member with content creation and editing access. Members can create workouts, exercises, and other components but cannot delete them or access management features.
+
+**Default permissions:**
+- Access dashboard
+- Create and edit components
+
+**Cannot:**
+- Delete components
+- Manage team settings
+- Manage users or roles
+- Access billing
+
+### Volunteer
+
+Competition volunteer with basic dashboard access. Designed for event-day helpers who need visibility but not editing capabilities.
+
+**Default permissions:**
+- Access dashboard
+
+### Guest
+
+Read-only access to team dashboard. Guests can view content but cannot create, edit, or manage anything.
+
+**Default permissions:**
+- Access dashboard
 
 ## Role Assignment Rules
 
-- New team creators automatically become Admin
-- Invited members receive role specified in invitation
-- Admins can change any member's role
-- Admins cannot demote themselves if they're the only Admin
-- Minimum one Admin required per team
+- **Team creation**: The user who creates a team automatically becomes the Owner
+- **Invitations**: Invited members receive the role specified in their invitation
+- **Role changes**: Only Owner and Admin can change member roles
+- **Owner protection**: The Owner cannot be demoted or removed
+- **Owner transfer**: Ownership transfer requires contacting support
+- **Minimum requirement**: Every team must have exactly one Owner
 
-## Competition Organizer Role
+## Custom Roles
 
-Competition-specific role (separate from team roles):
+Teams can create custom roles with any combination of permissions:
 
-| Permission | Organizer |
-|------------|:---------:|
-| Edit competition settings | ✓ |
-| Manage registrations | ✓ |
-| Enter scores | ✓ |
-| Publish results | ✓ |
-| View revenue | ✓ |
+1. Requires `CREATE_ROLES` permission (Owner or Admin)
+2. Select from available permissions
+3. Assign to members via `ASSIGN_ROLES` permission
+
+Custom roles allow fine-grained access control beyond the six system roles.
+
+## Competition Management
+
+Competitions are managed through team features, not a separate role. Users with the `MANAGE_COMPETITIONS` permission (Owner, Admin) can:
+
+- Create and configure competitions
+- Manage registrations and divisions
+- Schedule heats and enter scores
+- Publish results and manage volunteers
+
+Competition-specific access (judges, volunteers) is handled through team membership with appropriate roles.
 
 ---
 
