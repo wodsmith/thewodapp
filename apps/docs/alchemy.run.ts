@@ -22,13 +22,11 @@ const app = await alchemy('wodsmith-docs', {
 
 /**
  * Determines the custom domain for the docs site.
+ * Only production gets a custom domain - PR previews use the default workers.dev URL.
  */
 function getDomains(currentStage: string): string[] | undefined {
   if (currentStage === 'prod') {
     return ['docs.wodsmith.com']
-  }
-  if (currentStage.startsWith('pr-')) {
-    return [`${currentStage}-docs.preview.wodsmith.com`]
   }
   return undefined
 }
@@ -45,17 +43,18 @@ const website = await Website('docs', {
 
 /**
  * GitHub PR comment with preview URL for pull request deployments.
+ * Uses the default workers.dev URL (no custom domain for previews).
  */
 if (process.env.PULL_REQUEST) {
   const prNumber = Number(process.env.PULL_REQUEST)
-  const previewUrl = `https://pr-${prNumber}-docs.preview.wodsmith.com`
+  const previewUrl = website.url
   const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? 'unknown'
 
   await GitHubComment('preview-comment', {
     owner: 'wodsmith',
     repository: 'thewodapp',
     issueNumber: prNumber,
-    body: `## 📚 Docs Preview Deployed
+    body: `## Docs Preview Deployed
 
 **URL:** ${previewUrl}
 
