@@ -138,7 +138,7 @@ export function WaiverSigningStep({
 								{/* Waiver Content Viewer */}
 								<div className="border rounded-lg p-4 max-h-96 overflow-y-auto bg-muted/10">
 									<WaiverViewer
-										content={JSON.parse(waiver.content)}
+										content={waiver.content}
 										className="prose prose-sm max-w-none dark:prose-invert"
 									/>
 								</div>

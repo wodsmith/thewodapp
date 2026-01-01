@@ -23,7 +23,10 @@ import {
 	expandRotationToAssignments,
 	filterRotationsByAvailability,
 } from "@/lib/judge-rotation-utils"
-import { getEventRotationsFn } from "@/server-fns/judge-rotation-fns"
+import {
+	getEventRotationsFn,
+	updateJudgeRotationFn,
+} from "@/server-fns/judge-rotation-fns"
 import type { JudgeVolunteerInfo } from "@/server-fns/judge-scheduling-fns"
 import {
 	type MultiPreviewCell,
@@ -308,7 +311,7 @@ export function RotationTimeline({
 		[availableJudges],
 	)
 
-	async function refreshRotations() {
+	const refreshRotations = useCallback(async () => {
 		try {
 			const result = await getEventRotationsFn({ data: { trackWorkoutId } })
 			if (result?.rotations) {
@@ -317,7 +320,7 @@ export function RotationTimeline({
 		} catch (err) {
 			console.error("Failed to refresh rotations:", err)
 		}
-	}
+	}, [trackWorkoutId])
 
 	function handleCreateRotation() {
 		setEditingVolunteerId(null)
@@ -345,6 +348,42 @@ export function RotationTimeline({
 			setIsEditorOpen(true)
 		}
 	}
+
+	/**
+	 * Handle rotation drop - update the rotation's starting heat and lane
+	 */
+	const handleRotationDrop = useCallback(
+		async (
+			rotation: CompetitionJudgeRotation,
+			targetHeat: number,
+			targetLane: number,
+		) => {
+			// Skip if dropping on the same position
+			if (
+				rotation.startingHeat === targetHeat &&
+				rotation.startingLane === targetLane
+			) {
+				return
+			}
+
+			try {
+				await updateJudgeRotationFn({
+					data: {
+						teamId,
+						rotationId: rotation.id,
+						startingHeat: targetHeat,
+						startingLane: targetLane,
+					},
+				})
+				// Refresh rotations to reflect the update
+				await refreshRotations()
+			} catch (error) {
+				console.error("Failed to update rotation:", error)
+				// TODO: Show error toast to user
+			}
+		},
+		[teamId, refreshRotations],
+	)
 
 	function handleEditVolunteerRotations(membershipId: string) {
 		const volunteerRotations = rotationsByVolunteer.get(membershipId) || []
@@ -827,6 +866,9 @@ export function RotationTimeline({
 															isEditingCell={isEditingCell}
 															minHeatBuffer={minHeatBuffer}
 															onClick={() => handleCellClick(heat, lane)}
+															onRotationDrop={(rotation) =>
+																handleRotationDrop(rotation, heat, lane)
+															}
 														/>
 													)
 												})}
@@ -922,11 +964,13 @@ interface TimelineCellProps {
 	/** Minimum heat buffer (for tooltip) */
 	minHeatBuffer: number
 	onClick: () => void
+	/** Handler for when a rotation is dropped on this cell */
+	onRotationDrop: (rotation: CompetitionJudgeRotation) => void
 }
 
 function TimelineCell({
-	heat,
-	lane,
+	heat: _heat,
+	lane: _lane,
 	status,
 	isHighlighted,
 	isPreview,
@@ -936,6 +980,7 @@ function TimelineCell({
 	isEditingCell,
 	minHeatBuffer,
 	onClick,
+	onRotationDrop,
 }: TimelineCellProps) {
 	const ref = useRef<HTMLButtonElement>(null)
 	const [isDraggedOver, setIsDraggedOver] = useState(false)
@@ -951,15 +996,15 @@ function TimelineCell({
 			onDragLeave: () => setIsDraggedOver(false),
 			onDrop: ({ source }) => {
 				setIsDraggedOver(false)
-				// TODO: Handle rotation drop - update startingHeat and startingLane
-				console.log("Dropped rotation on cell", {
-					heat,
-					lane,
-					rotation: source.data.rotation,
-				})
+				const rotation = source.data.rotation as
+					| CompetitionJudgeRotation
+					| undefined
+				if (rotation) {
+					onRotationDrop(rotation)
+				}
 			},
 		})
-	}, [heat, lane])
+	}, [onRotationDrop])
 
 	// Determine background class based on status, highlight, preview, and editing state
 	let bgClass: string

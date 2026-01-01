@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -26,6 +27,7 @@ import { forgotPasswordFn } from "@/server-fns/auth-fns"
 // Define schema here to match server-side validation
 const forgotPasswordSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
+	captchaToken: z.string().optional(),
 })
 
 type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>
@@ -143,15 +145,22 @@ function ForgotPasswordPage() {
 								)}
 							/>
 
-							{/* TODO: Add Turnstile captcha integration */}
+							<div className="flex flex-col justify-center items-center space-y-4">
+								<Captcha
+									onSuccess={(token: string) =>
+										form.setValue("captchaToken", token)
+									}
+									validationError={form.formState.errors.captchaToken?.message}
+								/>
 
-							<Button
-								type="submit"
-								className="w-full font-mono uppercase"
-								disabled={isLoading}
-							>
-								{isLoading ? "Sending..." : "Send Reset Instructions"}
-							</Button>
+								<Button
+									type="submit"
+									className="w-full font-mono uppercase"
+									disabled={isLoading}
+								>
+									{isLoading ? "Sending..." : "Send Reset Instructions"}
+								</Button>
+							</div>
 						</form>
 					</Form>
 				</CardContent>

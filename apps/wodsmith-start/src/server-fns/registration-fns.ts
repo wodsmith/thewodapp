@@ -426,7 +426,6 @@ export const getRegistrationFeeBreakdownFn = createServerFn({ method: "GET" })
 
 			return {
 				isFree: false,
-				registrationFeeCents,
 				...breakdown,
 			}
 		},

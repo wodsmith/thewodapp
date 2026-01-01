@@ -5,6 +5,18 @@ import { useMemo } from "react"
 import Markdown from "react-markdown"
 
 /**
+ * Safely parse JSON string to Lexical editor state.
+ * Returns null if parsing fails.
+ */
+function parseWaiverContent(content: string): SerializedEditorState | null {
+	try {
+		return JSON.parse(content) as SerializedEditorState
+	} catch {
+		return null
+	}
+}
+
+/**
  * Extract plain text content from Lexical JSON, preserving markdown syntax.
  * Converts Lexical's structured format back to readable text with paragraphs.
  */
@@ -69,25 +81,33 @@ function extractTextFromLexical(content: SerializedEditorState): string {
 }
 
 interface WaiverViewerProps {
-	content: SerializedEditorState
+	/** Raw JSON string from the database (Lexical editor state) */
+	content: string
 	className?: string
 }
 
 /**
  * Read-only display component for competition waiver content.
+ * Accepts raw JSON string and handles parsing internally with error handling.
  * Extracts text from Lexical JSON and renders as markdown.
  * Supports links, bold, italic, lists, headings, and quotes.
  *
  * @example
  * ```tsx
  * <WaiverViewer
- *   content={competition.waiverContent}
+ *   content={waiver.content}
  *   className="border rounded-lg p-4"
  * />
  * ```
  */
 export function WaiverViewer({ content, className }: WaiverViewerProps) {
-	const markdown = useMemo(() => extractTextFromLexical(content), [content])
+	const markdown = useMemo(() => {
+		const parsed = parseWaiverContent(content)
+		if (!parsed) {
+			return "*Unable to display waiver content*"
+		}
+		return extractTextFromLexical(parsed)
+	}, [content])
 
 	return (
 		<div className={className}>

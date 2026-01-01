@@ -804,7 +804,24 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 				})
 				.where(eq(teamInvitationTable.id, existingInvitation.id))
 
-			// TODO: Send invitation email
+			// Get inviter name for email
+			const inviter = await db.query.userTable.findFirst({
+				where: eq(userTable.id, session.userId),
+				columns: { firstName: true, lastName: true },
+			})
+			const inviterName = inviter
+				? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+					"A team member"
+				: "A team member"
+
+			// Send invitation email
+			const { sendTeamInvitationEmail } = await import("@/utils/email")
+			await sendTeamInvitationEmail({
+				email: data.email,
+				invitationToken: token,
+				teamName: team.name,
+				inviterName,
+			})
 
 			return {
 				success: true,
@@ -834,7 +851,24 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 			throw new AppError("ERROR", "Could not create invitation")
 		}
 
-		// TODO: Send invitation email
+		// Get inviter name for email
+		const inviter = await db.query.userTable.findFirst({
+			where: eq(userTable.id, session.userId),
+			columns: { firstName: true, lastName: true },
+		})
+		const inviterName = inviter
+			? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+				"A team member"
+			: "A team member"
+
+		// Send invitation email
+		const { sendTeamInvitationEmail } = await import("@/utils/email")
+		await sendTeamInvitationEmail({
+			email: data.email,
+			invitationToken: token,
+			teamName: team.name,
+			inviterName,
+		})
 
 		return {
 			success: true,

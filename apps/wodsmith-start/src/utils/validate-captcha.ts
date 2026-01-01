@@ -1,15 +1,14 @@
-import { isTurnstileEnabled } from "@/flags"
-
 interface TurnstileResponse {
 	success: boolean
 	"error-codes"?: string[]
 }
 
+/**
+ * Validate a Turnstile CAPTCHA token.
+ * Always validates when a token is provided - the caller is responsible
+ * for only calling this when CAPTCHA is enabled on the client side.
+ */
 export async function validateTurnstileToken(token: string) {
-	if (!(await isTurnstileEnabled())) {
-		return true
-	}
-
 	const response = await fetch(
 		"https://challenges.cloudflare.com/turnstile/v0/siteverify",
 		{

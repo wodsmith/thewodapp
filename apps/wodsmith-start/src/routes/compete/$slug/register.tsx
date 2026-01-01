@@ -9,6 +9,7 @@ import { z } from "zod"
 import { RegistrationForm } from "@/components/registration/registration-form"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 
 // Search params validation
 const registerSearchSchema = z.object({
@@ -163,6 +164,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				registrationClosesAt: regClosesAt,
 				defaultAffiliateName: undefined,
 				divisionsConfigured: false,
+				waivers: [],
 			}
 		}
 
@@ -186,12 +188,18 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				registrationClosesAt: regClosesAt,
 				defaultAffiliateName: undefined,
 				divisionsConfigured: false,
+				waivers: [],
 			}
 		}
 
 		// 8. Fetch user's affiliate from their profile (via server function)
 		const { affiliateName } = await getUserAffiliateNameFn({
 			data: { userId: session.userId },
+		})
+
+		// 9. Fetch waivers for this competition
+		const { waivers } = await getCompetitionWaiversFn({
+			data: { competitionId: competition.id },
 		})
 
 		return {
@@ -203,6 +211,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			registrationClosesAt: regClosesAt,
 			defaultAffiliateName: affiliateName ?? undefined,
 			divisionsConfigured: true,
+			waivers,
 		}
 	},
 })
@@ -217,6 +226,7 @@ function RegisterPage() {
 		registrationClosesAt,
 		defaultAffiliateName,
 		divisionsConfigured,
+		waivers,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -250,6 +260,7 @@ function RegisterPage() {
 				registrationClosesAt={registrationClosesAt}
 				paymentCanceled={canceled === "true"}
 				defaultAffiliateName={defaultAffiliateName}
+				waivers={waivers}
 			/>
 		</div>
 	)

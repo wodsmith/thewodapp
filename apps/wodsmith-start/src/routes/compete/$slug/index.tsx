@@ -17,17 +17,22 @@ function CompetitionOverviewPage() {
 		isVolunteer,
 		registrationStatus,
 		session,
+		divisions,
+		sponsors,
+		userDivision,
+		maxSpots,
 	} = parentRoute.useLoaderData()
 
 	const isRegistered = !!userRegistration
+	const isTeamRegistration = (userDivision?.teamSize ?? 1) > 1
 
 	return (
 		<div className="grid gap-8 lg:grid-cols-[1fr_320px]">
 			{/* Main Content */}
 			<EventDetailsContent
 				competition={competition}
-				divisions={undefined} // TODO: Will be fetched in a future task
-				sponsors={undefined} // TODO: Will be fetched in a future task
+				divisions={divisions.length > 0 ? divisions : undefined}
+				sponsors={sponsors}
 				workoutsContent={
 					<section>
 						<Card className="border-dashed">
@@ -57,10 +62,10 @@ function CompetitionOverviewPage() {
 					isRegistered={isRegistered}
 					registrationOpen={registrationStatus.registrationOpen}
 					registrationCount={registrationCount}
-					maxSpots={undefined} // TODO: Will be fetched when divisions are implemented
-					userDivision={undefined} // TODO: Will be fetched when divisions are implemented
+					maxSpots={maxSpots}
+					userDivision={userDivision?.label}
 					registrationId={userRegistration?.id}
-					isTeamRegistration={false} // TODO: Determine from division when implemented
+					isTeamRegistration={isTeamRegistration}
 					isCaptain={userRegistration?.userId === session?.userId}
 					isVolunteer={isVolunteer}
 				/>

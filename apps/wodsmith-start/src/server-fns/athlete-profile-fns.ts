@@ -406,6 +406,30 @@ export const getAthleteInvoicesDataFn = createServerFn({
 	return { purchases }
 })
 
+const getInvoiceDetailsInputSchema = z.object({
+	purchaseId: z.string(),
+})
+
+/**
+ * Get invoice details for a specific purchase
+ */
+export const getInvoiceDetailsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getInvoiceDetailsInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session) {
+			throw redirect({
+				to: "/sign-in",
+				search: { redirect: `/compete/athlete/invoices/${data.purchaseId}` },
+			})
+		}
+
+		const { getInvoiceDetails } = await import("@/server/commerce/purchases")
+		const invoice = await getInvoiceDetails(data.purchaseId, session.userId)
+
+		return { invoice }
+	})
+
 // ============================================================================
 // Registration Success Data
 // ============================================================================

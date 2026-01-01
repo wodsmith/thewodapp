@@ -14,6 +14,12 @@ vi.mock('@/db', () => ({
   getDb: vi.fn(),
 }))
 
+// Mock the email module
+vi.mock('@/utils/email', () => ({
+  sendOrganizerApprovalEmail: vi.fn().mockResolvedValue(undefined),
+  sendOrganizerRejectionEmail: vi.fn().mockResolvedValue(undefined),
+}))
+
 import {getDb} from '@/db'
 
 describe('Organizer Onboarding', () => {
@@ -170,6 +176,19 @@ describe('Organizer Onboarding', () => {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(pendingRequest),
           },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+              slug: 'test-team',
+            }),
+          },
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
@@ -306,6 +325,18 @@ describe('Organizer Onboarding', () => {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(pendingRequest),
           },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+            }),
+          },
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
@@ -343,6 +374,18 @@ describe('Organizer Onboarding', () => {
         query: {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(pendingRequest),
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+            }),
           },
         },
         update: vi.fn().mockReturnValue({
@@ -679,6 +722,19 @@ describe('Organizer Onboarding', () => {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(pendingRequest),
           },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+              slug: 'test-team',
+            }),
+          },
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
@@ -715,6 +771,18 @@ describe('Organizer Onboarding', () => {
         query: {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(pendingRequest),
+          },
+          userTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              firstName: 'Test',
+              lastName: 'User',
+              email: 'test@example.com',
+            }),
+          },
+          teamTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              name: 'Test Team',
+            }),
           },
         },
         update: vi.fn().mockReturnValue({
