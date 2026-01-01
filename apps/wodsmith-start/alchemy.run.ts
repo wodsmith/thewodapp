@@ -286,14 +286,34 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
+ * Validate required Stripe environment variables when Stripe bindings are needed.
+ * Fails fast with a clear error message if any required variables are missing.
+ */
+if (needsStripeBindings) {
+	const requiredStripeVars = [
+		"STRIPE_SECRET_KEY",
+		"STRIPE_PUBLISHABLE_KEY",
+		"STRIPE_CLIENT_ID",
+	] as const
+	const missing = requiredStripeVars.filter((varName) => !process.env[varName])
+	if (missing.length > 0) {
+		throw new Error(
+			`Missing required Stripe environment variables for stage "${stage}": ${missing.join(", ")}`,
+		)
+	}
+}
+
+/**
  * Stripe Webhook Endpoint for demo and production environments.
  *
  * This creates a Stripe webhook that receives events for environments
  * that require Stripe integration (demo and prod).
  *
  * @remarks
- * **Required environment variable:**
- * - `STRIPE_SECRET_KEY`: Stripe secret key (Alchemy reads this as STRIPE_API_KEY at deploy time)
+ * **Required environment variables:**
+ * - `STRIPE_SECRET_KEY`: Stripe secret key for server-side API authentication
+ * - `STRIPE_PUBLISHABLE_KEY`: Stripe publishable key for client-side Stripe.js
+ * - `STRIPE_CLIENT_ID`: Stripe Connect OAuth client ID
  *
  * **Webhook URLs by stage:**
  * - prod: https://start.wodsmith.com/api/webhooks/stripe
@@ -412,12 +432,12 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
-		// Stripe bindings for demo and production environments
+		// Stripe bindings for demo and production environments (validated above)
 		...(needsStripeBindings && {
 			/** Stripe publishable key for client-side Stripe.js initialization */
-			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
+			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
 			/** Stripe Connect OAuth client ID */
-			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID,
+			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
 			/** Stripe secret key for server-side API calls */
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
