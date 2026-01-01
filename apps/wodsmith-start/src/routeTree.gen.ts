@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as CompeteRouteImport } from './routes/compete'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ProtectedRouteImport } from './routes/_protected'
@@ -18,6 +20,8 @@ import { Route as CompeteIndexRouteImport } from './routes/compete/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as CompeteOrganizerRouteImport } from './routes/compete/organizer'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
+import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as ApiGetSessionRouteImport } from './routes/api/get-session'
 import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
 import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email'
@@ -52,6 +56,9 @@ import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/
 import { Route as CompeteSlugRegisterRouteImport } from './routes/compete/$slug/register'
 import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slug/my-schedule'
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
+import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as CompeteOrganizerSeriesIndexRouteImport } from './routes/compete/organizer/series/index'
@@ -60,6 +67,7 @@ import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from './routes
 import { Route as CompeteAthleteSponsorsIndexRouteImport } from './routes/compete/athlete/sponsors/index'
 import { Route as CompeteAthleteInvoicesIndexRouteImport } from './routes/compete/athlete/invoices/index'
 import { Route as CompeteAthleteEditIndexRouteImport } from './routes/compete/athlete/edit/index'
+import { Route as AdminTeamsScheduleIndexRouteImport } from './routes/admin/teams/schedule/index'
 import { Route as AdminTeamsTeamIdIndexRouteImport } from './routes/admin/teams/$teamId/index'
 import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
 import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
@@ -79,6 +87,7 @@ import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
 import { Route as CompeteOrganizerSeriesNewRouteImport } from './routes/compete/organizer/series/new'
 import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from './routes/compete/organizer/series/$groupId'
+import { Route as CompeteOrganizerOnboardPendingRouteImport } from './routes/compete/organizer/onboard/pending'
 import { Route as CompeteOrganizerCompetitionIdWaiversRouteImport } from './routes/compete/organizer/$competitionId/waivers'
 import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from './routes/compete/organizer/$competitionId/volunteers'
 import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/compete/organizer/$competitionId/sponsors'
@@ -91,21 +100,44 @@ import { Route as CompeteOrganizerCompetitionIdEditRouteImport } from './routes/
 import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from './routes/compete/organizer/$competitionId/divisions'
 import { Route as CompeteOrganizerCompetitionIdDangerZoneRouteImport } from './routes/compete/organizer/$competitionId/danger-zone'
 import { Route as CompeteOrganizerCompetitionIdAthletesRouteImport } from './routes/compete/organizer/$competitionId/athletes'
+import { Route as CompeteAthleteInvoicesPurchaseIdRouteImport } from './routes/compete/athlete/invoices/$purchaseId'
 import { Route as CompeteSlugRegisterSuccessRouteImport } from './routes/compete/$slug/register/success'
+import { Route as ApiStripeConnectCallbackRouteImport } from './routes/api/stripe/connect/callback'
+import { Route as AdminTeamsScheduleScheduleWeekRouteImport } from './routes/admin/teams/schedule/schedule-week'
+import { Route as AdminTeamsScheduleScheduleTemplatesRouteImport } from './routes/admin/teams/schedule/schedule-templates'
+import { Route as AdminTeamsScheduleGymSetupRouteImport } from './routes/admin/teams/schedule/gym-setup'
+import { Route as AdminTeamsScheduleGenerateRouteImport } from './routes/admin/teams/schedule/generate'
+import { Route as AdminTeamsScheduleCoachesRouteImport } from './routes/admin/teams/schedule/coaches'
+import { Route as AdminTeamsScheduleClassesRouteImport } from './routes/admin/teams/schedule/classes'
 import { Route as AdminTeamsTeamIdSchedulingRouteImport } from './routes/admin/teams/$teamId/scheduling'
 import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
 import { Route as CompeteSlugTeamsRegistrationIdIndexRouteImport } from './routes/compete/$slug/teams/$registrationId/index'
+import { Route as AdminTeamsTeamIdGymSetupIndexRouteImport } from './routes/admin/teams/$teamId/gym-setup/index'
+import { Route as AdminTeamsTeamIdCoachesIndexRouteImport } from './routes/admin/teams/$teamId/coaches/index'
 import { Route as ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport } from './routes/_protected/workouts/$workoutId/schedule/index'
 import { Route as ProtectedWorkoutsWorkoutIdEditIndexRouteImport } from './routes/_protected/workouts/$workoutId/edit/index'
 import { Route as ProtectedSettingsTeamsCreateIndexRouteImport } from './routes/_protected/settings/teams/create/index'
 import { Route as ProtectedSettingsTeamsTeamSlugIndexRouteImport } from './routes/_protected/settings/teams/$teamSlug/index'
 import { Route as ProtectedSettingsProgrammingTrackIdIndexRouteImport } from './routes/_protected/settings/programming/$trackId/index'
 import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected/log/$id/edit/index'
+import { Route as ProtectedAdminTeamsScalingIndexRouteImport } from './routes/_protected/admin/teams/scaling/index'
+import { Route as ProtectedAdminTeamsProgrammingIndexRouteImport } from './routes/_protected/admin/teams/programming/index'
 import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from './routes/compete/organizer/series/$groupId/edit'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId'
 import { Route as CompeteOrganizerSettingsPayoutsTeamSlugIndexRouteImport } from './routes/compete/organizer/settings/payouts/$teamSlug/index'
+import { Route as ProtectedAdminTeamsProgrammingTrackIdIndexRouteImport } from './routes/_protected/admin/teams/programming/$trackId/index'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompeteRoute = CompeteRouteImport.update({
   id: '/compete',
   path: '/compete',
@@ -148,6 +180,16 @@ const CompeteSlugRoute = CompeteSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => CompeteRoute,
+} as any)
+const ApiUploadRoute = ApiUploadRouteImport.update({
+  id: '/api/upload',
+  path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGetSessionRoute = ApiGetSessionRouteImport.update({
+  id: '/api/get-session',
+  path: '/api/get-session',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedSettingsRoute = ProtectedSettingsRouteImport.update({
   id: '/settings',
@@ -323,6 +365,21 @@ const CompeteSlugLeaderboardRoute = CompeteSlugLeaderboardRouteImport.update({
   path: '/leaderboard',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
+const ApiWorkoutsSearchRoute = ApiWorkoutsSearchRouteImport.update({
+  id: '/api/workouts/search',
+  path: '/api/workouts/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTeamsScheduleRoute = AdminTeamsScheduleRouteImport.update({
+  id: '/teams/schedule',
+  path: '/teams/schedule',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTeamsTeamIdRoute = AdminTeamsTeamIdRouteImport.update({
   id: '/teams/$teamId',
   path: '/teams/$teamId',
@@ -367,6 +424,11 @@ const CompeteAthleteEditIndexRoute = CompeteAthleteEditIndexRouteImport.update({
   id: '/athlete/edit/',
   path: '/athlete/edit/',
   getParentRoute: () => CompeteRoute,
+} as any)
+const AdminTeamsScheduleIndexRoute = AdminTeamsScheduleIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminTeamsScheduleRoute,
 } as any)
 const AdminTeamsTeamIdIndexRoute = AdminTeamsTeamIdIndexRouteImport.update({
   id: '/',
@@ -477,6 +539,12 @@ const CompeteOrganizerSeriesGroupIdRoute =
     path: '/series/$groupId',
     getParentRoute: () => CompeteOrganizerRoute,
   } as any)
+const CompeteOrganizerOnboardPendingRoute =
+  CompeteOrganizerOnboardPendingRouteImport.update({
+    id: '/onboard/pending',
+    path: '/onboard/pending',
+    getParentRoute: () => CompeteOrganizerRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdWaiversRoute =
   CompeteOrganizerCompetitionIdWaiversRouteImport.update({
     id: '/waivers',
@@ -549,11 +617,59 @@ const CompeteOrganizerCompetitionIdAthletesRoute =
     path: '/athletes',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
+const CompeteAthleteInvoicesPurchaseIdRoute =
+  CompeteAthleteInvoicesPurchaseIdRouteImport.update({
+    id: '/athlete/invoices/$purchaseId',
+    path: '/athlete/invoices/$purchaseId',
+    getParentRoute: () => CompeteRoute,
+  } as any)
 const CompeteSlugRegisterSuccessRoute =
   CompeteSlugRegisterSuccessRouteImport.update({
     id: '/success',
     path: '/success',
     getParentRoute: () => CompeteSlugRegisterRoute,
+  } as any)
+const ApiStripeConnectCallbackRoute =
+  ApiStripeConnectCallbackRouteImport.update({
+    id: '/api/stripe/connect/callback',
+    path: '/api/stripe/connect/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AdminTeamsScheduleScheduleWeekRoute =
+  AdminTeamsScheduleScheduleWeekRouteImport.update({
+    id: '/schedule-week',
+    path: '/schedule-week',
+    getParentRoute: () => AdminTeamsScheduleRoute,
+  } as any)
+const AdminTeamsScheduleScheduleTemplatesRoute =
+  AdminTeamsScheduleScheduleTemplatesRouteImport.update({
+    id: '/schedule-templates',
+    path: '/schedule-templates',
+    getParentRoute: () => AdminTeamsScheduleRoute,
+  } as any)
+const AdminTeamsScheduleGymSetupRoute =
+  AdminTeamsScheduleGymSetupRouteImport.update({
+    id: '/gym-setup',
+    path: '/gym-setup',
+    getParentRoute: () => AdminTeamsScheduleRoute,
+  } as any)
+const AdminTeamsScheduleGenerateRoute =
+  AdminTeamsScheduleGenerateRouteImport.update({
+    id: '/generate',
+    path: '/generate',
+    getParentRoute: () => AdminTeamsScheduleRoute,
+  } as any)
+const AdminTeamsScheduleCoachesRoute =
+  AdminTeamsScheduleCoachesRouteImport.update({
+    id: '/coaches',
+    path: '/coaches',
+    getParentRoute: () => AdminTeamsScheduleRoute,
+  } as any)
+const AdminTeamsScheduleClassesRoute =
+  AdminTeamsScheduleClassesRouteImport.update({
+    id: '/classes',
+    path: '/classes',
+    getParentRoute: () => AdminTeamsScheduleRoute,
   } as any)
 const AdminTeamsTeamIdSchedulingRoute =
   AdminTeamsTeamIdSchedulingRouteImport.update({
@@ -578,6 +694,18 @@ const CompeteSlugTeamsRegistrationIdIndexRoute =
     id: '/teams/$registrationId/',
     path: '/teams/$registrationId/',
     getParentRoute: () => CompeteSlugRoute,
+  } as any)
+const AdminTeamsTeamIdGymSetupIndexRoute =
+  AdminTeamsTeamIdGymSetupIndexRouteImport.update({
+    id: '/gym-setup/',
+    path: '/gym-setup/',
+    getParentRoute: () => AdminTeamsTeamIdRoute,
+  } as any)
+const AdminTeamsTeamIdCoachesIndexRoute =
+  AdminTeamsTeamIdCoachesIndexRouteImport.update({
+    id: '/coaches/',
+    path: '/coaches/',
+    getParentRoute: () => AdminTeamsTeamIdRoute,
   } as any)
 const ProtectedWorkoutsWorkoutIdScheduleIndexRoute =
   ProtectedWorkoutsWorkoutIdScheduleIndexRouteImport.update({
@@ -614,6 +742,18 @@ const ProtectedLogIdEditIndexRoute = ProtectedLogIdEditIndexRouteImport.update({
   path: '/log/$id/edit/',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedAdminTeamsScalingIndexRoute =
+  ProtectedAdminTeamsScalingIndexRouteImport.update({
+    id: '/admin/teams/scaling/',
+    path: '/admin/teams/scaling/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedAdminTeamsProgrammingIndexRoute =
+  ProtectedAdminTeamsProgrammingIndexRouteImport.update({
+    id: '/admin/teams/programming/',
+    path: '/admin/teams/programming/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 const CompeteOrganizerSeriesGroupIdEditRoute =
   CompeteOrganizerSeriesGroupIdEditRouteImport.update({
     id: '/edit',
@@ -632,11 +772,19 @@ const CompeteOrganizerSettingsPayoutsTeamSlugIndexRoute =
     path: '/settings/payouts/$teamSlug/',
     getParentRoute: () => CompeteOrganizerRoute,
   } as any)
+const ProtectedAdminTeamsProgrammingTrackIdIndexRoute =
+  ProtectedAdminTeamsProgrammingTrackIdIndexRouteImport.update({
+    id: '/admin/teams/programming/$trackId/',
+    path: '/admin/teams/programming/$trackId/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/compete': typeof CompeteRouteWithChildren
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/sign-in': typeof AuthSignInRoute
@@ -645,11 +793,16 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/settings': typeof ProtectedSettingsRouteWithChildren
+  '/api/get-session': typeof ApiGetSessionRoute
+  '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
+  '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -677,7 +830,15 @@ export interface FileRoutesByFullPath {
   '/compete/athlete': typeof CompeteAthleteIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerIndexRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
+  '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
+  '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
+  '/admin/teams/schedule/generate': typeof AdminTeamsScheduleGenerateRoute
+  '/admin/teams/schedule/gym-setup': typeof AdminTeamsScheduleGymSetupRoute
+  '/admin/teams/schedule/schedule-templates': typeof AdminTeamsScheduleScheduleTemplatesRoute
+  '/admin/teams/schedule/schedule-week': typeof AdminTeamsScheduleScheduleWeekRoute
+  '/api/stripe/connect/callback': typeof ApiStripeConnectCallbackRoute
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
+  '/compete/athlete/invoices/$purchaseId': typeof CompeteAthleteInvoicesPurchaseIdRoute
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
@@ -690,6 +851,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
+  '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
@@ -709,6 +871,7 @@ export interface FileRoutesByFullPath {
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/admin/teams/$teamId/': typeof AdminTeamsTeamIdIndexRoute
+  '/admin/teams/schedule/': typeof AdminTeamsScheduleIndexRoute
   '/compete/athlete/edit': typeof CompeteAthleteEditIndexRoute
   '/compete/athlete/invoices': typeof CompeteAthleteInvoicesIndexRoute
   '/compete/athlete/sponsors': typeof CompeteAthleteSponsorsIndexRoute
@@ -718,19 +881,26 @@ export interface FileRoutesByFullPath {
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
+  '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
   '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   '/settings/teams/$teamSlug': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
   '/settings/teams/create': typeof ProtectedSettingsTeamsCreateIndexRoute
   '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+  '/admin/teams/$teamId/coaches': typeof AdminTeamsTeamIdCoachesIndexRoute
+  '/admin/teams/$teamId/gym-setup': typeof AdminTeamsTeamIdGymSetupIndexRoute
   '/compete/$slug/teams/$registrationId': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+  '/admin/teams/programming/$trackId': typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
   '/compete/organizer/settings/payouts/$teamSlug': typeof CompeteOrganizerSettingsPayoutsTeamSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/sign-in': typeof AuthSignInRoute
@@ -738,8 +908,12 @@ export interface FileRoutesByTo {
   '/team-invite': typeof AuthTeamInviteRoute
   '/verify-email': typeof AuthVerifyEmailRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/api/get-session': typeof ApiGetSessionRoute
+  '/api/upload': typeof ApiUploadRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -766,7 +940,15 @@ export interface FileRoutesByTo {
   '/compete/athlete': typeof CompeteAthleteIndexRoute
   '/compete/organizer': typeof CompeteOrganizerIndexRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
+  '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
+  '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
+  '/admin/teams/schedule/generate': typeof AdminTeamsScheduleGenerateRoute
+  '/admin/teams/schedule/gym-setup': typeof AdminTeamsScheduleGymSetupRoute
+  '/admin/teams/schedule/schedule-templates': typeof AdminTeamsScheduleScheduleTemplatesRoute
+  '/admin/teams/schedule/schedule-week': typeof AdminTeamsScheduleScheduleWeekRoute
+  '/api/stripe/connect/callback': typeof ApiStripeConnectCallbackRoute
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
+  '/compete/athlete/invoices/$purchaseId': typeof CompeteAthleteInvoicesPurchaseIdRoute
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
@@ -779,6 +961,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
+  '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
   '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
@@ -797,6 +980,7 @@ export interface FileRoutesByTo {
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdIndexRoute
+  '/admin/teams/schedule': typeof AdminTeamsScheduleIndexRoute
   '/compete/athlete/edit': typeof CompeteAthleteEditIndexRoute
   '/compete/athlete/invoices': typeof CompeteAthleteInvoicesIndexRoute
   '/compete/athlete/sponsors': typeof CompeteAthleteSponsorsIndexRoute
@@ -806,15 +990,20 @@ export interface FileRoutesByTo {
   '/demo/start/ssr': typeof DemoStartSsrIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
+  '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
   '/log/$id/edit': typeof ProtectedLogIdEditIndexRoute
   '/settings/programming/$trackId': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   '/settings/teams/$teamSlug': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
   '/settings/teams/create': typeof ProtectedSettingsTeamsCreateIndexRoute
   '/workouts/$workoutId/edit': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/workouts/$workoutId/schedule': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+  '/admin/teams/$teamId/coaches': typeof AdminTeamsTeamIdCoachesIndexRoute
+  '/admin/teams/$teamId/gym-setup': typeof AdminTeamsTeamIdGymSetupIndexRoute
   '/compete/$slug/teams/$registrationId': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+  '/admin/teams/programming/$trackId': typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
   '/compete/organizer/settings/payouts/$teamSlug': typeof CompeteOrganizerSettingsPayoutsTeamSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -824,6 +1013,8 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
   '/compete': typeof CompeteRouteWithChildren
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/sign-in': typeof AuthSignInRoute
@@ -832,11 +1023,16 @@ export interface FileRoutesById {
   '/_auth/verify-email': typeof AuthVerifyEmailRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
+  '/api/get-session': typeof ApiGetSessionRoute
+  '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
+  '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
+  '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
   '/compete/$slug/my-schedule': typeof CompeteSlugMyScheduleRoute
   '/compete/$slug/register': typeof CompeteSlugRegisterRouteWithChildren
@@ -864,7 +1060,15 @@ export interface FileRoutesById {
   '/compete/athlete/': typeof CompeteAthleteIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerIndexRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
+  '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
+  '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
+  '/admin/teams/schedule/generate': typeof AdminTeamsScheduleGenerateRoute
+  '/admin/teams/schedule/gym-setup': typeof AdminTeamsScheduleGymSetupRoute
+  '/admin/teams/schedule/schedule-templates': typeof AdminTeamsScheduleScheduleTemplatesRoute
+  '/admin/teams/schedule/schedule-week': typeof AdminTeamsScheduleScheduleWeekRoute
+  '/api/stripe/connect/callback': typeof ApiStripeConnectCallbackRoute
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
+  '/compete/athlete/invoices/$purchaseId': typeof CompeteAthleteInvoicesPurchaseIdRoute
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesRoute
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
   '/compete/organizer/$competitionId/divisions': typeof CompeteOrganizerCompetitionIdDivisionsRoute
@@ -877,6 +1081,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
+  '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   '/compete/organizer/series/new': typeof CompeteOrganizerSeriesNewRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
@@ -896,6 +1101,7 @@ export interface FileRoutesById {
   '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
   '/admin/teams/$teamId/': typeof AdminTeamsTeamIdIndexRoute
+  '/admin/teams/schedule/': typeof AdminTeamsScheduleIndexRoute
   '/compete/athlete/edit/': typeof CompeteAthleteEditIndexRoute
   '/compete/athlete/invoices/': typeof CompeteAthleteInvoicesIndexRoute
   '/compete/athlete/sponsors/': typeof CompeteAthleteSponsorsIndexRoute
@@ -905,15 +1111,20 @@ export interface FileRoutesById {
   '/demo/start/ssr/': typeof DemoStartSsrIndexRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
+  '/_protected/admin/teams/programming/': typeof ProtectedAdminTeamsProgrammingIndexRoute
+  '/_protected/admin/teams/scaling/': typeof ProtectedAdminTeamsScalingIndexRoute
   '/_protected/log/$id/edit/': typeof ProtectedLogIdEditIndexRoute
   '/_protected/settings/programming/$trackId/': typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   '/_protected/settings/teams/$teamSlug/': typeof ProtectedSettingsTeamsTeamSlugIndexRoute
   '/_protected/settings/teams/create/': typeof ProtectedSettingsTeamsCreateIndexRoute
   '/_protected/workouts/$workoutId/edit/': typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   '/_protected/workouts/$workoutId/schedule/': typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+  '/admin/teams/$teamId/coaches/': typeof AdminTeamsTeamIdCoachesIndexRoute
+  '/admin/teams/$teamId/gym-setup/': typeof AdminTeamsTeamIdGymSetupIndexRoute
   '/compete/$slug/teams/$registrationId/': typeof CompeteSlugTeamsRegistrationIdIndexRoute
   '/compete/organizer/$competitionId/events/': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
+  '/_protected/admin/teams/programming/$trackId/': typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
   '/compete/organizer/settings/payouts/$teamSlug/': typeof CompeteOrganizerSettingsPayoutsTeamSlugIndexRoute
 }
 export interface FileRouteTypes {
@@ -922,6 +1133,8 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/compete'
+    | '/privacy'
+    | '/terms'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
@@ -930,11 +1143,16 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/dashboard'
     | '/settings'
+    | '/api/get-session'
+    | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
     | '/admin/'
     | '/compete/'
     | '/admin/teams/$teamId'
+    | '/admin/teams/schedule'
+    | '/api/webhooks/stripe'
+    | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -962,7 +1180,15 @@ export interface FileRouteTypes {
     | '/compete/athlete'
     | '/compete/organizer/'
     | '/admin/teams/$teamId/scheduling'
+    | '/admin/teams/schedule/classes'
+    | '/admin/teams/schedule/coaches'
+    | '/admin/teams/schedule/generate'
+    | '/admin/teams/schedule/gym-setup'
+    | '/admin/teams/schedule/schedule-templates'
+    | '/admin/teams/schedule/schedule-week'
+    | '/api/stripe/connect/callback'
     | '/compete/$slug/register/success'
+    | '/compete/athlete/invoices/$purchaseId'
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/danger-zone'
     | '/compete/organizer/$competitionId/divisions'
@@ -975,6 +1201,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
+    | '/compete/organizer/onboard/pending'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/new'
     | '/demo/start/ssr/data-only'
@@ -994,6 +1221,7 @@ export interface FileRouteTypes {
     | '/workouts/$workoutId'
     | '/workouts/new'
     | '/admin/teams/$teamId/'
+    | '/admin/teams/schedule/'
     | '/compete/athlete/edit'
     | '/compete/athlete/invoices'
     | '/compete/athlete/sponsors'
@@ -1003,19 +1231,26 @@ export interface FileRouteTypes {
     | '/demo/start/ssr'
     | '/compete/organizer/$competitionId/events/$eventId'
     | '/compete/organizer/series/$groupId/edit'
+    | '/admin/teams/programming'
+    | '/admin/teams/scaling'
     | '/log/$id/edit'
     | '/settings/programming/$trackId'
     | '/settings/teams/$teamSlug'
     | '/settings/teams/create'
     | '/workouts/$workoutId/edit'
     | '/workouts/$workoutId/schedule'
+    | '/admin/teams/$teamId/coaches'
+    | '/admin/teams/$teamId/gym-setup'
     | '/compete/$slug/teams/$registrationId'
     | '/compete/organizer/$competitionId/events'
     | '/compete/organizer/series/$groupId/'
+    | '/admin/teams/programming/$trackId'
     | '/compete/organizer/settings/payouts/$teamSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/privacy'
+    | '/terms'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
@@ -1023,8 +1258,12 @@ export interface FileRouteTypes {
     | '/team-invite'
     | '/verify-email'
     | '/dashboard'
+    | '/api/get-session'
+    | '/api/upload'
     | '/admin'
     | '/compete'
+    | '/api/webhooks/stripe'
+    | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1051,7 +1290,15 @@ export interface FileRouteTypes {
     | '/compete/athlete'
     | '/compete/organizer'
     | '/admin/teams/$teamId/scheduling'
+    | '/admin/teams/schedule/classes'
+    | '/admin/teams/schedule/coaches'
+    | '/admin/teams/schedule/generate'
+    | '/admin/teams/schedule/gym-setup'
+    | '/admin/teams/schedule/schedule-templates'
+    | '/admin/teams/schedule/schedule-week'
+    | '/api/stripe/connect/callback'
     | '/compete/$slug/register/success'
+    | '/compete/athlete/invoices/$purchaseId'
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/danger-zone'
     | '/compete/organizer/$competitionId/divisions'
@@ -1064,6 +1311,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
+    | '/compete/organizer/onboard/pending'
     | '/compete/organizer/series/new'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
@@ -1082,6 +1330,7 @@ export interface FileRouteTypes {
     | '/workouts/$workoutId'
     | '/workouts/new'
     | '/admin/teams/$teamId'
+    | '/admin/teams/schedule'
     | '/compete/athlete/edit'
     | '/compete/athlete/invoices'
     | '/compete/athlete/sponsors'
@@ -1091,15 +1340,20 @@ export interface FileRouteTypes {
     | '/demo/start/ssr'
     | '/compete/organizer/$competitionId/events/$eventId'
     | '/compete/organizer/series/$groupId/edit'
+    | '/admin/teams/programming'
+    | '/admin/teams/scaling'
     | '/log/$id/edit'
     | '/settings/programming/$trackId'
     | '/settings/teams/$teamSlug'
     | '/settings/teams/create'
     | '/workouts/$workoutId/edit'
     | '/workouts/$workoutId/schedule'
+    | '/admin/teams/$teamId/coaches'
+    | '/admin/teams/$teamId/gym-setup'
     | '/compete/$slug/teams/$registrationId'
     | '/compete/organizer/$competitionId/events'
     | '/compete/organizer/series/$groupId'
+    | '/admin/teams/programming/$trackId'
     | '/compete/organizer/settings/payouts/$teamSlug'
   id:
     | '__root__'
@@ -1108,6 +1362,8 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/admin'
     | '/compete'
+    | '/privacy'
+    | '/terms'
     | '/_auth/forgot-password'
     | '/_auth/reset-password'
     | '/_auth/sign-in'
@@ -1116,11 +1372,16 @@ export interface FileRouteTypes {
     | '/_auth/verify-email'
     | '/_protected/dashboard'
     | '/_protected/settings'
+    | '/api/get-session'
+    | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
     | '/admin/'
     | '/compete/'
     | '/admin/teams/$teamId'
+    | '/admin/teams/schedule'
+    | '/api/webhooks/stripe'
+    | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
     | '/compete/$slug/my-schedule'
     | '/compete/$slug/register'
@@ -1148,7 +1409,15 @@ export interface FileRouteTypes {
     | '/compete/athlete/'
     | '/compete/organizer/'
     | '/admin/teams/$teamId/scheduling'
+    | '/admin/teams/schedule/classes'
+    | '/admin/teams/schedule/coaches'
+    | '/admin/teams/schedule/generate'
+    | '/admin/teams/schedule/gym-setup'
+    | '/admin/teams/schedule/schedule-templates'
+    | '/admin/teams/schedule/schedule-week'
+    | '/api/stripe/connect/callback'
     | '/compete/$slug/register/success'
+    | '/compete/athlete/invoices/$purchaseId'
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/danger-zone'
     | '/compete/organizer/$competitionId/divisions'
@@ -1161,6 +1430,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
+    | '/compete/organizer/onboard/pending'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/series/new'
     | '/demo/start/ssr/data-only'
@@ -1180,6 +1450,7 @@ export interface FileRouteTypes {
     | '/_protected/workouts/$workoutId/'
     | '/_protected/workouts/new/'
     | '/admin/teams/$teamId/'
+    | '/admin/teams/schedule/'
     | '/compete/athlete/edit/'
     | '/compete/athlete/invoices/'
     | '/compete/athlete/sponsors/'
@@ -1189,15 +1460,20 @@ export interface FileRouteTypes {
     | '/demo/start/ssr/'
     | '/compete/organizer/$competitionId/events/$eventId'
     | '/compete/organizer/series/$groupId/edit'
+    | '/_protected/admin/teams/programming/'
+    | '/_protected/admin/teams/scaling/'
     | '/_protected/log/$id/edit/'
     | '/_protected/settings/programming/$trackId/'
     | '/_protected/settings/teams/$teamSlug/'
     | '/_protected/settings/teams/create/'
     | '/_protected/workouts/$workoutId/edit/'
     | '/_protected/workouts/$workoutId/schedule/'
+    | '/admin/teams/$teamId/coaches/'
+    | '/admin/teams/$teamId/gym-setup/'
     | '/compete/$slug/teams/$registrationId/'
     | '/compete/organizer/$competitionId/events/'
     | '/compete/organizer/series/$groupId/'
+    | '/_protected/admin/teams/programming/$trackId/'
     | '/compete/organizer/settings/payouts/$teamSlug/'
   fileRoutesById: FileRoutesById
 }
@@ -1207,9 +1483,16 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
   CompeteRoute: typeof CompeteRouteWithChildren
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
+  ApiGetSessionRoute: typeof ApiGetSessionRoute
+  ApiUploadRoute: typeof ApiUploadRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
+  ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
   DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
+  ApiStripeConnectCallbackRoute: typeof ApiStripeConnectCallbackRoute
   DemoStartSsrDataOnlyRoute: typeof DemoStartSsrDataOnlyRoute
   DemoStartSsrFullSsrRoute: typeof DemoStartSsrFullSsrRoute
   DemoStartSsrSpaModeRoute: typeof DemoStartSsrSpaModeRoute
@@ -1218,6 +1501,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compete': {
       id: '/compete'
       path: '/compete'
@@ -1280,6 +1577,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/compete/$slug'
       preLoaderRoute: typeof CompeteSlugRouteImport
       parentRoute: typeof CompeteRoute
+    }
+    '/api/upload': {
+      id: '/api/upload'
+      path: '/api/upload'
+      fullPath: '/api/upload'
+      preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/get-session': {
+      id: '/api/get-session'
+      path: '/api/get-session'
+      fullPath: '/api/get-session'
+      preLoaderRoute: typeof ApiGetSessionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_protected/settings': {
       id: '/_protected/settings'
@@ -1519,6 +1830,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteSlugLeaderboardRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
+    '/api/workouts/search': {
+      id: '/api/workouts/search'
+      path: '/api/workouts/search'
+      fullPath: '/api/workouts/search'
+      preLoaderRoute: typeof ApiWorkoutsSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/teams/schedule': {
+      id: '/admin/teams/schedule'
+      path: '/teams/schedule'
+      fullPath: '/admin/teams/schedule'
+      preLoaderRoute: typeof AdminTeamsScheduleRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/teams/$teamId': {
       id: '/admin/teams/$teamId'
       path: '/teams/$teamId'
@@ -1574,6 +1906,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/compete/athlete/edit'
       preLoaderRoute: typeof CompeteAthleteEditIndexRouteImport
       parentRoute: typeof CompeteRoute
+    }
+    '/admin/teams/schedule/': {
+      id: '/admin/teams/schedule/'
+      path: '/'
+      fullPath: '/admin/teams/schedule/'
+      preLoaderRoute: typeof AdminTeamsScheduleIndexRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
     }
     '/admin/teams/$teamId/': {
       id: '/admin/teams/$teamId/'
@@ -1708,6 +2047,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdRouteImport
       parentRoute: typeof CompeteOrganizerRoute
     }
+    '/compete/organizer/onboard/pending': {
+      id: '/compete/organizer/onboard/pending'
+      path: '/onboard/pending'
+      fullPath: '/compete/organizer/onboard/pending'
+      preLoaderRoute: typeof CompeteOrganizerOnboardPendingRouteImport
+      parentRoute: typeof CompeteOrganizerRoute
+    }
     '/compete/organizer/$competitionId/waivers': {
       id: '/compete/organizer/$competitionId/waivers'
       path: '/waivers'
@@ -1792,12 +2138,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdAthletesRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
+    '/compete/athlete/invoices/$purchaseId': {
+      id: '/compete/athlete/invoices/$purchaseId'
+      path: '/athlete/invoices/$purchaseId'
+      fullPath: '/compete/athlete/invoices/$purchaseId'
+      preLoaderRoute: typeof CompeteAthleteInvoicesPurchaseIdRouteImport
+      parentRoute: typeof CompeteRoute
+    }
     '/compete/$slug/register/success': {
       id: '/compete/$slug/register/success'
       path: '/success'
       fullPath: '/compete/$slug/register/success'
       preLoaderRoute: typeof CompeteSlugRegisterSuccessRouteImport
       parentRoute: typeof CompeteSlugRegisterRoute
+    }
+    '/api/stripe/connect/callback': {
+      id: '/api/stripe/connect/callback'
+      path: '/api/stripe/connect/callback'
+      fullPath: '/api/stripe/connect/callback'
+      preLoaderRoute: typeof ApiStripeConnectCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/teams/schedule/schedule-week': {
+      id: '/admin/teams/schedule/schedule-week'
+      path: '/schedule-week'
+      fullPath: '/admin/teams/schedule/schedule-week'
+      preLoaderRoute: typeof AdminTeamsScheduleScheduleWeekRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
+    }
+    '/admin/teams/schedule/schedule-templates': {
+      id: '/admin/teams/schedule/schedule-templates'
+      path: '/schedule-templates'
+      fullPath: '/admin/teams/schedule/schedule-templates'
+      preLoaderRoute: typeof AdminTeamsScheduleScheduleTemplatesRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
+    }
+    '/admin/teams/schedule/gym-setup': {
+      id: '/admin/teams/schedule/gym-setup'
+      path: '/gym-setup'
+      fullPath: '/admin/teams/schedule/gym-setup'
+      preLoaderRoute: typeof AdminTeamsScheduleGymSetupRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
+    }
+    '/admin/teams/schedule/generate': {
+      id: '/admin/teams/schedule/generate'
+      path: '/generate'
+      fullPath: '/admin/teams/schedule/generate'
+      preLoaderRoute: typeof AdminTeamsScheduleGenerateRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
+    }
+    '/admin/teams/schedule/coaches': {
+      id: '/admin/teams/schedule/coaches'
+      path: '/coaches'
+      fullPath: '/admin/teams/schedule/coaches'
+      preLoaderRoute: typeof AdminTeamsScheduleCoachesRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
+    }
+    '/admin/teams/schedule/classes': {
+      id: '/admin/teams/schedule/classes'
+      path: '/classes'
+      fullPath: '/admin/teams/schedule/classes'
+      preLoaderRoute: typeof AdminTeamsScheduleClassesRouteImport
+      parentRoute: typeof AdminTeamsScheduleRoute
     }
     '/admin/teams/$teamId/scheduling': {
       id: '/admin/teams/$teamId/scheduling'
@@ -1826,6 +2228,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/compete/$slug/teams/$registrationId'
       preLoaderRoute: typeof CompeteSlugTeamsRegistrationIdIndexRouteImport
       parentRoute: typeof CompeteSlugRoute
+    }
+    '/admin/teams/$teamId/gym-setup/': {
+      id: '/admin/teams/$teamId/gym-setup/'
+      path: '/gym-setup'
+      fullPath: '/admin/teams/$teamId/gym-setup'
+      preLoaderRoute: typeof AdminTeamsTeamIdGymSetupIndexRouteImport
+      parentRoute: typeof AdminTeamsTeamIdRoute
+    }
+    '/admin/teams/$teamId/coaches/': {
+      id: '/admin/teams/$teamId/coaches/'
+      path: '/coaches'
+      fullPath: '/admin/teams/$teamId/coaches'
+      preLoaderRoute: typeof AdminTeamsTeamIdCoachesIndexRouteImport
+      parentRoute: typeof AdminTeamsTeamIdRoute
     }
     '/_protected/workouts/$workoutId/schedule/': {
       id: '/_protected/workouts/$workoutId/schedule/'
@@ -1869,6 +2285,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedLogIdEditIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/admin/teams/scaling/': {
+      id: '/_protected/admin/teams/scaling/'
+      path: '/admin/teams/scaling'
+      fullPath: '/admin/teams/scaling'
+      preLoaderRoute: typeof ProtectedAdminTeamsScalingIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/admin/teams/programming/': {
+      id: '/_protected/admin/teams/programming/'
+      path: '/admin/teams/programming'
+      fullPath: '/admin/teams/programming'
+      preLoaderRoute: typeof ProtectedAdminTeamsProgrammingIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/compete/organizer/series/$groupId/edit': {
       id: '/compete/organizer/series/$groupId/edit'
       path: '/edit'
@@ -1889,6 +2319,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/compete/organizer/settings/payouts/$teamSlug'
       preLoaderRoute: typeof CompeteOrganizerSettingsPayoutsTeamSlugIndexRouteImport
       parentRoute: typeof CompeteOrganizerRoute
+    }
+    '/_protected/admin/teams/programming/$trackId/': {
+      id: '/_protected/admin/teams/programming/$trackId/'
+      path: '/admin/teams/programming/$trackId'
+      fullPath: '/admin/teams/programming/$trackId'
+      preLoaderRoute: typeof ProtectedAdminTeamsProgrammingTrackIdIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
   }
 }
@@ -1961,9 +2398,12 @@ interface ProtectedRouteChildren {
   ProtectedProgrammingSubscriptionsIndexRoute: typeof ProtectedProgrammingSubscriptionsIndexRoute
   ProtectedWorkoutsWorkoutIdIndexRoute: typeof ProtectedWorkoutsWorkoutIdIndexRoute
   ProtectedWorkoutsNewIndexRoute: typeof ProtectedWorkoutsNewIndexRoute
+  ProtectedAdminTeamsProgrammingIndexRoute: typeof ProtectedAdminTeamsProgrammingIndexRoute
+  ProtectedAdminTeamsScalingIndexRoute: typeof ProtectedAdminTeamsScalingIndexRoute
   ProtectedLogIdEditIndexRoute: typeof ProtectedLogIdEditIndexRoute
   ProtectedWorkoutsWorkoutIdEditIndexRoute: typeof ProtectedWorkoutsWorkoutIdEditIndexRoute
   ProtectedWorkoutsWorkoutIdScheduleIndexRoute: typeof ProtectedWorkoutsWorkoutIdScheduleIndexRoute
+  ProtectedAdminTeamsProgrammingTrackIdIndexRoute: typeof ProtectedAdminTeamsProgrammingTrackIdIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
@@ -1985,11 +2425,16 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
     ProtectedProgrammingSubscriptionsIndexRoute,
   ProtectedWorkoutsWorkoutIdIndexRoute: ProtectedWorkoutsWorkoutIdIndexRoute,
   ProtectedWorkoutsNewIndexRoute: ProtectedWorkoutsNewIndexRoute,
+  ProtectedAdminTeamsProgrammingIndexRoute:
+    ProtectedAdminTeamsProgrammingIndexRoute,
+  ProtectedAdminTeamsScalingIndexRoute: ProtectedAdminTeamsScalingIndexRoute,
   ProtectedLogIdEditIndexRoute: ProtectedLogIdEditIndexRoute,
   ProtectedWorkoutsWorkoutIdEditIndexRoute:
     ProtectedWorkoutsWorkoutIdEditIndexRoute,
   ProtectedWorkoutsWorkoutIdScheduleIndexRoute:
     ProtectedWorkoutsWorkoutIdScheduleIndexRoute,
+  ProtectedAdminTeamsProgrammingTrackIdIndexRoute:
+    ProtectedAdminTeamsProgrammingTrackIdIndexRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
@@ -1999,19 +2444,48 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 interface AdminTeamsTeamIdRouteChildren {
   AdminTeamsTeamIdSchedulingRoute: typeof AdminTeamsTeamIdSchedulingRoute
   AdminTeamsTeamIdIndexRoute: typeof AdminTeamsTeamIdIndexRoute
+  AdminTeamsTeamIdCoachesIndexRoute: typeof AdminTeamsTeamIdCoachesIndexRoute
+  AdminTeamsTeamIdGymSetupIndexRoute: typeof AdminTeamsTeamIdGymSetupIndexRoute
 }
 
 const AdminTeamsTeamIdRouteChildren: AdminTeamsTeamIdRouteChildren = {
   AdminTeamsTeamIdSchedulingRoute: AdminTeamsTeamIdSchedulingRoute,
   AdminTeamsTeamIdIndexRoute: AdminTeamsTeamIdIndexRoute,
+  AdminTeamsTeamIdCoachesIndexRoute: AdminTeamsTeamIdCoachesIndexRoute,
+  AdminTeamsTeamIdGymSetupIndexRoute: AdminTeamsTeamIdGymSetupIndexRoute,
 }
 
 const AdminTeamsTeamIdRouteWithChildren =
   AdminTeamsTeamIdRoute._addFileChildren(AdminTeamsTeamIdRouteChildren)
 
+interface AdminTeamsScheduleRouteChildren {
+  AdminTeamsScheduleClassesRoute: typeof AdminTeamsScheduleClassesRoute
+  AdminTeamsScheduleCoachesRoute: typeof AdminTeamsScheduleCoachesRoute
+  AdminTeamsScheduleGenerateRoute: typeof AdminTeamsScheduleGenerateRoute
+  AdminTeamsScheduleGymSetupRoute: typeof AdminTeamsScheduleGymSetupRoute
+  AdminTeamsScheduleScheduleTemplatesRoute: typeof AdminTeamsScheduleScheduleTemplatesRoute
+  AdminTeamsScheduleScheduleWeekRoute: typeof AdminTeamsScheduleScheduleWeekRoute
+  AdminTeamsScheduleIndexRoute: typeof AdminTeamsScheduleIndexRoute
+}
+
+const AdminTeamsScheduleRouteChildren: AdminTeamsScheduleRouteChildren = {
+  AdminTeamsScheduleClassesRoute: AdminTeamsScheduleClassesRoute,
+  AdminTeamsScheduleCoachesRoute: AdminTeamsScheduleCoachesRoute,
+  AdminTeamsScheduleGenerateRoute: AdminTeamsScheduleGenerateRoute,
+  AdminTeamsScheduleGymSetupRoute: AdminTeamsScheduleGymSetupRoute,
+  AdminTeamsScheduleScheduleTemplatesRoute:
+    AdminTeamsScheduleScheduleTemplatesRoute,
+  AdminTeamsScheduleScheduleWeekRoute: AdminTeamsScheduleScheduleWeekRoute,
+  AdminTeamsScheduleIndexRoute: AdminTeamsScheduleIndexRoute,
+}
+
+const AdminTeamsScheduleRouteWithChildren =
+  AdminTeamsScheduleRoute._addFileChildren(AdminTeamsScheduleRouteChildren)
+
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminTeamsTeamIdRoute: typeof AdminTeamsTeamIdRouteWithChildren
+  AdminTeamsScheduleRoute: typeof AdminTeamsScheduleRouteWithChildren
   AdminCompetitionsIndexRoute: typeof AdminCompetitionsIndexRoute
   AdminEntitlementsIndexRoute: typeof AdminEntitlementsIndexRoute
   AdminOrganizerRequestsIndexRoute: typeof AdminOrganizerRequestsIndexRoute
@@ -2021,6 +2495,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminTeamsTeamIdRoute: AdminTeamsTeamIdRouteWithChildren,
+  AdminTeamsScheduleRoute: AdminTeamsScheduleRouteWithChildren,
   AdminCompetitionsIndexRoute: AdminCompetitionsIndexRoute,
   AdminEntitlementsIndexRoute: AdminEntitlementsIndexRoute,
   AdminOrganizerRequestsIndexRoute: AdminOrganizerRequestsIndexRoute,
@@ -2146,6 +2621,7 @@ interface CompeteOrganizerRouteChildren {
   CompeteOrganizerCompetitionIdRoute: typeof CompeteOrganizerCompetitionIdRouteWithChildren
   CompeteOrganizerNewRoute: typeof CompeteOrganizerNewRoute
   CompeteOrganizerIndexRoute: typeof CompeteOrganizerIndexRoute
+  CompeteOrganizerOnboardPendingRoute: typeof CompeteOrganizerOnboardPendingRoute
   CompeteOrganizerSeriesGroupIdRoute: typeof CompeteOrganizerSeriesGroupIdRouteWithChildren
   CompeteOrganizerSeriesNewRoute: typeof CompeteOrganizerSeriesNewRoute
   CompeteOrganizerOnboardIndexRoute: typeof CompeteOrganizerOnboardIndexRoute
@@ -2158,6 +2634,7 @@ const CompeteOrganizerRouteChildren: CompeteOrganizerRouteChildren = {
     CompeteOrganizerCompetitionIdRouteWithChildren,
   CompeteOrganizerNewRoute: CompeteOrganizerNewRoute,
   CompeteOrganizerIndexRoute: CompeteOrganizerIndexRoute,
+  CompeteOrganizerOnboardPendingRoute: CompeteOrganizerOnboardPendingRoute,
   CompeteOrganizerSeriesGroupIdRoute:
     CompeteOrganizerSeriesGroupIdRouteWithChildren,
   CompeteOrganizerSeriesNewRoute: CompeteOrganizerSeriesNewRoute,
@@ -2176,6 +2653,7 @@ interface CompeteRouteChildren {
   CompeteIndexRoute: typeof CompeteIndexRoute
   CompeteInviteTokenRoute: typeof CompeteInviteTokenRoute
   CompeteAthleteIndexRoute: typeof CompeteAthleteIndexRoute
+  CompeteAthleteInvoicesPurchaseIdRoute: typeof CompeteAthleteInvoicesPurchaseIdRoute
   CompeteAthleteEditIndexRoute: typeof CompeteAthleteEditIndexRoute
   CompeteAthleteInvoicesIndexRoute: typeof CompeteAthleteInvoicesIndexRoute
   CompeteAthleteSponsorsIndexRoute: typeof CompeteAthleteSponsorsIndexRoute
@@ -2187,6 +2665,7 @@ const CompeteRouteChildren: CompeteRouteChildren = {
   CompeteIndexRoute: CompeteIndexRoute,
   CompeteInviteTokenRoute: CompeteInviteTokenRoute,
   CompeteAthleteIndexRoute: CompeteAthleteIndexRoute,
+  CompeteAthleteInvoicesPurchaseIdRoute: CompeteAthleteInvoicesPurchaseIdRoute,
   CompeteAthleteEditIndexRoute: CompeteAthleteEditIndexRoute,
   CompeteAthleteInvoicesIndexRoute: CompeteAthleteInvoicesIndexRoute,
   CompeteAthleteSponsorsIndexRoute: CompeteAthleteSponsorsIndexRoute,
@@ -2201,9 +2680,16 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
   CompeteRoute: CompeteRouteWithChildren,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
+  ApiGetSessionRoute: ApiGetSessionRoute,
+  ApiUploadRoute: ApiUploadRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
+  ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
   DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
+  ApiStripeConnectCallbackRoute: ApiStripeConnectCallbackRoute,
   DemoStartSsrDataOnlyRoute: DemoStartSsrDataOnlyRoute,
   DemoStartSsrFullSsrRoute: DemoStartSsrFullSsrRoute,
   DemoStartSsrSpaModeRoute: DemoStartSsrSpaModeRoute,

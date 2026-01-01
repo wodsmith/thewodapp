@@ -323,7 +323,29 @@ export async function approveOrganizerRequest({
 		},
 	})
 
-	// TODO: Send approval email to requester
+	// Get requester and team info for email
+	const requester = await db.query.userTable.findFirst({
+		where: eq(userTable.id, request.userId),
+		columns: { firstName: true, lastName: true, email: true },
+	})
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, request.teamId),
+		columns: { name: true, slug: true },
+	})
+
+	if (requester?.email && team) {
+		const { sendOrganizerApprovalEmail } = await import("@/utils/email")
+		await sendOrganizerApprovalEmail({
+			email: requester.email,
+			recipientName:
+				`${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
+				"there",
+			teamName: team.name,
+			teamSlug: team.slug,
+			adminNotes,
+		})
+	}
 
 	return updatedRequest
 }
@@ -389,7 +411,28 @@ export async function rejectOrganizerRequest({
 		},
 	})
 
-	// TODO: Send rejection email to requester
+	// Get requester and team info for email
+	const requester = await db.query.userTable.findFirst({
+		where: eq(userTable.id, request.userId),
+		columns: { firstName: true, lastName: true, email: true },
+	})
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, request.teamId),
+		columns: { name: true },
+	})
+
+	if (requester?.email && team) {
+		const { sendOrganizerRejectionEmail } = await import("@/utils/email")
+		await sendOrganizerRejectionEmail({
+			email: requester.email,
+			recipientName:
+				`${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
+				"there",
+			teamName: team.name,
+			adminNotes,
+		})
+	}
 
 	return updatedRequest
 }
