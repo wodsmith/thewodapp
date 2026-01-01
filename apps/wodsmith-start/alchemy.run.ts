@@ -95,6 +95,7 @@ import {
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
+import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
  * Initialize the Alchemy application context.
@@ -127,6 +128,12 @@ import { CloudflareStateStore } from "alchemy/state"
  */
 const stage = process.env.STAGE ?? "dev"
 
+/**
+ * Whether the current stage needs Stripe bindings.
+ * Both demo and production environments require Stripe integration.
+ */
+const needsStripeBindings = stage === "demo" || stage === "prod"
+
 const app = await alchemy("wodsmith", {
 	/**
 	 * Deployment stage/environment name.
@@ -140,7 +147,7 @@ const app = await alchemy("wodsmith", {
 	 * - "dev"     → Development database, no custom domain
 	 * - "staging" → Staging database, staging domain (if configured)
 	 * - "prod"    → Production database, start.wodsmith.com domain
-	 * - "pr-42"   → PR preview with pr-42.preview.wodsmith.com domain
+	 * - "pr-42"   → PR preview with pr-42.demo.wodsmith.app domain
 	 */
 	stage,
 
@@ -279,23 +286,65 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
+ * Stripe Webhook Endpoint for demo and production environments.
+ *
+ * This creates a Stripe webhook that receives events for environments
+ * that require Stripe integration (demo and prod).
+ *
+ * @remarks
+ * **Required environment variable:**
+ * - `STRIPE_SECRET_KEY`: Stripe secret key (Alchemy reads this as STRIPE_API_KEY at deploy time)
+ *
+ * **Webhook URLs by stage:**
+ * - prod: https://start.wodsmith.com/api/webhooks/stripe
+ * - demo: https://demo.wodsmith.app/api/webhooks/stripe
+ *
+ * **Enabled events:**
+ * - checkout.session.completed: Completes purchase and creates registration
+ * - checkout.session.expired: Marks abandoned purchases as cancelled
+ * - account.updated: Updates team's Stripe Connect status
+ * - account.application.authorized: Logs OAuth connection confirmation
+ * - account.application.deauthorized: Clears team Stripe connection
+ *
+ * @see {@link https://stripe.com/docs/webhooks Stripe Webhook Documentation}
+ */
+const stripeWebhookUrl =
+	stage === "prod"
+		? "https://start.wodsmith.com/api/webhooks/stripe"
+		: "https://demo.wodsmith.app/api/webhooks/stripe"
+
+const stripeWebhook = needsStripeBindings
+	? await WebhookEndpoint("stripe-webhook", {
+			url: stripeWebhookUrl,
+			enabledEvents: [
+				"checkout.session.completed",
+				"checkout.session.expired",
+				"account.updated",
+				"account.application.authorized",
+				"account.application.deauthorized",
+			],
+			adopt: true,
+		})
+	: null
+
+/**
  * Determines the custom domain(s) for the current deployment stage.
  *
- * @param currentStage - The current deployment stage (e.g., "dev", "prod", "preview", "pr-42")
- * @returns Array of domains for prod/preview/PR stages, undefined for others (uses workers.dev)
+ * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo", "pr-42")
+ * @returns Array of domains for prod/demo/PR stages, undefined for others (uses workers.dev)
  *
  * @remarks
  * Domain assignment logic:
  * - **prod**: Returns `["start.wodsmith.com"]` for production
- * - **preview**: Returns `["preview.wodsmith.com"]` for persistent staging environment
- * - **pr-N**: Returns `["pr-N.preview.wodsmith.com"]` for ephemeral PR previews
+ * - **demo**: Returns `["demo.wodsmith.app"]` for persistent staging/demo environment
+ * - **pr-N**: Returns `["pr-N.demo.wodsmith.app"]` for ephemeral PR previews
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
  * @example
  * ```typescript
  * getDomains("prod")    // ["start.wodsmith.com"]
- * getDomains("preview") // ["preview.wodsmith.com"]
- * getDomains("pr-42")   // ["pr-42.preview.wodsmith.com"]
+ * getDomains("demo")    // ["demo.wodsmith.app"]
+ * getDomains("pr-42")   // ["pr-42.demo.wodsmith.app"]
  * getDomains("staging") // undefined
  * getDomains("dev")     // undefined
  * ```
@@ -304,11 +353,11 @@ function getDomains(currentStage: string): string[] | undefined {
 	if (currentStage === "prod") {
 		return ["start.wodsmith.com"]
 	}
-	if (currentStage === "preview") {
-		return ["preview.wodsmith.com"]
+	if (currentStage === "demo") {
+		return ["demo.wodsmith.app"]
 	}
 	if (currentStage.startsWith("pr-")) {
-		return [`${currentStage}.preview.wodsmith.com`]
+		return [`${currentStage}.demo.wodsmith.app`]
 	}
 	return undefined
 }
@@ -324,12 +373,12 @@ function getDomains(currentStage: string): string[] | undefined {
  * @remarks
  * **Environment-specific behavior:**
  *
- * | Environment | Domain                      | Notes                               |
- * |-------------|-----------------------------|-------------------------------------|
- * | dev         | `*.workers.dev`             | Auto-generated Cloudflare subdomain |
- * | preview     | `preview.wodsmith.com`      | Persistent staging environment      |
- * | prod        | `start.wodsmith.com`        | Custom domain with SSL              |
- * | pr-N        | `pr-N.preview.wodsmith.com` | Ephemeral PR preview                |
+ * | Environment | Domain                    | Notes                               |
+ * |-------------|---------------------------|-------------------------------------|
+ * | dev         | `*.workers.dev`           | Auto-generated Cloudflare subdomain |
+ * | demo        | `demo.wodsmith.app`       | Persistent staging/demo environment |
+ * | prod        | `start.wodsmith.com`      | Custom domain with SSL              |
+ * | pr-N        | `pr-N.demo.wodsmith.app`  | Ephemeral PR preview                |
  *
  * The `bindings` object makes Cloudflare resources available in your server code
  * via the `env` object. Types are automatically inferred and exported as `Env`.
@@ -364,6 +413,38 @@ const website = await TanStackStart("app", {
 	},
 
 	/**
+	 * Environment variables (non-secret public values).
+	 *
+	 * These are plain text values available at runtime.
+	 * Environments with Stripe integration include publishable keys and client IDs.
+	 */
+	vars: {
+		...(needsStripeBindings && {
+			/** Stripe publishable key for client-side Stripe.js initialization */
+			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
+			/** Stripe Connect OAuth client ID */
+			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID,
+		}),
+	},
+
+	/**
+	 * Secret text bindings for sensitive values.
+	 *
+	 * These are encrypted at rest and only available at runtime.
+	 * Environments with Stripe integration include API keys for server-side operations.
+	 */
+	secretTextBindings: {
+		...(needsStripeBindings && {
+			/** Stripe secret key for server-side API calls */
+			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
+		}),
+		...(stripeWebhook && {
+			/** Stripe webhook secret for signature verification */
+			STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
+		}),
+	},
+
+	/**
 	 * Custom domains to bind to this Worker.
 	 *
 	 * @remarks
@@ -373,8 +454,8 @@ const website = await TanStackStart("app", {
 	 *
 	 * Domain assignment by environment:
 	 * - **prod**: `start.wodsmith.com` (production domain)
-	 * - **preview**: `preview.wodsmith.com` (persistent staging environment)
-	 * - **pr-N**: `pr-N.preview.wodsmith.com` (ephemeral PR preview subdomain)
+	 * - **demo**: `demo.wodsmith.app` (persistent staging/demo environment)
+	 * - **pr-N**: `pr-N.demo.wodsmith.app` (ephemeral PR preview subdomain)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
 	 */
 	domains: getDomains(stage),
@@ -408,7 +489,7 @@ const website = await TanStackStart("app", {
  */
 if (process.env.PULL_REQUEST) {
 	const prNumber = Number(process.env.PULL_REQUEST)
-	const previewUrl = `https://pr-${prNumber}.preview.wodsmith.com`
+	const previewUrl = `https://pr-${prNumber}.demo.wodsmith.app`
 	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
 
 	await GitHubComment("preview-comment", {
