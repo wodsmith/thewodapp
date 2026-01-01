@@ -12,7 +12,7 @@ import {CloudflareStateStore} from 'alchemy/state'
 
 const stage = process.env.STAGE ?? 'dev'
 
-const app = await alchemy('wodsmith-docs', {
+const app = await alchemy('wodsmith', {
   stage,
   phase: process.argv.includes('--destroy') ? 'destroy' : 'up',
   stateStore: process.env.CI
