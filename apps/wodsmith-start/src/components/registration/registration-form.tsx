@@ -1,11 +1,13 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { Loader2, User, Users } from "lucide-react"
 import { isSameUTCDay } from "@/utils/date-utils"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +17,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
 	Form,
 	FormControl,
@@ -25,6 +28,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
 	Select,
 	SelectContent,
@@ -32,8 +36,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
-import type { Competition, ScalingGroup, ScalingLevel, Team } from "@/db/schema"
+import type {
+	Competition,
+	ScalingGroup,
+	ScalingLevel,
+	Team,
+	Waiver,
+} from "@/db/schema"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
+import { signWaiverFn } from "@/server-fns/waiver-fns"
 import { AffiliateCombobox } from "./affiliate-combobox"
 import { FeeBreakdown } from "./fee-breakdown"
 
@@ -66,6 +77,7 @@ type Props = {
 	registrationClosesAt: Date | null
 	paymentCanceled?: boolean
 	defaultAffiliateName?: string
+	waivers: Waiver[]
 }
 
 export function RegistrationForm({
@@ -77,9 +89,22 @@ export function RegistrationForm({
 	registrationClosesAt,
 	paymentCanceled,
 	defaultAffiliateName,
+	waivers,
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	// Track which waivers have been agreed to
+	const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(new Set())
+
+	// Use useServerFn for TanStack Start pattern
+	const signWaiver = useServerFn(signWaiverFn)
+
+	// Check if all required waivers are agreed to
+	const requiredWaivers = waivers.filter((w) => w.required)
+	const allRequiredWaiversAgreed = requiredWaivers.every((w) =>
+		agreedWaivers.has(w.id),
+	)
 
 	// Show toast if returning from canceled payment
 	useEffect(() => {
@@ -137,6 +162,18 @@ export function RegistrationForm({
 		}
 	}
 
+	const handleWaiverCheckChange = (waiverId: string, checked: boolean) => {
+		setAgreedWaivers((prev) => {
+			const newSet = new Set(prev)
+			if (checked) {
+				newSet.add(waiverId)
+			} else {
+				newSet.delete(waiverId)
+			}
+			return newSet
+		})
+	}
+
 	const onSubmit = async (data: FormValues) => {
 		// Validate team fields for team divisions
 		if (isTeamDivision) {
@@ -156,9 +193,33 @@ export function RegistrationForm({
 			}
 		}
 
+		// Check waivers are signed
+		if (!allRequiredWaiversAgreed) {
+			toast.error("Please agree to all required waivers before registering")
+			return
+		}
+
 		setIsSubmitting(true)
 
 		try {
+			// Sign all agreed waivers first
+			for (const waiverId of agreedWaivers) {
+				const result = await signWaiver({
+					data: {
+						waiverId,
+						registrationId: undefined, // Will be linked after registration
+						ipAddress: undefined,
+					},
+				})
+
+				if (!result.success) {
+					toast.error("Failed to sign waiver")
+					setIsSubmitting(false)
+					return
+				}
+			}
+
+			// Now proceed with registration
 			const result = await initiateRegistrationPaymentFn({
 				data: {
 					competitionId: competition.id,
@@ -217,6 +278,12 @@ export function RegistrationForm({
 	}
 
 	const registrationMessage = getRegistrationMessage()
+
+	// Determine if submit should be disabled
+	const submitDisabled =
+		isSubmitting ||
+		!registrationOpen ||
+		(waivers.length > 0 && !allRequiredWaiversAgreed)
 
 	return (
 		<div className="space-y-6">
@@ -518,12 +585,64 @@ export function RegistrationForm({
 						</Card>
 					)}
 
+					{/* Waivers Section - Inline */}
+					{waivers.length > 0 && (
+						<Card>
+							<CardHeader>
+								<CardTitle>Waivers & Agreements</CardTitle>
+								<CardDescription>
+									Please review and agree to the following waivers to complete
+									your registration
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-6">
+								{waivers.map((waiver) => (
+									<div key={waiver.id} className="space-y-4">
+										<div className="flex items-center gap-2">
+											<h4 className="font-medium">{waiver.title}</h4>
+											{waiver.required && (
+												<Badge variant="destructive" className="text-xs">
+													Required
+												</Badge>
+											)}
+										</div>
+
+										{/* Waiver Content */}
+										<div className="border rounded-lg p-4 max-h-64 overflow-y-auto bg-muted/10">
+											<WaiverViewer
+												content={waiver.content}
+												className="prose prose-sm max-w-none dark:prose-invert"
+											/>
+										</div>
+
+										{/* Agreement Checkbox */}
+										<div className="flex items-start gap-3 p-4 bg-muted/20 rounded-lg">
+											<Checkbox
+												id={`waiver-${waiver.id}`}
+												checked={agreedWaivers.has(waiver.id)}
+												onCheckedChange={(checked) =>
+													handleWaiverCheckChange(waiver.id, checked === true)
+												}
+												disabled={isSubmitting || !registrationOpen}
+											/>
+											<Label
+												htmlFor={`waiver-${waiver.id}`}
+												className="text-sm font-medium leading-none cursor-pointer"
+											>
+												I have read and agree to this waiver
+												{waiver.required && (
+													<span className="text-destructive ml-1">*</span>
+												)}
+											</Label>
+										</div>
+									</div>
+								))}
+							</CardContent>
+						</Card>
+					)}
+
 					<div className="flex gap-4">
-						<Button
-							type="submit"
-							disabled={isSubmitting || !registrationOpen}
-							className="flex-1"
-						>
+						<Button type="submit" disabled={submitDisabled} className="flex-1">
 							{isSubmitting ? (
 								<>
 									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -531,6 +650,8 @@ export function RegistrationForm({
 								</>
 							) : !registrationOpen ? (
 								"Registration Closed"
+							) : waivers.length > 0 && !allRequiredWaiversAgreed ? (
+								"Agree to Waivers to Continue"
 							) : isTeamDivision ? (
 								"Register Team"
 							) : (
