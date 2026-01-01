@@ -3,8 +3,8 @@
 -- Used by scripts/seed-pr.ts to populate PR-specific D1 databases.
 --
 -- Test User Credentials:
---   Email: demo@wodsmith.com
---   Password: DemoPassword123!
+--   Email: admin@example.com
+--   Password: password123
 --
 -- Note: This assumes migrations have already been applied to the PR database.
 -- The PR database is created fresh, so no cleanup is needed.
@@ -101,11 +101,11 @@ VALUES
   ('pl_pro_max_admins', 'pro', 'lmt_max_admins', 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- ============================================================================
--- DEMO USER
+-- ADMIN USER
 -- ============================================================================
--- Password hash generated with fixed salt for reproducibility
--- Salt: pr00demo0salt00000000000000000000
--- Password: DemoPassword123!
+-- Password hash generated with PBKDF2 (100k iterations, SHA-256)
+-- Salt: "adminsalt0000000" (16 bytes)
+-- Password: password123
 INSERT OR IGNORE INTO user (
     id,
     firstName,
@@ -120,10 +120,10 @@ INSERT OR IGNORE INTO user (
     updateCounter
 ) VALUES (
     'pr_demo_user',
-    'Demo',
+    'Admin',
     'User',
-    'demo@wodsmith.com',
-    'pr00demo0salt00000000000000000000:b8e9f8a7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9',
+    'admin@example.com',
+    '61646d696e73616c7430303030303030:b5c7a2a33e66a6a7984e74faa100885e4661912b1df25668660c9bda62c85b40',
     'user',
     strftime('%s', 'now'),
     100,
