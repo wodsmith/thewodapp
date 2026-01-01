@@ -340,6 +340,8 @@ const stripeWebhook = needsStripeBindings
  * - **pr-N**: Returns `["pr-N.demo.wodsmith.app"]` for ephemeral PR previews
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
+ * PR previews use the default workers.dev URL to avoid DNS propagation delays.
+ *
  * @example
  * ```typescript
  * getDomains("prod")    // ["start.wodsmith.com"]
@@ -457,6 +459,8 @@ const website = await TanStackStart("app", {
 	 * - **demo**: `demo.wodsmith.app` (persistent staging/demo environment)
 	 * - **pr-N**: `pr-N.demo.wodsmith.app` (ephemeral PR preview subdomain)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
+	 *
+	 * PR previews use workers.dev to avoid DNS propagation delays.
 	 */
 	domains: getDomains(stage),
 
@@ -489,7 +493,8 @@ const website = await TanStackStart("app", {
  */
 if (process.env.PULL_REQUEST) {
 	const prNumber = Number(process.env.PULL_REQUEST)
-	const previewUrl = `https://pr-${prNumber}.demo.wodsmith.app`
+	// Use default workers.dev URL to avoid DNS propagation delays
+	const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
 	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
 
 	await GitHubComment("preview-comment", {

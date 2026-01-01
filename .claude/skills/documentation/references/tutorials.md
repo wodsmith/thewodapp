@@ -18,6 +18,22 @@ Nearly all responsibility falls on the teacher. The student's only obligation is
 - **Logical**: Coherent progression that makes sense
 - **Usefully complete**: Exposes all necessary actions, concepts, and tools
 
+## Critical Distinction: Tutorial vs How-to Guide
+
+This is the **most commonly confused distinction** in documentation. Both contain steps, but they serve fundamentally different purposes:
+
+| Aspect | Tutorial | How-to Guide |
+|--------|----------|--------------|
+| **User knowledge** | Learner may not know enough to even ask the right questions | Already knows what they want to achieve |
+| **Approach** | Concrete and particular—specific, known tools and materials we've set before the learner | General—many things unknowable in advance or different in each case |
+| **Path structure** | Single line, no choices or alternatives | Forks and branches, different routes to same destination |
+| **Completeness** | Must be complete end-to-end guide | Doesn't need to be complete—starts/ends at reasonable points |
+| **Safety** | Must be safe—no harm can come, always possible to go back and start again | Cannot promise safety—often only one chance to get it right |
+| **Responsibility** | Teacher has responsibility—if learner gets in trouble, teacher must fix it | User has responsibility for getting in and out of trouble |
+| **Focus** | Study—learning skills | Work—accomplishing tasks |
+
+**Key insight**: You will revise tutorials far more than other docs. Unlike how-to guides (which only change when the product changes), you may completely rewrite a tutorial because you found a better learning experience.
+
 ## The 11 Core Principles
 
 ### 1. Don't Try to Teach
@@ -88,7 +104,7 @@ Nearly all responsibility falls on the teacher. The student's only obligation is
 ### 6. Target the Feeling of Doing
 
 **Flow State Creation:**
-- Build tasks that connect: purpose � action � thinking � result
+- Build tasks that connect: purpose � action � thinking � result
 - Create rhythmic, pleasurable progression
 - Enable the satisfaction of skilled practice
 - Let competence feel rewarding

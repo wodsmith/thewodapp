@@ -1,10 +1,64 @@
 /**
  * Team Authorization Utilities for TanStack Start
  * Port from apps/wodsmith/src/utils/team-auth.ts
+ *
+ * IMPORTANT: This file uses dynamic imports for cookie operations
+ * to avoid bundling @tanstack/react-start/server into client bundles.
+ * See tanstack-start-boundaries skill for details.
  */
 
 import { ROLES_ENUM } from "@/db/schema"
 import { getSessionFromCookie } from "./auth"
+
+/**
+ * Get the active team ID from cookie or fallback to first team
+ *
+ * Priority:
+ * 1. Cookie value (if user is still a member of that team)
+ * 2. First team in session (fallback)
+ * 3. null (if no teams)
+ *
+ * This handles stale cookies gracefully - if the cookie contains
+ * a team ID the user is no longer a member of, we fall back to
+ * the first available team.
+ *
+ * @returns The active team ID or null if no teams available
+ */
+export async function getActiveTeamId(): Promise<string | null> {
+	// Dynamic import to avoid bundling server code into client
+	const { getCookie } = await import("@tanstack/react-start/server")
+	const { ACTIVE_TEAM_COOKIE_NAME } = await import("@/constants")
+
+	const session = await getSessionFromCookie()
+
+	// No session means no teams
+	if (!session) {
+		return null
+	}
+
+	const teams = session.teams ?? []
+
+	// No teams in session
+	if (teams.length === 0) {
+		return null
+	}
+
+	// Try to get team ID from cookie
+	const cookieTeamId = getCookie(ACTIVE_TEAM_COOKIE_NAME)
+
+	if (cookieTeamId) {
+		// Validate that the cookie team is still valid (user is a member)
+		const isValidTeam = teams.some((team) => team.id === cookieTeamId)
+
+		if (isValidTeam) {
+			return cookieTeamId
+		}
+		// Cookie is stale - fall through to first team fallback
+	}
+
+	// Fallback to first team
+	return teams[0]?.id ?? null
+}
 
 /**
  * Check if the user has a specific permission in a team

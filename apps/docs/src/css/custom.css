@@ -1,0 +1,31 @@
+/**
+ * WODsmith Documentation Theme
+ * Custom styles for the Docusaurus documentation site
+ */
+
+:root {
+  --ifm-color-primary: #ea580c;
+  --ifm-color-primary-dark: #c2410c;
+  --ifm-color-primary-darker: #9a3412;
+  --ifm-color-primary-darkest: #7c2d12;
+  --ifm-color-primary-light: #f97316;
+  --ifm-color-primary-lighter: #fb923c;
+  --ifm-color-primary-lightest: #fdba74;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #f97316;
+  --ifm-color-primary-dark: #ea580c;
+  --ifm-color-primary-darker: #c2410c;
+  --ifm-color-primary-darkest: #9a3412;
+  --ifm-color-primary-light: #fb923c;
+  --ifm-color-primary-lighter: #fdba74;
+  --ifm-color-primary-lightest: #fed7aa;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+.footer {
+  --ifm-footer-background-color: #0f172a;
+}

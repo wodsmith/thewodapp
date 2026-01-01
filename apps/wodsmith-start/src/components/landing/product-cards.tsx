@@ -3,6 +3,7 @@
 import { Link } from "@tanstack/react-router"
 import { ArrowRight, Check, Trophy, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { LIMITS } from "@/config/limits"
 import type { SessionValidationResult } from "@/types"
 
 const athleteFeatures = [
@@ -23,8 +24,23 @@ interface ProductCardsProps {
 	session: SessionValidationResult
 }
 
+/**
+ * Check if any team has organizing entitlements (MAX_PUBLISHED_COMPETITIONS limit)
+ */
+function hasOrganizingEntitlements(session: SessionValidationResult): boolean {
+	if (!session?.teams) return false
+
+	return session.teams.some((team) => {
+		const limit = team.plan?.limits?.[LIMITS.MAX_PUBLISHED_COMPETITIONS]
+		// Has entitlement if limit exists and is not 0 (pending approval)
+		// Per limits.ts: 0 = pending, -1 = unlimited, positive = limited access
+		return limit !== undefined && limit !== 0
+	})
+}
+
 export function ProductCards({ session }: ProductCardsProps) {
 	const isLoggedIn = !!session?.user
+	const hasOrganizerAccess = isLoggedIn && hasOrganizingEntitlements(session)
 
 	return (
 		<section
@@ -144,7 +160,13 @@ export function ProductCards({ session }: ProductCardsProps) {
 								size="lg"
 								asChild
 							>
-								<Link to="/compete/organizer/new">
+								<Link
+									to={
+										hasOrganizerAccess
+											? "/compete/organizer"
+											: "/compete/organizer/onboard"
+									}
+								>
 									Host Your Competition
 									<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
 								</Link>

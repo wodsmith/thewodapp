@@ -19,6 +19,43 @@ env:
   STAGE: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'prod' }}
 
 jobs:
+  # Slack notification - start (production deploys only)
+  notify-start:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    name: Notify Deploy Start
+    outputs:
+      message_ts: ${{ steps.slack.outputs.ts }}
+    steps:
+      - name: Post deploy start message
+        id: slack
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "🚀 Production deploy started"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: |
+                    *🚀 Production Deploy Started*
+                    
+                    • *Environment:* production
+                    • *Commit:* `${{ github.sha }}`
+                    • *Triggered by:* ${{ github.actor }}
+                    • *Status:* ⏳ In Progress
+              - type: actions
+                elements:
+                  - type: button
+                    text:
+                      type: plain_text
+                      text: View Workflow
+                    url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   test:
     if: ${{ github.event.action != 'closed' }}
     runs-on: ubuntu-latest
@@ -153,6 +190,97 @@ jobs:
           PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Slack notification - success (production deploys only)
+  notify-success:
+    if: success() && needs.notify-start.outputs.message_ts
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [notify-start, deploy]
+    name: Notify Deploy Success
+    steps:
+      - name: Update message to success
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            ts: "${{ needs.notify-start.outputs.message_ts }}"
+            text: "✅ Production deploy succeeded"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: |
+                    *✅ Production Deploy Succeeded*
+                    
+                    • *Environment:* production
+                    • *Commit:* `${{ github.sha }}`
+                    • *Triggered by:* ${{ github.actor }}
+                    • *Status:* ✅ Success
+              - type: actions
+                elements:
+                  - type: button
+                    text:
+                      type: plain_text
+                      text: View Workflow
+                    url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # Slack notification - failure (production deploys only)
+  notify-failure:
+    if: failure() && needs.notify-start.outputs.message_ts
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [notify-start, deploy]
+    name: Notify Deploy Failure
+    steps:
+      - name: Update message to failure
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: chat.update
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            ts: "${{ needs.notify-start.outputs.message_ts }}"
+            text: "❌ Production deploy failed"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: |
+                    *❌ Production Deploy Failed*
+                    
+                    • *Environment:* production
+                    • *Commit:* `${{ github.sha }}`
+                    • *Triggered by:* ${{ github.actor }}
+                    • *Status:* ❌ Failed
+
+      - name: Post failure details in thread
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            thread_ts: "${{ needs.notify-start.outputs.message_ts }}"
+            text: "Deploy failure details"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: |
+                    *Failure Details*
+                    
+                    The production deploy workflow failed. Check the workflow run for details:
+              - type: actions
+                elements:
+                  - type: button
+                    text:
+                      type: plain_text
+                      text: View Failed Run
+                    style: danger
+                    url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   cleanup:
     if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}

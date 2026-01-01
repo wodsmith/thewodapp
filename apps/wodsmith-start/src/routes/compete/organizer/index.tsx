@@ -7,17 +7,20 @@ import {
 	getCompetitionGroupsFn,
 	getOrganizerCompetitionsFn,
 } from "@/server-fns/competition-fns"
+import { getActiveTeamIdFn } from "@/server-fns/team-fns"
 
 export const Route = createFileRoute("/compete/organizer/")({
 	component: OrganizerDashboard,
 	loader: async ({ context }) => {
 		const session = context.session
 
-		// Get all user teams - for now using first team, similar to wodsmith's approach
+		// Get all user teams
 		const userTeams = session?.teams || []
-		const selectedTeamId = userTeams[0]?.id
 
-		if (!selectedTeamId) {
+		// Get active team from cookie (falls back to first team if no cookie)
+		const activeTeamId = await getActiveTeamIdFn()
+
+		if (!activeTeamId) {
 			return {
 				competitions: [],
 				groups: [],
@@ -28,8 +31,8 @@ export const Route = createFileRoute("/compete/organizer/")({
 
 		// Fetch competitions and groups for the active team
 		const [competitionsResult, groupsResult] = await Promise.all([
-			getOrganizerCompetitionsFn({ data: { teamId: selectedTeamId } }),
-			getCompetitionGroupsFn({ data: { teamId: selectedTeamId } }),
+			getOrganizerCompetitionsFn({ data: { teamId: activeTeamId } }),
+			getCompetitionGroupsFn({ data: { teamId: activeTeamId } }),
 		])
 
 		// Sort by createdAt DESC (newest first)
@@ -42,7 +45,7 @@ export const Route = createFileRoute("/compete/organizer/")({
 			competitions: sortedCompetitions,
 			groups: groupsResult.groups,
 			organizingTeams: userTeams,
-			activeTeamId: selectedTeamId,
+			activeTeamId,
 		}
 	},
 })
