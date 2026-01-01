@@ -22,10 +22,11 @@
 		"alchemy:configure": "bun alchemy configure",
 		"alchemy:dev": "STAGE=dev bun alchemy.run.ts",
 		"alchemy:staging": "STAGE=staging bun alchemy.run.ts",
-		"deploy": "STAGE=prod bun alchemy.run.ts",
+		"deploy": "bun alchemy.run.ts",
 		"deploy:staging": "pnpm alchemy:staging",
 		"deploy:destroy": "bun alchemy.run.ts --destroy",
 		"db:seed:e2e": "pnpm tsx scripts/setup-e2e-db.ts",
+		"db:seed:pr": "tsx scripts/seed-pr.ts",
 		"e2e": "playwright test",
 		"e2e:ui": "playwright test --ui"
 	},
