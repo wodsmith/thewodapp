@@ -322,3 +322,22 @@ export const getTeamSlugFn = createServerFn({ method: "GET" })
 
 		return team?.slug ?? null
 	})
+
+/**
+ * Get the active team ID from cookie or fallback to first team
+ *
+ * This is the server function wrapper for getActiveTeamId from team-auth.ts.
+ * Use this in route loaders to get the current user's active team.
+ *
+ * Priority:
+ * 1. Cookie value (if user is still a member of that team)
+ * 2. First team in session (fallback)
+ * 3. null (if no teams)
+ */
+export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		// Use dynamic import to avoid bundling issues
+		const { getActiveTeamId } = await import("@/utils/team-auth")
+		return getActiveTeamId()
+	},
+)

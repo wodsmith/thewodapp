@@ -291,6 +291,8 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
  * - **pr-N**: Returns `["pr-N.preview.wodsmith.com"]` for ephemeral PR previews
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
+ * PR previews use the default workers.dev URL to avoid DNS propagation delays.
+ *
  * @example
  * ```typescript
  * getDomains("prod")    // ["start.wodsmith.com"]
@@ -376,6 +378,8 @@ const website = await TanStackStart("app", {
 	 * - **preview**: `preview.wodsmith.com` (persistent staging environment)
 	 * - **pr-N**: `pr-N.preview.wodsmith.com` (ephemeral PR preview subdomain)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
+	 *
+	 * PR previews use workers.dev to avoid DNS propagation delays.
 	 */
 	domains: getDomains(stage),
 
@@ -408,7 +412,8 @@ const website = await TanStackStart("app", {
  */
 if (process.env.PULL_REQUEST) {
 	const prNumber = Number(process.env.PULL_REQUEST)
-	const previewUrl = `https://pr-${prNumber}.preview.wodsmith.com`
+	// Use default workers.dev URL to avoid DNS propagation delays
+	const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
 	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
 
 	await GitHubComment("preview-comment", {
