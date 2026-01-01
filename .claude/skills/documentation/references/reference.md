@@ -8,6 +8,30 @@ Reference guides provide **technical descriptions** that are **information-orien
 
 Reference documentation serves as the authoritative source of technical truth about the product. Users consult it to look up specific information they need while working, not to learn sequentially or complete tasks.
 
+## Critical Distinction: Reference vs Explanation
+
+Both provide knowledge (cognition), but for fundamentally different contexts:
+
+| Test Question | If Yes → Reference | If No → Explanation |
+|---------------|-------------------|---------------------|
+| Would someone turn to this **while actively working**? | ✓ | |
+| Is it **lists, tables, or technical specs**? | ✓ | |
+| Could you imagine **reading this in the bath**? | | ✓ |
+| Does it primarily answer **"why?" questions**? | | ✓ |
+
+**Key insight**: A tidal chart with tables of figures is clearly reference. An article explaining why there are tides and how they behave is clearly explanation.
+
+**Reference examples:**
+- API endpoint documentation
+- Configuration option lists
+- Error code tables
+- Command syntax specifications
+
+**Explanation examples:**
+- "About user authentication" (why the system works this way)
+- "Database architecture" (how components relate)
+- "Design decisions in the permission system"
+
 ## Key Principles
 
 ### 1. Describe and Only Describe
