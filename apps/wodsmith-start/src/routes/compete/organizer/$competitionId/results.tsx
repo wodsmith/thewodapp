@@ -8,10 +8,16 @@
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/results/page.tsx
  */
 
-import { createFileRoute, getRouteApi } from "@tanstack/react-router"
-import { useCallback } from "react"
+import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react"
+import { useCallback, useState } from "react"
+import { toast } from "sonner"
 import { z } from "zod"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
@@ -19,6 +25,10 @@ import {
 	saveCompetitionScoreFn,
 } from "@/server-fns/competition-score-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
+import {
+	getDivisionResultsStatusFn,
+	publishDivisionResultsFn,
+} from "@/server-fns/division-results-fns"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -48,21 +58,28 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Fetch events and divisions in parallel
-		const [eventsResult, divisionsResult] = await Promise.all([
-			getCompetitionWorkoutsFn({
-				data: {
-					competitionId: params.competitionId,
-					teamId: competition.organizingTeamId,
-				},
-			}),
-			getCompetitionDivisionsWithCountsFn({
-				data: {
-					competitionId: params.competitionId,
-					teamId: competition.organizingTeamId,
-				},
-			}),
-		])
+		// Fetch events, divisions, and division results status in parallel
+		const [eventsResult, divisionsResult, divisionResultsStatus] =
+			await Promise.all([
+				getCompetitionWorkoutsFn({
+					data: {
+						competitionId: params.competitionId,
+						teamId: competition.organizingTeamId,
+					},
+				}),
+				getCompetitionDivisionsWithCountsFn({
+					data: {
+						competitionId: params.competitionId,
+						teamId: competition.organizingTeamId,
+					},
+				}),
+				getDivisionResultsStatusFn({
+					data: {
+						competitionId: params.competitionId,
+						organizingTeamId: competition.organizingTeamId,
+					},
+				}),
+			])
 
 		const events = eventsResult.workouts
 		const divisions = divisionsResult.divisions
@@ -90,6 +107,7 @@ export const Route = createFileRoute(
 			selectedEventId,
 			selectedDivisionId: deps.divisionId,
 			scoreEntryData,
+			divisionResultsStatus,
 		}
 	},
 })
@@ -101,11 +119,53 @@ function ResultsPage() {
 		selectedEventId,
 		selectedDivisionId,
 		scoreEntryData,
+		divisionResultsStatus,
 	} = Route.useLoaderData()
 	const { competitionId } = Route.useParams()
+	const router = useRouter()
 
 	// Get competition from parent route for organizingTeamId
 	const { competition } = parentRoute.useLoaderData()
+
+	// Wrap server function for client-side publishing
+	const publishDivisionResults = useServerFn(publishDivisionResultsFn)
+	const [isPublishing, setIsPublishing] = useState(false)
+
+	// Find the current division's publish status
+	const currentDivisionStatus = selectedDivisionId
+		? divisionResultsStatus.divisions.find(
+				(d) => d.divisionId === selectedDivisionId,
+			)
+		: null
+
+	// Handle publishing/unpublishing current division results
+	const handleTogglePublish = async (publish: boolean) => {
+		if (!selectedDivisionId) return
+
+		setIsPublishing(true)
+		try {
+			await publishDivisionResults({
+				data: {
+					competitionId,
+					organizingTeamId: competition.organizingTeamId,
+					divisionId: selectedDivisionId,
+					publish,
+				},
+			})
+			toast.success(
+				publish
+					? "Division results published - athletes can now see results"
+					: "Division results unpublished",
+			)
+			await router.invalidate()
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to update results",
+			)
+		} finally {
+			setIsPublishing(false)
+		}
+	}
 
 	// Handle saving scores - wraps the server function with required params
 	const handleSaveScore = useCallback(
@@ -196,13 +256,97 @@ function ResultsPage() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div>
-				<h2 className="text-xl font-semibold">Enter Results</h2>
-				<p className="text-muted-foreground text-sm">
-					{scoreEntryData.athletes.length} athlete
-					{scoreEntryData.athletes.length !== 1 ? "s" : ""}
-					{selectedDivisionId ? " in selected division" : ""}
-				</p>
+			{/* Warning banner for unpublished division results */}
+			{selectedDivisionId &&
+				currentDivisionStatus &&
+				!currentDivisionStatus.isPublished && (
+					<Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+						<AlertTriangle className="h-4 w-4 text-amber-600" />
+						<AlertTitle className="text-amber-800 dark:text-amber-200">
+							Results Not Published
+						</AlertTitle>
+						<AlertDescription className="text-amber-700 dark:text-amber-400">
+							<div className="flex flex-wrap items-center justify-between gap-2">
+								<span>
+									Results for{" "}
+									<span className="font-medium">
+										{currentDivisionStatus.label}
+									</span>{" "}
+									are not yet published. Athletes cannot see these results.
+								</span>
+								<Button
+									size="sm"
+									onClick={() => handleTogglePublish(true)}
+									disabled={isPublishing}
+									className="shrink-0"
+								>
+									{isPublishing ? (
+										<Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+									) : (
+										<Eye className="h-4 w-4 mr-1.5" />
+									)}
+									Publish Now
+								</Button>
+							</div>
+						</AlertDescription>
+					</Alert>
+				)}
+
+			<div className="flex flex-wrap items-start justify-between gap-2">
+				<div>
+					<div className="flex items-center gap-2">
+						<h2 className="text-xl font-semibold">Enter Results</h2>
+						{/* Published/Draft badge for selected division */}
+						{selectedDivisionId && currentDivisionStatus && (
+							<Badge
+								className={
+									currentDivisionStatus.isPublished
+										? "border-green-500/50 bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200"
+										: "border-gray-500/50 bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-200"
+								}
+							>
+								{currentDivisionStatus.isPublished ? (
+									<>
+										<Eye className="h-3 w-3 mr-1" />
+										Published
+									</>
+								) : (
+									<>
+										<EyeOff className="h-3 w-3 mr-1" />
+										Draft
+									</>
+								)}
+							</Badge>
+						)}
+					</div>
+					<p className="text-muted-foreground text-sm">
+						{scoreEntryData.athletes.length} athlete
+						{scoreEntryData.athletes.length !== 1 ? "s" : ""}
+						{selectedDivisionId ? " in selected division" : ""}
+					</p>
+				</div>
+
+				{/* Quick publish/unpublish button when division is selected */}
+				{selectedDivisionId && currentDivisionStatus && (
+					<Button
+						size="sm"
+						variant={currentDivisionStatus.isPublished ? "outline" : "default"}
+						onClick={() =>
+							handleTogglePublish(!currentDivisionStatus.isPublished)
+						}
+						disabled={isPublishing}
+					>
+						{isPublishing ? (
+							<Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+						) : currentDivisionStatus.isPublished ? (
+							<EyeOff className="h-4 w-4 mr-1.5" />
+						) : (
+							<Eye className="h-4 w-4 mr-1.5" />
+						)}
+						{currentDivisionStatus.isPublished ? "Unpublish" : "Publish"}{" "}
+						Results
+					</Button>
+				)}
 			</div>
 
 			<ResultsEntryForm
