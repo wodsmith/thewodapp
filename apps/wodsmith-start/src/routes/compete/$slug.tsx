@@ -8,7 +8,9 @@ import {
 	getRegistrationStatusFn,
 	getUserCompetitionRegistrationFn,
 } from "@/server-fns/competition-detail-fns"
+import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
@@ -25,9 +27,23 @@ export const Route = createFileRoute("/compete/$slug")({
 		// Parallel fetch: registration count and session data
 		const session = context.session ?? null
 
-		const registrationCountPromise = getCompetitionRegistrationCountFn({
-			data: { competitionId: competition.id },
-		})
+		// Parallel fetch: registration count, divisions, sponsors (always needed)
+		const [registrationCountResult, divisionsResult, sponsorsResult] =
+			await Promise.all([
+				getCompetitionRegistrationCountFn({
+					data: { competitionId: competition.id },
+				}),
+				getPublicCompetitionDivisionsFn({
+					data: { competitionId: competition.id },
+				}),
+				getCompetitionSponsorsFn({
+					data: { competitionId: competition.id },
+				}),
+			])
+
+		const registrationCount = registrationCountResult.count
+		const divisions = divisionsResult.divisions
+		const sponsors = sponsorsResult
 
 		// If user is logged in, fetch user-specific data
 		let userRegistration = null
@@ -75,7 +91,14 @@ export const Route = createFileRoute("/compete/$slug")({
 			},
 		})
 
-		const { count: registrationCount } = await registrationCountPromise
+		// Calculate userDivision and isTeamRegistration from divisions data
+		const userDivision = userRegistration?.divisionId
+			? divisions.find((d) => d.id === userRegistration.divisionId)
+			: null
+
+		// Calculate maxSpots from divisions (sum of all division capacities if applicable)
+		// For now, we don't have maxSpots per division in the schema, so leave undefined
+		const maxSpots: number | undefined = undefined
 
 		return {
 			competition,
@@ -85,6 +108,10 @@ export const Route = createFileRoute("/compete/$slug")({
 			isVolunteer,
 			registrationStatus,
 			session,
+			divisions,
+			sponsors,
+			userDivision,
+			maxSpots,
 		}
 	},
 })

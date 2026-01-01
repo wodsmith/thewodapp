@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers"
 import * as ipaddr from "ipaddr.js"
 
 interface RateLimitOptions {
@@ -40,7 +41,10 @@ function normalizeIP(ip: string): string {
 	}
 }
 
-// TODO: TanStack Start - Replace getCloudflareContext() with TanStack Start's Cloudflare context
+/**
+ * Check rate limit using Cloudflare KV storage
+ * Uses the KV_SESSION binding for storage (same KV used for sessions)
+ */
 export async function checkRateLimit({
 	key,
 	options,
@@ -48,76 +52,66 @@ export async function checkRateLimit({
 	key: string
 	options: RateLimitOptions
 }): Promise<RateLimitResult> {
-	// const { env } = getCloudflareContext()
 	const now = Math.floor(Date.now() / 1000)
 
-	// TODO: TanStack Start - Replace with TanStack Start's env access
-	// if (!env?.NEXT_INC_CACHE_KV) {
-	// 	throw new Error("Can't connect to KV store")
-	// }
+	if (!env?.KV_SESSION) {
+		throw new Error("Can't connect to KV store")
+	}
 
 	// Normalize the key if it looks like an IP address
 	const normalizedKey = ipaddr.isValid(key) ? normalizeIP(key) : key
 
-	// Build window key for rate limiting
 	const windowKey = `rate-limit:${options.identifier}:${normalizedKey}:${Math.floor(
 		now / options.windowInSeconds,
 	)}`
 
-	// TODO: Implement with TanStack Start Cloudflare context
-	console.warn("Rate limiting not implemented:", windowKey)
+	// Get the current count from KV
+	const currentCount = Number.parseInt(
+		(await env.KV_SESSION.get(windowKey)) || "0",
+	)
+	const reset =
+		(Math.floor(now / options.windowInSeconds) + 1) * options.windowInSeconds
 
-	// For now, always allow (no rate limiting)
-	return {
-		success: true,
-		remaining: options.limit,
-		reset:
-			(Math.floor(now / options.windowInSeconds) + 1) * options.windowInSeconds,
-		limit: options.limit,
+	if (currentCount >= options.limit) {
+		return {
+			success: false,
+			remaining: 0,
+			reset,
+			limit: options.limit,
+		}
 	}
 
-	// Get the current count from KV
-	// const currentCount = Number.parseInt(
-	// 	(await env.NEXT_INC_CACHE_KV.get(windowKey)) || "0",
-	// )
-	// const reset =
-	// 	(Math.floor(now / options.windowInSeconds) + 1) * options.windowInSeconds
-	//
-	// if (currentCount >= options.limit) {
-	// 	return {
-	// 		success: false,
-	// 		remaining: 0,
-	// 		reset,
-	// 		limit: options.limit,
-	// 	}
-	// }
-	//
-	// // Increment the counter
-	// await env.NEXT_INC_CACHE_KV.put(windowKey, (currentCount + 1).toString(), {
-	// 	expirationTtl: options.windowInSeconds,
-	// })
-	//
-	// return {
-	// 	success: true,
-	// 	remaining: options.limit - (currentCount + 1),
-	// 	reset,
-	// 	limit: options.limit,
-	// }
+	// Increment the counter
+	await env.KV_SESSION.put(windowKey, (currentCount + 1).toString(), {
+		expirationTtl: options.windowInSeconds,
+	})
+
+	return {
+		success: true,
+		remaining: options.limit - (currentCount + 1),
+		reset,
+		limit: options.limit,
+	}
 }
 
-// Helper function to get rate limit headers
-// export function getRateLimitHeaders(result: RateLimitResult): Headers {
-//   const headers = new Headers();
-//   headers.set("X-RateLimit-Limit", result.limit.toString());
-//   headers.set("X-RateLimit-Remaining", result.remaining.toString());
-//   headers.set("X-RateLimit-Reset", result.reset.toString());
+/**
+ * Helper function to get rate limit headers for HTTP responses
+ */
+export function getRateLimitHeaders(result: RateLimitResult): Headers {
+	const headers = new Headers()
+	headers.set("X-RateLimit-Limit", result.limit.toString())
+	headers.set("X-RateLimit-Remaining", result.remaining.toString())
+	headers.set("X-RateLimit-Reset", result.reset.toString())
 
-//   if (!result.success) {
-//     headers.set("Retry-After", (result.reset - Math.floor(Date.now() / 1000)).toString());
-//   }
+	if (!result.success) {
+		headers.set(
+			"Retry-After",
+			(result.reset - Math.floor(Date.now() / 1000)).toString(),
+		)
+	}
 
-//   return headers;
-// }
+	return headers
+}
 
 // Example usage:
 /*
