@@ -211,6 +211,11 @@ const db = await D1Database("db", {
 	 * Migrations are applied in filename order on each deployment.
 	 */
 	migrationsDir: "./src/db/migrations",
+	/**
+	 * Adopt existing D1 database if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
 })
 
 /**
@@ -235,7 +240,13 @@ const db = await D1Database("db", {
  *
  * @see {@link https://developers.cloudflare.com/kv/ KV Documentation}
  */
-const kvSession = await KVNamespace("wodsmith-sessions")
+const kvSession = await KVNamespace("wodsmith-sessions", {
+	/**
+	 * Adopt existing KV namespace if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
+})
 
 /**
  * Cloudflare R2 bucket for file uploads and media storage.
@@ -259,7 +270,13 @@ const kvSession = await KVNamespace("wodsmith-sessions")
  *
  * @see {@link https://developers.cloudflare.com/r2/ R2 Documentation}
  */
-const r2Bucket = await R2Bucket("wodsmith-uploads")
+const r2Bucket = await R2Bucket("wodsmith-uploads", {
+	/**
+	 * Adopt existing R2 bucket if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
+})
 
 /**
  * Determines the custom domain(s) for the current deployment stage.
