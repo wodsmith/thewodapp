@@ -12,6 +12,7 @@ import {
 	Twitter,
 	Users,
 } from "lucide-react"
+import { isSameUTCDay } from "@/utils/date-utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -352,7 +353,12 @@ function CompetitiveHistory({ registrations }: { registrations: any[] }) {
 											<div className="text-muted-foreground flex items-center gap-1">
 												<Calendar className="h-3 w-3" />
 												<span>
-													{formatDate(registration.competition.startDate)}
+													{isSameUTCDay(
+														registration.competition.startDate,
+														registration.competition.endDate,
+													)
+														? formatDate(registration.competition.startDate)
+														: `${formatDate(registration.competition.startDate)} - ${formatDate(registration.competition.endDate)}`}
 												</span>
 											</div>
 											{registration.division && (

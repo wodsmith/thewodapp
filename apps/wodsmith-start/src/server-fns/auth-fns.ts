@@ -22,6 +22,7 @@ import {
 	type VerifyEmailInput,
 } from "@/schemas/auth.schema"
 import { getResetTokenKey, getVerificationTokenKey } from "@/utils/auth-utils"
+import { validateTurnstileToken } from "@/utils/validate-captcha"
 
 // Re-export schemas and types for backwards compatibility
 // But consumers should prefer importing from @/schemas/auth.schema
@@ -44,6 +45,7 @@ const createToken = init({
 
 const forgotPasswordInputSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
+	captchaToken: z.string().optional(),
 })
 
 // ============================================================================
@@ -113,6 +115,14 @@ export const signUpFn = createServerFn({ method: "POST" })
 		const { canSignUp, createAndStoreSession } = await import("@/utils/auth")
 
 		const db = getDb()
+
+		// Validate CAPTCHA token if provided
+		if (data.captchaToken) {
+			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+			if (!isValidCaptcha) {
+				throw new Error("CAPTCHA verification failed. Please try again.")
+			}
+		}
 
 		// Check if email is disposable
 		await canSignUp({ email: data.email })
@@ -367,6 +377,14 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 		const { sendPasswordResetEmail } = await import("@/utils/email")
 
 		const db = getDb()
+
+		// Validate CAPTCHA token if provided
+		if (data.captchaToken) {
+			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+			if (!isValidCaptcha) {
+				throw new Error("CAPTCHA verification failed. Please try again.")
+			}
+		}
 
 		try {
 			// Find user by email (case-insensitive)

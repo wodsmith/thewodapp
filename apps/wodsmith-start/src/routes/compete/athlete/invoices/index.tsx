@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { ArrowLeft, ExternalLink, FileText, Receipt } from "lucide-react"
+import { ArrowLeft, ChevronRight, FileText, Receipt } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -83,39 +83,42 @@ function InvoicesPage() {
 			) : (
 				<div className="space-y-3">
 					{purchases.map((purchase) => (
-						<Card
+						<Link
 							key={purchase.id}
-							className="transition-colors hover:bg-muted/50"
+							to="/compete/athlete/invoices/$purchaseId"
+							params={{ purchaseId: purchase.id }}
 						>
-							<CardContent className="flex items-center justify-between py-4">
-								<div className="flex items-center gap-4">
-									<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-										<Receipt className="h-5 w-5 text-primary" />
+							<Card className="transition-colors hover:bg-muted/50">
+								<CardContent className="flex items-center justify-between py-4">
+									<div className="flex items-center gap-4">
+										<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+											<Receipt className="h-5 w-5 text-primary" />
+										</div>
+										<div>
+											<p className="font-medium">
+												{purchase.competition?.name ?? purchase.product.name}
+											</p>
+											<p className="text-muted-foreground text-sm">
+												{formatDate(purchase.completedAt ?? purchase.createdAt)}
+												{purchase.competition?.organizingTeam && (
+													<span>
+														{" "}
+														&middot; {purchase.competition.organizingTeam.name}
+													</span>
+												)}
+											</p>
+										</div>
 									</div>
-									<div>
-										<p className="font-medium">
-											{purchase.competition?.name ?? purchase.product.name}
-										</p>
-										<p className="text-muted-foreground text-sm">
-											{formatDate(purchase.completedAt ?? purchase.createdAt)}
-											{purchase.competition?.organizingTeam && (
-												<span>
-													{" "}
-													&middot; {purchase.competition.organizingTeam.name}
-												</span>
-											)}
-										</p>
+									<div className="flex items-center gap-4">
+										{getStatusBadge(purchase.status)}
+										<span className="font-medium">
+											{formatCurrency(purchase.totalCents)}
+										</span>
+										<ChevronRight className="h-4 w-4 text-muted-foreground" />
 									</div>
-								</div>
-								<div className="flex items-center gap-4">
-									{getStatusBadge(purchase.status)}
-									<span className="font-medium">
-										{formatCurrency(purchase.totalCents)}
-									</span>
-									<ExternalLink className="h-4 w-4 text-muted-foreground" />
-								</div>
-							</CardContent>
-						</Card>
+								</CardContent>
+							</Card>
+						</Link>
 					))}
 				</div>
 			)}

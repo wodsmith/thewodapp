@@ -41,6 +41,7 @@ import {
 	WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 import { saveCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
+import { MovementsList } from "@/components/movements-list"
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"
@@ -159,45 +160,6 @@ interface EventDetailsFormProps {
 	divisionDescriptions: DivisionDescriptionData[]
 	movements: Movement[]
 	sponsors: Sponsor[]
-}
-
-/**
- * Simplified MovementsList component for selecting movements
- * TODO: Port full MovementsList component from apps/wodsmith/src/components/movements-list.tsx
- */
-function SimpleMovementsList({
-	movements,
-	selectedMovements,
-	onMovementToggle,
-}: {
-	movements: Movement[]
-	selectedMovements: string[]
-	onMovementToggle: (id: string) => void
-}) {
-	return (
-		<div className="max-h-[250px] overflow-y-auto border rounded-md p-2">
-			<div className="space-y-1">
-				{movements.map((movement) => {
-					const isSelected = selectedMovements.includes(movement.id)
-					return (
-						<button
-							key={movement.id}
-							type="button"
-							onClick={() => onMovementToggle(movement.id)}
-							className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-								isSelected
-									? "bg-primary text-primary-foreground"
-									: "hover:bg-muted"
-							}`}
-						>
-							{movement.name}
-							{isSelected && " ✓"}
-						</button>
-					)
-				})}
-			</div>
-		</div>
-	)
 }
 
 export function EventDetailsForm({
@@ -566,10 +528,12 @@ export function EventDetailsForm({
 												))}
 										</div>
 									)}
-									<SimpleMovementsList
+									<MovementsList
 										movements={movements}
 										selectedMovements={selectedMovements}
 										onMovementToggle={handleMovementToggle}
+										showLabel={false}
+										containerHeight="max-h-[250px]"
 									/>
 								</div>
 							</CardContent>

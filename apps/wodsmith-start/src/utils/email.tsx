@@ -1,5 +1,7 @@
 import { render } from "@react-email/render"
 import { SITE_DOMAIN, SITE_URL } from "@/constants"
+import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
+import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
 import { ResetPasswordEmail } from "@/react-email/reset-password"
 import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
@@ -237,5 +239,72 @@ export async function sendTeamInvitationEmail({
 			inviterName,
 		}),
 		tags: [{ name: "type", value: "team-invitation" }],
+	})
+}
+
+/**
+ * Sends an organizer request approval email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
+export async function sendOrganizerApprovalEmail({
+	email,
+	recipientName,
+	teamName,
+	teamSlug,
+	adminNotes,
+}: {
+	email: string
+	recipientName: string
+	teamName: string
+	teamSlug: string
+	adminNotes?: string
+}): Promise<void> {
+	const dashboardUrl = `${SITE_URL}/${teamSlug}/compete/organizer`
+
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
+		console.warn("\n\n\nOrganizer dashboard url: ", dashboardUrl)
+	}
+
+	await sendEmail({
+		to: email,
+		subject: `Your organizer application has been approved - ${SITE_DOMAIN}`,
+		template: OrganizerRequestApprovedEmail({
+			teamName,
+			recipientName,
+			dashboardLink: dashboardUrl,
+			adminNotes,
+		}),
+		tags: [{ name: "type", value: "organizer-approval" }],
+	})
+}
+
+/**
+ * Sends an organizer request rejection email.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
+export async function sendOrganizerRejectionEmail({
+	email,
+	recipientName,
+	teamName,
+	adminNotes,
+}: {
+	email: string
+	recipientName: string
+	teamName: string
+	adminNotes?: string
+}): Promise<void> {
+	const supportEmail = process.env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
+
+	await sendEmail({
+		to: email,
+		subject: `Update on your organizer application - ${SITE_DOMAIN}`,
+		template: OrganizerRequestRejectedEmail({
+			teamName,
+			recipientName,
+			adminNotes,
+			supportEmail,
+		}),
+		tags: [{ name: "type", value: "organizer-rejection" }],
 	})
 }

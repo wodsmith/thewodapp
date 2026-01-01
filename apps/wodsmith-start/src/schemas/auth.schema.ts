@@ -23,6 +23,7 @@ export const signUpSchema = z.object({
 		.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
 		.regex(/[a-z]/, "Password must contain at least one lowercase letter")
 		.regex(/[0-9]/, "Password must contain at least one number"),
+	captchaToken: z.string().optional(),
 })
 
 export type SignUpInput = z.infer<typeof signUpSchema>
@@ -53,6 +54,7 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>
 
 export const forgotPasswordSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
+	captchaToken: z.string().optional(),
 })
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>

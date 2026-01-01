@@ -359,14 +359,22 @@ describe('stripe-connect server functions', () => {
         ],
       }
 
+      // Must mock team query to return a team so permission check can happen
+      mockDb.query.teamTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'team-123',
+          slug: 'test-team',
+          stripeConnectedAccountId: null,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
       const {getSessionFromCookie} = await import('@/utils/auth')
-      vi.mocked(getSessionFromCookie).mockResolvedValueOnce(
-        noPermSession as any,
-      )
+      vi.mocked(getSessionFromCookie).mockResolvedValue(noPermSession as any)
 
       await expect(
         initiateExpressOnboardingFn({data: validInput}),
-      ).rejects.toThrow('Missing required permission')
+      ).rejects.toThrow("FORBIDDEN: You don't have the required permission")
     })
   })
 

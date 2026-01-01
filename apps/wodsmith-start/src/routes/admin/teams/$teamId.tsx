@@ -12,7 +12,14 @@ import {
 	Outlet,
 	useMatches,
 } from "@tanstack/react-router"
-import { Building2, Calendar, CalendarDays, User, Users } from "lucide-react"
+import {
+	Building2,
+	Calendar,
+	CalendarDays,
+	Settings,
+	User,
+	Users,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getTeamByIdForAdminFn } from "@/server-fns/admin-team-fns"
@@ -46,19 +53,18 @@ const teamTabs = [
 		href: (teamId: string) => `/admin/teams/${teamId}/scheduling`,
 		icon: CalendarDays,
 	},
-	// Future tabs can be added here:
-	// {
-	//   id: "members",
-	//   label: "Members",
-	//   href: (teamId: string) => `/admin/teams/${teamId}/members`,
-	//   icon: Users,
-	// },
-	// {
-	//   id: "settings",
-	//   label: "Settings",
-	//   href: (teamId: string) => `/admin/teams/${teamId}/settings`,
-	//   icon: Settings,
-	// },
+	{
+		id: "gym-setup",
+		label: "Gym Setup",
+		href: (teamId: string) => `/admin/teams/${teamId}/gym-setup`,
+		icon: Settings,
+	},
+	{
+		id: "coaches",
+		label: "Coaches",
+		href: (teamId: string) => `/admin/teams/${teamId}/coaches`,
+		icon: Users,
+	},
 ]
 
 function getTeamTypeBadge(team: {

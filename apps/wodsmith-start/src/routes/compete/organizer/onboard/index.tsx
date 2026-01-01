@@ -188,11 +188,10 @@ export const Route = createFileRoute("/compete/organizer/onboard/")({
 			throw redirect({ to: "/compete/organizer" })
 		}
 
-		// Check if any team has a pending request - redirect to organizer dashboard
-		// (A pending page could be added in the future)
+		// Check if any team has a pending request - redirect to pending page
 		const pendingTeam = teamStatuses.find((s) => s.isPending)
 		if (pendingTeam) {
-			throw redirect({ to: "/compete/organizer" })
+			throw redirect({ to: "/compete/organizer/onboard/pending" })
 		}
 
 		// Filter to teams that haven't submitted a request yet
@@ -360,7 +359,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
 						},
 					})
 					toast.success("Application submitted successfully!")
-					navigate({ to: "/compete/organizer" })
+					navigate({ to: "/compete/organizer/onboard/pending" })
 				}
 			} else {
 				await submitRequest({
@@ -370,7 +369,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
 					},
 				})
 				toast.success("Application submitted successfully!")
-				navigate({ to: "/compete/organizer" })
+				navigate({ to: "/compete/organizer/onboard/pending" })
 			}
 		} catch (error) {
 			const errorMessage =

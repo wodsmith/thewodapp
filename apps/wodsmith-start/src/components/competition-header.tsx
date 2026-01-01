@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatUTCDateFull } from "@/utils/date-utils"
+import { formatUTCDateFull, isSameUTCDay } from "@/utils/date-utils"
 
 interface CompetitionHeaderProps {
 	competition: {
@@ -96,8 +96,9 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 					<div className="flex items-center gap-2">
 						<Calendar className="h-4 w-4" />
 						<span>
-							{formatUTCDateFull(competition.startDate)} -{" "}
-							{formatUTCDateFull(competition.endDate)}
+							{isSameUTCDay(competition.startDate, competition.endDate)
+								? formatUTCDateFull(competition.startDate)
+								: `${formatUTCDateFull(competition.startDate)} - ${formatUTCDateFull(competition.endDate)}`}
 						</span>
 					</div>
 					{competition.registrationOpensAt &&

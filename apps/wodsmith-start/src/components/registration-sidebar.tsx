@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
+import { isSameUTCDay } from "@/utils/date-utils"
 
 interface RegistrationSidebarProps {
 	competition: Competition & {
@@ -140,7 +141,7 @@ export function RegistrationSidebar({
 						<div>
 							<p className="font-medium">
 								{formatDateShort(competition.startDate)}
-								{competition.startDate !== competition.endDate && (
+								{!isSameUTCDay(competition.startDate, competition.endDate) && (
 									<> - {formatDateShort(competition.endDate)}</>
 								)}
 							</p>
