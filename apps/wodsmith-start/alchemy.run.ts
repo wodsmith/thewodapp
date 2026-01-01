@@ -399,7 +399,11 @@ const website = await TanStackStart("app", {
 	 * Cloudflare resource bindings available to the application.
 	 *
 	 * These bindings inject Cloudflare services into the Worker's environment.
-	 * The binding names (DB, KV_SESSION, R2_BUCKET) become properties on `env`.
+	 * The binding names become properties on `env`.
+	 *
+	 * For environment variables and secrets, add them directly to bindings:
+	 * - Plain strings become environment variables
+	 * - Values wrapped in `alchemy.secret()` become encrypted secrets
 	 */
 	bindings: {
 		/** D1 database binding for application data */
@@ -408,31 +412,12 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
-	},
-
-	/**
-	 * Environment variables (non-secret public values).
-	 *
-	 * These are plain text values available at runtime.
-	 * Environments with Stripe integration include publishable keys and client IDs.
-	 */
-	vars: {
+		// Stripe bindings for demo and production environments
 		...(needsStripeBindings && {
 			/** Stripe publishable key for client-side Stripe.js initialization */
 			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
 			/** Stripe Connect OAuth client ID */
 			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID,
-		}),
-	},
-
-	/**
-	 * Secret text bindings for sensitive values.
-	 *
-	 * These are encrypted at rest and only available at runtime.
-	 * Environments with Stripe integration include API keys for server-side operations.
-	 */
-	secretTextBindings: {
-		...(needsStripeBindings && {
 			/** Stripe secret key for server-side API calls */
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
