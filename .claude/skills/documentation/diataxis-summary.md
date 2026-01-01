@@ -133,6 +133,37 @@ tion    | (understanding)    |    (information)      |
 
 Understanding these boundaries helps prevent common documentation problems caused by blurring categories.
 
+## The Compass: A Practical Decision Tool
+
+The compass reduces the two-dimensional Diataxis problem to two simple questions:
+
+### Question 1: Action or Cognition?
+- **Action** = Practical steps, doing things, hands-on work
+- **Cognition** = Theoretical knowledge, thinking, understanding
+
+### Question 2: Acquisition or Application?
+- **Acquisition** = Study, learning something new
+- **Application** = Work, using skills to accomplish tasks
+
+### Quick Decision Table
+
+| Need | Action/Cognition | Acquisition/Application | → Type |
+|------|------------------|-------------------------|--------|
+| "How do I get started?" | Action | Acquisition | **Tutorial** |
+| "How do I deploy to prod?" | Action | Application | **How-to** |
+| "What parameters does X accept?" | Cognition | Application | **Reference** |
+| "Why does the system work this way?" | Cognition | Acquisition | **Explanation** |
+
+### Critical Distinctions
+
+**Tutorial vs How-to Guide** (most commonly confused):
+- Tutorials: Learner may not know enough to ask questions; single path; teacher responsible
+- How-to: User knows their goal; can branch/adapt; user responsible
+
+**Reference vs Explanation**:
+- Reference: Turn to it while working; lists, tables, specs
+- Explanation: Read away from work (could read in the bath); answers "why?"
+
 ## Benefits of Diataxis
 
 **For Users**:
@@ -154,13 +185,24 @@ Understanding these boundaries helps prevent common documentation problems cause
 
 ## Implementation Approach
 
-Diataxis recommends **iterative improvement**:
+Diataxis recommends **iterative improvement from the inside out**:
 
-1. Identify one documentation enhancement
-2. Implement it
-3. Repeat
+### What NOT to Do
 
-The approach remains flexible and pragmatic rather than dogmatic. Teams can adopt Diataxis gradually without requiring complete documentation overhauls.
+**Don't create empty structures.** Never create `/tutorials`, `/how-to`, `/reference`, `/explanation` folders with nothing in them. This is counterproductive and creates false expectations.
+
+### The Iterative Workflow
+
+1. **Choose any piece** of existing documentation
+2. **Apply the compass** to determine what type it should be
+3. **Improve it** according to that type's principles
+4. **Repeat**
+
+### Let Structure Emerge
+
+As you improve individual pieces, patterns will emerge that suggest organizational structure. The top-level Diataxis structure should form organically from the inside out, not be imposed top-down.
+
+**Key insight**: Diataxis changes the structure of your documentation from the inside. The structure is a guide and compass, not a plan you must complete.
 
 ## Key Takeaways
 

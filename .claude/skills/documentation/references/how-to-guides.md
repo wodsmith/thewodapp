@@ -8,6 +8,30 @@ How-to guides are **goal-oriented directions** that help users accomplish specif
 
 How-to guides assume competence and focus exclusively on helping users accomplish a specific, known goal. They are about **action and only action** no teaching, no explanation, no reference material.
 
+## Critical Distinction: How-to Guide vs Tutorial
+
+This is the **most commonly confused distinction** in documentation. Both contain steps, but they serve fundamentally different purposes:
+
+| Aspect | How-to Guide | Tutorial |
+|--------|--------------|----------|
+| **User knowledge** | Already knows what they want to achieve | Learner may not know enough to even ask the right questions |
+| **Approach** | General—many things unknowable in advance or different in each case | Concrete and particular—specific, known tools and materials we've set before the learner |
+| **Path structure** | Forks and branches, different routes to same destination | Single line, no choices or alternatives |
+| **Completeness** | Doesn't need to be complete—starts/ends at reasonable points | Must be complete end-to-end guide |
+| **Safety** | Cannot promise safety—often only one chance to get it right | Must be safe—no harm can come, always possible to go back and start again |
+| **Responsibility** | User has responsibility for getting in and out of trouble | Teacher has responsibility—if learner gets in trouble, teacher must fix it |
+| **Focus** | Work—accomplishing tasks | Study—learning skills |
+
+**Good how-to guide examples:**
+- "How to configure SSL certificates"
+- "How to store cellulose nitrate film"
+- "How to configure frame profiling"
+- "Troubleshooting deployment problems"
+
+**NOT how-to guides** (too broad, really need tutorials):
+- "How to build a web application"
+- "How to use the API"
+
 ## Key Principles
 
 ### 1. Focus on User Goals, Not Tools
