@@ -1,5 +1,10 @@
 {
-	"include": ["**/*.ts", "**/*.tsx", "./src/types/env.d.ts"],
+	"include": [
+		"**/*.ts",
+		"**/*.tsx",
+		"./src/types/env.d.ts",
+		"./test/vitest.d.ts"
+	],
 	"exclude": ["alchemy.run.ts"],
 	"compilerOptions": {
 		"target": "ES2022",

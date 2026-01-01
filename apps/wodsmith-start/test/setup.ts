@@ -1,6 +1,9 @@
 import {webcrypto} from 'node:crypto'
-import {vi} from 'vitest'
-import '@testing-library/jest-dom/vitest'
+import {expect, vi} from 'vitest'
+import * as matchers from '@testing-library/jest-dom/matchers'
+
+// Extend vitest's expect with jest-dom matchers
+expect.extend(matchers)
 
 // Polyfill Web Crypto API for Node.js/jsdom environment
 // This is needed for password hashing tests that use crypto.subtle

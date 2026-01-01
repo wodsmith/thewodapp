@@ -23,6 +23,7 @@ import { getResetTokenKey, getVerificationTokenKey } from "@/utils/auth-utils"
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { hashPassword, verifyPassword } from "@/utils/password-hasher"
+import { validateTurnstileToken } from "@/utils/validate-captcha"
 
 // Create a CUID2 generator with 32 character length for tokens
 const createToken = init({
@@ -50,6 +51,7 @@ export const signUpSchema = z.object({
 		.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
 		.regex(/[a-z]/, "Password must contain at least one lowercase letter")
 		.regex(/[0-9]/, "Password must contain at least one number"),
+	captchaToken: z.string().optional(),
 })
 
 export type SignUpInput = z.infer<typeof signUpSchema>
@@ -80,6 +82,7 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>
 
 const forgotPasswordInputSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
+	captchaToken: z.string().optional(),
 })
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordInputSchema>
@@ -137,6 +140,14 @@ export const signUpFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => signUpSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
+
+		// Validate CAPTCHA token if provided
+		if (data.captchaToken) {
+			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+			if (!isValidCaptcha) {
+				throw new Error("CAPTCHA verification failed. Please try again.")
+			}
+		}
 
 		// Check if email is disposable
 		await canSignUp({ email: data.email })
@@ -371,6 +382,14 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => forgotPasswordInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
+
+		// Validate CAPTCHA token if provided
+		if (data.captchaToken) {
+			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+			if (!isValidCaptcha) {
+				throw new Error("CAPTCHA verification failed. Please try again.")
+			}
+		}
 
 		try {
 			// Find user by email (case-insensitive)

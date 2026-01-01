@@ -8,11 +8,14 @@ import type { TeamProgrammingTrack } from "@/server-fns/programming-fns"
 interface ProgrammingTrackRowProps {
 	track: TeamProgrammingTrack
 	teamId: string
+	/** Optional link prefix for the track detail page. Defaults to /settings/programming */
+	linkPrefix?: string
 }
 
 export function ProgrammingTrackRow({
 	track,
 	teamId: _teamId,
+	linkPrefix = "/settings/programming",
 }: ProgrammingTrackRowProps) {
 	const getTypeColor = (type: string) => {
 		switch (type) {
@@ -45,8 +48,7 @@ export function ProgrammingTrackRow({
 			<ListItem.Content className="flex-1 min-w-0">
 				<div className="flex items-start gap-3 flex-col sm:flex-row sm:items-center w-full">
 					<Link
-						to="/settings/programming/$trackId"
-						params={{ trackId: track.id }}
+						to={`${linkPrefix}/${track.id}` as "/"}
 						className="font-semibold text-lg hover:underline underline-offset-4 truncate"
 					>
 						{track.name}
