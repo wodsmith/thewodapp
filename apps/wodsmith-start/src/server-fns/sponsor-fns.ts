@@ -751,3 +751,30 @@ export const getWorkoutSponsorFn = createServerFn({ method: "GET" })
 
 		return { sponsor: sponsor ?? null }
 	})
+
+// ============================================================================
+// Server Functions - Athlete Sponsors Page
+// ============================================================================
+
+/**
+ * Get sponsors data for athlete sponsors page
+ */
+export const getSponsorsPageDataFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const { redirect } = await import("@tanstack/react-router")
+		const session = await getSessionFromCookie()
+		if (!session) {
+			throw redirect({
+				to: "/sign-in",
+				search: { redirect: "/compete/athlete/sponsors" },
+			})
+		}
+
+		const result = await getUserSponsorsFn({ data: { userId: session.userId } })
+
+		return {
+			sponsors: result.sponsors,
+			userId: session.userId,
+		}
+	},
+)

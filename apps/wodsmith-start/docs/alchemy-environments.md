@@ -256,6 +256,288 @@ deploy-prod:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
 ```
 
+## PR Preview Environments
+
+Every pull request automatically gets its own isolated preview environment. This enables testing changes in a production-like setting before merging.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   PR Preview Workflow                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   PR #42 opened                                             │
+│        │                                                    │
+│        ▼                                                    │
+│   ┌─────────────────────────────────────────┐               │
+│   │ STAGE=pr-42 npx alchemy deploy          │               │
+│   │ • Creates wodsmith-db-pr-42             │               │
+│   │ • Creates wodsmith-sessions-pr-42       │               │
+│   │ • Creates wodsmith-uploads-pr-42        │               │
+│   │ • Deploys Worker to pr-42.preview.*     │               │
+│   │ • Seeds demo data automatically         │               │
+│   └─────────────────────────────────────────┘               │
+│        │                                                    │
+│        ▼                                                    │
+│   PR Comment: "Preview: https://pr-42.preview.wodsmith.com" │
+│        │                                                    │
+│        ▼                                                    │
+│   PR merged/closed → Environment destroyed                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+1. **PR Opens** → GitHub Actions triggers with `STAGE=pr-{number}`
+2. **Deploy** → Alchemy creates all isolated resources (DB, KV, R2, Worker)
+3. **Seed** → Demo data is automatically inserted for testing
+4. **Comment** → PR receives a comment with the preview URL
+5. **Update** → Subsequent pushes redeploy to the same environment
+6. **Close** → PR close/merge triggers `--destroy` to clean up all resources
+
+### Required GitHub Secrets
+
+Add these secrets to your repository (Settings → Secrets and variables → Actions):
+
+| Secret | Description | How to Generate |
+|--------|-------------|-----------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers/D1/KV/R2 permissions | [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens) |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID | Found in Cloudflare Dashboard URL |
+| `ALCHEMY_PASSWORD` | Encryption password for state files | `openssl rand -base64 32` |
+| `ALCHEMY_STATE_TOKEN` | Token for CloudflareStateStore in CI | `openssl rand -base64 32` |
+
+**Generating tokens:**
+
+```bash
+# Generate ALCHEMY_PASSWORD
+openssl rand -base64 32
+
+# Generate ALCHEMY_STATE_TOKEN  
+openssl rand -base64 32
+```
+
+### Preview Subdomain Routing
+
+PR environments are accessible via preview subdomains:
+
+| PR Number | Preview URL |
+|-----------|-------------|
+| PR #42 | `https://pr-42.preview.wodsmith.com` |
+| PR #123 | `https://pr-123.preview.wodsmith.com` |
+| PR #7 | `https://pr-7.preview.wodsmith.com` |
+
+This is configured in `alchemy.run.ts`:
+
+```typescript
+function getDomains(stage: string): string[] {
+  if (stage === "prod") {
+    return ["start.wodsmith.com"]
+  }
+  if (stage.startsWith("pr-")) {
+    return [`${stage}.preview.wodsmith.com`]
+  }
+  return [] // dev/staging use workers.dev
+}
+```
+
+**DNS Setup:** Add a wildcard DNS record pointing `*.preview.wodsmith.com` to your Cloudflare zone.
+
+### Database Seeding
+
+PR environments are automatically seeded with demo data for testing:
+
+**Demo Credentials:**
+- Email: `demo@wodsmith.com`
+- Password: `DemoPassword123!`
+
+**What's Seeded:**
+- Demo user account with admin role
+- Demo team ("Demo Gym")
+- Sample workouts and programming data
+- Active entitlements for testing features
+
+The seeding script (`scripts/seed-pr.ts`) validates that only PR environments are seeded:
+
+```typescript
+// Validates STAGE starts with 'pr-' before seeding
+if (!stage.startsWith("pr-")) {
+  throw new Error("Refusing to seed non-PR environment")
+}
+```
+
+**Manual seeding (if needed):**
+
+```bash
+# Seed PR environment manually
+STAGE=pr-42 pnpm db:seed:pr
+```
+
+### Cleanup Behavior
+
+When a PR is closed or merged, the cleanup job automatically destroys all resources:
+
+```yaml
+cleanup:
+  if: github.event.action == 'closed'
+  runs-on: ubuntu-latest
+  steps:
+    - run: npx alchemy deploy --destroy
+      env:
+        STAGE: pr-${{ github.event.number }}
+```
+
+**Safety Check:** The destroy command includes a safety check that prevents accidentally destroying production:
+
+```typescript
+if (stage === "prod" && app.phase === "destroy") {
+  throw new Error("FATAL: Refusing to destroy production")
+}
+```
+
+**Resources Cleaned Up:**
+- D1 Database (`wodsmith-db-pr-{N}`)
+- KV Namespace (`wodsmith-sessions-pr-{N}`)
+- R2 Bucket (`wodsmith-uploads-pr-{N}`)
+- Worker deployment
+- State files
+
+### State Storage for CI
+
+PR environments use `CloudflareStateStore` instead of local file storage:
+
+```typescript
+const stateStore = process.env.CI
+  ? new CloudflareStateStore({
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
+      apiToken: process.env.CLOUDFLARE_API_TOKEN!,
+      namespaceId: "alchemy-state", // KV namespace for state
+      encryptionKey: process.env.ALCHEMY_STATE_TOKEN!,
+    })
+  : undefined // Local .alchemy/ directory
+```
+
+This ensures multiple CI runners can share state without conflicts.
+
+### GitHub Actions Workflow
+
+The `deploy.yml` workflow handles all PR lifecycle events:
+
+```yaml
+name: Deploy
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+  push:
+    branches: [main]
+
+env:
+  STAGE: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'prod' }}
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'prod' }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: npx alchemy deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+          ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+      - name: Seed PR Database
+        if: github.event_name == 'pull_request'
+        run: pnpm db:seed:pr
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npx alchemy deploy --destroy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+          ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+```
+
+### PR Preview Troubleshooting
+
+#### "Preview URL not working"
+
+DNS propagation can take up to 30 minutes for new subdomains.
+
+**Solutions:**
+1. Wait 5-30 minutes for DNS propagation
+2. Check Cloudflare DNS dashboard for the wildcard record
+3. Verify the Worker deployed successfully in GitHub Actions logs
+
+#### "State conflict between runs"
+
+Multiple runs fighting over the same state.
+
+**Solutions:**
+1. Check concurrency group is set correctly (prevents parallel deploys)
+2. Verify `ALCHEMY_STATE_TOKEN` is set (enables shared state)
+3. Cancel any stuck workflow runs before retrying
+
+#### "Seeding failed"
+
+Database seeding step failed during deployment.
+
+**Solutions:**
+1. Check that `STAGE` environment variable starts with `pr-`
+2. Verify the D1 database was created successfully
+3. Check `scripts/seed-pr.sql` for syntax errors
+4. Run seeding manually: `STAGE=pr-N pnpm db:seed:pr`
+
+#### "Cleanup didn't run"
+
+PR was closed but resources weren't destroyed.
+
+**Solutions:**
+1. Check GitHub Actions for failed cleanup job
+2. Manually destroy: `STAGE=pr-N npx alchemy deploy --destroy`
+3. Verify secrets are available for the cleanup job
+
+#### "Wrong environment seeded"
+
+Demo data appeared in wrong environment.
+
+**Solutions:**
+1. The seed script validates `STAGE` starts with `pr-` - this shouldn't happen
+2. Check that `STAGE` environment variable is set correctly in CI
+3. Never run `pnpm db:seed:pr` without proper `STAGE` variable
+
+#### "Preview comment not appearing"
+
+GitHub comment with preview URL not posted to PR.
+
+**Solutions:**
+1. Check `GITHUB_TOKEN` permissions (needs `pull-requests: write`)
+2. Verify `GitHubComment` resource is configured in `alchemy.run.ts`
+3. Check GitHub Actions logs for comment creation errors
+
 ## Troubleshooting
 
 ### "Resource already exists"

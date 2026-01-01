@@ -7,7 +7,7 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { ZSAError } from "@repo/zsa"
+import { AppError } from "@/utils/errors"
 import { createServerFn } from "@tanstack/react-start"
 import { and, count, eq, isNull, not } from "drizzle-orm"
 import { z } from "zod"
@@ -25,7 +25,7 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "./requireTeamMembership"
@@ -132,6 +132,10 @@ const teamIdSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 })
 
+const setActiveTeamInputSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
 const teamSlugSchema = z.object({
 	slug: z.string().min(1, "Slug is required"),
 })
@@ -178,6 +182,34 @@ async function requireVerifiedEmail() {
 }
 
 // ============================================================================
+// Server Functions - Active Team
+// ============================================================================
+
+/**
+ * Set the active team for the current user
+ * This stores the preference in a cookie for persistence across sessions
+ */
+export const setActiveTeamFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => setActiveTeamInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+		}
+
+		// Validate that the user is a member of the team
+		const isMember = session.teams?.some((team) => team.id === data.teamId)
+		if (!isMember) {
+			throw new AppError("FORBIDDEN", "You are not a member of this team")
+		}
+
+		// Set the active team cookie
+		await setActiveTeamCookie(data.teamId)
+
+		return { success: true, teamId: data.teamId }
+	})
+
+// ============================================================================
 // Server Functions - Team CRUD
 // ============================================================================
 
@@ -212,7 +244,7 @@ export const createTeamFn = createServerFn({ method: "POST" })
 		}
 
 		if (!slugIsUnique) {
-			throw new ZSAError(
+			throw new AppError(
 				"ERROR",
 				"Could not generate a unique slug for the team",
 			)
@@ -232,7 +264,7 @@ export const createTeamFn = createServerFn({ method: "POST" })
 
 		const team = Array.isArray(newTeam) ? newTeam[0] : undefined
 		if (!team || !team.id) {
-			throw new ZSAError("ERROR", "Could not create team")
+			throw new AppError("ERROR", "Could not create team")
 		}
 
 		const teamId: string = team.id
@@ -334,7 +366,7 @@ export const updateTeamFn = createServerFn({ method: "POST" })
 				}
 
 				if (!slugIsUnique) {
-					throw new ZSAError(
+					throw new AppError(
 						"ERROR",
 						"Could not generate a unique slug for the team",
 					)
@@ -436,7 +468,7 @@ export const getTeamBySlugFn = createServerFn({ method: "GET" })
 		})
 
 		if (!team) {
-			throw new ZSAError("NOT_FOUND", "Team not found")
+			throw new AppError("NOT_FOUND", "Team not found")
 		}
 
 		// Check if user is a member of this team
@@ -545,12 +577,12 @@ export const updateMemberRoleFn = createServerFn({ method: "POST" })
 		})
 
 		if (!team) {
-			throw new ZSAError("NOT_FOUND", "Team not found")
+			throw new AppError("NOT_FOUND", "Team not found")
 		}
 
 		// Prevent role changes in personal teams
 		if (team.isPersonalTeam) {
-			throw new ZSAError("FORBIDDEN", "Cannot change roles in a personal team")
+			throw new AppError("FORBIDDEN", "Cannot change roles in a personal team")
 		}
 
 		// Verify membership exists
@@ -562,7 +594,7 @@ export const updateMemberRoleFn = createServerFn({ method: "POST" })
 		})
 
 		if (!membership) {
-			throw new ZSAError("NOT_FOUND", "Team membership not found")
+			throw new AppError("NOT_FOUND", "Team membership not found")
 		}
 
 		// Update the role
@@ -603,12 +635,12 @@ export const removeTeamMemberFn = createServerFn({ method: "POST" })
 		})
 
 		if (!team) {
-			throw new ZSAError("NOT_FOUND", "Team not found")
+			throw new AppError("NOT_FOUND", "Team not found")
 		}
 
 		// Prevent removing members from personal teams
 		if (team.isPersonalTeam) {
-			throw new ZSAError(
+			throw new AppError(
 				"FORBIDDEN",
 				"Cannot remove members from a personal team",
 			)
@@ -623,7 +655,7 @@ export const removeTeamMemberFn = createServerFn({ method: "POST" })
 		})
 
 		if (!membership) {
-			throw new ZSAError("NOT_FOUND", "Team membership not found")
+			throw new AppError("NOT_FOUND", "Team membership not found")
 		}
 
 		// Don't allow removing an owner
@@ -631,7 +663,7 @@ export const removeTeamMemberFn = createServerFn({ method: "POST" })
 			membership.roleId === SYSTEM_ROLES_ENUM.OWNER &&
 			membership.isSystemRole
 		) {
-			throw new ZSAError("FORBIDDEN", "Cannot remove the team owner")
+			throw new AppError("FORBIDDEN", "Cannot remove the team owner")
 		}
 
 		// Delete the membership
@@ -665,7 +697,7 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 
 		const session = await getSessionFromCookie()
 		if (!session) {
-			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
 		}
 
 		const db = getDb()
@@ -676,12 +708,12 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 		})
 
 		if (!team) {
-			throw new ZSAError("NOT_FOUND", "Team not found")
+			throw new AppError("NOT_FOUND", "Team not found")
 		}
 
 		// Prevent inviting members to personal teams
 		if (team.isPersonalTeam) {
-			throw new ZSAError(
+			throw new AppError(
 				"FORBIDDEN",
 				"Cannot invite members to a personal team",
 			)
@@ -701,7 +733,7 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 			})
 
 			if (existingMembership) {
-				throw new ZSAError("CONFLICT", "User is already a member of this team")
+				throw new AppError("CONFLICT", "User is already a member of this team")
 			}
 
 			// Check if user has reached their team joining limit
@@ -713,7 +745,7 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 			const teamsJoined = teamsCountResult[0]?.value || 0
 
 			if (teamsJoined >= MAX_TEAMS_JOINED_PER_USER) {
-				throw new ZSAError(
+				throw new AppError(
 					"FORBIDDEN",
 					`This user has reached the limit of ${MAX_TEAMS_JOINED_PER_USER} teams they can join.`,
 				)
@@ -772,7 +804,24 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 				})
 				.where(eq(teamInvitationTable.id, existingInvitation.id))
 
-			// TODO: Send invitation email
+			// Get inviter name for email
+			const inviter = await db.query.userTable.findFirst({
+				where: eq(userTable.id, session.userId),
+				columns: { firstName: true, lastName: true },
+			})
+			const inviterName = inviter
+				? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+					"A team member"
+				: "A team member"
+
+			// Send invitation email
+			const { sendTeamInvitationEmail } = await import("@/utils/email")
+			await sendTeamInvitationEmail({
+				email: data.email,
+				invitationToken: token,
+				teamName: team.name,
+				inviterName,
+			})
 
 			return {
 				success: true,
@@ -799,10 +848,27 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 		const invitation = newInvitation?.[0]
 
 		if (!invitation) {
-			throw new ZSAError("ERROR", "Could not create invitation")
+			throw new AppError("ERROR", "Could not create invitation")
 		}
 
-		// TODO: Send invitation email
+		// Get inviter name for email
+		const inviter = await db.query.userTable.findFirst({
+			where: eq(userTable.id, session.userId),
+			columns: { firstName: true, lastName: true },
+		})
+		const inviterName = inviter
+			? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+				"A team member"
+			: "A team member"
+
+		// Send invitation email
+		const { sendTeamInvitationEmail } = await import("@/utils/email")
+		await sendTeamInvitationEmail({
+			email: data.email,
+			invitationToken: token,
+			teamName: team.name,
+			inviterName,
+		})
 
 		return {
 			success: true,
@@ -827,7 +893,7 @@ export const cancelInvitationFn = createServerFn({ method: "POST" })
 		})
 
 		if (!invitation) {
-			throw new ZSAError("NOT_FOUND", "Invitation not found")
+			throw new AppError("NOT_FOUND", "Invitation not found")
 		}
 
 		// Check if user has permission to cancel invitations for this team

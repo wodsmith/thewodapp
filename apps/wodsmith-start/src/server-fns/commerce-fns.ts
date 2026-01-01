@@ -3,28 +3,19 @@
  * Fee configuration and division fee management
  *
  * Note: Registration payment functions are in registration-fns.ts
+ *
+ * IMPORTANT: This file uses dynamic imports to avoid bundling server-only
+ * code (cloudflare:workers) into the client bundle.
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
-import {
-	competitionDivisionsTable,
-	competitionsTable,
-	TEAM_PERMISSIONS,
-	teamTable,
-} from "@/db/schema"
-import {
-	type CompetitionRevenueStats,
-	getCompetitionRevenueStats,
-} from "@/server/commerce/fee-calculator"
-import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 
-export type { CompetitionRevenueStats }
+// Re-export type for consumers
+export type { CompetitionRevenueStats } from "@/server/commerce/fee-calculator"
 
 // ============================================================================
-// Permission Helpers
+// Permission Helpers (use dynamic imports)
 // ============================================================================
 
 /**
@@ -34,6 +25,7 @@ async function hasTeamPermission(
 	teamId: string,
 	permission: string,
 ): Promise<boolean> {
+	const { getSessionFromCookie } = await import("@/utils/auth")
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
 
@@ -95,6 +87,12 @@ export const getCompetitionDivisionFeesFn = createServerFn({ method: "GET" })
 		getCompetitionDivisionFeesInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { competitionDivisionsTable, competitionsTable } = await import(
+			"@/db/schema"
+		)
+
 		const db = getDb()
 
 		const fees = await db.query.competitionDivisionsTable.findMany({
@@ -126,6 +124,11 @@ export const updateCompetitionFeeConfigFn = createServerFn({ method: "POST" })
 		updateCompetitionFeeConfigInputSchema.parse(data),
 	)
 	.handler(async ({ data: input }) => {
+		const { requireVerifiedEmail } = await import("@/utils/auth")
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { competitionsTable, TEAM_PERMISSIONS } = await import("@/db/schema")
+
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
@@ -167,6 +170,9 @@ export const getCompetitionRevenueStatsFn = createServerFn({ method: "GET" })
 		getCompetitionRevenueStatsInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getCompetitionRevenueStats } = await import(
+			"@/server/commerce/fee-calculator"
+		)
 		const stats = await getCompetitionRevenueStats(data.competitionId)
 		return { stats }
 	})
@@ -179,6 +185,10 @@ export const getOrganizerStripeStatusFn = createServerFn({ method: "GET" })
 		z.object({ organizingTeamId: z.string().min(1) }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { teamTable } = await import("@/db/schema")
+
 		const db = getDb()
 
 		const team = await db.query.teamTable.findFirst({
@@ -207,6 +217,12 @@ export const getOrganizerStripeStatusFn = createServerFn({ method: "GET" })
 export const updateDivisionFeeFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateDivisionFeeInputSchema.parse(data))
 	.handler(async ({ data: input }) => {
+		const { requireVerifiedEmail } = await import("@/utils/auth")
+		const { getDb } = await import("@/db")
+		const { eq, and } = await import("drizzle-orm")
+		const { competitionDivisionsTable, competitionsTable, TEAM_PERMISSIONS } =
+			await import("@/db/schema")
+
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 

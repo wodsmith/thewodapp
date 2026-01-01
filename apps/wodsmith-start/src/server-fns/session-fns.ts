@@ -14,6 +14,25 @@ import {
 } from "@/utils/kv-session"
 
 // ============================================================================
+// Theme Cookie Server Function
+// ============================================================================
+
+/** Theme preference stored in cookie */
+type ThemePreference = "light" | "dark" | "system"
+
+/**
+ * Get the theme cookie value for SSR.
+ * This must be a server function because getCookie is server-only.
+ */
+export const getThemeCookieFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const { getCookie } = await import("@tanstack/react-start/server")
+		const themeCookie = getCookie("theme") as ThemePreference | undefined
+		return themeCookie
+	},
+)
+
+// ============================================================================
 // Type Definitions
 // ============================================================================
 

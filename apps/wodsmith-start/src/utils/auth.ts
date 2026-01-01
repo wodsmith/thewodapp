@@ -1,6 +1,6 @@
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { init } from "@paralleldrive/cuid2"
-import { ZSAError } from "@repo/zsa"
+import { AppError } from "@/utils/errors"
 import { getCookie, setCookie } from "@tanstack/react-start/server"
 import { eq } from "drizzle-orm"
 import ms from "ms"
@@ -481,7 +481,7 @@ export const requireVerifiedEmail = cache(async () => {
 	const session = await getSessionFromCookie()
 
 	if (!session) {
-		throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+		throw new AppError("NOT_AUTHORIZED", "Not authenticated")
 	}
 
 	// Email verification check removed - emails are auto-verified on signup
@@ -490,7 +490,7 @@ export const requireVerifiedEmail = cache(async () => {
 	// 		return null
 	// 	}
 	//
-	// 	throw new ZSAError("FORBIDDEN", "Please verify your email first")
+	// 	throw new AppError("FORBIDDEN", "Please verify your email first")
 	// }
 
 	return session
@@ -501,7 +501,7 @@ export const requireAdmin = cache(
 		const session = await getSessionFromCookie()
 
 		if (!session) {
-			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
 		}
 
 		if (session.user.role !== ROLES_ENUM.ADMIN) {
@@ -509,12 +509,21 @@ export const requireAdmin = cache(
 				return null
 			}
 
-			throw new ZSAError("FORBIDDEN", "Not authorized")
+			throw new AppError("FORBIDDEN", "Not authorized")
 		}
 
 		return session
 	},
 )
+
+/**
+ * Check if the current user is a site admin
+ * Returns false if not authenticated or not an admin (does not throw)
+ */
+export const isAdmin = cache(async (): Promise<boolean> => {
+	const session = await getSessionFromCookie()
+	return session?.user?.role === ROLES_ENUM.ADMIN
+})
 
 export const requireAdminForTeam = cache(
 	async ({
@@ -527,7 +536,7 @@ export const requireAdminForTeam = cache(
 		const session = await getSessionFromCookie()
 
 		if (!session) {
-			throw new ZSAError("NOT_AUTHORIZED", "Not authenticated")
+			throw new AppError("NOT_AUTHORIZED", "Not authenticated")
 		}
 
 		const team = session?.teams?.find(
@@ -544,7 +553,7 @@ export const requireAdminForTeam = cache(
 				return null
 			}
 
-			throw new ZSAError("FORBIDDEN", "Not authorized")
+			throw new AppError("FORBIDDEN", "Not authorized")
 		}
 
 		return session
@@ -622,7 +631,7 @@ async function checkWithMailcheck(email: string): Promise<ValidatorResult> {
  * Checks if an email is allowed for sign up by verifying it's not a disposable email
  * Uses multiple services in sequence for redundancy.
  *
- * @throws {ZSAError} If email is disposable or if all services fail
+ * @throws {AppError} If email is disposable or if all services fail
  */
 export async function canSignUp({ email }: { email: string }): Promise<void> {
 	// Skip disposable email check in development
@@ -642,7 +651,7 @@ export async function canSignUp({ email }: { email: string }): Promise<void> {
 
 		// If we got a successful response and it's disposable, reject the signup
 		if (result.isDisposable) {
-			throw new ZSAError(
+			throw new AppError(
 				"PRECONDITION_FAILED",
 				"Disposable email addresses are not allowed",
 			)
@@ -653,7 +662,7 @@ export async function canSignUp({ email }: { email: string }): Promise<void> {
 	}
 
 	// If all validators failed, we can't verify the email
-	throw new ZSAError(
+	throw new AppError(
 		"PRECONDITION_FAILED",
 		"Unable to verify email address at this time. Please try again later.",
 	)

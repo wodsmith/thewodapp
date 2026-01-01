@@ -1,7 +1,6 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
-import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -16,106 +15,17 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
-import { getDb } from "@/db"
-import { userTable } from "@/db/schema"
-import { getResetTokenKey } from "@/utils/auth-utils"
-import { hashPassword } from "@/utils/password-hasher"
-
-// Define schema inline to avoid import issues with zod versions
-const resetPasswordSchema = z
-	.object({
-		token: z.string().min(1, "Token is required"),
-		password: z.string().min(8, "Password must be at least 8 characters"),
-		confirmPassword: z.string(),
-	})
-	.refine((data) => data.password === data.confirmPassword, {
-		message: "Passwords do not match",
-		path: ["confirmPassword"],
-	})
-
-type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>
+import {
+	resetPasswordFn,
+	resetPasswordSchema,
+	validateResetTokenFn,
+	type ResetPasswordInput,
+} from "@/server-fns/auth-fns"
 
 // Search params schema for validation
 const searchSchema = z.object({
 	token: z.string().optional(),
 })
-
-// Server function to validate token exists before rendering the page
-const validateTokenServerFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		z.object({ token: z.string() }).parse(data),
-	)
-	.handler(async ({ data }) => {
-		const { env } = await import("cloudflare:workers")
-
-		const tokenData = await env.KV_SESSION.get(getResetTokenKey(data.token))
-
-		if (!tokenData) {
-			return { valid: false, error: "Invalid or expired reset token" }
-		}
-
-		try {
-			const parsed = JSON.parse(tokenData) as {
-				userId: string
-				expiresAt: string
-			}
-
-			// Check if token is expired
-			if (new Date() > new Date(parsed.expiresAt)) {
-				return { valid: false, error: "Reset token has expired" }
-			}
-
-			return { valid: true }
-		} catch {
-			return { valid: false, error: "Invalid token format" }
-		}
-	})
-
-// Server function to reset password
-const resetPasswordServerFn = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => resetPasswordSchema.parse(data))
-	.handler(async ({ data }) => {
-		const { env } = await import("cloudflare:workers")
-		const db = getDb()
-
-		// Find valid reset token
-		const resetTokenStr = await env.KV_SESSION.get(getResetTokenKey(data.token))
-
-		if (!resetTokenStr) {
-			throw new Error("Invalid or expired reset token")
-		}
-
-		const resetToken = JSON.parse(resetTokenStr) as {
-			userId: string
-			expiresAt: string
-		}
-
-		// Check if token is expired (although KV should have auto-deleted it)
-		if (new Date() > new Date(resetToken.expiresAt)) {
-			throw new Error("Reset token has expired")
-		}
-
-		// Find user
-		const user = await db.query.userTable.findFirst({
-			where: eq(userTable.id, resetToken.userId),
-		})
-
-		if (!user) {
-			throw new Error("User not found")
-		}
-
-		// Hash new password and update
-		const passwordHash = await hashPassword({ password: data.password })
-		await db
-			.update(userTable)
-			.set({ passwordHash })
-			.where(eq(userTable.id, resetToken.userId))
-
-		// Delete the used token
-		await env.KV_SESSION.delete(getResetTokenKey(data.token))
-
-		return { success: true }
-	})
 
 export const Route = createFileRoute("/_auth/reset-password")({
 	component: ResetPasswordPage,
@@ -128,7 +38,7 @@ export const Route = createFileRoute("/_auth/reset-password")({
 		}
 
 		// Validate the token exists and is not expired
-		const result = await validateTokenServerFn({
+		const result = await validateResetTokenFn({
 			data: { token: search.token },
 		})
 		return { tokenValid: result.valid, tokenError: result.error }
@@ -146,7 +56,10 @@ function ResetPasswordPage() {
 	const [isLoading, setIsLoading] = useState(false)
 	const [isSuccess, setIsSuccess] = useState(false)
 
-	const form = useForm<ResetPasswordSchema>({
+	// Use useServerFn for client-side calls
+	const resetPassword = useServerFn(resetPasswordFn)
+
+	const form = useForm<ResetPasswordInput>({
 		resolver: standardSchemaResolver(resetPasswordSchema),
 		defaultValues: {
 			token: token || "",
@@ -155,12 +68,12 @@ function ResetPasswordPage() {
 		},
 	})
 
-	const onSubmit = async (data: ResetPasswordSchema) => {
+	const onSubmit = async (data: ResetPasswordInput) => {
 		try {
 			setIsLoading(true)
 			setError(null)
 
-			await resetPasswordServerFn({ data })
+			await resetPassword({ data })
 
 			setIsSuccess(true)
 		} catch (err) {

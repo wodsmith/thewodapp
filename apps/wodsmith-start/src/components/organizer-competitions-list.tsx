@@ -1,10 +1,12 @@
 "use client"
 
 import { useNavigate, useSearch } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
 	Calendar,
 	ExternalLink,
 	Filter,
+	Loader2,
 	Pencil,
 	Plus,
 	Trash2,
@@ -21,7 +23,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { deleteCompetitionFn } from "@/server-fns/competition-detail-fns"
 import type { CompetitionWithRelations } from "@/server-fns/competition-fns"
+import { isSameUTCDay } from "@/utils/date-utils"
 
 interface CompetitionGroup {
 	id: string
@@ -62,12 +66,31 @@ export function OrganizerCompetitionsList({
 		null,
 	)
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+	const [isDeleting, setIsDeleting] = useState(false)
+
+	const deleteCompetition = useServerFn(deleteCompetitionFn)
 
 	const handleDelete = async (competitionId: string) => {
-		// TODO: Implement delete action when server actions are ported
-		console.log("Delete competition:", competitionId, "for team:", teamId)
-		setDeleteCompetitionId(null)
-		// For now, just close the dialog
+		setIsDeleting(true)
+		try {
+			await deleteCompetition({
+				data: {
+					competitionId,
+					organizingTeamId: teamId,
+				},
+			})
+			setDeleteCompetitionId(null)
+			// Navigate to refresh the page with updated data
+			navigate({ to: "/compete/organizer" })
+		} catch (error) {
+			console.error("Failed to delete competition:", error)
+			alert(
+				error instanceof Error
+					? error.message
+					: "Failed to delete competition. Please try again.",
+			)
+			setIsDeleting(false)
+		}
 	}
 
 	const handleGroupFilter = (value: string) => {
@@ -205,8 +228,12 @@ export function OrganizerCompetitionsList({
 												<div className="flex items-center gap-1 text-xs text-muted-foreground">
 													<Calendar className="h-3 w-3" />
 													<span>
-														{formatDateFull(competition.startDate)} -{" "}
-														{formatDateFull(competition.endDate)}
+														{isSameUTCDay(
+															competition.startDate,
+															competition.endDate,
+														)
+															? formatDateFull(competition.startDate)
+															: `${formatDateFull(competition.startDate)} - ${formatDateFull(competition.endDate)}`}
 													</span>
 												</div>
 												{seriesName && (
@@ -281,6 +308,7 @@ export function OrganizerCompetitionsList({
 							<Button
 								variant="outline"
 								onClick={() => setDeleteCompetitionId(null)}
+								disabled={isDeleting}
 							>
 								Cancel
 							</Button>
@@ -289,8 +317,16 @@ export function OrganizerCompetitionsList({
 								onClick={() =>
 									deleteCompetitionId && handleDelete(deleteCompetitionId)
 								}
+								disabled={isDeleting}
 							>
-								Delete
+								{isDeleting ? (
+									<>
+										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+										Deleting...
+									</>
+								) : (
+									"Delete"
+								)}
 							</Button>
 						</div>
 					</div>

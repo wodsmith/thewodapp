@@ -22,21 +22,74 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=wodsmith
-      - run: pnpm --filter wodsmith exec playwright install chromium --with-deps
-      - run: pnpm --filter wodsmith exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+      # Generate Alchemy wrangler config for local D1 and Vite
+      - name: Setup Alchemy local config
+        working-directory: apps/wodsmith-start
+        run: |
+          mkdir -p .alchemy/local/src/db
+          ln -sf ../../../../src/db/migrations .alchemy/local/src/db/migrations
+          cat > .alchemy/local/wrangler.jsonc << 'EOF'
+          {
+            "name": "wodsmith-app-e2e",
+            "main": "@tanstack/react-start/server-entry",
+            "compatibility_date": "2025-12-17",
+            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+            "assets": {
+              "directory": "../../dist/client",
+              "binding": "ASSETS",
+              "not_found_handling": "none",
+              "html_handling": "auto-trailing-slash",
+              "run_worker_first": false
+            },
+            "kv_namespaces": [
+              {
+                "binding": "KV_SESSION",
+                "id": "e2e-kv-session",
+                "preview_id": "e2e-kv-session"
+              }
+            ],
+            "r2_buckets": [
+              {
+                "binding": "R2_BUCKET",
+                "bucket_name": "e2e-uploads",
+                "preview_bucket_name": "e2e-uploads"
+              }
+            ],
+            "d1_databases": [
+              {
+                "binding": "DB",
+                "database_id": "e2e-test-db",
+                "database_name": "wodsmith-db-dev",
+                "migrations_dir": "./src/db/migrations",
+                "preview_database_id": "e2e-test-db"
+              }
+            ]
+          }
+          EOF
+
+      # Setup E2E database with migrations and seed data
+      - name: Setup E2E database
+        working-directory: apps/wodsmith-start
+        run: pnpm db:seed:e2e
+
+      # Note: We use vite dev (not vite preview) because the Alchemy Cloudflare
+      # plugin only works in dev mode. No build step needed for E2E tests.
+      - run: pnpm --filter wodsmith-start exec playwright install chromium --with-deps
+      - run: pnpm --filter wodsmith-start exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           CI: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: blob-report-${{ matrix.shardIndex }}
-          path: apps/wodsmith/blob-report/
+          path: apps/wodsmith-start/blob-report/
           retention-days: 1
 
   merge-reports:
@@ -53,12 +106,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
         with:
-          path: apps/wodsmith/all-blob-reports
+          path: apps/wodsmith-start/all-blob-reports
           pattern: blob-report-*
           merge-multiple: true
-      - run: pnpm --filter wodsmith exec playwright merge-reports --reporter html ./all-blob-reports
+      - run: pnpm --filter wodsmith-start exec playwright merge-reports --reporter html ./all-blob-reports
       - uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: apps/wodsmith/playwright-report/
+          path: apps/wodsmith-start/playwright-report/
           retention-days: 14

@@ -1,71 +1,16 @@
 /**
- * Registration function stubs for TanStack Start migration
- * TODO: Port these functions from apps/wodsmith/src/server/competitions.ts
+ * Registration functions for TanStack Start
+ *
+ * This file re-exports the fully implemented registration functions
+ * from @/server/registration.ts. The stubs have been replaced with
+ * complete implementations.
+ *
+ * Functions:
+ * - registerForCompetition(): Full registration flow for individuals and teams
+ * - notifyRegistrationConfirmed(): Email notification after registration
  */
 
-import { getDb } from "@/db"
-import { competitionRegistrationsTable } from "@/db/schema"
-
-interface RegisterForCompetitionParams {
-	competitionId: string
-	userId: string
-	divisionId: string
-	teamName?: string
-	affiliateName?: string
-	teammates?: Array<{
-		email: string
-		firstName?: string
-		lastName?: string
-		affiliateName?: string
-	}>
-}
-
-/**
- * Register a user for a competition
- * TODO: Port full implementation from apps/wodsmith/src/server/competitions.ts
- */
-export async function registerForCompetition(
-	params: RegisterForCompetitionParams,
-): Promise<{ registrationId: string }> {
-	const db = getDb()
-
-	// Create registration record
-	// Note: affiliateName is stored in user profile, not registration
-	// TODO: Create teamMemberId before inserting registration
-	const [registration] = await db
-		.insert(competitionRegistrationsTable)
-		.values({
-			eventId: params.competitionId,
-			userId: params.userId,
-			divisionId: params.divisionId,
-			teamName: params.teamName,
-			teamMemberId: "", // TODO: Create team membership first
-			registeredAt: new Date(),
-			// TODO: Handle team creation and invitations for team registrations
-		})
-		.returning()
-
-	if (!registration) {
-		throw new Error("Failed to create registration")
-	}
-
-	return { registrationId: registration.id }
-}
-
-interface NotifyRegistrationConfirmedParams {
-	userId: string
-	registrationId: string
-	competitionId: string
-	isPaid: boolean
-}
-
-/**
- * Send registration confirmation notification
- * TODO: Port full implementation from apps/wodsmith/src/server/notifications.ts
- */
-export async function notifyRegistrationConfirmed(
-	_params: NotifyRegistrationConfirmedParams,
-): Promise<void> {
-	// TODO: Implement email notification
-	console.log("TODO: Send registration confirmation email")
-}
+export {
+	notifyRegistrationConfirmed,
+	registerForCompetition,
+} from "@/server/registration"

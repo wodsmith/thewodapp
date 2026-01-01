@@ -39,12 +39,12 @@ export async function setTeamLimitOverride(
 	// Stub implementation
 }
 
-// Stub implementation for logging
-function logInfo(_params: {
-	message: string
-	attributes: Record<string, any>
-}) {
-	// Stub implementation
+// Dynamic import helper for logging (avoids Vite bundling issues)
+async function getLogger() {
+	const { logInfo, logError } = await import(
+		"@/lib/logging/posthog-otel-logger"
+	)
+	return { logInfo, logError }
 }
 
 export interface OrganizerRequestWithDetails extends OrganizerRequest {
@@ -132,6 +132,7 @@ export async function submitOrganizerRequest({
 		"Organizer request pending approval",
 	)
 
+	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request submitted",
 		attributes: { teamId, userId, requestId: request.id },
@@ -312,6 +313,7 @@ export async function approveOrganizerRequest({
 		"Organizer request approved",
 	)
 
+	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request approved",
 		attributes: {
@@ -321,7 +323,29 @@ export async function approveOrganizerRequest({
 		},
 	})
 
-	// TODO: Send approval email to requester
+	// Get requester and team info for email
+	const requester = await db.query.userTable.findFirst({
+		where: eq(userTable.id, request.userId),
+		columns: { firstName: true, lastName: true, email: true },
+	})
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, request.teamId),
+		columns: { name: true, slug: true },
+	})
+
+	if (requester?.email && team) {
+		const { sendOrganizerApprovalEmail } = await import("@/utils/email")
+		await sendOrganizerApprovalEmail({
+			email: requester.email,
+			recipientName:
+				`${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
+				"there",
+			teamName: team.name,
+			teamSlug: team.slug,
+			adminNotes,
+		})
+	}
 
 	return updatedRequest
 }
@@ -376,6 +400,7 @@ export async function rejectOrganizerRequest({
 		await revokeTeamFeature(request.teamId, FEATURES.HOST_COMPETITIONS)
 	}
 
+	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request rejected",
 		attributes: {
@@ -386,7 +411,28 @@ export async function rejectOrganizerRequest({
 		},
 	})
 
-	// TODO: Send rejection email to requester
+	// Get requester and team info for email
+	const requester = await db.query.userTable.findFirst({
+		where: eq(userTable.id, request.userId),
+		columns: { firstName: true, lastName: true, email: true },
+	})
+
+	const team = await db.query.teamTable.findFirst({
+		where: eq(teamTable.id, request.teamId),
+		columns: { name: true },
+	})
+
+	if (requester?.email && team) {
+		const { sendOrganizerRejectionEmail } = await import("@/utils/email")
+		await sendOrganizerRejectionEmail({
+			email: requester.email,
+			recipientName:
+				`${requester.firstName || ""} ${requester.lastName || ""}`.trim() ||
+				"there",
+			teamName: team.name,
+			adminNotes,
+		})
+	}
 
 	return updatedRequest
 }

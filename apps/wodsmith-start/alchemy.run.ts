@@ -93,6 +93,8 @@ import {
 	R2Bucket,
 	TanStackStart,
 } from "alchemy/cloudflare"
+import { GitHubComment } from "alchemy/github"
+import { CloudflareStateStore } from "alchemy/state"
 
 /**
  * Initialize the Alchemy application context.
@@ -119,6 +121,12 @@ import {
  * npx alchemy deploy --stage prod
  * ```
  */
+/**
+ * Current stage name for conditional configuration.
+ * PR stages are formatted as `pr-{number}` (e.g., `pr-42`).
+ */
+const stage = process.env.STAGE ?? "dev"
+
 const app = await alchemy("wodsmith", {
 	/**
 	 * Deployment stage/environment name.
@@ -132,8 +140,9 @@ const app = await alchemy("wodsmith", {
 	 * - "dev"     → Development database, no custom domain
 	 * - "staging" → Staging database, staging domain (if configured)
 	 * - "prod"    → Production database, start.wodsmith.com domain
+	 * - "pr-42"   → PR preview with pr-42.preview.wodsmith.com domain
 	 */
-	stage: process.env.STAGE ?? "dev",
+	stage,
 
 	/**
 	 * Deployment phase: create/update (`up`) or tear down (`destroy`).
@@ -155,6 +164,22 @@ const app = await alchemy("wodsmith", {
 	 * ```
 	 */
 	phase: process.argv.includes("--destroy") ? "destroy" : "up",
+
+	/**
+	 * State storage backend for tracking infrastructure state.
+	 *
+	 * @remarks
+	 * - **Local development**: Uses FileSystemStateStore (`.alchemy/` directory)
+	 * - **CI/CD pipelines**: Uses CloudflareStateStore for persistent, shared state
+	 *
+	 * CloudflareStateStore enables ephemeral CI runners to access state from
+	 * previous deployments, which is required for incremental updates and destroy operations.
+	 *
+	 * @see {@link https://alchemy.run/docs/state-management State Management Docs}
+	 */
+	stateStore: process.env.CI
+		? (scope) => new CloudflareStateStore(scope)
+		: undefined,
 })
 
 /**
@@ -186,6 +211,11 @@ const db = await D1Database("db", {
 	 * Migrations are applied in filename order on each deployment.
 	 */
 	migrationsDir: "./src/db/migrations",
+	/**
+	 * Adopt existing D1 database if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
 })
 
 /**
@@ -210,7 +240,13 @@ const db = await D1Database("db", {
  *
  * @see {@link https://developers.cloudflare.com/kv/ KV Documentation}
  */
-const kvSession = await KVNamespace("wodsmith-sessions")
+const kvSession = await KVNamespace("wodsmith-sessions", {
+	/**
+	 * Adopt existing KV namespace if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
+})
 
 /**
  * Cloudflare R2 bucket for file uploads and media storage.
@@ -234,7 +270,43 @@ const kvSession = await KVNamespace("wodsmith-sessions")
  *
  * @see {@link https://developers.cloudflare.com/r2/ R2 Documentation}
  */
-const r2Bucket = await R2Bucket("wodsmith-uploads")
+const r2Bucket = await R2Bucket("wodsmith-uploads", {
+	/**
+	 * Adopt existing R2 bucket if it already exists.
+	 * Required for production where resources were created before Alchemy.
+	 */
+	adopt: true,
+})
+
+/**
+ * Determines the custom domain(s) for the current deployment stage.
+ *
+ * @param currentStage - The current deployment stage (e.g., "dev", "prod", "pr-42")
+ * @returns Array of domains for prod/PR stages, undefined for others (uses workers.dev)
+ *
+ * @remarks
+ * Domain assignment logic:
+ * - **prod**: Returns `["start.wodsmith.com"]` for production
+ * - **pr-N**: Returns `["pr-N.preview.wodsmith.com"]` for PR previews
+ * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
+ *
+ * @example
+ * ```typescript
+ * getDomains("prod")    // ["start.wodsmith.com"]
+ * getDomains("pr-42")   // ["pr-42.preview.wodsmith.com"]
+ * getDomains("staging") // undefined
+ * getDomains("dev")     // undefined
+ * ```
+ */
+function getDomains(currentStage: string): string[] | undefined {
+	if (currentStage === "prod") {
+		return ["start.wodsmith.com"]
+	}
+	if (currentStage.startsWith("pr-")) {
+		return [`${currentStage}.preview.wodsmith.com`]
+	}
+	return undefined
+}
 
 /**
  * TanStack Start application deployment configuration.
@@ -293,11 +365,63 @@ const website = await TanStackStart("app", {
 	 * 1. DNS zone managed by Cloudflare
 	 * 2. Appropriate DNS records (Alchemy creates these automatically)
 	 *
-	 * Only production gets a custom domain. Dev/staging use auto-generated
-	 * `*.workers.dev` subdomains to avoid DNS conflicts.
+	 * Domain assignment by environment:
+	 * - **prod**: `start.wodsmith.com` (production domain)
+	 * - **pr-N**: `pr-N.preview.wodsmith.com` (PR preview subdomain)
+	 * - **other**: Auto-generated `*.workers.dev` subdomain
 	 */
-	domains: process.env.STAGE === "prod" ? ["start.wodsmith.com"] : undefined,
+	domains: getDomains(stage),
+
+	/**
+	 * Adopt existing Worker if it already exists.
+	 * Required for production where the Worker was created before Alchemy.
+	 */
+	adopt: true,
 })
+
+/**
+ * GitHub PR comment with preview URL for pull request deployments.
+ *
+ * When deploying from a pull request (PULL_REQUEST env var is set), this resource
+ * creates or updates a comment on the PR with the preview deployment URL.
+ * This provides immediate feedback to reviewers about where to test the changes.
+ *
+ * @remarks
+ * **Environment variables required:**
+ * - `PULL_REQUEST`: PR number (set by CI workflow)
+ * - `GITHUB_SHA`: Commit SHA for display (optional, auto-detected in GitHub Actions)
+ * - `GITHUB_TOKEN`: Token with `pull-requests: write` permission (auto-available in Actions)
+ *
+ * **Comment behavior:**
+ * - Creates a new comment on first deployment
+ * - Updates existing comment on subsequent deployments (idempotent)
+ * - Comment includes preview URL, commit SHA, and deployment timestamp
+ *
+ * @see {@link https://alchemy.run/docs/github GitHub Integration Docs}
+ */
+if (process.env.PULL_REQUEST) {
+	const prNumber = Number(process.env.PULL_REQUEST)
+	const previewUrl = `https://pr-${prNumber}.preview.wodsmith.com`
+	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
+
+	await GitHubComment("preview-comment", {
+		owner: "wodsmith",
+		repository: "thewodapp",
+		issueNumber: prNumber,
+		body: `## 🚀 Preview Deployed
+
+**URL:** ${previewUrl}
+
+| Detail | Value |
+|--------|-------|
+| Commit | \`${commitSha}\` |
+| Stage | \`pr-${prNumber}\` |
+| Deployed | ${new Date().toISOString()} |
+
+---
+_This comment is automatically updated on each push to this PR._`,
+	})
+}
 
 /**
  * Exported environment type for use throughout the application.

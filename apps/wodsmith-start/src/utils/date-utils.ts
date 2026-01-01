@@ -66,6 +66,26 @@ export function getLocalDateKey(date: Date | string | number): string {
 }
 
 /**
+ * Check if two dates represent the same calendar day (using UTC).
+ * Useful for determining if a competition is single-day.
+ */
+export function isSameUTCDay(
+	date1: Date | string | number | null | undefined,
+	date2: Date | string | number | null | undefined,
+): boolean {
+	if (date1 == null || date2 == null) return false
+	const d1 = date1 instanceof Date ? date1 : new Date(date1)
+	const d2 = date2 instanceof Date ? date2 : new Date(date2)
+	if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return false
+
+	return (
+		d1.getUTCFullYear() === d2.getUTCFullYear() &&
+		d1.getUTCMonth() === d2.getUTCMonth() &&
+		d1.getUTCDate() === d2.getUTCDate()
+	)
+}
+
+/**
  * Format a UTC date for display (e.g., "Jan 15").
  * Uses UTC to preserve the calendar date stored in the database.
  */
@@ -136,7 +156,7 @@ export function parseDateInputAsUTC(dateStr: string): Date {
 
 /**
  * Format a UTC date range for display (e.g., "January 15-17, 2024").
- * Handles same month, different months, and different years.
+ * Handles single-day events, same month, different months, and different years.
  */
 export function formatUTCDateRange(
 	startDate: Date | string | number,
@@ -167,6 +187,15 @@ export function formatUTCDateRange(
 	const endMonth = months[end.getUTCMonth()]
 	const endDay = end.getUTCDate()
 	const endYear = end.getUTCFullYear()
+
+	// Single-day event (same date)
+	if (
+		startDay === endDay &&
+		start.getUTCMonth() === end.getUTCMonth() &&
+		startYear === endYear
+	) {
+		return `${startMonth} ${startDay}, ${startYear}`
+	}
 
 	// Same month and year
 	if (start.getUTCMonth() === end.getUTCMonth() && startYear === endYear) {

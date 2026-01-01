@@ -1,6 +1,6 @@
 /**
  * Authentication Server Functions for TanStack Start
- * Handles password reset, email verification, and other auth-related server functions
+ * Handles sign-in, sign-up, password reset, email verification, and other auth-related server functions
  */
 
 import { env } from "cloudflare:workers"
@@ -13,22 +13,366 @@ import {
 	PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS,
 } from "@/constants"
 import { getDb } from "@/db"
-import { userTable } from "@/db/schema"
-import { getSessionFromCookie } from "@/utils/auth"
+import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
+import {
+	canSignUp,
+	createAndStoreSession,
+	getSessionFromCookie,
+} from "@/utils/auth"
 import { getResetTokenKey, getVerificationTokenKey } from "@/utils/auth-utils"
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/utils/email"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
+import { hashPassword, verifyPassword } from "@/utils/password-hasher"
+import { validateTurnstileToken } from "@/utils/validate-captcha"
 
 // Create a CUID2 generator with 32 character length for tokens
 const createToken = init({
 	length: 32,
 })
 
-// Input validation schema for forgot password
+// ============================================================================
+// Input Schemas
+// ============================================================================
+
+export const signInSchema = z.object({
+	email: z.string().email("Please enter a valid email address"),
+	password: z.string().min(1, "Password is required"),
+})
+
+export type SignInInput = z.infer<typeof signInSchema>
+
+export const signUpSchema = z.object({
+	email: z.string().email("Please enter a valid email address"),
+	firstName: z.string().min(1, "First name is required"),
+	lastName: z.string().min(1, "Last name is required"),
+	password: z
+		.string()
+		.min(8, "Password must be at least 8 characters")
+		.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+		.regex(/[a-z]/, "Password must contain at least one lowercase letter")
+		.regex(/[0-9]/, "Password must contain at least one number"),
+	captchaToken: z.string().optional(),
+})
+
+export type SignUpInput = z.infer<typeof signUpSchema>
+
+export const resetPasswordSchema = z
+	.object({
+		token: z.string().min(1, "Token is required"),
+		password: z
+			.string()
+			.min(8, "Password must be at least 8 characters")
+			.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+			.regex(/[a-z]/, "Password must contain at least one lowercase letter")
+			.regex(/[0-9]/, "Password must contain at least one number"),
+		confirmPassword: z.string(),
+	})
+	.refine((data) => data.password === data.confirmPassword, {
+		message: "Passwords do not match",
+		path: ["confirmPassword"],
+	})
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
+
+export const verifyEmailSchema = z.object({
+	token: z.string().min(1, "Verification token is required"),
+})
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>
+
 const forgotPasswordInputSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
+	captchaToken: z.string().optional(),
 })
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordInputSchema>
+
+// ============================================================================
+// Server Functions
+// ============================================================================
+
+/**
+ * Sign in with email and password
+ */
+export const signInFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => signInSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Find user by email (case-insensitive, like forgotPasswordFn)
+		const user = await db.query.userTable.findFirst({
+			where: eq(userTable.email, data.email.toLowerCase()),
+		})
+
+		if (!user) {
+			throw new Error("Invalid email or password")
+		}
+
+		// Check if user has only Google SSO
+		if (!user.passwordHash && user.googleAccountId) {
+			throw new Error("Please sign in with your Google account instead.")
+		}
+
+		if (!user.passwordHash) {
+			throw new Error("Invalid email or password")
+		}
+
+		// Verify password
+		const isValid = await verifyPassword({
+			storedHash: user.passwordHash,
+			passwordAttempt: data.password,
+		})
+
+		if (!isValid) {
+			throw new Error("Invalid email or password")
+		}
+
+		// Create session and set cookie
+		await createAndStoreSession(user.id, "password")
+
+		return { success: true, userId: user.id }
+	})
+
+/**
+ * Sign up with email and password
+ */
+export const signUpFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => signUpSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Validate CAPTCHA token if provided
+		if (data.captchaToken) {
+			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+			if (!isValidCaptcha) {
+				throw new Error("CAPTCHA verification failed. Please try again.")
+			}
+		}
+
+		// Check if email is disposable
+		await canSignUp({ email: data.email })
+
+		// Check if email is already taken
+		const existingUser = await db.query.userTable.findFirst({
+			where: eq(userTable.email, data.email),
+		})
+
+		if (existingUser) {
+			throw new Error("Email already taken")
+		}
+
+		// Hash the password
+		const hashedPassword = await hashPassword({ password: data.password })
+
+		// Create the user with auto-verified email
+		const [user] = await db
+			.insert(userTable)
+			.values({
+				email: data.email,
+				firstName: data.firstName,
+				lastName: data.lastName,
+				passwordHash: hashedPassword,
+				emailVerified: new Date(), // Auto-verify email on signup
+			})
+			.returning()
+
+		if (!user || !user.email) {
+			throw new Error("Failed to create user")
+		}
+
+		// Create a personal team for the user (inline logic)
+		const personalTeamName = `${user.firstName || "Personal"}'s Team (personal)`
+		const personalTeamSlug = `${
+			user.firstName?.toLowerCase() || "personal"
+		}-${user.id.slice(-6)}`
+
+		const personalTeamResult = await db
+			.insert(teamTable)
+			.values({
+				name: personalTeamName,
+				slug: personalTeamSlug,
+				description:
+					"Personal team for individual programming track subscriptions",
+				isPersonalTeam: 1,
+				personalTeamOwnerId: user.id,
+			})
+			.returning()
+		const personalTeam = personalTeamResult[0]
+
+		if (!personalTeam) {
+			throw new Error("Failed to create personal team")
+		}
+
+		// Add the user as a member of their personal team
+		await db.insert(teamMembershipTable).values({
+			teamId: personalTeam.id,
+			userId: user.id,
+			roleId: "owner", // System role for team owner
+			isSystemRole: 1,
+			joinedAt: new Date(),
+			isActive: 1,
+		})
+
+		// Create session and set cookie
+		await createAndStoreSession(user.id, "password")
+
+		return { success: true, userId: user.id }
+	})
+
+/**
+ * Get current session (for checking if user is already authenticated)
+ */
+export const getSessionFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		// TODO: Implement getSessionFromCookie for TanStack Start
+		// Check if user is already authenticated
+		return null
+	},
+)
+
+/**
+ * Validate reset token exists and is not expired
+ */
+export const validateResetTokenFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ token: z.string() }).parse(data),
+	)
+	.handler(async ({ data }) => {
+		const tokenData = await env.KV_SESSION.get(getResetTokenKey(data.token))
+
+		if (!tokenData) {
+			return { valid: false, error: "Invalid or expired reset token" }
+		}
+
+		try {
+			const parsed = JSON.parse(tokenData) as {
+				userId: string
+				expiresAt: string
+			}
+
+			// Check if token is expired
+			if (new Date() > new Date(parsed.expiresAt)) {
+				return { valid: false, error: "Reset token has expired" }
+			}
+
+			return { valid: true }
+		} catch {
+			return { valid: false, error: "Invalid token format" }
+		}
+	})
+
+/**
+ * Reset password with token
+ */
+export const resetPasswordFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => resetPasswordSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Find valid reset token
+		const resetTokenStr = await env.KV_SESSION.get(getResetTokenKey(data.token))
+
+		if (!resetTokenStr) {
+			throw new Error("Invalid or expired reset token")
+		}
+
+		const resetToken = JSON.parse(resetTokenStr) as {
+			userId: string
+			expiresAt: string
+		}
+
+		// Check if token is expired (although KV should have auto-deleted it)
+		if (new Date() > new Date(resetToken.expiresAt)) {
+			throw new Error("Reset token has expired")
+		}
+
+		// Find user
+		const user = await db.query.userTable.findFirst({
+			where: eq(userTable.id, resetToken.userId),
+		})
+
+		if (!user) {
+			throw new Error("User not found")
+		}
+
+		// Hash new password and update
+		const passwordHash = await hashPassword({ password: data.password })
+		await db
+			.update(userTable)
+			.set({ passwordHash })
+			.where(eq(userTable.id, resetToken.userId))
+
+		// Delete the used token
+		await env.KV_SESSION.delete(getResetTokenKey(data.token))
+
+		return { success: true }
+	})
+
+/**
+ * Verify email with token
+ */
+export const verifyEmailFn = createServerFn({ method: "POST" })
+	.inputValidator(
+		(data: unknown): VerifyEmailInput => verifyEmailSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const kv = env.KV_SESSION
+
+		if (!kv) {
+			throw new Error("Can't connect to KV store")
+		}
+
+		const verificationTokenStr = await kv.get(
+			getVerificationTokenKey(data.token),
+		)
+
+		if (!verificationTokenStr) {
+			throw new Error("Verification token not found or expired")
+		}
+
+		const verificationToken = JSON.parse(verificationTokenStr) as {
+			userId: string
+			expiresAt: string
+		}
+
+		// Check if token is expired (although KV should have auto-deleted it)
+		if (new Date() > new Date(verificationToken.expiresAt)) {
+			throw new Error("Verification token not found or expired")
+		}
+
+		const db = getDb()
+
+		// Find user
+		const user = await db.query.userTable.findFirst({
+			where: eq(userTable.id, verificationToken.userId),
+		})
+
+		if (!user) {
+			throw new Error("User not found")
+		}
+
+		try {
+			// Update user's email verification status
+			await db
+				.update(userTable)
+				.set({ emailVerified: new Date() })
+				.where(eq(userTable.id, verificationToken.userId))
+
+			// Update all sessions of the user to reflect the new email verification status
+			await updateAllSessionsOfUser(verificationToken.userId)
+
+			// Delete the used token
+			await kv.delete(getVerificationTokenKey(data.token))
+
+			// Add a small delay to ensure all updates are processed
+			await new Promise((resolve) => setTimeout(resolve, 500))
+
+			return { success: true }
+		} catch (error) {
+			console.error(error)
+			throw new Error("An unexpected error occurred")
+		}
+	})
 
 /**
  * Request a password reset email.
@@ -38,6 +382,14 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => forgotPasswordInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const db = getDb()
+
+		// Validate CAPTCHA token if provided
+		if (data.captchaToken) {
+			const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
+			if (!isValidCaptcha) {
+				throw new Error("CAPTCHA verification failed. Please try again.")
+			}
+		}
 
 		try {
 			// Find user by email (case-insensitive)
