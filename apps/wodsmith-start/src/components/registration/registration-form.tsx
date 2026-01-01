@@ -1,6 +1,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { Loader2, User, Users } from "lucide-react"
+import { isSameUTCDay } from "@/utils/date-utils"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -238,10 +239,15 @@ export function RegistrationForm({
 				</CardHeader>
 				<CardContent className="space-y-2">
 					<div>
-						<p className="text-muted-foreground text-sm">Competition Dates</p>
+						<p className="text-muted-foreground text-sm">
+							{isSameUTCDay(competition.startDate, competition.endDate)
+								? "Competition Date"
+								: "Competition Dates"}
+						</p>
 						<p className="font-medium">
-							{formatDate(competition.startDate)} -{" "}
-							{formatDate(competition.endDate)}
+							{isSameUTCDay(competition.startDate, competition.endDate)
+								? formatDate(competition.startDate)
+								: `${formatDate(competition.startDate)} - ${formatDate(competition.endDate)}`}
 						</p>
 					</div>
 					<div>

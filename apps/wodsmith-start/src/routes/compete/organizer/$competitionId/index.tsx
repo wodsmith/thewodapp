@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card"
 import { getCompetitionRevenueStatsFn } from "@/server-fns/commerce-fns"
 import { getCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
-import { formatUTCDateFull } from "@/utils/date-utils"
+import { formatUTCDateFull, isSameUTCDay } from "@/utils/date-utils"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -106,11 +106,14 @@ function CompetitionOverviewPage() {
 					<div className="grid gap-4 md:grid-cols-2">
 						<div>
 							<div className="text-sm font-medium text-muted-foreground">
-								Competition Dates
+								{isSameUTCDay(competition.startDate, competition.endDate)
+									? "Competition Date"
+									: "Competition Dates"}
 							</div>
 							<div className="mt-1 text-sm">
-								{formatUTCDateFull(competition.startDate)} -{" "}
-								{formatUTCDateFull(competition.endDate)}
+								{isSameUTCDay(competition.startDate, competition.endDate)
+									? formatUTCDateFull(competition.startDate)
+									: `${formatUTCDateFull(competition.startDate)} - ${formatUTCDateFull(competition.endDate)}`}
 							</div>
 						</div>
 						<div>

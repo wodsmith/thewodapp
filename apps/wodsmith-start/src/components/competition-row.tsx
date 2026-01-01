@@ -12,7 +12,11 @@ import {
 import { ListItem } from "@/components/ui/list-item"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { cn } from "@/utils/cn"
-import { formatUTCDateFull, formatUTCDateShort } from "@/utils/date-utils"
+import {
+	formatUTCDateFull,
+	formatUTCDateShort,
+	isSameUTCDay,
+} from "@/utils/date-utils"
 
 type CompetitionStatus =
 	| "registration-open"
@@ -146,8 +150,10 @@ export function CompetitionRow({
 						<div className="hidden md:flex items-center gap-3 text-sm text-muted-foreground ml-auto shrink-0">
 							<span className="flex items-center gap-1">
 								<CalendarIcon className="h-3.5 w-3.5" />
-								Event: {formatUTCDateShort(competition.startDate)} -{" "}
-								{formatUTCDateShort(competition.endDate)}
+								Event:{" "}
+								{isSameUTCDay(competition.startDate, competition.endDate)
+									? formatUTCDateShort(competition.startDate)
+									: `${formatUTCDateShort(competition.startDate)} - ${formatUTCDateShort(competition.endDate)}`}
 							</span>
 							{competition.organizingTeam && (
 								<span className="flex items-center gap-1">
@@ -165,8 +171,10 @@ export function CompetitionRow({
 						)}
 						<span className="flex items-center gap-1">
 							<CalendarIcon className="h-3 w-3" />
-							Event: {formatUTCDateShort(competition.startDate)} -{" "}
-							{formatUTCDateShort(competition.endDate)}
+							Event:{" "}
+							{isSameUTCDay(competition.startDate, competition.endDate)
+								? formatUTCDateShort(competition.startDate)
+								: `${formatUTCDateShort(competition.startDate)} - ${formatUTCDateShort(competition.endDate)}`}
 						</span>
 						{competition.organizingTeam && (
 							<span className="flex items-center gap-1 truncate">
