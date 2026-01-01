@@ -101,7 +101,23 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 )
 
 export const Route = createFileRoute("/compete/organizer")({
-	beforeLoad: async () => {
+	beforeLoad: async ({ location }) => {
+		// Skip auth/entitlement check for the onboard page - it handles auth inline
+		// Note: We return session: null here, but the onboard page's loader
+		// fetches the session directly via getOptionalSessionFn() to avoid
+		// import chain issues with cloudflare:workers
+		if (location.pathname.startsWith("/compete/organizer/onboard")) {
+			return {
+				session: null,
+				entitlements: {
+					hasHostCompetitions: false,
+					isPendingApproval: false,
+					isApproved: false,
+					activeOrganizingTeamId: null,
+				},
+			}
+		}
+
 		// Validate session - organizer routes require authentication
 		const session = await validateSession()
 
