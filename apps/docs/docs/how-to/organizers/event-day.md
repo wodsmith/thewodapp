@@ -4,87 +4,128 @@ sidebar_position: 3
 
 # How to Run Event Day
 
-Manage check-in, scoring, and leaderboards during your competition.
+Manage scoring and leaderboards during your competition.
 
 ## Prerequisites
 
 - Competition with scheduled heats
-- Judges/volunteers with access
+- Judges/volunteers with access (optional)
 
-## Athlete Check-In
-
-### Setting Up Check-In
-
-1. Go to **Event Day** → **Check-In**
-2. View athletes by heat or division
-3. Share check-in station link with volunteers
-
-### Checking In Athletes
-
-When athletes arrive:
-
-1. Find athlete by name or scan QR code
-2. Click **Check In**
-3. Athlete status updates to "Checked In"
+<!-- FEATURE NOT FOUND: Athlete Check-In feature -->
+<!-- FEATURE NOT FOUND: QR code scanning for check-in -->
+<!-- FEATURE NOT FOUND: Check-in station sharing -->
 
 ## Entering Scores
 
-### Judge Scoring
+### Accessing Score Entry
 
-1. Open the scoring interface
-2. Select the current heat
-3. Enter each athlete's score
-4. Click **Submit**
+1. Open your competition from **ORGANIZE**
+2. Click **Results** in the sidebar under "Run Competition"
+
+![Results page](/img/how-to/organizers/event-results-page.png)
+
+### Score Entry Interface
+
+The Results page shows:
+- **Event selector** - Choose which event to score
+- **Division filter** - Filter athletes by division
+- **Score format** - Shows expected format (Time, Reps, etc.)
+- **Heat sections** - Athletes grouped by heat assignment
+
+### Entering Scores
+
+1. Select the event from the dropdown
+2. Find the athlete in their heat section
+3. Enter the score in the input field
+4. Scores **auto-save** as you type
+
+![Score entry with preview](/img/how-to/organizers/event-score-entry.png)
 
 ### Score Entry Formats
 
-| Workout Type | Entry Format |
-|--------------|--------------|
-| For Time | mm:ss or CAP+reps |
-| AMRAP | Rounds + Reps |
-| Max Weight | Weight in lbs/kg |
+| Workout Type | Entry Format | Example |
+|--------------|--------------|---------|
+| For Time | mm:ss or m:ss | 3:45, 12:30 |
+| AMRAP | Rounds + Reps | 8+15 |
+| Max Weight | Weight value | 225 |
+
+The score preview shows how your entry will be interpreted.
+
+### Score Status
+
+Each score shows a status:
+- **Pending** - Score entered, not yet confirmed
+- **-** - No score entered
+
+<!-- FEATURE NOT FOUND: Judge-specific scoring interface -->
+<!-- FEATURE NOT FOUND: Score submission button -->
 
 ## Managing the Leaderboard
 
+### Public Leaderboard
+
+Athletes and spectators can view the leaderboard on the public competition page:
+
+1. Navigate to your competition's public page
+2. Click the **Leaderboard** tab
+
+![Public leaderboard](/img/how-to/organizers/event-public-leaderboard.png)
+
+The leaderboard shows:
+- Overall ranking
+- Athlete name
+- Division
+- Score status
+
+### Division Filtering
+
+Use the division dropdown to view rankings for specific divisions (RX, Scaled, Masters, etc.).
+
 ### Automatic Updates
 
-Scores calculate rankings automatically when entered.
+Scores appear on the leaderboard automatically after entry. Rankings recalculate in real-time.
 
-### Manual Adjustments
-
-To correct a score:
-
-1. Go to **Leaderboard** → **Manage**
-2. Find the athlete
-3. Click **Edit Score**
-4. Enter correction
-5. Save (rankings recalculate)
+<!-- FEATURE NOT FOUND: Manual score corrections/Edit Score feature -->
+<!-- FEATURE NOT FOUND: Display Mode for projectors/TVs -->
+<!-- FEATURE NOT FOUND: Finalize Results feature -->
+<!-- FEATURE NOT FOUND: Athlete notifications -->
 
 ## Handling Ties
 
-Tiebreakers apply automatically based on your configuration:
+Rankings are determined by:
+1. Total points across events
+2. Earlier registration time (tiebreaker)
 
-1. Time-based (fastest segment)
-2. Head-to-head
-3. Earlier registration
+<!-- FEATURE NOT FOUND: Configurable tiebreaker options -->
 
-## Live Display
+## Managing Volunteers & Judges
 
-To show leaderboard publicly:
+### Volunteer Management
 
-1. Go to **Leaderboard** → **Display Mode**
-2. Choose display format
-3. Connect to projector/TV
-4. Auto-refreshes with new scores
+1. Go to **Volunteers** in the sidebar
+2. Invite volunteers or share the signup link
+3. Approve volunteer applications
 
-## Publishing Final Results
+![Volunteers page](/img/how-to/organizers/event-volunteers-page.png)
 
-After all events complete:
+### Judge Scheduling
 
-1. Review final standings
-2. Click **Finalize Results**
-3. Results lock and become official
-4. Athletes receive notifications
+The Volunteers page includes judge rotation management:
+
+1. Select an event from the dropdown
+2. Configure rotation defaults:
+   - **Heats per Rotation** - How many heats before judges rotate
+   - **Lane Shift Pattern** - How judges move between lanes
+3. Assign judges to lanes in the rotation timeline grid
+4. Click **Publish Rotations** when ready
+
+### Rotation Settings
+
+| Setting | Description |
+|---------|-------------|
+| **Default Heats per Rotation** | Number of heats before judges rotate |
+| **Lane Shift Pattern** | Stay in Lane, Shift Right, etc. |
+| **Heat Buffer** | Minimum heats between a judge's rotations |
 
 ---
 

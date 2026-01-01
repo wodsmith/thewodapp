@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # How to Manage Registrations
 
-Process athlete registrations, handle waitlists, and manage refunds.
+View and filter athlete registrations for your competition.
 
 ## Prerequisites
 
@@ -13,53 +13,39 @@ Process athlete registrations, handle waitlists, and manage refunds.
 
 ## Viewing Registrations
 
-1. Open your competition
-2. Click **Registrations**
-3. View all registrations with status
+1. Open your competition from the **Organizer** dashboard
+2. Click **Registrations** in the sidebar
+3. View all registered athletes
 
-## Registration Statuses
+![Registrations list](/img/how-to/organizers/registrations-list.png)
 
-| Status | Meaning |
-|--------|---------|
-| **Confirmed** | Paid and approved |
-| **Pending** | Awaiting payment or approval |
-| **Waitlisted** | Division full, on waitlist |
-| **Cancelled** | Registration cancelled |
+The registrations table displays:
+- **#** - Registration number
+- **Athlete** - Name and email
+- **Division** - The division they registered for
+- **Team** - Team name (if applicable)
+- **Registered** - Registration date
 
-## Approving Registrations
+## Filtering by Division
 
-For competitions requiring approval:
+Use the division filter to view registrations for a specific division:
 
-1. Go to **Registrations**
-2. Find pending registrations
-3. Click **Approve** or **Reject**
+1. Click the **All Divisions** dropdown
+2. Select a division to filter
 
-## Managing the Waitlist
+![Division filter](/img/how-to/organizers/registrations-division-filter.png)
 
-When spots open:
+The dropdown shows the count of registrations per division (e.g., "RX (10)").
 
-1. Go to **Registrations** → **Waitlist**
-2. Waitlist is ordered by registration time
-3. Click **Promote** to move to confirmed
-4. Athlete receives notification
+<!-- FEATURE NOT FOUND: Registration Statuses (Confirmed, Pending, Waitlisted, Cancelled) - The current implementation shows all registrations without status indicators -->
 
-## Processing Refunds
+<!-- FEATURE NOT FOUND: Approving/Rejecting Registrations - There are no Approve or Reject buttons. All registrations are auto-confirmed. -->
 
-To refund a registration:
+<!-- FEATURE NOT FOUND: Waitlist Management - There is no waitlist feature in this application. Divisions do not have capacity limits and all registrations are immediately accepted. -->
 
-1. Find the registration
-2. Click **...** → **Refund**
-3. Select full or partial refund
-4. Confirm refund
+<!-- FEATURE NOT FOUND: Refunds - There is no refund functionality in the registration management interface. Refunds would need to be processed directly through your payment provider. -->
 
-Refunds process through your connected payment provider.
-
-## Exporting Registrations
-
-1. Go to **Registrations**
-2. Click **Export**
-3. Choose format: CSV or PDF
-4. Download athlete list
+<!-- FEATURE NOT FOUND: Export Registrations - There is no export button to download registrations as CSV or PDF. -->
 
 ---
 

@@ -8,94 +8,100 @@ All configurable options for WodSmith competitions.
 
 ## General Settings
 
+Found on the **Edit Competition** page:
+
+![Edit competition form](/img/reference/settings-edit-competition.png)
+
 | Setting | Type | Description |
 |---------|------|-------------|
 | **Name** | String | Competition display name |
-| **Slug** | String | URL identifier (auto-generated) |
-| **Date** | DateTime | Competition date and time |
-| **End Date** | DateTime | Optional multi-day end |
-| **Location** | String | Venue name and address |
-| **Description** | Text | Markdown-supported description |
-| **Published** | Boolean | Publicly visible |
+| **Slug** | String | URL identifier (globally unique, lowercase, hyphens only) |
+| **Profile Image** | Image | Competition logo (recommended 400x400px) |
+| **Banner Image** | Image | Hero banner (recommended 1200x400px) |
+| **Series** | Dropdown | Optional series assignment |
+| **Start Date** | Date | Competition start date |
+| **End Date** | Date | Competition end date |
+| **Registration Opens** | Date | When registration opens (optional) |
+| **Registration Closes** | Date | When registration closes (optional) |
+| **Description** | Text | Competition details |
+| **Status** | Dropdown | Draft (organizers only) or Published (visible to athletes) |
+| **Visibility** | Dropdown | Public (listed) or Private (direct URL only) |
 
-## Registration Settings
+## Rotation Settings
+
+Found on the **Settings** page:
+
+![Rotation settings](/img/reference/settings-rotation.png)
 
 | Setting | Type | Description |
 |---------|------|-------------|
-| **Opens At** | DateTime | Registration open date |
-| **Closes At** | DateTime | Registration close date |
-| **Require Approval** | Boolean | Manual registration approval |
-| **Waitlist Enabled** | Boolean | Allow waitlist signups |
-| **Max Athletes** | Integer | Total capacity (0 = unlimited) |
+| **Default Heats Per Rotation** | Number (1-10) | How many heats judges work before rotating |
+| **Default Lane Shift Pattern** | Dropdown | How judges rotate between lanes |
 
 ## Waiver Settings
 
-| Setting | Type | Description |
-|---------|------|-------------|
-| **Require Waiver** | Boolean | Waiver required to register |
-| **Waiver Text** | Text | Legal waiver content |
-| **Signature Type** | Enum | Electronic, typed name, or checkbox |
+Found on the **Waivers** page:
 
-## Payment Settings
+![Waiver creation dialog](/img/reference/settings-waiver-dialog.png)
 
 | Setting | Type | Description |
 |---------|------|-------------|
-| **Entry Fee** | Decimal | Default registration fee |
-| **Currency** | Enum | USD, EUR, GBP, etc. |
-| **Payment Provider** | Enum | Connected payment account |
-| **Tax Rate** | Decimal | Optional tax percentage |
+| **Title** | String | Waiver name |
+| **Content** | Rich Text | Legal waiver content with formatting |
+| **Required** | Checkbox | Athletes must sign to register |
 
-### Refund Policy Options
-
-| Setting | Description |
-|---------|-------------|
-| **Full Refund** | 100% refund allowed |
-| **Partial Refund** | Percentage refund |
-| **No Refunds** | Non-refundable |
-| **Deadline** | Refund cutoff date |
+:::note
+Multiple waivers can be created per competition. Athletes sign waivers during registration.
+:::
 
 ## Event Settings
 
-| Setting | Type | Description |
-|---------|------|-------------|
-| **Name** | String | Event/workout name |
-| **Order** | Integer | Display order |
-| **Time Cap** | Integer | Maximum time in seconds |
-| **Scoring Type** | Enum | Time, reps, weight, points |
-| **Tiebreaker** | Enum | Tiebreaker method |
+Found when editing an individual event:
 
-## Schedule Settings
+![Event edit form](/img/reference/settings-event-edit.png)
 
 | Setting | Type | Description |
 |---------|------|-------------|
-| **Heat Size** | Integer | Athletes per heat |
-| **Heat Duration** | Integer | Minutes per heat |
-| **Transition Time** | Integer | Minutes between heats |
-| **Start Time** | DateTime | First heat start |
+| **Event Name** | String | Display name |
+| **Scheme** | Dropdown | For Time, AMRAP, etc. |
+| **Score Type** | Dropdown | Min, Max, etc. |
+| **Tiebreak Scheme** | Dropdown | Optional tiebreaker method |
+| **Description** | Text | Workout details (supports formatting) |
+| **Movements** | Tags | Track which movements are used |
+| **Points Multiplier** | Number (1-1000%) | Scoring weight (100 = normal) |
+| **Presented by** | Dropdown | Sponsor assignment |
+| **Organizer Notes** | Text | Internal notes (not visible to athletes) |
+| **Division Variations** | Text per division | Customize workout for each division |
 
-## Display Settings
+## Venue & Schedule Settings
+
+Found on the **Schedule** page:
 
 | Setting | Type | Description |
 |---------|------|-------------|
-| **Show Leaderboard** | Boolean | Public leaderboard |
-| **Show Schedule** | Boolean | Public schedule |
-| **Show Workouts** | Boolean | Public workout details |
-| **Workout Reveal Date** | DateTime | When workouts become visible |
+| **Venue Name** | String | Location identifier |
+| **Lanes** | Number | Athletes per heat |
+| **Duration** | Number | Minutes per heat |
+| **Heat Assignments** | Dropdown | Draft or Published |
+| **Time Cap** | Number | Minutes |
+
+## Pricing Settings
+
+Found on the **Pricing** page (requires Stripe connection):
+
+| Setting | Type | Description |
+|---------|------|-------------|
+| **Entry Fee** | Decimal | Registration fee per athlete |
+
+:::note
+Stripe connection is required to charge registration fees. Free registrations work without Stripe.
+:::
 
 ## Access Control
 
-| Setting | Type | Description |
-|---------|------|-------------|
-| **Organizers** | User[] | Users with organizer access |
-| **Judges** | User[] | Users with scoring access |
-| **Volunteers** | User[] | Users with check-in access |
-
-## API Settings
-
-| Setting | Type | Description |
-|---------|------|-------------|
-| **Webhook URL** | URL | Registration notifications |
-| **API Access** | Boolean | Enable API access |
+Competition-level access is managed through:
+- **Organizers**: Users who can manage the competition
+- **Volunteers**: Users who can check in athletes and enter scores
 
 ---
 
