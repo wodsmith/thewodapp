@@ -23,10 +23,15 @@ const app = await alchemy('wodsmith', {
 /**
  * Determines the custom domain for the docs site.
  * Only production gets a custom domain - PR previews use the default workers.dev URL.
+ *
+ * Domains are specified as objects with explicit adopt: true to handle
+ * cases where the domain binding already exists in Cloudflare.
  */
-function getDomains(currentStage: string): string[] | undefined {
+function getDomains(
+  currentStage: string,
+): Array<{domainName: string; adopt: boolean}> | undefined {
   if (currentStage === 'prod') {
-    return ['docs.wodsmith.com']
+    return [{domainName: 'docs.wodsmith.com', adopt: true}]
   }
   return undefined
 }
