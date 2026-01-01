@@ -4,7 +4,7 @@
  * for use by API routes
  */
 
-import { desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import {
@@ -133,7 +133,7 @@ export async function getUserWorkouts({
 		}
 
 		const matchingRows = await idQuery.where(
-			conditions.length > 0 ? sql`${conditions[0]}` : undefined,
+			conditions.length > 0 ? and(...conditions) : undefined,
 		)
 
 		const idSet = new Set<string>()
@@ -166,7 +166,7 @@ export async function getUserWorkouts({
 			updatedAt: workouts.updatedAt,
 		})
 		.from(workouts)
-		.where(mainConditions.length > 0 ? mainConditions[0] : undefined)
+		.where(mainConditions.length > 0 ? and(...mainConditions) : undefined)
 		.orderBy(desc(workouts.updatedAt))
 		.limit(limit)
 		.offset(offset)

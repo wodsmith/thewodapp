@@ -60,7 +60,6 @@ import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/sea
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
-import { Route as AuthSsoGoogleRouteImport } from './routes/_auth/sso/google'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as CompeteOrganizerSeriesIndexRouteImport } from './routes/compete/organizer/series/index'
 import { Route as CompeteOrganizerOnboardIndexRouteImport } from './routes/compete/organizer/onboard/index'
@@ -111,7 +110,6 @@ import { Route as AdminTeamsScheduleGenerateRouteImport } from './routes/admin/t
 import { Route as AdminTeamsScheduleCoachesRouteImport } from './routes/admin/teams/schedule/coaches'
 import { Route as AdminTeamsScheduleClassesRouteImport } from './routes/admin/teams/schedule/classes'
 import { Route as AdminTeamsTeamIdSchedulingRouteImport } from './routes/admin/teams/$teamId/scheduling'
-import { Route as AuthSsoGoogleCallbackRouteImport } from './routes/_auth/sso/google.callback'
 import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
 import { Route as CompeteSlugTeamsRegistrationIdIndexRouteImport } from './routes/compete/$slug/teams/$registrationId/index'
@@ -386,11 +384,6 @@ const AdminTeamsTeamIdRoute = AdminTeamsTeamIdRouteImport.update({
   id: '/teams/$teamId',
   path: '/teams/$teamId',
   getParentRoute: () => AdminRoute,
-} as any)
-const AuthSsoGoogleRoute = AuthSsoGoogleRouteImport.update({
-  id: '/sso/google',
-  path: '/sso/google',
-  getParentRoute: () => AuthRoute,
 } as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
   id: '/demo/start/ssr/',
@@ -684,11 +677,6 @@ const AdminTeamsTeamIdSchedulingRoute =
     path: '/scheduling',
     getParentRoute: () => AdminTeamsTeamIdRoute,
   } as any)
-const AuthSsoGoogleCallbackRoute = AuthSsoGoogleCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => AuthSsoGoogleRoute,
-} as any)
 const CompeteOrganizerSeriesGroupIdIndexRoute =
   CompeteOrganizerSeriesGroupIdIndexRouteImport.update({
     id: '/',
@@ -811,7 +799,6 @@ export interface FileRoutesByFullPath {
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
-  '/sso/google': typeof AuthSsoGoogleRouteWithChildren
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
@@ -842,7 +829,6 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/': typeof CompeteSlugIndexRoute
   '/compete/athlete': typeof CompeteAthleteIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerIndexRoute
-  '/sso/google/callback': typeof AuthSsoGoogleCallbackRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
   '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
   '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
@@ -926,7 +912,6 @@ export interface FileRoutesByTo {
   '/api/upload': typeof ApiUploadRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
-  '/sso/google': typeof AuthSsoGoogleRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -954,7 +939,6 @@ export interface FileRoutesByTo {
   '/compete/$slug': typeof CompeteSlugIndexRoute
   '/compete/athlete': typeof CompeteAthleteIndexRoute
   '/compete/organizer': typeof CompeteOrganizerIndexRoute
-  '/sso/google/callback': typeof AuthSsoGoogleCallbackRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
   '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
   '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
@@ -1045,7 +1029,6 @@ export interface FileRoutesById {
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
-  '/_auth/sso/google': typeof AuthSsoGoogleRouteWithChildren
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
@@ -1076,7 +1059,6 @@ export interface FileRoutesById {
   '/compete/$slug/': typeof CompeteSlugIndexRoute
   '/compete/athlete/': typeof CompeteAthleteIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerIndexRoute
-  '/_auth/sso/google/callback': typeof AuthSsoGoogleCallbackRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
   '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
   '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
@@ -1167,7 +1149,6 @@ export interface FileRouteTypes {
     | '/compete/organizer'
     | '/admin/'
     | '/compete/'
-    | '/sso/google'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/webhooks/stripe'
@@ -1198,7 +1179,6 @@ export interface FileRouteTypes {
     | '/compete/$slug/'
     | '/compete/athlete'
     | '/compete/organizer/'
-    | '/sso/google/callback'
     | '/admin/teams/$teamId/scheduling'
     | '/admin/teams/schedule/classes'
     | '/admin/teams/schedule/coaches'
@@ -1282,7 +1262,6 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/admin'
     | '/compete'
-    | '/sso/google'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/leaderboard'
@@ -1310,7 +1289,6 @@ export interface FileRouteTypes {
     | '/compete/$slug'
     | '/compete/athlete'
     | '/compete/organizer'
-    | '/sso/google/callback'
     | '/admin/teams/$teamId/scheduling'
     | '/admin/teams/schedule/classes'
     | '/admin/teams/schedule/coaches'
@@ -1400,7 +1378,6 @@ export interface FileRouteTypes {
     | '/compete/organizer'
     | '/admin/'
     | '/compete/'
-    | '/_auth/sso/google'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/webhooks/stripe'
@@ -1431,7 +1408,6 @@ export interface FileRouteTypes {
     | '/compete/$slug/'
     | '/compete/athlete/'
     | '/compete/organizer/'
-    | '/_auth/sso/google/callback'
     | '/admin/teams/$teamId/scheduling'
     | '/admin/teams/schedule/classes'
     | '/admin/teams/schedule/coaches'
@@ -1882,13 +1858,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTeamsTeamIdRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/_auth/sso/google': {
-      id: '/_auth/sso/google'
-      path: '/sso/google'
-      fullPath: '/sso/google'
-      preLoaderRoute: typeof AuthSsoGoogleRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/demo/start/ssr/': {
       id: '/demo/start/ssr/'
       path: '/demo/start/ssr'
@@ -2239,13 +2208,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTeamsTeamIdSchedulingRouteImport
       parentRoute: typeof AdminTeamsTeamIdRoute
     }
-    '/_auth/sso/google/callback': {
-      id: '/_auth/sso/google/callback'
-      path: '/callback'
-      fullPath: '/sso/google/callback'
-      preLoaderRoute: typeof AuthSsoGoogleCallbackRouteImport
-      parentRoute: typeof AuthSsoGoogleRoute
-    }
     '/compete/organizer/series/$groupId/': {
       id: '/compete/organizer/series/$groupId/'
       path: '/'
@@ -2368,18 +2330,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthSsoGoogleRouteChildren {
-  AuthSsoGoogleCallbackRoute: typeof AuthSsoGoogleCallbackRoute
-}
-
-const AuthSsoGoogleRouteChildren: AuthSsoGoogleRouteChildren = {
-  AuthSsoGoogleCallbackRoute: AuthSsoGoogleCallbackRoute,
-}
-
-const AuthSsoGoogleRouteWithChildren = AuthSsoGoogleRoute._addFileChildren(
-  AuthSsoGoogleRouteChildren,
-)
-
 interface AuthRouteChildren {
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
@@ -2387,7 +2337,6 @@ interface AuthRouteChildren {
   AuthSignUpRoute: typeof AuthSignUpRoute
   AuthTeamInviteRoute: typeof AuthTeamInviteRoute
   AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
-  AuthSsoGoogleRoute: typeof AuthSsoGoogleRouteWithChildren
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -2397,7 +2346,6 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthSignUpRoute: AuthSignUpRoute,
   AuthTeamInviteRoute: AuthTeamInviteRoute,
   AuthVerifyEmailRoute: AuthVerifyEmailRoute,
-  AuthSsoGoogleRoute: AuthSsoGoogleRouteWithChildren,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

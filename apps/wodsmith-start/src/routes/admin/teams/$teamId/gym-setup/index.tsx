@@ -106,7 +106,7 @@ function GymSetupPage() {
 				data: { teamId, ...data },
 			})
 			if (result?.success && result.data) {
-				setLocations([...locations, result.data])
+				setLocations((prev) => [...prev, result.data])
 				locationForm.reset()
 				toast.success("Location added successfully")
 			}
@@ -121,7 +121,7 @@ function GymSetupPage() {
 	const handleDeleteLocation = async (id: string) => {
 		try {
 			await deleteLocation({ data: { id, teamId } })
-			setLocations(locations.filter((l) => l.id !== id))
+			setLocations((prev) => prev.filter((l) => l.id !== id))
 			toast.success("Location deleted successfully")
 		} catch (error) {
 			console.error("Error deleting location:", error)
@@ -144,7 +144,7 @@ function GymSetupPage() {
 				data: { teamId, ...data },
 			})
 			if (result?.success && result.data) {
-				setSkills([...skills, result.data])
+				setSkills((prev) => [...prev, result.data])
 				skillForm.reset()
 				toast.success("Skill added successfully")
 			}
@@ -159,7 +159,7 @@ function GymSetupPage() {
 	const handleDeleteSkill = async (id: string) => {
 		try {
 			await deleteSkill({ data: { id, teamId } })
-			setSkills(skills.filter((s) => s.id !== id))
+			setSkills((prev) => prev.filter((s) => s.id !== id))
 			toast.success("Skill deleted successfully")
 		} catch (error) {
 			console.error("Error deleting skill:", error)

@@ -193,6 +193,11 @@ export const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 			return { scalingGroup: null }
 		}
 
+		// Verify the group belongs to this team (or is a system group with null teamId)
+		if (group.teamId !== null && group.teamId !== data.teamId) {
+			throw new Error("Cannot access scaling group from another team")
+		}
+
 		const levels = await db
 			.select()
 			.from(scalingLevelsTable)

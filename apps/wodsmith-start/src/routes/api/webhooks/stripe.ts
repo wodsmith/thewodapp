@@ -258,14 +258,24 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 					const divisionId = session.metadata?.divisionId
 
 					if (userId && competitionId && divisionId) {
-						const { notifyPaymentExpired } = await import(
-							"@/server/notifications"
-						)
-						await notifyPaymentExpired({
-							userId,
-							competitionId,
-							divisionId,
-						})
+						try {
+							const { notifyPaymentExpired } = await import(
+								"@/server/notifications"
+							)
+							await notifyPaymentExpired({
+								userId,
+								competitionId,
+								divisionId,
+							})
+						} catch (notifyErr) {
+							logWarning({
+								message:
+									"[Stripe Webhook] Failed to send payment expired notification",
+								error: notifyErr,
+								attributes: { purchaseId, userId, competitionId, divisionId },
+							})
+							// Don't rethrow - purchase was already marked as cancelled
+						}
 					}
 				}
 
@@ -424,9 +434,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 							break
 
 						default:
-							console.log(
-								`INFO: [Stripe Webhook] Unhandled event type: ${event.type}`,
-							)
+							logInfo({
+								message: "[Stripe Webhook] Unhandled event type",
+								attributes: { eventType: event.type },
+							})
 					}
 
 					return json({ received: true })

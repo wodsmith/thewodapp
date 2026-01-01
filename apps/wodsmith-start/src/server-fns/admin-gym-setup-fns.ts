@@ -380,7 +380,7 @@ export const createCoachFn = createServerFn({ method: "POST" })
 				weeklyClassLimit: coachData.weeklyClassLimit,
 				schedulingPreference: coachData.schedulingPreference,
 				schedulingNotes: coachData.schedulingNotes,
-				isActive: coachData.isActive ? 1 : 0,
+				isActive: coachData.isActive !== false ? 1 : 0,
 			})
 			.returning()
 
@@ -414,6 +414,20 @@ export const deleteCoachFn = createServerFn({ method: "POST" })
 
 		await requireAdmin()
 		const db = getDb()
+
+		// Verify coach belongs to team BEFORE deleting related records
+		const [coach] = await db
+			.select()
+			.from(coachesTable)
+			.where(eq(coachesTable.id, data.id))
+
+		if (!coach) {
+			return { success: true, data: null } // Already deleted
+		}
+
+		if (coach.teamId !== data.teamId) {
+			throw new Error("Cannot delete coach from another team")
+		}
 
 		// Delete related records
 		await db

@@ -131,7 +131,7 @@ const container = {
 	boxShadow: "0 5px 10px rgba(20,50,70,.2)",
 	marginTop: "20px",
 	maxWidth: "600px",
-	margin: "0 auto",
+	margin: "20px auto",
 	padding: "40px",
 }
 

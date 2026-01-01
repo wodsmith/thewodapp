@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,7 +48,6 @@ export const Route = createFileRoute("/_auth/sign-up")({
 function SignUpPage() {
 	const router = useRouter()
 	const { redirect: redirectPath } = Route.useSearch()
-	const { config } = Route.useRouteContext()
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 
@@ -67,12 +66,6 @@ function SignUpPage() {
 			lastName: "",
 			password: "",
 		},
-	})
-
-	// Watch captcha token for disabling submit button
-	const captchaToken = useWatch({
-		control: form.control,
-		name: "captchaToken",
 	})
 
 	const onSubmit = async (data: SignUpInput) => {
@@ -208,20 +201,13 @@ function SignUpPage() {
 
 						<div className="flex flex-col justify-center items-center space-y-4">
 							<Captcha
-								isTurnstileEnabled={config.isTurnstileEnabled}
 								onSuccess={(token: string) =>
 									form.setValue("captchaToken", token)
 								}
 								validationError={form.formState.errors.captchaToken?.message}
 							/>
 
-							<Button
-								type="submit"
-								className="w-full"
-								disabled={
-									isLoading || (config.isTurnstileEnabled && !captchaToken)
-								}
-							>
+							<Button type="submit" className="w-full" disabled={isLoading}>
 								{isLoading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
 							</Button>
 						</div>

@@ -6,18 +6,14 @@ import { FormMessage } from "./ui/form"
 
 type Props = Omit<ComponentProps<typeof Turnstile>, "siteKey"> & {
 	validationError?: string
-	isTurnstileEnabled: boolean
 }
 
 const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ""
 
-export function Captcha({
-	validationError,
-	isTurnstileEnabled,
-	...props
-}: Props) {
-	// Don't render if turnstile is disabled or if the site key is missing
-	if (!isTurnstileEnabled || !siteKey) {
+export function Captcha({ validationError, ...props }: Props) {
+	// Don't render if the site key is missing - CAPTCHA is only enabled
+	// when VITE_TURNSTILE_SITE_KEY is configured
+	if (!siteKey) {
 		return null
 	}
 

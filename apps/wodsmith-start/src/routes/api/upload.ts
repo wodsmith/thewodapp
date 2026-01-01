@@ -40,6 +40,62 @@ export const Route = createFileRoute("/api/upload")({
 				const { hasTeamPermission } = await import("@/utils/team-auth")
 				const { env } = await import("cloudflare:workers")
 
+				/**
+				 * Check if user has permission to upload for the given entity
+				 */
+				async function checkUploadAuthorization(
+					purpose: string,
+					entityId: string | null,
+					userId: string,
+				): Promise<{ authorized: boolean; error?: string }> {
+					// Competition uploads require team permission
+					if (purpose.startsWith("competition-") && entityId) {
+						const { getDb } = await import("@/db")
+						const { competitionsTable } = await import("@/db/schema")
+						const { eq } = await import("drizzle-orm")
+
+						const db = getDb()
+						const competition = await db.query.competitionsTable.findFirst({
+							where: eq(competitionsTable.id, entityId),
+						})
+						if (!competition) {
+							return { authorized: false, error: "Competition not found" }
+						}
+						const hasPermission = await hasTeamPermission(
+							competition.organizingTeamId,
+							TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+						)
+						if (!hasPermission) {
+							return {
+								authorized: false,
+								error: "Not authorized to upload for this competition",
+							}
+						}
+						return { authorized: true }
+					}
+
+					// Athlete uploads can only be for the current user
+					if (purpose.startsWith("athlete-") && entityId) {
+						if (entityId !== userId) {
+							return {
+								authorized: false,
+								error: "Not authorized to upload for this athlete",
+							}
+						}
+						return { authorized: true }
+					}
+
+					// Sponsor uploads require entityId to be the user's own or not provided
+					if (purpose === "sponsor-logo" && entityId && entityId !== userId) {
+						return {
+							authorized: false,
+							error: "Not authorized to upload sponsor logo",
+						}
+					}
+
+					return { authorized: true }
+				}
+
 				const session = await getSessionFromCookie()
 				if (!session) {
 					return json({ error: "Unauthorized" }, { status: 401 })
@@ -114,62 +170,6 @@ export const Route = createFileRoute("/api/upload")({
 					url: publicUrl,
 					key,
 				})
-
-				/**
-				 * Check if user has permission to upload for the given entity
-				 */
-				async function checkUploadAuthorization(
-					purpose: string,
-					entityId: string | null,
-					userId: string,
-				): Promise<{ authorized: boolean; error?: string }> {
-					// Competition uploads require team permission
-					if (purpose.startsWith("competition-") && entityId) {
-						const { getDb } = await import("@/db")
-						const { competitionsTable } = await import("@/db/schema")
-						const { eq } = await import("drizzle-orm")
-
-						const db = getDb()
-						const competition = await db.query.competitionsTable.findFirst({
-							where: eq(competitionsTable.id, entityId),
-						})
-						if (!competition) {
-							return { authorized: false, error: "Competition not found" }
-						}
-						const hasPermission = await hasTeamPermission(
-							competition.organizingTeamId,
-							TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
-						)
-						if (!hasPermission) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload for this competition",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Athlete uploads can only be for the current user
-					if (purpose.startsWith("athlete-") && entityId) {
-						if (entityId !== userId) {
-							return {
-								authorized: false,
-								error: "Not authorized to upload for this athlete",
-							}
-						}
-						return { authorized: true }
-					}
-
-					// Sponsor uploads require entityId to be the user's own or not provided
-					if (purpose === "sponsor-logo" && entityId && entityId !== userId) {
-						return {
-							authorized: false,
-							error: "Not authorized to upload sponsor logo",
-						}
-					}
-
-					return { authorized: true }
-				}
 			},
 		},
 	},

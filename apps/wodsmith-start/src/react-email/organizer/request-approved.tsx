@@ -20,7 +20,7 @@ interface OrganizerRequestApprovedEmailProps {
 export const OrganizerRequestApprovedEmail = ({
 	teamName = "CrossFit Downtown",
 	recipientName = "John",
-	dashboardLink = "https://wodsmith.com/compete/organizer",
+	dashboardLink = "https://example.com/compete/organizer",
 	adminNotes,
 }: OrganizerRequestApprovedEmailProps) => {
 	return (
@@ -75,7 +75,7 @@ export const OrganizerRequestApprovedEmail = ({
 OrganizerRequestApprovedEmail.PreviewProps = {
 	teamName: "CrossFit Downtown",
 	recipientName: "John",
-	dashboardLink: "https://wodsmith.com/compete/organizer",
+	dashboardLink: "https://example.com/compete/organizer",
 	adminNotes:
 		"Welcome to WODsmith Compete! Looking forward to seeing your events.",
 } as OrganizerRequestApprovedEmailProps

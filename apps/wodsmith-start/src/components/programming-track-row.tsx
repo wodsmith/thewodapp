@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import { Dumbbell, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ListItem } from "@/components/ui/list-item"
@@ -46,12 +47,12 @@ export function ProgrammingTrackRow({
 		<ListItem className="group hover:bg-muted/50 transition-colors">
 			<ListItem.Content className="flex-1 min-w-0">
 				<div className="flex items-start gap-3 flex-col sm:flex-row sm:items-center w-full">
-					<a
-						href={`${linkPrefix}/${track.id}`}
+					<Link
+						to={`${linkPrefix}/${track.id}` as "/"}
 						className="font-semibold text-lg hover:underline underline-offset-4 truncate"
 					>
 						{track.name}
-					</a>
+					</Link>
 					{track.description && (
 						<p className="text-sm text-muted-foreground line-clamp-2 sm:max-w-md">
 							{track.description}

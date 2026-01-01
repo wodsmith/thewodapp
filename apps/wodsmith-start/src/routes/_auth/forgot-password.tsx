@@ -2,7 +2,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,6 @@ export const Route = createFileRoute("/_auth/forgot-password")({
 
 function ForgotPasswordPage() {
 	const router = useRouter()
-	const { config } = Route.useRouteContext()
 	const [isSuccess, setIsSuccess] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
@@ -51,12 +50,6 @@ function ForgotPasswordPage() {
 		defaultValues: {
 			email: "",
 		},
-	})
-
-	// Watch captcha token for disabling submit button
-	const captchaToken = useWatch({
-		control: form.control,
-		name: "captchaToken",
 	})
 
 	const onSubmit = async (data: ForgotPasswordSchema) => {
@@ -154,7 +147,6 @@ function ForgotPasswordPage() {
 
 							<div className="flex flex-col justify-center items-center space-y-4">
 								<Captcha
-									isTurnstileEnabled={config.isTurnstileEnabled}
 									onSuccess={(token: string) =>
 										form.setValue("captchaToken", token)
 									}
@@ -164,9 +156,7 @@ function ForgotPasswordPage() {
 								<Button
 									type="submit"
 									className="w-full font-mono uppercase"
-									disabled={
-										isLoading || (config.isTurnstileEnabled && !captchaToken)
-									}
+									disabled={isLoading}
 								>
 									{isLoading ? "Sending..." : "Send Reset Instructions"}
 								</Button>

@@ -2,7 +2,7 @@
  * Get Session API Route for TanStack Start
  *
  * GET /api/get-session
- * Returns the current user session and app config.
+ * Returns the current user session.
  * Used for client-side session hydration.
  */
 
@@ -15,7 +15,6 @@ export const Route = createFileRoute("/api/get-session")({
 			GET: async () => {
 				// Dynamic imports for server-only modules
 				const { getSessionFromCookie } = await import("@/utils/auth")
-				const { getConfig } = await import("@/flags")
 
 				let session = null
 				let error = null
@@ -26,12 +25,9 @@ export const Route = createFileRoute("/api/get-session")({
 					error = e
 				}
 
-				const config = await getConfig()
-
 				return json(
 					{
 						session: error ? null : session,
-						config,
 					},
 					{
 						headers: {
