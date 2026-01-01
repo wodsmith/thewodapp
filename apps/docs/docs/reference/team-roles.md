@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Team Roles Reference
 
-Permissions and capabilities for each team role in WodSmith.
+Permissions and capabilities for each team role in WODsmith.
 
 ## Role Hierarchy
 
@@ -20,61 +20,62 @@ Higher roles inherit permissions from lower roles. The Owner role is special and
 
 ![Role dropdown showing options](/img/reference/roles-dropdown.png)
 
-| Role | Description |
-|------|-------------|
-| **Owner** | Team creator, full access, cannot be demoted |
-| **Admin** | Full access except ownership transfer |
-| **Member** | Standard athlete access |
-| **Guest** | Limited read-only access |
+| Role       | Description                                  |
+| ---------- | -------------------------------------------- |
+| **Owner**  | Team creator, full access, cannot be demoted |
+| **Admin**  | Full access except ownership transfer        |
+| **Member** | Standard athlete access                      |
+| **Guest**  | Limited read-only access                     |
 
 :::note Competition Roles
 For competitions, additional roles exist:
+
 - **Captain** - Competition team leader
 - **Volunteer** - Event day helper with check-in/scoring access
-:::
+  :::
 
 ## Permission Matrix
 
 ### Content Permissions
 
-| Permission | Owner | Admin | Member | Guest |
-|------------|:-----:|:-----:|:------:|:-----:|
-| View published workouts | ✓ | ✓ | ✓ | ✓ |
-| View draft workouts | ✓ | ✓ | ✗ | ✗ |
-| Log personal scores | ✓ | ✓ | ✓ | ✗ |
-| View all member scores | ✓ | ✓ | ✗ | ✗ |
-| Create workouts | ✓ | ✓ | ✗ | ✗ |
-| Edit any workout | ✓ | ✓ | ✗ | ✗ |
-| Delete workouts | ✓ | ✓ | ✗ | ✗ |
+| Permission              | Owner | Admin | Member | Guest |
+| ----------------------- | :---: | :---: | :----: | :---: |
+| View published workouts |   ✓   |   ✓   |   ✓    |   ✓   |
+| View draft workouts     |   ✓   |   ✓   |   ✗    |   ✗   |
+| Log personal scores     |   ✓   |   ✓   |   ✓    |   ✗   |
+| View all member scores  |   ✓   |   ✓   |   ✗    |   ✗   |
+| Create workouts         |   ✓   |   ✓   |   ✗    |   ✗   |
+| Edit any workout        |   ✓   |   ✓   |   ✗    |   ✗   |
+| Delete workouts         |   ✓   |   ✓   |   ✗    |   ✗   |
 
 ### Programming Permissions
 
-| Permission | Owner | Admin | Member | Guest |
-|------------|:-----:|:-----:|:------:|:-----:|
-| View calendar | ✓ | ✓ | ✓ | ✓ |
-| Schedule workouts | ✓ | ✓ | ✗ | ✗ |
-| Manage tracks | ✓ | ✓ | ✗ | ✗ |
-| Create templates | ✓ | ✓ | ✗ | ✗ |
-| Publish programming | ✓ | ✓ | ✗ | ✗ |
+| Permission          | Owner | Admin | Member | Guest |
+| ------------------- | :---: | :---: | :----: | :---: |
+| View calendar       |   ✓   |   ✓   |   ✓    |   ✓   |
+| Schedule workouts   |   ✓   |   ✓   |   ✗    |   ✗   |
+| Manage tracks       |   ✓   |   ✓   |   ✗    |   ✗   |
+| Create templates    |   ✓   |   ✓   |   ✗    |   ✗   |
+| Publish programming |   ✓   |   ✓   |   ✗    |   ✗   |
 
 ### Team Management Permissions
 
-| Permission | Owner | Admin | Member | Guest |
-|------------|:-----:|:-----:|:------:|:-----:|
-| View member list | ✓ | ✓ | ✗ | ✗ |
-| Invite members | ✓ | ✓ | ✗ | ✗ |
-| Remove members | ✓ | ✓ | ✗ | ✗ |
-| Change member roles | ✓ | ✓ | ✗ | ✗ |
+| Permission          | Owner | Admin | Member | Guest |
+| ------------------- | :---: | :---: | :----: | :---: |
+| View member list    |   ✓   |   ✓   |   ✗    |   ✗   |
+| Invite members      |   ✓   |   ✓   |   ✗    |   ✗   |
+| Remove members      |   ✓   |   ✓   |   ✗    |   ✗   |
+| Change member roles |   ✓   |   ✓   |   ✗    |   ✗   |
 
 ### Administrative Permissions
 
-| Permission | Owner | Admin | Member | Guest |
-|------------|:-----:|:-----:|:------:|:-----:|
-| Edit team settings | ✓ | ✓ | ✗ | ✗ |
-| Manage billing | ✓ | ✓ | ✗ | ✗ |
-| Configure integrations | ✓ | ✓ | ✗ | ✗ |
-| Delete team | ✓ | ✗ | ✗ | ✗ |
-| Transfer ownership | ✓ | ✗ | ✗ | ✗ |
+| Permission             | Owner | Admin | Member | Guest |
+| ---------------------- | :---: | :---: | :----: | :---: |
+| Edit team settings     |   ✓   |   ✓   |   ✗    |   ✗   |
+| Manage billing         |   ✓   |   ✓   |   ✗    |   ✗   |
+| Configure integrations |   ✓   |   ✓   |   ✗    |   ✗   |
+| Delete team            |   ✓   |   ✗   |   ✗    |   ✗   |
+| Transfer ownership     |   ✓   |   ✗   |   ✗    |   ✗   |
 
 ## Role Descriptions
 
@@ -106,15 +107,13 @@ Limited read-only access. Can view published workouts and the calendar but canno
 
 Competition management uses a separate permission system:
 
-| Permission | Organizer |
-|------------|:---------:|
-| Edit competition settings | ✓ |
-| Manage registrations | ✓ |
-| Enter scores | ✓ |
-| Publish results | ✓ |
-| View revenue | ✓ |
-| Manage volunteers | ✓ |
+| Permission                | Organizer |
+| ------------------------- | :-------: |
+| Edit competition settings |     ✓     |
+| Manage registrations      |     ✓     |
+| Enter scores              |     ✓     |
+| Publish results           |     ✓     |
+| View revenue              |     ✓     |
+| Manage volunteers         |     ✓     |
 
 ---
-
-*See also: [How to Manage Team Members](/how-to/coaches/manage-members)*

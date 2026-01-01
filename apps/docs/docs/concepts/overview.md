@@ -2,13 +2,13 @@
 sidebar_position: 1
 ---
 
-# WodSmith Core Concepts
+# WODsmith Core Concepts
 
-This page explains the fundamental ideas behind WodSmith and how its components work together.
+This page explains the fundamental ideas behind WODsmith and how its components work together.
 
-## The WodSmith Model
+## The WODsmith Model
 
-WodSmith is built around a simple hierarchy:
+WODsmith is built around a simple hierarchy:
 
 ```
 Teams → Members → Workouts → Scores
@@ -20,24 +20,25 @@ Understanding this model helps you navigate the platform and make sense of how f
 
 ## Teams: The Foundation
 
-Every organization in WodSmith operates as a **team**. This design emerged from a key insight: CrossFit gyms, coaches, and athletes often work across multiple organizations.
+Every organization in WODsmith operates as a **team**. This design emerged from a key insight: CrossFit gyms, coaches, and athletes often work across multiple organizations.
 
 A coach might program for two affiliate gyms. An athlete might train at their home gym but compete for another. Competition organizers work with athletes from dozens of gyms.
 
-The team model accommodates this reality. Rather than forcing users into a single organization, WodSmith allows membership in multiple teams with different roles in each.
+The team model accommodates this reality. Rather than forcing users into a single organization, WODsmith allows membership in multiple teams with different roles in each.
 
 ### Why Multi-Tenancy Matters
 
 Traditional gym software assumes one user belongs to one gym. This creates friction:
+
 - Coaches can't share programming between gyms
 - Athletes need multiple accounts
 - Competition data stays siloed
 
-WodSmith's multi-tenant architecture eliminates these problems while maintaining proper data isolation between organizations.
+WODsmith's multi-tenant architecture eliminates these problems while maintaining proper data isolation between organizations.
 
 ## Workouts: Structured Flexibility
 
-CrossFit workouts follow predictable patterns, but each gym expresses them differently. WodSmith balances structure with flexibility.
+CrossFit workouts follow predictable patterns, but each gym expresses them differently. WODsmith balances structure with flexibility.
 
 ### The Workout Type System
 
@@ -47,7 +48,7 @@ Every workout fits into a type: AMRAP, For Time, EMOM, Strength, and others. Thi
 - **Tiebreaker rules**: How equal scores resolve
 - **Display format**: How the workout appears to athletes
 
-By understanding the type, WodSmith automatically handles scoring complexity that would otherwise require manual calculation.
+By understanding the type, WODsmith automatically handles scoring complexity that would otherwise require manual calculation.
 
 ### Movements and the Library
 
@@ -72,19 +73,20 @@ A programming track represents a distinct training purpose: the daily WOD, compe
 
 ### The Calendar as Interface
 
-Most gym members think in calendar terms: "What's the workout tomorrow?" WodSmith's programming interface mirrors this mental model.
+Most gym members think in calendar terms: "What's the workout tomorrow?" WODsmith's programming interface mirrors this mental model.
 
 Rather than navigating complex menus, coaches drop workouts onto dates. Athletes see their training laid out like any other calendar.
 
 ## Competitions: Events at Scale
 
-Competitions amplify normal gym operations: more athletes, more structure, higher stakes. WodSmith's competition features address these differences.
+Competitions amplify normal gym operations: more athletes, more structure, higher stakes. WODsmith's competition features address these differences.
 
 ### Divisions: Organized Fairness
 
 Not every athlete competes under the same standards. Divisions create fair competition by grouping athletes appropriately.
 
 The division system handles:
+
 - **Ability levels**: RX, Scaled, Intermediate
 - **Age groups**: Masters, Teens
 - **Team formats**: Pairs, Teams of 4
@@ -95,6 +97,7 @@ The division system handles:
 A competition with 100 athletes can't run everyone simultaneously. Heats solve the logistics problem by scheduling small groups.
 
 Heat management considers:
+
 - **Lane availability**: Physical space constraints
 - **Judge capacity**: Scoring resources
 - **Transition time**: Realistic turnaround between groups
@@ -102,16 +105,16 @@ Heat management considers:
 
 ### Scoring: Truth Under Pressure
 
-Competition scoring must be fast, accurate, and auditable. WodSmith's scoring system prioritizes:
+Competition scoring must be fast, accurate, and auditable. WODsmith's scoring system prioritizes:
 
 1. **Real-time entry**: Judges input scores immediately
 2. **Automatic ranking**: No manual calculations
 3. **Tiebreaker application**: Consistent rule enforcement
 4. **Audit trail**: Every change tracked
 
-## The WodSmith Philosophy
+## The WODsmith Philosophy
 
-Several principles guide WodSmith's design:
+Several principles guide WODsmith's design:
 
 ### Gym-First Thinking
 
@@ -123,7 +126,7 @@ New users start with simple features. Advanced capabilities reveal themselves as
 
 ### Data Belongs to Users
 
-Athletes own their scores. Gyms own their programming. Competitions own their results. WodSmith facilitates access and analysis without claiming ownership.
+Athletes own their scores. Gyms own their programming. Competitions own their results. WODsmith facilitates access and analysis without claiming ownership.
 
 ### Built for Scale
 
@@ -131,4 +134,4 @@ From a small garage gym to a multi-location affiliate, from an in-house throwdow
 
 ---
 
-*Continue learning: [The Competition Day Flow](/concepts/competition-flow)*
+_Continue learning: [The Competition Day Flow](/concepts/competition-flow)_

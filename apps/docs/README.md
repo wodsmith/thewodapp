@@ -1,6 +1,6 @@
-# WodSmith Documentation
+# WODsmith Documentation
 
-This is the documentation website for WodSmith, built using [Docusaurus 3](https://docusaurus.io/).
+This is the documentation website for WODsmith, built using [Docusaurus 3](https://docusaurus.io/).
 
 ## Development
 
@@ -29,7 +29,7 @@ This generates static content into the `build` directory.
 
 ## Deployment
 
-The docs site is deployed to Cloudflare Pages at `docs.wadsmith.com`.
+The docs site is deployed to Cloudflare Pages at `docs.wodsmith.com`.
 
 ### Manual Deploy
 

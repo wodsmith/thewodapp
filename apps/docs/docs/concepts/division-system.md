@@ -4,7 +4,7 @@ sidebar_position: 5
 
 # The Division System
 
-How WodSmith organizes athletes into fair competitive groups.
+How WODsmith organizes athletes into fair competitive groups.
 
 ## The Fairness Problem
 
@@ -39,7 +39,7 @@ Age divisions often combine with ability levels: Masters 40+ RX, Masters 40+ Sca
 
 Men's and women's divisions recognize physiological differences in strength and power output. Prescribed weights differ accordingly.
 
-The competitive CrossFit community continues evolving on gender inclusion. WodSmith supports configurable gender options to match competition policies.
+The competitive CrossFit community continues evolving on gender inclusion. WODsmith supports configurable gender options to match competition policies.
 
 ### Team Divisions
 
@@ -61,25 +61,27 @@ The same workout often has different requirements per division:
 
 **Event: "Fran"**
 
-| Division | Thrusters | Pull-ups |
-|----------|-----------|----------|
-| RX Male | 95 lb | Chest-to-bar |
-| RX Female | 65 lb | Chest-to-bar |
-| Scaled Male | 65 lb | Jumping |
-| Scaled Female | 45 lb | Jumping |
+| Division      | Thrusters | Pull-ups     |
+| ------------- | --------- | ------------ |
+| RX Male       | 95 lb     | Chest-to-bar |
+| RX Female     | 65 lb     | Chest-to-bar |
+| Scaled Male   | 65 lb     | Jumping      |
+| Scaled Female | 45 lb     | Jumping      |
 
-WodSmith tracks these variations automatically. Athletes see their division's standards; judges know what to enforce.
+WODsmith tracks these variations automatically. Athletes see their division's standards; judges know what to enforce.
 
 ### Shared vs Separate Events
 
 Some competitions run identical workouts across divisions (varying only weights and standards). Others create entirely different workouts per division.
 
 **Shared workout approach**:
+
 - Simpler programming
 - Easier comparison across divisions
 - Constraints on movement selection
 
 **Division-specific workouts**:
+
 - Tailored to each group's capabilities
 - More complex to manage
 - Freedom in programming
@@ -97,6 +99,7 @@ Each division has a capacity: maximum athletes who can compete. This constraint 
 ### Waitlists
 
 When a division fills, athletes join a waitlist. This creates:
+
 - Prioritized backup if spots open
 - Data on unmet demand (useful for future events)
 - Clear communication about status
@@ -104,11 +107,12 @@ When a division fills, athletes join a waitlist. This creates:
 ### Division Transfers
 
 Athletes sometimes need to change divisions:
+
 - Injury prevents RX standards
 - Miscalculated ability level
 - Category change (age, team composition)
 
-WodSmith supports transfers with organizer approval. The audit trail tracks all changes.
+WODsmith supports transfers with organizer approval. The audit trail tracks all changes.
 
 ## The Registration Flow
 
@@ -128,6 +132,7 @@ From an athlete's perspective, division selection happens during registration:
 More divisions = More athletes accommodated + More complexity
 
 The right answer depends on:
+
 - Expected athlete count
 - Competition format (single day vs weekend)
 - Venue capacity
@@ -138,15 +143,17 @@ The right answer depends on:
 ### Pricing by Division
 
 Different divisions can have different entry fees:
+
 - RX often costs more (implies more competitive, longer events)
 - Team divisions cost more per person (larger prize pools)
 - Age divisions sometimes discounted (community building)
 
-WodSmith supports per-division pricing.
+WODsmith supports per-division pricing.
 
 ### Combining Divisions
 
 When division registration is unexpectedly low, organizers might combine:
+
 - Scaled Male + Scaled Female → Scaled Open
 - Masters 50+ → Combined Masters (45+)
 
@@ -163,10 +170,12 @@ Judges enforce movement standards per division. An athlete in Scaled who attempt
 ### Verification
 
 For age divisions, organizers may require:
+
 - Birth date verification
 - Government ID check
 
 For ability divisions, some competitions use:
+
 - Qualification standards
 - Previous competition results
 - Video submissions
@@ -174,11 +183,12 @@ For ability divisions, some competitions use:
 ### Disputes and Penalties
 
 When athletes compete outside their division's standards:
+
 - Penalties (time or rep additions)
 - Score invalidation
 - Disqualification
 
-WodSmith tracks score adjustments and their reasons.
+WODsmith tracks score adjustments and their reasons.
 
 ## The Future of Divisions
 
@@ -188,8 +198,8 @@ CrossFit competition continues evolving. Emerging patterns include:
 - **Algorithm-based handicapping**: Individual adjustments rather than broad categories
 - **Open divisions**: Self-selected standards with normalized scoring
 
-WodSmith's flexible division system accommodates experimentation while maintaining the fundamentals that make competition fair and engaging.
+WODsmith's flexible division system accommodates experimentation while maintaining the fundamentals that make competition fair and engaging.
 
 ---
 
-*Return to: [Core Concepts Overview](/concepts/overview)*
+_Return to: [Core Concepts Overview](/concepts/overview)_

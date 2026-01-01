@@ -27,6 +27,7 @@ Number of heats × (Heat duration + Transition time) = Event duration
 ```
 
 **Example**: 60 athletes, 10 per heat, 12-minute workout, 8-minute transition:
+
 - 6 heats
 - 20 minutes per cycle
 - 2 hours for the event
@@ -34,6 +35,7 @@ Number of heats × (Heat duration + Transition time) = Event duration
 ### Compound Complexity
 
 Multiple events multiply the problem:
+
 - 3 events × 6 heats each = 18 heat cycles
 - Athletes must be scheduled across all events
 - No athlete should have back-to-back heats (insufficient recovery)
@@ -62,7 +64,7 @@ Which heat should an athlete compete in? Different philosophies exist:
 
 **Self-selection**: Athletes choose their heat. Reduces organizer burden but can create imbalanced heats.
 
-WodSmith supports all approaches. Organizers choose based on competition culture.
+WODsmith supports all approaches. Organizers choose based on competition culture.
 
 ## Division Interactions
 
@@ -71,6 +73,7 @@ When multiple divisions compete in the same event, scheduling gets interesting.
 ### Separate Heats
 
 Each division runs independently:
+
 - RX Male heats
 - RX Female heats
 - Scaled Male heats
@@ -83,6 +86,7 @@ Each division runs independently:
 ### Mixed Heats
 
 Combine divisions with same workout standards:
+
 - All males together
 - All females together
 
@@ -93,6 +97,7 @@ Combine divisions with same workout standards:
 ### Interleaved Heats
 
 Alternate between divisions:
+
 - Heat 1: RX Male
 - Heat 2: RX Female
 - Heat 3: RX Male
@@ -110,6 +115,7 @@ Each athlete typically needs a dedicated judge. This creates scheduling dependen
 ### Fixed Lane Judging
 
 Judges stay at one lane all day:
+
 - Simpler logistics
 - Judges become fatigued
 - Less expertise matching
@@ -117,6 +123,7 @@ Judges stay at one lane all day:
 ### Rotating Judge Assignments
 
 Judges move between heats or lanes:
+
 - Can match judge expertise to athlete level
 - More complex scheduling
 - Potential for confusion
@@ -124,6 +131,7 @@ Judges move between heats or lanes:
 ### Volunteer Considerations
 
 Most competition judges are volunteers. Schedule design should respect their experience:
+
 - New volunteers on early, lower-stakes heats
 - Experienced judges for late, high-stakes heats
 - Reasonable breaks built in
@@ -152,9 +160,9 @@ The time between heats looks straightforward on paper. Reality includes:
 
 **Recommendation**: Build 2-3 minutes more transition time than you think necessary. Running ahead of schedule is better than behind.
 
-## WodSmith's Auto-Generation
+## WODsmith's Auto-Generation
 
-WodSmith can automatically generate heat schedules. The algorithm considers:
+WODsmith can automatically generate heat schedules. The algorithm considers:
 
 1. **Athlete count per division**
 2. **Lane capacity**
@@ -163,19 +171,20 @@ WodSmith can automatically generate heat schedules. The algorithm considers:
 5. **Start time**
 
 The result provides a starting point. Organizers almost always make adjustments based on local knowledge:
+
 - Athlete carpool groups
 - Judge availability
 - Venue-specific constraints
 
 ## Common Scheduling Problems
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Athlete double-booked | Schedule overlap | Reschedule to different heat |
-| Heat too small | Division size | Combine with another heat |
-| Heat too large | Aggressive capacity | Split into two heats |
-| Long gaps | Uneven distribution | Rebalance heat assignments |
-| No judge available | Resource constraint | Recruit additional judge or reduce heat size |
+| Problem               | Cause               | Solution                                     |
+| --------------------- | ------------------- | -------------------------------------------- |
+| Athlete double-booked | Schedule overlap    | Reschedule to different heat                 |
+| Heat too small        | Division size       | Combine with another heat                    |
+| Heat too large        | Aggressive capacity | Split into two heats                         |
+| Long gaps             | Uneven distribution | Rebalance heat assignments                   |
+| No judge available    | Resource constraint | Recruit additional judge or reduce heat size |
 
 ## The Day-Of Shuffle
 
@@ -190,4 +199,4 @@ Build flexibility into the schedule. A 5-minute buffer per hour accumulates into
 
 ---
 
-*Continue learning: [The Division System](/concepts/division-system)*
+_Continue learning: [The Division System](/concepts/division-system)_

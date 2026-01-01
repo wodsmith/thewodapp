@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Create Your First Competition
 
-In this tutorial, we will create a complete competition on WodSmith. By the end, you will have a live competition page with divisions configured, events added, and registration open to athletes.
+In this tutorial, we will create a complete competition on WODsmith. By the end, you will have a live competition page with divisions configured, events added, and registration open to athletes.
 
 ## What We'll Accomplish
 
@@ -94,6 +94,7 @@ Now we'll add the workouts athletes will compete in.
 ### Add More Events
 
 Repeat the process to add additional events. You can:
+
 - Drag events to reorder them
 - Set event status (Draft, Published)
 - Add scoring multipliers for specific events
@@ -160,4 +161,4 @@ As registrations come in:
 
 ---
 
-*Need to modify your competition? Click **Edit** from your competition dashboard to update any settings.*
+_Need to modify your competition? Click **Edit** from your competition dashboard to update any settings._

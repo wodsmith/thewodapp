@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Register for Your First Competition
 
-In this tutorial, we will register for a CrossFit competition on WodSmith. By the end, you will have successfully submitted your registration, selected a division, and received a confirmation.
+In this tutorial, we will register for a CrossFit competition on WODsmith. By the end, you will have successfully submitted your registration, selected a division, and received a confirmation.
 
 ## What We'll Accomplish
 
@@ -20,7 +20,7 @@ Let's begin!
 
 First, we need to locate the competition you want to enter.
 
-1. Open the competition link shared by the organizer, or visit the gym's WodSmith page
+1. Open the competition link shared by the organizer, or visit the gym's WODsmith page
 2. You should see the competition landing page with the event name and date
 
 **Notice** the competition details displayed: date, location, and available divisions. This confirms you're in the right place.
@@ -36,14 +36,14 @@ Now we'll begin the registration process.
 
 ### Creating an Account
 
-If you don't have a WodSmith account yet:
+If you don't have a WODsmith account yet:
 
 1. Click **Sign Up**
 2. Enter your email address
 3. Create a password
 4. Click **Create Account**
 
-**Notice** the confirmation message. You now have a WodSmith account that works across all competitions.
+**Notice** the confirmation message. You now have a WODsmith account that works across all competitions.
 
 ## Step 3: Select Your Division
 
@@ -56,6 +56,7 @@ Now we'll choose which division to compete in.
 **You should see** the division highlighted, indicating your selection.
 
 Common divisions include:
+
 - **RX** - Prescribed weights and movements
 - **Scaled** - Modified standards
 - **Masters** - Age-group categories
@@ -88,6 +89,7 @@ We're ready to complete the registration!
 2. Click **Submit Registration**
 
 **You should see** a confirmation screen showing:
+
 - Your registration status: **Confirmed** or **Pending**
 - Your selected division
 - A confirmation email will arrive shortly
@@ -110,4 +112,4 @@ Now that you're registered:
 
 ---
 
-*Need to make changes? See [How to Update Your Registration](/how-to/athletes/update-registration).*
+_Need to make changes? See [How to Update Your Registration](/how-to/athletes/update-registration)._
