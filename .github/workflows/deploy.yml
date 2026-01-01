@@ -27,7 +27,39 @@ jobs:
     name: Notify Deploy Start
     outputs:
       message_ts: ${{ steps.slack.outputs.ts }}
+      pr_title: ${{ steps.pr-info.outputs.pr_title }}
+      pr_url: ${{ steps.pr-info.outputs.pr_url }}
     steps:
+      - name: Extract PR info from merge commit
+        id: pr-info
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          
+          # Extract PR number from "Merge pull request #123 from..." pattern
+          PR_NUMBER=$(echo "$COMMIT_MSG" | grep -oP 'Merge pull request #\K[0-9]+' || echo "")
+          
+          if [ -n "$PR_NUMBER" ]; then
+            # Construct PR URL
+            PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
+            
+            # Extract PR title (second line of merge commit, or first line after the merge message)
+            PR_TITLE=$(echo "$COMMIT_MSG" | sed -n '2p' | sed 's/^[[:space:]]*//')
+            
+            # If no second line, try to get title from after "from branch" on first line
+            if [ -z "$PR_TITLE" ]; then
+              PR_TITLE="PR #$PR_NUMBER"
+            fi
+          else
+            # Not a merge commit, use commit message as title
+            PR_TITLE=$(echo "$COMMIT_MSG" | head -n1)
+            PR_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          fi
+          
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "Extracted PR Title: $PR_TITLE"
+          echo "Extracted PR URL: $PR_URL"
+
       - name: Post deploy start message
         id: slack
         uses: slackapi/slack-github-action@v2.1.1
@@ -43,6 +75,7 @@ jobs:
                   type: mrkdwn
                   text: |
                     *🚀 Production Deploy Started*
+                    <${{ steps.pr-info.outputs.pr_url }}|${{ steps.pr-info.outputs.pr_title }}>
                     
                     • *Environment:* production
                     • *Commit:* `${{ github.sha }}`
@@ -122,6 +155,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          # Stripe secrets only for production deployments (PR environments get no Stripe)
+          STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
+          STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
+          STRIPE_PUBLISHABLE_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_PUBLISHABLE_KEY || '' }}
+          STRIPE_CLIENT_ID: ${{ env.STAGE == 'prod' && secrets.STRIPE_CLIENT_ID || '' }}
           PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -134,7 +172,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
-  deploy-preview:
+  deploy-demo:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     needs: test
@@ -142,7 +180,7 @@ jobs:
       contents: read
       deployments: write
       pull-requests: write
-    name: Deploy Preview Environment
+    name: Deploy Demo Environment
     defaults:
       run:
         working-directory: apps/wodsmith-start
@@ -169,11 +207,17 @@ jobs:
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
-          STAGE: preview
+          STAGE: demo
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          # Both point to same secret - STRIPE_API_KEY is for Alchemy webhook creation,
+          # STRIPE_SECRET_KEY is for runtime API calls
+          STRIPE_API_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY_DEMO }}
+          STRIPE_CLIENT_ID: ${{ secrets.STRIPE_CLIENT_ID_DEMO }}
           PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -201,6 +245,7 @@ jobs:
                   type: mrkdwn
                   text: |
                     *✅ Production Deploy Succeeded*
+                    <${{ needs.notify-start.outputs.pr_url }}|${{ needs.notify-start.outputs.pr_title }}>
                     
                     • *Environment:* production
                     • *Commit:* `${{ github.sha }}`
@@ -237,6 +282,7 @@ jobs:
                   type: mrkdwn
                   text: |
                     *❌ Production Deploy Failed*
+                    <${{ needs.notify-start.outputs.pr_url }}|${{ needs.notify-start.outputs.pr_title }}>
                     
                     • *Environment:* production
                     • *Commit:* `${{ github.sha }}`
