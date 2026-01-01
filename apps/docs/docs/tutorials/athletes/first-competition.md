@@ -112,4 +112,4 @@ Now that you're registered:
 
 ---
 
-_Need to make changes? See [How to Update Your Registration](/how-to/athletes/update-registration)._
+_Need to make changes? Contact the competition organizer._
