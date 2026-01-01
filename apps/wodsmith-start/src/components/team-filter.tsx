@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
 	Select,
 	SelectContent,
@@ -22,13 +23,19 @@ interface TeamFilterProps {
 
 export function TeamFilter({ teams, selectedTeamId }: TeamFilterProps) {
 	const router = useRouter()
+	const setActiveTeam = useServerFn(setActiveTeamFn)
 
 	const handleTeamChange = async (teamId: string) => {
-		// Update the active team cookie on the server
-		await setActiveTeamFn({ data: { teamId } })
+		try {
+			// Update the active team cookie on the server
+			await setActiveTeam({ data: { teamId } })
 
-		// Invalidate the route to trigger a reload with the new team
-		router.invalidate()
+			// Invalidate the route to trigger a reload with the new team
+			router.invalidate()
+		} catch (error) {
+			console.error("Failed to change team:", error)
+			// Could add toast notification here
+		}
 	}
 
 	return (

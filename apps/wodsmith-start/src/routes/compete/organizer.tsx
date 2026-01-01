@@ -106,7 +106,12 @@ export const Route = createFileRoute("/compete/organizer")({
 		// Note: We return session: null here, but the onboard page's loader
 		// fetches the session directly via getOptionalSessionFn() to avoid
 		// import chain issues with cloudflare:workers
-		if (location.pathname.startsWith("/compete/organizer/onboard")) {
+		// SECURITY: Use exact match + trailing slash to prevent auth bypass on similar routes
+		// (e.g., /compete/organizer/onboarding would have bypassed with startsWith alone)
+		const isOnboardRoute =
+			location.pathname === "/compete/organizer/onboard" ||
+			location.pathname.startsWith("/compete/organizer/onboard/")
+		if (isOnboardRoute) {
 			return {
 				session: null,
 				entitlements: {

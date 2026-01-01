@@ -339,5 +339,6 @@ async function getLimitOverride(
 
 	if (!override) return null
 
-	return Number.parseInt(override.value, 10)
+	const parsed = Number.parseInt(override.value, 10)
+	return Number.isNaN(parsed) ? null : parsed
 }

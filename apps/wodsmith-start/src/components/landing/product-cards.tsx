@@ -32,8 +32,9 @@ function hasOrganizingEntitlements(session: SessionValidationResult): boolean {
 
 	return session.teams.some((team) => {
 		const limit = team.plan?.limits?.[LIMITS.MAX_PUBLISHED_COMPETITIONS]
-		// Has entitlement if limit exists and is not undefined
-		return limit !== undefined
+		// Has entitlement if limit exists and is not 0 (pending approval)
+		// Per limits.ts: 0 = pending, -1 = unlimited, positive = limited access
+		return limit !== undefined && limit !== 0
 	})
 }
 
