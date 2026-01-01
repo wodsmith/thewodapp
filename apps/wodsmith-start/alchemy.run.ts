@@ -282,18 +282,19 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
  * Determines the custom domain(s) for the current deployment stage.
  *
  * @param currentStage - The current deployment stage (e.g., "dev", "prod", "pr-42")
- * @returns Array of domains for prod/PR stages, undefined for others (uses workers.dev)
+ * @returns Array of domains for prod stage, undefined for others (uses workers.dev)
  *
  * @remarks
  * Domain assignment logic:
  * - **prod**: Returns `["start.wodsmith.com"]` for production
- * - **pr-N**: Returns `["pr-N.preview.wodsmith.com"]` for PR previews
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
+ *
+ * PR previews use the default workers.dev URL to avoid DNS propagation delays.
  *
  * @example
  * ```typescript
  * getDomains("prod")    // ["start.wodsmith.com"]
- * getDomains("pr-42")   // ["pr-42.preview.wodsmith.com"]
+ * getDomains("pr-42")   // undefined (uses wodsmith-app-pr-42.zacjones93.workers.dev)
  * getDomains("staging") // undefined
  * getDomains("dev")     // undefined
  * ```
@@ -302,9 +303,7 @@ function getDomains(currentStage: string): string[] | undefined {
 	if (currentStage === "prod") {
 		return ["start.wodsmith.com"]
 	}
-	if (currentStage.startsWith("pr-")) {
-		return [`${currentStage}.preview.wodsmith.com`]
-	}
+	// PR previews use default workers.dev URL to avoid DNS propagation delays
 	return undefined
 }
 
@@ -367,8 +366,9 @@ const website = await TanStackStart("app", {
 	 *
 	 * Domain assignment by environment:
 	 * - **prod**: `start.wodsmith.com` (production domain)
-	 * - **pr-N**: `pr-N.preview.wodsmith.com` (PR preview subdomain)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
+	 *
+	 * PR previews use workers.dev to avoid DNS propagation delays.
 	 */
 	domains: getDomains(stage),
 
@@ -401,7 +401,8 @@ const website = await TanStackStart("app", {
  */
 if (process.env.PULL_REQUEST) {
 	const prNumber = Number(process.env.PULL_REQUEST)
-	const previewUrl = `https://pr-${prNumber}.preview.wodsmith.com`
+	// Use default workers.dev URL to avoid DNS propagation delays
+	const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
 	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
 
 	await GitHubComment("preview-comment", {
