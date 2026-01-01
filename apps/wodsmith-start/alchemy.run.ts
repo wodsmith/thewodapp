@@ -371,6 +371,12 @@ const website = await TanStackStart("app", {
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
 	 */
 	domains: getDomains(stage),
+
+	/**
+	 * Adopt existing Worker if it already exists.
+	 * Required for production where the Worker was created before Alchemy.
+	 */
+	adopt: true,
 })
 
 /**
