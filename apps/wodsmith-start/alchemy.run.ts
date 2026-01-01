@@ -281,12 +281,14 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 /**
  * Determines the custom domain(s) for the current deployment stage.
  *
- * @param currentStage - The current deployment stage (e.g., "dev", "prod", "pr-42")
- * @returns Array of domains for prod stage, undefined for others (uses workers.dev)
+ * @param currentStage - The current deployment stage (e.g., "dev", "prod", "preview", "pr-42")
+ * @returns Array of domains for prod/preview/PR stages, undefined for others (uses workers.dev)
  *
  * @remarks
  * Domain assignment logic:
  * - **prod**: Returns `["start.wodsmith.com"]` for production
+ * - **preview**: Returns `["preview.wodsmith.com"]` for persistent staging environment
+ * - **pr-N**: Returns `["pr-N.preview.wodsmith.com"]` for ephemeral PR previews
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
  * PR previews use the default workers.dev URL to avoid DNS propagation delays.
@@ -294,7 +296,8 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
  * @example
  * ```typescript
  * getDomains("prod")    // ["start.wodsmith.com"]
- * getDomains("pr-42")   // undefined (uses wodsmith-app-pr-42.zacjones93.workers.dev)
+ * getDomains("preview") // ["preview.wodsmith.com"]
+ * getDomains("pr-42")   // ["pr-42.preview.wodsmith.com"]
  * getDomains("staging") // undefined
  * getDomains("dev")     // undefined
  * ```
@@ -303,7 +306,12 @@ function getDomains(currentStage: string): string[] | undefined {
 	if (currentStage === "prod") {
 		return ["start.wodsmith.com"]
 	}
-	// PR previews use default workers.dev URL to avoid DNS propagation delays
+	if (currentStage === "preview") {
+		return ["preview.wodsmith.com"]
+	}
+	if (currentStage.startsWith("pr-")) {
+		return [`${currentStage}.preview.wodsmith.com`]
+	}
 	return undefined
 }
 
@@ -318,11 +326,12 @@ function getDomains(currentStage: string): string[] | undefined {
  * @remarks
  * **Environment-specific behavior:**
  *
- * | Environment | Domain                  | Notes                              |
- * |-------------|-------------------------|------------------------------------|
- * | dev         | `*.workers.dev`         | Auto-generated Cloudflare subdomain|
- * | staging     | `*.workers.dev`         | Or configure staging.wodsmith.com  |
- * | prod        | `start.wodsmith.com`    | Custom domain with SSL             |
+ * | Environment | Domain                      | Notes                               |
+ * |-------------|-----------------------------|-------------------------------------|
+ * | dev         | `*.workers.dev`             | Auto-generated Cloudflare subdomain |
+ * | preview     | `preview.wodsmith.com`      | Persistent staging environment      |
+ * | prod        | `start.wodsmith.com`        | Custom domain with SSL              |
+ * | pr-N        | `pr-N.preview.wodsmith.com` | Ephemeral PR preview                |
  *
  * The `bindings` object makes Cloudflare resources available in your server code
  * via the `env` object. Types are automatically inferred and exported as `Env`.
@@ -366,6 +375,8 @@ const website = await TanStackStart("app", {
 	 *
 	 * Domain assignment by environment:
 	 * - **prod**: `start.wodsmith.com` (production domain)
+	 * - **preview**: `preview.wodsmith.com` (persistent staging environment)
+	 * - **pr-N**: `pr-N.preview.wodsmith.com` (ephemeral PR preview subdomain)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
 	 *
 	 * PR previews use workers.dev to avoid DNS propagation delays.
