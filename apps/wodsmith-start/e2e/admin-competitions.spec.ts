@@ -20,13 +20,26 @@ test.describe('Admin Competitions Browser', () => {
   test('should load admin competitions page with correct header', async ({
     page,
   }) => {
+    // First verify we're authenticated by checking we're on the workouts page
+    // This ensures the login was successful before trying admin routes
+    await expect(page).toHaveURL(/\/(workouts|dashboard)/, {timeout: 5000})
+
+    // Verify the session cookie exists before navigating to admin
+    const cookies = await page.context().cookies()
+    const sessionCookie = cookies.find(c => c.name === 'session')
+    if (!sessionCookie) {
+      console.log('WARNING: No session cookie found after login!')
+      console.log('Available cookies:', cookies.map(c => c.name))
+    }
+
     // Navigate to admin competitions page
     await page.goto('/admin/competitions', {waitUntil: 'networkidle'})
 
-    // Wait a bit for any redirects to complete
+    // Wait for network to settle
     await page.waitForLoadState('networkidle')
 
     // Verify page loaded (not redirected to 404 or sign-in)
+    // If we're redirected to sign-in, the session wasn't established properly
     await expect(page).toHaveURL(/\/admin\/competitions/, {timeout: 10000})
 
     // Verify main heading is visible

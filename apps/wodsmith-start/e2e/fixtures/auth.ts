@@ -55,6 +55,19 @@ export async function login(
 	// Wait for network to settle and session to be fully established
 	// This ensures cookies are set before navigating to protected routes
 	await page.waitForLoadState('networkidle')
+
+	// Poll for the session cookie to be set (httpOnly cookies need context.cookies())
+	// This is critical in CI where timing can be tighter
+	let attempts = 0
+	const maxAttempts = 10
+	while (attempts < maxAttempts) {
+		const cookies = await page.context().cookies()
+		if (cookies.some(c => c.name === 'session')) {
+			break
+		}
+		await page.waitForTimeout(100)
+		attempts++
+	}
 }
 
 /**
@@ -69,6 +82,9 @@ export async function loginAsTestUser(page: Page): Promise<void> {
 
 /**
  * Login as the admin user
+ * 
+ * Admin login requires extra care because admin routes have strict session validation.
+ * We verify the session is fully established before returning.
  */
 export async function loginAsAdmin(page: Page): Promise<void> {
 	await login(page, {
@@ -79,6 +95,20 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 	// Extra verification for admin login - wait for session to be fully established
 	// The admin needs the session to be properly set before accessing /admin routes
 	await page.waitForLoadState('networkidle')
+
+	// Verify the session cookie exists before proceeding
+	// This is critical for admin routes which redirect to sign-in if no session
+	const cookies = await page.context().cookies()
+	const sessionCookie = cookies.find(c => c.name === 'session')
+	
+	if (!sessionCookie) {
+		// If no session cookie, the login may have failed silently
+		// Try to verify by checking if we're on an authenticated page
+		const url = page.url()
+		if (url.includes('/sign-in')) {
+			throw new Error('Admin login failed - still on sign-in page')
+		}
+	}
 }
 
 /**
