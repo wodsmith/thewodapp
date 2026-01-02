@@ -246,6 +246,9 @@ export const competitionHeatsTable = sqliteTable(
 			onDelete: "set null",
 		}),
 		notes: text({ length: 500 }),
+		// Per-heat schedule publishing: null = not published, timestamp = when published
+		// Allows individual heat schedules to be made visible to athletes
+		schedulePublishedAt: integer({ mode: "timestamp" }),
 	},
 	(table) => [
 		index("competition_heats_competition_idx").on(table.competitionId),
