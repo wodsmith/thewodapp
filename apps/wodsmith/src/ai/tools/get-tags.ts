@@ -1,5 +1,5 @@
 import { tool } from "ai"
-import { z } from "zod/v4"
+import { z } from "zod"
 import { getAvailableWorkoutTags } from "@/server/workouts"
 import description from "./get-tags.md"
 
