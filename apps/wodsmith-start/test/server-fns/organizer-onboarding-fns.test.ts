@@ -71,7 +71,7 @@ vi.mock('@/db', () => ({
   })),
 }))
 
-vi.mock('@/server/entitlements', () => ({
+vi.mock('@/server/organizer-onboarding', () => ({
   grantTeamFeature: vi.fn(),
   setTeamLimitOverride: vi.fn(),
 }))
