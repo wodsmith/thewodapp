@@ -182,8 +182,9 @@ function areScoresEqual(
 		if (a.secondaryValue !== b.secondaryValue) return false
 	}
 
-	// Tertiary: if both have tiebreak values, those must match too
-	if (a.tiebreakValue !== null && b.tiebreakValue !== null) {
+	// Tertiary: tiebreak values must match
+	// If one has a tiebreak and the other doesn't, they're not equal
+	if (a.tiebreakValue !== null || b.tiebreakValue !== null) {
 		if (a.tiebreakValue !== b.tiebreakValue) return false
 	}
 
@@ -775,7 +776,9 @@ export const getEventLeaderboardFn = createServerFn({ method: "GET" })
 					points: eventResult.points,
 					rawScore: eventResult.rawScore,
 					formattedScore: eventResult.formattedScore,
-					isTimeCapped: eventResult.formattedScore.includes("cap"),
+					isTimeCapped: eventResult.formattedScore
+						.toUpperCase()
+						.includes("CAP"),
 				})
 			}
 		}

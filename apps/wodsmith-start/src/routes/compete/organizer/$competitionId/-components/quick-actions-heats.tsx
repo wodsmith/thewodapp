@@ -1,8 +1,10 @@
 "use client"
 
+import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Calendar, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import {
 	Card,
@@ -33,6 +35,7 @@ export function QuickActionsHeats({
 	heats,
 	organizingTeamId,
 }: QuickActionsHeatsProps) {
+	const router = useRouter()
 	const updateCompetitionWorkout = useServerFn(updateCompetitionWorkoutFn)
 	const [pendingEvents, setPendingEvents] = useState<Set<string>>(new Set())
 
@@ -49,6 +52,11 @@ export function QuickActionsHeats({
 					heatStatus: newStatus as "draft" | "published",
 				},
 			})
+			await router.invalidate()
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to update heat status",
+			)
 		} finally {
 			setPendingEvents((prev) => {
 				const next = new Set(prev)

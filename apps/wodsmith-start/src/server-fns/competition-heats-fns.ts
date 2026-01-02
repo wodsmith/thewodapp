@@ -199,11 +199,13 @@ const getHeatPublishStatusInputSchema = z.object({
 const publishHeatScheduleInputSchema = z.object({
 	heatId: z.string().min(1, "Heat ID is required"),
 	publish: z.boolean(),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
 })
 
 const publishAllHeatsForEventInputSchema = z.object({
 	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 	publish: z.boolean(),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
 })
 
 // ============================================================================
@@ -1636,6 +1638,21 @@ export const getHeatPublishStatusFn = createServerFn({ method: "GET" })
 export const publishHeatScheduleFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => publishHeatScheduleInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+		const { getSessionFromCookie } = await import("@/utils/auth")
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		// Check permission
+		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			throw new Error("Missing required permission")
+		}
+
 		const db = getDb()
 
 		const now = new Date()
@@ -1663,6 +1680,21 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 		publishAllHeatsForEventInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+		const { getSessionFromCookie } = await import("@/utils/auth")
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		// Check permission
+		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			throw new Error("Missing required permission")
+		}
+
 		const db = getDb()
 
 		const now = new Date()

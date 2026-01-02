@@ -150,6 +150,7 @@ function EventEditPage() {
 				trackWorkoutId={event.id}
 				eventName={event.workout.name}
 				competitionId={competition.id}
+				organizingTeamId={competition.organizingTeamId}
 			/>
 		</div>
 	)

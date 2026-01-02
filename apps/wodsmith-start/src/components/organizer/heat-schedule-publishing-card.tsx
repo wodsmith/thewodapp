@@ -18,6 +18,7 @@ interface HeatSchedulePublishingCardProps {
 	trackWorkoutId: string
 	eventName: string
 	competitionId: string
+	organizingTeamId: string
 }
 
 /**
@@ -43,6 +44,7 @@ export function HeatSchedulePublishingCard({
 	trackWorkoutId,
 	eventName,
 	competitionId,
+	organizingTeamId,
 }: HeatSchedulePublishingCardProps) {
 	const [statuses, setStatuses] = useState<HeatPublishStatus[]>([])
 	const [isLoading, setIsLoading] = useState(true)
@@ -79,6 +81,7 @@ export function HeatSchedulePublishingCard({
 				data: {
 					heatId,
 					publish: !currentlyPublished,
+					organizingTeamId,
 				},
 			})
 
@@ -118,6 +121,7 @@ export function HeatSchedulePublishingCard({
 				data: {
 					trackWorkoutId,
 					publish,
+					organizingTeamId,
 				},
 			})
 
@@ -280,7 +284,7 @@ export function HeatSchedulePublishingCard({
 									onClick={() =>
 										handleToggleHeat(status.heatId, status.isPublished)
 									}
-									disabled={isToggling}
+									disabled={isToggling || isPublishingAll}
 								>
 									{isToggling ? (
 										<Loader2 className="h-4 w-4 animate-spin" />

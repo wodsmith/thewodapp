@@ -204,8 +204,11 @@ function MobileLeaderboardRow({
 	const icon = getRankIcon(entry.overallRank)
 	const isPodium = entry.overallRank <= 3
 
-	// Sort events by trackOrder
-	const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
+	// Sort events by trackOrder - memoized to avoid re-sorting on every render
+	const sortedEvents = useMemo(
+		() => [...events].sort((a, b) => a.trackOrder - b.trackOrder),
+		[events],
+	)
 
 	return (
 		<Collapsible open={isOpen} onOpenChange={setIsOpen}>
