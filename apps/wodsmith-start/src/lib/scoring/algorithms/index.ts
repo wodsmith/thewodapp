@@ -135,6 +135,8 @@ export function calculateEventPoints(
 			return calculateTraditionalEventPoints(scores, scheme, config)
 		case "p_score":
 			return calculatePScoreEventPoints(scores, scheme, config)
+		case "winner_takes_more":
+			return calculateWinnerTakesMoreEventPoints(scores, scheme, config)
 		case "custom":
 			return calculateCustomEventPoints(scores, scheme, config)
 		default: {
@@ -208,6 +210,95 @@ function calculateTraditionalEventPoints(
 				// Both get ranked after all active athletes
 				rank = lastActiveRank + 1
 				points = calculateTraditionalPoints(rank, traditionalConfig)
+				break
+			case "zero":
+				rank = lastActiveRank + 1
+				points = 0
+				break
+			case "exclude":
+				// Don't add to results
+				continue
+		}
+
+		results.set(score.userId, {
+			userId: score.userId,
+			points,
+			rank,
+		})
+	}
+
+	return results
+}
+
+/**
+ * Calculate points using Winner Takes More scoring
+ * Uses a front-loaded points table that rewards top finishers more heavily
+ */
+function calculateWinnerTakesMoreEventPoints(
+	scores: EventScoreInput[],
+	scheme: WorkoutScheme,
+	config: ScoringConfig,
+): Map<string, EventPointsResult> {
+	const isAscending = ASCENDING_SCHEMES.has(scheme)
+
+	// Separate active scores from inactive
+	const activeScores = scores.filter(
+		(s) => s.status === "scored" || s.status === "cap",
+	)
+	const inactiveScores = scores.filter(
+		(s) => s.status === "dnf" || s.status === "dns" || s.status === "withdrawn",
+	)
+
+	// Sort active scores by performance
+	const sortedActive = [...activeScores].sort((a, b) => {
+		// In time-with-cap, capped athletes rank after scored athletes
+		if (scheme === "time-with-cap") {
+			if (a.status === "cap" && b.status !== "cap") return 1
+			if (a.status !== "cap" && b.status === "cap") return -1
+		}
+		return isAscending ? a.value - b.value : b.value - a.value
+	})
+
+	// Assign ranks with tie handling
+	const ranked = assignRanks(sortedActive)
+	const results = new Map<string, EventPointsResult>()
+
+	// Calculate points for active athletes using winner_takes_more table
+	for (const { score, rank } of ranked) {
+		const points = calculateCustomPoints(rank, {
+			baseTemplate: "winner_takes_more",
+			overrides: {},
+		})
+		results.set(score.userId, {
+			userId: score.userId,
+			points,
+			rank,
+		})
+	}
+
+	// Handle inactive athletes based on config
+	const lastActiveRank = ranked.length > 0 ? ranked[ranked.length - 1].rank : 0
+	for (const score of inactiveScores) {
+		if (
+			score.status !== "dnf" &&
+			score.status !== "dns" &&
+			score.status !== "withdrawn"
+		) {
+			continue
+		}
+		const handling = getStatusHandling(score.status, config)
+		let points: number
+		let rank: number
+
+		switch (handling) {
+			case "last_place":
+			case "worst_performance":
+				// Both get ranked after all active athletes
+				rank = lastActiveRank + 1
+				points = calculateCustomPoints(rank, {
+					baseTemplate: "winner_takes_more",
+					overrides: {},
+				})
 				break
 			case "zero":
 				rank = lastActiveRank + 1
@@ -435,6 +526,8 @@ export function getScoringAlgorithmName(
 			return "Traditional"
 		case "p_score":
 			return "P-Score"
+		case "winner_takes_more":
+			return "Winner Takes More"
 		case "custom":
 			return "Custom"
 	}

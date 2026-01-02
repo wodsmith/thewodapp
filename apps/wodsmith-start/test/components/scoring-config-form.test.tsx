@@ -35,14 +35,15 @@ describe("ScoringConfigForm", () => {
 			expect(screen.getByLabelText(/traditional/i)).toBeChecked()
 		})
 
-		it("renders all three algorithm options", () => {
+		it("renders all algorithm options", () => {
 			render(
 				<ScoringConfigForm value={createDefaultConfig()} onChange={onChange} />,
 			)
 
 			expect(screen.getByLabelText(/traditional/i)).toBeInTheDocument()
+			expect(screen.getByLabelText(/winner takes more/i)).toBeInTheDocument()
 			expect(screen.getByLabelText(/p-score/i)).toBeInTheDocument()
-			expect(screen.getByLabelText(/custom/i)).toBeInTheDocument()
+			// Note: "Custom" is no longer a separate option - it's auto-applied when editing points
 		})
 
 		it("renders tiebreaker section", () => {
@@ -59,7 +60,9 @@ describe("ScoringConfigForm", () => {
 				<ScoringConfigForm value={createDefaultConfig()} onChange={onChange} />,
 			)
 
-			expect(screen.getByText("DNF/DNS Handling")).toBeInTheDocument()
+			expect(
+				screen.getByText(/Did Not Finish.*Did Not Start.*Handling/i),
+			).toBeInTheDocument()
 			expect(screen.getByLabelText(/dnf/i)).toBeInTheDocument()
 			expect(screen.getByLabelText(/dns/i)).toBeInTheDocument()
 			expect(screen.getByLabelText(/wd/i)).toBeInTheDocument()
@@ -150,38 +153,37 @@ describe("ScoringConfigForm", () => {
 		})
 	})
 
-	describe("Custom Algorithm", () => {
-		it("shows custom options when selected", () => {
-			const config = createDefaultConfig({
-				algorithm: "custom",
-				customTable: { baseTemplate: "traditional", overrides: {} },
-			})
+	describe("Inline Points Editing", () => {
+		it("shows editable points preview", () => {
+			render(
+				<ScoringConfigForm value={createDefaultConfig()} onChange={onChange} />,
+			)
 
-			render(<ScoringConfigForm value={config} onChange={onChange} />)
-
-			expect(screen.getByLabelText(/based on/i)).toBeInTheDocument()
-			expect(
-				screen.getByRole("button", { name: /edit points/i }),
-			).toBeInTheDocument()
+			// Points preview should show clickable cells
+			expect(screen.getByText("Points Preview")).toBeInTheDocument()
+			expect(screen.getByText("Click any value to customize")).toBeInTheDocument()
 		})
 
-		it("changes base template selection", () => {
+		it("shows 30 positions for winner_takes_more algorithm", () => {
 			const config = createDefaultConfig({
-				algorithm: "custom",
-				customTable: { baseTemplate: "traditional", overrides: {} },
+				algorithm: "winner_takes_more",
 			})
 
 			render(<ScoringConfigForm value={config} onChange={onChange} />)
 
-			const select = screen.getByLabelText(/based on/i)
-			fireEvent.click(select)
-			fireEvent.click(screen.getByRole("option", { name: /p.score/i }))
+			// Should show position 30
+			expect(screen.getByText("30.")).toBeInTheDocument()
+		})
 
-			expect(onChange).toHaveBeenCalledWith(
-				expect.objectContaining({
-					customTable: expect.objectContaining({ baseTemplate: "p_score" }),
-				}),
-			)
+		it("shows reset button when overrides exist", () => {
+			const config = createDefaultConfig({
+				algorithm: "custom",
+				customTable: { baseTemplate: "traditional", overrides: { "1": 150 } },
+			})
+
+			render(<ScoringConfigForm value={config} onChange={onChange} />)
+
+			expect(screen.getByRole("button", { name: /reset/i })).toBeInTheDocument()
 		})
 	})
 

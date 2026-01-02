@@ -101,20 +101,20 @@ describe("CustomPointsTableEditor", () => {
 			expect(inputs[2]).toHaveValue(WINNER_TAKES_MORE_TABLE[2]) // 75
 		})
 
-		it("displays p_score template values (same as traditional)", () => {
+		it("displays winner_takes_more template values with overrides", () => {
 			renderEditor({
-				baseTemplate: "p_score",
-				traditionalConfig: { step: 5, firstPlacePoints: 100 },
+				baseTemplate: "winner_takes_more",
+				overrides: { "1": 150 },
 			})
 
 			fireEvent.click(
 				screen.getByRole("button", { name: /edit points table/i }),
 			)
 
-			// p_score uses traditional for static table
+			// Check that override is applied
 			const inputs = screen.getAllByRole("spinbutton")
-			expect(inputs[0]).toHaveValue(100)
-			expect(inputs[1]).toHaveValue(95)
+			expect(inputs[0]).toHaveValue(150) // overridden
+			expect(inputs[1]).toHaveValue(WINNER_TAKES_MORE_TABLE[1]) // 85 from table
 		})
 	})
 

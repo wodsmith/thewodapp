@@ -2,10 +2,12 @@
  * Custom Table Scoring Algorithm
  *
  * Builds on a base template with optional place-specific overrides.
- * Supports three base templates:
+ * Supports two base templates:
  * - traditional: Fixed step deduction
- * - p_score: Performance-based (falls back to traditional for static table)
- * - winner_takes_more: Front-loaded points table
+ * - winner_takes_more: Front-loaded points table (like CrossFit Games)
+ *
+ * Note: P-Score cannot be used as a base template because it calculates
+ * points dynamically based on performance gaps, not static positions.
  *
  * @see docs/plans/configurable-scoring-system.md
  */
@@ -54,8 +56,7 @@ export function generatePointsTable(
 					: 0
 			table.push(points)
 		} else {
-			// Both 'traditional' and 'p_score' use traditional calculation
-			// (p_score requires performance data and can't generate a static table)
+			// 'traditional' uses traditional calculation
 			const config = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
 			table.push(calculateTraditionalPoints(place, config))
 		}
@@ -108,7 +109,7 @@ export function calculateCustomPoints(
 			: 0
 	}
 
-	// Both 'traditional' and 'p_score' use traditional calculation
+	// 'traditional' uses traditional calculation
 	const config2 = traditionalConfig ?? { firstPlacePoints: 100, step: 5 }
 	return calculateTraditionalPoints(effectivePlace, config2)
 }

@@ -58,16 +58,11 @@ describe('Custom Scoring Algorithm', () => {
       expect(table.slice(30)).toEqual([0, 0, 0, 0, 0])
     })
 
-    it('should generate p_score placeholder table (falls back to traditional)', () => {
-      // p_score requires performance data, so generatePointsTable falls back
-      const traditionalConfig: TraditionalConfig = {
-        firstPlacePoints: 100,
-        step: 5,
-      }
-      const table = generatePointsTable('p_score', 10, traditionalConfig)
+    it('should generate winner_takes_more table', () => {
+      const table = generatePointsTable('winner_takes_more', 10)
 
-      // Should use traditional as fallback
-      expect(table).toEqual([100, 95, 90, 85, 80, 75, 70, 65, 60, 55])
+      // Should use winner_takes_more values
+      expect(table).toEqual([100, 85, 75, 67, 62, 58, 55, 52, 50, 48])
     })
   })
 

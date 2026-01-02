@@ -13,11 +13,13 @@ import { z } from "zod"
  * Scoring algorithm types
  * - traditional: Fixed step points (default: 100, 95, 90...)
  * - p_score: Performance-based scoring (margin of victory)
- * - custom: User-defined points table
+ * - winner_takes_more: Top positions get disproportionately more points (like CrossFit Games)
+ * - custom: User-defined points table with overrides
  */
 export const scoringAlgorithmSchema = z.enum([
 	"traditional",
 	"p_score",
+	"winner_takes_more",
 	"custom",
 ])
 export type ScoringAlgorithm = z.infer<typeof scoringAlgorithmSchema>
@@ -64,8 +66,8 @@ export type PScoreConfig = z.infer<typeof pScoreConfigSchema>
  * Based on a template with optional overrides
  */
 export const customTableConfigSchema = z.object({
-	/** Base template to start from */
-	baseTemplate: z.enum(["traditional", "p_score", "winner_takes_more"]),
+	/** Base template to start from (traditional or winner_takes_more - P-Score can't be customized) */
+	baseTemplate: z.enum(["traditional", "winner_takes_more"]),
 	/** Place → points overrides (e.g., { "1": 100, "2": 90 }) - keys are string numbers */
 	overrides: z.record(z.string(), z.number()).default({}),
 })
@@ -96,13 +98,11 @@ export type TiebreakerConfig = z.infer<typeof tiebreakerConfigSchema>
  */
 const statusHandlingConfigBaseSchema = z.object({
 	/** DNF handling: worst_performance | zero | last_place */
-	dnf: z
-		.enum(["worst_performance", "zero", "last_place"])
-		.default("last_place"),
+	dnf: z.enum(["worst_performance", "zero", "last_place"]).default("zero"),
 	/** DNS handling: worst_performance | zero | exclude */
 	dns: z.enum(["worst_performance", "zero", "exclude"]).default("zero"),
 	/** Withdrawn handling: zero | exclude */
-	withdrawn: z.enum(["zero", "exclude"]).default("exclude"),
+	withdrawn: z.enum(["zero", "exclude"]).default("zero"),
 })
 
 /**
@@ -110,9 +110,9 @@ const statusHandlingConfigBaseSchema = z.object({
  */
 export const statusHandlingConfigSchema =
 	statusHandlingConfigBaseSchema.default({
-		dnf: "last_place",
+		dnf: "zero",
 		dns: "zero",
-		withdrawn: "exclude",
+		withdrawn: "zero",
 	})
 export type StatusHandlingConfig = z.infer<typeof statusHandlingConfigSchema>
 

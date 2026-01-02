@@ -153,14 +153,6 @@ describe("CustomTableConfig Schema", () => {
 		})
 	})
 
-	it("accepts p_score as base template", () => {
-		const result = customTableConfigSchema.safeParse({
-			baseTemplate: "p_score",
-			overrides: {},
-		})
-		expect(result.success).toBe(true)
-	})
-
 	it("accepts winner_takes_more as base template", () => {
 		const result = customTableConfigSchema.safeParse({
 			baseTemplate: "winner_takes_more",
@@ -243,9 +235,9 @@ describe("StatusHandlingConfig Schema", () => {
 		const result = statusHandlingConfigSchema.safeParse({})
 		expect(result.success).toBe(true)
 		expect(result.data).toEqual({
-			dnf: "last_place",
+			dnf: "zero",
 			dns: "zero",
-			withdrawn: "exclude",
+			withdrawn: "zero",
 		})
 	})
 
@@ -286,7 +278,7 @@ describe("ScoringConfig Schema", () => {
 		expect(result.success).toBe(true)
 		// Should have defaults applied
 		expect(result.data?.tiebreaker.primary).toBe("countback")
-		expect(result.data?.statusHandling.dnf).toBe("last_place")
+		expect(result.data?.statusHandling.dnf).toBe("zero")
 	})
 
 	it("accepts full traditional config", () => {
@@ -370,9 +362,9 @@ describe("ScoringConfig Schema", () => {
 		// Check nested defaults
 		expect(result.data?.tiebreaker).toEqual({ primary: "countback" })
 		expect(result.data?.statusHandling).toEqual({
-			dnf: "last_place",
+			dnf: "zero",
 			dns: "zero",
-			withdrawn: "exclude",
+			withdrawn: "zero",
 		})
 	})
 

@@ -49,6 +49,7 @@ interface LeaderboardData {
 const ALGORITHM_DISPLAY_NAMES: Record<ScoringAlgorithm, string> = {
 	traditional: "Traditional",
 	p_score: "P-Score",
+	winner_takes_more: "Winner Takes More",
 	custom: "Custom",
 }
 
