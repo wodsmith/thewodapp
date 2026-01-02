@@ -33,7 +33,8 @@ export async function login(
 
 	// Wait for the sign-in form to be ready
 	// Use a longer timeout in CI where pages may load slower
-	const signInButton = page.getByRole("button", { name: "SIGN IN", exact: true })
+	// Note: Button text is "Sign In" (mixed case) not "SIGN IN"
+	const signInButton = page.getByRole("button", { name: /sign in/i })
 	await signInButton.waitFor({ state: 'visible', timeout: 10000 })
 
 	// Fill in the login form
