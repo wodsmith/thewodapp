@@ -243,6 +243,46 @@ export async function sendTeamInvitationEmail({
 }
 
 /**
+ * Sends a competition team invitation email.
+ * Used when a captain invites teammates during registration.
+ * Uses the unified sendEmail function for consistent logging and error handling.
+ */
+export async function sendCompetitionTeamInviteEmail({
+	email,
+	invitationToken,
+	teamName,
+	competitionName,
+	divisionName,
+	inviterName,
+}: {
+	email: string
+	invitationToken: string
+	teamName: string
+	competitionName: string
+	divisionName: string
+	inviterName: string
+}): Promise<void> {
+	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
+
+	// In dev mode, console.warn shows the URL for easy testing
+	if (!shouldSendEmail) {
+		console.warn("\n\n\nCompetition team invitation url: ", inviteUrl)
+	}
+
+	await sendEmail({
+		to: email,
+		subject: `Join ${teamName} for ${competitionName}`,
+		template: TeamInviteEmail({
+			inviteLink: inviteUrl,
+			recipientEmail: email,
+			teamName: `${teamName} (${divisionName})`,
+			inviterName,
+		}),
+		tags: [{ name: "type", value: "competition-team-invitation" }],
+	})
+}
+
+/**
  * Sends an organizer request approval email.
  * Uses the unified sendEmail function for consistent logging and error handling.
  */

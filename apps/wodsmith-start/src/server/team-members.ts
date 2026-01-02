@@ -342,19 +342,11 @@ export async function acceptTeamInvitation(token: string): Promise<{
 				competitionId?: string
 			}
 			if (metadata.competitionId) {
-				// TODO: Import and call addToCompetitionEventTeam when available
-				// const { addToCompetitionEventTeam, clearPendingTeammate } =
-				// 	await import("@/server/competitions")
-				// await addToCompetitionEventTeam(session.userId, metadata.competitionId)
-
-				// Clear from pendingTeammates on the registration and migrate affiliate
-				// if (session.user.email) {
-				// 	await clearPendingTeammate(
-				// 		metadata.competitionId,
-				// 		session.user.email,
-				// 		session.userId,
-				// 	)
-				// }
+				// Add user to competition_event team
+				const { addToCompetitionEventTeam } = await import(
+					"@/server/registration"
+				)
+				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
 
 				// Send teammate joined notification to captain
 				const registration =
@@ -366,16 +358,15 @@ export async function acceptTeamInvitation(token: string): Promise<{
 					})
 
 				if (registration?.captainUserId) {
-					// TODO: Import and call notifyTeammateJoined when notifications are available
-					// const { notifyTeammateJoined } = await import(
-					// 	"@/server/notifications"
-					// )
-					// await notifyTeammateJoined({
-					// 	captainUserId: registration.captainUserId,
-					// 	newTeammateUserId: session.userId,
-					// 	competitionTeamId: invitation.teamId,
-					// 	competitionId: metadata.competitionId,
-					// })
+					const { notifyTeammateJoined } = await import(
+						"@/server/notifications"
+					)
+					await notifyTeammateJoined({
+						captainUserId: registration.captainUserId,
+						newTeammateUserId: session.userId,
+						competitionTeamId: invitation.teamId,
+						competitionId: metadata.competitionId,
+					})
 				}
 			}
 		} catch {

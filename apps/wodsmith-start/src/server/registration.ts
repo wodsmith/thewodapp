@@ -225,9 +225,24 @@ async function inviteUserToTeamInternal({
 		expiresAt,
 	})
 
-	// TODO: Send competition team invite email when notifyCompetitionTeamInvite is ported
-	// For now, invites are created but notification emails are not sent
-	// The invite can still be accepted via the token
+	// Send competition team invite email
+	if (competitionContext) {
+		// Get competition name for email subject
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, competitionContext.competitionId),
+		})
+		const competitionName = competition?.name ?? "the competition"
+
+		const { sendCompetitionTeamInviteEmail } = await import("@/utils/email")
+		await sendCompetitionTeamInviteEmail({
+			email: email.toLowerCase(),
+			invitationToken: token,
+			teamName: competitionContext.teamName,
+			competitionName,
+			divisionName: competitionContext.divisionName,
+			inviterName: "Your team captain", // Captain details not available in this context
+		})
+	}
 
 	return { userJoined: false, invitationSent: true, token }
 }
@@ -705,4 +720,56 @@ export async function notifyRegistrationConfirmed(
 			attributes: { userId, registrationId, competitionId },
 		})
 	}
+}
+
+// ============================================================================
+// Competition Team Helpers
+// ============================================================================
+
+/**
+ * Add a user to the competition_event team
+ * Called when a teammate accepts an invitation to join a competition team
+ */
+export async function addToCompetitionEventTeam(
+	userId: string,
+	competitionId: string,
+): Promise<void> {
+	const db = getDb()
+
+	// Dynamic import for kv-session (uses cloudflare: imports)
+	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
+
+	// Get competition to find the competition_event team
+	const competition = await db.query.competitionsTable.findFirst({
+		where: eq(competitionsTable.id, competitionId),
+	})
+
+	if (!competition?.competitionTeamId) {
+		return // No competition_event team to add to
+	}
+
+	// Check if already a member of competition_event team
+	const existingMembership = await db.query.teamMembershipTable.findFirst({
+		where: and(
+			eq(teamMembershipTable.teamId, competition.competitionTeamId),
+			eq(teamMembershipTable.userId, userId),
+		),
+	})
+
+	if (existingMembership) {
+		return // Already a member
+	}
+
+	// Add to competition_event team as MEMBER
+	await db.insert(teamMembershipTable).values({
+		teamId: competition.competitionTeamId,
+		userId,
+		roleId: SYSTEM_ROLES_ENUM.MEMBER,
+		isSystemRole: 1,
+		joinedAt: new Date(),
+		isActive: 1,
+	})
+
+	// Update user sessions to include the new team
+	await updateAllSessionsOfUser(userId)
 }
