@@ -10,6 +10,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import {
 	AlertTriangle,
+	Calculator,
 	Calendar,
 	ClipboardSignature,
 	DollarSign,
@@ -72,6 +73,7 @@ const getNavigation = (
 			items: [
 				{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
 				{ label: "Events", href: `${basePath}/events`, icon: Trophy },
+				{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
 				{ label: "Registrations", href: `${basePath}/athletes`, icon: Users },
 				{
 					label: "Waivers",
