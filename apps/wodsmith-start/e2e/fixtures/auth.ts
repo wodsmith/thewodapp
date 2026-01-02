@@ -31,12 +31,10 @@ export async function login(
 		return
 	}
 
-	// Check if the sign-in button exists (page might still be redirecting)
+	// Wait for the sign-in form to be ready
+	// Use a longer timeout in CI where pages may load slower
 	const signInButton = page.getByRole("button", { name: "SIGN IN", exact: true })
-	if (!(await signInButton.isVisible({ timeout: 2000 }).catch(() => false))) {
-		// No sign-in button visible, we're probably already authenticated
-		return
-	}
+	await signInButton.waitFor({ state: 'visible', timeout: 10000 })
 
 	// Fill in the login form
 	await page.getByPlaceholder(/email/i).fill(credentials.email)
@@ -48,7 +46,7 @@ export async function login(
 	// Wait for redirect after successful login
 	// The app redirects to /workouts after login
 	await page.waitForURL(/\/(workouts|dashboard)/, { 
-		timeout: 10000,
+		timeout: 15000,
 		waitUntil: 'networkidle'
 	})
 
@@ -59,7 +57,7 @@ export async function login(
 	// Poll for the session cookie to be set (httpOnly cookies need context.cookies())
 	// This is critical in CI where timing can be tighter
 	let attempts = 0
-	const maxAttempts = 10
+	const maxAttempts = 20
 	while (attempts < maxAttempts) {
 		const cookies = await page.context().cookies()
 		if (cookies.some(c => c.name === 'session')) {
