@@ -3,6 +3,7 @@
 import { BarChart3 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import {
 	Select,
 	SelectContent,
@@ -22,21 +23,78 @@ import {
 	getPublicCompetitionDivisionsFn,
 	type PublicCompetitionDivision,
 } from "@/server-fns/competition-divisions-fns"
-import { getLeaderboardDataFn } from "@/server-fns/leaderboard-fns"
+import {
+	getCompetitionLeaderboardFn,
+	type CompetitionLeaderboardEntry,
+} from "@/server-fns/leaderboard-fns"
+import type { ScoringConfig, ScoringAlgorithm } from "@/types/scoring"
+import { cn } from "@/lib/utils"
 
+/**
+ * Props for the LeaderboardPageContent component
+ */
 interface LeaderboardPageContentProps {
 	competitionId: string
 }
 
+interface LeaderboardData {
+	entries: CompetitionLeaderboardEntry[]
+	scoringConfig: ScoringConfig
+	events: Array<{ trackWorkoutId: string; name: string }>
+}
+
+/**
+ * Display name mapping for scoring algorithms
+ */
+const ALGORITHM_DISPLAY_NAMES: Record<ScoringAlgorithm, string> = {
+	traditional: "Traditional",
+	p_score: "P-Score",
+	custom: "Custom",
+}
+
+/**
+ * Format points value based on scoring algorithm.
+ * Traditional: integer (e.g., "195")
+ * P-Score: decimal with sign (e.g., "+15.5" or "-3.2")
+ */
+function formatPoints(
+	points: number,
+	algorithm: ScoringAlgorithm,
+): { formatted: string; isNegative: boolean; isPositive: boolean } {
+	if (algorithm === "p_score") {
+		// P-Score: show sign and one decimal place
+		const rounded = Math.round(points * 10) / 10
+		const isNegative = rounded < 0
+		const isPositive = rounded > 0
+		const sign = isPositive ? "+" : ""
+		return {
+			formatted: `${sign}${rounded.toFixed(1)}`,
+			isNegative,
+			isPositive,
+		}
+	}
+
+	// Traditional/Custom: integer, no sign
+	return {
+		formatted: String(Math.round(points)),
+		isNegative: false,
+		isPositive: false,
+	}
+}
+
+/**
+ * Competition Leaderboard Page Content
+ *
+ * Displays competition leaderboard with configurable scoring support.
+ * Supports Traditional, P-Score, and Custom scoring algorithms.
+ */
 export function LeaderboardPageContent({
 	competitionId,
 }: LeaderboardPageContentProps) {
 	const [divisions, setDivisions] = useState<PublicCompetitionDivision[]>([])
 	const [selectedDivision, setSelectedDivision] = useState("")
-	const [leaderboardData, setLeaderboardData] = useState<{
-		leaderboard: any[]
-		workouts: any[]
-	} | null>(null)
+	const [leaderboardData, setLeaderboardData] =
+		useState<LeaderboardData | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 	const [isDivisionsLoading, setIsDivisionsLoading] = useState(true)
 
@@ -69,7 +127,7 @@ export function LeaderboardPageContent({
 
 			setIsLoading(true)
 			try {
-				const result = await getLeaderboardDataFn({
+				const result = await getCompetitionLeaderboardFn({
 					data: {
 						competitionId,
 						divisionId: selectedDivision,
@@ -90,12 +148,21 @@ export function LeaderboardPageContent({
 		setSelectedDivision(divisionId)
 	}
 
-	const hasResults = leaderboardData && leaderboardData.leaderboard.length > 0
+	const hasResults = leaderboardData && leaderboardData.entries.length > 0
+	const algorithm = leaderboardData?.scoringConfig?.algorithm ?? "traditional"
+	const events = leaderboardData?.events ?? []
 
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4">
-				<h2 className="text-2xl font-bold">Leaderboard</h2>
+				<div className="flex items-center gap-3">
+					<h2 className="text-2xl font-bold">Leaderboard</h2>
+					{hasResults && (
+						<Badge variant="secondary" className="text-xs">
+							{ALGORITHM_DISPLAY_NAMES[algorithm]}
+						</Badge>
+					)}
+				</div>
 
 				{/* Division selector */}
 				{divisions && divisions.length > 1 && (
@@ -131,7 +198,7 @@ export function LeaderboardPageContent({
 			)}
 
 			{/* Empty state */}
-			{!isLoading && !hasResults && (
+			{!isLoading && !isDivisionsLoading && !hasResults && (
 				<Alert variant="default" className="border-dashed">
 					<BarChart3 className="h-4 w-4" />
 					<AlertTitle>Leaderboard not yet available</AlertTitle>
@@ -144,53 +211,92 @@ export function LeaderboardPageContent({
 
 			{/* Leaderboard table */}
 			{!isLoading && hasResults && (
-				<div className="rounded-md border">
+				<div className="rounded-md border overflow-x-auto">
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead>Rank</TableHead>
+								<TableHead className="w-16">Rank</TableHead>
 								<TableHead>Athlete</TableHead>
-								<TableHead>Division</TableHead>
-								<TableHead>Status</TableHead>
+								<TableHead className="text-right">Points</TableHead>
+								{events.map((event) => (
+									<TableHead key={event.trackWorkoutId} className="text-center">
+										{event.name}
+									</TableHead>
+								))}
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{leaderboardData.leaderboard.map((entry, index) => (
-								<TableRow key={entry.userId}>
-									<TableCell className="font-medium">{index + 1}</TableCell>
-									<TableCell>{entry.userName}</TableCell>
-									<TableCell>{entry.scalingLevelLabel || "N/A"}</TableCell>
-									<TableCell className="text-muted-foreground">
-										{entry.formattedScore}
-									</TableCell>
-								</TableRow>
-							))}
+							{leaderboardData.entries.map((entry) => {
+								const { formatted, isNegative, isPositive } = formatPoints(
+									entry.totalPoints,
+									algorithm,
+								)
+
+								return (
+									<TableRow key={entry.registrationId}>
+										<TableCell className="font-medium">
+											{entry.overallRank}
+										</TableCell>
+										<TableCell>
+											<div className="flex flex-col">
+												<span>{entry.athleteName}</span>
+												{entry.isTeamDivision && entry.teamName && (
+													<span className="text-xs text-muted-foreground">
+														{entry.teamName}
+													</span>
+												)}
+											</div>
+										</TableCell>
+										<TableCell
+											className={cn(
+												"text-right font-semibold tabular-nums",
+												isNegative && "text-red-600 dark:text-red-400",
+												isPositive &&
+													algorithm === "p_score" &&
+													"text-green-600 dark:text-green-400",
+											)}
+										>
+											{formatted}
+										</TableCell>
+										{events.map((event) => {
+											const eventResult = entry.eventResults.find(
+												(r) => r.trackWorkoutId === event.trackWorkoutId,
+											)
+
+											if (!eventResult) {
+												return (
+													<TableCell
+														key={event.trackWorkoutId}
+														className="text-center text-muted-foreground"
+													>
+														—
+													</TableCell>
+												)
+											}
+
+											return (
+												<TableCell
+													key={event.trackWorkoutId}
+													className="text-center"
+												>
+													<div className="flex flex-col items-center">
+														<span className="text-sm">
+															{eventResult.formattedScore}
+														</span>
+														<span className="text-xs text-muted-foreground">
+															#{eventResult.rank} ({eventResult.points} pts)
+														</span>
+													</div>
+												</TableCell>
+											)
+										})}
+									</TableRow>
+								)
+							})}
 						</TableBody>
 					</Table>
 				</div>
 			)}
-
-			{/* Workouts info - if available */}
-			{!isLoading &&
-				hasResults &&
-				leaderboardData.workouts &&
-				leaderboardData.workouts.length > 0 && (
-					<div className="mt-4">
-						<h3 className="text-sm font-medium text-muted-foreground mb-2">
-							Competition Workouts ({leaderboardData.workouts.length})
-						</h3>
-						<div className="flex flex-wrap gap-2">
-							{leaderboardData.workouts.map((workout) => (
-								<div
-									key={workout.id}
-									className="text-xs px-2 py-1 rounded-md bg-muted"
-								>
-									{workout.name}
-								</div>
-							))}
-						</div>
-					</div>
-				)}
 		</div>
 	)
 }
