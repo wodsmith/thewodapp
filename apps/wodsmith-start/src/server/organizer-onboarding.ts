@@ -14,29 +14,119 @@ import {
 	userTable,
 } from "@/db/schema"
 
-// Stub implementations for entitlements - these would be properly implemented
-// in a full migration
+/**
+ * Grant a feature entitlement to a team
+ * Inserts into teamFeatureEntitlementTable with source 'override'
+ * Uses onConflictDoUpdate to handle duplicates
+ */
 export async function grantTeamFeature(
-	_teamId: string,
-	_featureId: string,
+	teamId: string,
+	featureKey: string,
 ): Promise<void> {
-	// Stub implementation
+	const db = getDb()
+	const { eq } = await import("drizzle-orm")
+	const { featureTable, teamFeatureEntitlementTable } = await import(
+		"@/db/schema"
+	)
+
+	// Look up feature by key to get its ID
+	const feature = await db.query.featureTable.findFirst({
+		where: eq(featureTable.key, featureKey),
+	})
+
+	if (!feature) {
+		throw new Error(`Feature not found: ${featureKey}`)
+	}
+
+	await db
+		.insert(teamFeatureEntitlementTable)
+		.values({
+			teamId,
+			featureId: feature.id,
+			source: "override",
+			isActive: 1,
+		})
+		.onConflictDoUpdate({
+			target: [
+				teamFeatureEntitlementTable.teamId,
+				teamFeatureEntitlementTable.featureId,
+			],
+			set: {
+				isActive: 1,
+				source: "override",
+			},
+		})
 }
 
+/**
+ * Revoke a feature entitlement from a team
+ * Sets isActive = 0 on the teamFeatureEntitlementTable entry
+ */
 export async function revokeTeamFeature(
-	_teamId: string,
-	_featureId: string,
+	teamId: string,
+	featureKey: string,
 ): Promise<void> {
-	// Stub implementation
+	const db = getDb()
+	const { eq, and } = await import("drizzle-orm")
+	const { featureTable, teamFeatureEntitlementTable } = await import(
+		"@/db/schema"
+	)
+
+	// Look up feature by key to get its ID
+	const feature = await db.query.featureTable.findFirst({
+		where: eq(featureTable.key, featureKey),
+	})
+
+	if (!feature) {
+		throw new Error(`Feature not found: ${featureKey}`)
+	}
+
+	// Deactivate the feature entitlement (set isActive = 0)
+	await db
+		.update(teamFeatureEntitlementTable)
+		.set({ isActive: 0 })
+		.where(
+			and(
+				eq(teamFeatureEntitlementTable.teamId, teamId),
+				eq(teamFeatureEntitlementTable.featureId, feature.id),
+			),
+		)
 }
 
+/**
+ * Set a limit override for a team
+ * Inserts into teamEntitlementOverrideTable with type 'limit'
+ * Uses onConflictDoUpdate to handle duplicates
+ */
 export async function setTeamLimitOverride(
-	_teamId: string,
-	_limitKey: string,
-	_value: number,
-	_reason?: string,
+	teamId: string,
+	limitKey: string,
+	value: number,
+	reason?: string,
 ): Promise<void> {
-	// Stub implementation
+	const db = getDb()
+	const { teamEntitlementOverrideTable } = await import("@/db/schema")
+
+	await db
+		.insert(teamEntitlementOverrideTable)
+		.values({
+			teamId,
+			type: "limit",
+			key: limitKey,
+			value: String(value),
+			reason,
+		})
+		.onConflictDoUpdate({
+			target: [
+				teamEntitlementOverrideTable.teamId,
+				teamEntitlementOverrideTable.type,
+				teamEntitlementOverrideTable.key,
+			],
+			set: {
+				value: String(value),
+				reason,
+			},
+		})
 }
 
 // Dynamic import helper for logging (avoids Vite bundling issues)

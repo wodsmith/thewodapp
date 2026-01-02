@@ -11,13 +11,23 @@ import { useForm } from "react-hook-form"
 import { Captcha } from "@/components/captcha"
 import { Button } from "@/components/ui/button"
 import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
+import {
 	Form,
 	FormControl,
 	FormField,
 	FormItem,
+	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { REDIRECT_AFTER_SIGN_IN } from "@/constants"
 import { useIdentifyUser, useTrackEvent } from "@/lib/posthog/hooks"
 import {
@@ -99,141 +109,142 @@ function SignUpPage() {
 
 	return (
 		<div className="min-h-[90vh] flex items-center px-4 justify-center bg-background my-6 md:my-10">
-			<div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-primary shadow-[8px_8px_0px_0px] shadow-primary">
-				<div className="text-center">
-					<h2 className="mt-6 text-3xl md:text-4xl font-mono font-bold tracking-tight text-primary uppercase">
-						CREATE ACCOUNT
-					</h2>
-					<p className="mt-4 text-primary font-mono">
-						ALREADY HAVE AN ACCOUNT?{" "}
+			<Card className="w-full max-w-md">
+				<CardHeader className="text-center">
+					<CardTitle className="text-2xl">Create Account</CardTitle>
+					<CardDescription>
+						Already have an account?{" "}
 						<Link
 							to="/sign-in"
 							search={{ redirect: redirectPath }}
-							className="font-bold text-orange underline hover:no-underline"
+							className="text-primary underline-offset-4 hover:underline"
 						>
-							SIGN IN
+							Sign in
 						</Link>
-					</p>
-				</div>
+					</CardDescription>
+				</CardHeader>
 
-				{/* TODO: Add Passkey registration when WebAuthn is implemented */}
+				<CardContent>
+					{/* TODO: Add Passkey registration when WebAuthn is implemented */}
 
-				{error && (
-					<div className="p-4 bg-red-500/10 border-2 border-red-500 text-red-500 font-mono text-sm">
-						{error}
-					</div>
-				)}
+					{error && (
+						<Alert variant="destructive" className="mb-6">
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					)}
 
-				<Form {...form}>
-					<form
-						onSubmit={form.handleSubmit(onSubmit)}
-						className="mt-8 space-y-4"
-					>
-						<FormField
-							control={form.control}
-							name="email"
-							render={({ field }) => (
-								<FormItem>
-									<FormControl>
-										<Input
-											type="email"
-											placeholder="EMAIL ADDRESS"
-											disabled={isLoading}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="firstName"
-							render={({ field }) => (
-								<FormItem>
-									<FormControl>
-										<Input
-											placeholder="FIRST NAME"
-											disabled={isLoading}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="lastName"
-							render={({ field }) => (
-								<FormItem>
-									<FormControl>
-										<Input
-											placeholder="LAST NAME"
-											disabled={isLoading}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="password"
-							render={({ field }) => (
-								<FormItem>
-									<FormControl>
-										<Input
-											type="password"
-											placeholder="PASSWORD"
-											disabled={isLoading}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<div className="flex flex-col justify-center items-center space-y-4">
-							<Captcha
-								onSuccess={(token: string) =>
-									form.setValue("captchaToken", token)
-								}
-								validationError={form.formState.errors.captchaToken?.message}
+					<Form {...form}>
+						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+							<FormField
+								control={form.control}
+								name="email"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Email</FormLabel>
+										<FormControl>
+											<Input
+												type="email"
+												placeholder="you@example.com"
+												disabled={isLoading}
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
 							/>
 
-							<Button type="submit" className="w-full" disabled={isLoading}>
-								{isLoading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
-							</Button>
-						</div>
-					</form>
-				</Form>
+							<FormField
+								control={form.control}
+								name="firstName"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>First Name</FormLabel>
+										<FormControl>
+											<Input
+												placeholder="John"
+												disabled={isLoading}
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 
-				<div className="mt-8">
-					<p className="text-xs text-center text-primary font-mono">
-						BY SIGNING UP, YOU AGREE TO OUR{" "}
+							<FormField
+								control={form.control}
+								name="lastName"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Last Name</FormLabel>
+										<FormControl>
+											<Input
+												placeholder="Doe"
+												disabled={isLoading}
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="password"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Password</FormLabel>
+										<FormControl>
+											<Input
+												type="password"
+												placeholder="Enter your password"
+												disabled={isLoading}
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<div className="flex flex-col justify-center items-center space-y-4 pt-2">
+								<Captcha
+									onSuccess={(token: string) =>
+										form.setValue("captchaToken", token)
+									}
+									validationError={form.formState.errors.captchaToken?.message}
+								/>
+
+								<Button type="submit" className="w-full" disabled={isLoading}>
+									{isLoading ? "Creating account..." : "Create Account"}
+								</Button>
+							</div>
+						</form>
+					</Form>
+				</CardContent>
+
+				<CardFooter>
+					<p className="text-xs text-center text-muted-foreground w-full">
+						By signing up, you agree to our{" "}
 						{/* TODO: Add terms and privacy routes */}
 						<a
 							href="/terms"
-							className="font-bold text-orange underline hover:no-underline"
+							className="text-primary underline-offset-4 hover:underline"
 						>
-							TERMS OF SERVICE
+							Terms of Service
 						</a>{" "}
-						AND{" "}
+						and{" "}
 						<a
 							href="/privacy"
-							className="font-bold text-orange underline hover:no-underline"
+							className="text-primary underline-offset-4 hover:underline"
 						>
-							PRIVACY POLICY
+							Privacy Policy
 						</a>
 					</p>
-				</div>
-			</div>
+				</CardFooter>
+			</Card>
 		</div>
 	)
 }

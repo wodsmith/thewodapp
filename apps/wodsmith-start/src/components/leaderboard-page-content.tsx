@@ -1,9 +1,11 @@
 "use client"
 
+import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { BarChart3 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import {
 	Select,
 	SelectContent,
@@ -11,76 +13,20 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
-import {
-	getPublicCompetitionDivisionsFn,
-	type PublicCompetitionDivision,
-} from "@/server-fns/competition-divisions-fns"
-import {
-	getCompetitionLeaderboardFn,
 	type CompetitionLeaderboardEntry,
+	getCompetitionLeaderboardFn,
 } from "@/server-fns/leaderboard-fns"
-import type { ScoringConfig, ScoringAlgorithm } from "@/types/scoring"
-import { cn } from "@/lib/utils"
+
+// Get parent route API to access divisions from loader
+const parentRoute = getRouteApi("/compete/$slug")
 
 /**
  * Props for the LeaderboardPageContent component
  */
 interface LeaderboardPageContentProps {
 	competitionId: string
-}
-
-interface LeaderboardData {
-	entries: CompetitionLeaderboardEntry[]
-	scoringConfig: ScoringConfig
-	events: Array<{ trackWorkoutId: string; name: string }>
-}
-
-/**
- * Display name mapping for scoring algorithms
- */
-const ALGORITHM_DISPLAY_NAMES: Record<ScoringAlgorithm, string> = {
-	traditional: "Traditional",
-	p_score: "P-Score",
-	winner_takes_more: "Winner Takes More",
-	custom: "Custom",
-}
-
-/**
- * Format points value based on scoring algorithm.
- * Traditional: integer (e.g., "195")
- * P-Score: decimal with sign (e.g., "+15.5" or "-3.2")
- */
-function formatPoints(
-	points: number,
-	algorithm: ScoringAlgorithm,
-): { formatted: string; isNegative: boolean; isPositive: boolean } {
-	if (algorithm === "p_score") {
-		// P-Score: show sign and one decimal place
-		const rounded = Math.round(points * 10) / 10
-		const isNegative = rounded < 0
-		const isPositive = rounded > 0
-		const sign = isPositive ? "+" : ""
-		return {
-			formatted: `${sign}${rounded.toFixed(1)}`,
-			isNegative,
-			isPositive,
-		}
-	}
-
-	// Traditional/Custom: integer, no sign
-	return {
-		formatted: String(Math.round(points)),
-		isNegative: false,
-		isPositive: false,
-	}
 }
 
 /**
@@ -92,82 +38,153 @@ function formatPoints(
 export function LeaderboardPageContent({
 	competitionId,
 }: LeaderboardPageContentProps) {
-	const [divisions, setDivisions] = useState<PublicCompetitionDivision[]>([])
-	const [selectedDivision, setSelectedDivision] = useState("")
-	const [leaderboardData, setLeaderboardData] =
-		useState<LeaderboardData | null>(null)
-	const [isLoading, setIsLoading] = useState(false)
-	const [isDivisionsLoading, setIsDivisionsLoading] = useState(true)
+	const navigate = useNavigate()
+	// Get search params from URL - using strict: false since we're in a child component
+	const searchParams = useSearch({ strict: false }) as {
+		division?: string
+		event?: string
+	}
 
-	// Fetch divisions on mount
-	useEffect(() => {
-		async function fetchDivisions() {
-			setIsDivisionsLoading(true)
-			try {
-				const result = await getPublicCompetitionDivisionsFn({
-					data: { competitionId },
-				})
-				setDivisions(result.divisions)
-				// Set default division to first one
-				if (result.divisions.length > 0) {
-					setSelectedDivision(result.divisions[0].id)
-				}
-			} catch (error) {
-				console.error("Failed to fetch divisions:", error)
-			} finally {
-				setIsDivisionsLoading(false)
-			}
-		}
-		fetchDivisions()
-	}, [competitionId])
+	// Get divisions from parent route loader
+	const { divisions } = parentRoute.useLoaderData()
+
+	// Default to first division if available
+	const defaultDivision = divisions?.[0]?.id ?? ""
+
+	// URL state for shareable leaderboard views
+	const selectedDivision = searchParams.division ?? defaultDivision
+	const selectedEventId = searchParams.event ?? null
+
+	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
+		[],
+	)
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+
+	// Server function for fetching leaderboard
+	const getLeaderboard = useServerFn(getCompetitionLeaderboardFn)
 
 	// Fetch leaderboard when division changes
 	useEffect(() => {
+		let cancelled = false
+
 		async function fetchLeaderboard() {
-			if (!selectedDivision) return
+			if (!selectedDivision) {
+				setIsLoading(false)
+				return
+			}
 
 			setIsLoading(true)
+			setError(null)
+
 			try {
-				const result = await getCompetitionLeaderboardFn({
+				const result = await getLeaderboard({
 					data: {
 						competitionId,
 						divisionId: selectedDivision,
 					},
 				})
-				setLeaderboardData(result)
-			} catch (error) {
-				console.error("Failed to fetch leaderboard:", error)
+
+				if (!cancelled) {
+					setLeaderboard(result)
+				}
+			} catch (err) {
+				if (!cancelled) {
+					console.error("Failed to fetch leaderboard:", err)
+					setError(
+						err instanceof Error
+							? err.message
+							: "Failed to load leaderboard. Please try again.",
+					)
+				}
 			} finally {
-				setIsLoading(false)
+				if (!cancelled) {
+					setIsLoading(false)
+				}
 			}
 		}
 
 		fetchLeaderboard()
-	}, [competitionId, selectedDivision])
 
-	const handleDivisionChange = (divisionId: string) => {
-		setSelectedDivision(divisionId)
+		return () => {
+			cancelled = true
+		}
+	}, [competitionId, selectedDivision, getLeaderboard])
+
+	// Handle division change - update URL
+	const handleDivisionChange = useCallback(
+		(divisionId: string) => {
+			navigate({
+				to: ".",
+				search: (prev: Record<string, unknown>) => ({
+					...prev,
+					division: divisionId,
+					// Reset event when changing divisions
+					event: undefined,
+				}),
+				replace: true,
+			})
+		},
+		[navigate],
+	)
+
+	// Handle event change - update URL
+	const handleEventChange = useCallback(
+		(value: string) => {
+			navigate({
+				to: ".",
+				search: (prev: Record<string, unknown>) => ({
+					...prev,
+					event: value === "overall" ? undefined : value,
+				}),
+				replace: true,
+			})
+		},
+		[navigate],
+	)
+
+	// Extract events from leaderboard data
+	const events = useMemo(() => {
+		if (leaderboard.length === 0) return []
+
+		const firstEntry = leaderboard[0]
+		if (!firstEntry) return []
+
+		return firstEntry.eventResults
+			.map((r) => ({
+				id: r.trackWorkoutId,
+				name: r.eventName,
+				trackOrder: r.trackOrder,
+				scheme: r.scheme,
+			}))
+			.sort((a, b) => a.trackOrder - b.trackOrder)
+	}, [leaderboard])
+
+	// Loading state - initial load
+	if (isLoading && leaderboard.length === 0) {
+		return (
+			<div className="space-y-6">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
+				<div className="space-y-4">
+					<div className="flex gap-4">
+						<Skeleton className="h-10 w-48" />
+						<Skeleton className="h-10 w-48" />
+					</div>
+					<Skeleton className="h-64 w-full" />
+				</div>
+			</div>
+		)
 	}
 
-	const hasResults = leaderboardData && leaderboardData.entries.length > 0
-	const algorithm = leaderboardData?.scoringConfig?.algorithm ?? "traditional"
-	const events = leaderboardData?.events ?? []
+	// Error state
+	if (error) {
+		return (
+			<div className="space-y-6">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
 
-	return (
-		<div className="space-y-6">
-			<div className="flex flex-col gap-4">
-				<div className="flex items-center gap-3">
-					<h2 className="text-2xl font-bold">Leaderboard</h2>
-					{hasResults && (
-						<Badge variant="secondary" className="text-xs">
-							{ALGORITHM_DISPLAY_NAMES[algorithm]}
-						</Badge>
-					)}
-				</div>
-
-				{/* Division selector */}
+				{/* Division selector even on error */}
 				{divisions && divisions.length > 1 && (
-					<div className="flex flex-wrap items-center gap-4">
+					<div className="mb-6">
 						<Select
 							value={selectedDivision}
 							onValueChange={handleDivisionChange}
@@ -185,21 +202,43 @@ export function LeaderboardPageContent({
 						</Select>
 					</div>
 				)}
+
+				<Alert variant="destructive">
+					<BarChart3 className="h-4 w-4" />
+					<AlertTitle>Error loading leaderboard</AlertTitle>
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
 			</div>
+		)
+	}
 
-			{/* Loading state */}
-			{(isLoading || isDivisionsLoading) && (
-				<div className="rounded-md border p-8">
-					<div className="text-center text-muted-foreground">
-						{isDivisionsLoading
-							? "Loading divisions..."
-							: "Loading leaderboard..."}
+	// Empty state - no results yet
+	if (leaderboard.length === 0 && !isLoading) {
+		return (
+			<div className="space-y-6">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
+
+				{/* Division selector even when empty */}
+				{divisions && divisions.length > 1 && (
+					<div className="mb-6">
+						<Select
+							value={selectedDivision}
+							onValueChange={handleDivisionChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Select division" />
+							</SelectTrigger>
+							<SelectContent>
+								{divisions.map((division) => (
+									<SelectItem key={division.id} value={division.id}>
+										{division.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
-				</div>
-			)}
+				)}
 
-			{/* Empty state */}
-			{!isLoading && !isDivisionsLoading && !hasResults && (
 				<Alert variant="default" className="border-dashed">
 					<BarChart3 className="h-4 w-4" />
 					<AlertTitle>Leaderboard not yet available</AlertTitle>
@@ -208,96 +247,71 @@ export function LeaderboardPageContent({
 						scores.
 					</AlertDescription>
 				</Alert>
-			)}
+			</div>
+		)
+	}
 
-			{/* Leaderboard table */}
-			{!isLoading && hasResults && (
-				<div className="rounded-md border overflow-x-auto">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead className="w-16">Rank</TableHead>
-								<TableHead>Athlete</TableHead>
-								<TableHead className="text-right">Points</TableHead>
-								{events.map((event) => (
-									<TableHead key={event.trackWorkoutId} className="text-center">
-										{event.name}
-									</TableHead>
+	return (
+		<div className="space-y-6">
+			<div className="flex flex-col gap-4">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
+
+				<div className="flex flex-wrap items-center gap-4">
+					{/* Division selector */}
+					{divisions && divisions.length > 1 && (
+						<Select
+							value={selectedDivision}
+							onValueChange={handleDivisionChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Select division" />
+							</SelectTrigger>
+							<SelectContent>
+								{divisions.map((division) => (
+									<SelectItem key={division.id} value={division.id}>
+										{division.label}
+									</SelectItem>
 								))}
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{leaderboardData.entries.map((entry) => {
-								const { formatted, isNegative, isPositive } = formatPoints(
-									entry.totalPoints,
-									algorithm,
-								)
+							</SelectContent>
+						</Select>
+					)}
 
-								return (
-									<TableRow key={entry.registrationId}>
-										<TableCell className="font-medium">
-											{entry.overallRank}
-										</TableCell>
-										<TableCell>
-											<div className="flex flex-col">
-												<span>{entry.athleteName}</span>
-												{entry.isTeamDivision && entry.teamName && (
-													<span className="text-xs text-muted-foreground">
-														{entry.teamName}
-													</span>
-												)}
-											</div>
-										</TableCell>
-										<TableCell
-											className={cn(
-												"text-right font-semibold tabular-nums",
-												isNegative && "text-red-600 dark:text-red-400",
-												isPositive &&
-													algorithm === "p_score" &&
-													"text-green-600 dark:text-green-400",
-											)}
-										>
-											{formatted}
-										</TableCell>
-										{events.map((event) => {
-											const eventResult = entry.eventResults.find(
-												(r) => r.trackWorkoutId === event.trackWorkoutId,
-											)
+					{/* View selector (Overall vs individual events) */}
+					{events.length > 0 && (
+						<Select
+							value={selectedEventId ?? "overall"}
+							onValueChange={handleEventChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="View" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="overall">Overall</SelectItem>
+								{events.map((event) => (
+									<SelectItem key={event.id} value={event.id}>
+										{event.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
 
-											if (!eventResult) {
-												return (
-													<TableCell
-														key={event.trackWorkoutId}
-														className="text-center text-muted-foreground"
-													>
-														—
-													</TableCell>
-												)
-											}
-
-											return (
-												<TableCell
-													key={event.trackWorkoutId}
-													className="text-center"
-												>
-													<div className="flex flex-col items-center">
-														<span className="text-sm">
-															{eventResult.formattedScore}
-														</span>
-														<span className="text-xs text-muted-foreground">
-															#{eventResult.rank} ({eventResult.points} pts)
-														</span>
-													</div>
-												</TableCell>
-											)
-										})}
-									</TableRow>
-								)
-							})}
-						</TableBody>
-					</Table>
+					{/* Loading indicator for background refetches */}
+					{isLoading && leaderboard.length > 0 && (
+						<span className="text-sm text-muted-foreground animate-pulse">
+							Updating...
+						</span>
+					)}
 				</div>
-			)}
+			</div>
+
+			<div className="rounded-md border">
+				<CompetitionLeaderboardTable
+					leaderboard={leaderboard}
+					events={events}
+					selectedEventId={selectedEventId}
+				/>
+			</div>
 		</div>
 	)
 }

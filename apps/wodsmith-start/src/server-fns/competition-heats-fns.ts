@@ -24,6 +24,18 @@ import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
+// ============================================================================
+// Heat Publishing Types
+// ============================================================================
+
+export interface HeatPublishStatus {
+	heatId: string
+	heatNumber: number
+	scheduledTime: Date | null
+	schedulePublishedAt: Date | null
+	isPublished: boolean
+}
+
 const BATCH_SIZE = SQL_BATCH_SIZE
 
 // ============================================================================
@@ -174,6 +186,26 @@ const copyHeatsFromEventInputSchema = z.object({
 const getEventsWithHeatsInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	excludeTrackWorkoutId: z.string().optional(),
+})
+
+// ============================================================================
+// Heat Publishing Input Schemas
+// ============================================================================
+
+const getHeatPublishStatusInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const publishHeatScheduleInputSchema = z.object({
+	heatId: z.string().min(1, "Heat ID is required"),
+	publish: z.boolean(),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+})
+
+const publishAllHeatsForEventInputSchema = z.object({
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	publish: z.boolean(),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
 })
 
 // ============================================================================
@@ -1560,4 +1592,141 @@ export const copyHeatsFromEventFn = createServerFn({ method: "POST" })
 		// Return the newly created heats with assignments
 		const result = await getHeatsForWorkoutInternal(data.targetTrackWorkoutId)
 		return { heats: result }
+	})
+
+// ============================================================================
+// Heat Publishing Server Functions
+// ============================================================================
+
+/**
+ * Get publish status for all heats of an event (track workout)
+ * Returns an array of heat publish statuses
+ */
+export const getHeatPublishStatusFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getHeatPublishStatusInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		const heats = await db
+			.select({
+				id: competitionHeatsTable.id,
+				heatNumber: competitionHeatsTable.heatNumber,
+				scheduledTime: competitionHeatsTable.scheduledTime,
+				schedulePublishedAt: competitionHeatsTable.schedulePublishedAt,
+			})
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+			.orderBy(asc(competitionHeatsTable.heatNumber))
+
+		const statuses: HeatPublishStatus[] = heats.map((heat) => ({
+			heatId: heat.id,
+			heatNumber: heat.heatNumber,
+			scheduledTime: heat.scheduledTime,
+			schedulePublishedAt: heat.schedulePublishedAt,
+			isPublished: heat.schedulePublishedAt !== null,
+		}))
+
+		return { statuses }
+	})
+
+/**
+ * Publish or unpublish an individual heat schedule
+ * Sets or clears the schedulePublishedAt timestamp
+ */
+export const publishHeatScheduleFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => publishHeatScheduleInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+		const { getSessionFromCookie } = await import("@/utils/auth")
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		// Check permission
+		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			throw new Error("Missing required permission")
+		}
+
+		const db = getDb()
+
+		const now = new Date()
+
+		await db
+			.update(competitionHeatsTable)
+			.set({
+				schedulePublishedAt: data.publish ? now : null,
+				updatedAt: now,
+			})
+			.where(eq(competitionHeatsTable.id, data.heatId))
+
+		return {
+			success: true,
+			schedulePublishedAt: data.publish ? now : null,
+		}
+	})
+
+/**
+ * Bulk publish or unpublish all heats for an event (track workout)
+ * Sets or clears schedulePublishedAt for all heats belonging to the workout
+ */
+export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		publishAllHeatsForEventInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+		const { getSessionFromCookie } = await import("@/utils/auth")
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		// Check permission
+		const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+		if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+			throw new Error("Missing required permission")
+		}
+
+		const db = getDb()
+
+		const now = new Date()
+
+		// Get all heats for this track workout
+		const heats = await db
+			.select({ id: competitionHeatsTable.id })
+			.from(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
+
+		if (heats.length === 0) {
+			return { success: true, updatedCount: 0 }
+		}
+
+		// Update all heats in batches to avoid SQLite variable limit
+		const heatIds = heats.map((h) => h.id)
+
+		await Promise.all(
+			chunk(heatIds, BATCH_SIZE).map((batch) =>
+				db
+					.update(competitionHeatsTable)
+					.set({
+						schedulePublishedAt: data.publish ? now : null,
+						updatedAt: now,
+					})
+					.where(inArray(competitionHeatsTable.id, batch)),
+			),
+		)
+
+		return {
+			success: true,
+			updatedCount: heats.length,
+			schedulePublishedAt: data.publish ? now : null,
+		}
 	})
