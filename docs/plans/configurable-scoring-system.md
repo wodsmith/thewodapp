@@ -121,24 +121,32 @@ interface ScoringConfig {
 }
 ```
 
-#### Migration: `CompetitionSettings`
+#### Score Multiplier Integration
+
+The existing `trackWorkouts.pointsMultiplier` field is preserved and works with all scoring algorithms. The multiplier applies **after** the scoring algorithm calculates base points:
+
+```
+Base Points (from algorithm) × (pointsMultiplier / 100) = Final Points
+```
+
+**Example with P-Score:**
+- Athlete scores 85 P-Score points on an event
+- Event has `pointsMultiplier: 50` (worth 50% of full points)
+- Final points: `85 × 0.50 = 42.5 points`
+
+**Two-part events:** Set each part's multiplier to 50 so both parts together equal one full event:
+- Part A: `pointsMultiplier: 50`
+- Part B: `pointsMultiplier: 50`
+- Total: 100% of a normal event
+
+#### Competition Settings
 
 ```typescript
 interface CompetitionSettings {
   divisions?: { scalingGroupId: string }
-  
-  // OLD (deprecated, migrate on read)
-  scoring?: ScoringSettings
-  
-  // NEW
   scoringConfig?: ScoringConfig
 }
 ```
-
-**Migration strategy:**
-- Read: If `scoringConfig` missing but `scoring` exists, convert on-the-fly
-- Write: Always write to `scoringConfig`
-- Eventually: Remove `scoring` field
 
 ### 2. Scoring Library Updates
 
@@ -316,12 +324,11 @@ function rankOverall(
 **Estimated effort:** 2-3 hours
 
 ### Phase 2: Schema & Type Updates
-**Files:** `types/competitions.ts`, migrations
+**Files:** `types/competitions.ts`
 
 1. Define new `ScoringConfig` type
-2. Create migration helper: `legacyScoringToConfig()`
-3. Update `CompetitionSettings` interface
-4. Add Zod schemas for validation
+2. Update `CompetitionSettings` interface
+3. Add Zod schemas for validation
 
 **Dependencies:** Phase 1  
 **Estimated effort:** 1-2 hours
@@ -389,36 +396,56 @@ function rankOverall(
 | 2 | Create scoring algorithm factory | task | P0 | - | `lib/scoring/algorithms/index.ts` |
 | 3 | Add scoring algorithm unit tests | task | P0 | 1, 2 | `test/lib/scoring/` |
 | 4 | Define ScoringConfig types | task | P1 | - | `types/competitions.ts` |
-| 5 | Create legacy→config migration helper | task | P1 | 4 | `lib/scoring/migration.ts` |
-| 6 | Add ScoringConfig Zod schemas | task | P1 | 4 | `schemas/competitions.ts` |
-| 7 | Integrate algorithms in leaderboard | task | P1 | 1, 2, 5 | `server/competition-leaderboard.ts` |
-| 8 | Implement configurable tiebreakers | task | P1 | 7 | `server/competition-leaderboard.ts` |
-| 9 | Add leaderboard calculation tests | task | P1 | 7, 8 | `test/server/` |
-| 10 | Build scoring config form component | task | P2 | 4, 6 | `components/compete/` |
-| 11 | Build custom points table editor | task | P2 | 10 | `components/compete/` |
-| 12 | Update leaderboard display for P-Score | task | P2 | 7 | `components/compete/` |
-| 13 | E2E tests for scoring flows | task | P2 | all | `e2e/` |
-| 14 | Update organizer documentation | chore | P3 | all | `docs/` |
+| 5 | Add ScoringConfig Zod schemas | task | P1 | 4 | `schemas/competitions.ts` |
+| 6 | Integrate algorithms in leaderboard | task | P1 | 1, 2, 4 | `server/competition-leaderboard.ts` |
+| 7 | Implement configurable tiebreakers | task | P1 | 6 | `server/competition-leaderboard.ts` |
+| 8 | Add leaderboard calculation tests | task | P1 | 6, 7 | `test/server/` |
+| 9 | Build scoring config form component | task | P2 | 4, 5 | `components/compete/` |
+| 10 | Build custom points table editor | task | P2 | 9 | `components/compete/` |
+| 11 | Update leaderboard display for P-Score | task | P2 | 6 | `components/compete/` |
+| 12 | E2E tests for scoring flows | task | P2 | all | `e2e/` |
+| 13 | Update organizer documentation | chore | P3 | all | `docs/` |
 
 ---
 
-## Migration Strategy
+## Implementation Notes
 
-### Existing Competitions
+### Clean Implementation
 
-1. **No breaking changes** - Existing competitions continue to work
-2. **On settings read**: If `scoringConfig` missing, convert `scoring` → `scoringConfig`
-3. **On settings write**: Always write new format
-4. **Default behavior**: `{ algorithm: "traditional", traditional: { step: 5 } }`
+This is a **new implementation**, not a migration. There is no legacy scoring data to migrate - we're building the configurable system from scratch.
 
-### Mapping Legacy Types
+**Default behavior:** New competitions default to `{ algorithm: "traditional", traditional: { step: 5 } }` unless the organizer explicitly configures a different scoring method.
 
-| Legacy `scoring.type` | New `scoringConfig.algorithm` |
-|-----------------------|------------------------------|
-| `fixed_step` | `traditional` with `step` preserved |
-| `even_spread` | `traditional` with calculated step |
-| `winner_takes_more` | `custom` with hardcoded table as `overrides` |
-| (undefined) | `traditional` with `step: 5` |
+---
+
+## Scalability & Future Considerations
+
+### Current Approach (MVP)
+
+- Calculate leaderboard on-demand per request
+- Acceptable performance for competitions up to ~500 athletes
+- Simple, no cache invalidation complexity
+
+### Future Optimizations
+
+When scaling becomes a concern, the architecture supports these enhancements:
+
+1. **Leaderboard Caching**
+   - Cache computed leaderboard results
+   - Invalidate on score changes (new score submission, score edit, score deletion)
+   - TTL-based expiry as fallback
+
+2. **CDN Caching for Public Leaderboards**
+   - Public competition leaderboards can be edge-cached
+   - Invalidate via cache tags when scores update
+   - Significantly reduces compute for high-traffic events
+
+3. **Memoization Layer**
+   - Add memoization at the `calculateEventPoints()` level
+   - Event scores rarely change once submitted
+   - Could use Redis or D1-backed cache
+
+The current implementation should be designed with these future optimizations in mind - avoid tightly coupling calculation with rendering, ensure score mutations have clear hooks for cache invalidation.
 
 ---
 
