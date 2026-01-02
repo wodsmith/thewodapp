@@ -6,8 +6,13 @@ import {
   isApprovedOrganizer,
   hasPendingOrganizerRequest,
   getOrganizerRequest,
+  grantTeamFeature,
+  setTeamLimitOverride,
+  revokeTeamFeature,
 } from '@/server/organizer-onboarding'
 import {ORGANIZER_REQUEST_STATUS, type OrganizerRequest} from '@/db/schema'
+import {FEATURES} from '@/config/features'
+import {LIMITS} from '@/config/limits'
 
 // Mock the database
 vi.mock('@/db', () => ({
@@ -62,10 +67,17 @@ describe('Organizer Onboarding', () => {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(null),
           },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
         },
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
             returning: vi.fn().mockResolvedValue([mockRequest]),
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -195,6 +207,11 @@ describe('Organizer Onboarding', () => {
             where: vi.fn().mockReturnValue({
               returning: vi.fn().mockResolvedValue([approvedRequest]),
             }),
+          }),
+        }),
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -385,6 +402,12 @@ describe('Organizer Onboarding', () => {
           teamTable: {
             findFirst: vi.fn().mockResolvedValue({
               name: 'Test Team',
+            }),
+          },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
             }),
           },
         },
@@ -694,10 +717,17 @@ describe('Organizer Onboarding', () => {
           organizerRequestTable: {
             findFirst: vi.fn().mockResolvedValue(null),
           },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
         },
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
             returning: vi.fn().mockResolvedValue([pendingRequest]),
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }
@@ -743,6 +773,11 @@ describe('Organizer Onboarding', () => {
             }),
           }),
         }),
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
       }
 
       vi.mocked(getDb).mockReturnValue(mockDbApprove as any)
@@ -784,6 +819,12 @@ describe('Organizer Onboarding', () => {
               name: 'Test Team',
             }),
           },
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'feature-123',
+              key: FEATURES.HOST_COMPETITIONS,
+            }),
+          },
         },
         update: vi.fn().mockReturnValue({
           set: vi.fn().mockReturnValue({
@@ -803,6 +844,471 @@ describe('Organizer Onboarding', () => {
       })
 
       expect(result.status).toBe(ORGANIZER_REQUEST_STATUS.REJECTED)
+    })
+  })
+})
+
+/**
+ * Entitlement Grant/Revoke Functions Tests
+ *
+ * Tests the three core entitlement functions:
+ * - grantTeamFeature: Grant a feature to a team (with upsert behavior)
+ * - setTeamLimitOverride: Set a limit override for a team (with upsert behavior)
+ * - revokeTeamFeature: Revoke a feature from a team (set isActive = 0)
+ */
+describe('Entitlement Grant/Revoke Functions', () => {
+  const mockTeamId = 'team-123'
+  const mockFeatureId = 'feature-456'
+  const mockFeatureKey = FEATURES.HOST_COMPETITIONS
+  const mockLimitKey = LIMITS.MAX_PUBLISHED_COMPETITIONS
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('grantTeamFeature', () => {
+    describe('when feature exists', () => {
+      it('should look up feature by key and insert entitlement', async () => {
+        // ARRANGE: Mock feature lookup and insert
+        const mockInsertValues = vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockInsertValues,
+        })
+
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+                name: 'Host Competitions',
+              }),
+            },
+          },
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await grantTeamFeature(mockTeamId, mockFeatureKey)
+
+        // ASSERT
+        expect(mockDb.query.featureTable.findFirst).toHaveBeenCalled()
+        expect(mockInsert).toHaveBeenCalled()
+        expect(mockInsertValues).toHaveBeenCalledWith({
+          teamId: mockTeamId,
+          featureId: mockFeatureId,
+          source: 'override',
+          isActive: 1,
+        })
+      })
+
+      it('should handle upsert (onConflictDoUpdate) for duplicate grants', async () => {
+        // ARRANGE: Mock feature lookup and upsert
+        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockInsert = vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: mockOnConflictDoUpdate,
+          }),
+        })
+
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+              }),
+            },
+          },
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await grantTeamFeature(mockTeamId, mockFeatureKey)
+
+        // ASSERT: onConflictDoUpdate was called with correct params
+        expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            set: {
+              isActive: 1,
+              source: 'override',
+            },
+          }),
+        )
+      })
+    })
+
+    describe('when feature does not exist', () => {
+      it('should throw error when feature is not found', async () => {
+        // ARRANGE: Mock feature lookup returning null
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue(null),
+            },
+          },
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT & ASSERT
+        await expect(
+          grantTeamFeature(mockTeamId, 'nonexistent_feature'),
+        ).rejects.toThrow('Feature not found: nonexistent_feature')
+      })
+    })
+  })
+
+  describe('setTeamLimitOverride', () => {
+    describe('with all parameters', () => {
+      it('should insert limit override with teamId, type, key, value, and reason', async () => {
+        // ARRANGE
+        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockValues = vi.fn().mockReturnValue({
+          onConflictDoUpdate: mockOnConflictDoUpdate,
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockValues,
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await setTeamLimitOverride(
+          mockTeamId,
+          mockLimitKey,
+          -1,
+          'Organizer request approved',
+        )
+
+        // ASSERT
+        expect(mockInsert).toHaveBeenCalled()
+        expect(mockValues).toHaveBeenCalledWith({
+          teamId: mockTeamId,
+          type: 'limit',
+          key: mockLimitKey,
+          value: '-1',
+          reason: 'Organizer request approved',
+        })
+      })
+    })
+
+    describe('without optional reason parameter', () => {
+      it('should insert limit override with undefined reason', async () => {
+        // ARRANGE
+        const mockValues = vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockValues,
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await setTeamLimitOverride(mockTeamId, mockLimitKey, 0)
+
+        // ASSERT
+        expect(mockValues).toHaveBeenCalledWith({
+          teamId: mockTeamId,
+          type: 'limit',
+          key: mockLimitKey,
+          value: '0',
+          reason: undefined,
+        })
+      })
+    })
+
+    describe('upsert behavior', () => {
+      it('should handle upsert for duplicate overrides', async () => {
+        // ARRANGE
+        const mockOnConflictDoUpdate = vi.fn().mockResolvedValue(undefined)
+        const mockInsert = vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: mockOnConflictDoUpdate,
+          }),
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await setTeamLimitOverride(
+          mockTeamId,
+          mockLimitKey,
+          5,
+          'Updated limit',
+        )
+
+        // ASSERT: onConflictDoUpdate was called with correct params
+        expect(mockOnConflictDoUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            set: {
+              value: '5',
+              reason: 'Updated limit',
+            },
+          }),
+        )
+      })
+    })
+
+    describe('value conversion', () => {
+      it('should convert numeric value to string', async () => {
+        // ARRANGE
+        const mockValues = vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockValues,
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await setTeamLimitOverride(mockTeamId, mockLimitKey, 10)
+
+        // ASSERT: value should be converted to string
+        expect(mockValues).toHaveBeenCalledWith(
+          expect.objectContaining({
+            value: '10',
+          }),
+        )
+      })
+
+      it('should handle negative values correctly (unlimited = -1)', async () => {
+        // ARRANGE
+        const mockValues = vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockValues,
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await setTeamLimitOverride(mockTeamId, mockLimitKey, -1)
+
+        // ASSERT: -1 should be preserved as string
+        expect(mockValues).toHaveBeenCalledWith(
+          expect.objectContaining({
+            value: '-1',
+          }),
+        )
+      })
+
+      it('should handle zero value correctly (pending state)', async () => {
+        // ARRANGE
+        const mockValues = vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        })
+        const mockInsert = vi.fn().mockReturnValue({
+          values: mockValues,
+        })
+
+        const mockDb = {
+          insert: mockInsert,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await setTeamLimitOverride(
+          mockTeamId,
+          mockLimitKey,
+          0,
+          'Organizer request pending approval',
+        )
+
+        // ASSERT: 0 should be preserved as string
+        expect(mockValues).toHaveBeenCalledWith(
+          expect.objectContaining({
+            value: '0',
+          }),
+        )
+      })
+    })
+  })
+
+  describe('revokeTeamFeature', () => {
+    describe('when feature exists', () => {
+      it('should look up feature by key and set isActive = 0', async () => {
+        // ARRANGE
+        const mockSet = vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(undefined),
+        })
+        const mockUpdate = vi.fn().mockReturnValue({
+          set: mockSet,
+        })
+
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+              }),
+            },
+          },
+          update: mockUpdate,
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await revokeTeamFeature(mockTeamId, mockFeatureKey)
+
+        // ASSERT
+        expect(mockDb.query.featureTable.findFirst).toHaveBeenCalled()
+        expect(mockUpdate).toHaveBeenCalled()
+        expect(mockSet).toHaveBeenCalledWith({isActive: 0})
+      })
+    })
+
+    describe('when feature does not exist', () => {
+      it('should throw error when feature is not found', async () => {
+        // ARRANGE
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue(null),
+            },
+          },
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT & ASSERT
+        await expect(
+          revokeTeamFeature(mockTeamId, 'nonexistent_feature'),
+        ).rejects.toThrow('Feature not found: nonexistent_feature')
+      })
+    })
+  })
+
+  describe('Integration: grantTeamFeature → revokeTeamFeature flow', () => {
+    it('should successfully grant then revoke a feature', async () => {
+      const mockFeature = {
+        id: mockFeatureId,
+        key: mockFeatureKey,
+        name: 'Host Competitions',
+      }
+
+      // ARRANGE for grant
+      const mockDbGrant = {
+        query: {
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue(mockFeature),
+          },
+        },
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDbGrant as any)
+
+      // ACT: Grant feature
+      await grantTeamFeature(mockTeamId, mockFeatureKey)
+
+      // ASSERT: Insert was called
+      expect(mockDbGrant.insert).toHaveBeenCalled()
+
+      // Reset for revoke
+      vi.clearAllMocks()
+
+      // ARRANGE for revoke
+      const mockDbRevoke = {
+        query: {
+          featureTable: {
+            findFirst: vi.fn().mockResolvedValue(mockFeature),
+          },
+        },
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDbRevoke as any)
+
+      // ACT: Revoke feature
+      await revokeTeamFeature(mockTeamId, mockFeatureKey)
+
+      // ASSERT: Update was called with isActive = 0
+      expect(mockDbRevoke.update).toHaveBeenCalled()
+    })
+  })
+
+  describe('Integration: setTeamLimitOverride for organizer states', () => {
+    it('should set limit to 0 for pending state, then -1 for approved state', async () => {
+      const mockInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+        }),
+      })
+
+      const mockDb = {
+        insert: mockInsert,
+      }
+
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+      // ACT: Set pending state (limit = 0)
+      await setTeamLimitOverride(
+        mockTeamId,
+        LIMITS.MAX_PUBLISHED_COMPETITIONS,
+        0,
+        'Organizer request pending approval',
+      )
+
+      expect(mockInsert).toHaveBeenCalled()
+
+      // Reset for approved state
+      vi.clearAllMocks()
+      vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+      // ACT: Set approved state (limit = -1, unlimited)
+      await setTeamLimitOverride(
+        mockTeamId,
+        LIMITS.MAX_PUBLISHED_COMPETITIONS,
+        -1,
+        'Organizer request approved',
+      )
+
+      expect(mockInsert).toHaveBeenCalled()
     })
   })
 })
