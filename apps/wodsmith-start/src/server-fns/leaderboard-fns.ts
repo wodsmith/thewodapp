@@ -1,29 +1,27 @@
 /**
  * Leaderboard Server Functions for TanStack Start
- * Based on apps/wodsmith/src/server/leaderboard.ts
  *
- * Note: This is a simplified version for competition leaderboard.
- * The full wodsmith implementation includes scheduled workout instances
- * which may not be needed for competition leaderboards initially.
+ * Provides server functions for competition leaderboard data.
+ * Uses the configurable scoring system from @/server/competition-leaderboard.ts
+ *
+ * @see docs/plans/configurable-scoring-system.md
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
-import {
-	competitionRegistrationsTable,
-	competitionsTable,
-} from "@/db/schemas/competitions"
-import {
-	programmingTracksTable,
-	trackWorkoutsTable,
-} from "@/db/schemas/programming"
 
 // ============================================================================
-// Types
+// Types (Re-export from server layer)
 // ============================================================================
 
+export type {
+	CompetitionLeaderboardEntry,
+	CompetitionLeaderboardResult,
+	EventLeaderboardEntry,
+	TeamMemberInfo,
+} from "@/server/competition-leaderboard"
+
+// Legacy type for backwards compatibility
 export interface LeaderboardEntry {
 	userId: string
 	userName: string
@@ -48,25 +46,80 @@ const getLeaderboardDataInputSchema = z.object({
 	divisionId: z.string().optional(),
 })
 
+const getCompetitionLeaderboardInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionId: z.string().optional(),
+})
+
+const getEventLeaderboardInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+	divisionId: z.string().optional(),
+})
+
 // ============================================================================
 // Server Functions
 // ============================================================================
 
 /**
- * Get leaderboard data for a competition
- * Returns registrations grouped by division
+ * Get full competition leaderboard with configurable scoring.
  *
- * Note: This is a placeholder implementation. In a full competition system,
- * you would need:
- * 1. Competition results table to store scores
- * 2. Score calculation logic based on workout schemes
- * 3. Ranking algorithm based on multiple workouts
+ * Uses the ScoringConfig from competition settings to determine:
+ * - Scoring algorithm (traditional, p_score, custom)
+ * - Tiebreaker method (countback, head_to_head, none)
+ * - Status handling (DNF, DNS, withdrawn)
+ */
+export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getCompetitionLeaderboardInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const { getCompetitionLeaderboard } = await import(
+			"@/server/competition-leaderboard"
+		)
+		return getCompetitionLeaderboard({
+			competitionId: data.competitionId,
+			divisionId: data.divisionId,
+		})
+	})
+
+/**
+ * Get leaderboard for a specific event.
+ */
+export const getEventLeaderboardFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getEventLeaderboardInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const { getEventLeaderboard } = await import(
+			"@/server/competition-leaderboard"
+		)
+		return getEventLeaderboard({
+			competitionId: data.competitionId,
+			trackWorkoutId: data.trackWorkoutId,
+			divisionId: data.divisionId,
+		})
+	})
+
+/**
+ * Get leaderboard data for a competition (legacy interface).
  *
- * For now, this returns basic registration data grouped by division.
+ * Returns registrations with basic info and workouts list.
+ * For full scoring data, use getCompetitionLeaderboardFn instead.
+ *
+ * @deprecated Use getCompetitionLeaderboardFn for full scoring support
  */
 export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getLeaderboardDataInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
+		const { competitionsTable } = await import("@/db/schemas/competitions")
+		const { programmingTracksTable, trackWorkoutsTable } = await import(
+			"@/db/schemas/programming"
+		)
+		const { competitionRegistrationsTable } = await import(
+			"@/db/schemas/competitions"
+		)
+		const { eq, and } = await import("drizzle-orm")
+
 		const db = getDb()
 
 		// Verify competition exists
@@ -114,7 +167,6 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 		)
 
 		// Transform to leaderboard format
-		// In a real implementation, this would query actual competition results
 		const leaderboard: LeaderboardEntry[] = registrations.map((reg) => {
 			const fullName =
 				`${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim()
@@ -123,13 +175,13 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 				userId: reg.userId,
 				userName: fullName || reg.user.email || "Unknown",
 				userAvatar: reg.user.avatar,
-				score: null, // Would come from results table
-				aggregatedScore: null, // Would be calculated from all event scores
-				formattedScore: "N/A", // Pending results
+				score: null,
+				aggregatedScore: null,
+				formattedScore: "N/A",
 				scalingLevelId: reg.divisionId,
 				scalingLevelLabel: reg.division?.label ?? null,
 				scalingLevelPosition: reg.division?.position ?? null,
-				asRx: false, // Would come from results
+				asRx: false,
 				completedAt: reg.registeredAt,
 				isTimeCapped: false,
 			}
@@ -140,7 +192,9 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 			workouts: trackWorkoutsWithWorkouts.map((tw) => ({
 				id: tw.id,
 				workoutId: tw.workoutId,
-				name: (tw as any).workout?.name ?? "Unknown Workout",
+				name:
+					(tw as unknown as { workout?: { name: string } }).workout?.name ??
+					"Unknown Workout",
 				trackOrder: tw.trackOrder,
 			})),
 		}
