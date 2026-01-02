@@ -196,12 +196,12 @@ export const signUpFn = createServerFn({ method: "POST" })
 
 /**
  * Get current session (for checking if user is already authenticated)
+ * Returns the session data if user is authenticated, null otherwise.
  */
 export const getSessionFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		// TODO: Implement getSessionFromCookie for TanStack Start
-		// Check if user is already authenticated
-		return null
+		const { getSessionFromCookie } = await import("@/utils/auth")
+		return await getSessionFromCookie()
 	},
 )
 
