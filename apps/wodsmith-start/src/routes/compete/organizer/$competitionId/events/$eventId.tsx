@@ -10,6 +10,7 @@ import {
 	EVENT_DETAILS_FORM_ID,
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
+import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
@@ -142,6 +143,13 @@ function EventEditPage() {
 				divisionDescriptions={divisionDescriptions}
 				movements={movements}
 				sponsors={sponsors}
+			/>
+
+			{/* Heat Schedule Publishing */}
+			<HeatSchedulePublishingCard
+				trackWorkoutId={event.id}
+				eventName={event.workout.name}
+				competitionId={competition.id}
 			/>
 		</div>
 	)

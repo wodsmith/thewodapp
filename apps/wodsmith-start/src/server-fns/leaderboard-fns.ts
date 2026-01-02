@@ -86,11 +86,23 @@ type ScoringSettings =
 			// Points: 100, 95, 90, 85... (fixed decrement per place)
 	  }
 
+/**
+ * Division results publishing status - per event+division
+ */
+interface DivisionResultsSchema {
+	[eventId: string]: {
+		[divisionId: string]: {
+			publishedAt: number | null
+		}
+	}
+}
+
 interface CompetitionSettings {
 	divisions?: {
 		scalingGroupId: string
 	}
 	scoring?: ScoringSettings
+	divisionResults?: DivisionResultsSchema
 }
 
 // ============================================================================
@@ -124,6 +136,24 @@ function parseCompetitionSettings(
 	} catch {
 		return null
 	}
+}
+
+/**
+ * Check if division results are published for a specific event+division combination
+ */
+function isDivisionResultPublished(
+	settings: CompetitionSettings | null,
+	eventId: string,
+	divisionId: string,
+): boolean {
+	if (!settings?.divisionResults) return false
+	const eventResults = settings.divisionResults[eventId]
+	if (!eventResults) return false
+	const divisionResult = eventResults[divisionId]
+	return (
+		divisionResult?.publishedAt !== null &&
+		divisionResult?.publishedAt !== undefined
+	)
 }
 
 /**
@@ -437,7 +467,11 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 			}
 
 			// Rank athletes within each division using sortKey
-			for (const [_divisionId, divisionScores] of eventScoresByDivision) {
+			for (const [divisionId, divisionScores] of eventScoresByDivision) {
+				// Skip this division if results are not published
+				if (!isDivisionResultPublished(settings, trackWorkout.id, divisionId)) {
+					continue
+				}
 				// Sort by sortKey, then by secondary value (for capped scores), then by tiebreak
 				const sortedScores = divisionScores.sort((a, b) => {
 					// Primary sort: sortKey (status + normalized score)
@@ -580,7 +614,19 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 			}
 
 			// Add empty results for athletes who didn't complete this event
+			// Only add placeholders if the division results are published
 			for (const [_regId, entry] of leaderboardMap) {
+				// Check if this athlete's division results are published for this event
+				if (
+					!isDivisionResultPublished(
+						settings,
+						trackWorkout.id,
+						entry.divisionId,
+					)
+				) {
+					continue
+				}
+
 				const hasResult = entry.eventResults.some(
 					(er) => er.trackWorkoutId === trackWorkout.id,
 				)
@@ -613,6 +659,10 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 
 		// Rank within each division with countback logic
 		for (const [_divisionId, entries] of divisionGroups) {
+			// Helper to count published event results (results with rank > 0)
+			const getPublishedResultCount = (entry: CompetitionLeaderboardEntry) =>
+				entry.eventResults.filter((er) => er.rank > 0).length
+
 			// Sort by total points descending, then countback (1st places, 2nd places, etc.)
 			entries.sort((a, b) => {
 				if (b.totalPoints !== a.totalPoints) {
@@ -633,14 +683,26 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 			})
 
 			// Assign ranks with tie detection
+			// Only rank athletes who have at least one published event result
 			for (let i = 0; i < entries.length; i++) {
 				const entry = entries[i]
 				if (!entry) continue
 
+				// If athlete has no published event results, leave them unranked (0)
+				if (getPublishedResultCount(entry) === 0) {
+					entry.overallRank = 0
+					continue
+				}
+
 				// Check for tie with previous entry
 				if (i > 0) {
 					const prev = entries[i - 1]
-					if (prev && entry.totalPoints === prev.totalPoints) {
+					// Only consider tie if previous entry also has published results
+					if (
+						prev &&
+						getPublishedResultCount(prev) > 0 &&
+						entry.totalPoints === prev.totalPoints
+					) {
 						// Check tiebreaker counts too
 						const entryFirsts = entry.eventResults.filter(
 							(er) => er.rank === 1,
@@ -663,8 +725,11 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 					}
 				}
 
-				// Not a tie - assign current position (standard 1224 ranking)
-				entry.overallRank = i + 1
+				// Not a tie - count how many ranked entries came before this one
+				const rankedBefore = entries
+					.slice(0, i)
+					.filter((e) => e && getPublishedResultCount(e) > 0).length
+				entry.overallRank = rankedBefore + 1
 			}
 		}
 

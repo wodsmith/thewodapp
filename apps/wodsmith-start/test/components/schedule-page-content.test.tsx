@@ -51,6 +51,7 @@ function createMockHeat(
     createdAt: new Date(),
     updatedAt: new Date(),
     updateCounter: null,
+    schedulePublishedAt: null,
     venue: null,
     division: null,
     assignments: [],

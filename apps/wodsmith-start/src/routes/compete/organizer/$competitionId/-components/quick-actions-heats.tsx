@@ -1,8 +1,9 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Calendar, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { Badge } from "@/components/ui/badge"
 import {
 	Card,
 	CardContent,
@@ -57,7 +58,7 @@ export function QuickActionsHeats({
 		}
 	}
 
-	// Only show events that have scheduled heats
+	// Count events with heats for the summary
 	const eventsWithHeats = events.filter((event) => {
 		const eventHeats = heats.filter(
 			(h) => h.trackWorkoutId === event.id && h.scheduledTime,
@@ -65,55 +66,67 @@ export function QuickActionsHeats({
 		return eventHeats.length > 0
 	})
 
-	if (eventsWithHeats.length === 0) {
-		return null
-	}
-
 	const publishedCount = eventsWithHeats.filter(
 		(e) => e.heatStatus === "published",
 	).length
-	const draftCount = eventsWithHeats.length - publishedCount
 
 	return (
 		<Card>
 			<CardHeader className="pb-3">
 				<div className="flex items-center justify-between">
-					<div>
-						<CardTitle className="text-base">Publish Heat Schedules</CardTitle>
-						<CardDescription>
-							{publishedCount} published, {draftCount} draft
-						</CardDescription>
+					<div className="flex items-center gap-2">
+						<Calendar className="h-4 w-4 text-muted-foreground" />
+						<div>
+							<CardTitle className="text-base">Heat Schedules</CardTitle>
+							<CardDescription>
+								Control when athletes can see their heat assignments
+							</CardDescription>
+						</div>
 					</div>
+					{eventsWithHeats.length > 0 && (
+						<Badge variant="secondary" className="text-xs">
+							{publishedCount}/{eventsWithHeats.length} published
+						</Badge>
+					)}
 				</div>
 			</CardHeader>
 			<CardContent>
 				<div className="space-y-2">
-					{eventsWithHeats.map((event) => {
+					{events.map((event) => {
 						const isPublished = event.heatStatus === "published"
 						const eventHeats = heats.filter(
 							(h) => h.trackWorkoutId === event.id && h.scheduledTime,
 						)
+						const hasHeats = eventHeats.length > 0
+						const isDisabled = pendingEvents.has(event.id) || !hasHeats
+
 						return (
 							<div
 								key={event.id}
-								className="flex items-center justify-between gap-2 py-1.5 border-b last:border-0"
+								className={`flex items-center justify-between gap-2 py-1.5 border-b last:border-0 ${!hasHeats ? "opacity-50" : ""}`}
 							>
 								<div className="flex items-center gap-2 min-w-0">
 									<span className="text-xs text-muted-foreground w-5 text-right tabular-nums">
 										{event.trackOrder}
 									</span>
 									<span className="text-sm truncate">{event.workout.name}</span>
-									<span className="text-xs text-muted-foreground">
-										({eventHeats.length} heat
-										{eventHeats.length !== 1 ? "s" : ""})
-									</span>
+									{hasHeats ? (
+										<span className="text-xs text-muted-foreground">
+											({eventHeats.length} heat
+											{eventHeats.length !== 1 ? "s" : ""})
+										</span>
+									) : (
+										<Badge variant="outline" className="text-xs">
+											No heats
+										</Badge>
+									)}
 								</div>
 								<Select
 									value={event.heatStatus ?? "draft"}
 									onValueChange={(value) =>
 										handleHeatStatusChange(event.id, value)
 									}
-									disabled={pendingEvents.has(event.id)}
+									disabled={isDisabled}
 								>
 									<SelectTrigger className="w-[110px] h-7 text-xs">
 										{pendingEvents.has(event.id) ? (

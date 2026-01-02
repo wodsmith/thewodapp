@@ -3,30 +3,67 @@
  *
  * Handles publishing/unpublishing division results for competitions.
  * Results publishing controls visibility of division leaderboards/results to athletes.
+ *
+ * Results are published per event+division combination, allowing granular control
+ * over which event results are visible for each division.
  */
 
-import {createServerFn} from '@tanstack/react-start'
-import {z} from 'zod'
+import { createServerFn } from "@tanstack/react-start"
+import { z } from "zod"
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface DivisionResultStatus {
-  divisionId: string
-  label: string
-  position: number
-  registrationCount: number
-  scoredCount: number
-  missingScoreCount: number
-  resultsPublishedAt: Date | null
-  isPublished: boolean
+/**
+ * Status for a single event+division combination
+ */
+export interface EventDivisionResultStatus {
+	eventId: string
+	eventName: string
+	eventPosition: number
+	divisionId: string
+	divisionLabel: string
+	divisionPosition: number
+	registrationCount: number
+	scoredCount: number
+	missingScoreCount: number
+	resultsPublishedAt: Date | null
+	isPublished: boolean
 }
 
-export interface DivisionResultsStatusResponse {
-  divisions: DivisionResultStatus[]
-  publishedCount: number
-  totalCount: number
+/**
+ * Division summary for a specific event
+ */
+export interface DivisionResultStatus {
+	divisionId: string
+	label: string
+	position: number
+	registrationCount: number
+	scoredCount: number
+	missingScoreCount: number
+	resultsPublishedAt: Date | null
+	isPublished: boolean
+}
+
+/**
+ * Response for getting division results status for a specific event
+ */
+export interface EventDivisionResultsStatusResponse {
+	eventId: string
+	eventName: string
+	divisions: DivisionResultStatus[]
+	publishedCount: number
+	totalCount: number
+}
+
+/**
+ * Response for getting all events' division results status
+ */
+export interface AllEventsResultsStatusResponse {
+	events: EventDivisionResultsStatusResponse[]
+	totalPublishedCount: number
+	totalCombinations: number
 }
 
 // ============================================================================
@@ -34,21 +71,24 @@ export interface DivisionResultsStatusResponse {
 // ============================================================================
 
 const getDivisionResultsStatusInputSchema = z.object({
-  competitionId: z.string().min(1, 'Competition ID is required'),
-  organizingTeamId: z.string().min(1, 'Organizing team ID is required'),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+	eventId: z.string().min(1, "Event ID is required").optional(),
 })
 
 const publishDivisionResultsInputSchema = z.object({
-  competitionId: z.string().min(1, 'Competition ID is required'),
-  organizingTeamId: z.string().min(1, 'Organizing team ID is required'),
-  divisionId: z.string().min(1, 'Division ID is required'),
-  publish: z.boolean(),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+	eventId: z.string().min(1, "Event ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+	publish: z.boolean(),
 })
 
 const publishAllDivisionResultsInputSchema = z.object({
-  competitionId: z.string().min(1, 'Competition ID is required'),
-  organizingTeamId: z.string().min(1, 'Organizing team ID is required'),
-  publish: z.boolean(),
+	competitionId: z.string().min(1, "Competition ID is required"),
+	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+	eventId: z.string().min(1, "Event ID is required"),
+	publish: z.boolean(),
 })
 
 // ============================================================================
@@ -56,36 +96,48 @@ const publishAllDivisionResultsInputSchema = z.object({
 // ============================================================================
 
 /**
+ * New schema structure for per-event+division results
+ */
+interface DivisionResultsSchema {
+	[eventId: string]: {
+		[divisionId: string]: {
+			publishedAt: number | null
+		}
+	}
+}
+
+/**
  * Parse competition settings from JSON string
  */
 function parseCompetitionSettings(settings: string | null): {
-  divisions?: {scalingGroupId?: string}
-  divisionResults?: {[divisionId: string]: {publishedAt: number | null}}
+	divisions?: { scalingGroupId?: string }
+	divisionResults?: DivisionResultsSchema
+	[key: string]: unknown
 } | null {
-  if (!settings) return null
-  try {
-    return JSON.parse(settings)
-  } catch {
-    return null
-  }
+	if (!settings) return null
+	try {
+		return JSON.parse(settings)
+	} catch {
+		return null
+	}
 }
 
 /**
  * Stringify competition settings to JSON
  */
 function stringifyCompetitionSettings(
-  settings: {
-    divisions?: {scalingGroupId?: string}
-    divisionResults?: {[divisionId: string]: {publishedAt: number | null}}
-    [key: string]: unknown
-  } | null,
+	settings: {
+		divisions?: { scalingGroupId?: string }
+		divisionResults?: DivisionResultsSchema
+		[key: string]: unknown
+	} | null,
 ): string | null {
-  if (!settings) return null
-  try {
-    return JSON.stringify(settings)
-  } catch {
-    return null
-  }
+	if (!settings) return null
+	try {
+		return JSON.stringify(settings)
+	} catch {
+		return null
+	}
 }
 
 // ============================================================================
@@ -93,402 +145,489 @@ function stringifyCompetitionSettings(
 // ============================================================================
 
 /**
- * Get division results publishing status for a competition
- * Returns each division with its publish status and missing score warnings
+ * Get division results publishing status for a competition.
+ *
+ * If eventId is provided, returns status for that specific event's divisions.
+ * If eventId is not provided, returns status for all events.
+ *
+ * The eventId is the track_workout ID (the event in the competition schedule).
  */
-export const getDivisionResultsStatusFn = createServerFn({method: 'GET'})
-  .inputValidator((data: unknown) =>
-    getDivisionResultsStatusInputSchema.parse(data),
-  )
-  .handler(async ({data}): Promise<DivisionResultsStatusResponse> => {
-    const {getDb} = await import('@/db')
-    const {eq, and, sql, inArray, isNotNull} = await import('drizzle-orm')
-    const {competitionsTable, competitionRegistrationsTable} = await import(
-      '@/db/schemas/competitions'
-    )
-    const {scalingLevelsTable} = await import('@/db/schemas/scaling')
-    const {scoresTable} = await import('@/db/schemas/scores')
-    const {trackWorkoutsTable, programmingTracksTable} = await import(
-      '@/db/schemas/programming'
-    )
-    const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
-    const {getSessionFromCookie} = await import('@/utils/auth')
-    const {autochunk} = await import('@/utils/batch-query')
+export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getDivisionResultsStatusInputSchema.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<
+			EventDivisionResultsStatusResponse | AllEventsResultsStatusResponse
+		> => {
+			const { getDb } = await import("@/db")
+			const { eq, and, sql, inArray, isNotNull } = await import("drizzle-orm")
+			const { competitionsTable, competitionRegistrationsTable } = await import(
+				"@/db/schemas/competitions"
+			)
+			const { scalingLevelsTable } = await import("@/db/schemas/scaling")
+			const { scoresTable } = await import("@/db/schemas/scores")
+			const { trackWorkoutsTable, programmingTracksTable } = await import(
+				"@/db/schemas/programming"
+			)
+			const { workouts: workoutsTable } = await import("@/db/schemas/workouts")
+			const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+			const { getSessionFromCookie } = await import("@/utils/auth")
+			const { autochunk } = await import("@/utils/batch-query")
 
-    // Verify authentication
-    const session = await getSessionFromCookie()
-    if (!session?.userId) {
-      throw new Error('Not authenticated')
-    }
+			// Verify authentication
+			const session = await getSessionFromCookie()
+			if (!session?.userId) {
+				throw new Error("Not authenticated")
+			}
 
-    // Check permission
-    const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-    if (!team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
-      throw new Error('Missing required permission')
-    }
+			// Check permission
+			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.ACCESS_DASHBOARD)) {
+				throw new Error("Missing required permission")
+			}
 
-    const db = getDb()
+			const db = getDb()
 
-    // Get competition with settings
-    const [competition] = await db
-      .select()
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
+			// Get competition with settings
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, data.competitionId))
 
-    if (!competition) {
-      throw new Error('Competition not found')
-    }
+			if (!competition) {
+				throw new Error("Competition not found")
+			}
 
-    if (competition.organizingTeamId !== data.organizingTeamId) {
-      throw new Error('Competition does not belong to this team')
-    }
+			if (competition.organizingTeamId !== data.organizingTeamId) {
+				throw new Error("Competition does not belong to this team")
+			}
 
-    const settings = parseCompetitionSettings(competition.settings)
-    const scalingGroupId = settings?.divisions?.scalingGroupId
+			const settings = parseCompetitionSettings(competition.settings)
+			const scalingGroupId = settings?.divisions?.scalingGroupId
 
-    if (!scalingGroupId) {
-      return {divisions: [], publishedCount: 0, totalCount: 0}
-    }
+			if (!scalingGroupId) {
+				if (data.eventId) {
+					return {
+						eventId: data.eventId,
+						eventName: "",
+						divisions: [],
+						publishedCount: 0,
+						totalCount: 0,
+					}
+				}
+				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+			}
 
-    // Get all divisions for this competition
-    const divisions = await db
-      .select({
-        id: scalingLevelsTable.id,
-        label: scalingLevelsTable.label,
-        position: scalingLevelsTable.position,
-      })
-      .from(scalingLevelsTable)
-      .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+			// Get all divisions for this competition
+			const divisions = await db
+				.select({
+					id: scalingLevelsTable.id,
+					label: scalingLevelsTable.label,
+					position: scalingLevelsTable.position,
+				})
+				.from(scalingLevelsTable)
+				.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
 
-    if (divisions.length === 0) {
-      return {divisions: [], publishedCount: 0, totalCount: 0}
-    }
+			if (divisions.length === 0) {
+				if (data.eventId) {
+					return {
+						eventId: data.eventId,
+						eventName: "",
+						divisions: [],
+						publishedCount: 0,
+						totalCount: 0,
+					}
+				}
+				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+			}
 
-    // Get registrations per division
-    const divisionIds = divisions.map((d) => d.id)
-    const registrationCounts = await autochunk(
-      {items: divisionIds, otherParametersCount: 1},
-      async (chunk) =>
-        db
-          .select({
-            divisionId: competitionRegistrationsTable.divisionId,
-            count: sql<number>`cast(count(*) as integer)`,
-          })
-          .from(competitionRegistrationsTable)
-          .where(
-            and(
-              eq(competitionRegistrationsTable.eventId, data.competitionId),
-              inArray(competitionRegistrationsTable.divisionId, chunk),
-            ),
-          )
-          .groupBy(competitionRegistrationsTable.divisionId),
-    )
+			// Get registrations per division
+			const divisionIds = divisions.map((d) => d.id)
+			const registrationCounts = await autochunk(
+				{ items: divisionIds, otherParametersCount: 1 },
+				async (chunk) =>
+					db
+						.select({
+							divisionId: competitionRegistrationsTable.divisionId,
+							count: sql<number>`cast(count(*) as integer)`,
+						})
+						.from(competitionRegistrationsTable)
+						.where(
+							and(
+								eq(competitionRegistrationsTable.eventId, data.competitionId),
+								inArray(competitionRegistrationsTable.divisionId, chunk),
+							),
+						)
+						.groupBy(competitionRegistrationsTable.divisionId),
+			)
 
-    const registrationCountMap = new Map<string, number>()
-    for (const row of registrationCounts) {
-      if (row.divisionId) {
-        registrationCountMap.set(row.divisionId, row.count)
-      }
-    }
+			const registrationCountMap = new Map<string, number>()
+			for (const row of registrationCounts) {
+				if (row.divisionId) {
+					registrationCountMap.set(row.divisionId, row.count)
+				}
+			}
 
-    // Get the competition's programming track to find all events
-    const [track] = await db
-      .select({id: programmingTracksTable.id})
-      .from(programmingTracksTable)
-      .where(eq(programmingTracksTable.competitionId, data.competitionId))
+			// Get the competition's programming track to find all events
+			const [track] = await db
+				.select({ id: programmingTracksTable.id })
+				.from(programmingTracksTable)
+				.where(eq(programmingTracksTable.competitionId, data.competitionId))
 
-    if (!track) {
-      // No events yet, return divisions with zero counts
-      const divisionResults = settings?.divisionResults ?? {}
-      const results: DivisionResultStatus[] = divisions.map((d) => {
-        const publishedInfo = divisionResults[d.id]
-        return {
-          divisionId: d.id,
-          label: d.label,
-          position: d.position,
-          registrationCount: registrationCountMap.get(d.id) ?? 0,
-          scoredCount: 0,
-          missingScoreCount: 0,
-          resultsPublishedAt: publishedInfo?.publishedAt
-            ? new Date(publishedInfo.publishedAt)
-            : null,
-          isPublished: !!publishedInfo?.publishedAt,
-        }
-      })
+			if (!track) {
+				// No events yet
+				if (data.eventId) {
+					return {
+						eventId: data.eventId,
+						eventName: "",
+						divisions: [],
+						publishedCount: 0,
+						totalCount: 0,
+					}
+				}
+				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+			}
 
-      return {
-        divisions: results.sort((a, b) => a.position - b.position),
-        publishedCount: results.filter((d) => d.isPublished).length,
-        totalCount: results.length,
-      }
-    }
+			// Get all events (track workouts) for this competition with workout names
+			const events = await db
+				.select({
+					id: trackWorkoutsTable.id,
+					trackOrder: trackWorkoutsTable.trackOrder,
+					workoutId: trackWorkoutsTable.workoutId,
+					workoutName: workoutsTable.name,
+				})
+				.from(trackWorkoutsTable)
+				.leftJoin(
+					workoutsTable,
+					eq(trackWorkoutsTable.workoutId, workoutsTable.id),
+				)
+				.where(eq(trackWorkoutsTable.trackId, track.id))
+				.orderBy(trackWorkoutsTable.trackOrder)
 
-    // Get all events (track workouts) for this competition
-    const events = await db
-      .select({id: trackWorkoutsTable.id})
-      .from(trackWorkoutsTable)
-      .where(eq(trackWorkoutsTable.trackId, track.id))
+			// If specific eventId requested, filter to that event
+			const targetEvents = data.eventId
+				? events.filter((e) => e.id === data.eventId)
+				: events
 
-    const eventIds = events.map((e) => e.id)
-    const totalEvents = eventIds.length
+			if (targetEvents.length === 0) {
+				if (data.eventId) {
+					return {
+						eventId: data.eventId,
+						eventName: "",
+						divisions: [],
+						publishedCount: 0,
+						totalCount: 0,
+					}
+				}
+				return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+			}
 
-    // Get scored counts per division
-    // We need to count unique (userId, divisionId) pairs that have at least one score
-    const registrations = await db
-      .select({
-        id: competitionRegistrationsTable.id,
-        userId: competitionRegistrationsTable.userId,
-        divisionId: competitionRegistrationsTable.divisionId,
-      })
-      .from(competitionRegistrationsTable)
-      .where(eq(competitionRegistrationsTable.eventId, data.competitionId))
+			// Get registrations for score counting
+			const registrations = await db
+				.select({
+					id: competitionRegistrationsTable.id,
+					userId: competitionRegistrationsTable.userId,
+					divisionId: competitionRegistrationsTable.divisionId,
+				})
+				.from(competitionRegistrationsTable)
+				.where(eq(competitionRegistrationsTable.eventId, data.competitionId))
 
-    // For each division, count how many athletes have complete scores (all events)
-    const divisionScoreCounts = new Map<
-      string,
-      {scored: number; missing: number}
-    >()
+			// Build a map of userId -> divisionId
+			const userDivisionMap = new Map<string, string>()
+			for (const reg of registrations) {
+				if (reg.divisionId) {
+					userDivisionMap.set(reg.userId, reg.divisionId)
+				}
+			}
 
-    if (totalEvents > 0 && registrations.length > 0) {
-      // Get all scores for this competition's events
-      const allScores =
-        eventIds.length > 0
-          ? await autochunk(
-              {items: eventIds, otherParametersCount: 0},
-              async (chunk) =>
-                db
-                  .select({
-                    userId: scoresTable.userId,
-                    competitionEventId: scoresTable.competitionEventId,
-                  })
-                  .from(scoresTable)
-                  .where(
-                    and(
-                      inArray(scoresTable.competitionEventId, chunk),
-                      isNotNull(scoresTable.scoreValue),
-                    ),
-                  ),
-            )
-          : []
+			// Get scores for the target events
+			const eventIds = targetEvents.map((e) => e.id)
+			const allScores =
+				eventIds.length > 0
+					? await autochunk(
+							{ items: eventIds, otherParametersCount: 0 },
+							async (chunk) =>
+								db
+									.select({
+										userId: scoresTable.userId,
+										competitionEventId: scoresTable.competitionEventId,
+									})
+									.from(scoresTable)
+									.where(
+										and(
+											inArray(scoresTable.competitionEventId, chunk),
+											isNotNull(scoresTable.scoreValue),
+										),
+									),
+						)
+					: []
 
-      // Build a map of userId -> set of event IDs with scores
-      const userScoreMap = new Map<string, Set<string>>()
-      for (const score of allScores) {
-        if (score.competitionEventId) {
-          const existing = userScoreMap.get(score.userId) ?? new Set()
-          existing.add(score.competitionEventId)
-          userScoreMap.set(score.userId, existing)
-        }
-      }
+			// Build a map of eventId -> set of userIds with scores
+			const eventScoreMap = new Map<string, Set<string>>()
+			for (const score of allScores) {
+				if (score.competitionEventId) {
+					const existing =
+						eventScoreMap.get(score.competitionEventId) ?? new Set()
+					existing.add(score.userId)
+					eventScoreMap.set(score.competitionEventId, existing)
+				}
+			}
 
-      // For each division, count scored vs missing
-      for (const division of divisions) {
-        const divRegistrations = registrations.filter(
-          (r) => r.divisionId === division.id,
-        )
-        let scoredCount = 0
-        let missingCount = 0
+			// Get division results from settings
+			const divisionResults = settings?.divisionResults ?? {}
 
-        for (const reg of divRegistrations) {
-          const userScores = userScoreMap.get(reg.userId) ?? new Set()
-          if (userScores.size === totalEvents) {
-            scoredCount++
-          } else {
-            missingCount++
-          }
-        }
+			// Build response for each event
+			const eventResponses: EventDivisionResultsStatusResponse[] = []
 
-        divisionScoreCounts.set(division.id, {
-          scored: scoredCount,
-          missing: missingCount,
-        })
-      }
-    } else {
-      // No events, all registrations have missing scores
-      for (const division of divisions) {
-        const count = registrationCountMap.get(division.id) ?? 0
-        divisionScoreCounts.set(division.id, {scored: 0, missing: count})
-      }
-    }
+			for (const event of targetEvents) {
+				const eventDivisionResults = divisionResults[event.id] ?? {}
+				const scoredUsers = eventScoreMap.get(event.id) ?? new Set()
 
-    // Build response with published status from settings
-    const divisionResults = settings?.divisionResults ?? {}
-    const results: DivisionResultStatus[] = divisions.map((d) => {
-      const counts = divisionScoreCounts.get(d.id) ?? {scored: 0, missing: 0}
-      const publishedInfo = divisionResults[d.id]
+				const divisionStatuses: DivisionResultStatus[] = divisions.map((d) => {
+					// Count registrations in this division
+					const divisionRegCount = registrationCountMap.get(d.id) ?? 0
 
-      return {
-        divisionId: d.id,
-        label: d.label,
-        position: d.position,
-        registrationCount: registrationCountMap.get(d.id) ?? 0,
-        scoredCount: counts.scored,
-        missingScoreCount: counts.missing,
-        resultsPublishedAt: publishedInfo?.publishedAt
-          ? new Date(publishedInfo.publishedAt)
-          : null,
-        isPublished: !!publishedInfo?.publishedAt,
-      }
-    })
+					// Count scored athletes in this division for this event
+					let scoredCount = 0
+					let missingCount = 0
+					for (const reg of registrations) {
+						if (reg.divisionId === d.id) {
+							if (scoredUsers.has(reg.userId)) {
+								scoredCount++
+							} else {
+								missingCount++
+							}
+						}
+					}
 
-    return {
-      divisions: results.sort((a, b) => a.position - b.position),
-      publishedCount: results.filter((d) => d.isPublished).length,
-      totalCount: results.length,
-    }
-  })
+					const publishedInfo = eventDivisionResults[d.id]
+
+					return {
+						divisionId: d.id,
+						label: d.label,
+						position: d.position,
+						registrationCount: divisionRegCount,
+						scoredCount,
+						missingScoreCount: missingCount,
+						resultsPublishedAt: publishedInfo?.publishedAt
+							? new Date(publishedInfo.publishedAt)
+							: null,
+						isPublished: !!publishedInfo?.publishedAt,
+					}
+				})
+
+				const sortedDivisions = divisionStatuses.sort(
+					(a, b) => a.position - b.position,
+				)
+				const publishedCount = sortedDivisions.filter(
+					(d) => d.isPublished,
+				).length
+
+				eventResponses.push({
+					eventId: event.id,
+					eventName: event.workoutName ?? `Event ${event.trackOrder}`,
+					divisions: sortedDivisions,
+					publishedCount,
+					totalCount: sortedDivisions.length,
+				})
+			}
+
+			// If specific event requested, return single event response
+			if (data.eventId && eventResponses.length === 1) {
+				return eventResponses[0]
+			}
+
+			// Return all events response
+			const totalPublished = eventResponses.reduce(
+				(sum, e) => sum + e.publishedCount,
+				0,
+			)
+			const totalCombinations = eventResponses.reduce(
+				(sum, e) => sum + e.totalCount,
+				0,
+			)
+
+			return {
+				events: eventResponses,
+				totalPublishedCount: totalPublished,
+				totalCombinations,
+			}
+		},
+	)
 
 /**
- * Publish or unpublish results for a single division
+ * Publish or unpublish results for a single event+division combination.
+ *
+ * The eventId is the track_workout ID (the event in the competition schedule).
  */
-export const publishDivisionResultsFn = createServerFn({method: 'POST'})
-  .inputValidator((data: unknown) =>
-    publishDivisionResultsInputSchema.parse(data),
-  )
-  .handler(
-    async ({data}): Promise<{success: boolean; publishedAt: Date | null}> => {
-      const {getDb} = await import('@/db')
-      const {eq} = await import('drizzle-orm')
-      const {competitionsTable} = await import('@/db/schemas/competitions')
-      const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
-      const {getSessionFromCookie} = await import('@/utils/auth')
+export const publishDivisionResultsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		publishDivisionResultsInputSchema.parse(data),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{ success: boolean; publishedAt: Date | null }> => {
+			const { getDb } = await import("@/db")
+			const { eq } = await import("drizzle-orm")
+			const { competitionsTable } = await import("@/db/schemas/competitions")
+			const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+			const { getSessionFromCookie } = await import("@/utils/auth")
 
-      // Verify authentication
-      const session = await getSessionFromCookie()
-      if (!session?.userId) {
-        throw new Error('Not authenticated')
-      }
+			// Verify authentication
+			const session = await getSessionFromCookie()
+			if (!session?.userId) {
+				throw new Error("Not authenticated")
+			}
 
-      // Check permission
-      const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-      if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
-        throw new Error('Missing required permission')
-      }
+			// Check permission
+			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+				throw new Error("Missing required permission")
+			}
 
-      const db = getDb()
+			const db = getDb()
 
-      // Get competition with settings
-      const [competition] = await db
-        .select()
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
+			// Get competition with settings
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, data.competitionId))
 
-      if (!competition) {
-        throw new Error('Competition not found')
-      }
+			if (!competition) {
+				throw new Error("Competition not found")
+			}
 
-      if (competition.organizingTeamId !== data.organizingTeamId) {
-        throw new Error('Competition does not belong to this team')
-      }
+			if (competition.organizingTeamId !== data.organizingTeamId) {
+				throw new Error("Competition does not belong to this team")
+			}
 
-      // Parse current settings
-      const settings = parseCompetitionSettings(competition.settings) ?? {}
+			// Parse current settings
+			const settings = parseCompetitionSettings(competition.settings) ?? {}
 
-      // Update division results status
-      const divisionResults = settings.divisionResults ?? {}
-      const publishedAt = data.publish ? Date.now() : null
+			// Update division results status for this event+division
+			const divisionResults: DivisionResultsSchema =
+				settings.divisionResults ?? {}
+			const publishedAt = data.publish ? Date.now() : null
 
-      divisionResults[data.divisionId] = {publishedAt}
+			// Ensure the event entry exists
+			if (!divisionResults[data.eventId]) {
+				divisionResults[data.eventId] = {}
+			}
 
-      // Save updated settings
-      const newSettings = stringifyCompetitionSettings({
-        ...settings,
-        divisionResults,
-      })
+			divisionResults[data.eventId][data.divisionId] = { publishedAt }
 
-      await db
-        .update(competitionsTable)
-        .set({settings: newSettings, updatedAt: new Date()})
-        .where(eq(competitionsTable.id, data.competitionId))
+			// Save updated settings
+			const newSettings = stringifyCompetitionSettings({
+				...settings,
+				divisionResults,
+			})
 
-      return {
-        success: true,
-        publishedAt: publishedAt ? new Date(publishedAt) : null,
-      }
-    },
-  )
+			await db
+				.update(competitionsTable)
+				.set({ settings: newSettings, updatedAt: new Date() })
+				.where(eq(competitionsTable.id, data.competitionId))
+
+			return {
+				success: true,
+				publishedAt: publishedAt ? new Date(publishedAt) : null,
+			}
+		},
+	)
 
 /**
- * Publish or unpublish results for all divisions at once
+ * Publish or unpublish results for all divisions for a specific event.
+ *
+ * The eventId is the track_workout ID (the event in the competition schedule).
+ * This publishes/unpublishes all divisions for ONE event, not all events.
  */
-export const publishAllDivisionResultsFn = createServerFn({method: 'POST'})
-  .inputValidator((data: unknown) =>
-    publishAllDivisionResultsInputSchema.parse(data),
-  )
-  .handler(
-    async ({data}): Promise<{success: boolean; updatedCount: number}> => {
-      const {getDb} = await import('@/db')
-      const {eq} = await import('drizzle-orm')
-      const {competitionsTable} = await import('@/db/schemas/competitions')
-      const {scalingLevelsTable} = await import('@/db/schemas/scaling')
-      const {TEAM_PERMISSIONS} = await import('@/db/schemas/teams')
-      const {getSessionFromCookie} = await import('@/utils/auth')
+export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		publishAllDivisionResultsInputSchema.parse(data),
+	)
+	.handler(
+		async ({ data }): Promise<{ success: boolean; updatedCount: number }> => {
+			const { getDb } = await import("@/db")
+			const { eq } = await import("drizzle-orm")
+			const { competitionsTable } = await import("@/db/schemas/competitions")
+			const { scalingLevelsTable } = await import("@/db/schemas/scaling")
+			const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
+			const { getSessionFromCookie } = await import("@/utils/auth")
 
-      // Verify authentication
-      const session = await getSessionFromCookie()
-      if (!session?.userId) {
-        throw new Error('Not authenticated')
-      }
+			// Verify authentication
+			const session = await getSessionFromCookie()
+			if (!session?.userId) {
+				throw new Error("Not authenticated")
+			}
 
-      // Check permission
-      const team = session.teams?.find((t) => t.id === data.organizingTeamId)
-      if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
-        throw new Error('Missing required permission')
-      }
+			// Check permission
+			const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+			if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)) {
+				throw new Error("Missing required permission")
+			}
 
-      const db = getDb()
+			const db = getDb()
 
-      // Get competition with settings
-      const [competition] = await db
-        .select()
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
+			// Get competition with settings
+			const [competition] = await db
+				.select()
+				.from(competitionsTable)
+				.where(eq(competitionsTable.id, data.competitionId))
 
-      if (!competition) {
-        throw new Error('Competition not found')
-      }
+			if (!competition) {
+				throw new Error("Competition not found")
+			}
 
-      if (competition.organizingTeamId !== data.organizingTeamId) {
-        throw new Error('Competition does not belong to this team')
-      }
+			if (competition.organizingTeamId !== data.organizingTeamId) {
+				throw new Error("Competition does not belong to this team")
+			}
 
-      // Parse current settings
-      const settings = parseCompetitionSettings(competition.settings) ?? {}
-      const scalingGroupId = settings?.divisions?.scalingGroupId
+			// Parse current settings
+			const settings = parseCompetitionSettings(competition.settings) ?? {}
+			const scalingGroupId = settings?.divisions?.scalingGroupId
 
-      if (!scalingGroupId) {
-        return {success: true, updatedCount: 0}
-      }
+			if (!scalingGroupId) {
+				return { success: true, updatedCount: 0 }
+			}
 
-      // Get all divisions
-      const divisions = await db
-        .select({id: scalingLevelsTable.id})
-        .from(scalingLevelsTable)
-        .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+			// Get all divisions
+			const divisions = await db
+				.select({ id: scalingLevelsTable.id })
+				.from(scalingLevelsTable)
+				.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
 
-      if (divisions.length === 0) {
-        return {success: true, updatedCount: 0}
-      }
+			if (divisions.length === 0) {
+				return { success: true, updatedCount: 0 }
+			}
 
-      // Update all divisions at once
-      const divisionResults = settings.divisionResults ?? {}
-      const publishedAt = data.publish ? Date.now() : null
+			// Update all divisions for this specific event
+			const divisionResults: DivisionResultsSchema =
+				settings.divisionResults ?? {}
+			const publishedAt = data.publish ? Date.now() : null
 
-      for (const division of divisions) {
-        divisionResults[division.id] = {publishedAt}
-      }
+			// Ensure the event entry exists
+			if (!divisionResults[data.eventId]) {
+				divisionResults[data.eventId] = {}
+			}
 
-      // Save updated settings
-      const newSettings = stringifyCompetitionSettings({
-        ...settings,
-        divisionResults,
-      })
+			for (const division of divisions) {
+				divisionResults[data.eventId][division.id] = { publishedAt }
+			}
 
-      await db
-        .update(competitionsTable)
-        .set({settings: newSettings, updatedAt: new Date()})
-        .where(eq(competitionsTable.id, data.competitionId))
+			// Save updated settings
+			const newSettings = stringifyCompetitionSettings({
+				...settings,
+				divisionResults,
+			})
 
-      return {success: true, updatedCount: divisions.length}
-    },
-  )
+			await db
+				.update(competitionsTable)
+				.set({ settings: newSettings, updatedAt: new Date() })
+				.where(eq(competitionsTable.id, data.competitionId))
+
+			return { success: true, updatedCount: divisions.length }
+		},
+	)

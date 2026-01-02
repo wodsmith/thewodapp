@@ -28,6 +28,7 @@ import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
 	getDivisionResultsStatusFn,
 	publishDivisionResultsFn,
+	type AllEventsResultsStatusResponse,
 } from "@/server-fns/division-results-fns"
 
 // Get parent route API to access competition data
@@ -107,7 +108,9 @@ export const Route = createFileRoute(
 			selectedEventId,
 			selectedDivisionId: deps.divisionId,
 			scoreEntryData,
-			divisionResultsStatus,
+			// When called without eventId, returns AllEventsResultsStatusResponse
+			divisionResultsStatus:
+				divisionResultsStatus as AllEventsResultsStatusResponse,
 		}
 	},
 })
@@ -131,16 +134,17 @@ function ResultsPage() {
 	const publishDivisionResults = useServerFn(publishDivisionResultsFn)
 	const [isPublishing, setIsPublishing] = useState(false)
 
-	// Find the current division's publish status
-	const currentDivisionStatus = selectedDivisionId
-		? divisionResultsStatus.divisions.find(
-				(d) => d.divisionId === selectedDivisionId,
-			)
-		: null
+	// Find the current division's publish status for the selected event
+	const currentDivisionStatus =
+		selectedEventId && selectedDivisionId
+			? divisionResultsStatus.events
+					.find((e) => e.eventId === selectedEventId)
+					?.divisions.find((d) => d.divisionId === selectedDivisionId)
+			: null
 
 	// Handle publishing/unpublishing current division results
 	const handleTogglePublish = async (publish: boolean) => {
-		if (!selectedDivisionId) return
+		if (!selectedEventId || !selectedDivisionId) return
 
 		setIsPublishing(true)
 		try {
@@ -148,6 +152,7 @@ function ResultsPage() {
 				data: {
 					competitionId,
 					organizingTeamId: competition.organizingTeamId,
+					eventId: selectedEventId,
 					divisionId: selectedDivisionId,
 					publish,
 				},
