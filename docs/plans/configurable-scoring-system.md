@@ -169,31 +169,93 @@ interface PScoreResult {
   rank: number
 }
 
+// Memoized median calculation - same inputs = same median
+const medianCache = new Map<string, { best: number; median: number }>()
+
+function getMedianCacheKey(scores: number[], medianField: "top_half" | "all"): string {
+  return `${scores.join(",")}:${medianField}`
+}
+
+function calculateBestAndMedian(
+  sortedScores: number[],
+  medianField: "top_half" | "all"
+): { best: number; median: number } {
+  const cacheKey = getMedianCacheKey(sortedScores, medianField)
+  
+  if (medianCache.has(cacheKey)) {
+    return medianCache.get(cacheKey)!
+  }
+  
+  const best = sortedScores[0]
+  const medianPool = medianField === "top_half" 
+    ? sortedScores.slice(0, Math.ceil(sortedScores.length / 2))
+    : sortedScores
+  const median = medianPool[Math.floor(medianPool.length / 2)]
+  
+  const result = { best, median }
+  medianCache.set(cacheKey, result)
+  return result
+}
+
 function calculatePScore(input: PScoreInput): PScoreResult[] {
   // 1. Filter to scored entries, sort by performance
-  // 2. Calculate best and median (top half)
+  // 2. Calculate best and median (memoized)
   // 3. Apply formula based on scheme direction
   // 4. Handle DNF/DNS per config
   // 5. Return with ranks
+}
+
+export function clearPScoreCache(): void {
+  medianCache.clear()
 }
 ```
 
 #### Updated: `lib/scoring/algorithms/index.ts`
 
 ```typescript
+// Request-scoped memoization cache
+// Key: hash of (eventId, scoringConfig)
+const pointsCache = new Map<string, Map<string, number>>()
+
+function getCacheKey(eventId: string, config: ScoringConfig): string {
+  return `${eventId}:${JSON.stringify(config)}`
+}
+
 export function calculateEventPoints(
+  eventId: string,
   scores: EventScore[],
   config: ScoringConfig,
-  athleteCount: number
+  athleteCount: number,
+  cache: Map<string, Map<string, number>> = pointsCache
 ): Map<string, number> {
+  const cacheKey = getCacheKey(eventId, config)
+  
+  // Return cached result if available
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey)!
+  }
+  
+  let result: Map<string, number>
   switch (config.algorithm) {
     case "traditional":
-      return calculateTraditionalPoints(scores, config.traditional, athleteCount)
+      result = calculateTraditionalPoints(scores, config.traditional, athleteCount)
+      break
     case "p_score":
-      return calculatePScorePoints(scores, config.pScore)
+      result = calculatePScorePoints(scores, config.pScore)
+      break
     case "custom":
-      return calculateCustomPoints(scores, config.customTable, athleteCount)
+      result = calculateCustomPoints(scores, config.customTable, athleteCount)
+      break
   }
+  
+  // Cache and return
+  cache.set(cacheKey, result)
+  return result
+}
+
+// Clear cache at end of request (called by request handler)
+export function clearScoringCache(): void {
+  pointsCache.clear()
 }
 ```
 
@@ -425,6 +487,11 @@ This is a **new implementation**, not a migration. There is no legacy scoring da
 - Calculate leaderboard on-demand per request
 - Acceptable performance for competitions up to ~500 athletes
 - Simple, no cache invalidation complexity
+- **Request-scoped memoization** for scoring calculations:
+  - Memoize `calculateEventPoints()` - cache results per (eventId, scoringConfig hash)
+  - Memoize P-Score median calculation - same inputs = same median
+  - Use simple Map-based memoization (lives for duration of request, not persistent)
+  - Low overhead, prevents redundant calculations within a single request
 
 ### Future Optimizations
 
@@ -440,10 +507,10 @@ When scaling becomes a concern, the architecture supports these enhancements:
    - Invalidate via cache tags when scores update
    - Significantly reduces compute for high-traffic events
 
-3. **Memoization Layer**
-   - Add memoization at the `calculateEventPoints()` level
+3. **Persistent Memoization** (if request-scoped isn't sufficient)
+   - Upgrade from Map-based to Redis or D1-backed cache
+   - Persist across requests for frequently-accessed leaderboards
    - Event scores rarely change once submitted
-   - Could use Redis or D1-backed cache
 
 The current implementation should be designed with these future optimizations in mind - avoid tightly coupling calculation with rendering, ensure score mutations have clear hooks for cache invalidation.
 
