@@ -35,6 +35,7 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
+import { sponsorsTable } from "@/db/schemas/sponsors"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk, chunk } from "@/utils/batch-query"
 
@@ -347,6 +348,167 @@ export const getPublishedCompetitionWorkoutsFn = createServerFn({
 			.orderBy(trackWorkoutsTable.trackOrder)
 
 		return { workouts: trackWorkouts as CompetitionWorkout[] }
+	})
+
+/**
+ * Get published workouts for a competition with full details (movements, tags, sponsor)
+ * Returns only workouts with eventStatus = 'published'
+ * This is the enhanced version for public competition pages
+ */
+export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		getPublishedCompetitionWorkoutsInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get the competition's programming track
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.competitionId, data.competitionId),
+		})
+
+		if (!track) {
+			return { workouts: [] }
+		}
+
+		// Get only published workouts for this track with sponsor join
+		const trackWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				trackId: trackWorkoutsTable.trackId,
+				workoutId: trackWorkoutsTable.workoutId,
+				trackOrder: trackWorkoutsTable.trackOrder,
+				notes: trackWorkoutsTable.notes,
+				pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+				heatStatus: trackWorkoutsTable.heatStatus,
+				eventStatus: trackWorkoutsTable.eventStatus,
+				sponsorId: trackWorkoutsTable.sponsorId,
+				createdAt: trackWorkoutsTable.createdAt,
+				updatedAt: trackWorkoutsTable.updatedAt,
+				workout: {
+					id: workouts.id,
+					name: workouts.name,
+					description: workouts.description,
+					scheme: workouts.scheme,
+					scoreType: workouts.scoreType,
+					roundsToScore: workouts.roundsToScore,
+					repsPerRound: workouts.repsPerRound,
+					tiebreakScheme: workouts.tiebreakScheme,
+					timeCap: workouts.timeCap,
+				},
+				sponsorName: sponsorsTable.name,
+				sponsorLogoUrl: sponsorsTable.logoUrl,
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+			.leftJoin(
+				sponsorsTable,
+				eq(trackWorkoutsTable.sponsorId, sponsorsTable.id),
+			)
+			.where(
+				and(
+					eq(trackWorkoutsTable.trackId, track.id),
+					eq(trackWorkoutsTable.eventStatus, "published"),
+				),
+			)
+			.orderBy(trackWorkoutsTable.trackOrder)
+
+		if (trackWorkouts.length === 0) {
+			return { workouts: [] }
+		}
+
+		// Get all workout IDs for batch fetching movements and tags
+		const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
+
+		// Batch fetch movements for all workouts
+		const allMovements = await autochunk(
+			{ items: workoutIds },
+			async (chunk: string[]) => {
+				const rows = await db
+					.select({
+						workoutId: workoutMovements.workoutId,
+						movementId: movements.id,
+						movementName: movements.name,
+					})
+					.from(workoutMovements)
+					.innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+					.where(inArray(workoutMovements.workoutId, chunk))
+				return rows
+			},
+		)
+
+		// Batch fetch tags for all workouts
+		const allTags = await autochunk(
+			{ items: workoutIds },
+			async (chunk: string[]) => {
+				const rows = await db
+					.select({
+						workoutId: workoutTags.workoutId,
+						tagId: tags.id,
+						tagName: tags.name,
+					})
+					.from(workoutTags)
+					.innerJoin(tags, eq(workoutTags.tagId, tags.id))
+					.where(inArray(workoutTags.workoutId, chunk))
+				return rows
+			},
+		)
+
+		// Create lookup maps for movements and tags
+		const movementsByWorkout = new Map<
+			string,
+			Array<{ id: string; name: string }>
+		>()
+		for (const m of allMovements) {
+			const wid = m.workoutId
+			if (wid === null) continue
+			if (!movementsByWorkout.has(wid)) {
+				movementsByWorkout.set(wid, [])
+			}
+			movementsByWorkout.get(wid)!.push({
+				id: m.movementId,
+				name: m.movementName,
+			})
+		}
+
+		const tagsByWorkout = new Map<string, Array<{ id: string; name: string }>>()
+		for (const t of allTags) {
+			const wid = t.workoutId
+			if (wid === null) continue
+			if (!tagsByWorkout.has(wid)) {
+				tagsByWorkout.set(wid, [])
+			}
+			tagsByWorkout.get(wid)!.push({
+				id: t.tagId,
+				name: t.tagName,
+			})
+		}
+
+		// Combine all data
+		const enrichedWorkouts = trackWorkouts.map((tw) => ({
+			id: tw.id,
+			trackId: tw.trackId,
+			workoutId: tw.workoutId,
+			trackOrder: tw.trackOrder,
+			notes: tw.notes,
+			pointsMultiplier: tw.pointsMultiplier,
+			heatStatus: tw.heatStatus,
+			eventStatus: tw.eventStatus,
+			sponsorId: tw.sponsorId,
+			createdAt: tw.createdAt,
+			updatedAt: tw.updatedAt,
+			workout: {
+				...tw.workout,
+				movements: movementsByWorkout.get(tw.workoutId) ?? [],
+				tags: tagsByWorkout.get(tw.workoutId) ?? [],
+			},
+			sponsorName: tw.sponsorName ?? undefined,
+			sponsorLogoUrl: tw.sponsorLogoUrl ?? undefined,
+		}))
+
+		return { workouts: enrichedWorkouts }
 	})
 
 /**
