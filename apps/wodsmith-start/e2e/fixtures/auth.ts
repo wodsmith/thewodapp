@@ -49,8 +49,12 @@ export async function login(
 	// The app redirects to /workouts after login
 	await page.waitForURL(/\/(workouts|dashboard)/, { 
 		timeout: 10000,
-		waitUntil: 'domcontentloaded'
+		waitUntil: 'networkidle'
 	})
+
+	// Wait for network to settle and session to be fully established
+	// This ensures cookies are set before navigating to protected routes
+	await page.waitForLoadState('networkidle')
 }
 
 /**
@@ -71,6 +75,10 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 		email: ADMIN_USER.email,
 		password: ADMIN_USER.password,
 	})
+
+	// Extra verification for admin login - wait for session to be fully established
+	// The admin needs the session to be properly set before accessing /admin routes
+	await page.waitForLoadState('networkidle')
 }
 
 /**

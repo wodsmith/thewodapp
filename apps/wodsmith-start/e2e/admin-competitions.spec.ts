@@ -23,8 +23,11 @@ test.describe('Admin Competitions Browser', () => {
     // Navigate to admin competitions page
     await page.goto('/admin/competitions', {waitUntil: 'networkidle'})
 
+    // Wait a bit for any redirects to complete
+    await page.waitForLoadState('networkidle')
+
     // Verify page loaded (not redirected to 404 or sign-in)
-    await expect(page).toHaveURL(/\/admin\/competitions/)
+    await expect(page).toHaveURL(/\/admin\/competitions/, {timeout: 10000})
 
     // Verify main heading is visible
     await expect(
