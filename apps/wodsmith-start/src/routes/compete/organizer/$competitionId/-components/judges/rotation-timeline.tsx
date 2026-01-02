@@ -2,6 +2,7 @@
 
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { ChevronLeft, Pencil, Plus, User } from "lucide-react"
+import { toast } from "sonner"
 import {
 	Fragment,
 	useCallback,
@@ -379,7 +380,7 @@ export function RotationTimeline({
 				await refreshRotations()
 			} catch (error) {
 				console.error("Failed to update rotation:", error)
-				// TODO: Show error toast to user
+				toast.error("Failed to update rotation")
 			}
 		},
 		[teamId, refreshRotations],
