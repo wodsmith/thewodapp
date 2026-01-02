@@ -1,91 +1,52 @@
 /**
  * Authentication Server Functions for TanStack Start
  * Handles sign-in, sign-up, password reset, email verification, and other auth-related server functions
+ *
+ * IMPORTANT: All server-only imports (cloudflare:workers, @/db, @/utils/auth, etc.)
+ * MUST use dynamic imports inside handlers to avoid bundling into client.
+ * See: .claude/skills/tanstack-start-boundaries/SKILL.md
  */
 
-import { env } from "cloudflare:workers"
 import { init } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
 import { z } from "zod"
 import {
 	EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
 	PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS,
 } from "@/constants"
-import { getDb } from "@/db"
-import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
 import {
-	canSignUp,
-	createAndStoreSession,
-	getSessionFromCookie,
-} from "@/utils/auth"
+	signInSchema,
+	signUpSchema,
+	resetPasswordSchema,
+	verifyEmailSchema,
+	type VerifyEmailInput,
+} from "@/schemas/auth.schema"
 import { getResetTokenKey, getVerificationTokenKey } from "@/utils/auth-utils"
-import { sendPasswordResetEmail, sendVerificationEmail } from "@/utils/email"
-import { updateAllSessionsOfUser } from "@/utils/kv-session"
-import { hashPassword, verifyPassword } from "@/utils/password-hasher"
 import { validateTurnstileToken } from "@/utils/validate-captcha"
+
+// Re-export schemas and types for backwards compatibility
+// But consumers should prefer importing from @/schemas/auth.schema
+export {
+	signInSchema,
+	signUpSchema,
+	resetPasswordSchema,
+	verifyEmailSchema,
+	type SignInInput,
+	type SignUpInput,
+	type ResetPasswordInput,
+	type VerifyEmailInput,
+	type ForgotPasswordInput,
+} from "@/schemas/auth.schema"
 
 // Create a CUID2 generator with 32 character length for tokens
 const createToken = init({
 	length: 32,
 })
 
-// ============================================================================
-// Input Schemas
-// ============================================================================
-
-export const signInSchema = z.object({
-	email: z.string().email("Please enter a valid email address"),
-	password: z.string().min(1, "Password is required"),
-})
-
-export type SignInInput = z.infer<typeof signInSchema>
-
-export const signUpSchema = z.object({
-	email: z.string().email("Please enter a valid email address"),
-	firstName: z.string().min(1, "First name is required"),
-	lastName: z.string().min(1, "Last name is required"),
-	password: z
-		.string()
-		.min(8, "Password must be at least 8 characters")
-		.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-		.regex(/[a-z]/, "Password must contain at least one lowercase letter")
-		.regex(/[0-9]/, "Password must contain at least one number"),
-	captchaToken: z.string().optional(),
-})
-
-export type SignUpInput = z.infer<typeof signUpSchema>
-
-export const resetPasswordSchema = z
-	.object({
-		token: z.string().min(1, "Token is required"),
-		password: z
-			.string()
-			.min(8, "Password must be at least 8 characters")
-			.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-			.regex(/[a-z]/, "Password must contain at least one lowercase letter")
-			.regex(/[0-9]/, "Password must contain at least one number"),
-		confirmPassword: z.string(),
-	})
-	.refine((data) => data.password === data.confirmPassword, {
-		message: "Passwords do not match",
-		path: ["confirmPassword"],
-	})
-
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
-
-export const verifyEmailSchema = z.object({
-	token: z.string().min(1, "Verification token is required"),
-})
-
-export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>
-
 const forgotPasswordInputSchema = z.object({
 	email: z.string().email("Please enter a valid email address"),
 	captchaToken: z.string().optional(),
 })
-
-export type ForgotPasswordInput = z.infer<typeof forgotPasswordInputSchema>
 
 // ============================================================================
 // Server Functions
@@ -97,6 +58,12 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordInputSchema>
 export const signInFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => signInSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { userTable } = await import("@/db/schema")
+		const { verifyPassword } = await import("@/utils/password-hasher")
+		const { createAndStoreSession } = await import("@/utils/auth")
+
 		const db = getDb()
 
 		// Find user by email (case-insensitive, like forgotPasswordFn)
@@ -139,6 +106,14 @@ export const signInFn = createServerFn({ method: "POST" })
 export const signUpFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => signUpSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { userTable, teamTable, teamMembershipTable } = await import(
+			"@/db/schema"
+		)
+		const { hashPassword } = await import("@/utils/password-hasher")
+		const { canSignUp, createAndStoreSession } = await import("@/utils/auth")
+
 		const db = getDb()
 
 		// Validate CAPTCHA token if provided
@@ -238,6 +213,8 @@ export const validateResetTokenFn = createServerFn({ method: "GET" })
 		z.object({ token: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { env } = await import("cloudflare:workers")
+
 		const tokenData = await env.KV_SESSION.get(getResetTokenKey(data.token))
 
 		if (!tokenData) {
@@ -267,6 +244,12 @@ export const validateResetTokenFn = createServerFn({ method: "GET" })
 export const resetPasswordFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => resetPasswordSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { env } = await import("cloudflare:workers")
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { userTable } = await import("@/db/schema")
+		const { hashPassword } = await import("@/utils/password-hasher")
+
 		const db = getDb()
 
 		// Find valid reset token
@@ -316,6 +299,12 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 		(data: unknown): VerifyEmailInput => verifyEmailSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { env } = await import("cloudflare:workers")
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { userTable } = await import("@/db/schema")
+		const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
+
 		const kv = env.KV_SESSION
 
 		if (!kv) {
@@ -381,6 +370,12 @@ export const verifyEmailFn = createServerFn({ method: "POST" })
 export const forgotPasswordFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => forgotPasswordInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		const { env } = await import("cloudflare:workers")
+		const { getDb } = await import("@/db")
+		const { eq } = await import("drizzle-orm")
+		const { userTable } = await import("@/db/schema")
+		const { sendPasswordResetEmail } = await import("@/utils/email")
+
 		const db = getDb()
 
 		// Validate CAPTCHA token if provided
@@ -451,6 +446,10 @@ export const forgotPasswordFn = createServerFn({ method: "POST" })
  */
 export const resendVerificationFn = createServerFn({ method: "POST" }).handler(
 	async () => {
+		const { env } = await import("cloudflare:workers")
+		const { getSessionFromCookie } = await import("@/utils/auth")
+		const { sendVerificationEmail } = await import("@/utils/email")
+
 		const session = await getSessionFromCookie()
 
 		if (!session?.user?.email) {

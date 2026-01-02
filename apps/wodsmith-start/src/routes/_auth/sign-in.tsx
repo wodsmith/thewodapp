@@ -8,12 +8,22 @@ import {
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
 import {
 	Form,
 	FormControl,
 	FormField,
 	FormItem,
+	FormLabel,
 	FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -91,90 +101,87 @@ function SignInPage() {
 	}
 
 	return (
-		<div className="min-h-[90vh] flex flex-col items-center px-4 justify-center bg-background my-6 md:my-10">
-			<div className="w-full max-w-md space-y-8 p-8 bg-background border-4 border-black dark:border-primary shadow-[8px_8px_0px_0px] dark:shadow-primary">
-				<div className="text-center">
-					<h2 className="mt-2 text-3xl md:text-4xl font-mono font-bold tracking-tight dark:text-primary uppercase">
-						SIGN IN
-					</h2>
-					<p className="mt-4 text-black dark:text-primary font-mono">
-						OR{" "}
+		<div className="min-h-[90vh] flex flex-col items-center px-4 justify-center bg-background">
+			<Card className="w-full max-w-md">
+				<CardHeader className="text-center">
+					<CardTitle className="text-2xl">Sign In</CardTitle>
+					<CardDescription>
+						Or{" "}
 						<Link
 							to="/sign-up"
 							search={{ redirect: redirectPath }}
-							className="font-bold dark:text-primary underline hover:no-underline"
+							className="text-primary underline-offset-4 hover:underline"
 						>
-							CREATE ACCOUNT
+							create an account
 						</Link>
-					</p>
-				</div>
+					</CardDescription>
+				</CardHeader>
 
-				{/* TODO: Add Passkey authentication when WebAuthn is implemented */}
+				<CardContent>
+					{/* TODO: Add Passkey authentication when WebAuthn is implemented */}
 
-				{error && (
-					<div className="p-4 bg-red-500/10 border-2 border-red-500 text-red-500 font-mono text-sm">
-						{error}
-					</div>
-				)}
+					{error && (
+						<Alert variant="destructive" className="mb-6">
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					)}
 
-				<Form {...form}>
-					<form
-						onSubmit={form.handleSubmit(onSubmit)}
-						className="mt-8 space-y-6"
-					>
-						<FormField
-							control={form.control}
-							name="email"
-							render={({ field }) => (
-								<FormItem>
-									<FormControl>
-										<Input
-											placeholder="EMAIL ADDRESS"
-											type="email"
-											disabled={isLoading}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+					<Form {...form}>
+						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+							<FormField
+								control={form.control}
+								name="email"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Email</FormLabel>
+										<FormControl>
+											<Input
+												placeholder="name@example.com"
+												type="email"
+												disabled={isLoading}
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 
-						<FormField
-							control={form.control}
-							name="password"
-							render={({ field }) => (
-								<FormItem>
-									<FormControl>
-										<Input
-											type="password"
-											placeholder="PASSWORD"
-											disabled={isLoading}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
+							<FormField
+								control={form.control}
+								name="password"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Password</FormLabel>
+										<FormControl>
+											<Input
+												type="password"
+												placeholder="Enter your password"
+												disabled={isLoading}
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 
-						<Button type="submit" className="w-full" disabled={isLoading}>
-							{isLoading ? "SIGNING IN..." : "SIGN IN"}
-						</Button>
-					</form>
-				</Form>
-			</div>
+							<Button type="submit" className="w-full" disabled={isLoading}>
+								{isLoading ? "Signing in..." : "Sign In"}
+							</Button>
+						</form>
+					</Form>
+				</CardContent>
 
-			<div className="mt-8">
-				<p className="text-center text-sm dark:text-primary font-mono">
+				<CardFooter className="flex justify-center">
 					<Link
 						to="/forgot-password"
-						className="font-bold dark:text-primary underline hover:no-underline uppercase"
+						className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
 					>
-						FORGOT PASSWORD?
+						Forgot password?
 					</Link>
-				</p>
-			</div>
+				</CardFooter>
+			</Card>
 		</div>
 	)
 }

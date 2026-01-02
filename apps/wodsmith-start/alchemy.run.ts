@@ -95,6 +95,7 @@ import {
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
+import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
  * Initialize the Alchemy application context.
@@ -127,6 +128,12 @@ import { CloudflareStateStore } from "alchemy/state"
  */
 const stage = process.env.STAGE ?? "dev"
 
+/**
+ * Whether the current stage needs Stripe bindings.
+ * Both demo and production environments require Stripe integration.
+ */
+const needsStripeBindings = stage === "demo" || stage === "prod"
+
 const app = await alchemy("wodsmith", {
 	/**
 	 * Deployment stage/environment name.
@@ -140,7 +147,7 @@ const app = await alchemy("wodsmith", {
 	 * - "dev"     → Development database, no custom domain
 	 * - "staging" → Staging database, staging domain (if configured)
 	 * - "prod"    → Production database, start.wodsmith.com domain
-	 * - "pr-42"   → PR preview with pr-42.preview.wodsmith.com domain
+	 * - "pr-42"   → PR preview with auto-generated workers.dev URL
 	 */
 	stage,
 
@@ -279,23 +286,85 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
+ * Validate required Stripe environment variables when Stripe bindings are needed.
+ * Fails fast with a clear error message if any required variables are missing.
+ */
+if (needsStripeBindings) {
+	const requiredStripeVars = [
+		"STRIPE_SECRET_KEY",
+		"STRIPE_PUBLISHABLE_KEY",
+		"STRIPE_CLIENT_ID",
+	] as const
+	const missing = requiredStripeVars.filter((varName) => !process.env[varName])
+	if (missing.length > 0) {
+		throw new Error(
+			`Missing required Stripe environment variables for stage "${stage}": ${missing.join(", ")}`,
+		)
+	}
+}
+
+/**
+ * Stripe Webhook Endpoint for demo and production environments.
+ *
+ * This creates a Stripe webhook that receives events for environments
+ * that require Stripe integration (demo and prod).
+ *
+ * @remarks
+ * **Required environment variables:**
+ * - `STRIPE_SECRET_KEY`: Stripe secret key for server-side API authentication
+ * - `STRIPE_PUBLISHABLE_KEY`: Stripe publishable key for client-side Stripe.js
+ * - `STRIPE_CLIENT_ID`: Stripe Connect OAuth client ID
+ *
+ * **Webhook URLs by stage:**
+ * - prod: https://start.wodsmith.com/api/webhooks/stripe
+ * - demo: https://demo.wodsmith.com/api/webhooks/stripe
+ *
+ * **Enabled events:**
+ * - checkout.session.completed: Completes purchase and creates registration
+ * - checkout.session.expired: Marks abandoned purchases as cancelled
+ * - account.updated: Updates team's Stripe Connect status
+ * - account.application.authorized: Logs OAuth connection confirmation
+ * - account.application.deauthorized: Clears team Stripe connection
+ *
+ * @see {@link https://stripe.com/docs/webhooks Stripe Webhook Documentation}
+ */
+const stripeWebhookUrl =
+	stage === "prod"
+		? "https://start.wodsmith.com/api/webhooks/stripe"
+		: "https://demo.wodsmith.com/api/webhooks/stripe"
+
+const stripeWebhook = needsStripeBindings
+	? await WebhookEndpoint("stripe-webhook", {
+			url: stripeWebhookUrl,
+			enabledEvents: [
+				"checkout.session.completed",
+				"checkout.session.expired",
+				"account.updated",
+				"account.application.authorized",
+				"account.application.deauthorized",
+			],
+			adopt: true,
+		})
+	: null
+
+/**
  * Determines the custom domain(s) for the current deployment stage.
  *
- * @param currentStage - The current deployment stage (e.g., "dev", "prod", "preview", "pr-42")
- * @returns Array of domains for prod/preview/PR stages, undefined for others (uses workers.dev)
+ * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo", "pr-42")
+ * @returns Array of domains for prod/demo stages, undefined for others (uses workers.dev)
  *
  * @remarks
  * Domain assignment logic:
  * - **prod**: Returns `["start.wodsmith.com"]` for production
- * - **preview**: Returns `["preview.wodsmith.com"]` for persistent staging environment
- * - **pr-N**: Returns `["pr-N.preview.wodsmith.com"]` for ephemeral PR previews
+ * - **demo**: Returns `["demo.wodsmith.com"]` for persistent staging/demo environment
+ * - **pr-N**: Returns `undefined` to use auto-generated workers.dev subdomain (avoids DNS delays)
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
  * @example
  * ```typescript
  * getDomains("prod")    // ["start.wodsmith.com"]
- * getDomains("preview") // ["preview.wodsmith.com"]
- * getDomains("pr-42")   // ["pr-42.preview.wodsmith.com"]
+ * getDomains("demo")    // ["demo.wodsmith.com"]
+ * getDomains("pr-42")   // undefined (uses workers.dev)
  * getDomains("staging") // undefined
  * getDomains("dev")     // undefined
  * ```
@@ -304,12 +373,10 @@ function getDomains(currentStage: string): string[] | undefined {
 	if (currentStage === "prod") {
 		return ["start.wodsmith.com"]
 	}
-	if (currentStage === "preview") {
-		return ["preview.wodsmith.com"]
+	if (currentStage === "demo") {
+		return ["demo.wodsmith.com"]
 	}
-	if (currentStage.startsWith("pr-")) {
-		return [`${currentStage}.preview.wodsmith.com`]
-	}
+	// PR previews and other stages use auto-generated workers.dev URLs
 	return undefined
 }
 
@@ -324,12 +391,12 @@ function getDomains(currentStage: string): string[] | undefined {
  * @remarks
  * **Environment-specific behavior:**
  *
- * | Environment | Domain                      | Notes                               |
- * |-------------|-----------------------------|-------------------------------------|
- * | dev         | `*.workers.dev`             | Auto-generated Cloudflare subdomain |
- * | preview     | `preview.wodsmith.com`      | Persistent staging environment      |
- * | prod        | `start.wodsmith.com`        | Custom domain with SSL              |
- * | pr-N        | `pr-N.preview.wodsmith.com` | Ephemeral PR preview                |
+ * | Environment | Domain                    | Notes                               |
+ * |-------------|---------------------------|-------------------------------------|
+ * | dev         | `*.workers.dev`           | Auto-generated Cloudflare subdomain |
+ * | demo        | `demo.wodsmith.com`       | Persistent staging/demo environment |
+ * | prod        | `start.wodsmith.com`      | Custom domain with SSL              |
+ * | pr-N        | `*.workers.dev`           | Auto-generated (avoids DNS delays)  |
  *
  * The `bindings` object makes Cloudflare resources available in your server code
  * via the `env` object. Types are automatically inferred and exported as `Env`.
@@ -352,7 +419,11 @@ const website = await TanStackStart("app", {
 	 * Cloudflare resource bindings available to the application.
 	 *
 	 * These bindings inject Cloudflare services into the Worker's environment.
-	 * The binding names (DB, KV_SESSION, R2_BUCKET) become properties on `env`.
+	 * The binding names become properties on `env`.
+	 *
+	 * For environment variables and secrets, add them directly to bindings:
+	 * - Plain strings become environment variables
+	 * - Values wrapped in `alchemy.secret()` become encrypted secrets
 	 */
 	bindings: {
 		/** D1 database binding for application data */
@@ -361,6 +432,19 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
+		// Stripe bindings for demo and production environments (validated above)
+		...(needsStripeBindings && {
+			/** Stripe publishable key for client-side Stripe.js initialization */
+			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
+			/** Stripe Connect OAuth client ID */
+			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
+			/** Stripe secret key for server-side API calls */
+			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
+		}),
+		...(stripeWebhook && {
+			/** Stripe webhook secret for signature verification */
+			STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
+		}),
 	},
 
 	/**
@@ -373,8 +457,8 @@ const website = await TanStackStart("app", {
 	 *
 	 * Domain assignment by environment:
 	 * - **prod**: `start.wodsmith.com` (production domain)
-	 * - **preview**: `preview.wodsmith.com` (persistent staging environment)
-	 * - **pr-N**: `pr-N.preview.wodsmith.com` (ephemeral PR preview subdomain)
+	 * - **demo**: `demo.wodsmith.com` (persistent staging/demo environment)
+	 * - **pr-N**: Auto-generated `*.workers.dev` subdomain (avoids DNS delays)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain
 	 */
 	domains: getDomains(stage),
@@ -408,7 +492,8 @@ const website = await TanStackStart("app", {
  */
 if (process.env.PULL_REQUEST) {
 	const prNumber = Number(process.env.PULL_REQUEST)
-	const previewUrl = `https://pr-${prNumber}.preview.wodsmith.com`
+	// Use default workers.dev URL to avoid DNS propagation delays
+	const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
 	const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
 
 	await GitHubComment("preview-comment", {

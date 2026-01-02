@@ -1,14 +1,21 @@
 /**
  * Organizer Onboard Page
  * Public page for teams to apply to become competition organizers.
- * Unauthenticated users are redirected to sign-in.
+ * Shows inline auth (sign-in/sign-up tabs) for unauthenticated users.
  * Authenticated users can select a team and submit an organizer request.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/(organizer-public)/organizer/onboard/page.tsx
  */
 
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	Link,
+	redirect,
+	useNavigate,
+	useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
 	Calendar,
@@ -41,7 +48,17 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { useIdentifyUser, useTrackEvent } from "@/lib/posthog/hooks"
+import {
+	type SignInInput,
+	type SignUpInput,
+	signInSchema,
+	signUpSchema,
+} from "@/schemas/auth.schema"
+import { signInFn, signUpFn } from "@/server-fns/auth-fns"
+import { getOptionalSession } from "@/server-fns/middleware/auth"
 import {
 	getOrganizerRequest,
 	hasPendingOrganizerRequest,
@@ -133,16 +150,18 @@ type FormValues = z.infer<typeof formSchema>
 
 export const Route = createFileRoute("/compete/organizer/onboard/")({
 	component: OrganizerOnboardPage,
-	loader: async ({ context }): Promise<LoaderData> => {
-		const session = context.session
+	loader: async (): Promise<LoaderData> => {
+		// Fetch session directly - parent route returns null for onboard path
+		// to avoid import chain issues, so we fetch it ourselves
+		const session = await getOptionalSession()
 		const isAuthenticated = !!session?.user
 
-		// If not authenticated, redirect to sign-in
+		// If not authenticated, allow access to the page (show inline auth)
 		if (!isAuthenticated) {
-			throw redirect({
-				to: "/sign-in",
-				search: { redirect: "/compete/organizer/onboard" },
-			})
+			return {
+				isAuthenticated: false,
+				availableTeams: [],
+			}
 		}
 
 		// Get user's teams
@@ -193,7 +212,7 @@ export const Route = createFileRoute("/compete/organizer/onboard/")({
 })
 
 function OrganizerOnboardPage() {
-	const { availableTeams } = Route.useLoaderData()
+	const { isAuthenticated, availableTeams } = Route.useLoaderData()
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
@@ -266,16 +285,21 @@ function OrganizerOnboardPage() {
 				</div>
 			</div>
 
-			{/* Application Form */}
+			{/* Application Form / Auth Section */}
 			<div className="container mx-auto px-4 py-8 pb-16">
 				<div className="mx-auto max-w-xl">
 					<div className="rounded-xl border bg-card p-6 shadow-sm">
 						<h2 className="mb-2 text-xl font-semibold">Apply Now</h2>
 						<p className="mb-6 text-sm text-muted-foreground">
-							Applications are typically reviewed within 24-48 hours. You can
-							start creating draft competitions immediately after applying.
+							{isAuthenticated
+								? "Applications are typically reviewed within 24-48 hours. You can start creating draft competitions immediately after applying."
+								: "Sign in or create an account to apply. Applications are typically reviewed within 24-48 hours."}
 						</p>
-						<OrganizerRequestForm teams={availableTeams} />
+						{isAuthenticated ? (
+							<OrganizerRequestForm teams={availableTeams} />
+						) : (
+							<AuthSection />
+						)}
 					</div>
 				</div>
 			</div>
@@ -456,5 +480,300 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
 				</div>
 			</form>
 		</Form>
+	)
+}
+
+/**
+ * Inline authentication section for unauthenticated users.
+ * Provides sign-in and sign-up tabs to authenticate before applying.
+ */
+function AuthSection() {
+	return (
+		<Tabs defaultValue="signin" className="w-full">
+			<TabsList className="grid w-full grid-cols-2">
+				<TabsTrigger value="signin">Sign In</TabsTrigger>
+				<TabsTrigger value="signup">Create Account</TabsTrigger>
+			</TabsList>
+			<TabsContent value="signin" className="mt-6">
+				<SignInForm />
+			</TabsContent>
+			<TabsContent value="signup" className="mt-6">
+				<SignUpForm />
+			</TabsContent>
+		</Tabs>
+	)
+}
+
+/**
+ * Sign-in form for the inline auth section.
+ */
+function SignInForm() {
+	const router = useRouter()
+	const [error, setError] = useState<string | null>(null)
+	const [isLoading, setIsLoading] = useState(false)
+
+	// PostHog tracking hooks
+	const trackEvent = useTrackEvent()
+	const identifyUser = useIdentifyUser()
+
+	// Use useServerFn for client-side calls
+	const signIn = useServerFn(signInFn)
+
+	const form = useForm<SignInInput>({
+		resolver: standardSchemaResolver(signInSchema),
+		defaultValues: {
+			email: "",
+			password: "",
+		},
+	})
+
+	const onSubmit = async (data: SignInInput) => {
+		try {
+			setIsLoading(true)
+			setError(null)
+
+			const result = await signIn({ data })
+
+			// Identify user and track successful sign-in
+			identifyUser(result.userId, { email: data.email })
+			trackEvent("user_signed_in", {
+				auth_method: "email_password",
+				source: "organizer_onboard",
+			})
+
+			// Invalidate router cache then navigate to same route to re-run loaders
+			// router.invalidate() alone doesn't trigger re-render with new data
+			await router.invalidate()
+			await router.navigate({ to: "/compete/organizer/onboard" })
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Sign-in failed"
+			setError(errorMessage)
+			console.error("Sign-in error:", err)
+
+			// Track failed sign-in attempt
+			trackEvent("user_signed_in_failed", {
+				error_message: errorMessage,
+				source: "organizer_onboard",
+			})
+		} finally {
+			setIsLoading(false)
+		}
+	}
+
+	return (
+		<div className="space-y-4">
+			{error && (
+				<div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
+					{error}
+				</div>
+			)}
+
+			<Form {...form}>
+				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+					<FormField
+						control={form.control}
+						name="email"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Email</FormLabel>
+								<FormControl>
+									<Input
+										placeholder="you@example.com"
+										type="email"
+										disabled={isLoading}
+										{...field}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="password"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Password</FormLabel>
+								<FormControl>
+									<Input
+										type="password"
+										placeholder="Enter your password"
+										disabled={isLoading}
+										{...field}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<Button type="submit" className="w-full" disabled={isLoading}>
+						{isLoading ? "Signing in..." : "Sign In"}
+					</Button>
+				</form>
+			</Form>
+
+			<div className="text-center">
+				<Link
+					to="/forgot-password"
+					className="text-sm text-muted-foreground hover:text-primary underline"
+				>
+					Forgot your password?
+				</Link>
+			</div>
+		</div>
+	)
+}
+
+/**
+ * Sign-up form for the inline auth section.
+ */
+function SignUpForm() {
+	const router = useRouter()
+	const [error, setError] = useState<string | null>(null)
+	const [isLoading, setIsLoading] = useState(false)
+
+	// PostHog tracking hooks
+	const trackEvent = useTrackEvent()
+	const identifyUser = useIdentifyUser()
+
+	// Use useServerFn for client-side calls
+	const signUp = useServerFn(signUpFn)
+
+	const form = useForm<SignUpInput>({
+		resolver: standardSchemaResolver(signUpSchema),
+		defaultValues: {
+			email: "",
+			firstName: "",
+			lastName: "",
+			password: "",
+		},
+	})
+
+	const onSubmit = async (data: SignUpInput) => {
+		try {
+			setIsLoading(true)
+			setError(null)
+
+			const result = await signUp({ data })
+
+			// Identify user and track successful sign-up
+			identifyUser(result.userId, {
+				email: data.email,
+				first_name: data.firstName,
+				last_name: data.lastName,
+			})
+			trackEvent("user_signed_up", {
+				auth_method: "email_password",
+				source: "organizer_onboard",
+			})
+
+			// Invalidate router cache then navigate to same route to re-run loaders
+			// router.invalidate() alone doesn't trigger re-render with new data
+			await router.invalidate()
+			await router.navigate({ to: "/compete/organizer/onboard" })
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Sign-up failed"
+			setError(errorMessage)
+			console.error("Sign-up error:", err)
+
+			// Track failed sign-up attempt
+			trackEvent("user_signed_up_failed", {
+				error_message: errorMessage,
+				source: "organizer_onboard",
+			})
+		} finally {
+			setIsLoading(false)
+		}
+	}
+
+	return (
+		<div className="space-y-4">
+			{error && (
+				<div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-md">
+					{error}
+				</div>
+			)}
+
+			<Form {...form}>
+				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+					<FormField
+						control={form.control}
+						name="email"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Email</FormLabel>
+								<FormControl>
+									<Input
+										type="email"
+										placeholder="you@example.com"
+										disabled={isLoading}
+										{...field}
+									/>
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<div className="grid grid-cols-2 gap-4">
+						<FormField
+							control={form.control}
+							name="firstName"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>First Name</FormLabel>
+									<FormControl>
+										<Input placeholder="John" disabled={isLoading} {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name="lastName"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Last Name</FormLabel>
+									<FormControl>
+										<Input placeholder="Doe" disabled={isLoading} {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+
+					<FormField
+						control={form.control}
+						name="password"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Password</FormLabel>
+								<FormControl>
+									<Input
+										type="password"
+										placeholder="Create a password"
+										disabled={isLoading}
+										{...field}
+									/>
+								</FormControl>
+								<FormDescription>
+									At least 8 characters with uppercase, lowercase, and number
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<Button type="submit" className="w-full" disabled={isLoading}>
+						{isLoading ? "Creating account..." : "Create Account"}
+					</Button>
+				</form>
+			</Form>
+		</div>
 	)
 }

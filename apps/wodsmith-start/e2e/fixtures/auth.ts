@@ -31,12 +31,11 @@ export async function login(
 		return
 	}
 
-	// Check if the sign-in button exists (page might still be redirecting)
-	const signInButton = page.getByRole("button", { name: "SIGN IN", exact: true })
-	if (!(await signInButton.isVisible({ timeout: 2000 }).catch(() => false))) {
-		// No sign-in button visible, we're probably already authenticated
-		return
-	}
+	// Wait for the sign-in form to be ready
+	// Use a longer timeout in CI where pages may load slower
+	// Note: Button text is "Sign In" (mixed case) not "SIGN IN"
+	const signInButton = page.getByRole("button", { name: /sign in/i })
+	await signInButton.waitFor({ state: 'visible', timeout: 10000 })
 
 	// Fill in the login form
 	await page.getByPlaceholder(/email/i).fill(credentials.email)
@@ -48,9 +47,26 @@ export async function login(
 	// Wait for redirect after successful login
 	// The app redirects to /workouts after login
 	await page.waitForURL(/\/(workouts|dashboard)/, { 
-		timeout: 10000,
-		waitUntil: 'domcontentloaded'
+		timeout: 15000,
+		waitUntil: 'networkidle'
 	})
+
+	// Wait for network to settle and session to be fully established
+	// This ensures cookies are set before navigating to protected routes
+	await page.waitForLoadState('networkidle')
+
+	// Poll for the session cookie to be set (httpOnly cookies need context.cookies())
+	// This is critical in CI where timing can be tighter
+	let attempts = 0
+	const maxAttempts = 20
+	while (attempts < maxAttempts) {
+		const cookies = await page.context().cookies()
+		if (cookies.some(c => c.name === 'session')) {
+			break
+		}
+		await page.waitForTimeout(100)
+		attempts++
+	}
 }
 
 /**
@@ -65,12 +81,33 @@ export async function loginAsTestUser(page: Page): Promise<void> {
 
 /**
  * Login as the admin user
+ * 
+ * Admin login requires extra care because admin routes have strict session validation.
+ * We verify the session is fully established before returning.
  */
 export async function loginAsAdmin(page: Page): Promise<void> {
 	await login(page, {
 		email: ADMIN_USER.email,
 		password: ADMIN_USER.password,
 	})
+
+	// Extra verification for admin login - wait for session to be fully established
+	// The admin needs the session to be properly set before accessing /admin routes
+	await page.waitForLoadState('networkidle')
+
+	// Verify the session cookie exists before proceeding
+	// This is critical for admin routes which redirect to sign-in if no session
+	const cookies = await page.context().cookies()
+	const sessionCookie = cookies.find(c => c.name === 'session')
+	
+	if (!sessionCookie) {
+		// If no session cookie, the login may have failed silently
+		// Try to verify by checking if we're on an authenticated page
+		const url = page.url()
+		if (url.includes('/sign-in')) {
+			throw new Error('Admin login failed - still on sign-in page')
+		}
+	}
 }
 
 /**

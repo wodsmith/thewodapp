@@ -51,7 +51,7 @@ const config: Config = {
       title: 'WODsmith',
       logo: {
         alt: 'WODsmith Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.png',
       },
       items: [
         {
