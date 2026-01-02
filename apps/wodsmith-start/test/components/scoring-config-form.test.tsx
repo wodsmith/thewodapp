@@ -52,7 +52,8 @@ describe("ScoringConfigForm", () => {
 			)
 
 			expect(screen.getByText("Tiebreakers")).toBeInTheDocument()
-			expect(screen.getByText(/countback/i)).toBeInTheDocument()
+			// Primary tiebreaker shows "Countback" as label
+			expect(screen.getByText("Countback")).toBeInTheDocument()
 		})
 
 		it("renders DNF/DNS handling section", () => {

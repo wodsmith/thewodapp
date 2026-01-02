@@ -16,6 +16,7 @@ The most common scoring method. Athletes receive points based on placement:
 - **Each subsequent place**: Decreases by a fixed step (default: 5 points)
 
 **Example with step = 5:**
+
 | Place | Points |
 |-------|--------|
 | 1st   | 100    |
@@ -59,6 +60,7 @@ Rewards athletes based on their *margin of victory*, not just placement. An athl
 Start from a template and customize points for specific placements.
 
 **Templates available:**
+
 | Template | Description |
 |----------|-------------|
 | Traditional | Standard step-based (100, 95, 90...) |
@@ -100,6 +102,7 @@ If countback doesn't break the tie:
 Configure how non-standard results affect scoring:
 
 ### DNF (Did Not Finish)
+
 | Option | Description |
 |--------|-------------|
 | **Last Place** (default) | Receive last place points (same as slowest finisher) |
@@ -107,6 +110,7 @@ Configure how non-standard results affect scoring:
 | **Worst Performance** | Calculate based on worst completed performance |
 
 ### DNS (Did Not Start)
+
 | Option | Description |
 |--------|-------------|
 | **Zero Points** (default) | Receive 0 points |
@@ -114,6 +118,7 @@ Configure how non-standard results affect scoring:
 | **Worst Performance** | Calculate based on worst completed performance |
 
 ### Withdrawn
+
 | Option | Description |
 |--------|-------------|
 | **Exclude** (default) | Removed from all event rankings |

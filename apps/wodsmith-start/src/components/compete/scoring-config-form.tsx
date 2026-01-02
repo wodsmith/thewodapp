@@ -51,7 +51,7 @@ function EditablePointsPreview({
 				<h3 className="font-semibold mb-4">Points Preview</h3>
 				<p className="text-sm text-muted-foreground">
 					P-Score points are calculated dynamically based on actual performance
-					data. The median performer scores 0, with points scaling based on
+					data. The median performer scores 50, with points scaling based on
 					distance from median.
 				</p>
 			</div>
@@ -576,9 +576,10 @@ export function ScoringConfigForm({
 											<p className="font-medium">How P-Score works:</p>
 											<p className="mt-1">
 												Points are calculated dynamically based on actual
-												performances. Median performer scores 0, athletes above
-												median get positive points proportional to their margin,
-												athletes below get negative points (if enabled).
+												performances. Median performer scores 50, athletes above
+												median get more points proportional to their margin,
+												athletes below get fewer points (or negative if
+												enabled).
 											</p>
 										</div>
 									</div>
@@ -636,7 +637,7 @@ export function ScoringConfigForm({
 									<Label htmlFor="secondary-h2h">Head-to-head</Label>
 								</div>
 							</RadioGroup>
-							{value.tiebreaker.secondary === "none" && (
+							{!value.tiebreaker.secondary && (
 								<p className="text-xs text-muted-foreground">
 									Athletes remain tied if countback doesn't break the tie
 								</p>

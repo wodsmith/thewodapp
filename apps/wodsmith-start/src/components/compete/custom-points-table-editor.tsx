@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	Dialog,
@@ -61,7 +61,7 @@ export function CustomPointsTableEditor({
 		useState<Record<string, number>>(overrides)
 
 	// Sync local state when props change
-	useMemo(() => {
+	useEffect(() => {
 		setLocalOverrides(overrides)
 	}, [overrides])
 
@@ -229,6 +229,7 @@ export function CustomPointsTableEditor({
 													Points for place {place}
 												</Label>
 												<Input
+													key={`${place}-${displayValue}`}
 													id={`points-${place}`}
 													type="number"
 													min={0}

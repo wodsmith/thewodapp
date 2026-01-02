@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, notFound } from "@tanstack/react-router"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
@@ -12,7 +12,7 @@ export const Route = createFileRoute(
 		})
 
 		if (!result.competition) {
-			throw new Error("Competition not found")
+			throw notFound()
 		}
 
 		// Fetch events for head-to-head tiebreaker selection
