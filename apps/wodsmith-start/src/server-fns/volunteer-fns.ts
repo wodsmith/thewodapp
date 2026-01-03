@@ -10,6 +10,7 @@ import { getDb } from "@/db"
 import type { TeamMembership, User } from "@/db/schema"
 import {
 	entitlementTable,
+	entitlementTypeTable,
 	SYSTEM_ROLES_ENUM,
 	teamInvitationTable,
 	teamMembershipTable,
@@ -43,6 +44,7 @@ export type DirectVolunteerInvite = {
 	id: string
 	token: string
 	email: string
+	name: string | null
 	roleTypes: string[]
 	status: "pending" | "accepted" | "expired"
 	createdAt: Date
@@ -160,11 +162,13 @@ export const getDirectVolunteerInvitesFn = createServerFn({ method: "GET" })
 		return directInvites
 			.map((inv) => {
 				let roleTypes: string[] = []
+				let inviteName: string | null = null
 				try {
 					const meta = JSON.parse(
 						inv.metadata || "{}",
-					) as VolunteerMembershipMetadata
+					) as VolunteerMembershipMetadata & { inviteName?: string }
 					roleTypes = meta.volunteerRoleTypes ?? []
+					inviteName = meta.inviteName ?? null
 				} catch {
 					// Invalid metadata, leave roleTypes empty
 				}
@@ -173,6 +177,7 @@ export const getDirectVolunteerInvitesFn = createServerFn({ method: "GET" })
 					id: inv.id,
 					token: inv.token,
 					email: inv.email,
+					name: inviteName,
 					roleTypes,
 					status: calculateInviteStatus(inv.acceptedAt, inv.expiresAt),
 					createdAt: inv.createdAt,
@@ -335,6 +340,7 @@ export const inviteVolunteerFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) =>
 		z
 			.object({
+				name: z.string().optional(),
 				email: z.string().email("Invalid email address"),
 				competitionTeamId: competitionTeamIdSchema,
 				organizingTeamId: competitionTeamIdSchema,
@@ -351,9 +357,20 @@ export const inviteVolunteerFn = createServerFn({ method: "POST" })
 			TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
 		)
 
-		const metadata = {
+		const metadata: {
+			volunteerRoleTypes: typeof data.roleTypes
+			inviteSource: "direct"
+			inviteName?: string
+			inviteEmail: string
+		} = {
 			volunteerRoleTypes: data.roleTypes,
 			inviteSource: "direct" as const,
+			inviteEmail: data.email,
+		}
+
+		// Store name if provided for display before user signs up
+		if (data.name) {
+			metadata.inviteName = data.name
 		}
 
 		await inviteUserToTeam({
@@ -573,13 +590,28 @@ export const grantScoreAccessFn = createServerFn({ method: "POST" })
 		)
 
 		const db = getDb()
+		const SCORE_INPUT_TYPE_ID = "competition_score_input"
+
+		// Ensure the entitlement type exists (create if not)
+		const existingType = await db.query.entitlementTypeTable.findFirst({
+			where: eq(entitlementTypeTable.id, SCORE_INPUT_TYPE_ID),
+		})
+
+		if (!existingType) {
+			await db.insert(entitlementTypeTable).values({
+				id: SCORE_INPUT_TYPE_ID,
+				name: "Competition Score Input",
+				description:
+					"Allows a volunteer to input scores for a competition event",
+			})
+		}
 
 		// Check if volunteer already has score access
 		const existingAccess = await db.query.entitlementTable.findFirst({
 			where: and(
 				eq(entitlementTable.userId, data.volunteerId),
 				eq(entitlementTable.teamId, data.competitionTeamId),
-				eq(entitlementTable.entitlementTypeId, "competition_score_input"),
+				eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
 				isNull(entitlementTable.deletedAt),
 			),
 		})
@@ -594,7 +626,7 @@ export const grantScoreAccessFn = createServerFn({ method: "POST" })
 		await createEntitlement({
 			userId: data.volunteerId,
 			teamId: data.competitionTeamId,
-			entitlementTypeId: "competition_score_input",
+			entitlementTypeId: SCORE_INPUT_TYPE_ID,
 			sourceType: "MANUAL",
 			sourceId: data.grantedBy,
 			metadata: {

@@ -111,6 +111,7 @@ export function InvitedVolunteersList({ invites }: InvitedVolunteersListProps) {
 				<Table>
 					<TableHeader>
 						<TableRow>
+							<TableHead>Name</TableHead>
 							<TableHead>Email</TableHead>
 							<TableHead>Roles</TableHead>
 							<TableHead>Status</TableHead>
@@ -121,7 +122,10 @@ export function InvitedVolunteersList({ invites }: InvitedVolunteersListProps) {
 					<TableBody>
 						{invites.map((invite) => (
 							<TableRow key={invite.id}>
-								<TableCell className="font-medium">{invite.email}</TableCell>
+								<TableCell className="font-medium">
+									{invite.name || "—"}
+								</TableCell>
+								<TableCell>{invite.email}</TableCell>
 								<TableCell>{formatRoleTypes(invite.roleTypes)}</TableCell>
 								<TableCell>
 									<Badge variant={getStatusBadgeVariant(invite.status)}>

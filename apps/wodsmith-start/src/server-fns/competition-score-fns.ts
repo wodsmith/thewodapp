@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -13,8 +13,10 @@ import {
 	competitionHeatAssignmentsTable,
 	competitionHeatsTable,
 	competitionRegistrationsTable,
+	competitionsTable,
 	competitionVenuesTable,
 } from "@/db/schemas/competitions"
+import { entitlementTable } from "@/db/schemas/entitlements"
 import {
 	programmingTracksTable,
 	trackWorkoutsTable,
@@ -23,6 +25,7 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { getSessionFromCookie } from "@/utils/auth"
 import {
 	SCORE_STATUS_VALUES,
 	type ScoreStatus,
@@ -1049,4 +1052,159 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
 			)
 
 		return { success: true }
+	})
+
+// ============================================================================
+// Volunteer Score Access Functions
+// These functions check for score access entitlement instead of organizer permissions
+// ============================================================================
+
+/**
+ * Check if the current user has score access for a competition team
+ */
+async function requireScoreAccess(competitionTeamId: string): Promise<void> {
+	const session = await getSessionFromCookie()
+	if (!session?.userId) {
+		throw new Error("Not authenticated")
+	}
+
+	const db = getDb()
+	const entitlements = await db.query.entitlementTable.findMany({
+		where: and(
+			eq(entitlementTable.userId, session.userId),
+			eq(entitlementTable.teamId, competitionTeamId),
+			eq(entitlementTable.entitlementTypeId, "competition_score_input"),
+			isNull(entitlementTable.deletedAt),
+			or(
+				isNull(entitlementTable.expiresAt),
+				gt(entitlementTable.expiresAt, new Date()),
+			),
+		),
+	})
+
+	if (entitlements.length === 0) {
+		throw new Error("Missing score access permission")
+	}
+}
+
+const volunteerScoreAccessInputSchema = z.object({
+	competitionId: z.string().min(1),
+	competitionTeamId: z.string().min(1),
+})
+
+/**
+ * Get competition workouts for volunteers with score access
+ * This is a simplified version that only requires score access entitlement
+ */
+export const getCompetitionWorkoutsForScoreEntryFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		volunteerScoreAccessInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		// Check score access permission
+		await requireScoreAccess(data.competitionTeamId)
+
+		const db = getDb()
+
+		// Get the competition's programming track via programmingTracksTable
+		const track = await db.query.programmingTracksTable.findFirst({
+			where: eq(programmingTracksTable.competitionId, data.competitionId),
+		})
+
+		if (!track) {
+			return { workouts: [] }
+		}
+
+		// Get all workouts for this track
+		const trackWorkouts = await db
+			.select({
+				id: trackWorkoutsTable.id,
+				trackId: trackWorkoutsTable.trackId,
+				workoutId: trackWorkoutsTable.workoutId,
+				trackOrder: trackWorkoutsTable.trackOrder,
+				notes: trackWorkoutsTable.notes,
+				pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+				heatStatus: trackWorkoutsTable.heatStatus,
+				eventStatus: trackWorkoutsTable.eventStatus,
+				sponsorId: trackWorkoutsTable.sponsorId,
+				createdAt: trackWorkoutsTable.createdAt,
+				updatedAt: trackWorkoutsTable.updatedAt,
+				workout: {
+					id: workouts.id,
+					name: workouts.name,
+					description: workouts.description,
+					scheme: workouts.scheme,
+					scoreType: workouts.scoreType,
+					roundsToScore: workouts.roundsToScore,
+					repsPerRound: workouts.repsPerRound,
+					tiebreakScheme: workouts.tiebreakScheme,
+					timeCap: workouts.timeCap,
+				},
+			})
+			.from(trackWorkoutsTable)
+			.innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+			.where(eq(trackWorkoutsTable.trackId, track.id))
+			.orderBy(trackWorkoutsTable.trackOrder)
+
+		return { workouts: trackWorkouts }
+	})
+
+/**
+ * Get competition divisions for volunteers with score access
+ * This is a simplified version that only requires score access entitlement
+ */
+export const getCompetitionDivisionsForScoreEntryFn = createServerFn({
+	method: "GET",
+})
+	.inputValidator((data: unknown) =>
+		volunteerScoreAccessInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		// Check score access permission
+		await requireScoreAccess(data.competitionTeamId)
+
+		const db = getDb()
+
+		// Get competition settings to find the scaling group
+		const [competition] = await db
+			.select()
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+			.limit(1)
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Parse settings to get scaling group ID
+		let scalingGroupId: string | null = null
+		if (competition.settings) {
+			try {
+				const settings = JSON.parse(competition.settings) as {
+					divisions?: { scalingGroupId?: string }
+				}
+				scalingGroupId = settings?.divisions?.scalingGroupId ?? null
+			} catch {
+				// Ignore parse errors
+			}
+		}
+
+		if (!scalingGroupId) {
+			return { divisions: [] }
+		}
+
+		// Get divisions
+		const divisions = await db
+			.select({
+				id: scalingLevelsTable.id,
+				label: scalingLevelsTable.label,
+				position: scalingLevelsTable.position,
+			})
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+			.orderBy(scalingLevelsTable.position)
+
+		return { divisions }
 	})
