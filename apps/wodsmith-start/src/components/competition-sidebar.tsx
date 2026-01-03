@@ -13,6 +13,7 @@ import {
 	Calendar,
 	ClipboardSignature,
 	DollarSign,
+	Flame,
 	Home,
 	Layers,
 	Medal,
@@ -83,6 +84,7 @@ const getNavigation = (
 		{
 			label: "Run Competition",
 			items: [
+				{ label: "Game Day", href: `${basePath}/gameday`, icon: Flame },
 				{ label: "Schedule", href: `${basePath}/schedule`, icon: Calendar },
 				{
 					label: "Volunteers",
