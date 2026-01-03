@@ -54,6 +54,7 @@ const config = defineConfig({
 				"@radix-ui/react-dropdown-menu",
 				"@radix-ui/react-label",
 				"@radix-ui/react-popover",
+				"@radix-ui/react-progress",
 				"@radix-ui/react-scroll-area",
 				"@radix-ui/react-select",
 				"@radix-ui/react-separator",

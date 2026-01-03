@@ -68,6 +68,7 @@ const routeLabels: Record<string, string> = {
 	divisions: "Divisions",
 	athletes: "Registrations",
 	events: "Events",
+	gameday: "Game Day",
 	schedule: "Schedule",
 	volunteers: "Volunteers",
 	results: "Results",

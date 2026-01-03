@@ -380,7 +380,13 @@ export function OrganizerCompetitionEditForm({
 							<FormControl>
 								<Checkbox
 									checked={field.value}
-									onCheckedChange={field.onChange}
+									onCheckedChange={(checked) => {
+										field.onChange(checked)
+										// Clear endDate when switching from multi-day to single-day
+										if (!checked) {
+											form.setValue("endDate", "")
+										}
+									}}
 								/>
 							</FormControl>
 							<div className="space-y-1 leading-none">
