@@ -86,13 +86,6 @@ function GameDayPage() {
 	// Get competition from parent route
 	const { competition } = parentRoute.useLoaderData()
 
-	console.log("competition", competition)
-	console.log("venues", venues)
-	console.log("events", events)
-	console.log("heats", heats)
-	console.log("divisions", divisions)
-	console.log("sponsors", sponsors)
-
 	return (
 		<GameDayTimeline
 			competition={competition}

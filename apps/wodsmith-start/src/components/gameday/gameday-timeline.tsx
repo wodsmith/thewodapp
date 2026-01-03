@@ -311,13 +311,13 @@ export function GameDayTimeline({
 				const endTime =
 					lastHeat?.scheduledTime && lastHeat?.durationMinutes
 						? new Date(
-							new Date(lastHeat.scheduledTime).getTime() +
-							lastHeat.durationMinutes * 60 * 1000,
-						)
+								new Date(lastHeat.scheduledTime).getTime() +
+									lastHeat.durationMinutes * 60 * 1000,
+							)
 						: lastHeat?.scheduledTime
 							? new Date(
-								new Date(lastHeat.scheduledTime).getTime() + 15 * 60 * 1000,
-							)
+									new Date(lastHeat.scheduledTime).getTime() + 15 * 60 * 1000,
+								)
 							: null
 
 				return {
@@ -362,6 +362,13 @@ export function GameDayTimeline({
 		const idx = competitionDays.findIndex((d) => isSameUTCDay(d, today))
 		return idx >= 0 ? idx : 0
 	})
+
+	// Reset selectedDayIndex if competitionDays changes and current index is out of bounds
+	useEffect(() => {
+		if (selectedDayIndex >= competitionDays.length) {
+			setSelectedDayIndex(0)
+		}
+	}, [competitionDays.length, selectedDayIndex])
 
 	const selectedDay = competitionDays[selectedDayIndex] ?? competitionDays[0]
 
@@ -419,7 +426,7 @@ export function GameDayTimeline({
 			if (!heat.scheduledTime) return false
 			const heatEnd = new Date(
 				new Date(heat.scheduledTime).getTime() +
-				(heat.durationMinutes ?? 15) * 60 * 1000,
+					(heat.durationMinutes ?? 15) * 60 * 1000,
 			)
 			return currentTime >= heatEnd
 		}).length
@@ -542,9 +549,9 @@ export function GameDayTimeline({
 																		"rounded-lg border px-3 py-1 text-sm font-medium",
 																		getHeatPrimaryDivision(currentHeat)
 																			? getDivisionBadgeStyle(
-																				getHeatPrimaryDivision(currentHeat)!
-																					.label,
-																			)
+																					getHeatPrimaryDivision(currentHeat)!
+																						.label,
+																				)
 																			: "bg-muted",
 																	)}
 																>
@@ -600,7 +607,11 @@ export function GameDayTimeline({
 													</span>
 												</div>
 												<Progress
-													value={(completedHeats / totalHeats) * 100}
+													value={
+														totalHeats > 0
+															? (completedHeats / totalHeats) * 100
+															: 0
+													}
 													className="h-2"
 												/>
 											</div>
@@ -661,11 +672,11 @@ export function GameDayTimeline({
 														className={cn(
 															"h-4 w-4 rounded-full border-2 transition-all",
 															status === "live" &&
-															"bg-primary border-primary shadow-[0_0_8px_2px_hsl(var(--primary)/0.4)]",
+																"bg-primary border-primary shadow-[0_0_8px_2px_hsl(var(--primary)/0.4)]",
 															status === "completed" &&
-															"bg-background border-muted-foreground/50",
+																"bg-background border-muted-foreground/50",
 															status === "upcoming" &&
-															"bg-muted-foreground/30 border-muted-foreground/50",
+																"bg-muted-foreground/30 border-muted-foreground/50",
 														)}
 													/>
 												</div>
@@ -682,7 +693,7 @@ export function GameDayTimeline({
 																			"font-mono text-base md:text-lg font-semibold tabular-nums",
 																			status === "live" && "text-primary",
 																			status === "completed" &&
-																			"text-muted-foreground",
+																				"text-muted-foreground",
 																		)}
 																	>
 																		{format(eventData.startTime, "HH:mm")}
@@ -703,9 +714,9 @@ export function GameDayTimeline({
 																	"text-base md:text-lg font-semibold transition-colors",
 																	status === "live" && "text-foreground",
 																	status === "completed" &&
-																	"text-muted-foreground",
+																		"text-muted-foreground",
 																	status === "upcoming" &&
-																	"text-muted-foreground",
+																		"text-muted-foreground",
 																)}
 															>
 																Event {eventData.event.trackOrder}:{" "}
@@ -785,13 +796,13 @@ export function GameDayTimeline({
 														const heatStart = heat.scheduledTime
 															? new Date(heat.scheduledTime)
 															: null
-														const heatEnd =
-															heatStart && heat.durationMinutes
-																? new Date(
+														// Use 15-minute default to match getCurrentHeat logic
+														const heatEnd = heatStart
+															? new Date(
 																	heatStart.getTime() +
-																	heat.durationMinutes * 60 * 1000,
+																		(heat.durationMinutes ?? 15) * 60 * 1000,
 																)
-																: null
+															: null
 														const isCurrentHeat =
 															status === "live" &&
 															heatStart &&
@@ -807,11 +818,11 @@ export function GameDayTimeline({
 																className={cn(
 																	"relative flex items-center gap-3 rounded-lg border p-3 transition-all",
 																	isCurrentHeat &&
-																	"border-primary/50 bg-primary/10",
+																		"border-primary/50 bg-primary/10",
 																	isCompleted && "opacity-60",
 																	!isCurrentHeat &&
-																	!isCompleted &&
-																	"bg-muted/30",
+																		!isCompleted &&
+																		"bg-muted/30",
 																)}
 															>
 																{isCurrentHeat && (
@@ -822,8 +833,8 @@ export function GameDayTimeline({
 																		"h-2 w-2 shrink-0 rounded-full",
 																		getHeatPrimaryDivision(heat)
 																			? getDivisionColor(
-																				getHeatPrimaryDivision(heat)!.label,
-																			)
+																					getHeatPrimaryDivision(heat)!.label,
+																				)
 																			: "bg-muted-foreground",
 																	)}
 																/>
