@@ -470,6 +470,27 @@
       "when": 1766118924829,
       "tag": "0064_make-invitedBy-nullable",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1735790400000,
+      "tag": "0065_add-waivers-tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1735790400001,
+      "tag": "0066_add-updateCounter-to-waivers",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1735833600000,
+      "tag": "0067_add-team-entitlement-unique-constraints",
+      "breakpoints": true
     }
   ]
 }
