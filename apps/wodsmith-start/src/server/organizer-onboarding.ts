@@ -56,6 +56,11 @@ export async function grantTeamFeature(
 				source: "override",
 			},
 		})
+
+	// Invalidate sessions for all team members so they get the new feature
+	// This ensures team.plan.features is updated in their cached session
+	const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
+	await invalidateTeamMembersSessions(teamId)
 }
 
 /**
@@ -91,6 +96,11 @@ export async function revokeTeamFeature(
 				eq(teamFeatureEntitlementTable.featureId, feature.id),
 			),
 		)
+
+	// Invalidate sessions for all team members so they lose the feature
+	// This ensures team.plan.features is updated in their cached session
+	const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
+	await invalidateTeamMembersSessions(teamId)
 }
 
 /**

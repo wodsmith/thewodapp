@@ -4,12 +4,18 @@
  * Users can see their application status and start creating private competitions.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/(organizer-public)/organizer/onboard/pending/page.tsx
+ *
+ * NOTE: This page must fetch session directly via getOptionalSession() because
+ * the parent /compete/organizer route returns session: null for all onboard routes
+ * to allow the onboard index page to handle inline auth. This caused a redirect
+ * loop when using context.session (which was always null for onboard routes).
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { formatDistanceToNow } from "date-fns"
 import { CheckCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getOptionalSession } from "@/server-fns/middleware/auth"
 import {
 	getOrganizerRequest,
 	hasPendingOrganizerRequest,
@@ -34,8 +40,11 @@ interface LoaderData {
 
 export const Route = createFileRoute("/compete/organizer/onboard/pending")({
 	component: OrganizerOnboardPendingPage,
-	loader: async ({ context }): Promise<LoaderData> => {
-		const session = context.session
+	loader: async (): Promise<LoaderData> => {
+		// Fetch session directly - parent route returns session: null for onboard paths
+		// to avoid import chain issues and to allow inline auth on the onboard index page.
+		// Using context.session here would always be null, causing a redirect loop.
+		const session = await getOptionalSession()
 
 		// If not authenticated, redirect to sign-in
 		if (!session?.user) {
