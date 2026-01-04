@@ -348,7 +348,8 @@ export async function acceptTeamInvitation(token: string): Promise<{
 				)
 				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
 
-				// Send teammate joined notification to captain
+				// Send teammate joined notification to captain (non-blocking)
+				// Notification failure shouldn't prevent user from joining the team
 				const registration =
 					await db.query.competitionRegistrationsTable.findFirst({
 						where: eq(
@@ -358,15 +359,23 @@ export async function acceptTeamInvitation(token: string): Promise<{
 					})
 
 				if (registration?.captainUserId) {
-					const { notifyTeammateJoined } = await import(
-						"@/server/notifications"
-					)
-					await notifyTeammateJoined({
-						captainUserId: registration.captainUserId,
-						newTeammateUserId: session.userId,
-						competitionTeamId: invitation.teamId,
-						competitionId: metadata.competitionId,
-					})
+					try {
+						const { notifyTeammateJoined } = await import(
+							"@/server/notifications"
+						)
+						await notifyTeammateJoined({
+							captainUserId: registration.captainUserId,
+							newTeammateUserId: session.userId,
+							competitionTeamId: invitation.teamId,
+							competitionId: metadata.competitionId,
+						})
+					} catch (notifyError) {
+						// Log but don't fail - notification is non-critical
+						console.error(
+							"[team-members] Failed to send teammate joined notification:",
+							notifyError,
+						)
+					}
 				}
 			}
 		} catch {

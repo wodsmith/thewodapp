@@ -5,6 +5,45 @@
 DROP INDEX IF EXISTS `team_feature_entitlement_unique_active_idx`;
 DROP INDEX IF EXISTS `team_limit_entitlement_unique_active_idx`;
 
+-- Remove duplicates from team_feature_entitlement before creating unique index
+-- Keep the most recently updated record for each (teamId, featureId) pair
+DELETE FROM `team_feature_entitlement`
+WHERE `id` NOT IN (
+  SELECT `id` FROM (
+    SELECT `id`, ROW_NUMBER() OVER (
+      PARTITION BY `teamId`, `featureId`
+      ORDER BY COALESCE(`updatedAt`, `createdAt`) DESC
+    ) as rn
+    FROM `team_feature_entitlement`
+  ) WHERE rn = 1
+);
+
+-- Remove duplicates from team_limit_entitlement before creating unique index
+-- Keep the most recently updated record for each (teamId, limitId) pair
+DELETE FROM `team_limit_entitlement`
+WHERE `id` NOT IN (
+  SELECT `id` FROM (
+    SELECT `id`, ROW_NUMBER() OVER (
+      PARTITION BY `teamId`, `limitId`
+      ORDER BY COALESCE(`updatedAt`, `createdAt`) DESC
+    ) as rn
+    FROM `team_limit_entitlement`
+  ) WHERE rn = 1
+);
+
+-- Remove duplicates from team_entitlement_override before creating unique index
+-- Keep the most recently updated record for each (teamId, type, key) tuple
+DELETE FROM `team_entitlement_override`
+WHERE `id` NOT IN (
+  SELECT `id` FROM (
+    SELECT `id`, ROW_NUMBER() OVER (
+      PARTITION BY `teamId`, `type`, `key`
+      ORDER BY COALESCE(`updatedAt`, `createdAt`) DESC
+    ) as rn
+    FROM `team_entitlement_override`
+  ) WHERE rn = 1
+);
+
 -- Create unique indexes for team_feature_entitlement (teamId, featureId)
 CREATE UNIQUE INDEX `team_feature_entitlement_team_feature_unique` ON `team_feature_entitlement` (`teamId`,`featureId`);
 

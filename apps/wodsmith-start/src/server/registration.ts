@@ -233,6 +233,16 @@ async function inviteUserToTeamInternal({
 		})
 		const competitionName = competition?.name ?? "the competition"
 
+		// Get inviter name for personalized email
+		const inviter = await db.query.userTable.findFirst({
+			where: eq(userTable.id, invitedBy),
+			columns: { firstName: true, lastName: true },
+		})
+		const inviterName = inviter
+			? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+				"Your team captain"
+			: "Your team captain"
+
 		const { sendCompetitionTeamInviteEmail } = await import("@/utils/email")
 		await sendCompetitionTeamInviteEmail({
 			email: email.toLowerCase(),
@@ -240,7 +250,7 @@ async function inviteUserToTeamInternal({
 			teamName: competitionContext.teamName,
 			competitionName,
 			divisionName: competitionContext.divisionName,
-			inviterName: "Your team captain", // Captain details not available in this context
+			inviterName,
 		})
 	}
 

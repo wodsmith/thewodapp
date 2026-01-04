@@ -31,6 +31,13 @@ import { autochunk } from "@/utils/batch-query"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/** Entitlement type ID for competition score input access */
+const SCORE_INPUT_TYPE_ID = "competition_score_input"
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -206,7 +213,7 @@ export const canInputScoresFn = createServerFn({ method: "GET" })
 			where: and(
 				eq(entitlementTable.userId, data.userId),
 				eq(entitlementTable.teamId, data.competitionTeamId),
-				eq(entitlementTable.entitlementTypeId, "competition_score_input"),
+				eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
 				isNull(entitlementTable.deletedAt),
 				or(
 					isNull(entitlementTable.expiresAt),
@@ -590,7 +597,6 @@ export const grantScoreAccessFn = createServerFn({ method: "POST" })
 		)
 
 		const db = getDb()
-		const SCORE_INPUT_TYPE_ID = "competition_score_input"
 
 		// Ensure the entitlement type exists (create if not)
 		const existingType = await db.query.entitlementTypeTable.findFirst({
@@ -665,7 +671,7 @@ export const revokeScoreAccessFn = createServerFn({ method: "POST" })
 			where: and(
 				eq(entitlementTable.userId, data.userId),
 				eq(entitlementTable.teamId, data.competitionTeamId),
-				eq(entitlementTable.entitlementTypeId, "competition_score_input"),
+				eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
 				isNull(entitlementTable.deletedAt),
 			),
 		})
