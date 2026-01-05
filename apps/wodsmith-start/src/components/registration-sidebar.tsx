@@ -1,4 +1,6 @@
+import { Link } from "@tanstack/react-router"
 import {
+	AlertTriangle,
 	Calendar,
 	CheckCircle2,
 	Clock,
@@ -11,6 +13,72 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
 import { isSameUTCDay } from "@/utils/date-utils"
+
+/**
+ * Calculate time remaining until deadline and return urgency level
+ */
+function getDeadlineUrgency(deadline: Date | number): {
+	daysRemaining: number
+	hoursRemaining: number
+	urgencyLevel: "critical" | "urgent" | "normal" | "none"
+	message: string
+} {
+	const now = new Date()
+	const deadlineDate =
+		typeof deadline === "number" ? new Date(deadline) : deadline
+	const diffMs = deadlineDate.getTime() - now.getTime()
+
+	if (diffMs <= 0) {
+		return {
+			daysRemaining: 0,
+			hoursRemaining: 0,
+			urgencyLevel: "none",
+			message: "Registration closed",
+		}
+	}
+
+	const hoursRemaining = Math.floor(diffMs / (1000 * 60 * 60))
+	const daysRemaining = Math.floor(hoursRemaining / 24)
+
+	if (hoursRemaining <= 24) {
+		const hours = hoursRemaining
+		return {
+			daysRemaining,
+			hoursRemaining,
+			urgencyLevel: "critical",
+			message:
+				hours <= 1 ? "Less than 1 hour left!" : `Only ${hours} hours left!`,
+		}
+	}
+
+	if (daysRemaining <= 3) {
+		return {
+			daysRemaining,
+			hoursRemaining,
+			urgencyLevel: "urgent",
+			message:
+				daysRemaining === 1
+					? "Last day to register!"
+					: `Only ${daysRemaining} days left!`,
+		}
+	}
+
+	if (daysRemaining <= 7) {
+		return {
+			daysRemaining,
+			hoursRemaining,
+			urgencyLevel: "normal",
+			message: `${daysRemaining} days left to register`,
+		}
+	}
+
+	return {
+		daysRemaining,
+		hoursRemaining,
+		urgencyLevel: "none",
+		message: "",
+	}
+}
 
 interface RegistrationSidebarProps {
 	competition: Competition & {
@@ -51,7 +119,7 @@ export function RegistrationSidebar({
 	isRegistered,
 	registrationOpen,
 	registrationCount,
-	maxSpots,
+	maxSpots: _maxSpots, // Reserved for future "X spots left" feature
 	userDivision,
 	registrationId,
 	isTeamRegistration,
@@ -59,6 +127,14 @@ export function RegistrationSidebar({
 	isVolunteer = false,
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
+	const regOpensAt = competition.registrationOpensAt
+
+	// Calculate urgency for deadline
+	const urgency = regClosesAt ? getDeadlineUrgency(regClosesAt) : null
+
+	// Check if registration hasn't opened yet
+	const now = new Date()
+	const registrationNotYetOpen = regOpensAt && new Date(regOpensAt) > now
 
 	return (
 		<div className="space-y-4">
@@ -76,59 +152,130 @@ export function RegistrationSidebar({
 				</Card>
 			)}
 
-			{/* Registration Status Card */}
-			{(isRegistered || (registrationOpen && regClosesAt)) && (
-				<Card className="border-2 border-teal-500/20 bg-gradient-to-br from-teal-500/5 to-transparent">
-					<CardContent className="p-4">
-						{isRegistered ? (
-							<div className="space-y-3">
-								<div className="flex items-center gap-2 text-green-600">
-									<CheckCircle2 className="h-5 w-5" />
-									<span className="font-semibold">You're Registered!</span>
-								</div>
-								{userDivision && (
-									<p className="text-sm text-muted-foreground">
-										Division:{" "}
-										<span className="font-medium">{userDivision}</span>
-									</p>
+			{/* Registration CTA Card */}
+			{!isRegistered && registrationOpen && (
+				<Card
+					className={
+						urgency?.urgencyLevel === "critical"
+							? "border-2 border-red-500/50 bg-gradient-to-br from-red-500/10 to-transparent"
+							: urgency?.urgencyLevel === "urgent"
+								? "border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-transparent"
+								: "border-2 border-teal-500/20 bg-gradient-to-br from-teal-500/5 to-transparent"
+					}
+				>
+					<CardContent className="p-4 space-y-3">
+						{/* Urgency Message */}
+						{urgency && urgency.urgencyLevel !== "none" && (
+							<div
+								className={`flex items-center gap-2 ${
+									urgency.urgencyLevel === "critical"
+										? "text-red-600"
+										: urgency.urgencyLevel === "urgent"
+											? "text-amber-600"
+											: "text-muted-foreground"
+								}`}
+							>
+								{urgency.urgencyLevel === "critical" ? (
+									<AlertTriangle className="h-4 w-4" />
+								) : (
+									<Clock className="h-4 w-4" />
 								)}
-								{registrationId && (
-									<Button
-										asChild
-										variant="outline"
-										size="sm"
-										className="w-full"
-									>
-										<a
-											href={`/compete/${competition.slug}/teams/${registrationId}`}
-										>
-											<Users className="mr-2 h-4 w-4" />
-											{isTeamRegistration
-												? isCaptain
-													? "Manage Team"
-													: "View Team"
-												: "View Registration"}
-										</a>
-									</Button>
-								)}
-							</div>
-						) : (
-							<div className="space-y-2">
-								{regClosesAt && (
-									<div className="flex items-center gap-1 text-amber-600">
-										<Clock className="h-4 w-4" />
-										<span className="text-sm font-medium">
-											Register by {formatDeadlineDate(regClosesAt)}
-										</span>
-									</div>
-								)}
-								{maxSpots && (
-									<p className="text-sm text-muted-foreground">
-										{registrationCount}/{maxSpots} spots filled
-									</p>
-								)}
+								<span className="text-sm font-semibold">{urgency.message}</span>
 							</div>
 						)}
+
+						{/* Register Button */}
+						<Button asChild size="lg" className="w-full">
+							<Link
+								to="/compete/$slug/register"
+								params={{ slug: competition.slug }}
+							>
+								Register Now
+							</Link>
+						</Button>
+
+						{/* Deadline info (if not already shown in urgency) */}
+						{regClosesAt && urgency?.urgencyLevel === "none" && (
+							<p className="text-xs text-muted-foreground text-center">
+								Registration closes {formatDeadlineDate(regClosesAt)}
+							</p>
+						)}
+
+						{/* Social proof */}
+						{registrationCount > 0 && (
+							<p className="text-xs text-muted-foreground text-center">
+								{registrationCount} athlete{registrationCount !== 1 ? "s" : ""}{" "}
+								registered
+							</p>
+						)}
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Registration Not Yet Open */}
+			{!isRegistered &&
+				!registrationOpen &&
+				registrationNotYetOpen &&
+				regOpensAt && (
+					<Card className="border-2 border-muted">
+						<CardContent className="p-4 space-y-2">
+							<div className="flex items-center gap-2 text-muted-foreground">
+								<Clock className="h-4 w-4" />
+								<span className="text-sm font-medium">
+									Registration opens soon
+								</span>
+							</div>
+							<p className="text-xs text-muted-foreground">
+								Opens {formatDeadlineDate(regOpensAt)}
+							</p>
+						</CardContent>
+					</Card>
+				)}
+
+			{/* Registration Closed */}
+			{!isRegistered &&
+				!registrationOpen &&
+				!registrationNotYetOpen &&
+				regClosesAt && (
+					<Card className="border-2 border-muted">
+						<CardContent className="p-4">
+							<div className="flex items-center gap-2 text-muted-foreground">
+								<Clock className="h-4 w-4" />
+								<span className="text-sm font-medium">Registration closed</span>
+							</div>
+						</CardContent>
+					</Card>
+				)}
+
+			{/* Already Registered Card */}
+			{isRegistered && (
+				<Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent">
+					<CardContent className="p-4">
+						<div className="space-y-3">
+							<div className="flex items-center gap-2 text-green-600">
+								<CheckCircle2 className="h-5 w-5" />
+								<span className="font-semibold">You're Registered!</span>
+							</div>
+							{userDivision && (
+								<p className="text-sm text-muted-foreground">
+									Division: <span className="font-medium">{userDivision}</span>
+								</p>
+							)}
+							{registrationId && (
+								<Button asChild variant="outline" size="sm" className="w-full">
+									<a
+										href={`/compete/${competition.slug}/teams/${registrationId}`}
+									>
+										<Users className="mr-2 h-4 w-4" />
+										{isTeamRegistration
+											? isCaptain
+												? "Manage Team"
+												: "View Team"
+											: "View Registration"}
+									</a>
+								</Button>
+							)}
+						</div>
 					</CardContent>
 				</Card>
 			)}
@@ -155,34 +302,6 @@ export function RegistrationSidebar({
 							</p>
 						</div>
 					</div>
-				</CardContent>
-			</Card>
-
-			{/* Spectator Info - Stub */}
-			<Card className="border-dashed">
-				<CardHeader className="pb-2">
-					<CardTitle className="text-sm font-medium text-muted-foreground">
-						Spectators
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="pt-0">
-					<p className="text-xs text-muted-foreground italic">
-						Spectator ticket info coming soon
-					</p>
-				</CardContent>
-			</Card>
-
-			{/* Refund Policy - Stub */}
-			<Card className="border-dashed">
-				<CardHeader className="pb-2">
-					<CardTitle className="text-sm font-medium text-muted-foreground">
-						Refund Policy
-					</CardTitle>
-				</CardHeader>
-				<CardContent className="pt-0">
-					<p className="text-xs text-muted-foreground italic">
-						Refund policy coming soon
-					</p>
 				</CardContent>
 			</Card>
 

@@ -499,7 +499,6 @@ export function RegistrationForm({
 					{/* Team Registration Fields */}
 					{isTeamDivision && (
 						<Card>
-							sss
 							<CardHeader>
 								<CardTitle>Team Details</CardTitle>
 								<CardDescription>
