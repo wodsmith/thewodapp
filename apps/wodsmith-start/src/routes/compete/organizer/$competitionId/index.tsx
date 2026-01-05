@@ -2,7 +2,7 @@
  * Competition Organizer Overview Page
  *
  * Dashboard/overview page for organizers to see competition stats,
- * details, and quick actions.
+ * details, and quick actions including publishing controls.
  */
 
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
@@ -17,7 +17,16 @@ import {
 } from "@/components/ui/card"
 import { getCompetitionRevenueStatsFn } from "@/server-fns/commerce-fns"
 import { getCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
+import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
+import {
+	type AllEventsResultsStatusResponse,
+	getDivisionResultsStatusFn,
+} from "@/server-fns/division-results-fns"
 import { formatUTCDateFull, isSameUTCDay } from "@/utils/date-utils"
+import { QuickActionsDivisionResults } from "./-components/quick-actions-division-results"
+import { QuickActionsEvents } from "./-components/quick-actions-events"
+import { QuickActionsHeats } from "./-components/quick-actions-heats"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -25,19 +34,58 @@ const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 export const Route = createFileRoute("/compete/organizer/$competitionId/")({
 	component: CompetitionOverviewPage,
 	loader: async ({ params }) => {
-		// Parallel fetch: registrations and revenue stats
-		const [registrationsResult, revenueResult] = await Promise.all([
+		// Get competition from parent route to access organizingTeamId
+		// We need to fetch it here since we can't access parent loader data in child loader
+		const { getCompetitionByIdFn } = await import(
+			"@/server-fns/competition-detail-fns"
+		)
+		const { competition } = await getCompetitionByIdFn({
+			data: { competitionId: params.competitionId },
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Parallel fetch: registrations, revenue stats, events, heats, and division results
+		const [
+			registrationsResult,
+			revenueResult,
+			eventsResult,
+			heatsResult,
+			divisionResultsResult,
+		] = await Promise.all([
 			getCompetitionRegistrationsFn({
 				data: { competitionId: params.competitionId },
 			}),
 			getCompetitionRevenueStatsFn({
 				data: { competitionId: params.competitionId },
 			}),
+			getCompetitionWorkoutsFn({
+				data: {
+					competitionId: params.competitionId,
+					teamId: competition.organizingTeamId,
+				},
+			}),
+			getHeatsForCompetitionFn({
+				data: { competitionId: params.competitionId },
+			}),
+			getDivisionResultsStatusFn({
+				data: {
+					competitionId: params.competitionId,
+					organizingTeamId: competition.organizingTeamId,
+				},
+			}),
 		])
 
 		return {
 			registrations: registrationsResult.registrations,
 			revenueStats: revenueResult.stats,
+			events: eventsResult.workouts,
+			heats: heatsResult.heats,
+			// When called without eventId, the server returns AllEventsResultsStatusResponse
+			divisionResults: divisionResultsResult as AllEventsResultsStatusResponse,
+			organizingTeamId: competition.organizingTeamId,
 		}
 	},
 })
@@ -47,7 +95,14 @@ function formatCents(cents: number): string {
 }
 
 function CompetitionOverviewPage() {
-	const { registrations, revenueStats } = Route.useLoaderData()
+	const {
+		registrations,
+		revenueStats,
+		events,
+		heats,
+		divisionResults,
+		organizingTeamId,
+	} = Route.useLoaderData()
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 
@@ -79,6 +134,34 @@ function CompetitionOverviewPage() {
 
 	return (
 		<>
+			{/* Publishing Controls - Full Width Stacked Layout */}
+			{events.length > 0 && (
+				<div className="space-y-4">
+					{/* Division Results - Full Width */}
+					{divisionResults.totalCombinations > 0 && (
+						<QuickActionsDivisionResults
+							competitionId={competition.id}
+							organizingTeamId={organizingTeamId}
+							divisionResults={divisionResults}
+						/>
+					)}
+
+					{/* Heat Schedules - Full Width */}
+					<QuickActionsHeats
+						events={events}
+						heats={heats}
+						organizingTeamId={organizingTeamId}
+					/>
+
+					{/* Events - Full Width */}
+					<QuickActionsEvents
+						events={events}
+						organizingTeamId={organizingTeamId}
+						competitionId={competition.id}
+					/>
+				</div>
+			)}
+
 			{/* Description Card */}
 			{competition.description && (
 				<Card>

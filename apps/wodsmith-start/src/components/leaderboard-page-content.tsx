@@ -1,7 +1,10 @@
 "use client"
 
+import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { BarChart3 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
 	Select,
@@ -10,19 +13,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table"
-import {
-	getPublicCompetitionDivisionsFn,
-	type PublicCompetitionDivision,
-} from "@/server-fns/competition-divisions-fns"
-import { getLeaderboardDataFn } from "@/server-fns/leaderboard-fns"
+	type CompetitionLeaderboardEntry,
+	getCompetitionLeaderboardFn,
+} from "@/server-fns/leaderboard-fns"
+
+// Get parent route API to access divisions from loader
+const parentRoute = getRouteApi("/compete/$slug")
 
 interface LeaderboardPageContentProps {
 	competitionId: string
@@ -31,75 +29,153 @@ interface LeaderboardPageContentProps {
 export function LeaderboardPageContent({
 	competitionId,
 }: LeaderboardPageContentProps) {
-	const [divisions, setDivisions] = useState<PublicCompetitionDivision[]>([])
-	const [selectedDivision, setSelectedDivision] = useState("")
-	const [leaderboardData, setLeaderboardData] = useState<{
-		leaderboard: any[]
-		workouts: any[]
-	} | null>(null)
-	const [isLoading, setIsLoading] = useState(false)
-	const [isDivisionsLoading, setIsDivisionsLoading] = useState(true)
+	const navigate = useNavigate()
+	// Get search params from URL - using strict: false since we're in a child component
+	const searchParams = useSearch({ strict: false }) as {
+		division?: string
+		event?: string
+	}
 
-	// Fetch divisions on mount
-	useEffect(() => {
-		async function fetchDivisions() {
-			setIsDivisionsLoading(true)
-			try {
-				const result = await getPublicCompetitionDivisionsFn({
-					data: { competitionId },
-				})
-				setDivisions(result.divisions)
-				// Set default division to first one
-				if (result.divisions.length > 0) {
-					setSelectedDivision(result.divisions[0].id)
-				}
-			} catch (error) {
-				console.error("Failed to fetch divisions:", error)
-			} finally {
-				setIsDivisionsLoading(false)
-			}
-		}
-		fetchDivisions()
-	}, [competitionId])
+	// Get divisions from parent route loader
+	const { divisions } = parentRoute.useLoaderData()
+
+	// Default to first division if available
+	const defaultDivision = divisions?.[0]?.id ?? ""
+
+	// URL state for shareable leaderboard views
+	const selectedDivision = searchParams.division ?? defaultDivision
+	const selectedEventId = searchParams.event ?? null
+
+	const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
+		[],
+	)
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+
+	// Server function for fetching leaderboard
+	const getLeaderboard = useServerFn(getCompetitionLeaderboardFn)
 
 	// Fetch leaderboard when division changes
 	useEffect(() => {
+		let cancelled = false
+
 		async function fetchLeaderboard() {
-			if (!selectedDivision) return
+			if (!selectedDivision) {
+				setIsLoading(false)
+				return
+			}
 
 			setIsLoading(true)
+			setError(null)
+
 			try {
-				const result = await getLeaderboardDataFn({
+				const result = await getLeaderboard({
 					data: {
 						competitionId,
 						divisionId: selectedDivision,
 					},
 				})
-				setLeaderboardData(result)
-			} catch (error) {
-				console.error("Failed to fetch leaderboard:", error)
+
+				if (!cancelled) {
+					setLeaderboard(result)
+				}
+			} catch (err) {
+				if (!cancelled) {
+					console.error("Failed to fetch leaderboard:", err)
+					setError(
+						err instanceof Error
+							? err.message
+							: "Failed to load leaderboard. Please try again.",
+					)
+				}
 			} finally {
-				setIsLoading(false)
+				if (!cancelled) {
+					setIsLoading(false)
+				}
 			}
 		}
 
 		fetchLeaderboard()
-	}, [competitionId, selectedDivision])
 
-	const handleDivisionChange = (divisionId: string) => {
-		setSelectedDivision(divisionId)
+		return () => {
+			cancelled = true
+		}
+	}, [competitionId, selectedDivision, getLeaderboard])
+
+	// Handle division change - update URL
+	const handleDivisionChange = useCallback(
+		(divisionId: string) => {
+			navigate({
+				to: ".",
+				search: (prev: Record<string, unknown>) => ({
+					...prev,
+					division: divisionId,
+					// Reset event when changing divisions
+					event: undefined,
+				}),
+				replace: true,
+			})
+		},
+		[navigate],
+	)
+
+	// Handle event change - update URL
+	const handleEventChange = useCallback(
+		(value: string) => {
+			navigate({
+				to: ".",
+				search: (prev: Record<string, unknown>) => ({
+					...prev,
+					event: value === "overall" ? undefined : value,
+				}),
+				replace: true,
+			})
+		},
+		[navigate],
+	)
+
+	// Extract events from leaderboard data
+	const events = useMemo(() => {
+		if (leaderboard.length === 0) return []
+
+		const firstEntry = leaderboard[0]
+		if (!firstEntry) return []
+
+		return firstEntry.eventResults
+			.map((r) => ({
+				id: r.trackWorkoutId,
+				name: r.eventName,
+				trackOrder: r.trackOrder,
+				scheme: r.scheme,
+			}))
+			.sort((a, b) => a.trackOrder - b.trackOrder)
+	}, [leaderboard])
+
+	// Loading state - initial load
+	if (isLoading && leaderboard.length === 0) {
+		return (
+			<div className="space-y-6">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
+				<div className="space-y-4">
+					<div className="flex gap-4">
+						<Skeleton className="h-10 w-48" />
+						<Skeleton className="h-10 w-48" />
+					</div>
+					<Skeleton className="h-64 w-full" />
+				</div>
+			</div>
+		)
 	}
 
-	const hasResults = leaderboardData && leaderboardData.leaderboard.length > 0
-
-	return (
-		<div className="space-y-6">
-			<div className="flex flex-col gap-4">
+	// Error state
+	if (error) {
+		return (
+			<div className="space-y-6">
 				<h2 className="text-2xl font-bold">Leaderboard</h2>
 
-				{/* Division selector */}
+				{/* Division selector even on error */}
 				{divisions && divisions.length > 1 && (
-					<div className="flex flex-wrap items-center gap-4">
+					<div className="mb-6">
 						<Select
 							value={selectedDivision}
 							onValueChange={handleDivisionChange}
@@ -117,21 +193,43 @@ export function LeaderboardPageContent({
 						</Select>
 					</div>
 				)}
+
+				<Alert variant="destructive">
+					<BarChart3 className="h-4 w-4" />
+					<AlertTitle>Error loading leaderboard</AlertTitle>
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
 			</div>
+		)
+	}
 
-			{/* Loading state */}
-			{(isLoading || isDivisionsLoading) && (
-				<div className="rounded-md border p-8">
-					<div className="text-center text-muted-foreground">
-						{isDivisionsLoading
-							? "Loading divisions..."
-							: "Loading leaderboard..."}
+	// Empty state - no results yet
+	if (leaderboard.length === 0 && !isLoading) {
+		return (
+			<div className="space-y-6">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
+
+				{/* Division selector even when empty */}
+				{divisions && divisions.length > 1 && (
+					<div className="mb-6">
+						<Select
+							value={selectedDivision}
+							onValueChange={handleDivisionChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Select division" />
+							</SelectTrigger>
+							<SelectContent>
+								{divisions.map((division) => (
+									<SelectItem key={division.id} value={division.id}>
+										{division.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
-				</div>
-			)}
+				)}
 
-			{/* Empty state */}
-			{!isLoading && !hasResults && (
 				<Alert variant="default" className="border-dashed">
 					<BarChart3 className="h-4 w-4" />
 					<AlertTitle>Leaderboard not yet available</AlertTitle>
@@ -140,57 +238,71 @@ export function LeaderboardPageContent({
 						scores.
 					</AlertDescription>
 				</Alert>
-			)}
+			</div>
+		)
+	}
 
-			{/* Leaderboard table */}
-			{!isLoading && hasResults && (
-				<div className="rounded-md border">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Rank</TableHead>
-								<TableHead>Athlete</TableHead>
-								<TableHead>Division</TableHead>
-								<TableHead>Status</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{leaderboardData.leaderboard.map((entry, index) => (
-								<TableRow key={entry.userId}>
-									<TableCell className="font-medium">{index + 1}</TableCell>
-									<TableCell>{entry.userName}</TableCell>
-									<TableCell>{entry.scalingLevelLabel || "N/A"}</TableCell>
-									<TableCell className="text-muted-foreground">
-										{entry.formattedScore}
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
+	return (
+		<div className="space-y-6">
+			<div className="flex flex-col gap-4">
+				<h2 className="text-2xl font-bold">Leaderboard</h2>
+
+				<div className="flex flex-wrap items-center gap-4">
+					{/* Division selector */}
+					{divisions && divisions.length > 1 && (
+						<Select
+							value={selectedDivision}
+							onValueChange={handleDivisionChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="Select division" />
+							</SelectTrigger>
+							<SelectContent>
+								{divisions.map((division) => (
+									<SelectItem key={division.id} value={division.id}>
+										{division.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+
+					{/* View selector (Overall vs individual events) */}
+					{events.length > 0 && (
+						<Select
+							value={selectedEventId ?? "overall"}
+							onValueChange={handleEventChange}
+						>
+							<SelectTrigger className="w-[200px]">
+								<SelectValue placeholder="View" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="overall">Overall</SelectItem>
+								{events.map((event) => (
+									<SelectItem key={event.id} value={event.id}>
+										{event.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+
+					{/* Loading indicator for background refetches */}
+					{isLoading && leaderboard.length > 0 && (
+						<span className="text-sm text-muted-foreground animate-pulse">
+							Updating...
+						</span>
+					)}
 				</div>
-			)}
+			</div>
 
-			{/* Workouts info - if available */}
-			{!isLoading &&
-				hasResults &&
-				leaderboardData.workouts &&
-				leaderboardData.workouts.length > 0 && (
-					<div className="mt-4">
-						<h3 className="text-sm font-medium text-muted-foreground mb-2">
-							Competition Workouts ({leaderboardData.workouts.length})
-						</h3>
-						<div className="flex flex-wrap gap-2">
-							{leaderboardData.workouts.map((workout) => (
-								<div
-									key={workout.id}
-									className="text-xs px-2 py-1 rounded-md bg-muted"
-								>
-									{workout.name}
-								</div>
-							))}
-						</div>
-					</div>
-				)}
+			<div className="rounded-md border">
+				<CompetitionLeaderboardTable
+					leaderboard={leaderboard}
+					events={events}
+					selectedEventId={selectedEventId}
+				/>
+			</div>
 		</div>
 	)
 }

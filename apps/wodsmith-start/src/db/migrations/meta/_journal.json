@@ -491,6 +491,13 @@
       "when": 1735833600000,
       "tag": "0067_add-team-entitlement-unique-constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1767370200000,
+      "tag": "0068_add-heat-schedule-published",
+      "breakpoints": true
     }
   ]
 }
