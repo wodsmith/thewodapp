@@ -22,6 +22,14 @@ import {
 	isApprovedOrganizer,
 } from "@/server-fns/organizer-onboarding-fns"
 
+// Server function callers for use in loader
+const fetchIsApprovedOrganizer = (teamId: string) =>
+	isApprovedOrganizer({ data: { teamId } })
+const fetchHasPendingOrganizerRequest = (teamId: string) =>
+	hasPendingOrganizerRequest({ data: { teamId } })
+const fetchGetOrganizerRequest = (teamId: string) =>
+	getOrganizerRequest({ data: { teamId } })
+
 // Types
 interface TeamInfo {
 	id: string
@@ -64,15 +72,15 @@ export const Route = createFileRoute("/compete/organizer/onboard/pending")({
 		let pendingTeam: TeamInfo | null = null
 
 		for (const team of gymTeams) {
-			const approved = await isApprovedOrganizer(team.id)
+			const approved = await fetchIsApprovedOrganizer(team.id)
 			if (approved) {
 				// If approved, redirect to organizer dashboard
 				throw redirect({ to: "/compete/organizer" })
 			}
 
-			const isPending = await hasPendingOrganizerRequest(team.id)
+			const isPending = await fetchHasPendingOrganizerRequest(team.id)
 			if (isPending) {
-				const request = await getOrganizerRequest(team.id)
+				const request = await fetchGetOrganizerRequest(team.id)
 				if (request) {
 					pendingRequest = {
 						reason: request.reason,

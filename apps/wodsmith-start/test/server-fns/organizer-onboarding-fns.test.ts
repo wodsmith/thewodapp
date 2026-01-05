@@ -4,7 +4,6 @@ import {createTestSession} from '@repo/test-utils/factories'
 import {
   submitOrganizerRequestFn,
   getOrganizerRequestStatusFn,
-  submitOrganizerRequest,
   getOrganizerRequest,
   hasPendingOrganizerRequest,
   isApprovedOrganizer,
@@ -450,7 +449,7 @@ describe('organizer-onboarding-fns', () => {
     })
   })
 
-  describe('submitOrganizerRequest (server logic)', () => {
+  describe('submitOrganizerRequestFn (server logic)', () => {
     it('should throw if pending request already exists', async () => {
       const {getDb} = await import('@/db')
       vi.mocked(getDb).mockReturnValue({
@@ -461,14 +460,18 @@ describe('organizer-onboarding-fns', () => {
               status: 'pending',
             }),
           },
+          teamMembershipTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
         },
       } as any)
 
       await expect(
-        submitOrganizerRequest({
-          teamId: 'team-123',
-          userId: 'user-123',
-          reason: 'I want to organize',
+        submitOrganizerRequestFn({
+          data: {
+            teamId: 'team-123',
+            reason: 'I want to organize competitions for my gym',
+          },
         }),
       ).rejects.toThrow('pending organizer request already exists')
     })
@@ -487,14 +490,18 @@ describe('organizer-onboarding-fns', () => {
               return {id: 'approved-request', status: 'approved'}
             }),
           },
+          teamMembershipTable: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
         },
       } as any)
 
       await expect(
-        submitOrganizerRequest({
-          teamId: 'team-123',
-          userId: 'user-123',
-          reason: 'I want to organize',
+        submitOrganizerRequestFn({
+          data: {
+            teamId: 'team-123',
+            reason: 'I want to organize competitions for my gym',
+          },
         }),
       ).rejects.toThrow('already approved as an organizer')
     })
@@ -511,7 +518,7 @@ describe('organizer-onboarding-fns', () => {
         },
       } as any)
 
-      const result = await getOrganizerRequest('team-123')
+      const result = await getOrganizerRequest({data: {teamId: 'team-123'}})
 
       expect(result).toBeNull()
     })
@@ -531,7 +538,7 @@ describe('organizer-onboarding-fns', () => {
         },
       } as any)
 
-      const result = await getOrganizerRequest('team-123')
+      const result = await getOrganizerRequest({data: {teamId: 'team-123'}})
 
       expect(result).toEqual(mockRequest)
     })
@@ -548,7 +555,9 @@ describe('organizer-onboarding-fns', () => {
         },
       } as any)
 
-      const result = await hasPendingOrganizerRequest('team-123')
+      const result = await hasPendingOrganizerRequest({
+        data: {teamId: 'team-123'},
+      })
 
       expect(result).toBe(false)
     })
@@ -566,7 +575,9 @@ describe('organizer-onboarding-fns', () => {
         },
       } as any)
 
-      const result = await hasPendingOrganizerRequest('team-123')
+      const result = await hasPendingOrganizerRequest({
+        data: {teamId: 'team-123'},
+      })
 
       expect(result).toBe(true)
     })
@@ -583,7 +594,7 @@ describe('organizer-onboarding-fns', () => {
         },
       } as any)
 
-      const result = await isApprovedOrganizer('team-123')
+      const result = await isApprovedOrganizer({data: {teamId: 'team-123'}})
 
       expect(result).toBe(false)
     })
@@ -601,7 +612,7 @@ describe('organizer-onboarding-fns', () => {
         },
       } as any)
 
-      const result = await isApprovedOrganizer('team-123')
+      const result = await isApprovedOrganizer({data: {teamId: 'team-123'}})
 
       expect(result).toBe(true)
     })
