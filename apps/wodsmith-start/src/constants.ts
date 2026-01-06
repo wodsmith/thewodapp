@@ -4,8 +4,8 @@ export const SITE_DESCRIPTION = "Track your workouts and progress."
 export const SITE_URL =
 	process.env.NODE_ENV === "development"
 		? "http://localhost:3000"
-		: process.env.SITE_URL || "https://thewodapp.com"
-export const SITE_DOMAIN = "thewodapp.com"
+		: process.env.SITE_URL || "https://wodsmith.com"
+export const SITE_DOMAIN = "wodsmith.com"
 
 // Auth configuration
 export const REDIRECT_AFTER_SIGN_IN = "/dashboard"
