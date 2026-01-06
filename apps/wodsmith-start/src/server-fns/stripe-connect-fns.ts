@@ -442,8 +442,6 @@ export const initiateExpressOnboardingFn = createServerFn({ method: "POST" })
 			throw new Error("Team not found")
 		}
 
-		console.log("---------------------------------team", team)
-
 		// If already has account, just create new onboarding link
 		if (team.stripeConnectedAccountId) {
 			const link = await createExpressAccountLink(
@@ -459,7 +457,6 @@ export const initiateExpressOnboardingFn = createServerFn({ method: "POST" })
 			session.user.email ?? "",
 			team.name,
 		)
-		console.log("---------------------------------result", result)
 
 		return { onboardingUrl: result.onboardingUrl }
 	})
