@@ -1,17 +1,23 @@
 /**
  * Stripe client for TanStack Start
- * This is a server-only module - only import in server functions
+ * This is a server-only module - uses createServerOnlyFn to enforce server-only execution
  */
+import { createServerOnlyFn } from "@tanstack/react-start"
+import { env } from "cloudflare:workers"
 import Stripe from "stripe"
 
 let stripeInstance: Stripe | null = null
 
-export function getStripe() {
+/**
+ * Get the Stripe client instance.
+ * This is a server-only function that will throw if called from the client.
+ */
+export const getStripe = createServerOnlyFn(() => {
 	if (stripeInstance) {
 		return stripeInstance
 	}
 
-	const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+	const stripeSecretKey = env.STRIPE_SECRET_KEY
 
 	if (!stripeSecretKey) {
 		throw new Error("Missing STRIPE_SECRET_KEY environment variable")
@@ -24,4 +30,4 @@ export function getStripe() {
 	})
 
 	return stripeInstance
-}
+})
