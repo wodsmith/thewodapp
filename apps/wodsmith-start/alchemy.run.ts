@@ -129,10 +129,19 @@ import { WebhookEndpoint } from "alchemy/stripe"
 const stage = process.env.STAGE ?? "dev"
 
 /**
- * Whether the current stage needs Stripe bindings.
- * Both demo and production environments require Stripe integration.
+ * Whether the current stage needs Stripe webhook.
+ * Only demo and production environments require the webhook resource.
  */
-const needsStripeBindings = stage === "demo" || stage === "prod"
+const needsStripeWebhook = stage === "demo" || stage === "prod"
+
+/**
+ * Whether Stripe environment variables are available.
+ * Stripe env vars are populated for all environments when available.
+ */
+const hasStripeEnv =
+	process.env.STRIPE_SECRET_KEY &&
+	process.env.STRIPE_PUBLISHABLE_KEY &&
+	process.env.STRIPE_CLIENT_ID
 
 const app = await alchemy("wodsmith", {
 	/**
@@ -286,10 +295,10 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
- * Validate required Stripe environment variables when Stripe bindings are needed.
+ * Validate required Stripe environment variables when Stripe webhook is needed.
  * Fails fast with a clear error message if any required variables are missing.
  */
-if (needsStripeBindings) {
+if (needsStripeWebhook) {
 	const requiredStripeVars = [
 		"STRIPE_SECRET_KEY",
 		"STRIPE_PUBLISHABLE_KEY",
@@ -306,8 +315,9 @@ if (needsStripeBindings) {
 /**
  * Stripe Webhook Endpoint for demo and production environments.
  *
- * This creates a Stripe webhook that receives events for environments
- * that require Stripe integration (demo and prod).
+ * This creates a Stripe webhook that receives events only for environments
+ * that require webhook integration (demo and prod). Other environments
+ * still get Stripe env vars for API calls but don't register webhooks.
  *
  * @remarks
  * **Required environment variables:**
@@ -333,7 +343,7 @@ const stripeWebhookUrl =
 		? "https://start.wodsmith.com/api/webhooks/stripe"
 		: "https://demo.wodsmith.com/api/webhooks/stripe"
 
-const stripeWebhook = needsStripeBindings
+const stripeWebhook = needsStripeWebhook
 	? await WebhookEndpoint("stripe-webhook", {
 			url: stripeWebhookUrl,
 			enabledEvents: [
@@ -432,8 +442,34 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
-		// Stripe bindings for demo and production environments (validated above)
-		...(needsStripeBindings && {
+
+		// App configuration
+		APP_URL: process.env.APP_URL!,
+
+		// Email configuration
+		EMAIL_FROM: "team@mail.wodsmith.com",
+		EMAIL_FROM_NAME: "WODsmith",
+		EMAIL_REPLY_TO: "support@mail.wodsmith.com",
+
+		// Public URLs and keys
+		R2_PUBLIC_URL: "https://pub-14c651314867492fa9637e830cc729a3.r2.dev",
+		POSTHOG_KEY: "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
+		TURNSTILE_SITE_KEY: "0x4AAAAAACF8K4v1TmFMOmtk",
+
+		// Secrets
+		TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
+		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
+
+		// AI configuration (optional - only include if available)
+		...(process.env.OPENAI_API_KEY && {
+			OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
+		}),
+		...(process.env.BRAINTRUST_API_KEY && {
+			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
+		}),
+
+		// Stripe env vars are populated for all environments when available
+		...(hasStripeEnv && {
 			/** Stripe publishable key for client-side Stripe.js initialization */
 			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
 			/** Stripe Connect OAuth client ID */
@@ -441,6 +477,7 @@ const website = await TanStackStart("app", {
 			/** Stripe secret key for server-side API calls */
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
+		// Webhook secret only for demo and prod (where webhook resource is created)
 		...(stripeWebhook && {
 			/** Stripe webhook secret for signature verification */
 			STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
