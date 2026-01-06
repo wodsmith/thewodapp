@@ -373,7 +373,8 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 					return json({ error: "Missing signature" }, { status: 400 })
 				}
 
-				const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+				const { getStripeWebhookSecret } = await import("@/lib/env")
+				const webhookSecret = getStripeWebhookSecret()
 				if (!webhookSecret) {
 					logError({
 						message: "[Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET",

@@ -1,11 +1,17 @@
 // Site configuration
 export const SITE_NAME = "WODsmith"
 export const SITE_DESCRIPTION = "Track your workouts and progress."
-export const SITE_URL =
-	process.env.NODE_ENV === "development"
-		? "http://localhost:3000"
-		: process.env.SITE_URL || "https://wodsmith.com"
+/**
+ * Default site domain - used for client-safe code
+ */
 export const SITE_DOMAIN = "wodsmith.com"
+
+/**
+ * @deprecated Use getSiteUrl() from @/lib/env for server code.
+ * This constant exists only for backward compatibility with client code.
+ * Server code should use getSiteUrl() which reads from environment variables.
+ */
+export const SITE_URL = `https://${SITE_DOMAIN}`
 
 // Auth configuration
 export const REDIRECT_AFTER_SIGN_IN = "/dashboard"

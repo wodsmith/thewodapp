@@ -71,6 +71,8 @@ vi.mock('@tanstack/react-start', () => ({
       }),
     }
   },
+  // Mock createServerOnlyFn - just returns the function directly for tests
+  createServerOnlyFn: <T>(fn: () => T) => fn,
 }))
 
 // Import mocked getSessionFromCookie so we can change its behavior in tests

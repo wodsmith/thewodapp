@@ -1,11 +1,19 @@
 import { render } from "@react-email/render"
-import { SITE_DOMAIN, SITE_URL } from "@/constants"
+import { SITE_DOMAIN } from "@/constants"
+import {
+	getEmailFrom,
+	getEmailFromName,
+	getEmailReplyTo,
+	getResendApiKey,
+	getSiteUrl,
+	isEmailTestMode,
+	isProduction,
+} from "@/lib/env"
 import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
 import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
 import { ResetPasswordEmail } from "@/react-email/reset-password"
 import { TeamInviteEmail } from "@/react-email/team-invite"
 import { VerifyEmail } from "@/react-email/verify-email"
-import isProd from "./is-prod"
 
 // ============================================================================
 // PII Redaction Utilities
@@ -53,8 +61,13 @@ export interface SendEmailOptions {
 // Configuration
 // ============================================================================
 
-const isTestMode = process.env.EMAIL_TEST_MODE === "true"
-const shouldSendEmail = isProd || isTestMode
+/**
+ * Determines if email should actually be sent.
+ * Returns true in production or when EMAIL_TEST_MODE is enabled.
+ */
+function shouldSendEmail(): boolean {
+	return isProduction() || isEmailTestMode()
+}
 
 // ============================================================================
 // Generic Email Sender
@@ -75,7 +88,7 @@ export async function sendEmail({
 	const recipients = Array.isArray(to) ? to : [to]
 	const emailType = tags.find((t) => t.name === "type")?.value ?? "unknown"
 
-	if (!shouldSendEmail) {
+	if (!shouldSendEmail()) {
 		console.warn(
 			`\n[Email Preview] To: ${recipients.join(", ")}\nSubject: ${subject}\nType: ${emailType}\n`,
 		)
@@ -87,7 +100,8 @@ export async function sendEmail({
 		return
 	}
 
-	if (!process.env.RESEND_API_KEY) {
+	const resendApiKey = getResendApiKey()
+	if (!resendApiKey) {
 		console.error("[Email] RESEND_API_KEY not configured", {
 			recipientCount: recipients.length,
 			subject,
@@ -98,9 +112,9 @@ export async function sendEmail({
 
 	// Default email sender config (fallback for development)
 	// Uses mail.wodsmith.com subdomain which is verified in Resend
-	const emailFrom = process.env.EMAIL_FROM || "team@mail.wodsmith.com"
-	const emailFromName = process.env.EMAIL_FROM_NAME || "WODsmith"
-	const emailReplyTo = process.env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
+	const emailFrom = getEmailFrom()
+	const emailFromName = getEmailFromName()
+	const emailReplyTo = getEmailReplyTo()
 
 	try {
 		const html = await render(template)
@@ -108,7 +122,7 @@ export async function sendEmail({
 		const response = await fetch("https://api.resend.com/emails", {
 			method: "POST",
 			headers: {
-				Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+				Authorization: `Bearer ${resendApiKey}`,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -164,10 +178,11 @@ export async function sendPasswordResetEmail({
 	resetToken: string
 	username: string
 }): Promise<void> {
-	const resetUrl = `${SITE_URL}/reset-password?token=${resetToken}`
+	const siteUrl = getSiteUrl()
+	const resetUrl = `${siteUrl}/reset-password?token=${resetToken}`
 
 	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail) {
+	if (!shouldSendEmail()) {
 		console.warn("\n\n\nPassword reset url: ", resetUrl)
 	}
 
@@ -192,10 +207,11 @@ export async function sendVerificationEmail({
 	verificationToken: string
 	username: string
 }): Promise<void> {
-	const verificationUrl = `${SITE_URL}/verify-email?token=${verificationToken}`
+	const siteUrl = getSiteUrl()
+	const verificationUrl = `${siteUrl}/verify-email?token=${verificationToken}`
 
 	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail) {
+	if (!shouldSendEmail()) {
 		console.warn("\n\n\nVerification url: ", verificationUrl)
 	}
 
@@ -222,10 +238,11 @@ export async function sendTeamInvitationEmail({
 	teamName: string
 	inviterName: string
 }): Promise<void> {
-	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
+	const siteUrl = getSiteUrl()
+	const inviteUrl = `${siteUrl}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
 	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail) {
+	if (!shouldSendEmail()) {
 		console.warn("\n\n\nTeam invitation url: ", inviteUrl)
 	}
 
@@ -262,10 +279,11 @@ export async function sendCompetitionTeamInviteEmail({
 	divisionName: string
 	inviterName: string
 }): Promise<void> {
-	const inviteUrl = `${SITE_URL}/team-invite?token=${encodeURIComponent(invitationToken)}`
+	const siteUrl = getSiteUrl()
+	const inviteUrl = `${siteUrl}/team-invite?token=${encodeURIComponent(invitationToken)}`
 
 	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail) {
+	if (!shouldSendEmail()) {
 		console.warn("\n\n\nCompetition team invitation url: ", inviteUrl)
 	}
 
@@ -299,10 +317,11 @@ export async function sendOrganizerApprovalEmail({
 	teamSlug: string
 	adminNotes?: string
 }): Promise<void> {
-	const dashboardUrl = `${SITE_URL}/${teamSlug}/compete/organizer`
+	const siteUrl = getSiteUrl()
+	const dashboardUrl = `${siteUrl}/${teamSlug}/compete/organizer`
 
 	// In dev mode, console.warn shows the URL for easy testing
-	if (!shouldSendEmail) {
+	if (!shouldSendEmail()) {
 		console.warn("\n\n\nOrganizer dashboard url: ", dashboardUrl)
 	}
 
@@ -334,7 +353,7 @@ export async function sendOrganizerRejectionEmail({
 	teamName: string
 	adminNotes?: string
 }): Promise<void> {
-	const supportEmail = process.env.EMAIL_REPLY_TO || "support@mail.wodsmith.com"
+	const supportEmail = getEmailReplyTo()
 
 	await sendEmail({
 		to: email,
