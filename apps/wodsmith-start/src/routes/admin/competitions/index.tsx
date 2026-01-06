@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { getAllCompetitionsForAdminFn } from "@/server-fns/admin-fns"
-import { AdminCompetitionsTable } from "./_components/admin-competitions-table"
+import { AdminCompetitionsTable } from "@/components/admin/admin-competitions-table"
 
 export const Route = createFileRoute("/admin/competitions/")({
 	loader: async () => {
