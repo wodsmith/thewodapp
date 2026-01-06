@@ -465,6 +465,13 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 		}
 
 		// Handle competition_team type - also add user to competition_event team
+		let registrationId: string | null = null
+		let competitionId: string | null = null
+		let competitionName: string | null = null
+		let competitionSlug: string | null = null
+		let divisionName: string | null = null
+		let hasWaivers = false
+
 		if (
 			team.type === TEAM_TYPE_ENUM.COMPETITION_TEAM &&
 			team.competitionMetadata
@@ -472,14 +479,20 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			try {
 				const metadata = JSON.parse(team.competitionMetadata) as {
 					competitionId?: string
+					divisionId?: string
 				}
 				if (metadata.competitionId) {
+					competitionId = metadata.competitionId
+
 					// Add to competition event team
 					const competition = await db.query.competitionsTable.findFirst({
 						where: eq(competitionsTable.id, metadata.competitionId),
 					})
 
 					if (competition) {
+						competitionName = competition.name
+						competitionSlug = competition.slug
+
 						// Check if user is already a member
 						const existingEventMembership =
 							await db.query.teamMembershipTable.findFirst({
@@ -499,6 +512,39 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 								isActive: 1,
 							})
 						}
+
+						// Find the registration for this team
+						const registration =
+							await db.query.competitionRegistrationsTable.findFirst({
+								where: and(
+									eq(
+										competitionRegistrationsTable.eventId,
+										metadata.competitionId,
+									),
+									eq(competitionRegistrationsTable.athleteTeamId, team.id),
+								),
+								with: {
+									division: {
+										columns: { label: true },
+									},
+								},
+							})
+
+						if (registration) {
+							registrationId = registration.id
+							const div = Array.isArray(registration.division)
+								? registration.division[0]
+								: registration.division
+							divisionName = div?.label || null
+						}
+
+						// Check if competition has waivers
+						const { waiversTable } = await import("@/db/schemas/waivers")
+						const waivers = await db.query.waiversTable.findMany({
+							where: eq(waiversTable.competitionId, metadata.competitionId),
+							columns: { id: true },
+						})
+						hasWaivers = waivers.length > 0
 
 						// Clear from pendingTeammates on the registration
 						if (session.user.email) {
@@ -553,6 +599,12 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 			teamId: invitation.teamId,
 			teamSlug: team.slug,
 			teamName: team.name,
+			registrationId,
+			competitionId,
+			competitionName,
+			competitionSlug,
+			divisionName,
+			hasWaivers,
 		}
 	})
 

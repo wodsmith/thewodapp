@@ -341,3 +341,63 @@ export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
 		return getActiveTeamId()
 	},
 )
+
+/**
+ * Get teams that can organize competitions
+ *
+ * Returns teams that:
+ * 1. Are NOT personal teams (isPersonalTeam === false)
+ * 2. Have the HOST_COMPETITIONS feature enabled
+ * 3. Are deduplicated by team ID (prevents display issues from DB duplicates)
+ *
+ * Used by the organizer dashboard team dropdown.
+ *
+ * Uses the session's cached plan features for faster checks. The session plan
+ * is populated from the database when the session is created/refreshed.
+ *
+ * Note: If a user submits an organizer request (which grants HOST_COMPETITIONS),
+ * the session is refreshed via invalidateTeamMembersSessions, so the cached
+ * plan features will be up-to-date.
+ */
+export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		// Use dynamic imports to avoid bundling cloudflare:workers into client
+		const { getSessionFromCookie } = await import("@/utils/auth")
+		const { FEATURES } = await import("@/config/features")
+
+		const session = await getSessionFromCookie()
+		if (!session?.teams?.length) {
+			return { teams: [] }
+		}
+
+		// Filter teams that can organize
+		const organizerTeams: Array<{ id: string; name: string }> = []
+		const seenTeamIds = new Set<string>()
+
+		for (const team of session.teams) {
+			// Skip if already processed (deduplication)
+			if (seenTeamIds.has(team.id)) {
+				continue
+			}
+			seenTeamIds.add(team.id)
+
+			// Skip personal teams
+			if (team.isPersonalTeam) {
+				continue
+			}
+
+			// Check if team has HOST_COMPETITIONS feature via cached plan
+			// This is faster than hitting the database for each team
+			const canHost =
+				team.plan?.features?.includes(FEATURES.HOST_COMPETITIONS) ?? false
+			if (canHost) {
+				organizerTeams.push({
+					id: team.id,
+					name: team.name,
+				})
+			}
+		}
+
+		return { teams: organizerTeams }
+	},
+)

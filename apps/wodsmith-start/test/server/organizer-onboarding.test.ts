@@ -25,6 +25,13 @@ vi.mock('@/utils/email', () => ({
   sendOrganizerRejectionEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
+// Mock the kv-session module (invalidateTeamMembersSessions is called after feature changes)
+vi.mock('@/utils/kv-session', () => ({
+  invalidateTeamMembersSessions: vi.fn().mockResolvedValue(undefined),
+}))
+
+import {invalidateTeamMembersSessions} from '@/utils/kv-session'
+
 import {getDb} from '@/db'
 
 describe('Organizer Onboarding', () => {
@@ -946,6 +953,33 @@ describe('Entitlement Grant/Revoke Functions', () => {
           }),
         )
       })
+
+      it('should invalidate team member sessions after granting feature', async () => {
+        // ARRANGE: Mock feature lookup and insert
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+              }),
+            },
+          },
+          insert: vi.fn().mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+            }),
+          }),
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+
+        // ACT
+        await grantTeamFeature(mockTeamId, mockFeatureKey)
+
+        // ASSERT: Session invalidation was called with teamId
+        expect(invalidateTeamMembersSessions).toHaveBeenCalledWith(mockTeamId)
+      })
     })
 
     describe('when feature does not exist', () => {
@@ -1191,6 +1225,34 @@ describe('Entitlement Grant/Revoke Functions', () => {
         expect(mockDb.query.featureTable.findFirst).toHaveBeenCalled()
         expect(mockUpdate).toHaveBeenCalled()
         expect(mockSet).toHaveBeenCalledWith({isActive: 0})
+      })
+
+      it('should invalidate team member sessions after revoking feature', async () => {
+        // ARRANGE
+        const mockDb = {
+          query: {
+            featureTable: {
+              findFirst: vi.fn().mockResolvedValue({
+                id: mockFeatureId,
+                key: mockFeatureKey,
+              }),
+            },
+          },
+          update: vi.fn().mockReturnValue({
+            set: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue(undefined),
+            }),
+          }),
+        }
+
+        vi.mocked(getDb).mockReturnValue(mockDb as any)
+        vi.mocked(invalidateTeamMembersSessions).mockClear()
+
+        // ACT
+        await revokeTeamFeature(mockTeamId, mockFeatureKey)
+
+        // ASSERT: Session invalidation was called with teamId
+        expect(invalidateTeamMembersSessions).toHaveBeenCalledWith(mockTeamId)
       })
     })
 

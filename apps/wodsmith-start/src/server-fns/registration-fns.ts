@@ -32,6 +32,7 @@ import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
 } from "@/lib/registration-stubs"
+import { getAppUrl } from "@/lib/env"
 // Local stripe utility (no server-only import for TanStack Start compatibility)
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -296,7 +297,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 
 		// 11. Create Stripe Checkout Session
-		const appUrl = process.env.APP_URL || "https://thewodapp.com"
+		const appUrl = getAppUrl()
 		const sessionParams: Stripe.Checkout.SessionCreateParams = {
 			mode: "payment",
 			payment_method_types: ["card"],

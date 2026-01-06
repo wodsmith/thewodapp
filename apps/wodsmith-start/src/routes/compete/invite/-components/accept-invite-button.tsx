@@ -16,6 +16,19 @@ interface AcceptInviteButtonProps {
 	competitionId?: string
 }
 
+interface AcceptResult {
+	success: boolean
+	teamId: string
+	teamSlug: string
+	teamName: string
+	registrationId: string | null
+	competitionId: string | null
+	competitionName: string | null
+	competitionSlug: string | null
+	divisionName: string | null
+	hasWaivers: boolean
+}
+
 export function AcceptInviteButton({
 	token,
 	competitionSlug,
@@ -30,8 +43,9 @@ export function AcceptInviteButton({
 	async function handleAccept() {
 		setIsPending(true)
 		try {
-			await acceptInvitation({ data: { token } })
-			toast.success("You've joined the team!")
+			const result = (await acceptInvitation({
+				data: { token },
+			})) as AcceptResult
 
 			trackEvent("competition_team_invite_accepted", {
 				competition_slug: competitionSlug,
@@ -39,8 +53,22 @@ export function AcceptInviteButton({
 				team_name: teamName,
 			})
 
-			if (competitionSlug) {
-				navigate({ to: "/compete/$slug", params: { slug: competitionSlug } })
+			// Navigate to team page with welcome param to show modal there
+			if (result.competitionSlug && result.registrationId) {
+				navigate({
+					to: "/compete/$slug/teams/$registrationId",
+					params: {
+						slug: result.competitionSlug,
+						registrationId: result.registrationId,
+					},
+					search: { welcome: true },
+				})
+			} else if (result.competitionSlug) {
+				// Fallback to competition page if no registration ID
+				navigate({
+					to: "/compete/$slug",
+					params: { slug: result.competitionSlug },
+				})
 			} else {
 				navigate({ to: "/compete" })
 			}
@@ -53,7 +81,6 @@ export function AcceptInviteButton({
 				competition_slug: competitionSlug,
 				error_message: message,
 			})
-		} finally {
 			setIsPending(false)
 		}
 	}

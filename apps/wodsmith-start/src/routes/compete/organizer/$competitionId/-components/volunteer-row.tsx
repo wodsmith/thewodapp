@@ -93,6 +93,9 @@ function parseMetadata(metadata: string | null): {
 	signupEmail?: string
 	signupPhone?: string
 	availability?: string
+	// Direct invite fields
+	inviteName?: string
+	inviteEmail?: string
 } {
 	if (!metadata)
 		return {
@@ -106,6 +109,8 @@ function parseMetadata(metadata: string | null): {
 			signupEmail?: string
 			signupPhone?: string
 			availability?: string
+			inviteName?: string
+			inviteEmail?: string
 		}
 		return {
 			roleTypes: parsed.volunteerRoleTypes ?? [],
@@ -114,6 +119,8 @@ function parseMetadata(metadata: string | null): {
 			signupEmail: parsed.signupEmail,
 			signupPhone: parsed.signupPhone,
 			availability: parsed.availability,
+			inviteName: parsed.inviteName,
+			inviteEmail: parsed.inviteEmail,
 		}
 	} catch {
 		return {
@@ -303,12 +310,19 @@ export function VolunteerRow({
 	}
 
 	const isPendingVolunteer = status === "pending"
+	// Priority: user name > signup name > invite name > invite email > "Unknown"
 	const displayName = volunteer.user
-		? `${volunteer.user.firstName ?? ""} ${volunteer.user.lastName ?? ""}`
-		: metadata.signupName || "Unknown"
+		? `${volunteer.user.firstName ?? ""} ${volunteer.user.lastName ?? ""}`.trim() ||
+			volunteer.user.email ||
+			"Unknown"
+		: metadata.signupName ||
+			metadata.inviteName ||
+			metadata.inviteEmail ||
+			"Unknown"
+	// Priority: user email > signup email > invite email > "—"
 	const displayEmail = volunteer.user
-		? volunteer.user.email
-		: metadata.signupEmail || "—"
+		? (volunteer.user.email ?? "—")
+		: metadata.signupEmail || metadata.inviteEmail || "—"
 	const availabilityLabel = getAvailabilityLabel(metadata.availability)
 
 	return (

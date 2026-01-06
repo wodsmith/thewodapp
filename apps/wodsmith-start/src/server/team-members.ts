@@ -342,21 +342,14 @@ export async function acceptTeamInvitation(token: string): Promise<{
 				competitionId?: string
 			}
 			if (metadata.competitionId) {
-				// TODO: Import and call addToCompetitionEventTeam when available
-				// const { addToCompetitionEventTeam, clearPendingTeammate } =
-				// 	await import("@/server/competitions")
-				// await addToCompetitionEventTeam(session.userId, metadata.competitionId)
+				// Add user to competition_event team
+				const { addToCompetitionEventTeam } = await import(
+					"@/server/registration"
+				)
+				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
 
-				// Clear from pendingTeammates on the registration and migrate affiliate
-				// if (session.user.email) {
-				// 	await clearPendingTeammate(
-				// 		metadata.competitionId,
-				// 		session.user.email,
-				// 		session.userId,
-				// 	)
-				// }
-
-				// Send teammate joined notification to captain
+				// Send teammate joined notification to captain (non-blocking)
+				// Notification failure shouldn't prevent user from joining the team
 				const registration =
 					await db.query.competitionRegistrationsTable.findFirst({
 						where: eq(
@@ -366,16 +359,23 @@ export async function acceptTeamInvitation(token: string): Promise<{
 					})
 
 				if (registration?.captainUserId) {
-					// TODO: Import and call notifyTeammateJoined when notifications are available
-					// const { notifyTeammateJoined } = await import(
-					// 	"@/server/notifications"
-					// )
-					// await notifyTeammateJoined({
-					// 	captainUserId: registration.captainUserId,
-					// 	newTeammateUserId: session.userId,
-					// 	competitionTeamId: invitation.teamId,
-					// 	competitionId: metadata.competitionId,
-					// })
+					try {
+						const { notifyTeammateJoined } = await import(
+							"@/server/notifications"
+						)
+						await notifyTeammateJoined({
+							captainUserId: registration.captainUserId,
+							newTeammateUserId: session.userId,
+							competitionTeamId: invitation.teamId,
+							competitionId: metadata.competitionId,
+						})
+					} catch (notifyError) {
+						// Log but don't fail - notification is non-critical
+						console.error(
+							"[team-members] Failed to send teammate joined notification:",
+							notifyError,
+						)
+					}
 				}
 			}
 		} catch {

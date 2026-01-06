@@ -12,6 +12,14 @@ import {
   syncStripeAccountStatusFn,
 } from '@/server-fns/stripe-connect-fns'
 
+// Mock cloudflare:workers env
+vi.mock('cloudflare:workers', () => ({
+  env: {
+    APP_URL: 'https://wodsmith.com',
+    STRIPE_CLIENT_ID: 'ca_test_123',
+  },
+}))
+
 // Mock the database
 const mockDb = new FakeDrizzleDb()
 
@@ -98,6 +106,8 @@ vi.mock('@tanstack/react-start', () => ({
       }),
     }
   },
+  // createServerOnlyFn just returns the function directly in tests
+  createServerOnlyFn: (fn: any) => fn,
 }))
 
 // Mock setCookie from TanStack

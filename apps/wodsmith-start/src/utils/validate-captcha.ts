@@ -1,3 +1,5 @@
+import { getTurnstileSecretKey } from "@/lib/env"
+
 interface TurnstileResponse {
 	success: boolean
 	"error-codes"?: string[]
@@ -17,7 +19,7 @@ export async function validateTurnstileToken(token: string) {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				secret: process.env.TURNSTILE_SECRET_KEY,
+				secret: getTurnstileSecretKey(),
 				response: token,
 			}),
 		},

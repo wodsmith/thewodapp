@@ -9,6 +9,8 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router"
+import { getAppUrl } from "@/lib/env"
+import { handleOAuthCallback } from "@/server/stripe-connect/accounts"
 
 export const Route = createFileRoute("/api/stripe/connect/callback")({
 	server: {
@@ -27,84 +29,13 @@ export const Route = createFileRoute("/api/stripe/connect/callback")({
 				const { parseOAuthState, STRIPE_OAUTH_STATE_COOKIE_NAME } =
 					await import("@/server-fns/stripe-connect-fns")
 
-				/**
-				 * Handle OAuth callback - exchange code for account ID
-				 */
-				async function handleOAuthCallback(
-					code: string,
-					state: string,
-				): Promise<{
-					teamId: string
-					teamSlug: string
-					accountId: string
-					status: "VERIFIED" | "PENDING"
-				}> {
-					const { getStripe } = await import("@/lib/stripe")
-					const { getDb } = await import("@/db")
-					const { teamTable } = await import("@/db/schema")
-					const { eq } = await import("drizzle-orm")
-
-					const stripe = getStripe()
-					const db = getDb()
-
-					// Decode state
-					const stateData = parseOAuthState(state)
-
-					// Exchange code for account ID
-					const response = await stripe.oauth.token({
-						grant_type: "authorization_code",
-						code,
-					})
-
-					if (!response.stripe_user_id) {
-						throw new Error("Failed to get Stripe account ID from OAuth")
-					}
-
-					// Get account details to check status
-					const account = await stripe.accounts.retrieve(
-						response.stripe_user_id,
-					)
-					const status =
-						account.charges_enabled && account.payouts_enabled
-							? "VERIFIED"
-							: "PENDING"
-
-					console.log("[Stripe OAuth] Account status check:", {
-						accountId: response.stripe_user_id,
-						chargesEnabled: account.charges_enabled,
-						payoutsEnabled: account.payouts_enabled,
-						detailsSubmitted: account.details_submitted,
-						status,
-						teamId: stateData.teamId,
-					})
-
-					// Update team
-					await db
-						.update(teamTable)
-						.set({
-							stripeConnectedAccountId: response.stripe_user_id,
-							stripeAccountStatus: status,
-							stripeAccountType: "standard",
-							stripeOnboardingCompletedAt:
-								status === "VERIFIED" ? new Date() : null,
-						})
-						.where(eq(teamTable.id, stateData.teamId))
-
-					return {
-						teamId: stateData.teamId,
-						teamSlug: stateData.teamSlug,
-						accountId: response.stripe_user_id,
-						status,
-					}
-				}
+				const appUrl = getAppUrl()
 
 				const url = new URL(request.url)
 				const code = url.searchParams.get("code")
 				const state = url.searchParams.get("state")
 				const error = url.searchParams.get("error")
 				const errorDescription = url.searchParams.get("error_description")
-
-				const appUrl = process.env.APP_URL || "https://thewodapp.com"
 
 				// Handle OAuth errors from Stripe
 				if (error) {

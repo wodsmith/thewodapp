@@ -71,6 +71,8 @@ vi.mock('@tanstack/react-start', () => ({
       }),
     }
   },
+  // Mock createServerOnlyFn - just returns the function directly for tests
+  createServerOnlyFn: <T>(fn: () => T) => fn,
 }))
 
 // Import mocked getSessionFromCookie so we can change its behavior in tests
@@ -84,7 +86,11 @@ const setMockSession = (session: unknown) => {
 }
 
 // Import server functions after mocks are set up
-import {forgotPasswordFn, resendVerificationFn} from '@/server-fns/auth-fns'
+import {
+  forgotPasswordFn,
+  getSessionFn,
+  resendVerificationFn,
+} from '@/server-fns/auth-fns'
 
 describe('auth-fns', () => {
   beforeEach(() => {
@@ -98,6 +104,47 @@ describe('auth-fns', () => {
     mockSendPasswordResetEmail.mockResolvedValue(undefined)
     mockSendVerificationEmail.mockResolvedValue(undefined)
     setMockSession(null)
+  })
+
+  describe('getSessionFn', () => {
+    it('returns null when no session exists', async () => {
+      setMockSession(null)
+
+      const result = await getSessionFn()
+
+      expect(result).toBeNull()
+    })
+
+    it('returns session data when user is authenticated', async () => {
+      setMockSession(mockAuthenticatedSession)
+
+      const result = await getSessionFn()
+
+      expect(result).toEqual(mockAuthenticatedSession)
+    })
+
+    it('returns full session with teams when available', async () => {
+      const sessionWithTeams = {
+        ...mockAuthenticatedSession,
+        teams: [
+          {
+            id: 'team-123',
+            name: 'Test Team',
+            slug: 'test-team',
+            isPersonalTeam: false,
+          },
+        ],
+      }
+      setMockSession(sessionWithTeams)
+
+      const result = await getSessionFn()
+
+      expect(result).toEqual(sessionWithTeams)
+      expect(result).not.toBeNull()
+      if (result) {
+        expect(result.teams).toHaveLength(1)
+      }
+    })
   })
 
   describe('forgotPasswordFn', () => {

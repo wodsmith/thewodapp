@@ -1,10 +1,25 @@
 "use client"
 
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
+import { useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { Loader2, UserPlus } from "lucide-react"
 import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { Captcha } from "@/components/captcha"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { signUpSchema, type SignUpInput } from "@/schemas/auth.schema"
+import { signUpFn } from "@/server-fns/auth-fns"
 
 interface InviteSignUpFormProps {
 	inviteToken: string
@@ -14,130 +29,155 @@ interface InviteSignUpFormProps {
 /**
  * Inline signup form for accepting an invite without an existing account.
  *
- * TODO: This is a simplified version that redirects to signup.
- * The full implementation would:
- * 1. Create user account inline
- * 2. Auto-accept the invite in one action
- * 3. Set up session and redirect
- *
- * For now, we redirect to the signup page with returnTo to bring them back.
+ * Creates a user account inline and redirects back to the invite page
+ * where the now-authenticated user can accept the invite.
  */
 export function InviteSignUpForm({
 	inviteToken,
 	inviteEmail,
 }: InviteSignUpFormProps) {
-	const [isPending, setIsPending] = useState(false)
-	const [formData, setFormData] = useState({
-		email: inviteEmail,
-		firstName: "",
-		lastName: "",
-		password: "",
+	const router = useRouter()
+	const [error, setError] = useState<string | null>(null)
+	const [isLoading, setIsLoading] = useState(false)
+
+	// Use useServerFn for client-side calls
+	const signUp = useServerFn(signUpFn)
+
+	const form = useForm<SignUpInput>({
+		resolver: standardSchemaResolver(signUpSchema),
+		defaultValues: {
+			email: inviteEmail,
+			firstName: "",
+			lastName: "",
+			password: "",
+		},
 	})
 
 	const emailChanged =
-		formData.email.toLowerCase() !== inviteEmail.toLowerCase()
-	const returnTo = `/compete/invite/${inviteToken}`
+		form.watch("email").toLowerCase() !== inviteEmail.toLowerCase()
 
-	// For the MVP, we'll redirect to signup with returnTo
-	// TODO: Implement inline signup with invite auto-accept
-	function handleSubmit(e: React.FormEvent) {
-		e.preventDefault()
-		setIsPending(true)
+	const onSubmit = async (data: SignUpInput) => {
+		try {
+			setIsLoading(true)
+			setError(null)
 
-		// Build signup URL with prefilled data and returnTo
-		const signupUrl = new URL("/sign-up", window.location.origin)
-		signupUrl.searchParams.set("returnTo", returnTo)
-		signupUrl.searchParams.set("email", formData.email)
-		if (formData.firstName) {
-			signupUrl.searchParams.set("firstName", formData.firstName)
+			await signUp({ data })
+
+			// After successful signup, redirect back to the invite page
+			// The user is now authenticated and can accept the invite
+			router.navigate({ to: `/compete/invite/${inviteToken}` })
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Sign-up failed"
+			setError(errorMessage)
+			console.error("Sign-up error:", err)
+		} finally {
+			setIsLoading(false)
 		}
-		if (formData.lastName) {
-			signupUrl.searchParams.set("lastName", formData.lastName)
-		}
-
-		// Redirect to signup
-		window.location.href = signupUrl.toString()
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-4">
-			<div className="space-y-2">
-				<Label htmlFor="email">Email</Label>
-				<Input
-					id="email"
-					type="email"
-					value={formData.email}
-					onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-					disabled={isPending}
-					required
-				/>
-				{emailChanged && (
-					<p className="text-xs text-muted-foreground">
-						This will update your invite email from {inviteEmail}
-					</p>
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+				{error && (
+					<Alert variant="destructive">
+						<AlertDescription>{error}</AlertDescription>
+					</Alert>
 				)}
-			</div>
 
-			<div className="grid grid-cols-2 gap-3">
-				<div className="space-y-2">
-					<Label htmlFor="firstName">First Name</Label>
-					<Input
-						id="firstName"
-						type="text"
-						value={formData.firstName}
-						onChange={(e) =>
-							setFormData({ ...formData, firstName: e.target.value })
-						}
-						disabled={isPending}
-						required
-					/>
-				</div>
-
-				<div className="space-y-2">
-					<Label htmlFor="lastName">Last Name</Label>
-					<Input
-						id="lastName"
-						type="text"
-						value={formData.lastName}
-						onChange={(e) =>
-							setFormData({ ...formData, lastName: e.target.value })
-						}
-						disabled={isPending}
-						required
-					/>
-				</div>
-			</div>
-
-			<div className="space-y-2">
-				<Label htmlFor="password">Password</Label>
-				<Input
-					id="password"
-					type="password"
-					value={formData.password}
-					onChange={(e) =>
-						setFormData({ ...formData, password: e.target.value })
-					}
-					disabled={isPending}
-					required
-					minLength={6}
-				/>
-			</div>
-
-			<div className="flex flex-col items-center gap-4 pt-2">
-				<Button type="submit" className="w-full" size="lg" disabled={isPending}>
-					{isPending ? (
-						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							Creating Account...
-						</>
-					) : (
-						<>
-							<UserPlus className="mr-2 h-4 w-4" />
-							Create Account & Join Team
-						</>
+				<FormField
+					control={form.control}
+					name="email"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Email</FormLabel>
+							<FormControl>
+								<Input type="email" disabled={isLoading} {...field} />
+							</FormControl>
+							<FormMessage />
+							{emailChanged && (
+								<p className="text-xs text-muted-foreground">
+									This will update your invite email from {inviteEmail}
+								</p>
+							)}
+						</FormItem>
 					)}
-				</Button>
-			</div>
-		</form>
+				/>
+
+				<div className="grid grid-cols-2 gap-3">
+					<FormField
+						control={form.control}
+						name="firstName"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>First Name</FormLabel>
+								<FormControl>
+									<Input disabled={isLoading} {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="lastName"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Last Name</FormLabel>
+								<FormControl>
+									<Input disabled={isLoading} {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				</div>
+
+				<FormField
+					control={form.control}
+					name="password"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Password</FormLabel>
+							<FormControl>
+								<Input
+									type="password"
+									placeholder="Min 8 chars, uppercase, lowercase, number"
+									disabled={isLoading}
+									{...field}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<div className="flex flex-col items-center gap-4 pt-2">
+					<Captcha
+						onSuccess={(token: string) => form.setValue("captchaToken", token)}
+						validationError={form.formState.errors.captchaToken?.message}
+					/>
+
+					<Button
+						type="submit"
+						className="w-full"
+						size="lg"
+						disabled={isLoading}
+					>
+						{isLoading ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Creating Account...
+							</>
+						) : (
+							<>
+								<UserPlus className="mr-2 h-4 w-4" />
+								Create Account & Join Team
+							</>
+						)}
+					</Button>
+				</div>
+			</form>
+		</Form>
 	)
 }

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { ClipboardList, Settings, Trophy, Users } from "lucide-react"
+import { ClipboardList, Settings, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -78,10 +78,6 @@ function AdminDashboardPage() {
 									<ClipboardList className="mr-2 h-4 w-4" />
 									Organizer Requests
 								</a>
-							</Button>
-							<Button variant="outline" disabled>
-								<Users className="mr-2 h-4 w-4" />
-								View Reports
 							</Button>
 						</div>
 					</CardContent>

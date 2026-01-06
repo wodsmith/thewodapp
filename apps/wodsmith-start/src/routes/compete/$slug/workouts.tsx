@@ -5,7 +5,7 @@ import { WorkoutCard } from "@/components/workout-card"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import {
-	getPublishedCompetitionWorkoutsFn,
+	getPublishedCompetitionWorkoutsWithDetailsFn,
 	getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 			getPublicCompetitionDivisionsFn({
 				data: { competitionId },
 			}),
-			getPublishedCompetitionWorkoutsFn({
+			getPublishedCompetitionWorkoutsWithDetailsFn({
 				data: { competitionId },
 			}),
 		])
@@ -111,13 +111,13 @@ function CompetitionWorkoutsPage() {
 							roundsToScore={event.workout.roundsToScore}
 							pointsMultiplier={event.pointsMultiplier}
 							notes={event.notes}
-							movements={undefined} // TODO: Add movements support
-							tags={undefined} // TODO: Add tags support
+							movements={event.workout.movements}
+							tags={event.workout.tags}
 							divisionDescriptions={
 								divisionDescriptionsResult?.descriptions ?? []
 							}
-							sponsorName={undefined} // TODO: Add sponsor support
-							sponsorLogoUrl={undefined}
+							sponsorName={event.sponsorName}
+							sponsorLogoUrl={event.sponsorLogoUrl}
 						/>
 					)
 				})}
