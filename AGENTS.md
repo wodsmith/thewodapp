@@ -1,11 +1,23 @@
-## Development Commands
+## Monorepo Structure
+
+This is a **monorepo** with multiple applications:
+
+- `apps/wodsmith` - Legacy Next.js application (being migrated)
+- `apps/wodsmith-start` - **Primary app** - TanStack Start application on Cloudflare Workers
+- `apps/docs` - Documentation site
+- `apps/posthog-proxy` - PostHog analytics proxy
+- `packages/*` - Shared packages
+
+**Focus development on `apps/wodsmith-start`** unless specifically working on other apps.
+
+## Development Commands (wodsmith-start)
+
+Run these from `apps/wodsmith-start/`:
 
 ### Build and Development
 
 - `pnpm dev` - Start development server
-- `pnpm build` - Build Next.js application
-- `pnpm build:prod` - Build for production deployment with OpenNext
-- `pnpm start` - Start production server locally
+- `pnpm build` - Build TanStack Start application
 - `pnpm preview` - Preview production build with Cloudflare
 
 ### Code Quality
@@ -14,7 +26,6 @@
 - `pnpm format` - Format code with Biome
 - `pnpm check` - Run Biome check (lint + format)
 - `pnpm type-check` - Run TypeScript type checking
-- `pnpm type-check:changed` - Type check only changed files
 
 ### Database Operations
 
@@ -22,57 +33,48 @@
 - `pnpm db:studio` - Open Drizzle Studio
 - `pnpm db:migrate:dev` - Apply migrations to local D1 database
 - `pnpm db:migrate:prod` - Apply migrations to production D1 database
-- `pnpm db:seed` - Seed local database
 
 ### Testing
 
 - `pnpm test` - Run all tests with Vitest (single run mode)
 - Test files are located in `test/` directory
-- Use `vitest.config.mjs` configuration
-
-### Email Development
-
-- `pnpm email:dev` - Start React Email development server on port 3001
-- Email templates are in `src/react-email/`
 
 ### Cloudflare
 
 - `pnpm cf-typegen` - Generate Cloudflare types (run after wrangler.jsonc changes)
-- `pnpm deploy:prod` - Deploy to production
+- `npx alchemy deploy` - Deploy using Alchemy IaC
 
-## Architecture Overview
+## Architecture Overview (wodsmith-start)
 
 ### Tech Stack
 
-- **Frontend**: Next.js 15.3.2 App Router, React 19, TypeScript
+- **Framework**: TanStack Start (React 19, TypeScript, Vinxi/Vite)
 - **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
-- **Authentication**: Lucia Auth with KV sessions
-- **Deployment**: Cloudflare Workers with OpenNext
+- **Authentication**: Custom auth with KV sessions
+- **Deployment**: Cloudflare Workers via Alchemy IaC
 - **UI**: Tailwind CSS, Shadcn UI, Radix primitives
-- **State**: Zustand (client), Server Components, NUQS (URL state)
-- **API**: Server Actions with ZSA, Next.js API routes
+- **State**: Zustand (client), TanStack Router loaders (server)
+- **API**: TanStack Start server functions (`createServerFn`)
 
-### Project Structure
+### Project Structure (wodsmith-start)
 
 ```
-src/
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication routes
-│   ├── (dashboard)/       # Main dashboard
-│   ├── (main)/            # Core app features (workouts, etc.)
-│   ├── (settings)/        # User settings
-│   ├── (admin)/           # Admin panel
-│   └── api/               # API routes
+apps/wodsmith-start/src/
+├── routes/                 # TanStack Router file-based routes
+│   ├── api/               # API routes (server handlers)
+│   └── compete/           # Competition features
 ├── components/            # React components
 ├── db/                    # Database schema and migrations
-│   ├── schemas/           # Modular schema files
+│   ├── schema.ts          # Main schema exports
 │   └── migrations/        # Auto-generated migrations
-├── server/                # Server-side business logic
-├── actions/               # Server actions
+├── server/                # Server-only business logic
+├── server-fns/            # Server functions (createServerFn)
+├── lib/                   # Shared utilities
+│   ├── env.ts             # Server-only env access (getAppUrl, etc.)
+│   └── stripe.ts          # Server-only Stripe client
 ├── utils/                 # Shared utilities
 ├── state/                 # Client state (Zustand)
-├── schemas/               # Zod validation schemas
-└── react-email/          # Email templates
+└── schemas/               # Zod validation schemas
 ```
 
 ### Multi-Tenancy
@@ -149,9 +151,52 @@ Database is modularly structured in `src/db/schemas/`:
 
 ### TanStack Start Server Functions (wodsmith-start)
 
-- **Route files must NOT import `@/db` directly** - this causes Vite to try resolving `cloudflare:workers` which only exists in the Workers runtime
-- Server functions should be defined in `src/server-fns/` files, not inline in route files
-- **When calling server functions from components**, use the `useServerFn` hook:
+#### Environment Variables
+
+**ALWAYS** use `env` from `cloudflare:workers` - never use `process.env`:
+
+```typescript
+import {env} from 'cloudflare:workers'
+
+env.DB // D1 database binding
+env.KV_SESSION // KV namespace binding
+env.APP_URL // Environment variable
+env.STRIPE_SECRET_KEY // Secret
+```
+
+**TypeScript not recognizing env vars?** If you've added new bindings in `alchemy.run.ts` and deployed with `pnpm alchemy:dev`, but TypeScript doesn't see them, run:
+
+```bash
+pnpm cf-typegen
+```
+
+This regenerates `worker-configuration.d.ts` from `wrangler.jsonc` to update the type definitions.
+
+#### Server-Only Functions with createServerOnlyFn
+
+For server-only utilities that access `cloudflare:workers` env, use `createServerOnlyFn`:
+
+```typescript
+// src/lib/env.ts
+import {createServerOnlyFn} from '@tanstack/react-start'
+import {env} from 'cloudflare:workers'
+
+export const getAppUrl = createServerOnlyFn((): string => {
+  return env.APP_URL || 'https://wodsmith.com'
+})
+```
+
+**Key difference from `createServerFn`:**
+
+- `createServerFn` - RPC callable from client, executes on server
+- `createServerOnlyFn` - ONLY runs on server, throws if called from client
+
+Functions using `createServerOnlyFn` can be imported at top-level anywhere - no dynamic imports needed.
+
+#### Server Functions (createServerFn)
+
+- Server functions should be defined in `src/server-fns/` files
+- **When calling from client components**, use the `useServerFn` hook:
 
   ```typescript
   import {useServerFn} from '@tanstack/react-start'
@@ -159,7 +204,6 @@ Database is modularly structured in `src/db/schemas/`:
 
   function MyComponent() {
     const myFn = useServerFn(myServerFn)
-
     const handleClick = async () => {
       const result = await myFn({data: {foo: 'bar'}})
     }
@@ -169,99 +213,35 @@ Database is modularly structured in `src/db/schemas/`:
 - Server functions can be called directly (without `useServerFn`) in:
   - Route loaders
   - Other server functions
-- Server functions called from client components (event handlers, effects) MUST use `useServerFn`
-
-### Debugging TanStack Start Vite Errors (wodsmith-start)
-
-When you see a Vite error like:
-
-```
-Failed to resolve import "cloudflare:workers" from "src/db/index.ts"
-```
-
-This means server-only code is being bundled into the client. Follow this debugging process:
-
-#### Step 1: Identify the Problem File
-
-1. Use the Playwright MCP browser to navigate to `http://localhost:3000`
-2. Check the error overlay - it will show the import chain
-3. The error typically traces back to a route file importing from a `server-fns/*.ts` file
-
-#### Step 2: Check for Top-Level Imports
-
-The root cause is almost always **top-level imports** in `server-fns/*.ts` files:
-
-```typescript
-// BAD - Top-level imports get bundled into client
-import {getDb} from '@/db'
-import {getSessionFromCookie} from '@/utils/auth'
-
-export const myServerFn = createServerFn({method: 'GET'}).handler(async () => {
-  const db = getDb() // This works, but the import above breaks things
-})
-```
-
-#### Step 3: Convert to Dynamic Imports
-
-Fix by using dynamic imports **inside** the handler functions:
-
-```typescript
-// GOOD - Dynamic imports only run on server
-export const myServerFn = createServerFn({method: 'GET'}).handler(async () => {
-  const {getDb} = await import('@/db')
-  const {getSessionFromCookie} = await import('@/utils/auth')
-  const db = getDb()
-})
-```
-
-#### Step 4: Check Helper Functions Too
-
-If your server-fns file exports helper functions (not wrapped in `createServerFn`), those ALSO need dynamic imports:
-
-```typescript
-// BAD - Helper function with top-level import dependency
-export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
-  const db = getDb() // getDb was imported at top level!
-  // ...
-}
-
-// GOOD - Helper function with dynamic import
-export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
-  const {getDb} = await import('@/db')
-  const {eq, and} = await import('drizzle-orm')
-  const db = getDb()
-  // ...
-}
-```
-
-#### Step 5: Incremental Testing
-
-When adding new route files or server-fns:
-
-1. Add ONE file at a time
-2. Check the browser for errors after each addition
-3. If error appears, the last file added is the culprit
-4. Fix that file's imports before continuing
-
-#### Common Problematic Imports
-
-These imports contain `cloudflare:workers` and MUST use dynamic imports:
-
-- `@/db` - Database connection
-- `@/utils/auth` - Session/auth utilities
-- `@/utils/team-auth` - Team permission utilities
-- `@/server/*` - Server-side business logic
-- `drizzle-orm` - When used with schema imports
 
 #### Safe Top-Level Imports
 
-These are safe to import at the top level:
+These can be imported at the top of any file:
 
 - `@tanstack/react-start` - Framework utilities
+- `@/lib/env` - Server-only env utilities (uses `createServerOnlyFn`)
+- `@/lib/stripe` - Server-only Stripe client (uses `createServerOnlyFn`)
+- `@/server/*` - Server-only business logic (uses `createServerOnlyFn`)
+- `@/db` - Database access (uses `cloudflare:workers` internally)
 - `zod` - Validation schemas
-- `@/db/schemas/*` - Schema type definitions (but NOT if they re-export from `@/db`)
-- `@/config/*` - Configuration constants
-- UI components from `@/components/*`
+- `@/db/schema` - Schema type definitions
+
+#### Centralized Server Utilities
+
+Use centralized utilities instead of accessing env directly:
+
+```typescript
+// GOOD - Use centralized utilities
+import {getAppUrl} from '@/lib/env'
+import {getStripe} from '@/lib/stripe'
+
+const appUrl = getAppUrl()
+const stripe = getStripe()
+
+// BAD - Direct env access scattered everywhere
+import {env} from 'cloudflare:workers'
+const appUrl = env.APP_URL || 'https://wodsmith.com'
+```
 
 ### UI Components
 
