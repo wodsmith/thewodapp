@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { getAppUrl, getStripeClientId } from "@/lib/env"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import isProd from "@/utils/is-prod"
@@ -21,18 +22,6 @@ import { requireTeamMembership } from "./requireTeamMembership"
 
 /** Cookie name for OAuth state CSRF token */
 export const STRIPE_OAUTH_STATE_COOKIE_NAME = "stripe_oauth_state"
-
-// ============================================================================
-// Stripe Connect Helpers (ported from wodsmith)
-// ============================================================================
-
-function getAppUrl(): string {
-	return process.env.APP_URL || "https://thewodapp.com"
-}
-
-function getStripeClientId(): string | undefined {
-	return process.env.STRIPE_CLIENT_ID
-}
 
 /**
  * OAuth state payload structure for Stripe Connect
@@ -453,6 +442,8 @@ export const initiateExpressOnboardingFn = createServerFn({ method: "POST" })
 			throw new Error("Team not found")
 		}
 
+		console.log("---------------------------------team", team)
+
 		// If already has account, just create new onboarding link
 		if (team.stripeConnectedAccountId) {
 			const link = await createExpressAccountLink(
@@ -468,6 +459,7 @@ export const initiateExpressOnboardingFn = createServerFn({ method: "POST" })
 			session.user.email ?? "",
 			team.name,
 		)
+		console.log("---------------------------------result", result)
 
 		return { onboardingUrl: result.onboardingUrl }
 	})
