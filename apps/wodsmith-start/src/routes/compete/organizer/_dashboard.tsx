@@ -37,7 +37,9 @@ export const Route = createFileRoute("/compete/organizer/_dashboard")({
 })
 
 function DashboardLayout() {
-	const { entitlements } = Route.useRouteContext()
+	const { entitlements } = Route.useRouteContext() as {
+		entitlements?: { isPendingApproval?: boolean }
+	}
 	const { session, canOrganize } = Route.useLoaderData()
 
 	return (
@@ -46,7 +48,7 @@ function DashboardLayout() {
 
 			<main className="container mx-auto flex-1 pt-4 sm:p-4">
 				<CompeteBreadcrumb />
-				{entitlements.isPendingApproval && (
+				{entitlements?.isPendingApproval && (
 					<PendingOrganizerBanner variant="page-container" />
 				)}
 				<Outlet />
