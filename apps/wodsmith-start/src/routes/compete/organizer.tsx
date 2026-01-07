@@ -1,7 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { FEATURES } from "@/config/features"
-import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { validateSession } from "@/server-fns/middleware/auth"
 
 /**
@@ -155,14 +154,5 @@ export const Route = createFileRoute("/compete/organizer")({
 })
 
 function OrganizerLayout() {
-	const { entitlements } = Route.useRouteContext()
-
-	return (
-		<>
-			{entitlements.isPendingApproval && (
-				<PendingOrganizerBanner variant="page-container" />
-			)}
-			<Outlet />
-		</>
-	)
+	return <Outlet />
 }

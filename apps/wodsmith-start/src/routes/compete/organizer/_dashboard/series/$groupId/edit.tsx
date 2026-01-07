@@ -11,31 +11,31 @@ import {
 } from "@/components/ui/card"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 
-export const Route = createFileRoute("/compete/organizer/series/$groupId/edit")(
-	{
-		component: EditSeriesPage,
-		loader: async ({ params, context }) => {
-			const { groupId } = params
-			const session = context.session
-			const teamId = session?.teams?.[0]?.id
+export const Route = createFileRoute(
+	"/compete/organizer/_dashboard/series/$groupId/edit",
+)({
+	component: EditSeriesPage,
+	loader: async ({ params, context }) => {
+		const { groupId } = params
+		const session = context.session
+		const teamId = session?.teams?.[0]?.id
 
-			if (!teamId) {
-				return {
-					group: null,
-					teamId: null,
-				}
-			}
-
-			// Fetch group details
-			const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
-
+		if (!teamId) {
 			return {
-				group: groupResult.group,
-				teamId,
+				group: null,
+				teamId: null,
 			}
-		},
+		}
+
+		// Fetch group details
+		const groupResult = await getCompetitionGroupByIdFn({ data: { groupId } })
+
+		return {
+			group: groupResult.group,
+			teamId,
+		}
 	},
-)
+})
 
 function EditSeriesPage() {
 	const { group, teamId } = Route.useLoaderData()

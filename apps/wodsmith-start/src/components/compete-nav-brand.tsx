@@ -1,24 +1,8 @@
 "use client"
 
-import { Link, useRouterState } from "@tanstack/react-router"
-
-function shouldHideBrand(pathname: string) {
-	// Only hide the brand on organizer routes that have the collapsible sidebar:
-	// /compete/organizer/[competitionId]/**
-	const segments = pathname.split("/").filter(Boolean)
-	return (
-		segments[0] === "compete" &&
-		segments[1] === "organizer" &&
-		segments.length >= 3
-	)
-}
+import { Link } from "@tanstack/react-router"
 
 export function CompeteNavBrand() {
-	const router = useRouterState()
-	const pathname = router.location.pathname
-
-	if (shouldHideBrand(pathname)) return null
-
 	return (
 		<Link to="/compete" className="flex items-center gap-2">
 			<img
