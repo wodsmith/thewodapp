@@ -5,7 +5,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { UAParser } from "ua-parser-js"
 import { z } from "zod"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
 import {
 	deleteKVSession,
 	getAllSessionIdsOfUser,
@@ -29,6 +29,20 @@ export const getThemeCookieFn = createServerFn({ method: "GET" }).handler(
 		const { getCookie } = await import("@tanstack/react-start/server")
 		const themeCookie = getCookie("theme") as ThemePreference | undefined
 		return themeCookie
+	},
+)
+
+// ============================================================================
+// Active Team Cookie Server Function
+// ============================================================================
+
+/**
+ * Get the active team ID from cookie for SSR.
+ * This must be a server function because getCookie is server-only.
+ */
+export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		return getActiveTeamFromCookie()
 	},
 )
 
