@@ -24,6 +24,7 @@ import {
 	setTeamLimitOverride,
 } from "@/server/organizer-onboarding"
 import { getSessionFromCookie } from "@/utils/auth"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
 // ============================================================================
 // Permission Helpers
@@ -134,6 +135,10 @@ async function submitOrganizerRequestInternal({
 		0,
 		"Organizer request pending approval",
 	)
+
+	// Refresh KV session cache to reflect the granted HOST_COMPETITIONS feature
+	// This ensures route guards see the updated plan data immediately
+	await updateAllSessionsOfUser(userId)
 
 	return request
 }

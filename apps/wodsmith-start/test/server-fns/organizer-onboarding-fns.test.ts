@@ -75,6 +75,11 @@ vi.mock('@/server/organizer-onboarding', () => ({
   setTeamLimitOverride: vi.fn(),
 }))
 
+// Mock KV session functions - updateAllSessionsOfUser is called after organizer request submission
+vi.mock('@/utils/kv-session', () => ({
+  updateAllSessionsOfUser: vi.fn().mockResolvedValue(undefined),
+}))
+
 const mockSession: SessionWithMeta = createTestSession({
   userId: 'user-123',
   teamId: 'team-123',
