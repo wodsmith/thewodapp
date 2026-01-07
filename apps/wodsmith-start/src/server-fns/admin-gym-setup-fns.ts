@@ -2,11 +2,29 @@
  * Admin Gym Setup Server Functions for TanStack Start
  * Functions for gym setup and coach management within admin team context
  *
- * IMPORTANT: Uses dynamic imports for @/db to avoid Vite bundling cloudflare:workers into client
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { eq, and, count } from "drizzle-orm"
+import { createId } from "@paralleldrive/cuid2"
+import { getDb } from "@/db"
+import { createLocationId, createSkillId } from "@/db/schemas/common"
+import {
+	locationsTable,
+	skillsTable,
+	scheduleTemplatesTable,
+	scheduledClassesTable,
+	classCatalogToSkillsTable,
+	coachToSkillsTable,
+	scheduleTemplateClassRequiredSkillsTable,
+	coachesTable,
+	coachBlackoutDatesTable,
+	coachRecurringUnavailabilityTable,
+} from "@/db/schemas/scheduling"
+import { teamTable, teamMembershipTable } from "@/db/schemas/teams"
+import { requireAdmin } from "@/utils/auth"
 
 // ============================================================================
 // Input Schemas
@@ -69,11 +87,6 @@ const deleteCoachSchema = z.object({
 export const getLocationsByTeamFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => teamIdSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { locationsTable } = await import("@/db/schemas/scheduling")
-		const { eq } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -90,11 +103,6 @@ export const getLocationsByTeamFn = createServerFn({ method: "GET" })
 export const createLocationFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createLocationSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { locationsTable } = await import("@/db/schemas/scheduling")
-		const { createLocationId } = await import("@/db/schemas/common")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -117,12 +125,6 @@ export const createLocationFn = createServerFn({ method: "POST" })
 export const deleteLocationFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => deleteLocationSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { locationsTable, scheduleTemplatesTable, scheduledClassesTable } =
-			await import("@/db/schemas/scheduling")
-		const { eq, and, count } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -166,11 +168,6 @@ export const deleteLocationFn = createServerFn({ method: "POST" })
 export const getSkillsByTeamFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => teamIdSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { skillsTable } = await import("@/db/schemas/scheduling")
-		const { eq } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -187,11 +184,6 @@ export const getSkillsByTeamFn = createServerFn({ method: "GET" })
 export const createSkillFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createSkillSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { skillsTable } = await import("@/db/schemas/scheduling")
-		const { createSkillId } = await import("@/db/schemas/common")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -213,16 +205,6 @@ export const createSkillFn = createServerFn({ method: "POST" })
 export const deleteSkillFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => deleteSkillSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const {
-			skillsTable,
-			classCatalogToSkillsTable,
-			coachToSkillsTable,
-			scheduleTemplateClassRequiredSkillsTable,
-		} = await import("@/db/schemas/scheduling")
-		const { eq, and, count } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -272,11 +254,6 @@ export const deleteSkillFn = createServerFn({ method: "POST" })
 export const updateTeamSettingsFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateTeamSettingsSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { teamTable } = await import("@/db/schemas/teams")
-		const { eq } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -299,11 +276,6 @@ export const updateTeamSettingsFn = createServerFn({ method: "POST" })
 export const getCoachesByTeamFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => teamIdSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { coachesTable } = await import("@/db/schemas/scheduling")
-		const { eq } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -326,11 +298,6 @@ export const getCoachesByTeamFn = createServerFn({ method: "GET" })
 export const getTeamMembersFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => teamIdSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { teamMembershipTable } = await import("@/db/schemas/teams")
-		const { eq, and } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -360,13 +327,6 @@ export const getTeamMembersFn = createServerFn({ method: "GET" })
 export const createCoachFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createCoachSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { coachesTable, coachToSkillsTable } = await import(
-			"@/db/schemas/scheduling"
-		)
-		const { createId } = await import("@paralleldrive/cuid2")
-
 		await requireAdmin()
 		const db = getDb()
 
@@ -401,17 +361,6 @@ export const createCoachFn = createServerFn({ method: "POST" })
 export const deleteCoachFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => deleteCoachSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const {
-			coachesTable,
-			coachToSkillsTable,
-			coachBlackoutDatesTable,
-			coachRecurringUnavailabilityTable,
-			scheduledClassesTable,
-		} = await import("@/db/schemas/scheduling")
-		const { eq, and } = await import("drizzle-orm")
-
 		await requireAdmin()
 		const db = getDb()
 

@@ -1,5 +1,7 @@
 /**
  * Invite Server Functions for TanStack Start
+ *
+ * This file uses top-level imports for server-only modules.
  * Functions for handling team and volunteer invitations
  */
 
@@ -18,6 +20,7 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import { waiversTable } from "@/db/schemas/waivers"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -539,7 +542,6 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
 						}
 
 						// Check if competition has waivers
-						const { waiversTable } = await import("@/db/schemas/waivers")
 						const waivers = await db.query.waiversTable.findMany({
 							where: eq(waiversTable.competitionId, metadata.competitionId),
 							columns: { id: true },

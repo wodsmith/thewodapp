@@ -1,13 +1,32 @@
 /**
  * Athlete Profile Server Functions for TanStack Start
  * Functions for getting and updating athlete-specific profile data
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { redirect } from "@tanstack/react-router"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
+import { getDb } from "@/db"
+import {
+	commercePurchaseTable,
+	competitionRegistrationsTable,
+	teamInvitationTable,
+	teamMembershipTable,
+	userTable,
+} from "@/db/schema"
 import { GENDER_ENUM } from "@/db/schemas/users"
+import { getStripe } from "@/lib/stripe"
+import {
+	getInvoiceDetails,
+	getUserPurchases,
+} from "@/server/commerce/purchases"
+import { getUserSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
 // ============================================================================
 // Input Schemas
@@ -151,10 +170,6 @@ export const getAthleteEditDataFn = createServerFn({ method: "GET" }).handler(
 			})
 		}
 
-		const { eq } = await import("drizzle-orm")
-		const { getDb } = await import("@/db")
-		const { userTable } = await import("@/db/schema")
-
 		const db = getDb()
 
 		const user = await db.query.userTable.findFirst({
@@ -188,11 +203,6 @@ export const updateAthleteExtendedProfileFn = createServerFn({ method: "POST" })
 		if (!session?.userId) {
 			throw new Error("Unauthorized")
 		}
-
-		const { eq } = await import("drizzle-orm")
-		const { getDb } = await import("@/db")
-		const { userTable } = await import("@/db/schema")
-		const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
 
 		const db = getDb()
 
@@ -248,10 +258,6 @@ export const updateAthleteBasicProfileFn = createServerFn({ method: "POST" })
 			throw new Error("Unauthorized")
 		}
 
-		const { getDb } = await import("@/db")
-		const { userTable } = await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-
 		const db = getDb()
 
 		await db
@@ -279,14 +285,6 @@ export const getAthleteProfileDataFn = createServerFn({
 			search: { redirect: "/compete/athlete" },
 		})
 	}
-
-	// Dynamic imports to avoid cloudflare:workers resolution in client bundle
-	const { eq, and, inArray } = await import("drizzle-orm")
-	const { getDb } = await import("@/db")
-	const { userTable, competitionRegistrationsTable, teamMembershipTable } =
-		await import("@/db/schema")
-	const { getUserSponsorsFn } = await import("@/server-fns/sponsor-fns")
-	const { autochunk } = await import("@/utils/batch-query")
 
 	const db = getDb()
 
@@ -400,7 +398,6 @@ export const getAthleteInvoicesDataFn = createServerFn({
 		})
 	}
 
-	const { getUserPurchases } = await import("@/server/commerce/purchases")
 	const purchases = await getUserPurchases(session.userId)
 
 	return { purchases }
@@ -424,7 +421,6 @@ export const getInvoiceDetailsFn = createServerFn({ method: "GET" })
 			})
 		}
 
-		const { getInvoiceDetails } = await import("@/server/commerce/purchases")
 		const invoice = await getInvoiceDetails(data.purchaseId, session.userId)
 
 		return { invoice }
@@ -464,13 +460,6 @@ export const getRegistrationSuccessDataFn = createServerFn({ method: "GET" })
 				"Unauthorized: Cannot access another user's registration data",
 			)
 		}
-
-		const { getDb } = await import("@/db")
-		const { userTable, commercePurchaseTable, teamInvitationTable } =
-			await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-		// Local stripe utility (no server-only import for TanStack Start compatibility)
-		const { getStripe } = await import("@/lib/stripe")
 
 		const db = getDb()
 

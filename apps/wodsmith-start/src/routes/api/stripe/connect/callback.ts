@@ -1,6 +1,8 @@
 /**
  * Stripe Connect OAuth Callback API Route for TanStack Start
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * Security measures:
  * 1. CSRF protection via state cookie validation
  * 2. Session validation - user must still be logged in
@@ -9,26 +11,26 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router"
+import { getCookie, deleteCookie } from "@tanstack/react-start/server"
 import { getAppUrl } from "@/lib/env"
 import { handleOAuthCallback } from "@/server/stripe-connect/accounts"
+import { getSessionFromCookie } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
+import { TEAM_PERMISSIONS } from "@/db/schema"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
+import {
+	parseOAuthState,
+	STRIPE_OAUTH_STATE_COOKIE_NAME,
+} from "@/server-fns/stripe-connect-fns"
 
 export const Route = createFileRoute("/api/stripe/connect/callback")({
 	server: {
 		handlers: {
 			GET: async ({ request }) => {
-				// Dynamic imports for server-only modules
-				const { getCookie, deleteCookie } = await import(
-					"@tanstack/react-start/server"
-				)
-				const { getSessionFromCookie } = await import("@/utils/auth")
-				const { hasTeamPermission } = await import("@/utils/team-auth")
-				const { TEAM_PERMISSIONS } = await import("@/db/schema")
-				const { logError, logInfo, logWarning } = await import(
-					"@/lib/logging/posthog-otel-logger"
-				)
-				const { parseOAuthState, STRIPE_OAUTH_STATE_COOKIE_NAME } =
-					await import("@/server-fns/stripe-connect-fns")
-
 				const appUrl = getAppUrl()
 
 				const url = new URL(request.url)

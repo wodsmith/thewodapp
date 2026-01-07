@@ -1,6 +1,8 @@
 /**
  * Organizer Onboarding Server Functions for TanStack Start
  * Handles the workflow for teams to request and receive competition organizing access
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -25,6 +27,7 @@ import {
 } from "@/server/organizer-onboarding"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
+import { validateTurnstileToken } from "@/utils/validate-captcha"
 
 // ============================================================================
 // Permission Helpers
@@ -249,10 +252,6 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => submitOrganizerRequestSchema.parse(data))
 	.handler(
 		async ({ data }): Promise<{ success: boolean; data: OrganizerRequest }> => {
-			const { validateTurnstileToken } = await import(
-				"@/utils/validate-captcha"
-			)
-
 			// Validate turnstile token if provided
 			if (data.captchaToken) {
 				const isValidCaptcha = await validateTurnstileToken(data.captchaToken)

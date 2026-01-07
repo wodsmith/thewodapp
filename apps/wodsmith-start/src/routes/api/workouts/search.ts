@@ -1,22 +1,22 @@
 /**
  * Workout Search API Route for TanStack Start
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * GET /api/workouts/search?q=<query>
  * Returns workouts matching the search query for the user's active team.
  */
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { getSessionFromCookie, getActiveOrPersonalTeamId } from "@/utils/auth"
+import { getUserWorkouts } from "@/server/workouts"
 
 export const Route = createFileRoute("/api/workouts/search")({
 	server: {
 		handlers: {
 			GET: async ({ request }) => {
 				try {
-					// Dynamic imports for server-only modules
-					const { getSessionFromCookie, getActiveOrPersonalTeamId } =
-						await import("@/utils/auth")
-
 					const session = await getSessionFromCookie()
 					if (!session?.user?.id) {
 						return json({ error: "Unauthorized" }, { status: 401 })
@@ -32,7 +32,6 @@ export const Route = createFileRoute("/api/workouts/search")({
 					}
 
 					// Get workouts for the team
-					const { getUserWorkouts } = await import("@/server/workouts")
 					const workouts = await getUserWorkouts({
 						teamId,
 						search: query,

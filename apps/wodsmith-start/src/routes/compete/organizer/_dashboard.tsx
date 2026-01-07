@@ -1,6 +1,8 @@
 /**
  * Dashboard Layout Route (Pathless)
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * Layout for organizer pages that don't have the competition sidebar.
  * Includes the CompeteNav header, main content area, and footer.
  * Shows the pending organizer banner with page-container variant.
@@ -11,11 +13,11 @@ import { createServerFn } from "@tanstack/react-start"
 import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getSessionFromCookie } from "@/utils/auth"
 
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getSessionFromCookie } = await import("@/utils/auth")
 		const session = await getSessionFromCookie()
 
 		const canOrganize = session?.teams

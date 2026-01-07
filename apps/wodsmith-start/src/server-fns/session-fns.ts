@@ -1,8 +1,11 @@
 /**
  * Session Management Server Functions for TanStack Start
  * Handles listing and revoking user sessions
+ *
+ * This file uses top-level imports for server-only modules.
  */
 import { createServerFn } from "@tanstack/react-start"
+import { getCookie } from "@tanstack/react-start/server"
 import { UAParser } from "ua-parser-js"
 import { z } from "zod"
 import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
@@ -26,7 +29,6 @@ type ThemePreference = "light" | "dark" | "system"
  */
 export const getThemeCookieFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { getCookie } = await import("@tanstack/react-start/server")
 		const themeCookie = getCookie("theme") as ThemePreference | undefined
 		return themeCookie
 	},

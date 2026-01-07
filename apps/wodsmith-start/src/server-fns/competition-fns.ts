@@ -1,6 +1,8 @@
 /**
  * Competition Server Functions for TanStack Start
  * Port of competition logic from wodsmith app
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -14,6 +16,14 @@ import {
 	competitionsTable,
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import {
+	createCompetition,
+	createCompetitionGroup,
+	deleteCompetitionGroup,
+	updateCompetition,
+	updateCompetitionGroup,
+} from "@/server-fns/competition-server-logic"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -493,16 +503,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 export const createCompetitionFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createCompetitionInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { logInfo, logError } = await import(
-			"@/lib/logging/posthog-otel-logger"
-		)
-
 		try {
-			// Import createCompetition from server functions
-			const { createCompetition } = await import(
-				"@/server-fns/competition-server-logic"
-			)
-
 			const result = await createCompetition({
 				organizingTeamId: data.organizingTeamId,
 				name: data.name,
@@ -550,10 +551,6 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 export const updateCompetitionFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateCompetitionInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { logInfo, logError } = await import(
-			"@/lib/logging/posthog-otel-logger"
-		)
-
 		// Auth check: require authenticated user
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
@@ -590,11 +587,6 @@ export const updateCompetitionFn = createServerFn({ method: "POST" })
 		}
 
 		try {
-			// Import updateCompetition from server functions
-			const { updateCompetition } = await import(
-				"@/server-fns/competition-server-logic"
-			)
-
 			const { competitionId, ...updates } = data
 
 			const competition = await updateCompetition(competitionId, updates)
@@ -697,16 +689,7 @@ export const createCompetitionGroupFn = createServerFn({ method: "POST" })
 		createCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { logInfo, logError } = await import(
-			"@/lib/logging/posthog-otel-logger"
-		)
-
 		try {
-			// Import createCompetitionGroup from server functions
-			const { createCompetitionGroup } = await import(
-				"@/server-fns/competition-server-logic"
-			)
-
 			const result = await createCompetitionGroup({
 				organizingTeamId: data.organizingTeamId,
 				name: data.name,
@@ -745,16 +728,7 @@ export const updateCompetitionGroupFn = createServerFn({ method: "POST" })
 		updateCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { logInfo, logError } = await import(
-			"@/lib/logging/posthog-otel-logger"
-		)
-
 		try {
-			// Import updateCompetitionGroup from server functions
-			const { updateCompetitionGroup } = await import(
-				"@/server-fns/competition-server-logic"
-			)
-
 			const { groupId, ...updates } = data
 
 			const group = await updateCompetitionGroup(groupId, updates)
@@ -787,16 +761,7 @@ export const deleteCompetitionGroupFn = createServerFn({ method: "POST" })
 		deleteCompetitionGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { logInfo, logError } = await import(
-			"@/lib/logging/posthog-otel-logger"
-		)
-
 		try {
-			// Import deleteCompetitionGroup from server functions
-			const { deleteCompetitionGroup } = await import(
-				"@/server-fns/competition-server-logic"
-			)
-
 			const result = await deleteCompetitionGroup(data.groupId)
 
 			logInfo({
