@@ -22,7 +22,6 @@ export const Route = createFileRoute("/_protected/settings/teams/")({
 		try {
 			const result = await getUserTeamsFn()
 
-			console.log("------result", result)
 			if (!result.success) {
 				return { teams: [] as Team[], emailNotVerified: false }
 			}
@@ -41,7 +40,6 @@ export const Route = createFileRoute("/_protected/settings/teams/")({
 function TeamsPage() {
 	const { teams, emailNotVerified } = Route.useLoaderData()
 
-	console.log("------emailNotVerified", emailNotVerified)
 	if (emailNotVerified) {
 		return <EmailVerificationRequired />
 	}
