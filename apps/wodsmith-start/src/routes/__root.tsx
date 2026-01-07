@@ -13,7 +13,7 @@ import { Toaster } from "sonner"
 import MainNav from "@/components/nav/main-nav"
 import { PostHogProvider } from "@/lib/posthog/provider"
 import { getOptionalSession } from "@/server-fns/middleware/auth"
-import { getThemeCookieFn } from "@/server-fns/session-fns"
+import { getActiveTeamIdFn, getThemeCookieFn } from "@/server-fns/session-fns"
 
 import appCss from "../styles.css?url"
 
@@ -45,7 +45,9 @@ export const Route = createRootRoute({
 		// For 'system' or no cookie, default to light (inline script handles client correction)
 		const themeCookie = await getThemeCookieFn()
 		const ssrTheme = themeCookie === "dark" ? "dark" : "light"
-		return { session, ssrTheme }
+		// Get active team ID from cookie for team switcher
+		const activeTeamId = await getActiveTeamIdFn()
+		return { session, ssrTheme, activeTeamId }
 	},
 
 	component: RootComponent,
@@ -54,7 +56,7 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
-	const { session } = Route.useRouteContext()
+	const { session, activeTeamId } = Route.useRouteContext()
 	const location = useLocation()
 
 	// Don't render MainNav on routes that have their own navigation
@@ -63,7 +65,9 @@ function RootComponent() {
 
 	return (
 		<>
-			{!isCompeteRoute && !isAdminRoute && <MainNav session={session} />}
+			{!isCompeteRoute && !isAdminRoute && (
+				<MainNav session={session} activeTeamId={activeTeamId} />
+			)}
 			<Outlet />
 		</>
 	)

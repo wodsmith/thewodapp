@@ -13,12 +13,14 @@ import {
 import type { SessionValidationResult } from "@/types"
 import { DarkModeToggle } from "./dark-mode-toggle"
 import LogoutButton from "./logout-button"
+import { NavTeamSwitcher } from "./nav-team-switcher"
 
 interface MobileNavProps {
 	session: SessionValidationResult
+	activeTeamId: string | null
 }
 
-export default function MobileNav({ session }: MobileNavProps) {
+export default function MobileNav({ session, activeTeamId }: MobileNavProps) {
 	const [open, setOpen] = useState(false)
 
 	const handleLinkClick = () => {
@@ -47,6 +49,20 @@ export default function MobileNav({ session }: MobileNavProps) {
 					</Link>
 					{session?.user ? (
 						<>
+							{/* Team Switcher - filter out competition-related teams */}
+							<div className="mb-2">
+								<NavTeamSwitcher
+									teams={
+										session.teams?.filter(
+											(t) =>
+												t.type !== "competition_event" &&
+												t.type !== "competition_team",
+										) ?? []
+									}
+									activeTeamId={activeTeamId}
+								/>
+							</div>
+							<hr className="my-2" />
 							<Link
 								to="/workouts"
 								search={{ view: "row", q: "" }}
