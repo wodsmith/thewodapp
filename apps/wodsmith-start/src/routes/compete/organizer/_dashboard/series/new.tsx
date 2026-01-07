@@ -10,7 +10,9 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 
-export const Route = createFileRoute("/compete/organizer/series/new")({
+export const Route = createFileRoute(
+	"/compete/organizer/_dashboard/series/new",
+)({
 	component: NewSeriesPage,
 	loader: async ({ context }) => {
 		const session = context.session

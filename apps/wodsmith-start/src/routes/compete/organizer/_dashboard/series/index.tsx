@@ -4,7 +4,7 @@ import { OrganizerSeriesList } from "@/components/organizer-series-list"
 import { Button } from "@/components/ui/button"
 import { getCompetitionGroupsFn } from "@/server-fns/competition-fns"
 
-export const Route = createFileRoute("/compete/organizer/series/")({
+export const Route = createFileRoute("/compete/organizer/_dashboard/series/")({
 	loader: async ({ context }) => {
 		const session = context.session
 

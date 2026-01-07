@@ -16,7 +16,7 @@ const searchSchema = z.object({
 	groupId: z.string().optional(),
 })
 
-export const Route = createFileRoute("/compete/organizer/new")({
+export const Route = createFileRoute("/compete/organizer/_dashboard/new")({
 	component: NewCompetitionPage,
 	validateSearch: searchSchema,
 	loader: async ({ context }) => {

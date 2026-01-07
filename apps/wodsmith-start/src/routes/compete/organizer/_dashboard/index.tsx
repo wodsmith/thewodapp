@@ -10,7 +10,7 @@ import {
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
 import { setActiveTeamFn } from "@/server-fns/team-settings-fns"
 
-export const Route = createFileRoute("/compete/organizer/")({
+export const Route = createFileRoute("/compete/organizer/_dashboard/")({
 	component: OrganizerDashboard,
 	loader: async () => {
 		// Get teams that can organize competitions (non-personal, with HOST_COMPETITIONS)

@@ -1,16 +1,23 @@
-import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router"
+/**
+ * Dashboard Layout Route (Pathless)
+ *
+ * Layout for organizer pages that don't have the competition sidebar.
+ * Includes the CompeteNav header, main content area, and footer.
+ * Shows the pending organizer banner with page-container variant.
+ */
+
+import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
+import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 
-// Server function to get session and permissions
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 	async () => {
 		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
 		const { getSessionFromCookie } = await import("@/utils/auth")
 		const session = await getSessionFromCookie()
 
-		// Check if user has MANAGE_COMPETITIONS permission in any team
 		const canOrganize = session?.teams
 			? session.teams.some((team) =>
 					team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
@@ -21,30 +28,17 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 	},
 )
 
-export const Route = createFileRoute("/compete")({
-	component: CompeteLayout,
+export const Route = createFileRoute("/compete/organizer/_dashboard")({
+	component: DashboardLayout,
 	loader: async () => {
 		const { session, canOrganize } = await getCompeteNavDataFn()
 		return { session, canOrganize }
 	},
 })
 
-function CompeteLayout() {
+function DashboardLayout() {
+	const { entitlements } = Route.useRouteContext()
 	const { session, canOrganize } = Route.useLoaderData()
-	const location = useLocation()
-
-	// Check if we're on an organizer route that uses its own layout
-	// - _dashboard routes: have their own layout with CompeteNav
-	// - $competitionId routes: have sidebar layout
-	// - onboard routes: have their own layout
-	const isOrganizerRoute =
-		location.pathname === "/compete/organizer" ||
-		location.pathname.startsWith("/compete/organizer/")
-
-	// Organizer routes have their own layouts (dashboard or competition sidebar)
-	if (isOrganizerRoute) {
-		return <Outlet />
-	}
 
 	return (
 		<div className="flex min-h-screen flex-col">
@@ -52,6 +46,9 @@ function CompeteLayout() {
 
 			<main className="container mx-auto flex-1 pt-4 sm:p-4">
 				<CompeteBreadcrumb />
+				{entitlements.isPendingApproval && (
+					<PendingOrganizerBanner variant="page-container" />
+				)}
 				<Outlet />
 			</main>
 
