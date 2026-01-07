@@ -1,6 +1,10 @@
 import { env } from "cloudflare:workers"
+import { eq } from "drizzle-orm"
 import { getRequestHeaders } from "@tanstack/react-start/server"
 import { MAX_SESSIONS_PER_USER } from "@/constants"
+import { getDb } from "@/db"
+import { teamMembershipTable } from "@/db/schema"
+import { getUserEntitlements } from "@/server/entitlements"
 import { getUserFromDB, getUserTeamsWithPermissions } from "@/utils/auth"
 import { getIP } from "./get-IP"
 
@@ -125,7 +129,6 @@ export async function createKVSession({
 	}
 
 	// Load user's active entitlements
-	const { getUserEntitlements } = await import("@/server/entitlements")
 	const entitlements = await getUserEntitlements(userId)
 
 	// Get Cloudflare geo info from headers (set by CF)
@@ -239,7 +242,6 @@ export async function updateKVSession(
 	const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
 
 	// Load user's active entitlements
-	const { getUserEntitlements } = await import("@/server/entitlements")
 	const entitlements = await getUserEntitlements(userId)
 
 	const updatedSession: KVSession = {
@@ -326,7 +328,6 @@ export async function updateAllSessionsOfUser(userId: string) {
 	const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
 
 	// Load user's active entitlements
-	const { getUserEntitlements } = await import("@/server/entitlements")
 	const entitlements = await getUserEntitlements(userId)
 
 	for (const sessionObj of sessions) {
@@ -381,10 +382,6 @@ export async function invalidateUserSessions(userId: string): Promise<void> {
 export async function invalidateTeamMembersSessions(
 	teamId: string,
 ): Promise<void> {
-	const { getDb } = await import("@/db")
-	const { teamMembershipTable } = await import("@/db/schema")
-	const { eq } = await import("drizzle-orm")
-
 	const db = getDb()
 
 	// Get all team members

@@ -1,17 +1,21 @@
 /**
  * Team Server Functions for TanStack Start
  * Functions for team page features (leaderboards, team info)
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
+import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveTeamId } from "@/utils/team-auth"
 
 // ===========================
 // Type Definitions
@@ -336,8 +340,6 @@ export const getTeamSlugFn = createServerFn({ method: "GET" })
  */
 export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		// Use dynamic import to avoid bundling issues
-		const { getActiveTeamId } = await import("@/utils/team-auth")
 		return getActiveTeamId()
 	},
 )
@@ -361,10 +363,6 @@ export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
  */
 export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		// Use dynamic imports to avoid bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { FEATURES } = await import("@/config/features")
-
 		const session = await getSessionFromCookie()
 		if (!session?.teams?.length) {
 			return { teams: [] }

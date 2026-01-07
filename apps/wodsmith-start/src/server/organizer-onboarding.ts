@@ -1,18 +1,28 @@
 /**
  * Organizer Onboarding Server Functions
+ * This file uses top-level imports for server-only modules.
  * Handles the workflow for teams to request and receive competition organizing access
  */
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
 import { getDb } from "@/db"
 import {
+	featureTable,
 	ORGANIZER_REQUEST_STATUS,
 	type OrganizerRequest,
 	organizerRequestTable,
+	teamEntitlementOverrideTable,
+	teamFeatureEntitlementTable,
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
+import {
+	sendOrganizerApprovalEmail,
+	sendOrganizerRejectionEmail,
+} from "@/utils/email"
+import { invalidateTeamMembersSessions } from "@/utils/kv-session"
 
 /**
  * Grant a feature entitlement to a team
@@ -24,10 +34,6 @@ export async function grantTeamFeature(
 	featureKey: string,
 ): Promise<void> {
 	const db = getDb()
-	const { eq } = await import("drizzle-orm")
-	const { featureTable, teamFeatureEntitlementTable } = await import(
-		"@/db/schema"
-	)
 
 	// Look up feature by key to get its ID
 	const feature = await db.query.featureTable.findFirst({
@@ -59,7 +65,6 @@ export async function grantTeamFeature(
 
 	// Invalidate sessions for all team members so they get the new feature
 	// This ensures team.plan.features is updated in their cached session
-	const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
 	await invalidateTeamMembersSessions(teamId)
 }
 
@@ -72,10 +77,6 @@ export async function revokeTeamFeature(
 	featureKey: string,
 ): Promise<void> {
 	const db = getDb()
-	const { eq, and } = await import("drizzle-orm")
-	const { featureTable, teamFeatureEntitlementTable } = await import(
-		"@/db/schema"
-	)
 
 	// Look up feature by key to get its ID
 	const feature = await db.query.featureTable.findFirst({
@@ -99,7 +100,6 @@ export async function revokeTeamFeature(
 
 	// Invalidate sessions for all team members so they lose the feature
 	// This ensures team.plan.features is updated in their cached session
-	const { invalidateTeamMembersSessions } = await import("@/utils/kv-session")
 	await invalidateTeamMembersSessions(teamId)
 }
 
@@ -115,7 +115,6 @@ export async function setTeamLimitOverride(
 	reason?: string,
 ): Promise<void> {
 	const db = getDb()
-	const { teamEntitlementOverrideTable } = await import("@/db/schema")
 
 	await db
 		.insert(teamEntitlementOverrideTable)
@@ -137,14 +136,6 @@ export async function setTeamLimitOverride(
 				reason,
 			},
 		})
-}
-
-// Dynamic import helper for logging (avoids Vite bundling issues)
-async function getLogger() {
-	const { logInfo, logError } = await import(
-		"@/lib/logging/posthog-otel-logger"
-	)
-	return { logInfo, logError }
 }
 
 export interface OrganizerRequestWithDetails extends OrganizerRequest {
@@ -232,7 +223,6 @@ export async function submitOrganizerRequest({
 		"Organizer request pending approval",
 	)
 
-	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request submitted",
 		attributes: { teamId, userId, requestId: request.id },
@@ -321,7 +311,6 @@ export async function getAllOrganizerRequests({
 	>()
 
 	if (reviewerIds.length > 0) {
-		const { inArray } = await import("drizzle-orm")
 		const reviewers = await db
 			.select({
 				id: userTable.id,
@@ -413,7 +402,6 @@ export async function approveOrganizerRequest({
 		"Organizer request approved",
 	)
 
-	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request approved",
 		attributes: {
@@ -435,7 +423,6 @@ export async function approveOrganizerRequest({
 	})
 
 	if (requester?.email && team) {
-		const { sendOrganizerApprovalEmail } = await import("@/utils/email")
 		await sendOrganizerApprovalEmail({
 			email: requester.email,
 			recipientName:
@@ -500,7 +487,6 @@ export async function rejectOrganizerRequest({
 		await revokeTeamFeature(request.teamId, FEATURES.HOST_COMPETITIONS)
 	}
 
-	const { logInfo } = await getLogger()
 	logInfo({
 		message: "[organizer-onboarding] Organizer request rejected",
 		attributes: {
@@ -523,7 +509,6 @@ export async function rejectOrganizerRequest({
 	})
 
 	if (requester?.email && team) {
-		const { sendOrganizerRejectionEmail } = await import("@/utils/email")
 		await sendOrganizerRejectionEmail({
 			email: requester.email,
 			recipientName:

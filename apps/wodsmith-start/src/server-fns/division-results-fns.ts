@@ -1,6 +1,8 @@
 /**
  * Division Results Publishing Server Functions for TanStack Start
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * Handles publishing/unpublishing division results for competitions.
  * Results publishing controls visibility of division leaderboards/results to athletes.
  *
@@ -9,7 +11,23 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { z } from "zod"
+import { getDb } from "@/db"
+import {
+	competitionsTable,
+	competitionRegistrationsTable,
+} from "@/db/schemas/competitions"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
+import { scoresTable } from "@/db/schemas/scores"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { workouts as workoutsTable } from "@/db/schemas/workouts"
+import { getSessionFromCookie } from "@/utils/auth"
+import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types
@@ -162,21 +180,6 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 		}): Promise<
 			EventDivisionResultsStatusResponse | AllEventsResultsStatusResponse
 		> => {
-			const { getDb } = await import("@/db")
-			const { eq, and, sql, inArray, isNotNull } = await import("drizzle-orm")
-			const { competitionsTable, competitionRegistrationsTable } = await import(
-				"@/db/schemas/competitions"
-			)
-			const { scalingLevelsTable } = await import("@/db/schemas/scaling")
-			const { scoresTable } = await import("@/db/schemas/scores")
-			const { trackWorkoutsTable, programmingTracksTable } = await import(
-				"@/db/schemas/programming"
-			)
-			const { workouts: workoutsTable } = await import("@/db/schemas/workouts")
-			const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-			const { getSessionFromCookie } = await import("@/utils/auth")
-			const { autochunk } = await import("@/utils/batch-query")
-
 			// Verify authentication
 			const session = await getSessionFromCookie()
 			if (!session?.userId) {
@@ -471,12 +474,6 @@ export const publishDivisionResultsFn = createServerFn({ method: "POST" })
 		async ({
 			data,
 		}): Promise<{ success: boolean; publishedAt: Date | null }> => {
-			const { getDb } = await import("@/db")
-			const { eq } = await import("drizzle-orm")
-			const { competitionsTable } = await import("@/db/schemas/competitions")
-			const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-			const { getSessionFromCookie } = await import("@/utils/auth")
-
 			// Verify authentication
 			const session = await getSessionFromCookie()
 			if (!session?.userId) {
@@ -550,13 +547,6 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
 	)
 	.handler(
 		async ({ data }): Promise<{ success: boolean; updatedCount: number }> => {
-			const { getDb } = await import("@/db")
-			const { eq } = await import("drizzle-orm")
-			const { competitionsTable } = await import("@/db/schemas/competitions")
-			const { scalingLevelsTable } = await import("@/db/schemas/scaling")
-			const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-			const { getSessionFromCookie } = await import("@/utils/auth")
-
 			// Verify authentication
 			const session = await getSessionFromCookie()
 			if (!session?.userId) {

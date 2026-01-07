@@ -1,13 +1,16 @@
+/**
+ * This file uses top-level imports for server-only modules.
+ */
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getSessionFromCookie } from "@/utils/auth"
 
 // Server function to get session and permissions
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getSessionFromCookie } = await import("@/utils/auth")
 		const session = await getSessionFromCookie()
 
 		// Check if user has MANAGE_COMPETITIONS permission in any team

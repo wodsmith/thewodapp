@@ -1,11 +1,20 @@
 /**
  * Competition Registration Route
  * Port from apps/wodsmith/src/app/(compete)/compete/(public)/[slug]/register/page.tsx
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
+import { getDb } from "@/db"
+import {
+	competitionRegistrationsTable,
+	scalingGroupsTable,
+	userTable,
+} from "@/db/schema"
 import { RegistrationForm } from "@/components/registration/registration-form"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
@@ -27,10 +36,6 @@ const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { competitionRegistrationsTable } = await import("@/db/schema")
-		const { and, eq } = await import("drizzle-orm")
-
 		const db = getDb()
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
@@ -53,10 +58,6 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		z.object({ scalingGroupId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable } = await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-
 		const db = getDb()
 		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
 			where: eq(scalingGroupsTable.id, data.scalingGroupId),
@@ -76,10 +77,6 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 		z.object({ userId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { userTable } = await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-
 		const db = getDb()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),

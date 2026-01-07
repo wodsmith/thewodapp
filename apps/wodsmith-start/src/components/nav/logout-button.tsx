@@ -1,17 +1,24 @@
+/**
+ * Logout Button Component
+ *
+ * This file uses top-level imports for server-only modules.
+ */
 "use client"
 
+import { encodeHexLowerCase } from "@oslojs/encoding"
 import { createServerFn } from "@tanstack/react-start"
+import { getCookie } from "@tanstack/react-start/server"
 import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SESSION_COOKIE_NAME } from "@/constants"
+import {
+	deleteActiveTeamCookie,
+	deleteSessionTokenCookie,
+	invalidateSession,
+} from "@/utils/auth"
 
 // Server function to handle logout
 const logoutServerFn = createServerFn({ method: "POST" }).handler(async () => {
-	const { deleteSessionTokenCookie, deleteActiveTeamCookie } = await import(
-		"@/utils/auth"
-	)
-	const { getCookie } = await import("@tanstack/react-start/server")
-	const { SESSION_COOKIE_NAME } = await import("@/constants")
-
 	const sessionCookie = getCookie(SESSION_COOKIE_NAME)
 
 	if (sessionCookie) {
@@ -22,9 +29,6 @@ const logoutServerFn = createServerFn({ method: "POST" }).handler(async () => {
 			const token = parts[1]
 
 			// Generate session ID from token and invalidate it
-			const { invalidateSession } = await import("@/utils/auth")
-			const { encodeHexLowerCase } = await import("@oslojs/encoding")
-
 			const hashBuffer = await crypto.subtle.digest(
 				"SHA-256",
 				new TextEncoder().encode(token),

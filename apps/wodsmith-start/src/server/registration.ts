@@ -1,5 +1,6 @@
 /**
  * Registration Server Module for TanStack Start
+ * This file uses top-level imports for server-only modules.
  * Ported from apps/wodsmith/src/server/competitions.ts and notifications/compete.ts
  *
  * Contains the core registration logic for competitions:
@@ -21,7 +22,11 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
+import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 
 // ============================================================================
@@ -140,9 +145,6 @@ async function inviteUserToTeamInternal({
 }> {
 	const db = getDb()
 
-	// Dynamic import for kv-session
-	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
-
 	// Check if user already exists
 	const existingUser = await db.query.userTable.findFirst({
 		where: eq(userTable.email, email.toLowerCase()),
@@ -243,7 +245,6 @@ async function inviteUserToTeamInternal({
 				"Your team captain"
 			: "Your team captain"
 
-		const { sendCompetitionTeamInviteEmail } = await import("@/utils/email")
 		await sendCompetitionTeamInviteEmail({
 			email: email.toLowerCase(),
 			invitationToken: token,
@@ -325,9 +326,6 @@ export async function registerForCompetition(
 	params: RegisterForCompetitionParams,
 ): Promise<RegisterForCompetitionResult> {
 	const db = getDb()
-
-	// Dynamic imports for kv-session (uses cloudflare: imports)
-	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
 
 	// 1. Validate competition exists
 	const competition = await getCompetition(params.competitionId)
@@ -789,15 +787,6 @@ export async function notifyRegistrationConfirmed(
 	const { userId, registrationId, competitionId, isPaid, amountPaidCents } =
 		params
 
-	// Dynamic imports for logging and email (avoid server-only issues)
-	const { logInfo, logError } = await import(
-		"@/lib/logging/posthog-otel-logger"
-	)
-	const { sendEmail } = await import("@/utils/email")
-	const { RegistrationConfirmationEmail } = await import(
-		"@/react-email/registration-confirmation"
-	)
-
 	try {
 		const db = getDb()
 
@@ -914,9 +903,6 @@ export async function addToCompetitionEventTeam(
 	competitionId: string,
 ): Promise<void> {
 	const db = getDb()
-
-	// Dynamic import for kv-session (uses cloudflare: imports)
-	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
 
 	// Get competition to find the competition_event team
 	const competition = await db.query.competitionsTable.findFirst({

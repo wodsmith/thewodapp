@@ -1,13 +1,13 @@
 /**
  * Authentication middleware server functions for TanStack Start
  *
- * IMPORTANT: All server-only imports must use dynamic imports inside handlers
- * to avoid bundling cloudflare:workers into client bundle.
+ * This file uses top-level imports for server-only modules.
  */
 
 import { redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import type { SessionValidationResult } from "@/types"
+import { getSessionFromCookie } from "@/utils/auth"
 
 /**
  * Server function to validate user session
@@ -16,7 +16,6 @@ import type { SessionValidationResult } from "@/types"
 export const validateSession = createServerFn({
 	method: "GET",
 }).handler(async (): Promise<SessionValidationResult> => {
-	const { getSessionFromCookie } = await import("@/utils/auth")
 	const session = await getSessionFromCookie()
 
 	if (!session) {
@@ -36,7 +35,6 @@ export const validateSession = createServerFn({
 export const getOptionalSession = createServerFn({
 	method: "GET",
 }).handler(async (): Promise<SessionValidationResult | null> => {
-	const { getSessionFromCookie } = await import("@/utils/auth")
 	const session = await getSessionFromCookie()
 	return session
 })

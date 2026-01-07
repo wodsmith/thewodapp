@@ -1,7 +1,18 @@
+/**
+ * This file uses top-level imports for server-only modules.
+ */
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { FEATURES } from "@/config/features"
+import { LIMITS } from "@/config/limits"
+import {
+	hasFeature,
+	isTeamPendingOrganizer,
+	getTeamLimit,
+} from "@/server/entitlements"
 import { validateSession } from "@/server-fns/middleware/auth"
+import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveTeamId } from "@/utils/team-auth"
 
 /**
  * Organizer Entitlement State for the active organizing team
@@ -21,8 +32,6 @@ export interface OrganizerEntitlementState {
  * Check if the user has ANY team with HOST_COMPETITIONS entitlement
  * and determine the active organizing team.
  *
- * Uses dynamic imports to avoid bundling cloudflare:workers into client.
- *
  * Priority for active organizing team:
  * 1. Cookie value (if that team has HOST_COMPETITIONS)
  * 2. First team with HOST_COMPETITIONS
@@ -30,14 +39,6 @@ export interface OrganizerEntitlementState {
  */
 const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 	async (): Promise<OrganizerEntitlementState> => {
-		// Dynamic imports for server-only modules
-		const { getActiveTeamId } = await import("@/utils/team-auth")
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { hasFeature, isTeamPendingOrganizer, getTeamLimit } = await import(
-			"@/server/entitlements"
-		)
-		const { LIMITS } = await import("@/config/limits")
-
 		const session = await getSessionFromCookie()
 		if (!session?.teams?.length) {
 			return {

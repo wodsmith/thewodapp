@@ -1,11 +1,20 @@
 /**
  * Admin Server Functions for TanStack Start
  * Functions for site-wide admin operations (require ADMIN role)
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import { desc } from "drizzle-orm"
+import { getDb } from "@/db"
+import {
+	competitionsTable,
+	type Competition,
+	type CompetitionGroup,
+} from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
+import { requireAdmin } from "@/utils/auth"
 
 // ============================================================================
 // Types
@@ -29,11 +38,6 @@ export interface AdminCompetition extends Competition {
 export const getAllCompetitionsForAdminFn = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	const { requireAdmin } = await import("@/utils/auth")
-	const { getDb } = await import("@/db")
-	const { competitionsTable } = await import("@/db/schemas/competitions")
-	const { desc } = await import("drizzle-orm")
-
 	// Require site admin role
 	const session = await requireAdmin()
 	if (!session) {

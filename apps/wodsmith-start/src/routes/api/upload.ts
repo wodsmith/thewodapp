@@ -1,6 +1,8 @@
 /**
  * File Upload API Route for TanStack Start
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * Handles image uploads to R2 with purpose-based configuration:
  * - competition-profile: Competition profile images (5MB max)
  * - competition-banner: Competition banner images (5MB max)
@@ -12,6 +14,13 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { env } from "cloudflare:workers"
+import { getSessionFromCookie } from "@/utils/auth"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { hasTeamPermission } from "@/utils/team-auth"
+import { getDb } from "@/db"
+import { competitionsTable } from "@/db/schema"
+import { eq } from "drizzle-orm"
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
@@ -34,12 +43,6 @@ export const Route = createFileRoute("/api/upload")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
-				// Dynamic imports for server-only modules
-				const { getSessionFromCookie } = await import("@/utils/auth")
-				const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-				const { hasTeamPermission } = await import("@/utils/team-auth")
-				const { env } = await import("cloudflare:workers")
-
 				/**
 				 * Check if user has permission to upload for the given entity
 				 */
@@ -50,10 +53,6 @@ export const Route = createFileRoute("/api/upload")({
 				): Promise<{ authorized: boolean; error?: string }> {
 					// Competition uploads require team permission
 					if (purpose.startsWith("competition-") && entityId) {
-						const { getDb } = await import("@/db")
-						const { competitionsTable } = await import("@/db/schema")
-						const { eq } = await import("drizzle-orm")
-
 						const db = getDb()
 						const competition = await db.query.competitionsTable.findFirst({
 							where: eq(competitionsTable.id, entityId),

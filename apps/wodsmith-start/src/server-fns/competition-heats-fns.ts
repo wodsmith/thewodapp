@@ -1,6 +1,8 @@
 /**
  * Competition Heats Server Functions for TanStack Start
  * Port from apps/wodsmith/src/server/competition-heats.ts
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
@@ -20,8 +22,10 @@ import {
 	trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
+import { getSessionFromCookie } from "@/utils/auth"
 import { chunk, SQL_BATCH_SIZE } from "@/utils/batch-query"
 
 // ============================================================================
@@ -1638,9 +1642,6 @@ export const getHeatPublishStatusFn = createServerFn({ method: "GET" })
 export const publishHeatScheduleFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => publishHeatScheduleInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getSessionFromCookie } = await import("@/utils/auth")
-
 		// Verify authentication
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
@@ -1680,9 +1681,6 @@ export const publishAllHeatsForEventFn = createServerFn({ method: "POST" })
 		publishAllHeatsForEventInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getSessionFromCookie } = await import("@/utils/auth")
-
 		// Verify authentication
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {

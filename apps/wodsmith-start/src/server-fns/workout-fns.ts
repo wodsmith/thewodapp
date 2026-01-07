@@ -1,6 +1,8 @@
 /**
  * Workout Server Functions for TanStack Start
  * Port of getUserWorkouts logic from wodsmith app
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createId } from "@paralleldrive/cuid2"
@@ -19,6 +21,7 @@ import {
 } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { createScheduledWorkoutInstanceId } from "@/db/schemas/common"
 import {
 	programmingTracksTable,
 	scheduledWorkoutInstancesTable,
@@ -489,14 +492,6 @@ export const scheduleWorkoutFn = createServerFn({ method: "POST" })
 		if (!session?.userId) {
 			throw new Error("Not authenticated")
 		}
-
-		// Import the scheduled workout instances table
-		const { scheduledWorkoutInstancesTable } = await import(
-			"@/db/schemas/programming"
-		)
-		const { createScheduledWorkoutInstanceId } = await import(
-			"@/db/schemas/common"
-		)
 
 		// Parse the date and normalize to noon UTC to avoid timezone boundary issues
 		const scheduledDate = new Date(data.scheduledDate)

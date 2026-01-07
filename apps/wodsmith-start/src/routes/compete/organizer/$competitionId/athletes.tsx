@@ -1,6 +1,8 @@
 /**
  * Organizer Athletes Page
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/athletes/page.tsx
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import {
@@ -34,7 +36,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { getOrganizerRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import {
+	getCompetitionByIdFn,
+	getOrganizerRegistrationsFn,
+} from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -55,9 +60,6 @@ export const Route = createFileRoute(
 
 		// Get competition from parent route context to get teamId
 		// We need to fetch it here since we can't access parent loader data in loader
-		const { getCompetitionByIdFn } = await import(
-			"@/server-fns/competition-detail-fns"
-		)
 		const { competition } = await getCompetitionByIdFn({
 			data: { competitionId },
 		})

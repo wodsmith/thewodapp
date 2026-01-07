@@ -1,8 +1,11 @@
 /**
  * Sponsor Server Functions for TanStack Start
  * Port from apps/wodsmith/src/server/sponsors.ts
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
+import { redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq } from "drizzle-orm"
 import { z } from "zod"
@@ -761,7 +764,6 @@ export const getWorkoutSponsorFn = createServerFn({ method: "GET" })
  */
 export const getSponsorsPageDataFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { redirect } = await import("@tanstack/react-router")
 		const session = await getSessionFromCookie()
 		if (!session) {
 			throw redirect({

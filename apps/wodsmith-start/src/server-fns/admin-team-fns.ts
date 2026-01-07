@@ -2,12 +2,22 @@
  * Admin Team Server Functions for TanStack Start
  * Functions for site-wide admin team management (require ADMIN role)
  *
- * IMPORTANT: Uses dynamic imports for @/db to avoid Vite bundling cloudflare:workers into client
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { desc, sql, eq, inArray } from "drizzle-orm"
+import { getDb } from "@/db"
+import { teamTable, teamMembershipTable } from "@/db/schemas/teams"
 import type { Team, TeamMembership } from "@/db/schemas/teams"
+import { competitionsTable } from "@/db/schemas/competitions"
+import {
+	scheduledWorkoutInstancesTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
+import { workouts } from "@/db/schemas/workouts"
+import { requireAdmin } from "@/utils/auth"
 
 // ============================================================================
 // Types
@@ -52,13 +62,6 @@ const getTeamByIdInputSchema = z.object({
 export const getAllTeamsForAdminFn = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-	const { requireAdmin } = await import("@/utils/auth")
-	const { getDb } = await import("@/db")
-	const { teamTable, teamMembershipTable } = await import("@/db/schemas/teams")
-	const { competitionsTable } = await import("@/db/schemas/competitions")
-	const { desc, sql } = await import("drizzle-orm")
-
 	// Require site admin role
 	const session = await requireAdmin()
 	if (!session) {
@@ -110,13 +113,6 @@ export const getAllTeamsForAdminFn = createServerFn({
 export const getTeamByIdForAdminFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getTeamByIdInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { teamTable } = await import("@/db/schemas/teams")
-		const { competitionsTable } = await import("@/db/schemas/competitions")
-		const { eq, sql } = await import("drizzle-orm")
-
 		// Require site admin role
 		const session = await requireAdmin()
 		if (!session) {
@@ -171,12 +167,6 @@ export const getTeamByIdForAdminFn = createServerFn({ method: "GET" })
 export const getAdminTeamStatsFn = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-	const { requireAdmin } = await import("@/utils/auth")
-	const { getDb } = await import("@/db")
-	const { teamTable } = await import("@/db/schemas/teams")
-	const { sql, eq } = await import("drizzle-orm")
-
 	// Require site admin role
 	const session = await requireAdmin()
 	if (!session) {
@@ -249,15 +239,6 @@ export const getScheduledWorkoutsForAdminFn = createServerFn({ method: "GET" })
 		getScheduledWorkoutsForAdminInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { requireAdmin } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scheduledWorkoutInstancesTable, trackWorkoutsTable } = await import(
-			"@/db/schemas/programming"
-		)
-		const { workouts } = await import("@/db/schemas/workouts")
-		const { eq, and, between } = await import("drizzle-orm")
-
 		// Require site admin role
 		const session = await requireAdmin()
 		if (!session) {
@@ -294,14 +275,8 @@ export const getScheduledWorkoutsForAdminFn = createServerFn({ method: "GET" })
 				eq(workouts.id, scheduledWorkoutInstancesTable.workoutId),
 			)
 			.where(
-				and(
-					eq(scheduledWorkoutInstancesTable.teamId, data.teamId),
-					between(
-						scheduledWorkoutInstancesTable.scheduledDate,
-						startDateObj,
-						endDateObj,
-					),
-				),
+				sql`${scheduledWorkoutInstancesTable.teamId} = ${data.teamId}
+					AND ${scheduledWorkoutInstancesTable.scheduledDate} BETWEEN ${startDateObj} AND ${endDateObj}`,
 			)
 
 		// For rows without explicit workoutId, we need to get the workout from the track
@@ -313,7 +288,6 @@ export const getScheduledWorkoutsForAdminFn = createServerFn({ method: "GET" })
 		// Fetch workouts for track-based instances that don't have explicit workoutId
 		const trackWorkoutMap = new Map<string, typeof workouts.$inferSelect>()
 		if (trackWorkoutIds.length > 0) {
-			const { inArray } = await import("drizzle-orm")
 			const trackWorkoutsData = await db
 				.select()
 				.from(workouts)

@@ -1,10 +1,12 @@
 /**
  * Registration Server Functions for TanStack Start
+ *
+ * This file uses top-level imports for server-only modules.
  * Port of commerce.action.ts registration functions
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -18,22 +20,23 @@ import {
 	competitionsTable,
 	scalingGroupsTable,
 	scalingLevelsTable,
+	teamInvitationTable,
+	teamMembershipTable,
 	teamTable,
+	userTable,
 } from "@/db/schema"
-// Local stubs for commerce functions (ported from wodsmith app)
 import {
 	buildFeeConfig,
 	calculateCompetitionFees,
 	type FeeBreakdown,
 	getRegistrationFee,
 } from "@/lib/commerce-stubs"
-// Local stubs for registration functions (ported from wodsmith app)
+import { getAppUrl } from "@/lib/env"
+import { logInfo } from "@/lib/logging/posthog-otel-logger"
 import {
 	notifyRegistrationConfirmed,
 	registerForCompetition,
 } from "@/lib/registration-stubs"
-import { getAppUrl } from "@/lib/env"
-// Local stripe utility (no server-only import for TanStack Start compatibility)
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 
@@ -85,8 +88,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		initiateRegistrationPaymentInputSchema.parse(data),
 	)
 	.handler(async ({ data: input }) => {
-		const { logInfo } = await import("@/lib/logging/posthog-otel-logger")
-
 		const session = await requireVerifiedEmail()
 		if (!session) throw new Error("Unauthorized")
 
@@ -489,7 +490,6 @@ export const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 	)
 	.handler(async ({ data }) => {
 		const db = getDb()
-		const { userTable } = await import("@/db/schema")
 
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),
@@ -557,10 +557,6 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 	)
 	.handler(async ({ data }): Promise<TeamRosterResult | null> => {
 		const db = getDb()
-		const { teamMembershipTable, teamInvitationTable } = await import(
-			"@/db/schema"
-		)
-		const { isNull } = await import("drizzle-orm")
 
 		// Get registration with related data
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
