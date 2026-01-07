@@ -12,7 +12,7 @@
 		"POSTHOG_HOST": "us.i.posthog.com",
 		"POSTHOG_ASSETS_HOST": "us-assets.i.posthog.com",
 		"PUBLIC_PATH_PREFIX": "/ingest",
-		"ALLOWED_ORIGINS": "https://wodsmith.com,https://www.wodsmith.com"
+		"ALLOWED_ORIGINS": "https://wodsmith.com,https://www.wodsmith.com,https://demo.wodsmith.com,https://start.wodsmith.com"
 	},
 	"routes": [
 		{
