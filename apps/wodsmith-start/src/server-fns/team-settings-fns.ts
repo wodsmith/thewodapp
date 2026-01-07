@@ -474,7 +474,10 @@ export const getTeamBySlugFn = createServerFn({ method: "GET" })
 		// Check if user is a member of this team
 		await requireTeamPermission(team.id, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-		return { success: true, data: team }
+		// Exclude creditBalance from response
+		const { creditBalance: _, ...teamWithoutCredits } = team
+
+		return { success: true, data: teamWithoutCredits }
 	})
 
 // ============================================================================
