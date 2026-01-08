@@ -95,6 +95,9 @@ import {
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
+// Import kept for Alchemy to clean up old webhook resource from state
+// Can be removed after one successful deploy
+import "alchemy/stripe"
 
 /**
  * Initialize the Alchemy application context.
