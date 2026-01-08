@@ -193,3 +193,34 @@ export {
 	validateScoreInput,
 	validateTime,
 } from "./validate"
+
+// ============ Competition Scoring Algorithms ============
+export {
+	// Factory function - main entry point
+	calculateEventPoints,
+	// Algorithm implementations
+	calculatePScore,
+	calculateTraditionalPoints,
+	calculateCustomPoints,
+	generatePointsTable,
+	// Constants
+	WINNER_TAKES_MORE_TABLE,
+	DEFAULT_SCORING_CONFIG,
+	DEFAULT_TRADITIONAL_CONFIG,
+	DEFAULT_PSCORE_CONFIG,
+	// Utilities
+	getScoringAlgorithmName,
+	canHaveNegativeScores,
+	// Types
+	type EventScoreInput,
+	type EventPointsResult,
+	type PScoreInput,
+	type PScoreResult,
+} from "./algorithms"
+
+// ============ Tiebreakers ============
+export {
+	applyTiebreakers,
+	type TiebreakerInput,
+	type RankedAthlete,
+} from "./tiebreakers"

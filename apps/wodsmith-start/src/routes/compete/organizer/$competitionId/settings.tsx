@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { RotationSettingsForm } from "./-components/rotation-settings-form"
+import { ScoringSettingsForm } from "./-components/scoring-settings-form"
 
 export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/settings",
@@ -40,7 +41,7 @@ function SettingsPage() {
 	const { competition } = Route.useLoaderData()
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-8">
 			<div>
 				<h1 className="text-3xl font-bold tracking-tight">
 					Competition Settings
@@ -50,15 +51,29 @@ function SettingsPage() {
 				</p>
 			</div>
 
-			<RotationSettingsForm
-				competition={{
-					id: competition.id,
-					name: competition.name,
-					defaultHeatsPerRotation: competition.defaultHeatsPerRotation ?? 4,
-					defaultLaneShiftPattern:
-						competition.defaultLaneShiftPattern ?? "stay",
-				}}
-			/>
+			{/* Scoring Configuration Section */}
+			<section>
+				<ScoringSettingsForm
+					competition={{
+						id: competition.id,
+						name: competition.name,
+						settings: competition.settings,
+					}}
+				/>
+			</section>
+
+			{/* Rotation Settings Section */}
+			<section>
+				<RotationSettingsForm
+					competition={{
+						id: competition.id,
+						name: competition.name,
+						defaultHeatsPerRotation: competition.defaultHeatsPerRotation ?? 4,
+						defaultLaneShiftPattern:
+							competition.defaultLaneShiftPattern ?? "stay",
+					}}
+				/>
+			</section>
 		</div>
 	)
 }

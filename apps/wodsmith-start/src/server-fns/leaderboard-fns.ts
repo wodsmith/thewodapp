@@ -40,7 +40,7 @@ import type { TiebreakScheme, WorkoutScheme } from "@/lib/scoring/types"
 import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
-// Types
+// Types (Re-export from server layer)
 // ============================================================================
 
 export interface TeamMemberInfo {
@@ -878,13 +878,13 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 				userId: reg.userId,
 				userName: fullName || reg.user.email || "Unknown",
 				userAvatar: reg.user.avatar,
-				score: null, // Would come from results table
-				aggregatedScore: null, // Would be calculated from all event scores
-				formattedScore: "N/A", // Pending results
+				score: null,
+				aggregatedScore: null,
+				formattedScore: "N/A",
 				scalingLevelId: reg.divisionId,
 				scalingLevelLabel: reg.division?.label ?? null,
 				scalingLevelPosition: reg.division?.position ?? null,
-				asRx: false, // Would come from results
+				asRx: false,
 				completedAt: reg.registeredAt,
 				isTimeCapped: false,
 			}
@@ -895,7 +895,9 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 			workouts: trackWorkoutsWithWorkouts.map((tw) => ({
 				id: tw.id,
 				workoutId: tw.workoutId,
-				name: (tw as any).workout?.name ?? "Unknown Workout",
+				name:
+					(tw as unknown as { workout?: { name: string } }).workout?.name ??
+					"Unknown Workout",
 				trackOrder: tw.trackOrder,
 			})),
 		}

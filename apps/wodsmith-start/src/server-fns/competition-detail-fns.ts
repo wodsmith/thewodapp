@@ -69,6 +69,41 @@ const updateCompetitionRotationSettingsInputSchema = z.object({
 	defaultLaneShiftPattern: z.enum(["stay", "shift_right"]).optional(),
 })
 
+const updateCompetitionScoringConfigInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	scoringConfig: z.object({
+		algorithm: z.enum(["traditional", "p_score", "custom"]),
+		traditional: z
+			.object({
+				step: z.number().positive(),
+				firstPlacePoints: z.number().positive(),
+			})
+			.optional(),
+		pScore: z
+			.object({
+				allowNegatives: z.boolean(),
+				medianField: z.enum(["top_half", "all"]),
+			})
+			.optional(),
+		customTable: z
+			.object({
+				baseTemplate: z.enum(["traditional", "p_score", "winner_takes_more"]),
+				overrides: z.record(z.string(), z.number()),
+			})
+			.optional(),
+		tiebreaker: z.object({
+			primary: z.enum(["countback", "head_to_head", "none"]),
+			secondary: z.enum(["countback", "head_to_head", "none"]).optional(),
+			headToHeadEventId: z.string().optional(),
+		}),
+		statusHandling: z.object({
+			dnf: z.enum(["worst_performance", "zero", "last_place"]),
+			dns: z.enum(["worst_performance", "zero", "exclude"]),
+			withdrawn: z.enum(["zero", "exclude"]),
+		}),
+	}),
+})
+
 const deleteCompetitionInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	organizingTeamId: z.string().min(1, "Organizing team ID is required"),
@@ -556,6 +591,60 @@ export const updateCompetitionRotationSettingsFn = createServerFn({
 				defaultLaneShiftPattern: input.defaultLaneShiftPattern as
 					| LaneShiftPattern
 					| undefined,
+				updatedAt: new Date(),
+			})
+			.where(eq(competitionsTable.id, input.competitionId))
+
+		return { success: true }
+	})
+
+/**
+ * Update competition scoring configuration
+ */
+export const updateCompetitionScoringConfigFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		updateCompetitionScoringConfigInputSchema.parse(data),
+	)
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+		if (!session) throw new Error("Unauthorized")
+
+		const db = getDb()
+
+		// Verify user has permission to manage this competition
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, input.competitionId),
+		})
+		if (!competition) throw new Error("Competition not found")
+
+		// Check permission
+		await requireTeamPermission(
+			competition.organizingTeamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Parse existing settings and merge with new scoring config
+		let existingSettings: Record<string, unknown> = {}
+		if (competition.settings) {
+			try {
+				existingSettings = JSON.parse(competition.settings)
+			} catch {
+				// Ignore parse errors
+			}
+		}
+
+		const newSettings = {
+			...existingSettings,
+			scoringConfig: input.scoringConfig,
+		}
+
+		// Update competition
+		await db
+			.update(competitionsTable)
+			.set({
+				settings: JSON.stringify(newSettings),
 				updatedAt: new Date(),
 			})
 			.where(eq(competitionsTable.id, input.competitionId))

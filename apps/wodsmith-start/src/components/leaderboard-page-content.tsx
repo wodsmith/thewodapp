@@ -22,10 +22,19 @@ import {
 // Get parent route API to access divisions from loader
 const parentRoute = getRouteApi("/compete/$slug")
 
+/**
+ * Props for the LeaderboardPageContent component
+ */
 interface LeaderboardPageContentProps {
 	competitionId: string
 }
 
+/**
+ * Competition Leaderboard Page Content
+ *
+ * Displays competition leaderboard with configurable scoring support.
+ * Supports Traditional, P-Score, and Custom scoring algorithms.
+ */
 export function LeaderboardPageContent({
 	competitionId,
 }: LeaderboardPageContentProps) {
