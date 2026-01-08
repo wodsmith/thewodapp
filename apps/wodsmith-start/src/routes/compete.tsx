@@ -26,6 +26,7 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 
 export const Route = createFileRoute("/compete")({
 	component: CompeteLayout,
+	staleTime: 30_000, // Cache for 30 seconds - nav data changes infrequently
 	loader: async () => {
 		const { session, canOrganize } = await getCompeteNavDataFn()
 		return { session, canOrganize }

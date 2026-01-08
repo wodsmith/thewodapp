@@ -23,6 +23,7 @@ import {
 
 export const Route = createFileRoute("/compete/organizer/$competitionId")({
 	component: CompetitionLayout,
+	staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
 	loader: async ({ params, context }) => {
 		const session = context.session
 
