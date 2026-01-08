@@ -168,6 +168,7 @@ jobs:
           STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
           STRIPE_PUBLISHABLE_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_PUBLISHABLE_KEY || '' }}
           STRIPE_CLIENT_ID: ${{ env.STAGE == 'prod' && secrets.STRIPE_CLIENT_ID || '' }}
+          STRIPE_WEBHOOK_SECRET: ${{ env.STAGE == 'prod' && secrets.STRIPE_WEBHOOK_SECRET || '' }}
           PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -234,6 +235,7 @@ jobs:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}
           STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY_DEMO }}
           STRIPE_CLIENT_ID: ${{ secrets.STRIPE_CLIENT_ID_DEMO }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_DEMO }}
           PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
