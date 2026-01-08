@@ -1,11 +1,20 @@
 /**
  * Competition Registration Route
  * Port from apps/wodsmith/src/app/(compete)/compete/(public)/[slug]/register/page.tsx
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
+import { getDb } from "@/db"
+import {
+	competitionRegistrationsTable,
+	scalingGroupsTable,
+	userTable,
+} from "@/db/schema"
 import { RegistrationForm } from "@/components/registration/registration-form"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
@@ -27,10 +36,6 @@ const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { competitionRegistrationsTable } = await import("@/db/schema")
-		const { and, eq } = await import("drizzle-orm")
-
 		const db = getDb()
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
@@ -53,10 +58,6 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		z.object({ scalingGroupId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable } = await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-
 		const db = getDb()
 		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
 			where: eq(scalingGroupsTable.id, data.scalingGroupId),
@@ -76,10 +77,6 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 		z.object({ userId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
-		const { getDb } = await import("@/db")
-		const { userTable } = await import("@/db/schema")
-		const { eq } = await import("drizzle-orm")
-
 		const db = getDb()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),
@@ -92,10 +89,11 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/compete/$slug/register")({
 	component: RegisterPage,
 	validateSearch: registerSearchSchema,
+	staleTime: 10_000, // Cache for 10 seconds
 	loader: async ({ params, context }) => {
 		const { slug } = params
 
-		// 1. Get competition first (needed for redirects)
+		// 1. Get competition first (needed for redirects and other fetches)
 		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
 		if (!competition) {
 			throw notFound()
@@ -110,28 +108,32 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			})
 		}
 
-		// 3. Check if already registered
-		const { registration: existingRegistration } =
-			await getUserCompetitionRegistrationFn({
+		// 3. Parallel fetch: registration check, affiliate name, and waivers
+		// These all only need competition.id or session.userId
+		const [
+			{ registration: existingRegistration },
+			{ affiliateName },
+			{ waivers },
+		] = await Promise.all([
+			getUserCompetitionRegistrationFn({
 				data: {
 					competitionId: competition.id,
 					userId: session.userId,
 				},
-			})
+			}),
+			getUserAffiliateNameFn({
+				data: { userId: session.userId },
+			}),
+			getCompetitionWaiversFn({
+				data: { competitionId: competition.id },
+			}),
+		])
 
 		if (existingRegistration) {
 			throw redirect({ to: "/compete/$slug", params: { slug } })
 		}
 
-		// 4. Check profile completeness (commented out in original)
-		// if (!session.user.gender || !session.user.dateOfBirth) {
-		//   throw redirect({
-		//     to: '/compete/profile',
-		//     search: {redirect: `/compete/${slug}/register`},
-		//   })
-		// }
-
-		// 5. Check registration window
+		// 4. Check registration window
 		const now = new Date()
 		const regOpensAt = competition.registrationOpensAt
 			? typeof competition.registrationOpensAt === "number"
@@ -151,7 +153,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			regClosesAt >= now
 		)
 
-		// 6. Get competition settings for divisions
+		// 5. Get competition settings for divisions
 		const settings = parseCompetitionSettings(competition.settings)
 		if (!settings?.divisions?.scalingGroupId) {
 			// No divisions configured - will show error in component
@@ -168,7 +170,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			}
 		}
 
-		// 7. Get scaling group and levels for divisions (via server function)
+		// 6. Get scaling group and levels for divisions (via server function)
 		const { scalingGroup } = await getScalingGroupWithLevelsFn({
 			data: { scalingGroupId: settings.divisions.scalingGroupId },
 		})
@@ -191,16 +193,6 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				waivers: [],
 			}
 		}
-
-		// 8. Fetch user's affiliate from their profile (via server function)
-		const { affiliateName } = await getUserAffiliateNameFn({
-			data: { userId: session.userId },
-		})
-
-		// 9. Fetch waivers for this competition
-		const { waivers } = await getCompetitionWaiversFn({
-			data: { competitionId: competition.id },
-		})
 
 		return {
 			competition,

@@ -34,10 +34,10 @@ jobs:
         id: pr-info
         run: |
           COMMIT_MSG="${{ github.event.head_commit.message }}"
-          
+
           # Extract PR number from "Merge pull request #123 from..." pattern
           PR_NUMBER=$(echo "$COMMIT_MSG" | grep -oP 'Merge pull request #\K[0-9]+' || echo "")
-          
+
           if [ -n "$PR_NUMBER" ]; then
             # Construct PR URL
             PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
@@ -54,7 +54,7 @@ jobs:
             PR_TITLE=$(echo "$COMMIT_MSG" | head -n1)
             PR_URL="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
           fi
-          
+
           echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
           echo "Extracted PR Title: $PR_TITLE"
@@ -155,6 +155,14 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          # App configuration
+          APP_URL: ${{ env.STAGE == 'prod' && 'https://start.wodsmith.com' || format('https://wodsmith-app-{0}.zacjones93.workers.dev', env.STAGE) }}
+          # Secrets for all environments
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # AI configuration (optional)
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           # Stripe secrets only for production deployments (PR environments get no Stripe)
           STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
           STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
@@ -212,6 +220,14 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          # App configuration
+          APP_URL: https://demo.wodsmith.com
+          # Secrets for all environments
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # AI configuration (optional)
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           # Both point to same secret - STRIPE_API_KEY is for Alchemy webhook creation,
           # STRIPE_SECRET_KEY is for runtime API calls
           STRIPE_API_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}

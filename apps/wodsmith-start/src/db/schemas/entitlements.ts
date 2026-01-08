@@ -1,6 +1,12 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import {
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core"
 import {
 	commonColumns,
 	createEntitlementId,
@@ -284,6 +290,12 @@ export const teamEntitlementOverrideTable = sqliteTable(
 	(table) => [
 		index("team_entitlement_override_team_id_idx").on(table.teamId),
 		index("team_entitlement_override_type_idx").on(table.type),
+		// Unique constraint on team/type/key - required for onConflictDoUpdate
+		uniqueIndex("team_entitlement_override_team_type_key_unique").on(
+			table.teamId,
+			table.type,
+			table.key,
+		),
 	],
 )
 
@@ -349,8 +361,8 @@ export const teamFeatureEntitlementTable = sqliteTable(
 	(table) => [
 		index("team_feature_entitlement_team_id_idx").on(table.teamId),
 		index("team_feature_entitlement_feature_id_idx").on(table.featureId),
-		// Only one active entitlement per team/feature combination
-		index("team_feature_entitlement_unique_active_idx").on(
+		// Unique constraint on team/feature - required for onConflictDoUpdate
+		uniqueIndex("team_feature_entitlement_team_feature_unique").on(
 			table.teamId,
 			table.featureId,
 		),
@@ -391,8 +403,8 @@ export const teamLimitEntitlementTable = sqliteTable(
 	(table) => [
 		index("team_limit_entitlement_team_id_idx").on(table.teamId),
 		index("team_limit_entitlement_limit_id_idx").on(table.limitId),
-		// Only one active entitlement per team/limit combination
-		index("team_limit_entitlement_unique_active_idx").on(
+		// Unique constraint on team/limit - required for onConflictDoUpdate
+		uniqueIndex("team_limit_entitlement_team_limit_unique").on(
 			table.teamId,
 			table.limitId,
 		),

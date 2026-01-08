@@ -1,15 +1,18 @@
+/**
+ * This file uses top-level imports for server-only modules.
+ */
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { Building2, ClipboardList, Home, Settings, Trophy } from "lucide-react"
 import { DarkModeToggle } from "@/components/nav/dark-mode-toggle"
 import LogoutButton from "@/components/nav/logout-button"
 import { cn } from "@/utils/cn"
+import { ROLES_ENUM } from "@/db/schema"
+import { getSessionFromCookie } from "@/utils/auth"
 
 // Server function to validate admin session
 const validateAdminSessionFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { ROLES_ENUM } = await import("@/db/schema")
-		const { getSessionFromCookie } = await import("@/utils/auth")
 		const session = await getSessionFromCookie()
 
 		if (!session) {

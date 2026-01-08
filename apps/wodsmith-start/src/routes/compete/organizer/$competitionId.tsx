@@ -15,6 +15,7 @@ import {
 import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
+import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import {
 	checkCanManageCompetitionFn,
 	getCompetitionByIdFn,
@@ -22,6 +23,7 @@ import {
 
 export const Route = createFileRoute("/compete/organizer/$competitionId")({
 	component: CompetitionLayout,
+	staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
 	loader: async ({ params, context }) => {
 		const session = context.session
 
@@ -81,6 +83,7 @@ const routeLabels: Record<string, string> = {
 
 function CompetitionLayout() {
 	const { competition } = Route.useLoaderData()
+	const { entitlements } = Route.useRouteContext()
 	const matches = useMatches()
 
 	// Get the current child route segment for breadcrumb
@@ -101,6 +104,9 @@ function CompetitionLayout() {
 
 	return (
 		<CompetitionSidebar competitionId={competition.id}>
+			{entitlements.isPendingApproval && (
+				<PendingOrganizerBanner variant="sidebar-inset" />
+			)}
 			<div className="flex flex-1 flex-col gap-6 p-6">
 				{/* Breadcrumb */}
 				<OrganizerBreadcrumb segments={breadcrumbSegments} />

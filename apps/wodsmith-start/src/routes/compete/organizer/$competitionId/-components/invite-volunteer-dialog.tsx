@@ -1,6 +1,7 @@
 "use client"
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
+import { useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -27,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { inviteVolunteerFn } from "@/server-fns/volunteer-fns"
 
 const formSchema = z.object({
+	name: z.string().optional(),
 	email: z
 		.string()
 		.email("Please enter a valid email address")
@@ -82,11 +84,13 @@ export function InviteVolunteerDialog({
 	open,
 	onOpenChange,
 }: InviteVolunteerDialogProps) {
+	const router = useRouter()
 	const [isSubmitting, setIsSubmitting] = useState(false)
 
 	const form = useForm<FormValues>({
 		resolver: standardSchemaResolver(formSchema),
 		defaultValues: {
+			name: "",
 			email: "",
 			roleTypes: [],
 		},
@@ -99,6 +103,7 @@ export function InviteVolunteerDialog({
 		try {
 			await inviteVolunteerFn({
 				data: {
+					name: data.name || undefined,
 					email: data.email,
 					competitionTeamId,
 					organizingTeamId,
@@ -110,10 +115,8 @@ export function InviteVolunteerDialog({
 			toast.dismiss()
 			toast.success("Volunteer invitation sent")
 			form.reset()
-
-			setTimeout(() => {
-				onOpenChange(false)
-			}, 1500)
+			onOpenChange(false)
+			router.invalidate()
 		} catch (error) {
 			toast.dismiss()
 			toast.error(
@@ -136,6 +139,23 @@ export function InviteVolunteerDialog({
 						onSubmit={form.handleSubmit(onSubmit)}
 						className="space-y-4 pt-4"
 					>
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Name (optional)</FormLabel>
+									<FormControl>
+										<Input placeholder="John Smith" {...field} />
+									</FormControl>
+									<FormDescription>
+										Used in the invitation email and volunteer list
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
 						<FormField
 							control={form.control}
 							name="email"

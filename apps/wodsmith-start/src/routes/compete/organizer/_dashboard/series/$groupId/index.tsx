@@ -14,7 +14,9 @@ import {
 	getOrganizerCompetitionsFn,
 } from "@/server-fns/competition-fns"
 
-export const Route = createFileRoute("/compete/organizer/series/$groupId/")({
+export const Route = createFileRoute(
+	"/compete/organizer/_dashboard/series/$groupId/",
+)({
 	component: SeriesDetailPage,
 	loader: async ({ params, context }) => {
 		const { groupId } = params

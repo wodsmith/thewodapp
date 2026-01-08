@@ -7,18 +7,42 @@ import {
 	getCompetitionGroupsFn,
 	getOrganizerCompetitionsFn,
 } from "@/server-fns/competition-fns"
-import { getActiveTeamIdFn } from "@/server-fns/team-fns"
+import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
+import { setActiveTeamFn } from "@/server-fns/team-settings-fns"
 
-export const Route = createFileRoute("/compete/organizer/")({
+export const Route = createFileRoute("/compete/organizer/_dashboard/")({
 	component: OrganizerDashboard,
-	loader: async ({ context }) => {
-		const session = context.session
-
-		// Get all user teams
-		const userTeams = session?.teams || []
+	loader: async () => {
+		// Get teams that can organize competitions (non-personal, with HOST_COMPETITIONS)
+		// This also deduplicates teams to prevent display issues
+		const { teams: organizingTeams } = await getOrganizerTeamsFn()
 
 		// Get active team from cookie (falls back to first team if no cookie)
-		const activeTeamId = await getActiveTeamIdFn()
+		let activeTeamId = await getActiveTeamIdFn()
+
+		// If no organizing teams, show empty state
+		if (organizingTeams.length === 0) {
+			return {
+				competitions: [],
+				groups: [],
+				organizingTeams: [],
+				activeTeamId: null,
+			}
+		}
+
+		// Auto-switch: If active team is NOT in the organizing teams list,
+		// switch to the first organizing team. This handles the case where
+		// user's personal team is active but they're viewing the organizer dashboard.
+		const isActiveTeamAnOrganizer = organizingTeams.some(
+			(team) => team.id === activeTeamId,
+		)
+
+		if (!isActiveTeamAnOrganizer) {
+			// Switch to the first organizing team
+			const firstOrganizerTeam = organizingTeams[0]
+			await setActiveTeamFn({ data: { teamId: firstOrganizerTeam.id } })
+			activeTeamId = firstOrganizerTeam.id
+		}
 
 		if (!activeTeamId) {
 			return {
@@ -44,7 +68,7 @@ export const Route = createFileRoute("/compete/organizer/")({
 		return {
 			competitions: sortedCompetitions,
 			groups: groupsResult.groups,
-			organizingTeams: userTeams,
+			organizingTeams,
 			activeTeamId,
 		}
 	},
@@ -91,8 +115,8 @@ function OrganizerDashboard() {
 					</div>
 				</div>
 
-				{/* Team Filter (only show if multiple teams) */}
-				{organizingTeams.length > 1 && (
+				{/* Team Filter - always show so users know which team context they're in */}
+				{organizingTeams.length > 0 && (
 					<TeamFilter teams={organizingTeams} selectedTeamId={activeTeamId} />
 				)}
 

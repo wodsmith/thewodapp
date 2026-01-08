@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schema"
+import { getAppUrl, getStripeClientId } from "@/lib/env"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
 import isProd from "@/utils/is-prod"
@@ -21,18 +22,6 @@ import { requireTeamMembership } from "./requireTeamMembership"
 
 /** Cookie name for OAuth state CSRF token */
 export const STRIPE_OAUTH_STATE_COOKIE_NAME = "stripe_oauth_state"
-
-// ============================================================================
-// Stripe Connect Helpers (ported from wodsmith)
-// ============================================================================
-
-function getAppUrl(): string {
-	return process.env.APP_URL || "https://thewodapp.com"
-}
-
-function getStripeClientId(): string | undefined {
-	return process.env.STRIPE_CLIENT_ID
-}
 
 /**
  * OAuth state payload structure for Stripe Connect

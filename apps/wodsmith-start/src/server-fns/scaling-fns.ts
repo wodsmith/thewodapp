@@ -2,11 +2,17 @@
  * Scaling Groups Server Functions for TanStack Start
  * Port of scaling logic from wodsmith app
  *
- * IMPORTANT: Uses dynamic imports for @/db to avoid Vite bundling cloudflare:workers into client
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { eq, asc, desc, inArray } from "drizzle-orm"
+import { getDb } from "@/db"
+import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
+import { getSessionFromCookie } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
 // Types
@@ -92,16 +98,6 @@ const setDefaultScalingGroupInputSchema = z.object({
 export const getScalingGroupsFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getScalingGroupsInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable, scalingLevelsTable } = await import(
-			"@/db/schemas/scaling"
-		)
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { eq, asc, desc, inArray } = await import("drizzle-orm")
-
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
 			throw new Error("Not authenticated")
@@ -157,16 +153,6 @@ export const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		getScalingGroupWithLevelsInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable, scalingLevelsTable } = await import(
-			"@/db/schemas/scaling"
-		)
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { eq, asc } = await import("drizzle-orm")
-
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
 			throw new Error("Not authenticated")
@@ -218,15 +204,6 @@ export const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 export const createScalingGroupFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createScalingGroupInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable, scalingLevelsTable } = await import(
-			"@/db/schemas/scaling"
-		)
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
 			throw new Error("Not authenticated")
@@ -279,14 +256,6 @@ export const createScalingGroupFn = createServerFn({ method: "POST" })
 export const updateScalingGroupFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateScalingGroupInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable } = await import("@/db/schemas/scaling")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { eq } = await import("drizzle-orm")
-
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
 			throw new Error("Not authenticated")
@@ -344,14 +313,6 @@ export const updateScalingGroupFn = createServerFn({ method: "POST" })
 export const deleteScalingGroupFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => deleteScalingGroupInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable } = await import("@/db/schemas/scaling")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { eq } = await import("drizzle-orm")
-
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
 			throw new Error("Not authenticated")
@@ -405,14 +366,6 @@ export const setDefaultScalingGroupFn = createServerFn({ method: "POST" })
 		setDefaultScalingGroupInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Dynamic imports to avoid Vite bundling cloudflare:workers into client
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { scalingGroupsTable } = await import("@/db/schemas/scaling")
-		const { TEAM_PERMISSIONS, teamTable } = await import("@/db/schemas/teams")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { eq } = await import("drizzle-orm")
-
 		const session = await getSessionFromCookie()
 		if (!session?.userId) {
 			throw new Error("Not authenticated")

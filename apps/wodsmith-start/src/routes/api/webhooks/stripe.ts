@@ -1,6 +1,8 @@
 /**
  * Stripe Webhook Handler for TanStack Start
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * Handles:
  * - checkout.session.completed: Completes purchase and creates registration
  * - checkout.session.expired: Marks abandoned purchases as cancelled
@@ -12,26 +14,32 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import type Stripe from "stripe"
+import { getDb } from "@/db"
+import {
+	COMMERCE_PAYMENT_STATUS,
+	COMMERCE_PURCHASE_STATUS,
+	commercePurchaseTable,
+	competitionRegistrationsTable,
+	teamTable,
+} from "@/db/schema"
+import { and, eq } from "drizzle-orm"
+import {
+	logError,
+	logInfo,
+	logWarning,
+} from "@/lib/logging/posthog-otel-logger"
+import { getStripe } from "@/lib/stripe"
+import { getStripeWebhookSecret } from "@/lib/env"
+import {
+	registerForCompetition,
+	notifyRegistrationConfirmed,
+} from "@/server/registration"
+import { notifyPaymentExpired } from "@/server/notifications"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({
 	server: {
 		handlers: {
 			POST: async ({ request }) => {
-				// Dynamic imports for server-only modules
-				const { getDb } = await import("@/db")
-				const {
-					COMMERCE_PAYMENT_STATUS,
-					COMMERCE_PURCHASE_STATUS,
-					commercePurchaseTable,
-					competitionRegistrationsTable,
-					teamTable,
-				} = await import("@/db/schema")
-				const { and, eq } = await import("drizzle-orm")
-				const { logError, logInfo, logWarning } = await import(
-					"@/lib/logging/posthog-otel-logger"
-				)
-				const { getStripe } = await import("@/lib/stripe")
-
 				// =========================================================================
 				// Handler Functions (defined before use)
 				// =========================================================================
@@ -133,11 +141,6 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 						}
 					}
 
-					// Create registration using imported function
-					const { registerForCompetition } = await import(
-						"@/server/registration"
-					)
-
 					try {
 						const result = await registerForCompetition({
 							competitionId,
@@ -185,9 +188,6 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 						// Send registration confirmation email (paid path)
 						try {
-							const { notifyRegistrationConfirmed } = await import(
-								"@/server/registration"
-							)
 							await notifyRegistrationConfirmed({
 								userId,
 								registrationId: result.registrationId,
@@ -259,9 +259,6 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
 					if (userId && competitionId && divisionId) {
 						try {
-							const { notifyPaymentExpired } = await import(
-								"@/server/notifications"
-							)
 							await notifyPaymentExpired({
 								userId,
 								competitionId,
@@ -373,7 +370,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 					return json({ error: "Missing signature" }, { status: 400 })
 				}
 
-				const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+				const webhookSecret = getStripeWebhookSecret()
 				if (!webhookSecret) {
 					logError({
 						message: "[Stripe Webhook] Missing STRIPE_WEBHOOK_SECRET",

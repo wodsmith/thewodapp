@@ -131,13 +131,7 @@ function TeamDetailPage() {
 					<CardTitle>Team Information</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-						<div>
-							<Label className="text-muted-foreground">Credits</Label>
-							<p className="text-lg font-mono font-semibold">
-								{team.creditBalance || 0}
-							</p>
-						</div>
+					<div className="grid grid-cols-2 gap-4">
 						<div>
 							<Label className="text-muted-foreground">Members</Label>
 							<p className="text-lg font-semibold">{members.length}</p>

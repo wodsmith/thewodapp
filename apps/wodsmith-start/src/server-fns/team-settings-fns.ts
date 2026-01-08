@@ -4,6 +4,8 @@
  *
  * Note: Some team functions already exist in team-fns.ts (getActiveTeamFn, getTeamLeaderboardsFn)
  * and invite-fns.ts (acceptTeamInvitationFn) - not duplicated here.
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createId } from "@paralleldrive/cuid2"
@@ -26,6 +28,7 @@ import {
 	userTable,
 } from "@/db/schema"
 import { getSessionFromCookie, setActiveTeamCookie } from "@/utils/auth"
+import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import { requireTeamPermission } from "./requireTeamMembership"
@@ -474,7 +477,10 @@ export const getTeamBySlugFn = createServerFn({ method: "GET" })
 		// Check if user is a member of this team
 		await requireTeamPermission(team.id, TEAM_PERMISSIONS.ACCESS_DASHBOARD)
 
-		return { success: true, data: team }
+		// Exclude creditBalance from response
+		const { creditBalance: _, ...teamWithoutCredits } = team
+
+		return { success: true, data: teamWithoutCredits }
 	})
 
 // ============================================================================
@@ -815,7 +821,6 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 				: "A team member"
 
 			// Send invitation email
-			const { sendTeamInvitationEmail } = await import("@/utils/email")
 			await sendTeamInvitationEmail({
 				email: data.email,
 				invitationToken: token,
@@ -862,7 +867,6 @@ export const inviteUserFn = createServerFn({ method: "POST" })
 			: "A team member"
 
 		// Send invitation email
-		const { sendTeamInvitationEmail } = await import("@/utils/email")
 		await sendTeamInvitationEmail({
 			email: data.email,
 			invitationToken: token,

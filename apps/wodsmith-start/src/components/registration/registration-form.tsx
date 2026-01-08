@@ -246,7 +246,57 @@ export function RegistrationForm({
 
 			throw new Error("Failed to create checkout session")
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Registration failed")
+			const errorMessage =
+				err instanceof Error ? err.message : "Registration failed"
+
+			// Check if error is about team name being taken
+			// Error message follows pattern: 'Team name "X" is already taken...'
+			const teamNameErrorMatch = errorMessage.match(
+				/^Team name ".+" is already taken/i,
+			)
+
+			if (teamNameErrorMatch) {
+				// Set field-level error on the team name field
+				form.setError("teamName", {
+					type: "server",
+					message: "This team name is already taken. Please choose another.",
+				})
+				setIsSubmitting(false)
+				return
+			}
+
+			// Check if error is about a specific email being already registered/invited/own email
+			// Error messages follow pattern: "email@example.com is already on a team..."
+			// or "email@example.com has already been invited..."
+			// or "email@example.com is your own email..."
+			const emailErrorMatch = errorMessage.match(
+				/^(.+@.+)\s+(is already on a team|has already been invited|is your own email)/i,
+			)
+
+			if (emailErrorMatch && data.teammates) {
+				const problemEmail = emailErrorMatch[1].toLowerCase()
+				const teammateIndex = data.teammates.findIndex(
+					(t) => t.email.toLowerCase() === problemEmail,
+				)
+
+				if (teammateIndex !== -1) {
+					// Set field-level error on the specific teammate email
+					const friendlyMessage =
+						emailErrorMatch[2].toLowerCase() === "is your own email"
+							? "You can't add yourself as a teammate"
+							: errorMessage
+					form.setError(`teammates.${teammateIndex}.email`, {
+						type: "server",
+						message: friendlyMessage,
+					})
+				} else {
+					// Email might be the current user's - show general toast
+					toast.error(errorMessage)
+				}
+			} else {
+				toast.error(errorMessage)
+			}
+
 			setIsSubmitting(false)
 		}
 	}

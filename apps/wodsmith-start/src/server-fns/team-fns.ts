@@ -1,17 +1,21 @@
 /**
  * Team Server Functions for TanStack Start
  * Functions for team page features (leaderboards, team info)
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
+import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoresTable } from "@/db/schemas/scores"
 import { teamMembershipTable, teamTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { getSessionFromCookie } from "@/utils/auth"
+import { getActiveTeamId } from "@/utils/team-auth"
 
 // ===========================
 // Type Definitions
@@ -336,8 +340,63 @@ export const getTeamSlugFn = createServerFn({ method: "GET" })
  */
 export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		// Use dynamic import to avoid bundling issues
-		const { getActiveTeamId } = await import("@/utils/team-auth")
 		return getActiveTeamId()
+	},
+)
+
+/**
+ * Get teams that can organize competitions
+ *
+ * Returns teams that:
+ * 1. Are NOT personal teams (isPersonalTeam === false)
+ * 2. Have the HOST_COMPETITIONS feature enabled
+ * 3. Are deduplicated by team ID (prevents display issues from DB duplicates)
+ *
+ * Used by the organizer dashboard team dropdown.
+ *
+ * Uses the session's cached plan features for faster checks. The session plan
+ * is populated from the database when the session is created/refreshed.
+ *
+ * Note: If a user submits an organizer request (which grants HOST_COMPETITIONS),
+ * the session is refreshed via invalidateTeamMembersSessions, so the cached
+ * plan features will be up-to-date.
+ */
+export const getOrganizerTeamsFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const session = await getSessionFromCookie()
+		if (!session?.teams?.length) {
+			return { teams: [] }
+		}
+
+		// Filter teams that can organize
+		const organizerTeams: Array<{ id: string; name: string; type: string }> = []
+		const seenTeamIds = new Set<string>()
+
+		for (const team of session.teams) {
+			// Skip if already processed (deduplication)
+			if (seenTeamIds.has(team.id)) {
+				continue
+			}
+			seenTeamIds.add(team.id)
+
+			// Skip personal teams
+			if (team.isPersonalTeam) {
+				continue
+			}
+
+			// Check if team has HOST_COMPETITIONS feature via cached plan
+			// This is faster than hitting the database for each team
+			const canHost =
+				team.plan?.features?.includes(FEATURES.HOST_COMPETITIONS) ?? false
+			if (canHost) {
+				organizerTeams.push({
+					id: team.id,
+					name: team.name,
+					type: team.type,
+				})
+			}
+		}
+
+		return { teams: organizerTeams }
 	},
 )

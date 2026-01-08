@@ -1,49 +1,10 @@
 import { sql } from "drizzle-orm"
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
-
-// TODO: Create this seed file when scaling migration is needed
-// import {
-// 	globalDefaultScalingGroup,
-// 	globalDefaultScalingLevels,
-// 	legacyScaleMapping,
-// } from "../../seeds/global-default-scaling"
-
-// Placeholder values until seed file is created
-const globalDefaultScalingGroup = {
-	id: "global-default-scaling",
-	title: "Default Scaling",
-	description: "Global default scaling group",
-	teamId: null,
-	isDefault: true,
-	isSystem: true,
-}
-
-const globalDefaultScalingLevels = [
-	{
-		id: "rx-plus",
-		scalingGroupId: "global-default-scaling",
-		label: "Rx+",
-		position: 0,
-	},
-	{
-		id: "rx",
-		scalingGroupId: "global-default-scaling",
-		label: "Rx",
-		position: 1,
-	},
-	{
-		id: "scaled",
-		scalingGroupId: "global-default-scaling",
-		label: "Scaled",
-		position: 2,
-	},
-]
-
-const legacyScaleMapping = {
-	"rx+": { scalingLevelId: "rx-plus", asRx: true },
-	rx: { scalingLevelId: "rx", asRx: true },
-	scaled: { scalingLevelId: "scaled", asRx: false },
-}
+import {
+	globalDefaultScalingGroup,
+	globalDefaultScalingLevels,
+	legacyScaleMapping,
+} from "./global-default-scaling"
 
 /**
  * Migration helper to set up the global default scaling group

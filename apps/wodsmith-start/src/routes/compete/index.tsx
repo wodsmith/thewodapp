@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { CompetitionRow } from "@/components/competition-row"
 import { CompetitionSearch } from "@/components/competition-search"
 import { CompetitionSection } from "@/components/competition-section"
+import { getSessionFn } from "@/server-fns/auth-fns"
 import {
 	type CompetitionWithOrganizingTeam,
 	getPublicCompetitionsFn,
@@ -14,14 +15,19 @@ type CompeteSearch = {
 
 export const Route = createFileRoute("/compete/")({
 	component: CompetePage,
+	staleTime: 30_000, // Cache for 30 seconds - competition list doesn't change frequently
 	validateSearch: (search: Record<string, unknown>): CompeteSearch => ({
 		q: typeof search.q === "string" ? search.q : undefined,
 		past: search.past === "true" || search.past === true,
 	}),
 	loader: async () => {
-		const result = await getPublicCompetitionsFn({ data: {} })
+		const [result, session] = await Promise.all([
+			getPublicCompetitionsFn({ data: {} }),
+			getSessionFn(),
+		])
 		return {
 			competitions: result.competitions,
+			isAuthenticated: session !== null,
 		}
 	},
 })
@@ -80,14 +86,11 @@ type CompetitionStatus =
 	| "past"
 
 function CompetePage() {
-	const { competitions } = Route.useLoaderData()
+	const { competitions, isAuthenticated } = Route.useLoaderData()
 	const { q: searchQuery, past } = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
 	const showPast = past === true
 	const now = new Date()
-
-	// TODO: Authentication - this will be wired up when auth is implemented
-	const isAuthenticated = false
 
 	// Handlers for search state updates
 	const handleSearchChange = (value: string) => {

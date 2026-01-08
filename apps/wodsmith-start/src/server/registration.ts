@@ -1,5 +1,6 @@
 /**
  * Registration Server Module for TanStack Start
+ * This file uses top-level imports for server-only modules.
  * Ported from apps/wodsmith/src/server/competitions.ts and notifications/compete.ts
  *
  * Contains the core registration logic for competitions:
@@ -8,7 +9,7 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
@@ -21,7 +22,11 @@ import {
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
+import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 
 // ============================================================================
@@ -140,9 +145,6 @@ async function inviteUserToTeamInternal({
 }> {
 	const db = getDb()
 
-	// Dynamic import for kv-session
-	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
-
 	// Check if user already exists
 	const existingUser = await db.query.userTable.findFirst({
 		where: eq(userTable.email, email.toLowerCase()),
@@ -225,9 +227,33 @@ async function inviteUserToTeamInternal({
 		expiresAt,
 	})
 
-	// TODO: Send competition team invite email when notifyCompetitionTeamInvite is ported
-	// For now, invites are created but notification emails are not sent
-	// The invite can still be accepted via the token
+	// Send competition team invite email
+	if (competitionContext) {
+		// Get competition name for email subject
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, competitionContext.competitionId),
+		})
+		const competitionName = competition?.name ?? "the competition"
+
+		// Get inviter name for personalized email
+		const inviter = await db.query.userTable.findFirst({
+			where: eq(userTable.id, invitedBy),
+			columns: { firstName: true, lastName: true },
+		})
+		const inviterName = inviter
+			? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+				"Your team captain"
+			: "Your team captain"
+
+		await sendCompetitionTeamInviteEmail({
+			email: email.toLowerCase(),
+			invitationToken: token,
+			teamName: competitionContext.teamName,
+			competitionName,
+			divisionName: competitionContext.divisionName,
+			inviterName,
+		})
+	}
 
 	return { userJoined: false, invitationSent: true, token }
 }
@@ -301,9 +327,6 @@ export async function registerForCompetition(
 ): Promise<RegisterForCompetitionResult> {
 	const db = getDb()
 
-	// Dynamic imports for kv-session (uses cloudflare: imports)
-	const { updateAllSessionsOfUser } = await import("@/utils/kv-session")
-
 	// 1. Validate competition exists
 	const competition = await getCompetition(params.competitionId)
 	if (!competition) {
@@ -370,9 +393,25 @@ export async function registerForCompetition(
 		) {
 			throw new Error(`Team requires ${division.teamSize - 1} teammate(s)`)
 		}
+
+		// 7b. Check if team name is already taken for this competition (case-insensitive)
+		const teamNameLower = params.teamName.trim().toLowerCase()
+		const existingTeamWithName =
+			await db.query.competitionRegistrationsTable.findFirst({
+				where: and(
+					eq(competitionRegistrationsTable.eventId, params.competitionId),
+					sql`lower(${competitionRegistrationsTable.teamName}) = ${teamNameLower}`,
+				),
+			})
+
+		if (existingTeamWithName) {
+			throw new Error(
+				`Team name "${params.teamName}" is already taken for this competition`,
+			)
+		}
 	}
 
-	// 8. Check for duplicate registration
+	// 8. Check for duplicate registration (as captain)
 	const existingRegistration =
 		await db.query.competitionRegistrationsTable.findFirst({
 			where: and(
@@ -385,15 +424,93 @@ export async function registerForCompetition(
 		throw new Error("You are already registered for this competition")
 	}
 
-	// 9. For team registrations, check teammates not already registered
+	// 8b. Check if user is already on another team for this competition (as teammate)
+	const competitionTeams = await db.query.teamTable.findMany({
+		where: eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
+	})
+
+	for (const team of competitionTeams) {
+		if (!team.competitionMetadata) continue
+
+		try {
+			const metadata = JSON.parse(team.competitionMetadata) as {
+				competitionId?: string
+			}
+			if (metadata.competitionId !== params.competitionId) continue
+
+			// Check if user is a member of this team
+			const membership = await db.query.teamMembershipTable.findFirst({
+				where: and(
+					eq(teamMembershipTable.teamId, team.id),
+					eq(teamMembershipTable.userId, params.userId),
+					eq(teamMembershipTable.isActive, 1),
+				),
+			})
+
+			if (membership) {
+				throw new Error("You are already on a team for this competition")
+			}
+		} catch (e) {
+			// Re-throw our custom errors, ignore JSON parse errors
+			if (e instanceof Error && e.message.includes("already on a team")) {
+				throw e
+			}
+		}
+	}
+
+	// 8c. Check if user's email is in pendingTeammates of another registration
+	const allRegistrations =
+		await db.query.competitionRegistrationsTable.findMany({
+			where: eq(competitionRegistrationsTable.eventId, params.competitionId),
+		})
+
+	for (const reg of allRegistrations) {
+		if (!reg.pendingTeammates) continue
+
+		try {
+			const pending = JSON.parse(reg.pendingTeammates) as Array<{
+				email: string
+			}>
+			const isPending = pending.some(
+				(p) => p.email.toLowerCase() === user.email?.toLowerCase(),
+			)
+
+			if (isPending) {
+				throw new Error(
+					"You have already been invited to another team for this competition",
+				)
+			}
+		} catch (e) {
+			// Re-throw our custom errors, ignore JSON parse errors
+			if (
+				e instanceof Error &&
+				(e.message.includes("already been invited") ||
+					e.message.includes("already on a team"))
+			) {
+				throw e
+			}
+		}
+	}
+
+	// 9. For team registrations, check teammates not already registered or on another team
 	if (isTeamDivision && params.teammates) {
 		for (const teammate of params.teammates) {
+			const teammateEmail = teammate.email.toLowerCase()
+
+			// Check if teammate email is the same as the registering user's email
+			if (user.email && teammateEmail === user.email.toLowerCase()) {
+				throw new Error(
+					`${teammate.email} is your own email. Please enter a different teammate's email.`,
+				)
+			}
+
 			// Check if email is already in use by a registered user for this competition
 			const teammateUser = await db.query.userTable.findFirst({
-				where: eq(userTable.email, teammate.email.toLowerCase()),
+				where: eq(userTable.email, teammateEmail),
 			})
 
 			if (teammateUser) {
+				// Check if they're registered as a captain
 				const teammateReg =
 					await db.query.competitionRegistrationsTable.findFirst({
 						where: and(
@@ -404,8 +521,83 @@ export async function registerForCompetition(
 
 				if (teammateReg) {
 					throw new Error(
-						`${teammate.email} is already registered for this competition`,
+						`${teammate.email} is already on a team for this competition`,
 					)
+				}
+
+				// Check if they're already a member of any competition_team for this competition
+				// Get all competition_teams for this competition
+				const competitionTeams = await db.query.teamTable.findMany({
+					where: eq(teamTable.type, TEAM_TYPE_ENUM.COMPETITION_TEAM),
+				})
+
+				// Filter to teams for this competition and check membership
+				for (const team of competitionTeams) {
+					if (!team.competitionMetadata) continue
+
+					try {
+						const metadata = JSON.parse(team.competitionMetadata) as {
+							competitionId?: string
+						}
+						if (metadata.competitionId !== params.competitionId) continue
+
+						// Check if user is a member of this team
+						const membership = await db.query.teamMembershipTable.findFirst({
+							where: and(
+								eq(teamMembershipTable.teamId, team.id),
+								eq(teamMembershipTable.userId, teammateUser.id),
+								eq(teamMembershipTable.isActive, 1),
+							),
+						})
+
+						if (membership) {
+							throw new Error(
+								`${teammate.email} is already on a team for this competition`,
+							)
+						}
+					} catch (e) {
+						// Re-throw our custom errors, ignore JSON parse errors
+						if (e instanceof Error && e.message.includes("already on a team")) {
+							throw e
+						}
+					}
+				}
+			}
+
+			// Check if email is already in pendingTeammates of another registration
+			const allRegistrations =
+				await db.query.competitionRegistrationsTable.findMany({
+					where: eq(
+						competitionRegistrationsTable.eventId,
+						params.competitionId,
+					),
+				})
+
+			for (const reg of allRegistrations) {
+				if (!reg.pendingTeammates) continue
+
+				try {
+					const pending = JSON.parse(reg.pendingTeammates) as Array<{
+						email: string
+					}>
+					const isPending = pending.some(
+						(p) => p.email.toLowerCase() === teammateEmail,
+					)
+
+					if (isPending) {
+						throw new Error(
+							`${teammate.email} has already been invited to another team for this competition`,
+						)
+					}
+				} catch (e) {
+					// Re-throw our custom errors, ignore JSON parse errors
+					if (
+						e instanceof Error &&
+						(e.message.includes("already been invited") ||
+							e.message.includes("already on a team"))
+					) {
+						throw e
+					}
 				}
 			}
 		}
@@ -595,15 +787,6 @@ export async function notifyRegistrationConfirmed(
 	const { userId, registrationId, competitionId, isPaid, amountPaidCents } =
 		params
 
-	// Dynamic imports for logging and email (avoid server-only issues)
-	const { logInfo, logError } = await import(
-		"@/lib/logging/posthog-otel-logger"
-	)
-	const { sendEmail } = await import("@/utils/email")
-	const { RegistrationConfirmationEmail } = await import(
-		"@/react-email/registration-confirmation"
-	)
-
 	try {
 		const db = getDb()
 
@@ -705,4 +888,53 @@ export async function notifyRegistrationConfirmed(
 			attributes: { userId, registrationId, competitionId },
 		})
 	}
+}
+
+// ============================================================================
+// Competition Team Helpers
+// ============================================================================
+
+/**
+ * Add a user to the competition_event team
+ * Called when a teammate accepts an invitation to join a competition team
+ */
+export async function addToCompetitionEventTeam(
+	userId: string,
+	competitionId: string,
+): Promise<void> {
+	const db = getDb()
+
+	// Get competition to find the competition_event team
+	const competition = await db.query.competitionsTable.findFirst({
+		where: eq(competitionsTable.id, competitionId),
+	})
+
+	if (!competition?.competitionTeamId) {
+		return // No competition_event team to add to
+	}
+
+	// Check if already a member of competition_event team
+	const existingMembership = await db.query.teamMembershipTable.findFirst({
+		where: and(
+			eq(teamMembershipTable.teamId, competition.competitionTeamId),
+			eq(teamMembershipTable.userId, userId),
+		),
+	})
+
+	if (existingMembership) {
+		return // Already a member
+	}
+
+	// Add to competition_event team as MEMBER
+	await db.insert(teamMembershipTable).values({
+		teamId: competition.competitionTeamId,
+		userId,
+		roleId: SYSTEM_ROLES_ENUM.MEMBER,
+		isSystemRole: 1,
+		joinedAt: new Date(),
+		isActive: 1,
+	})
+
+	// Update user sessions to include the new team
+	await updateAllSessionsOfUser(userId)
 }

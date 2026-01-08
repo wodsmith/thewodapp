@@ -22,6 +22,7 @@ type TeamMembershipWithTeam = TeamMembership & {
 	team: Team | null
 }
 
+import { getTeamPlan } from "@/server/entitlements"
 import { getUserPersonalTeamId } from "@/server/user"
 import type { SessionValidationResult } from "@/types"
 import isProd from "@/utils/is-prod"
@@ -150,7 +151,6 @@ export async function getUserTeamsWithPermissions(userId: string): Promise<
 
 	// Fetch plans for all teams in parallel
 	const teamIds = userTeamMemberships.map((m) => m.teamId)
-	const { getTeamPlan } = await import("@/server/entitlements")
 	const teamPlansPromises = teamIds.map((teamId) => getTeamPlan(teamId))
 	const teamPlans = await Promise.all(teamPlansPromises)
 	const planMap = new Map(teamPlans.map((plan, i) => [teamIds[i], plan]))

@@ -64,7 +64,7 @@ interface LoaderData {
 }
 
 export const Route = createFileRoute(
-	"/compete/organizer/settings/payouts/$teamSlug/",
+	"/compete/organizer/_dashboard/settings/payouts/$teamSlug/",
 )({
 	component: PayoutSettingsPage,
 	validateSearch: payoutSearchSchema,
@@ -266,7 +266,6 @@ function PayoutSettingsPage() {
 					Configure how you receive payments for {team.name}
 				</p>
 			</div>
-
 			{/* Success Messages */}
 			{showConnectedMessage && (
 				<Alert className="bg-green-50 border-green-200">
@@ -280,7 +279,6 @@ function PayoutSettingsPage() {
 					</AlertDescription>
 				</Alert>
 			)}
-
 			{showRefreshMessage && (
 				<Alert>
 					<AlertCircle className="h-4 w-4" />
@@ -291,7 +289,6 @@ function PayoutSettingsPage() {
 					</AlertDescription>
 				</Alert>
 			)}
-
 			{/* Stripe Connection Card */}
 			<Card>
 				<CardHeader>
@@ -334,7 +331,6 @@ function PayoutSettingsPage() {
 								competition registrations. Your earnings will be automatically
 								transferred to your bank account.
 							</p>
-
 							<div className="grid gap-4 sm:grid-cols-2">
 								{/* Express Account (Recommended) */}
 								<Card className="border-2 border-primary">
@@ -407,7 +403,6 @@ function PayoutSettingsPage() {
 									payments.
 								</AlertDescription>
 							</Alert>
-
 							<div className="flex gap-3">
 								{stripeStatus.accountType === "express" && (
 									<Button
@@ -464,7 +459,6 @@ function PayoutSettingsPage() {
 									</div>
 								)}
 							</div>
-
 							{/* Balance Display */}
 							{balance && (
 								<div className="space-y-2">
@@ -489,7 +483,6 @@ function PayoutSettingsPage() {
 									</div>
 								</div>
 							)}
-
 							{/* Actions */}
 							<div className="flex flex-wrap gap-3 pt-2">
 								<Button
@@ -533,7 +526,6 @@ function PayoutSettingsPage() {
 					)}
 				</CardContent>
 			</Card>
-
 			{/* Info Card */}
 			<Card>
 				<CardHeader>

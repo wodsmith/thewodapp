@@ -3,6 +3,8 @@
  *
  * Ported from apps/wodsmith/src/server/competition-leaderboard.ts
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * Features:
  * - Points calculation (winner_takes_more, even_spread, fixed_step)
  * - Tie detection using sortKey + secondaryValue + tiebreakValue
@@ -12,10 +14,30 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
-
-// Import type-only - safe for client bundling (types are erased at compile time)
+import { getDb } from "@/db"
+import {
+	competitionRegistrationsTable,
+	competitionsTable,
+} from "@/db/schemas/competitions"
+import {
+	programmingTracksTable,
+	trackWorkoutsTable,
+} from "@/db/schemas/programming"
+import { scoresTable } from "@/db/schemas/scores"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
+import { teamMembershipTable } from "@/db/schemas/teams"
+import { userTable } from "@/db/schemas/users"
+import { workouts } from "@/db/schemas/workouts"
+import {
+	decodeScore,
+	formatScore,
+	getDefaultScoreType,
+	getSortDirection,
+} from "@/lib/scoring"
 import type { TiebreakScheme, WorkoutScheme } from "@/lib/scoring/types"
+import { autochunk } from "@/utils/batch-query"
 
 // ============================================================================
 // Types (Re-export from server layer)
@@ -246,25 +268,6 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 		getCompetitionLeaderboardInputSchema.parse(data),
 	)
 	.handler(async ({ data }) => {
-		// Dynamic imports for server-only code (TanStack Start pattern)
-		const { getDb } = await import("@/db")
-		const { and, eq, inArray } = await import("drizzle-orm")
-		const { autochunk } = await import("@/utils/batch-query")
-		const { competitionsTable, competitionRegistrationsTable } = await import(
-			"@/db/schemas/competitions"
-		)
-		const { programmingTracksTable, trackWorkoutsTable } = await import(
-			"@/db/schemas/programming"
-		)
-		const { scoresTable } = await import("@/db/schemas/scores")
-		const { scalingLevelsTable } = await import("@/db/schemas/scaling")
-		const { teamMembershipTable } = await import("@/db/schemas/teams")
-		const { userTable } = await import("@/db/schemas/users")
-		const { workouts } = await import("@/db/schemas/workouts")
-		const { decodeScore, formatScore, getDefaultScoreType, getSortDirection } =
-			await import("@/lib/scoring")
-		// WorkoutScheme type is used implicitly via formatScore/decodeScore params
-
 		const db = getDb()
 
 		// Get competition with settings
@@ -820,16 +823,6 @@ const getLeaderboardDataInputSchema = z.object({
 export const getLeaderboardDataFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getLeaderboardDataInputSchema.parse(data))
 	.handler(async ({ data }) => {
-		// Dynamic imports for server-only code
-		const { getDb } = await import("@/db")
-		const { eq, and } = await import("drizzle-orm")
-		const { competitionsTable, competitionRegistrationsTable } = await import(
-			"@/db/schemas/competitions"
-		)
-		const { programmingTracksTable, trackWorkoutsTable } = await import(
-			"@/db/schemas/programming"
-		)
-
 		const db = getDb()
 
 		// Verify competition exists

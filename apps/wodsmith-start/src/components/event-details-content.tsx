@@ -3,9 +3,7 @@
 import {
 	Calendar,
 	ChevronDown,
-	DollarSign,
 	ExternalLink,
-	HelpCircle,
 	Trophy,
 	Users,
 } from "lucide-react"
@@ -219,38 +217,6 @@ export function EventDetailsContent({
 
 			{/* Workouts Section */}
 			{workoutsContent}
-
-			{/* Entry & Prizes */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<DollarSign className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Entry & Prizes</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							Entry fees and prize information coming soon.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
-
-			{/* FAQ Section */}
-			<section>
-				<div className="flex items-center gap-2 mb-4">
-					<HelpCircle className="h-5 w-5 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Frequently Asked Questions</h2>
-				</div>
-				<Separator className="mb-4" />
-				<Card className="border-dashed">
-					<CardContent className="py-6 text-center">
-						<p className="text-muted-foreground">
-							FAQs will be added by the event organizer.
-						</p>
-					</CardContent>
-				</Card>
-			</section>
 		</div>
 	)
 }

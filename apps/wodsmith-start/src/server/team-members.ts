@@ -1,5 +1,6 @@
 /**
  * Team Members Server Module for TanStack Start
+ * This file uses top-level imports for server-only modules.
  * Functions for managing team memberships and invitations
  */
 import { createId } from "@paralleldrive/cuid2"
@@ -8,14 +9,19 @@ import { MAX_TEAMS_JOINED_PER_USER } from "@/constants"
 import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
+	TEAM_PERMISSIONS,
 	TEAM_TYPE_ENUM,
 	teamInvitationTable,
 	teamMembershipTable,
 	teamTable,
 	userTable,
 } from "@/db/schema"
+import { addToCompetitionEventTeam } from "@/server/registration"
+import { notifyTeammateJoined } from "@/server/notifications"
 import { getSessionFromCookie } from "@/utils/auth"
+import { sendTeamInvitationEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
+import { requireTeamPermission } from "@/utils/team-auth"
 
 /**
  * Invite a user to join a team
@@ -47,8 +53,6 @@ export async function inviteUserToTeam({
 }> {
 	// Check if user has permission to invite members (unless caller already checked)
 	if (!skipPermissionCheck) {
-		const { requireTeamPermission } = await import("@/utils/team-auth")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
 		await requireTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
 	}
 
@@ -155,7 +159,6 @@ export async function inviteUserToTeam({
 			: "A team member"
 
 		// Send invitation email
-		const { sendTeamInvitationEmail } = await import("@/utils/email")
 		await sendTeamInvitationEmail({
 			email,
 			invitationToken: token,
@@ -201,7 +204,6 @@ export async function inviteUserToTeam({
 		: "A team member"
 
 	// Send invitation email
-	const { sendTeamInvitationEmail } = await import("@/utils/email")
 	await sendTeamInvitationEmail({
 		email,
 		invitationToken: token,
@@ -342,21 +344,11 @@ export async function acceptTeamInvitation(token: string): Promise<{
 				competitionId?: string
 			}
 			if (metadata.competitionId) {
-				// TODO: Import and call addToCompetitionEventTeam when available
-				// const { addToCompetitionEventTeam, clearPendingTeammate } =
-				// 	await import("@/server/competitions")
-				// await addToCompetitionEventTeam(session.userId, metadata.competitionId)
+				// Add user to competition_event team
+				await addToCompetitionEventTeam(session.userId, metadata.competitionId)
 
-				// Clear from pendingTeammates on the registration and migrate affiliate
-				// if (session.user.email) {
-				// 	await clearPendingTeammate(
-				// 		metadata.competitionId,
-				// 		session.user.email,
-				// 		session.userId,
-				// 	)
-				// }
-
-				// Send teammate joined notification to captain
+				// Send teammate joined notification to captain (non-blocking)
+				// Notification failure shouldn't prevent user from joining the team
 				const registration =
 					await db.query.competitionRegistrationsTable.findFirst({
 						where: eq(
@@ -366,16 +358,20 @@ export async function acceptTeamInvitation(token: string): Promise<{
 					})
 
 				if (registration?.captainUserId) {
-					// TODO: Import and call notifyTeammateJoined when notifications are available
-					// const { notifyTeammateJoined } = await import(
-					// 	"@/server/notifications"
-					// )
-					// await notifyTeammateJoined({
-					// 	captainUserId: registration.captainUserId,
-					// 	newTeammateUserId: session.userId,
-					// 	competitionTeamId: invitation.teamId,
-					// 	competitionId: metadata.competitionId,
-					// })
+					try {
+						await notifyTeammateJoined({
+							captainUserId: registration.captainUserId,
+							newTeammateUserId: session.userId,
+							competitionTeamId: invitation.teamId,
+							competitionId: metadata.competitionId,
+						})
+					} catch (notifyError) {
+						// Log but don't fail - notification is non-critical
+						console.error(
+							"[team-members] Failed to send teammate joined notification:",
+							notifyError,
+						)
+					}
 				}
 			}
 		} catch {
@@ -395,9 +391,6 @@ export async function acceptTeamInvitation(token: string): Promise<{
  * Get pending invitations for a team
  */
 export async function getTeamInvitations(teamId: string) {
-	const { requireTeamPermission } = await import("@/utils/team-auth")
-	const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-
 	// Check if user has permission to view invitations
 	await requireTeamPermission(teamId, TEAM_PERMISSIONS.INVITE_MEMBERS)
 
@@ -448,9 +441,6 @@ export async function getTeamInvitations(teamId: string) {
  * Cancel a team invitation
  */
 export async function cancelTeamInvitation(invitationId: string) {
-	const { requireTeamPermission } = await import("@/utils/team-auth")
-	const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-
 	const db = getDb()
 
 	// Find the invitation

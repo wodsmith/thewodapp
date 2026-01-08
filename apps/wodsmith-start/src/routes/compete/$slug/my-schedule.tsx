@@ -1,7 +1,8 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { canInputScoresFn } from "@/server-fns/volunteer-fns"
 import {
 	getVolunteerMembershipFn,
 	getVolunteerScheduleDataFn,
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 				events: [],
 				volunteerMetadata: null,
 				hasTeam: false,
+				hasScoreAccess: false,
 			}
 		}
 
@@ -54,16 +56,25 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 				events: [],
 				volunteerMetadata: null,
 				hasTeam: true,
+				hasScoreAccess: false,
 			}
 		}
 
 		// Get enriched rotations for the volunteer's schedule
-		const { events } = await getVolunteerScheduleDataFn({
-			data: {
-				membershipId: membership.id,
-				competitionId: competition.id,
-			},
-		})
+		const [{ events }, hasScoreAccess] = await Promise.all([
+			getVolunteerScheduleDataFn({
+				data: {
+					membershipId: membership.id,
+					competitionId: competition.id,
+				},
+			}),
+			canInputScoresFn({
+				data: {
+					userId: session.userId,
+					competitionTeamId: competition.competitionTeamId,
+				},
+			}),
+		])
 
 		return {
 			competition,
@@ -71,6 +82,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 			events,
 			volunteerMetadata,
 			hasTeam: true,
+			hasScoreAccess,
 		}
 	},
 	component: MySchedulePage,
@@ -94,20 +106,35 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
 })
 
 function MySchedulePage() {
-	const { competition, membership, events, volunteerMetadata, hasTeam } =
-		Route.useLoaderData()
+	const {
+		competition,
+		membership,
+		events,
+		volunteerMetadata,
+		hasTeam,
+		hasScoreAccess,
+	} = Route.useLoaderData()
 	const { slug } = Route.useParams()
 
 	return (
 		<div className="min-h-screen bg-background">
 			<div className="border-b">
-				<div className="container mx-auto px-4 py-4">
+				<div className="container mx-auto flex items-center justify-between px-4 py-4">
 					<Button variant="ghost" size="sm" asChild>
 						<Link to="/compete/$slug" params={{ slug }}>
 							<ArrowLeft className="mr-2 h-4 w-4" />
 							Back to Competition
 						</Link>
 					</Button>
+
+					{hasScoreAccess && (
+						<Button asChild>
+							<Link to="/compete/$slug/scores" params={{ slug }}>
+								<ClipboardList className="mr-2 h-4 w-4" />
+								Enter Scores
+							</Link>
+						</Button>
+					)}
 				</div>
 			</div>
 

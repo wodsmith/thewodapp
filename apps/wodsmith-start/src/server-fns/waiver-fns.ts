@@ -2,13 +2,20 @@
  * Waiver Server Functions for TanStack Start
  * Handles waiver CRUD operations and signing for competition registration
  *
- * IMPORTANT: All imports from @/db, @/utils/auth, and @/utils/team-auth
- * must be dynamic imports inside handlers to avoid Vite bundling cloudflare:workers
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { eq, and, inArray } from "drizzle-orm"
+import { getDb } from "@/db"
+import { competitionsTable } from "@/db/schemas/competitions"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { waiversTable, waiverSignaturesTable } from "@/db/schemas/waivers"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
+import { getSessionFromCookie } from "@/utils/auth"
+import { hasTeamPermission } from "@/utils/team-auth"
+import { autochunk } from "@/utils/batch-query"
 
 // Re-export types for consumers
 export type { Waiver, WaiverSignature }
@@ -97,10 +104,6 @@ async function validateCompetitionOwnership(
 	competitionId: string,
 	teamId: string,
 ): Promise<void> {
-	const { getDb } = await import("@/db")
-	const { eq } = await import("drizzle-orm")
-	const { competitionsTable } = await import("@/db/schemas/competitions")
-
 	const db = getDb()
 
 	const competition = await db.query.competitionsTable.findFirst({
@@ -128,10 +131,6 @@ export const getCompetitionWaiversFn = createServerFn({ method: "GET" })
 		getCompetitionWaiversInputSchema.parse(data),
 	)
 	.handler(async ({ data }): Promise<{ waivers: Waiver[] }> => {
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiversTable } = await import("@/db/schemas/waivers")
-
 		const db = getDb()
 
 		const waivers = await db.query.waiversTable.findMany({
@@ -148,10 +147,6 @@ export const getCompetitionWaiversFn = createServerFn({ method: "GET" })
 export const getWaiverFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) => getWaiverInputSchema.parse(data))
 	.handler(async ({ data }): Promise<{ waiver: Waiver | null }> => {
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiversTable } = await import("@/db/schemas/waivers")
-
 		const db = getDb()
 
 		const waiver = await db.query.waiversTable.findFirst({
@@ -172,11 +167,6 @@ export const getWaiverSignaturesForRegistrationFn = createServerFn({
 		getWaiverSignaturesForRegistrationInputSchema.parse(data),
 	)
 	.handler(async ({ data }): Promise<{ signatures: WaiverSignature[] }> => {
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiverSignaturesTable } = await import("@/db/schemas/waivers")
-
 		const session = await getSessionFromCookie()
 		if (!session) {
 			throw new Error("Authentication required")
@@ -208,13 +198,6 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 			.parse(data),
 	)
 	.handler(async ({ data }): Promise<{ signatures: WaiverSignature[] }> => {
-		const { getDb } = await import("@/db")
-		const { eq, and, inArray } = await import("drizzle-orm")
-		const { waiversTable, waiverSignaturesTable } = await import(
-			"@/db/schemas/waivers"
-		)
-		const { autochunk } = await import("@/utils/batch-query")
-
 		const db = getDb()
 
 		// Get all waivers for the competition
@@ -254,13 +237,6 @@ export const getWaiverSignaturesForUserFn = createServerFn({ method: "GET" })
 export const createWaiverFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => createWaiverInputSchema.parse(data))
 	.handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiversTable } = await import("@/db/schemas/waivers")
-
 		const session = await getSessionFromCookie()
 		if (!session) {
 			throw new Error("Authentication required")
@@ -317,13 +293,6 @@ export const createWaiverFn = createServerFn({ method: "POST" })
 export const updateWaiverFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => updateWaiverInputSchema.parse(data))
 	.handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiversTable } = await import("@/db/schemas/waivers")
-
 		const session = await getSessionFromCookie()
 		if (!session) {
 			throw new Error("Authentication required")
@@ -341,8 +310,6 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
 
 		// Validate competition belongs to team
 		await validateCompetitionOwnership(data.competitionId, data.teamId)
-
-		const { and } = await import("drizzle-orm")
 
 		const db = getDb()
 
@@ -395,13 +362,6 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
 export const deleteWaiverFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => deleteWaiverInputSchema.parse(data))
 	.handler(async ({ data }): Promise<{ success: true }> => {
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiversTable } = await import("@/db/schemas/waivers")
-
 		const session = await getSessionFromCookie()
 		if (!session) {
 			throw new Error("Authentication required")
@@ -419,8 +379,6 @@ export const deleteWaiverFn = createServerFn({ method: "POST" })
 
 		// Validate competition belongs to team
 		await validateCompetitionOwnership(data.competitionId, data.teamId)
-
-		const { and } = await import("drizzle-orm")
 
 		const db = getDb()
 
@@ -445,13 +403,6 @@ export const deleteWaiverFn = createServerFn({ method: "POST" })
 export const reorderWaiversFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => reorderWaiversInputSchema.parse(data))
 	.handler(async ({ data }): Promise<{ success: true }> => {
-		const { getSessionFromCookie } = await import("@/utils/auth")
-		const { hasTeamPermission } = await import("@/utils/team-auth")
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getDb } = await import("@/db")
-		const { eq } = await import("drizzle-orm")
-		const { waiversTable } = await import("@/db/schemas/waivers")
-
 		const session = await getSessionFromCookie()
 		if (!session) {
 			throw new Error("Authentication required")
@@ -469,8 +420,6 @@ export const reorderWaiversFn = createServerFn({ method: "POST" })
 
 		// Validate competition belongs to team
 		await validateCompetitionOwnership(data.competitionId, data.teamId)
-
-		const { and } = await import("drizzle-orm")
 
 		const db = getDb()
 
@@ -501,11 +450,6 @@ export const signWaiverFn = createServerFn({ method: "POST" })
 		async ({
 			data,
 		}): Promise<{ success: true; signature: WaiverSignature }> => {
-			const { getSessionFromCookie } = await import("@/utils/auth")
-			const { getDb } = await import("@/db")
-			const { eq, and } = await import("drizzle-orm")
-			const { waiverSignaturesTable } = await import("@/db/schemas/waivers")
-
 			const session = await getSessionFromCookie()
 			if (!session) {
 				throw new Error("Authentication required")

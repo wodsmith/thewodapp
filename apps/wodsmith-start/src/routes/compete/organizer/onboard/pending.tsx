@@ -4,17 +4,31 @@
  * Users can see their application status and start creating private competitions.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/(organizer-public)/organizer/onboard/pending/page.tsx
+ *
+ * NOTE: This page must fetch session directly via getOptionalSession() because
+ * the parent /compete/organizer route returns session: null for all onboard routes
+ * to allow the onboard index page to handle inline auth. This caused a redirect
+ * loop when using context.session (which was always null for onboard routes).
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { formatDistanceToNow } from "date-fns"
 import { CheckCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getOptionalSession } from "@/server-fns/middleware/auth"
 import {
 	getOrganizerRequest,
 	hasPendingOrganizerRequest,
 	isApprovedOrganizer,
 } from "@/server-fns/organizer-onboarding-fns"
+
+// Server function callers for use in loader
+const fetchIsApprovedOrganizer = (teamId: string) =>
+	isApprovedOrganizer({ data: { teamId } })
+const fetchHasPendingOrganizerRequest = (teamId: string) =>
+	hasPendingOrganizerRequest({ data: { teamId } })
+const fetchGetOrganizerRequest = (teamId: string) =>
+	getOrganizerRequest({ data: { teamId } })
 
 // Types
 interface TeamInfo {
@@ -34,8 +48,11 @@ interface LoaderData {
 
 export const Route = createFileRoute("/compete/organizer/onboard/pending")({
 	component: OrganizerOnboardPendingPage,
-	loader: async ({ context }): Promise<LoaderData> => {
-		const session = context.session
+	loader: async (): Promise<LoaderData> => {
+		// Fetch session directly - parent route returns session: null for onboard paths
+		// to avoid import chain issues and to allow inline auth on the onboard index page.
+		// Using context.session here would always be null, causing a redirect loop.
+		const session = await getOptionalSession()
 
 		// If not authenticated, redirect to sign-in
 		if (!session?.user) {
@@ -55,15 +72,15 @@ export const Route = createFileRoute("/compete/organizer/onboard/pending")({
 		let pendingTeam: TeamInfo | null = null
 
 		for (const team of gymTeams) {
-			const approved = await isApprovedOrganizer(team.id)
+			const approved = await fetchIsApprovedOrganizer(team.id)
 			if (approved) {
 				// If approved, redirect to organizer dashboard
 				throw redirect({ to: "/compete/organizer" })
 			}
 
-			const isPending = await hasPendingOrganizerRequest(team.id)
+			const isPending = await fetchHasPendingOrganizerRequest(team.id)
 			if (isPending) {
-				const request = await getOrganizerRequest(team.id)
+				const request = await fetchGetOrganizerRequest(team.id)
 				if (request) {
 					pendingRequest = {
 						reason: request.reason,

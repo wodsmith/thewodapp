@@ -2,19 +2,32 @@
  * Organizer Onboarding Server Functions for TanStack Start
  * Handles the workflow for teams to request and receive competition organizing access
  *
- * IMPORTANT: All functions that access @/db must use dynamic imports to avoid
- * bundling cloudflare:workers into the client bundle.
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
+import { getDb } from "@/db"
 import {
 	ORGANIZER_REQUEST_STATUS,
+	organizerRequestTable,
 	type OrganizerRequest,
 } from "@/db/schemas/organizer-requests"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import {
+	SYSTEM_ROLES_ENUM,
+	TEAM_PERMISSIONS,
+	teamMembershipTable,
+} from "@/db/schemas/teams"
+import {
+	grantTeamFeature,
+	setTeamLimitOverride,
+} from "@/server/organizer-onboarding"
+import { getSessionFromCookie } from "@/utils/auth"
+import { updateAllSessionsOfUser } from "@/utils/kv-session"
+import { validateTurnstileToken } from "@/utils/validate-captcha"
 
 // ============================================================================
 // Permission Helpers
@@ -27,7 +40,6 @@ async function hasTeamPermission(
 	teamId: string,
 	permission: string,
 ): Promise<boolean> {
-	const { getSessionFromCookie } = await import("@/utils/auth")
 	const session = await getSessionFromCookie()
 	if (!session?.userId) return false
 
@@ -45,11 +57,6 @@ async function isTeamOwnerFromDb(
 	userId: string,
 	teamId: string,
 ): Promise<boolean> {
-	const { getDb } = await import("@/db")
-	const { and, eq } = await import("drizzle-orm")
-	const { SYSTEM_ROLES_ENUM, teamMembershipTable } = await import(
-		"@/db/schemas/teams"
-	)
 	const db = getDb()
 	const membership = await db.query.teamMembershipTable.findFirst({
 		where: and(
@@ -63,7 +70,7 @@ async function isTeamOwnerFromDb(
 }
 
 // ============================================================================
-// Server Logic Functions
+// Server Logic Functions (internal helpers)
 // ============================================================================
 
 /**
@@ -71,7 +78,7 @@ async function isTeamOwnerFromDb(
  * Grants HOST_COMPETITIONS feature immediately, but sets MAX_PUBLISHED_COMPETITIONS to 0
  * (pending approval)
  */
-export async function submitOrganizerRequest({
+async function submitOrganizerRequestInternal({
 	teamId,
 	userId,
 	reason,
@@ -80,15 +87,6 @@ export async function submitOrganizerRequest({
 	userId: string
 	reason: string
 }): Promise<OrganizerRequest> {
-	const { getDb } = await import("@/db")
-	const { and, eq } = await import("drizzle-orm")
-	const { organizerRequestTable } = await import(
-		"@/db/schemas/organizer-requests"
-	)
-	const { grantTeamFeature, setTeamLimitOverride } = await import(
-		"@/server/organizer-onboarding"
-	)
-
 	const db = getDb()
 
 	// Check if there's already a pending request for this team
@@ -141,21 +139,19 @@ export async function submitOrganizerRequest({
 		"Organizer request pending approval",
 	)
 
+	// Refresh KV session cache to reflect the granted HOST_COMPETITIONS feature
+	// This ensures route guards see the updated plan data immediately
+	await updateAllSessionsOfUser(userId)
+
 	return request
 }
 
 /**
- * Get the organizer request for a team
+ * Get the organizer request for a team (internal helper)
  */
-export async function getOrganizerRequest(
+async function getOrganizerRequestInternal(
 	teamId: string,
 ): Promise<OrganizerRequest | null> {
-	const { getDb } = await import("@/db")
-	const { desc, eq } = await import("drizzle-orm")
-	const { organizerRequestTable } = await import(
-		"@/db/schemas/organizer-requests"
-	)
-
 	const db = getDb()
 
 	// Get the most recent request for this team
@@ -168,17 +164,11 @@ export async function getOrganizerRequest(
 }
 
 /**
- * Check if a team has a pending organizer request
+ * Check if a team has a pending organizer request (internal helper)
  */
-export async function hasPendingOrganizerRequest(
+async function hasPendingOrganizerRequestInternal(
 	teamId: string,
 ): Promise<boolean> {
-	const { getDb } = await import("@/db")
-	const { and, eq } = await import("drizzle-orm")
-	const { organizerRequestTable } = await import(
-		"@/db/schemas/organizer-requests"
-	)
-
 	const db = getDb()
 
 	const request = await db.query.organizerRequestTable.findFirst({
@@ -192,15 +182,9 @@ export async function hasPendingOrganizerRequest(
 }
 
 /**
- * Check if a team has an approved organizer request
+ * Check if a team has an approved organizer request (internal helper)
  */
-export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
-	const { getDb } = await import("@/db")
-	const { and, eq } = await import("drizzle-orm")
-	const { organizerRequestTable } = await import(
-		"@/db/schemas/organizer-requests"
-	)
-
+async function isApprovedOrganizerInternal(teamId: string): Promise<boolean> {
 	const db = getDb()
 
 	const request = await db.query.organizerRequestTable.findFirst({
@@ -217,6 +201,10 @@ export async function isApprovedOrganizer(teamId: string): Promise<boolean> {
 // Input Schemas
 // ============================================================================
 
+const teamIdSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+})
+
 const submitOrganizerRequestSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	reason: z
@@ -226,13 +214,36 @@ const submitOrganizerRequestSchema = z.object({
 	captchaToken: z.string().optional(),
 })
 
-const getOrganizerRequestStatusSchema = z.object({
-	teamId: z.string().min(1, "Team ID is required"),
-})
-
 // ============================================================================
 // Server Functions
 // ============================================================================
+
+/**
+ * Get the organizer request for a team
+ */
+export const getOrganizerRequest = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => teamIdSchema.parse(data))
+	.handler(async ({ data }): Promise<OrganizerRequest | null> => {
+		return getOrganizerRequestInternal(data.teamId)
+	})
+
+/**
+ * Check if a team has a pending organizer request
+ */
+export const hasPendingOrganizerRequest = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => teamIdSchema.parse(data))
+	.handler(async ({ data }): Promise<boolean> => {
+		return hasPendingOrganizerRequestInternal(data.teamId)
+	})
+
+/**
+ * Check if a team has an approved organizer request
+ */
+export const isApprovedOrganizer = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => teamIdSchema.parse(data))
+	.handler(async ({ data }): Promise<boolean> => {
+		return isApprovedOrganizerInternal(data.teamId)
+	})
 
 /**
  * Submit an organizer request for a team
@@ -241,11 +252,6 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => submitOrganizerRequestSchema.parse(data))
 	.handler(
 		async ({ data }): Promise<{ success: boolean; data: OrganizerRequest }> => {
-			const { validateTurnstileToken } = await import(
-				"@/utils/validate-captcha"
-			)
-			const { getSessionFromCookie } = await import("@/utils/auth")
-
 			// Validate turnstile token if provided
 			if (data.captchaToken) {
 				const isValidCaptcha = await validateTurnstileToken(data.captchaToken)
@@ -277,7 +283,7 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
 				)
 			}
 
-			const result = await submitOrganizerRequest({
+			const result = await submitOrganizerRequestInternal({
 				teamId: data.teamId,
 				userId: session.user.id,
 				reason: data.reason,
@@ -291,9 +297,7 @@ export const submitOrganizerRequestFn = createServerFn({ method: "POST" })
  * Get the organizer request status for a team
  */
 export const getOrganizerRequestStatusFn = createServerFn({ method: "GET" })
-	.inputValidator((data: unknown) =>
-		getOrganizerRequestStatusSchema.parse(data),
-	)
+	.inputValidator((data: unknown) => teamIdSchema.parse(data))
 	.handler(
 		async ({
 			data,
@@ -306,8 +310,6 @@ export const getOrganizerRequestStatusFn = createServerFn({ method: "GET" })
 				hasNoRequest: boolean
 			}
 		}> => {
-			const { getSessionFromCookie } = await import("@/utils/auth")
-
 			const session = await getSessionFromCookie()
 			if (!session?.user) {
 				throw new Error("You must be logged in")
@@ -323,9 +325,9 @@ export const getOrganizerRequestStatusFn = createServerFn({ method: "GET" })
 			}
 
 			try {
-				const request = await getOrganizerRequest(data.teamId)
-				const isPending = await hasPendingOrganizerRequest(data.teamId)
-				const isApproved = await isApprovedOrganizer(data.teamId)
+				const request = await getOrganizerRequestInternal(data.teamId)
+				const isPending = await hasPendingOrganizerRequestInternal(data.teamId)
+				const isApproved = await isApprovedOrganizerInternal(data.teamId)
 
 				return {
 					success: true,

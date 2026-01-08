@@ -1,14 +1,21 @@
 /**
  * Team Management Route
  * Displays team roster for team competitions and allows management of affiliates.
- * Shows confirmed members, pending invitations, and affiliate info.
+ * Shows confirmed members, pending invitations, affiliate info, and waiver signing.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/(public)/[slug]/teams/[registrationId]/page.tsx
  */
 
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
+import {
+	createFileRoute,
+	notFound,
+	redirect,
+	useNavigate,
+} from "@tanstack/react-router"
 import { CheckCircle, Clock, Copy, Crown, Mail, Users } from "lucide-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
+import { z } from "zod"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,10 +26,22 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
 	getTeamRosterFn,
 	type TeamRosterResult,
 } from "@/server-fns/registration-fns"
+import {
+	getCompetitionWaiversFn,
+	getWaiverSignaturesForUserFn,
+} from "@/server-fns/waiver-fns"
+import { WaiverSection } from "./-components/waiver-section"
+import { WelcomeModal } from "./-components/welcome-modal"
+
+// Search params schema
+const searchSchema = z.object({
+	welcome: z.boolean().optional(),
+})
 
 // Types
 type RegistrationMetadata = {
@@ -56,10 +75,13 @@ interface LoaderData {
 	memberAffiliates: Record<string, string>
 	currentUserAffiliate: string | null
 	pendingTeammates: PendingTeammate[]
+	waivers: Waiver[]
+	waiverSignatures: WaiverSignature[]
 }
 
 export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 	component: TeamManagementPage,
+	validateSearch: (search) => searchSchema.parse(search),
 	loader: async ({ params, context }): Promise<LoaderData> => {
 		const { slug, registrationId } = params
 		const session = context.session
@@ -120,6 +142,27 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			}
 		}
 
+		// Fetch waivers and signatures for the competition
+		let waivers: Waiver[] = []
+		let waiverSignatures: WaiverSignature[] = []
+
+		if (registration.competition?.id) {
+			const [waiversResult, signaturesResult] = await Promise.all([
+				getCompetitionWaiversFn({
+					data: { competitionId: registration.competition.id },
+				}),
+				getWaiverSignaturesForUserFn({
+					data: {
+						userId: session.userId,
+						competitionId: registration.competition.id,
+					},
+				}),
+			])
+
+			waivers = waiversResult.waivers
+			waiverSignatures = signaturesResult.signatures
+		}
+
 		return {
 			registration,
 			members,
@@ -132,6 +175,8 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			memberAffiliates,
 			currentUserAffiliate,
 			pendingTeammates,
+			waivers,
+			waiverSignatures,
 		}
 	},
 })
@@ -149,7 +194,32 @@ function TeamManagementPage() {
 		memberAffiliates,
 		currentUserAffiliate,
 		pendingTeammates,
+		waivers,
+		waiverSignatures,
 	} = Route.useLoaderData()
+
+	const { welcome } = Route.useSearch()
+	const navigate = useNavigate()
+	const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+
+	// Show welcome modal when ?welcome=true is in URL
+	useEffect(() => {
+		if (welcome) {
+			setShowWelcomeModal(true)
+			// Clear the welcome param from URL without navigation
+			navigate({
+				to: ".",
+				search: {},
+				replace: true,
+			})
+		}
+	}, [welcome, navigate])
+
+	// Calculate if there are unsigned required waivers
+	const signedWaiverIds = new Set(waiverSignatures.map((s) => s.waiverId))
+	const hasUnsignedWaivers = waivers
+		.filter((w) => w.required)
+		.some((w) => !signedWaiverIds.has(w.id))
 
 	// Helper to get affiliate for a pending invite by email
 	const getPendingAffiliate = (email: string): string | null => {
@@ -197,175 +267,201 @@ function TeamManagementPage() {
 	}
 
 	return (
-		<div className="container mx-auto max-w-4xl py-8 space-y-6">
-			{/* Header */}
-			<div className="space-y-2">
-				<h1 className="text-3xl font-bold">
-					{registration.teamName || "Team"}
-				</h1>
-				<p className="text-muted-foreground">
-					{competition?.name || "Competition"} - {division?.label || "Division"}
-				</p>
-			</div>
+		<>
+			{/* Welcome Modal - shown after accepting invite */}
+			<WelcomeModal
+				isOpen={showWelcomeModal}
+				onClose={() => setShowWelcomeModal(false)}
+				teamName={registration.teamName || "Team"}
+				competitionName={competition?.name || "Competition"}
+				competitionSlug={competition?.slug || ""}
+				divisionName={division?.label}
+				hasUnsignedWaivers={hasUnsignedWaivers}
+			/>
 
-			{/* Team Status Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Users className="w-5 h-5" />
-						Team Roster
-					</CardTitle>
-					<CardDescription>
-						{members.length} confirmed, {pending.length} pending invitation
-						{pending.length !== 1 ? "s" : ""}
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					{/* Confirmed Members */}
-					<div className="space-y-3">
-						<h4 className="text-sm font-medium flex items-center gap-2">
-							<CheckCircle className="w-4 h-4 text-green-500" />
-							Confirmed Members
-						</h4>
-						<div className="space-y-2">
-							{members.map((member) => {
-								const memberAffiliate = member.user?.id
-									? memberAffiliates[member.user.id]
-									: null
-								return (
-									<div
-										key={member.id}
-										className="flex items-center justify-between p-3 rounded-lg border bg-card"
-									>
-										<div className="flex items-center gap-3">
-											<Avatar className="w-10 h-10">
-												<AvatarImage src={member.user?.avatar || undefined} />
-												<AvatarFallback>
-													{member.user?.firstName?.[0] || "?"}
-													{member.user?.lastName?.[0] || ""}
-												</AvatarFallback>
-											</Avatar>
-											<div>
-												<div className="flex items-center gap-2">
-													<span className="font-medium">
-														{member.user?.firstName} {member.user?.lastName}
-													</span>
-													{member.isCaptain && (
-														<Badge variant="secondary" className="text-xs">
-															<Crown className="w-3 h-3 mr-1" />
-															Captain
-														</Badge>
-													)}
-												</div>
-												<p className="text-sm text-muted-foreground">
-													{member.user?.email}
-												</p>
-												<p className="text-xs text-muted-foreground mt-0.5">
-													{memberAffiliate || "Independent"}
-												</p>
-											</div>
-										</div>
-										<Badge variant="outline" className="text-green-600">
-											Confirmed
-										</Badge>
-									</div>
-								)
-							})}
-						</div>
-					</div>
+			<div className="container mx-auto max-w-4xl py-8 space-y-6">
+				{/* Header */}
+				<div className="space-y-2">
+					<h1 className="text-3xl font-bold">
+						{registration.teamName || "Team"}
+					</h1>
+					<p className="text-muted-foreground">
+						{competition?.name || "Competition"} -{" "}
+						{division?.label || "Division"}
+					</p>
+				</div>
 
-					{/* Pending Invitations */}
-					{pending.length > 0 && (
+				{/* Team Status Card */}
+				<Card>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Users className="w-5 h-5" />
+							Team Roster
+						</CardTitle>
+						<CardDescription>
+							{members.length} confirmed, {pending.length} pending invitation
+							{pending.length !== 1 ? "s" : ""}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						{/* Confirmed Members */}
 						<div className="space-y-3">
 							<h4 className="text-sm font-medium flex items-center gap-2">
-								<Clock className="w-4 h-4 text-yellow-500" />
-								Pending Invitations
+								<CheckCircle className="w-4 h-4 text-green-500" />
+								Confirmed Members
 							</h4>
 							<div className="space-y-2">
-								{pending.map((invite) => {
-									const pendingAffiliate = getPendingAffiliate(invite.email)
+								{members.map((member) => {
+									const memberAffiliate = member.user?.id
+										? memberAffiliates[member.user.id]
+										: null
 									return (
 										<div
-											key={invite.id}
+											key={member.id}
 											className="flex items-center justify-between p-3 rounded-lg border bg-card"
 										>
 											<div className="flex items-center gap-3">
 												<Avatar className="w-10 h-10">
+													<AvatarImage src={member.user?.avatar || undefined} />
 													<AvatarFallback>
-														<Mail className="w-4 h-4" />
+														{member.user?.firstName?.[0] || "?"}
+														{member.user?.lastName?.[0] || ""}
 													</AvatarFallback>
 												</Avatar>
 												<div>
-													<p className="font-medium">{invite.email}</p>
+													<div className="flex items-center gap-2">
+														<span className="font-medium">
+															{member.user?.firstName} {member.user?.lastName}
+														</span>
+														{member.isCaptain && (
+															<Badge variant="secondary" className="text-xs">
+																<Crown className="w-3 h-3 mr-1" />
+																Captain
+															</Badge>
+														)}
+													</div>
 													<p className="text-sm text-muted-foreground">
-														Invited{" "}
-														{invite.invitedAt
-															? new Date(invite.invitedAt).toLocaleDateString()
-															: ""}
+														{member.user?.email}
 													</p>
 													<p className="text-xs text-muted-foreground mt-0.5">
-														{pendingAffiliate || "Independent"}
+														{memberAffiliate || "Independent"}
 													</p>
 												</div>
 											</div>
-											<div className="flex items-center gap-2">
-												{isRegisteredUser && invite.token && (
-													<Button
-														variant="ghost"
-														size="sm"
-														onClick={() => copyInviteLink(invite.token!)}
-													>
-														<Copy className="w-4 h-4 mr-1" />
-														Copy Link
-													</Button>
-												)}
-												<Badge variant="outline" className="text-yellow-600">
-													Pending
-												</Badge>
-											</div>
+											<Badge variant="outline" className="text-green-600">
+												Confirmed
+											</Badge>
 										</div>
 									)
 								})}
 							</div>
 						</div>
-					)}
-				</CardContent>
-			</Card>
 
-			{/* My Affiliate */}
-			{(isTeamMember || isRegisteredUser) && (
-				<Card>
-					<CardHeader>
-						<CardTitle>My Affiliate</CardTitle>
-						<CardDescription>
-							Your representing affiliate for this competition
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<p className="text-lg">{currentUserAffiliate || "Independent"}</p>
+						{/* Pending Invitations */}
+						{pending.length > 0 && (
+							<div className="space-y-3">
+								<h4 className="text-sm font-medium flex items-center gap-2">
+									<Clock className="w-4 h-4 text-yellow-500" />
+									Pending Invitations
+								</h4>
+								<div className="space-y-2">
+									{pending.map((invite) => {
+										const pendingAffiliate = getPendingAffiliate(invite.email)
+										return (
+											<div
+												key={invite.id}
+												className="flex items-center justify-between p-3 rounded-lg border bg-card"
+											>
+												<div className="flex items-center gap-3">
+													<Avatar className="w-10 h-10">
+														<AvatarFallback>
+															<Mail className="w-4 h-4" />
+														</AvatarFallback>
+													</Avatar>
+													<div>
+														<p className="font-medium">{invite.email}</p>
+														<p className="text-sm text-muted-foreground">
+															Invited{" "}
+															{invite.invitedAt
+																? new Date(
+																		invite.invitedAt,
+																	).toLocaleDateString()
+																: ""}
+														</p>
+														<p className="text-xs text-muted-foreground mt-0.5">
+															{pendingAffiliate || "Independent"}
+														</p>
+													</div>
+												</div>
+												<div className="flex items-center gap-2">
+													{isRegisteredUser && invite.token && (
+														<Button
+															variant="ghost"
+															size="sm"
+															onClick={() => copyInviteLink(invite.token!)}
+														>
+															<Copy className="w-4 h-4 mr-1" />
+															Copy Link
+														</Button>
+													)}
+													<Badge variant="outline" className="text-yellow-600">
+														Pending
+													</Badge>
+												</div>
+											</div>
+										)
+									})}
+								</div>
+							</div>
+						)}
 					</CardContent>
 				</Card>
-			)}
 
-			{/* Captain Actions */}
-			{isRegisteredUser && pending.length > 0 && (
-				<Card>
-					<CardHeader>
-						<CardTitle className="text-lg">Captain Actions</CardTitle>
-						<CardDescription>
-							Share the invite links with your teammates so they can join the
-							team
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<p className="text-sm text-muted-foreground">
-							Teammates will receive an email with their invitation link. If
-							they didn&apos;t receive it, you can copy the link above and share
-							it directly.
-						</p>
-					</CardContent>
-				</Card>
-			)}
-		</div>
+				{/* Waiver Section - Show for team members */}
+				{(isTeamMember || isRegisteredUser) && waivers.length > 0 && (
+					<WaiverSection
+						waivers={waivers}
+						signatures={waiverSignatures}
+						registrationId={registration.id}
+						competitionName={competition?.name || "Competition"}
+					/>
+				)}
+
+				{/* My Affiliate */}
+				{(isTeamMember || isRegisteredUser) && (
+					<Card>
+						<CardHeader>
+							<CardTitle>My Affiliate</CardTitle>
+							<CardDescription>
+								Your representing affiliate for this competition
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<p className="text-lg">{currentUserAffiliate || "Independent"}</p>
+						</CardContent>
+					</Card>
+				)}
+
+				{/* Captain Actions */}
+				{isRegisteredUser && pending.length > 0 && (
+					<Card>
+						<CardHeader>
+							<CardTitle className="text-lg">Captain Actions</CardTitle>
+							<CardDescription>
+								Share the invite links with your teammates so they can join the
+								team
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<p className="text-sm text-muted-foreground">
+								Teammates will receive an email with their invitation link. If
+								they didn&apos;t receive it, you can copy the link above and
+								share it directly.
+							</p>
+						</CardContent>
+					</Card>
+				)}
+			</div>
+		</>
 	)
 }

@@ -1,12 +1,16 @@
+/**
+ * This file uses top-level imports for server-only modules.
+ */
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
+import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getSessionFromCookie } from "@/utils/auth"
 
 // Server function to get session and permissions
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const { TEAM_PERMISSIONS } = await import("@/db/schemas/teams")
-		const { getSessionFromCookie } = await import("@/utils/auth")
 		const session = await getSessionFromCookie()
 
 		// Check if user has MANAGE_COMPETITIONS permission in any team
@@ -22,6 +26,7 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
 
 export const Route = createFileRoute("/compete")({
 	component: CompeteLayout,
+	staleTime: 30_000, // Cache for 30 seconds - nav data changes infrequently
 	loader: async () => {
 		const { session, canOrganize } = await getCompeteNavDataFn()
 		return { session, canOrganize }
@@ -32,14 +37,16 @@ function CompeteLayout() {
 	const { session, canOrganize } = Route.useLoaderData()
 	const location = useLocation()
 
-	// Check if we're on an organizer competition detail page (has sidebar layout)
-	// These pages have their own layout and don't need the CompeteNav header
-	const isOrganizerDetailPage =
-		/^\/compete\/organizer\/[^/]+/.test(location.pathname) &&
-		location.pathname !== "/compete/organizer"
+	// Check if we're on an organizer route that uses its own layout
+	// - _dashboard routes: have their own layout with CompeteNav
+	// - $competitionId routes: have sidebar layout
+	// - onboard routes: have their own layout
+	const isOrganizerRoute =
+		location.pathname === "/compete/organizer" ||
+		location.pathname.startsWith("/compete/organizer/")
 
-	// Organizer detail pages have their own full-page layout with sidebar
-	if (isOrganizerDetailPage) {
+	// Organizer routes have their own layouts (dashboard or competition sidebar)
+	if (isOrganizerRoute) {
 		return <Outlet />
 	}
 
@@ -48,6 +55,7 @@ function CompeteLayout() {
 			<CompeteNav session={session} canOrganize={canOrganize} />
 
 			<main className="container mx-auto flex-1 pt-4 sm:p-4">
+				<CompeteBreadcrumb />
 				<Outlet />
 			</main>
 

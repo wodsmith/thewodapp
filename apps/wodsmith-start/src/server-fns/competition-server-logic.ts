@@ -2,6 +2,8 @@
  * Competition Server Logic
  * Server-side business logic for competition and competition group CRUD operations
  * This file contains the actual implementation logic that server functions call
+ *
+ * This file uses top-level imports for server-only modules.
  */
 
 import { createId } from "@paralleldrive/cuid2"
@@ -14,6 +16,7 @@ import {
 	competitionsTable,
 } from "@/db/schemas/competitions"
 import { teamTable } from "@/db/schemas/teams"
+import { generateSlug } from "@/utils/slugify"
 
 /* -------------------------------------------------------------------------- */
 /*                          Competition Group Functions                       */
@@ -227,8 +230,6 @@ export async function createCompetition(params: {
 	}
 
 	// Step 1: Create competition_event team for athlete management
-	const { generateSlug } = await import("@/utils/slugify")
-
 	// Generate unique slug for competition team (internal, not public-facing)
 	let teamSlug = generateSlug(`${params.name}-event`)
 	let teamSlugIsUnique = false

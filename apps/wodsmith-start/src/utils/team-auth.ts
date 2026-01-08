@@ -2,11 +2,12 @@
  * Team Authorization Utilities for TanStack Start
  * Port from apps/wodsmith/src/utils/team-auth.ts
  *
- * IMPORTANT: This file uses dynamic imports for cookie operations
- * to avoid bundling @tanstack/react-start/server into client bundles.
- * See tanstack-start-boundaries skill for details.
+ * This file is server-only and can use top-level imports for server modules.
+ * See tanstack-start-server-only skill for details.
  */
 
+import { getCookie } from "@tanstack/react-start/server"
+import { ACTIVE_TEAM_COOKIE_NAME } from "@/constants"
 import { ROLES_ENUM } from "@/db/schema"
 import { getSessionFromCookie } from "./auth"
 
@@ -25,10 +26,6 @@ import { getSessionFromCookie } from "./auth"
  * @returns The active team ID or null if no teams available
  */
 export async function getActiveTeamId(): Promise<string | null> {
-	// Dynamic import to avoid bundling server code into client
-	const { getCookie } = await import("@tanstack/react-start/server")
-	const { ACTIVE_TEAM_COOKIE_NAME } = await import("@/constants")
-
 	const session = await getSessionFromCookie()
 
 	// No session means no teams

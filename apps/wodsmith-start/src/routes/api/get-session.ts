@@ -1,6 +1,8 @@
 /**
  * Get Session API Route for TanStack Start
  *
+ * This file uses top-level imports for server-only modules.
+ *
  * GET /api/get-session
  * Returns the current user session.
  * Used for client-side session hydration.
@@ -8,14 +10,12 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { getSessionFromCookie } from "@/utils/auth"
 
 export const Route = createFileRoute("/api/get-session")({
 	server: {
 		handlers: {
 			GET: async () => {
-				// Dynamic imports for server-only modules
-				const { getSessionFromCookie } = await import("@/utils/auth")
-
 				let session = null
 				let error = null
 

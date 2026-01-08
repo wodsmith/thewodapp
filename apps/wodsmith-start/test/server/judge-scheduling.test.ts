@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {calculateRequiredJudges} from '@/server/judge-scheduling'
+import {calculateRequiredJudges} from '@/server-fns/judge-scheduling-fns'
 
 describe('calculateRequiredJudges', () => {
   describe('basic calculations', () => {

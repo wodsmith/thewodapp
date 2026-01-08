@@ -1,5 +1,6 @@
 /**
  * Competition Notifications for TanStack Start
+ * This file uses top-level imports for server-only modules.
  * Ported from apps/wodsmith/src/server/notifications/compete.ts
  *
  * These functions send email notifications for competition-related events.
@@ -16,6 +17,9 @@ import {
 	userTable,
 } from "@/db/schema"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
+import { PaymentExpiredEmail } from "@/react-email/payment-expired"
+import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
+import { TeammateJoinedEmail } from "@/react-email/teammate-joined"
 import { sendEmail } from "@/utils/email"
 
 // ============================================================================
@@ -175,11 +179,6 @@ export async function notifyPaymentExpired(params: {
 
 		const athleteName = getAthleteName(user)
 
-		// Dynamic import for email template
-		const { PaymentExpiredEmail } = await import(
-			"@/react-email/payment-expired"
-		)
-
 		await sendEmail({
 			to: user.email,
 			subject: `Payment Expired: ${competition.name}`,
@@ -289,11 +288,6 @@ export async function notifyRegistrationConfirmed(params: {
 		)
 
 		const athleteName = getAthleteName(user)
-
-		// Dynamic import for email template
-		const { RegistrationConfirmationEmail } = await import(
-			"@/react-email/registration-confirmation"
-		)
 
 		await sendEmail({
 			to: user.email,
@@ -428,11 +422,6 @@ export async function notifyTeammateJoined(params: {
 			teamName,
 			competitionName: competition.name,
 		})
-
-		// Dynamic import for email template
-		const { TeammateJoinedEmail } = await import(
-			"@/react-email/teammate-joined"
-		)
 
 		await sendEmail({
 			to: captain.email,
