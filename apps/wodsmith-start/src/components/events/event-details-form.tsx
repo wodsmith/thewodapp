@@ -259,8 +259,9 @@ export function EventDetailsForm({
 
 			toast.success("Event updated")
 
-			// Invalidate router to refetch data
-			router.invalidate()
+			// Invalidate router cache and wait for it to complete before navigating
+			// This ensures the events list will fetch fresh data
+			await router.invalidate()
 
 			// Navigate back to events list
 			navigate({

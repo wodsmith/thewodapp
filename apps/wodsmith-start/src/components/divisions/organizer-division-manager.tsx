@@ -248,12 +248,12 @@ export function OrganizerDivisionManager({
 			}
 
 			toast.success("Division added")
-			// Don't optimistically update - let useEffect sync from server via revalidation
-			// to avoid duplicate entries when server action revalidates the page
 			setNewDivisionLabel("")
 			setNewDivisionTeamSize(1)
 			setNewDivisionDescription("")
 			setShowAddDialog(false)
+			// Invalidate router to refetch divisions from server
+			router.invalidate()
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to add division",
