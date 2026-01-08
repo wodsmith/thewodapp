@@ -95,7 +95,6 @@ import {
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
-import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
  * Initialize the Alchemy application context.
@@ -127,12 +126,6 @@ import { WebhookEndpoint } from "alchemy/stripe"
  * PR stages are formatted as `pr-{number}` (e.g., `pr-42`).
  */
 const stage = process.env.STAGE ?? "dev"
-
-/**
- * Whether the current stage needs Stripe webhook.
- * Only demo and production environments require the webhook resource.
- */
-const needsStripeWebhook = stage === "demo" || stage === "prod"
 
 /**
  * Whether Stripe environment variables are available.
@@ -295,69 +288,6 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
- * Validate required Stripe environment variables when Stripe webhook is needed.
- * Fails fast with a clear error message if any required variables are missing.
- */
-if (needsStripeWebhook) {
-	const requiredStripeVars = [
-		"STRIPE_SECRET_KEY",
-		"STRIPE_PUBLISHABLE_KEY",
-		"STRIPE_CLIENT_ID",
-	] as const
-	const missing = requiredStripeVars.filter((varName) => !process.env[varName])
-	if (missing.length > 0) {
-		throw new Error(
-			`Missing required Stripe environment variables for stage "${stage}": ${missing.join(", ")}`,
-		)
-	}
-}
-
-/**
- * Stripe Webhook Endpoint for demo and production environments.
- *
- * This creates a Stripe webhook that receives events only for environments
- * that require webhook integration (demo and prod). Other environments
- * still get Stripe env vars for API calls but don't register webhooks.
- *
- * @remarks
- * **Required environment variables:**
- * - `STRIPE_SECRET_KEY`: Stripe secret key for server-side API authentication
- * - `STRIPE_PUBLISHABLE_KEY`: Stripe publishable key for client-side Stripe.js
- * - `STRIPE_CLIENT_ID`: Stripe Connect OAuth client ID
- *
- * **Webhook URLs by stage:**
- * - prod: https://start.wodsmith.com/api/webhooks/stripe
- * - demo: https://demo.wodsmith.com/api/webhooks/stripe
- *
- * **Enabled events:**
- * - checkout.session.completed: Completes purchase and creates registration
- * - checkout.session.expired: Marks abandoned purchases as cancelled
- * - account.updated: Updates team's Stripe Connect status
- * - account.application.authorized: Logs OAuth connection confirmation
- * - account.application.deauthorized: Clears team Stripe connection
- *
- * @see {@link https://stripe.com/docs/webhooks Stripe Webhook Documentation}
- */
-const stripeWebhookUrl =
-	stage === "prod"
-		? "https://start.wodsmith.com/api/webhooks/stripe"
-		: "https://demo.wodsmith.com/api/webhooks/stripe"
-
-const stripeWebhook = needsStripeWebhook
-	? await WebhookEndpoint("stripe-webhook", {
-			url: stripeWebhookUrl,
-			enabledEvents: [
-				"checkout.session.completed",
-				"checkout.session.expired",
-				"account.updated",
-				"account.application.authorized",
-				"account.application.deauthorized",
-			],
-			adopt: true,
-		})
-	: null
-
-/**
  * Determines the custom domain(s) for the current deployment stage.
  *
  * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo", "pr-42")
@@ -476,11 +406,8 @@ const website = await TanStackStart("app", {
 			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
 			/** Stripe secret key for server-side API calls */
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
-		}),
-		// Webhook secret only for demo and prod (where webhook resource is created)
-		...(stripeWebhook && {
-			/** Stripe webhook secret for signature verification */
-			STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
+			/** Stripe webhook secret for signature verification (manually configured in Stripe dashboard) */
+			STRIPE_WEBHOOK_SECRET: alchemy.secret(process.env.STRIPE_WEBHOOK_SECRET!),
 		}),
 	},
 
