@@ -15,6 +15,7 @@ type CompeteSearch = {
 
 export const Route = createFileRoute("/compete/")({
 	component: CompetePage,
+	staleTime: 30_000, // Cache for 30 seconds - competition list doesn't change frequently
 	validateSearch: (search: Record<string, unknown>): CompeteSearch => ({
 		q: typeof search.q === "string" ? search.q : undefined,
 		past: search.past === "true" || search.past === true,

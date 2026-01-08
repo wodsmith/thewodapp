@@ -13,7 +13,6 @@ import {
 	createFileRoute,
 	Link,
 	redirect,
-	useNavigate,
 	useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -320,7 +319,7 @@ function OrganizerOnboardPage() {
  * Allows selecting a team and submitting an application to become an organizer.
  */
 function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
-	const navigate = useNavigate()
+	const router = useRouter()
 	const [isCreatingTeam, setIsCreatingTeam] = useState(false)
 
 	const form = useForm<FormValues>({
@@ -367,7 +366,9 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
 						},
 					})
 					toast.success("Application submitted successfully!")
-					navigate({ to: "/compete/organizer/onboard/pending" })
+					// Invalidate router cache to pick up session changes, then navigate
+					await router.invalidate()
+					await router.navigate({ to: "/compete/organizer/onboard/pending" })
 				}
 			} else {
 				await submitRequest({
@@ -377,7 +378,9 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
 					},
 				})
 				toast.success("Application submitted successfully!")
-				navigate({ to: "/compete/organizer/onboard/pending" })
+				// Invalidate router cache to pick up session changes, then navigate
+				await router.invalidate()
+				await router.navigate({ to: "/compete/organizer/onboard/pending" })
 			}
 		} catch (error) {
 			const errorMessage =
@@ -477,7 +480,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
 					<Button
 						type="button"
 						variant="outline"
-						onClick={() => navigate({ to: "/compete" })}
+						onClick={() => router.navigate({ to: "/compete" })}
 						disabled={isPending}
 					>
 						Cancel

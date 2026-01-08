@@ -27,6 +27,7 @@ const searchParamsSchema = z.object({
 
 export const Route = createFileRoute("/compete/$slug/scores")({
 	validateSearch: searchParamsSchema,
+	staleTime: 5_000, // Cache for 5 seconds - scores change frequently
 	loaderDeps: ({ search }) => ({
 		eventId: search.event,
 		divisionId: search.division,
@@ -54,23 +55,15 @@ export const Route = createFileRoute("/compete/$slug/scores")({
 			throw new Error("Competition team not found")
 		}
 
-		// Check if user has score access entitlement
-		const hasScoreAccess = await canInputScoresFn({
-			data: {
-				userId: session.user.id,
-				competitionTeamId: competition.competitionTeamId,
-			},
-		})
-
-		if (!hasScoreAccess) {
-			throw redirect({
-				to: "/compete/$slug",
-				params: { slug },
-			})
-		}
-
-		// Fetch events and divisions in parallel using score-access-only functions
-		const [eventsResult, divisionsResult] = await Promise.all([
+		// Parallel fetch: score access check, events, and divisions
+		// All only need competition.id and competition.competitionTeamId
+		const [hasScoreAccess, eventsResult, divisionsResult] = await Promise.all([
+			canInputScoresFn({
+				data: {
+					userId: session.user.id,
+					competitionTeamId: competition.competitionTeamId,
+				},
+			}),
 			getCompetitionWorkoutsForScoreEntryFn({
 				data: {
 					competitionId: competition.id,
@@ -84,6 +77,14 @@ export const Route = createFileRoute("/compete/$slug/scores")({
 				},
 			}),
 		])
+
+		// Check access after parallel fetch
+		if (!hasScoreAccess) {
+			throw redirect({
+				to: "/compete/$slug",
+				params: { slug },
+			})
+		}
 
 		const events = eventsResult.workouts
 		const divisions = divisionsResult.divisions

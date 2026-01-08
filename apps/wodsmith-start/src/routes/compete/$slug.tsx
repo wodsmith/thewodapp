@@ -14,91 +14,85 @@ import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 
 export const Route = createFileRoute("/compete/$slug")({
 	component: CompetitionDetailLayout,
+	staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
 	loader: async ({ params, context }) => {
 		const { slug } = params
 
-		// Fetch competition by slug
+		// Fetch competition by slug first (required to get competition.id)
 		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
 
 		if (!competition) {
 			throw notFound()
 		}
 
-		// Parallel fetch: registration count and session data
 		const session = context.session ?? null
 
-		// Parallel fetch: registration count, divisions, sponsors (always needed)
-		const [registrationCountResult, divisionsResult, sponsorsResult] =
-			await Promise.all([
-				getCompetitionRegistrationCountFn({
-					data: { competitionId: competition.id },
-				}),
-				getPublicCompetitionDivisionsFn({
-					data: { competitionId: competition.id },
-				}),
-				getCompetitionSponsorsFn({
-					data: { competitionId: competition.id },
-				}),
-			])
-
-		const registrationCount = registrationCountResult.count
-		const divisions = divisionsResult.divisions
-		const sponsors = sponsorsResult
-
-		// If user is logged in, fetch user-specific data
-		let userRegistration = null
-		let canManage = false
-		let isVolunteer = false
-		let registrationStatus = {
-			registrationOpen: false,
-			registrationClosed: false,
-			registrationNotYetOpen: false,
-		}
-
-		if (session) {
-			const [userRegResult, canManageResult, isVolunteerResult] =
-				await Promise.all([
-					getUserCompetitionRegistrationFn({
+		// Parallel fetch ALL data in a single batch
+		// Public data: registration count, divisions, sponsors, registration status
+		// User data (if logged in): user registration, can manage, is volunteer
+		const [
+			registrationCountResult,
+			divisionsResult,
+			sponsorsResult,
+			registrationStatus,
+			userRegResult,
+			canManageResult,
+			isVolunteerResult,
+		] = await Promise.all([
+			// Public data - always fetched
+			getCompetitionRegistrationCountFn({
+				data: { competitionId: competition.id },
+			}),
+			getPublicCompetitionDivisionsFn({
+				data: { competitionId: competition.id },
+			}),
+			getCompetitionSponsorsFn({
+				data: { competitionId: competition.id },
+			}),
+			getRegistrationStatusFn({
+				data: {
+					registrationOpensAt: competition.registrationOpensAt,
+					registrationClosesAt: competition.registrationClosesAt,
+				},
+			}),
+			// User-specific data - returns null/false if no session
+			session
+				? getUserCompetitionRegistrationFn({
 						data: {
 							competitionId: competition.id,
 							userId: session.userId,
 						},
-					}),
-					checkCanManageCompetitionFn({
+					})
+				: Promise.resolve({ registration: null }),
+			session
+				? checkCanManageCompetitionFn({
 						data: {
 							organizingTeamId: competition.organizingTeamId,
 							userId: session.userId,
 						},
-					}),
-					checkIsVolunteerFn({
+					})
+				: Promise.resolve({ canManage: false }),
+			session
+				? checkIsVolunteerFn({
 						data: {
 							competitionTeamId: competition.competitionTeamId,
 							userId: session.userId,
 						},
-					}),
-				])
+					})
+				: Promise.resolve({ isVolunteer: false }),
+		])
 
-			userRegistration = userRegResult.registration
-			canManage = canManageResult.canManage
-			isVolunteer = isVolunteerResult.isVolunteer
-		}
+		const registrationCount = registrationCountResult.count
+		const divisions = divisionsResult.divisions
+		const sponsors = sponsorsResult
+		const userRegistration = userRegResult.registration
+		const canManage = canManageResult.canManage
+		const isVolunteer = isVolunteerResult.isVolunteer
 
-		// Get registration status
-		registrationStatus = await getRegistrationStatusFn({
-			data: {
-				registrationOpensAt: competition.registrationOpensAt,
-				registrationClosesAt: competition.registrationClosesAt,
-			},
-		})
-
-		// Calculate userDivision and isTeamRegistration from divisions data
+		// Calculate userDivision from divisions data
 		const userDivision = userRegistration?.divisionId
 			? divisions.find((d) => d.id === userRegistration.divisionId)
 			: null
-
-		// Calculate maxSpots from divisions (sum of all division capacities if applicable)
-		// For now, we don't have maxSpots per division in the schema, so leave undefined
-		const maxSpots: number | undefined = undefined
 
 		return {
 			competition,
@@ -111,7 +105,7 @@ export const Route = createFileRoute("/compete/$slug")({
 			divisions,
 			sponsors,
 			userDivision,
-			maxSpots,
+			maxSpots: undefined as number | undefined,
 		}
 	},
 })
