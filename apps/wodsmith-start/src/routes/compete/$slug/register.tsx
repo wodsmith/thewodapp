@@ -89,10 +89,11 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/compete/$slug/register")({
 	component: RegisterPage,
 	validateSearch: registerSearchSchema,
+	staleTime: 10_000, // Cache for 10 seconds
 	loader: async ({ params, context }) => {
 		const { slug } = params
 
-		// 1. Get competition first (needed for redirects)
+		// 1. Get competition first (needed for redirects and other fetches)
 		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
 		if (!competition) {
 			throw notFound()
@@ -107,28 +108,32 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			})
 		}
 
-		// 3. Check if already registered
-		const { registration: existingRegistration } =
-			await getUserCompetitionRegistrationFn({
+		// 3. Parallel fetch: registration check, affiliate name, and waivers
+		// These all only need competition.id or session.userId
+		const [
+			{ registration: existingRegistration },
+			{ affiliateName },
+			{ waivers },
+		] = await Promise.all([
+			getUserCompetitionRegistrationFn({
 				data: {
 					competitionId: competition.id,
 					userId: session.userId,
 				},
-			})
+			}),
+			getUserAffiliateNameFn({
+				data: { userId: session.userId },
+			}),
+			getCompetitionWaiversFn({
+				data: { competitionId: competition.id },
+			}),
+		])
 
 		if (existingRegistration) {
 			throw redirect({ to: "/compete/$slug", params: { slug } })
 		}
 
-		// 4. Check profile completeness (commented out in original)
-		// if (!session.user.gender || !session.user.dateOfBirth) {
-		//   throw redirect({
-		//     to: '/compete/profile',
-		//     search: {redirect: `/compete/${slug}/register`},
-		//   })
-		// }
-
-		// 5. Check registration window
+		// 4. Check registration window
 		const now = new Date()
 		const regOpensAt = competition.registrationOpensAt
 			? typeof competition.registrationOpensAt === "number"
@@ -148,7 +153,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			regClosesAt >= now
 		)
 
-		// 6. Get competition settings for divisions
+		// 5. Get competition settings for divisions
 		const settings = parseCompetitionSettings(competition.settings)
 		if (!settings?.divisions?.scalingGroupId) {
 			// No divisions configured - will show error in component
@@ -165,7 +170,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			}
 		}
 
-		// 7. Get scaling group and levels for divisions (via server function)
+		// 6. Get scaling group and levels for divisions (via server function)
 		const { scalingGroup } = await getScalingGroupWithLevelsFn({
 			data: { scalingGroupId: settings.divisions.scalingGroupId },
 		})
@@ -188,16 +193,6 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				waivers: [],
 			}
 		}
-
-		// 8. Fetch user's affiliate from their profile (via server function)
-		const { affiliateName } = await getUserAffiliateNameFn({
-			data: { userId: session.userId },
-		})
-
-		// 9. Fetch waivers for this competition
-		const { waivers } = await getCompetitionWaiversFn({
-			data: { competitionId: competition.id },
-		})
 
 		return {
 			competition,
