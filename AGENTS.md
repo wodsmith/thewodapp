@@ -43,6 +43,7 @@ Run these from `apps/wodsmith-start/`:
 
 - `pnpm cf-typegen` - Generate Cloudflare types (run after wrangler.jsonc changes)
 - `npx alchemy deploy` - Deploy using Alchemy IaC
+- `pnpm alchemy:dev` - Deploy local dev environment with Alchemy (required after changing env vars in `.dev.vars`)
 
 ## Architecture Overview (wodsmith-start)
 
@@ -284,6 +285,26 @@ Refer to `docs/` directory for:
 - `project-plan.md` - Comprehensive project overview
 - `architecture/` - Architecture decisions and patterns
 - `tasks/` - Development task documentation
+
+## Cloudflare Workers Constraints
+
+### SubtleCrypto is Async-Only
+
+In Cloudflare Workers, the SubtleCrypto API is **async-only**. Any library that uses crypto operations must use async methods:
+
+```typescript
+// BAD - Will throw "SubtleCryptoProvider cannot be used in a synchronous context"
+const event = stripe.webhooks.constructEvent(body, signature, secret)
+
+// GOOD - Use async version
+const event = await stripe.webhooks.constructEventAsync(body, signature, secret)
+```
+
+This affects:
+
+- Stripe webhook signature verification (`constructEventAsync` instead of `constructEvent`)
+- Any HMAC/hash operations
+- Password hashing libraries
 
 ## Notes
 
