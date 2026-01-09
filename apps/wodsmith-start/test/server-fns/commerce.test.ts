@@ -67,20 +67,6 @@ const mockCompetition = {
   passPlatformFeesToCustomer: true,
 }
 
-// Mock division fees
-const mockDivisionFees = [
-  {
-    divisionId: 'div-1',
-    feeCents: 4000,
-    division: {label: 'Rx'},
-  },
-  {
-    divisionId: 'div-2',
-    feeCents: 3500,
-    division: {label: 'Scaled'},
-  },
-]
-
 beforeEach(() => {
   vi.clearAllMocks()
   mockDb.reset()
