@@ -156,7 +156,7 @@ jobs:
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           # App configuration
-          APP_URL: ${{ env.STAGE == 'prod' && 'https://start.wodsmith.com' || format('https://wodsmith-app-{0}.zacjones93.workers.dev', env.STAGE) }}
+          APP_URL: ${{ env.STAGE == 'prod' && 'https://wodsmith.com' || format('https://wodsmith-app-{0}.zacjones93.workers.dev', env.STAGE) }}
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
