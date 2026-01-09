@@ -67,20 +67,6 @@ const mockCompetition = {
   passPlatformFeesToCustomer: true,
 }
 
-// Mock division fees
-const mockDivisionFees = [
-  {
-    divisionId: 'div-1',
-    feeCents: 4000,
-    division: {label: 'Rx'},
-  },
-  {
-    divisionId: 'div-2',
-    feeCents: 3500,
-    division: {label: 'Scaled'},
-  },
-]
-
 beforeEach(() => {
   vi.clearAllMocks()
   mockDb.reset()
@@ -88,6 +74,7 @@ beforeEach(() => {
   // Register tables for query API
   mockDb.registerTable('competitionsTable')
   mockDb.registerTable('competitionDivisionsTable')
+  mockDb.registerTable('scalingLevelsTable')
 })
 
 afterEach(() => {
@@ -97,10 +84,22 @@ afterEach(() => {
 describe('commerce server functions', () => {
   describe('getCompetitionDivisionFeesFn', () => {
     it('should return division fees and default fee for a competition', async () => {
-      // Mock competitionDivisionsTable.findMany
+      // Mock competitionDivisionsTable.findMany (now returns fees without division relation)
       mockDb.query.competitionDivisionsTable = {
         findFirst: vi.fn().mockResolvedValue(null),
-        findMany: vi.fn().mockResolvedValue(mockDivisionFees),
+        findMany: vi.fn().mockResolvedValue([
+          {divisionId: 'div-1', feeCents: 4000},
+          {divisionId: 'div-2', feeCents: 3500},
+        ]),
+      }
+
+      // Mock scalingLevelsTable.findMany (for division labels)
+      mockDb.query.scalingLevelsTable = {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([
+          {id: 'div-1', label: 'Rx'},
+          {id: 'div-2', label: 'Scaled'},
+        ]),
       }
 
       // Mock competitionsTable.findFirst
@@ -175,9 +174,14 @@ describe('commerce server functions', () => {
           {
             divisionId: 'div-1',
             feeCents: 4000,
-            division: null,
           },
         ]),
+      }
+
+      // Mock scalingLevelsTable.findMany - division not found
+      mockDb.query.scalingLevelsTable = {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
       }
 
       const result = await getCompetitionDivisionFeesFn({

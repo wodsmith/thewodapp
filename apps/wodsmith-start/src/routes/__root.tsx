@@ -5,7 +5,7 @@ import {
 	Link,
 	Outlet,
 	Scripts,
-	useLocation,
+	useRouterState,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { Toaster } from "sonner"
@@ -57,11 +57,28 @@ export const Route = createRootRoute({
 
 function RootComponent() {
 	const { session, activeTeamId } = Route.useRouteContext()
-	const location = useLocation()
+
+	// Get both current and target locations to handle navigation transitions smoothly
+	// - location: where we're navigating TO (target)
+	// - resolvedLocation: where we currently ARE (current)
+	// During navigation, these differ; when idle, they're the same
+	const { targetPath, currentPath, isNavigating } = useRouterState({
+		select: (s) => ({
+			targetPath: s.location.pathname,
+			currentPath: s.resolvedLocation?.pathname ?? s.location.pathname,
+			isNavigating: s.isLoading,
+		}),
+	})
 
 	// Don't render MainNav on routes that have their own navigation
-	const isCompeteRoute = location.pathname.startsWith("/compete")
-	const isAdminRoute = location.pathname.startsWith("/admin")
+	// Hide MainNav if EITHER current OR target route is compete/admin
+	// This prevents layout flash during transitions in both directions
+	const isCompeteRoute =
+		currentPath.startsWith("/compete") ||
+		(isNavigating && targetPath.startsWith("/compete"))
+	const isAdminRoute =
+		currentPath.startsWith("/admin") ||
+		(isNavigating && targetPath.startsWith("/admin"))
 
 	return (
 		<>

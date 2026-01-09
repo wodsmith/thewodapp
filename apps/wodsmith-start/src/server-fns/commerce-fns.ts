@@ -97,12 +97,21 @@ export const getCompetitionDivisionFeesFn = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
+		// Query fees without relation to avoid Drizzle relation resolution issues
 		const fees = await db.query.competitionDivisionsTable.findMany({
 			where: eq(competitionDivisionsTable.competitionId, data.competitionId),
-			with: {
-				division: true,
-			},
 		})
+
+		// Get division labels separately if there are fees
+		const divisionIds = fees.map((f) => f.divisionId)
+		const divisions =
+			divisionIds.length > 0
+				? await db.query.scalingLevelsTable.findMany({
+						where: (table, { inArray }) => inArray(table.id, divisionIds),
+					})
+				: []
+
+		const divisionMap = new Map(divisions.map((d) => [d.id, d.label]))
 
 		const competition = await db.query.competitionsTable.findFirst({
 			where: eq(competitionsTable.id, data.competitionId),
@@ -112,7 +121,7 @@ export const getCompetitionDivisionFeesFn = createServerFn({ method: "GET" })
 			defaultFeeCents: competition?.defaultRegistrationFeeCents ?? 0,
 			divisionFees: fees.map((f) => ({
 				divisionId: f.divisionId,
-				divisionLabel: f.division?.label,
+				divisionLabel: divisionMap.get(f.divisionId),
 				feeCents: f.feeCents,
 			})),
 		}

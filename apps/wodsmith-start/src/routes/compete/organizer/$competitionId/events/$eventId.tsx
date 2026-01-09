@@ -11,7 +11,6 @@ import {
 	EventDetailsForm,
 } from "@/components/events/event-details-form"
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
-import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
@@ -105,22 +104,7 @@ function EventEditPage() {
 	const { competition } = parentRoute.useLoaderData()
 
 	return (
-		<div className="flex flex-1 flex-col gap-6 p-6">
-			{/* Breadcrumb */}
-			<OrganizerBreadcrumb
-				segments={[
-					{
-						label: competition.name,
-						href: `/compete/organizer/${competition.id}`,
-					},
-					{
-						label: "Events",
-						href: `/compete/organizer/${competition.id}/events`,
-					},
-					{ label: event.workout.name },
-				]}
-			/>
-
+		<>
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
@@ -152,6 +136,6 @@ function EventEditPage() {
 				competitionId={competition.id}
 				organizingTeamId={competition.organizingTeamId}
 			/>
-		</div>
+		</>
 	)
 }
