@@ -379,9 +379,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 				}
 
 				// Step 1: Verify webhook signature
+				// Use constructEventAsync for Cloudflare Workers (SubtleCrypto is async-only)
 				let event: Stripe.Event
 				try {
-					event = getStripe().webhooks.constructEvent(
+					event = await getStripe().webhooks.constructEventAsync(
 						body,
 						signature,
 						webhookSecret,
