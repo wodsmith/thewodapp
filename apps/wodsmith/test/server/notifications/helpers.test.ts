@@ -187,7 +187,7 @@ describe("isTeamComplete", () => {
 describe("buildInviteLink", () => {
 	it("builds link with default base URL", () => {
 		expect(buildInviteLink("abc123")).toBe(
-			"https://wodsmith.com/team-invite?token=abc123",
+			"https://classic.wodsmith.com/team-invite?token=abc123",
 		)
 	})
 
@@ -199,18 +199,18 @@ describe("buildInviteLink", () => {
 
 	it("handles URL-safe special characters in token", () => {
 		expect(buildInviteLink("token-with-dash_underscore")).toBe(
-			"https://wodsmith.com/team-invite?token=token-with-dash_underscore",
+			"https://classic.wodsmith.com/team-invite?token=token-with-dash_underscore",
 		)
 	})
 
 	it("encodes URL-unsafe characters in token", () => {
 		expect(buildInviteLink("token+with/special=chars&more")).toBe(
-			"https://wodsmith.com/team-invite?token=token%2Bwith%2Fspecial%3Dchars%26more",
+			"https://classic.wodsmith.com/team-invite?token=token%2Bwith%2Fspecial%3Dchars%26more",
 		)
 	})
 
 	it("handles empty token", () => {
-		expect(buildInviteLink("")).toBe("https://wodsmith.com/team-invite?token=")
+		expect(buildInviteLink("")).toBe("https://classic.wodsmith.com/team-invite?token=")
 	})
 
 	it("preserves localhost for development", () => {
