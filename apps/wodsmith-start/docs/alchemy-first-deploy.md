@@ -92,7 +92,7 @@ Add these permissions to your token:
 
 ### Zone Resources (Optional - for custom domains)
 
-- If you want to use `start.wodsmith.com` or similar:
+- If you want to use `wodsmith.com` or similar:
   - Select **Include** → **Specific zone** → your domain
 
 ### Create and Save
@@ -219,7 +219,7 @@ Alchemy uses **stages** to isolate environments:
 |-------|---------|-------------------|--------|
 | `dev` | `npx alchemy deploy` | `*-dev` | `*.workers.dev` |
 | `staging` | `STAGE=staging npx alchemy deploy` | `*-staging` | `*.workers.dev` |
-| `prod` | `STAGE=prod npx alchemy deploy` | `*-prod` | `start.wodsmith.com` |
+| `prod` | `STAGE=prod npx alchemy deploy` | `*-prod` | `wodsmith.com` |
 
 Each stage is completely isolated - separate databases, KV namespaces, and buckets.
 
@@ -339,7 +339,7 @@ When ready for production:
 STAGE=prod npx alchemy deploy
 ```
 
-This deploys to `start.wodsmith.com` (requires DNS zone configured).
+This deploys to `wodsmith.com` (requires DNS zone configured).
 
 ### Destroy Resources
 

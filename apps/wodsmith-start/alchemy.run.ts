@@ -155,7 +155,7 @@ const app = await alchemy("wodsmith", {
 	 * @example
 	 * - "dev"     → Development database, no custom domain
 	 * - "staging" → Staging database, staging domain (if configured)
-	 * - "prod"    → Production database, start.wodsmith.com domain
+	 * - "prod"    → Production database, wodsmith.com domain
 	 * - "pr-42"   → PR preview with auto-generated workers.dev URL
 	 */
 	stage,
@@ -326,7 +326,7 @@ if (needsStripeWebhook) {
  * - `STRIPE_CLIENT_ID`: Stripe Connect OAuth client ID
  *
  * **Webhook URLs by stage:**
- * - prod: https://start.wodsmith.com/api/webhooks/stripe
+ * - prod: https://wodsmith.com/api/webhooks/stripe
  * - demo: https://demo.wodsmith.com/api/webhooks/stripe
  *
  * **Enabled events:**
@@ -340,7 +340,7 @@ if (needsStripeWebhook) {
  */
 const stripeWebhookUrl =
 	stage === "prod"
-		? "https://start.wodsmith.com/api/webhooks/stripe"
+		? "https://wodsmith.com/api/webhooks/stripe"
 		: "https://demo.wodsmith.com/api/webhooks/stripe"
 
 const stripeWebhook = needsStripeWebhook
@@ -365,14 +365,14 @@ const stripeWebhook = needsStripeWebhook
  *
  * @remarks
  * Domain assignment logic:
- * - **prod**: Returns `["start.wodsmith.com"]` for production
+ * - **prod**: Returns `["wodsmith.com"]` for production
  * - **demo**: Returns `["demo.wodsmith.com"]` for persistent staging/demo environment
  * - **pr-N**: Returns `undefined` to use auto-generated workers.dev subdomain (avoids DNS delays)
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
  * @example
  * ```typescript
- * getDomains("prod")    // ["start.wodsmith.com"]
+ * getDomains("prod")    // ["wodsmith.com"]
  * getDomains("demo")    // ["demo.wodsmith.com"]
  * getDomains("pr-42")   // undefined (uses workers.dev)
  * getDomains("staging") // undefined
@@ -381,7 +381,7 @@ const stripeWebhook = needsStripeWebhook
  */
 function getDomains(currentStage: string): string[] | undefined {
 	if (currentStage === "prod") {
-		return ["start.wodsmith.com"]
+		return ["wodsmith.com"]
 	}
 	if (currentStage === "demo") {
 		return ["demo.wodsmith.com"]
@@ -405,7 +405,7 @@ function getDomains(currentStage: string): string[] | undefined {
  * |-------------|---------------------------|-------------------------------------|
  * | dev         | `*.workers.dev`           | Auto-generated Cloudflare subdomain |
  * | demo        | `demo.wodsmith.com`       | Persistent staging/demo environment |
- * | prod        | `start.wodsmith.com`      | Custom domain with SSL              |
+ * | prod        | `wodsmith.com`            | Custom domain with SSL              |
  * | pr-N        | `*.workers.dev`           | Auto-generated (avoids DNS delays)  |
  *
  * The `bindings` object makes Cloudflare resources available in your server code
@@ -493,7 +493,7 @@ const website = await TanStackStart("app", {
 	 * 2. Appropriate DNS records (Alchemy creates these automatically)
 	 *
 	 * Domain assignment by environment:
-	 * - **prod**: `start.wodsmith.com` (production domain)
+	 * - **prod**: `wodsmith.com` (production domain)
 	 * - **demo**: `demo.wodsmith.com` (persistent staging/demo environment)
 	 * - **pr-N**: Auto-generated `*.workers.dev` subdomain (avoids DNS delays)
 	 * - **other**: Auto-generated `*.workers.dev` subdomain

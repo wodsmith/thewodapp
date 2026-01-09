@@ -1,4 +1,4 @@
-# Deploy wodsmith-start to Production (start.wodsmith.com)
+# Deploy wodsmith-start to Production (wodsmith.com)
 
 **Date:** 2025-12-23  
 **Status:** Planning  
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Deploy the new TanStack Start application (`apps/wodsmith-start`) to production at `start.wodsmith.com`, sharing the same Cloudflare resources (D1 database, KV namespace, R2 buckets) as the existing Next.js app (`apps/wodsmith`).
+Deploy the new TanStack Start application (`apps/wodsmith-start`) to production at `wodsmith.com`, sharing the same Cloudflare resources (D1 database, KV namespace, R2 buckets) as the existing Next.js app (`apps/wodsmith` at `classic.wodsmith.com`).
 
 This is an alpha replacement strategy - both apps will run in parallel during testing, with `wodsmith-start` eventually replacing `wodsmith`.
 
@@ -46,7 +46,7 @@ Edit `apps/wodsmith-start/wrangler.jsonc`:
 
 **Changes needed:**
 
-1. Update `NEXT_PUBLIC_APP_URL` to `https://start.wodsmith.com`
+1. Update `NEXT_PUBLIC_APP_URL` to `https://wodsmith.com`
 2. Add `SITE_URL` environment variable for `src/constants.ts`
 3. Add `routes` section for custom domain
 
@@ -57,8 +57,8 @@ Edit `apps/wodsmith-start/wrangler.jsonc`:
   "EMAIL_FROM": "team@mail.wodsmith.com",
   "EMAIL_FROM_NAME": "WODsmith",
   "EMAIL_REPLY_TO": "support@mail.wodsmith.com",
-  "NEXT_PUBLIC_APP_URL": "https://start.wodsmith.com",
-  "SITE_URL": "https://start.wodsmith.com",
+  "NEXT_PUBLIC_APP_URL": "https://wodsmith.com",
+  "SITE_URL": "https://wodsmith.com",
   "R2_PUBLIC_URL": "https://pub-14c651314867492fa9637e830cc729a3.r2.dev"
 }
 ```
@@ -68,7 +68,7 @@ Edit `apps/wodsmith-start/wrangler.jsonc`:
 ```jsonc
 "routes": [
   {
-    "pattern": "start.wodsmith.com",
+    "pattern": "wodsmith.com",
     "custom_domain": true
   }
 ]
@@ -146,7 +146,7 @@ wrangler deployments list --name wodsmith-start
 
 **Test the deployed app:**
 
-1. Visit `https://start.wodsmith.com`
+1. Visit `https://wodsmith.com`
 2. Test authentication (sign in/sign up)
 3. Verify database connectivity
 4. Test key features
@@ -161,7 +161,7 @@ wrangler tail --name wodsmith-start
 
 ## Post-Deployment Checklist
 
-- [ ] `https://start.wodsmith.com` loads successfully
+- [ ] `https://wodsmith.com` loads successfully
 - [ ] Authentication works (sign in, sign up)
 - [ ] Database queries work (workouts, teams, users load)
 - [ ] File uploads work (R2 bucket connectivity)
@@ -176,7 +176,7 @@ wrangler tail --name wodsmith-start
 
 Since both apps share the same KV namespace:
 
-- Users logged into `wodsmith.com` will automatically be logged into `start.wodsmith.com`
+- Users logged into `wodsmith.com` will automatically be logged into `classic.wodsmith.com`
 - Sessions are shared across both apps
 - No need to log in twice
 
@@ -201,14 +201,14 @@ Both apps share:
 If something goes wrong:
 
 1. The old `wodsmith` app at `wodsmith.com` continues running unaffected
-2. Remove the DNS CNAME record for `start.wodsmith.com`
+2. Remove the DNS CNAME record for `classic.wodsmith.com` if no longer needed
 3. Delete the worker if needed: `wrangler delete --name wodsmith-start`
 
 ---
 
 ## Notes
 
-- **Worker Name:** `wodsmith-start` in Cloudflare, serves `start.wodsmith.com`
+- **Worker Name:** `wodsmith-start` in Cloudflare, serves `wodsmith.com`
 - **No Database Migrations:** Production DB already has all migrations
 - **Alpha Stage:** No real users, safe to share all resources
 - **Replacement Strategy:** Eventually `wodsmith-start` will replace `wodsmith` on the main domain

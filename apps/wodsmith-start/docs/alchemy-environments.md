@@ -169,7 +169,7 @@ Production typically has a custom domain; dev/staging use workers.dev:
 const website = await TanStackStart("wodsmith-start", {
   bindings: { /* ... */ },
   // Only set custom domain for production
-  domains: app.stage === "prod" ? ["start.wodsmith.com"] : [],
+  domains: app.stage === "prod" ? ["wodsmith.com"] : [],
 })
 ```
 
@@ -331,7 +331,7 @@ This is configured in `alchemy.run.ts`:
 ```typescript
 function getDomains(stage: string): string[] {
   if (stage === "prod") {
-    return ["start.wodsmith.com"]
+    return ["wodsmith.com"]
   }
   if (stage.startsWith("pr-")) {
     return [`${stage}.preview.wodsmith.com`]

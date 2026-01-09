@@ -96,7 +96,7 @@ export function isTeamComplete(
  */
 export function buildInviteLink(
 	token: string,
-	baseUrl = "https://wodsmith.com",
+	baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://classic.wodsmith.com",
 ): string {
 	return `${baseUrl}/team-invite?token=${encodeURIComponent(token)}`
 }
