@@ -6,17 +6,28 @@ import type { FeeBreakdown, FeeConfiguration } from "./fee-calculator"
 
 /**
  * Platform default fee configuration
- * These values are used when competitions don't specify custom fees
+ * These values are used when organizers don't have special fee arrangements
  */
 export const PLATFORM_DEFAULTS = {
-	/** Platform fee percentage in basis points (250 = 2.5%) */
-	platformPercentageBasisPoints: 250,
-	/** Platform fixed fee in cents ($2.00) */
-	platformFixedCents: 200,
+	/** Platform fee percentage in basis points (400 = 4.0%) */
+	platformPercentageBasisPoints: 400,
+	/** Platform fixed fee in cents ($4.00) */
+	platformFixedCents: 400,
 	/** Stripe fee percentage in basis points (290 = 2.9%) */
 	stripePercentageBasisPoints: 290,
 	/** Stripe fixed fee in cents ($0.30) */
 	stripeFixedCents: 30,
+} as const
+
+/**
+ * Founding organizer fee configuration
+ * Special rates for early adopters or partners
+ */
+export const FOUNDING_ORGANIZER_DEFAULTS = {
+	/** Platform fee percentage in basis points (250 = 2.5%) */
+	platformPercentageBasisPoints: 250,
+	/** Platform fixed fee in cents ($3.00) */
+	platformFixedCents: 300,
 } as const
 
 /**
@@ -29,14 +40,14 @@ export const PLATFORM_DEFAULTS = {
  * 4. Organizer absorbs both: Only registration fee charged
  *
  * @example Customer pays platform fees (default) - $50 registration:
- * - Platform fee: $50 * 2.5% + $2.00 = $3.25
- * - Total charged: $53.25 (+ Stripe if passStripeFeesToCustomer)
+ * - Platform fee: $50 * 4.0% + $4.00 = $6.00
+ * - Total charged: $56.00 (+ Stripe if passStripeFeesToCustomer)
  * - Organizer receives: $50.00 (registration fee)
  *
  * @example Organizer absorbs platform fees - $50 registration:
- * - Platform fee: $3.25 (deducted from organizer payout)
+ * - Platform fee: $6.00 (deducted from organizer payout)
  * - Total charged: $50.00 (only registration)
- * - Organizer receives: $46.75 (after platform fee deduction)
+ * - Organizer receives: $44.00 (after platform fee deduction)
  */
 export function calculateCompetitionFees(
 	registrationFeeCents: number,
@@ -120,26 +131,69 @@ export function calculateCompetitionFees(
 }
 
 /**
- * Build fee configuration from competition settings
- * Falls back to platform defaults for any missing values
+ * Team-level fee configuration (for founding organizers or special arrangements)
  */
-export function buildFeeConfig(competition: {
-	platformFeePercentage?: number | null
-	platformFeeFixed?: number | null
-	passStripeFeesToCustomer?: boolean | null
-	passPlatformFeesToCustomer?: boolean | null
-}): FeeConfiguration {
+export interface TeamFeeOverrides {
+	/** Custom fee percentage in basis points (e.g., 250 = 2.5%). Null uses platform default. */
+	organizerFeePercentage?: number | null
+	/** Custom fixed fee in cents (e.g., 300 = $3.00). Null uses platform default. */
+	organizerFeeFixed?: number | null
+}
+
+/**
+ * Build fee configuration from competition and team settings
+ *
+ * Priority order:
+ * 1. Competition-level overrides (if set)
+ * 2. Team-level overrides (founding organizer entitlement)
+ * 3. Platform defaults
+ */
+export function buildFeeConfig(
+	competition: {
+		platformFeePercentage?: number | null
+		platformFeeFixed?: number | null
+		passStripeFeesToCustomer?: boolean | null
+		passPlatformFeesToCustomer?: boolean | null
+	},
+	team?: TeamFeeOverrides,
+): FeeConfiguration {
+	// Determine platform fee percentage (competition > team > platform default)
+	const platformPercentageBasisPoints =
+		competition.platformFeePercentage ??
+		team?.organizerFeePercentage ??
+		PLATFORM_DEFAULTS.platformPercentageBasisPoints
+
+	// Determine platform fixed fee (competition > team > platform default)
+	const platformFixedCents =
+		competition.platformFeeFixed ??
+		team?.organizerFeeFixed ??
+		PLATFORM_DEFAULTS.platformFixedCents
+
 	return {
-		platformPercentageBasisPoints:
-			competition.platformFeePercentage ??
-			PLATFORM_DEFAULTS.platformPercentageBasisPoints,
-		platformFixedCents:
-			competition.platformFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents,
+		platformPercentageBasisPoints,
+		platformFixedCents,
 		stripePercentageBasisPoints: PLATFORM_DEFAULTS.stripePercentageBasisPoints,
 		stripeFixedCents: PLATFORM_DEFAULTS.stripeFixedCents,
 		passStripeFeesToCustomer: competition.passStripeFeesToCustomer ?? false,
 		// Default to true for new competitions (platform fees passed to customer)
 		passPlatformFeesToCustomer: competition.passPlatformFeesToCustomer ?? true,
+	}
+}
+
+/**
+ * Get the effective platform fee for a team
+ * Returns team-specific rates if set, otherwise platform defaults
+ */
+export function getTeamPlatformFee(team?: TeamFeeOverrides): {
+	percentageBasisPoints: number
+	fixedCents: number
+} {
+	return {
+		percentageBasisPoints:
+			team?.organizerFeePercentage ??
+			PLATFORM_DEFAULTS.platformPercentageBasisPoints,
+		fixedCents:
+			team?.organizerFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents,
 	}
 }
 

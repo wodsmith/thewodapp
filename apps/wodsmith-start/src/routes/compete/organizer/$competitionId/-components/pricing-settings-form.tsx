@@ -44,6 +44,10 @@ interface Props {
 			feeCents: number
 		}>
 	}
+	teamFeeSettings?: {
+		organizerFeePercentage: number | null
+		organizerFeeFixed: number | null
+	}
 }
 
 // Convert cents to dollars for display
@@ -61,6 +65,7 @@ export function PricingSettingsForm({
 	competition,
 	divisions,
 	currentFees,
+	teamFeeSettings,
 }: Props) {
 	const router = useRouter()
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -137,12 +142,18 @@ export function PricingSettingsForm({
 		}
 	}
 
-	// Calculate platform fee display
+	// Calculate platform fee display (competition > team > platform default)
 	const platformPercentage =
 		competition.platformFeePercentage ??
+		teamFeeSettings?.organizerFeePercentage ??
 		PLATFORM_DEFAULTS.platformPercentageBasisPoints
 	const platformFixed =
-		competition.platformFeeFixed ?? PLATFORM_DEFAULTS.platformFixedCents
+		competition.platformFeeFixed ??
+		teamFeeSettings?.organizerFeeFixed ??
+		PLATFORM_DEFAULTS.platformFixedCents
+	const hasSpecialRate =
+		teamFeeSettings?.organizerFeePercentage !== null ||
+		teamFeeSettings?.organizerFeeFixed !== null
 
 	return (
 		<div className="space-y-6">
@@ -250,10 +261,19 @@ export function PricingSettingsForm({
 			{/* Platform Fee Info */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Platform Fee Structure</CardTitle>
-					<CardDescription>
-						Wodsmith charges a platform fee on each paid registration
-					</CardDescription>
+					<div className="flex items-center justify-between">
+						<div>
+							<CardTitle>Platform Fee Structure</CardTitle>
+							<CardDescription>
+								Wodsmith charges a platform fee on each paid registration
+							</CardDescription>
+						</div>
+						{hasSpecialRate && (
+							<Badge variant="secondary" className="text-xs">
+								Founding Organizer Rate
+							</Badge>
+						)}
+					</div>
 				</CardHeader>
 				<CardContent>
 					<div className="grid gap-4 sm:grid-cols-2">
@@ -275,8 +295,10 @@ export function PricingSettingsForm({
 						</div>
 					</div>
 					<p className="text-sm text-muted-foreground mt-4">
-						Example: For a $50 registration, platform fee is $50 x 2.5% + $2.00
-						= $3.25
+						Example: For a $50 registration, platform fee is $50 x{" "}
+						{(platformPercentage / 100).toFixed(1)}% + $
+						{(platformFixed / 100).toFixed(2)} = $
+						{((50 * platformPercentage) / 10000 + platformFixed / 100).toFixed(2)}
 					</p>
 				</CardContent>
 			</Card>

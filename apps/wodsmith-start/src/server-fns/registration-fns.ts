@@ -30,6 +30,7 @@ import {
 	calculateCompetitionFees,
 	type FeeBreakdown,
 	getRegistrationFee,
+	type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
 import { getAppUrl } from "@/lib/env"
 import { logInfo } from "@/lib/logging/posthog-otel-logger"
@@ -162,11 +163,16 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			input.divisionId,
 		)
 
-		// 5.5. For paid competitions, verify organizer has Stripe connected
+		// 5.5. For paid competitions, verify organizer has Stripe connected and get fee overrides
+		let teamFeeOverrides: TeamFeeOverrides | undefined
 		if (registrationFeeCents > 0) {
 			const organizingTeam = await db.query.teamTable.findFirst({
 				where: eq(teamTable.id, competition.organizingTeamId),
-				columns: { stripeAccountStatus: true },
+				columns: {
+					stripeAccountStatus: true,
+					organizerFeePercentage: true,
+					organizerFeeFixed: true,
+				},
 			})
 
 			if (organizingTeam?.stripeAccountStatus !== "VERIFIED") {
@@ -174,6 +180,12 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 					"This competition is temporarily unable to accept paid registrations. " +
 						"Please contact the organizer.",
 				)
+			}
+
+			// Extract team fee overrides for founding organizers
+			teamFeeOverrides = {
+				organizerFeePercentage: organizingTeam.organizerFeePercentage,
+				organizerFeeFixed: organizingTeam.organizerFeeFixed,
 			}
 		}
 
@@ -221,8 +233,8 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			}
 		}
 
-		// 7. PAID COMPETITION - calculate fees
-		const feeConfig = buildFeeConfig(competition)
+		// 7. PAID COMPETITION - calculate fees (with team-level overrides for founding organizers)
+		const feeConfig = buildFeeConfig(competition, teamFeeOverrides)
 		const feeBreakdown = calculateCompetitionFees(
 			registrationFeeCents,
 			feeConfig,
@@ -420,7 +432,23 @@ export const getRegistrationFeeBreakdownFn = createServerFn({ method: "GET" })
 				return { isFree: true, totalCents: 0, registrationFeeCents: 0 }
 			}
 
-			const feeConfig = buildFeeConfig(competition)
+			// Get organizing team for fee overrides (founding organizers get special rates)
+			const organizingTeam = await db.query.teamTable.findFirst({
+				where: eq(teamTable.id, competition.organizingTeamId),
+				columns: {
+					organizerFeePercentage: true,
+					organizerFeeFixed: true,
+				},
+			})
+
+			const teamFeeOverrides: TeamFeeOverrides | undefined = organizingTeam
+				? {
+						organizerFeePercentage: organizingTeam.organizerFeePercentage,
+						organizerFeeFixed: organizingTeam.organizerFeeFixed,
+					}
+				: undefined
+
+			const feeConfig = buildFeeConfig(competition, teamFeeOverrides)
 			const breakdown = calculateCompetitionFees(
 				registrationFeeCents,
 				feeConfig,
