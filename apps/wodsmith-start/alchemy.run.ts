@@ -92,6 +92,7 @@ import {
 	KVNamespace,
 	R2Bucket,
 	TanStackStart,
+	VectorizeIndex,
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
@@ -295,6 +296,26 @@ const r2Bucket = await R2Bucket("wodsmith-uploads", {
 })
 
 /**
+ * Cloudflare Vectorize index for AI agent memory.
+ *
+ * Vectorize provides vector similarity search for:
+ * - Semantic recall of past conversations
+ * - Context-aware AI agent responses
+ * - Working memory persistence
+ *
+ * @remarks
+ * **Dimensions:** 1536 matches OpenAI text-embedding-3-small output size.
+ * **Metric:** Cosine similarity is standard for text embeddings.
+ *
+ * @see {@link https://developers.cloudflare.com/vectorize/ Vectorize Documentation}
+ */
+const aiMemoryIndex = await VectorizeIndex("ai-memory", {
+	dimensions: 1536, // OpenAI text-embedding-3-small dimension
+	metric: "cosine",
+	adopt: true,
+})
+
+/**
  * Validate required Stripe environment variables when Stripe webhook is needed.
  * Fails fast with a clear error message if any required variables are missing.
  */
@@ -442,6 +463,8 @@ const website = await TanStackStart("app", {
 		KV_SESSION: kvSession,
 		/** R2 bucket binding for file uploads */
 		R2_BUCKET: r2Bucket,
+		/** Vectorize index binding for AI memory */
+		AI_MEMORY: aiMemoryIndex,
 
 		// App configuration
 		APP_URL: process.env.APP_URL!,
@@ -461,27 +484,43 @@ const website = await TanStackStart("app", {
 		RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
 
 		// AI configuration (optional - only include if available)
-		...(process.env.OPENAI_API_KEY && {
-			OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
-		}),
-		...(process.env.BRAINTRUST_API_KEY && {
-			BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY),
-		}),
+		...(process.env.OPENAI_API_KEY
+			? {OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY)}
+			: {}),
+		...(process.env.BRAINTRUST_API_KEY
+			? {BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY)}
+			: {}),
+
+		// Cloudflare credentials for Vectorize REST API (AI memory)
+		...(process.env.CLOUDFLARE_ACCOUNT_ID
+			? {CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID}
+			: {}),
+		...(process.env.CLOUDFLARE_VECTORIZE_API_TOKEN
+			? {
+					CLOUDFLARE_VECTORIZE_API_TOKEN: alchemy.secret(
+						process.env.CLOUDFLARE_VECTORIZE_API_TOKEN,
+					),
+				}
+			: {}),
 
 		// Stripe env vars are populated for all environments when available
-		...(hasStripeEnv && {
-			/** Stripe publishable key for client-side Stripe.js initialization */
-			STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
-			/** Stripe Connect OAuth client ID */
-			STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
-			/** Stripe secret key for server-side API calls */
-			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
-		}),
+		...(hasStripeEnv
+			? {
+					/** Stripe publishable key for client-side Stripe.js initialization */
+					STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
+					/** Stripe Connect OAuth client ID */
+					STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
+					/** Stripe secret key for server-side API calls */
+					STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
+				}
+			: {}),
 		// Webhook secret only for demo and prod (where webhook resource is created)
-		...(stripeWebhook && {
-			/** Stripe webhook secret for signature verification */
-			STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
-		}),
+		...(stripeWebhook
+			? {
+					/** Stripe webhook secret for signature verification */
+					STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
+				}
+			: {}),
 	},
 
 	/**
