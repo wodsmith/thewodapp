@@ -348,7 +348,9 @@ const validateEvents = createStep({
 		}
 
 		if (!track) {
-			issues.push("No programming track found - create events for the competition")
+			issues.push(
+				"No programming track found - create events for the competition",
+			)
 		} else if (eventCount === 0) {
 			issues.push("At least one event is required")
 		} else if (eventCount < 3) {
@@ -538,8 +540,15 @@ const requestApproval = createStep({
 		reason: z.string().optional(),
 	}),
 	execute: async ({ inputData, resumeData, suspend, bail }) => {
-		const { competitionId, competition, basicSetup, divisions, events, waivers, found } =
-			inputData
+		const {
+			competitionId,
+			competition,
+			basicSetup,
+			divisions,
+			events,
+			waivers,
+			found,
+		} = inputData
 
 		// Check if we have resume data (user already made a decision)
 		if (resumeData?.approved !== undefined) {
@@ -563,7 +572,11 @@ const requestApproval = createStep({
 
 		// No resume data yet - check validation and suspend for approval
 		const isValid =
-			found && basicSetup.isValid && divisions.isValid && events.isValid && waivers.isValid
+			found &&
+			basicSetup.isValid &&
+			divisions.isValid &&
+			events.isValid &&
+			waivers.isValid
 
 		// Collect all issues
 		const criticalIssues = [
@@ -619,10 +632,17 @@ const requestApproval = createStep({
 })
 
 // Helper function to generate validation summary
-function generateValidationSummary(inputData: z.infer<typeof validationWithApprovalInputSchema>): string {
-	const { competition, basicSetup, divisions, events, waivers, found } = inputData
+function generateValidationSummary(
+	inputData: z.infer<typeof validationWithApprovalInputSchema>,
+): string {
+	const { competition, basicSetup, divisions, events, waivers, found } =
+		inputData
 	const isValid =
-		found && basicSetup.isValid && divisions.isValid && events.isValid && waivers.isValid
+		found &&
+		basicSetup.isValid &&
+		divisions.isValid &&
+		events.isValid &&
+		waivers.isValid
 
 	if (!found) {
 		return "Competition not found."
@@ -668,8 +688,15 @@ const executePublish = createStep({
 	}),
 	outputSchema: validationResultSchema,
 	execute: async ({ inputData }) => {
-		const { competitionId, approved, validationSummary, basicSetup, divisions, events, waivers } =
-			inputData
+		const {
+			competitionId,
+			approved,
+			validationSummary,
+			basicSetup,
+			divisions,
+			events,
+			waivers,
+		} = inputData
 		const db = getDb()
 
 		if (!approved) {

@@ -54,7 +54,8 @@ export const listWaivers = createTool({
 				title: w.title,
 				required: w.required,
 				position: w.position,
-				contentPreview: w.content.substring(0, 200) + (w.content.length > 200 ? "..." : ""),
+				contentPreview:
+					w.content.substring(0, 200) + (w.content.length > 200 ? "..." : ""),
 				signatureCount: w.signatures?.length ?? 0,
 			})),
 		}
@@ -113,7 +114,11 @@ export const createWaiver = createTool({
 	description: "Create a new waiver document for a competition.",
 	inputSchema: z.object({
 		competitionId: z.string().describe("The competition ID"),
-		title: z.string().min(1).max(255).describe("Waiver title (e.g., 'Liability Waiver', 'Photo Release')"),
+		title: z
+			.string()
+			.min(1)
+			.max(255)
+			.describe("Waiver title (e.g., 'Liability Waiver', 'Photo Release')"),
 		content: z
 			.string()
 			.min(1)
@@ -191,7 +196,10 @@ export const updateWaiver = createTool({
 		waiverId: z.string().describe("The waiver ID"),
 		title: z.string().min(1).max(255).optional().describe("Waiver title"),
 		content: z.string().min(1).max(50000).optional().describe("Waiver content"),
-		required: z.boolean().optional().describe("Whether this waiver is required"),
+		required: z
+			.boolean()
+			.optional()
+			.describe("Whether this waiver is required"),
 		position: z.number().optional().describe("Display order"),
 	}),
 	execute: async (inputData, context) => {

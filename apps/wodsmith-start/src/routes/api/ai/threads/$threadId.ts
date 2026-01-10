@@ -64,24 +64,18 @@ export const Route = createFileRoute("/api/ai/threads/$threadId")({
 					// Get thread to verify ownership
 					const thread = await memory.getThreadById({ threadId })
 					if (!thread) {
-						return new Response(
-							JSON.stringify({ error: "Thread not found" }),
-							{
-								status: 404,
-								headers: { "Content-Type": "application/json" },
-							},
-						)
+						return new Response(JSON.stringify({ error: "Thread not found" }), {
+							status: 404,
+							headers: { "Content-Type": "application/json" },
+						})
 					}
 
 					// Verify thread belongs to this user
 					if (thread.resourceId !== session.user.id) {
-						return new Response(
-							JSON.stringify({ error: "Thread not found" }),
-							{
-								status: 404,
-								headers: { "Content-Type": "application/json" },
-							},
-						)
+						return new Response(JSON.stringify({ error: "Thread not found" }), {
+							status: 404,
+							headers: { "Content-Type": "application/json" },
+						})
 					}
 
 					// Recall messages from thread
@@ -93,7 +87,10 @@ export const Route = createFileRoute("/api/ai/threads/$threadId")({
 					// Apply pagination manually since recall may not support it directly
 					const allMessages = result.messages ?? []
 					const startIdx = (page - 1) * perPage
-					const paginatedMessages = allMessages.slice(startIdx, startIdx + perPage)
+					const paginatedMessages = allMessages.slice(
+						startIdx,
+						startIdx + perPage,
+					)
 					const hasMore = startIdx + perPage < allMessages.length
 
 					return new Response(
@@ -153,24 +150,18 @@ export const Route = createFileRoute("/api/ai/threads/$threadId")({
 					// Get thread to verify ownership
 					const thread = await memory.getThreadById({ threadId })
 					if (!thread) {
-						return new Response(
-							JSON.stringify({ error: "Thread not found" }),
-							{
-								status: 404,
-								headers: { "Content-Type": "application/json" },
-							},
-						)
+						return new Response(JSON.stringify({ error: "Thread not found" }), {
+							status: 404,
+							headers: { "Content-Type": "application/json" },
+						})
 					}
 
 					// Verify thread belongs to this user
 					if (thread.resourceId !== session.user.id) {
-						return new Response(
-							JSON.stringify({ error: "Thread not found" }),
-							{
-								status: 404,
-								headers: { "Content-Type": "application/json" },
-							},
-						)
+						return new Response(JSON.stringify({ error: "Thread not found" }), {
+							status: 404,
+							headers: { "Content-Type": "application/json" },
+						})
 					}
 
 					// Delete the thread

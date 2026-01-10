@@ -13,11 +13,11 @@ import { eq, and } from "drizzle-orm"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { competitionDivisionsTable } from "@/db/schemas/commerce"
+import { scalingGroupsTable, scalingLevelsTable } from "@/db/schemas/scaling"
 import {
-	scalingGroupsTable,
-	scalingLevelsTable,
-} from "@/db/schemas/scaling"
-import { parseCompetitionSettings, stringifyCompetitionSettings } from "@/types/competitions"
+	parseCompetitionSettings,
+	stringifyCompetitionSettings,
+} from "@/types/competitions"
 
 /**
  * List all divisions for a competition with registration counts.
@@ -202,16 +202,17 @@ export const createDivision = createTool({
 		"Create a new division for a competition. This adds a new scaling level to the competition's scaling group.",
 	inputSchema: z.object({
 		competitionId: z.string().describe("The competition ID"),
-		name: z.string().min(1).max(100).describe("Division name (e.g., 'Rx Men', 'Scaled Women')"),
+		name: z
+			.string()
+			.min(1)
+			.max(100)
+			.describe("Division name (e.g., 'Rx Men', 'Scaled Women')"),
 		teamSize: z
 			.number()
 			.min(1)
 			.default(1)
 			.describe("Team size for this division (1 = individual)"),
-		feeCents: z
-			.number()
-			.min(0)
-			.describe("Registration fee in cents"),
+		feeCents: z.number().min(0).describe("Registration fee in cents"),
 		description: z
 			.string()
 			.max(2000)
@@ -223,7 +224,8 @@ export const createDivision = createTool({
 			.describe("Sort order (0 = first). If not provided, adds at the end."),
 	}),
 	execute: async (inputData, context) => {
-		const { competitionId, name, teamSize, feeCents, description, position } = inputData
+		const { competitionId, name, teamSize, feeCents, description, position } =
+			inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
 		const db = getDb()
@@ -325,7 +327,9 @@ export const deleteDivision = createTool({
 		"Delete a division from a competition. Only allowed if no athletes are registered in this division.",
 	inputSchema: z.object({
 		competitionId: z.string().describe("The competition ID"),
-		divisionId: z.string().describe("The division (scaling level) ID to delete"),
+		divisionId: z
+			.string()
+			.describe("The division (scaling level) ID to delete"),
 	}),
 	execute: async (inputData, context) => {
 		const { competitionId, divisionId } = inputData
@@ -346,14 +350,18 @@ export const deleteDivision = createTool({
 		}
 
 		// Check for registrations in this division
-		const { competitionRegistrationsTable } = await import("@/db/schemas/competitions")
-		const registrations = await db.query.competitionRegistrationsTable.findMany({
-			where: and(
-				eq(competitionRegistrationsTable.eventId, competitionId),
-				eq(competitionRegistrationsTable.divisionId, divisionId),
-			),
-			limit: 1,
-		})
+		const { competitionRegistrationsTable } = await import(
+			"@/db/schemas/competitions"
+		)
+		const registrations = await db.query.competitionRegistrationsTable.findMany(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.eventId, competitionId),
+					eq(competitionRegistrationsTable.divisionId, divisionId),
+				),
+				limit: 1,
+			},
+		)
 
 		if (registrations.length > 0) {
 			return {
@@ -427,13 +435,15 @@ export const suggestDivisions = createTool({
 			const rxPct = includeScaled ? 0.25 : 0.5
 			suggestions.push({
 				name: "Rx Men",
-				description: "Advanced male athletes - prescribed weights and movements",
+				description:
+					"Advanced male athletes - prescribed weights and movements",
 				estimatedAthletes: Math.round(expectedAthletes * rxPct),
 				teamSize: 1,
 			})
 			suggestions.push({
 				name: "Rx Women",
-				description: "Advanced female athletes - prescribed weights and movements",
+				description:
+					"Advanced female athletes - prescribed weights and movements",
 				estimatedAthletes: Math.round(expectedAthletes * rxPct),
 				teamSize: 1,
 			})
@@ -441,20 +451,24 @@ export const suggestDivisions = createTool({
 			if (includeScaled) {
 				suggestions.push({
 					name: "Scaled Men",
-					description: "Intermediate male athletes - modified weights/movements",
+					description:
+						"Intermediate male athletes - modified weights/movements",
 					estimatedAthletes: Math.round(expectedAthletes * 0.25),
 					teamSize: 1,
 				})
 				suggestions.push({
 					name: "Scaled Women",
-					description: "Intermediate female athletes - modified weights/movements",
+					description:
+						"Intermediate female athletes - modified weights/movements",
 					estimatedAthletes: Math.round(expectedAthletes * 0.25),
 					teamSize: 1,
 				})
 			}
 
 			if (includeMasters) {
-				notes.push("Consider Masters 35+, 40+, 45+, 50+, 55+, 60+ based on expected turnout")
+				notes.push(
+					"Consider Masters 35+, 40+, 45+, 50+, 55+, 60+ based on expected turnout",
+				)
 				suggestions.push({
 					name: "Masters 35+ Men",
 					description: "Male athletes 35 years and older",
@@ -498,7 +512,9 @@ export const suggestDivisions = createTool({
 					teamSize: 4,
 				})
 			}
-			notes.push("Specify team composition (e.g., 2M/2F) in division description")
+			notes.push(
+				"Specify team composition (e.g., 2M/2F) in division description",
+			)
 		} else if (competitionType === "pairs") {
 			suggestions.push({
 				name: "Rx Male Pairs",
@@ -532,7 +548,9 @@ export const suggestDivisions = createTool({
 			notes.push("Large competition - consider adding more age group divisions")
 		}
 		if (expectedAthletes < 30) {
-			notes.push("Small competition - consider combining divisions for competitive heats")
+			notes.push(
+				"Small competition - consider combining divisions for competitive heats",
+			)
 		}
 
 		return { suggestions, notes }

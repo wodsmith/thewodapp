@@ -53,11 +53,16 @@ export const getRegistrationOverview = createTool({
 			.groupBy(competitionRegistrationsTable.divisionId)
 
 		// Get division labels
-		const divisionIds = divisionCounts.map((d) => d.divisionId).filter(Boolean) as string[]
+		const divisionIds = divisionCounts
+			.map((d) => d.divisionId)
+			.filter(Boolean) as string[]
 		const divisions =
 			divisionIds.length > 0
 				? await db.query.scalingLevelsTable.findMany({
-						where: sql`${scalingLevelsTable.id} IN (${sql.join(divisionIds.map((id) => sql`${id}`), sql`, `)})`,
+						where: sql`${scalingLevelsTable.id} IN (${sql.join(
+							divisionIds.map((id) => sql`${id}`),
+							sql`, `,
+						)})`,
 					})
 				: []
 
@@ -83,7 +88,9 @@ export const getRegistrationOverview = createTool({
 			totalRegistrations: totalResult?.total ?? 0,
 			byDivision: divisionCounts.map((d) => ({
 				divisionId: d.divisionId,
-				divisionName: d.divisionId ? divisionMap.get(d.divisionId) ?? "Unknown" : "No Division",
+				divisionName: d.divisionId
+					? (divisionMap.get(d.divisionId) ?? "Unknown")
+					: "No Division",
 				count: Number(d.count),
 			})),
 			byPaymentStatus: paymentCounts.map((p) => ({
@@ -99,7 +106,8 @@ export const getRegistrationOverview = createTool({
  */
 export const listRegistrations = createTool({
 	id: "list-registrations",
-	description: "List athlete registrations for a competition with optional filters.",
+	description:
+		"List athlete registrations for a competition with optional filters.",
 	inputSchema: z.object({
 		competitionId: z.string().describe("The competition ID"),
 		divisionId: z.string().optional().describe("Filter by division"),
@@ -111,7 +119,8 @@ export const listRegistrations = createTool({
 		offset: z.number().min(0).default(0).describe("Pagination offset"),
 	}),
 	execute: async (inputData, context) => {
-		const { competitionId, divisionId, paymentStatus, limit, offset } = inputData
+		const { competitionId, divisionId, paymentStatus, limit, offset } =
+			inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
 		const db = getDb()
@@ -129,32 +138,39 @@ export const listRegistrations = createTool({
 		}
 
 		// Build query conditions
-		const conditions = [eq(competitionRegistrationsTable.eventId, competitionId)]
+		const conditions = [
+			eq(competitionRegistrationsTable.eventId, competitionId),
+		]
 		if (divisionId) {
 			conditions.push(eq(competitionRegistrationsTable.divisionId, divisionId))
 		}
 		if (paymentStatus) {
-			conditions.push(eq(competitionRegistrationsTable.paymentStatus, paymentStatus))
+			conditions.push(
+				eq(competitionRegistrationsTable.paymentStatus, paymentStatus),
+			)
 		}
 
 		// Get registrations
-		const registrations = await db.query.competitionRegistrationsTable.findMany({
-			where: and(...conditions),
-			with: {
-				user: true,
-				division: true,
+		const registrations = await db.query.competitionRegistrationsTable.findMany(
+			{
+				where: and(...conditions),
+				with: {
+					user: true,
+					division: true,
+				},
+				orderBy: (r, { desc }) => [desc(r.registeredAt)],
+				limit,
+				offset,
 			},
-			orderBy: (r, { desc }) => [desc(r.registeredAt)],
-			limit,
-			offset,
-		})
+		)
 
 		return {
 			registrations: registrations.map((r) => ({
 				id: r.id,
 				userId: r.userId,
 				athleteName: r.user
-					? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim() || r.user.email
+					? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim() ||
+						r.user.email
 					: "Unknown",
 				email: r.user?.email,
 				divisionId: r.divisionId,
@@ -172,7 +188,8 @@ export const listRegistrations = createTool({
  */
 export const getRegistrationDetails = createTool({
 	id: "get-registration-details",
-	description: "Get full details for a specific registration including waiver status.",
+	description:
+		"Get full details for a specific registration including waiver status.",
 	inputSchema: z.object({
 		registrationId: z.string().describe("The registration ID"),
 	}),
@@ -183,14 +200,16 @@ export const getRegistrationDetails = createTool({
 		const db = getDb()
 
 		// Get registration with related data
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, registrationId),
-			with: {
-				user: true,
-				division: true,
-				competition: true,
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, registrationId),
+				with: {
+					user: true,
+					division: true,
+					competition: true,
+				},
 			},
-		})
+		)
 
 		if (!registration) {
 			return { error: "Registration not found" }
@@ -231,7 +250,9 @@ export const getRegistrationDetails = createTool({
 				paymentStatus: registration.paymentStatus,
 				paidAt: registration.paidAt?.toISOString(),
 				registeredAt: registration.registeredAt.toISOString(),
-				metadata: registration.metadata ? JSON.parse(registration.metadata) : null,
+				metadata: registration.metadata
+					? JSON.parse(registration.metadata)
+					: null,
 			},
 			waiverStatus: waivers.map((w) => ({
 				waiverId: w.id,
@@ -264,12 +285,14 @@ export const updateRegistration = createTool({
 		const db = getDb()
 
 		// Get registration
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, registrationId),
-			with: {
-				competition: true,
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, registrationId),
+				with: {
+					competition: true,
+				},
 			},
-		})
+		)
 
 		if (!registration) {
 			return { error: "Registration not found" }
@@ -306,7 +329,8 @@ export const updateRegistration = createTool({
  */
 export const checkWaiverCompletion = createTool({
 	id: "check-waiver-completion",
-	description: "Check if all required waivers have been signed for a registration.",
+	description:
+		"Check if all required waivers have been signed for a registration.",
 	inputSchema: z.object({
 		registrationId: z.string().describe("The registration ID"),
 	}),
@@ -317,12 +341,14 @@ export const checkWaiverCompletion = createTool({
 		const db = getDb()
 
 		// Get registration
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: eq(competitionRegistrationsTable.id, registrationId),
-			with: {
-				competition: true,
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: eq(competitionRegistrationsTable.id, registrationId),
+				with: {
+					competition: true,
+				},
 			},
-		})
+		)
 
 		if (!registration) {
 			return { error: "Registration not found" }
@@ -348,7 +374,9 @@ export const checkWaiverCompletion = createTool({
 
 		const signedWaiverIds = new Set(signatures.map((s) => s.waiverId))
 
-		const missingWaivers = requiredWaivers.filter((w) => !signedWaiverIds.has(w.id))
+		const missingWaivers = requiredWaivers.filter(
+			(w) => !signedWaiverIds.has(w.id),
+		)
 
 		return {
 			complete: missingWaivers.length === 0,

@@ -485,15 +485,15 @@ const website = await TanStackStart("app", {
 
 		// AI configuration (optional - only include if available)
 		...(process.env.OPENAI_API_KEY
-			? {OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY)}
+			? { OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY) }
 			: {}),
 		...(process.env.BRAINTRUST_API_KEY
-			? {BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY)}
+			? { BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY) }
 			: {}),
 
 		// Cloudflare credentials for Vectorize REST API (AI memory)
 		...(process.env.CLOUDFLARE_ACCOUNT_ID
-			? {CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID}
+			? { CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID }
 			: {}),
 		...(process.env.CLOUDFLARE_VECTORIZE_API_TOKEN
 			? {

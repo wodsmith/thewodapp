@@ -7,7 +7,10 @@ import { z } from "zod"
 import { eq, and, count, sql } from "drizzle-orm"
 
 import { getDb } from "@/db"
-import { competitionsTable, competitionRegistrationsTable } from "@/db/schemas/competitions"
+import {
+	competitionsTable,
+	competitionRegistrationsTable,
+} from "@/db/schemas/competitions"
 import { commercePurchaseTable } from "@/db/schemas/commerce"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { sponsorsTable, sponsorGroupsTable } from "@/db/schemas/sponsors"
@@ -57,7 +60,12 @@ export const getRevenueReport = createTool({
 				stripeFeeCents: acc.stripeFeeCents + (p.stripeFeeCents ?? 0),
 				organizerNetCents: acc.organizerNetCents + (p.organizerNetCents ?? 0),
 			}),
-			{ totalCents: 0, platformFeeCents: 0, stripeFeeCents: 0, organizerNetCents: 0 },
+			{
+				totalCents: 0,
+				platformFeeCents: 0,
+				stripeFeeCents: 0,
+				organizerNetCents: 0,
+			},
 		)
 
 		// Get registration counts by payment status
@@ -74,7 +82,9 @@ export const getRevenueReport = createTool({
 		const divisionRevenue = await db
 			.select({
 				divisionId: commercePurchaseTable.divisionId,
-				total: sql<number>`SUM(${commercePurchaseTable.totalCents})`.as("total"),
+				total: sql<number>`SUM(${commercePurchaseTable.totalCents})`.as(
+					"total",
+				),
 				count: count(),
 			})
 			.from(commercePurchaseTable)
@@ -115,7 +125,9 @@ export const getRevenueReport = createTool({
 			},
 			byDivision: divisionRevenue.map((d) => ({
 				divisionId: d.divisionId,
-				divisionName: d.divisionId ? divisionMap.get(d.divisionId) ?? "Unknown" : "No Division",
+				divisionName: d.divisionId
+					? (divisionMap.get(d.divisionId) ?? "Unknown")
+					: "No Division",
 				totalCents: Number(d.total ?? 0),
 				registrationCount: Number(d.count),
 			})),
@@ -128,7 +140,8 @@ export const getRevenueReport = createTool({
  */
 export const exportSponsors = createTool({
 	id: "export-sponsors",
-	description: "Get all sponsors for a competition organized by sponsor group/tier.",
+	description:
+		"Get all sponsors for a competition organized by sponsor group/tier.",
 	inputSchema: z.object({
 		competitionId: z.string().describe("The competition ID"),
 	}),
@@ -219,7 +232,9 @@ export const getFinancialSummary = createTool({
 		const competitions = await db.query.competitionsTable.findMany({
 			where: and(
 				eq(competitionsTable.organizingTeamId, teamId),
-				status && status !== "all" ? eq(competitionsTable.status, status) : undefined,
+				status && status !== "all"
+					? eq(competitionsTable.status, status)
+					: undefined,
 			),
 		})
 

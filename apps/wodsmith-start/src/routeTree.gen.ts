@@ -18,7 +18,6 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompeteIndexRouteImport } from './routes/compete/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as OrganizerAiRouteImport } from './routes/organizer/ai'
 import { Route as CompeteOrganizerRouteImport } from './routes/compete/organizer'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
@@ -178,11 +177,6 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
-} as any)
-const OrganizerAiRoute = OrganizerAiRouteImport.update({
-  id: '/organizer/ai',
-  path: '/organizer/ai',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteOrganizerRoute = CompeteOrganizerRouteImport.update({
   id: '/organizer',
@@ -848,7 +842,6 @@ export interface FileRoutesByFullPath {
   '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardRouteWithChildren
-  '/organizer/ai': typeof OrganizerAiRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
@@ -969,7 +962,6 @@ export interface FileRoutesByTo {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/upload': typeof ApiUploadRoute
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
-  '/organizer/ai': typeof OrganizerAiRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
   '/api/ai/chat': typeof ApiAiChatRoute
@@ -1092,7 +1084,6 @@ export interface FileRoutesById {
   '/api/upload': typeof ApiUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
-  '/organizer/ai': typeof OrganizerAiRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
@@ -1220,7 +1211,6 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
-    | '/organizer/ai'
     | '/admin/'
     | '/compete/'
     | '/admin/teams/$teamId'
@@ -1341,7 +1331,6 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/upload'
     | '/compete/organizer'
-    | '/organizer/ai'
     | '/admin'
     | '/compete'
     | '/api/ai/chat'
@@ -1463,7 +1452,6 @@ export interface FileRouteTypes {
     | '/api/upload'
     | '/compete/$slug'
     | '/compete/organizer'
-    | '/organizer/ai'
     | '/admin/'
     | '/compete/'
     | '/admin/teams/$teamId'
@@ -1582,7 +1570,6 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiUploadRoute: typeof ApiUploadRoute
-  OrganizerAiRoute: typeof OrganizerAiRoute
   ApiAiChatRoute: typeof ApiAiChatRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
@@ -1662,13 +1649,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
-    }
-    '/organizer/ai': {
-      id: '/organizer/ai'
-      path: '/organizer/ai'
-      fullPath: '/organizer/ai'
-      preLoaderRoute: typeof OrganizerAiRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/compete/organizer': {
       id: '/compete/organizer'
@@ -2862,7 +2842,6 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiUploadRoute: ApiUploadRoute,
-  OrganizerAiRoute: OrganizerAiRoute,
   ApiAiChatRoute: ApiAiChatRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,

@@ -29,11 +29,15 @@ export const createCompetition = createTool({
 			.describe(
 				"URL-friendly slug (auto-generated from name if not provided). Must be globally unique.",
 			),
-		startDate: z.string().describe("Competition start date (ISO 8601 format, e.g. '2026-03-07')"),
+		startDate: z
+			.string()
+			.describe("Competition start date (ISO 8601 format, e.g. '2026-03-07')"),
 		endDate: z
 			.string()
 			.optional()
-			.describe("Competition end date (ISO 8601 format). Defaults to startDate for single-day events."),
+			.describe(
+				"Competition end date (ISO 8601 format). Defaults to startDate for single-day events.",
+			),
 		description: z
 			.string()
 			.max(2000)
@@ -50,7 +54,9 @@ export const createCompetition = createTool({
 		groupId: z
 			.string()
 			.optional()
-			.describe("Competition group/series ID. ONLY pass this if the user explicitly asks to add to an existing series. Do NOT copy from source competitions when duplicating. Omit if not specified."),
+			.describe(
+				"Competition group/series ID. ONLY pass this if the user explicitly asks to add to an existing series. Do NOT copy from source competitions when duplicating. Omit if not specified.",
+			),
 	}),
 	execute: async (inputData, context) => {
 		const {
@@ -66,7 +72,10 @@ export const createCompetition = createTool({
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
 		if (!teamId) {
-			return { error: "No team context. Cannot create competition without an organizing team." }
+			return {
+				error:
+					"No team context. Cannot create competition without an organizing team.",
+			}
 		}
 
 		try {
@@ -79,17 +88,24 @@ export const createCompetition = createTool({
 
 			// Validate dates
 			if (Number.isNaN(parsedStartDate.getTime())) {
-				return { error: "Invalid startDate format. Use ISO 8601 format (e.g. '2026-03-07')" }
+				return {
+					error:
+						"Invalid startDate format. Use ISO 8601 format (e.g. '2026-03-07')",
+				}
 			}
 			if (Number.isNaN(parsedEndDate.getTime())) {
-				return { error: "Invalid endDate format. Use ISO 8601 format (e.g. '2026-03-07')" }
+				return {
+					error:
+						"Invalid endDate format. Use ISO 8601 format (e.g. '2026-03-07')",
+				}
 			}
 			if (parsedEndDate < parsedStartDate) {
 				return { error: "End date cannot be before start date" }
 			}
 
 			// Only pass groupId if it's a valid non-empty string
-			const validGroupId = groupId && groupId.trim() !== "" ? groupId : undefined
+			const validGroupId =
+				groupId && groupId.trim() !== "" ? groupId : undefined
 
 			const result = await createCompetitionLogic({
 				organizingTeamId: teamId,
@@ -98,8 +114,12 @@ export const createCompetition = createTool({
 				startDate: parsedStartDate,
 				endDate: parsedEndDate,
 				description,
-				registrationOpensAt: registrationOpensAt ? new Date(registrationOpensAt) : undefined,
-				registrationClosesAt: registrationClosesAt ? new Date(registrationClosesAt) : undefined,
+				registrationOpensAt: registrationOpensAt
+					? new Date(registrationOpensAt)
+					: undefined,
+				registrationClosesAt: registrationClosesAt
+					? new Date(registrationClosesAt)
+					: undefined,
 				groupId: validGroupId,
 			})
 
@@ -114,7 +134,8 @@ export const createCompetition = createTool({
 				message: `Competition "${name}" created successfully. Next steps: add divisions, events, and waivers.`,
 			}
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Failed to create competition"
+			const message =
+				error instanceof Error ? error.message : "Failed to create competition"
 			return { error: message }
 		}
 	},
@@ -164,12 +185,16 @@ export const updateCompetitionDetails = createTool({
 		status: z
 			.enum(["draft", "published"])
 			.optional()
-			.describe("draft = only organizers see it, published = visible based on visibility"),
+			.describe(
+				"draft = only organizers see it, published = visible based on visibility",
+			),
 		defaultRegistrationFeeCents: z
 			.number()
 			.min(0)
 			.optional()
-			.describe("Default registration fee in cents (used if no division-specific fee)"),
+			.describe(
+				"Default registration fee in cents (used if no division-specific fee)",
+			),
 	}),
 	execute: async (inputData, context) => {
 		const {
@@ -395,8 +420,13 @@ export const validateCompetition = createTool({
 					suggestion: "Create competition events for athletes to complete",
 				})
 			} else {
-				const unpublishedEvents = events.filter((e) => e.eventStatus === "draft")
-				if (unpublishedEvents.length > 0 && competition.status === "published") {
+				const unpublishedEvents = events.filter(
+					(e) => e.eventStatus === "draft",
+				)
+				if (
+					unpublishedEvents.length > 0 &&
+					competition.status === "published"
+				) {
 					issues.push({
 						severity: "warning",
 						category: "Events",

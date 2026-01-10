@@ -17,7 +17,10 @@ import {
 	programmingTracksTable,
 	PROGRAMMING_TRACK_TYPE,
 } from "@/db/schemas/programming"
-import { workouts as workoutsTable, WORKOUT_SCHEME_VALUES } from "@/db/schemas/workouts"
+import {
+	workouts as workoutsTable,
+	WORKOUT_SCHEME_VALUES,
+} from "@/db/schemas/workouts"
 
 /**
  * List all events for a competition.
@@ -53,7 +56,10 @@ export const listEvents = createTool({
 		})
 
 		if (!track) {
-			return { events: [], message: "No programming track found for this competition" }
+			return {
+				events: [],
+				message: "No programming track found for this competition",
+			}
 		}
 
 		// Get events with workout details
@@ -72,7 +78,10 @@ export const listEvents = createTool({
 				workoutDescription: workoutsTable.description,
 			})
 			.from(trackWorkoutsTable)
-			.innerJoin(workoutsTable, eq(trackWorkoutsTable.workoutId, workoutsTable.id))
+			.innerJoin(
+				workoutsTable,
+				eq(trackWorkoutsTable.workoutId, workoutsTable.id),
+			)
 			.where(eq(trackWorkoutsTable.trackId, track.id))
 			.orderBy(trackWorkoutsTable.trackOrder)
 
@@ -114,12 +123,16 @@ export const createEvent = createTool({
 			.describe("Workout description with movements and rep schemes"),
 		scheme: z
 			.enum(WORKOUT_SCHEME_VALUES)
-			.describe("Scoring scheme: time, time-with-cap, rounds-reps, reps, load, points, pass-fail"),
+			.describe(
+				"Scoring scheme: time, time-with-cap, rounds-reps, reps, load, points, pass-fail",
+			),
 		timeCap: z
 			.number()
 			.min(1)
 			.optional()
-			.describe("Time cap in minutes (required for time-with-cap, optional for others)"),
+			.describe(
+				"Time cap in minutes (required for time-with-cap, optional for others)",
+			),
 		pointsMultiplier: z
 			.number()
 			.min(100)
@@ -131,7 +144,15 @@ export const createEvent = createTool({
 			.describe("Event order (1, 2, 3...). If not provided, adds at the end."),
 	}),
 	execute: async (inputData, context) => {
-		const { competitionId, name, description, scheme, timeCap, pointsMultiplier, order } = inputData
+		const {
+			competitionId,
+			name,
+			description,
+			scheme,
+			timeCap,
+			pointsMultiplier,
+			order,
+		} = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
 		const db = getDb()
@@ -228,18 +249,36 @@ export const createEvent = createTool({
  */
 export const updateEvent = createTool({
 	id: "update-event",
-	description:
-		"Update an event's workout details, status, or order.",
+	description: "Update an event's workout details, status, or order.",
 	inputSchema: z.object({
 		eventId: z.string().describe("The event (track workout) ID"),
 		name: z.string().min(1).max(255).optional().describe("Event/workout name"),
-		description: z.string().max(5000).optional().describe("Workout description"),
+		description: z
+			.string()
+			.max(5000)
+			.optional()
+			.describe("Workout description"),
 		scheme: z.enum(WORKOUT_SCHEME_VALUES).optional().describe("Scoring scheme"),
-		timeCap: z.number().min(1).nullable().optional().describe("Time cap in minutes"),
-		pointsMultiplier: z.number().min(100).optional().describe("Points multiplier"),
+		timeCap: z
+			.number()
+			.min(1)
+			.nullable()
+			.optional()
+			.describe("Time cap in minutes"),
+		pointsMultiplier: z
+			.number()
+			.min(100)
+			.optional()
+			.describe("Points multiplier"),
 		order: z.number().min(1).optional().describe("Event order"),
-		eventStatus: z.enum(["draft", "published"]).optional().describe("Event visibility status"),
-		heatStatus: z.enum(["draft", "published"]).optional().describe("Heat schedule visibility"),
+		eventStatus: z
+			.enum(["draft", "published"])
+			.optional()
+			.describe("Event visibility status"),
+		heatStatus: z
+			.enum(["draft", "published"])
+			.optional()
+			.describe("Heat schedule visibility"),
 		notes: z.string().max(1000).optional().describe("Event-specific notes"),
 	}),
 	execute: async (inputData, context) => {
@@ -279,7 +318,12 @@ export const updateEvent = createTool({
 		// Type assertion for nested relations
 		type EventWithRelations = typeof eventRaw & {
 			track?: { competition?: { organizingTeamId: string } }
-			workout?: { name: string; description: string; scheme: string; timeCap: number | null }
+			workout?: {
+				name: string
+				description: string
+				scheme: string
+				timeCap: number | null
+			}
 		}
 		const event = eventRaw as EventWithRelations
 
@@ -289,7 +333,12 @@ export const updateEvent = createTool({
 		}
 
 		// Update workout if needed
-		if (name !== undefined || description !== undefined || scheme !== undefined || timeCap !== undefined) {
+		if (
+			name !== undefined ||
+			description !== undefined ||
+			scheme !== undefined ||
+			timeCap !== undefined
+		) {
 			await db
 				.update(workoutsTable)
 				.set({
@@ -391,7 +440,9 @@ export const deleteEvent = createTool({
 		const workoutId = eventRaw.workoutId
 
 		// Delete the track workout
-		await db.delete(trackWorkoutsTable).where(eq(trackWorkoutsTable.id, eventId))
+		await db
+			.delete(trackWorkoutsTable)
+			.where(eq(trackWorkoutsTable.id, eventId))
 
 		// Optionally delete the workout
 		if (deleteWorkout) {
@@ -442,7 +493,10 @@ export const analyzeEventBalance = createTool({
 		if (!track) {
 			return {
 				eventCount: 0,
-				analysis: { timeDomains: { short: 0, medium: 0, long: 0 }, schemes: {} },
+				analysis: {
+					timeDomains: { short: 0, medium: 0, long: 0 },
+					schemes: {},
+				},
 				gaps: ["No programming track found - create events first"],
 				recommendations: ["Start by adding a programming track and events"],
 			}
@@ -456,7 +510,10 @@ export const analyzeEventBalance = createTool({
 				timeCap: workoutsTable.timeCap,
 			})
 			.from(trackWorkoutsTable)
-			.innerJoin(workoutsTable, eq(trackWorkoutsTable.workoutId, workoutsTable.id))
+			.innerJoin(
+				workoutsTable,
+				eq(trackWorkoutsTable.workoutId, workoutsTable.id),
+			)
 			.where(eq(trackWorkoutsTable.trackId, track.id))
 
 		// Analyze time domains and schemes
@@ -486,15 +543,21 @@ export const analyzeEventBalance = createTool({
 
 		if (eventCount === 0) {
 			gaps.push("No events have been created yet")
-			recommendations.push("Start by creating 3-5 events covering different time domains")
+			recommendations.push(
+				"Start by creating 3-5 events covering different time domains",
+			)
 		} else {
 			if (timeDomains.short === 0 && eventCount >= 3) {
 				gaps.push("Missing short time domain events (<5 min)")
-				recommendations.push("Add a sprint workout like a max lift or short couplet")
+				recommendations.push(
+					"Add a sprint workout like a max lift or short couplet",
+				)
 			}
 			if (timeDomains.medium === 0 && eventCount >= 3) {
 				gaps.push("Missing medium time domain events (5-15 min)")
-				recommendations.push("Add a medium-length workout testing multiple modalities")
+				recommendations.push(
+					"Add a medium-length workout testing multiple modalities",
+				)
 			}
 			if (timeDomains.long === 0 && eventCount >= 3) {
 				gaps.push("Missing long time domain events (>15 min)")
@@ -502,10 +565,14 @@ export const analyzeEventBalance = createTool({
 			}
 			if (!schemes["load"] && eventCount >= 4) {
 				gaps.push("No max load events")
-				recommendations.push("Consider adding a 1RM or complex to test strength")
+				recommendations.push(
+					"Consider adding a 1RM or complex to test strength",
+				)
 			}
 			if (eventCount < 3) {
-				recommendations.push(`Consider adding ${3 - eventCount} more events for a well-rounded competition`)
+				recommendations.push(
+					`Consider adding ${3 - eventCount} more events for a well-rounded competition`,
+				)
 			}
 		}
 

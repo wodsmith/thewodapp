@@ -71,7 +71,9 @@ export const Route = createFileRoute("/api/ai/threads/")({
 					return new Response(
 						JSON.stringify({
 							error:
-								error instanceof Error ? error.message : "Failed to list threads",
+								error instanceof Error
+									? error.message
+									: "Failed to list threads",
 						}),
 						{
 							status: 500,

@@ -61,7 +61,6 @@ export function AIChat({
 		setCurrentThreadId(propThreadId)
 	}, [propThreadId])
 
-
 	// Prepare initial messages - combine context with loaded messages
 	const combinedInitialMessages = useMemo(() => {
 		const msgs: UIMessage[] = []

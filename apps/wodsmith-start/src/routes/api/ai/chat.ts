@@ -124,25 +124,26 @@ export const Route = createFileRoute("/api/ai/chat")({
 					const agentStream = await competitionRouter.stream(
 						filteredMessages as Parameters<typeof competitionRouter.stream>[0],
 						{
-						requestContext,
-						// Allow multiple tool calls for complex operations like creating competitions
-						// Default is 1, which is too limiting for multi-step workflows
-						maxSteps: 20,
-						// Memory configuration for conversation threading
-						memory: {
-							thread: threadId,
-							resource: session.user.id,
-						},
-						// GPT-5 reasoning model fix: disable server-side storage to prevent
-						// orphaned item_reference errors on follow-up requests.
-						// See: https://github.com/mastra-ai/mastra/issues/10981
-						providerOptions: {
-							openai: {
-								store: false,
-								include: ["reasoning.encrypted_content"],
+							requestContext,
+							// Allow multiple tool calls for complex operations like creating competitions
+							// Default is 1, which is too limiting for multi-step workflows
+							maxSteps: 20,
+							// Memory configuration for conversation threading
+							memory: {
+								thread: threadId,
+								resource: session.user.id,
+							},
+							// GPT-5 reasoning model fix: disable server-side storage to prevent
+							// orphaned item_reference errors on follow-up requests.
+							// See: https://github.com/mastra-ai/mastra/issues/10981
+							providerOptions: {
+								openai: {
+									store: false,
+									include: ["reasoning.encrypted_content"],
+								},
 							},
 						},
-					})
+					)
 
 					// Create UI message stream for AI SDK useChat
 					const uiMessageStream = createUIMessageStream({

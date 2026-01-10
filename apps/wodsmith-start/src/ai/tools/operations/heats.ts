@@ -66,7 +66,7 @@ export const listHeats = createTool({
 		})
 
 		// Type assertion for relation data (Drizzle's with option returns these)
-		type HeatWithRelations = typeof heats[number] & {
+		type HeatWithRelations = (typeof heats)[number] & {
 			venue?: { id: string; name: string; laneCount: number } | null
 			division?: { id: string; label: string } | null
 			assignments?: Array<{
@@ -74,7 +74,11 @@ export const listHeats = createTool({
 				registrationId: string
 				laneNumber: number
 				registration?: {
-					user?: { firstName: string | null; lastName: string | null; email: string | null }
+					user?: {
+						firstName: string | null
+						lastName: string | null
+						email: string | null
+					}
 				}
 			}>
 		}
@@ -88,17 +92,20 @@ export const listHeats = createTool({
 				venue: h.venue
 					? { id: h.venue.id, name: h.venue.name, laneCount: h.venue.laneCount }
 					: null,
-				division: h.division ? { id: h.division.id, name: h.division.label } : null,
+				division: h.division
+					? { id: h.division.id, name: h.division.label }
+					: null,
 				schedulePublished: !!h.schedulePublishedAt,
-				athletes: h.assignments?.map((a) => ({
-					assignmentId: a.id,
-					registrationId: a.registrationId,
-					laneNumber: a.laneNumber,
-					athleteName: a.registration?.user
-						? `${a.registration.user.firstName || ""} ${a.registration.user.lastName || ""}`.trim() ||
-							a.registration.user.email
-						: "Unknown",
-				})) ?? [],
+				athletes:
+					h.assignments?.map((a) => ({
+						assignmentId: a.id,
+						registrationId: a.registrationId,
+						laneNumber: a.laneNumber,
+						athleteName: a.registration?.user
+							? `${a.registration.user.firstName || ""} ${a.registration.user.lastName || ""}`.trim() ||
+								a.registration.user.email
+							: "Unknown",
+					})) ?? [],
 			})),
 		}
 	},
@@ -232,24 +239,26 @@ export const assignAthleteToHeat = createTool({
 		}
 
 		// Check if lane is already taken
-		const existingLane = await db.query.competitionHeatAssignmentsTable.findFirst({
-			where: and(
-				eq(competitionHeatAssignmentsTable.heatId, heatId),
-				eq(competitionHeatAssignmentsTable.laneNumber, laneNumber),
-			),
-		})
+		const existingLane =
+			await db.query.competitionHeatAssignmentsTable.findFirst({
+				where: and(
+					eq(competitionHeatAssignmentsTable.heatId, heatId),
+					eq(competitionHeatAssignmentsTable.laneNumber, laneNumber),
+				),
+			})
 
 		if (existingLane) {
 			return { error: `Lane ${laneNumber} is already assigned in this heat` }
 		}
 
 		// Check if athlete is already in this heat
-		const existingAthlete = await db.query.competitionHeatAssignmentsTable.findFirst({
-			where: and(
-				eq(competitionHeatAssignmentsTable.heatId, heatId),
-				eq(competitionHeatAssignmentsTable.registrationId, registrationId),
-			),
-		})
+		const existingAthlete =
+			await db.query.competitionHeatAssignmentsTable.findFirst({
+				where: and(
+					eq(competitionHeatAssignmentsTable.heatId, heatId),
+					eq(competitionHeatAssignmentsTable.registrationId, registrationId),
+				),
+			})
 
 		if (existingAthlete) {
 			return { error: "Athlete is already assigned to this heat" }
@@ -293,12 +302,14 @@ export const removeAthleteFromHeat = createTool({
 		const db = getDb()
 
 		// Get assignment with heat and competition info
-		const assignment = await db.query.competitionHeatAssignmentsTable.findFirst({
-			where: eq(competitionHeatAssignmentsTable.id, assignmentId),
-			with: {
-				heat: true,
+		const assignment = await db.query.competitionHeatAssignmentsTable.findFirst(
+			{
+				where: eq(competitionHeatAssignmentsTable.id, assignmentId),
+				with: {
+					heat: true,
+				},
 			},
-		})
+		)
 
 		if (!assignment) {
 			return { error: "Assignment not found" }
@@ -365,7 +376,9 @@ export const deleteHeat = createTool({
 		}
 
 		// Delete heat (assignments cascade)
-		await db.delete(competitionHeatsTable).where(eq(competitionHeatsTable.id, heatId))
+		await db
+			.delete(competitionHeatsTable)
+			.where(eq(competitionHeatsTable.id, heatId))
 
 		return {
 			success: true,
@@ -405,16 +418,20 @@ export const getUnassignedAthletes = createTool({
 		}
 
 		// Get all registrations
-		const registrations = await db.query.competitionRegistrationsTable.findMany({
-			where: and(
-				eq(competitionRegistrationsTable.eventId, competitionId),
-				divisionId ? eq(competitionRegistrationsTable.divisionId, divisionId) : undefined,
-			),
-			with: {
-				user: true,
-				division: true,
+		const registrations = await db.query.competitionRegistrationsTable.findMany(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.eventId, competitionId),
+					divisionId
+						? eq(competitionRegistrationsTable.divisionId, divisionId)
+						: undefined,
+				),
+				with: {
+					user: true,
+					division: true,
+				},
 			},
-		})
+		)
 
 		// Get heats for this event to find assigned athletes
 		const heats = await db.query.competitionHeatsTable.findMany({
@@ -431,17 +448,22 @@ export const getUnassignedAthletes = createTool({
 					})
 				: []
 
-		const assignedRegistrationIds = new Set(assignments.map((a) => a.registrationId))
+		const assignedRegistrationIds = new Set(
+			assignments.map((a) => a.registrationId),
+		)
 
 		// Filter to unassigned
-		const unassigned = registrations.filter((r) => !assignedRegistrationIds.has(r.id))
+		const unassigned = registrations.filter(
+			(r) => !assignedRegistrationIds.has(r.id),
+		)
 
 		return {
 			unassignedAthletes: unassigned.map((r) => ({
 				registrationId: r.id,
 				userId: r.userId,
 				athleteName: r.user
-					? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim() || r.user.email
+					? `${r.user.firstName || ""} ${r.user.lastName || ""}`.trim() ||
+						r.user.email
 					: "Unknown",
 				divisionId: r.divisionId,
 				divisionName: r.division?.label,

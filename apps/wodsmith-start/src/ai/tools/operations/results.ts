@@ -7,10 +7,16 @@ import { z } from "zod"
 import { eq, and } from "drizzle-orm"
 
 import { getDb } from "@/db"
-import { competitionsTable, competitionRegistrationsTable } from "@/db/schemas/competitions"
+import {
+	competitionsTable,
+	competitionRegistrationsTable,
+} from "@/db/schemas/competitions"
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
-import { WORKOUT_SCHEME_VALUES, TIEBREAK_SCHEME_VALUES } from "@/db/schemas/workouts"
+import {
+	WORKOUT_SCHEME_VALUES,
+	TIEBREAK_SCHEME_VALUES,
+} from "@/db/schemas/workouts"
 
 /**
  * Enter a result for an athlete on a specific event.
@@ -73,12 +79,14 @@ export const enterResult = createTool({
 		}
 
 		// Get registration to get userId
-		const registration = await db.query.competitionRegistrationsTable.findFirst({
-			where: and(
-				eq(competitionRegistrationsTable.id, registrationId),
-				eq(competitionRegistrationsTable.eventId, competitionId),
-			),
-		})
+		const registration = await db.query.competitionRegistrationsTable.findFirst(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.id, registrationId),
+					eq(competitionRegistrationsTable.eventId, competitionId),
+				),
+			},
+		)
 
 		if (!registration) {
 			return { error: "Registration not found for this competition" }
@@ -107,7 +115,8 @@ export const enterResult = createTool({
 		const event = eventRaw as EventWithWorkout
 
 		// Calculate status order for sorting
-		const statusOrder = status === "scored" ? 0 : status === "cap" ? 1 : status === "dq" ? 2 : 3
+		const statusOrder =
+			status === "scored" ? 0 : status === "cap" ? 1 : status === "dq" ? 2 : 3
 
 		// Check if score already exists
 		const existing = await db.query.scoresTable.findFirst({
@@ -147,7 +156,7 @@ export const enterResult = createTool({
 				teamId: competition.organizingTeamId,
 				workoutId: event.workoutId,
 				competitionEventId: eventId,
-				scheme: event.workout.scheme as typeof WORKOUT_SCHEME_VALUES[number],
+				scheme: event.workout.scheme as (typeof WORKOUT_SCHEME_VALUES)[number],
 				scoreType: (event.workout.scoreType ?? "max") as "max" | "min",
 				scoreValue,
 				status,
@@ -155,7 +164,9 @@ export const enterResult = createTool({
 				tiebreakValue: tiebreakValue ?? null,
 				tiebreakScheme: tiebreakScheme ?? null,
 				secondaryValue: secondaryValue ?? null,
-				timeCapMs: event.workout.timeCap ? event.workout.timeCap * 60 * 1000 : null,
+				timeCapMs: event.workout.timeCap
+					? event.workout.timeCap * 60 * 1000
+					: null,
 				recordedAt: new Date(),
 			})
 			.returning()
@@ -198,16 +209,20 @@ export const getEventResults = createTool({
 		}
 
 		// Get all registrations for filtering
-		const registrations = await db.query.competitionRegistrationsTable.findMany({
-			where: and(
-				eq(competitionRegistrationsTable.eventId, competitionId),
-				divisionId ? eq(competitionRegistrationsTable.divisionId, divisionId) : undefined,
-			),
-			with: {
-				user: true,
-				division: true,
+		const registrations = await db.query.competitionRegistrationsTable.findMany(
+			{
+				where: and(
+					eq(competitionRegistrationsTable.eventId, competitionId),
+					divisionId
+						? eq(competitionRegistrationsTable.divisionId, divisionId)
+						: undefined,
+				),
+				with: {
+					user: true,
+					division: true,
+				},
 			},
-		})
+		)
 
 		const userIds = registrations.map((r) => r.userId)
 
