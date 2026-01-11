@@ -142,58 +142,7 @@ export function EventDetailsContent({
 				</div>
 				<Separator className="mb-4" />
 				{hasDivisions ? (
-					<div className="space-y-3">
-						{divisions.map((division) => {
-							const priceLabel = formatPrice(division.feeCents)
-							const hasDescription = !!division.description
-							const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
-
-							return (
-								<Collapsible key={division.id}>
-									<Card>
-										<CollapsibleTrigger asChild>
-											<CardHeader
-												className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
-											>
-												<div className="flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<CardTitle className="text-base">
-															{division.label}{" "}
-															<span className="font-normal text-muted-foreground">
-																{division.teamSize === 1
-																	? "(Indy)"
-																	: `(Teams of ${division.teamSize})`}
-															</span>
-														</CardTitle>
-														<span className="text-xs text-muted-foreground">
-															({division.registrationCount} {athleteLabel})
-														</span>
-														{hasDescription && (
-															<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-														)}
-													</div>
-													<span
-														className={`text-sm font-medium ${division.feeCents === 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}
-													>
-														{priceLabel}
-													</span>
-												</div>
-											</CardHeader>
-										</CollapsibleTrigger>
-										{hasDescription && (
-											<CollapsibleContent>
-												<CardContent className="pt-0 pb-4 px-4">
-													<p className="text-sm text-muted-foreground whitespace-pre-wrap">
-														{division.description}
-													</p>
-												</CardContent>
-											</CollapsibleContent>
-										)}
-									</Card>
-								</Collapsible>
-							)
-						})}
-					</div>
+					<DivisionsGroupedByPrice divisions={divisions} />
 				) : (
 					<Card className="border-dashed">
 						<CardContent className="py-6 text-center">
@@ -218,6 +167,113 @@ export function EventDetailsContent({
 			{/* Workouts Section */}
 			{workoutsContent}
 		</div>
+	)
+}
+
+// Helper component for grouping divisions by price
+function DivisionsGroupedByPrice({
+	divisions,
+}: { divisions: DivisionWithDetails[] }) {
+	// Group divisions by price
+	const freeDivisions = divisions.filter((d) => d.feeCents === 0)
+	const paidDivisionsMap = new Map<number, DivisionWithDetails[]>()
+
+	for (const div of divisions.filter((d) => d.feeCents > 0)) {
+		const existing = paidDivisionsMap.get(div.feeCents) || []
+		paidDivisionsMap.set(div.feeCents, [...existing, div])
+	}
+
+	// Sort paid tiers by price ascending
+	const paidTiers = Array.from(paidDivisionsMap.entries()).sort(
+		([a], [b]) => a - b,
+	)
+
+	return (
+		<div className="space-y-6">
+			{/* Free Tier */}
+			{freeDivisions.length > 0 && (
+				<div className="space-y-2">
+					<div className="flex items-center gap-2">
+						<span className="text-sm font-medium text-green-600 dark:text-green-400">
+							Free
+						</span>
+						<span className="text-xs text-muted-foreground">
+							({freeDivisions.length}{" "}
+							{freeDivisions.length === 1 ? "division" : "divisions"})
+						</span>
+					</div>
+					<div className="space-y-2 border-l-2 border-green-600/30 dark:border-green-400/30 pl-4">
+						{freeDivisions.map((division) => (
+							<DivisionRow key={division.id} division={division} />
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Paid Tiers */}
+			{paidTiers.map(([feeCents, tierDivisions]) => (
+				<div key={feeCents} className="space-y-2">
+					<div className="flex items-center gap-2">
+						<span className="text-sm font-medium text-muted-foreground">
+							{formatPrice(feeCents)}
+						</span>
+						<span className="text-xs text-muted-foreground">
+							({tierDivisions.length}{" "}
+							{tierDivisions.length === 1 ? "division" : "divisions"})
+						</span>
+					</div>
+					<div className="space-y-2 border-l-2 border-border pl-4">
+						{tierDivisions.map((division) => (
+							<DivisionRow key={division.id} division={division} />
+						))}
+					</div>
+				</div>
+			))}
+		</div>
+	)
+}
+
+// Helper component for individual division row
+function DivisionRow({ division }: { division: DivisionWithDetails }) {
+	const hasDescription = !!division.description
+	const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
+
+	return (
+		<Collapsible>
+			<Card>
+				<CollapsibleTrigger asChild>
+					<CardHeader
+						className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
+					>
+						<div className="flex items-center gap-2">
+							<CardTitle className="text-base">
+								{division.label}{" "}
+								<span className="font-normal text-muted-foreground">
+									{division.teamSize === 1
+										? "(Indy)"
+										: `(Teams of ${division.teamSize})`}
+								</span>
+							</CardTitle>
+							<span className="text-xs text-muted-foreground">
+								({division.registrationCount} {athleteLabel})
+							</span>
+							{hasDescription && (
+								<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+							)}
+						</div>
+					</CardHeader>
+				</CollapsibleTrigger>
+				{hasDescription && (
+					<CollapsibleContent>
+						<CardContent className="pt-0 pb-4 px-4">
+							<p className="text-sm text-muted-foreground whitespace-pre-wrap">
+								{division.description}
+							</p>
+						</CardContent>
+					</CollapsibleContent>
+				)}
+			</Card>
+		</Collapsible>
 	)
 }
 
