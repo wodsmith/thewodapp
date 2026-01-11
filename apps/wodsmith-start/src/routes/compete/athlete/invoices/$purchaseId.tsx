@@ -16,7 +16,7 @@ import { getInvoiceDetailsFn } from "@/server-fns/athlete-profile-fns"
 import { DownloadInvoiceButton } from "./-components/download-invoice-button"
 
 const searchSchema = z.object({
-	returnTo: z.string().optional(),
+	returnTo: z.string().startsWith("/").optional(),
 })
 
 export const Route = createFileRoute("/compete/athlete/invoices/$purchaseId")({

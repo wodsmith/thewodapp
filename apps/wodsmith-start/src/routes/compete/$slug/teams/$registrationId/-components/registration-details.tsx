@@ -173,14 +173,13 @@ export function RegistrationDetailsCard({ details, isTeamRegistration }: Props) 
 						{/* Status and Amount */}
 						<div className="flex items-center justify-between">
 							<PaymentStatusBadge status={paymentStatus} />
-							{(purchase?.totalCents || division?.feeCents) && (
-								<span className="font-semibold">
-									{formatCurrency(purchase?.totalCents || division?.feeCents || 0)}
-								</span>
-							)}
-							{paymentStatus === "FREE" && (
+							{paymentStatus === "FREE" ? (
 								<span className="font-medium text-muted-foreground">$0.00</span>
-							)}
+							) : (purchase?.totalCents ?? division?.feeCents) != null ? (
+								<span className="font-semibold">
+									{formatCurrency(purchase?.totalCents ?? division?.feeCents ?? 0)}
+								</span>
+							) : null}
 						</div>
 
 						{/* Registration Date */}

@@ -870,6 +870,9 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 		z.object({ registrationId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }): Promise<RegistrationDetails | null> => {
+		const session = await requireVerifiedEmail()
+		if (!session) throw new Error("Unauthorized")
+
 		const db = getDb()
 		const { competitionDivisionsTable } = await import("@/db/schema")
 
@@ -899,6 +902,22 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 
 		if (!registration) {
 			return null
+		}
+
+		// Verify user is authorized to view this registration
+		const isRegisteredUser = registration.userId === session.user.id
+		let isTeamMember = false
+		if (registration.athleteTeamId) {
+			const membership = await db.query.teamMembershipTable.findFirst({
+				where: and(
+					eq(teamMembershipTable.teamId, registration.athleteTeamId),
+					eq(teamMembershipTable.userId, session.user.id),
+				),
+			})
+			isTeamMember = !!membership
+		}
+		if (!isRegisteredUser && !isTeamMember) {
+			throw new Error("You are not authorized to view this registration")
 		}
 
 		// Parse related data (handle array vs single object)

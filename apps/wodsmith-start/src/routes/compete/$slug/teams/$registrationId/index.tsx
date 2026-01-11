@@ -278,7 +278,7 @@ function TeamManagementPage() {
 				)}
 
 				{/* Waivers */}
-				{waivers.length > 0 && (
+				{isRegisteredUser && waivers.length > 0 && (
 					<WaiverSection
 						waivers={waivers}
 						signatures={waiverSignatures}
