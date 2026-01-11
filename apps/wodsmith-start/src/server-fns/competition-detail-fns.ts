@@ -172,6 +172,8 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+				defaultMaxSpotsPerDivision:
+					competitionsTable.defaultMaxSpotsPerDivision,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,

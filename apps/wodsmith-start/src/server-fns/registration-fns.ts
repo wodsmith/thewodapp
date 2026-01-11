@@ -40,6 +40,7 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
+import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
 
 // ============================================================================
 // Input Schemas
@@ -126,6 +127,19 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			})
 		if (existingRegistration) {
 			throw new Error("You are already registered for this competition")
+		}
+
+		// 3.5. Check division capacity
+		const capacityCheck = await getDivisionSpotsAvailableFn({
+			data: {
+				competitionId: input.competitionId,
+				divisionId: input.divisionId,
+			},
+		})
+		if (capacityCheck.isFull) {
+			throw new Error(
+				"This division is full. Please select a different division.",
+			)
 		}
 
 		// 4. Check for existing pending purchase (resume payment flow)

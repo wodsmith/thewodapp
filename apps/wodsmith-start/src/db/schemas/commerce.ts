@@ -157,6 +157,8 @@ export const competitionDivisionsTable = sqliteTable(
 		feeCents: integer().notNull(),
 		// Markdown description explaining who this division is for
 		description: text({ length: 2000 }),
+		// Max spots for this division (null = use competition default)
+		maxSpots: integer(),
 	},
 	(table) => [
 		// Each division can only have one config per competition

@@ -16,7 +16,10 @@ import {
 	userTable,
 } from "@/db/schema"
 import { RegistrationForm } from "@/components/registration/registration-form"
-import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
+import {
+	getPublicCompetitionDivisionsFn,
+	parseCompetitionSettings,
+} from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 
@@ -160,6 +163,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			return {
 				competition,
 				scalingGroup: null,
+				publicDivisions: [],
 				userId: session.userId,
 				registrationOpen,
 				registrationOpensAt: regOpensAt,
@@ -171,9 +175,17 @@ export const Route = createFileRoute("/compete/$slug/register")({
 		}
 
 		// 6. Get scaling group and levels for divisions (via server function)
-		const { scalingGroup } = await getScalingGroupWithLevelsFn({
-			data: { scalingGroupId: settings.divisions.scalingGroupId },
-		})
+		// Also get public divisions for capacity info
+		const [{ scalingGroup }, { divisions: publicDivisions }] = await Promise.all(
+			[
+				getScalingGroupWithLevelsFn({
+					data: { scalingGroupId: settings.divisions.scalingGroupId },
+				}),
+				getPublicCompetitionDivisionsFn({
+					data: { competitionId: competition.id },
+				}),
+			],
+		)
 
 		if (
 			!scalingGroup ||
@@ -184,6 +196,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			return {
 				competition,
 				scalingGroup: null,
+				publicDivisions: [],
 				userId: session.userId,
 				registrationOpen,
 				registrationOpensAt: regOpensAt,
@@ -197,6 +210,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 		return {
 			competition,
 			scalingGroup,
+			publicDivisions,
 			userId: session.userId,
 			registrationOpen,
 			registrationOpensAt: regOpensAt,
@@ -212,6 +226,7 @@ function RegisterPage() {
 	const {
 		competition,
 		scalingGroup,
+		publicDivisions,
 		userId,
 		registrationOpen,
 		registrationOpensAt,
@@ -246,6 +261,7 @@ function RegisterPage() {
 			<RegistrationForm
 				competition={competition}
 				scalingGroup={scalingGroup}
+				publicDivisions={publicDivisions}
 				userId={userId}
 				registrationOpen={registrationOpen}
 				registrationOpensAt={registrationOpensAt}

@@ -25,6 +25,9 @@ interface DivisionWithDetails {
 	registrationCount: number
 	feeCents: number
 	teamSize: number
+	maxSpots: number | null
+	spotsAvailable: number | null
+	isFull: boolean
 }
 
 interface SponsorGroupWithSponsors extends SponsorGroup {
@@ -238,28 +241,52 @@ function DivisionRow({ division }: { division: DivisionWithDetails }) {
 	const hasDescription = !!division.description
 	const athleteLabel = division.teamSize > 1 ? "teams" : "athletes"
 
+	// Format spots display
+	const spotsDisplay = division.maxSpots
+		? `${division.registrationCount}/${division.maxSpots}`
+		: `${division.registrationCount}`
+
 	return (
 		<Collapsible>
-			<Card>
+			<Card className={division.isFull ? "opacity-60" : ""}>
 				<CollapsibleTrigger asChild>
 					<CardHeader
 						className={`py-3 px-4 ${hasDescription ? "cursor-pointer hover:bg-muted/50" : ""}`}
 					>
-						<div className="flex items-center gap-2">
-							<CardTitle className="text-base">
-								{division.label}{" "}
-								<span className="font-normal text-muted-foreground">
-									{division.teamSize === 1
-										? "(Indy)"
-										: `(Teams of ${division.teamSize})`}
-								</span>
-							</CardTitle>
-							<span className="text-xs text-muted-foreground">
-								({division.registrationCount} {athleteLabel})
-							</span>
-							{hasDescription && (
-								<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-							)}
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<CardTitle className="text-base">
+									{division.label}{" "}
+									<span className="font-normal text-muted-foreground">
+										{division.teamSize === 1
+											? "(Indy)"
+											: `(Teams of ${division.teamSize})`}
+									</span>
+								</CardTitle>
+								{hasDescription && (
+									<ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+								)}
+							</div>
+							<div className="flex items-center gap-2">
+								{division.isFull ? (
+									<span className="text-xs font-medium text-red-600 dark:text-red-400">
+										SOLD OUT
+									</span>
+								) : division.maxSpots && division.spotsAvailable !== null ? (
+									<span className="text-xs text-muted-foreground">
+										{spotsDisplay} {athleteLabel}
+										{division.spotsAvailable <= 5 && (
+											<span className="ml-1 text-amber-600 dark:text-amber-400">
+												({division.spotsAvailable} left)
+											</span>
+										)}
+									</span>
+								) : (
+									<span className="text-xs text-muted-foreground">
+										{spotsDisplay} {athleteLabel}
+									</span>
+								)}
+							</div>
 						</div>
 					</CardHeader>
 				</CollapsibleTrigger>

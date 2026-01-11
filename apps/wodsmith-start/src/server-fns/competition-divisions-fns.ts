@@ -87,6 +87,9 @@ export interface PublicCompetitionDivision {
 	registrationCount: number
 	feeCents: number
 	teamSize: number
+	maxSpots: number | null
+	spotsAvailable: number | null
+	isFull: boolean
 }
 
 export interface CompetitionDivisionWithCounts {
@@ -96,6 +99,7 @@ export interface CompetitionDivisionWithCounts {
 	registrationCount: number
 	description: string | null
 	feeCents: number | null
+	maxSpots: number | null
 }
 
 export interface ScalingGroupForTemplate {
@@ -169,6 +173,24 @@ const updateDivisionDescriptionInputSchema = z.object({
 
 const getScalingGroupWithLevelsInputSchema = z.object({
 	scalingGroupId: z.string().min(1, "Scaling Group ID is required"),
+})
+
+const updateCompetitionDefaultCapacityInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	defaultMaxSpotsPerDivision: z.number().int().min(1).nullable(),
+})
+
+const updateDivisionCapacityInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+	maxSpots: z.number().int().min(1).nullable(),
+})
+
+const getDivisionSpotsAvailableInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
 })
 
 // ============================================================================
@@ -505,7 +527,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 			return { divisions: [] }
 		}
 
-		// Get divisions with descriptions and registration counts
+		// Get divisions with descriptions, registration counts, and capacity
 		const divisions = await db
 			.select({
 				id: scalingLevelsTable.id,
@@ -513,6 +535,7 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 				teamSize: scalingLevelsTable.teamSize,
 				description: competitionDivisionsTable.description,
 				feeCents: competitionDivisionsTable.feeCents,
+				maxSpots: competitionDivisionsTable.maxSpots,
 				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 			})
 			.from(scalingLevelsTable)
@@ -535,18 +558,28 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 				scalingLevelsTable.id,
 				competitionDivisionsTable.description,
 				competitionDivisionsTable.feeCents,
+				competitionDivisionsTable.maxSpots,
 			)
 			.orderBy(scalingLevelsTable.position)
 
-		// Apply default fee from competition
-		const result: PublicCompetitionDivision[] = divisions.map((d) => ({
-			id: d.id,
-			label: d.label,
-			description: d.description ?? null,
-			registrationCount: d.registrationCount,
-			feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
-			teamSize: d.teamSize,
-		}))
+		// Apply defaults from competition and calculate capacity
+		const defaultMax = competition.defaultMaxSpotsPerDivision ?? null
+		const result: PublicCompetitionDivision[] = divisions.map((d) => {
+			const effectiveMax = d.maxSpots ?? defaultMax
+			const spotsAvailable =
+				effectiveMax !== null ? effectiveMax - d.registrationCount : null
+			return {
+				id: d.id,
+				label: d.label,
+				description: d.description ?? null,
+				registrationCount: d.registrationCount,
+				feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
+				teamSize: d.teamSize,
+				maxSpots: effectiveMax,
+				spotsAvailable,
+				isFull: effectiveMax !== null && d.registrationCount >= effectiveMax,
+			}
+		})
 
 		return { divisions: result }
 	})
@@ -589,7 +622,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 			return { scalingGroupId: null, divisions: [] }
 		}
 
-		// Get divisions with registration counts and descriptions
+		// Get divisions with registration counts, descriptions, and capacity
 		const divisions = await db
 			.select({
 				id: scalingLevelsTable.id,
@@ -597,6 +630,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				position: scalingLevelsTable.position,
 				description: competitionDivisionsTable.description,
 				feeCents: competitionDivisionsTable.feeCents,
+				maxSpots: competitionDivisionsTable.maxSpots,
 				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 			})
 			.from(scalingLevelsTable)
@@ -619,15 +653,18 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				scalingLevelsTable.id,
 				competitionDivisionsTable.description,
 				competitionDivisionsTable.feeCents,
+				competitionDivisionsTable.maxSpots,
 			)
 			.orderBy(scalingLevelsTable.position)
 
 		return {
 			scalingGroupId,
+			defaultMaxSpotsPerDivision: competition.defaultMaxSpotsPerDivision,
 			divisions: divisions.map((d) => ({
 				...d,
 				description: d.description ?? null,
 				feeCents: d.feeCents ?? null,
+				maxSpots: d.maxSpots ?? null,
 			})) as CompetitionDivisionWithCounts[],
 		}
 	})
@@ -1044,4 +1081,168 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
 		}
 
 		return { success: true }
+	})
+
+/**
+ * Update the default max spots per division for a competition
+ */
+export const updateCompetitionDefaultCapacityFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		updateCompetitionDefaultCapacityInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify competition exists and belongs to team
+		const [competition] = await db
+			.select()
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		if (competition.organizingTeamId !== data.teamId) {
+			throw new Error("Competition does not belong to this team")
+		}
+
+		await db
+			.update(competitionsTable)
+			.set({
+				defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision,
+				updatedAt: new Date(),
+			})
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		return { success: true }
+	})
+
+/**
+ * Update max spots for a specific division (override)
+ */
+export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		updateDivisionCapacityInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
+			competitionId: data.competitionId,
+			teamId: data.teamId,
+		})
+
+		// Verify division belongs to this group
+		const [division] = await db
+			.select()
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		if (!division || division.scalingGroupId !== scalingGroupId) {
+			throw new Error("Division not found in this competition")
+		}
+
+		// Check if division config exists
+		const existing = await db.query.competitionDivisionsTable.findFirst({
+			where: and(
+				eq(competitionDivisionsTable.competitionId, data.competitionId),
+				eq(competitionDivisionsTable.divisionId, data.divisionId),
+			),
+		})
+
+		if (existing) {
+			// Update existing
+			await db
+				.update(competitionDivisionsTable)
+				.set({ maxSpots: data.maxSpots, updatedAt: new Date() })
+				.where(eq(competitionDivisionsTable.id, existing.id))
+		} else {
+			// Insert new (with default fee of 0)
+			await db.insert(competitionDivisionsTable).values({
+				competitionId: data.competitionId,
+				divisionId: data.divisionId,
+				feeCents: 0,
+				maxSpots: data.maxSpots,
+			})
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Get spots available for a division
+ * Used for registration validation
+ */
+export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getDivisionSpotsAvailableInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get competition for default capacity
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Get division config for override
+		const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
+			where: and(
+				eq(competitionDivisionsTable.competitionId, data.competitionId),
+				eq(competitionDivisionsTable.divisionId, data.divisionId),
+			),
+		})
+
+		// Get registration count
+		const result = await db
+			.select({ count: count() })
+			.from(competitionRegistrationsTable)
+			.where(
+				and(
+					eq(competitionRegistrationsTable.divisionId, data.divisionId),
+					eq(competitionRegistrationsTable.eventId, data.competitionId),
+				),
+			)
+
+		const registered = result[0]?.count ?? 0
+
+		// Calculate effective max: division override > competition default > null (unlimited)
+		const effectiveMax =
+			divisionConfig?.maxSpots ?? competition.defaultMaxSpotsPerDivision ?? null
+
+		return {
+			maxSpots: effectiveMax,
+			registered,
+			available: effectiveMax !== null ? effectiveMax - registered : null,
+			isFull: effectiveMax !== null && registered >= effectiveMax,
+		}
 	})

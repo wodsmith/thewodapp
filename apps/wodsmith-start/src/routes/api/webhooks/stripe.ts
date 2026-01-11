@@ -35,6 +35,7 @@ import {
 	notifyRegistrationConfirmed,
 } from "@/server/registration"
 import { notifyPaymentExpired } from "@/server/notifications"
+import { getDivisionSpotsAvailableFn } from "@/server-fns/competition-divisions-fns"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({
 	server: {
@@ -139,6 +140,37 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 								attributes: { purchaseId },
 							})
 						}
+					}
+
+					// Re-check capacity before registration (race condition protection)
+					const capacityCheck = await getDivisionSpotsAvailableFn({
+						data: { competitionId, divisionId },
+					})
+					if (capacityCheck.isFull) {
+						// Division filled during payment - need to handle refund
+						logError({
+							message:
+								"[Stripe Webhook] Division filled during payment - refund needed",
+							attributes: {
+								purchaseId,
+								competitionId,
+								divisionId,
+								userId,
+								maxSpots: capacityCheck.maxSpots,
+								registered: capacityCheck.registered,
+							},
+						})
+						// Mark purchase as failed
+						await db
+							.update(commercePurchaseTable)
+							.set({
+								status: COMMERCE_PURCHASE_STATUS.FAILED,
+								completedAt: new Date(),
+							})
+							.where(eq(commercePurchaseTable.id, purchaseId))
+						// TODO: Trigger automatic refund via Stripe API
+						// TODO: Send "division full" notification email to user
+						return
 					}
 
 					try {

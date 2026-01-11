@@ -36,12 +36,15 @@ export interface OrganizerDivisionItemProps {
 	id: string
 	label: string
 	description: string | null
+	maxSpots: number | null
+	defaultMaxSpots: number | null
 	index: number
 	registrationCount: number
 	isOnly: boolean
 	instanceId: symbol
 	onLabelSave: (value: string) => void
 	onDescriptionSave: (value: string | null) => void
+	onMaxSpotsSave: (value: number | null) => void
 	onRemove: () => void
 	onDrop: (sourceIndex: number, targetIndex: number) => void
 }
@@ -50,12 +53,15 @@ export function OrganizerDivisionItem({
 	id,
 	label,
 	description,
+	maxSpots,
+	defaultMaxSpots,
 	index,
 	registrationCount,
 	isOnly,
 	instanceId,
 	onLabelSave,
 	onDescriptionSave,
+	onMaxSpotsSave,
 	onRemove,
 	onDrop,
 }: OrganizerDivisionItemProps) {
@@ -67,6 +73,7 @@ export function OrganizerDivisionItem({
 	const [localLabel, setLocalLabel] = useState(label)
 	const labelRef = useRef(label)
 	const [localDescription, setLocalDescription] = useState(description ?? "")
+	const [localMaxSpots, setLocalMaxSpots] = useState(maxSpots?.toString() ?? "")
 	const [isExpanded, setIsExpanded] = useState(false)
 
 	// Sync local state when prop changes (e.g., after server update)
@@ -78,6 +85,10 @@ export function OrganizerDivisionItem({
 	useEffect(() => {
 		setLocalDescription(description ?? "")
 	}, [description])
+
+	useEffect(() => {
+		setLocalMaxSpots(maxSpots?.toString() ?? "")
+	}, [maxSpots])
 
 	const canDelete = registrationCount === 0 && !isOnly
 
@@ -261,7 +272,44 @@ export function OrganizerDivisionItem({
 						</CollapsibleTrigger>
 					</div>
 					<CollapsibleContent>
-						<div className="px-3 pb-3 pl-14">
+						<div className="px-3 pb-3 pl-14 space-y-3">
+							<div className="flex items-center gap-3">
+								<label
+									htmlFor={`maxSpots-${id}`}
+									className="text-sm text-muted-foreground whitespace-nowrap"
+								>
+									Max spots:
+								</label>
+								<Input
+									id={`maxSpots-${id}`}
+									type="number"
+									min={1}
+									value={localMaxSpots}
+									onChange={(e) => setLocalMaxSpots(e.target.value)}
+									onBlur={() => {
+										const newVal =
+											localMaxSpots.trim() === ""
+												? null
+												: parseInt(localMaxSpots, 10)
+										if (newVal !== maxSpots) {
+											if (newVal !== null && (isNaN(newVal) || newVal < 1)) {
+												setLocalMaxSpots(maxSpots?.toString() ?? "")
+												return
+											}
+											onMaxSpotsSave(newVal)
+										}
+									}}
+									placeholder={
+										defaultMaxSpots ? `${defaultMaxSpots} (default)` : "Unlimited"
+									}
+									className="w-32 text-sm"
+								/>
+								<span className="text-xs text-muted-foreground">
+									{defaultMaxSpots
+										? "Leave blank to use competition default"
+										: "Leave blank for unlimited"}
+								</span>
+							</div>
 							<Textarea
 								value={localDescription}
 								onChange={(e) => setLocalDescription(e.target.value)}
