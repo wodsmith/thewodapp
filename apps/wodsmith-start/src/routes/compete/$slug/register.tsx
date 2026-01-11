@@ -133,24 +133,18 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			throw redirect({ to: "/compete/$slug", params: { slug } })
 		}
 
-		// 4. Check registration window
+		// 4. Check registration window (dates are now YYYY-MM-DD strings)
 		const now = new Date()
+		const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 		const regOpensAt = competition.registrationOpensAt
-			? typeof competition.registrationOpensAt === "number"
-				? new Date(competition.registrationOpensAt)
-				: competition.registrationOpensAt
-			: null
 		const regClosesAt = competition.registrationClosesAt
-			? typeof competition.registrationClosesAt === "number"
-				? new Date(competition.registrationClosesAt)
-				: competition.registrationClosesAt
-			: null
 
+		// String comparison works for YYYY-MM-DD format
 		const registrationOpen = !!(
 			regOpensAt &&
 			regClosesAt &&
-			regOpensAt <= now &&
-			regClosesAt >= now
+			todayStr >= regOpensAt &&
+			todayStr <= regClosesAt
 		)
 
 		// 5. Get competition settings for divisions

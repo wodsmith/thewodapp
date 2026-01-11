@@ -57,15 +57,18 @@ const getCompetitionBySlugInputSchema = z.object({
 	slug: z.string().min(1, "Slug is required"),
 })
 
+// Schema for YYYY-MM-DD date strings
+const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+
 const createCompetitionInputSchema = z.object({
 	organizingTeamId: z.string().min(1, "Team ID is required"),
 	name: z.string().min(1, "Name is required"),
 	slug: z.string().min(1, "Slug is required"),
-	startDate: z.date(),
-	endDate: z.date(),
+	startDate: dateStringSchema,
+	endDate: dateStringSchema,
 	description: z.string().optional(),
-	registrationOpensAt: z.date().optional(),
-	registrationClosesAt: z.date().optional(),
+	registrationOpensAt: dateStringSchema.optional(),
+	registrationClosesAt: dateStringSchema.optional(),
 	groupId: z.string().optional(),
 	settings: z.string().optional(),
 })
@@ -75,10 +78,10 @@ const updateCompetitionInputSchema = z.object({
 	name: z.string().optional(),
 	slug: z.string().optional(),
 	description: z.string().nullable().optional(),
-	startDate: z.date().optional(),
-	endDate: z.date().optional(),
-	registrationOpensAt: z.date().nullable().optional(),
-	registrationClosesAt: z.date().nullable().optional(),
+	startDate: dateStringSchema.optional(),
+	endDate: dateStringSchema.optional(),
+	registrationOpensAt: dateStringSchema.nullable().optional(),
+	registrationClosesAt: dateStringSchema.nullable().optional(),
 	groupId: z.string().nullable().optional(),
 	settings: z.string().nullable().optional(),
 	visibility: z.enum(["public", "private"]).optional(),

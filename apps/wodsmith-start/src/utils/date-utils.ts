@@ -210,3 +210,139 @@ export function formatUTCDateRange(
 	// Different years
 	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
 }
+
+// ============================================================================
+// String-based date utilities for YYYY-MM-DD format
+// ============================================================================
+
+/**
+ * Format a date string (YYYY-MM-DD) for full display (e.g., "Jan 15, 2024").
+ * Works directly with date strings without timezone conversion.
+ */
+export function formatDateStringFull(
+	dateStr: string | null | undefined,
+): string {
+	if (!dateStr) return ""
+	const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+	if (!match) return ""
+
+	const [, yearStr, monthStr, dayStr] = match
+	const year = Number(yearStr)
+	const month = Number(monthStr)
+	const day = Number(dayStr)
+
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[month - 1]} ${day}, ${year}`
+}
+
+/**
+ * Format a date string (YYYY-MM-DD) for short display (e.g., "Jan 15").
+ * Works directly with date strings without timezone conversion.
+ */
+export function formatDateStringShort(
+	dateStr: string | null | undefined,
+): string {
+	if (!dateStr) return ""
+	const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+	if (!match) return ""
+
+	const [, , monthStr, dayStr] = match
+	const month = Number(monthStr)
+	const day = Number(dayStr)
+
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[month - 1]} ${day}`
+}
+
+/**
+ * Format a date range from YYYY-MM-DD strings for display.
+ * Handles single-day events, same month, different months, and different years.
+ */
+export function formatDateStringRange(
+	startDateStr: string,
+	endDateStr: string,
+): string {
+	const startMatch = startDateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+	const endMatch = endDateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+	if (!startMatch || !endMatch) return ""
+
+	const startYear = Number(startMatch[1])
+	const startMonth = Number(startMatch[2])
+	const startDay = Number(startMatch[3])
+	const endYear = Number(endMatch[1])
+	const endMonth = Number(endMatch[2])
+	const endDay = Number(endMatch[3])
+
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	]
+
+	const startMonthName = months[startMonth - 1]
+	const endMonthName = months[endMonth - 1]
+
+	// Single-day event
+	if (startDateStr === endDateStr) {
+		return `${startMonthName} ${startDay}, ${startYear}`
+	}
+
+	// Same month and year
+	if (startMonth === endMonth && startYear === endYear) {
+		return `${startMonthName} ${startDay}-${endDay}, ${startYear}`
+	}
+
+	// Same year, different months
+	if (startYear === endYear) {
+		return `${startMonthName} ${startDay} - ${endMonthName} ${endDay}, ${startYear}`
+	}
+
+	// Different years
+	return `${startMonthName} ${startDay}, ${startYear} - ${endMonthName} ${endDay}, ${endYear}`
+}
+
+/**
+ * Check if two date strings (YYYY-MM-DD) represent the same date.
+ */
+export function isSameDateString(
+	date1: string | null | undefined,
+	date2: string | null | undefined,
+): boolean {
+	if (!date1 || !date2) return false
+	return date1 === date2
+}

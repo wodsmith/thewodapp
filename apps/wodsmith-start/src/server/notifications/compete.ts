@@ -34,9 +34,12 @@ function formatCents(cents: number): string {
 }
 
 /**
- * Format date for email display using UTC to preserve calendar date.
+ * Format date for email display.
+ * Handles both YYYY-MM-DD strings (new format) and Date objects (legacy).
  */
-function formatDate(date: Date): string {
+function formatDate(date: string | Date | null | undefined): string {
+	if (!date) return ""
+
 	const weekdays = [
 		"Sunday",
 		"Monday",
@@ -61,6 +64,24 @@ function formatDate(date: Date): string {
 		"December",
 	]
 
+	// Handle YYYY-MM-DD string format
+	if (typeof date === "string") {
+		const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+		if (match) {
+			const [, yearStr, monthStr, dayStr] = match
+			const year = Number(yearStr)
+			const monthNum = Number(monthStr)
+			const day = Number(dayStr)
+			// Calculate weekday from YYYY-MM-DD (Zeller's congruence alternative)
+			const d = new Date(Date.UTC(year, monthNum - 1, day))
+			const weekday = weekdays[d.getUTCDay()]
+			const month = months[monthNum - 1]
+			return `${weekday}, ${month} ${day}, ${year}`
+		}
+		return ""
+	}
+
+	// Handle Date object (legacy)
 	const weekday = weekdays[date.getUTCDay()]
 	const month = months[date.getUTCMonth()]
 	const day = date.getUTCDate()

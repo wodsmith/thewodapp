@@ -573,10 +573,22 @@ export function OrganizerCompetitionForm({
 }
 
 /**
- * Helper function to format a Date or timestamp for HTML date input (YYYY-MM-DD)
+ * Format a date for HTML input. Now that dates are stored as YYYY-MM-DD strings,
+ * this is just a passthrough for strings. Kept for backwards compatibility with Date objects.
  */
-function formatDateForInput(date: Date | number | null | undefined): string {
+function formatDateForInput(date: Date | string | number | null | undefined): string {
 	if (!date) return ""
+	// If already a YYYY-MM-DD string, return as-is
+	if (typeof date === "string") {
+		if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+		// Try to parse other string formats
+		const d = new Date(date)
+		if (Number.isNaN(d.getTime())) return ""
+		const year = d.getUTCFullYear()
+		const month = String(d.getUTCMonth() + 1).padStart(2, "0")
+		const day = String(d.getUTCDate()).padStart(2, "0")
+		return `${year}-${month}-${day}`
+	}
 	const d = date instanceof Date ? date : new Date(date)
 	if (Number.isNaN(d.getTime())) return ""
 

@@ -91,7 +91,7 @@ interface Registration {
 interface HeatScheduleManagerProps {
 	competitionId: string
 	organizingTeamId: string
-	competitionStartDate: Date | null
+	competitionStartDate: string | null // YYYY-MM-DD format
 	events: CompetitionWorkout[]
 	venues: CompetitionVenue[]
 	heats: HeatWithAssignments[]
@@ -334,9 +334,19 @@ export function HeatScheduleManager({
 	}
 
 	function getDefaultHeatTime() {
-		const date = competitionStartDate
-			? new Date(competitionStartDate)
-			: new Date()
+		let date: Date
+		if (competitionStartDate) {
+			// Parse YYYY-MM-DD string
+			const match = competitionStartDate.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+			if (match) {
+				const [, yearStr, monthStr, dayStr] = match
+				date = new Date(Number(yearStr), Number(monthStr) - 1, Number(dayStr))
+			} else {
+				date = new Date()
+			}
+		} else {
+			date = new Date()
+		}
 		date.setHours(9, 0, 0, 0)
 		return formatDatetimeLocal(date)
 	}

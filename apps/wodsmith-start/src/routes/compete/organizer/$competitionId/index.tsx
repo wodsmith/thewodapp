@@ -108,8 +108,20 @@ function CompetitionOverviewPage() {
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 
-	// Format datetime for display (local time for timestamps)
-	const formatDateTime = (date: Date) => {
+	// Format datetime for display (local time for timestamps, or YYYY-MM-DD strings)
+	const formatDateTime = (date: string | Date) => {
+		// Handle YYYY-MM-DD string format
+		if (typeof date === "string") {
+			const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+			if (match) {
+				const [, yearStr, monthStr, dayStr] = match
+				const year = Number(yearStr)
+				const month = Number(monthStr)
+				const day = Number(dayStr)
+				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+				return `${months[month - 1]} ${day}, ${year}`
+			}
+		}
 		return new Date(date).toLocaleDateString(undefined, {
 			year: "numeric",
 			month: "long",
@@ -119,16 +131,17 @@ function CompetitionOverviewPage() {
 		})
 	}
 
-	// Calculate registration status
+	// Calculate registration status using string comparison for YYYY-MM-DD dates
 	const getRegistrationStatusText = () => {
 		if (!competition.registrationOpensAt || !competition.registrationClosesAt) {
 			return null
 		}
 		const now = new Date()
-		if (now < new Date(competition.registrationOpensAt)) {
+		const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+		if (todayStr < competition.registrationOpensAt) {
 			return "Not yet open"
 		}
-		if (now > new Date(competition.registrationClosesAt)) {
+		if (todayStr > competition.registrationClosesAt) {
 			return "Closed"
 		}
 		return "Open"

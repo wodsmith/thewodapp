@@ -192,11 +192,11 @@ export async function createCompetition(params: {
 	organizingTeamId: string
 	name: string
 	slug: string
-	startDate: Date
-	endDate: Date
+	startDate: string // YYYY-MM-DD format
+	endDate: string // YYYY-MM-DD format
 	description?: string
-	registrationOpensAt?: Date
-	registrationClosesAt?: Date
+	registrationOpensAt?: string // YYYY-MM-DD format
+	registrationClosesAt?: string // YYYY-MM-DD format
 	groupId?: string
 	settings?: string
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
@@ -358,10 +358,10 @@ export async function updateCompetition(
 		name: string
 		slug: string
 		description: string | null
-		startDate: Date
-		endDate: Date
-		registrationOpensAt: Date | null
-		registrationClosesAt: Date | null
+		startDate: string // YYYY-MM-DD format
+		endDate: string // YYYY-MM-DD format
+		registrationOpensAt: string | null // YYYY-MM-DD format
+		registrationClosesAt: string | null // YYYY-MM-DD format
 		groupId: string | null
 		settings: string | null
 		visibility: "public" | "private"

@@ -12,20 +12,29 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
-import { isSameUTCDay } from "@/utils/date-utils"
+import { isSameDateString } from "@/utils/date-utils"
 
 /**
  * Calculate time remaining until deadline and return urgency level
+ * Accepts YYYY-MM-DD string, Date, or number (timestamp)
  */
-function getDeadlineUrgency(deadline: Date | number): {
+function getDeadlineUrgency(deadline: string | Date | number): {
 	daysRemaining: number
 	hoursRemaining: number
 	urgencyLevel: "critical" | "urgent" | "normal" | "none"
 	message: string
 } {
 	const now = new Date()
-	const deadlineDate =
-		typeof deadline === "number" ? new Date(deadline) : deadline
+	// Handle YYYY-MM-DD strings by parsing to end of day
+	let deadlineDate: Date
+	if (typeof deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+		const [year, month, day] = deadline.split("-").map(Number)
+		deadlineDate = new Date(year!, (month ?? 1) - 1, day!, 23, 59, 59, 999)
+	} else if (typeof deadline === "number") {
+		deadlineDate = new Date(deadline)
+	} else {
+		deadlineDate = deadline as Date
+	}
 	const diffMs = deadlineDate.getTime() - now.getTime()
 
 	if (diffMs <= 0) {
@@ -96,8 +105,14 @@ interface RegistrationSidebarProps {
 	isVolunteer?: boolean
 }
 
-function formatDateShort(date: Date | number): string {
-	const d = typeof date === "number" ? new Date(date) : date
+function formatDateShort(date: string | Date | number): string {
+	// Handle YYYY-MM-DD strings
+	if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		const [year, month, day] = date.split("-").map(Number)
+		const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+		return `${months[(month ?? 1) - 1]} ${day}, ${year}`
+	}
+	const d = typeof date === "number" ? new Date(date) : (date as Date)
 	return d.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
@@ -105,8 +120,14 @@ function formatDateShort(date: Date | number): string {
 	})
 }
 
-function formatDeadlineDate(date: Date | number): string {
-	const d = typeof date === "number" ? new Date(date) : date
+function formatDeadlineDate(date: string | Date | number): string {
+	// Handle YYYY-MM-DD strings
+	if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		const [year, month, day] = date.split("-").map(Number)
+		const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+		return `${months[(month ?? 1) - 1]} ${day}, ${year}`
+	}
+	const d = typeof date === "number" ? new Date(date) : (date as Date)
 	return d.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
@@ -288,7 +309,7 @@ export function RegistrationSidebar({
 						<div>
 							<p className="font-medium">
 								{formatDateShort(competition.startDate)}
-								{!isSameUTCDay(competition.startDate, competition.endDate) && (
+								{!isSameDateString(competition.startDate, competition.endDate) && (
 									<> - {formatDateShort(competition.endDate)}</>
 								)}
 							</p>
