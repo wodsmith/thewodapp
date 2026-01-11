@@ -54,7 +54,7 @@ export function OrganizerFeeCard({ team }: Props) {
 	)
 
 	const hasCustomFee =
-		team.organizerFeePercentage !== null || team.organizerFeeFixed !== null
+		team.organizerFeePercentage != null || team.organizerFeeFixed != null
 
 	// Get effective fee display values
 	const effectivePercentage =

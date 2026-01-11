@@ -336,9 +336,9 @@ export const getScheduledWorkoutsForAdminFn = createServerFn({ method: "GET" })
 const updateOrganizerFeeInputSchema = z.object({
 	teamId: z.string().min(1, "Team ID is required"),
 	/** Fee percentage in basis points (e.g., 250 = 2.5%). Null to use platform default. */
-	organizerFeePercentage: z.number().min(0).max(10000).nullable(),
+	organizerFeePercentage: z.number().int().min(0).max(10000).nullable(),
 	/** Fixed fee in cents (e.g., 300 = $3.00). Null to use platform default. */
-	organizerFeeFixed: z.number().min(0).nullable(),
+	organizerFeeFixed: z.number().int().min(0).nullable(),
 })
 
 /**

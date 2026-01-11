@@ -152,8 +152,8 @@ export function PricingSettingsForm({
 		teamFeeSettings?.organizerFeeFixed ??
 		PLATFORM_DEFAULTS.platformFixedCents
 	const hasSpecialRate =
-		teamFeeSettings?.organizerFeePercentage !== null ||
-		teamFeeSettings?.organizerFeeFixed !== null
+		teamFeeSettings?.organizerFeePercentage != null ||
+		teamFeeSettings?.organizerFeeFixed != null
 
 	return (
 		<div className="space-y-6">
