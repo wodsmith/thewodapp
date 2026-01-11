@@ -477,11 +477,20 @@ const website = await TanStackStart("app", {
 			/** Stripe secret key for server-side API calls */
 			STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
 		}),
-		// Webhook secret only for demo and prod (where webhook resource is created)
-		...(stripeWebhook && {
-			/** Stripe webhook secret for signature verification */
-			STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
-		}),
+		// Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
+		...(stripeWebhook
+			? {
+					/** Stripe webhook secret for signature verification (Alchemy-managed) */
+					STRIPE_WEBHOOK_SECRET: alchemy.secret(stripeWebhook.secret),
+				}
+			: process.env.STRIPE_WEBHOOK_SECRET
+				? {
+						/** Stripe webhook secret for local dev (from .dev.vars) */
+						STRIPE_WEBHOOK_SECRET: alchemy.secret(
+							process.env.STRIPE_WEBHOOK_SECRET,
+						),
+					}
+				: {}),
 	},
 
 	/**

@@ -328,6 +328,28 @@ export const getTeamSlugFn = createServerFn({ method: "GET" })
 	})
 
 /**
+ * Get team fee settings (organizer fee overrides)
+ * Used to display correct platform fee rates to organizers
+ */
+export const getTeamFeeSettingsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getTeamSlugInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		const db = getDb()
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, data.teamId),
+			columns: {
+				organizerFeePercentage: true,
+				organizerFeeFixed: true,
+			},
+		})
+
+		return {
+			organizerFeePercentage: team?.organizerFeePercentage ?? null,
+			organizerFeeFixed: team?.organizerFeeFixed ?? null,
+		}
+	})
+
+/**
  * Get the active team ID from cookie or fallback to first team
  *
  * This is the server function wrapper for getActiveTeamId from team-auth.ts.

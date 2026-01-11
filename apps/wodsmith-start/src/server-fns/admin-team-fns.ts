@@ -40,6 +40,9 @@ export interface AdminTeamDetail extends Team {
 		}
 	>
 	competitionCount: number
+	// Organizer fee overrides (for founding organizers)
+	organizerFeePercentage: number | null
+	organizerFeeFixed: number | null
 }
 
 // ============================================================================
@@ -324,4 +327,96 @@ export const getScheduledWorkoutsForAdminFn = createServerFn({ method: "GET" })
 		})
 
 		return { success: true, events }
+	})
+
+// ============================================================================
+// Organizer Fee Management Server Functions
+// ============================================================================
+
+const updateOrganizerFeeInputSchema = z.object({
+	teamId: z.string().min(1, "Team ID is required"),
+	/** Fee percentage in basis points (e.g., 250 = 2.5%). Null to use platform default. */
+	organizerFeePercentage: z.number().int().min(0).max(10000).nullable(),
+	/** Fixed fee in cents (e.g., 300 = $3.00). Null to use platform default. */
+	organizerFeeFixed: z.number().int().min(0).nullable(),
+})
+
+/**
+ * Update organizer fee settings for a team (admin only)
+ * This allows setting custom platform fees for founding organizers or special arrangements
+ */
+export const updateOrganizerFeeFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => updateOrganizerFeeInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		// Require site admin role
+		const session = await requireAdmin()
+		if (!session) {
+			throw new Error("Not authorized - admin access required")
+		}
+
+		const db = getDb()
+
+		// Verify team exists
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, data.teamId),
+			columns: { id: true, name: true },
+		})
+
+		if (!team) {
+			throw new Error("Team not found")
+		}
+
+		// Update the team's organizer fee settings
+		await db
+			.update(teamTable)
+			.set({
+				organizerFeePercentage: data.organizerFeePercentage,
+				organizerFeeFixed: data.organizerFeeFixed,
+				updatedAt: new Date(),
+			})
+			.where(eq(teamTable.id, data.teamId))
+
+		return {
+			success: true,
+			message: data.organizerFeePercentage !== null
+				? `Updated ${team.name} to founding organizer fee: ${(data.organizerFeePercentage / 100).toFixed(1)}% + $${((data.organizerFeeFixed ?? 0) / 100).toFixed(2)}`
+				: `Reset ${team.name} to standard platform fee`,
+		}
+	})
+
+/**
+ * Get organizer fee settings for a team (admin only)
+ */
+export const getOrganizerFeeFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) => getTeamByIdInputSchema.parse(data))
+	.handler(async ({ data }) => {
+		// Require site admin role
+		const session = await requireAdmin()
+		if (!session) {
+			throw new Error("Not authorized - admin access required")
+		}
+
+		const db = getDb()
+
+		const team = await db.query.teamTable.findFirst({
+			where: eq(teamTable.id, data.teamId),
+			columns: {
+				id: true,
+				name: true,
+				organizerFeePercentage: true,
+				organizerFeeFixed: true,
+			},
+		})
+
+		if (!team) {
+			throw new Error("Team not found")
+		}
+
+		return {
+			teamId: team.id,
+			teamName: team.name,
+			organizerFeePercentage: team.organizerFeePercentage,
+			organizerFeeFixed: team.organizerFeeFixed,
+			hasCustomFee: team.organizerFeePercentage !== null || team.organizerFeeFixed !== null,
+		}
 	})

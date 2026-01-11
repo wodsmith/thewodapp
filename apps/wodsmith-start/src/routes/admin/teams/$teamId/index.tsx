@@ -24,6 +24,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
+import { OrganizerFeeCard } from "./-components/organizer-fee-card"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/admin/teams/$teamId")
@@ -215,6 +216,11 @@ function AdminTeamOverviewPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Organizer Fee Settings - Only show for gym/competition teams */}
+			{team.type === "gym" || team.type === "competition_event" ? (
+				<OrganizerFeeCard team={team} />
+			) : null}
 
 			{/* Team Members */}
 			<Card>

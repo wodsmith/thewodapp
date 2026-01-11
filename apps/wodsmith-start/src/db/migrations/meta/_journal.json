@@ -498,6 +498,20 @@
       "when": 1767370200000,
       "tag": "0068_add-heat-schedule-published",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1767456600000,
+      "tag": "0069_add-organizer-fee-columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "6",
+      "when": 1767543000000,
+      "tag": "0070_fix-organizer-fee-column-names",
+      "breakpoints": true
     }
   ]
 }

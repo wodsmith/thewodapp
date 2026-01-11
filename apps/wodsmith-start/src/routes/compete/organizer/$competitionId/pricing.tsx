@@ -14,7 +14,7 @@ import {
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getStripeConnectionStatusFn } from "@/server-fns/stripe-connect-fns"
-import { getTeamSlugFn } from "@/server-fns/team-fns"
+import { getTeamSlugFn, getTeamFeeSettingsFn } from "@/server-fns/team-fns"
 
 import { PricingSettingsForm } from "./-components/pricing-settings-form"
 import { StripeConnectionRequired } from "./-components/stripe-connection-required"
@@ -83,6 +83,11 @@ export const Route = createFileRoute(
 			data: { competitionId: competition.id },
 		})
 
+		// 7. Get team's fee settings (for founding organizers)
+		const teamFeeSettings = await getTeamFeeSettingsFn({
+			data: { teamId: competition.organizingTeamId },
+		})
+
 		return {
 			competition: {
 				id: competition.id,
@@ -99,14 +104,21 @@ export const Route = createFileRoute(
 			teamSlug,
 			divisions,
 			currentFees: feeConfig,
+			teamFeeSettings,
 		}
 	},
 	component: PricingPage,
 })
 
 function PricingPage() {
-	const { competition, isStripeConnected, teamSlug, divisions, currentFees } =
-		Route.useLoaderData()
+	const {
+		competition,
+		isStripeConnected,
+		teamSlug,
+		divisions,
+		currentFees,
+		teamFeeSettings,
+	} = Route.useLoaderData()
 
 	// If Stripe not connected, show connection prompt
 	if (!isStripeConnected) {
@@ -144,6 +156,7 @@ function PricingPage() {
 				competition={fullCompetition}
 				divisions={divisions}
 				currentFees={currentFees ?? { defaultFeeCents: 0, divisionFees: [] }}
+				teamFeeSettings={teamFeeSettings}
 			/>
 		</div>
 	)
