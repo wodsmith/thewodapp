@@ -26,8 +26,8 @@ export const PLATFORM_DEFAULTS = {
 export const FOUNDING_ORGANIZER_DEFAULTS = {
 	/** Platform fee percentage in basis points (250 = 2.5%) */
 	platformPercentageBasisPoints: 250,
-	/** Platform fixed fee in cents ($3.00) */
-	platformFixedCents: 300,
+	/** Platform fixed fee in cents ($2.00) */
+	platformFixedCents: 200,
 } as const
 
 /**
