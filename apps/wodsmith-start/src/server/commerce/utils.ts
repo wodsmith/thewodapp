@@ -11,8 +11,8 @@ import type { FeeBreakdown, FeeConfiguration } from "./fee-calculator"
 export const PLATFORM_DEFAULTS = {
 	/** Platform fee percentage in basis points (400 = 4.0%) */
 	platformPercentageBasisPoints: 400,
-	/** Platform fixed fee in cents ($4.00) */
-	platformFixedCents: 400,
+	/** Platform fixed fee in cents ($2.00) */
+	platformFixedCents: 200,
 	/** Stripe fee percentage in basis points (290 = 2.9%) */
 	stripePercentageBasisPoints: 290,
 	/** Stripe fixed fee in cents ($0.30) */
@@ -40,14 +40,14 @@ export const FOUNDING_ORGANIZER_DEFAULTS = {
  * 4. Organizer absorbs both: Only registration fee charged
  *
  * @example Customer pays platform fees (default) - $50 registration:
- * - Platform fee: $50 * 4.0% + $4.00 = $6.00
- * - Total charged: $56.00 (+ Stripe if passStripeFeesToCustomer)
+ * - Platform fee: $50 * 4.0% + $2.00 = $4.00
+ * - Total charged: $54.00 (+ Stripe if passStripeFeesToCustomer)
  * - Organizer receives: $50.00 (registration fee)
  *
  * @example Organizer absorbs platform fees - $50 registration:
- * - Platform fee: $6.00 (deducted from organizer payout)
+ * - Platform fee: $4.00 (deducted from organizer payout)
  * - Total charged: $50.00 (only registration)
- * - Organizer receives: $44.00 (after platform fee deduction)
+ * - Organizer receives: $46.00 (after platform fee deduction)
  */
 export function calculateCompetitionFees(
 	registrationFeeCents: number,
