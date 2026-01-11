@@ -3,12 +3,14 @@ import {
 	Container,
 	Head,
 	Heading,
+	Hr,
 	Html,
 	Link,
 	Section,
 	Text,
 } from "@react-email/components"
 import { SITE_DOMAIN } from "@/constants"
+import * as styles from "./styles"
 
 export interface RegistrationConfirmationProps {
 	athleteName?: string
@@ -40,63 +42,79 @@ export const RegistrationConfirmationEmail = ({
 	return (
 		<Html>
 			<Head />
-			<Body style={main}>
-				<Container style={container}>
-					<Heading style={preheader}>Registration Confirmed!</Heading>
-					<Text style={paragraph}>Hi {athleteName},</Text>
-					<Text style={paragraph}>
-						You&apos;re registered for <strong>{competitionName}</strong>!
+			<Body style={styles.main}>
+				<Container style={styles.container}>
+					<Text style={styles.logo}>WODsmith</Text>
+
+					<Heading style={styles.heading}>You're in!</Heading>
+
+					<Text style={styles.paragraph}>
+						Hi {athleteName}, your registration for{" "}
+						<strong>{competitionName}</strong> is confirmed.
 					</Text>
 
-					<Section style={detailsBox}>
-						<Text style={detailsTitle}>Registration Details</Text>
-						<Text style={detailRow}>
-							<strong>Competition:</strong> {competitionName}
-						</Text>
+					<Section style={styles.infoBox}>
+						<Text style={styles.infoLabel}>Competition</Text>
+						<Text style={styles.infoValue}>{competitionName}</Text>
+
 						{competitionDate && (
-							<Text style={detailRow}>
-								<strong>Date:</strong> {competitionDate}
-							</Text>
+							<>
+								<Text style={styles.infoLabel}>Date</Text>
+								<Text style={styles.infoValue}>{competitionDate}</Text>
+							</>
 						)}
-						<Text style={detailRow}>
-							<strong>Division:</strong> {divisionName}
-						</Text>
+
+						<Text style={styles.infoLabel}>Division</Text>
+						<Text style={styles.infoValue}>{divisionName}</Text>
+
 						{teamName && (
-							<Text style={detailRow}>
-								<strong>Team:</strong> {teamName}
-							</Text>
+							<>
+								<Text style={styles.infoLabel}>Team</Text>
+								<Text style={styles.infoValue}>{teamName}</Text>
+							</>
 						)}
+
 						{isPaid && amountPaidFormatted && (
-							<Text style={detailRow}>
-								<strong>Amount Paid:</strong> {amountPaidFormatted}
-							</Text>
+							<>
+								<Text style={styles.infoLabel}>Amount Paid</Text>
+								<Text style={{ ...styles.infoValue, marginBottom: 0 }}>
+									{amountPaidFormatted}
+								</Text>
+							</>
 						)}
 					</Section>
 
 					{pendingTeammateCount !== undefined && pendingTeammateCount > 0 && (
-						<Section style={warningBox}>
-							<Text style={warningText}>
-								You have {pendingTeammateCount} pending teammate{" "}
-								{pendingTeammateCount === 1 ? "invitation" : "invitations"}.
-								Your team won&apos;t be complete until they accept.
+						<Section style={styles.warningBox}>
+							<Text style={styles.boxText}>
+								{pendingTeammateCount} teammate
+								{pendingTeammateCount === 1 ? "" : "s"} still need
+								{pendingTeammateCount === 1 ? "s" : ""} to accept your
+								invitation.
 							</Text>
 						</Section>
 					)}
 
-					<Section style={buttonContainer}>
-						<Link style={button} href={registrationUrl}>
+					<Section style={styles.buttonContainer}>
+						<Link style={styles.button} href={registrationUrl}>
 							View Registration
 						</Link>
 					</Section>
 
-					<Text style={paragraph}>
-						If you have any questions, please contact the competition organizer.
+					<Hr style={styles.hr} />
+
+					<Text style={styles.footer}>
+						Questions? Contact the competition organizer.
+						<br />
+						<br />
+						<Link
+							style={{ ...styles.link, fontSize: "12px" }}
+							href={`https://${SITE_DOMAIN}`}
+						>
+							{SITE_DOMAIN}
+						</Link>
 					</Text>
 				</Container>
-				<Text style={footer}>
-					This is an automated message from {SITE_DOMAIN}. Please do not reply
-					to this email.
-				</Text>
 			</Body>
 		</Html>
 	)
@@ -116,102 +134,3 @@ RegistrationConfirmationEmail.PreviewProps = {
 } as RegistrationConfirmationProps
 
 export default RegistrationConfirmationEmail
-
-const main = {
-	backgroundColor: "#f6f9fc",
-	fontFamily:
-		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
-	marginTop: "30px",
-}
-
-const container = {
-	backgroundColor: "#ffffff",
-	border: "1px solid #f0f0f0",
-	borderRadius: "5px",
-	boxShadow: "0 5px 10px rgba(20,50,70,.2)",
-	marginTop: "20px",
-	maxWidth: "600px",
-	margin: "20px auto",
-	padding: "40px",
-}
-
-const preheader = {
-	color: "#22c55e",
-	fontSize: "24px",
-	textAlign: "center" as const,
-	marginBottom: "30px",
-}
-
-const paragraph = {
-	color: "#525f7f",
-	fontSize: "16px",
-	lineHeight: "24px",
-	textAlign: "left" as const,
-	marginBottom: "16px",
-}
-
-const detailsBox = {
-	backgroundColor: "#f8fafc",
-	border: "1px solid #e2e8f0",
-	borderRadius: "5px",
-	padding: "20px",
-	marginBottom: "24px",
-}
-
-const detailsTitle = {
-	color: "#1e293b",
-	fontSize: "14px",
-	fontWeight: "bold" as const,
-	textTransform: "uppercase" as const,
-	letterSpacing: "0.5px",
-	marginBottom: "12px",
-	marginTop: "0",
-}
-
-const detailRow = {
-	color: "#525f7f",
-	fontSize: "15px",
-	lineHeight: "20px",
-	margin: "8px 0",
-}
-
-const warningBox = {
-	backgroundColor: "#fef3c7",
-	border: "1px solid #f59e0b",
-	borderRadius: "5px",
-	padding: "16px",
-	marginBottom: "24px",
-}
-
-const warningText = {
-	color: "#92400e",
-	fontSize: "14px",
-	lineHeight: "20px",
-	margin: "0",
-}
-
-const buttonContainer = {
-	textAlign: "center" as const,
-	margin: "30px 0",
-}
-
-const button = {
-	backgroundColor: "#000",
-	borderRadius: "5px",
-	color: "#fff",
-	display: "inline-block",
-	fontSize: "16px",
-	fontWeight: "bold",
-	textDecoration: "none",
-	textAlign: "center" as const,
-	padding: "13px 40px",
-	margin: "0 auto",
-}
-
-const footer = {
-	color: "#8898aa",
-	fontSize: "12px",
-	lineHeight: "16px",
-	textAlign: "center" as const,
-	margin: "20px 0",
-}

@@ -3,6 +3,7 @@ import {
 	Container,
 	Head,
 	Heading,
+	Hr,
 	Html,
 	Link,
 	Section,
@@ -12,6 +13,7 @@ import {
 	EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
 	SITE_DOMAIN,
 } from "@/constants"
+import * as styles from "./styles"
 
 interface VerifyEmailProps {
 	verificationLink?: string
@@ -27,39 +29,50 @@ export const VerifyEmail = ({
 	return (
 		<Html>
 			<Head />
-			<Body style={main}>
-				<Container style={container}>
-					<Heading style={preheader}>Verify your {SITE_DOMAIN} email</Heading>
-					<Text style={paragraph}>Hi {username},</Text>
-					<Text style={paragraph}>
-						Thanks for signing up for {SITE_DOMAIN}! We need to verify your
-						email address to complete your registration. Please click the button
-						below to verify your email address.
+			<Body style={styles.main}>
+				<Container style={styles.container}>
+					<Text style={styles.logo}>WODsmith</Text>
+
+					<Heading style={styles.heading}>Verify your email</Heading>
+
+					<Text style={styles.paragraph}>
+						Hi {username}, click the button below to verify your email address
+						and complete your registration.
 					</Text>
-					<Section style={buttonContainer}>
-						<Link style={button} href={verificationLink}>
-							Verify Email Address
+
+					<Section style={styles.buttonContainer}>
+						<Link style={styles.button} href={verificationLink}>
+							Verify Email
 						</Link>
 					</Section>
-					<Text style={paragraph}>
-						This verification link will expire in {expirationHours} hour
-						{expirationHours > 1 ? "s" : ""}. After that, you&apos;ll need to
-						request a new verification email.
+
+					<Text style={styles.muted}>
+						This link expires in {expirationHours} hour
+						{expirationHours > 1 ? "s" : ""}.
 					</Text>
-					<Text style={paragraph}>
-						If you&apos;re having trouble with the button above, copy and paste
-						this URL into your browser:
+
+					<Text style={styles.muted}>
+						If the button doesn't work, copy this link into your browser:
+						<br />
+						<Link style={styles.link} href={verificationLink}>
+							{verificationLink}
+						</Link>
 					</Text>
-					<Text style={link}>{verificationLink}</Text>
-					<Text style={paragraph}>
-						If you didn&apos;t create an account on {SITE_DOMAIN}, you can
-						safely ignore this email.
+
+					<Hr style={styles.hr} />
+
+					<Text style={styles.footer}>
+						Didn't create an account? Ignore this email.
+						<br />
+						<br />
+						<Link
+							style={{ ...styles.link, fontSize: "12px" }}
+							href={`https://${SITE_DOMAIN}`}
+						>
+							{SITE_DOMAIN}
+						</Link>
 					</Text>
 				</Container>
-				<Text style={footer}>
-					This is an automated message from {SITE_DOMAIN}. Please do not reply
-					to this email.
-				</Text>
 			</Body>
 		</Html>
 	)
@@ -71,71 +84,3 @@ VerifyEmail.PreviewProps = {
 } as VerifyEmailProps
 
 export default VerifyEmail
-
-const main = {
-	backgroundColor: "#f6f9fc",
-	fontFamily:
-		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
-	marginTop: "30px",
-}
-
-const container = {
-	backgroundColor: "#ffffff",
-	border: "1px solid #f0f0f0",
-	borderRadius: "5px",
-	boxShadow: "0 5px 10px rgba(20,50,70,.2)",
-	marginTop: "20px",
-	maxWidth: "600px",
-	margin: "0 auto",
-	padding: "40px",
-}
-
-const preheader = {
-	color: "#525f7f",
-	fontSize: "18px",
-	textAlign: "center" as const,
-	marginBottom: "30px",
-}
-
-const paragraph = {
-	color: "#525f7f",
-	fontSize: "16px",
-	lineHeight: "24px",
-	textAlign: "left" as const,
-	marginBottom: "16px",
-}
-
-const buttonContainer = {
-	textAlign: "center" as const,
-	margin: "30px 0",
-}
-
-const button = {
-	backgroundColor: "#000",
-	borderRadius: "5px",
-	color: "#fff",
-	display: "inline-block",
-	fontSize: "16px",
-	fontWeight: "bold",
-	textDecoration: "none",
-	textAlign: "center" as const,
-	padding: "13px 40px",
-	margin: "0 auto",
-}
-
-const link = {
-	color: "#556cd6",
-	fontSize: "14px",
-	textAlign: "center" as const,
-	textDecoration: "underline",
-	margin: "16px 0 30px",
-	wordBreak: "break-all" as const,
-}
-
-const footer = {
-	color: "#8898aa",
-	fontSize: "12px",
-	lineHeight: "16px",
-	textAlign: "center" as const,
-	margin: "20px 0",
-}
