@@ -7,6 +7,7 @@
 
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { ArrowLeft, CreditCard, Receipt } from "lucide-react"
+import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,8 +15,13 @@ import { Separator } from "@/components/ui/separator"
 import { getInvoiceDetailsFn } from "@/server-fns/athlete-profile-fns"
 import { DownloadInvoiceButton } from "./-components/download-invoice-button"
 
+const searchSchema = z.object({
+	returnTo: z.string().optional(),
+})
+
 export const Route = createFileRoute("/compete/athlete/invoices/$purchaseId")({
 	component: InvoiceDetailPage,
+	validateSearch: (search) => searchSchema.parse(search),
 	loader: async ({ params }) => {
 		const { invoice } = await getInvoiceDetailsFn({
 			data: { purchaseId: params.purchaseId },
@@ -75,10 +81,14 @@ function capitalizeFirst(str: string | null): string {
 
 function InvoiceDetailPage() {
 	const { invoice } = Route.useLoaderData()
+	const { returnTo } = Route.useSearch()
 
 	// Calculate registration fee (total minus fees passed to customer)
 	const registrationFee =
 		invoice.totalCents - invoice.platformFeeCents - invoice.stripeFeeCents
+
+	// Default back to invoices list if no returnTo specified
+	const backLink = returnTo || "/compete/athlete/invoices"
 
 	return (
 		<div className="mx-auto max-w-2xl space-y-6 pb-12">
@@ -86,7 +96,7 @@ function InvoiceDetailPage() {
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
 					<Button variant="ghost" size="icon" asChild>
-						<Link to="/compete/athlete/invoices">
+						<Link to={backLink}>
 							<ArrowLeft className="h-4 w-4" />
 						</Link>
 					</Button>

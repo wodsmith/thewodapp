@@ -576,6 +576,105 @@ export interface TeamRosterResult {
 	isTeamRegistration: boolean
 }
 
+// ============================================================================
+// Update Registration Affiliate
+// ============================================================================
+
+const updateRegistrationAffiliateInputSchema = z.object({
+	registrationId: z.string().min(1, "Registration ID is required"),
+	userId: z.string().min(1, "User ID is required"),
+	affiliateName: z.string().max(255).nullable(),
+})
+
+/**
+ * Update the affiliate for a registration
+ * Each team member can update their own affiliate
+ * Affiliates are stored per-user in metadata.affiliates[userId]
+ */
+export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		updateRegistrationAffiliateInputSchema.parse(data),
+	)
+	.handler(async ({ data: input }) => {
+		const session = await requireVerifiedEmail()
+		if (!session) throw new Error("Unauthorized")
+
+		// Validate user ID matches session
+		if (input.userId !== session.user.id) {
+			throw new Error("You can only update your own affiliate")
+		}
+
+		const db = getDb()
+
+		// Get the registration
+		const registration = await db.query.competitionRegistrationsTable.findFirst({
+			where: eq(competitionRegistrationsTable.id, input.registrationId),
+		})
+
+		if (!registration) {
+			throw new Error("Registration not found")
+		}
+
+		// For individual registrations, user must be the registered user
+		// For team registrations, user must be a member of the athlete team
+		const isRegisteredUser = registration.userId === input.userId
+		let isTeamMember = false
+
+		if (registration.athleteTeamId) {
+			const membership = await db.query.teamMembershipTable.findFirst({
+				where: and(
+					eq(teamMembershipTable.teamId, registration.athleteTeamId),
+					eq(teamMembershipTable.userId, input.userId),
+				),
+			})
+			isTeamMember = !!membership
+		}
+
+		if (!isRegisteredUser && !isTeamMember) {
+			throw new Error("You must be a team member to update your affiliate")
+		}
+
+		// Parse existing metadata
+		let metadata: Record<string, unknown> = {}
+		if (registration.metadata) {
+			try {
+				metadata = JSON.parse(registration.metadata) as Record<string, unknown>
+			} catch {
+				metadata = {}
+			}
+		}
+
+		// Ensure affiliates object exists
+		if (!metadata.affiliates || typeof metadata.affiliates !== "object") {
+			metadata.affiliates = {}
+		}
+		const affiliates = metadata.affiliates as Record<string, string | null>
+
+		// Update this user's affiliate
+		if (input.affiliateName) {
+			affiliates[input.userId] = input.affiliateName
+		} else {
+			delete affiliates[input.userId]
+		}
+
+		// Clean up affiliates object if empty
+		if (Object.keys(affiliates).length === 0) {
+			delete metadata.affiliates
+		}
+
+		// Save updated metadata
+		await db
+			.update(competitionRegistrationsTable)
+			.set({
+				metadata:
+					Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+				updatedAt: new Date(),
+			})
+			.where(eq(competitionRegistrationsTable.id, input.registrationId))
+
+		return { success: true }
+	})
+
 /**
  * Get team roster for a registration
  */
@@ -723,5 +822,158 @@ export const getTeamRosterFn = createServerFn({ method: "GET" })
 			members,
 			pending,
 			isTeamRegistration: true,
+		}
+	})
+
+// ============================================================================
+// Get Registration Details (with payment and competition info)
+// ============================================================================
+
+export interface RegistrationDetails {
+	registrationId: string
+	registeredAt: Date
+	teamName: string | null
+	paymentStatus: string | null
+	paidAt: Date | null
+	// Competition info
+	competition: {
+		id: string
+		name: string
+		slug: string
+		startDate: Date
+		endDate: Date
+		profileImageUrl: string | null
+	} | null
+	// Division info
+	division: {
+		id: string
+		label: string
+		teamSize: number
+		description: string | null
+		feeCents: number | null
+	} | null
+	// Purchase/Payment info
+	purchase: {
+		id: string
+		totalCents: number
+		status: string
+		completedAt: Date | null
+		stripePaymentIntentId: string | null
+	} | null
+}
+
+/**
+ * Get detailed registration information including payment and competition details
+ */
+export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		z.object({ registrationId: z.string() }).parse(data),
+	)
+	.handler(async ({ data }): Promise<RegistrationDetails | null> => {
+		const db = getDb()
+		const { competitionDivisionsTable } = await import("@/db/schema")
+
+		// Get registration with all related data
+		const registration = await db.query.competitionRegistrationsTable.findFirst({
+			where: eq(competitionRegistrationsTable.id, data.registrationId),
+			with: {
+				competition: {
+					columns: {
+						id: true,
+						name: true,
+						slug: true,
+						startDate: true,
+						endDate: true,
+						profileImageUrl: true,
+					},
+				},
+				division: {
+					columns: {
+						id: true,
+						label: true,
+						teamSize: true,
+					},
+				},
+			},
+		})
+
+		if (!registration) {
+			return null
+		}
+
+		// Parse related data (handle array vs single object)
+		const competition = registration.competition
+			? Array.isArray(registration.competition)
+				? registration.competition[0]
+				: registration.competition
+			: null
+
+		const division = registration.division
+			? Array.isArray(registration.division)
+				? registration.division[0]
+				: registration.division
+			: null
+
+		// Get division description and fee from competition_divisions table
+		let divisionDescription: string | null = null
+		let divisionFeeCents: number | null = null
+
+		if (competition?.id && division?.id) {
+			const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
+				where: and(
+					eq(competitionDivisionsTable.competitionId, competition.id),
+					eq(competitionDivisionsTable.divisionId, division.id),
+				),
+			})
+			if (divisionConfig) {
+				divisionDescription = divisionConfig.description
+				divisionFeeCents = divisionConfig.feeCents
+			}
+		}
+
+		// Get purchase details if exists
+		let purchase: RegistrationDetails["purchase"] = null
+
+		if (registration.commercePurchaseId) {
+			const purchaseRecord = await db.query.commercePurchaseTable.findFirst({
+				where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
+			})
+			if (purchaseRecord) {
+				purchase = {
+					id: purchaseRecord.id,
+					totalCents: purchaseRecord.totalCents,
+					status: purchaseRecord.status,
+					completedAt: purchaseRecord.completedAt,
+					stripePaymentIntentId: purchaseRecord.stripePaymentIntentId,
+				}
+			}
+		}
+
+		return {
+			registrationId: registration.id,
+			registeredAt: registration.registeredAt,
+			teamName: registration.teamName,
+			paymentStatus: registration.paymentStatus,
+			paidAt: registration.paidAt,
+			competition: competition
+				? {
+						id: competition.id,
+						name: competition.name,
+						slug: competition.slug,
+						startDate: competition.startDate,
+						endDate: competition.endDate,
+						profileImageUrl: competition.profileImageUrl,
+					}
+				: null,
+			division: division
+				? {
+						id: division.id,
+						label: division.label,
+						teamSize: division.teamSize,
+						description: divisionDescription,
+						feeCents: divisionFeeCents,
+					}
+				: null,
+			purchase,
 		}
 	})

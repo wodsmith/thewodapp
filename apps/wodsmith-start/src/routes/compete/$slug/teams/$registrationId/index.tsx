@@ -28,13 +28,17 @@ import {
 } from "@/components/ui/card"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
+	getRegistrationDetailsFn,
 	getTeamRosterFn,
+	type RegistrationDetails,
 	type TeamRosterResult,
 } from "@/server-fns/registration-fns"
 import {
 	getCompetitionWaiversFn,
 	getWaiverSignaturesForUserFn,
 } from "@/server-fns/waiver-fns"
+import { AffiliateEditor } from "./-components/affiliate-editor"
+import { RegistrationDetailsCard } from "./-components/registration-details"
 import { WaiverSection } from "./-components/waiver-section"
 import { WelcomeModal } from "./-components/welcome-modal"
 
@@ -58,6 +62,7 @@ type PendingTeammate = {
 
 interface LoaderData {
 	registration: TeamRosterResult["registration"]
+	registrationDetails: RegistrationDetails | null
 	members: TeamRosterResult["members"]
 	pending: TeamRosterResult["pending"]
 	isTeamRegistration: boolean
@@ -72,6 +77,8 @@ interface LoaderData {
 	} | null
 	isTeamMember: boolean
 	isRegisteredUser: boolean
+	canEditOwnAffiliate: boolean
+	currentUserId: string
 	memberAffiliates: Record<string, string>
 	currentUserAffiliate: string | null
 	pendingTeammates: PendingTeammate[]
@@ -94,8 +101,11 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			})
 		}
 
-		// Get team roster
-		const roster = await getTeamRosterFn({ data: { registrationId } })
+		// Get team roster and registration details in parallel
+		const [roster, registrationDetails] = await Promise.all([
+			getTeamRosterFn({ data: { registrationId } }),
+			getRegistrationDetailsFn({ data: { registrationId } }),
+		])
 
 		if (!roster) {
 			throw notFound()
@@ -163,8 +173,11 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			waiverSignatures = signaturesResult.signatures
 		}
 
+		const canEditOwnAffiliate = isTeamMember || isRegisteredUser
+
 		return {
 			registration,
+			registrationDetails,
 			members,
 			pending,
 			isTeamRegistration,
@@ -172,6 +185,8 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			division: registration.division,
 			isTeamMember,
 			isRegisteredUser,
+			canEditOwnAffiliate,
+			currentUserId: session.userId,
 			memberAffiliates,
 			currentUserAffiliate,
 			pendingTeammates,
@@ -184,6 +199,7 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 function TeamManagementPage() {
 	const {
 		registration,
+		registrationDetails,
 		members,
 		pending,
 		isTeamRegistration,
@@ -191,6 +207,8 @@ function TeamManagementPage() {
 		division,
 		isTeamMember,
 		isRegisteredUser,
+		canEditOwnAffiliate,
+		currentUserId,
 		memberAffiliates,
 		currentUserAffiliate,
 		pendingTeammates,
@@ -246,22 +264,36 @@ function TeamManagementPage() {
 				<div className="space-y-2">
 					<h1 className="text-3xl font-bold">My Registration</h1>
 					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} -{" "}
+						{competition?.name || "Competition"} –{" "}
 						{division?.label || "Division"}
 					</p>
 				</div>
 
-				<Card>
-					<CardHeader>
-						<CardTitle>Affiliate</CardTitle>
-						<CardDescription>
-							Your representing affiliate for this competition
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<p className="text-lg">{currentUserAffiliate || "Independent"}</p>
-					</CardContent>
-				</Card>
+				{/* Registration Details */}
+				{registrationDetails && (
+					<RegistrationDetailsCard
+						details={registrationDetails}
+						isTeamRegistration={false}
+					/>
+				)}
+
+				{/* Waivers */}
+				{waivers.length > 0 && (
+					<WaiverSection
+						waivers={waivers}
+						signatures={waiverSignatures}
+						registrationId={registration.id}
+						competitionName={competition?.name || "Competition"}
+					/>
+				)}
+
+				{/* Affiliate */}
+				<AffiliateEditor
+					registrationId={registration.id}
+					userId={currentUserId}
+					currentAffiliate={currentUserAffiliate}
+					canEdit={canEditOwnAffiliate}
+				/>
 			</div>
 		)
 	}
@@ -286,10 +318,18 @@ function TeamManagementPage() {
 						{registration.teamName || "Team"}
 					</h1>
 					<p className="text-muted-foreground">
-						{competition?.name || "Competition"} -{" "}
+						{competition?.name || "Competition"} –{" "}
 						{division?.label || "Division"}
 					</p>
 				</div>
+
+				{/* Registration Details */}
+				{registrationDetails && (
+					<RegistrationDetailsCard
+						details={registrationDetails}
+						isTeamRegistration={true}
+					/>
+				)}
 
 				{/* Team Status Card */}
 				<Card>
@@ -428,18 +468,13 @@ function TeamManagementPage() {
 				)}
 
 				{/* My Affiliate */}
-				{(isTeamMember || isRegisteredUser) && (
-					<Card>
-						<CardHeader>
-							<CardTitle>My Affiliate</CardTitle>
-							<CardDescription>
-								Your representing affiliate for this competition
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<p className="text-lg">{currentUserAffiliate || "Independent"}</p>
-						</CardContent>
-					</Card>
+				{canEditOwnAffiliate && (
+					<AffiliateEditor
+						registrationId={registration.id}
+						userId={currentUserId}
+						currentAffiliate={currentUserAffiliate}
+						canEdit={canEditOwnAffiliate}
+					/>
 				)}
 
 				{/* Captain Actions */}
