@@ -1071,11 +1071,16 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
 				.set({ description: data.description, updatedAt: new Date() })
 				.where(eq(competitionDivisionsTable.id, existing.id))
 		} else {
-			// Insert new (with default fee of 0)
+			// Get competition default fee for new division config
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, data.competitionId),
+			})
+			const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
 			await db.insert(competitionDivisionsTable).values({
 				competitionId: data.competitionId,
 				divisionId: data.divisionId,
-				feeCents: 0,
+				feeCents: defaultFee,
 				description: data.description,
 			})
 		}
@@ -1182,11 +1187,16 @@ export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
 				.set({ maxSpots: data.maxSpots, updatedAt: new Date() })
 				.where(eq(competitionDivisionsTable.id, existing.id))
 		} else {
-			// Insert new (with default fee of 0)
+			// Get competition default fee for new division config
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, data.competitionId),
+			})
+			const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
 			await db.insert(competitionDivisionsTable).values({
 				competitionId: data.competitionId,
 				divisionId: data.divisionId,
-				feeCents: 0,
+				feeCents: defaultFee,
 				maxSpots: data.maxSpots,
 			})
 		}
