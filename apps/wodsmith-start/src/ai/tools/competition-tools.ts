@@ -263,7 +263,9 @@ export const listCompetitions = createTool({
 						? c.startDate.toISOString()
 						: String(c.startDate),
 				endDate:
-					c.endDate instanceof Date ? c.endDate.toISOString() : String(c.endDate),
+					c.endDate instanceof Date
+						? c.endDate.toISOString()
+						: String(c.endDate),
 				status: c.status,
 				registrationCount: Number(c.registrationCount),
 			})),

@@ -14,6 +14,10 @@ import { createUIMessageStreamResponse, createUIMessageStream } from "ai"
 import { toAISdkStream } from "@mastra/ai-sdk"
 import { getSessionFromCookie } from "@/utils/auth"
 import { getActiveTeamId } from "@/utils/team-auth"
+import {
+	ensureAiAccess,
+	createAiAccessDeniedResponse,
+} from "@/server/ai-access"
 import { competitionRouter } from "@/ai/agents"
 import { createRequestContext } from "@/ai/mastra"
 
@@ -84,6 +88,12 @@ export const Route = createFileRoute("/api/ai/chat")({
 							headers: { "Content-Type": "application/json" },
 						},
 					)
+				}
+
+				// Check AI feature entitlement
+				const aiAccess = await ensureAiAccess(activeTeamId)
+				if (!aiAccess.allowed) {
+					return createAiAccessDeniedResponse(aiAccess)
 				}
 
 				try {

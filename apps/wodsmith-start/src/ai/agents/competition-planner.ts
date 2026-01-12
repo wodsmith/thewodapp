@@ -10,11 +10,11 @@
  * @see {@link https://mastra.ai/docs/agents Mastra Agents Documentation}
  */
 
-import {Agent} from '@mastra/core/agent'
+import { Agent } from "@mastra/core/agent"
 
-import {getOpenAIModel} from '@/lib/ai'
-import {createMemory} from '../mastra'
-import * as competitionTools from '../tools/competition-tools'
+import { getOpenAIModel } from "@/lib/ai"
+import { createMemory } from "../mastra"
+import * as competitionTools from "../tools/competition-tools"
 
 /**
  * Expert Functional Fitness competition planning agent.
@@ -26,15 +26,15 @@ import * as competitionTools from '../tools/competition-tools'
  * - Heat scheduling best practices
  */
 export const competitionPlanner = new Agent({
-  id: 'competition-planner',
-  name: 'Competition Planner',
-  // Dynamic model that reads API key at request time from Cloudflare env
-  model: () => getOpenAIModel('small'),
-  memory: createMemory(),
+	id: "competition-planner",
+	name: "Competition Planner",
+	// Dynamic model that reads API key at request time from Cloudflare env
+	model: () => getOpenAIModel("small"),
+	memory: createMemory(),
 
-  // Note: For OpenAI reasoning models (o1/o3), providerOptions.openai.store: false
-  // should be set at the generate() call level in the API handler
-  instructions: `
+	// Note: For OpenAI reasoning models (o1/o3), providerOptions.openai.store: false
+	// should be set at the generate() call level in the API handler
+	instructions: `
 You are an expert Functional Fitness competition planner helping organizers create successful events.
 
 ## Your Capabilities
@@ -90,8 +90,8 @@ When creating events, use these scheme types:
 - Build in buffer time for delays (5-10% of total timeline)
 `,
 
-  tools: {
-    // Competition management tools
-    ...competitionTools,
-  },
+	tools: {
+		// Competition management tools
+		...competitionTools,
+	},
 })

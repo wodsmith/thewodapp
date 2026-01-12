@@ -9,37 +9,37 @@
  * - Finance Agent: Revenue, sponsors, reporting
  */
 
-import {Agent} from '@mastra/core/agent'
-import {getOpenAIModel} from '@/lib/ai'
-import {createMemory} from '../mastra'
+import { Agent } from "@mastra/core/agent"
+import { getOpenAIModel } from "@/lib/ai"
+import { createMemory } from "../mastra"
 
 // Import sub-agents
-import {setupAgent} from './setup-agent'
-import {operationsAgent} from './operations-agent'
-import {registrationAgent} from './registration-agent'
-import {financeAgent} from './finance-agent'
+import { setupAgent } from "./setup-agent"
+import { operationsAgent } from "./operations-agent"
+import { registrationAgent } from "./registration-agent"
+import { financeAgent } from "./finance-agent"
 
 // Import shared tools for direct access
-import * as sharedTools from '../tools/shared'
+import * as sharedTools from "../tools/shared"
 
 export const competitionRouter = new Agent({
-  id: 'competition-router',
-  name: 'Competition Management Router',
-  model: () => getOpenAIModel('medium'),
-  // Lazy memory initialization - createMemory() accesses env.DB which is only
-  // available during request handling in Cloudflare Workers
-  memory: () => createMemory(),
-  // Allow multiple steps for complex workflows (default is 1)
-  defaultOptions: {
-    maxSteps: 20,
-  },
+	id: "competition-router",
+	name: "Competition Management Router",
+	model: () => getOpenAIModel("medium"),
+	// Lazy memory initialization - createMemory() accesses env.DB which is only
+	// available during request handling in Cloudflare Workers
+	memory: () => createMemory(),
+	// Allow multiple steps for complex workflows (default is 1)
+	defaultOptions: {
+		maxSteps: 20,
+	},
 
-  // GPT-5 reasoning model fix: disable server-side storage to prevent
-  // orphaned item_reference errors on follow-up requests.
-  // See: https://github.com/mastra-ai/mastra/issues/10981
-  instructions: {
-    role: 'system',
-    content: `You are a Functional Fitness competition management assistant helping organizers create and run successful events.
+	// GPT-5 reasoning model fix: disable server-side storage to prevent
+	// orphaned item_reference errors on follow-up requests.
+	// See: https://github.com/mastra-ai/mastra/issues/10981
+	instructions: {
+		role: "system",
+		content: `You are a Functional Fitness competition management assistant helping organizers create and run successful events.
 
 ## How You Work
 You route tasks to specialized sub-agents based on what the organizer needs:
@@ -94,25 +94,25 @@ Examples:
 - Use validateCompetition to check for issues
 - Ask clarifying questions rather than making assumptions
 `,
-    providerOptions: {
-      openai: {
-        store: false,
-        include: ['reasoning.encrypted_content'],
-      },
-    },
-  },
+		providerOptions: {
+			openai: {
+				store: false,
+				include: ["reasoning.encrypted_content"],
+			},
+		},
+	},
 
-  // Sub-agents for routing
-  agents: {
-    setupAgent,
-    operationsAgent,
-    registrationAgent,
-    financeAgent,
-  },
+	// Sub-agents for routing
+	agents: {
+		setupAgent,
+		operationsAgent,
+		registrationAgent,
+		financeAgent,
+	},
 
-  // Direct access to shared tools for quick lookups
-  tools: {
-    getCompetitionDetails: sharedTools.getCompetitionDetails,
-    listCompetitions: sharedTools.listCompetitions,
-  },
+	// Direct access to shared tools for quick lookups
+	tools: {
+		getCompetitionDetails: sharedTools.getCompetitionDetails,
+		listCompetitions: sharedTools.listCompetitions,
+	},
 })
