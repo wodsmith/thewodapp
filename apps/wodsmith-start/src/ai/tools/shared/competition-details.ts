@@ -41,13 +41,17 @@ export const getCompetitionDetails = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Get competition (verify team ownership)
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 

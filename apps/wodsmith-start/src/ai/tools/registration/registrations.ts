@@ -367,9 +367,12 @@ export const checkWaiverCompletion = createTool({
 			),
 		})
 
-		// Get user's signatures
+		// Get user's signatures for this specific registration
 		const signatures = await db.query.waiverSignaturesTable.findMany({
-			where: eq(waiverSignaturesTable.userId, registration.userId),
+			where: and(
+				eq(waiverSignaturesTable.userId, registration.userId),
+				eq(waiverSignaturesTable.registrationId, registrationId),
+			),
 		})
 
 		const signedWaiverIds = new Set(signatures.map((s) => s.waiverId))

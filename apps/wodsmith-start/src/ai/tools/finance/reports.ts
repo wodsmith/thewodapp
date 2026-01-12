@@ -30,13 +30,17 @@ export const getRevenueReport = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Verify competition access
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -149,13 +153,17 @@ export const exportSponsors = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Verify competition access
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 

@@ -4,7 +4,7 @@
 
 import { createTool } from "@mastra/core/tools"
 import { z } from "zod"
-import { eq, and } from "drizzle-orm"
+import { eq, and, inArray } from "drizzle-orm"
 
 import { getDb } from "@/db"
 import {
@@ -444,7 +444,7 @@ export const getUnassignedAthletes = createTool({
 		const assignments =
 			heatIds.length > 0
 				? await db.query.competitionHeatAssignmentsTable.findMany({
-						where: eq(competitionHeatAssignmentsTable.heatId, heatIds[0]),
+						where: inArray(competitionHeatAssignmentsTable.heatId, heatIds),
 					})
 				: []
 

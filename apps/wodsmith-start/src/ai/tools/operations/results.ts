@@ -249,18 +249,26 @@ export const getEventResults = createTool({
 				divisionName: registration?.division?.label,
 				teamName: registration?.teamName,
 				scoreValue: s.scoreValue,
+				scoreType: s.scoreType,
 				status: s.status,
 				tiebreakValue: s.tiebreakValue,
 				secondaryValue: s.secondaryValue,
 			}
 		})
 
-		// Sort by statusOrder and scoreValue
+		// Determine scoreType from first score (all scores for an event should have the same type)
+		const scoreType = results[0]?.scoreType ?? "max"
+
+		// Sort by statusOrder and scoreValue (respecting scoreType for direction)
 		results.sort((a, b) => {
 			const aStatus = a.status === "scored" ? 0 : a.status === "cap" ? 1 : 2
 			const bStatus = b.status === "scored" ? 0 : b.status === "cap" ? 1 : 2
 			if (aStatus !== bStatus) return aStatus - bStatus
-			return (a.scoreValue ?? 0) - (b.scoreValue ?? 0)
+			// For "min" type (e.g., time), lower is better (ascending)
+			// For "max" type (e.g., load, reps), higher is better (descending)
+			const aVal = a.scoreValue ?? 0
+			const bVal = b.scoreValue ?? 0
+			return scoreType === "min" ? aVal - bVal : bVal - aVal
 		})
 
 		return {

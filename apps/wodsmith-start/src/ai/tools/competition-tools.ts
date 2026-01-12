@@ -44,13 +44,17 @@ export const getCompetitionDetails = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Get competition (verify team ownership)
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -271,13 +275,17 @@ export const analyzeEventBalance = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Verify access
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -401,6 +409,19 @@ export const validateCompetition = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return {
+				isValid: false,
+				issues: [
+					{
+						severity: "error" as const,
+						category: "Access",
+						message: "Team context required",
+					},
+				],
+			}
+		}
+
 		const db = getDb()
 		const issues: Array<{
 			severity: "error" | "warning" | "info"
@@ -413,7 +434,7 @@ export const validateCompetition = createTool({
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -451,12 +472,27 @@ export const validateCompetition = createTool({
 			})
 		}
 
-		// Check divisions
-		const divisions = await db.query.competitionDivisionsTable.findMany({
-			where: eq(competitionDivisionsTable.competitionId, competitionId),
-		})
+		// Check divisions - query scalingLevelsTable via competition's scaling group
+		// (competitionDivisionsTable only stores fee/description overrides, not actual divisions)
+		const settings = parseCompetitionSettings(competition.settings)
+		const scalingGroupId = settings?.divisions?.scalingGroupId
 
-		if (divisions.length === 0) {
+		let divisionCount = 0
+		if (scalingGroupId) {
+			const divisions = await db.query.scalingLevelsTable.findMany({
+				where: eq(scalingLevelsTable.scalingGroupId, scalingGroupId),
+			})
+			divisionCount = divisions.length
+		}
+
+		if (!scalingGroupId) {
+			issues.push({
+				severity: "error",
+				category: "Divisions",
+				message: "No scaling group configured for divisions",
+				suggestion: "Create divisions for athletes to register",
+			})
+		} else if (divisionCount === 0) {
 			issues.push({
 				severity: "error",
 				category: "Divisions",

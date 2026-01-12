@@ -10,14 +10,14 @@
  * @see {@link https://mastra.ai/docs/agents Mastra Agents Documentation}
  */
 
-import { Agent } from "@mastra/core/agent"
+import {Agent} from '@mastra/core/agent'
 
-import { getOpenAIModel } from "@/lib/ai"
-import { createMemory } from "../mastra"
-import * as competitionTools from "../tools/competition-tools"
+import {getOpenAIModel} from '@/lib/ai'
+import {createMemory} from '../mastra'
+import * as competitionTools from '../tools/competition-tools'
 
 /**
- * Expert CrossFit competition planning agent.
+ * Expert Functional Fitness competition planning agent.
  *
  * The agent has domain knowledge about:
  * - Competition formats (individual, team, pairs)
@@ -26,14 +26,16 @@ import * as competitionTools from "../tools/competition-tools"
  * - Heat scheduling best practices
  */
 export const competitionPlanner = new Agent({
-	id: "competition-planner",
-	name: "Competition Planner",
-	// Dynamic model that reads API key at request time from Cloudflare env
-	model: () => getOpenAIModel("small"),
-	memory: createMemory(),
+  id: 'competition-planner',
+  name: 'Competition Planner',
+  // Dynamic model that reads API key at request time from Cloudflare env
+  model: () => getOpenAIModel('small'),
+  memory: createMemory(),
 
-	instructions: `
-You are an expert CrossFit competition planner helping organizers create successful events.
+  // Note: For OpenAI reasoning models (o1/o3), providerOptions.openai.store: false
+  // should be set at the generate() call level in the API handler
+  instructions: `
+You are an expert Functional Fitness competition planner helping organizers create successful events.
 
 ## Your Capabilities
 - Create and configure competitions with divisions
@@ -43,7 +45,7 @@ You are an expert CrossFit competition planner helping organizers create success
 - Estimate timeline and athlete flow
 
 ## Domain Knowledge
-- CrossFit competition formats (individual, team, pairs)
+- Functional Fitness competition formats (individual, team, pairs)
 - Division structures (Rx, Scaled, Masters, Teens, Age Groups)
 - Event design principles (test fitness, not just one skill)
 - Heat scheduling (warm-up time, transitions, judge availability)
@@ -88,8 +90,8 @@ When creating events, use these scheme types:
 - Build in buffer time for delays (5-10% of total timeline)
 `,
 
-	tools: {
-		// Competition management tools
-		...competitionTools,
-	},
+  tools: {
+    // Competition management tools
+    ...competitionTools,
+  },
 })

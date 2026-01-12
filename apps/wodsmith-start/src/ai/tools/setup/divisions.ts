@@ -370,7 +370,11 @@ export const deleteDivision = createTool({
 			}
 		}
 
-		// Delete division config
+		// Delete competition-specific division config only
+		// NOTE: We intentionally do NOT delete the scaling level itself because:
+		// 1. Scaling groups/levels can be shared across multiple competitions
+		// 2. Deleting the scaling level would break other competitions using the same group
+		// 3. The scaling level can be managed separately via scaling group tools
 		await db
 			.delete(competitionDivisionsTable)
 			.where(
@@ -380,14 +384,9 @@ export const deleteDivision = createTool({
 				),
 			)
 
-		// Delete the scaling level
-		await db
-			.delete(scalingLevelsTable)
-			.where(eq(scalingLevelsTable.id, divisionId))
-
 		return {
 			success: true,
-			message: "Division deleted successfully",
+			message: "Division removed from competition successfully",
 		}
 	},
 })

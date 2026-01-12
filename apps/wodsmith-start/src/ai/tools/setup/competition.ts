@@ -211,13 +211,17 @@ export const updateCompetitionDetails = createTool({
 		} = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Verify competition access
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -283,6 +287,19 @@ export const validateCompetition = createTool({
 		const { competitionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return {
+				isValid: false,
+				issues: [
+					{
+						severity: "error" as const,
+						category: "Access",
+						message: "Team context required",
+					},
+				],
+			}
+		}
+
 		const db = getDb()
 		const issues: Array<{
 			severity: "error" | "warning" | "info"
@@ -295,7 +312,7 @@ export const validateCompetition = createTool({
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 

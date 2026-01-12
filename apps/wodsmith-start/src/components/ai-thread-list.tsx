@@ -107,6 +107,14 @@ export function AIThreadList({
 		}
 	}
 
+	const getRelativeTime = (dateStr: string): string => {
+		try {
+			return formatDistanceToNow(new Date(dateStr), { addSuffix: true })
+		} catch {
+			return "Unknown"
+		}
+	}
+
 	return (
 		<div className={cn("flex flex-col h-full bg-muted/30", className)}>
 			{/* New chat button */}
@@ -178,9 +186,7 @@ export function AIThreadList({
 										{getThreadTitle(thread)}
 									</p>
 									<p className="text-xs text-muted-foreground">
-										{formatDistanceToNow(new Date(thread.updatedAt), {
-											addSuffix: true,
-										})}
+										{getRelativeTime(thread.updatedAt)}
 									</p>
 								</div>
 								<Button

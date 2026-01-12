@@ -162,9 +162,8 @@ const validateBasicSetup = createStep({
 			issues.push("End date must be after start date")
 		}
 
-		if (!competition.venue?.trim()) {
-			issues.push("Venue is required")
-		}
+		// Note: Venue is stored in competitionVenuesTable, not on competition record
+		// Venues are optional - not all competitions require a physical venue
 
 		// Validate registration dates
 		if (!competition.registrationStartDate) {
