@@ -198,10 +198,26 @@ export const getCompetitionDetails = createTool({
 				name: competition.name,
 				slug: competition.slug,
 				description: competition.description,
-				startDate: competition.startDate.toISOString(),
-				endDate: competition.endDate.toISOString(),
-				registrationOpensAt: competition.registrationOpensAt?.toISOString(),
-				registrationClosesAt: competition.registrationClosesAt?.toISOString(),
+				startDate:
+					competition.startDate instanceof Date
+						? competition.startDate.toISOString()
+						: String(competition.startDate),
+				endDate:
+					competition.endDate instanceof Date
+						? competition.endDate.toISOString()
+						: String(competition.endDate),
+				registrationOpensAt:
+					competition.registrationOpensAt instanceof Date
+						? competition.registrationOpensAt.toISOString()
+						: competition.registrationOpensAt
+							? String(competition.registrationOpensAt)
+							: null,
+				registrationClosesAt:
+					competition.registrationClosesAt instanceof Date
+						? competition.registrationClosesAt.toISOString()
+						: competition.registrationClosesAt
+							? String(competition.registrationClosesAt)
+							: null,
 				status: competition.status,
 				visibility: competition.visibility,
 				defaultRegistrationFeeCents: competition.defaultRegistrationFeeCents,
@@ -296,8 +312,12 @@ export const listCompetitions = createTool({
 				id: c.id,
 				name: c.name,
 				slug: c.slug,
-				startDate: c.startDate.toISOString(),
-				endDate: c.endDate.toISOString(),
+				startDate:
+					c.startDate instanceof Date
+						? c.startDate.toISOString()
+						: String(c.startDate),
+				endDate:
+					c.endDate instanceof Date ? c.endDate.toISOString() : String(c.endDate),
 				status: c.status,
 				visibility: c.visibility,
 				registrationCount: Number(c.registrationCount),

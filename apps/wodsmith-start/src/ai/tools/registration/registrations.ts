@@ -251,7 +251,13 @@ export const getRegistrationDetails = createTool({
 				paidAt: registration.paidAt?.toISOString(),
 				registeredAt: registration.registeredAt.toISOString(),
 				metadata: registration.metadata
-					? JSON.parse(registration.metadata)
+					? (() => {
+							try {
+								return JSON.parse(registration.metadata)
+							} catch {
+								return null
+							}
+						})()
 					: null,
 			},
 			waiverStatus: waivers.map((w) => ({

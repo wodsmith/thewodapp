@@ -169,8 +169,14 @@ export const getCompetitionDetails = createTool({
 				name: competition.name,
 				slug: competition.slug,
 				description: competition.description,
-				startDate: competition.startDate.toISOString(),
-				endDate: competition.endDate.toISOString(),
+				startDate:
+					competition.startDate instanceof Date
+						? competition.startDate.toISOString()
+						: String(competition.startDate),
+				endDate:
+					competition.endDate instanceof Date
+						? competition.endDate.toISOString()
+						: String(competition.endDate),
 				status: competition.status,
 				visibility: competition.visibility,
 			},
@@ -252,8 +258,12 @@ export const listCompetitions = createTool({
 				id: c.id,
 				name: c.name,
 				slug: c.slug,
-				startDate: c.startDate.toISOString(),
-				endDate: c.endDate.toISOString(),
+				startDate:
+					c.startDate instanceof Date
+						? c.startDate.toISOString()
+						: String(c.startDate),
+				endDate:
+					c.endDate instanceof Date ? c.endDate.toISOString() : String(c.endDate),
 				status: c.status,
 				registrationCount: Number(c.registrationCount),
 			})),
@@ -397,9 +407,11 @@ export const analyzeEventBalance = createTool({
 
 /**
  * Validate competition setup for common issues.
+ * Note: This is the planner's version with id "validate-competition-planner"
+ * to avoid collision with the setup agent's "validate-competition" tool.
  */
-export const validateCompetition = createTool({
-	id: "validate-competition",
+export const validateCompetitionPlanner = createTool({
+	id: "validate-competition-planner",
 	description:
 		"Check a competition setup for common issues and missing configuration. Returns validation errors, warnings, and suggestions.",
 	inputSchema: z.object({

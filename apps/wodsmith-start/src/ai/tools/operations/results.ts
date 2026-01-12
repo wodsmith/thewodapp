@@ -64,13 +64,17 @@ export const enterResult = createTool({
 		} = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Verify competition access
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -194,13 +198,17 @@ export const getEventResults = createTool({
 		const { competitionId, eventId, divisionId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Verify competition access
 		const competition = await db.query.competitionsTable.findFirst({
 			where: and(
 				eq(competitionsTable.id, competitionId),
-				teamId ? eq(competitionsTable.organizingTeamId, teamId) : undefined,
+				eq(competitionsTable.organizingTeamId, teamId),
 			),
 		})
 
@@ -292,6 +300,10 @@ export const deleteResult = createTool({
 		const { scoreId } = inputData
 		const teamId = context?.requestContext?.get("team-id") as string | undefined
 
+		if (!teamId) {
+			return { error: "Team context required" }
+		}
+
 		const db = getDb()
 
 		// Get score
@@ -334,8 +346,8 @@ export const deleteResult = createTool({
 			return { error: "Event not found" }
 		}
 
-		// Verify team access
-		if (teamId && event.track.competition.organizingTeamId !== teamId) {
+		// Verify team access - require teamId to match
+		if (event.track.competition.organizingTeamId !== teamId) {
 			return { error: "Access denied" }
 		}
 

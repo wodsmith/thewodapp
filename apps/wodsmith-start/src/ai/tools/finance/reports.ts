@@ -4,9 +4,10 @@
 
 import { createTool } from "@mastra/core/tools"
 import { z } from "zod"
-import { eq, and, count, sql } from "drizzle-orm"
+import { eq, and, count, sql, inArray } from "drizzle-orm"
 
 import { getDb } from "@/db"
+import { autochunk } from "@/utils/batch-query"
 import {
 	competitionsTable,
 	competitionRegistrationsTable,
@@ -251,19 +252,22 @@ export const getFinancialSummary = createTool({
 		if (competitionIds.length === 0) {
 			return {
 				totalRevenue: 0,
-				totalOrganizations: 0,
+				totalOrganizerNet: 0,
+				totalCompetitions: 0,
 				competitions: [],
 			}
 		}
 
-		// Get purchases for all competitions
-		const purchases = await db.query.commercePurchaseTable.findMany({
-			where: eq(commercePurchaseTable.status, "COMPLETED"),
-		})
-
-		// Filter to team's competitions
-		const teamPurchases = purchases.filter((p) =>
-			competitionIds.includes(p.competitionId ?? ""),
+		// Get purchases for team's competitions only (use autochunk for D1 param limits)
+		const teamPurchases = await autochunk(
+			{ items: competitionIds, otherParametersCount: 1 },
+			async (chunk) =>
+				db.query.commercePurchaseTable.findMany({
+					where: and(
+						inArray(commercePurchaseTable.competitionId, chunk),
+						eq(commercePurchaseTable.status, "COMPLETED"),
+					),
+				}),
 		)
 
 		// Group by competition
@@ -286,10 +290,16 @@ export const getFinancialSummary = createTool({
 				{ revenue: 0, organizerNet: 0 },
 			)
 
+			// Handle startDate safely - may be Date or string
+			const startDateStr =
+				c.startDate instanceof Date
+					? c.startDate.toISOString()
+					: String(c.startDate)
+
 			return {
 				competitionId: c.id,
 				name: c.name,
-				startDate: c.startDate.toISOString(),
+				startDate: startDateStr,
 				status: c.status,
 				totalRevenue: totals.revenue,
 				organizerNet: totals.organizerNet,
