@@ -21,6 +21,7 @@ import {
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 
 // Search params validation
@@ -93,8 +94,10 @@ export const Route = createFileRoute("/compete/$slug/register")({
 	component: RegisterPage,
 	validateSearch: registerSearchSchema,
 	staleTime: 10_000, // Cache for 10 seconds
-	loader: async ({ params, context }) => {
+	loaderDeps: ({ search }) => ({ canceled: search.canceled }),
+	loader: async ({ params, context, deps }) => {
 		const { slug } = params
+		const { canceled } = deps
 
 		// 1. Get competition first (needed for redirects and other fetches)
 		const { competition } = await getCompetitionBySlugFn({ data: { slug } })
@@ -108,6 +111,16 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			throw redirect({
 				to: "/sign-in",
 				search: { redirect: `/compete/${slug}/register` },
+			})
+		}
+
+		// 2.5. If user canceled from Stripe, release their reservation immediately
+		if (canceled === "true") {
+			await cancelPendingPurchaseFn({
+				data: {
+					userId: session.userId,
+					competitionId: competition.id,
+				},
 			})
 		}
 

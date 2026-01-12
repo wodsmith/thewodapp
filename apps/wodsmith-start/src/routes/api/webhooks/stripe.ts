@@ -143,8 +143,9 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 					}
 
 					// Re-check capacity before registration (race condition protection)
+					// Exclude our own pending purchase to avoid self-blocking
 					const capacityCheck = await getDivisionSpotsAvailableFn({
-						data: { competitionId, divisionId },
+						data: { competitionId, divisionId, excludePurchaseId: purchaseId },
 					})
 					if (capacityCheck.isFull) {
 						// Division filled during payment - need to handle refund
