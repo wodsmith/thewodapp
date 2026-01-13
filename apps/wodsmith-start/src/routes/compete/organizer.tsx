@@ -77,7 +77,7 @@ const checkOrganizerEntitlements = createServerFn({ method: "GET" }).handler(
 		const activeOrganizingTeamId =
 			cookieTeamId && teamsWithHostCompetitions.includes(cookieTeamId)
 				? cookieTeamId
-				: teamsWithHostCompetitions[0]!
+				: (teamsWithHostCompetitions[0] ?? "")
 
 		// Check if pending (limit = 0) for the active organizing team
 		const isPendingApproval = await isTeamPendingOrganizer(

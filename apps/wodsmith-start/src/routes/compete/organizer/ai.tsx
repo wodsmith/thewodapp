@@ -32,6 +32,7 @@ function OrganizerAIPage() {
 
 	// Load thread from URL on mount or when URL changes
 	// Skip loading if we just created this thread (messages are already in chat)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: loadThread is stable, only urlThreadId changes matter
 	useEffect(() => {
 		if (urlThreadId) {
 			if (createdThreadsRef.current.has(urlThreadId)) {

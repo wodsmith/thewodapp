@@ -137,6 +137,7 @@ export function AIChat({
 	}, [])
 
 	// Auto-scroll to bottom when new messages arrive
+	// biome-ignore lint/correctness/useExhaustiveDependencies: messages triggers scroll on new arrivals
 	useEffect(() => {
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight

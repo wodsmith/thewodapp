@@ -164,6 +164,7 @@ export function AIThreadList({
 					{!isLoading &&
 						!error &&
 						threads.map((thread) => (
+							// biome-ignore lint/a11y/useSemanticElements: Contains nested button, can't use button element
 							<div
 								key={thread.id}
 								className={cn(
