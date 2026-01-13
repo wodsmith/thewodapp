@@ -378,6 +378,21 @@ const stripeWebhook = needsStripeWebhook
     })
   : null
 
+const getOpenaiApiKey = (stage: string) => {
+  if (stage === 'prod') {
+    return process.env.OPENAI_API_KEY_PROD
+  }
+  if (stage === 'demo') {
+    return process.env.OPENAI_API_KEY_DEMO
+  }
+  if (stage === 'dev') {
+    return process.env.OPENAI_API_KEY
+  }
+
+  // exlude any other stage
+  return undefined
+}
+
 /**
  * Determines the custom domain(s) for the current deployment stage.
  *
@@ -498,9 +513,9 @@ const website = await TanStackStart('app', {
     RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
 
     // AI configuration (optional - only include if available)
-    ...(process.env.OPENAI_API_KEY
+    ...(openaiApiKey
       ? {
-          OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
+          OPENAI_API_KEY: alchemy.secret(openaiApiKey),
           OPENAI_MODEL_LARGE: 'gpt-5.2',
           OPENAI_MODEL_MEDIUM: 'gpt-5-mini',
           OPENAI_MODEL_SMALL: 'gpt-5-nano',

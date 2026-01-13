@@ -160,8 +160,8 @@ jobs:
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          # AI configuration (optional)
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # AI configuration (stage-specific keys)
+          OPENAI_API_KEY_PROD: ${{ secrets.OPENAI_API_KEY_PROD }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           # Stripe secrets only for production deployments (PR environments get no Stripe)
           STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
@@ -226,8 +226,8 @@ jobs:
           # Secrets for all environments
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          # AI configuration (optional)
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # AI configuration (stage-specific keys)
+          OPENAI_API_KEY_DEMO: ${{ secrets.OPENAI_API_KEY_DEMO }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
           # Both point to same secret - STRIPE_API_KEY is for Alchemy webhook creation,
           # STRIPE_SECRET_KEY is for runtime API calls
