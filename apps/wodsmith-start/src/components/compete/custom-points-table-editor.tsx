@@ -188,7 +188,7 @@ export function CustomPointsTableEditor({
 						</DialogTitle>
 						<DialogDescription>
 							Customize points awarded for each placement. Values start from the
-							{" " + TEMPLATE_DISPLAY_NAMES[baseTemplate]} template.
+							{` ${TEMPLATE_DISPLAY_NAMES[baseTemplate]}`} template.
 						</DialogDescription>
 					</DialogHeader>
 

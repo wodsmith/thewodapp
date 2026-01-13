@@ -136,6 +136,13 @@ const stage = process.env.STAGE ?? 'dev'
 const needsStripeWebhook = stage === 'demo' || stage === 'prod'
 
 /**
+ * Whether the current stage needs Vectorize for AI memory.
+ * Only demo and production environments require the Vectorize index.
+ * PR stages don't have the CLOUDFLARE_VECTORIZE_API_TOKEN.
+ */
+const needsVectorize = stage === 'demo' || stage === 'prod'
+
+/**
  * Whether Stripe environment variables are available.
  * Stripe env vars are populated for all environments when available.
  */
@@ -306,14 +313,17 @@ const r2Bucket = await R2Bucket('wodsmith-uploads', {
  * @remarks
  * **Dimensions:** 1536 matches OpenAI text-embedding-3-small output size.
  * **Metric:** Cosine similarity is standard for text embeddings.
+ * Only created for prod/demo stages (requires CLOUDFLARE_VECTORIZE_API_TOKEN).
  *
  * @see {@link https://developers.cloudflare.com/vectorize/ Vectorize Documentation}
  */
-const aiMemoryIndex = await VectorizeIndex('ai-memory', {
-  dimensions: 1536, // OpenAI text-embedding-3-small dimension
-  metric: 'cosine',
-  adopt: true,
-})
+const aiMemoryIndex = needsVectorize
+  ? await VectorizeIndex('ai-memory', {
+      dimensions: 1536, // OpenAI text-embedding-3-small dimension
+      metric: 'cosine',
+      adopt: true,
+    })
+  : undefined
 
 /**
  * Validate required Stripe environment variables when Stripe webhook is needed.
@@ -378,20 +388,22 @@ const stripeWebhook = needsStripeWebhook
     })
   : null
 
-const getOpenaiApiKey = (stage: string) => {
-  if (stage === 'prod') {
+const getOpenaiApiKey = (currentStage: string) => {
+  if (currentStage === 'prod') {
     return process.env.OPENAI_API_KEY_PROD
   }
-  if (stage === 'demo') {
+  if (currentStage === 'demo') {
     return process.env.OPENAI_API_KEY_DEMO
   }
-  if (stage === 'dev') {
+  if (currentStage === 'dev') {
     return process.env.OPENAI_API_KEY
   }
 
-  // exlude any other stage
+  // exclude any other stage
   return undefined
 }
+
+const openaiApiKey = getOpenaiApiKey(stage)
 
 /**
  * Determines the custom domain(s) for the current deployment stage.
@@ -478,11 +490,11 @@ const website = await TanStackStart('app', {
     KV_SESSION: kvSession,
     /** R2 bucket binding for file uploads */
     R2_BUCKET: r2Bucket,
-    /** Vectorize index binding for AI memory */
-    AI_MEMORY: aiMemoryIndex,
+    /** Vectorize index binding for AI memory (prod/demo only) */
+    ...(aiMemoryIndex ? { AI_MEMORY: aiMemoryIndex } : {}),
 
     // App configuration
-    APP_URL: process.env.APP_URL!,
+    APP_URL: process.env.APP_URL ?? '',
 
     /**
      * Environment mode - CRITICAL for email sending!
@@ -509,8 +521,8 @@ const website = await TanStackStart('app', {
     TURNSTILE_SITE_KEY: '0x4AAAAAACF8K4v1TmFMOmtk',
 
     // Secrets
-    TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY!),
-    RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY!),
+    TURNSTILE_SECRET_KEY: alchemy.secret(process.env.TURNSTILE_SECRET_KEY ?? ''),
+    RESEND_API_KEY: alchemy.secret(process.env.RESEND_API_KEY ?? ''),
 
     // AI configuration (optional - only include if available)
     ...(openaiApiKey
@@ -540,11 +552,11 @@ const website = await TanStackStart('app', {
     // Stripe env vars are populated for all environments when available
     ...(hasStripeEnv && {
       /** Stripe publishable key for client-side Stripe.js initialization */
-      STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
+      STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
       /** Stripe Connect OAuth client ID */
-      STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID!,
+      STRIPE_CLIENT_ID: process.env.STRIPE_CLIENT_ID ?? '',
       /** Stripe secret key for server-side API calls */
-      STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY!),
+      STRIPE_SECRET_KEY: alchemy.secret(process.env.STRIPE_SECRET_KEY ?? ''),
     }),
     // Webhook secret: use Alchemy-managed webhook for demo/prod, or .dev.vars for local dev
     ...(stripeWebhook

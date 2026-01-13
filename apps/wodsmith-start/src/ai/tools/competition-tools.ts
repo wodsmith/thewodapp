@@ -385,7 +385,7 @@ export const analyzeEventBalance = createTool({
 				gaps.push("Missing long time domain events (>15 min)")
 				recommendations.push("Add a longer chipper or AMRAP to test endurance")
 			}
-			if (!schemes["load"] && eventCount >= 4) {
+			if (!schemes.load && eventCount >= 4) {
 				gaps.push("No max load events")
 				recommendations.push(
 					"Consider adding a 1RM or complex to test strength",
