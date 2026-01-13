@@ -485,7 +485,12 @@ const website = await TanStackStart("app", {
 
 		// AI configuration (optional - only include if available)
 		...(process.env.OPENAI_API_KEY
-			? { OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY) }
+			? {
+					OPENAI_API_KEY: alchemy.secret(process.env.OPENAI_API_KEY),
+					OPENAI_MODEL_LARGE: "gpt-5.2",
+					OPENAI_MODEL_MEDIUM: "gpt-5-mini",
+					OPENAI_MODEL_SMALL: "gpt-5-nano",
+				}
 			: {}),
 		...(process.env.BRAINTRUST_API_KEY
 			? { BRAINTRUST_API_KEY: alchemy.secret(process.env.BRAINTRUST_API_KEY) }
