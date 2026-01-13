@@ -14,7 +14,7 @@ import {
 import { trackWorkoutsTable } from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
 import {
-	WORKOUT_SCHEME_VALUES,
+	type WORKOUT_SCHEME_VALUES,
 	TIEBREAK_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
 
