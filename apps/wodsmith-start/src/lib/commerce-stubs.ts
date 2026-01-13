@@ -24,5 +24,9 @@ export {
 	buildFeeConfig,
 	calculateCompetitionFees,
 	formatCents,
+	getTeamPlatformFee,
+	FOUNDING_ORGANIZER_DEFAULTS,
 	PLATFORM_DEFAULTS,
 } from "@/server/commerce/utils"
+
+export type { TeamFeeOverrides } from "@/server/commerce/utils"

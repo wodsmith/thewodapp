@@ -127,6 +127,12 @@ export const teamTable = sqliteTable(
 		stripeAccountStatus: text({ length: 20 }), // NOT_CONNECTED | PENDING | VERIFIED
 		stripeAccountType: text({ length: 20 }), // 'express' | 'standard' | null
 		stripeOnboardingCompletedAt: integer({ mode: "timestamp" }),
+
+		// Organizer fee overrides (for founding organizers or special arrangements)
+		// Null = use platform defaults (4% + $4)
+		// Set values = use custom rates (e.g., founding organizer at 2.5% + $3)
+		organizerFeePercentage: integer(), // basis points (e.g., 250 = 2.5%)
+		organizerFeeFixed: integer(), // cents (e.g., 300 = $3.00)
 	},
 	(table) => [
 		index("team_slug_idx").on(table.slug),
