@@ -7,57 +7,74 @@
 -- 3. Drop old table
 -- 4. Rename new table
 
--- Create new table with TEXT date columns
+-- Create new table with TEXT date columns (matches current schema with camelCase)
 CREATE TABLE "competitions_new" (
     "id" text PRIMARY KEY NOT NULL,
-    "created_at" integer DEFAULT (unixepoch()) NOT NULL,
-    "updated_at" integer DEFAULT (unixepoch()) NOT NULL,
-    "organizing_team_id" text NOT NULL REFERENCES "teams"("id") ON DELETE CASCADE,
-    "competition_team_id" text NOT NULL REFERENCES "teams"("id") ON DELETE CASCADE,
-    "group_id" text REFERENCES "competition_groups"("id") ON DELETE SET NULL,
+    "createdAt" integer DEFAULT (unixepoch()) NOT NULL,
+    "updatedAt" integer DEFAULT (unixepoch()) NOT NULL,
+    "updateCounter" integer DEFAULT 0,
+    "organizingTeamId" text NOT NULL REFERENCES "team"("id") ON DELETE CASCADE,
+    "competitionTeamId" text NOT NULL REFERENCES "team"("id") ON DELETE CASCADE,
+    "groupId" text REFERENCES "competition_groups"("id") ON DELETE SET NULL,
     "slug" text(255) NOT NULL UNIQUE,
     "name" text(255) NOT NULL,
     "description" text(2000),
-    "start_date" text NOT NULL,
-    "end_date" text NOT NULL,
-    "registration_opens_at" text,
-    "registration_closes_at" text,
+    "startDate" text NOT NULL,
+    "endDate" text NOT NULL,
+    "registrationOpensAt" text,
+    "registrationClosesAt" text,
     "settings" text(10000),
-    "default_registration_fee_cents" integer DEFAULT 0,
-    "platform_fee_percentage" integer,
-    "platform_fee_fixed" integer,
-    "pass_stripe_fees_to_customer" integer DEFAULT false,
-    "pass_platform_fees_to_customer" integer DEFAULT true,
+    "defaultRegistrationFeeCents" integer DEFAULT 0,
+    "platformFeePercentage" integer,
+    "platformFeeFixed" integer,
+    "passStripeFeesToCustomer" integer DEFAULT false,
+    "passPlatformFeesToCustomer" integer DEFAULT true,
     "visibility" text(10) DEFAULT 'public' NOT NULL,
     "status" text(20) DEFAULT 'draft' NOT NULL,
-    "banner_image_url" text(500),
-    "logo_image_url" text(500),
-    "track_id" text REFERENCES "programming_tracks"("id") ON DELETE SET NULL
+    "profileImageUrl" text(600),
+    "bannerImageUrl" text(600),
+    "defaultHeatsPerRotation" integer DEFAULT 4,
+    "defaultLaneShiftPattern" text(20) DEFAULT 'stay'
 );
 
--- Copy data, converting timestamps to YYYY-MM-DD strings
+-- Copy data, converting timestamps to YYYY-MM-DD strings (ISO 8601)
 INSERT INTO "competitions_new" (
-    "id", "created_at", "updated_at", "organizing_team_id", "competition_team_id",
-    "group_id", "slug", "name", "description", "start_date", "end_date",
-    "registration_opens_at", "registration_closes_at", "settings",
-    "default_registration_fee_cents", "platform_fee_percentage", "platform_fee_fixed",
-    "pass_stripe_fees_to_customer", "pass_platform_fees_to_customer",
-    "visibility", "status", "banner_image_url", "logo_image_url", "track_id"
+    "id", "createdAt", "updatedAt", "updateCounter",
+    "organizingTeamId", "competitionTeamId", "groupId",
+    "slug", "name", "description",
+    "startDate", "endDate", "registrationOpensAt", "registrationClosesAt",
+    "settings", "defaultRegistrationFeeCents", "platformFeePercentage", "platformFeeFixed",
+    "passStripeFeesToCustomer", "passPlatformFeesToCustomer",
+    "visibility", "status", "profileImageUrl", "bannerImageUrl",
+    "defaultHeatsPerRotation", "defaultLaneShiftPattern"
 )
 SELECT
-    "id", "created_at", "updated_at", "organizing_team_id", "competition_team_id",
-    "group_id", "slug", "name", "description",
-    strftime('%Y-%m-%d', "start_date", 'unixepoch') as "start_date",
-    strftime('%Y-%m-%d', "end_date", 'unixepoch') as "end_date",
-    CASE WHEN "registration_opens_at" IS NOT NULL
-         THEN strftime('%Y-%m-%d', "registration_opens_at", 'unixepoch')
-         ELSE NULL END as "registration_opens_at",
-    CASE WHEN "registration_closes_at" IS NOT NULL
-         THEN strftime('%Y-%m-%d', "registration_closes_at", 'unixepoch')
-         ELSE NULL END as "registration_closes_at",
-    "settings", "default_registration_fee_cents", "platform_fee_percentage",
-    "platform_fee_fixed", "pass_stripe_fees_to_customer", "pass_platform_fees_to_customer",
-    "visibility", "status", "banner_image_url", "logo_image_url", "track_id"
+    "id", "createdAt", "updatedAt", "updateCounter",
+    "organizingTeamId", "competitionTeamId", "groupId",
+    "slug", "name", "description",
+    -- Convert timestamps to YYYY-MM-DD strings (handle both integer timestamps and existing text)
+    CASE
+        WHEN typeof("startDate") = 'integer' THEN strftime('%Y-%m-%d', "startDate", 'unixepoch')
+        ELSE "startDate"
+    END,
+    CASE
+        WHEN typeof("endDate") = 'integer' THEN strftime('%Y-%m-%d', "endDate", 'unixepoch')
+        ELSE "endDate"
+    END,
+    CASE
+        WHEN "registrationOpensAt" IS NULL THEN NULL
+        WHEN typeof("registrationOpensAt") = 'integer' THEN strftime('%Y-%m-%d', "registrationOpensAt", 'unixepoch')
+        ELSE "registrationOpensAt"
+    END,
+    CASE
+        WHEN "registrationClosesAt" IS NULL THEN NULL
+        WHEN typeof("registrationClosesAt") = 'integer' THEN strftime('%Y-%m-%d', "registrationClosesAt", 'unixepoch')
+        ELSE "registrationClosesAt"
+    END,
+    "settings", "defaultRegistrationFeeCents", "platformFeePercentage", "platformFeeFixed",
+    "passStripeFeesToCustomer", "passPlatformFeesToCustomer",
+    "visibility", "status", "profileImageUrl", "bannerImageUrl",
+    "defaultHeatsPerRotation", "defaultLaneShiftPattern"
 FROM "competitions";
 
 -- Drop old table and rename new one
@@ -65,6 +82,7 @@ DROP TABLE "competitions";
 ALTER TABLE "competitions_new" RENAME TO "competitions";
 
 -- Recreate indexes
-CREATE INDEX "competitions_organizing_team_idx" ON "competitions" ("organizing_team_id");
-CREATE INDEX "competitions_group_idx" ON "competitions" ("group_id");
+CREATE INDEX "competitions_organizing_team_idx" ON "competitions" ("organizingTeamId");
+CREATE INDEX "competitions_group_idx" ON "competitions" ("groupId");
 CREATE INDEX "competitions_status_idx" ON "competitions" ("status");
+CREATE INDEX "competitions_start_date_idx" ON "competitions" ("startDate");
