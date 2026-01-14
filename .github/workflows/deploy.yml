@@ -382,3 +382,5 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
+          # Vectorize token needed to clean up old PR envs that had Vectorize indexes
+          CLOUDFLARE_VECTORIZE_API_TOKEN: ${{ secrets.CLOUDFLARE_VECTORIZE_API_TOKEN }}
