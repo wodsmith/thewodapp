@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { CapacitySettingsForm } from "./-components/capacity-settings-form"
 import { RotationSettingsForm } from "./-components/rotation-settings-form"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
@@ -8,15 +10,23 @@ export const Route = createFileRoute(
 	"/compete/organizer/$competitionId/settings",
 )({
 	loader: async ({ params }) => {
-		const result = await getCompetitionByIdFn({
-			data: { competitionId: params.competitionId },
-		})
+		const [competitionResult, questionsResult] = await Promise.all([
+			getCompetitionByIdFn({
+				data: { competitionId: params.competitionId },
+			}),
+			getCompetitionQuestionsFn({
+				data: { competitionId: params.competitionId },
+			}),
+		])
 
-		if (!result.competition) {
+		if (!competitionResult.competition) {
 			throw new Error("Competition not found")
 		}
 
-		return { competition: result.competition }
+		return {
+			competition: competitionResult.competition,
+			questions: questionsResult.questions,
+		}
 	},
 	component: SettingsPage,
 	head: ({ loaderData }) => {
@@ -39,7 +49,8 @@ export const Route = createFileRoute(
 })
 
 function SettingsPage() {
-	const { competition } = Route.useLoaderData()
+	const { competition, questions } = Route.useLoaderData()
+	const router = useRouter()
 
 	return (
 		<div className="space-y-8">
@@ -83,6 +94,18 @@ function SettingsPage() {
 						defaultHeatsPerRotation: competition.defaultHeatsPerRotation ?? 4,
 						defaultLaneShiftPattern:
 							competition.defaultLaneShiftPattern ?? "stay",
+					}}
+				/>
+			</section>
+
+			{/* Registration Questions Section */}
+			<section>
+				<RegistrationQuestionsEditor
+					competitionId={competition.id}
+					teamId={competition.organizingTeamId}
+					questions={questions}
+					onQuestionsChange={() => {
+						router.invalidate()
 					}}
 				/>
 			</section>

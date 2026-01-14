@@ -21,6 +21,7 @@ import {
 	parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 
@@ -124,12 +125,13 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			})
 		}
 
-		// 3. Parallel fetch: registration check, affiliate name, and waivers
+		// 3. Parallel fetch: registration check, affiliate name, waivers, and questions
 		// These all only need competition.id or session.userId
 		const [
 			{ registration: existingRegistration },
 			{ affiliateName },
 			{ waivers },
+			{ questions },
 		] = await Promise.all([
 			getUserCompetitionRegistrationFn({
 				data: {
@@ -141,6 +143,9 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				data: { userId: session.userId },
 			}),
 			getCompetitionWaiversFn({
+				data: { competitionId: competition.id },
+			}),
+			getCompetitionQuestionsFn({
 				data: { competitionId: competition.id },
 			}),
 		])
@@ -184,6 +189,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				defaultAffiliateName: undefined,
 				divisionsConfigured: false,
 				waivers: [],
+				questions: [],
 			}
 		}
 
@@ -217,6 +223,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 				defaultAffiliateName: undefined,
 				divisionsConfigured: false,
 				waivers: [],
+				questions: [],
 			}
 		}
 
@@ -231,6 +238,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			defaultAffiliateName: affiliateName ?? undefined,
 			divisionsConfigured: true,
 			waivers,
+			questions,
 		}
 	},
 })
@@ -247,6 +255,7 @@ function RegisterPage() {
 		defaultAffiliateName,
 		divisionsConfigured,
 		waivers,
+		questions,
 	} = Route.useLoaderData()
 
 	const { canceled } = Route.useSearch()
@@ -282,6 +291,7 @@ function RegisterPage() {
 				paymentCanceled={canceled === "true"}
 				defaultAffiliateName={defaultAffiliateName}
 				waivers={waivers}
+				questions={questions}
 			/>
 		</div>
 	)

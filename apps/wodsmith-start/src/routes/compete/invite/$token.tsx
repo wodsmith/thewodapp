@@ -10,6 +10,7 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	Card,
@@ -18,6 +19,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import {
 	checkEmailExistsFn,
 	getSessionInfoFn,
@@ -26,6 +36,10 @@ import {
 	type TeammateInvite,
 	type VolunteerInvite,
 } from "@/server-fns/invite-fns"
+import {
+	getCompetitionQuestionsFn,
+	type RegistrationQuestion,
+} from "@/server-fns/registration-questions-fns"
 import { AcceptInviteButton } from "./-components/accept-invite-button"
 import { AcceptVolunteerInviteForm } from "./-components/accept-volunteer-invite-form"
 import { InviteSignUpForm } from "./-components/invite-signup-form"
@@ -47,12 +61,25 @@ export const Route = createFileRoute("/compete/invite/$token")({
 			})
 		}
 
+		// Fetch questions for teammate invites
+		let teammateQuestions: RegistrationQuestion[] = []
+		if (teammateInvite?.competition?.id) {
+			const questionsResult = await getCompetitionQuestionsFn({
+				data: { competitionId: teammateInvite.competition.id },
+			})
+			// Filter to questions that are for teammates or required
+			teammateQuestions = questionsResult.questions.filter(
+				(q) => q.forTeammates || q.required,
+			)
+		}
+
 		return {
 			volunteerInvite,
 			teammateInvite,
 			session,
 			emailHasAccount,
 			token: params.token,
+			teammateQuestions,
 		}
 	},
 	component: InvitePage,
@@ -98,8 +125,14 @@ export const Route = createFileRoute("/compete/invite/$token")({
 })
 
 function InvitePage() {
-	const { volunteerInvite, teammateInvite, session, emailHasAccount, token } =
-		Route.useLoaderData()
+	const {
+		volunteerInvite,
+		teammateInvite,
+		session,
+		emailHasAccount,
+		token,
+		teammateQuestions,
+	} = Route.useLoaderData()
 
 	// First check if this is a volunteer invite
 	if (volunteerInvite) {
@@ -210,12 +243,26 @@ function InvitePage() {
 						{/* Invite Details */}
 						<InviteDetails invite={invite} />
 
-						<AcceptInviteButton
-							token={token}
-							competitionSlug={invite.competition?.slug}
-							competitionId={invite.competition?.id}
-							teamName={invite.team.name}
-						/>
+						{/* Registration Questions */}
+						{teammateQuestions && teammateQuestions.length > 0 && (
+							<TeammateQuestionsForm
+								questions={teammateQuestions}
+								token={token}
+								competitionSlug={invite.competition?.slug}
+								competitionId={invite.competition?.id}
+								teamName={invite.team.name}
+							/>
+						)}
+
+						{/* Simple accept button if no questions */}
+						{(!teammateQuestions || teammateQuestions.length === 0) && (
+							<AcceptInviteButton
+								token={token}
+								competitionSlug={invite.competition?.slug}
+								competitionId={invite.competition?.id}
+								teamName={invite.team.name}
+							/>
+						)}
 					</CardContent>
 				</Card>
 			</div>
@@ -652,6 +699,126 @@ function DirectVolunteerInvite({
 				</CardContent>
 			</Card>
 		</div>
+	)
+}
+
+/**
+ * Teammate questions form component
+ * Handles rendering questions and accepting invitation with answers
+ */
+function TeammateQuestionsForm({
+	questions,
+	token,
+	competitionSlug,
+	competitionId,
+	teamName,
+}: {
+	questions: RegistrationQuestion[]
+	token: string
+	competitionSlug?: string
+	competitionId?: string
+	teamName?: string
+}) {
+	const [answers, setAnswers] = useState<Record<string, string>>({})
+
+	const handleAnswerChange = (questionId: string, value: string) => {
+		setAnswers((prev) => ({ ...prev, [questionId]: value }))
+	}
+
+	// Check if all required questions are answered
+	const requiredQuestions = questions.filter((q) => q.required)
+	const allRequiredAnswered = requiredQuestions.every(
+		(q) => answers[q.id] && answers[q.id].trim() !== "",
+	)
+
+	// Convert answers to array format for submission
+	const answersArray = Object.entries(answers)
+		.filter(([_, value]) => value && value.trim() !== "")
+		.map(([questionId, answer]) => ({
+			questionId,
+			answer,
+		}))
+
+	return (
+		<>
+			<Card>
+				<CardHeader>
+					<CardTitle>Registration Questions</CardTitle>
+					<CardDescription>
+						Please answer these questions to complete your team registration
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{questions.map((question) => (
+						<div key={question.id} className="space-y-2">
+							<Label htmlFor={`question-${question.id}`}>
+								{question.label}
+								{question.required && (
+									<span className="text-destructive ml-1">*</span>
+								)}
+							</Label>
+							{question.helpText && (
+								<p className="text-sm text-muted-foreground">
+									{question.helpText}
+								</p>
+							)}
+
+							{question.type === "text" && (
+								<Input
+									id={`question-${question.id}`}
+									value={answers[question.id] || ""}
+									onChange={(e) =>
+										handleAnswerChange(question.id, e.target.value)
+									}
+									placeholder="Enter your answer"
+								/>
+							)}
+
+							{question.type === "number" && (
+								<Input
+									id={`question-${question.id}`}
+									type="number"
+									value={answers[question.id] || ""}
+									onChange={(e) =>
+										handleAnswerChange(question.id, e.target.value)
+									}
+									placeholder="Enter a number"
+								/>
+							)}
+
+							{question.type === "select" && question.options && (
+								<Select
+									value={answers[question.id] || ""}
+									onValueChange={(value) =>
+										handleAnswerChange(question.id, value)
+									}
+								>
+									<SelectTrigger id={`question-${question.id}`}>
+										<SelectValue placeholder="Select an option" />
+									</SelectTrigger>
+									<SelectContent>
+										{question.options.map((option) => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
+						</div>
+					))}
+				</CardContent>
+			</Card>
+
+			<AcceptInviteButton
+				token={token}
+				competitionSlug={competitionSlug}
+				competitionId={competitionId}
+				teamName={teamName}
+				answers={answersArray}
+				disabled={!allRequiredAnswered}
+			/>
+		</>
 	)
 }
 

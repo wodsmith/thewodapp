@@ -12,6 +12,7 @@ import {
 	redirect,
 	useNavigate,
 } from "@tanstack/react-router"
+import { eq } from "drizzle-orm"
 import { CheckCircle, Clock, Copy, Crown, Mail, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -26,6 +27,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
+import { getDb } from "@/db"
+import { competitionsTable } from "@/db/schemas/competitions"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
 	getRegistrationDetailsFn,
@@ -33,6 +37,11 @@ import {
 	type RegistrationDetails,
 	type TeamRosterResult,
 } from "@/server-fns/registration-fns"
+import {
+	getCompetitionQuestionsFn,
+	getRegistrationAnswersFn,
+	type RegistrationQuestion,
+} from "@/server-fns/registration-questions-fns"
 import {
 	getCompetitionWaiversFn,
 	getWaiverSignaturesForUserFn,
@@ -70,6 +79,7 @@ interface LoaderData {
 		id: string
 		name: string
 		slug: string
+		registrationClosesAt: Date | null
 	} | null
 	division: {
 		id: string
@@ -84,6 +94,14 @@ interface LoaderData {
 	pendingTeammates: PendingTeammate[]
 	waivers: Waiver[]
 	waiverSignatures: WaiverSignature[]
+	registrationQuestions: RegistrationQuestion[]
+	registrationAnswers: Array<{
+		id: string
+		questionId: string
+		registrationId: string
+		userId: string
+		answer: string
+	}>
 }
 
 export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
@@ -101,7 +119,7 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			})
 		}
 
-		// Get team roster and registration details in parallel
+		// Get team roster and registration details first
 		const [roster, registrationDetails] = await Promise.all([
 			getTeamRosterFn({ data: { registrationId } }),
 			getRegistrationDetailsFn({ data: { registrationId } }),
@@ -112,6 +130,41 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 		}
 
 		const { registration, members, pending, isTeamRegistration } = roster
+
+		// Now fetch questions, answers, and full competition data if we have a competition
+		let registrationQuestions: RegistrationQuestion[] = []
+		let registrationAnswers: Array<{
+			id: string
+			questionId: string
+			registrationId: string
+			userId: string
+			answer: string
+		}> = []
+		let fullCompetition: { registrationClosesAt: Date | null } | null = null
+
+		if (registration.competition?.id) {
+			const [questionsResult, answersResult, competitionData] = await Promise.all([
+				getCompetitionQuestionsFn({
+					data: { competitionId: registration.competition.id },
+				}).catch(() => ({ questions: [] })),
+				getRegistrationAnswersFn({
+					data: { registrationId, userId: session.userId },
+				}).catch(() => ({ answers: [] })),
+				// Fetch full competition data for registrationClosesAt
+				(async () => {
+					const db = getDb()
+					const comp = await db.query.competitionsTable.findFirst({
+						where: eq(competitionsTable.id, registration.competition!.id),
+						columns: { registrationClosesAt: true },
+					})
+					return comp
+				})().catch(() => null),
+			])
+
+			registrationQuestions = questionsResult.questions
+			registrationAnswers = answersResult.answers
+			fullCompetition = competitionData || null
+		}
 
 		// Check if current user is a team member
 		const isTeamMember = members.some((m) => m.user?.id === session.userId)
@@ -181,7 +234,14 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			members,
 			pending,
 			isTeamRegistration,
-			competition: registration.competition,
+			competition: registration.competition
+				? {
+						id: registration.competition.id,
+						name: registration.competition.name,
+						slug: registration.competition.slug,
+						registrationClosesAt: fullCompetition?.registrationClosesAt || null,
+					}
+				: null,
 			division: registration.division,
 			isTeamMember,
 			isRegisteredUser,
@@ -192,6 +252,8 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			pendingTeammates,
 			waivers,
 			waiverSignatures,
+			registrationQuestions,
+			registrationAnswers,
 		}
 	},
 })
@@ -214,6 +276,8 @@ function TeamManagementPage() {
 		pendingTeammates,
 		waivers,
 		waiverSignatures,
+		registrationQuestions,
+		registrationAnswers,
 	} = Route.useLoaderData()
 
 	const { welcome } = Route.useSearch()
@@ -257,6 +321,11 @@ function TeamManagementPage() {
 		}
 	}
 
+	// Check if registration is still open for editing
+	const isRegistrationOpen =
+		!competition?.registrationClosesAt ||
+		new Date() < new Date(competition.registrationClosesAt)
+
 	// For individual registrations, show simpler view
 	if (!isTeamRegistration) {
 		return (
@@ -274,6 +343,17 @@ function TeamManagementPage() {
 					<RegistrationDetailsCard
 						details={registrationDetails}
 						isTeamRegistration={false}
+					/>
+				)}
+
+				{/* Registration Questions */}
+				{isRegisteredUser && (
+					<RegistrationAnswersForm
+						registrationId={registration.id}
+						questions={registrationQuestions}
+						answers={registrationAnswers}
+						isEditable={isRegistrationOpen}
+						currentUserId={currentUserId}
 					/>
 				)}
 
@@ -328,6 +408,17 @@ function TeamManagementPage() {
 					<RegistrationDetailsCard
 						details={registrationDetails}
 						isTeamRegistration={true}
+					/>
+				)}
+
+				{/* Registration Questions */}
+				{(isTeamMember || isRegisteredUser) && (
+					<RegistrationAnswersForm
+						registrationId={registration.id}
+						questions={registrationQuestions}
+						answers={registrationAnswers}
+						isEditable={isRegistrationOpen}
+						currentUserId={currentUserId}
 					/>
 				)}
 

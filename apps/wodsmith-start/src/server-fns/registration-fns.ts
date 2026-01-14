@@ -16,6 +16,8 @@ import {
 	COMMERCE_PURCHASE_STATUS,
 	commerceProductTable,
 	commercePurchaseTable,
+	competitionRegistrationAnswersTable,
+	competitionRegistrationQuestionsTable,
 	competitionRegistrationsTable,
 	competitionsTable,
 	scalingGroupsTable,
@@ -62,6 +64,15 @@ const initiateRegistrationPaymentInputSchema = z.object({
 			}),
 		)
 		.optional(),
+	// Registration question answers
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string(),
+				answer: z.string(),
+			}),
+		)
+		.optional(),
 })
 
 const getRegistrationFeeBreakdownInputSchema = z.object({
@@ -73,6 +84,70 @@ const getUserCompetitionRegistrationInputSchema = z.object({
 	competitionId: z.string().min(1, "Competition ID is required"),
 	userId: z.string().min(1, "User ID is required"),
 })
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Validate that all required questions have answers
+ * Throws error if required questions are missing
+ */
+async function validateRequiredQuestions(
+	competitionId: string,
+	answers: Array<{ questionId: string; answer: string }> | undefined,
+): Promise<void> {
+	const db = getDb()
+
+	// Get all required questions for this competition
+	const requiredQuestions = await db
+		.select()
+		.from(competitionRegistrationQuestionsTable)
+		.where(
+			and(
+				eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+				eq(competitionRegistrationQuestionsTable.required, true),
+			),
+		)
+
+	if (requiredQuestions.length === 0) return
+
+	// Check each required question has an answer
+	const answerMap = new Map(answers?.map((a) => [a.questionId, a.answer]))
+
+	const missingQuestions = requiredQuestions.filter(
+		(q) => !answerMap.has(q.id) || !answerMap.get(q.id)?.trim(),
+	)
+
+	if (missingQuestions.length > 0) {
+		throw new Error(
+			`Please answer all required questions: ${missingQuestions.map((q) => q.label).join(", ")}`,
+		)
+	}
+}
+
+/**
+ * Store registration answers in the database
+ */
+async function storeRegistrationAnswers(
+	registrationId: string,
+	userId: string,
+	answers: Array<{ questionId: string; answer: string }> | undefined,
+): Promise<void> {
+	if (!answers || answers.length === 0) return
+
+	const db = getDb()
+
+	// Insert all answers
+	for (const answer of answers) {
+		await db.insert(competitionRegistrationAnswersTable).values({
+			questionId: answer.questionId,
+			registrationId,
+			userId,
+			answer: answer.answer,
+		})
+	}
+}
 
 // ============================================================================
 // Server Functions
@@ -141,6 +216,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				"This division is full. Please select a different division.",
 			)
 		}
+
+		// 3.6. Validate required questions have answers
+		await validateRequiredQuestions(input.competitionId, input.answers)
 
 		// 4. Check for existing pending purchase (resume payment flow)
 		const existingPurchase = await db.query.commercePurchaseTable.findFirst({
@@ -220,6 +298,13 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				.set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
 				.where(eq(competitionRegistrationsTable.id, result.registrationId))
 
+			// Store registration answers
+			await storeRegistrationAnswers(
+				result.registrationId,
+				userId,
+				input.answers,
+			)
+
 			// Send registration confirmation email for free registration
 			await notifyRegistrationConfirmed({
 				userId,
@@ -295,11 +380,12 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 				platformFeeCents: feeBreakdown.platformFeeCents,
 				stripeFeeCents: feeBreakdown.stripeFeeCents,
 				organizerNetCents: feeBreakdown.organizerNetCents,
-				// Store team data for webhook to use when creating registration
+				// Store team data and answers for webhook to use when creating registration
 				metadata: JSON.stringify({
 					teamName: input.teamName,
 					affiliateName: input.affiliateName,
 					teammates: input.teammates,
+					answers: input.answers,
 				}),
 			})
 			.returning()

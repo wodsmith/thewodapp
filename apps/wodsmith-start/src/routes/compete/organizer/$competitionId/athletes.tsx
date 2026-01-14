@@ -10,10 +10,11 @@ import {
 	getRouteApi,
 	useNavigate,
 } from "@tanstack/react-router"
-import { Calendar, Mail, Users } from "lucide-react"
+import { Calendar, Download, Mail, Users } from "lucide-react"
 import { z } from "zod"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
 	Card,
 	CardContent,
@@ -37,10 +38,20 @@ import {
 	TableRow,
 } from "@/components/ui/table"
 import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
 	getCompetitionByIdFn,
 	getOrganizerRegistrationsFn,
 } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import {
+	getCompetitionQuestionsFn,
+	getCompetitionRegistrationAnswersFn,
+} from "@/server-fns/registration-questions-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
@@ -68,12 +79,18 @@ export const Route = createFileRoute(
 			throw new Error("Competition not found")
 		}
 
-		// Parallel fetch: registrations and divisions for filtering
-		const [registrationsResult, divisionsResult] = await Promise.all([
+		// Parallel fetch: registrations, divisions, questions, and answers
+		const [registrationsResult, divisionsResult, questionsResult, answersResult] = await Promise.all([
 			getOrganizerRegistrationsFn({
 				data: { competitionId, divisionFilter },
 			}),
 			getCompetitionDivisionsWithCountsFn({
+				data: { competitionId, teamId: competition.organizingTeamId },
+			}),
+			getCompetitionQuestionsFn({
+				data: { competitionId },
+			}),
+			getCompetitionRegistrationAnswersFn({
 				data: { competitionId, teamId: competition.organizingTeamId },
 			}),
 		])
@@ -81,6 +98,8 @@ export const Route = createFileRoute(
 		return {
 			registrations: registrationsResult.registrations,
 			divisions: divisionsResult.divisions,
+			questions: questionsResult.questions,
+			answersByRegistration: answersResult.answersByRegistration,
 			currentDivisionFilter: divisionFilter,
 		}
 	},
@@ -88,7 +107,7 @@ export const Route = createFileRoute(
 
 function AthletesPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { registrations, divisions, currentDivisionFilter } =
+	const { registrations, divisions, questions, answersByRegistration, currentDivisionFilter } =
 		Route.useLoaderData()
 	const navigate = useNavigate()
 
@@ -124,14 +143,87 @@ function AthletesPage() {
 		}
 	}
 
+	const getAnswersForRegistration = (registrationId: string, captainUserId: string) => {
+		const answers = answersByRegistration[registrationId] || []
+		// For forTeammates questions, show captain's answer
+		const captainAnswers = answers.filter(a => a.userId === captainUserId)
+		return captainAnswers
+	}
+
+	const formatAnswers = (registrationId: string, captainUserId: string) => {
+		const answers = getAnswersForRegistration(registrationId, captainUserId)
+		if (answers.length === 0) return "—"
+
+		return answers
+			.map(answer => {
+				const question = questions.find(q => q.id === answer.questionId)
+				if (!question) return null
+				return `${question.label}: ${answer.answer}`
+			})
+			.filter(Boolean)
+			.join(", ")
+	}
+
+	const handleExportCSV = () => {
+		// Build CSV header
+		const headers = ["#", "Athlete Name", "Email", "Division", "Team", "Registered"]
+		questions.forEach(q => headers.push(q.label))
+
+		// Build CSV rows
+		const rows = registrations.map((registration, index) => {
+			const row = [
+				String(index + 1),
+				`${registration.user?.firstName ?? ""} ${registration.user?.lastName ?? ""}`.trim(),
+				registration.user?.email ?? "",
+				registration.division?.label ?? "Unknown",
+				registration.teamName ?? "—",
+				formatDate(registration.registeredAt),
+			]
+
+			// Add answer columns
+			const answers = getAnswersForRegistration(registration.id, registration.userId)
+			questions.forEach(question => {
+				const answer = answers.find(a => a.questionId === question.id)
+				row.push(answer?.answer ?? "")
+			})
+
+			return row
+		})
+
+		// Generate CSV content
+		const csvContent = [
+			headers.map(h => `"${h.replace(/"/g, '""')}"`).join(","),
+			...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+		].join("\n")
+
+		// Download CSV
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+		const link = document.createElement("a")
+		const url = URL.createObjectURL(blob)
+		link.setAttribute("href", url)
+		link.setAttribute("download", `${competition.slug}-athletes-${new Date().toISOString().split("T")[0]}.csv`)
+		link.style.visibility = "hidden"
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
-			<div>
-				<h2 className="text-xl font-semibold">Registered Athletes</h2>
-				<p className="text-muted-foreground text-sm">
-					{registrations.length} registration
-					{registrations.length !== 1 ? "s" : ""}
-				</p>
+			<div className="flex items-center justify-between">
+				<div>
+					<h2 className="text-xl font-semibold">Registered Athletes</h2>
+					<p className="text-muted-foreground text-sm">
+						{registrations.length} registration
+						{registrations.length !== 1 ? "s" : ""}
+					</p>
+				</div>
+				{registrations.length > 0 && (
+					<Button onClick={handleExportCSV} variant="outline" size="sm">
+						<Download className="h-4 w-4 mr-2" />
+						Export CSV
+					</Button>
+				)}
 			</div>
 
 			{registrations.length === 0 && !currentDivisionFilter ? (
@@ -184,6 +276,9 @@ function AthletesPage() {
 											<TableHead>Athlete</TableHead>
 											<TableHead>Division</TableHead>
 											<TableHead>Team</TableHead>
+											{questions.length > 0 && (
+												<TableHead>Answers</TableHead>
+											)}
 											<TableHead>
 												<span className="flex items-center gap-1">
 													<Calendar className="h-3.5 w-3.5" />
@@ -311,6 +406,32 @@ function AthletesPage() {
 															<span className="text-muted-foreground">—</span>
 														)}
 													</TableCell>
+													{questions.length > 0 && (
+														<TableCell className="align-top pt-4">
+															<TooltipProvider>
+																<Tooltip>
+																	<TooltipTrigger asChild>
+																		<div className="max-w-[200px] truncate text-sm">
+																			{formatAnswers(registration.id, registration.userId)}
+																		</div>
+																	</TooltipTrigger>
+																	<TooltipContent className="max-w-md">
+																		<div className="flex flex-col gap-1">
+																			{getAnswersForRegistration(registration.id, registration.userId).map((answer) => {
+																				const question = questions.find(q => q.id === answer.questionId)
+																				if (!question) return null
+																				return (
+																					<div key={answer.id} className="text-sm">
+																						<span className="font-medium">{question.label}:</span> {answer.answer}
+																					</div>
+																				)
+																			})}
+																		</div>
+																	</TooltipContent>
+																</Tooltip>
+															</TooltipProvider>
+														</TableCell>
+													)}
 													<TableCell className="text-muted-foreground text-sm align-top pt-4">
 														{formatDate(registration.registeredAt)}
 													</TableCell>

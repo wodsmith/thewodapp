@@ -45,6 +45,7 @@ import type {
 } from "@/db/schema"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
 import { AffiliateCombobox } from "./affiliate-combobox"
 import { FeeBreakdown } from "./fee-breakdown"
@@ -65,6 +66,15 @@ const registrationSchema = z.object({
 	// Team fields (validated based on division.teamSize)
 	teamName: z.string().max(255).optional(),
 	teammates: z.array(teammateSchema).optional(),
+	// Registration question answers
+	answers: z
+		.array(
+			z.object({
+				questionId: z.string(),
+				answer: z.string(),
+			}),
+		)
+		.optional(),
 })
 
 type FormValues = z.infer<typeof registrationSchema>
@@ -80,6 +90,7 @@ type Props = {
 	paymentCanceled?: boolean
 	defaultAffiliateName?: string
 	waivers: Waiver[]
+	questions: RegistrationQuestion[]
 }
 
 export function RegistrationForm({
@@ -93,6 +104,7 @@ export function RegistrationForm({
 	paymentCanceled,
 	defaultAffiliateName,
 	waivers,
+	questions,
 }: Props) {
 	const navigate = useNavigate()
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -123,6 +135,7 @@ export function RegistrationForm({
 			teamName: "",
 			affiliateName: defaultAffiliateName ?? "",
 			teammates: [],
+			answers: questions.map((q) => ({ questionId: q.id, answer: "" })),
 		},
 	})
 
@@ -196,6 +209,19 @@ export function RegistrationForm({
 			}
 		}
 
+		// Validate required registration questions
+		if (questions.length > 0 && data.answers) {
+			for (const question of questions) {
+				if (question.required) {
+					const answer = data.answers.find((a) => a.questionId === question.id)
+					if (!answer?.answer?.trim()) {
+						toast.error(`Please answer the required question: ${question.label}`)
+						return
+					}
+				}
+			}
+		}
+
 		// Check waivers are signed
 		if (!allRequiredWaiversAgreed) {
 			toast.error("Please agree to all required waivers before registering")
@@ -230,6 +256,7 @@ export function RegistrationForm({
 					teamName: isTeamDivision ? data.teamName : undefined,
 					affiliateName: data.affiliateName || undefined,
 					teammates: isTeamDivision ? data.teammates : undefined,
+					answers: data.answers,
 				},
 			})
 
@@ -514,6 +541,69 @@ export function RegistrationForm({
 							/>
 						</CardContent>
 					</Card>
+
+					{/* Registration Questions Card */}
+					{questions.length > 0 && (
+						<Card>
+							<CardHeader>
+								<CardTitle>Registration Questions</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-6">
+								{questions.map((question, index) => (
+									<FormField
+										key={question.id}
+										control={form.control}
+										name={`answers.${index}.answer`}
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>
+													{question.label}
+													{question.required && (
+														<span className="text-destructive"> *</span>
+													)}
+												</FormLabel>
+												<FormControl>
+													{question.type === "select" ? (
+														<Select
+															onValueChange={field.onChange}
+															defaultValue={field.value}
+															disabled={isSubmitting || !registrationOpen}
+														>
+															<SelectTrigger>
+																<SelectValue placeholder="Select an option" />
+															</SelectTrigger>
+															<SelectContent>
+																{question.options?.map((opt) => (
+																	<SelectItem key={opt} value={opt}>
+																		{opt}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													) : question.type === "number" ? (
+														<Input
+															type="number"
+															{...field}
+															disabled={isSubmitting || !registrationOpen}
+														/>
+													) : (
+														<Input
+															{...field}
+															disabled={isSubmitting || !registrationOpen}
+														/>
+													)}
+												</FormControl>
+												{question.helpText && (
+													<FormDescription>{question.helpText}</FormDescription>
+												)}
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								))}
+							</CardContent>
+						</Card>
+					)}
 
 					{/* Registration Fee Card */}
 					<Card>
