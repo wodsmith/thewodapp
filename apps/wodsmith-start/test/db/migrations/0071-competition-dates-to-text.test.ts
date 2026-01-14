@@ -268,4 +268,65 @@ describe('Migration 0071: competition dates to text', () => {
     expect(indexNames).toContain('competitions_status_idx')
     expect(indexNames).toContain('competitions_start_date_idx')
   })
+
+  it('converts production-like data with complex settings', () => {
+    // Production-like competition data with complex settings JSON
+    // 1775865600 = 2026-04-11 00:00:00 UTC (start/end date)
+    // 1768780800 = 2026-01-19 00:00:00 UTC (registration opens)
+    // 1775174400 = 2026-04-03 00:00:00 UTC (registration closes)
+    db.exec(`
+      INSERT INTO "competitions" (
+        "id", "organizingTeamId", "competitionTeamId", "slug", "name",
+        "description", "startDate", "endDate",
+        "registrationOpensAt", "registrationClosesAt",
+        "settings", "defaultRegistrationFeeCents",
+        "passStripeFeesToCustomer", "visibility", "passPlatformFeesToCustomer",
+        "profileImageUrl", "status", "defaultHeatsPerRotation",
+        "defaultLaneShiftPattern"
+      ) VALUES (
+        'comp8', 'team1', 'team2',
+        'test-comp-8', 'Test Competition 8',
+        'Test description with signup deadline',
+        1775865600, 1775865600, 1768780800, 1775174400,
+        '{"divisions":{"scalingGroupId":"test_group_id"},"scoringConfig":{"algorithm":"custom"}}',
+        0, 0, 'public', 1,
+        'https://example.com/test-image.png',
+        'draft', 4, 'shift_right'
+      )
+    `)
+
+    const migrationPath = join(
+      process.cwd(),
+      'src/db/migrations/0071_competition-dates-to-text.sql',
+    )
+    const migration = readFileSync(migrationPath, 'utf-8')
+    db.exec(migration)
+
+    const row = db.prepare('SELECT * FROM competitions WHERE id = ?').get(
+      'comp8',
+    ) as {
+      startDate: string
+      endDate: string
+      registrationOpensAt: string
+      registrationClosesAt: string
+      name: string
+      slug: string
+      description: string
+      visibility: string
+      status: string
+    }
+
+    // Verify date conversions
+    expect(row.startDate).toBe('2026-04-11')
+    expect(row.endDate).toBe('2026-04-11')
+    expect(row.registrationOpensAt).toBe('2026-01-19')
+    expect(row.registrationClosesAt).toBe('2026-04-03')
+
+    // Verify other fields preserved
+    expect(row.name).toBe('Test Competition 8')
+    expect(row.slug).toBe('test-comp-8')
+    expect(row.description).toBe('Test description with signup deadline')
+    expect(row.visibility).toBe('public')
+    expect(row.status).toBe('draft')
+  })
 })
