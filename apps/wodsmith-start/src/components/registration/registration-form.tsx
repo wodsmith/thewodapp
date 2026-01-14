@@ -2,7 +2,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Loader2, User, Users } from "lucide-react"
-import { isSameDateString } from "@/utils/date-utils"
+import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -340,7 +340,7 @@ export function RegistrationForm({
 
 		// Get today as YYYY-MM-DD for string comparison
 		const now = new Date()
-		const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+		const todayStr = getLocalDateKey(now)
 
 		if (todayStr < registrationOpensAt) {
 			return `Registration opens ${formatDate(registrationOpensAt)} and closes ${formatDate(registrationClosesAt)}`

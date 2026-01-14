@@ -9,7 +9,11 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
+import {
+	formatDateStringFull,
+	getLocalDateKey,
+	isSameDateString,
+} from "@/utils/date-utils"
 
 interface CompetitionHeaderProps {
 	competition: {
@@ -38,7 +42,7 @@ function getRegistrationStatus(
 
 	// Get today as YYYY-MM-DD for comparison
 	const now = new Date()
-	const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+	const todayStr = getLocalDateKey(now)
 
 	if (todayStr < opensAt) {
 		return { label: "Not Yet Open", variant: "secondary" }

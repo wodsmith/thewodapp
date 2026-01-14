@@ -23,6 +23,7 @@ import {
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
+import { getLocalDateKey } from "@/utils/date-utils"
 
 // Search params validation
 const registerSearchSchema = z.object({
@@ -151,7 +152,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
 		// 4. Check registration window (dates are now YYYY-MM-DD strings)
 		const now = new Date()
-		const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+		const todayStr = getLocalDateKey(now)
 		const regOpensAt = competition.registrationOpensAt
 		const regClosesAt = competition.registrationClosesAt
 
