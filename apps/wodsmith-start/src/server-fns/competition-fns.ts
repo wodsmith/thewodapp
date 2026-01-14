@@ -71,6 +71,7 @@ const createCompetitionInputSchema = z.object({
 	registrationClosesAt: dateStringSchema.optional(),
 	groupId: z.string().optional(),
 	settings: z.string().optional(),
+	timezone: z.string().optional(),
 })
 
 const updateCompetitionInputSchema = z.object({
@@ -88,6 +89,7 @@ const updateCompetitionInputSchema = z.object({
 	status: z.enum(["draft", "published"]).optional(),
 	profileImageUrl: z.string().nullable().optional(),
 	bannerImageUrl: z.string().nullable().optional(),
+	timezone: z.string().optional(),
 })
 
 const getCompetitionGroupsInputSchema = z.object({
@@ -533,6 +535,7 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 				registrationClosesAt: data.registrationClosesAt,
 				groupId: data.groupId,
 				settings: data.settings,
+				timezone: data.timezone,
 			})
 
 			logInfo({
