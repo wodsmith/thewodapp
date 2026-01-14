@@ -81,6 +81,8 @@ export const competitionsTable = sqliteTable(
 		// Registration window (YYYY-MM-DD format)
 		registrationOpensAt: text(),
 		registrationClosesAt: text(),
+		// IANA timezone for competition dates and deadlines (e.g., "America/Denver")
+		timezone: text({ length: 50 }).default("America/Denver"),
 		// JSON settings (divisions, rules, etc.)
 		settings: text({ length: 10000 }),
 

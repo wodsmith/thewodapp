@@ -28,6 +28,11 @@ import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns
 import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
+import {
+	hasDateStartedInTimezone,
+	isDeadlinePassedInTimezone,
+	DEFAULT_TIMEZONE,
+} from "@/utils/timezone-utils"
 
 // ============================================================================
 // Helper Functions (ported from notifications/helpers.ts)
@@ -352,17 +357,21 @@ export async function registerForCompetition(
 		throw new Error("Competition not found")
 	}
 
-	// 2. Check registration window
-	const now = new Date()
+	// 2. Check registration window (using competition's timezone)
+	const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
 	if (
-		competition.registrationOpensAt &&
-		new Date(competition.registrationOpensAt) > now
+		!hasDateStartedInTimezone(
+			competition.registrationOpensAt,
+			competitionTimezone,
+		)
 	) {
 		throw new Error("Registration has not opened yet")
 	}
 	if (
-		competition.registrationClosesAt &&
-		new Date(competition.registrationClosesAt) < now
+		isDeadlinePassedInTimezone(
+			competition.registrationClosesAt,
+			competitionTimezone,
+		)
 	) {
 		throw new Error("Registration has closed")
 	}

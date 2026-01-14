@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import {
 	formatDateStringFull,
 	formatDateStringShort,
@@ -10,6 +10,14 @@ import {
 	parseDateInputAsUTC,
 	isSameUTCDay,
 	getLocalDateKey,
+	parseDateString,
+	isValidDateString,
+	getEndOfDayUTC,
+	getStartOfDayUTC,
+	getTodayStringUTC,
+	isDeadlinePassed,
+	getWeekdayFromDateString,
+	formatDateStringWithWeekday,
 } from "@/utils/date-utils"
 
 describe("date-utils", () => {
@@ -279,6 +287,241 @@ describe("date-utils", () => {
 			expect("2024-01-15" < "2024-02-01").toBe(true)
 			expect("2024-12-31" < "2025-01-01").toBe(true)
 			expect("2024-01-15" <= "2024-01-15").toBe(true)
+		})
+	})
+
+	// ==========================================================================
+	// Safe date parsing utilities using date-fns
+	// ==========================================================================
+
+	describe("parseDateString", () => {
+		it("parses valid YYYY-MM-DD strings", () => {
+			const result = parseDateString("2024-01-15")
+			expect(result).toEqual({ year: 2024, month: 1, day: 15 })
+		})
+
+		it("parses dates in all months", () => {
+			expect(parseDateString("2024-02-28")).toEqual({
+				year: 2024,
+				month: 2,
+				day: 28,
+			})
+			expect(parseDateString("2024-12-31")).toEqual({
+				year: 2024,
+				month: 12,
+				day: 31,
+			})
+		})
+
+		it("returns null for null or undefined", () => {
+			expect(parseDateString(null)).toBeNull()
+			expect(parseDateString(undefined)).toBeNull()
+		})
+
+		it("returns null for invalid format", () => {
+			expect(parseDateString("not-a-date")).toBeNull()
+			expect(parseDateString("01/15/2024")).toBeNull()
+			expect(parseDateString("2024-1-15")).toBeNull() // Missing leading zeros
+		})
+
+		it("returns null for invalid dates (month 13)", () => {
+			expect(parseDateString("2024-13-01")).toBeNull()
+		})
+
+		it("returns null for invalid dates (Feb 30)", () => {
+			expect(parseDateString("2024-02-30")).toBeNull()
+		})
+
+		it("returns null for invalid dates (Feb 29 in non-leap year)", () => {
+			expect(parseDateString("2023-02-29")).toBeNull()
+		})
+
+		it("accepts Feb 29 in leap year", () => {
+			const result = parseDateString("2024-02-29")
+			expect(result).toEqual({ year: 2024, month: 2, day: 29 })
+		})
+
+		it("returns null for day 0", () => {
+			expect(parseDateString("2024-01-00")).toBeNull()
+		})
+
+		it("returns null for day 32", () => {
+			expect(parseDateString("2024-01-32")).toBeNull()
+		})
+	})
+
+	describe("isValidDateString", () => {
+		it("returns true for valid dates", () => {
+			expect(isValidDateString("2024-01-15")).toBe(true)
+			expect(isValidDateString("2024-02-29")).toBe(true) // Leap year
+			expect(isValidDateString("2024-12-31")).toBe(true)
+		})
+
+		it("returns false for invalid dates", () => {
+			expect(isValidDateString("2024-13-01")).toBe(false) // Month 13
+			expect(isValidDateString("2024-02-30")).toBe(false) // Feb 30
+			expect(isValidDateString("2023-02-29")).toBe(false) // Not a leap year
+			expect(isValidDateString("2024-04-31")).toBe(false) // April has 30 days
+		})
+
+		it("returns false for null or undefined", () => {
+			expect(isValidDateString(null)).toBe(false)
+			expect(isValidDateString(undefined)).toBe(false)
+		})
+
+		it("returns false for invalid format", () => {
+			expect(isValidDateString("not-a-date")).toBe(false)
+			expect(isValidDateString("2024/01/15")).toBe(false)
+		})
+	})
+
+	describe("getEndOfDayUTC", () => {
+		it("returns end of day in UTC for valid date", () => {
+			const result = getEndOfDayUTC("2024-01-15")
+			expect(result).not.toBeNull()
+			expect(result!.getUTCFullYear()).toBe(2024)
+			expect(result!.getUTCMonth()).toBe(0) // January
+			expect(result!.getUTCDate()).toBe(15)
+			expect(result!.getUTCHours()).toBe(23)
+			expect(result!.getUTCMinutes()).toBe(59)
+			expect(result!.getUTCSeconds()).toBe(59)
+			expect(result!.getUTCMilliseconds()).toBe(999)
+		})
+
+		it("returns null for invalid date", () => {
+			expect(getEndOfDayUTC("2024-02-30")).toBeNull()
+			expect(getEndOfDayUTC("invalid")).toBeNull()
+			expect(getEndOfDayUTC(null)).toBeNull()
+		})
+	})
+
+	describe("getStartOfDayUTC", () => {
+		it("returns start of day in UTC for valid date", () => {
+			const result = getStartOfDayUTC("2024-01-15")
+			expect(result).not.toBeNull()
+			expect(result!.getUTCFullYear()).toBe(2024)
+			expect(result!.getUTCMonth()).toBe(0) // January
+			expect(result!.getUTCDate()).toBe(15)
+			expect(result!.getUTCHours()).toBe(0)
+			expect(result!.getUTCMinutes()).toBe(0)
+			expect(result!.getUTCSeconds()).toBe(0)
+			expect(result!.getUTCMilliseconds()).toBe(0)
+		})
+
+		it("returns null for invalid date", () => {
+			expect(getStartOfDayUTC("2024-02-30")).toBeNull()
+			expect(getStartOfDayUTC("invalid")).toBeNull()
+			expect(getStartOfDayUTC(null)).toBeNull()
+		})
+	})
+
+	describe("getTodayStringUTC", () => {
+		it("returns today's date in YYYY-MM-DD format", () => {
+			const result = getTodayStringUTC()
+			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+		})
+
+		it("returns a valid date string", () => {
+			const result = getTodayStringUTC()
+			expect(isValidDateString(result)).toBe(true)
+		})
+	})
+
+	describe("isDeadlinePassed", () => {
+		beforeEach(() => {
+			// Mock current time to 2024-01-15 12:00:00 UTC
+			vi.useFakeTimers()
+			vi.setSystemTime(new Date(Date.UTC(2024, 0, 15, 12, 0, 0)))
+		})
+
+		afterEach(() => {
+			vi.useRealTimers()
+		})
+
+		it("returns false for future deadline", () => {
+			expect(isDeadlinePassed("2024-01-16")).toBe(false)
+			expect(isDeadlinePassed("2024-02-01")).toBe(false)
+		})
+
+		it("returns false for today (deadline at end of day)", () => {
+			// Current time is 12:00 UTC, deadline is end of day (23:59:59.999)
+			expect(isDeadlinePassed("2024-01-15")).toBe(false)
+		})
+
+		it("returns true for past deadline", () => {
+			expect(isDeadlinePassed("2024-01-14")).toBe(true)
+			expect(isDeadlinePassed("2023-12-31")).toBe(true)
+		})
+
+		it("returns false for invalid date string", () => {
+			expect(isDeadlinePassed("invalid")).toBe(false)
+			expect(isDeadlinePassed(null)).toBe(false)
+		})
+	})
+
+	describe("getWeekdayFromDateString", () => {
+		it("returns correct weekday for known dates", () => {
+			// These are verified dates
+			expect(getWeekdayFromDateString("2024-01-01")).toBe("Monday") // Jan 1, 2024 was Monday
+			expect(getWeekdayFromDateString("2024-01-07")).toBe("Sunday") // Jan 7, 2024 was Sunday
+			expect(getWeekdayFromDateString("2024-04-11")).toBe("Thursday") // Apr 11, 2024 was Thursday
+		})
+
+		it("returns null for invalid date", () => {
+			expect(getWeekdayFromDateString("2024-02-30")).toBeNull()
+			expect(getWeekdayFromDateString("invalid")).toBeNull()
+			expect(getWeekdayFromDateString(null)).toBeNull()
+		})
+	})
+
+	describe("formatDateStringWithWeekday", () => {
+		it("formats with weekday correctly", () => {
+			expect(formatDateStringWithWeekday("2024-01-01")).toBe(
+				"Monday, January 1, 2024",
+			)
+			expect(formatDateStringWithWeekday("2024-04-11")).toBe(
+				"Thursday, April 11, 2024",
+			)
+			expect(formatDateStringWithWeekday("2024-12-25")).toBe(
+				"Wednesday, December 25, 2024",
+			)
+		})
+
+		it("returns empty string for invalid date", () => {
+			expect(formatDateStringWithWeekday("2024-02-30")).toBe("")
+			expect(formatDateStringWithWeekday("invalid")).toBe("")
+			expect(formatDateStringWithWeekday(null)).toBe("")
+		})
+	})
+
+	// ==========================================================================
+	// Critical: UTC deadline comparison tests
+	// ==========================================================================
+
+	describe("UTC deadline behavior", () => {
+		it("deadline comparison is consistent regardless of what local timezone would parse", () => {
+			// The key insight: getEndOfDayUTC("2024-01-15") should always return
+			// 2024-01-15 23:59:59.999 UTC, not dependent on local timezone
+			const deadline = getEndOfDayUTC("2024-01-15")!
+
+			// Verify it's the expected UTC timestamp
+			expect(deadline.toISOString()).toBe("2024-01-15T23:59:59.999Z")
+
+			// This timestamp should be the same regardless of where the code runs
+			const expectedTimestamp = Date.UTC(2024, 0, 15, 23, 59, 59, 999)
+			expect(deadline.getTime()).toBe(expectedTimestamp)
+		})
+
+		it("date validation catches invalid dates that JavaScript would normalize", () => {
+			// JavaScript's Date constructor normalizes invalid dates:
+			// new Date(2024, 1, 30) -> March 1, 2024 (Feb 30 doesn't exist)
+			// But our validation catches this
+			expect(parseDateString("2024-02-30")).toBeNull()
+			expect(getEndOfDayUTC("2024-02-30")).toBeNull()
+
+			// Same for month 13
+			expect(parseDateString("2024-13-01")).toBeNull()
+			expect(getEndOfDayUTC("2024-13-01")).toBeNull()
 		})
 	})
 })

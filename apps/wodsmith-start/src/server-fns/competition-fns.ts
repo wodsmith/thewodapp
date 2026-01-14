@@ -146,6 +146,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -210,6 +211,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				endDate: row.endDate,
 				registrationOpensAt: row.registrationOpensAt,
 				registrationClosesAt: row.registrationClosesAt,
+				timezone: row.timezone,
 				settings: row.settings,
 				defaultRegistrationFeeCents: row.defaultRegistrationFeeCents,
 				platformFeePercentage: row.platformFeePercentage,
@@ -276,6 +278,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -348,6 +351,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 			endDate: row.endDate,
 			registrationOpensAt: row.registrationOpensAt,
 			registrationClosesAt: row.registrationClosesAt,
+			timezone: row.timezone,
 			settings: row.settings,
 			defaultRegistrationFeeCents: row.defaultRegistrationFeeCents,
 			platformFeePercentage: row.platformFeePercentage,
@@ -408,6 +412,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -466,6 +471,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 			endDate: row.endDate,
 			registrationOpensAt: row.registrationOpensAt,
 			registrationClosesAt: row.registrationClosesAt,
+			timezone: row.timezone,
 			settings: row.settings,
 			defaultRegistrationFeeCents: row.defaultRegistrationFeeCents,
 			platformFeePercentage: row.platformFeePercentage,

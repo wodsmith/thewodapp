@@ -1,6 +1,7 @@
 /**
  * Utility functions for handling dates consistently across the app
  */
+import { parse, isValid, format } from "date-fns"
 
 /**
  * Get the start of day in local timezone
@@ -345,4 +346,137 @@ export function isSameDateString(
 ): boolean {
 	if (!date1 || !date2) return false
 	return date1 === date2
+}
+
+// ============================================================================
+// Safe date parsing utilities using date-fns
+// ============================================================================
+
+/**
+ * Parse a YYYY-MM-DD string into its components.
+ * Returns null if the string format is invalid or the date doesn't exist.
+ * Uses date-fns for validation to catch invalid dates like Feb 30.
+ */
+export function parseDateString(
+	dateStr: string | null | undefined,
+): { year: number; month: number; day: number } | null {
+	if (!dateStr) return null
+
+	// Use date-fns parse to validate the date
+	const parsed = parse(dateStr, "yyyy-MM-dd", new Date())
+	if (!isValid(parsed)) return null
+
+	// Verify it matches the original string (catches cases like "2024-02-30" normalizing to March)
+	const formatted = format(parsed, "yyyy-MM-dd")
+	if (formatted !== dateStr) return null
+
+	return {
+		year: parsed.getFullYear(),
+		month: parsed.getMonth() + 1, // 1-indexed
+		day: parsed.getDate(),
+	}
+}
+
+/**
+ * Check if a YYYY-MM-DD string represents a valid date.
+ * Returns false for invalid dates like "2024-13-01" or "2024-02-30".
+ */
+export function isValidDateString(
+	dateStr: string | null | undefined,
+): boolean {
+	return parseDateString(dateStr) !== null
+}
+
+/**
+ * Get the end of day (23:59:59.999 UTC) for a YYYY-MM-DD string.
+ * Use this for deadline comparisons to ensure consistent behavior across timezones.
+ * Returns null if the date string is invalid.
+ */
+export function getEndOfDayUTC(dateStr: string | null | undefined): Date | null {
+	const parts = parseDateString(dateStr)
+	if (!parts) return null
+
+	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999))
+}
+
+/**
+ * Get the start of day (00:00:00.000 UTC) for a YYYY-MM-DD string.
+ * Returns null if the date string is invalid.
+ */
+export function getStartOfDayUTC(dateStr: string | null | undefined): Date | null {
+	const parts = parseDateString(dateStr)
+	if (!parts) return null
+
+	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0))
+}
+
+/**
+ * Get today's date as a YYYY-MM-DD string in UTC.
+ */
+export function getTodayStringUTC(): string {
+	const now = new Date()
+	return format(now, "yyyy-MM-dd")
+}
+
+/**
+ * Compare a YYYY-MM-DD deadline string against the current time.
+ * Returns true if the deadline has passed (current time is after end of day UTC).
+ */
+export function isDeadlinePassed(deadlineStr: string | null | undefined): boolean {
+	const deadline = getEndOfDayUTC(deadlineStr)
+	if (!deadline) return false
+	return new Date() > deadline
+}
+
+/**
+ * Get the weekday name for a YYYY-MM-DD string.
+ * Returns null if the date string is invalid.
+ */
+export function getWeekdayFromDateString(
+	dateStr: string | null | undefined,
+): string | null {
+	const parts = parseDateString(dateStr)
+	if (!parts) return null
+
+	const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+	const weekdays = [
+		"Sunday",
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday",
+	]
+	return weekdays[d.getUTCDay()] ?? null
+}
+
+/**
+ * Format a YYYY-MM-DD string with weekday (e.g., "Monday, January 15, 2024").
+ * Returns empty string if the date is invalid.
+ */
+export function formatDateStringWithWeekday(
+	dateStr: string | null | undefined,
+): string {
+	const parts = parseDateString(dateStr)
+	if (!parts) return ""
+
+	const weekday = getWeekdayFromDateString(dateStr)
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	]
+	const month = months[parts.month - 1]
+
+	return `${weekday}, ${month} ${parts.day}, ${parts.year}`
 }

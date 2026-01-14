@@ -8,6 +8,7 @@
 
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
+import { formatDateStringWithWeekday } from "@/utils/date-utils"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -40,6 +41,12 @@ function formatCents(cents: number): string {
 function formatDate(date: string | Date | null | undefined): string {
 	if (!date) return ""
 
+	// Handle YYYY-MM-DD string format using validated utility
+	if (typeof date === "string") {
+		return formatDateStringWithWeekday(date)
+	}
+
+	// Handle Date object (legacy)
 	const weekdays = [
 		"Sunday",
 		"Monday",
@@ -63,25 +70,6 @@ function formatDate(date: string | Date | null | undefined): string {
 		"November",
 		"December",
 	]
-
-	// Handle YYYY-MM-DD string format
-	if (typeof date === "string") {
-		const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-		if (match) {
-			const [, yearStr, monthStr, dayStr] = match
-			const year = Number(yearStr)
-			const monthNum = Number(monthStr)
-			const day = Number(dayStr)
-			// Calculate weekday from YYYY-MM-DD (Zeller's congruence alternative)
-			const d = new Date(Date.UTC(year, monthNum - 1, day))
-			const weekday = weekdays[d.getUTCDay()]
-			const month = months[monthNum - 1]
-			return `${weekday}, ${month} ${day}, ${year}`
-		}
-		return ""
-	}
-
-	// Handle Date object (legacy)
 	const weekday = weekdays[date.getUTCDay()]
 	const month = months[date.getUTCMonth()]
 	const day = date.getUTCDate()

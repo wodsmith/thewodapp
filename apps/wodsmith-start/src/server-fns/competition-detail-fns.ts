@@ -158,6 +158,7 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
