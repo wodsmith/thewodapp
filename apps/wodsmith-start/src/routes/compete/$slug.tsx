@@ -53,6 +53,7 @@ export const Route = createFileRoute("/compete/$slug")({
 				data: {
 					registrationOpensAt: competition.registrationOpensAt,
 					registrationClosesAt: competition.registrationClosesAt,
+					timezone: competition.timezone,
 				},
 			}),
 			// User-specific data - returns null/false if no session

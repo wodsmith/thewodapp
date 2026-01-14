@@ -34,7 +34,7 @@ interface Registration {
 interface SchedulePageClientProps {
 	competitionId: string
 	organizingTeamId: string
-	competitionStartDate: Date | null
+	competitionStartDate: string | null // YYYY-MM-DD format
 	initialVenues: CompetitionVenue[]
 	events: CompetitionWorkout[]
 	initialHeats: HeatWithAssignments[]

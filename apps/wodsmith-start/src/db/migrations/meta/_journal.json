@@ -512,6 +512,13 @@
       "when": 1767543000000,
       "tag": "0070_fix-organizer-fee-column-names",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1767629400000,
+      "tag": "0071_competition-dates-to-text",
+      "breakpoints": true
     }
   ]
 }

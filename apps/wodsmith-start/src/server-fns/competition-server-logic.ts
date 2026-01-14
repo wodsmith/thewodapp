@@ -192,13 +192,14 @@ export async function createCompetition(params: {
 	organizingTeamId: string
 	name: string
 	slug: string
-	startDate: Date
-	endDate: Date
+	startDate: string // YYYY-MM-DD format
+	endDate: string // YYYY-MM-DD format
 	description?: string
-	registrationOpensAt?: Date
-	registrationClosesAt?: Date
+	registrationOpensAt?: string // YYYY-MM-DD format
+	registrationClosesAt?: string // YYYY-MM-DD format
 	groupId?: string
 	settings?: string
+	timezone?: string // IANA timezone string (e.g., "America/Denver")
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
 	const db = getDb()
 
@@ -293,6 +294,7 @@ export async function createCompetition(params: {
 				registrationOpensAt: params.registrationOpensAt,
 				registrationClosesAt: params.registrationClosesAt,
 				settings: params.settings,
+				timezone: params.timezone,
 			})
 			.returning()
 
@@ -358,16 +360,17 @@ export async function updateCompetition(
 		name: string
 		slug: string
 		description: string | null
-		startDate: Date
-		endDate: Date
-		registrationOpensAt: Date | null
-		registrationClosesAt: Date | null
+		startDate: string // YYYY-MM-DD format
+		endDate: string // YYYY-MM-DD format
+		registrationOpensAt: string | null // YYYY-MM-DD format
+		registrationClosesAt: string | null // YYYY-MM-DD format
 		groupId: string | null
 		settings: string | null
 		visibility: "public" | "private"
 		status: "draft" | "published"
 		profileImageUrl: string | null
 		bannerImageUrl: string | null
+		timezone: string // IANA timezone string
 	}>,
 ): Promise<Competition> {
 	const db = getDb()
@@ -435,6 +438,7 @@ export async function updateCompetition(
 		updateData.profileImageUrl = updates.profileImageUrl
 	if (updates.bannerImageUrl !== undefined)
 		updateData.bannerImageUrl = updates.bannerImageUrl
+	if (updates.timezone !== undefined) updateData.timezone = updates.timezone
 
 	const result = await db
 		.update(competitionsTable)

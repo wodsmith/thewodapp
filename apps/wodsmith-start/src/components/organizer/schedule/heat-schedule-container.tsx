@@ -12,7 +12,7 @@ import { HeatScheduleManager } from "./heat-schedule-manager"
 interface HeatScheduleContainerProps {
 	competitionId: string
 	organizingTeamId: string
-	competitionStartDate: Date | null
+	competitionStartDate: string | null // YYYY-MM-DD format
 }
 
 export async function HeatScheduleContainer({

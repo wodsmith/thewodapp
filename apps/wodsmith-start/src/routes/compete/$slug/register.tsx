@@ -23,6 +23,7 @@ import {
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
+import { getLocalDateKey } from "@/utils/date-utils"
 
 // Search params validation
 const registerSearchSchema = z.object({
@@ -149,24 +150,18 @@ export const Route = createFileRoute("/compete/$slug/register")({
 			throw redirect({ to: "/compete/$slug", params: { slug } })
 		}
 
-		// 4. Check registration window
+		// 4. Check registration window (dates are now YYYY-MM-DD strings)
 		const now = new Date()
+		const todayStr = getLocalDateKey(now)
 		const regOpensAt = competition.registrationOpensAt
-			? typeof competition.registrationOpensAt === "number"
-				? new Date(competition.registrationOpensAt)
-				: competition.registrationOpensAt
-			: null
 		const regClosesAt = competition.registrationClosesAt
-			? typeof competition.registrationClosesAt === "number"
-				? new Date(competition.registrationClosesAt)
-				: competition.registrationClosesAt
-			: null
 
+		// String comparison works for YYYY-MM-DD format
 		const registrationOpen = !!(
 			regOpensAt &&
 			regClosesAt &&
-			regOpensAt <= now &&
-			regClosesAt >= now
+			todayStr >= regOpensAt &&
+			todayStr <= regClosesAt
 		)
 
 		// 5. Get competition settings for divisions
