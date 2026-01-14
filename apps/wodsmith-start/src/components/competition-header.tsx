@@ -27,12 +27,7 @@ interface CompetitionHeaderProps {
 }
 
 function formatDateTime(date: string): string {
-	// Parse YYYY-MM-DD and format for display
-	const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-	if (!match) return date
-	const [, yearStr, monthStr, dayStr] = match
-	const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-	return `${months[Number(monthStr) - 1]} ${Number(dayStr)}, ${yearStr}`
+	return formatDateStringFull(date) || date
 }
 
 function getRegistrationStatus(

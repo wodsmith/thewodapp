@@ -28,7 +28,7 @@ import {
 	type AllEventsResultsStatusResponse,
 	getDivisionResultsStatusFn,
 } from "@/server-fns/division-results-fns"
-import { formatUTCDateFull, isSameUTCDay } from "@/utils/date-utils"
+import { formatUTCDateFull, getLocalDateKey, isSameUTCDay } from "@/utils/date-utils"
 import { QuickActionsDivisionResults } from "./-components/quick-actions-division-results"
 import { QuickActionsEvents } from "./-components/quick-actions-events"
 import { QuickActionsHeats } from "./-components/quick-actions-heats"
@@ -136,8 +136,7 @@ function CompetitionOverviewPage() {
 		if (!competition.registrationOpensAt || !competition.registrationClosesAt) {
 			return null
 		}
-		const now = new Date()
-		const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+		const todayStr = getLocalDateKey(new Date())
 		if (todayStr < competition.registrationOpensAt) {
 			return "Not yet open"
 		}
