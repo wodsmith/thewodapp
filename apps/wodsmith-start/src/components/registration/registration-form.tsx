@@ -43,6 +43,7 @@ import type {
 	Team,
 	Waiver,
 } from "@/db/schema"
+import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
 import { AffiliateCombobox } from "./affiliate-combobox"
@@ -71,6 +72,7 @@ type FormValues = z.infer<typeof registrationSchema>
 type Props = {
 	competition: Competition & { organizingTeam: Team | null }
 	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
+	publicDivisions: PublicCompetitionDivision[]
 	userId: string
 	registrationOpen: boolean
 	registrationOpensAt: Date | null
@@ -83,6 +85,7 @@ type Props = {
 export function RegistrationForm({
 	competition,
 	scalingGroup,
+	publicDivisions,
 	userId: _userId,
 	registrationOpen,
 	registrationOpensAt,
@@ -410,30 +413,59 @@ export function RegistrationForm({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												{scalingGroup.scalingLevels.map((level) => (
-													<SelectItem key={level.id} value={level.id}>
-														<div className="flex items-center gap-2">
-															{level.label}
-															{(level.teamSize ?? 1) > 1 ? (
-																<Badge
-																	variant="secondary"
-																	className="ml-1 text-xs"
-																>
-																	<Users className="w-3 h-3 mr-1" />
-																	{level.teamSize}
-																</Badge>
-															) : (
-																<Badge
-																	variant="outline"
-																	className="ml-1 text-xs"
-																>
-																	<User className="w-3 h-3 mr-1" />
-																	Individual
-																</Badge>
-															)}
-														</div>
-													</SelectItem>
-												))}
+												{scalingGroup.scalingLevels.map((level) => {
+													// Get capacity info from publicDivisions
+													const divisionInfo = publicDivisions.find(
+														(d) => d.id === level.id,
+													)
+													const isFull = divisionInfo?.isFull ?? false
+													const spotsAvailable = divisionInfo?.spotsAvailable
+													const maxSpots = divisionInfo?.maxSpots
+
+													return (
+														<SelectItem
+															key={level.id}
+															value={level.id}
+															disabled={isFull}
+														>
+															<div className="flex items-center gap-2">
+																<span className={isFull ? "line-through text-muted-foreground" : ""}>
+																	{level.label}
+																</span>
+																{(level.teamSize ?? 1) > 1 ? (
+																	<Badge
+																		variant="secondary"
+																		className="ml-1 text-xs"
+																	>
+																		<Users className="w-3 h-3 mr-1" />
+																		{level.teamSize}
+																	</Badge>
+																) : (
+																	<Badge
+																		variant="outline"
+																		className="ml-1 text-xs"
+																	>
+																		<User className="w-3 h-3 mr-1" />
+																		Individual
+																	</Badge>
+																)}
+																{/* Show capacity info */}
+																{isFull ? (
+																	<Badge variant="destructive" className="ml-1 text-xs">
+																		SOLD OUT
+																	</Badge>
+																) : maxSpots !== null &&
+																  spotsAvailable !== null &&
+																  spotsAvailable !== undefined &&
+																  spotsAvailable <= 5 ? (
+																	<Badge variant="secondary" className="ml-1 text-xs text-amber-600 dark:text-amber-400">
+																		{spotsAvailable} left
+																	</Badge>
+																) : null}
+															</div>
+														</SelectItem>
+													)
+												})}
 											</SelectContent>
 										</Select>
 										<FormDescription>

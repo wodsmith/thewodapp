@@ -7,7 +7,11 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, count, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { competitionDivisionsTable } from "@/db/schemas/commerce"
+import {
+	COMMERCE_PURCHASE_STATUS,
+	commercePurchaseTable,
+	competitionDivisionsTable,
+} from "@/db/schemas/commerce"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -87,6 +91,9 @@ export interface PublicCompetitionDivision {
 	registrationCount: number
 	feeCents: number
 	teamSize: number
+	maxSpots: number | null
+	spotsAvailable: number | null
+	isFull: boolean
 }
 
 export interface CompetitionDivisionWithCounts {
@@ -96,6 +103,7 @@ export interface CompetitionDivisionWithCounts {
 	registrationCount: number
 	description: string | null
 	feeCents: number | null
+	maxSpots: number | null
 }
 
 export interface ScalingGroupForTemplate {
@@ -169,6 +177,25 @@ const updateDivisionDescriptionInputSchema = z.object({
 
 const getScalingGroupWithLevelsInputSchema = z.object({
 	scalingGroupId: z.string().min(1, "Scaling Group ID is required"),
+})
+
+const updateCompetitionDefaultCapacityInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	defaultMaxSpotsPerDivision: z.number().int().min(1).nullable(),
+})
+
+const updateDivisionCapacityInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	teamId: z.string().min(1, "Team ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+	maxSpots: z.number().int().min(1).nullable(),
+})
+
+const getDivisionSpotsAvailableInputSchema = z.object({
+	competitionId: z.string().min(1, "Competition ID is required"),
+	divisionId: z.string().min(1, "Division ID is required"),
+	excludePurchaseId: z.string().optional(), // Used by webhook to exclude its own pending purchase
 })
 
 // ============================================================================
@@ -505,48 +532,83 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
 			return { divisions: [] }
 		}
 
-		// Get divisions with descriptions and registration counts
-		const divisions = await db
-			.select({
-				id: scalingLevelsTable.id,
-				label: scalingLevelsTable.label,
-				teamSize: scalingLevelsTable.teamSize,
-				description: competitionDivisionsTable.description,
-				feeCents: competitionDivisionsTable.feeCents,
-				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
-			})
-			.from(scalingLevelsTable)
-			.leftJoin(
-				competitionDivisionsTable,
-				and(
-					eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
-					eq(competitionDivisionsTable.competitionId, data.competitionId),
-				),
-			)
-			.leftJoin(
-				competitionRegistrationsTable,
-				and(
-					eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
-					eq(competitionRegistrationsTable.eventId, data.competitionId),
-				),
-			)
-			.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
-			.groupBy(
-				scalingLevelsTable.id,
-				competitionDivisionsTable.description,
-				competitionDivisionsTable.feeCents,
-			)
-			.orderBy(scalingLevelsTable.position)
+		// Get divisions with descriptions, registration counts, and capacity
+		// Also get pending purchases (reservations) separately to avoid double-counting in joins
+		const [divisions, pendingByDivision] = await Promise.all([
+			db
+				.select({
+					id: scalingLevelsTable.id,
+					label: scalingLevelsTable.label,
+					teamSize: scalingLevelsTable.teamSize,
+					description: competitionDivisionsTable.description,
+					feeCents: competitionDivisionsTable.feeCents,
+					maxSpots: competitionDivisionsTable.maxSpots,
+					registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
+				})
+				.from(scalingLevelsTable)
+				.leftJoin(
+					competitionDivisionsTable,
+					and(
+						eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+						eq(competitionDivisionsTable.competitionId, data.competitionId),
+					),
+				)
+				.leftJoin(
+					competitionRegistrationsTable,
+					and(
+						eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+					),
+				)
+				.where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+				.groupBy(
+					scalingLevelsTable.id,
+					competitionDivisionsTable.description,
+					competitionDivisionsTable.feeCents,
+					competitionDivisionsTable.maxSpots,
+				)
+				.orderBy(scalingLevelsTable.position),
+			// Count pending purchases (reservations) per division
+			db
+				.select({
+					divisionId: commercePurchaseTable.divisionId,
+					pendingCount: sql<number>`cast(count(*) as integer)`,
+				})
+				.from(commercePurchaseTable)
+				.where(
+					and(
+						eq(commercePurchaseTable.competitionId, data.competitionId),
+						eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+					),
+				)
+				.groupBy(commercePurchaseTable.divisionId),
+		])
 
-		// Apply default fee from competition
-		const result: PublicCompetitionDivision[] = divisions.map((d) => ({
-			id: d.id,
-			label: d.label,
-			description: d.description ?? null,
-			registrationCount: d.registrationCount,
-			feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
-			teamSize: d.teamSize,
-		}))
+		// Create lookup map for pending counts
+		const pendingCountMap = new Map(
+			pendingByDivision.map((p) => [p.divisionId, p.pendingCount]),
+		)
+
+		// Apply defaults from competition and calculate capacity (including reservations)
+		const defaultMax = competition.defaultMaxSpotsPerDivision ?? null
+		const result: PublicCompetitionDivision[] = divisions.map((d) => {
+			const effectiveMax = d.maxSpots ?? defaultMax
+			const pendingCount = pendingCountMap.get(d.id) ?? 0
+			const totalOccupied = d.registrationCount + pendingCount
+			const spotsAvailable =
+				effectiveMax !== null ? effectiveMax - totalOccupied : null
+			return {
+				id: d.id,
+				label: d.label,
+				description: d.description ?? null,
+				registrationCount: d.registrationCount,
+				feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
+				teamSize: d.teamSize,
+				maxSpots: effectiveMax,
+				spotsAvailable,
+				isFull: effectiveMax !== null && totalOccupied >= effectiveMax,
+			}
+		})
 
 		return { divisions: result }
 	})
@@ -589,7 +651,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 			return { scalingGroupId: null, divisions: [] }
 		}
 
-		// Get divisions with registration counts and descriptions
+		// Get divisions with registration counts, descriptions, and capacity
 		const divisions = await db
 			.select({
 				id: scalingLevelsTable.id,
@@ -597,6 +659,7 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				position: scalingLevelsTable.position,
 				description: competitionDivisionsTable.description,
 				feeCents: competitionDivisionsTable.feeCents,
+				maxSpots: competitionDivisionsTable.maxSpots,
 				registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as integer)`,
 			})
 			.from(scalingLevelsTable)
@@ -619,15 +682,18 @@ export const getCompetitionDivisionsWithCountsFn = createServerFn({
 				scalingLevelsTable.id,
 				competitionDivisionsTable.description,
 				competitionDivisionsTable.feeCents,
+				competitionDivisionsTable.maxSpots,
 			)
 			.orderBy(scalingLevelsTable.position)
 
 		return {
 			scalingGroupId,
+			defaultMaxSpotsPerDivision: competition.defaultMaxSpotsPerDivision,
 			divisions: divisions.map((d) => ({
 				...d,
 				description: d.description ?? null,
 				feeCents: d.feeCents ?? null,
+				maxSpots: d.maxSpots ?? null,
 			})) as CompetitionDivisionWithCounts[],
 		}
 	})
@@ -1034,14 +1100,210 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
 				.set({ description: data.description, updatedAt: new Date() })
 				.where(eq(competitionDivisionsTable.id, existing.id))
 		} else {
-			// Insert new (with default fee of 0)
+			// Get competition default fee for new division config
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, data.competitionId),
+			})
+			const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
 			await db.insert(competitionDivisionsTable).values({
 				competitionId: data.competitionId,
 				divisionId: data.divisionId,
-				feeCents: 0,
+				feeCents: defaultFee,
 				description: data.description,
 			})
 		}
 
 		return { success: true }
+	})
+
+/**
+ * Update the default max spots per division for a competition
+ */
+export const updateCompetitionDefaultCapacityFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: unknown) =>
+		updateCompetitionDefaultCapacityInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		// Verify competition exists and belongs to team
+		const [competition] = await db
+			.select()
+			.from(competitionsTable)
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		if (competition.organizingTeamId !== data.teamId) {
+			throw new Error("Competition does not belong to this team")
+		}
+
+		await db
+			.update(competitionsTable)
+			.set({
+				defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision,
+				updatedAt: new Date(),
+			})
+			.where(eq(competitionsTable.id, data.competitionId))
+
+		return { success: true }
+	})
+
+/**
+ * Update max spots for a specific division (override)
+ */
+export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		updateDivisionCapacityInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Verify authentication
+		const session = await getSessionFromCookie()
+		if (!session?.userId) {
+			throw new Error("Not authenticated")
+		}
+
+		await requireTeamPermission(
+			data.teamId,
+			TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+		)
+
+		const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
+			competitionId: data.competitionId,
+			teamId: data.teamId,
+		})
+
+		// Verify division belongs to this group
+		const [division] = await db
+			.select()
+			.from(scalingLevelsTable)
+			.where(eq(scalingLevelsTable.id, data.divisionId))
+
+		if (!division || division.scalingGroupId !== scalingGroupId) {
+			throw new Error("Division not found in this competition")
+		}
+
+		// Check if division config exists
+		const existing = await db.query.competitionDivisionsTable.findFirst({
+			where: and(
+				eq(competitionDivisionsTable.competitionId, data.competitionId),
+				eq(competitionDivisionsTable.divisionId, data.divisionId),
+			),
+		})
+
+		if (existing) {
+			// Update existing
+			await db
+				.update(competitionDivisionsTable)
+				.set({ maxSpots: data.maxSpots, updatedAt: new Date() })
+				.where(eq(competitionDivisionsTable.id, existing.id))
+		} else {
+			// Get competition default fee for new division config
+			const competition = await db.query.competitionsTable.findFirst({
+				where: eq(competitionsTable.id, data.competitionId),
+			})
+			const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
+
+			await db.insert(competitionDivisionsTable).values({
+				competitionId: data.competitionId,
+				divisionId: data.divisionId,
+				feeCents: defaultFee,
+				maxSpots: data.maxSpots,
+			})
+		}
+
+		return { success: true }
+	})
+
+/**
+ * Get spots available for a division
+ * Used for registration validation
+ */
+export const getDivisionSpotsAvailableFn = createServerFn({ method: "GET" })
+	.inputValidator((data: unknown) =>
+		getDivisionSpotsAvailableInputSchema.parse(data),
+	)
+	.handler(async ({ data }) => {
+		const db = getDb()
+
+		// Get competition for default capacity
+		const competition = await db.query.competitionsTable.findFirst({
+			where: eq(competitionsTable.id, data.competitionId),
+		})
+
+		if (!competition) {
+			throw new Error("Competition not found")
+		}
+
+		// Get division config for override
+		const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
+			where: and(
+				eq(competitionDivisionsTable.competitionId, data.competitionId),
+				eq(competitionDivisionsTable.divisionId, data.divisionId),
+			),
+		})
+
+		// Get registration count and pending purchases (reservations)
+		const [registrations, pendingPurchases] = await Promise.all([
+			// Count confirmed registrations
+			db
+				.select({ count: count() })
+				.from(competitionRegistrationsTable)
+				.where(
+					and(
+						eq(competitionRegistrationsTable.divisionId, data.divisionId),
+						eq(competitionRegistrationsTable.eventId, data.competitionId),
+					),
+				),
+			// Count pending purchases (reservations) - excludes specified purchaseId to avoid self-blocking
+			db
+				.select({ count: count() })
+				.from(commercePurchaseTable)
+				.where(
+					and(
+						eq(commercePurchaseTable.competitionId, data.competitionId),
+						eq(commercePurchaseTable.divisionId, data.divisionId),
+						eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+						// Exclude specific purchase if provided (for webhook re-check)
+						data.excludePurchaseId
+							? sql`${commercePurchaseTable.id} != ${data.excludePurchaseId}`
+							: undefined,
+					),
+				),
+		])
+
+		const confirmedCount = registrations[0]?.count ?? 0
+		const pendingCount = pendingPurchases[0]?.count ?? 0
+		const registered = confirmedCount + pendingCount
+
+		// Calculate effective max: division override > competition default > null (unlimited)
+		const effectiveMax =
+			divisionConfig?.maxSpots ?? competition.defaultMaxSpotsPerDivision ?? null
+
+		return {
+			maxSpots: effectiveMax,
+			registered,
+			confirmedCount,
+			pendingCount,
+			available: effectiveMax !== null ? effectiveMax - registered : null,
+			isFull: effectiveMax !== null && registered >= effectiveMax,
+		}
 	})

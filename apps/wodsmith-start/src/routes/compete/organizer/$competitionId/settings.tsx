@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { CapacitySettingsForm } from "./-components/capacity-settings-form"
 import { RotationSettingsForm } from "./-components/rotation-settings-form"
 import { ScoringSettingsForm } from "./-components/scoring-settings-form"
 
@@ -50,6 +51,17 @@ function SettingsPage() {
 					Configure default settings for your competition
 				</p>
 			</div>
+
+			{/* Capacity Settings Section */}
+			<section>
+				<CapacitySettingsForm
+					competition={{
+						id: competition.id,
+						organizingTeamId: competition.organizingTeamId,
+						defaultMaxSpotsPerDivision: competition.defaultMaxSpotsPerDivision,
+					}}
+				/>
+			</section>
 
 			{/* Scoring Configuration Section */}
 			<section>
