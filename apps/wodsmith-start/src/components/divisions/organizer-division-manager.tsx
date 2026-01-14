@@ -295,7 +295,7 @@ export function OrganizerDivisionManager({
 			const maxSpotsToSave = newDivisionMaxSpots.trim()
 				? parseInt(newDivisionMaxSpots, 10)
 				: null
-			if (maxSpotsToSave && result?.divisionId) {
+			if (maxSpotsToSave && !isNaN(maxSpotsToSave) && result?.divisionId) {
 				await updateDivisionCapacityFn({
 					data: {
 						teamId,

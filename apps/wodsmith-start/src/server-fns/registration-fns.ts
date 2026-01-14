@@ -1026,6 +1026,15 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
+		// Authenticate user
+		const session = await requireVerifiedEmail()
+		if (!session) throw new Error("Unauthorized")
+
+		// Ensure user can only cancel their own pending purchases
+		if (data.userId !== session.user.id) {
+			throw new Error("You can only cancel your own pending purchases")
+		}
+
 		const db = getDb()
 
 		// Cancel any PENDING purchases for this user/competition

@@ -61,9 +61,11 @@ export function CapacitySettingsForm({ competition }: Props) {
 		}
 	}
 
-	const hasChanges =
-		(maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)) !==
-		competition.defaultMaxSpotsPerDivision
+	const hasChanges = (() => {
+		const parsed = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
+		if (parsed !== null && isNaN(parsed)) return false // Invalid input, no save
+		return parsed !== competition.defaultMaxSpotsPerDivision
+	})()
 
 	return (
 		<Card>

@@ -169,7 +169,37 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 								completedAt: new Date(),
 							})
 							.where(eq(commercePurchaseTable.id, purchaseId))
-						// TODO: Trigger automatic refund via Stripe API
+
+						// Trigger automatic refund via Stripe API
+						const paymentIntentId =
+							typeof session.payment_intent === "string"
+								? session.payment_intent
+								: session.payment_intent?.id
+
+						if (paymentIntentId) {
+							try {
+								const stripe = getStripe()
+								await stripe.refunds.create({
+									payment_intent: paymentIntentId,
+									reason: "requested_by_customer",
+								})
+								logInfo({
+									message:
+										"[Stripe Webhook] Refund issued for division-full scenario",
+									attributes: { purchaseId, paymentIntentId },
+								})
+							} catch (refundError) {
+								logError({
+									message: "[Stripe Webhook] Failed to issue automatic refund",
+									error:
+										refundError instanceof Error
+											? refundError
+											: new Error(String(refundError)),
+									attributes: { purchaseId, paymentIntentId },
+								})
+							}
+						}
+
 						// TODO: Send "division full" notification email to user
 						return
 					}

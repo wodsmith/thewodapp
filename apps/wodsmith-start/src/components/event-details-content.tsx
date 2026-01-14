@@ -247,7 +247,7 @@ function DivisionRow({ division }: { division: DivisionWithDetails }) {
 		: `${division.registrationCount}`
 
 	return (
-		<Collapsible>
+		<Collapsible className="group">
 			<Card className={division.isFull ? "opacity-60" : ""}>
 				<CollapsibleTrigger asChild>
 					<CardHeader
