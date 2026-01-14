@@ -44,6 +44,9 @@ const mockDivisions = [
 		registrationCount: 10,
 		feeCents: 5000,
 		teamSize: 1,
+		maxSpots: null,
+		spotsAvailable: null,
+		isFull: false,
 	},
 	{
 		id: "div-2",
@@ -52,6 +55,9 @@ const mockDivisions = [
 		registrationCount: 5,
 		feeCents: 5000,
 		teamSize: 1,
+		maxSpots: null,
+		spotsAvailable: null,
+		isFull: false,
 	},
 ]
 

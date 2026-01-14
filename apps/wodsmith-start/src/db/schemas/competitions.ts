@@ -115,6 +115,8 @@ export const competitionsTable = sqliteTable(
 		// Judge rotation defaults
 		defaultHeatsPerRotation: integer().default(4),
 		defaultLaneShiftPattern: text({ length: 20 }).default("shift_right"),
+		// Capacity: default max spots per division (null = unlimited)
+		defaultMaxSpotsPerDivision: integer(),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column
