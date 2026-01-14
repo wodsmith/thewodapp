@@ -163,8 +163,8 @@ jobs:
           # AI configuration (stage-specific keys)
           OPENAI_API_KEY_PROD: ${{ secrets.OPENAI_API_KEY_PROD }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-          # Vectorize for AI semantic memory (prod only)
-          CLOUDFLARE_VECTORIZE_API_TOKEN: ${{ env.STAGE == 'prod' && secrets.CLOUDFLARE_VECTORIZE_API_TOKEN || '' }}
+          # Vectorize API token - needed for prod/demo to create, and PR stages to delete legacy indexes
+          CLOUDFLARE_VECTORIZE_API_TOKEN: ${{ secrets.CLOUDFLARE_VECTORIZE_API_TOKEN }}
           # Stripe secrets only for production deployments (PR environments get no Stripe)
           STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
           STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || '' }}
