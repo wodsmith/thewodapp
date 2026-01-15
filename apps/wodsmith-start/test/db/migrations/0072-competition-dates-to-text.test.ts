@@ -4,7 +4,7 @@ import {join} from 'node:path'
 import {describe, it, expect, beforeEach} from 'vitest'
 
 /**
- * Migration test for 0072_competition-dates-to-text.sql
+ * Migration test for 0072_competition-dates-to-text.sql.skip
  *
  * This tests that integer timestamps are correctly converted to YYYY-MM-DD strings.
  * The migration handles the timezone bug where UTC midnight timestamps display
@@ -85,7 +85,7 @@ describe('Migration 0072: competition dates to text', () => {
     // Run the migration
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
@@ -115,7 +115,7 @@ describe('Migration 0072: competition dates to text', () => {
 
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
@@ -144,7 +144,7 @@ describe('Migration 0072: competition dates to text', () => {
 
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
@@ -173,7 +173,7 @@ describe('Migration 0072: competition dates to text', () => {
 
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
@@ -209,7 +209,7 @@ describe('Migration 0072: competition dates to text', () => {
 
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
@@ -247,7 +247,7 @@ describe('Migration 0072: competition dates to text', () => {
 
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
@@ -297,7 +297,7 @@ describe('Migration 0072: competition dates to text', () => {
 
     const migrationPath = join(
       process.cwd(),
-      'src/db/migrations/0072_competition-dates-to-text.sql',
+      'src/db/migrations/0072_competition-dates-to-text.sql.skip',
     )
     const migration = readFileSync(migrationPath, 'utf-8')
     db.exec(migration)
