@@ -1,19 +1,15 @@
--- Migration: Convert competition date fields from INTEGER timestamps to TEXT (YYYY-MM-DD)
--- This eliminates timezone bugs where UTC midnight timestamps display incorrectly in local time
+-- Manual migration script for 0072_competition-dates-to-text
+-- This must be run manually because D1 migrations through Alchemy don't preserve PRAGMA state
+--
+-- Run with: wrangler d1 execute wodsmith-prod --file=scripts/manual-migration-0072.sql
+--
+-- IMPORTANT: This should be run in a single transaction to ensure PRAGMA foreign_keys=OFF applies
 
--- SQLite doesn't support ALTER COLUMN, so we need to:
--- 1. Disable foreign key constraints (to allow dropping table with FK references)
--- 2. Create a new table with the correct schema
--- 3. Copy data with conversion
--- 4. Drop old table
--- 5. Rename new table
--- 6. Recreate indexes
--- 7. Re-enable foreign key constraints
+BEGIN TRANSACTION;
 
--- Disable foreign key constraints temporarily
-PRAGMA foreign_keys = OFF;
+PRAGMA foreign_keys=OFF;
 
--- Create new table with TEXT date columns (matches current schema with camelCase)
+-- Create new table with TEXT date columns
 CREATE TABLE "competitions_new" (
     "id" text PRIMARY KEY NOT NULL,
     "createdAt" integer DEFAULT (unixepoch()) NOT NULL,
@@ -43,22 +39,11 @@ CREATE TABLE "competitions_new" (
     "defaultLaneShiftPattern" text(20) DEFAULT 'stay'
 );
 
--- Copy data, converting timestamps to YYYY-MM-DD strings (ISO 8601)
-INSERT INTO "competitions_new" (
+-- Copy data with timestamp conversion
+INSERT INTO "competitions_new" SELECT
     "id", "createdAt", "updatedAt", "updateCounter",
     "organizingTeamId", "competitionTeamId", "groupId",
     "slug", "name", "description",
-    "startDate", "endDate", "registrationOpensAt", "registrationClosesAt",
-    "settings", "defaultRegistrationFeeCents", "platformFeePercentage", "platformFeeFixed",
-    "passStripeFeesToCustomer", "passPlatformFeesToCustomer",
-    "visibility", "status", "profileImageUrl", "bannerImageUrl",
-    "defaultHeatsPerRotation", "defaultLaneShiftPattern"
-)
-SELECT
-    "id", "createdAt", "updatedAt", "updateCounter",
-    "organizingTeamId", "competitionTeamId", "groupId",
-    "slug", "name", "description",
-    -- Convert timestamps to YYYY-MM-DD strings (handle both integer timestamps and existing text)
     CASE
         WHEN typeof("startDate") = 'integer' THEN strftime('%Y-%m-%d', "startDate", 'unixepoch')
         ELSE "startDate"
@@ -83,7 +68,7 @@ SELECT
     "defaultHeatsPerRotation", "defaultLaneShiftPattern"
 FROM "competitions";
 
--- Drop old table and rename new one
+-- Drop old table and rename
 DROP TABLE "competitions";
 ALTER TABLE "competitions_new" RENAME TO "competitions";
 
@@ -93,5 +78,10 @@ CREATE INDEX "competitions_group_idx" ON "competitions" ("groupId");
 CREATE INDEX "competitions_status_idx" ON "competitions" ("status");
 CREATE INDEX "competitions_start_date_idx" ON "competitions" ("startDate");
 
--- Re-enable foreign key constraints
-PRAGMA foreign_keys = ON;
+-- Mark migration as applied in d1_migrations table
+INSERT INTO "d1_migrations" ("id", "name", "applied_at")
+VALUES (72, '0072_competition-dates-to-text', CURRENT_TIMESTAMP);
+
+PRAGMA foreign_keys=ON;
+
+COMMIT;
