@@ -40,7 +40,6 @@ export const athleteProfileExtendedSchema = z.object({
 
 	// Extended profile fields (stored as JSON)
 	preferredUnits: z.enum(["imperial", "metric"]).optional(),
-	timezone: z.string().max(50).optional(), // IANA timezone (e.g., "America/Denver")
 	heightCm: z.number().positive().optional(),
 	weightKg: z.number().positive().optional(),
 	coverImageUrl: z.string().optional(),

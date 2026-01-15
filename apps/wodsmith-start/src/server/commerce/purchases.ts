@@ -32,7 +32,7 @@ export type PurchaseWithDetails = {
 		id: string
 		name: string
 		slug: string
-		startDate: string | null // YYYY-MM-DD format
+		startDate: Date | null
 		organizingTeam: {
 			name: string
 		} | null

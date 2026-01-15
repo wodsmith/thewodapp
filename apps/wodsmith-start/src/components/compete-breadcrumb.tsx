@@ -119,7 +119,7 @@ export function CompeteBreadcrumb({
 		currentPath += `/${segment}`
 
 		// Get label - check dynamic labels first, then predefined, then format
-		const label = dynamicLabels[segment] || getSegmentLabel(segment)
+		let label = dynamicLabels[segment] || getSegmentLabel(segment)
 
 		// Skip segments with no label (unresolved dynamic segments)
 		if (!label) {

@@ -28,7 +28,7 @@ import {
 	type AllEventsResultsStatusResponse,
 	getDivisionResultsStatusFn,
 } from "@/server-fns/division-results-fns"
-import { formatUTCDateFull, getLocalDateKey, isSameUTCDay } from "@/utils/date-utils"
+import { formatUTCDateFull, isSameUTCDay } from "@/utils/date-utils"
 import { QuickActionsDivisionResults } from "./-components/quick-actions-division-results"
 import { QuickActionsEvents } from "./-components/quick-actions-events"
 import { QuickActionsHeats } from "./-components/quick-actions-heats"
@@ -108,20 +108,8 @@ function CompetitionOverviewPage() {
 	// Get competition from parent layout loader data
 	const { competition } = parentRoute.useLoaderData()
 
-	// Format datetime for display (local time for timestamps, or YYYY-MM-DD strings)
-	const formatDateTime = (date: string | Date) => {
-		// Handle YYYY-MM-DD string format
-		if (typeof date === "string") {
-			const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-			if (match) {
-				const [, yearStr, monthStr, dayStr] = match
-				const year = Number(yearStr)
-				const month = Number(monthStr)
-				const day = Number(dayStr)
-				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-				return `${months[month - 1]} ${day}, ${year}`
-			}
-		}
+	// Format datetime for display (local time for timestamps)
+	const formatDateTime = (date: Date) => {
 		return new Date(date).toLocaleDateString(undefined, {
 			year: "numeric",
 			month: "long",
@@ -131,16 +119,16 @@ function CompetitionOverviewPage() {
 		})
 	}
 
-	// Calculate registration status using string comparison for YYYY-MM-DD dates
+	// Calculate registration status
 	const getRegistrationStatusText = () => {
 		if (!competition.registrationOpensAt || !competition.registrationClosesAt) {
 			return null
 		}
-		const todayStr = getLocalDateKey(new Date())
-		if (todayStr < competition.registrationOpensAt) {
+		const now = new Date()
+		if (now < new Date(competition.registrationOpensAt)) {
 			return "Not yet open"
 		}
-		if (todayStr > competition.registrationClosesAt) {
+		if (now > new Date(competition.registrationClosesAt)) {
 			return "Closed"
 		}
 		return "Open"

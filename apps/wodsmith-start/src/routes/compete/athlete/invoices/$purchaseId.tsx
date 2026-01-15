@@ -46,25 +46,8 @@ function formatCurrency(cents: number): string {
 	}).format(cents / 100)
 }
 
-function formatDate(date: string | Date | null): string {
+function formatDate(date: Date | null): string {
 	if (!date) return "-"
-
-	// Handle YYYY-MM-DD string format
-	if (typeof date === "string") {
-		const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-		if (match) {
-			const [, yearStr, monthStr, dayStr] = match
-			const year = Number(yearStr)
-			const month = Number(monthStr)
-			const day = Number(dayStr)
-			// Validate month range to prevent undefined access
-			if (month < 1 || month > 12) return "-"
-			const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-			return `${months[month - 1]} ${day}, ${year}`
-		}
-		return "-"
-	}
-
 	return new Intl.DateTimeFormat("en-US", {
 		year: "numeric",
 		month: "long",

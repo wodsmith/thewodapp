@@ -2,7 +2,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Loader2, User, Users } from "lucide-react"
-import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
+import { isSameUTCDay } from "@/utils/date-utils"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -75,8 +75,8 @@ type Props = {
 	publicDivisions: PublicCompetitionDivision[]
 	userId: string
 	registrationOpen: boolean
-	registrationOpensAt: string | null // YYYY-MM-DD format
-	registrationClosesAt: string | null // YYYY-MM-DD format
+	registrationOpensAt: Date | null
+	registrationClosesAt: Date | null
 	paymentCanceled?: boolean
 	defaultAffiliateName?: string
 	waivers: Waiver[]
@@ -304,26 +304,8 @@ export function RegistrationForm({
 		}
 	}
 
-	const formatDate = (date: string | Date | number | null): string => {
+	const formatDate = (date: Date | number | null): string => {
 		if (!date) return "TBA"
-
-		// Handle YYYY-MM-DD string format
-		if (typeof date === "string") {
-			const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-			if (match) {
-				const [, yearStr, monthStr, dayStr] = match
-				const year = Number(yearStr)
-				const monthNum = Number(monthStr)
-				const day = Number(dayStr)
-				// Create Date object in UTC to get weekday
-				const d = new Date(Date.UTC(year, monthNum - 1, day))
-				const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-				return `${weekdays[d.getUTCDay()]}, ${months[monthNum - 1]} ${day}, ${year}`
-			}
-			return "TBA"
-		}
-
 		const d = typeof date === "number" ? new Date(date) : date
 		return d.toLocaleDateString("en-US", {
 			weekday: "long",
@@ -338,14 +320,11 @@ export function RegistrationForm({
 			return "Registration dates have not been set yet."
 		}
 
-		// Get today as YYYY-MM-DD for string comparison
 		const now = new Date()
-		const todayStr = getLocalDateKey(now)
-
-		if (todayStr < registrationOpensAt) {
+		if (now < registrationOpensAt) {
 			return `Registration opens ${formatDate(registrationOpensAt)} and closes ${formatDate(registrationClosesAt)}`
 		}
-		if (todayStr > registrationClosesAt) {
+		if (now > registrationClosesAt) {
 			return `Registration was open from ${formatDate(registrationOpensAt)} to ${formatDate(registrationClosesAt)}`
 		}
 		return null
@@ -381,12 +360,12 @@ export function RegistrationForm({
 				<CardContent className="space-y-2">
 					<div>
 						<p className="text-muted-foreground text-sm">
-							{isSameDateString(competition.startDate, competition.endDate)
+							{isSameUTCDay(competition.startDate, competition.endDate)
 								? "Competition Date"
 								: "Competition Dates"}
 						</p>
 						<p className="font-medium">
-							{isSameDateString(competition.startDate, competition.endDate)
+							{isSameUTCDay(competition.startDate, competition.endDate)
 								? formatDate(competition.startDate)
 								: `${formatDate(competition.startDate)} - ${formatDate(competition.endDate)}`}
 						</p>

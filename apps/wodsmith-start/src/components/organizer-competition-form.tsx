@@ -30,10 +30,7 @@ import {
 	createCompetitionFn,
 	updateCompetitionFn,
 } from "@/server-fns/competition-fns"
-import {
-	COMMON_US_TIMEZONES,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
+import { parseDateInputAsUTC } from "@/utils/date-utils"
 
 const formSchema = z
 	.object({
@@ -59,7 +56,6 @@ const formSchema = z
 		groupId: z.string().optional(),
 		visibility: z.enum(["public", "private"]).optional(),
 		status: z.enum(["draft", "published"]).optional(),
-		timezone: z.string().min(1, "Timezone is required"),
 	})
 	.refine(
 		(data) => {
@@ -160,7 +156,6 @@ export function OrganizerCompetitionForm({
 			groupId: competition?.groupId ?? "",
 			visibility: competition?.visibility ?? "public",
 			status: competition?.status ?? "draft",
-			timezone: competition?.timezone ?? DEFAULT_TIMEZONE,
 		},
 	})
 
@@ -194,15 +189,18 @@ export function OrganizerCompetitionForm({
 						competitionId: competition.id,
 						name: data.name,
 						slug: data.slug,
-						startDate: data.startDate,
-						endDate: effectiveEndDate,
+						startDate: parseDateInputAsUTC(data.startDate),
+						endDate: parseDateInputAsUTC(effectiveEndDate),
 						description: data.description || null,
-						registrationOpensAt: data.registrationOpensAt || null,
-						registrationClosesAt: data.registrationClosesAt || null,
+						registrationOpensAt: data.registrationOpensAt
+							? parseDateInputAsUTC(data.registrationOpensAt)
+							: null,
+						registrationClosesAt: data.registrationClosesAt
+							? parseDateInputAsUTC(data.registrationClosesAt)
+							: null,
 						groupId: data.groupId || null,
 						visibility: data.visibility,
 						status: data.status,
-						timezone: data.timezone,
 					},
 				})
 
@@ -218,13 +216,16 @@ export function OrganizerCompetitionForm({
 						organizingTeamId: data.teamId,
 						name: data.name,
 						slug: data.slug,
-						startDate: data.startDate,
-						endDate: effectiveEndDate,
+						startDate: parseDateInputAsUTC(data.startDate),
+						endDate: parseDateInputAsUTC(effectiveEndDate),
 						description: data.description,
-						registrationOpensAt: data.registrationOpensAt || undefined,
-						registrationClosesAt: data.registrationClosesAt || undefined,
+						registrationOpensAt: data.registrationOpensAt
+							? parseDateInputAsUTC(data.registrationOpensAt)
+							: undefined,
+						registrationClosesAt: data.registrationClosesAt
+							? parseDateInputAsUTC(data.registrationClosesAt)
+							: undefined,
 						groupId: data.groupId || undefined,
-						timezone: data.timezone,
 					},
 				})
 
@@ -468,35 +469,6 @@ export function OrganizerCompetitionForm({
 					/>
 				</div>
 
-				{/* Timezone */}
-				<FormField
-					control={form.control}
-					name="timezone"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Timezone</FormLabel>
-							<Select onValueChange={field.onChange} value={field.value}>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select timezone" />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									{COMMON_US_TIMEZONES.map((tz) => (
-										<SelectItem key={tz.value} value={tz.value}>
-											{tz.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FormDescription>
-								All dates and times will be interpreted in this timezone
-							</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
 				{/* Description */}
 				<FormField
 					control={form.control}
@@ -601,22 +573,10 @@ export function OrganizerCompetitionForm({
 }
 
 /**
- * Format a date for HTML input. Now that dates are stored as YYYY-MM-DD strings,
- * this is just a passthrough for strings. Kept for backwards compatibility with Date objects.
+ * Helper function to format a Date or timestamp for HTML date input (YYYY-MM-DD)
  */
-function formatDateForInput(date: Date | string | number | null | undefined): string {
+function formatDateForInput(date: Date | number | null | undefined): string {
 	if (!date) return ""
-	// If already a YYYY-MM-DD string, return as-is
-	if (typeof date === "string") {
-		if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
-		// Try to parse other string formats
-		const d = new Date(date)
-		if (Number.isNaN(d.getTime())) return ""
-		const year = d.getUTCFullYear()
-		const month = String(d.getUTCMonth() + 1).padStart(2, "0")
-		const day = String(d.getUTCDate()).padStart(2, "0")
-		return `${year}-${month}-${day}`
-	}
 	const d = date instanceof Date ? date : new Date(date)
 	if (Number.isNaN(d.getTime())) return ""
 

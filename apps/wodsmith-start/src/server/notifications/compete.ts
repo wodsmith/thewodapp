@@ -8,7 +8,6 @@
 
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
-import { formatDateStringWithWeekday } from "@/utils/date-utils"
 import {
 	competitionRegistrationsTable,
 	competitionsTable,
@@ -35,18 +34,9 @@ function formatCents(cents: number): string {
 }
 
 /**
- * Format date for email display.
- * Handles both YYYY-MM-DD strings (new format) and Date objects (legacy).
+ * Format date for email display using UTC to preserve calendar date.
  */
-function formatDate(date: string | Date | null | undefined): string {
-	if (!date) return ""
-
-	// Handle YYYY-MM-DD string format using validated utility
-	if (typeof date === "string") {
-		return formatDateStringWithWeekday(date)
-	}
-
-	// Handle Date object (legacy)
+function formatDate(date: Date): string {
 	const weekdays = [
 		"Sunday",
 		"Monday",
@@ -70,6 +60,7 @@ function formatDate(date: string | Date | null | undefined): string {
 		"November",
 		"December",
 	]
+
 	const weekday = weekdays[date.getUTCDay()]
 	const month = months[date.getUTCMonth()]
 	const day = date.getUTCDate()

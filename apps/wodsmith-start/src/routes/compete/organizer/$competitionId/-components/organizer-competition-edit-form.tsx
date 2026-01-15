@@ -31,24 +31,16 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
-import {
-	COMMON_US_TIMEZONES,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
+import { parseDateInputAsUTC } from "@/utils/date-utils"
 
 /**
- * Format a date value for HTML date inputs.
- * Handles YYYY-MM-DD strings (new format) or Date objects (legacy).
+ * Format a Date to YYYY-MM-DD string for HTML date inputs.
+ * Uses UTC methods to preserve the calendar date stored in the database.
  */
-function formatDateForInput(
+function formatDateInputFromUTC(
 	date: Date | string | number | null | undefined,
 ): string {
 	if (date == null) return ""
-	// If already a YYYY-MM-DD string, return as-is
-	if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-		return date
-	}
-	// Handle Date objects or timestamps (legacy)
 	const d = date instanceof Date ? date : new Date(date)
 	if (Number.isNaN(d.getTime())) return ""
 	const year = d.getUTCFullYear()
@@ -80,7 +72,6 @@ const formSchema = z
 		groupId: z.string().nullable().optional(),
 		visibility: z.enum(["public", "private"]),
 		status: z.enum(["draft", "published"]),
-		timezone: z.string().min(1, "Timezone is required"),
 	})
 	.refine(
 		(data) => {
@@ -149,8 +140,8 @@ export function OrganizerCompetitionEditForm({
 
 	// Determine if existing competition is multi-day (start and end dates differ)
 	const existingIsMultiDay =
-		formatDateForInput(competition.startDate) !==
-		formatDateForInput(competition.endDate)
+		formatDateInputFromUTC(competition.startDate) !==
+		formatDateInputFromUTC(competition.endDate)
 
 	const form = useForm<FormValues>({
 		resolver: standardSchemaResolver(formSchema),
@@ -158,19 +149,18 @@ export function OrganizerCompetitionEditForm({
 			name: competition.name,
 			slug: competition.slug,
 			isMultiDay: existingIsMultiDay,
-			startDate: formatDateForInput(competition.startDate),
-			endDate: formatDateForInput(competition.endDate),
+			startDate: formatDateInputFromUTC(competition.startDate),
+			endDate: formatDateInputFromUTC(competition.endDate),
 			description: competition.description || "",
-			registrationOpensAt: formatDateForInput(
+			registrationOpensAt: formatDateInputFromUTC(
 				competition.registrationOpensAt,
 			),
-			registrationClosesAt: formatDateForInput(
+			registrationClosesAt: formatDateInputFromUTC(
 				competition.registrationClosesAt,
 			),
 			groupId: competition.groupId ?? undefined,
 			visibility: competition.visibility ?? "public",
 			status: competition.status ?? "draft",
-			timezone: competition.timezone ?? DEFAULT_TIMEZONE,
 		},
 	})
 
@@ -200,17 +190,20 @@ export function OrganizerCompetitionEditForm({
 					competitionId: competition.id,
 					name: data.name,
 					slug: data.slug,
-					startDate: data.startDate,
-					endDate: effectiveEndDate,
+					startDate: parseDateInputAsUTC(data.startDate),
+					endDate: parseDateInputAsUTC(effectiveEndDate),
 					description: data.description || null,
-					registrationOpensAt: data.registrationOpensAt || null,
-					registrationClosesAt: data.registrationClosesAt || null,
+					registrationOpensAt: data.registrationOpensAt
+						? parseDateInputAsUTC(data.registrationOpensAt)
+						: null,
+					registrationClosesAt: data.registrationClosesAt
+						? parseDateInputAsUTC(data.registrationClosesAt)
+						: null,
 					groupId: data.groupId,
 					visibility: data.visibility,
 					status: data.status,
 					profileImageUrl,
 					bannerImageUrl,
-					timezone: data.timezone,
 				},
 			})
 			toast.success("Competition updated successfully")
@@ -449,35 +442,6 @@ export function OrganizerCompetitionEditForm({
 						)}
 					/>
 				</div>
-
-				{/* Timezone */}
-				<FormField
-					control={form.control}
-					name="timezone"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Timezone</FormLabel>
-							<Select onValueChange={field.onChange} value={field.value}>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select timezone" />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									{COMMON_US_TIMEZONES.map((tz) => (
-										<SelectItem key={tz.value} value={tz.value}>
-											{tz.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FormDescription>
-								All dates and times will be interpreted in this timezone
-							</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
 
 				<FormField
 					control={form.control}

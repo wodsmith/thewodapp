@@ -40,11 +40,6 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
-import {
-	hasDateStartedInTimezone,
-	isDeadlinePassedInTimezone,
-	DEFAULT_TIMEZONE,
-} from "@/utils/timezone-utils"
 import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
 
 // ============================================================================
@@ -107,21 +102,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 		if (!competition) throw new Error("Competition not found")
 
-		// 2. Validate registration window (using competition's timezone)
-		const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
+		// 2. Validate registration window
+		const now = new Date()
 		if (
-			!hasDateStartedInTimezone(
-				competition.registrationOpensAt,
-				competitionTimezone,
-			)
+			competition.registrationOpensAt &&
+			new Date(competition.registrationOpensAt) > now
 		) {
 			throw new Error("Registration has not opened yet")
 		}
 		if (
-			isDeadlinePassedInTimezone(
-				competition.registrationClosesAt,
-				competitionTimezone,
-			)
+			competition.registrationClosesAt &&
+			new Date(competition.registrationClosesAt) < now
 		) {
 			throw new Error("Registration has closed")
 		}

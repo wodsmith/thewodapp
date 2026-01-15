@@ -9,11 +9,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-	formatDateStringFull,
-	getLocalDateKey,
-	isSameDateString,
-} from "@/utils/date-utils"
+import { formatUTCDateFull, isSameUTCDay } from "@/utils/date-utils"
 
 interface CompetitionHeaderProps {
 	competition: {
@@ -21,33 +17,39 @@ interface CompetitionHeaderProps {
 		name: string
 		slug: string
 		description: string | null
-		startDate: string // YYYY-MM-DD format
-		endDate: string // YYYY-MM-DD format
-		registrationOpensAt: string | null // YYYY-MM-DD format
-		registrationClosesAt: string | null // YYYY-MM-DD format
+		startDate: Date
+		endDate: Date
+		registrationOpensAt: Date | null
+		registrationClosesAt: Date | null
 		visibility: "public" | "private"
 		status: "draft" | "published"
 	}
 }
 
-function formatDateTime(date: string): string {
-	return formatDateStringFull(date) || date
+function formatDateTime(date: Date): string {
+	return new Date(date).toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	})
 }
 
 function getRegistrationStatus(
-	opensAt: string | null,
-	closesAt: string | null,
+	opensAt: Date | null,
+	closesAt: Date | null,
 ): { label: string; variant: "default" | "secondary" | "destructive" } | null {
 	if (!opensAt || !closesAt) return null
 
-	// Get today as YYYY-MM-DD for comparison
 	const now = new Date()
-	const todayStr = getLocalDateKey(now)
+	const opens = new Date(opensAt)
+	const closes = new Date(closesAt)
 
-	if (todayStr < opensAt) {
+	if (now < opens) {
 		return { label: "Not Yet Open", variant: "secondary" }
 	}
-	if (todayStr > closesAt) {
+	if (now > closes) {
 		return { label: "Closed", variant: "destructive" }
 	}
 	return { label: "Open", variant: "default" }
@@ -94,9 +96,9 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
 					<div className="flex items-center gap-2">
 						<Calendar className="h-4 w-4" />
 						<span>
-							{isSameDateString(competition.startDate, competition.endDate)
-								? formatDateStringFull(competition.startDate)
-								: `${formatDateStringFull(competition.startDate)} - ${formatDateStringFull(competition.endDate)}`}
+							{isSameUTCDay(competition.startDate, competition.endDate)
+								? formatUTCDateFull(competition.startDate)
+								: `${formatUTCDateFull(competition.startDate)} - ${formatUTCDateFull(competition.endDate)}`}
 						</span>
 					</div>
 					{competition.registrationOpensAt &&

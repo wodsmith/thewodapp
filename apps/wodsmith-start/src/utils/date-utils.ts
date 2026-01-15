@@ -1,15 +1,6 @@
 /**
  * Utility functions for handling dates consistently across the app
- *
- * Uses date-fns for all formatting and parsing operations.
- * Format tokens:
- *   - "MMM d, yyyy" → "Jan 15, 2024"
- *   - "MMMM d, yyyy" → "January 15, 2024"
- *   - "MMM d" → "Jan 15"
- *   - "EEEE, MMMM d, yyyy" → "Monday, January 15, 2024"
  */
-import { parse, isValid, format } from "date-fns"
-import { formatInTimeZone } from "date-fns-tz"
 
 /**
  * Get the start of day in local timezone
@@ -105,7 +96,21 @@ export function formatUTCDateShort(
 	const d = date instanceof Date ? date : new Date(date)
 	if (Number.isNaN(d.getTime())) return ""
 
-	return formatInTimeZone(d, "UTC", "MMM d")
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`
 }
 
 /**
@@ -119,7 +124,21 @@ export function formatUTCDateFull(
 	const d = date instanceof Date ? date : new Date(date)
 	if (Number.isNaN(d.getTime())) return ""
 
-	return formatInTimeZone(d, "UTC", "MMM d, yyyy")
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	]
+	return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`
 }
 
 /**
@@ -147,8 +166,25 @@ export function formatUTCDateRange(
 		startDate instanceof Date ? startDate : new Date(startDate as string)
 	const end = endDate instanceof Date ? endDate : new Date(endDate as string)
 
+	const months = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December",
+	]
+
+	const startMonth = months[start.getUTCMonth()]
 	const startDay = start.getUTCDate()
 	const startYear = start.getUTCFullYear()
+	const endMonth = months[end.getUTCMonth()]
 	const endDay = end.getUTCDate()
 	const endYear = end.getUTCFullYear()
 
@@ -158,227 +194,19 @@ export function formatUTCDateRange(
 		start.getUTCMonth() === end.getUTCMonth() &&
 		startYear === endYear
 	) {
-		return formatInTimeZone(start, "UTC", "MMMM d, yyyy")
+		return `${startMonth} ${startDay}, ${startYear}`
 	}
 
 	// Same month and year
 	if (start.getUTCMonth() === end.getUTCMonth() && startYear === endYear) {
-		return `${formatInTimeZone(start, "UTC", "MMMM")} ${startDay}-${endDay}, ${startYear}`
+		return `${startMonth} ${startDay}-${endDay}, ${startYear}`
 	}
 
 	// Same year, different months
 	if (startYear === endYear) {
-		return `${formatInTimeZone(start, "UTC", "MMMM d")} - ${formatInTimeZone(end, "UTC", "MMMM d")}, ${startYear}`
+		return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${startYear}`
 	}
 
 	// Different years
-	return `${formatInTimeZone(start, "UTC", "MMMM d, yyyy")} - ${formatInTimeZone(end, "UTC", "MMMM d, yyyy")}`
-}
-
-// ============================================================================
-// String-based date utilities for YYYY-MM-DD format
-// ============================================================================
-
-/**
- * Format a date string (YYYY-MM-DD) for full display (e.g., "Jan 15, 2024").
- * Works directly with date strings without timezone conversion.
- */
-export function formatDateStringFull(
-	dateStr: string | null | undefined,
-): string {
-	if (!dateStr) return ""
-
-	const parsed = parse(dateStr, "yyyy-MM-dd", new Date())
-	if (!isValid(parsed)) return ""
-
-	// Verify parsed date matches input (catches invalid dates like Feb 30)
-	if (format(parsed, "yyyy-MM-dd") !== dateStr) return ""
-
-	return format(parsed, "MMM d, yyyy")
-}
-
-/**
- * Format a date string (YYYY-MM-DD) for short display (e.g., "Jan 15").
- * Works directly with date strings without timezone conversion.
- */
-export function formatDateStringShort(
-	dateStr: string | null | undefined,
-): string {
-	if (!dateStr) return ""
-
-	const parsed = parse(dateStr, "yyyy-MM-dd", new Date())
-	if (!isValid(parsed)) return ""
-
-	// Verify parsed date matches input (catches invalid dates like Feb 30)
-	if (format(parsed, "yyyy-MM-dd") !== dateStr) return ""
-
-	return format(parsed, "MMM d")
-}
-
-/**
- * Format a date range from YYYY-MM-DD strings for display.
- * Handles single-day events, same month, different months, and different years.
- */
-export function formatDateStringRange(
-	startDateStr: string,
-	endDateStr: string,
-): string {
-	const startParsed = parse(startDateStr, "yyyy-MM-dd", new Date())
-	const endParsed = parse(endDateStr, "yyyy-MM-dd", new Date())
-
-	if (!isValid(startParsed) || !isValid(endParsed)) return ""
-
-	// Verify parsed dates match input (catches invalid dates)
-	if (
-		format(startParsed, "yyyy-MM-dd") !== startDateStr ||
-		format(endParsed, "yyyy-MM-dd") !== endDateStr
-	) {
-		return ""
-	}
-
-	const startYear = startParsed.getFullYear()
-	const startMonth = startParsed.getMonth()
-	const startDay = startParsed.getDate()
-	const endYear = endParsed.getFullYear()
-	const endMonth = endParsed.getMonth()
-	const endDay = endParsed.getDate()
-
-	// Single-day event
-	if (startDateStr === endDateStr) {
-		return format(startParsed, "MMMM d, yyyy")
-	}
-
-	// Same month and year
-	if (startMonth === endMonth && startYear === endYear) {
-		return `${format(startParsed, "MMMM")} ${startDay}-${endDay}, ${startYear}`
-	}
-
-	// Same year, different months
-	if (startYear === endYear) {
-		return `${format(startParsed, "MMMM d")} - ${format(endParsed, "MMMM d")}, ${startYear}`
-	}
-
-	// Different years
-	return `${format(startParsed, "MMMM d, yyyy")} - ${format(endParsed, "MMMM d, yyyy")}`
-}
-
-/**
- * Check if two date strings (YYYY-MM-DD) represent the same date.
- */
-export function isSameDateString(
-	date1: string | null | undefined,
-	date2: string | null | undefined,
-): boolean {
-	if (!date1 || !date2) return false
-	return date1 === date2
-}
-
-// ============================================================================
-// Safe date parsing utilities using date-fns
-// ============================================================================
-
-/**
- * Parse a YYYY-MM-DD string into its components.
- * Returns null if the string format is invalid or the date doesn't exist.
- * Uses date-fns for validation to catch invalid dates like Feb 30.
- */
-export function parseDateString(
-	dateStr: string | null | undefined,
-): { year: number; month: number; day: number } | null {
-	if (!dateStr) return null
-
-	// Use date-fns parse to validate the date
-	const parsed = parse(dateStr, "yyyy-MM-dd", new Date())
-	if (!isValid(parsed)) return null
-
-	// Verify it matches the original string (catches cases like "2024-02-30" normalizing to March)
-	const formatted = format(parsed, "yyyy-MM-dd")
-	if (formatted !== dateStr) return null
-
-	return {
-		year: parsed.getFullYear(),
-		month: parsed.getMonth() + 1, // 1-indexed
-		day: parsed.getDate(),
-	}
-}
-
-/**
- * Check if a YYYY-MM-DD string represents a valid date.
- * Returns false for invalid dates like "2024-13-01" or "2024-02-30".
- */
-export function isValidDateString(
-	dateStr: string | null | undefined,
-): boolean {
-	return parseDateString(dateStr) !== null
-}
-
-/**
- * Get the end of day (23:59:59.999 UTC) for a YYYY-MM-DD string.
- * Use this for deadline comparisons to ensure consistent behavior across timezones.
- * Returns null if the date string is invalid.
- */
-export function getEndOfDayUTC(dateStr: string | null | undefined): Date | null {
-	const parts = parseDateString(dateStr)
-	if (!parts) return null
-
-	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 23, 59, 59, 999))
-}
-
-/**
- * Get the start of day (00:00:00.000 UTC) for a YYYY-MM-DD string.
- * Returns null if the date string is invalid.
- */
-export function getStartOfDayUTC(dateStr: string | null | undefined): Date | null {
-	const parts = parseDateString(dateStr)
-	if (!parts) return null
-
-	return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0))
-}
-
-/**
- * Get today's date as a YYYY-MM-DD string in UTC.
- */
-export function getTodayStringUTC(): string {
-	const now = new Date()
-	return formatInTimeZone(now, "UTC", "yyyy-MM-dd")
-}
-
-/**
- * Compare a YYYY-MM-DD deadline string against the current time.
- * Returns true if the deadline has passed (current time is after end of day UTC).
- */
-export function isDeadlinePassed(deadlineStr: string | null | undefined): boolean {
-	const deadline = getEndOfDayUTC(deadlineStr)
-	if (!deadline) return false
-	return new Date() > deadline
-}
-
-/**
- * Get the weekday name for a YYYY-MM-DD string.
- * Returns null if the date string is invalid.
- */
-export function getWeekdayFromDateString(
-	dateStr: string | null | undefined,
-): string | null {
-	const parts = parseDateString(dateStr)
-	if (!parts) return null
-
-	// Create local date and format in UTC to get consistent weekday
-	const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
-	return formatInTimeZone(d, "UTC", "EEEE")
-}
-
-/**
- * Format a YYYY-MM-DD string with weekday (e.g., "Monday, January 15, 2024").
- * Returns empty string if the date is invalid.
- */
-export function formatDateStringWithWeekday(
-	dateStr: string | null | undefined,
-): string {
-	const parts = parseDateString(dateStr)
-	if (!parts) return ""
-
-	// Create UTC date and format in UTC to ensure consistent output
-	const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
-	return formatInTimeZone(d, "UTC", "EEEE, MMMM d, yyyy")
+	return `${startMonth} ${startDay}, ${startYear} - ${endMonth} ${endDay}, ${endYear}`
 }

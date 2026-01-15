@@ -8,11 +8,6 @@ import {
 	getScheduledWorkoutsWithResultsFn,
 	type ScheduledWorkoutWithResult,
 } from "@/server-fns/workout-fns"
-import {
-	endOfLocalDay,
-	getLocalDateKey,
-	startOfLocalDay,
-} from "@/utils/date-utils"
 
 type ViewMode = "daily" | "weekly"
 
@@ -20,6 +15,26 @@ interface ScheduledWorkoutsSectionProps {
 	teamId: string
 	userId: string
 	initialWorkouts?: ScheduledWorkoutWithResult[]
+}
+
+// Helper to get local date key (YYYY-MM-DD)
+function getLocalDateKey(date: Date): string {
+	const d = new Date(date)
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+// Helper to get start of local day
+function startOfLocalDay(date: Date = new Date()): Date {
+	const d = new Date(date)
+	d.setHours(0, 0, 0, 0)
+	return d
+}
+
+// Helper to get end of local day
+function endOfLocalDay(date: Date = new Date()): Date {
+	const d = new Date(date)
+	d.setHours(23, 59, 59, 999)
+	return d
 }
 
 // Helper to get start of local week (Sunday)
