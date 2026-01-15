@@ -517,21 +517,7 @@
       "idx": 71,
       "version": "6",
       "when": 1767629400000,
-      "tag": "0071_add-division-capacity",
-      "breakpoints": true
-    },
-    {
-      "idx": 72,
-      "version": "6",
-      "when": 1767629400001,
-      "tag": "0072_competition-dates-to-text",
-      "breakpoints": true
-    },
-    {
-      "idx": 73,
-      "version": "6",
-      "when": 1767629400002,
-      "tag": "0073_add-competition-timezone",
+      "tag": "0071_competition-dates-to-text",
       "breakpoints": true
     }
   ]
