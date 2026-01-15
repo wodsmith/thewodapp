@@ -2,10 +2,16 @@
 -- This eliminates timezone bugs where UTC midnight timestamps display incorrectly in local time
 
 -- SQLite doesn't support ALTER COLUMN, so we need to:
--- 1. Create a new table with the correct schema
--- 2. Copy data with conversion
--- 3. Drop old table
--- 4. Rename new table
+-- 1. Disable foreign key constraints (to allow dropping table with FK references)
+-- 2. Create a new table with the correct schema
+-- 3. Copy data with conversion
+-- 4. Drop old table
+-- 5. Rename new table
+-- 6. Recreate indexes
+-- 7. Re-enable foreign key constraints
+
+-- Disable foreign key constraints temporarily
+PRAGMA foreign_keys = OFF;
 
 -- Create new table with TEXT date columns (matches current schema with camelCase)
 CREATE TABLE "competitions_new" (
@@ -86,3 +92,6 @@ CREATE INDEX "competitions_organizing_team_idx" ON "competitions" ("organizingTe
 CREATE INDEX "competitions_group_idx" ON "competitions" ("groupId");
 CREATE INDEX "competitions_status_idx" ON "competitions" ("status");
 CREATE INDEX "competitions_start_date_idx" ON "competitions" ("startDate");
+
+-- Re-enable foreign key constraints
+PRAGMA foreign_keys = ON;
