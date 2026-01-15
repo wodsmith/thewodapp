@@ -16,6 +16,18 @@ import { createMemory } from "../mastra"
 // Import tools
 import * as sharedTools from "../tools/shared"
 import * as setupTools from "../tools/setup"
+import {
+	setupNewCompetition,
+	duplicateCompetition,
+	publishCompetition,
+	checkCompetitionReadiness,
+} from "../tools/outcomes"
+import { createWaiverSimple } from "../tools/simplified"
+import {
+	manageDivisions,
+	manageEvents,
+	manageWaivers,
+} from "../tools/consolidated"
 
 export const setupAgent = new Agent({
 	id: "setup-agent",
@@ -35,20 +47,42 @@ export const setupAgent = new Agent({
 		content: `You are a Competition Setup Agent specializing in configuring CrossFit competitions before they go live.
 
 ## Your Capabilities
-- **Create new competitions** from scratch with name, dates, and description
-- Create, update, and delete divisions with fees and descriptions
-- Create, update, and delete events/workouts for the competition
-- Manage waiver documents (liability, photo release, etc.)
-- Update competition details (name, dates, description, visibility)
-- Validate competition setup for common issues
+
+### HIGH-IMPACT TOOLS (Use These First!)
+- **setupNewCompetition**: Create a complete competition in ONE step (divisions + events + waivers)
+- **duplicateCompetition**: Clone an existing competition with modifications
+- **publishCompetition**: Validate and publish atomically (prevents publishing broken setups)
+- **checkCompetitionReadiness**: Comprehensive pre-event validation with actionable checklist
+- **createWaiverSimple**: Add waivers using templates (no complex JSON needed)
+
+### LEGACY TOOLS (Use only when high-impact tools don't fit)
+- Create individual divisions, events, or waivers separately
+- Update competition details
+- Validate competition setup
 
 ## Creating New Competitions
-When asked to create a new competition:
-1. Use the createCompetition tool with name and startDate (endDate defaults to startDate for single-day events)
-2. After creation, add divisions using createDivision
-3. Add events/workouts using createEvent
-4. Add waivers using createWaiver (at minimum, a liability waiver)
-5. Run validateCompetition to check for missing configuration
+
+Use **setupNewCompetition** to create a complete competition in one atomic operation:
+1. Specify competition type, expected athletes, and preferences
+2. Server automatically creates divisions, events, and waivers
+3. Returns ready-to-customize competition
+
+Example: "Create Spring Throwdown 2026, individual competition, 100 athletes, Rx and Scaled divisions, 4 events"
+→ Use setupNewCompetition({name: "Spring Throwdown 2026", startDate: "2026-05-15", competitionType: "individual", expectedAthletes: 100, includeScaled: true, eventCount: 4})
+
+## Tool Selection Priority
+
+### For managing existing resources, use CONSOLIDATED tools:
+1. **manageDivisions** - Single tool for all division operations (list/create/update/delete)
+2. **manageEvents** - Single tool for all event operations (list/create/update/delete)
+3. **manageWaivers** - Single tool for waiver operations (list/update/delete)
+
+Example: Instead of calling listDivisions, use manageDivisions({action: "list"})
+Example: Instead of createDivision, use manageDivisions({action: "create", divisionName: "Rx Men"})
+
+### High-value outcome tools (analysis, not CRUD):
+- suggestDivisions - Keep using this (provides recommendations, not just CRUD)
+- analyzeEventBalance - Keep using this (provides analysis, not just CRUD)
 
 ## Domain Knowledge
 ### Divisions
@@ -66,7 +100,7 @@ When asked to create a new competition:
 ### Waivers
 - Required waivers must be signed before registration completes
 - Common waivers: Liability, Photo Release, Medical Release, Code of Conduct
-- Waiver content is stored as Lexical JSON (rich text)
+- Use createWaiverSimple for template-based creation (no complex JSON)
 
 ## Guidelines
 - Always confirm before deleting anything
@@ -94,32 +128,27 @@ When asked to create a new competition:
 		getCompetitionDetails: sharedTools.getCompetitionDetails,
 		listCompetitions: sharedTools.listCompetitions,
 
-		// Competition creation
-		createCompetition: setupTools.createCompetition,
+		// ===== HIGH-IMPACT OUTCOME TOOLS (MCP best practices) =====
+		// These tools replace multiple sequential operations with single atomic operations
+		setupNewCompetition, // Replaces: createCompetition + createDivisions + createEvents + createWaivers
+		duplicateCompetition, // Clone entire competition setup
+		publishCompetition, // Validate + publish atomically
+		checkCompetitionReadiness, // Comprehensive pre-event validation
 
-		// Division tools
-		listDivisions: setupTools.listDivisions,
-		createDivision: setupTools.createDivision,
-		updateDivision: setupTools.updateDivision,
-		deleteDivision: setupTools.deleteDivision,
-		suggestDivisions: setupTools.suggestDivisions,
+		// ===== CONSOLIDATED CRUD TOOLS (Token budget optimization) =====
+		// Unified management tools (list/create/update/delete via action parameter)
+		manageDivisions, // Replaces: listDivisions, createDivision, updateDivision, deleteDivision
+		manageEvents, // Replaces: listEvents, createEvent, updateEvent, deleteEvent
+		manageWaivers, // Replaces: listWaivers, updateWaiver, deleteWaiver
 
-		// Event tools
-		listEvents: setupTools.listEvents,
-		createEvent: setupTools.createEvent,
-		updateEvent: setupTools.updateEvent,
-		deleteEvent: setupTools.deleteEvent,
-		analyzeEventBalance: setupTools.analyzeEventBalance,
+		// ===== SIMPLIFIED TOOLS (Flattened arguments, server-side encoding) =====
+		createWaiverSimple, // Template-based waiver creation (no Lexical JSON)
 
-		// Waiver tools
-		listWaivers: setupTools.listWaivers,
-		getWaiver: setupTools.getWaiver,
-		createWaiver: setupTools.createWaiver,
-		updateWaiver: setupTools.updateWaiver,
-		deleteWaiver: setupTools.deleteWaiver,
-		getWaiverTemplates: setupTools.getWaiverTemplates,
+		// ===== HIGH-VALUE OUTCOME TOOLS (Keep separate from manage_X) =====
+		suggestDivisions: setupTools.suggestDivisions, // High-value outcome tool
+		analyzeEventBalance: setupTools.analyzeEventBalance, // High-value outcome tool
 
-		// Competition tools
+		// ===== COMPETITION MANAGEMENT =====
 		updateCompetitionDetails: setupTools.updateCompetitionDetails,
 		validateCompetition: setupTools.validateCompetition,
 	},

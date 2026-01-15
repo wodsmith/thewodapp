@@ -15,6 +15,8 @@ import { createMemory } from "../mastra"
 // Import tools
 import * as sharedTools from "../tools/shared"
 import * as operationsTools from "../tools/operations"
+import { enterResultSimple } from "../tools/simplified"
+import { scheduleAllHeats } from "../tools/outcomes"
 
 export const operationsAgent = new Agent({
 	id: "operations-agent",
@@ -87,16 +89,15 @@ export const operationsAgent = new Agent({
 		getCompetitionDetails: sharedTools.getCompetitionDetails,
 		listCompetitions: sharedTools.listCompetitions,
 
-		// Heat management
-		listHeats: operationsTools.listHeats,
-		createHeat: operationsTools.createHeat,
-		deleteHeat: operationsTools.deleteHeat,
-		assignAthleteToHeat: operationsTools.assignAthleteToHeat,
-		removeAthleteFromHeat: operationsTools.removeAthleteFromHeat,
-		getUnassignedAthletes: operationsTools.getUnassignedAthletes,
+		// ===== HIGH-IMPACT OUTCOME TOOLS (MCP best practices) =====
+		// Auto-generate complete heat schedule (replaces 20+ manual heat creations)
+		scheduleAllHeats,
 
-		// Result entry
-		enterResult: operationsTools.enterResult,
+		// ===== SIMPLIFIED RESULT ENTRY (MCP best practices) =====
+		// Automatic score encoding based on workout scheme
+		enterResultSimple, // Natural score entry with automatic encoding
+
+		// Result viewing and deletion
 		getEventResults: operationsTools.getEventResults,
 		deleteResult: operationsTools.deleteResult,
 	},
