@@ -1,14 +1,18 @@
-# Copy Competition Dates Script
+# Migrate Competition Date Columns Script
 
 ## Purpose
 
-This script copies the date fields (`startDate`, `endDate`, `registrationOpensAt`, `registrationClosesAt`) from a `competitions_new` table to the existing `competitions` table.
+This script migrates competition date columns from INTEGER (Unix timestamps) to TEXT (YYYY-MM-DD format) by:
+1. Dropping the existing INTEGER columns from `competitions`
+2. Re-adding them as TEXT columns
+3. Copying the converted date values from `competitions_new`
 
 ## Prerequisites
 
-- Both `competitions` and `competitions_new` tables must exist
+- `competitions_new` table must exist with TEXT date columns containing YYYY-MM-DD formatted dates
+- `competitions` table exists with INTEGER date columns
 - Tables must have matching `id` columns
-- Date fields should be in the same format in both tables
+- **IMPORTANT**: `competitions_new` should already contain the converted dates from INTEGER to TEXT format
 
 ## Usage
 
@@ -29,10 +33,14 @@ npx wrangler d1 execute wodsmith-db-dev --file=scripts/copy-competition-dates.sq
 
 ## What It Does
 
-The script executes an UPDATE statement that:
-1. Matches records by `id` between `competitions` and `competitions_new`
-2. Copies the four date fields from `competitions_new` to `competitions`
-3. Only updates rows where a matching record exists in `competitions_new`
+The script performs a column type migration:
+
+1. **Drops INTEGER columns**: Removes `startDate`, `endDate`, `registrationOpensAt`, and `registrationClosesAt` columns from `competitions` table
+2. **Adds TEXT columns**: Re-creates the same four columns as TEXT type (nullable to allow UPDATE)
+3. **Copies data**: Updates the new TEXT columns with YYYY-MM-DD formatted dates from `competitions_new`
+4. **Matches by ID**: Only updates rows where a matching record exists in `competitions_new`
+
+⚠️ **Warning**: This script permanently deletes the INTEGER timestamp data. Ensure `competitions_new` has all the converted dates before running.
 
 ## Verification
 
@@ -45,7 +53,19 @@ npx wrangler d1 execute wodsmith-db-prod --command="SELECT id, startDate, endDat
 
 ## Safety
 
-- This script only updates existing records in `competitions`
-- It does not create or delete any records
-- Only rows with matching IDs in both tables are affected
-- Run on a backup or test database first if uncertain
+- ⚠️ **This script modifies the schema** by dropping and recreating columns
+- ⚠️ **Original INTEGER timestamp data is permanently deleted** when columns are dropped
+- The script does not create or delete any competition records
+- Only rows with matching IDs in both tables will have dates populated
+- **Test on a backup database first** before running in production
+
+## Post-Migration (Optional)
+
+After verifying the migration worked, you may want to add NOT NULL constraints to `startDate` and `endDate` if all records have values:
+
+```sql
+-- Note: SQLite doesn't support adding NOT NULL to existing columns
+-- This would require recreating the table if needed
+```
+
+The new columns are created as nullable TEXT. If you need NOT NULL constraints, handle this in your application schema migrations.
