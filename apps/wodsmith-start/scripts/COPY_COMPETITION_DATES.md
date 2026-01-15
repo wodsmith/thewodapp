@@ -36,7 +36,9 @@ npx wrangler d1 execute wodsmith-db-dev --file=scripts/copy-competition-dates.sq
 The script performs a column type migration:
 
 1. **Drops INTEGER columns**: Removes `startDate`, `endDate`, `registrationOpensAt`, and `registrationClosesAt` columns from `competitions` table
-2. **Adds TEXT columns**: Re-creates the same four columns as TEXT type (nullable to allow UPDATE)
+2. **Adds TEXT columns**: Re-creates the same four columns as TEXT type:
+   - `startDate` and `endDate`: TEXT NOT NULL (required fields)
+   - `registrationOpensAt` and `registrationClosesAt`: TEXT (nullable/optional fields)
 3. **Copies data**: Updates the new TEXT columns with YYYY-MM-DD formatted dates from `competitions_new`
 4. **Matches by ID**: Only updates rows where a matching record exists in `competitions_new`
 
@@ -59,13 +61,17 @@ npx wrangler d1 execute wodsmith-db-prod --command="SELECT id, startDate, endDat
 - Only rows with matching IDs in both tables will have dates populated
 - **Test on a backup database first** before running in production
 
-## Post-Migration (Optional)
+## Post-Migration
 
-After verifying the migration worked, you may want to add NOT NULL constraints to `startDate` and `endDate` if all records have values:
+After verifying the migration worked successfully:
 
-```sql
--- Note: SQLite doesn't support adding NOT NULL to existing columns
--- This would require recreating the table if needed
-```
+1. **Drop the temporary table**: Remove `competitions_new` if it's no longer needed
+   ```sql
+   DROP TABLE competitions_new;
+   ```
 
-The new columns are created as nullable TEXT. If you need NOT NULL constraints, handle this in your application schema migrations.
+2. **Verify constraints**: The new schema has:
+   - `startDate` TEXT NOT NULL (every competition must have a start date)
+   - `endDate` TEXT NOT NULL (every competition must have an end date)
+   - `registrationOpensAt` TEXT (optional - can be NULL)
+   - `registrationClosesAt` TEXT (optional - can be NULL)

@@ -10,9 +10,11 @@ ALTER TABLE competitions DROP COLUMN endDate;
 ALTER TABLE competitions DROP COLUMN registrationOpensAt;
 ALTER TABLE competitions DROP COLUMN registrationClosesAt;
 
--- Add TEXT date columns (nullable initially to allow UPDATE)
-ALTER TABLE competitions ADD COLUMN startDate TEXT;
-ALTER TABLE competitions ADD COLUMN endDate TEXT;
+-- Add TEXT date columns
+-- startDate and endDate are NOT NULL (required fields)
+-- registrationOpensAt and registrationClosesAt are nullable (optional fields)
+ALTER TABLE competitions ADD COLUMN startDate TEXT NOT NULL DEFAULT '';
+ALTER TABLE competitions ADD COLUMN endDate TEXT NOT NULL DEFAULT '';
 ALTER TABLE competitions ADD COLUMN registrationOpensAt TEXT;
 ALTER TABLE competitions ADD COLUMN registrationClosesAt TEXT;
 
