@@ -4,28 +4,48 @@
 
 Migration `0072_competition-dates-to-text.sql` fails when run through Alchemy because D1 executes each SQL statement separately, and `PRAGMA foreign_keys=OFF` doesn't persist across statements. This causes a foreign key constraint error when dropping the `competitions` table.
 
+Even using `wrangler d1 execute` with a SQL file doesn't work because D1's SQL import API still executes statements separately.
+
 ## Solution
 
-Run this migration manually using `wrangler d1 execute` which can handle the transaction properly.
+Use D1's JavaScript `batch()` API via a temporary HTTP endpoint that executes all statements in a single transaction.
 
-### For Production
+### Step 1: Set Migration Secret
 
-```bash
-# From apps/wodsmith-start directory
-npx wrangler d1 execute wodsmith-db-prod --file=scripts/manual-migration-0072.sql --remote
-```
-
-### For Demo
+Add this to your environment variables (or use a one-time secret):
 
 ```bash
-npx wrangler d1 execute wodsmith-db-demo --file=scripts/manual-migration-0072.sql --remote
+# .dev.vars for local, or set in Cloudflare dashboard for production
+MIGRATION_SECRET=your-secure-random-string-here
 ```
 
-### For Local Dev
+Then redeploy if needed: `pnpm alchemy:dev` or merge/deploy the PR.
 
+### Step 2: Run Migration via HTTP
+
+**For Production:**
 ```bash
-npx wrangler d1 execute wodsmith-db-dev --file=scripts/manual-migration-0072.sql --local
+curl -X POST "https://wodsmith.com/api/migrate-0072?secret=your-secure-random-string-here"
 ```
+
+**For Demo:**
+```bash
+curl -X POST "https://demo.wodsmith.com/api/migrate-0072?secret=your-secure-random-string-here"
+```
+
+**For Local Dev:**
+```bash
+curl -X POST "http://localhost:3000/api/migrate-0072?secret=your-secure-random-string-here"
+```
+
+### Step 3: Delete Migration Endpoint
+
+After successful migration, delete the file:
+```bash
+rm src/routes/api/migrate-0072.ts
+```
+
+This ensures the endpoint can't be accidentally called again.
 
 ## Verification
 
