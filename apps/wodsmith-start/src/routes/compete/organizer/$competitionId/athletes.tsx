@@ -9,9 +9,11 @@ import {
 	createFileRoute,
 	getRouteApi,
 	useNavigate,
+	useRouter,
 } from "@tanstack/react-router"
 import { Calendar, Download, Mail, Users } from "lucide-react"
 import { z } from "zod"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -101,15 +103,21 @@ export const Route = createFileRoute(
 			questions: questionsResult.questions,
 			answersByRegistration: answersResult.answersByRegistration,
 			currentDivisionFilter: divisionFilter,
+			teamId: competition.organizingTeamId,
 		}
 	},
 })
 
 function AthletesPage() {
 	const { competition } = parentRoute.useLoaderData()
-	const { registrations, divisions, questions, answersByRegistration, currentDivisionFilter } =
+	const { registrations, divisions, questions, answersByRegistration, currentDivisionFilter, teamId } =
 		Route.useLoaderData()
 	const navigate = useNavigate()
+	const router = useRouter()
+
+	const handleQuestionsChange = () => {
+		router.invalidate()
+	}
 
 	const handleDivisionChange = (value: string) => {
 		navigate({
@@ -209,7 +217,16 @@ function AthletesPage() {
 	}
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="flex flex-col gap-6">
+			{/* Registration Questions Editor */}
+			<RegistrationQuestionsEditor
+				competitionId={competition.id}
+				teamId={teamId}
+				questions={questions}
+				onQuestionsChange={handleQuestionsChange}
+			/>
+
+			{/* Athletes Section */}
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-xl font-semibold">Registered Athletes</h2>
