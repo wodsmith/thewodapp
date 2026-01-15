@@ -1,25 +1,26 @@
 -- Manual migration script for 0072_competition-dates-to-text
--- This must be run manually because D1 migrations through Alchemy don't preserve PRAGMA state
+--
+-- STRATEGY: Since D1 doesn't preserve PRAGMA across statements, we:
+-- 1. Create new table WITHOUT foreign keys
+-- 2. Copy data
+-- 3. Drop old table (no FK issues since new table has no FKs yet)
+-- 4. Rename table
+-- 5. Recreate indexes
+-- 6. Record migration
 --
 -- Run with:
 --   Production: npx wrangler d1 execute wodsmith-db-prod --file=scripts/manual-migration-0072.sql --remote
 --   Demo:       npx wrangler d1 execute wodsmith-db-demo --file=scripts/manual-migration-0072.sql --remote
---
--- IMPORTANT: This should be run in a single transaction to ensure PRAGMA foreign_keys=OFF applies
 
-BEGIN TRANSACTION;
-
-PRAGMA foreign_keys=OFF;
-
--- Create new table with TEXT date columns
+-- Create new table WITHOUT foreign key constraints (avoids FK issues during drop)
 CREATE TABLE "competitions_new" (
     "id" text PRIMARY KEY NOT NULL,
     "createdAt" integer DEFAULT (unixepoch()) NOT NULL,
     "updatedAt" integer DEFAULT (unixepoch()) NOT NULL,
     "updateCounter" integer DEFAULT 0,
-    "organizingTeamId" text NOT NULL REFERENCES "team"("id") ON DELETE CASCADE,
-    "competitionTeamId" text NOT NULL REFERENCES "team"("id") ON DELETE CASCADE,
-    "groupId" text REFERENCES "competition_groups"("id") ON DELETE SET NULL,
+    "organizingTeamId" text NOT NULL,
+    "competitionTeamId" text NOT NULL,
+    "groupId" text,
     "slug" text(255) NOT NULL UNIQUE,
     "name" text(255) NOT NULL,
     "description" text(2000),
@@ -39,7 +40,7 @@ CREATE TABLE "competitions_new" (
     "bannerImageUrl" text(600),
     "defaultHeatsPerRotation" integer DEFAULT 4,
     "defaultLaneShiftPattern" text(20) DEFAULT 'stay'
-);
+);-->statement-breakpoint
 
 -- Copy data with timestamp conversion
 INSERT INTO "competitions_new" SELECT
@@ -83,7 +84,3 @@ CREATE INDEX "competitions_start_date_idx" ON "competitions" ("startDate");
 -- Mark migration as applied in d1_migrations table
 INSERT INTO "d1_migrations" ("id", "name", "applied_at")
 VALUES (72, '0072_competition-dates-to-text', CURRENT_TIMESTAMP);
-
-PRAGMA foreign_keys=ON;
-
-COMMIT;
