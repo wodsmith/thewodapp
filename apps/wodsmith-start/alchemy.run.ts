@@ -504,6 +504,12 @@ const website = await TanStackStart("app", {
 						),
 					}
 				: {}),
+
+		// Migration secret (temporary - for running migration 0072 via HTTP endpoint)
+		...(process.env.MIGRATION_SECRET && {
+			/** Secret for one-time migration endpoint /api/migrate-0072 */
+			MIGRATION_SECRET: alchemy.secret(process.env.MIGRATION_SECRET),
+		}),
 	},
 
 	/**

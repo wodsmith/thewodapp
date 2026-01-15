@@ -12,14 +12,18 @@ Use D1's JavaScript `batch()` API via a temporary HTTP endpoint that executes al
 
 ### Step 1: Set Migration Secret
 
-Add this to your environment variables (or use a one-time secret):
+Add this to your environment variables:
 
 ```bash
-# .dev.vars for local, or set in Cloudflare dashboard for production
-MIGRATION_SECRET=your-secure-random-string-here
+# Set in your shell before deploying (or add to CI/CD secrets)
+export MIGRATION_SECRET=your-secure-random-string-here
+
+# Then deploy with Alchemy
+STAGE=prod npx alchemy deploy  # For production
+STAGE=demo npx alchemy deploy  # For demo
 ```
 
-Then redeploy if needed: `pnpm alchemy:dev` or merge/deploy the PR.
+Alternatively, use the default secret `change-me-in-env` (less secure but works for one-time migration).
 
 ### Step 2: Run Migration via HTTP
 
