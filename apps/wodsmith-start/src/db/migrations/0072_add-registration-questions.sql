@@ -2,6 +2,7 @@
 CREATE TABLE `competition_registration_questions` (
 	`createdAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
+	`updateCounter` integer DEFAULT 0,
 	`id` text PRIMARY KEY NOT NULL,
 	`competitionId` text NOT NULL,
 	`type` text(20) NOT NULL,
@@ -22,6 +23,7 @@ CREATE INDEX `comp_reg_questions_sort_idx` ON `competition_registration_question
 CREATE TABLE `competition_registration_answers` (
 	`createdAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
+	`updateCounter` integer DEFAULT 0,
 	`id` text PRIMARY KEY NOT NULL,
 	`questionId` text NOT NULL,
 	`registrationId` text NOT NULL,
