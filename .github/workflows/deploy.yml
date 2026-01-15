@@ -169,6 +169,8 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_PUBLISHABLE_KEY || '' }}
           STRIPE_CLIENT_ID: ${{ env.STAGE == 'prod' && secrets.STRIPE_CLIENT_ID || '' }}
           STRIPE_WEBHOOK_SECRET: ${{ env.STAGE == 'prod' && secrets.STRIPE_WEBHOOK_SECRET || '' }}
+          # Migration secret (temporary - for running migration 0072 via HTTP endpoint)
+          MIGRATION_SECRET: ${{ env.STAGE == 'prod' && secrets.MIGRATION_SECRET || '' }}
           PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -236,6 +238,8 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY_DEMO }}
           STRIPE_CLIENT_ID: ${{ secrets.STRIPE_CLIENT_ID_DEMO }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_DEMO }}
+          # Migration secret (temporary - for running migration 0072 via HTTP endpoint)
+          MIGRATION_SECRET: ${{ secrets.MIGRATION_SECRET_DEMO }}
           PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
