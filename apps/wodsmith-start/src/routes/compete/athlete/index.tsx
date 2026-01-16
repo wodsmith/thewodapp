@@ -80,10 +80,9 @@ function parseAthleteProfile(json: string | null): AthleteProfileData | null {
 	}
 }
 
-function calculateAge(dateOfBirth: Date | number | null): number | null {
+function calculateAge(dateOfBirth: Date | number | string | null): number | null {
 	if (!dateOfBirth) return null
-	const dob =
-		typeof dateOfBirth === "number" ? new Date(dateOfBirth) : dateOfBirth
+	const dob = new Date(dateOfBirth)
 	const today = new Date()
 	let age = today.getFullYear() - dob.getFullYear()
 	const monthDiff = today.getMonth() - dob.getMonth()
@@ -131,9 +130,9 @@ function formatLiftWeight(
 	return `${weight} lbs`
 }
 
-function formatDate(date: Date | number | null): string {
+function formatDate(date: Date | number | string | null): string {
 	if (!date) return "TBA"
-	const d = typeof date === "number" ? new Date(date) : date
+	const d = new Date(date)
 	return d.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
