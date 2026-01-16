@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { Dumbbell } from "lucide-react"
+import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { WorkoutCard } from "@/components/workout-card"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
@@ -18,7 +26,7 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 		})
 
 		if (!competition) {
-			return { workouts: [], divisionDescriptionsMap: new Map() }
+			return { workouts: [], divisions: [], divisionDescriptionsMap: new Map() }
 		}
 
 		const competitionId = competition.id
@@ -62,13 +70,16 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 
 		return {
 			workouts,
+			divisions,
 			divisionDescriptionsMap,
 		}
 	},
 })
 
 function CompetitionWorkoutsPage() {
-	const { workouts, divisionDescriptionsMap } = Route.useLoaderData()
+	const { workouts, divisions, divisionDescriptionsMap } = Route.useLoaderData()
+	const [selectedDivisionId, setSelectedDivisionId] =
+		useState<string>("default")
 
 	if (workouts.length === 0) {
 		return (
@@ -88,12 +99,38 @@ function CompetitionWorkoutsPage() {
 
 	return (
 		<div className="space-y-8">
-			<h2 className="text-2xl font-bold">
-				Workouts
-				<span className="text-muted-foreground font-normal text-lg ml-2">
-					({workouts.length} event{workouts.length !== 1 ? "s" : ""})
+			<div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 border-b -mx-4 px-4 sm:mx-0 sm:px-0">
+				<div className="flex items-center justify-between gap-4">
+					<h2 className="text-2xl font-bold flex items-center">
+						Workouts
+						<span className="text-muted-foreground font-normal text-lg ml-2 hidden sm:inline">
+							({workouts.length} event{workouts.length !== 1 ? "s" : ""})
+						</span>
+					</h2>
+
+					{divisions && divisions.length > 0 && (
+						<Select
+							value={selectedDivisionId}
+							onValueChange={setSelectedDivisionId}
+						>
+							<SelectTrigger className="w-[180px]">
+								<SelectValue placeholder="Select Division" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="default">All Divisions</SelectItem>
+								{divisions.map((division) => (
+									<SelectItem key={division.id} value={division.id}>
+										{division.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+				</div>
+				<span className="text-muted-foreground font-normal text-sm sm:hidden">
+					{workouts.length} event{workouts.length !== 1 ? "s" : ""}
 				</span>
-			</h2>
+			</div>
 
 			<div className="space-y-4">
 				{workouts.map((event) => {
@@ -118,6 +155,7 @@ function CompetitionWorkoutsPage() {
 							}
 							sponsorName={event.sponsorName}
 							sponsorLogoUrl={event.sponsorLogoUrl}
+							selectedDivisionId={selectedDivisionId}
 						/>
 					)
 				})}
