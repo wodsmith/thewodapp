@@ -154,7 +154,7 @@ function CompetitionWorkoutsPage() {
 			</div>
 
 			{/* Workouts List */}
-			<div className="space-y-6">
+			<div className="space-y-6 pb-20">
 				{workouts.map((event) => {
 					const divisionDescriptionsResult = divisionDescriptionsMap.get(
 						event.workoutId,
@@ -168,6 +168,8 @@ function CompetitionWorkoutsPage() {
 							description={event.workout.description}
 							scoreType={event.workout.scoreType}
 							roundsToScore={event.workout.roundsToScore}
+							repsPerRound={event.workout.repsPerRound}
+							tiebreakScheme={event.workout.tiebreakScheme}
 							pointsMultiplier={event.pointsMultiplier}
 							notes={event.notes}
 							movements={event.workout.movements}

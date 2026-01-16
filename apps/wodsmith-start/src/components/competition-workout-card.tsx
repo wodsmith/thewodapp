@@ -7,7 +7,9 @@ import {
 	Target,
 	Trophy,
     Timer,
-    Flame
+    Flame,
+    Hash,
+    ArrowRight
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,6 +34,8 @@ interface CompetitionWorkoutCardProps {
 	description: string | null // Default description
 	scoreType: string | null
 	roundsToScore: number | null
+    repsPerRound?: number | null
+    tiebreakScheme?: string | null
 	pointsMultiplier: number | null
 	notes: string | null
 	movements?: Array<{ id: string; name: string }>
@@ -65,6 +69,9 @@ export function CompetitionWorkoutCard({
 	scheme,
 	description,
 	scoreType,
+    roundsToScore,
+    repsPerRound,
+    tiebreakScheme,
 	pointsMultiplier,
 	notes,
 	movements,
@@ -103,7 +110,7 @@ export function CompetitionWorkoutCard({
                     {/* Header */}
                     <div className="flex items-start justify-between gap-4 mb-6">
                         <div className="flex items-start gap-4">
-                            <span className="text-6xl font-black text-muted/20 leading-none select-none -ml-1">
+                            <span className="text-6xl font-black text-primary/20 leading-none select-none -ml-1">
                                 {trackOrder.toString().padStart(2, '0')}
                             </span>
                             <div className="pt-1">
@@ -158,6 +165,24 @@ export function CompetitionWorkoutCard({
                                             <Badge variant="outline" className="px-3 py-1 text-sm flex gap-2 items-center">
                                                 <Trophy className="h-4 w-4" />
                                                 Score: {scoreType}
+                                            </Badge>
+                                        )}
+                                        {roundsToScore && roundsToScore > 1 && (
+                                            <Badge variant="outline" className="px-3 py-1 text-sm flex gap-2 items-center">
+                                                <Hash className="h-4 w-4" />
+                                                {roundsToScore} Rounds
+                                            </Badge>
+                                        )}
+                                        {repsPerRound && (
+                                            <Badge variant="outline" className="px-3 py-1 text-sm flex gap-2 items-center">
+                                                <Hash className="h-4 w-4" />
+                                                {repsPerRound} reps/round
+                                            </Badge>
+                                        )}
+                                        {tiebreakScheme && (
+                                            <Badge variant="outline" className="px-3 py-1 text-sm flex gap-2 items-center">
+                                                <ArrowRight className="h-4 w-4" />
+                                                Tiebreak: {tiebreakScheme}
                                             </Badge>
                                         )}
                                     </div>
@@ -224,6 +249,18 @@ export function CompetitionWorkoutCard({
                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900">
                                 <Trophy className="h-4 w-4" />
                                 {pointsMultiplier}pts
+                            </div>
+                        )}
+                        {roundsToScore && roundsToScore > 1 && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
+                                <Hash className="h-4 w-4" />
+                                {roundsToScore} Rounds
+                            </div>
+                        )}
+                        {repsPerRound && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
+                                <Hash className="h-4 w-4" />
+                                {repsPerRound} reps/round
                             </div>
                         )}
                          {/* Placeholder for Division Tag if strictly needed, but context is global now */}
