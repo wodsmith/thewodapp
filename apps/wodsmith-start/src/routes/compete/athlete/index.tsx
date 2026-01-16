@@ -83,6 +83,7 @@ function parseAthleteProfile(json: string | null): AthleteProfileData | null {
 function calculateAge(dateOfBirth: Date | number | string | null): number | null {
 	if (!dateOfBirth) return null
 	const dob = new Date(dateOfBirth)
+	if (Number.isNaN(dob.getTime())) return null
 	const today = new Date()
 	let age = today.getFullYear() - dob.getFullYear()
 	const monthDiff = today.getMonth() - dob.getMonth()
@@ -133,6 +134,7 @@ function formatLiftWeight(
 function formatDate(date: Date | number | string | null): string {
 	if (!date) return "TBA"
 	const d = new Date(date)
+	if (Number.isNaN(d.getTime())) return "Invalid Date"
 	return d.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
