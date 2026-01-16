@@ -12,8 +12,8 @@ interface ScheduleViewProps {
 	volunteerMetadata: VolunteerMembershipMetadata | null
 	membershipId: string
 	competitionSlug: string
-	competitionStartDate: Date | null
-	competitionEndDate: Date | null
+	competitionStartDate: string | null // YYYY-MM-DD format
+	competitionEndDate: string | null // YYYY-MM-DD format
 }
 
 /**

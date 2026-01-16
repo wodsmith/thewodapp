@@ -2,7 +2,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Loader2, User, Users } from "lucide-react"
-import { isSameUTCDay } from "@/utils/date-utils"
+import { getLocalDateKey, isSameDateString } from "@/utils/date-utils"
 import { useEffect, useState } from "react"
 import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -43,6 +43,7 @@ import type {
 	Team,
 	Waiver,
 } from "@/db/schema"
+import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
 import { AffiliateCombobox } from "./affiliate-combobox"
@@ -71,10 +72,11 @@ type FormValues = z.infer<typeof registrationSchema>
 type Props = {
 	competition: Competition & { organizingTeam: Team | null }
 	scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
+	publicDivisions: PublicCompetitionDivision[]
 	userId: string
 	registrationOpen: boolean
-	registrationOpensAt: Date | null
-	registrationClosesAt: Date | null
+	registrationOpensAt: string | null // YYYY-MM-DD format
+	registrationClosesAt: string | null // YYYY-MM-DD format
 	paymentCanceled?: boolean
 	defaultAffiliateName?: string
 	waivers: Waiver[]
@@ -83,6 +85,7 @@ type Props = {
 export function RegistrationForm({
 	competition,
 	scalingGroup,
+	publicDivisions,
 	userId: _userId,
 	registrationOpen,
 	registrationOpensAt,
@@ -301,8 +304,26 @@ export function RegistrationForm({
 		}
 	}
 
-	const formatDate = (date: Date | number | null): string => {
+	const formatDate = (date: string | Date | number | null): string => {
 		if (!date) return "TBA"
+
+		// Handle YYYY-MM-DD string format
+		if (typeof date === "string") {
+			const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+			if (match) {
+				const [, yearStr, monthStr, dayStr] = match
+				const year = Number(yearStr)
+				const monthNum = Number(monthStr)
+				const day = Number(dayStr)
+				// Create Date object in UTC to get weekday
+				const d = new Date(Date.UTC(year, monthNum - 1, day))
+				const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+				const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+				return `${weekdays[d.getUTCDay()]}, ${months[monthNum - 1]} ${day}, ${year}`
+			}
+			return "TBA"
+		}
+
 		const d = typeof date === "number" ? new Date(date) : date
 		return d.toLocaleDateString("en-US", {
 			weekday: "long",
@@ -317,11 +338,14 @@ export function RegistrationForm({
 			return "Registration dates have not been set yet."
 		}
 
+		// Get today as YYYY-MM-DD for string comparison
 		const now = new Date()
-		if (now < registrationOpensAt) {
+		const todayStr = getLocalDateKey(now)
+
+		if (todayStr < registrationOpensAt) {
 			return `Registration opens ${formatDate(registrationOpensAt)} and closes ${formatDate(registrationClosesAt)}`
 		}
-		if (now > registrationClosesAt) {
+		if (todayStr > registrationClosesAt) {
 			return `Registration was open from ${formatDate(registrationOpensAt)} to ${formatDate(registrationClosesAt)}`
 		}
 		return null
@@ -357,12 +381,12 @@ export function RegistrationForm({
 				<CardContent className="space-y-2">
 					<div>
 						<p className="text-muted-foreground text-sm">
-							{isSameUTCDay(competition.startDate, competition.endDate)
+							{isSameDateString(competition.startDate, competition.endDate)
 								? "Competition Date"
 								: "Competition Dates"}
 						</p>
 						<p className="font-medium">
-							{isSameUTCDay(competition.startDate, competition.endDate)
+							{isSameDateString(competition.startDate, competition.endDate)
 								? formatDate(competition.startDate)
 								: `${formatDate(competition.startDate)} - ${formatDate(competition.endDate)}`}
 						</p>
@@ -410,30 +434,59 @@ export function RegistrationForm({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												{scalingGroup.scalingLevels.map((level) => (
-													<SelectItem key={level.id} value={level.id}>
-														<div className="flex items-center gap-2">
-															{level.label}
-															{(level.teamSize ?? 1) > 1 ? (
-																<Badge
-																	variant="secondary"
-																	className="ml-1 text-xs"
-																>
-																	<Users className="w-3 h-3 mr-1" />
-																	{level.teamSize}
-																</Badge>
-															) : (
-																<Badge
-																	variant="outline"
-																	className="ml-1 text-xs"
-																>
-																	<User className="w-3 h-3 mr-1" />
-																	Individual
-																</Badge>
-															)}
-														</div>
-													</SelectItem>
-												))}
+												{scalingGroup.scalingLevels.map((level) => {
+													// Get capacity info from publicDivisions
+													const divisionInfo = publicDivisions.find(
+														(d) => d.id === level.id,
+													)
+													const isFull = divisionInfo?.isFull ?? false
+													const spotsAvailable = divisionInfo?.spotsAvailable
+													const maxSpots = divisionInfo?.maxSpots
+
+													return (
+														<SelectItem
+															key={level.id}
+															value={level.id}
+															disabled={isFull}
+														>
+															<div className="flex items-center gap-2">
+																<span className={isFull ? "line-through text-muted-foreground" : ""}>
+																	{level.label}
+																</span>
+																{(level.teamSize ?? 1) > 1 ? (
+																	<Badge
+																		variant="secondary"
+																		className="ml-1 text-xs"
+																	>
+																		<Users className="w-3 h-3 mr-1" />
+																		{level.teamSize}
+																	</Badge>
+																) : (
+																	<Badge
+																		variant="outline"
+																		className="ml-1 text-xs"
+																	>
+																		<User className="w-3 h-3 mr-1" />
+																		Individual
+																	</Badge>
+																)}
+																{/* Show capacity info */}
+																{isFull ? (
+																	<Badge variant="destructive" className="ml-1 text-xs">
+																		SOLD OUT
+																	</Badge>
+																) : maxSpots !== null &&
+																  spotsAvailable !== null &&
+																  spotsAvailable !== undefined &&
+																  spotsAvailable <= 5 ? (
+																	<Badge variant="secondary" className="ml-1 text-xs text-amber-600 dark:text-amber-400">
+																		{spotsAvailable} left
+																	</Badge>
+																) : null}
+															</div>
+														</SelectItem>
+													)
+												})}
 											</SelectContent>
 										</Select>
 										<FormDescription>

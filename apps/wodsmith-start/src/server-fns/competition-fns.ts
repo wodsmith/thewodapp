@@ -57,17 +57,21 @@ const getCompetitionBySlugInputSchema = z.object({
 	slug: z.string().min(1, "Slug is required"),
 })
 
+// Schema for YYYY-MM-DD date strings
+const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+
 const createCompetitionInputSchema = z.object({
 	organizingTeamId: z.string().min(1, "Team ID is required"),
 	name: z.string().min(1, "Name is required"),
 	slug: z.string().min(1, "Slug is required"),
-	startDate: z.date(),
-	endDate: z.date(),
+	startDate: dateStringSchema,
+	endDate: dateStringSchema,
 	description: z.string().optional(),
-	registrationOpensAt: z.date().optional(),
-	registrationClosesAt: z.date().optional(),
+	registrationOpensAt: dateStringSchema.optional(),
+	registrationClosesAt: dateStringSchema.optional(),
 	groupId: z.string().optional(),
 	settings: z.string().optional(),
+	timezone: z.string().optional(),
 })
 
 const updateCompetitionInputSchema = z.object({
@@ -75,16 +79,17 @@ const updateCompetitionInputSchema = z.object({
 	name: z.string().optional(),
 	slug: z.string().optional(),
 	description: z.string().nullable().optional(),
-	startDate: z.date().optional(),
-	endDate: z.date().optional(),
-	registrationOpensAt: z.date().nullable().optional(),
-	registrationClosesAt: z.date().nullable().optional(),
+	startDate: dateStringSchema.optional(),
+	endDate: dateStringSchema.optional(),
+	registrationOpensAt: dateStringSchema.nullable().optional(),
+	registrationClosesAt: dateStringSchema.nullable().optional(),
 	groupId: z.string().nullable().optional(),
 	settings: z.string().nullable().optional(),
 	visibility: z.enum(["public", "private"]).optional(),
 	status: z.enum(["draft", "published"]).optional(),
 	profileImageUrl: z.string().nullable().optional(),
 	bannerImageUrl: z.string().nullable().optional(),
+	timezone: z.string().optional(),
 })
 
 const getCompetitionGroupsInputSchema = z.object({
@@ -143,6 +148,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -157,6 +163,8 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+				defaultMaxSpotsPerDivision:
+					competitionsTable.defaultMaxSpotsPerDivision,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -207,6 +215,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				endDate: row.endDate,
 				registrationOpensAt: row.registrationOpensAt,
 				registrationClosesAt: row.registrationClosesAt,
+				timezone: row.timezone,
 				settings: row.settings,
 				defaultRegistrationFeeCents: row.defaultRegistrationFeeCents,
 				platformFeePercentage: row.platformFeePercentage,
@@ -219,6 +228,7 @@ export const getPublicCompetitionsFn = createServerFn({ method: "GET" })
 				bannerImageUrl: row.bannerImageUrl,
 				defaultHeatsPerRotation: row.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: row.defaultLaneShiftPattern,
+				defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
 				createdAt: row.createdAt,
 				updatedAt: row.updatedAt,
 				updateCounter: row.updateCounter,
@@ -273,6 +283,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -287,6 +298,8 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+				defaultMaxSpotsPerDivision:
+					competitionsTable.defaultMaxSpotsPerDivision,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -345,6 +358,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 			endDate: row.endDate,
 			registrationOpensAt: row.registrationOpensAt,
 			registrationClosesAt: row.registrationClosesAt,
+			timezone: row.timezone,
 			settings: row.settings,
 			defaultRegistrationFeeCents: row.defaultRegistrationFeeCents,
 			platformFeePercentage: row.platformFeePercentage,
@@ -357,6 +371,7 @@ export const getOrganizerCompetitionsFn = createServerFn({ method: "GET" })
 			bannerImageUrl: row.bannerImageUrl,
 			defaultHeatsPerRotation: row.defaultHeatsPerRotation,
 			defaultLaneShiftPattern: row.defaultLaneShiftPattern,
+			defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt,
 			updateCounter: row.updateCounter,
@@ -405,6 +420,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -419,6 +435,8 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+				defaultMaxSpotsPerDivision:
+					competitionsTable.defaultMaxSpotsPerDivision,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -463,6 +481,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 			endDate: row.endDate,
 			registrationOpensAt: row.registrationOpensAt,
 			registrationClosesAt: row.registrationClosesAt,
+			timezone: row.timezone,
 			settings: row.settings,
 			defaultRegistrationFeeCents: row.defaultRegistrationFeeCents,
 			platformFeePercentage: row.platformFeePercentage,
@@ -475,6 +494,7 @@ export const getCompetitionBySlugFn = createServerFn({ method: "GET" })
 			bannerImageUrl: row.bannerImageUrl,
 			defaultHeatsPerRotation: row.defaultHeatsPerRotation,
 			defaultLaneShiftPattern: row.defaultLaneShiftPattern,
+			defaultMaxSpotsPerDivision: row.defaultMaxSpotsPerDivision,
 			createdAt: row.createdAt,
 			updatedAt: row.updatedAt,
 			updateCounter: row.updateCounter,
@@ -515,6 +535,7 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
 				registrationClosesAt: data.registrationClosesAt,
 				groupId: data.groupId,
 				settings: data.settings,
+				timezone: data.timezone,
 			})
 
 			logInfo({

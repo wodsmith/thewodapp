@@ -28,6 +28,11 @@ import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns
 import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
+import {
+	hasDateStartedInTimezone,
+	isDeadlinePassedInTimezone,
+	DEFAULT_TIMEZONE,
+} from "@/utils/timezone-utils"
 
 // ============================================================================
 // Helper Functions (ported from notifications/helpers.ts)
@@ -41,11 +46,12 @@ function formatCents(cents: number): string {
 }
 
 /**
- * Format date for email display using UTC to preserve calendar date.
- * Competition dates are stored as UTC midnight - using UTC methods
- * ensures consistent display regardless of server/recipient timezone.
+ * Format date for email display.
+ * Handles both YYYY-MM-DD strings (new format) and Date objects (legacy).
  */
-function formatDate(date: Date): string {
+function formatDate(date: string | Date | null | undefined): string {
+	if (!date) return ""
+
 	const weekdays = [
 		"Sunday",
 		"Monday",
@@ -70,6 +76,24 @@ function formatDate(date: Date): string {
 		"December",
 	]
 
+	// Handle YYYY-MM-DD string format
+	if (typeof date === "string") {
+		const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+		if (match) {
+			const [, yearStr, monthStr, dayStr] = match
+			const year = Number(yearStr)
+			const monthNum = Number(monthStr)
+			const day = Number(dayStr)
+			// Calculate weekday from YYYY-MM-DD
+			const d = new Date(Date.UTC(year, monthNum - 1, day))
+			const weekday = weekdays[d.getUTCDay()]
+			const month = months[monthNum - 1]
+			return `${weekday}, ${month} ${day}, ${year}`
+		}
+		return ""
+	}
+
+	// Handle Date object (legacy)
 	const weekday = weekdays[date.getUTCDay()]
 	const month = months[date.getUTCMonth()]
 	const day = date.getUTCDate()
@@ -333,17 +357,21 @@ export async function registerForCompetition(
 		throw new Error("Competition not found")
 	}
 
-	// 2. Check registration window
-	const now = new Date()
+	// 2. Check registration window (using competition's timezone)
+	const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
 	if (
-		competition.registrationOpensAt &&
-		new Date(competition.registrationOpensAt) > now
+		!hasDateStartedInTimezone(
+			competition.registrationOpensAt,
+			competitionTimezone,
+		)
 	) {
 		throw new Error("Registration has not opened yet")
 	}
 	if (
-		competition.registrationClosesAt &&
-		new Date(competition.registrationClosesAt) < now
+		isDeadlinePassedInTimezone(
+			competition.registrationClosesAt,
+			competitionTimezone,
+		)
 	) {
 		throw new Error("Registration has closed")
 	}

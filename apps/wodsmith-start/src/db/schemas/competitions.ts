@@ -75,12 +75,14 @@ export const competitionsTable = sqliteTable(
 		slug: text({ length: 255 }).notNull().unique(),
 		name: text({ length: 255 }).notNull(),
 		description: text({ length: 2000 }),
-		// Competition dates
-		startDate: integer({ mode: "timestamp" }).notNull(),
-		endDate: integer({ mode: "timestamp" }).notNull(),
-		// Registration window
-		registrationOpensAt: integer({ mode: "timestamp" }),
-		registrationClosesAt: integer({ mode: "timestamp" }),
+		// Competition dates (YYYY-MM-DD format for timezone-agnostic storage)
+		startDate: text().notNull(),
+		endDate: text().notNull(),
+		// Registration window (YYYY-MM-DD format)
+		registrationOpensAt: text(),
+		registrationClosesAt: text(),
+		// IANA timezone for competition dates and deadlines (e.g., "America/Denver")
+		timezone: text({ length: 50 }).default("America/Denver"),
 		// JSON settings (divisions, rules, etc.)
 		settings: text({ length: 10000 }),
 
@@ -113,6 +115,8 @@ export const competitionsTable = sqliteTable(
 		// Judge rotation defaults
 		defaultHeatsPerRotation: integer().default(4),
 		defaultLaneShiftPattern: text({ length: 20 }).default("shift_right"),
+		// Capacity: default max spots per division (null = unlimited)
+		defaultMaxSpotsPerDivision: integer(),
 	},
 	(table) => [
 		// slug unique index is already created by .unique() on the column

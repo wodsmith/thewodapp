@@ -35,6 +35,7 @@ import {
 	notifyRegistrationConfirmed,
 } from "@/server/registration"
 import { notifyPaymentExpired } from "@/server/notifications"
+import { getDivisionSpotsAvailableFn } from "@/server-fns/competition-divisions-fns"
 
 export const Route = createFileRoute("/api/webhooks/stripe")({
 	server: {
@@ -139,6 +140,68 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 								attributes: { purchaseId },
 							})
 						}
+					}
+
+					// Re-check capacity before registration (race condition protection)
+					// Exclude our own pending purchase to avoid self-blocking
+					const capacityCheck = await getDivisionSpotsAvailableFn({
+						data: { competitionId, divisionId, excludePurchaseId: purchaseId },
+					})
+					if (capacityCheck.isFull) {
+						// Division filled during payment - need to handle refund
+						logError({
+							message:
+								"[Stripe Webhook] Division filled during payment - refund needed",
+							attributes: {
+								purchaseId,
+								competitionId,
+								divisionId,
+								userId,
+								maxSpots: capacityCheck.maxSpots,
+								registered: capacityCheck.registered,
+							},
+						})
+						// Mark purchase as failed
+						await db
+							.update(commercePurchaseTable)
+							.set({
+								status: COMMERCE_PURCHASE_STATUS.FAILED,
+								completedAt: new Date(),
+							})
+							.where(eq(commercePurchaseTable.id, purchaseId))
+
+						// Trigger automatic refund via Stripe API
+						const paymentIntentId =
+							typeof session.payment_intent === "string"
+								? session.payment_intent
+								: session.payment_intent?.id
+
+						if (paymentIntentId) {
+							try {
+								const stripe = getStripe()
+								await stripe.refunds.create({
+									payment_intent: paymentIntentId,
+									reason: "requested_by_customer",
+								})
+								logInfo({
+									message:
+										"[Stripe Webhook] Refund issued for division-full scenario",
+									attributes: { purchaseId, paymentIntentId },
+								})
+							} catch (refundError) {
+								logError({
+									message: "[Stripe Webhook] Failed to issue automatic refund",
+									error:
+										refundError instanceof Error
+											? refundError
+											: new Error(String(refundError)),
+									attributes: { purchaseId, paymentIntentId },
+								})
+							}
+						}
+
+						// TODO: Send "division full" notification email to user
+						return
 					}
 
 					try {

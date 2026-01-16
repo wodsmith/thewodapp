@@ -28,6 +28,11 @@ import {
 	teamMembershipTable,
 	teamTable,
 } from "@/db/schemas/teams"
+import {
+	DEFAULT_TIMEZONE,
+	hasDateStartedInTimezone,
+	isDeadlinePassedInTimezone,
+} from "@/utils/timezone-utils"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 
@@ -158,6 +163,7 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				endDate: competitionsTable.endDate,
 				registrationOpensAt: competitionsTable.registrationOpensAt,
 				registrationClosesAt: competitionsTable.registrationClosesAt,
+				timezone: competitionsTable.timezone,
 				settings: competitionsTable.settings,
 				defaultRegistrationFeeCents:
 					competitionsTable.defaultRegistrationFeeCents,
@@ -172,6 +178,8 @@ export const getCompetitionByIdFn = createServerFn({ method: "GET" })
 				bannerImageUrl: competitionsTable.bannerImageUrl,
 				defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
 				defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+				defaultMaxSpotsPerDivision:
+					competitionsTable.defaultMaxSpotsPerDivision,
 				createdAt: competitionsTable.createdAt,
 				updatedAt: competitionsTable.updatedAt,
 				updateCounter: competitionsTable.updateCounter,
@@ -447,29 +455,30 @@ export const checkIsVolunteerFn = createServerFn({ method: "GET" })
 /**
  * Get registration status for a competition
  * Returns whether registration is open, closed, or not yet open
+ * Uses timezone-aware date comparisons
  */
 export const getRegistrationStatusFn = createServerFn({ method: "GET" })
 	.inputValidator((data: unknown) =>
 		z
 			.object({
-				registrationOpensAt: z.date().nullable(),
-				registrationClosesAt: z.date().nullable(),
+				registrationOpensAt: z.string().nullable(),
+				registrationClosesAt: z.string().nullable(),
+				timezone: z.string().optional(),
 			})
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
-		const now = new Date()
+		const timezone = data.timezone || DEFAULT_TIMEZONE
 		const regOpensAt = data.registrationOpensAt
 		const regClosesAt = data.registrationClosesAt
 
-		const registrationOpen = !!(
-			regOpensAt &&
-			regClosesAt &&
-			regOpensAt <= now &&
-			regClosesAt >= now
-		)
-		const registrationClosed = !!(regClosesAt && regClosesAt < now)
-		const registrationNotYetOpen = !!(regOpensAt && regOpensAt > now)
+		// Use timezone-aware comparisons
+		const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
+		const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
+
+		const registrationOpen = !!(regOpensAt && regClosesAt && hasOpened && !hasClosed)
+		const registrationClosed = hasClosed
+		const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
 
 		return {
 			registrationOpen,

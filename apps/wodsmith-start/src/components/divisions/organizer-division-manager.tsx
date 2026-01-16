@@ -28,6 +28,7 @@ import {
 	deleteCompetitionDivisionFn,
 	reorderCompetitionDivisionsFn,
 	updateCompetitionDivisionFn,
+	updateDivisionCapacityFn,
 	updateDivisionDescriptionFn,
 } from "@/server-fns/competition-divisions-fns"
 import { OrganizerDivisionItem } from "./organizer-division-item"
@@ -40,6 +41,7 @@ interface Division {
 	registrationCount: number
 	description: string | null
 	feeCents: number | null
+	maxSpots: number | null
 }
 
 interface ScalingGroupWithLevels {
@@ -61,6 +63,7 @@ interface OrganizerDivisionManagerProps {
 	divisions: Division[]
 	scalingGroupId: string | null
 	scalingGroups: ScalingGroupWithLevels[]
+	defaultMaxSpotsPerDivision: number | null
 }
 
 export function OrganizerDivisionManager({
@@ -69,6 +72,7 @@ export function OrganizerDivisionManager({
 	divisions: initialDivisions,
 	scalingGroupId,
 	scalingGroups,
+	defaultMaxSpotsPerDivision,
 }: OrganizerDivisionManagerProps) {
 	const router = useRouter()
 	const [divisions, setDivisions] = useState(initialDivisions)
@@ -76,6 +80,7 @@ export function OrganizerDivisionManager({
 	const [newDivisionLabel, setNewDivisionLabel] = useState("")
 	const [newDivisionTeamSize, setNewDivisionTeamSize] = useState(1)
 	const [newDivisionDescription, setNewDivisionDescription] = useState("")
+	const [newDivisionMaxSpots, setNewDivisionMaxSpots] = useState("")
 	const [instanceId] = useState(() => Symbol("divisions"))
 	const [isAdding, setIsAdding] = useState(false)
 
@@ -167,6 +172,45 @@ export function OrganizerDivisionManager({
 		}
 	}
 
+	const handleMaxSpotsSave = async (
+		divisionId: string,
+		newMaxSpots: number | null,
+	) => {
+		const original = initialDivisions.find((d) => d.id === divisionId)
+		if (original && original.maxSpots === newMaxSpots) return
+
+		// Optimistically update
+		setDivisions((prev) =>
+			prev.map((d) =>
+				d.id === divisionId ? { ...d, maxSpots: newMaxSpots } : d,
+			),
+		)
+
+		try {
+			await updateDivisionCapacityFn({
+				data: {
+					teamId,
+					competitionId,
+					divisionId,
+					maxSpots: newMaxSpots,
+				},
+			})
+			toast.success("Division capacity updated")
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to update capacity",
+			)
+			// Revert to original
+			setDivisions((prev) =>
+				prev.map((d) =>
+					d.id === divisionId
+						? { ...d, maxSpots: original?.maxSpots ?? newMaxSpots }
+						: d,
+				),
+			)
+		}
+	}
+
 	const handleRemove = async (divisionId: string) => {
 		try {
 			await deleteCompetitionDivisionFn({
@@ -247,10 +291,26 @@ export function OrganizerDivisionManager({
 				})
 			}
 
+			// If max spots was provided, update it
+			const maxSpotsToSave = newDivisionMaxSpots.trim()
+				? parseInt(newDivisionMaxSpots, 10)
+				: null
+			if (maxSpotsToSave && !isNaN(maxSpotsToSave) && result?.divisionId) {
+				await updateDivisionCapacityFn({
+					data: {
+						teamId,
+						competitionId,
+						divisionId: result.divisionId,
+						maxSpots: maxSpotsToSave,
+					},
+				})
+			}
+
 			toast.success("Division added")
 			setNewDivisionLabel("")
 			setNewDivisionTeamSize(1)
 			setNewDivisionDescription("")
+			setNewDivisionMaxSpots("")
 			setShowAddDialog(false)
 			// Invalidate router to refetch divisions from server
 			router.invalidate()
@@ -291,6 +351,8 @@ export function OrganizerDivisionManager({
 									id={division.id}
 									label={division.label}
 									description={division.description}
+									maxSpots={division.maxSpots}
+									defaultMaxSpots={defaultMaxSpotsPerDivision}
 									index={index}
 									registrationCount={division.registrationCount}
 									isOnly={divisions.length === 1}
@@ -298,6 +360,9 @@ export function OrganizerDivisionManager({
 									onLabelSave={(label) => handleLabelSave(division.id, label)}
 									onDescriptionSave={(desc) =>
 										handleDescriptionSave(division.id, desc)
+									}
+									onMaxSpotsSave={(spots) =>
+										handleMaxSpotsSave(division.id, spots)
 									}
 									onRemove={() => handleRemove(division.id)}
 									onDrop={handleDrop}
@@ -366,6 +431,27 @@ export function OrganizerDivisionManager({
 							/>
 							<p className="text-muted-foreground text-sm mt-1">
 								1 = Individual, 2+ = Team division
+							</p>
+						</div>
+						<div>
+							<Label htmlFor="maxSpots">Max Spots (Optional)</Label>
+							<Input
+								id="maxSpots"
+								type="number"
+								min={1}
+								value={newDivisionMaxSpots}
+								onChange={(e) => setNewDivisionMaxSpots(e.target.value)}
+								placeholder={
+									defaultMaxSpotsPerDivision
+										? `${defaultMaxSpotsPerDivision} (competition default)`
+										: "Unlimited"
+								}
+								className="mt-2"
+							/>
+							<p className="text-muted-foreground text-sm mt-1">
+								{defaultMaxSpotsPerDivision
+									? "Leave blank to use competition default"
+									: "Leave blank for unlimited spots"}
 							</p>
 						</div>
 						<div>

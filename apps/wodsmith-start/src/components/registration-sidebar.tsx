@@ -12,20 +12,47 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
-import { isSameUTCDay } from "@/utils/date-utils"
+import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
+import {
+	getEndOfDayInTimezone,
+	hasDateStartedInTimezone,
+	DEFAULT_TIMEZONE,
+} from "@/utils/timezone-utils"
 
 /**
  * Calculate time remaining until deadline and return urgency level
+ * Accepts YYYY-MM-DD string, Date, or number (timestamp)
+ * For YYYY-MM-DD strings, uses the competition's timezone to determine end of day
  */
-function getDeadlineUrgency(deadline: Date | number): {
+function getDeadlineUrgency(
+	deadline: string | Date | number,
+	timezone: string = DEFAULT_TIMEZONE,
+): {
 	daysRemaining: number
 	hoursRemaining: number
 	urgencyLevel: "critical" | "urgent" | "normal" | "none"
 	message: string
 } {
 	const now = new Date()
-	const deadlineDate =
-		typeof deadline === "number" ? new Date(deadline) : deadline
+	// Handle YYYY-MM-DD strings by parsing to end of day in competition's timezone
+	let deadlineDate: Date
+	if (typeof deadline === "string") {
+		const endOfDay = getEndOfDayInTimezone(deadline, timezone)
+		if (!endOfDay) {
+			// Invalid date string
+			return {
+				daysRemaining: 0,
+				hoursRemaining: 0,
+				urgencyLevel: "none",
+				message: "",
+			}
+		}
+		deadlineDate = endOfDay
+	} else if (typeof deadline === "number") {
+		deadlineDate = new Date(deadline)
+	} else {
+		deadlineDate = deadline
+	}
 	const diffMs = deadlineDate.getTime() - now.getTime()
 
 	if (diffMs <= 0) {
@@ -96,7 +123,11 @@ interface RegistrationSidebarProps {
 	isVolunteer?: boolean
 }
 
-function formatDateShort(date: Date | number): string {
+function formatDateShort(date: string | Date | number): string {
+	// Handle YYYY-MM-DD strings using utility
+	if (typeof date === "string") {
+		return formatDateStringFull(date) || date
+	}
 	const d = typeof date === "number" ? new Date(date) : date
 	return d.toLocaleDateString("en-US", {
 		month: "short",
@@ -105,13 +136,8 @@ function formatDateShort(date: Date | number): string {
 	})
 }
 
-function formatDeadlineDate(date: Date | number): string {
-	const d = typeof date === "number" ? new Date(date) : date
-	return d.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	})
+function formatDeadlineDate(date: string | Date | number): string {
+	return formatDateShort(date)
 }
 
 export function RegistrationSidebar({
@@ -128,13 +154,16 @@ export function RegistrationSidebar({
 }: RegistrationSidebarProps) {
 	const regClosesAt = competition.registrationClosesAt
 	const regOpensAt = competition.registrationOpensAt
+	const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
 
-	// Calculate urgency for deadline
-	const urgency = regClosesAt ? getDeadlineUrgency(regClosesAt) : null
+	// Calculate urgency for deadline (using competition's timezone)
+	const urgency = regClosesAt
+		? getDeadlineUrgency(regClosesAt, competitionTimezone)
+		: null
 
-	// Check if registration hasn't opened yet
-	const now = new Date()
-	const registrationNotYetOpen = regOpensAt && new Date(regOpensAt) > now
+	// Check if registration hasn't opened yet (using competition's timezone)
+	const registrationNotYetOpen =
+		regOpensAt && !hasDateStartedInTimezone(regOpensAt, competitionTimezone)
 
 	return (
 		<div className="space-y-4">
@@ -288,7 +317,7 @@ export function RegistrationSidebar({
 						<div>
 							<p className="font-medium">
 								{formatDateShort(competition.startDate)}
-								{!isSameUTCDay(competition.startDate, competition.endDate) && (
+								{!isSameDateString(competition.startDate, competition.endDate) && (
 									<> - {formatDateShort(competition.endDate)}</>
 								)}
 							</p>

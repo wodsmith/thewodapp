@@ -40,6 +40,12 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import { requireVerifiedEmail } from "@/utils/auth"
+import {
+	hasDateStartedInTimezone,
+	isDeadlinePassedInTimezone,
+	DEFAULT_TIMEZONE,
+} from "@/utils/timezone-utils"
+import { getDivisionSpotsAvailableFn } from "./competition-divisions-fns"
 
 // ============================================================================
 // Input Schemas
@@ -101,17 +107,21 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 		})
 		if (!competition) throw new Error("Competition not found")
 
-		// 2. Validate registration window
-		const now = new Date()
+		// 2. Validate registration window (using competition's timezone)
+		const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
 		if (
-			competition.registrationOpensAt &&
-			new Date(competition.registrationOpensAt) > now
+			!hasDateStartedInTimezone(
+				competition.registrationOpensAt,
+				competitionTimezone,
+			)
 		) {
 			throw new Error("Registration has not opened yet")
 		}
 		if (
-			competition.registrationClosesAt &&
-			new Date(competition.registrationClosesAt) < now
+			isDeadlinePassedInTimezone(
+				competition.registrationClosesAt,
+				competitionTimezone,
+			)
 		) {
 			throw new Error("Registration has closed")
 		}
@@ -126,6 +136,19 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			})
 		if (existingRegistration) {
 			throw new Error("You are already registered for this competition")
+		}
+
+		// 3.5. Check division capacity
+		const capacityCheck = await getDivisionSpotsAvailableFn({
+			data: {
+				competitionId: input.competitionId,
+				divisionId: input.divisionId,
+			},
+		})
+		if (capacityCheck.isFull) {
+			throw new Error(
+				"This division is full. Please select a different division.",
+			)
 		}
 
 		// 4. Check for existing pending purchase (resume payment flow)
@@ -336,7 +359,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 			},
 			success_url: `${appUrl}/compete/${competition.slug}/register/success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
-			expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 minutes
+			expires_at: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes (reservation timeout)
 			customer_email: session.user.email ?? undefined, // Pre-fill email
 		}
 
@@ -995,4 +1018,45 @@ export const getRegistrationDetailsFn = createServerFn({ method: "GET" })
 				: null,
 			purchase,
 		}
+	})
+
+/**
+ * Cancel any pending purchases for a user/competition
+ * Used when user explicitly cancels from Stripe checkout
+ * This releases the reservation immediately instead of waiting for timeout
+ */
+export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) =>
+		z
+			.object({
+				userId: z.string().min(1, "User ID is required"),
+				competitionId: z.string().min(1, "Competition ID is required"),
+			})
+			.parse(data),
+	)
+	.handler(async ({ data }) => {
+		// Authenticate user
+		const session = await requireVerifiedEmail()
+		if (!session) throw new Error("Unauthorized")
+
+		// Ensure user can only cancel their own pending purchases
+		if (data.userId !== session.user.id) {
+			throw new Error("You can only cancel your own pending purchases")
+		}
+
+		const db = getDb()
+
+		// Cancel any PENDING purchases for this user/competition
+		await db
+			.update(commercePurchaseTable)
+			.set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
+			.where(
+				and(
+					eq(commercePurchaseTable.userId, data.userId),
+					eq(commercePurchaseTable.competitionId, data.competitionId),
+					eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+				),
+			)
+
+		return { success: true }
 	})
