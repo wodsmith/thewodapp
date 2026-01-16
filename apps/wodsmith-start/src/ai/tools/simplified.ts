@@ -12,9 +12,9 @@ import { z } from "zod"
 import { eq, and } from "drizzle-orm"
 import { getDb } from "@/db"
 import { waiversTable } from "@/db/schemas/waivers"
-import { competitionsTable } from "@/db/schemas/competitions"
-import { competitionScoresTable, competitionRegistrationsTable } from "@/db/schemas/competitions"
-import { trackWorkoutsTable } from "@/db/schemas/programming"
+import { competitionsTable, competitionRegistrationsTable } from "@/db/schemas/competitions"
+import { scoresTable } from "@/db/schemas/scores"
+import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { createId } from "@paralleldrive/cuid2"
 import {
@@ -237,29 +237,39 @@ export const enterResultSimple = createTool({
 
 		try {
 			// Get track workout to determine competition and scheme
-			const trackWorkout = await db
+			const trackWorkoutResult = await db
 				.select({
 					trackWorkout: trackWorkoutsTable,
 					workout: workoutsTable,
+					competition: competitionsTable,
 				})
 				.from(trackWorkoutsTable)
 				.innerJoin(
 					workoutsTable,
 					eq(trackWorkoutsTable.workoutId, workoutsTable.id),
 				)
+				.innerJoin(
+					programmingTracksTable,
+					eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+				)
+				.innerJoin(
+					competitionsTable,
+					eq(programmingTracksTable.competitionId, competitionsTable.id),
+				)
 				.where(eq(trackWorkoutsTable.id, inputData.trackWorkoutId))
 				.limit(1)
 
-			if (!trackWorkout[0]) {
+			if (!trackWorkoutResult[0]) {
 				return createToolError({
 					error: ErrorCode.RESOURCE_NOT_FOUND,
 					message: `Track workout '${inputData.trackWorkoutId}' not found`,
-					suggestion: "Check the event ID and try again. Use listEvents to see available events.",
+					suggestion:
+						"Check the event ID and try again. Use listEvents to see available events.",
 					nextActions: ["listEvents"],
 				})
 			}
 
-			const { workout } = trackWorkout[0]
+			const { workout, competition, trackWorkout } = trackWorkoutResult[0]
 			const scheme = workout.scheme || "time"
 
 			// Encode score based on scheme
@@ -294,33 +304,50 @@ export const enterResultSimple = createTool({
 				inputData.tiebreakSeconds !== undefined
 			) {
 				const tiebreakSeconds =
-					(inputData.tiebreakMinutes || 0) * 60 + (inputData.tiebreakSeconds || 0)
+					(inputData.tiebreakMinutes || 0) * 60 +
+					(inputData.tiebreakSeconds || 0)
 				encodedTiebreak = tiebreakSeconds * 1000
 			}
 
 			// Verify registration exists
-			const registration = await db.query.competitionRegistrationsTable.findFirst({
-				where: eq(competitionRegistrationsTable.id, inputData.registrationId),
-			})
+			const registration =
+				await db.query.competitionRegistrationsTable.findFirst({
+					where: eq(competitionRegistrationsTable.id, inputData.registrationId),
+				})
 
 			if (!registration) {
 				return createToolError({
 					error: ErrorCode.RESOURCE_NOT_FOUND,
 					message: `Registration '${inputData.registrationId}' not found`,
-					suggestion: "Check the registration ID. Use listRegistrations to see available registrations.",
+					suggestion:
+						"Check the registration ID. Use listRegistrations to see available registrations.",
 					nextActions: ["listRegistrations"],
 				})
 			}
 
+			// Map status (capped -> cap)
+			const statusMap: Record<string, "scored" | "cap" | "dq" | "withdrawn"> = {
+				scored: "scored",
+				capped: "cap",
+				dq: "dq",
+				withdrawn: "withdrawn",
+			}
+			const status = statusMap[inputData.status] || "scored"
+
 			// Insert or update score
 			const scoreId = `scr_${createId()}`
-			await db.insert(competitionScoresTable).values({
+			await db.insert(scoresTable).values({
 				id: scoreId,
-				trackWorkoutId: inputData.trackWorkoutId,
-				competitionRegistrationId: inputData.registrationId,
-				score: encodedScore,
-				tiebreak: encodedTiebreak,
-				status: inputData.status,
+				userId: registration.userId,
+				teamId: competition.organizingTeamId,
+				workoutId: trackWorkout.workoutId,
+				competitionEventId: inputData.trackWorkoutId,
+				scheme: workout.scheme,
+				scoreType: workout.scoreType || "max",
+				scoreValue: encodedScore,
+				tiebreakValue: encodedTiebreak,
+				status,
+				recordedAt: new Date(),
 			})
 
 			return createToolSuccess({
