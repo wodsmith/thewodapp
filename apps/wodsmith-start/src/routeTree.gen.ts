@@ -46,6 +46,7 @@ import { Route as ProtectedCalculatorIndexRouteImport } from './routes/_protecte
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
+import { Route as CompeteOrganizerAiRouteImport } from './routes/compete/organizer/ai'
 import { Route as CompeteOrganizerDashboardRouteImport } from './routes/compete/organizer/_dashboard'
 import { Route as CompeteOrganizerCompetitionIdRouteImport } from './routes/compete/organizer/$competitionId'
 import { Route as CompeteInviteTokenRouteImport } from './routes/compete/invite/$token'
@@ -316,6 +317,11 @@ const DemoApiNamesRoute = DemoApiNamesRouteImport.update({
   id: '/demo/api/names',
   path: '/demo/api/names',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CompeteOrganizerAiRoute = CompeteOrganizerAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => CompeteOrganizerRoute,
 } as any)
 const CompeteOrganizerDashboardRoute =
   CompeteOrganizerDashboardRouteImport.update({
@@ -833,6 +839,7 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
   '/compete/invite/$token': typeof CompeteInviteTokenRoute
   '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdRouteWithChildren
+  '/compete/organizer/ai': typeof CompeteOrganizerAiRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
@@ -946,6 +953,7 @@ export interface FileRoutesByTo {
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
   '/compete/$slug/workouts': typeof CompeteSlugWorkoutsRoute
   '/compete/invite/$token': typeof CompeteInviteTokenRoute
+  '/compete/organizer/ai': typeof CompeteOrganizerAiRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
@@ -1068,6 +1076,7 @@ export interface FileRoutesById {
   '/compete/invite/$token': typeof CompeteInviteTokenRoute
   '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdRouteWithChildren
   '/compete/organizer/_dashboard': typeof CompeteOrganizerDashboardRouteWithChildren
+  '/compete/organizer/ai': typeof CompeteOrganizerAiRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
@@ -1190,6 +1199,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/workouts'
     | '/compete/invite/$token'
     | '/compete/organizer/$competitionId'
+    | '/compete/organizer/ai'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
@@ -1303,6 +1313,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/volunteer'
     | '/compete/$slug/workouts'
     | '/compete/invite/$token'
+    | '/compete/organizer/ai'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
@@ -1424,6 +1435,7 @@ export interface FileRouteTypes {
     | '/compete/invite/$token'
     | '/compete/organizer/$competitionId'
     | '/compete/organizer/_dashboard'
+    | '/compete/organizer/ai'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
@@ -1794,6 +1806,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/demo/api/names'
       preLoaderRoute: typeof DemoApiNamesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/compete/organizer/ai': {
+      id: '/compete/organizer/ai'
+      path: '/ai'
+      fullPath: '/compete/organizer/ai'
+      preLoaderRoute: typeof CompeteOrganizerAiRouteImport
+      parentRoute: typeof CompeteOrganizerRoute
     }
     '/compete/organizer/_dashboard': {
       id: '/compete/organizer/_dashboard'
@@ -2709,6 +2728,7 @@ const CompeteOrganizerDashboardRouteWithChildren =
 interface CompeteOrganizerRouteChildren {
   CompeteOrganizerCompetitionIdRoute: typeof CompeteOrganizerCompetitionIdRouteWithChildren
   CompeteOrganizerDashboardRoute: typeof CompeteOrganizerDashboardRouteWithChildren
+  CompeteOrganizerAiRoute: typeof CompeteOrganizerAiRoute
   CompeteOrganizerOnboardPendingRoute: typeof CompeteOrganizerOnboardPendingRoute
   CompeteOrganizerOnboardIndexRoute: typeof CompeteOrganizerOnboardIndexRoute
 }
@@ -2717,6 +2737,7 @@ const CompeteOrganizerRouteChildren: CompeteOrganizerRouteChildren = {
   CompeteOrganizerCompetitionIdRoute:
     CompeteOrganizerCompetitionIdRouteWithChildren,
   CompeteOrganizerDashboardRoute: CompeteOrganizerDashboardRouteWithChildren,
+  CompeteOrganizerAiRoute: CompeteOrganizerAiRoute,
   CompeteOrganizerOnboardPendingRoute: CompeteOrganizerOnboardPendingRoute,
   CompeteOrganizerOnboardIndexRoute: CompeteOrganizerOnboardIndexRoute,
 }
