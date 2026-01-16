@@ -290,16 +290,10 @@ export const getFinancialSummary = createTool({
 				{ revenue: 0, organizerNet: 0 },
 			)
 
-			// Handle startDate safely - may be Date or string
-			const startDateStr =
-				c.startDate instanceof Date
-					? c.startDate.toISOString()
-					: String(c.startDate)
-
 			return {
 				competitionId: c.id,
 				name: c.name,
-				startDate: startDateStr,
+				startDate: String(c.startDate),
 				status: c.status,
 				totalRevenue: totals.revenue,
 				organizerNet: totals.organizerNet,

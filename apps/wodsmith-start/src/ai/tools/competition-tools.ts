@@ -29,6 +29,7 @@ import {
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
 import { eq, and, count, sql } from "drizzle-orm"
 import { parseCompetitionSettings } from "@/types/competitions"
+import { hasDateStartedInTimezone } from "@/utils/timezone-utils"
 
 /**
  * Get competition details including divisions, events, and registration count.
@@ -169,16 +170,11 @@ export const getCompetitionDetails = createTool({
 				name: competition.name,
 				slug: competition.slug,
 				description: competition.description,
-				startDate:
-					competition.startDate instanceof Date
-						? competition.startDate.toISOString()
-						: String(competition.startDate),
-				endDate:
-					competition.endDate instanceof Date
-						? competition.endDate.toISOString()
-						: String(competition.endDate),
+				startDate: String(competition.startDate),
+				endDate: String(competition.endDate),
 				status: competition.status,
 				visibility: competition.visibility,
+				timezone: competition.timezone,
 			},
 			divisions: divisions.map((d) => ({
 				id: d.id,
@@ -258,14 +254,8 @@ export const listCompetitions = createTool({
 				id: c.id,
 				name: c.name,
 				slug: c.slug,
-				startDate:
-					c.startDate instanceof Date
-						? c.startDate.toISOString()
-						: String(c.startDate),
-				endDate:
-					c.endDate instanceof Date
-						? c.endDate.toISOString()
-						: String(c.endDate),
+				startDate: String(c.startDate),
+				endDate: String(c.endDate),
 				status: c.status,
 				registrationCount: Number(c.registrationCount),
 			})),
@@ -476,8 +466,13 @@ export const validateCompetitionPlanner = createTool({
 		}
 
 		// Check dates
-		const now = new Date()
-		if (competition.startDate < now && competition.status === "draft") {
+		if (
+			hasDateStartedInTimezone(
+				competition.startDate,
+				competition.timezone || "America/Denver",
+			) &&
+			competition.status === "draft"
+		) {
 			issues.push({
 				severity: "warning",
 				category: "Schedule",

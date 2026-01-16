@@ -10,6 +10,11 @@ import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { createCompetition as createCompetitionLogic } from "@/server-fns/competition-server-logic"
 import { generateSlug } from "@/utils/slugify"
+import { getLocalDateKey } from "@/utils/date-utils"
+import {
+	hasDateStartedInTimezone,
+	isDeadlinePassedInTimezone,
+} from "@/utils/timezone-utils"
 
 /**
  * Create a new competition.
@@ -82,7 +87,7 @@ export const createCompetition = createTool({
 			// Generate slug from name if not provided
 			const competitionSlug = slug || generateSlug(name)
 
-			// Parse dates
+			// Parse dates for validation
 			const parsedStartDate = new Date(startDate)
 			const parsedEndDate = endDate ? new Date(endDate) : parsedStartDate
 
@@ -103,6 +108,10 @@ export const createCompetition = createTool({
 				return { error: "End date cannot be before start date" }
 			}
 
+			// Format dates to YYYY-MM-DD for storage
+			const formattedStartDate = getLocalDateKey(parsedStartDate)
+			const formattedEndDate = getLocalDateKey(parsedEndDate)
+
 			// Only pass groupId if it's a valid non-empty string
 			const validGroupId =
 				groupId && groupId.trim() !== "" ? groupId : undefined
@@ -111,14 +120,14 @@ export const createCompetition = createTool({
 				organizingTeamId: teamId,
 				name,
 				slug: competitionSlug,
-				startDate: parsedStartDate,
-				endDate: parsedEndDate,
+				startDate: formattedStartDate,
+				endDate: formattedEndDate,
 				description,
 				registrationOpensAt: registrationOpensAt
-					? new Date(registrationOpensAt)
+					? getLocalDateKey(new Date(registrationOpensAt))
 					: undefined,
 				registrationClosesAt: registrationClosesAt
-					? new Date(registrationClosesAt)
+					? getLocalDateKey(new Date(registrationClosesAt))
 					: undefined,
 				groupId: validGroupId,
 			})
@@ -129,8 +138,8 @@ export const createCompetition = createTool({
 				competitionTeamId: result.competitionTeamId,
 				name,
 				slug: competitionSlug,
-				startDate,
-				endDate: endDate || startDate,
+				startDate: formattedStartDate,
+				endDate: formattedEndDate,
 				message: `Competition "${name}" created successfully. Next steps: add divisions, events, and waivers.`,
 			}
 		} catch (error) {
@@ -158,26 +167,26 @@ export const updateCompetitionDetails = createTool({
 			.describe("Competition description"),
 		startDate: z
 			.string()
-			.datetime()
 			.optional()
-			.describe("Start date (ISO 8601 format)"),
+			.describe("Start date (ISO 8601 or YYYY-MM-DD format)"),
 		endDate: z
 			.string()
-			.datetime()
 			.optional()
-			.describe("End date (ISO 8601 format)"),
+			.describe("End date (ISO 8601 or YYYY-MM-DD format)"),
 		registrationOpensAt: z
 			.string()
-			.datetime()
 			.nullable()
 			.optional()
-			.describe("When registration opens (ISO 8601 format, null to remove)"),
+			.describe(
+				"When registration opens (ISO 8601 or YYYY-MM-DD format, null to remove)",
+			),
 		registrationClosesAt: z
 			.string()
-			.datetime()
 			.nullable()
 			.optional()
-			.describe("When registration closes (ISO 8601 format, null to remove)"),
+			.describe(
+				"When registration closes (ISO 8601 or YYYY-MM-DD format, null to remove)",
+			),
 		visibility: z
 			.enum(["public", "private"])
 			.optional()
@@ -234,15 +243,15 @@ export const updateCompetitionDetails = createTool({
 
 		if (name !== undefined) updates.name = name
 		if (description !== undefined) updates.description = description
-		if (startDate !== undefined) updates.startDate = new Date(startDate)
-		if (endDate !== undefined) updates.endDate = new Date(endDate)
+		if (startDate !== undefined) updates.startDate = getLocalDateKey(startDate)
+		if (endDate !== undefined) updates.endDate = getLocalDateKey(endDate)
 		if (registrationOpensAt !== undefined)
 			updates.registrationOpensAt = registrationOpensAt
-				? new Date(registrationOpensAt)
+				? getLocalDateKey(registrationOpensAt)
 				: null
 		if (registrationClosesAt !== undefined)
 			updates.registrationClosesAt = registrationClosesAt
-				? new Date(registrationClosesAt)
+				? getLocalDateKey(registrationClosesAt)
 				: null
 		if (visibility !== undefined) updates.visibility = visibility
 		if (status !== undefined) updates.status = status
@@ -261,10 +270,10 @@ export const updateCompetitionDetails = createTool({
 			updated: {
 				name,
 				description,
-				startDate,
-				endDate,
-				registrationOpensAt,
-				registrationClosesAt,
+				startDate: updates.startDate,
+				endDate: updates.endDate,
+				registrationOpensAt: updates.registrationOpensAt,
+				registrationClosesAt: updates.registrationClosesAt,
 				visibility,
 				status,
 				defaultRegistrationFeeCents,
@@ -340,8 +349,13 @@ export const validateCompetition = createTool({
 		}
 
 		// Check dates
-		const now = new Date()
-		if (competition.startDate < now && competition.status === "draft") {
+		if (
+			hasDateStartedInTimezone(
+				competition.startDate,
+				competition.timezone || "America/Denver",
+			) &&
+			competition.status === "draft"
+		) {
 			issues.push({
 				severity: "warning",
 				category: "Schedule",

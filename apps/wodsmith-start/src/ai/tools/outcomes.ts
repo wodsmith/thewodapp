@@ -29,6 +29,11 @@ import { waiversTable } from "@/db/schemas/waivers"
 import { createCompetition } from "@/server-fns/competition-server-logic"
 import { generateSlug } from "@/utils/slugify"
 import { createId } from "@paralleldrive/cuid2"
+import { getLocalDateKey } from "@/utils/date-utils"
+import {
+	hasDateStartedInTimezone,
+	isDeadlinePassedInTimezone,
+} from "@/utils/timezone-utils"
 import {
 	CommonErrors,
 	createToolSuccess,
@@ -81,8 +86,13 @@ async function runValidation(
 	}
 
 	// Check dates
-	const now = new Date()
-	if (competition.startDate < now && competition.status === "draft") {
+	if (
+		hasDateStartedInTimezone(
+			competition.startDate,
+			competition.timezone || "America/Denver",
+		) &&
+		competition.status === "draft"
+	) {
 		issues.push({
 			severity: "warning",
 			category: "Schedule",
@@ -262,7 +272,7 @@ export const setupNewCompetition = createTool({
 		const slug = generateSlug(inputData.name)
 
 		try {
-			// Parse dates
+			// Parse dates for validation
 			const parsedStartDate = new Date(inputData.startDate)
 			const parsedEndDate = inputData.endDate
 				? new Date(inputData.endDate)
@@ -279,13 +289,17 @@ export const setupNewCompetition = createTool({
 				)
 			}
 
+			// Format dates to YYYY-MM-DD for storage
+			const formattedStartDate = getLocalDateKey(parsedStartDate)
+			const formattedEndDate = getLocalDateKey(parsedEndDate)
+
 			// Step 1: Create competition record
 			const { competitionId, competitionTeamId } = await createCompetition({
 				organizingTeamId: teamId,
 				name: inputData.name,
 				slug,
-				startDate: parsedStartDate,
-				endDate: parsedEndDate,
+				startDate: formattedStartDate,
+				endDate: formattedEndDate,
 				description: inputData.description,
 			})
 
@@ -605,7 +619,7 @@ export const duplicateCompetition = createTool({
 			// Generate slug
 			const newSlug = generateSlug(inputData.newName)
 
-			// Parse dates
+			// Parse dates for validation
 			const parsedStartDate = new Date(inputData.newStartDate)
 			const parsedEndDate = inputData.newEndDate
 				? new Date(inputData.newEndDate)
@@ -618,13 +632,17 @@ export const duplicateCompetition = createTool({
 				)
 			}
 
+			// Format dates to YYYY-MM-DD for storage
+			const formattedStartDate = getLocalDateKey(parsedStartDate)
+			const formattedEndDate = getLocalDateKey(parsedEndDate)
+
 			// Create new competition
 			const { competitionId, competitionTeamId } = await createCompetition({
 				organizingTeamId: teamId,
 				name: inputData.newName,
 				slug: newSlug,
-				startDate: parsedStartDate,
-				endDate: parsedEndDate,
+				startDate: formattedStartDate,
+				endDate: formattedEndDate,
 				description: inputData.newDescription || sourceComp.description,
 				settings: inputData.copyDivisions ? sourceComp.settings : undefined,
 			})
@@ -1036,7 +1054,13 @@ export const checkCompetitionReadiness = createTool({
 			}
 
 			// Check if registration window is appropriate
-			if (competition.registrationClosesAt) {
+			if (
+				competition.registrationClosesAt &&
+				!isDeadlinePassedInTimezone(
+					competition.registrationClosesAt,
+					competition.timezone || "America/Denver",
+				)
+			) {
 				const closesAt = new Date(competition.registrationClosesAt)
 				const now = new Date()
 				const daysUntilClosed = Math.ceil(
