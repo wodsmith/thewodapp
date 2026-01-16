@@ -34,7 +34,6 @@ interface CompetitionWorkoutCardProps {
 	description: string | null // Default description
 	scoreType: string | null
 	roundsToScore: number | null
-    repsPerRound?: number | null
     tiebreakScheme?: string | null
 	pointsMultiplier: number | null
 	notes: string | null
@@ -70,7 +69,6 @@ export function CompetitionWorkoutCard({
 	description,
 	scoreType,
     roundsToScore,
-    repsPerRound,
     tiebreakScheme,
 	pointsMultiplier,
 	notes,
@@ -173,12 +171,6 @@ export function CompetitionWorkoutCard({
                                                 {roundsToScore} Rounds
                                             </Badge>
                                         )}
-                                        {repsPerRound && (
-                                            <Badge variant="outline" className="px-3 py-1 text-sm flex gap-2 items-center">
-                                                <Hash className="h-4 w-4" />
-                                                {repsPerRound} reps/round
-                                            </Badge>
-                                        )}
                                         {tiebreakScheme && (
                                             <Badge variant="outline" className="px-3 py-1 text-sm flex gap-2 items-center">
                                                 <ArrowRight className="h-4 w-4" />
@@ -255,12 +247,6 @@ export function CompetitionWorkoutCard({
                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
                                 <Hash className="h-4 w-4" />
                                 {roundsToScore} Rounds
-                            </div>
-                        )}
-                        {repsPerRound && (
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-secondary text-secondary-foreground">
-                                <Hash className="h-4 w-4" />
-                                {repsPerRound} reps/round
                             </div>
                         )}
                          {/* Placeholder for Division Tag if strictly needed, but context is global now */}
