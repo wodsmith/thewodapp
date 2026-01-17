@@ -109,7 +109,7 @@ export function CompetitionWorkoutCard({
                     {/* Header */}
                     <div className="flex items-start justify-between gap-4 mb-6">
                         <div className="flex items-start gap-4">
-                            <span className="text-6xl font-black text-primary/10 leading-none select-none -ml-1">
+                            <span className="text-6xl font-black text-primary/70 leading-none select-none -ml-1">
                                 {trackOrder.toString().padStart(2, '0')}
                             </span>
                             <div className="pt-1">
