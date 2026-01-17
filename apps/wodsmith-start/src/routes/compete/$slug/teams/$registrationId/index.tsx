@@ -28,8 +28,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card"
 import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
-import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schemas/competitions"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
 import {
 	getRegistrationDetailsFn,
@@ -152,6 +150,8 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 				}).catch(() => ({ answers: [] })),
 				// Fetch full competition data for registrationClosesAt
 				(async () => {
+					const { getDb } = await import("@/db")
+					const { competitionsTable } = await import("@/db/schemas/competitions")
 					const db = getDb()
 					const comp = await db.query.competitionsTable.findFirst({
 						where: eq(competitionsTable.id, registration.competition!.id),
@@ -354,6 +354,7 @@ function TeamManagementPage() {
 						answers={registrationAnswers}
 						isEditable={isRegistrationOpen}
 						currentUserId={currentUserId}
+						isCaptain={true}
 					/>
 				)}
 
@@ -419,6 +420,7 @@ function TeamManagementPage() {
 						answers={registrationAnswers}
 						isEditable={isRegistrationOpen}
 						currentUserId={currentUserId}
+						isCaptain={isRegisteredUser}
 					/>
 				)}
 

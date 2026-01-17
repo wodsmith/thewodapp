@@ -56,7 +56,7 @@ interface RegistrationAnswersFormProps {
 	answers: Answer[]
 	isEditable: boolean
 	currentUserId: string
-	teamMembers?: Array<{ id: string; name: string }>
+	isCaptain?: boolean
 }
 
 // Build dynamic form schema based on questions
@@ -68,12 +68,7 @@ const buildFormSchema = (questions: RegistrationQuestion[]) => {
 			? z.string().min(1, `${question.label} is required`)
 			: z.string().optional()
 
-		if (question.forTeammates) {
-			// For team questions, we'll handle them separately
-			schemaFields[`${question.id}_team`] = fieldSchema
-		} else {
-			schemaFields[question.id] = fieldSchema
-		}
+		schemaFields[question.id] = fieldSchema
 	}
 
 	return z.object(schemaFields)
@@ -89,13 +84,19 @@ export function RegistrationAnswersForm({
 	answers,
 	isEditable,
 	currentUserId,
+	isCaptain = false,
 }: RegistrationAnswersFormProps) {
 	const submitAnswers = useServerFn(submitRegistrationAnswersFn)
 
 	// Filter questions for current user
+	// - Captain sees all questions (both regular and forTeammates)
+	// - Teammates see only forTeammates questions
 	const userQuestions = useMemo(() => {
-		return questions.filter((q) => !q.forTeammates)
-	}, [questions])
+		if (isCaptain) {
+			return questions
+		}
+		return questions.filter((q) => q.forTeammates)
+	}, [questions, isCaptain])
 
 	// Build form schema
 	const formSchema = useMemo(() => buildFormSchema(userQuestions), [userQuestions])
