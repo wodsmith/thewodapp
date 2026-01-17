@@ -269,6 +269,9 @@ export const getCompetitionWaiverSignaturesFn = createServerFn({ method: "GET" }
 				throw new Error("Permission denied")
 			}
 
+			// Validate competition belongs to team
+			await validateCompetitionOwnership(data.competitionId, data.teamId)
+
 			const db = getDb()
 
 			// Get all waivers for this competition

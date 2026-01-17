@@ -457,10 +457,17 @@ function AthletesPage() {
 			return csvRow
 		})
 
+		// Sanitize cell value to prevent CSV injection (formula characters)
+		const sanitizeCell = (value: string): string => {
+			const escaped = value.replace(/"/g, '""')
+			// Prefix formula-triggering characters with a single quote to prevent spreadsheet injection
+			return /^[=+\-@]/.test(escaped) ? `'${escaped}` : escaped
+		}
+
 		// Generate CSV content
 		const csvContent = [
-			headers.map(h => `"${h.replace(/"/g, '""')}"`).join(","),
-			...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+			headers.map(h => `"${sanitizeCell(h)}"`).join(","),
+			...rows.map(row => row.map(cell => `"${sanitizeCell(String(cell))}"`).join(",")),
 		].join("\n")
 
 		// Download CSV
