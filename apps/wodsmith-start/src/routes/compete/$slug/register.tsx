@@ -9,7 +9,6 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
 import {
 	competitionRegistrationsTable,
 	scalingGroupsTable,
@@ -41,6 +40,7 @@ const getUserCompetitionRegistrationFn = createServerFn({ method: "GET" })
 			.parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
 		const db = getDb()
 		const registration = await db.query.competitionRegistrationsTable.findFirst(
 			{
@@ -63,6 +63,7 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 		z.object({ scalingGroupId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
 		const db = getDb()
 		const scalingGroup = await db.query.scalingGroupsTable.findFirst({
 			where: eq(scalingGroupsTable.id, data.scalingGroupId),
@@ -82,6 +83,7 @@ const getUserAffiliateNameFn = createServerFn({ method: "GET" })
 		z.object({ userId: z.string() }).parse(data),
 	)
 	.handler(async ({ data }) => {
+		const { getDb } = await import("@/db")
 		const db = getDb()
 		const user = await db.query.userTable.findFirst({
 			where: eq(userTable.id, data.userId),
