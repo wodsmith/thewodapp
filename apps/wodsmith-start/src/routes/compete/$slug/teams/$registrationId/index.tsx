@@ -77,7 +77,7 @@ interface LoaderData {
 		id: string
 		name: string
 		slug: string
-		registrationClosesAt: Date | null
+		registrationClosesAt: string | null
 	} | null
 	division: {
 		id: string
@@ -138,7 +138,7 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
 			userId: string
 			answer: string
 		}> = []
-		let fullCompetition: { registrationClosesAt: Date | null } | null = null
+		let fullCompetition: { registrationClosesAt: string | null } | null = null
 
 		if (registration.competition?.id) {
 			const [questionsResult, answersResult, competitionData] = await Promise.all([
