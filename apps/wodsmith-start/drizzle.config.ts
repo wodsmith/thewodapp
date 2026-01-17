@@ -3,23 +3,31 @@ import path from "node:path"
 import { defineConfig } from "drizzle-kit"
 
 function getLocalD1DB() {
-	try {
-		const basePath = path.resolve(".wrangler/state/v3/d1")
-		const dbFile = fs
-			.readdirSync(basePath, { encoding: "utf-8", recursive: true })
-			.find((f) => f.endsWith(".sqlite"))
+	// Check Alchemy location first, then fall back to wrangler location
+	const possiblePaths = [
+		".alchemy/local/.wrangler/state/v3/d1",
+		".wrangler/state/v3/d1",
+	]
 
-		if (!dbFile) {
-			throw new Error(`.sqlite file not found in ${basePath}`)
+	for (const basePath of possiblePaths) {
+		try {
+			const resolvedPath = path.resolve(basePath)
+			const dbFile = fs
+				.readdirSync(resolvedPath, { encoding: "utf-8", recursive: true })
+				.find((f) => f.endsWith(".sqlite"))
+
+			if (dbFile) {
+				const url = path.resolve(resolvedPath, dbFile)
+				console.log(`Using D1 database: ${url}`)
+				return url
+			}
+		} catch {
+			// Directory doesn't exist, try next path
 		}
-
-		const url = path.resolve(basePath, dbFile)
-		return url
-	} catch (err) {
-		console.error(err)
-
-		return null
 	}
+
+	console.error("No local D1 database found. Run 'pnpm alchemy:dev' first.")
+	return null
 }
 
 export default defineConfig({

@@ -5,9 +5,7 @@ import {
 	Clock,
 	FileText,
 	ListOrdered,
-	Repeat,
 	Target,
-	Timer,
 	Trophy,
 	Users,
 } from "lucide-react"
@@ -246,20 +244,6 @@ function getAssignedDivisions(
 function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 	const badges: React.ReactNode[] = []
 
-	// Scheme badge (how the workout is scored)
-	const schemeLabel = formatScheme(workout.scheme)
-	if (schemeLabel) {
-		badges.push(
-			<span
-				key="scheme"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
-			>
-				<Trophy className="h-3.5 w-3.5" />
-				{schemeLabel}
-			</span>,
-		)
-	}
-
 	// Time cap
 	if (workout.timeCap) {
 		const minutes = Math.floor(workout.timeCap / 60)
@@ -268,40 +252,34 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 			seconds > 0
 				? `${minutes}:${seconds.toString().padStart(2, "0")}`
 				: `${minutes} min`
+		
 		badges.push(
-			<span
+			<Badge
 				key="timecap"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+				variant="outline"
+				className={cn(
+					"px-3 py-1 text-sm flex gap-2 items-center font-normal",
+					["time", "time-with-cap"].includes(workout.scheme) && "border-red-200 bg-red-50 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+				)}
 			>
-				<Timer className="h-3.5 w-3.5" />
-				{timeCapStr} cap
-			</span>,
+				<Clock className="h-4 w-4" />
+				{timeCapStr} Cap
+			</Badge>,
 		)
 	}
 
-	// Rounds to score
-	if (workout.roundsToScore && workout.roundsToScore > 1) {
+	// Scheme badge
+	const schemeLabel = formatScheme(workout.scheme)
+	if (schemeLabel) {
 		badges.push(
-			<span
-				key="rounds"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+			<Badge
+				key="scheme"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
 			>
-				<Repeat className="h-3.5 w-3.5" />
-				{workout.roundsToScore} rounds scored
-			</span>,
-		)
-	}
-
-	// Reps per round
-	if (workout.repsPerRound) {
-		badges.push(
-			<span
-				key="reps"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
-			>
-				<ListOrdered className="h-3.5 w-3.5" />
-				{workout.repsPerRound} reps/round
-			</span>,
+				<Target className="h-4 w-4" />
+				{schemeLabel}
+			</Badge>,
 		)
 	}
 
@@ -311,25 +289,42 @@ function ScoringBadges({ workout }: { workout: WorkoutDetails }) {
 		!["time", "time-with-cap"].includes(workout.scheme)
 	) {
 		badges.push(
-			<span
+			<Badge
 				key="scoretype"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
 			>
-				<Target className="h-3.5 w-3.5" />
+				<Trophy className="h-4 w-4" />
 				{formatScoreType(workout.scoreType)}
-			</span>,
+			</Badge>,
+		)
+	}
+
+	// Rounds to score
+	if (workout.roundsToScore && workout.roundsToScore > 1) {
+		badges.push(
+			<Badge
+				key="rounds"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
+			>
+				<ListOrdered className="h-4 w-4" />
+				{workout.roundsToScore} Rounds
+			</Badge>,
 		)
 	}
 
 	// Tiebreak
 	if (workout.tiebreakScheme) {
 		badges.push(
-			<span
+			<Badge
 				key="tiebreak"
-				className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+				variant="outline"
+				className="px-3 py-1 text-sm flex gap-2 items-center font-normal"
 			>
+				<Target className="h-4 w-4" />
 				Tiebreak: {workout.tiebreakScheme}
-			</span>,
+			</Badge>,
 		)
 	}
 
