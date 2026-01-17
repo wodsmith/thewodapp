@@ -14,7 +14,7 @@ import {
 	workouts,
 	workoutTags,
 } from "@/db/schemas/workouts"
-import { getSessionFromCookie } from "@/utils/auth"
+import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
 
 /**
  * Get all movements available in the system
@@ -51,11 +51,8 @@ export const createMovementFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const db = getDb()
 
-		// Verify authentication
-		const session = await getSessionFromCookie()
-		if (!session?.userId) {
-			throw new Error("Not authenticated")
-		}
+		// Verify authentication and admin role
+		await requireAdmin()
 
 		const movementId = crypto.randomUUID()
 

@@ -32,6 +32,7 @@ const mockAuthenticatedSession = {
 // Mock auth - default to authenticated
 vi.mock('@/utils/auth', () => ({
   getSessionFromCookie: vi.fn(() => Promise.resolve(mockAuthenticatedSession)),
+  requireAdmin: vi.fn(() => Promise.resolve(mockAuthenticatedSession)),
 }))
 
 // Mock TanStack createServerFn to make server functions directly callable in tests
@@ -57,13 +58,18 @@ vi.mock('@tanstack/react-start', () => ({
 }))
 
 // Import mocked getSessionFromCookie so we can change its behavior in tests
-import {getSessionFromCookie} from '@/utils/auth'
+import {getSessionFromCookie, requireAdmin} from '@/utils/auth'
 
 // Helper to set mock session with proper type coercion
 const setMockSession = (session: unknown) => {
   vi.mocked(getSessionFromCookie).mockResolvedValue(
     session as Awaited<ReturnType<typeof getSessionFromCookie>>,
   )
+  if (!session) {
+    vi.mocked(requireAdmin).mockRejectedValue(new Error('Not authenticated'))
+  } else {
+    vi.mocked(requireAdmin).mockResolvedValue(session as any)
+  }
 }
 
 // Factory for creating test movements
