@@ -99,6 +99,7 @@ export function CompetitionWorkoutCard({
     const formattedTimeCap = timeCap ? formatTime(timeCap) : null
 
     const schemeLabel = getSchemeLabel(scheme, timeCap)
+    const hasMovementsOrTags = (movements && movements.length > 0) || (tags && tags.length > 0)
 
 	return (
 		<Card className="overflow-hidden border-l-4 border-l-primary/40 hover:border-l-primary transition-all">
@@ -108,7 +109,7 @@ export function CompetitionWorkoutCard({
                     {/* Header */}
                     <div className="flex items-start justify-between gap-4 mb-6">
                         <div className="flex items-start gap-4">
-                            <span className="text-6xl font-black text-primary/20 leading-none select-none -ml-1">
+                            <span className="text-6xl font-black text-primary/10 leading-none select-none -ml-1">
                                 {trackOrder.toString().padStart(2, '0')}
                             </span>
                             <div className="pt-1">
@@ -250,17 +251,12 @@ export function CompetitionWorkoutCard({
                             </div>
                         )}
                          {/* Placeholder for Division Tag if strictly needed, but context is global now */}
-                         {/* {targetDivisionDesc && (
-                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-muted text-muted-foreground border">
-                                 {targetDivisionDesc.divisionLabel}
-                             </div>
-                         )} */}
                     </div>
 
                     {/* Content Grid */}
-                    <div className="grid md:grid-cols-12 gap-6">
+                    <div className={cn("grid gap-6", hasMovementsOrTags ? "md:grid-cols-12" : "grid-cols-1")}>
                          {/* Description - Takes up majority */}
-                         <div className="md:col-span-8">
+                         <div className={cn(hasMovementsOrTags ? "md:col-span-8" : "col-span-1")}>
                             <div className="prose prose-sm max-w-none dark:prose-invert">
                                 <p className="whitespace-pre-wrap text-base leading-relaxed">
                                     {displayDescription || <span className="italic text-muted-foreground">Details to be announced.</span>}
@@ -269,36 +265,38 @@ export function CompetitionWorkoutCard({
                          </div>
 
                          {/* Side Panel for Movements ("Ingredients") */}
-                         <div className="md:col-span-4 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6">
-                            {movements && movements.length > 0 && (
-                                <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                                        <Dumbbell className="h-3.5 w-3.5" />
-                                        Movements
-                                    </h4>
-                                    <ul className="space-y-2">
-                                        {movements.map(m => (
-                                            <li key={m.id} className="text-sm font-medium text-foreground/90 flex items-center justify-between">
-                                                {m.name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            
-                            {tags && tags.length > 0 && (
-                                <div className="mt-6">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Tags</h4>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {tags.map(tag => (
-                                            <Badge key={tag.id} variant="secondary" className="text-xs font-normal">
-                                                {tag.name}
-                                            </Badge>
-                                        ))}
+                         {hasMovementsOrTags && (
+                             <div className="md:col-span-4 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6">
+                                {movements && movements.length > 0 && (
+                                    <div>
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                                            <Dumbbell className="h-3.5 w-3.5" />
+                                            Movements
+                                        </h4>
+                                        <ul className="space-y-2">
+                                            {movements.map(m => (
+                                                <li key={m.id} className="text-sm font-medium text-foreground/90 flex items-center justify-between">
+                                                    {m.name}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                </div>
-                            )}
-                         </div>
+                                )}
+                                
+                                {tags && tags.length > 0 && (
+                                    <div className="mt-6">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Tags</h4>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {tags.map(tag => (
+                                                <Badge key={tag.id} variant="secondary" className="text-xs font-normal">
+                                                    {tag.name}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                             </div>
+                         )}
                     </div>
                     
                     {/* Footer / Notes */}
