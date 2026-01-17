@@ -31,7 +31,7 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 		})
 
 		if (!competition) {
-			return { workouts: [], divisions: [], divisionDescriptionsMap: new Map() }
+			return { workouts: [], divisions: [], divisionDescriptionsMap: {} }
 		}
 
 		const competitionId = competition.id
@@ -51,10 +51,10 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 
 		// Fetch division descriptions for all workouts in parallel
 		const divisionIds = divisions?.map((d) => d.id) ?? []
-		const divisionDescriptionsMap = new Map<
+		const divisionDescriptionsMap: Record<
 			string,
 			Awaited<ReturnType<typeof getWorkoutDivisionDescriptionsFn>>
-		>()
+		> = {}
 
 		if (divisionIds.length > 0 && workouts.length > 0) {
 			const descriptionsPromises = workouts.map(async (event) => {
@@ -69,7 +69,7 @@ export const Route = createFileRoute("/compete/$slug/workouts")({
 
 			const results = await Promise.all(descriptionsPromises)
 			for (const { workoutId, descriptions } of results) {
-				divisionDescriptionsMap.set(workoutId, { descriptions })
+				divisionDescriptionsMap[workoutId] = { descriptions }
 			}
 		}
 
@@ -156,9 +156,7 @@ function CompetitionWorkoutsPage() {
 			{/* Workouts List */}
 			<div className="space-y-6 pb-20">
 				{workouts.map((event) => {
-					const divisionDescriptionsResult = divisionDescriptionsMap.get(
-						event.workoutId,
-					)
+					const divisionDescriptionsResult = divisionDescriptionsMap[event.workoutId]
 					return (
 						<CompetitionWorkoutCard
 							key={event.id}
