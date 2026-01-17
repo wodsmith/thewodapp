@@ -531,6 +531,11 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
 					athleteTeam: {
 						with: {
 							memberships: {
+								columns: {
+									id: true,
+									userId: true,
+									joinedAt: true,
+								},
 								where: eq(teamMembershipTable.isActive, 1),
 								with: {
 									user: {
