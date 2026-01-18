@@ -119,7 +119,7 @@ INSERT OR IGNORE INTO user (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_demo_user',
+    'usr_pr_demo_user',
     'Admin',
     'User',
     'admin@example.com',
@@ -148,12 +148,12 @@ INSERT OR IGNORE INTO team (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_personal_team_demo',
+    'team_pr_personal_demo',
     'Demo''s Team (personal)',
     'demo-mo_user',
     'Personal team for individual programming track subscriptions',
     1,
-    'pr_demo_user',
+    'usr_pr_demo_user',
     0,
     'free',
     strftime('%s', 'now'),
@@ -176,7 +176,7 @@ INSERT OR IGNORE INTO team (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_demo_gym',
+    'team_pr_demo_gym',
     'PR Demo Gym',
     'pr-demo-gym',
     'A demo gym for PR preview testing',
@@ -204,9 +204,9 @@ INSERT OR IGNORE INTO team_membership (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_membership_personal_demo',
-    'pr_personal_team_demo',
-    'pr_demo_user',
+    'tmem_pr_personal_demo',
+    'team_pr_personal_demo',
+    'usr_pr_demo_user',
     'owner',
     1,
     1,
@@ -229,9 +229,9 @@ INSERT OR IGNORE INTO team_membership (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_membership_gym_owner',
-    'pr_demo_gym',
-    'pr_demo_user',
+    'tmem_pr_gym_owner',
+    'team_pr_demo_gym',
+    'usr_pr_demo_user',
     'owner',
     1,
     1,
@@ -255,8 +255,8 @@ INSERT OR IGNORE INTO team_subscription (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_sub_demo_gym',
-    'pr_demo_gym',
+    'tsub_pr_demo_gym',
+    'team_pr_demo_gym',
     'pro',
     'active',
     strftime('%s', 'now'),
@@ -280,8 +280,8 @@ INSERT OR IGNORE INTO workouts (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_workout_fran',
-    'pr_personal_team_demo',
+    'wkt_pr_fran',
+    'team_pr_personal_demo',
     'Fran',
     '21-15-9 Thrusters (95/65 lb) and Pull-ups',
     'time',
@@ -302,8 +302,8 @@ INSERT OR IGNORE INTO workouts (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_workout_cindy',
-    'pr_personal_team_demo',
+    'wkt_pr_cindy',
+    'team_pr_personal_demo',
     'Cindy',
     '5 Pull-ups, 10 Push-ups, 15 Squats - AMRAP 20 minutes',
     'rounds-reps',
@@ -324,8 +324,8 @@ INSERT OR IGNORE INTO workouts (
     updatedAt,
     updateCounter
 ) VALUES (
-    'pr_workout_grace',
-    'pr_personal_team_demo',
+    'wkt_pr_grace',
+    'team_pr_personal_demo',
     'Grace',
     '30 Clean and Jerks (135/95 lb) for time',
     'time',
@@ -338,16 +338,16 @@ INSERT OR IGNORE INTO workouts (
 -- TEAM FEATURE ENTITLEMENTS
 -- ============================================================================
 INSERT OR IGNORE INTO team_feature_entitlement (id, teamId, featureId, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
-('tfe_pr_gym_basic', 'pr_demo_gym', 'feat_basic_workouts', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tfe_pr_gym_tracks', 'pr_demo_gym', 'feat_programming_tracks', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tfe_pr_gym_calendar', 'pr_demo_gym', 'feat_program_calendar', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tfe_pr_gym_scaling', 'pr_demo_gym', 'feat_custom_scaling_groups', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('tfe_pr_gym_basic', 'team_pr_demo_gym', 'feat_basic_workouts', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_pr_gym_tracks', 'team_pr_demo_gym', 'feat_programming_tracks', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_pr_gym_calendar', 'team_pr_demo_gym', 'feat_program_calendar', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tfe_pr_gym_scaling', 'team_pr_demo_gym', 'feat_custom_scaling_groups', 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
 
 -- ============================================================================
 -- TEAM LIMIT ENTITLEMENTS
 -- ============================================================================
 INSERT OR IGNORE INTO team_limit_entitlement (id, teamId, limitId, value, source, sourcePlanId, createdAt, updatedAt, updateCounter) VALUES
-('tle_pr_gym_members', 'pr_demo_gym', 'lmt_max_members_per_team', 25, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tle_pr_gym_tracks', 'pr_demo_gym', 'lmt_max_programming_tracks', -1, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tle_pr_gym_ai', 'pr_demo_gym', 'lmt_ai_messages_per_month', 200, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
-('tle_pr_gym_admins', 'pr_demo_gym', 'lmt_max_admins', 5, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+('tle_pr_gym_members', 'team_pr_demo_gym', 'lmt_max_members_per_team', 25, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_pr_gym_tracks', 'team_pr_demo_gym', 'lmt_max_programming_tracks', -1, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_pr_gym_ai', 'team_pr_demo_gym', 'lmt_ai_messages_per_month', 200, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0),
+('tle_pr_gym_admins', 'team_pr_demo_gym', 'lmt_max_admins', 5, 'plan', 'pro', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
