@@ -1,5 +1,5 @@
 -- Custom registration questions for competitions
-CREATE TABLE `competition_registration_questions` (
+CREATE TABLE IF NOT EXISTS `competition_registration_questions` (
 	`createdAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
 	`updateCounter` integer DEFAULT 0,
@@ -15,12 +15,12 @@ CREATE TABLE `competition_registration_questions` (
 	FOREIGN KEY (`competitionId`) REFERENCES `competitions`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `comp_reg_questions_competition_idx` ON `competition_registration_questions` (`competitionId`);
+CREATE INDEX IF NOT EXISTS `comp_reg_questions_competition_idx` ON `competition_registration_questions` (`competitionId`);
 --> statement-breakpoint
-CREATE INDEX `comp_reg_questions_sort_idx` ON `competition_registration_questions` (`competitionId`,`sortOrder`);
+CREATE INDEX IF NOT EXISTS `comp_reg_questions_sort_idx` ON `competition_registration_questions` (`competitionId`,`sortOrder`);
 --> statement-breakpoint
 -- Athlete answers to registration questions
-CREATE TABLE `competition_registration_answers` (
+CREATE TABLE IF NOT EXISTS `competition_registration_answers` (
 	`createdAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')) NOT NULL,
 	`updateCounter` integer DEFAULT 0,
@@ -34,10 +34,10 @@ CREATE TABLE `competition_registration_answers` (
 	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `comp_reg_answers_question_idx` ON `competition_registration_answers` (`questionId`);
+CREATE INDEX IF NOT EXISTS `comp_reg_answers_question_idx` ON `competition_registration_answers` (`questionId`);
 --> statement-breakpoint
-CREATE INDEX `comp_reg_answers_registration_idx` ON `competition_registration_answers` (`registrationId`);
+CREATE INDEX IF NOT EXISTS `comp_reg_answers_registration_idx` ON `competition_registration_answers` (`registrationId`);
 --> statement-breakpoint
-CREATE INDEX `comp_reg_answers_user_idx` ON `competition_registration_answers` (`userId`);
+CREATE INDEX IF NOT EXISTS `comp_reg_answers_user_idx` ON `competition_registration_answers` (`userId`);
 --> statement-breakpoint
-CREATE UNIQUE INDEX `comp_reg_answers_unique_idx` ON `competition_registration_answers` (`questionId`,`registrationId`,`userId`);
+CREATE UNIQUE INDEX IF NOT EXISTS `comp_reg_answers_unique_idx` ON `competition_registration_answers` (`questionId`,`registrationId`,`userId`);
