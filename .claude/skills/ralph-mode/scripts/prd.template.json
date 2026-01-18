@@ -1,0 +1,38 @@
+{
+  "branchName": "ralph/feature-name",
+  "description": "Brief description of what this Ralph session will accomplish",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Example: Add login form",
+      "category": "functional",
+      "description": "Create a login form with email and password fields",
+      "acceptanceCriteria": [
+        "Email input field exists",
+        "Password input field exists",
+        "Validates email format on submit",
+        "Shows error message on invalid input",
+        "typecheck passes",
+        "tests pass"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Example: Add email validation",
+      "category": "functional",
+      "description": "Validate email format before form submission",
+      "acceptanceCriteria": [
+        "Email regex validation exists",
+        "Invalid emails show error message",
+        "Valid emails allow submission",
+        "typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
