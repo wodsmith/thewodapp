@@ -38,3 +38,5 @@ ALCHEMY_PASSWORD=your-secure-password-here
 
 ### Logging (Optional)
 # LOG_LEVEL=info
+
+CLOUDFLARE_VECTORIZE_API_TOKEN=your-cloudflare-vectorized-token

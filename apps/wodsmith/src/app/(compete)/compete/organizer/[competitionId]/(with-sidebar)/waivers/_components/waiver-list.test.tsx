@@ -290,10 +290,7 @@ describe("WaiverList", () => {
 		const { deleteWaiverAction } = await import("@/actions/waivers")
 		const { toast } = await import("sonner")
 		const mockDelete = vi.mocked(deleteWaiverAction)
-		mockDelete.mockResolvedValue([
-			{ success: true },
-			null,
-		])
+		mockDelete.mockResolvedValue([{ success: true }, null])
 
 		const user = userEvent.setup()
 		const waivers = [createMockWaiver({ title: "Liability Waiver" })]

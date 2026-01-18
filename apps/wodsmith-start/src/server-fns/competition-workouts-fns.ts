@@ -467,7 +467,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 			if (!movementsByWorkout.has(wid)) {
 				movementsByWorkout.set(wid, [])
 			}
-			movementsByWorkout.get(wid)!.push({
+			movementsByWorkout.get(wid)?.push({
 				id: m.movementId,
 				name: m.movementName,
 			})
@@ -480,7 +480,7 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
 			if (!tagsByWorkout.has(wid)) {
 				tagsByWorkout.set(wid, [])
 			}
-			tagsByWorkout.get(wid)!.push({
+			tagsByWorkout.get(wid)?.push({
 				id: t.tagId,
 				name: t.tagName,
 			})

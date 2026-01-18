@@ -69,7 +69,7 @@ function EditablePointsPreview({
 	const handleSaveEdit = () => {
 		if (editingPosition === null) return
 		const newValue = parseInt(editValue, 10)
-		if (!isNaN(newValue) && newValue >= 0) {
+		if (!Number.isNaN(newValue) && newValue >= 0) {
 			onPointEdit(editingPosition, newValue)
 		}
 		setEditingPosition(null)

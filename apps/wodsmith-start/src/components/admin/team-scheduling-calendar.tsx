@@ -101,7 +101,6 @@ function CalendarSkeleton() {
 
 				{/* Calendar days grid - 6 weeks */}
 				<div className="grid grid-cols-7">
-					{/* biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder */}
 					{Array.from({ length: 42 }).map((_, i) => {
 						const hasEvent = eventPattern[i]
 						const hasMultipleEvents = hasEvent && (i % 7 === 2 || i % 7 === 5)
@@ -109,6 +108,7 @@ function CalendarSkeleton() {
 
 						return (
 							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array, items never reorder
 								key={`skeleton-day-${i}`}
 								className={`min-h-[100px] border-r-2 border-b-2 border-border last:border-r-0 p-2 space-y-2 ${
 									isToday ? "bg-orange/10" : "bg-background"

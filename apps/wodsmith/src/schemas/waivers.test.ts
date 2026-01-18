@@ -82,11 +82,11 @@ describe("createWaiverSchema", () => {
 			}
 			const result = createWaiverSchema.safeParse(input)
 			expect(result.success).toBe(false)
-		if (!result.success) {
-			expect(result.error.issues[0]!.message).toContain(
-				"Invalid competition ID",
-			)
-		}
+			if (!result.success) {
+				expect(result.error.issues[0]!.message).toContain(
+					"Invalid competition ID",
+				)
+			}
 		})
 
 		test("rejects missing teamId", () => {

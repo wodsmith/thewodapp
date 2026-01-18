@@ -199,7 +199,7 @@ function applyTiebreakerMethod(
 		case "countback":
 			return applyCountback(athletes)
 		case "head_to_head":
-			return applyHeadToHead(athletes, config.headToHeadEventId!)
+			return applyHeadToHead(athletes, config.headToHeadEventId ?? "")
 	}
 }
 
