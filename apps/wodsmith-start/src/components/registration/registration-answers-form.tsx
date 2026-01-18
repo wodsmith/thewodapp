@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * Registration Answers Form Component
  * Displays and allows editing of competition registration question answers

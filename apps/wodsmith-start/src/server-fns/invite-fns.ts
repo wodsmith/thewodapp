@@ -96,8 +96,8 @@ const acceptTeamInvitationSchema = z.object({
 	answers: z
 		.array(
 			z.object({
-				questionId: z.string(),
-				answer: z.string(),
+				questionId: z.string().min(1),
+				answer: z.string().max(5000),
 			}),
 		)
 		.optional(),
