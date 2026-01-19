@@ -85,3 +85,55 @@ Feature: Volunteer Scheduler for Non-Judge Roles
 - Stories prioritized by dependency order
 - Context documented in this file
 
+## 2026-01-19 - VS-001: Create volunteer_shifts schema
+- Added `createVolunteerShiftId()` function to `src/db/schemas/common.ts` (prefix: `vshft_`)
+- Added `volunteerShiftsTable` to `src/db/schemas/volunteers.ts` with:
+  - Columns: id, competitionId, name, roleType, startTime (integer timestamp), endTime (integer timestamp), location (optional), capacity (default 1), notes (optional), createdAt, updatedAt
+  - Foreign key to competitions table with cascade delete
+  - Indexes on competitionId and startTime
+- Added `VolunteerShift` type export
+- Added `volunteerShiftsRelations` (shift -> competition)
+- Updated `competitionsVolunteerSystemReverseRelations` (renamed from competitionsJudgeRotationsReverseRelations) to include both judgeRotations and volunteerShifts
+- Created migration `0074_add-volunteer-shifts.sql`
+
+**Files changed:**
+- `apps/wodsmith-start/src/db/schemas/common.ts`
+- `apps/wodsmith-start/src/db/schemas/volunteers.ts`
+- `apps/wodsmith-start/src/db/migrations/0074_add-volunteer-shifts.sql`
+- `apps/wodsmith-start/src/db/migrations/meta/_journal.json`
+
+**Learnings:**
+- `pnpm db:generate` doesn't accept migration name as positional argument - use `--name` flag or `--custom` for custom migrations
+- `drizzle-kit generate` can get stuck in interactive mode if it detects schema changes it can't auto-resolve; using `--custom` bypasses this
+- Multiple `relations()` calls for the same table in Drizzle ORM should be consolidated into a single call per table, or use unique relation names
+- The snapshot files in `meta/` are auto-generated when using `--custom` flag
+- Always verify existing migration patterns before creating new ones (e.g., timestamp column mode, foreign key patterns)
+---
+
+## 2026-01-19 - VS-002: Create volunteer_shift_assignments schema
+- Added `createVolunteerShiftAssignmentId()` function to `src/db/schemas/common.ts` (prefix: `vshfta_`)
+- Added `volunteerShiftAssignmentsTable` to `src/db/schemas/volunteers.ts` with:
+  - Columns: id, shiftId, membershipId, notes (optional), createdAt, updatedAt
+  - Foreign keys to volunteer_shifts and team_membership with cascade delete
+  - Indexes on shiftId and membershipId
+  - Unique constraint on (shiftId, membershipId) to prevent duplicate assignments
+- Added `VolunteerShiftAssignment` type export
+- Added `volunteerShiftAssignmentsRelations` (assignment -> shift, membership)
+- Updated `volunteerShiftsRelations` to include `assignments` (many relation)
+- Renamed `teamMembershipJudgeAssignmentsReverseRelations` to `teamMembershipVolunteerReverseRelations` to include `volunteerShiftAssignments`
+- Created migration `0075_add-volunteer-shift-assignments.sql`
+
+**Files changed:**
+- `apps/wodsmith-start/src/db/schemas/common.ts`
+- `apps/wodsmith-start/src/db/schemas/volunteers.ts`
+- `apps/wodsmith-start/src/db/migrations/0075_add-volunteer-shift-assignments.sql`
+- `apps/wodsmith-start/src/db/migrations/meta/_journal.json`
+- `apps/wodsmith-start/src/db/migrations/meta/0075_snapshot.json`
+
+**Learnings:**
+- When adding a junction table, remember to update reverse relations on both parent tables
+- Follow the judgeHeatAssignmentsTable pattern for junction tables: commonColumns, id, foreign keys, optional notes, indexes, unique constraint
+- The `--custom` flag creates an empty migration file that needs manual SQL
+- Rename relations when their scope expands (e.g., judge-specific -> all volunteer types)
+---
+
